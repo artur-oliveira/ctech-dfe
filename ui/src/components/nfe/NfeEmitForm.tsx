@@ -22,6 +22,7 @@ import type {
   NfeDuplicataIn,
   NfeFatIn,
   NfeListOut,
+  NfeLocalIn,
   NfeTransportIn,
   PersonItemOut,
   ProductOut,
@@ -40,6 +41,7 @@ import {
 import {resolveUnitPrice} from "@/lib/data/product-price"
 import {PaymentCardFields} from "@/components/nfe/PaymentCardFields"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
+import {LocationPicker} from "@/components/nfe/LocationPicker"
 
 // ─── Local state types ────────────────────────────────────────────────────────
 
@@ -808,6 +810,11 @@ export function NfeEmitForm() {
   const [currentStep, setCurrentStep] = useState<EmitStep>('destinatario')
   const [receiver, setReceiver] = useState<PersonItemOut | null>(null)
   const [selfIssuance, setSelfIssuance] = useState(false)
+  const [entrega, setEntrega] = useState<NfeLocalIn | null>(null)
+  const [saveEntregaLocation, setSaveEntregaLocation] = useState(false)
+  const [retirada, setRetirada] = useState<NfeLocalIn | null>(null)
+  const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false)
+  const [prevReceiverSk, setPrevReceiverSk] = useState<string | null>(null)
   const [products, setProducts] = useState<EmitProduct[]>([])
   const [payments, setPayments] = useState<EmitPayment[]>([])
   const [additionalInfo, setAdditionalInfo] = useState('')
@@ -847,6 +854,12 @@ export function NfeEmitForm() {
   const {data: nfeConfig} = useQuery({
     queryKey: queryKeys.nfeConfig(selectedOrg!.pk),
     queryFn: () => apiClient.getNFeConfig(selectedOrg!.pk),
+    enabled: !!selectedOrg,
+  })
+
+  const {data: orgData} = useQuery({
+    queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
+    queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
 
@@ -965,6 +978,18 @@ export function NfeEmitForm() {
         v_liq: f.v_liq || totalNfe.toFixed(2),
       }))
     }
+  }
+
+  // ─── Reset entrega when the destinatário changes (setState during render —
+  // same pattern as prevHasPrazoPayment above, avoids the React 19 passive-
+  // effect setState cascade). Saved locations are per-destinatário, so a
+  // stale entrega from a previous receiver must not survive a receiver swap.
+
+  const receiverSk = receiver?.sk ?? null
+  if (receiverSk !== prevReceiverSk) {
+    setPrevReceiverSk(receiverSk)
+    setEntrega(null)
+    setSaveEntregaLocation(false)
   }
 
   // ─── Step navigation ──────────────────────────────────────────────────────
@@ -1132,6 +1157,10 @@ export function NfeEmitForm() {
         ? duplicatas.map(d => ({n_dup: d.n_dup || null, d_venc: d.d_venc || null, v_dup: d.v_dup} as NfeDuplicataIn))
         : null,
       v_troco: vTroco,
+      retirada: retirada,
+      entrega: entrega,
+      save_retirada_location: retirada ? saveRetiradaLocation : false,
+      save_entrega_location: entrega ? saveEntregaLocation : false,
     }
 
     setIsSubmitting(true)
@@ -1236,8 +1265,26 @@ export function NfeEmitForm() {
                 </div>
               )}
               <ReceiverSearch value={receiver} onChange={setReceiver}/>
+              {receiver && (
+                <LocationPicker
+                  label="Local de entrega"
+                  savedLocations={receiver.person.delivery_locations ?? []}
+                  value={entrega}
+                  onChange={setEntrega}
+                  save={saveEntregaLocation}
+                  onSaveChange={setSaveEntregaLocation}
+                />
+              )}
             </>
           )}
+          <LocationPicker
+            label="Local de retirada"
+            savedLocations={orgData?.pickup_locations ?? []}
+            value={retirada}
+            onChange={setRetirada}
+            save={saveRetiradaLocation}
+            onSaveChange={setSaveRetiradaLocation}
+          />
         </div>
       )}
 
