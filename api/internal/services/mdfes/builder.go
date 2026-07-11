@@ -32,10 +32,6 @@ const (
 
 	// tpProp (veicTracao/prop): 0=TAC Agregado, 1=TAC Independente, 2=Outros.
 	tpPropOutros = "2"
-
-	// Default traction-vehicle codes when the registered vehicle omits them.
-	defaultTpRod = "01" // Truck
-	defaultTpCar = "00" // não aplicável
 )
 
 // buildParams carries everything BuildMDFe needs.
@@ -50,7 +46,8 @@ type buildParams struct {
 	modal       string // ModalRodoviario | ModalAereo | ModalAquaviario | ModalFerroviario
 	cargo       *resolvedCargo
 	vehicle     resolvedVehicle
-	owner       *resolvedOwner // third-party traction-vehicle owner (veicTracao/prop)
+	trailers    []resolvedVehicle // veicReboque — up to 3
+	owner       *resolvedOwner    // third-party traction-vehicle owner (veicTracao/prop)
 	drivers     []MdfeDriver
 	route       []string
 	bulkCargo   *MdfeBulkCargo
@@ -170,7 +167,7 @@ func (p buildParams) buildInfModal() map[string]any {
 	return modal
 }
 
-// buildRodo builds the rodoviário modal node (infANTT + veicTracao).
+// buildRodo builds the rodoviário modal node (infANTT + veicTracao + veicReboque).
 func (p buildParams) buildRodo() map[string]any {
 	veic := map[string]any{
 		"placa": p.vehicle.Placa,
@@ -196,6 +193,23 @@ func (p buildParams) buildRodo() map[string]any {
 	veic["condutor"] = condutores
 
 	rodo := map[string]any{"veicTracao": veic}
+	if len(p.trailers) > 0 {
+		reboques := make([]map[string]any, 0, len(p.trailers))
+		for _, t := range p.trailers {
+			reboque := map[string]any{"placa": t.Placa, "tara": t.Tara, "tpCar": t.TpCar}
+			if t.RENAVAM != "" {
+				reboque["RENAVAM"] = t.RENAVAM
+			}
+			if t.CapKG != "" {
+				reboque["capKG"] = t.CapKG
+			}
+			if t.UF != "" {
+				reboque["UF"] = t.UF
+			}
+			reboques = append(reboques, reboque)
+		}
+		rodo["veicReboque"] = reboques
+	}
 	if infANTT := p.buildInfANTT(); len(infANTT) > 0 {
 		rodo["infANTT"] = infANTT
 	}

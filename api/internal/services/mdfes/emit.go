@@ -32,8 +32,9 @@ type MdfeEmitBody struct {
 	Loadings   []MdfeMun `json:"loadings" validate:"omitempty,dive"`
 	Unloadings []MdfeMun `json:"unloadings" validate:"omitempty,dive"`
 
-	Vehicle MdfeVehicle  `json:"vehicle"`
-	Drivers []MdfeDriver `json:"drivers" validate:"omitempty,dive"`
+	Vehicle  MdfeVehicle   `json:"vehicle"`
+	Trailers []MdfeTrailer `json:"trailers" validate:"omitempty,max=3,dive"`
+	Drivers  []MdfeDriver  `json:"drivers" validate:"omitempty,dive"`
 
 	Predominant *MdfeProdPred  `json:"predominant" validate:"omitempty"` // optional override; auto-derived otherwise
 	BulkCargo   *MdfeBulkCargo `json:"bulk_cargo" validate:"omitempty"`  // required when exactly one document
@@ -76,6 +77,11 @@ type MdfeVehicle struct {
 	TpRod   string     `json:"tp_rod" validate:"omitempty"` // tipo de rodado (01..06)
 	TpCar   string     `json:"tp_car" validate:"omitempty"` // tipo de carroceria (00..05)
 	Owner   *MdfeOwner `json:"owner" validate:"omitempty"`  // third-party owner (veicTracao/prop)
+}
+
+// MdfeTrailer is a reboque (trailer) — a registered vehicle with role=trailer.
+type MdfeTrailer struct {
+	SK string `json:"sk" validate:"required"`
 }
 
 // MdfeOwner is the third-party traction-vehicle owner (veicTracao/prop). Provide
@@ -224,6 +230,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	trailers, err := s.resolveTrailers(ctx, orgPK, req.Trailers)
+	if err != nil {
+		return nil, err
+	}
+
 	owner, err := resolveOwner(req.Vehicle.Owner, orgPK)
 	if err != nil {
 		return nil, err
@@ -247,6 +258,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		modal:       modal,
 		cargo:       cargo,
 		vehicle:     resolvedVehicle,
+		trailers:    trailers,
 		owner:       owner,
 		drivers:     req.Drivers,
 		route:       req.Route,
@@ -502,7 +514,9 @@ type resolvedVehicle struct {
 	RNTRC   string // owner RNTRC, when the vehicle is registered with an owner
 }
 
-// resolveVehicle merges a registered vehicle (by SK) with the request overrides.
+// resolveVehicle merges a registered vehicle (by SK) with the request
+// overrides, then blocks with the specific missing fields when the
+// registered vehicle isn't complete enough for MDF-e tractor use.
 func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVehicle) (resolvedVehicle, error) {
 	out := resolvedVehicle{
 		Placa: v.Placa,
@@ -525,6 +539,9 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 		}
 		if vehicle == nil {
 			return resolvedVehicle{}, problem.NotFound("veículo não encontrado: " + *v.SK)
+		}
+		if missing := services.Missing(vehicle, services.DocTypeMdfe, services.VehicleRoleTractor); len(missing) > 0 {
+			return resolvedVehicle{}, problem.BadRequest("veículo incompleto para MDF-e (tração): campos faltando: " + strings.Join(missing, ", "))
 		}
 		if out.Placa == "" {
 			out.Placa = strAttr(vehicle, "plate")
@@ -555,11 +572,38 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 		}
 	}
 
-	if out.TpRod == "" {
-		out.TpRod = defaultTpRod
-	}
-	if out.TpCar == "" {
-		out.TpCar = defaultTpCar
+	return out, nil
+}
+
+// resolveTrailers resolves each trailer SK into a resolvedVehicle, blocking
+// with the specific missing fields when a trailer isn't complete enough for
+// MDF-e use (tara, cap_kg, bodywork — see services.Missing).
+func (s *MdfeService) resolveTrailers(ctx context.Context, orgPK string, trailers []MdfeTrailer) ([]resolvedVehicle, error) {
+	out := make([]resolvedVehicle, 0, len(trailers))
+	for _, t := range trailers {
+		vehicle, err := s.vehicleRepo.Get(ctx, orgPK, t.SK)
+		if err != nil {
+			return nil, err
+		}
+		if vehicle == nil {
+			return nil, problem.NotFound("reboque não encontrado: " + t.SK)
+		}
+		if missing := services.Missing(vehicle, services.DocTypeMdfe, services.VehicleRoleTrailer); len(missing) > 0 {
+			return nil, problem.BadRequest("reboque incompleto para MDF-e: campos faltando: " + strings.Join(missing, ", "))
+		}
+		rv := resolvedVehicle{
+			Placa:   strAttr(vehicle, "plate"),
+			UF:      strAttr(vehicle, "plate_uf"),
+			TpCar:   strAttr(vehicle, "bodywork"),
+			RENAVAM: strAttr(vehicle, "renavam"),
+		}
+		if w := strconv.Itoa(intAttr(vehicle, "weight", 0)); w != "0" {
+			rv.Tara = w
+		}
+		if c := strconv.Itoa(intAttr(vehicle, "cap_kg", 0)); c != "0" {
+			rv.CapKG = c
+		}
+		out = append(out, rv)
 	}
 	return out, nil
 }

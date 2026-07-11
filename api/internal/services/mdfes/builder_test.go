@@ -39,6 +39,33 @@ func veicTracao(t *testing.T, p buildParams) map[string]any {
 	return infModal["rodo"].(map[string]any)["veicTracao"].(map[string]any)
 }
 
+// TestBuildRodo_IncludesVeicReboque verifies trailers passed via
+// buildParams.trailers are emitted as a veicReboque list alongside veicTracao.
+func TestBuildRodo_IncludesVeicReboque(t *testing.T) {
+	p := baseParams(nil)
+	p.trailers = []resolvedVehicle{
+		{Placa: "XYZ1A23", Tara: "5000", TpCar: "01", CapKG: "9000"},
+	}
+	rodo := p.buildRodo()
+	reboques, ok := rodo["veicReboque"].([]map[string]any)
+	if !ok || len(reboques) != 1 {
+		t.Fatalf("veicReboque = %v, want 1-item list", rodo["veicReboque"])
+	}
+	if reboques[0]["placa"] != "XYZ1A23" || reboques[0]["capKG"] != "9000" {
+		t.Errorf("veicReboque[0] = %v, want placa=XYZ1A23 capKG=9000", reboques[0])
+	}
+}
+
+// TestBuildRodo_NoTrailersOmitsVeicReboque confirms the XSD's minOccurs="0" on
+// veicReboque is respected when no trailers are supplied.
+func TestBuildRodo_NoTrailersOmitsVeicReboque(t *testing.T) {
+	p := baseParams(nil)
+	rodo := p.buildRodo()
+	if _, ok := rodo["veicReboque"]; ok {
+		t.Error("veicReboque must be absent when no trailers are supplied")
+	}
+}
+
 // TestOwnVehicle_NoTpTranspNoProp is the regression test for the SEFAZ rejection
 // "Não é permitido informar o campo tpTransp se o proprietário do veículo não
 // for informado." (rule F25/cStat 745). With no owner, neither tpTransp nor the
