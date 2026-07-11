@@ -197,35 +197,48 @@ function MunReorderList({title, hint, muns, onReorder}: {
   )
 }
 
-// ─── register-vehicle modal (reuses VehicleForm) ──────────────────────────────
+// ─── vehicle modal (reuses VehicleForm) — handles both "no vehicle yet" and
+// "vehicle selected but incomplete for this doc-type/role" ──────────────────
 
-function VehicleRegisterModal({open, onClose, onCreated}: {
+function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
   open: boolean
   onClose: () => void
-  onCreated: (v: VehicleOut) => void
+  onSaved: (v: VehicleOut) => void
+  editing?: VehicleOut
+  missing?: string[]
 }) {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
-  const mutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.createVehicle(d),
     onSuccess: (v) => {
       void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
-      onCreated(v)
+      onSaved(v)
     },
   })
+  const updateMutation = useMutation({
+    mutationFn: (d: VehicleCreate) => apiClient.updateVehicle(editing!.sk, d),
+    onSuccess: (v) => {
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
+      onSaved(v)
+    },
+  })
+  const mutation = editing ? updateMutation : createMutation
   if (!open || typeof document === 'undefined') return null
   return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
-          <h2 className="text-lg font-semibold text-gray-900">Cadastrar veículo</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {editing ? 'Completar dados do veículo' : 'Cadastrar veículo'}
+          </h2>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"
                   className="text-gray-400 hover:text-gray-600">×</Button>
         </div>
         <div className="p-6">
-          <VehicleForm onSubmit={async (d) => {
-            await mutation.mutateAsync(d)
-          }} loading={mutation.isPending}/>
+          <VehicleForm initialData={editing} highlightFields={missing}
+                       onSubmit={async (d) => { await mutation.mutateAsync(d) }}
+                       loading={mutation.isPending}/>
         </div>
       </div>
     </div>,
@@ -340,8 +353,10 @@ export function MdfeEmitForm() {
   const [cepCarrega, setCepCarrega] = useState('')
   const [cepDescarrega, setCepDescarrega] = useState('')
 
-  // Vehicle (registered only) + register modal.
+  // Vehicles (registered only) + register/edit modal.
   const [vehicleSk, setVehicleSk] = useState<string | null>(null)
+  const [trailerSks, setTrailerSks] = useState<string[]>([])
+  const [gateModal, setGateModal] = useState<{vehicle: VehicleOut; missing: string[]} | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
 
   // Drivers.
@@ -358,17 +373,42 @@ export function MdfeEmitForm() {
     enabled: !!selectedOrg,
   })
 
-  const {data: vehiclesData} = useQuery({
-    queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
-    queryFn: () => apiClient.getVehicles({limit: 50}),
+  const {data: tractorsData} = useQuery({
+    queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'tractor'),
+    queryFn: () => apiClient.getVehicles({role: 'tractor', limit: 50}),
+    enabled: !!selectedOrg,
+  })
+  const {data: trailersData} = useQuery({
+    queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'trailer'),
+    queryFn: () => apiClient.getVehicles({role: 'trailer', limit: 50}),
     enabled: !!selectedOrg,
   })
 
-  const vehicleOptions = (vehiclesData?.items ?? []).map((v: VehicleOut) => ({
-    value: v.sk,
-    label: `${v.plate} · ${v.plate_uf}${v.owner?.name ? ` · ${v.owner.name}` : ''}`,
-    display: v.plate,
+  const tractorOptions = (tractorsData?.items ?? []).map((v: VehicleOut) => ({
+    value: v.sk, label: `${v.plate} · ${v.plate_uf}`, display: v.plate,
   }))
+  const trailerOptions = (trailersData?.items ?? []).map((v: VehicleOut) => ({
+    value: v.sk, label: `${v.plate} · ${v.plate_uf}`, display: v.plate,
+  }))
+
+  const checkVehicle = async (v: VehicleOut, role: 'tractor' | 'trailer') => {
+    const {missing} = await apiClient.getVehicleRequirements(v.sk, 'mdfe', role)
+    if (missing.length > 0) setGateModal({vehicle: v, missing})
+  }
+
+  const onSelectTractor = (sk: string | null) => {
+    setVehicleSk(sk)
+    const v = tractorsData?.items.find((x) => x.sk === sk)
+    if (v) void checkVehicle(v, 'tractor')
+  }
+
+  const onSelectTrailer = (sk: string) => {
+    setTrailerSks((prev) => prev.includes(sk) ? prev : [...prev, sk])
+    const v = trailersData?.items.find((x) => x.sk === sk)
+    if (v) void checkVehicle(v, 'trailer')
+  }
+
+  const removeTrailer = (sk: string) => setTrailerSks((prev) => prev.filter((s) => s !== sk))
 
   // Seguro só aparece com CT-e. O seletor de documentos é NF-e-only no MVP, logo
   // hasCte é sempre falso; mantido explícito para quando o CT-e for habilitado.
@@ -473,6 +513,7 @@ export function MdfeEmitForm() {
       unloadings: unloadings.length ? unloadings : undefined,
       drivers,
       vehicle: {sk: vehicleSk},
+      trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
@@ -644,22 +685,41 @@ export function MdfeEmitForm() {
         <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Veículo</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Veículo (tração)</p>
               <Button type="button" size="xs" variant="outline"
                       onClick={() => setRegisterOpen(true)}>+ Cadastrar veículo</Button>
             </div>
-            {vehicleOptions.length > 0 ? (
-              <Combobox value={vehicleSk} onValueChange={setVehicleSk} options={vehicleOptions}
+            {tractorOptions.length > 0 ? (
+              <Combobox value={vehicleSk} onValueChange={onSelectTractor} options={tractorOptions}
                         placeholder="Selecione um veículo" searchPlaceholder="Buscar placa..."/>
             ) : (
               <p className="text-sm text-gray-500">
-                Nenhum veículo cadastrado. O MDF-e exige um veículo completo (tara, eixos, carroceria,
-                proprietário/RNTRC) — cadastre um para continuar.
+                Nenhum veículo cadastrado. Cadastre um para continuar.
               </p>
             )}
-            <p className="text-xs text-gray-400">
-              O MDF-e exige dados completos do veículo, por isso utilizamos sempre um veículo cadastrado.
-            </p>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Reboques (opcional, até 3)</p>
+            {trailerSks.length > 0 && (
+              <div className="space-y-1.5">
+                {trailerSks.map((sk) => {
+                  const t = trailerOptions.find((o) => o.value === sk)
+                  return (
+                    <div key={sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <span className="text-gray-700">{t?.label ?? sk}</span>
+                      <Button type="button" variant="ghost" size="xs" onClick={() => removeTrailer(sk)}
+                              className="text-red-500 hover:text-red-700">remover</Button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {trailerSks.length < 3 && trailerOptions.length > 0 && (
+              <Combobox value={null} onValueChange={(sk) => sk && onSelectTrailer(sk)}
+                        options={trailerOptions.filter((o) => !trailerSks.includes(o.value))}
+                        placeholder="Adicionar reboque" searchPlaceholder="Buscar placa..."/>
+            )}
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -715,10 +775,10 @@ export function MdfeEmitForm() {
       </div>
 
       <VehicleRegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)}
-                            onCreated={(v) => {
-                              setVehicleSk(v.sk)
-                              setRegisterOpen(false)
-                            }}/>
+                            onSaved={(v) => { setVehicleSk(v.sk); setRegisterOpen(false) }}/>
+      <VehicleRegisterModal open={!!gateModal} onClose={() => setGateModal(null)}
+                            editing={gateModal?.vehicle} missing={gateModal?.missing}
+                            onSaved={() => setGateModal(null)}/>
     </div>
   )
 }
