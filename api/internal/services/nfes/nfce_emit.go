@@ -164,6 +164,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		req.NatOp, nfceFinNFe, nfceIndFinal, nfceIndPres, nfceTpNF,
 		nil, nil, nil, vTroco,
 		s.tech, nfModel65, supl,
+		nil, nil,
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))

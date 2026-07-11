@@ -312,6 +312,44 @@ func buildEnder(person map[string]any) map[string]string {
 	return ender
 }
 
+// buildLocal builds a TLocal-shaped map (local de retirada/entrega) — same
+// field set for both, per xsd_order.py's "retirada"/"entrega" ordering.
+// Unlike buildEnder (TEndereco), TLocal has no CEP.
+func buildLocal(l *NfeLocalBody) map[string]any {
+	if l == nil {
+		return nil
+	}
+	m := map[string]any{
+		"xLgr":    l.XLgr,
+		"nro":     l.Nro,
+		"xBairro": l.XBairro,
+		"cMun":    l.CMun,
+		"xMun":    l.XMun,
+		"UF":      l.UF,
+		"cPais":   cPaisBrasil,
+		"xPais":   xPaisBrasil,
+	}
+	if l.CNPJ != nil && *l.CNPJ != "" {
+		m["CNPJ"] = *l.CNPJ
+	}
+	if l.CPF != nil && *l.CPF != "" {
+		m["CPF"] = *l.CPF
+	}
+	if l.XNome != nil && *l.XNome != "" {
+		m["xNome"] = *l.XNome
+	}
+	if l.XCpl != nil && *l.XCpl != "" {
+		m["xCpl"] = *l.XCpl
+	}
+	if l.Fone != nil && *l.Fone != "" {
+		m["fone"] = *l.Fone
+	}
+	if l.Email != nil && *l.Email != "" {
+		m["email"] = *l.Email
+	}
+	return m
+}
+
 // BuildEnviNFe constructs the enviNFe dict structure for py-dfe Lambda.
 // Mirrors Python _build_envi_nfe exactly.
 func BuildEnviNFe(
@@ -333,6 +371,7 @@ func BuildEnviNFe(
 	tech TechData,
 	model string,
 	supl map[string]any,
+	retirada, entrega *NfeLocalBody,
 ) map[string]any {
 	isNFCe := model == nfModel65
 	orgPerson := getPersonMap(org)
@@ -948,6 +987,12 @@ func BuildEnviNFe(
 	}
 	if destStruct != nil {
 		infNFe["dest"] = destStruct
+	}
+	if retiradaMap := buildLocal(retirada); retiradaMap != nil {
+		infNFe["retirada"] = retiradaMap
+	}
+	if entregaMap := buildLocal(entrega); entregaMap != nil {
+		infNFe["entrega"] = entregaMap
 	}
 	if cobrFat != nil || len(cobrDuplicatas) > 0 {
 		infNFe["cobr"] = buildCobr(cobrFat, cobrDuplicatas)

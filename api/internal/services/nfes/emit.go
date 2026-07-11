@@ -37,6 +37,11 @@ type NfeEmitBody struct {
 	CobrFat        *NfeFatItem        `json:"cobr_fat" validate:"omitempty"`
 	CobrDuplicatas []NfeDuplicataItem `json:"cobr_duplicatas" validate:"omitempty,dive"`
 	VTroco         *string            `json:"v_troco" validate:"omitempty,money"`
+
+	Retirada             *NfeLocalBody `json:"retirada" validate:"omitempty"`
+	Entrega              *NfeLocalBody `json:"entrega" validate:"omitempty"`
+	SaveRetiradaLocation bool          `json:"save_retirada_location"`
+	SaveEntregaLocation  bool          `json:"save_entrega_location"`
 }
 
 // NfeProductItem is a line item in an NF-e emission request.
@@ -96,6 +101,23 @@ type NfeDuplicataItem struct {
 	NDup  *string `json:"n_dup" validate:"omitempty,max=60"`
 	DVenc *string `json:"d_venc" validate:"omitempty"`
 	VDup  string  `json:"v_dup" validate:"required,money"`
+}
+
+// NfeLocalBody is a TLocal-shaped address (local de retirada/entrega) — a
+// lighter shape than TEndereco (AddressBody): no CEP/postal code in the XSD.
+type NfeLocalBody struct {
+	CNPJ    *string `json:"cnpj" validate:"omitempty,cnpj"`
+	CPF     *string `json:"cpf" validate:"omitempty,cpf"`
+	XNome   *string `json:"x_nome" validate:"omitempty,max=60"`
+	XLgr    string  `json:"x_lgr" validate:"required,max=255"`
+	Nro     string  `json:"nro" validate:"required,max=60"`
+	XCpl    *string `json:"x_cpl" validate:"omitempty,max=60"`
+	XBairro string  `json:"x_bairro" validate:"required,max=60"`
+	CMun    string  `json:"c_mun" validate:"required,ibge"`
+	XMun    string  `json:"x_mun" validate:"required,max=60"`
+	UF      string  `json:"uf" validate:"required,uf"`
+	Fone    *string `json:"fone" validate:"omitempty,phonebr"`
+	Email   *string `json:"email" validate:"omitempty,email"`
 }
 
 // Emit resolves all NF-e data, builds the full enviNFe structure, atomically reserves
@@ -245,6 +267,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		req.NatOp, finNFe, indFinal, indPres, tpNF,
 		resolvedTransport, cobrFatAny, cobrDupAny, req.VTroco,
 		s.tech, nfModel55, nil,
+		req.Retirada, req.Entrega,
 	)
 
 	// Summary products for DynamoDB record
