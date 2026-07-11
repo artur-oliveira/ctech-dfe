@@ -312,6 +312,38 @@ func buildEnder(person map[string]any) map[string]string {
 	return ender
 }
 
+// buildAutXML builds the autXML list (CPF/CNPJ authorized to view this
+// organization's NF-e XML) from the organization's authorized_xml_viewers
+// attribute. Returns nil (key omitted) when the organization has none.
+func buildAutXML(org map[string]any) []map[string]any {
+	raw, _ := org["authorized_xml_viewers"].([]any)
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(raw))
+	for _, v := range raw {
+		vm, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		doc := anyStr(vm, "cpf_cnpj", "")
+		if doc == "" {
+			continue
+		}
+		entry := map[string]any{}
+		if len(doc) == 14 {
+			entry["CNPJ"] = doc
+		} else {
+			entry["CPF"] = doc
+		}
+		out = append(out, entry)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // buildLocal builds a TLocal-shaped map (local de retirada/entrega) — same
 // field set for both, per xsd_order.py's "retirada"/"entrega" ordering.
 // Unlike buildEnder (TEndereco), TLocal has no CEP.
@@ -993,6 +1025,9 @@ func BuildEnviNFe(
 	}
 	if entregaMap := buildLocal(entrega); entregaMap != nil {
 		infNFe["entrega"] = entregaMap
+	}
+	if autXML := buildAutXML(org); autXML != nil {
+		infNFe["autXML"] = autXML
 	}
 	if cobrFat != nil || len(cobrDuplicatas) > 0 {
 		infNFe["cobr"] = buildCobr(cobrFat, cobrDuplicatas)
