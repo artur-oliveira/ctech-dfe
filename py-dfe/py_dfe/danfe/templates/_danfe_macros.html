@@ -1,0 +1,264 @@
+{% macro watermarks(ctx) %}
+  {% if ctx.is_cancelada %}<div class="watermark">{{ ctx.text.cancelada }}</div>{% endif %}
+  {% if ctx.is_homologacao %}<div class="watermark">{{ ctx.text.homologacao }}</div>{% endif %}
+{% endmacro %}
+
+{# A labelled grid cell: tiny caption on top, value (bold) below. #}
+{% macro fld(label, value, cls="") %}
+<td class="fld {{ cls }}"><span class="lbl">{{ label }}</span><span class="val">{{ value }}</span></td>
+{% endmacro %}
+
+{% macro title(text) %}<div class="quadro-title">{{ text }}</div>{% endmacro %}
+
+{% macro canhoto(ctx) %}
+<div class="quadro">
+  <table class="grid"><tr>
+    <td class="recebemos">
+      RECEBEMOS DE {{ ctx.emit.nome }} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA
+      NOTA FISCAL ELETRÔNICA INDICADA ABAIXO.<br>
+      EMISSÃO: {{ ctx.ide.dhEmi_data }} VALOR TOTAL: R$ {{ ctx.totals.vNF }}
+      DESTINATÁRIO: {{ ctx.dest.nome }} - {{ ctx.dest.endereco }} {{ ctx.dest.mun }}-{{ ctx.dest.uf }}
+      <table class="grid stub-sub"><tr>
+        {{ fld("DATA DE RECEBIMENTO", "") }}
+        {{ fld("IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR", "") }}
+      </tr></table>
+    </td>
+    <td class="nfe-stub center">
+      <div class="b xbig">NF-e</div>
+      <div class="b">Nº {{ ctx.ide.nNF }}</div>
+      <div class="b">SÉRIE {{ ctx.ide.serie }}</div>
+    </td>
+  </tr></table>
+</div>
+<div class="cutline"></div>
+{% endmacro %}
+
+{% macro header(ctx) %}
+<div class="quadro">
+  <table class="grid hdr"><tr>
+    <td class="emit">
+      {% if ctx.emit.logo_b64 %}
+      <table class="emit-split"><tr>
+        <td class="logo-col"><img class="logo" src="{{ ctx.emit.logo_b64 }}" alt="logo"></td>
+        <td class="emit-data">
+          <span class="lbl">IDENTIFICAÇÃO DO EMITENTE</span>
+          <div class="b big">{{ ctx.emit.nome }}</div>
+          <div>{{ ctx.emit.endereco }}</div>
+          <div>{{ ctx.emit.mun }} - {{ ctx.emit.uf }} - CEP {{ ctx.emit.cep }}</div>
+          <div>Fone/Fax: {{ ctx.emit.fone }}</div>
+        </td>
+      </tr></table>
+      {% else %}
+      <div class="emit-data center">
+        <span class="lbl">IDENTIFICAÇÃO DO EMITENTE</span>
+        <div class="b big">{{ ctx.emit.nome }}</div>
+        <div>{{ ctx.emit.endereco }}</div>
+        <div>{{ ctx.emit.mun }} - {{ ctx.emit.uf }} - CEP {{ ctx.emit.cep }}</div>
+        <div>Fone/Fax: {{ ctx.emit.fone }}</div>
+      </div>
+      {% endif %}
+    </td>
+    <td class="idbox center">
+      <div class="b xbig">{{ ctx.text.danfe }}</div>
+      <div class="small">{{ ctx.text.danfe_desc }}</div>
+      <div class="tpnf">0 - ENTRADA<br>1 - SAÍDA &nbsp;<span class="tpnf-box">{{ ctx.ide.tpNF }}</span></div>
+      <div class="b">Nº {{ ctx.ide.nNF }}</div>
+      <div class="b">SÉRIE {{ ctx.ide.serie }}</div>
+    </td>
+    <td class="keybox center">
+      <img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave">
+      <span class="lbl">CHAVE DE ACESSO</span>
+      <div class="small b chave">{{ ctx.chave_fmt }}</div>
+      <div class="tiny">{{ ctx.text.consulta }}</div>
+      {% if ctx.is_fs %}
+      <div class="small b">{{ ctx.text.dados_nfe }}</div>
+      <img class="barcode" src="{{ ctx.dados_nfe_barcode }}" alt="dados nf-e">
+      {% endif %}
+    </td>
+  </tr></table>
+</div>
+<div class="quadro">
+  <table class="grid"><tr>
+    {{ fld("NATUREZA DA OPERAÇÃO", ctx.ide.natOp, "w60") }}
+    {% if ctx.show_protocolo and ctx.protocolo %}
+    {{ fld(ctx.protocolo_label, ctx.protocolo.nProt ~ " " ~ ctx.protocolo.dhRecbto, "w40") }}
+    {% else %}
+    {{ fld("", "", "w40") }}
+    {% endif %}
+  </tr></table>
+</div>
+<div class="quadro">
+  <table class="grid"><tr>
+    {{ fld("INSCRIÇÃO MUNICIPAL", ctx.emit.im, "w25") }}
+    {{ fld("INSCRIÇÃO ESTADUAL", ctx.emit.ie, "w25") }}
+    {{ fld("INSC. ESTADUAL SUBST. TRIB.", ctx.emit.iest, "w25") }}
+    {{ fld("CNPJ / CPF", ctx.emit.cnpj, "w25") }}
+  </tr></table>
+</div>
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }}</div>{% endif %}
+{% endmacro %}
+
+{% macro dest_box(ctx) %}
+{{ title("DESTINATÁRIO / REMETENTE") }}
+<div class="quadro">
+  {# Three independent fixed-layout rows (like transp_box) — a single table
+     with mismatched cell-counts per row leaves right-edge gaps in the row
+     dividers under table-layout:auto. #}
+  <table class="grid tfix">
+    <colgroup><col style="width:55%"><col style="width:25%"><col style="width:20%"></colgroup>
+    <tr>
+      {{ fld("NOME / RAZÃO SOCIAL", ctx.dest.nome) }}
+      {{ fld("CNPJ / CPF", ctx.dest.doc) }}
+      {{ fld("DATA DA EMISSÃO", ctx.ide.dhEmi_data) }}
+    </tr>
+  </table>
+  <table class="grid tfix rowtop">
+    <colgroup><col style="width:38%"><col style="width:20%"><col style="width:16%"><col style="width:26%"></colgroup>
+    <tr>
+      {{ fld("ENDEREÇO", ctx.dest.endereco) }}
+      {{ fld("BAIRRO / DISTRITO", "") }}
+      {{ fld("CEP", ctx.dest.cep) }}
+      {{ fld("DATA DA SAÍDA/ENTRADA", ctx.ide.dhSaiEnt_data) }}
+    </tr>
+  </table>
+  <table class="grid tfix rowtop">
+    <colgroup><col style="width:28%"><col style="width:6%"><col style="width:18%"><col style="width:18%"><col style="width:30%"></colgroup>
+    <tr>
+      {{ fld("MUNICÍPIO", ctx.dest.mun) }}
+      {{ fld("UF", ctx.dest.uf) }}
+      {{ fld("FONE / FAX", ctx.dest.fone) }}
+      {{ fld("INSCRIÇÃO ESTADUAL", ctx.dest.ie) }}
+      {{ fld("HORA DA SAÍDA/ENTRADA", ctx.ide.dhSaiEnt_hora) }}
+    </tr>
+  </table>
+</div>
+{% endmacro %}
+
+{% macro fatura_box(ctx) %}
+{% if ctx.duplicatas %}
+{{ title("FATURA / DUPLICATAS") }}
+<div class="quadro">
+  <table class="grid"><tr>
+  {% for d in ctx.duplicatas %}{{ fld("DUP " ~ d.nDup, d.dVenc ~ "  R$ " ~ d.vDup) }}{% endfor %}
+  </tr></table>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro imposto_box(ctx) %}
+{{ title("CÁLCULO DO IMPOSTO") }}
+<div class="quadro">
+  <table class="grid tfix">
+    <colgroup><col style="width:20%"><col style="width:20%"><col style="width:20%"><col style="width:20%"><col style="width:20%"></colgroup>
+    <tr>
+      {{ fld("BASE DE CÁLC. DO ICMS", ctx.totals.vBC, "num") }}
+      {{ fld("VALOR DO ICMS", ctx.totals.vICMS, "num") }}
+      {{ fld("BASE DE CÁLC. ICMS S.T.", ctx.totals.vBCST, "num") }}
+      {{ fld("VALOR DO ICMS SUBST.", ctx.totals.vST, "num") }}
+      {{ fld("V. IMP. IMPORTAÇÃO", ctx.totals.vII, "num") }}
+    </tr>
+    <tr>
+      {{ fld("V. ICMS UF REMET.", ctx.totals.vICMSUFRemet, "num") }}
+      {{ fld("V. FCP UF DEST.", ctx.totals.vFCPUFDest, "num") }}
+      {{ fld("V. TOTAL PRODUTOS", ctx.totals.vProd, "num b") }}
+      {{ fld("VALOR DO FRETE", ctx.totals.vFrete, "num") }}
+      {{ fld("VALOR DO SEGURO", ctx.totals.vSeg, "num") }}
+    </tr>
+    <tr>
+      {{ fld("DESCONTO", ctx.totals.vDesc, "num") }}
+      {{ fld("OUTRAS DESPESAS", ctx.totals.vOutro, "num") }}
+      {{ fld("VALOR TOTAL IPI", ctx.totals.vIPI, "num") }}
+      {{ fld("V. ICMS UF DEST.", ctx.totals.vICMSUFDest, "num") }}
+      {{ fld("V. TOT. TRIB.", ctx.totals.vTotTrib, "num") }}
+    </tr>
+  </table>
+  <table class="grid rowtop">
+    <tr>{{ fld("V. TOTAL DA NOTA", ctx.totals.vNF, "num b") }}</tr>
+  </table>
+</div>
+{% endmacro %}
+
+{% macro transp_box(ctx) %}
+{{ title("TRANSPORTADOR / VOLUMES TRANSPORTADOS") }}
+<div class="quadro">
+  {# Three independent fixed-layout rows so wide fields (doc, IE, pesos) keep
+     their width regardless of the long NOME / ENDEREÇO content. #}
+  <table class="grid tfix">
+    <colgroup><col style="width:34%"><col style="width:22%"><col style="width:16%"><col style="width:28%"></colgroup>
+    <tr>
+      {{ fld("NOME / RAZÃO SOCIAL", ctx.transp.nome) }}
+      {{ fld("FRETE POR CONTA", ctx.transp.modFrete_label) }}
+      {{ fld("PLACA / UF", ctx.transp.placa ~ (" / " ~ ctx.transp.placa_uf if ctx.transp.placa_uf else "")) }}
+      {{ fld("CNPJ / CPF", ctx.transp.doc) }}
+    </tr>
+  </table>
+  <table class="grid tfix rowtop">
+    <colgroup><col style="width:38%"><col style="width:26%"><col style="width:8%"><col style="width:28%"></colgroup>
+    <tr>
+      {{ fld("ENDEREÇO", ctx.transp.ender) }}
+      {{ fld("MUNICÍPIO", ctx.transp.mun) }}
+      {{ fld("UF", ctx.transp.uf) }}
+      {{ fld("INSCRIÇÃO ESTADUAL", ctx.transp.ie) }}
+    </tr>
+  </table>
+  <table class="grid tfix rowtop">
+    <colgroup><col style="width:14%"><col style="width:20%"><col style="width:18%"><col style="width:24%"><col style="width:24%"></colgroup>
+    <tr>
+      {{ fld("QUANTIDADE", ctx.transp.qVol) }}
+      {{ fld("ESPÉCIE", ctx.transp.esp) }}
+      {{ fld("MARCA", ctx.transp.marca) }}
+      {{ fld("PESO BRUTO", ctx.transp.pesoB, "num") }}
+      {{ fld("PESO LÍQUIDO", ctx.transp.pesoL, "num") }}
+    </tr>
+  </table>
+</div>
+{% endmacro %}
+
+{% macro produtos_table(ctx) %}
+{{ title("DADOS DOS PRODUTOS / SERVIÇOS") }}
+<div class="quadro">
+  <table class="grid items">
+    <colgroup>
+      <col style="width:7%"><col style="width:20%"><col style="width:7%">
+      <col style="width:5%"><col style="width:5%"><col style="width:4%">
+      <col style="width:6%"><col style="width:7%"><col style="width:7%">
+      <col style="width:6%"><col style="width:6%"><col style="width:6%">
+      <col style="width:6%"><col style="width:4%"><col style="width:4%">
+    </colgroup>
+    <thead><tr class="head">
+      <td>CÓDIGO<br>PRODUTO</td><td>DESCRIÇÃO DO PRODUTO / SERVIÇO</td><td>NCM/SH</td>
+      <td>O/CST</td><td>CFOP</td><td>UN</td><td class="num">QUANT</td>
+      <td class="num">VALOR<br>UNIT</td><td class="num">VALOR<br>TOTAL</td>
+      <td class="num">VALOR<br>DESC</td><td class="num">B.CÁLC<br>ICMS</td>
+      <td class="num">VALOR<br>ICMS</td><td class="num">VALOR<br>IPI</td>
+      <td class="num">ALÍQ.<br>ICMS</td><td class="num">ALÍQ.<br>IPI</td>
+    </tr></thead>
+    <tbody>
+    {% for it in ctx.produtos %}
+    <tr>
+      <td>{{ it.cProd }}</td><td>{{ it.xProd }}</td><td>{{ it.NCM }}</td>
+      <td>{{ it.origCST }}</td><td>{{ it.CFOP }}</td><td>{{ it.uCom }}</td>
+      <td class="num">{{ it.qCom }}</td><td class="num">{{ it.vUnCom }}</td>
+      <td class="num">{{ it.vProd }}</td><td class="num">{{ it.vDesc }}</td>
+      <td class="num">{{ it.vBC }}</td><td class="num">{{ it.vICMS }}</td>
+      <td class="num">{{ it.vIPI }}</td><td class="num">{{ it.pICMS }}</td>
+      <td class="num">{{ it.pIPI }}</td>
+    </tr>
+    {% if it.infAdProd %}<tr><td></td><td colspan="14" class="small">{{ it.infAdProd }}</td></tr>{% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% macro infadic_box(ctx) %}
+{{ title("DADOS ADICIONAIS") }}
+<div class="quadro">
+  <table class="grid"><tr>
+    <td class="fld w70"><span class="lbl">INFORMAÇÕES COMPLEMENTARES</span>
+      {% for line in ctx.msg_fiscal %}<div>{{ line }}</div>{% endfor %}
+      {% for line in ctx.msg_contribuinte %}<div>{{ line }}</div>{% endfor %}</td>
+    <td class="fld w30"><span class="lbl">RESERVADO AO FISCO</span></td>
+  </tr></table>
+</div>
+{% endmacro %}

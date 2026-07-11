@@ -1,0 +1,550 @@
+import axios, {AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
+import type {
+  AuditLogOut,
+  CertificateOut,
+  LookupOrganizationOut,
+  CTeConfigOut,
+  MDFeConfigOut,
+  MeResponse,
+  MdfeCargoPreview,
+  MdfeDetailOut,
+  MdfeDocRef,
+  MdfeEmit,
+  MdfeIncludeDFeDoc,
+  MdfeListOut,
+  NFCeConfigOut,
+  NFeConfigOut,
+  NFeDistributionOut,
+  SyncEnqueuedOut,
+  DistributionLookupOut,
+  NfeDetailOut,
+  NfeEmit,
+  NfceEmit,
+  NfeEventOut,
+  NfeListOut,
+  OrganizationOut,
+  PaginatedResponse,
+  PersonCreate,
+  PersonItemOut,
+  PersonUpdate,
+  ProductCreate,
+  ProductOut,
+  ProductUpdate,
+  RoleOut,
+  VehicleCreate,
+  VehicleOut,
+  VehicleUpdate,
+} from '@/lib/types/api'
+import {unformatCpfCnpj} from "@/lib/utils/document";
+import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
+import {stripNulls, isStrippableBody} from '@/lib/utils/strip-nulls'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const ORG_HEADER = 'Dfe-Organization-Pk'
+
+// Access token held in memory only — never written to localStorage.
+let _accessToken: string | null = null
+
+// AuthContext registers this to supply a fresh access token on 401.
+let _refreshFn: (() => Promise<string | null>) | null = null
+
+export function registerRefreshFn(fn: () => Promise<string | null>): void {
+  _refreshFn = fn
+}
+
+export function getAccessToken(): string | null {
+  return _accessToken
+}
+
+interface ErrorResponseBody {
+  detail?: string
+  title?: string
+  [key: string]: unknown
+}
+
+async function parseResponseErrToJson(response: AxiosResponse): Promise<ErrorResponseBody> {
+  if (response.data instanceof Blob) {
+    const text = await response.data.text();
+    return JSON.parse(text);
+  }
+  return response.data;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly detail: string,
+    public readonly raw?: unknown,
+  ) {
+    super(detail)
+    this.name = 'ApiError'
+  }
+}
+
+function createAxiosInstance(): AxiosInstance {
+  const instance = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {'Content-Type': 'application/json'},
+  })
+
+  instance.interceptors.request.use((config) => {
+    if (_accessToken) config.headers.Authorization = `Bearer ${_accessToken}`
+
+    if (typeof window !== 'undefined') {
+      const orgRaw = localStorage.getItem(STORAGE_KEY_ORG)
+      if (orgRaw) {
+        try {
+          const org = JSON.parse(orgRaw) as { pk: string }
+          if (org?.pk) config.headers[ORG_HEADER] = unformatCpfCnpj(org.pk)
+        } catch {
+          // ignore malformed storage
+        }
+      }
+    }
+
+    // Only strip plain JSON bodies — never FormData/Blob/etc. (would be flattened to {}).
+    if (isStrippableBody(config.data)) {
+      const method = (config.method ?? 'get').toLowerCase()
+      const dropNull = method === 'post' // create: no clear semantics; updates keep null
+      config.data = stripNulls(config.data, dropNull)
+    }
+    return config
+  })
+
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
+      if (error.response?.status === 401 && original && !original._retry && _refreshFn) {
+        original._retry = true
+        const newToken = await _refreshFn()
+        if (newToken) {
+          _accessToken = newToken
+          original.headers = {
+            ...original.headers,
+            Authorization: `Bearer ${newToken}`,
+          }
+          return instance(original)
+        }
+        // Refresh failed — start OAuth flow (imported lazily to avoid SSR issues).
+        // Never use /callback as returnTo; that would loop back into the callback handler.
+        if (typeof window !== 'undefined') {
+          const {startOAuthFlow} = await import('@/lib/auth/oauth')
+          const returnTo = window.location.pathname === '/callback' ? '/' : window.location.pathname
+          await startOAuthFlow(returnTo)
+        }
+        return
+      }
+      const data = error.response ? await parseResponseErrToJson(error.response) : undefined
+      const detail = data?.detail ?? data?.title ?? error.message ?? `HTTP ${error.response?.status}`
+      throw new ApiError(error.response?.status ?? 0, detail, data)
+    },
+  )
+
+  return instance
+}
+
+class ApiClient {
+  private readonly http: AxiosInstance
+
+  constructor() {
+    this.http = createAxiosInstance()
+  }
+
+  setToken(token: string | null): void {
+    _accessToken = token
+  }
+
+  private async get<T>(path: string, config?: AxiosRequestConfig): Promise<T> {
+    return (await this.http.get<T>(path, config)).data
+  }
+
+  private async post<T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return (await this.http.post<T>(path, body, config)).data
+  }
+
+  private async put<T>(path: string, body?: unknown): Promise<T> {
+    return (await this.http.put<T>(path, body)).data
+  }
+
+  private async del<T>(path: string): Promise<T> {
+    return (await this.http.delete<T>(path)).data
+  }
+
+  // Auth
+  async me(): Promise<MeResponse> {
+    return this.get<MeResponse>('/v1.0/auth/me')
+  }
+
+  async getRoles(): Promise<RoleOut[]> {
+    return this.get<RoleOut[]>('/v1.0/auth/roles')
+  }
+
+  async acceptTermsAddendum(): Promise<void> {
+    await this.post('/v1.0/auth/terms-addendum/accept')
+  }
+
+  // Organizations (path-based, no header needed)
+  async getOrganizations(): Promise<OrganizationOut[]> {
+    return this.get<OrganizationOut[]>('/v1.0/organizations')
+  }
+
+  async getOrganization(pk: string): Promise<OrganizationOut> {
+    return this.get<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
+  }
+
+  async createOrganization(data: unknown): Promise<OrganizationOut> {
+    return this.post<OrganizationOut>('/v1.0/organizations', data)
+  }
+
+  async updateOrganization(pk: string, data: unknown): Promise<OrganizationOut> {
+    return this.put<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`, data)
+  }
+
+  async deleteOrganization(pk: string): Promise<void> {
+    return this.del<void>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
+  }
+
+  // Products — org context auto-injected via Dfe-Organization-Pk header
+  async getProducts(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<ProductOut>> {
+    return this.get('/v1.0/products', {params})
+  }
+
+  async getProduct(id: string): Promise<ProductOut> {
+    return this.get(`/v1.0/products/${id}`)
+  }
+
+  async createProduct(data: ProductCreate): Promise<ProductOut> {
+    return this.post('/v1.0/products', data)
+  }
+
+  async updateProduct(id: string, data: ProductUpdate): Promise<ProductOut> {
+    return this.put(`/v1.0/products/${id}`, data)
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    return this.del(`/v1.0/products/${id}`)
+  }
+
+  // Vehicles
+  async getVehicles(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<VehicleOut>> {
+    return this.get('/v1.0/vehicles', {params})
+  }
+
+  async getVehicle(id: string): Promise<VehicleOut> {
+    return this.get(`/v1.0/vehicles/${id}`)
+  }
+
+  async createVehicle(data: VehicleCreate): Promise<VehicleOut> {
+    return this.post('/v1.0/vehicles', data)
+  }
+
+  async updateVehicle(id: string, data: VehicleUpdate): Promise<VehicleOut> {
+    return this.put(`/v1.0/vehicles/${id}`, data)
+  }
+
+  async deleteVehicle(id: string): Promise<void> {
+    return this.del(`/v1.0/vehicles/${id}`)
+  }
+
+  // Persons (Clientes/Fornecedores)
+  async getPersons(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<PersonItemOut>> {
+    return this.get('/v1.0/persons', {params})
+  }
+
+  async getPerson(cpfCnpj: string): Promise<PersonItemOut> {
+    return this.get(`/v1.0/persons/${cpfCnpj}`)
+  }
+
+  async createPerson(data: PersonCreate): Promise<PersonItemOut> {
+    return this.post('/v1.0/persons', data)
+  }
+
+  async updatePerson(cpfCnpj: string, data: PersonUpdate): Promise<PersonItemOut> {
+    return this.put(`/v1.0/persons/${cpfCnpj}`, data)
+  }
+
+  async deletePerson(cpfCnpj: string): Promise<void> {
+    return this.del(`/v1.0/persons/${cpfCnpj}`)
+  }
+
+  // Fiscal configs (path-based, org in URL not header)
+  async getNFeConfig(pk: string): Promise<NFeConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfe-config`)
+  }
+
+  async upsertNFeConfig(pk: string, data: object): Promise<NFeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfe-config`, data)
+  }
+
+  async getNFCeConfig(pk: string): Promise<NFCeConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfce-config`)
+  }
+
+  async upsertNFCeConfig(pk: string, data: object): Promise<NFCeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfce-config`, data)
+  }
+
+  async getCTeConfig(pk: string): Promise<CTeConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/cte-config`)
+  }
+
+  async upsertCTeConfig(pk: string, data: object): Promise<CTeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/cte-config`, data)
+  }
+
+  async getMDFeConfig(pk: string): Promise<MDFeConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/mdfe-config`)
+  }
+
+  async upsertMDFeConfig(pk: string, data: object): Promise<MDFeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/mdfe-config`, data)
+  }
+
+  // Certificates
+  async getCertificates(pk: string): Promise<CertificateOut[]> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/certificates`)
+  }
+
+  async uploadCertificate(pk: string, file: File, password: string): Promise<CertificateOut> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('password', password)
+    return (await this.http.post<CertificateOut>(
+      `/v1.0/organizations/${unformatCpfCnpj(pk)}/certificates`,
+      formData,
+      {headers: {'Content-Type': undefined}},
+    )).data
+  }
+
+  async deleteCertificate(pk: string, md5: string): Promise<void> {
+    return this.del(`/v1.0/organizations/${unformatCpfCnpj(pk)}/certificates/${md5}`)
+  }
+
+  // NF-es — uses Dfe-Organization-Pk header
+  async getNfes(params?: {
+    limit?: number
+    cursor?: string
+    year?: number
+    month?: number
+    day?: number
+    number?: number
+    incoming?: 0 | 1 | 2
+    sort?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<NfeListOut>> {
+    return this.get('/v1.0/nfes', {params})
+  }
+
+  async getNfe(accessKey: string): Promise<NfeDetailOut> {
+    return this.get(`/v1.0/nfes/${accessKey}`)
+  }
+
+  async emitNfe(data: NfeEmit): Promise<NfeDetailOut> {
+    return this.post('/v1.0/nfes', data)
+  }
+
+  async cancelNfe(accessKey: string, justification: string, sequenceNumber = 1): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfes/${accessKey}/cancel`, {justification, sequence_number: sequenceNumber})
+  }
+
+  async sendCorrectionLetter(accessKey: string, correctionText: string, sequenceNumber = 1): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfes/${accessKey}/correction-letter`, {
+      correction_text: correctionText,
+      sequence_number: sequenceNumber
+    })
+  }
+
+  async sendManifestation(accessKey: string, eventType: string, sequenceNumber = 1, justification?: string): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfes/${accessKey}/manifestation`, {
+      event_type: eventType,
+      sequence_number: sequenceNumber,
+      justification
+    })
+  }
+
+  async getNfeEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/nfes/${accessKey}/events`, {params: {limit: 50}})
+  }
+
+  async downloadNfeEventXml(accessKey: string, eventSk: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfeXml(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfeDanfe(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/danfe`, {responseType: 'blob'})).data
+  }
+
+  // NFC-es (modelo 65) — same record shape as NF-e, distinct routes
+  async listNfces(params?: {
+    limit?: number
+    cursor?: string
+    year?: number
+    month?: number
+    day?: number
+    number?: number
+    sort?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<NfeListOut>> {
+    return this.get('/v1.0/nfces', {params})
+  }
+
+  async getNfce(accessKey: string): Promise<NfeDetailOut> {
+    return this.get(`/v1.0/nfces/${accessKey}`)
+  }
+
+  async emitNfce(data: NfceEmit): Promise<NfeDetailOut> {
+    return this.post('/v1.0/nfces', data)
+  }
+
+  async cancelNfce(accessKey: string, justification: string, sequenceNumber = 1): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfces/${accessKey}/cancel`, {justification, sequence_number: sequenceNumber})
+  }
+
+  async substituteNfce(accessKey: string, substituteKey: string, justification: string, sequenceNumber = 1): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfces/${accessKey}/substitute`, {
+      substitute_key: substituteKey,
+      justification,
+      sequence_number: sequenceNumber,
+    })
+  }
+
+  async getNfceEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/nfces/${accessKey}/events`, {params: {limit: 50}})
+  }
+
+  async downloadNfceXml(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfceEventXml(accessKey: string, eventSk: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfceDanfe(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/danfce`, {responseType: 'blob'})).data
+  }
+
+  // MDF-es (modelo 58) — uses Dfe-Organization-Pk header
+  async getMdfes(params?: {
+    limit?: number
+    cursor?: string
+    year?: number
+    month?: number
+    day?: number
+    number?: number
+    sort?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<MdfeListOut>> {
+    return this.get('/v1.0/mdfes', {params})
+  }
+
+  async getMdfe(accessKey: string): Promise<MdfeDetailOut> {
+    return this.get(`/v1.0/mdfes/${accessKey}`)
+  }
+
+  async emitMdfe(data: MdfeEmit): Promise<MdfeDetailOut> {
+    return this.post('/v1.0/mdfes', data)
+  }
+
+  async previewMdfeCargo(documents: MdfeDocRef[]): Promise<MdfeCargoPreview> {
+    return this.post('/v1.0/mdfes/cargo-preview', {documents})
+  }
+
+  async cancelMdfe(accessKey: string, justification: string, sequenceNumber = 1): Promise<MdfeDetailOut> {
+    return this.post(`/v1.0/mdfes/${accessKey}/cancel`, {justification, sequence_number: sequenceNumber})
+  }
+
+  async closeMdfe(accessKey: string, ibgeCode: string, uf?: string, sequenceNumber = 1): Promise<MdfeDetailOut> {
+    return this.post(`/v1.0/mdfes/${accessKey}/close`, {ibge_code: ibgeCode, uf, sequence_number: sequenceNumber})
+  }
+
+  async includeMdfeCondutor(accessKey: string, name: string, cpf: string, sequenceNumber = 1): Promise<MdfeDetailOut> {
+    return this.post(`/v1.0/mdfes/${accessKey}/include-condutor`, {name, cpf, sequence_number: sequenceNumber})
+  }
+
+  async includeMdfeDFe(accessKey: string, loadingIbgeCode: string, loadingCity: string, documents: MdfeIncludeDFeDoc[], sequenceNumber = 1): Promise<MdfeDetailOut> {
+    return this.post(`/v1.0/mdfes/${accessKey}/include-dfe`, {
+      loading_ibge_code: loadingIbgeCode,
+      loading_city: loadingCity,
+      documents,
+      sequence_number: sequenceNumber,
+    })
+  }
+
+  async getMdfeEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/mdfes/${accessKey}/events`, {params: {limit: 50}})
+  }
+
+  async downloadMdfeXml(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadMdfeEventXml(accessKey: string, eventSk: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadMdfeDamdfe(accessKey: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/damdfe`, {responseType: 'blob'})).data
+  }
+
+  async downloadDistributionXml(docType: string, nsu: number): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/distributions/${docType}/history/${nsu}/xml`, {responseType: 'blob'})).data
+  }
+
+  async listDistributions(docType: string, params?: {
+    limit?: number;
+    cursor?: string
+  }): Promise<PaginatedResponse<NFeDistributionOut>> {
+    return this.get(`/v1.0/distributions/${docType}/history`, {params})
+  }
+
+  async syncDistributions(docType: string): Promise<SyncEnqueuedOut> {
+    return this.post(`/v1.0/distributions/${docType}/sync`)
+  }
+
+  async lookupDistributionByNsu(docType: string, nsu: number): Promise<DistributionLookupOut> {
+    return this.get(`/v1.0/distributions/${docType}/nsu/${nsu}`)
+  }
+
+  async lookupDistributionByKey(docType: string, accessKey: string): Promise<DistributionLookupOut> {
+    return this.get(`/v1.0/distributions/${docType}/key/${accessKey}`)
+  }
+
+  // Audit log — org context auto-injected via Dfe-Organization-Pk header
+  async getAuditLogs(params?: {
+    resourceType?: string
+    resourceId?: string
+    userId?: string
+    limit?: number
+    cursor?: string
+  }): Promise<PaginatedResponse<AuditLogOut>> {
+    return this.get('/v1.0/audit-logs', {
+      params: {
+        resource_type: params?.resourceType,
+        resource_id: params?.resourceId,
+        user_id: params?.userId,
+        limit: params?.limit,
+        cursor: params?.cursor,
+      },
+    })
+  }
+
+  // External lookups
+  async lookupOrganization(cpf_cnpj: string, uf: string): Promise<LookupOrganizationOut> {
+    return this.get<LookupOrganizationOut>('/v1.0/external/lookup-organizations', {params: {cpf_cnpj, uf}})
+  }
+
+  async searchPersonsByName(name: string): Promise<PaginatedResponse<PersonItemOut>> {
+    // Person names are stored uppercase (see PersonForm/EntityForm), so the query
+    // is uppercased to keep name matching assertive regardless of typed case.
+    return this.get('/v1.0/persons', {params: {name: name.toUpperCase(), limit: 8}})
+  }
+
+  async getPersonByCpfCnpj(cpfCnpj: string): Promise<PersonItemOut> {
+    return this.get(`/v1.0/persons/${cpfCnpj}`)
+  }
+}
+
+export const apiClient = new ApiClient()

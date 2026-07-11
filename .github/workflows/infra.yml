@@ -1,0 +1,164 @@
+name: Infrastructure
+
+on:
+  push:
+    branches: [ main, staging, dev ]
+    paths:
+      - 'cdk/**'
+      - 'py-dfe/layer/requirements.txt'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    branches: [ main, staging, dev ]
+    paths:
+      - 'cdk/**'
+      - 'py-dfe/layer/requirements.txt'
+      - '.github/workflows/infra.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    name: CDK Diff
+    runs-on: ubuntu-24.04-arm
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.base_ref }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: Install dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-infra
+          aws-region: us-east-1
+
+      - name: Read ctech shared infrastructure values
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          echo "CTECH_VPC_ID=$(aws ssm get-parameter --name /ctech/${ENV}/network/vpc-id --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+          echo "CTECH_DEPLOYMENTS_BUCKET=$(aws ssm get-parameter --name /ctech/${ENV}/s3/deployments-bucket --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+          echo "CTECH_LOGS_BUCKET=$(aws ssm get-parameter --name /ctech/${ENV}/s3/logs-bucket --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+
+      - name: CDK Diff
+        id: diff
+        working-directory: cdk
+        run: npx cdk diff --all 2>&1 | tee diff.txt
+        env:
+          ENVIRONMENT: ${{ steps.env.outputs.name }}
+
+      - name: Comment diff on PR
+        uses: actions/github-script@v9
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const diff = fs.readFileSync('cdk/diff.txt', 'utf8');
+            const body = `## CDK Diff (\`${{ steps.env.outputs.name }}\`)\n\`\`\`\n${diff.slice(0, 60000)}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+  deploy:
+    name: CDK Deploy
+    runs-on: ubuntu-24.04-arm
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: Install dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-infra
+          aws-region: us-east-1
+
+      - name: Read ctech shared infrastructure values
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          echo "CTECH_VPC_ID=$(aws ssm get-parameter --name /ctech/${ENV}/network/vpc-id --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+          echo "CTECH_DEPLOYMENTS_BUCKET=$(aws ssm get-parameter --name /ctech/${ENV}/s3/deployments-bucket --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+          echo "CTECH_LOGS_BUCKET=$(aws ssm get-parameter --name /ctech/${ENV}/s3/logs-bucket --query Parameter.Value --output text)" >> "$GITHUB_ENV"
+
+      - name: CDK Deploy
+        working-directory: cdk
+        # NO CDK_LOCAL_BUNDLING: the PyDfe layer MUST bundle in the AL2023
+        # arm64 SAM image so build.sh can dnf-install the native pango/cairo/
+        # fontconfig .so that WeasyPrint dlopen()s at runtime. Building those
+        # libs on the ubuntu-24.04 host instead would link them against glibc
+        # 2.39 — Lambda's AL2023 only has 2.34 → load failure. The runner is
+        # arm64 + Docker-enabled, so the linux/arm64 image runs natively (no qemu).
+        # CtechDfe-Global-OIDC is intentionally excluded via the env-scoped glob
+        # (CtechDfe-Prod-* / CtechDfe-Stage-* / CtechDfe-Dev-*). CDK has no --exclude flag.
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          npx cdk deploy "CtechDfe-${ENV^}-*" \
+            --require-approval never
+        env:
+          ENVIRONMENT: ${{ steps.env.outputs.name }}
+          CTECH_VPC_ID: ${{ env.CTECH_VPC_ID }}
+          CTECH_DEPLOYMENTS_BUCKET: ${{ env.CTECH_DEPLOYMENTS_BUCKET }}
+          CTECH_LOGS_BUCKET: ${{ env.CTECH_LOGS_BUCKET }}
+          FRONTEND_DOMAIN: ${{ vars[format('{0}_FRONTEND_DOMAIN', steps.env.outputs.name)] }}

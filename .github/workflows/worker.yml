@@ -1,0 +1,177 @@
+name: Worker Lambda
+
+on:
+  push:
+    branches: [main, staging, dev]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/worker.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: worker/go.mod
+          cache-dependency-path: worker/go.sum
+
+      - name: Run tests
+        working-directory: worker
+        run: go test ./... -race -count=1
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-24.04-arm
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: worker/go.mod
+          cache-dependency-path: worker/go.sum
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-worker
+          aws-region: us-east-1
+
+      - name: Build Lambda binaries
+        working-directory: worker
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          VERSION="$(date -u '+%Y%m%d-%H%M')-${{ github.ref_name }}-${SHORT_SHA:0:7}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+            mkdir -p "dist/${cmd}"
+            CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+              go build -ldflags="-s -w" -o "dist/${cmd}/bootstrap" "./cmd/${cmd}"
+          done
+
+      - name: Package Lambda binaries
+        working-directory: worker
+        run: |
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+            zip "${cmd}-${VERSION}.zip" -j "dist/${cmd}/bootstrap"
+          done
+
+      - name: Upload to S3
+        working-directory: worker
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+            aws s3 cp "${cmd}-${VERSION}.zip" \
+              "s3://${ENV}-ctech-deployments/ctech-dfe/worker/${cmd}-${VERSION}.zip"
+          done
+
+      - name: Update emission/event worker functions
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          FUNCTIONS=(
+            "${ENV}-nfe-emission-worker"
+            "${ENV}-nfe-event-worker"
+            "${ENV}-nfe-inutilization-worker"
+            "${ENV}-cte-emission-worker"
+            "${ENV}-cte-event-worker"
+            "${ENV}-mdfe-emission-worker"
+            "${ENV}-mdfe-event-worker"
+          )
+          for fn in "${FUNCTIONS[@]}"; do
+            aws lambda update-function-code \
+              --function-name "$fn" \
+              --s3-bucket "${ENV}-ctech-deployments" \
+              --s3-key "ctech-dfe/worker/worker-${VERSION}.zip" \
+              --no-cli-pager &
+          done
+          wait
+
+      - name: Update distribution-worker function
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          aws lambda update-function-code \
+            --function-name "${ENV}-distribution-worker" \
+            --s3-bucket "${ENV}-ctech-deployments" \
+            --s3-key "ctech-dfe/worker/distribution-worker-${VERSION}.zip" \
+            --no-cli-pager
+
+      - name: Update dlq-processor functions
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          FUNCTIONS=(
+            "${ENV}-nfe-emission-worker-dlq-processor"
+            "${ENV}-nfe-event-worker-dlq-processor"
+            "${ENV}-nfe-inutilization-worker-dlq-processor"
+            "${ENV}-cte-emission-worker-dlq-processor"
+            "${ENV}-cte-event-worker-dlq-processor"
+            "${ENV}-mdfe-emission-worker-dlq-processor"
+            "${ENV}-mdfe-event-worker-dlq-processor"
+            "${ENV}-distribution-worker-dlq-processor"
+          )
+          for fn in "${FUNCTIONS[@]}"; do
+            aws lambda update-function-code \
+              --function-name "$fn" \
+              --s3-bucket "${ENV}-ctech-deployments" \
+              --s3-key "ctech-dfe/worker/dlq-processor-${VERSION}.zip" \
+              --no-cli-pager &
+          done
+          wait
+
+      - name: Update distribution-dispatcher function
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          aws lambda update-function-code \
+            --function-name "${ENV}-distribution-dispatcher" \
+            --s3-bucket "${ENV}-ctech-deployments" \
+            --s3-key "ctech-dfe/worker/distribution-dispatcher-${VERSION}.zip" \
+            --no-cli-pager
+
+      - name: Wait for all functions to be active
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          FUNCTIONS=(
+            "${ENV}-nfe-emission-worker"
+            "${ENV}-nfe-event-worker"
+            "${ENV}-nfe-inutilization-worker"
+            "${ENV}-cte-emission-worker"
+            "${ENV}-cte-event-worker"
+            "${ENV}-mdfe-emission-worker"
+            "${ENV}-mdfe-event-worker"
+            "${ENV}-distribution-worker"
+            "${ENV}-nfe-emission-worker-dlq-processor"
+            "${ENV}-nfe-event-worker-dlq-processor"
+            "${ENV}-nfe-inutilization-worker-dlq-processor"
+            "${ENV}-cte-emission-worker-dlq-processor"
+            "${ENV}-cte-event-worker-dlq-processor"
+            "${ENV}-mdfe-emission-worker-dlq-processor"
+            "${ENV}-mdfe-event-worker-dlq-processor"
+            "${ENV}-distribution-worker-dlq-processor"
+            "${ENV}-distribution-dispatcher"
+          )
+          for fn in "${FUNCTIONS[@]}"; do
+            aws lambda wait function-updated --function-name "$fn" &
+          done
+          wait

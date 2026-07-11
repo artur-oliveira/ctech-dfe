@@ -1,0 +1,67 @@
+package v1
+
+import (
+	"github.com/artur-oliveira/ctech-dfe/api/internal/awsclient"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	mdfesvc "github.com/artur-oliveira/ctech-dfe/api/internal/services/mdfes"
+	nfesvc "github.com/artur-oliveira/ctech-dfe/api/internal/services/nfes"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
+
+	"github.com/gofiber/fiber/v3"
+)
+
+// Services bundles all service-layer dependencies for route registration.
+type Services struct {
+	Org          *services.OrganizationService
+	User         *services.UserService
+	Cert         *services.CertificateService
+	Product      *services.ProductService
+	Person       *services.PersonService
+	Vehicle      *services.VehicleService
+	NFe          *nfesvc.NfeService
+	NFCe         *nfesvc.NfceService
+	MDFe         *mdfesvc.MdfeService
+	NfeConfig    *services.NfeConfigService
+	NfceConfig   *services.NfceConfigService
+	CteConfig    *services.CteConfigService
+	MdfeConfig   *services.MdfeConfigService
+	Distribution *services.DistributionService
+	External     *services.ExternalService
+	AuditLog     *services.AuditLogService
+	RoleRepo     *repositories.RoleRepository
+}
+
+// Register mounts all /v1.0 routes onto the Fiber app.
+func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, wsReg ws.Registry, awsClients *awsclient.Clients, svcs Services) {
+	// The issuer is ctech-account's public base URL — the iss claim it signs into tokens.
+	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechURL, cacheBackend)
+	authMw := verifier.Middleware()
+	perm := middleware.NewPermChecker(svcs.User, svcs.RoleRepo, cacheBackend)
+
+	v1 := app.Group("/v1.0")
+	RegisterHealth(v1, cacheBackend, awsClients, cfg)
+	RegisterAuth(v1, svcs.User, svcs.Org, svcs.RoleRepo, authMw)
+	RegisterOrganizations(v1, OrgHandlers{
+		OrgSvc:     svcs.Org,
+		CertSvc:    svcs.Cert,
+		NfeConfig:  svcs.NfeConfig,
+		NfceConfig: svcs.NfceConfig,
+		CteConfig:  svcs.CteConfig,
+		MdfeConfig: svcs.MdfeConfig,
+		UserSvc:    svcs.User,
+	}, authMw, perm)
+	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
+	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
+	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)
+	RegisterNFes(v1, svcs.NFe, svcs.External, svcs.User, authMw, perm)
+	RegisterNFCes(v1, svcs.NFCe, svcs.External, svcs.User, authMw, perm)
+	RegisterMDFes(v1, svcs.MDFe, svcs.External, svcs.User, authMw, perm)
+	RegisterDistributions(v1, svcs.Distribution, authMw, perm)
+	RegisterExternal(v1, svcs.External, authMw, perm)
+	RegisterAuditLogs(v1, svcs.AuditLog, authMw, perm)
+	RegisterWS(v1, verifier, svcs.User, wsReg)
+}

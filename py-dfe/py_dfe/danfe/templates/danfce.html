@@ -1,0 +1,239 @@
+<style>
+    @page {
+        size: 58mm 1000mm;
+        margin: 2mm;
+    }
+
+    body {
+        font-family: "DejaVu Sans", sans-serif;
+        font-size: 7pt;
+        color: #000;
+        margin: 0;
+        padding: 0;
+    }
+
+    .receipt {
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    .center {
+        text-align: center;
+    }
+
+    .b {
+        font-weight: bold;
+    }
+
+    hr {
+        border: none;
+        border-top: 1px dashed #000;
+        margin: 2px 0;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    td {
+        vertical-align: top;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    .right {
+        text-align: right;
+    }
+
+    .num {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .items td {
+        font-size: 6pt;
+    }
+
+    .qr {
+        width: 25mm;
+        height: 25mm;
+        display: block;
+        margin: 2px auto;
+    }
+
+    .banner {
+        font-weight: bold;
+        text-align: center;
+        margin: 3px 0;
+    }
+
+    .footer {
+        font-size: 6pt;
+        color: #555;
+    }
+
+    .watermark {
+        position: absolute;
+        top: 35%;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 14pt;
+        white-space: nowrap;
+        color: rgba(0, 0, 0, 0.18);
+        transform: rotate(-25deg);
+        font-weight: bold;
+    }
+</style>
+<div class="receipt">
+    {% if is_cancelada %}
+    <div class="watermark">{{ text.cancelada }}</div>
+    {% endif %}
+    {% if is_homologacao %}
+    <div class="watermark">HOMOLOGAÇÃO</div>
+    {% endif %}
+
+    {# Divisão I — Cabeçalho #}
+    <div class="center b">{{ emit.nome }}</div>
+    <div class="center">CNPJ: {{ emit.cnpj }}</div>
+    <div class="center">{{ emit.endereco }}</div>
+    <div class="center b">{{ text.doc_auxiliar }}</div>
+    <hr>
+
+    {% if is_contingencia %}
+    <div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>
+    <hr>
+    {% endif %}
+
+    {# Divisão II — Itens (completo only) #}
+    {% if show_items %}
+    <table class="items">
+        <colgroup>
+            <col style="width:14%">
+            <col style="width:34%">
+            <col style="width:12%">
+            <col style="width:8%">
+            <col style="width:16%">
+            <col style="width:16%">
+        </colgroup>
+        <thead>
+        <tr>
+            <td>Cód</td>
+            <td>Descr</td>
+            <td class="num">Qtd</td>
+            <td>Un</td>
+            <td class="num">VlUn</td>
+            <td class="num">VlTot</td>
+        </tr>
+        </thead>
+        <tbody>
+        {% for it in items %}
+        <tr>
+            <td>{{ it.cProd }}</td>
+            <td>{{ it.xProd }}</td>
+            <td class="num">{{ it.qCom }}</td>
+            <td>{{ it.uCom }}</td>
+            <td class="num">{{ it.vUnCom }}</td>
+            <td class="num">{{ it.vProd }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <hr>
+    {% endif %}
+
+    {# Divisão III — Totais #}
+    <table>
+        <colgroup>
+            <col style="width:70%">
+            <col style="width:30%">
+        </colgroup>
+        <tr>
+            <td>Qtde. total de itens</td>
+            <td class="num">{{ totals.qtd }}</td>
+        </tr>
+        <tr>
+            <td>Valor total R$</td>
+            <td class="num">{{ totals.vProd }}</td>
+        </tr>
+        {% if totals.has_acrescimo_desconto %}
+        <tr>
+            <td>Descontos R$</td>
+            <td class="num">{{ totals.vDesc }}</td>
+        </tr>
+        <tr>
+            <td>Acréscimos R$</td>
+            <td class="num">{{ totals.vFrete }}</td>
+        </tr>
+        <tr>
+            <td class="b">Valor a pagar R$</td>
+            <td class="num b">{{ totals.vNF }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td class="b">Valor a pagar R$</td>
+            <td class="num b">{{ totals.vNF }}</td>
+        </tr>
+        {% endif %}
+        {% for p in totals.pagamentos %}
+        <tr>
+            <td>{{ p.forma }}</td>
+            <td class="num">{{ p.valor }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td>Troco R$</td>
+            <td class="num">{{ totals.troco }}</td>
+        </tr>
+    </table>
+    <hr>
+
+    {# Divisão IV — Consulta via chave #}
+    <div class="center">Consulte pela Chave de Acesso em</div>
+    <div class="center">{{ url_chave }}</div>
+    <div class="center">{{ chave_fmt }}</div>
+    <hr>
+
+    {# Divisão VI — Consumidor #}
+    <div class="center">{{ consumidor }}</div>
+    <hr>
+
+    {# Divisão VII — Identificação + Protocolo #}
+    <div class="center">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }} {{ ident.dhEmi }}
+        {%- if via.label %} - {{ via.label }}{% endif %}
+    </div>
+    {% if protocolo %}
+    <div class="center">Protocolo de autorização: {{ protocolo.nProt }} {{ protocolo.dhRecbto }}</div>
+    {% endif %}
+    {% if is_contingencia %}
+    <div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>
+    {% endif %}
+    {% if is_homologacao %}
+    <div class="banner">{{ text.homologacao }}</div>
+    {% endif %}
+    <hr>
+
+    {# Divisão V — QR Code #}
+    <img class="qr" src="{{ qr_uri }}" alt="QR Code">
+    <hr>
+
+    {# Divisão VIII — Mensagem fiscal #}
+    {% if msg_fiscal %}
+    <div>{{ msg_fiscal }}</div>
+    <hr>
+    {% endif %}
+
+    {# Divisão IX — Mensagem do contribuinte #}
+    {% if msg_contribuinte %}
+    <div>{{ msg_contribuinte }}</div>
+    {% endif %}
+
+    <hr>
+    <div class="center footer">{{ text.gerado_por }} {{ site }}<br>{{ gerado_em }}</div>
+</div>

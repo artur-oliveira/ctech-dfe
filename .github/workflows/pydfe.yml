@@ -1,0 +1,99 @@
+name: py-dfe Lambda
+
+on:
+  push:
+    branches: [ main, staging, dev ]
+    paths:
+      - 'py-dfe/**'
+      - '.github/workflows/pydfe.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: py-dfe/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: py-dfe
+        run: pip install -e ".[dev]"
+
+      - name: Run unit tests
+        working-directory: py-dfe
+        run: pytest tests/unit -v --tb=short
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-24.04-arm
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-pydfe
+          aws-region: us-east-1
+
+      - name: Package Lambda
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          VERSION="$(date -u '+%Y%m%d-%H%M')-${{ github.ref_name }}-${SHORT_SHA:0:7}"
+          ARCHIVE="py-dfe-${VERSION}.zip"
+
+          cd py-dfe
+          zip -r "../${ARCHIVE}" py_dfe schemas \
+            --exclude "**/__pycache__/*" \
+            --exclude "**/*.pyc"
+          cd ..
+
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Read deployment config from SSM
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          echo "DEPLOYMENTS_BUCKET=$(aws ssm get-parameter --name /ctech/${ENV}/s3/deployments-bucket --query Parameter.Value --output text 2>/dev/null || echo "${ENV}-ctech-deployments")" >> "$GITHUB_ENV"
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp "$ARCHIVE" "s3://${DEPLOYMENTS_BUCKET}/ctech-dfe/pydfe/${ARCHIVE}"
+
+      - name: Update Lambda code
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          aws lambda update-function-code \
+            --function-name "${ENV}-py-dfe" \
+            --s3-bucket "${DEPLOYMENTS_BUCKET}" \
+            --s3-key "ctech-dfe/pydfe/${ARCHIVE}" \
+            --no-cli-pager
+
+      - name: Wait for update
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          aws lambda wait function-updated --function-name "${ENV}-py-dfe"

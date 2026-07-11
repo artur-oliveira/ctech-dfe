@@ -1,0 +1,916 @@
+// Auth
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
+export interface RoleOut {
+  name: string
+  description: string
+}
+
+export interface MeResponse {
+  user_id: string
+  username: string
+  email: string
+  first_name: string
+  last_name: string
+  email_verified: boolean
+  is_enabled: boolean
+  last_login_at: string | null
+  organizations: UserOrganization[]
+  terms_addendum_accepted: boolean
+}
+
+export interface UserOrganization {
+  pk: string
+  name: string
+  description: string | null
+  role: string
+  permissions: string[]
+  state_federation: string | null
+}
+
+export interface LookupAddressOut {
+  street: string | null
+  number: string | null
+  complement: string | null
+  neighborhood: string | null
+  city: string | null
+  postal_code: string | null
+  state_federation: string | null
+  city_ibge_code: string | null
+}
+
+export interface LookupStateRegistrationOut {
+  uf: string
+  state_registration: string
+}
+
+export interface LookupOrganizationOut {
+  cpf_cnpj: string
+  name: string
+  crt: string | number | null;
+  uf: string
+  status: string
+  addresses: LookupAddressOut[]
+  state_registrations: LookupStateRegistrationOut[]
+}
+
+// Organizations
+export interface AddressOut {
+  city_ibge_code: string
+  street: string
+  neighborhood: string
+  number: string
+  city: string
+  state_federation: string
+  postal_code: string
+  complement?: string
+}
+
+export interface StateRegistrationOut {
+  uf: string
+  state_registration: string
+}
+
+export interface PersonOut {
+  fantasy_name: string
+  crt: string | number;
+  state_registrations: StateRegistrationOut[]
+  addresses: AddressOut[]
+  contacts: ContactsOut
+}
+
+export interface ContactsOut {
+  emails: string[]
+  phones: string[]
+}
+
+export interface OrganizationOut {
+  pk: string
+  name: string
+  description: string
+  person: PersonOut
+  created_at: string
+  updated_at: string
+}
+
+export interface OrganizationCreate {
+  cpf_or_cnpj: string
+  name: string
+  description?: string
+  person: PersonObject
+}
+
+export interface OrganizationUpdate {
+  name?: string
+  description?: string
+  person?: Partial<PersonObject>
+}
+
+// Certificates
+export interface CertificateOut {
+  pk: string
+  sk: string
+  alias: string
+  md5: string
+  s3_key: string
+  expires_at: string
+  created_at: string
+}
+
+// Fiscal configs
+export interface NFeConfigOut {
+  pk: string
+  timezone: string
+  environment: number
+  prod_current_number: number
+  prod_current_serie: number
+  hom_current_number: number
+  hom_current_serie: number
+  prod_nsu: number
+  prod_last_dist_nsu_at: string | null
+  hom_nsu: number
+  hom_last_dist_nsu_at: string | null
+  updated_at: string
+}
+
+export interface NFCeConfigOut {
+  pk: string
+  timezone: string
+  environment: number
+  prod_current_number: number
+  prod_current_serie: number
+  prod_csc: string
+  prod_csc_id: number
+  hom_current_number: number
+  hom_current_serie: number
+  hom_csc: string
+  hom_csc_id: number
+  updated_at: string
+}
+
+export type CTeConfigOut = NFeConfigOut
+export type MDFeConfigOut = NFeConfigOut
+
+// Products
+export interface CfopConfigItem {
+  cfop: string
+  // Regime Normal (CRT 3): CST ICMS. Simples Nacional (CRT 1/2/4): CSOSN.
+  icms: string | null;
+  csosn: string | null;
+  // ICMS alíquotas e modalidade
+  icms_mod_bc?: string | null
+  icms_aliq_override?: string | null
+  icms_fcp_override?: string | null
+  icms_sn_cred_aliq?: string | null
+  icms_ind_deduz_deson?: string | null
+  // ICMS ST
+  icms_st_mod_bc?: string | null
+  icms_st_mva?: string | null
+  icms_st_red_bc?: string | null
+  icms_st_aliq?: string | null
+  icms_st_fcp_aliq?: string | null
+  // Conditional ICMS fields (Regime Normal only)
+  icms_p_red_bc?: string | null   // % redução BC — CST 20, 70
+  icms_mot_des?: string | null    // motivo desoneração — CST 40, 41, 50, 51
+  icms_p_dif?: string | null      // % diferimento — CST 51
+  // ICMS monofásico combustíveis (CST 02, 15, 53, 61)
+  icms_ad_rem?: string | null
+  icms_ad_rem_reten?: string | null
+  icms_p_red_ad_rem?: string | null
+  icms_mot_red_ad_rem?: string | null
+  icms_p_dif_mono?: string | null
+  // ICMS60 — ST retida anteriormente (opcional)
+  icms_v_bc_st_ret?: string | null
+  icms_v_icms_st_ret?: string | null
+  icms_p_st?: string | null
+  icms_fcp_v_bc_st_ret?: string | null
+  icms_fcp_st_ret_aliq?: string | null
+  pis: string
+  cofins: string
+  pis_aliq?: string | null
+  cofins_aliq?: string | null
+  pis_aliq_unid?: string | null
+  cofins_aliq_unid?: string | null
+  ibs_cbs_cst: string
+  ibs_cbs_class_trib: string
+  ibs_uf_aliq: string
+  ibs_mun_aliq: string
+  cbs_aliq: string
+  // IBS/CBS redução e diferimento
+  ibs_uf_p_red?: string | null
+  ibs_mun_p_red?: string | null
+  cbs_p_red?: string | null
+  ibs_uf_p_dif?: string | null
+  ibs_mun_p_dif?: string | null
+  cbs_p_dif?: string | null
+  ibs_ind_doacao?: string | null
+  ibs_ad_rem?: string | null
+  cbs_ad_rem?: string | null
+  // IPI
+  ipi_cst?: string | null
+  ipi_aliq?: string | null
+  // IS — Imposto Seletivo (NT 2024.001)
+  is_cst?: string | null
+  is_aliq?: string | null
+  is_class_trib?: string | null
+  is_aliq_espec?: string | null
+  is_unid_trib?: string | null
+  // ISSQN — Imposto Sobre Serviços (LC 116/2003)
+  issqn_ind_iss?: string | null
+  issqn_c_list_serv?: string | null
+  issqn_c_mun_fg?: string | null
+  issqn_aliq?: string | null
+  issqn_v_deducao?: string | null
+  issqn_v_iss_ret?: string | null
+}
+
+export interface ConversionFactorItem {
+  origin_unit: string
+  target_unit: string
+  factor: number
+}
+
+export interface ProductOut {
+  pk: string
+  sk: string
+  code: string
+  description: string
+  brand: string | null
+  ncm: string
+  cest: string | null
+  origin: string | null
+  unit: string | null
+  taxable_unit: string | null
+  cean: string | null
+  taxable_cean: string | null
+  value: string
+  value_resale?: string | null
+  net_weight: string | null
+  gross_weight: string | null
+  // Campos fiscais do produto
+  c_benef?: string | null
+  ext_ipi?: string | null
+  ind_escala?: string | null
+  cnpj_fab?: string | null
+  ind_tot?: string | null
+  icms_aliq_override?: string | null
+  fcp_aliq_override?: string | null
+  inf_ad_prod?: string | null
+  cfop_nfce: string
+  cfop_config: CfopConfigItem[]
+  conversion_factors: ConversionFactorItem[]
+  // Tipo específico e campos especiais
+  prod_type?: string | null
+  comb_c_prod_anp?: string | null
+  comb_desc_anp?: string | null
+  comb_uf_cons?: string | null
+  comb_codif?: string | null
+  comb_p_glp?: string | null
+  comb_p_gnn?: string | null
+  comb_p_gni?: string | null
+  comb_v_part?: string | null
+  comb_p_bio?: string | null
+  med_c_prod_anvisa?: string | null
+  med_x_motivo_isencao?: string | null
+  med_v_pmc?: string | null
+  // veicProd — dados do modelo
+  veic_tp_op?: string | null
+  veic_tp_comb?: string | null
+  veic_tp_pint?: string | null
+  veic_tp_veic?: string | null
+  veic_esp_veic?: string | null
+  veic_vin?: string | null
+  veic_cond_veic?: string | null
+  veic_c_mod?: string | null
+  veic_c_cor_denatran?: string | null
+  veic_lota?: string | null
+  veic_tp_rest?: string | null
+  veic_ano_mod?: string | null
+  veic_ano_fab?: string | null
+  veic_pot?: string | null
+  veic_cilin?: string | null
+  veic_cmt?: string | null
+  veic_dist?: string | null
+  veic_c_cor?: string | null
+  veic_x_cor?: string | null
+  // arma
+  arma_tp_arma?: string | null
+  arma_descr?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductCreate {
+  code: string
+  description: string
+  brand?: string | null
+  ncm: string
+  cest?: string | null
+  origin?: string | null
+  cean?: string | null
+  unit?: string | null
+  taxable_unit?: string | null
+  taxable_cean?: string | null
+  net_weight?: string | null
+  gross_weight?: string | null
+  value: string
+  value_resale?: string | null
+  // Campos fiscais do produto
+  c_benef?: string | null
+  ext_ipi?: string | null
+  ind_escala?: string | null
+  cnpj_fab?: string | null
+  ind_tot?: string | null
+  icms_aliq_override?: string | null
+  fcp_aliq_override?: string | null
+  inf_ad_prod?: string | null
+  cfop_nfce: string
+  cfop_config?: CfopConfigItem[]
+  conversion_factors?: ConversionFactorItem[]
+  // Tipo específico e campos especiais
+  prod_type?: string | null
+  comb_c_prod_anp?: string | null
+  comb_desc_anp?: string | null
+  comb_uf_cons?: string | null
+  comb_codif?: string | null
+  comb_p_glp?: string | null
+  comb_p_gnn?: string | null
+  comb_p_gni?: string | null
+  comb_v_part?: string | null
+  comb_p_bio?: string | null
+  med_c_prod_anvisa?: string | null
+  med_x_motivo_isencao?: string | null
+  med_v_pmc?: string | null
+  veic_tp_op?: string | null
+  veic_tp_comb?: string | null
+  veic_tp_pint?: string | null
+  veic_tp_veic?: string | null
+  veic_esp_veic?: string | null
+  veic_vin?: string | null
+  veic_cond_veic?: string | null
+  veic_c_mod?: string | null
+  veic_c_cor_denatran?: string | null
+  veic_lota?: string | null
+  veic_tp_rest?: string | null
+  veic_ano_mod?: string | null
+  veic_ano_fab?: string | null
+  veic_pot?: string | null
+  veic_cilin?: string | null
+  veic_cmt?: string | null
+  veic_dist?: string | null
+  veic_c_cor?: string | null
+  veic_x_cor?: string | null
+  arma_tp_arma?: string | null
+  arma_descr?: string | null
+}
+
+export interface ProductUpdate {
+  code?: string
+  description?: string
+  ncm?: string
+  cest?: string | null
+  cean?: string | null
+  taxable_cean?: string | null
+  value?: string
+  value_resale?: string | null
+  cfop_nfce?: string
+  cfop_config?: CfopConfigItem[]
+  conversion_factors?: ConversionFactorItem[]
+}
+
+// Vehicles
+export interface OwnerOut {
+  cpf_cnpj: string
+  rntrc: string
+  name: string
+  type: string
+}
+
+export interface TrailerOut {
+  plate: string
+  plate_uf: string
+  wheelset: string
+  bodywork: string
+  renavam: string
+  weight: number
+  owner: OwnerOut
+}
+
+export interface VehicleOut {
+  pk: string
+  sk: string
+  plate: string
+  plate_uf: string
+  wheelset: string
+  bodywork: string
+  renavam: string
+  weight: number
+  owner: OwnerOut
+  trailers: TrailerOut[]
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleCreate {
+  plate: string
+  plate_uf: string
+  wheelset: string
+  bodywork: string
+  renavam: string
+  weight: number
+  owner: {
+    cpf_cnpj: string
+    rntrc: string
+    name: string
+    type: string
+  }
+  trailers?: TrailerOut[]
+}
+
+export interface VehicleUpdate {
+  plate?: string
+  plate_uf?: string
+  wheelset?: string
+  bodywork?: string
+  renavam?: string
+  weight?: number
+  owner?: VehicleCreate['owner']
+  trailers?: TrailerOut[]
+}
+
+// Persons (Clientes/Fornecedores)
+export interface PersonAddressOut {
+  city_ibge_code: string
+  street: string
+  neighborhood: string
+  number: string
+  city: string
+  state_federation: string
+  postal_code: string
+  complement: string | null
+}
+
+export type Crt = "1" | "2" | "3" | "4";
+
+export interface PersonDetailsOut {
+  fantasy_name: string
+  crt: string | number
+  state_registrations: StateRegistrationOut[]
+  addresses: PersonAddressOut[]
+  contacts?: ContactsOut
+}
+
+export interface PersonItemOut {
+  pk: string
+  sk: string
+  name: string
+  person: PersonDetailsOut
+  created_at: string
+  updated_at: string
+}
+
+export interface PersonObject {
+  fantasy_name: string | null
+  crt: string | number | null
+  state_registrations: StateRegistrationOut[]
+  addresses: PersonAddressOut[]
+  contacts?: ContactsOut
+}
+
+export interface PersonCreate {
+  cpf_or_cnpj: string
+  name: string
+  person: PersonObject
+}
+
+export interface PersonUpdate {
+  name?: string
+  person?: PersonObject
+}
+
+// NF-e — tipos auxiliares
+export interface NfeCardIn {
+  tp_integra: '1' | '2'
+  cnpj?: string | null
+  t_band?: string | null
+  c_aut?: string | null
+}
+
+export interface NfeTransportIn {
+  mod_frete: '0' | '1' | '2' | '3' | '4' | '9'
+  /** SK da transportadora cadastrada. Backend resolve os dados automaticamente. */
+  transporta_pk?: string | null
+  transporta_cnpj?: string | null
+  transporta_cpf?: string | null
+  transporta_nome?: string | null
+  transporta_ie?: string | null
+  transporta_ender?: string | null
+  transporta_mun?: string | null
+  transporta_uf?: string | null
+  /** SK do veículo cadastrado. Backend resolve placa/UF/RNTRC automaticamente. */
+  veiculo_sk?: string | null
+  veiculo_placa?: string | null
+  veiculo_uf?: string | null
+  veiculo_rntrc?: string | null
+}
+
+export interface NfeDuplicataIn {
+  n_dup?: string | null
+  d_venc?: string | null
+  v_dup: string
+}
+
+export interface NfeFatIn {
+  n_fat?: string | null
+  v_orig?: string | null
+  v_desc?: string | null
+  v_liq?: string | null
+}
+
+// NF-e
+export const NF_PAYMENT_TYPES: Record<string, string> = {
+  '01': 'Dinheiro',
+  '02': 'Cheque',
+  '03': 'Cartão de Crédito',
+  '04': 'Cartão de Débito',
+  '05': 'Cartão da Loja (Private Label), Crediário Digital, Outros Crediários',
+  '10': 'Vale Alimentação',
+  '11': 'Vale Refeição',
+  '12': 'Vale Presente',
+  '13': 'Vale Combustível',
+  '14': 'Duplicata Mercantil',
+  '15': 'Boleto Bancário',
+  '16': 'Depósito Bancário',
+  '17': 'PIX',
+  '18': 'Transferência bancária, Carteira Digital',
+  '19': 'Programa de fidelidade, Cashback, Crédito Virtual',
+  '20': 'PIX (Estático)',
+  '21': 'Crédito em Loja',
+  '22': 'Pagamento Eletrônico não Informado - falha de hardware do sistema emissor',
+  '90': 'Sem pagamento',
+  '99': 'Outros',
+}
+
+export const displayPaymentTypeLabel = (code: string): string | undefined => {
+  return NF_PAYMENT_TYPES[code]
+}
+
+export interface NfeArmaIn {
+  n_serie: string
+  n_cano: string
+  descr?: string | null
+}
+
+export interface NfeProductIn {
+  product_id: string
+  cfop: string
+  quantity: string
+  unit_value?: string | null
+  discount?: string
+  v_frete?: string | null
+  v_seg?: string | null
+  v_outro?: string | null
+  // veicProd — por unidade
+  veic_chassi?: string | null
+  veic_n_serie?: string | null
+  veic_n_motor?: string | null
+  veic_c_cor?: string | null
+  veic_x_cor?: string | null
+  // arma — por unidade
+  armas?: NfeArmaIn[] | null
+}
+
+export interface NfePaymentIn {
+  payment_type: string
+  value: string
+  ind_pag?: '0' | '1' | null
+  d_pag?: string | null
+  card?: NfeCardIn | null
+}
+
+export interface NfeEmit {
+  receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx — omit when self_issuance=true
+  self_issuance?: boolean
+  products: NfeProductIn[]
+  payments: NfePaymentIn[]
+  additional_info?: string | null
+  // Campos opcionais de emissão
+  nat_op?: string | null
+  fin_nfe?: '1' | '2' | '3' | '4' | null
+  ind_final?: '0' | '1' | null
+  ind_pres?: string | null
+  tp_nf?: '0' | '1' | null
+  transport?: NfeTransportIn | null
+  cobr_fat?: NfeFatIn | null
+  cobr_duplicatas?: NfeDuplicataIn[] | null
+  v_troco?: string | null
+}
+
+// NFC-e (modelo 65) — no recipient address, transport, or billing.
+export interface NfceEmit {
+  consumer_cpf?: string | null  // optional; CPF only (pessoa física)
+  products: NfeProductIn[]
+  payments: NfePaymentIn[]
+  additional_info?: string | null
+  nat_op?: string | null
+}
+
+export interface NfeProductOut {
+  product_id: string
+  product_code: string
+  description: string
+  ncm: string
+  cfop: string
+  unit: string
+  quantity: string
+  unit_value: string
+  discount: string
+  total: string
+}
+
+export interface NfePaymentOut {
+  payment_type: string
+  value: string
+}
+
+export type NfeStatus =
+  | 'pending' | 'authorized' | 'rejected' | 'failed'
+  | 'cancel_pending' | 'cancelled'
+
+export interface NfeListOut {
+  pk: string    // {env}#{org_pk}
+  sk: string    // 44-digit chave de acesso
+  incoming: number
+  year: number
+  month: number
+  day: number
+  status: NfeStatus
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  emit_cpf_cnpj: string
+  emit_name: string
+  dest_cpf_cnpj: string
+  dest_name: string
+  number: number
+  serie: number
+  total: string
+  dh_emi: string | null
+  created_at: string
+}
+
+export interface NfeDetailOut extends NfeListOut {
+  products: NfeProductOut[] | null;
+  payments: NfePaymentOut[] | null;
+  additional_info: string | null
+  xml_s3_key: string | null
+  sefaz_protocol: string | null
+}
+
+export interface NfeEventOut {
+  pk: string           // org_pk
+  sk: string           // timestamp_uuid (event identifier)
+  access_key: string
+  event_type: string   // tpEvento code or "emission"
+  sequence_number: number
+  status: 'pending' | 'processing' | 'success' | 'rejected' | 'failed' | 'retry'
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  sefaz_protocol: string | null
+  xml_s3_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ─── MDF-e (modelo 58) ──────────────────────────────────────────────────────
+
+export type MdfeStatus =
+  | 'pending' | 'authorized' | 'rejected' | 'failed'
+  | 'cancel_pending' | 'cancelled'
+  | 'close_pending' | 'closed'
+
+export interface MdfeMunIn {
+  ibge_code: string
+  city: string
+}
+
+export interface MdfeOwnerIn {
+  cpf?: string
+  cnpj?: string
+  name: string
+  ie?: string
+  uf?: string
+  rntrc: string
+  tp_prop?: string   // 0=TAC Agregado, 1=TAC Independente, 2=Outros
+  tp_transp?: string // optional CTC(3) override for a CNPJ owner
+}
+
+export interface MdfeDocRef {
+  type: 'nfe' | 'cte'
+  access_key: string
+  weight?: string        // optional gross-weight override (kg) when XML carries none
+}
+
+export interface MdfeVehicleIn {
+  sk?: string | null      // registered vehicle SK (required path for emission)
+  placa?: string
+  tara?: string
+  uf?: string
+  renavam?: string | null
+  cap_kg?: string | null
+  tp_rod?: string
+  tp_car?: string
+  owner?: MdfeOwnerIn | null  // third-party owner (drives tpTransp / prop)
+}
+
+export interface MdfeDriverIn {
+  name: string
+  cpf: string
+}
+
+export interface MdfeProdPredIn {
+  tp_carga: string
+  x_prod: string
+  ncm: string
+}
+
+export interface MdfeBulkCargoIn {
+  cep_loading: string
+  cep_unloading: string
+  lat_loading?: string | null
+  lon_loading?: string | null
+  lat_unloading?: string | null
+  lon_unloading?: string | null
+}
+
+export interface MdfeEmit {
+  modal: 'rodoviario' | 'aereo' | 'aquaviario' | 'ferroviario'
+  documents: MdfeDocRef[]
+  uf_start?: string
+  uf_end?: string
+  route?: string[]
+  loadings?: MdfeMunIn[]
+  unloadings?: MdfeMunIn[]
+  vehicle: MdfeVehicleIn
+  drivers: MdfeDriverIn[]
+  predominant?: MdfeProdPredIn | null
+  bulk_cargo?: MdfeBulkCargoIn | null
+  trip_start?: string | null
+  rntrc?: string | null
+  ciot?: string | null
+  additional_info?: string | null
+}
+
+// ── cargo preview (POST /mdfes/cargo-preview) ──
+export interface MdfeCargoPreviewDoc {
+  type: 'nfe' | 'cte'
+  access_key: string
+  emit_name: string
+  dest_name: string
+  loading: MdfeMunIn
+  unloading: MdfeMunIn
+  uf_start: string
+  uf_end: string
+  weight: string
+  has_weight: boolean
+  value: string
+  predominant: MdfeProdPredIn
+}
+
+export interface MdfeCargoPreview {
+  documents: MdfeCargoPreviewDoc[]
+  loadings: MdfeMunIn[]
+  unloadings: MdfeMunIn[]
+  uf_start: string
+  uf_end: string
+  total_weight: string
+  total_value: string
+  predominant: MdfeProdPredIn
+}
+
+export interface MdfeListOut {
+  pk: string
+  sk: string            // 44-digit chave de acesso
+  incoming: number
+  year: number
+  month: number
+  day: number
+  status: MdfeStatus
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  emit_cpf_cnpj: string
+  emit_name: string
+  number: number
+  serie: number
+  modal: string
+  doc_type: string
+  uf_start: string
+  uf_end: string
+  cargo_weight: string
+  cargo_value: string
+  dh_emi: string | null
+  created_at: string
+}
+
+export interface MdfeUnloadingOut extends MdfeMunIn {
+  access_keys: string[]
+}
+
+export interface MdfeDetailOut extends MdfeListOut {
+  documents: MdfeDocRef[]
+  route: string[] | null
+  loadings: MdfeMunIn[] | null
+  unloadings: MdfeUnloadingOut[] | null
+  predominant: MdfeProdPredIn | null
+  vehicle: {
+    placa: string;
+    uf: string;
+    tara: string;
+    rntrc: string;
+    owner?: { cpf: string; cnpj: string; name: string; rntrc: string }
+  } | null
+  drivers: MdfeDriverIn[] | null
+  trip_start: string | null
+  bulk_cargo: { cep_loading: string; cep_unloading: string } | null
+  xml_s3_key: string | null
+  sefaz_protocol: string | null
+}
+
+export interface MdfeIncludeDFeDoc {
+  unloading_ibge_code: string
+  unloading_city: string
+  nfe_key: string
+}
+
+export interface NFeDistributionOut {
+  nsu: number
+  doc_schema: string
+  schema_type: string | null
+  access_key: string | null
+  emit_name: string | null
+  emit_cpf_cnpj: string | null
+  dest_name: string | null
+  total: string | null
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  sefaz_protocol: string | null
+  event_type: string | null
+  dh_emi: string | null
+  parse_error: boolean | null
+  xml_s3_key: string | null
+  created_at: string
+}
+
+export interface SyncEnqueuedOut {
+  status: string
+  nsu: number
+}
+
+export interface DistributionLookupDoc {
+  nsu: number
+  schema: string
+}
+
+export interface DistributionLookupOut {
+  c_stat: string
+  x_motivo: string
+  ult_nsu: string | null
+  max_nsu: string | null
+  docs: DistributionLookupDoc[]
+  created_at: string
+}
+
+// Audit log
+export interface AuditLogModification {
+  name: string
+  before: unknown
+  after: unknown
+}
+
+export interface AuditLogOut {
+  pk: string
+  sk: string
+  resource_type: string
+  resource_id: string
+  action: 'CREATE' | 'UPDATE' | 'DELETE'
+  modifications: AuditLogModification[]
+  user_id: string
+  user_name: string
+  created_at: string
+}
+
+// Error
+export interface ApiError {
+  detail: string
+}
+
+// Pagination — matches backend PaginatedResponse (cursor-based, bidirectional)
+export interface PaginatedResponse<T> {
+  items: T[]
+  next_cursor: string | null
+  has_next: boolean
+  previous_cursor: string | null
+  has_previous: boolean
+}

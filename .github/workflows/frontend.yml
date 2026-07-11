@@ -1,0 +1,112 @@
+name: Frontend
+
+on:
+  push:
+    branches: [ main, staging, dev ]
+    paths:
+      - 'ui/**'
+      - '.github/workflows/frontend.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm run test
+
+      - name: Set environment
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe-api.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-api.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          elif [ "$BRANCH" = "staging" ]; then
+            echo "ENVIRONMENT=stage" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe-api-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-api-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe-api-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-api-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          fi
+
+      - name: Build (static export)
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-frontend
+          aws-region: us-east-1
+
+      - name: Read S3 bucket name
+        run: |
+          BUCKET="${ENVIRONMENT}-ctech-dfe-frontend"
+          DIST_ID=$(aws cloudformation describe-stacks \
+            --stack-name "CtechDfe-$(echo $ENVIRONMENT | sed 's/./\u&/')-Frontend" \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text 2>/dev/null || echo "")
+          echo "S3_BUCKET=$BUCKET" >> $GITHUB_ENV
+          echo "DISTRIBUTION_ID=$DIST_ID" >> $GITHUB_ENV
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync out/ \
+            s3://${S3_BUCKET}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # HTML and JSON files: no-cache so updates are reflected immediately
+          aws s3 sync out/ \
+            s3://${S3_BUCKET}/ \
+            --delete \
+            --cache-control "no-cache" \
+            --include "*.html" \
+            --include "*.json"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/*"

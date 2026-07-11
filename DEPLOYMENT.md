@@ -1,0 +1,402 @@
+# CDK Deployment — py-dfe
+
+For infrastructure architecture, stacks, and environment details, see:
+
+* `DOCS.md §7` — Infrastructure Architecture
+* `DOCS.md §11` — Deployment and Operations
+
+---
+
+# Infrastructure Overview
+
+TODO: Replace with actual stack topology.
+
+```text
+AWS Account
+│
+├── DynamoDB
+├── S3
+├── Lambda
+├── API Infrastructure
+├── EC2 Auto Scaling Group
+├── Application Load Balancer
+├── CloudWatch
+└── Systems Manager (SSM)
+```
+
+---
+
+# Prerequisites
+
+Install dependencies:
+
+```bash
+cd cdk && npm install
+```
+
+## AWS Credentials
+
+Configure one of the following methods:
+
+```bash
+# Option A: AWS CLI
+aws configure
+
+# Option B: Environment variables
+export AWS_ACCESS_KEY_ID="..."
+export AWS_DEFAULT_REGION="us-east-1"
+
+# Option C: Named profile
+export AWS_PROFILE="your-profile"
+```
+
+---
+
+# Bootstrap
+
+Run once per AWS account and region:
+
+```bash
+cdk bootstrap aws://868899309401/us-east-1
+```
+
+---
+
+# Deployment
+
+## Preview Changes
+
+Always synthesize before deployment:
+
+```bash
+cdk synth
+```
+
+## Deploy All Stacks
+
+```bash
+cdk deploy --all
+```
+
+## Deploy a Specific Stack
+
+```bash
+cdk deploy PyDfeStack/PyDfeStack-dynamodb
+```
+
+## CI/CD Deployment
+
+```bash
+cdk deploy --all --require-approval never
+```
+
+---
+
+# Environment Deployments
+
+## Production
+
+```bash
+ENVIRONMENT=production TABLE_PREFIX=prod cdk deploy --all
+```
+
+## Staging
+
+```bash
+ENVIRONMENT=staging TABLE_PREFIX=staging cdk deploy --all
+```
+
+---
+
+# Post-Deployment Verification
+
+List CloudFormation stacks:
+
+```bash
+aws cloudformation list-stacks --region us-east-1 \
+  --query 'StackSummaries[?StackStatus!=`DELETE_COMPLETE`].[StackName,StackStatus]' \
+  --output table
+```
+
+List DynamoDB tables:
+
+```bash
+aws dynamodb list-tables --region us-east-1
+```
+
+Inspect a specific table:
+
+```bash
+aws dynamodb describe-table \
+  --table-name dev_users \
+  --region us-east-1
+```
+
+---
+
+# Destroy
+
+## WARNING
+
+Development environments may use:
+
+```text
+RemovalPolicy.DESTROY
+```
+
+Destroying stacks may permanently delete data.
+
+Remove all stacks:
+
+```bash
+cdk destroy --all
+```
+
+Without confirmation:
+
+```bash
+cdk destroy --all --force
+```
+
+Production and staging environments use:
+
+```text
+RemovalPolicy.RETAIN
+```
+
+DynamoDB tables remain after stack deletion.
+
+---
+
+# EC2 Instance Operations (ApiStackV2)
+
+Instances do not have public IPv4 addresses.
+
+All access must occur through:
+
+```text
+AWS Systems Manager Session Manager (SSM)
+```
+
+---
+
+## Connect to an Instance
+
+List Auto Scaling Group instances:
+
+```bash
+aws ec2 describe-instances \
+  --filters "Name=tag:aws:autoscaling:groupName,Values=${ENV}-api-v2" \
+  --query "Reservations[].Instances[].{Id:InstanceId,State:State.Name,IP:PrivateIpAddress}" \
+  --output table
+```
+
+Start a shell session:
+
+```bash
+aws ssm start-session --target i-XXXXXXXXXXXXXXXXX
+```
+
+---
+
+## Check Service Status
+
+```bash
+sudo systemctl status app
+sudo systemctl status nginx
+sudo systemctl status amazon-ssm-agent
+sudo systemctl status amazon-cloudwatch-agent
+```
+
+Where:
+
+* `app` = FastAPI/Gunicorn
+* `nginx` = Reverse proxy
+
+---
+
+## Real-Time Log Analysis
+
+Application logs:
+
+```bash
+sudo journalctl -u app -f
+```
+
+Nginx logs:
+
+```bash
+sudo journalctl -u nginx -f
+```
+
+Direct log files:
+
+```bash
+sudo tail -f /var/log/app/app.log
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+```
+
+Cloud-init output:
+
+```bash
+sudo cat /var/log/cloud-init-output.log
+```
+
+Last 100 log lines:
+
+```bash
+sudo journalctl -u app --no-pager -n 100
+```
+
+---
+
+## CloudWatch Log Analysis
+
+Application logs:
+
+```bash
+aws logs tail /py-dfe/prod/app --follow
+```
+
+Nginx logs:
+
+```bash
+aws logs tail /py-dfe/prod/nginx \
+  --follow \
+  --log-stream-name-prefix i-XXXXX
+```
+
+Filter 5XX responses:
+
+```bash
+aws logs filter-log-events \
+  --log-group-name /py-dfe/prod/nginx \
+  --filter-pattern '{ $.status >= 500 }' \
+  --start-time $(date -d '1 hour ago' +%s000)
+```
+
+---
+
+## Archived Logs in S3
+
+List archived files:
+
+```bash
+aws s3 ls s3://prod-py-dfe-logs/api/ --recursive | grep 20260603
+```
+
+Download and extract:
+
+```bash
+aws s3 cp \
+  s3://prod-py-dfe-logs/api/20260603-i-XXXXX.tar.gz \
+  /tmp/
+
+tar xzf /tmp/20260603-i-XXXXX.tar.gz -C /tmp/logs/
+```
+
+---
+
+## Manual Deployment Through SSM
+
+```bash
+ENV=prod
+ASG="${ENV}-api-v2"
+ARTIFACT="api/api-20260603-1200-main-abc1234.zip"
+
+COMMAND_ID=$(aws ssm send-command \
+  --targets "Key=tag:aws:autoscaling:groupName,Values=${ASG}" \
+  --document-name "AWS-RunShellScript" \
+  --parameters "commands=[\"/opt/app/deploy.sh ${ARTIFACT}\"]" \
+  --timeout-seconds 300 \
+  --query "Command.CommandId" \
+  --output text)
+```
+
+Monitor execution:
+
+```bash
+aws ssm list-command-invocations \
+  --command-id "$COMMAND_ID" \
+  --details \
+  --query "CommandInvocations[].{Instance:InstanceId,Status:Status,Output:CommandPlugins[0].Output}" \
+  --output table
+```
+
+---
+
+## Target Group Health Checks
+
+Get Target Group ARN:
+
+```bash
+TG_ARN=$(aws elbv2 describe-target-groups \
+  --names "${ENV}-api-v2-tg" \
+  --query "TargetGroups[0].TargetGroupArn" \
+  --output text)
+```
+
+Check target health:
+
+```bash
+aws elbv2 describe-target-health \
+  --target-group-arn "$TG_ARN" \
+  --query "TargetHealthDescriptions[].{Id:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" \
+  --output table
+```
+
+---
+
+## Quick Diagnosis: Unhealthy New Instance
+
+1. Check cloud-init output:
+
+```bash
+sudo cat /var/log/cloud-init-output.log | tail -50
+```
+
+2. Verify SSM Agent:
+
+```bash
+systemctl status amazon-ssm-agent
+```
+
+3. Verify application deployment:
+
+```bash
+ls -la /opt/app/current/
+```
+
+4. Verify Gunicorn:
+
+```bash
+systemctl status app
+```
+
+5. Verify local health endpoint:
+
+```bash
+curl -s http://localhost:8080/v1.0/health-check
+```
+
+---
+
+# Troubleshooting
+
+| Error                                          | Cause                                                               | Resolution                                                      |
+|------------------------------------------------|---------------------------------------------------------------------|-----------------------------------------------------------------|
+| `No credentials have been configured`          | Missing AWS credentials                                             | Run `aws configure` or set environment variables                |
+| `InvalidClientTokenId`                         | Expired credentials                                                 | Regenerate credentials in AWS Console                           |
+| `Access Denied`                                | Missing IAM permissions                                             | Grant CloudFormation and DynamoDB permissions                   |
+| `Account 868899309401 is not available`        | Wrong AWS account                                                   | Verify `bin/cdk.ts`                                      |
+| `Bootstrap required`                           | CDK bootstrap not executed                                          | Run the bootstrap command                                       |
+| `iamInstanceProfile.arn is invalid`            | Instance profile not created yet                                    | Verify IAM stack deployment completed successfully              |
+| `Volume of size XGB is smaller than snapshot`  | EBS volume smaller than AMI snapshot requirements                   | Use a larger volume or AL2023 Minimal                           |
+| `SSM agent offline`                            | AL2023 Minimal does not include SSM Agent by default                | Install and enable `amazon-ssm-agent`                           |
+| Instances continuously replaced                | ASG configured with ELB health checks before application deployment | Use EC2 health checks during bootstrap                          |
+| `ln -sfn` creates a symlink inside a directory | `/opt/app/current` already exists as a directory                    | Use `ln -sfT` and avoid creating `current/` beforehand          |
+| `AccessDenied` during `aws s3 ls`              | Missing `s3:ListBucket` permission                                  | Use `aws s3api head-object` if only `s3:GetObject` is available |
+
+```
+```

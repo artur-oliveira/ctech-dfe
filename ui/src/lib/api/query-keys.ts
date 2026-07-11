@@ -1,0 +1,52 @@
+export const queryKeys = {
+  me: ['auth', 'me'] as const,
+  roles: ['auth', 'roles'] as const,
+  organizations: {
+    all: (cursor?: string) => ['organizations', cursor] as const,
+    detail: (pk: string) => ['organizations', pk] as const,
+  },
+  nfeConfig: (pk: string) => ['nfe-config', pk] as const,
+  nfceConfig: (pk: string) => ['nfce-config', pk] as const,
+  cteConfig: (pk: string) => ['cte-config', pk] as const,
+  mdfeConfig: (pk: string) => ['mdfe-config', pk] as const,
+  certificates: (pk: string) => ['certificates', pk] as const,
+  products: {
+    list: (orgPk: string | undefined) => ['products', orgPk] as const,
+    detail: (id: string) => ['product', id] as const,
+  },
+  vehicles: {
+    list: (orgPk: string | undefined) => ['vehicles', orgPk] as const,
+    detail: (id: string) => ['vehicle', id] as const,
+  },
+  persons: {
+    list: (orgPk: string | undefined) => ['persons', orgPk] as const,
+    detail: (cpfCnpj: string) => ['person', cpfCnpj] as const,
+    search: (query: string) => ['persons-search', query] as const,
+  },
+  nfes: {
+    // lists() is the partial-match prefix for ALL paginated list queries of this org.
+    lists: (orgPk: string | undefined) => ['nfes', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['nfes', orgPk, params] as const,
+    detail: (accessKey: string) => ['nfe', accessKey] as const,
+    events: (accessKey: string) => ['nfe-events', accessKey] as const,
+  },
+  nfces: {
+    lists: (orgPk: string | undefined) => ['nfces', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['nfces', orgPk, params] as const,
+    detail: (accessKey: string) => ['nfce', accessKey] as const,
+    events: (accessKey: string) => ['nfce-events', accessKey] as const,
+  },
+  mdfes: {
+    lists: (orgPk: string | undefined) => ['mdfes', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['mdfes', orgPk, params] as const,
+    detail: (accessKey: string) => ['mdfe', accessKey] as const,
+    events: (accessKey: string) => ['mdfe-events', accessKey] as const,
+    cargoPreview: (orgPk: string | undefined, keys: string[]) => ['mdfe-cargo-preview', orgPk, keys] as const,
+  },
+  distributions: {
+    history: (docType: string, orgPk: string | undefined) => [`${docType}-distributions`, orgPk] as const,
+  },
+  auditLogs: {
+    list: (orgPk: string | undefined, params?: object) => ['audit-logs', orgPk, params] as const,
+  },
+}
