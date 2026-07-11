@@ -59,8 +59,11 @@ func Load() (*Config, error) {
 		cfg.CtechJWKSURL = cfg.CtechURL + "/.well-known/jwks.json"
 	}
 	if cfg.ServiceAudience == "" && cfg.Env == "production" {
-		slog.Warn("SERVICE_AUDIENCE is empty in production — the aud claim is not being checked; " +
-			"any RS256 token signed by the identity provider will be accepted by this service")
+		// Fail closed: without an audience check, any RS256 token the identity
+		// provider signs for any client (id_tokens, api-key tokens, tokens minted
+		// for other resource servers) would be accepted here. That is never a
+		// safe production posture, so refuse to start rather than warn.
+		return nil, fmt.Errorf("config: SERVICE_AUDIENCE must be set in production so the aud claim is verified")
 	}
 	if cfg.CtechURL == "" && cfg.Env == "production" {
 		slog.Warn("CTECH_URL is empty in production — the iss claim is not being checked")
