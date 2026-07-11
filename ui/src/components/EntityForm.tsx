@@ -19,6 +19,7 @@ import {
   entitySchema,
   UF_OPTIONS,
 } from '@/lib/schemas/entity'
+import {organizationSchema} from '@/lib/schemas/organizations'
 import {maskCnpj, maskCpf, maskPhone} from '@/lib/utils/masks'
 import {useCnpjLookup} from '@/lib/hooks/useCnpjLookup'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -116,6 +117,19 @@ function deriveTipo(entityPk?: string, data?: EntityFormData): Tipo {
   return data?.tipo ?? 'pj'
 }
 
+/** Whether initialData already has data in fields that live behind the
+ * "Informações adicionais" toggle — used to auto-expand it on edit so
+ * existing data isn't hidden from the user. */
+function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): boolean {
+  if (!data) return false
+  if (data.person.fantasy_name) return true
+  if (data.person.addresses.length > 1) return true
+  if (data.person.contacts.emails.length > 0) return true
+  if (data.person.contacts.phones.length > 0) return true
+  if (!isOrg && data.person.state_registrations.length > 0) return true
+  return false
+}
+
 /* ── Component ───────────────────────────────────────────────────────── */
 export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpfCnpj, onSubmit, loading = false}: EntityFormProps) {
   const isEdit = !!initialData
@@ -123,6 +137,7 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
   const [tipo, setTipo] = useState<Tipo>(() => lockTipo ?? deriveTipo(entityPk, initialData))
   const isPJ = tipo === 'pj'
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [advancedOpen, setAdvancedOpen] = useState(() => hasAdvancedData(initialData, isOrg))
 
   const {selectedOrg} = useAuth()
   const orgUf = selectedOrg?.state_federation ?? 'SP'
@@ -133,7 +148,7 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
   const [phoneInput, setPhoneInput] = useState('')
 
   const form = useForm<EntityFormData>({
-    resolver: zodResolver(entitySchema) as Resolver<EntityFormData>,
+    resolver: zodResolver(isOrg ? organizationSchema : entitySchema) as Resolver<EntityFormData>,
     defaultValues: initialData ?? {
       ...DEFAULT_VALUES,
       ...(lockTipo ? {tipo: lockTipo} : {}),
@@ -230,6 +245,62 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
       ? [{value: CRT_NONE_VALUE, label: 'Não especificar'}, ...CRT_OPTIONS_ORG_PF]
       : CRT_OPTIONS_ORG_PF
 
+  // Inscrições Estaduais — required (and always visible) for a PJ organization
+  // since it's always the fiscal emitter; optional (and tucked into "advanced")
+  // for a PJ person, since IE-when-contribuinte is a per-emission choice.
+  const ieSection = isPJ && (
+    <div className="pt-1 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Inscrições Estaduais{isOrg ? ' *' : ''}
+        </p>
+        <Button type="button" variant="ghost" size="xs"
+                onClick={() => {
+                  const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP'
+                  appendIE({
+                    uf: first as EntityFormData['person']['state_registrations'][number]['uf'],
+                    state_registration: ''
+                  })
+                }}
+                disabled={selectedUFs.length >= UF_OPTIONS.length}
+                className="gap-1 text-brand-600 hover:text-brand-700">
+          <PlusIcon/> Adicionar
+        </Button>
+      </div>
+      {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
+      {ieFields.map((field, index) => {
+        const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
+        return (
+          <div key={field.id} className="flex items-end gap-2 mb-2">
+            <FormField control={form.control as never} name={`person.state_registrations.${index}.uf`}
+                       render={({field: f}) => (
+                         <FormItem className="w-20 shrink-0">
+                           {index === 0 && <FormLabel htmlFor={f.name}>UF</FormLabel>}
+                           <OptionsSelect id={f.name} value={f.value} onValueChange={f.onChange} options={ufOpts}/>
+                           <FormMessage/>
+                         </FormItem>
+                       )}
+            />
+            <FormField control={form.control as never}
+                       name={`person.state_registrations.${index}.state_registration`}
+                       render={({field: f}) => (
+                         <FormItem className="flex-1">
+                           {index === 0 && <FormLabel>IE</FormLabel>}
+                           <Input {...f} placeholder="Número da IE" maxLength={20}/>
+                           <FormMessage/>
+                         </FormItem>
+                       )}
+            />
+            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
+                    className="mb-0.5 text-gray-400 hover:text-red-500 hover:bg-red-50">
+              <XIcon/>
+            </Button>
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -302,40 +373,13 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
               />
             </div>
 
-            {isPJ && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control as never} name="person.fantasy_name"
-                           render={({field}) => (
-                             <FormItem>
-                               <FormLabel>Nome Fantasia *</FormLabel>
-                               <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Minha Loja"
-                                      maxLength={255}/>
-                               <FormMessage/>
-                             </FormItem>
-                           )}
-                />
-                {isOrg ? (
-                  <FormField control={form.control as never} name="description"
-                             render={({field}) => (
-                               <FormItem>
-                                 <FormLabel>Apelido interno</FormLabel>
-                                 <Input {...field} id={field.name} value={field.value ?? ''}
-                                        placeholder="Ex: Filial Sul" maxLength={120}/>
-                                 <FormMessage/>
-                               </FormItem>
-                             )}
-                  />
-                ) : null}
-              </div>
-            )}
-
-            {!isPJ && isOrg && (
+            {isOrg && (
               <FormField control={form.control as never} name="description"
                          render={({field}) => (
                            <FormItem>
                              <FormLabel>Apelido interno</FormLabel>
-                             <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Ex: MEI Principal"
-                                    maxLength={120}/>
+                             <Input {...field} id={field.name} value={field.value ?? ''}
+                                    placeholder={isPJ ? 'Ex: Filial Sul' : 'Ex: MEI Principal'} maxLength={120}/>
                              <FormMessage/>
                            </FormItem>
                          )}
@@ -361,59 +405,8 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
               </div>
             )}
 
-            {/* Inscrições Estaduais — só PJ */}
-            {isPJ && (
-              <div className="pt-1 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Inscrições Estaduais
-                  </p>
-                  <Button type="button" variant="ghost" size="xs"
-                          onClick={() => {
-                            const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP'
-                            appendIE({
-                              uf: first as EntityFormData['person']['state_registrations'][number]['uf'],
-                              state_registration: ''
-                            })
-                          }}
-                          disabled={selectedUFs.length >= UF_OPTIONS.length}
-                          className="gap-1 text-brand-600 hover:text-brand-700">
-                    <PlusIcon/> Adicionar
-                  </Button>
-                </div>
-                {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
-                {ieFields.map((field, index) => {
-                  const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
-                  return (
-                    <div key={field.id} className="flex items-end gap-2 mb-2">
-                      <FormField control={form.control as never} name={`person.state_registrations.${index}.uf`}
-                                 render={({field: f}) => (
-                                   <FormItem className="w-20 shrink-0">
-                                     {index === 0 && <FormLabel htmlFor={f.name}>UF</FormLabel>}
-                                     <OptionsSelect id={f.name} value={f.value} onValueChange={f.onChange} options={ufOpts}/>
-                                     <FormMessage/>
-                                   </FormItem>
-                                 )}
-                      />
-                      <FormField control={form.control as never}
-                                 name={`person.state_registrations.${index}.state_registration`}
-                                 render={({field: f}) => (
-                                   <FormItem className="flex-1">
-                                     {index === 0 && <FormLabel>IE</FormLabel>}
-                                     <Input {...f} placeholder="Número da IE" maxLength={20}/>
-                                     <FormMessage/>
-                                   </FormItem>
-                                 )}
-                      />
-                      <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
-                              className="mb-0.5 text-gray-400 hover:text-red-500 hover:bg-red-50">
-                        <XIcon/>
-                      </Button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            {/* Inscrições Estaduais — sempre visível pra organização PJ (obrigatória) */}
+            {isOrg && ieSection}
           </SectionCard>
 
           {/* Endereço principal */}
@@ -425,97 +418,125 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
           )}
         </div>
 
-        {/* Endereços adicionais */}
-        {addressFields.slice(1).map((field, idx) => (
-          <SectionCard key={field.id} icon={<MapPinIcon/>} title={`Endereço ${idx + 2}`} className="relative">
-            <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeAddress(idx + 1)}
-                    className="absolute top-3 right-4 text-gray-400 hover:text-red-500 hover:bg-red-50">
-              <XIcon/>
-            </Button>
-            <AddressFields control={form.control} setValue={form.setValue}
-                           basePath={`person.addresses.${idx + 1}`}/>
-          </SectionCard>
-        ))}
+        {/* Informações adicionais — nome fantasia, endereços extras, contatos e
+            (só para pessoa) inscrições estaduais. Fechado por padrão. */}
+        <section className="space-y-3">
+          <Button type="button" variant="ghost" size="xs" onClick={() => setAdvancedOpen(!advancedOpen)}
+                  className="text-brand-600 hover:text-brand-700">
+            {advancedOpen ? '− Ocultar informações adicionais' : '+ Informações adicionais'}
+          </Button>
 
-        <Button type="button" variant="ghost" size="sm" onClick={() => appendAddress(EMPTY_ADDRESS)}
-                className="gap-1.5 text-brand-600 hover:text-brand-700 px-0">
-          <PlusIcon/> Adicionar endereço
-        </Button>
+          {advancedOpen && (
+            <div className="space-y-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              {isPJ && (
+                <FormField control={form.control as never} name="person.fantasy_name"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Nome Fantasia</FormLabel>
+                               <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Minha Loja"
+                                      maxLength={255}/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+              )}
 
-        <SectionCard icon={<MailIcon/>} title="Contatos">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* E-mails */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
-                <MailIcon/>E-mails <span className="text-xs font-normal text-gray-400">({emails.length}/5)</span>
-              </div>
-              <div className="flex gap-2">
-                <Input type="email" placeholder="email@empresa.com" value={emailInput}
-                       onChange={(e) => setEmailInput(e.target.value)}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter') {
-                           e.preventDefault();
-                           addEmail()
-                         }
-                       }}
-                       disabled={emails.length >= 5}/>
-                <Button type="button" variant="outline" size="icon-lg" onClick={addEmail}
-                        disabled={emails.length >= 5 || !emailInput}
-                        className="shrink-0 text-gray-400 hover:text-gray-600">
-                  <PlusIcon/>
-                </Button>
-              </div>
-              {emails.length > 0 && (
-                <ul className="space-y-1">
-                  {emails.map((e, i) => (
-                    <li key={i}
-                        className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-sm">
-                      <span className="truncate text-gray-700">{e}</span>
-                      <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(i)}
-                              className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
+              {!isOrg && ieSection}
+
+              {/* Endereços adicionais */}
+              {addressFields.slice(1).map((field, idx) => (
+                <SectionCard key={field.id} icon={<MapPinIcon/>} title={`Endereço ${idx + 2}`} className="relative">
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeAddress(idx + 1)}
+                          className="absolute top-3 right-4 text-gray-400 hover:text-red-500 hover:bg-red-50">
+                    <XIcon/>
+                  </Button>
+                  <AddressFields control={form.control} setValue={form.setValue}
+                                 basePath={`person.addresses.${idx + 1}`}/>
+                </SectionCard>
+              ))}
+
+              <Button type="button" variant="ghost" size="sm" onClick={() => appendAddress(EMPTY_ADDRESS)}
+                      className="gap-1.5 text-brand-600 hover:text-brand-700 px-0">
+                <PlusIcon/> Adicionar endereço
+              </Button>
+
+              <SectionCard icon={<MailIcon/>} title="Contatos">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* E-mails */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
+                      <MailIcon/>E-mails <span className="text-xs font-normal text-gray-400">({emails.length}/5)</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input type="email" placeholder="email@empresa.com" value={emailInput}
+                             onChange={(e) => setEmailInput(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') {
+                                 e.preventDefault();
+                                 addEmail()
+                               }
+                             }}
+                             disabled={emails.length >= 5}/>
+                      <Button type="button" variant="outline" size="icon-lg" onClick={addEmail}
+                              disabled={emails.length >= 5 || !emailInput}
+                              className="shrink-0 text-gray-400 hover:text-gray-600">
+                        <PlusIcon/>
                       </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            {/* Telefones */}
-            <div className="md:border-l md:border-gray-100 md:pl-6 space-y-2">
-              <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
-                <PhoneIcon/>Telefones <span className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
-              </div>
-              <div className="flex gap-2">
-                <Input type="tel" placeholder="(11) 98765-4321" value={phoneInput}
-                       onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter') {
-                           e.preventDefault();
-                           addPhone()
-                         }
-                       }}
-                       disabled={phones.length >= 5}/>
-                <Button type="button" variant="outline" size="icon-lg" onClick={addPhone}
-                        disabled={phones.length >= 5 || phoneInput.replace(/\D/g, '').length < 10}
-                        className="shrink-0 text-gray-400 hover:text-gray-600">
-                  <PlusIcon/>
-                </Button>
-              </div>
-              {phones.length > 0 && (
-                <ul className="space-y-1">
-                  {phones.map((p, i) => (
-                    <li key={i}
-                        className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-sm">
-                      <span className="text-gray-700">{maskPhone(p)}</span>
-                      <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(i)}
-                              className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
+                    </div>
+                    {emails.length > 0 && (
+                      <ul className="space-y-1">
+                        {emails.map((e, i) => (
+                          <li key={i}
+                              className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
+                            <span className="truncate text-gray-700">{e}</span>
+                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(i)}
+                                    className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {/* Telefones */}
+                  <div className="md:border-l md:border-gray-100 md:pl-6 space-y-2">
+                    <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
+                      <PhoneIcon/>Telefones <span className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input type="tel" placeholder="(11) 98765-4321" value={phoneInput}
+                             onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') {
+                                 e.preventDefault();
+                                 addPhone()
+                               }
+                             }}
+                             disabled={phones.length >= 5}/>
+                      <Button type="button" variant="outline" size="icon-lg" onClick={addPhone}
+                              disabled={phones.length >= 5 || phoneInput.replace(/\D/g, '').length < 10}
+                              className="shrink-0 text-gray-400 hover:text-gray-600">
+                        <PlusIcon/>
                       </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    </div>
+                    {phones.length > 0 && (
+                      <ul className="space-y-1">
+                        {phones.map((p, i) => (
+                          <li key={i}
+                              className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
+                            <span className="text-gray-700">{maskPhone(p)}</span>
+                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(i)}
+                                    className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </SectionCard>
             </div>
-          </div>
-        </SectionCard>
+          )}
+        </section>
 
         <div className="flex justify-end pt-1">
           <Button type="submit" disabled={loading} className="min-w-44">

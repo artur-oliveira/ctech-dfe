@@ -6,5 +6,6 @@ export {
   type EntityFormData as OrganizationFormData,
   addressSchema,
   stateRegistrationSchema,
+  organizationSchema,
   UF_OPTIONS,
 } from '@/lib/schemas/entity'

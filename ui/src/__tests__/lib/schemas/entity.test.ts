@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest'
-import {CRT_NONE_VALUE, entitySchema, type EntityFormData} from '@/lib/schemas/entity'
+import {CRT_NONE_VALUE, entitySchema, organizationSchema, type EntityFormData} from '@/lib/schemas/entity'
 
 // Valid PF (pessoa física) form payload. CPF 05213732399 is a real-valid CPF.
 const basePF: EntityFormData = {
@@ -58,5 +58,31 @@ describe('entitySchema — PF edit', () => {
     }
     expect(entitySchema.safeParse(pj).success).toBe(false)
     expect(entitySchema.safeParse({...pj, person: {...pj.person, crt: CRT_NONE_VALUE}}).success).toBe(false)
+  })
+})
+
+describe('organizationSchema — PJ requires at least one IE, entitySchema (persons) does not', () => {
+  const pj: EntityFormData = {
+    ...basePF,
+    tipo: 'pj',
+    cpf_or_cnpj: '11647612000197',
+    person: {...basePF.person, fantasy_name: 'Loja', crt: '1', state_registrations: []},
+  }
+
+  it('organizationSchema rejeita PJ sem inscrição estadual', () => {
+    expect(organizationSchema.safeParse(pj).success).toBe(false)
+  })
+
+  it('organizationSchema aceita PJ com ao menos uma inscrição estadual', () => {
+    const withIE = {...pj, person: {...pj.person, state_registrations: [{uf: 'PI' as const, state_registration: '123456'}]}}
+    expect(organizationSchema.safeParse(withIE).success).toBe(true)
+  })
+
+  it('entitySchema (pessoas) aceita PJ sem inscrição estadual', () => {
+    expect(entitySchema.safeParse(pj).success).toBe(true)
+  })
+
+  it('organizationSchema aceita PF sem inscrição estadual (regra é só para CNPJ)', () => {
+    expect(organizationSchema.safeParse(basePF).success).toBe(true)
   })
 })
