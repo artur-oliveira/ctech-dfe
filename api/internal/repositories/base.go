@@ -195,6 +195,19 @@ func (b *Base) BuildPutTxItem(item map[string]types.AttributeValue) types.Transa
 	}
 }
 
+// BuildPutTxItemIfAbsent is like BuildPutTxItem but fails the transaction if
+// an item with the same key already exists — used for create-only semantics
+// (e.g. person dedup by CPF/CNPJ) instead of the default overwrite-on-put.
+func (b *Base) BuildPutTxItemIfAbsent(item map[string]types.AttributeValue) types.TransactWriteItem {
+	return types.TransactWriteItem{
+		Put: &types.Put{
+			TableName:           aws.String(b.TableName),
+			Item:                item,
+			ConditionExpression: aws.String("attribute_not_exists(pk)"),
+		},
+	}
+}
+
 // BuildUpdateTxItem returns a TransactWriteItem equivalent to UpdateItem, for
 // composing a multi-item transaction via TransactWrite instead of writing
 // immediately. Same SET/REMOVE semantics and attribute_exists(pk) condition as
@@ -431,4 +444,12 @@ func isTransactionCanceled(err error) bool {
 		return true
 	}
 	return strings.Contains(err.Error(), "TransactionCanceledException")
+}
+
+// IsConditionFailed reports whether err represents a DynamoDB conditional
+// check failure, either from a single-item call or from within a
+// TransactWrite (TransactionCanceledException wrapping a condition failure).
+// Exported for the services layer to translate into problem.Conflict.
+func IsConditionFailed(err error) bool {
+	return isConditionFailed(err) || isTransactionCanceled(err)
 }

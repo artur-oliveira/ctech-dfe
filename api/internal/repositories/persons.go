@@ -98,7 +98,7 @@ func (r *PersonRepository) BuildCreateTxItem(orgPK, sk string, fields map[string
 			item[k] = av
 		}
 	}
-	return r.BuildPutTxItem(item), item
+	return r.BuildPutTxItemIfAbsent(item), item
 }
 
 // BuildUpdateTxItem returns a TransactWriteItem for updating an existing

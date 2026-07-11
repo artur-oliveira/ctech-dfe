@@ -101,6 +101,38 @@ func TestPerson_Delete(t *testing.T) {
 	}
 }
 
+func TestPerson_CreateDuplicateCpfCnpj_Returns409(t *testing.T) {
+	ctx := context.Background()
+	orgPK := "CNPJ_" + randomCNPJ()
+	cpf := "52998224725"
+
+	if _, err := personSvc.Create(ctx, orgPK, cpf, map[string]any{"name": "First"}, "test-user", "Test User"); err != nil {
+		t.Fatalf("first Create: %v", err)
+	}
+
+	_, err := personSvc.Create(ctx, orgPK, cpf, map[string]any{"name": "Duplicate"}, "test-user", "Test User")
+	if err == nil {
+		t.Fatal("expected error for duplicate CPF/CNPJ, got nil")
+	}
+	if problemStatus(err) != 409 {
+		t.Errorf("expected 409, got %d: %v", problemStatus(err), err)
+	}
+}
+
+func TestPerson_CreateDuplicateCpfCnpj_DifferentOrgsAllowed(t *testing.T) {
+	ctx := context.Background()
+	cpf := "04998224725" // distinct from other tests to avoid cross-test collisions
+	orgA := "CNPJ_" + randomCNPJ()
+	orgB := "CNPJ_" + randomCNPJ()
+
+	if _, err := personSvc.Create(ctx, orgA, cpf, map[string]any{"name": "Org A"}, "test-user", "Test User"); err != nil {
+		t.Fatalf("Create in org A: %v", err)
+	}
+	if _, err := personSvc.Create(ctx, orgB, cpf, map[string]any{"name": "Org B"}, "test-user", "Test User"); err != nil {
+		t.Fatalf("Create in org B (same CPF, different org): unexpected error: %v", err)
+	}
+}
+
 func TestPerson_InvalidCPFReturnsError(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()

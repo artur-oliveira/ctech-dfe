@@ -116,6 +116,9 @@ func (s *PersonService) Create(ctx context.Context, orgPK string, cpfCNPJ string
 	}
 
 	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}); err != nil {
+		if repositories.IsConditionFailed(err) {
+			return nil, problem.Conflict("pessoa com este CPF/CNPJ já cadastrada")
+		}
 		return nil, err
 	}
 	_ = s.cache.DeletePrefix(ctx, personListCachePrefix(orgPK))
