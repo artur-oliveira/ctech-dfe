@@ -151,6 +151,31 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		return sendItem(c, org)
 	})
 
+	// ── Authorized XML viewers (SEFAZ autXML) ──────────────────────────────────
+
+	scoped.Post("/authorized-viewers", perm.Require("update.organizations"), func(c fiber.Ctx) error {
+		var dto AuthorizedViewerBody
+		if p := bindJSON(c, &dto); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, h.UserSvc)
+		entry := services.AuthorizedViewerEntry{CpfOrCnpj: dto.CpfOrCnpj, Name: dto.Name}
+		org, err := h.OrgSvc.AddAuthorizedViewer(c.Context(), middleware.GetOrgPK(c), entry, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, org)
+	})
+
+	scoped.Delete("/authorized-viewers/:cpf_cnpj", perm.Require("update.organizations"), func(c fiber.Ctx) error {
+		userID, userName := resolveActor(c, h.UserSvc)
+		org, err := h.OrgSvc.RemoveAuthorizedViewer(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, org)
+	})
+
 	// ── Fiscal configs ───────────────────────────────────────────────────────
 	registerFiscalConfig(scoped, "/nfe-config",
 		"get.organization_nfe_configs", "update.organization_nfe_configs",

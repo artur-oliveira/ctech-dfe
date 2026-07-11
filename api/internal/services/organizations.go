@@ -174,6 +174,19 @@ func removeAuthorizedViewerEntry(current []AuthorizedViewerEntry, cpfCnpj string
 	return out
 }
 
+// toAuthorizedViewerMaps converts to plain maps with snake_case keys before
+// writing — attributevalue.Marshal has no dynamodbav tags to guide it here,
+// so a raw []AuthorizedViewerEntry would be stored under its exported Go
+// field names (CpfOrCnpj/Name) instead of the cpf_cnpj/name keys the read
+// side (extractAuthorizedViewers) expects.
+func toAuthorizedViewerMaps(entries []AuthorizedViewerEntry) []map[string]any {
+	out := make([]map[string]any, len(entries))
+	for i, e := range entries {
+		out[i] = map[string]any{"cpf_cnpj": e.CpfOrCnpj, "name": e.Name}
+	}
+	return out
+}
+
 // AddAuthorizedViewer appends a person authorized to view this organization's
 // NF-e XMLs (SEFAZ autXML, max 10, no duplicate CPF/CNPJ).
 func (s *OrganizationService) AddAuthorizedViewer(ctx context.Context, orgPK string, v AuthorizedViewerEntry, userID, userName string) (map[string]types.AttributeValue, error) {
@@ -192,7 +205,7 @@ func (s *OrganizationService) AddAuthorizedViewer(ctx context.Context, orgPK str
 	if err != nil {
 		return nil, err
 	}
-	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
+	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": toAuthorizedViewerMaps(viewers)}, userID, userName)
 }
 
 // RemoveAuthorizedViewer removes an authorized viewer by CPF/CNPJ. No-op
@@ -210,5 +223,5 @@ func (s *OrganizationService) RemoveAuthorizedViewer(ctx context.Context, orgPK,
 		return nil, err
 	}
 	viewers := removeAuthorizedViewerEntry(extractAuthorizedViewers(currentMap), cpfCnpj)
-	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
+	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": toAuthorizedViewerMaps(viewers)}, userID, userName)
 }
