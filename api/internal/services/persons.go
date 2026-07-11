@@ -32,6 +32,25 @@ func BuildPersonSK(cpfCNPJ string) (string, error) {
 	return "", problem.BadRequest("invalid CPF/CNPJ: " + cpfCNPJ)
 }
 
+// StateRegistrationEntry is the plain-value shape of a state_registrations
+// entry, shared by RequireOrgIE and any caller that already has decoded data.
+type StateRegistrationEntry struct {
+	UF                string
+	StateRegistration string
+}
+
+// RequirePJFields returns a BadRequest problem if cpfOrCNPJ is a CNPJ (14
+// digits) and crt is nil. CPF documents (pessoa física) never require CRT.
+// Applies to both persons and organizations — every pessoa jurídica has a
+// fixed tax regime regardless of which fiscal documents it appears on.
+func RequirePJFields(cpfOrCNPJ string, crt *int) error {
+	v := strings.NewReplacer(".", "", "-", "", "/", "").Replace(cpfOrCNPJ)
+	if cnpjRe.MatchString(v) && crt == nil {
+		return problem.BadRequest("crt é obrigatório para pessoa jurídica")
+	}
+	return nil
+}
+
 // PersonService mirrors api/app/services/persons.py.
 type PersonService struct {
 	repo      *repositories.PersonRepository

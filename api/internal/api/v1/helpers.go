@@ -72,6 +72,43 @@ func unmarshal(item map[string]types.AttributeValue) (map[string]any, error) {
 	return out, attributevalue.UnmarshalMap(item, &out)
 }
 
+// toStateRegEntries converts request-body state registrations to the plain
+// services.StateRegistrationEntry shape consumed by RequireOrgIE.
+func toStateRegEntries(regs []StateRegistrationBody) []services.StateRegistrationEntry {
+	out := make([]services.StateRegistrationEntry, len(regs))
+	for i, r := range regs {
+		out[i] = services.StateRegistrationEntry{UF: r.UF, StateRegistration: r.StateRegistration}
+	}
+	return out
+}
+
+// extractCrtAndRegs reads the nested person.crt/person.state_registrations
+// out of an already-unmarshalled person/organization item, for merging with
+// a partial update body before re-validating RequirePJFields/RequireOrgIE.
+func extractCrtAndRegs(item map[string]any) (*int, []services.StateRegistrationEntry) {
+	personRaw, _ := item["person"].(map[string]any)
+	var crt *int
+	if v, ok := personRaw["crt"]; ok && v != nil {
+		if n, ok := v.(float64); ok {
+			c := int(n)
+			crt = &c
+		}
+	}
+	var regs []services.StateRegistrationEntry
+	if raw, ok := personRaw["state_registrations"].([]any); ok {
+		for _, r := range raw {
+			rm, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			uf, _ := rm["uf"].(string)
+			sr, _ := rm["state_registration"].(string)
+			regs = append(regs, services.StateRegistrationEntry{UF: uf, StateRegistration: sr})
+		}
+	}
+	return crt, regs
+}
+
 // unmarshalList converts a slice of DynamoDB items to []map[string]any.
 func unmarshalList(items []map[string]types.AttributeValue) ([]map[string]any, error) {
 	out := make([]map[string]any, len(items))

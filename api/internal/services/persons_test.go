@@ -73,3 +73,30 @@ func TestBuildPersonSK_EmptyReturnsError(t *testing.T) {
 		t.Error("expected error for empty input")
 	}
 }
+
+// ─── RequirePJFields ──────────────────────────────────────────────────────────
+
+func TestRequirePJFields_CNPJWithoutCRT_ReturnsError(t *testing.T) {
+	if err := RequirePJFields("11222333000181", nil); err == nil {
+		t.Fatal("expected error for CNPJ without CRT")
+	}
+}
+
+func TestRequirePJFields_CNPJWithCRT_OK(t *testing.T) {
+	crt := 1
+	if err := RequirePJFields("11222333000181", &crt); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRequirePJFields_CPF_NoCRTRequired(t *testing.T) {
+	if err := RequirePJFields("11122233344", nil); err != nil {
+		t.Fatalf("CPF should not require CRT: %v", err)
+	}
+}
+
+func TestRequirePJFields_FormattedCNPJWithoutCRT_ReturnsError(t *testing.T) {
+	if err := RequirePJFields("11.222.333/0001-81", nil); err == nil {
+		t.Fatal("expected error for formatted CNPJ without CRT")
+	}
+}

@@ -67,6 +67,12 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		if p := bindJSON(c, &dto); p != nil {
 			return sendProblem(c, p)
 		}
+		if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
+			return sendProblem(c, err)
+		}
+		if err := services.RequireOrgIE(dto.CpfOrCnpj, toStateRegEntries(dto.Person.StateRegistrations)); err != nil {
+			return sendProblem(c, err)
+		}
 		av, err := structToAV(dto)
 		if err != nil {
 			return sendProblem(c, err)
@@ -105,6 +111,33 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		var dto OrganizationUpdateBody
 		if p := bindJSON(c, &dto); p != nil {
 			return sendProblem(c, p)
+		}
+		if dto.Person != nil {
+			orgPK := middleware.GetOrgPK(c)
+			crt, regs := dto.Person.Crt, toStateRegEntries(dto.Person.StateRegistrations)
+			if dto.Person.Crt == nil || dto.Person.StateRegistrations == nil {
+				current, err := h.OrgSvc.Get(c.Context(), orgPK)
+				if err != nil {
+					return sendProblem(c, err)
+				}
+				currentMap, err := unmarshal(current)
+				if err != nil {
+					return sendProblem(c, err)
+				}
+				currentCrt, currentRegs := extractCrtAndRegs(currentMap)
+				if dto.Person.Crt == nil {
+					crt = currentCrt
+				}
+				if dto.Person.StateRegistrations == nil {
+					regs = currentRegs
+				}
+			}
+			if err := services.RequirePJFields(orgPK, crt); err != nil {
+				return sendProblem(c, err)
+			}
+			if err := services.RequireOrgIE(orgPK, regs); err != nil {
+				return sendProblem(c, err)
+			}
 		}
 		body, err := structToMap(dto)
 		if err != nil {

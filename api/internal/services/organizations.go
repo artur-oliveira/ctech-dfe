@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
@@ -11,6 +12,19 @@ import (
 )
 
 const orgCacheTTL = 300
+
+// RequireOrgIE returns a BadRequest problem if cpfOrCNPJ is a CNPJ and regs
+// is empty. Organizations (always the fiscal emitter) must declare at least
+// one state registration; persons (destinatário/counterparty) are exempt —
+// IE-when-contribuinte is a per-emission choice (indIEDest), not a cadastro
+// requirement. See docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md.
+func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
+	v := strings.NewReplacer(".", "", "-", "", "/", "").Replace(cpfOrCNPJ)
+	if len(v) == 14 && len(regs) == 0 {
+		return problem.BadRequest("ao menos uma inscrição estadual é obrigatória para organização com CNPJ")
+	}
+	return nil
+}
 
 // OrganizationService mirrors api/app/services/organizations.py.
 type OrganizationService struct {

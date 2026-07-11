@@ -33,6 +33,9 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 		if p := bindJSON(c, &dto); p != nil {
 			return sendProblem(c, p)
 		}
+		if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
+			return sendProblem(c, err)
+		}
 		body, err := structToMap(dto)
 		if err != nil {
 			return sendProblem(c, err)
@@ -63,6 +66,23 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 		var dto PersonUpdateBody
 		if p := bindJSON(c, &dto); p != nil {
 			return sendProblem(c, p)
+		}
+		if dto.Person != nil {
+			crt := dto.Person.Crt
+			if crt == nil {
+				current, err := svc.Get(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"))
+				if err != nil {
+					return sendProblem(c, err)
+				}
+				currentMap, err := unmarshal(current)
+				if err != nil {
+					return sendProblem(c, err)
+				}
+				crt, _ = extractCrtAndRegs(currentMap)
+			}
+			if err := services.RequirePJFields(c.Params("cpf_cnpj"), crt); err != nil {
+				return sendProblem(c, err)
+			}
 		}
 		body, err := structToMap(dto)
 		if err != nil {
