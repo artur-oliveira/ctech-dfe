@@ -25,6 +25,11 @@ export const OWNER_TYPE_OPTIONS = [
   { value: 'CTC', label: 'CTC – Cooperativa de Transporte' },
 ]
 
+export const ROLE_OPTIONS = [
+  { value: 'tractor', label: 'Tração (cavalo/caminhão)' },
+  { value: 'trailer', label: 'Reboque' },
+]
+
 export {UF_OPTIONS} from '@/lib/schemas/entity'
 
 const ownerSchema = z.object({
@@ -34,31 +39,21 @@ const ownerSchema = z.object({
   type: z.enum(['TAC', 'ETC', 'CTC'], { error: 'Tipo inválido' }),
 })
 
-const trailerSchema = z.object({
-  plate: z
-    .string()
-    .regex(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/, 'Placa Mercosul inválida (ex: ABC1D23)'),
-  plate_uf: z.enum(UF_LIST, { error: 'UF inválida' }),
-  wheelset: z.string().min(1, 'Tipo de eixo obrigatório'),
-  bodywork: z.string().min(1, 'Carroceria obrigatória'),
-  renavam: z.string().regex(/^\d{9,11}$/, 'RENAVAM deve ter 9–11 dígitos'),
-  weight: z.string().regex(/^\d+$/, 'Tara deve ser um número inteiro positivo'),
-  owner: ownerSchema,
-})
-
 export const vehicleSchema = z.object({
   plate: z
     .string()
     .regex(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/, 'Placa Mercosul inválida (ex: ABC1D23)'),
   plate_uf: z.enum(UF_LIST, { error: 'UF inválida' }),
-  wheelset: z.string().min(1, 'Tipo de eixo obrigatório'),
-  bodywork: z.string().min(1, 'Carroceria obrigatória'),
-  renavam: z.string().regex(/^\d{9,11}$/, 'RENAVAM deve ter 9–11 dígitos'),
-  weight: z.string().regex(/^\d+$/, 'Tara deve ser um número inteiro positivo'),
-  owner: ownerSchema,
-  trailers: z.array(trailerSchema),
+  role: z.enum(['tractor', 'trailer'], { error: 'Papel do veículo obrigatório' }),
+  wheelset: z.string().optional(),
+  bodywork: z.string().optional(),
+  renavam: z.string().regex(/^\d{9,11}$/, 'RENAVAM deve ter 9–11 dígitos').optional().or(z.literal('')),
+  weight: z.string().regex(/^\d+$/, 'Tara deve ser um número inteiro positivo').optional().or(z.literal('')),
+  cap_kg: z.string().regex(/^\d+$/, 'Capacidade deve ser um número inteiro positivo').optional().or(z.literal('')),
+  cap_m3: z.string().regex(/^\d+$/, 'Capacidade deve ser um número inteiro positivo').optional().or(z.literal('')),
+  cint: z.string().max(10).optional(),
+  owner: ownerSchema.optional(),
 })
 
 export type VehicleFormData = z.infer<typeof vehicleSchema>
-export type TrailerFormData = z.infer<typeof trailerSchema>
 export type OwnerFormData = z.infer<typeof ownerSchema>
