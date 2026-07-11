@@ -15,7 +15,7 @@ PITR: enabled in production only.
 | 2  | `organizations`             | `CNPJ_{cnpj}` or `CPF_{cpf}` | —                  | —                                 |
 | 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}` | —                                 |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`   | `code-index`, `description-index` |
-| 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`     | `plate-index`                     |
+| 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`     | `plate-index`, `role-index`       |
 | 6  | `organization_persons`      | `{cpf_cnpj}`                 | `PERSON_{id}`      | `org-name-index`                  |
 | 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                  | —                                 |
 | 8  | `organization_nfce_configs` | `{org_pk}`                   | —                  | —                                 |
@@ -128,20 +128,31 @@ Product catalog per org. Includes ICMS/IBS-CBS tax config per CFOP.
 
 ## 5. `organization_vehicles`
 
-Fleet registry for CT-e and MDF-e operations.
+Fleet registry for CT-e and MDF-e operations. Only `plate`/`plate_uf`/`role` are required at
+cadastro — everything else is optional and gated per doc-type/role at emission time (see
+`api/internal/services/vehicle_requirements.go`, function `Missing`). Trailers are ordinary rows
+with `role=trailer` — not nested under a tractor — so one trailer can be reused across multiple
+tractors.
 
-| Attribute    | Type | Notes                             |
-|--------------|------|-----------------------------------|
-| `pk`         | S    | `{org_pk}` — partition key        |
-| `sk`         | S    | `VEHICLE_{id}` — sort key         |
-| `plate`      | S    | Vehicle plate. GSI: `plate-index` |
-| `renavam`    | S    | RENAVAM (optional)                |
-| `rntrc`      | S    | RNTRC for freight (optional)      |
-| `tara`       | N    | Tare weight in kg (optional)      |
-| `created_at` | S    | ISO-8601 UTC                      |
-| `updated_at` | S    | ISO-8601 UTC                      |
+| Attribute    | Type | Notes                                                                 |
+|--------------|------|------------------------------------------------------------------------|
+| `pk`         | S    | `{org_pk}` — partition key                                             |
+| `sk`         | S    | `VEHICLE_{id}` — sort key                                              |
+| `role`       | S    | `tractor` \| `trailer`. GSI: `role-index`                              |
+| `plate`      | S    | Vehicle plate. GSI: `plate-index`                                      |
+| `plate_uf`   | S    | UF of plate registration                                               |
+| `wheelset`   | S    | Tipo de rodado (MDF-e `tpRod`, tractor only). Optional                 |
+| `bodywork`   | S    | Tipo de carroceria (MDF-e `tpCar`). Optional                           |
+| `renavam`    | S    | RENAVAM (optional)                                                     |
+| `weight`     | N    | Tare weight in kg (MDF-e `tara`). Optional                             |
+| `cap_kg`     | N    | Capacity in kg (MDF-e `capKG`, required-for-emission on trailers). Optional |
+| `cap_m3`     | N    | Capacity in m³ (optional)                                              |
+| `cint`       | S    | Internal code (optional)                                               |
+| `owner`      | M    | `{cpf_cnpj, rntrc, name, type}` — optional fleet metadata only; NOT used for MDF-e's `prop` group (that's a per-emission input, see `MdfeEmitBody.vehicle.owner`) |
+| `created_at` | S    | ISO-8601 UTC                                                            |
+| `updated_at` | S    | ISO-8601 UTC                                                            |
 
-**GSI:** `plate-index` (PK: `pk`, SK: `plate`).
+**GSIs:** `plate-index` (PK: `pk`, SK: `plate`), `role-index` (PK: `pk`, SK: `role`).
 
 ---
 

@@ -263,6 +263,25 @@ Never commit or expose:
   (`1`-rodoviário, `2`-aéreo, `3`-aquaviário, `4`-ferroviário). Only rodoviário is enabled for
   emission (`enabledModals`); the other modals are modelled (`modals.go`) and ordered in
   `xsd_order.py` but gated at `Emit`.
+- **Vehicle completeness is gated, never silently defaulted.** `organization_vehicles` only
+  requires `plate`/`plate_uf`/`role` at cadastro; every other field (`weight`, `wheelset`,
+  `bodywork`, `cap_kg`, ...) is optional there. `api/internal/services/vehicle_requirements.go`
+  (`Missing(item, docType, role) []string`) is the **single source of truth** for which fields a
+  doc-type + role actually needs — never duplicate this matrix in `ui` (call
+  `GET /vehicles/{sk}/requirements` instead). `resolveVehicle`/`resolveTrailers`
+  (`services/mdfes/emit.go`) call `Missing` before building XML and return `400 Bad Request`
+  naming the missing fields; this replaced an earlier behavior that silently defaulted
+  `tpRod`→`01`/`tpCar`→`00` when a registered vehicle omitted them — do not reintroduce that
+  fallback, it masked incomplete registrations instead of prompting the user to fix them.
+- **Trailers are first-class vehicles, not nested data.** A trailer is an ordinary
+  `organization_vehicles` row with `role=trailer` (GSI `role-index`), independently selectable
+  by any tractor — not an array nested under a parent vehicle. `MdfeEmitBody.trailers[]`
+  (`{sk}`, up to 3) resolves each into `veicReboque`.
+- **Vehicle `owner` (cpf_cnpj/rntrc/name/type) on `organization_vehicles` is optional fleet
+  metadata only** — it is NOT the source of MDF-e's third-party `veicTracao/prop` group. `prop`
+  stays a per-emission input (`MdfeEmitBody.vehicle.owner` / `MdfeOwner`) because who
+  leases/operates a given truck can vary trip-to-trip even for the same plate — the same
+  "varies per emission" reasoning that already excludes `condutor` from the vehicle record.
 
 ## Lambda
 

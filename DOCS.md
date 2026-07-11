@@ -557,12 +557,20 @@ When `emit_uf='RJ'` and `cst='40'` without a configured `icms_mot_des`, the syst
 
 #### Vehicles
 
-| Method | Endpoint                                 | Description      |
-|--------|------------------------------------------|------------------|
-| GET    | `/v1.0/organizations/{pk}/vehicles`      | List vehicles    |
-| POST   | `/v1.0/organizations/{pk}/vehicles`      | Register vehicle |
-| PUT    | `/v1.0/organizations/{pk}/vehicles/{id}` | Update           |
-| DELETE | `/v1.0/organizations/{pk}/vehicles/{id}` | Remove           |
+Organization is always resolved from the `PyDfe-Organization-Pk` header, not a path parameter.
+Only `plate`/`plate_uf`/`role` are required to create a vehicle — every other field is optional
+and is gated per doc-type/role at emission time via the requirements endpoint below. Trailers
+are ordinary vehicle rows with `role=trailer`, independently selectable — not nested under a
+tractor.
+
+| Method | Endpoint                            | Description                                                                |
+|--------|--------------------------------------|-----------------------------------------------------------------------------|
+| GET    | `/v1.0/vehicles`                     | List (`?plate=`, `?role=tractor\|trailer`, `?cursor=`, `?limit=`)           |
+| POST   | `/v1.0/vehicles`                     | Register vehicle                                                            |
+| GET    | `/v1.0/vehicles/{sk}`                | Get vehicle                                                                 |
+| GET    | `/v1.0/vehicles/{sk}/requirements`   | `?doc_type=mdfe\|nfe\|cte_os&role=tractor\|trailer` → `{"missing": [...]}`  |
+| PUT    | `/v1.0/vehicles/{sk}`                | Update (partial)                                                            |
+| DELETE | `/v1.0/vehicles/{sk}`                | Remove                                                                      |
 
 #### Persons (Customers/Suppliers)
 
@@ -698,10 +706,17 @@ Modal is **rodoviário only** in the MVP; other modais are reserved.
 - `loadings[]?` / `unloadings[]?` — loading/unloading municipalities `{ibge_code, city}` (ordering override;
   reorders the derived list to the supplied `ibge_code` order, unknown municipalities kept at the end).
 - `vehicle` — `{sk}` (registered vehicle; the UI always uses this path) **or** manual
-  `{placa, tara, uf, renavam?, cap_kg?, tp_rod?, tp_car?}`. Optional `owner` `{cpf|cnpj, name, rntrc,
-  ie?, uf?, tp_prop?, tp_transp?}` for a **third-party** traction vehicle — its presence emits
-  `veicTracao/prop` and drives `ide/tpTransp` (CPF⇒TAC, CNPJ⇒ETC/CTC); omit it for carga própria
-  (own vehicle: no `prop`, no `tpTransp` — SEFAZ rule F25/745). Owner must differ from the emitter (F21).
+  `{placa, tara, uf, renavam?, cap_kg?, tp_rod?, tp_car?}`. When `sk` is given, the registered
+  vehicle must already have `weight`/`wheelset`/`bodywork` set — an incomplete vehicle returns
+  `400 Bad Request` naming the missing fields (see `services.Missing` /
+  `GET /vehicles/{sk}/requirements`) instead of silently defaulting `tpRod`/`tpCar`. Optional
+  `owner` `{cpf|cnpj, name, rntrc, ie?, uf?, tp_prop?, tp_transp?}` for a **third-party** traction
+  vehicle — its presence emits `veicTracao/prop` and drives `ide/tpTransp` (CPF⇒TAC, CNPJ⇒ETC/CTC);
+  omit it for carga própria (own vehicle: no `prop`, no `tpTransp` — SEFAZ rule F25/745). Owner
+  must differ from the emitter (F21). This `owner` is a per-emission input, not read from the
+  vehicle's own (optional, informational-only) `owner` cadastro field.
+- `trailers[]?` — up to 3 `{sk}` (registered vehicles with `role=trailer`), emitted as
+  `veicReboque`. Same completeness gating as `vehicle.sk` (`weight`/`cap_kg`/`bodywork` required).
 - `drivers[]` — `{name, cpf}` (≥ 1 required).
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
@@ -1143,7 +1158,7 @@ cdk destroy --all  # Deletes EVERYTHING including data in dev/staging with DESTR
 ```
 users:                   email-index, username-index
 organization_products:   code-index, description-index
-organization_vehicles:   plate-index
+organization_vehicles:   plate-index, role-index
 organization_persons:    name-index
 organization_certificates: md5-index
 nfes/nfces/ctes/mdfes:   number-index, dfe-index
