@@ -79,6 +79,13 @@ type OrganizationUpdateBody struct {
 	Person      *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 
+// AuthorizedViewerBody is one entry in an organization's SEFAZ autXML list
+// (CPF/CNPJ + name authorized to view that organization's NF-e XMLs).
+type AuthorizedViewerBody struct {
+	CpfOrCnpj string `json:"cpf_or_cnpj" validate:"required,cpfcnpj"`
+	Name      string `json:"name" validate:"required,min=2,max=60"`
+}
+
 // ── Products ─────────────────────────────────────────────────────────────────
 
 // ConversionFactorBody is a unit-conversion factor for a product.

@@ -19,7 +19,7 @@ const orgCacheTTL = 300
 // IE-when-contribuinte is a per-emission choice (indIEDest), not a cadastro
 // requirement. See docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md.
 func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
-	v := strings.NewReplacer(".", "", "-", "", "/", "").Replace(cpfOrCNPJ)
+	v := normalizeDoc(cpfOrCNPJ)
 	if len(v) == 14 && len(regs) == 0 {
 		return problem.BadRequest("ao menos uma inscrição estadual é obrigatória para organização com CNPJ")
 	}
@@ -115,4 +115,100 @@ func (s *OrganizationService) Update(ctx context.Context, orgPK string, updates 
 	}
 	_ = s.cache.Delete(ctx, "org:"+orgPK)
 	return s.repo.GetOrganization(ctx, orgPK)
+}
+
+const maxAuthorizedViewers = 10
+
+// AuthorizedViewerEntry is the plain-value shape of an authorized_xml_viewers
+// entry (stored as a list of maps on the organization item) — CPF/CNPJ+name
+// pairs SEFAZ allows to view this organization's NF-e XMLs (autXML).
+type AuthorizedViewerEntry struct {
+	CpfOrCnpj string `json:"cpf_cnpj"`
+	Name      string `json:"name"`
+}
+
+func extractAuthorizedViewers(item map[string]any) []AuthorizedViewerEntry {
+	raw, _ := item["authorized_xml_viewers"].([]any)
+	out := make([]AuthorizedViewerEntry, 0, len(raw))
+	for _, entry := range raw {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		cpfCnpj, _ := m["cpf_cnpj"].(string)
+		name, _ := m["name"].(string)
+		out = append(out, AuthorizedViewerEntry{CpfOrCnpj: cpfCnpj, Name: name})
+	}
+	return out
+}
+
+func normalizeDoc(s string) string {
+	return strings.NewReplacer(".", "", "-", "", "/", "").Replace(s)
+}
+
+// appendAuthorizedViewer returns the new list with v appended, or an error if
+// v.CpfOrCnpj is already present or the list is already at the SEFAZ-imposed
+// cap of 10.
+func appendAuthorizedViewer(current []AuthorizedViewerEntry, v AuthorizedViewerEntry) ([]AuthorizedViewerEntry, error) {
+	if len(current) >= maxAuthorizedViewers {
+		return nil, problem.BadRequest("limite de 10 pessoas autorizadas atingido")
+	}
+	normalized := normalizeDoc(v.CpfOrCnpj)
+	for _, existing := range current {
+		if normalizeDoc(existing.CpfOrCnpj) == normalized {
+			return nil, problem.Conflict("CPF/CNPJ já autorizado")
+		}
+	}
+	v.CpfOrCnpj = normalized
+	return append(current, v), nil
+}
+
+func removeAuthorizedViewerEntry(current []AuthorizedViewerEntry, cpfCnpj string) []AuthorizedViewerEntry {
+	normalized := normalizeDoc(cpfCnpj)
+	out := make([]AuthorizedViewerEntry, 0, len(current))
+	for _, existing := range current {
+		if normalizeDoc(existing.CpfOrCnpj) != normalized {
+			out = append(out, existing)
+		}
+	}
+	return out
+}
+
+// AddAuthorizedViewer appends a person authorized to view this organization's
+// NF-e XMLs (SEFAZ autXML, max 10, no duplicate CPF/CNPJ).
+func (s *OrganizationService) AddAuthorizedViewer(ctx context.Context, orgPK string, v AuthorizedViewerEntry, userID, userName string) (map[string]types.AttributeValue, error) {
+	current, err := s.repo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, problem.NotFound("organization not found")
+	}
+	currentMap, err := attributeMapToPlain(current)
+	if err != nil {
+		return nil, err
+	}
+	viewers, err := appendAuthorizedViewer(extractAuthorizedViewers(currentMap), v)
+	if err != nil {
+		return nil, err
+	}
+	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
+}
+
+// RemoveAuthorizedViewer removes an authorized viewer by CPF/CNPJ. No-op
+// (not an error) if the CPF/CNPJ wasn't in the list.
+func (s *OrganizationService) RemoveAuthorizedViewer(ctx context.Context, orgPK, cpfCnpj, userID, userName string) (map[string]types.AttributeValue, error) {
+	current, err := s.repo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, problem.NotFound("organization not found")
+	}
+	currentMap, err := attributeMapToPlain(current)
+	if err != nil {
+		return nil, err
+	}
+	viewers := removeAuthorizedViewerEntry(extractAuthorizedViewers(currentMap), cpfCnpj)
+	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
 }
