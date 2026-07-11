@@ -45,6 +45,11 @@ type VehicleFields struct {
 	Owner    map[string]any
 }
 
+// buildItem assembles the item to store. Optional fields are omitted
+// entirely (not written as empty-string/zero placeholders) — DynamoDB
+// rejects an empty string on any attribute that backs a GSI key (role,
+// plate), and omission also keeps "unset" distinguishable from "explicitly
+// zero" for services.Missing.
 func (r *VehicleRepository) buildItem(orgPK, sk string, f VehicleFields, now string) map[string]types.AttributeValue {
 	ownerAV, _ := attributevalue.MarshalMap(f.Owner)
 	item := map[string]types.AttributeValue{
@@ -52,17 +57,33 @@ func (r *VehicleRepository) buildItem(orgPK, sk string, f VehicleFields, now str
 		"sk":         &types.AttributeValueMemberS{Value: sk},
 		"plate":      &types.AttributeValueMemberS{Value: f.Plate},
 		"plate_uf":   &types.AttributeValueMemberS{Value: f.PlateUF},
-		"role":       &types.AttributeValueMemberS{Value: f.Role},
-		"wheelset":   &types.AttributeValueMemberS{Value: f.Wheelset},
-		"bodywork":   &types.AttributeValueMemberS{Value: f.Bodywork},
-		"renavam":    &types.AttributeValueMemberS{Value: f.Renavam},
-		"weight":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.Weight)},
-		"cap_kg":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.CapKG)},
-		"cap_m3":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.CapM3)},
-		"cint":       &types.AttributeValueMemberS{Value: f.Cint},
 		"owner":      &types.AttributeValueMemberM{Value: ownerAV},
 		"created_at": &types.AttributeValueMemberS{Value: now},
 		"updated_at": &types.AttributeValueMemberS{Value: now},
+	}
+	if f.Role != "" {
+		item["role"] = &types.AttributeValueMemberS{Value: f.Role}
+	}
+	if f.Wheelset != "" {
+		item["wheelset"] = &types.AttributeValueMemberS{Value: f.Wheelset}
+	}
+	if f.Bodywork != "" {
+		item["bodywork"] = &types.AttributeValueMemberS{Value: f.Bodywork}
+	}
+	if f.Renavam != "" {
+		item["renavam"] = &types.AttributeValueMemberS{Value: f.Renavam}
+	}
+	if f.Cint != "" {
+		item["cint"] = &types.AttributeValueMemberS{Value: f.Cint}
+	}
+	if f.Weight != 0 {
+		item["weight"] = &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.Weight)}
+	}
+	if f.CapKG != 0 {
+		item["cap_kg"] = &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.CapKG)}
+	}
+	if f.CapM3 != 0 {
+		item["cap_m3"] = &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", f.CapM3)}
 	}
 	deleteNulls(item)
 	return item

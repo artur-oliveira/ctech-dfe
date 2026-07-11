@@ -118,8 +118,12 @@ func (s *VehicleService) Create(ctx context.Context, orgPK string, fields map[st
 			return nil, err
 		}
 	}
+	ownerType, _ := fields["owner_type"].(string)
+	if ownerType != "" && !validOwnerTypes[ownerType] {
+		return nil, problem.BadRequest("owner_type must be TAC, ETC, or CTC")
+	}
 	owner, _ := fields["owner"].(map[string]any)
-	if ownerType, _ := owner["type"].(string); ownerType != "" && !validOwnerTypes[ownerType] {
+	if nestedType, _ := owner["type"].(string); nestedType != "" && !validOwnerTypes[nestedType] {
 		return nil, problem.BadRequest("owner_type must be TAC, ETC, or CTC")
 	}
 

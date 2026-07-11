@@ -192,6 +192,7 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
 				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
 				{AttributeName: aws.String("plate"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("role"), AttributeType: types.ScalarAttributeTypeS},
 			},
 			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
 				{
@@ -199,6 +200,14 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 					KeySchema: []types.KeySchemaElement{
 						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
 						{AttributeName: aws.String("plate"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+				{
+					IndexName: aws.String("role-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("role"), KeyType: types.KeyTypeRange},
 					},
 					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
 				},
