@@ -42,12 +42,17 @@ function fromOut(v: VehicleOut): VehicleFormData {
     cap_m3: v.cap_m3 ? String(v.cap_m3) : '',
     cint: v.cint ?? '',
     owner: v.owner
-      ? {cpf_cnpj: v.owner.cpf_cnpj, rntrc: v.owner.rntrc, name: v.owner.name, type: v.owner.type as 'TAC' | 'ETC' | 'CTC'}
+      ? {
+        cpf_cnpj: v.owner.cpf_cnpj,
+        rntrc: v.owner.rntrc,
+        name: v.owner.name,
+        type: v.owner.type as 'TAC' | 'ETC' | 'CTC'
+      }
       : undefined,
   }
 }
 
-export function VehicleForm({ initialData, onSubmit, loading = false, highlightFields = [] }: VehicleFormProps) {
+export function VehicleForm({initialData, onSubmit, loading = false, highlightFields = []}: VehicleFormProps) {
   const [advancedOpen, setAdvancedOpen] = useState(highlightFields.length > 0)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -56,22 +61,22 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
     defaultValues: initialData
       ? fromOut(initialData)
       : {
-          plate: '',
-          plate_uf: 'SP',
-          role: 'tractor',
-          wheelset: '',
-          bodywork: '',
-          renavam: '',
-          weight: '',
-          cap_kg: '',
-          cap_m3: '',
-          cint: '',
-        },
+        plate: '',
+        plate_uf: 'SP',
+        role: 'tractor',
+        wheelset: '',
+        bodywork: '',
+        renavam: '',
+        weight: '',
+        cap_kg: '',
+        cap_m3: '',
+        cint: '',
+      },
   })
 
-  const role = useWatch({ control: form.control, name: 'role' })
-  const wantsOwner = useWatch({ control: form.control, name: 'owner' })
-  const ownerCpf = useWatch({ control: form.control, name: 'owner.cpf_cnpj' })
+  const role = useWatch({control: form.control, name: 'role'})
+  const wantsOwner = useWatch({control: form.control, name: 'owner'})
+  const ownerCpf = useWatch({control: form.control, name: 'owner.cpf_cnpj'})
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null)
@@ -99,7 +104,7 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
 
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {submitError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {submitError}
@@ -117,11 +122,12 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
           <FormField
             control={form.control}
             name="role"
-            render={({ field }) => (
+            render={({field}) => (
               <FormItem>
                 <FormLabel>Tipo de veículo *</FormLabel>
-                <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange} options={ROLE_OPTIONS} />
-                <FormMessage />
+                <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange}
+                               options={ROLE_OPTIONS}/>
+                <FormMessage/>
               </FormItem>
             )}
           />
@@ -129,23 +135,24 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
             <FormField
               control={form.control}
               name="plate"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>Placa (Mercosul) *</FormLabel>
                   <Input {...field} id={field.name} placeholder="ABC1D23" maxLength={7}
-                         onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
-                  <FormMessage />
+                         onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                  <FormMessage/>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
               name="plate_uf"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>UF da placa *</FormLabel>
-                  <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange} options={UF_OPTIONS} />
-                  <FormMessage />
+                  <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange}
+                                 options={UF_OPTIONS}/>
+                  <FormMessage/>
                 </FormItem>
               )}
             />
@@ -166,11 +173,12 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                   <FormField
                     control={form.control}
                     name="wheelset"
-                    render={({ field }) => (
+                    render={({field}) => (
                       <FormItem>
                         <FormLabel className={isMissing('wheelset') ? 'text-amber-700' : ''}>Tipo de eixo</FormLabel>
-                        <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange} options={WHEELSET_OPTIONS} />
-                        <FormMessage />
+                        <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                       options={WHEELSET_OPTIONS}/>
+                        <FormMessage/>
                       </FormItem>
                     )}
                   />
@@ -178,11 +186,12 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                 <FormField
                   control={form.control}
                   name="bodywork"
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem>
                       <FormLabel className={isMissing('bodywork') ? 'text-amber-700' : ''}>Carroceria</FormLabel>
-                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange} options={BODYWORK_OPTIONS} />
-                      <FormMessage />
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={BODYWORK_OPTIONS}/>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
@@ -192,22 +201,24 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                 <FormField
                   control={form.control}
                   name="renavam"
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem>
                       <FormLabel>RENAVAM</FormLabel>
-                      <NumericInput {...field} id={field.name} placeholder="12345678901" maxLength={11} onChange={field.onChange} />
-                      <FormMessage />
+                      <NumericInput {...field} id={field.name} placeholder="12345678901" maxLength={11}
+                                    onChange={field.onChange}/>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={form.control}
                   name="weight"
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem>
                       <FormLabel className={isMissing('weight') ? 'text-amber-700' : ''}>Tara</FormLabel>
-                      <NumericInput {...field} id={field.name} suffix="KG" placeholder="12000" onChange={field.onChange} />
-                      <FormMessage />
+                      <NumericInput {...field} id={field.name} suffix="KG" placeholder="12000"
+                                    onChange={field.onChange}/>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
@@ -217,22 +228,23 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                 <FormField
                   control={form.control}
                   name="cap_kg"
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem>
                       <FormLabel className={isMissing('cap_kg') ? 'text-amber-700' : ''}>Capacidade (KG)</FormLabel>
-                      <NumericInput {...field} id={field.name} suffix="KG" placeholder="9000" onChange={field.onChange} />
-                      <FormMessage />
+                      <NumericInput {...field} id={field.name} suffix="KG" placeholder="9000"
+                                    onChange={field.onChange}/>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={form.control}
                   name="cap_m3"
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem>
                       <FormLabel>Capacidade (M³)</FormLabel>
-                      <NumericInput {...field} id={field.name} suffix="M³" placeholder="40" onChange={field.onChange} />
-                      <FormMessage />
+                      <NumericInput {...field} id={field.name} suffix="M³" placeholder="40" onChange={field.onChange}/>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
@@ -241,20 +253,26 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
               <FormField
                 control={form.control}
                 name="cint"
-                render={({ field }) => (
+                render={({field}) => (
                   <FormItem>
                     <FormLabel>Código interno</FormLabel>
-                    <Input {...field} id={field.name} placeholder="Opcional" maxLength={10} />
-                    <FormMessage />
+                    <Input {...field} id={field.name} placeholder="Opcional" maxLength={10}/>
+                    <FormMessage/>
                   </FormItem>
                 )}
               />
 
               <div className="space-y-3 border-t border-gray-200 pt-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Proprietário (se não for da própria empresa)</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Proprietário (se não for
+                    da própria empresa)</p>
                   <Button type="button" variant="ghost" size="xs"
-                          onClick={() => form.setValue('owner', wantsOwner ? undefined : {cpf_cnpj: '', rntrc: '', name: '', type: 'TAC'})}>
+                          onClick={() => form.setValue('owner', wantsOwner ? undefined : {
+                            cpf_cnpj: '',
+                            rntrc: '',
+                            name: '',
+                            type: 'TAC'
+                          })}>
                     {wantsOwner ? 'Remover' : '+ Adicionar'}
                   </Button>
                 </div>
@@ -264,24 +282,24 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                       <FormField
                         control={form.control}
                         name="owner.cpf_cnpj"
-                        render={({ field }) => (
+                        render={({field}) => (
                           <FormItem>
                             <FormLabel>CPF/CNPJ do proprietário</FormLabel>
                             <Input ref={field.ref} name={field.name} onBlur={field.onBlur} id={field.name}
                                    value={ownerCpf ?? ''} placeholder="000.000.000-00" maxLength={18}
-                                   onChange={(e) => form.setValue('owner.cpf_cnpj', maskCpfCnpj(e.target.value))} />
-                            <FormMessage />
+                                   onChange={(e) => form.setValue('owner.cpf_cnpj', maskCpfCnpj(e.target.value))}/>
+                            <FormMessage/>
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
                         name="owner.rntrc"
-                        render={({ field }) => (
+                        render={({field}) => (
                           <FormItem>
                             <FormLabel>RNTRC</FormLabel>
-                            <NumericInput {...field} id={field.name} placeholder="12345678" maxLength={12} />
-                            <FormMessage />
+                            <NumericInput {...field} id={field.name} placeholder="12345678" maxLength={12}/>
+                            <FormMessage/>
                           </FormItem>
                         )}
                       />
@@ -289,22 +307,23 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
                     <FormField
                       control={form.control}
                       name="owner.name"
-                      render={({ field }) => (
+                      render={({field}) => (
                         <FormItem>
                           <FormLabel>Nome</FormLabel>
-                          <Input {...field} id={field.name} placeholder="Proprietário LTDA" maxLength={255} />
-                          <FormMessage />
+                          <Input {...field} id={field.name} placeholder="Proprietário LTDA" maxLength={255}/>
+                          <FormMessage/>
                         </FormItem>
                       )}
                     />
                     <FormField
                       control={form.control}
                       name="owner.type"
-                      render={({ field }) => (
+                      render={({field}) => (
                         <FormItem>
                           <FormLabel>Tipo</FormLabel>
-                          <OptionsSelect id={field.name} value={field.value ?? 'TAC'} onValueChange={field.onChange} options={OWNER_TYPE_OPTIONS} />
-                          <FormMessage />
+                          <OptionsSelect id={field.name} value={field.value ?? 'TAC'} onValueChange={field.onChange}
+                                         options={OWNER_TYPE_OPTIONS}/>
+                          <FormMessage/>
                         </FormItem>
                       )}
                     />
@@ -315,9 +334,11 @@ export function VehicleForm({ initialData, onSubmit, loading = false, highlightF
           )}
         </section>
 
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Salvando...' : initialData ? 'Salvar alterações' : 'Cadastrar veículo'}
-        </Button>
+        <div className="flex justify-end pt-1">
+          <Button type="submit" disabled={loading} className="min-w-44">
+            {loading ? 'Salvando...' : initialData ? 'Salvar alterações' : 'Cadastrar veículo'}
+          </Button>
+        </div>
       </form>
     </Form>
   )
