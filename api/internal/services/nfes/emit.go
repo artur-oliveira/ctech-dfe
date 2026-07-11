@@ -2,6 +2,7 @@ package nfes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -354,7 +355,113 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	// Best-effort — a failure here must never fail an already-dispatched
+	// emission. Saved locations are a UX convenience for next time.
+	if req.SaveEntregaLocation && req.Entrega != nil && req.ReceiverID != nil {
+		_ = s.appendDeliveryLocation(ctx, orgPK, *req.ReceiverID, req.Entrega)
+	}
+	if req.SaveRetiradaLocation && req.Retirada != nil {
+		_ = s.appendPickupLocation(ctx, orgPK, req.Retirada)
+	}
+
 	return nfeEncoded, nil
+}
+
+const maxSavedLocations = 5
+
+// nfeLocalToMap converts an NfeLocalBody to a plain map using its JSON tags
+// (snake_case, matching the API's on-the-wire shape), dropping unset optional
+// fields instead of storing them as explicit nulls.
+func nfeLocalToMap(l *NfeLocalBody) (map[string]any, error) {
+	if l == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal(l)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range m {
+		if v == nil {
+			delete(m, k)
+		}
+	}
+	return m, nil
+}
+
+// locationDedupKey identifies a saved location by street+number+complement
+// (normalized), so re-saving the same place doesn't grow the list forever.
+func locationDedupKey(m map[string]any) string {
+	lgr, _ := m["x_lgr"].(string)
+	nro, _ := m["nro"].(string)
+	cpl, _ := m["x_cpl"].(string)
+	norm := func(s string) string { return strings.ToUpper(strings.TrimSpace(s)) }
+	return norm(lgr) + "|" + norm(nro) + "|" + norm(cpl)
+}
+
+// appendLocation adds loc to existing, replacing any prior entry with the
+// same dedup key (so a re-save refreshes rather than duplicates) and capping
+// the result at max by dropping the oldest entries.
+func appendLocation(existing []any, loc map[string]any, max int) []any {
+	key := locationDedupKey(loc)
+	out := make([]any, 0, len(existing)+1)
+	for _, e := range existing {
+		em, ok := e.(map[string]any)
+		if !ok || locationDedupKey(em) == key {
+			continue
+		}
+		out = append(out, em)
+	}
+	out = append(out, loc)
+	if len(out) > max {
+		out = out[len(out)-max:]
+	}
+	return out
+}
+
+// appendDeliveryLocation best-effort persists loc onto the receiver person's
+// delivery_locations for reuse in future NF-e emissions to that destinatário.
+func (s *NfeService) appendDeliveryLocation(ctx context.Context, orgPK, receiverSK string, loc *NfeLocalBody) error {
+	locMap, err := nfeLocalToMap(loc)
+	if err != nil || locMap == nil {
+		return err
+	}
+	current, err := s.personRepo.Get(ctx, orgPK, receiverSK)
+	if err != nil || current == nil {
+		return err
+	}
+	currentPlain, err := unmarshalToAny(current)
+	if err != nil {
+		return err
+	}
+	raw, _ := currentPlain["delivery_locations"].([]any)
+	locs := appendLocation(raw, locMap, maxSavedLocations)
+	_, err = s.personRepo.Update(ctx, orgPK, receiverSK, map[string]any{"delivery_locations": locs})
+	return err
+}
+
+// appendPickupLocation best-effort persists loc onto the organization's
+// pickup_locations for reuse in future NF-e emissions (org is always the
+// remetente for local de retirada purposes).
+func (s *NfeService) appendPickupLocation(ctx context.Context, orgPK string, loc *NfeLocalBody) error {
+	locMap, err := nfeLocalToMap(loc)
+	if err != nil || locMap == nil {
+		return err
+	}
+	current, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil || current == nil {
+		return err
+	}
+	currentPlain, err := unmarshalToAny(current)
+	if err != nil {
+		return err
+	}
+	raw, _ := currentPlain["pickup_locations"].([]any)
+	locs := appendLocation(raw, locMap, maxSavedLocations)
+	return s.orgRepo.UpdateOrganization(ctx, orgPK, map[string]any{"pickup_locations": locs})
 }
 
 // --- helpers ---

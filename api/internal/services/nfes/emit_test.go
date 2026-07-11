@@ -114,3 +114,53 @@ func TestFmtDhEmi_TimePart(t *testing.T) {
 		t.Errorf("fmtDhEmi len = %d, want 25: %q", len(got), got)
 	}
 }
+
+func TestNfeLocalToMap_OmitsUnsetOptionalFields(t *testing.T) {
+	l := &NfeLocalBody{XLgr: "Rua X", Nro: "1", XBairro: "B", CMun: "3550308", XMun: "SP", UF: "SP"}
+	m, err := nfeLocalToMap(l)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, k := range []string{"cnpj", "cpf", "x_nome", "x_cpl", "fone", "email"} {
+		if _, ok := m[k]; ok {
+			t.Errorf("expected %s omitted when unset, got %+v", k, m)
+		}
+	}
+	if m["x_lgr"] != "Rua X" {
+		t.Errorf("x_lgr = %v, want Rua X", m["x_lgr"])
+	}
+}
+
+func TestNfeLocalToMap_NilReturnsNil(t *testing.T) {
+	m, err := nfeLocalToMap(nil)
+	if err != nil || m != nil {
+		t.Fatalf("expected nil, nil, got %v, %v", m, err)
+	}
+}
+
+func TestAppendLocation_DedupsSameAddress(t *testing.T) {
+	loc := map[string]any{"x_lgr": "Rua X", "nro": "1"}
+	existing := []any{map[string]any{"x_lgr": "rua x", "nro": "1", "x_nome": "Old"}}
+	out := appendLocation(existing, loc, maxSavedLocations)
+	if len(out) != 1 {
+		t.Fatalf("expected dedup to keep list at 1, got %d: %+v", len(out), out)
+	}
+	if got := out[0].(map[string]any)["x_nome"]; got != nil {
+		t.Errorf("expected refreshed entry (no x_nome), got %v", got)
+	}
+}
+
+func TestAppendLocation_CapsAtMax(t *testing.T) {
+	var existing []any
+	for i := 0; i < maxSavedLocations; i++ {
+		existing = append(existing, map[string]any{"x_lgr": "Rua", "nro": string(rune('A' + i))})
+	}
+	out := appendLocation(existing, map[string]any{"x_lgr": "Rua", "nro": "NEW"}, maxSavedLocations)
+	if len(out) != maxSavedLocations {
+		t.Fatalf("expected cap at %d, got %d", maxSavedLocations, len(out))
+	}
+	last := out[len(out)-1].(map[string]any)
+	if last["nro"] != "NEW" {
+		t.Errorf("expected newest entry last, got %+v", last)
+	}
+}
