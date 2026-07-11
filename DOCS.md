@@ -396,6 +396,12 @@ Profile and password management are handled by ctech-account directly.
 | POST   | `/v1.0/organizations/{pk}/certificate`        | Upload A1 certificate |
 | GET    | `/v1.0/organizations/{pk}/certificates`       | List certificates     |
 | DELETE | `/v1.0/organizations/{pk}/certificates/{md5}` | Remove certificate    |
+| POST   | `/v1.0/organizations/{pk}/authorized-viewers` | Add SEFAZ autXML viewer (`{cpf_or_cnpj, name}`) — 400 if already at 10, 409 if CPF/CNPJ already authorized |
+| DELETE | `/v1.0/organizations/{pk}/authorized-viewers/{cpf_cnpj}` | Remove autXML viewer (no-op if not present) |
+
+`POST`/`PUT` also return 400 if `person.crt` is missing for a CNPJ, or if `person.state_registrations`
+is empty for a CNPJ organization (organizations are always the fiscal emitter — see
+`docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`).
 
 #### Products
 
@@ -577,9 +583,14 @@ tractor.
 | Method | Endpoint                   | Description                        |
 |--------|----------------------------|------------------------------------|
 | GET    | `/v1.0/persons`            | List (searchable by name/CPF/CNPJ) |
-| POST   | `/v1.0/persons`            | Register                           |
+| POST   | `/v1.0/persons`            | Register — 400 if `person.crt` missing for CNPJ; 409 if CPF/CNPJ already registered in this org |
 | PUT    | `/v1.0/persons/{cpf_cnpj}` | Update                             |
 | DELETE | `/v1.0/persons/{cpf_cnpj}` | Remove                             |
+
+CRT is required for a CNPJ person (same rule as organizations), but IE (`state_registrations`) is
+**not** required even for a CNPJ — unlike organizations, a person is a destinatário/counterparty,
+and whether they're an ICMS contributor is a per-emission choice (`indIEDest`), not a cadastro
+requirement. See `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`.
 
 #### NF-e
 
@@ -620,6 +631,14 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `cobr_fat`        | object      | Invoice: nFat, vOrig, vDesc, vLiq                          |
 | `cobr_duplicatas` | list        | Installments: nDup, dVenc, vDup (max 120)                  |
 | `v_troco`         | decimal     | Change amount in BRL                                       |
+| `retirada`        | object      | Local de retirada (TLocal — no CEP, unlike an `AddressBody`): `cnpj`/`cpf`, `x_nome`, `x_lgr`, `nro`, `x_cpl`, `x_bairro`, `c_mun`, `x_mun`, `uf`, `fone`, `email`. Free-form per emission — org itself is the remetente for this purpose. |
+| `entrega`         | object      | Local de entrega, same TLocal shape as `retirada`, scoped to the selected `receiver_id`. |
+| `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
+| `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
+
+Neither `retirada`/`entrega` nor `autXML` (see Organizations §) require any py-dfe change —
+`xsd_order.py` already orders both. `autXML` is not a field on this body at all: it's always
+pulled from the organization's `authorized_xml_viewers` and included whenever non-empty.
 
 **Per product item fields (`products[].`):**
 
@@ -1159,7 +1178,7 @@ cdk destroy --all  # Deletes EVERYTHING including data in dev/staging with DESTR
 users:                   email-index, username-index
 organization_products:   code-index, description-index
 organization_vehicles:   plate-index, role-index
-organization_persons:    name-index
+organization_persons:    org-name-index
 organization_certificates: md5-index
 nfes/nfces/ctes/mdfes:   number-index, dfe-index
 nfe_events/*:            org-timestamp-index

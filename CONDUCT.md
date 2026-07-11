@@ -171,6 +171,37 @@ Never commit or expose:
   `updateStatus`. The UI (`resolveDfeResultToast`) branches on `result_kind` and
   reports the event outcome, never the document status, for events.
 
+## Pessoas / Organizações
+
+- **Gating por doc-type (bloqueia emissão + modal, como em `services.Missing` para veículos)
+  não se aplica a pessoas/organizações.** Investigado e descartado deliberadamente: endereço já é
+  sempre obrigatório no cadastro, cobrindo a maioria dos requisitos do XSD; IE em destinatário é
+  condicional à **operação** (`indIEDest`), não ao **cadastro**, então não há "campo faltante" pra
+  bloquear. Os únicos requisitos reais e fixos (CRT, ≥1 IE) são regra de cadastro — ver
+  `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`.
+- **CRT obrigatório para CNPJ** em `organizations` e `organization_persons`
+  (`services.RequirePJFields`) — validado no backend, não só no Zod do front. **IE (≥1
+  `state_registrations`) obrigatória só para `organizations` CNPJ** (`services.RequireOrgIE`) —
+  organização é sempre o emitente fiscal; pessoa (destinatário/counterparty) não.
+- **Sem CPF/CNPJ duplicado em `organization_persons`** — `Create` usa
+  `ConditionExpression: attribute_not_exists(pk)` no transact Put, mapeado para 409
+  (`repositories.IsConditionFailed`). `organizations.Create` mantém get-or-return (PK já é o
+  próprio CNPJ/CPF — duplicidade estruturalmente impossível, comportamento intencional).
+- **Local de entrega/retirada (NF-e)** é campo livre por emissão (`NfeLocalBody`, TLocal — sem
+  CEP, diferente de `AddressBody`/TEndereco), com reaproveitamento do histórico:
+  `organization_persons.delivery_locations` (por destinatário) e `organizations.pickup_locations`
+  (org = remetente sempre), cap 5, dedup por logradouro+número+complemento. Persistência é
+  best-effort após emissão bem-sucedida — nunca derruba a emissão.
+- **autXML é configuração de organização, não de emissão** — `organizations.authorized_xml_viewers`
+  (cap 10, sem CPF/CNPJ duplicado) é sempre incluído no XML de NF-e quando não-vazio
+  (`buildAutXML`), não é um campo do payload de `POST /nfes`.
+- **Struct sem `dynamodbav` tags escrita direto via `attributevalue.Marshal` usa os nomes de campo
+  Go (PascalCase), não as tags `json`.** Pegadinha real (já corrigida uma vez em
+  `AuthorizedViewerEntry`/`toAuthorizedViewerMaps`): ao gravar uma lista de structs internos
+  (não-DTO) direto num `map[string]any` passado pro `Update` genérico, prefira converter pra
+  `map[string]any` com chaves explícitas (ou faça o round-trip JSON como em `nfeLocalToMap`) —
+  nunca passe o struct typed cru.
+
 ## NFC-e (modelo 65)
 
 - NFC-e reuses `BuildEnviNFe(..., model="65", supl)` — do not fork the builder.

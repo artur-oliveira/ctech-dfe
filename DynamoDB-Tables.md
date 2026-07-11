@@ -16,7 +16,7 @@ PITR: enabled in production only.
 | 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}` | —                                 |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`   | `code-index`, `description-index` |
 | 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`     | `plate-index`, `role-index`       |
-| 6  | `organization_persons`      | `{cpf_cnpj}`                 | `PERSON_{id}`      | `org-name-index`                  |
+| 6  | `organization_persons`      | `{org_pk}`                   | `CNPJ_{cnpj}` or `CPF_{cpf}` | `org-name-index`        |
 | 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                  | —                                 |
 | 8  | `organization_nfce_configs` | `{org_pk}`                   | —                  | —                                 |
 | 9  | `organization_cte_configs`  | `{org_pk}`                   | —                  | —                                 |
@@ -67,21 +67,26 @@ Stores user identity. Membership data (`organizations`) embeds org PKs, role, an
 
 ## 2. `organizations`
 
-One item per org. PK is the tax document number.
+One item per org. PK is the tax document number. Only `name`/`cpf_or_cnpj`/1 endereço are required
+at cadastro (see `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`); a PJ
+organization additionally requires `crt` and ≥1 `state_registrations` entry (enforced in
+`services.RequirePJFields`/`RequireOrgIE`, not just the frontend) — organizations are always the
+fiscal emitter, so these aren't optional the way they can be for a `organization_persons` record.
 
-| Attribute      | Type | Notes                                                   |
-|----------------|------|---------------------------------------------------------|
-| `pk`           | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}`                 |
-| `name`         | S    | Razão social                                            |
-| `fantasy_name` | S    | Nome fantasia                                           |
-| `email`        | S    |                                                         |
-| `phone`        | S    |                                                         |
-| `address`      | M    | `{street, number, complement, district, city, uf, zip}` |
-| `crt`          | S    | `1` Simples / `2` Presumido / `3` Real                  |
-| `ie`           | S    | Inscrição Estadual                                      |
-| `im`           | S    | Inscrição Municipal (optional)                          |
-| `created_at`   | S    | ISO-8601 UTC                                            |
-| `updated_at`   | S    | ISO-8601 UTC                                            |
+| Attribute                | Type | Notes                                                                      |
+|---------------------------|------|-----------------------------------------------------------------------------|
+| `pk`                      | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}`                                    |
+| `name`                    | S    | Razão social                                                               |
+| `description`             | S    | Apelido interno (optional)                                                 |
+| `person.fantasy_name`     | S    | Nome fantasia (optional)                                                   |
+| `person.crt`              | N    | `1` Simples / `2` Simples c/ excesso / `3` Real / `4` MEI — required for CNPJ |
+| `person.state_registrations` | L | List of `{uf, state_registration}` — ≥1 entry required for CNPJ            |
+| `person.addresses`        | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1 |
+| `person.contacts`         | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                    |
+| `pickup_locations`        | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation` |
+| `authorized_xml_viewers`  | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer` |
+| `created_at`              | S    | ISO-8601 UTC                                                               |
+| `updated_at`              | S    | ISO-8601 UTC                                                               |
 
 ---
 
@@ -158,20 +163,27 @@ tractors.
 
 ## 6. `organization_persons`
 
-Customers and suppliers.
+Customers and suppliers (destinatário/emitente counterparty). PK is the owning org, SK is derived
+from the person's own CPF/CNPJ — so uniqueness is per-org, not global (two different orgs may each
+have a person record for the same CPF/CNPJ). `Create` rejects a duplicate CPF/CNPJ within the same
+org with 409 (`ConditionExpression: attribute_not_exists(pk)` on the transact Put — see
+`repositories.PersonRepository.BuildCreateTxItem`). Only `name`/`cpf_or_cnpj`/1 endereço are
+required — unlike organizations, IE is **not** required here even for a CNPJ, since it's a
+per-emission choice (`indIEDest`), not a cadastro requirement.
 
-| Attribute    | Type | Notes                                           |
-|--------------|------|-------------------------------------------------|
-| `pk`         | S    | `{cpf_cnpj}` (raw digits) — partition key       |
-| `sk`         | S    | `PERSON_{id}` — sort key                        |
-| `org_pk`     | S    | Owner org PK                                    |
-| `name`       | S    | Full name / razão social. GSI: `org-name-index` |
-| `email`      | S    |                                                 |
-| `phone`      | S    |                                                 |
-| `ie`         | S    | Inscrição Estadual (optional)                   |
-| `address`    | M    | Same structure as organizations                 |
-| `created_at` | S    | ISO-8601 UTC                                    |
-| `updated_at` | S    | ISO-8601 UTC                                    |
+| Attribute                    | Type | Notes                                                                      |
+|-------------------------------|------|-----------------------------------------------------------------------------|
+| `pk`                          | S    | `{org_pk}` — partition key                                                 |
+| `sk`                          | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}` — sort key                        |
+| `name`                        | S    | Full name / razão social. GSI: `org-name-index`                           |
+| `person.fantasy_name`         | S    | Nome fantasia (optional)                                                   |
+| `person.crt`                  | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE |
+| `person.state_registrations`  | L    | List of `{uf, state_registration}` (optional)                              |
+| `person.addresses`            | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1 |
+| `person.contacts`              | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                    |
+| `delivery_locations`          | L    | List of TLocal-shaped saved "local de entrega" for NF-e emissions to this destinatário, cap 5. See `appendDeliveryLocation` |
+| `created_at`                  | S    | ISO-8601 UTC                                                               |
+| `updated_at`                  | S    | ISO-8601 UTC                                                               |
 
 **GSI:** `org-name-index` (PK: `pk`, SK: `name`).
 
