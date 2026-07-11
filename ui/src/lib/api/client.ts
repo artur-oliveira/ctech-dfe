@@ -33,6 +33,7 @@ import type {
   RoleOut,
   VehicleCreate,
   VehicleOut,
+  VehicleRequirements,
   VehicleUpdate,
 } from '@/lib/types/api'
 import {unformatCpfCnpj} from "@/lib/utils/document";
@@ -227,12 +228,16 @@ class ApiClient {
   }
 
   // Vehicles
-  async getVehicles(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<VehicleOut>> {
+  async getVehicles(params?: { role?: 'tractor' | 'trailer'; limit?: number; cursor?: string }): Promise<PaginatedResponse<VehicleOut>> {
     return this.get('/v1.0/vehicles', {params})
   }
 
   async getVehicle(id: string): Promise<VehicleOut> {
     return this.get(`/v1.0/vehicles/${id}`)
+  }
+
+  async getVehicleRequirements(id: string, docType: string, role: string): Promise<VehicleRequirements> {
+    return this.get(`/v1.0/vehicles/${id}/requirements`, {params: {doc_type: docType, role}})
   }
 
   async createVehicle(data: VehicleCreate): Promise<VehicleOut> {

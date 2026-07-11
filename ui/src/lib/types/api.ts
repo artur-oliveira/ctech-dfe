@@ -389,27 +389,20 @@ export interface OwnerOut {
   type: string
 }
 
-export interface TrailerOut {
-  plate: string
-  plate_uf: string
-  wheelset: string
-  bodywork: string
-  renavam: string
-  weight: number
-  owner: OwnerOut
-}
-
 export interface VehicleOut {
   pk: string
   sk: string
   plate: string
   plate_uf: string
-  wheelset: string
-  bodywork: string
-  renavam: string
-  weight: number
-  owner: OwnerOut
-  trailers: TrailerOut[]
+  role: 'tractor' | 'trailer'
+  wheelset?: string
+  bodywork?: string
+  renavam?: string
+  weight?: number
+  cap_kg?: number
+  cap_m3?: number
+  cint?: string
+  owner?: OwnerOut
   created_at: string
   updated_at: string
 }
@@ -417,28 +410,38 @@ export interface VehicleOut {
 export interface VehicleCreate {
   plate: string
   plate_uf: string
-  wheelset: string
-  bodywork: string
-  renavam: string
-  weight: number
-  owner: {
+  role: 'tractor' | 'trailer'
+  wheelset?: string
+  bodywork?: string
+  renavam?: string
+  weight?: number
+  cap_kg?: number
+  cap_m3?: number
+  cint?: string
+  owner?: {
     cpf_cnpj: string
     rntrc: string
     name: string
     type: string
   }
-  trailers?: TrailerOut[]
 }
 
 export interface VehicleUpdate {
   plate?: string
   plate_uf?: string
+  role?: 'tractor' | 'trailer'
   wheelset?: string
   bodywork?: string
   renavam?: string
   weight?: number
+  cap_kg?: number
+  cap_m3?: number
+  cint?: string
   owner?: VehicleCreate['owner']
-  trailers?: TrailerOut[]
+}
+
+export interface VehicleRequirements {
+  missing: string[]
 }
 
 // Persons (Clientes/Fornecedores)
@@ -754,6 +757,7 @@ export interface MdfeEmit {
   loadings?: MdfeMunIn[]
   unloadings?: MdfeMunIn[]
   vehicle: MdfeVehicleIn
+  trailers?: { sk: string }[]
   drivers: MdfeDriverIn[]
   predominant?: MdfeProdPredIn | null
   bulk_cargo?: MdfeBulkCargoIn | null

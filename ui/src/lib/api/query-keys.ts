@@ -15,8 +15,9 @@ export const queryKeys = {
     detail: (id: string) => ['product', id] as const,
   },
   vehicles: {
-    list: (orgPk: string | undefined) => ['vehicles', orgPk] as const,
+    list: (orgPk: string | undefined, role?: string) => ['vehicles', orgPk, role] as const,
     detail: (id: string) => ['vehicle', id] as const,
+    requirements: (id: string, docType: string, role: string) => ['vehicle-requirements', id, docType, role] as const,
   },
   persons: {
     list: (orgPk: string | undefined) => ['persons', orgPk] as const,

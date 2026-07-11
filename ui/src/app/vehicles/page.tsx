@@ -68,7 +68,7 @@ function VehiclesContent() {
             <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Placa', 'UF', 'Tipo de Eixo', 'Carroceria', 'Tara', 'Proprietário', ''].map((h) => (
+                {['Placa', 'UF', 'Tipo', 'Carroceria', 'Tara', 'Proprietário', ''].map((h) => (
                   <th key={h}
                       className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     {h}
@@ -81,10 +81,10 @@ function VehiclesContent() {
                 <tr key={v.sk} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3.5 font-mono font-medium text-gray-900">{v.plate}</td>
                   <td className="px-5 py-3.5 text-gray-600">{v.plate_uf}</td>
-                  <td className="px-5 py-3.5 text-gray-700">{v.wheelset}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{v.bodywork}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{v.weight.toLocaleString('pt-BR')} kg</td>
-                  <td className="px-5 py-3.5 text-gray-600 max-w-[160px] truncate">{v.owner.name}</td>
+                  <td className="px-5 py-3.5 text-gray-700">{v.role === 'trailer' ? 'Reboque' : 'Tração'}</td>
+                  <td className="px-5 py-3.5 text-gray-600">{v.bodywork ?? '—'}</td>
+                  <td className="px-5 py-3.5 text-gray-600">{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
+                  <td className="px-5 py-3.5 text-gray-600 max-w-[160px] truncate">{v.owner?.name ?? '—'}</td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
