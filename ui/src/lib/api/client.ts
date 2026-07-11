@@ -206,6 +206,14 @@ class ApiClient {
     return this.del<void>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
   }
 
+  async addAuthorizedViewer(orgPk: string, data: { cpf_or_cnpj: string; name: string }): Promise<OrganizationOut> {
+    return this.post<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(orgPk)}/authorized-viewers`, data)
+  }
+
+  async removeAuthorizedViewer(orgPk: string, cpfCnpj: string): Promise<OrganizationOut> {
+    return this.del<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(orgPk)}/authorized-viewers/${unformatCpfCnpj(cpfCnpj)}`)
+  }
+
   // Products — org context auto-injected via Dfe-Organization-Pk header
   async getProducts(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<ProductOut>> {
     return this.get('/v1.0/products', {params})

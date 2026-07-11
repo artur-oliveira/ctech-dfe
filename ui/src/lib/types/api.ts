@@ -87,6 +87,11 @@ export interface ContactsOut {
   phones: string[]
 }
 
+export interface AuthorizedViewerOut {
+  cpf_cnpj: string
+  name: string
+}
+
 export interface OrganizationOut {
   pk: string
   name: string
@@ -96,6 +101,8 @@ export interface OrganizationOut {
   updated_at: string
   /** Locais de retirada salvos de emissões de NF-e anteriores (org = remetente). */
   pickup_locations?: NfeLocalOut[]
+  /** Pessoas autorizadas a ver o XML das NF-e desta organização (SEFAZ autXML). */
+  authorized_xml_viewers?: AuthorizedViewerOut[]
 }
 
 export interface OrganizationCreate {

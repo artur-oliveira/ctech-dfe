@@ -9,6 +9,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {OrganizationForm} from '@/components/organizations/OrganizationForm'
+import {AuthorizedViewersSection} from '@/components/organizations/AuthorizedViewersSection'
 import type {OrganizationUpdate} from '@/lib/types/api'
 import {organizationOutToFormData} from '@/lib/utils/converters'
 
@@ -53,15 +54,18 @@ function EditOrganizationContent() {
             Organização não encontrada.
           </div>
         ) : (
-          <OrganizationForm
-            initialData={organizationOutToFormData(org)}
-            orgPk={org.pk}
-            onSubmit={async (d) => {
-              // PUT is partial and keyed by pk — never send cpf_or_cnpj in the body.
-              await updateMutation.mutateAsync({name: d.name, description: d.description, person: d.person})
-            }}
-            loading={updateMutation.isPending}
-          />
+          <div className="space-y-8 max-w-2xl">
+            <OrganizationForm
+              initialData={organizationOutToFormData(org)}
+              orgPk={org.pk}
+              onSubmit={async (d) => {
+                // PUT is partial and keyed by pk — never send cpf_or_cnpj in the body.
+                await updateMutation.mutateAsync({name: d.name, description: d.description, person: d.person})
+              }}
+              loading={updateMutation.isPending}
+            />
+            <AuthorizedViewersSection orgPk={org.pk} viewers={org.authorized_xml_viewers ?? []}/>
+          </div>
         )}
       </div>
     </RootLayout>
