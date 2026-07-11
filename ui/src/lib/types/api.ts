@@ -94,6 +94,8 @@ export interface OrganizationOut {
   person: PersonOut
   created_at: string
   updated_at: string
+  /** Locais de retirada salvos de emissões de NF-e anteriores (org = remetente). */
+  pickup_locations?: NfeLocalOut[]
 }
 
 export interface OrganizationCreate {
@@ -464,6 +466,8 @@ export interface PersonDetailsOut {
   state_registrations: StateRegistrationOut[]
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
+  /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
+  delivery_locations?: NfeLocalOut[]
 }
 
 export interface PersonItemOut {
@@ -518,6 +522,38 @@ export interface NfeTransportIn {
   veiculo_placa?: string | null
   veiculo_uf?: string | null
   veiculo_rntrc?: string | null
+}
+
+/** TLocal-shaped address (local de retirada/entrega) — lighter than
+ * AddressOut/AddressBody (TEndereco): no CEP/IBGE code in the XSD. */
+export interface NfeLocalOut {
+  cnpj?: string
+  cpf?: string
+  x_nome?: string
+  x_lgr: string
+  nro: string
+  x_cpl?: string
+  x_bairro: string
+  c_mun: string
+  x_mun: string
+  uf: string
+  fone?: string
+  email?: string
+}
+
+export interface NfeLocalIn {
+  cnpj?: string | null
+  cpf?: string | null
+  x_nome?: string | null
+  x_lgr: string
+  nro: string
+  x_cpl?: string | null
+  x_bairro: string
+  c_mun: string
+  x_mun: string
+  uf: string
+  fone?: string | null
+  email?: string | null
 }
 
 export interface NfeDuplicataIn {
@@ -610,6 +646,10 @@ export interface NfeEmit {
   cobr_fat?: NfeFatIn | null
   cobr_duplicatas?: NfeDuplicataIn[] | null
   v_troco?: string | null
+  retirada?: NfeLocalIn | null
+  entrega?: NfeLocalIn | null
+  save_retirada_location?: boolean
+  save_entrega_location?: boolean
 }
 
 // NFC-e (modelo 65) — no recipient address, transport, or billing.
