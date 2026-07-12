@@ -1,7 +1,7 @@
 'use client'
 
-import {use, useState} from 'react'
-import {useRouter} from 'next/navigation'
+import {useState, Suspense} from 'react'
+import {useRouter, useSearchParams} from 'next/navigation'
 import {useMutation, useQuery} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -25,6 +25,7 @@ function InviteContent({token}: {token: string}) {
     queryKey: queryKeys.invitation(token),
     queryFn: () => apiClient.getInvitation(token),
     retry: false,
+    enabled: !!token,
   })
 
   const acceptMutation = useMutation({
@@ -48,6 +49,16 @@ function InviteContent({token}: {token: string}) {
       </div>
     </div>
   )
+
+  if (!token) {
+    return card(
+      <>
+        <h1 className="text-lg font-semibold text-gray-900">Convite inválido</h1>
+        <p className="text-sm text-gray-500">Nenhum token de convite fornecido.</p>
+        <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o painel</Button>
+      </>,
+    )
+  }
 
   if (isPending) {
     return card(<div className="h-24 animate-pulse rounded bg-gray-100"/>)
@@ -106,12 +117,23 @@ function InviteContent({token}: {token: string}) {
   )
 }
 
-export default function InvitePage({params}: {params: Promise<{token: string}>}) {
-  const {token} = use(params)
+function InviteParamsWrapper() {
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token') || ''
+  return <InviteContent token={token}/>
+}
+
+export default function InvitePage() {
   return (
     <ProtectedRoute>
       <RootLayout>
-        <InviteContent token={token}/>
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[60vh] p-4">
+            <div className="w-full max-w-md h-24 animate-pulse rounded bg-gray-100"/>
+          </div>
+        }>
+          <InviteParamsWrapper />
+        </Suspense>
       </RootLayout>
     </ProtectedRoute>
   )

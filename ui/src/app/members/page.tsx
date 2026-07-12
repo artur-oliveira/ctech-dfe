@@ -208,7 +208,7 @@ function ShareModal({orgPk, onClose}: {orgPk: string; onClose: () => void}) {
   const [error, setError] = useState<string | null>(null)
 
   const inviteUrl = useMemo(
-    () => (invite?.token ? `${window.location.origin}/invite/${invite.token}` : ''),
+    () => (invite?.token ? `${window.location.origin}/invite?token=${invite.token}` : ''),
     [invite],
   )
 
