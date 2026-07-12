@@ -9,16 +9,22 @@ api.
 
 ### ui
 
-| Variable                      | Example                                   | Description                                       |
-|-------------------------------|-------------------------------------------|---------------------------------------------------|
-| `NEXT_PUBLIC_API_URL`         | `https://dfe-api.aoctech.app`      | api base URL                               |
-| `NEXT_PUBLIC_CTECH_URL`       | `https://accounts-api.aoctech.app` | ctech-account **Go API** URL (not the Next.js UI) |
-| `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                                     | OAuth client_id registered in ctech               |
+| Variable                      | Example                          | Description                                              |
+|-------------------------------|----------------------------------|----------------------------------------------------------|
+| `NEXT_PUBLIC_API_URL`         | `https://dfe.aoctech.app`        | api base URL — the **app** domain, empty locally          |
+| `DEV_API_ORIGIN`              | `http://localhost:8000`          | dev only: where `next dev` proxies `/v1.0/*`              |
+| `NEXT_PUBLIC_WS_URL`          | `http://localhost:8000`          | dev only: `next dev` does not proxy the WebSocket upgrade |
+| `NEXT_PUBLIC_CTECH_URL`       | `https://accounts.aoctech.app`   | ctech-account base URL (serves both its UI and `/v1.0/*`) |
+| `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                            | OAuth client_id registered in ctech                       |
 
-> `NEXT_PUBLIC_CTECH_URL` must point to the Go API backend (which serves `/v1.0/authorize`, `/v1.0/token`,
-`/v1.0/revoke`),
-> **not** the ctech Next.js frontend. Locally this is `http://localhost:8080`; in production
-`https://accountsapi.aoctech.app`.
+> Browsers never call `dfe-api.aoctech.app` directly. CloudFront forwards
+> `dfe.aoctech.app/v1.0/*` to the ALB, so the app is same-origin and CORS never applies;
+> `next dev` reproduces that with a rewrite (`ui/next.config.ts`). `dfe-api.aoctech.app` stays
+> public for the API's own clients.
+>
+> The same holds for `NEXT_PUBLIC_CTECH_URL`: `accounts.aoctech.app` serves the ctech-account UI
+> *and* forwards `/v1.0/*` + `/.well-known/*` to its ALB. Locally, point it at
+> `http://localhost:8080`.
 
 ### api
 

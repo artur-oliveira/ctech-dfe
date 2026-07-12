@@ -40,7 +40,10 @@ import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// Empty means same-origin: CloudFront forwards /v1.0/* to the ALB in deployed
+// environments, and `next dev` proxies it locally (next.config.ts). Either way
+// the browser never makes a cross-origin request, so CORS never applies.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 const ORG_HEADER = 'Dfe-Organization-Pk'
 
 // Access token held in memory only — never written to localStorage.

@@ -9,10 +9,14 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {getAccessToken} from '@/lib/api/client'
 import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+// `next dev` rewrites do not proxy the WebSocket upgrade, so local development
+// points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments leave it
+// unset and fall back to the app origin, which CloudFront forwards to the ALB.
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || ''
 
 function buildWsUrl(token: string, orgPk: string): string {
-  const base = API_BASE_URL.replace(/^http/, 'ws')
+  const origin = WS_BASE_URL || window.location.origin
+  const base = origin.replace(/^http/, 'ws')
   return `${base}/v1.0/ws?token=${encodeURIComponent(token)}&org_pk=${encodeURIComponent(orgPk)}`
 }
 

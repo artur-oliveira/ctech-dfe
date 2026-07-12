@@ -170,5 +170,6 @@ new FrontendStack(app, id('Frontend'), {
   environment: ENVIRONMENT,
   certificateArn: CERT_ARN,
   domainName: domainForEnv(ENVIRONMENT, 'dfe'),
+  apiDomainName: domainForEnv(ENVIRONMENT, 'dfe-api'),
   description: `CTech DFe Frontend (S3 + CloudFront) - ${ENVIRONMENT}`,
 });

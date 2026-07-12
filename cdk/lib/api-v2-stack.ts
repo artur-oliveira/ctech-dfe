@@ -120,9 +120,9 @@ export class ApiStackV2 extends cdk.Stack {
 
     userData.addCommands(
       // ── Packages + directories ───────────────────────────────────────────────
-      'dnf install -y nginx amazon-cloudwatch-agent amazon-ssm-agent unzip',
+      'dnf install -y nginx amazon-cloudwatch-agent amazon-ssm-agent unzip jq',
       'useradd --system --no-create-home --shell /sbin/nologin webapp',
-      'mkdir -p /opt/app/releases /var/log/app',
+      'mkdir -p /opt/app/releases /var/log/app /etc/nginx/conf.d',
       'chown -R webapp:webapp /opt/app /var/log/app',
 
       // ── Swap (256 MB) ──────────────────────────────────────────────────────────
@@ -167,6 +167,11 @@ export class ApiStackV2 extends cdk.Stack {
       `http {`,
       `    include /etc/nginx/mime.types;`,
       `    default_type application/octet-stream;`,
+      ``,
+      `    # Written by /opt/app/update-realip.sh: set_real_ip_from for the ALB and for`,
+      `    # CloudFront's origin-facing ranges, so $remote_addr below is the real viewer`,
+      `    # IP and not the proxy's. The glob keeps nginx bootable if the file is absent.`,
+      `    include /etc/nginx/conf.d/realip*.conf;`,
       ``,
       `    log_format json_log escape=json '{"remote_addr":"$remote_addr","status":$status,"request":"$request","body_bytes_sent":$body_bytes_sent,"request_time":$request_time,"upstream_response_time":"$upstream_response_time"}';`,
       ``,
@@ -213,6 +218,11 @@ export class ApiStackV2 extends cdk.Stack {
       `    # ── Rate limiting zones ──────────────────────────────────────────────────`,
       `    # Keyed by IP and by tenant header. Empty header key is ignored by nginx`,
       `    # (no limit applied) so IP zone still protects unauthenticated traffic.`,
+      `    #`,
+      `    # $binary_remote_addr is the viewer's IP, not the ALB's, only because the`,
+      `    # realip module rewrote it (see the include above). Without that the whole`,
+      `    # req_by_ip zone collapses onto the ALB's private IP and the rate becomes a`,
+      `    # shared ceiling for every client at once.`,
       `    limit_req_zone $binary_remote_addr        zone=req_by_ip:10m     rate=100r/s;`,
       `    limit_req_zone $http_dfe_organization_pk  zone=req_by_tenant:20m rate=500r/s;`,
       `    limit_conn_zone $binary_remote_addr       zone=conn_by_ip:10m;`,
@@ -239,7 +249,10 @@ export class ApiStackV2 extends cdk.Stack {
       `            proxy_set_header Connection "";`,
       `            proxy_set_header Host $host;`,
       `            proxy_set_header X-Real-IP $remote_addr;`,
-      `            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`,
+      // Overwrite rather than append: $proxy_add_x_forwarded_for would carry through
+      // whatever X-Forwarded-For the client sent, and the Go app trusts the leftmost
+      // entry. $remote_addr is the realip-resolved viewer IP, which a client cannot forge.
+      `            proxy_set_header X-Forwarded-For $remote_addr;`,
       `            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;`,
       `            proxy_connect_timeout 5s;`,
       `            proxy_read_timeout 5s;`,
@@ -253,7 +266,10 @@ export class ApiStackV2 extends cdk.Stack {
       `            proxy_set_header Connection "upgrade";`,
       `            proxy_set_header Host $host;`,
       `            proxy_set_header X-Real-IP $remote_addr;`,
-      `            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`,
+      // Overwrite rather than append: $proxy_add_x_forwarded_for would carry through
+      // whatever X-Forwarded-For the client sent, and the Go app trusts the leftmost
+      // entry. $remote_addr is the realip-resolved viewer IP, which a client cannot forge.
+      `            proxy_set_header X-Forwarded-For $remote_addr;`,
       `            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;`,
       `            proxy_read_timeout 3600s;`,
       `            proxy_send_timeout 3600s;`,
@@ -271,7 +287,10 @@ export class ApiStackV2 extends cdk.Stack {
       `            proxy_set_header Connection "";`,
       `            proxy_set_header Host $host;`,
       `            proxy_set_header X-Real-IP $remote_addr;`,
-      `            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`,
+      // Overwrite rather than append: $proxy_add_x_forwarded_for would carry through
+      // whatever X-Forwarded-For the client sent, and the Go app trusts the leftmost
+      // entry. $remote_addr is the realip-resolved viewer IP, which a client cannot forge.
+      `            proxy_set_header X-Forwarded-For $remote_addr;`,
       `            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;`,
       `            proxy_connect_timeout 10s;`,
       `            proxy_send_timeout 60s;`,
@@ -284,8 +303,83 @@ export class ApiStackV2 extends cdk.Stack {
       `    }`,
       `}`,
       `NGINX`,
+
+      // ── realip: trust the ALB and CloudFront, nobody else ─────────────────────
+      // Without this, $remote_addr is the ALB's private IP: every client collapses
+      // into one rate-limit bucket. Walking X-Forwarded-For right-to-left and
+      // discarding only trusted hops is what makes the resolved IP unforgeable —
+      // taking the leftmost entry instead would let a client spoof the header.
+      //
+      // CloudFront's origin-facing ranges change over time, so they are fetched from
+      // AWS rather than pinned in the template, and refreshed by a daily timer.
+      `cat > /opt/app/update-realip.sh << 'REALIP'`,
+      `#!/bin/bash`,
+      `set -euo pipefail`,
+      `CONF=/etc/nginx/conf.d/realip.conf`,
+      `TMP=$(mktemp)`,
+      `RANGES=$(curl -sf --retry 3 --retry-delay 2 https://ip-ranges.amazonaws.com/ip-ranges.json)`,
+      `PREFIXES=$(echo "$RANGES" | jq -r '(.prefixes[] | select(.service == "CLOUDFRONT_ORIGIN_FACING") | .ip_prefix), (.ipv6_prefixes[] | select(.service == "CLOUDFRONT_ORIGIN_FACING") | .ipv6_prefix)')`,
+      // A partial list is worse than the old file: an unlisted edge would be treated
+      // as the client and become the rate-limit key. Bail and keep what we have.
+      `if [ "$(echo "$PREFIXES" | grep -c .)" -lt 10 ]; then`,
+      `  echo "Refusing to write realip.conf: only $(echo "$PREFIXES" | grep -c .) CloudFront prefixes returned" >&2`,
+      `  exit 1`,
+      `fi`,
+      `{`,
+      `  echo "# Generated by /opt/app/update-realip.sh — do not edit."`,
+      `  echo "set_real_ip_from __VPC_CIDR__;"`,
+      `  echo "$PREFIXES" | sed -e 's|^|set_real_ip_from |' -e 's|$|;|'`,
+      `  echo "real_ip_header X-Forwarded-For;"`,
+      `  echo "real_ip_recursive on;"`,
+      `} > "$TMP"`,
+      `install -m 644 "$TMP" "$CONF"`,
+      `rm -f "$TMP"`,
+      // nginx -t reads the live config, so a bad file is caught before it is served.
+      `if ! nginx -t 2>/dev/null; then`,
+      `  echo "nginx rejected the generated realip.conf — reverting" >&2`,
+      `  rm -f "$CONF"`,
+      `  exit 1`,
+      `fi`,
+      // Guarded with `if` rather than `&&`: under `set -e`, a false `&&` chain as the
+      // last statement would exit non-zero on the bootstrap run, when nginx is not up yet.
+      `if systemctl is-active --quiet nginx; then`,
+      `  systemctl reload nginx`,
+      `fi`,
+      `REALIP`,
+      `sed -i 's|__VPC_CIDR__|${vpc.vpcCidrBlock}|g' /opt/app/update-realip.sh`,
+      `chmod +x /opt/app/update-realip.sh`,
+
+      `cat > /etc/systemd/system/update-realip.service << 'REALIPSVC'`,
+      `[Unit]`,
+      `Description=Refresh nginx realip trusted proxy ranges`,
+      `After=network-online.target`,
+      `Wants=network-online.target`,
+      ``,
+      `[Service]`,
+      `Type=oneshot`,
+      `ExecStart=/opt/app/update-realip.sh`,
+      `REALIPSVC`,
+
+      `cat > /etc/systemd/system/update-realip.timer << 'REALIPTIMER'`,
+      `[Unit]`,
+      `Description=Daily refresh of nginx realip trusted proxy ranges`,
+      ``,
+      `[Timer]`,
+      `OnCalendar=daily`,
+      `RandomizedDelaySec=1h`,
+      `Persistent=true`,
+      ``,
+      `[Install]`,
+      `WantedBy=timers.target`,
+      `REALIPTIMER`,
+
+      // Generate the file before nginx first starts, so no request is ever served
+      // with the ALB as the rate-limit key.
+      `/opt/app/update-realip.sh || echo "realip bootstrap failed — rate limiting will key on the ALB until the timer succeeds"`,
       `systemctl enable nginx`,
       `systemctl start nginx`,
+      `systemctl daemon-reload`,
+      `systemctl enable --now update-realip.timer`,
 
       // ── CloudWatch agent ─────────────────────────────────────────────────────
       // Force dual-stack endpoint so the agent can reach CloudWatch Logs over

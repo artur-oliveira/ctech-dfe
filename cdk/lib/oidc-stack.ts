@@ -50,6 +50,16 @@ export class OidcStack extends cdk.Stack {
       actions: ['cloudfront:CreateInvalidation'],
       resources: ['*'],
     }));
+    // Route manifest for the URL-rewrite CloudFront Function. Published after
+    // the S3 sync so the key set matches the objects in the bucket.
+    frontendRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'cloudfront-keyvaluestore:DescribeKeyValueStore',
+        'cloudfront-keyvaluestore:ListKeys',
+        'cloudfront-keyvaluestore:UpdateKeys',
+      ],
+      resources: [`arn:aws:cloudfront::${this.account}:key-value-store/*`],
+    }));
     frontendRole.addToPolicy(new iam.PolicyStatement({
       actions: ['cloudformation:describeStacks'],
       resources: ['*'],

@@ -303,7 +303,10 @@ ctech-dfe-api/
 
 ```bash
 # Auth (required)
-CTECH_JWKS_URL=https://accounts.aoctech.app/v1.0/.well-known/jwks.json
+# Service-to-service goes straight to the -api host (ALB), not the CloudFront app
+# domain: an edge round trip buys a server in the same region nothing.
+# The handler mounts /.well-known at the root, not under /v1.0.
+CTECH_JWKS_URL=https://accounts-api.aoctech.app/.well-known/jwks.json
 
 # Cache (Redis / Valkey)
 VALKEY_URL=redis://...          # JWKS cached here; falls back to in-memory when unset
