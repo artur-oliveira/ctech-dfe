@@ -1,0 +1,150 @@
+name: Deploy
+
+# Single entry point for every deploy. Owns the trigger, the path filter and the
+# ordering — infra/pydfe/worker/api/frontend are reusable workflows and have no
+# push trigger of their own, so a push that touches several of them still deploys
+# strictly in order:
+#
+#   CDK → py-dfe → worker → API → Frontend
+#
+# The Lambdas go before the API because a new py-dfe/worker feature must already
+# be live when the API that calls it ships. A stage whose paths did not change is
+# skipped, and a skipped stage does NOT block the ones after it
+# (`!contains(needs.*.result, 'failure')`). A stage that FAILS does block them.
+on:
+  push:
+    branches: [ main, staging, dev ]
+  workflow_dispatch:
+    inputs:
+      infra:
+        description: 'Deploy CDK'
+        type: boolean
+        default: false
+      pydfe:
+        description: 'Deploy py-dfe Lambda'
+        type: boolean
+        default: false
+      worker:
+        description: 'Deploy Worker Lambda'
+        type: boolean
+        default: false
+      api:
+        description: 'Deploy API'
+        type: boolean
+        default: false
+      frontend:
+        description: 'Deploy Frontend'
+        type: boolean
+        default: false
+
+# One deploy at a time per branch, across all stages. Never cancel: a half-applied
+# CloudFormation stack or a partial rolling deploy is worse than a queued run.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      infra: ${{ steps.decide.outputs.infra }}
+      pydfe: ${{ steps.decide.outputs.pydfe }}
+      worker: ${{ steps.decide.outputs.worker }}
+      api: ${{ steps.decide.outputs.api }}
+      frontend: ${{ steps.decide.outputs.frontend }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          # py-dfe/layer/requirements.txt is in BOTH infra and pydfe: it changes the
+          # Lambda layer the CDK stack bundles, and the code that runs on top of it.
+          filters: |
+            infra:
+              - 'cdk/**'
+              - 'py-dfe/layer/requirements.txt'
+              - '.github/workflows/infra.yml'
+            pydfe:
+              - 'py-dfe/**'
+              - '.github/workflows/pydfe.yml'
+            worker:
+              - 'worker/**'
+              - '.github/workflows/worker.yml'
+            api:
+              - 'api/**'
+              - '.github/workflows/api.yml'
+            frontend:
+              - 'ui/**'
+              - '.github/workflows/frontend.yml'
+
+      # On workflow_dispatch the checkboxes decide; on push, the path filter does.
+      - name: Decide stages
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "infra=${{ inputs.infra }}"       >> "$GITHUB_OUTPUT"
+            echo "pydfe=${{ inputs.pydfe }}"       >> "$GITHUB_OUTPUT"
+            echo "worker=${{ inputs.worker }}"     >> "$GITHUB_OUTPUT"
+            echo "api=${{ inputs.api }}"           >> "$GITHUB_OUTPUT"
+            echo "frontend=${{ inputs.frontend }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra=${{ steps.filter.outputs.infra }}"       >> "$GITHUB_OUTPUT"
+            echo "pydfe=${{ steps.filter.outputs.pydfe }}"       >> "$GITHUB_OUTPUT"
+            echo "worker=${{ steps.filter.outputs.worker }}"     >> "$GITHUB_OUTPUT"
+            echo "api=${{ steps.filter.outputs.api }}"           >> "$GITHUB_OUTPUT"
+            echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  infra:
+    name: CDK
+    needs: changes
+    if: ${{ needs.changes.outputs.infra == 'true' }}
+    uses: ./.github/workflows/infra.yml
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+  pydfe:
+    name: py-dfe
+    needs: [ changes, infra ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.pydfe == 'true' }}
+    uses: ./.github/workflows/pydfe.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  worker:
+    name: Worker
+    needs: [ changes, infra, pydfe ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.worker == 'true' }}
+    uses: ./.github/workflows/worker.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  api:
+    name: API
+    needs: [ changes, infra, pydfe, worker ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.api == 'true' }}
+    uses: ./.github/workflows/api.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  frontend:
+    name: Frontend
+    needs: [ changes, infra, pydfe, worker, api ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.frontend == 'true' }}
+    uses: ./.github/workflows/frontend.yml
+    permissions:
+      id-token: write
+      contents: read

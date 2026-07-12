@@ -1,15 +1,9 @@
 name: Worker Lambda
 
+# Called by deploy.yml, which owns the trigger, the path filter and the
+# CDK → py-dfe → worker → API → Frontend ordering. Never triggered on push.
 on:
-  push:
-    branches: [main, staging, dev]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/worker.yml'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_call:
 
 permissions:
   id-token: write

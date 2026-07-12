@@ -1,15 +1,9 @@
 name: py-dfe Lambda
 
+# Called by deploy.yml, which owns the trigger, the path filter and the
+# CDK → py-dfe → worker → API → Frontend ordering. Never triggered on push.
 on:
-  push:
-    branches: [ main, staging, dev ]
-    paths:
-      - 'py-dfe/**'
-      - '.github/workflows/pydfe.yml'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_call:
 
 permissions:
   id-token: write

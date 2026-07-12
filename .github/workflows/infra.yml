@@ -1,22 +1,16 @@
 name: Infrastructure
 
+# Deploy is called by deploy.yml (which owns the ordering:
+# CDK → py-dfe → worker → API → Frontend).
+# The diff job runs on its own for pull requests — it deploys nothing.
 on:
-  push:
-    branches: [ main, staging, dev ]
-    paths:
-      - 'cdk/**'
-      - 'py-dfe/layer/requirements.txt'
-      - '.github/workflows/infra.yml'
+  workflow_call:
   pull_request:
     branches: [ main, staging, dev ]
     paths:
       - 'cdk/**'
       - 'py-dfe/layer/requirements.txt'
       - '.github/workflows/infra.yml'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -97,7 +91,7 @@ jobs:
   deploy:
     name: CDK Deploy
     runs-on: ubuntu-24.04-arm
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
 
     steps:
       - uses: actions/checkout@v6
