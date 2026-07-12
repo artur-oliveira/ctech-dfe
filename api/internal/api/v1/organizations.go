@@ -1,11 +1,12 @@
 package v1
 
 import (
-	"mime/multipart"
+	"encoding/json"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/validation"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -19,6 +20,8 @@ type OrgHandlers struct {
 	CteConfig  *services.CteConfigService
 	MdfeConfig *services.MdfeConfigService
 	UserSvc    *services.UserService
+	MemberSvc  *services.MembershipService
+	InvSvc     *services.InvitationService
 }
 
 // RegisterOrganizations mounts all /organizations routes.
@@ -28,26 +31,16 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	// GET /organizations — list organizations the authenticated user belongs to
 	orgs.Get("", func(c fiber.Ctx) error {
 		userID := middleware.GetUserID(c)
-		user, err := h.UserSvc.GetMe(c.Context(), userID)
+		memberships, err := h.MemberSvc.ListByUser(c.Context(), userID)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		m, err := unmarshal(user)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		orgsRaw, _ := m["organizations"].([]any)
-		result := make([]map[string]any, 0, len(orgsRaw))
-		for _, entry := range orgsRaw {
-			ref, ok := entry.(map[string]any)
-			if !ok {
+		result := make([]map[string]any, 0, len(memberships))
+		for _, mem := range memberships {
+			if mem.OrgPK == "" {
 				continue
 			}
-			pk, _ := ref["pk"].(string)
-			if pk == "" {
-				continue
-			}
-			org, orgErr := h.OrgSvc.Get(c.Context(), pk)
+			org, orgErr := h.OrgSvc.Get(c.Context(), mem.OrgPK)
 			if orgErr != nil || org == nil {
 				continue
 			}
@@ -60,11 +53,32 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		return c.JSON(result)
 	})
 
-	// POST /organizations — create (no tenant context; user becomes OWNER after creation)
-	orgs.Post("", func(c fiber.Ctx) error {
+	// GET /organizations/certificate-requirement?cpf_or_cnpj=... — whether the
+	// caller must upload an A1 certificate to create this org (false when they
+	// can inherit a matriz certificate for the same CNPJ root). Drives the UI.
+	orgs.Get("/certificate-requirement", func(c fiber.Ctx) error {
 		userID := middleware.GetUserID(c)
+		doc := c.Query("cpf_or_cnpj")
+		if doc == "" {
+			return sendProblem(c, problem.BadRequest("cpf_or_cnpj é obrigatório"))
+		}
+		required, err := h.OrgSvc.CertificateRequired(c.Context(), userID, doc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(fiber.Map{"required": required})
+	})
+
+	// POST /organizations — create (no tenant context; user becomes OWNER).
+	// multipart/form-data: `data` (JSON OrganizationCreateBody) + optional `file`
+	// (A1 PFX) + `password`. KYC: a certificate is required unless the caller can
+	// inherit a matriz certificate for the same CNPJ root (filial).
+	orgs.Post("", func(c fiber.Ctx) error {
 		var dto OrganizationCreateBody
-		if p := bindJSON(c, &dto); p != nil {
+		if err := json.Unmarshal([]byte(c.FormValue("data")), &dto); err != nil {
+			return sendProblem(c, problem.BadRequest("campo 'data' inválido: "+err.Error()))
+		}
+		if p := validation.Struct(&dto); p != nil {
 			return sendProblem(c, p)
 		}
 		if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
@@ -77,7 +91,15 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		org, err := h.OrgSvc.Create(c.Context(), dto.CpfOrCnpj, av)
+
+		pfx, readErr := readOptionalUpload(c, "file")
+		if readErr != nil {
+			return sendProblem(c, readErr)
+		}
+		password := c.FormValue("password")
+
+		userID, userName := resolveActor(c, h.UserSvc)
+		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password)
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -85,12 +107,8 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		if orgPK, ok := m["pk"].(string); ok && orgPK != "" {
-			if err := h.UserSvc.AttachToOrg(c.Context(), userID, orgPK, "OWNER", repositories.AllPermissions); err != nil {
-				return sendProblem(c, err)
-			}
-			h.UserSvc.InvalidateCache(c.Context(), userID)
-		}
+		// Refresh the caller's cached /auth/me + org list so the new org shows immediately.
+		h.UserSvc.InvalidateCache(c.Context(), userID)
 		return c.Status(fiber.StatusCreated).JSON(m)
 	})
 
@@ -202,26 +220,14 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 
 	scoped.Post("/certificates", perm.Require("create.organization_certificates"), func(c fiber.Ctx) error {
 		orgPK := middleware.GetOrgPK(c)
-		file, err := c.FormFile("file")
+		buf, err := readOptionalUpload(c, "file")
 		if err != nil {
 			return sendProblem(c, err)
+		}
+		if buf == nil {
+			return sendProblem(c, problem.BadRequest("arquivo do certificado é obrigatório"))
 		}
 		password := c.FormValue("password")
-		f, err := file.Open()
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		defer func(f multipart.File) {
-			err := f.Close()
-			if err != nil {
-			}
-		}(f)
-
-		buf := make([]byte, file.Size)
-		if _, err := f.Read(buf); err != nil {
-			return sendProblem(c, err)
-		}
-
 		userID, userName := resolveActor(c, h.UserSvc)
 		result, err := h.CertSvc.Upload(c.Context(), orgPK, buf, password, "", userID, userName)
 		if err != nil {
@@ -237,4 +243,7 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		}
 		return c.SendStatus(fiber.StatusNoContent)
 	})
+
+	// ── Members & invitations ─────────────────────────────────────────────────
+	registerMemberRoutes(scoped, h, perm)
 }

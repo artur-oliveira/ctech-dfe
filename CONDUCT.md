@@ -444,6 +444,15 @@ Must follow Conventional Commits:
 - No goroutines inside request handlers — Fiber handles concurrency.
 - Binary name in deployment zip must be `app` (CDK userdata expects `/opt/app/current/app`).
 - Profile and password management endpoints do not exist — those belong to ctech-account.
+- **Membership is owned by the `organization_users` table** (via `MembershipService`). RBAC,
+  `/auth/me`, `GET /organizations`, and the WebSocket all resolve access through
+  `MembershipService.Get`. The legacy embedded `users.organizations` list is dead — no longer read
+  or written (dual-write/fallback removed post-migration); do not reintroduce authorization from it.
+- Removing/demoting a member must not leave an org without an OWNER, and mutating a membership must
+  invalidate its cache (a tombstone on removal) — do this through `MembershipService`, not the repo.
+- Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
+  one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
+  inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.
 
 ## ui (Frontend)
 

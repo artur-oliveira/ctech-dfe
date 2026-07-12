@@ -34,6 +34,10 @@ var (
 	vehicleRepo    *repositories.VehicleRepository
 	certRepo       *repositories.CertificateRepository
 	auditRepo      *repositories.AuditLogRepository
+	userRepo       *repositories.UserRepository
+	roleRepo       *repositories.RoleRepository
+	orgUserRepo    *repositories.OrgUserRepository
+	invRepo        *repositories.OrgInvitationRepository
 	nfeConfigRepo  *repositories.NfeConfigRepository
 	nfceConfigRepo *repositories.NfceConfigRepository
 	cteConfigRepo  *repositories.CteConfigRepository
@@ -43,6 +47,8 @@ var (
 	personSvc      *services.PersonService
 	vehicleSvc     *services.VehicleService
 	certSvc        *services.CertificateService
+	memberSvc      *services.MembershipService
+	invSvc         *services.InvitationService
 	nfeConfigSvc   *services.NfeConfigService
 	nfceConfigSvc  *services.NfceConfigService
 	cteConfigSvc   *services.CteConfigService
@@ -88,12 +94,23 @@ func TestMain(m *testing.M) {
 	vehicleRepo = repositories.NewVehicleRepository(db, cfg)
 	certRepo = repositories.NewCertificateRepository(db, cfg)
 	auditRepo = repositories.NewAuditLogRepository(db, cfg)
+	userRepo = repositories.NewUserRepository(db, cfg)
+	roleRepo = repositories.NewRoleRepository(db, cfg)
+	orgUserRepo = repositories.NewOrgUserRepository(db, cfg)
+	invRepo = repositories.NewOrgInvitationRepository(db, cfg)
 	nfeConfigRepo = repositories.NewNfeConfigRepository(db, cfg)
 	nfceConfigRepo = repositories.NewNfceConfigRepository(db, cfg)
 	cteConfigRepo = repositories.NewCteConfigRepository(db, cfg)
 	mdfeConfigRepo = repositories.NewMdfeConfigRepository(db, cfg)
 
-	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, memCache)
+	// certSvc is Delete-only usable in this harness: Upload needs a real S3
+	// client (no S3 test double exists in this codebase), so it's wired with a
+	// zero-value *awsclient.Clients{} placeholder. Delete never touches
+	// s.awsClients; Upload/StageUpload must not be exercised against it.
+	certSvc = services.NewCertificateService(certRepo, auditRepo, &awsclient.Clients{}, "unused-test-bucket")
+	memberSvc = services.NewMembershipService(orgUserRepo, roleRepo, memCache)
+	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, memCache)
+	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
@@ -101,13 +118,6 @@ func TestMain(m *testing.M) {
 	nfceConfigSvc = services.NewNfceConfigService(nfceConfigRepo, auditRepo)
 	cteConfigSvc = services.NewCteConfigService(cteConfigRepo, auditRepo)
 	mdfeConfigSvc = services.NewMdfeConfigService(mdfeConfigRepo, auditRepo)
-	// certSvc is Delete-only usable in this harness: Upload needs a real S3
-	// client (no S3 test double exists in this codebase — see task-10-report.md
-	// for the accepted scope boundary), so it's wired with a zero-value
-	// *awsclient.Clients{} placeholder. Delete never touches s.awsClients, so
-	// this is safe for the Delete integration test but Upload must not be
-	// exercised against this instance.
-	certSvc = services.NewCertificateService(certRepo, auditRepo, &awsclient.Clients{}, "unused-test-bucket")
 
 	code := m.Run()
 	dropTables(ctx, db)
@@ -297,6 +307,70 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 				},
 			},
 		},
+		{
+			TableName:   aws.String(tablePrefix + "_users"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_roles"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_organization_users"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+				{
+					IndexName: aws.String("user-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("sk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_organization_invitations"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("org_pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("created_at"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+				{
+					IndexName: aws.String("org-invite-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("org_pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("created_at"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+			},
+		},
 	}
 
 	for _, def := range definitions {
@@ -320,6 +394,10 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_organization_cte_configs",
 		tablePrefix + "_organization_mdfe_configs",
 		tablePrefix + "_audit_logs",
+		tablePrefix + "_users",
+		tablePrefix + "_roles",
+		tablePrefix + "_organization_users",
+		tablePrefix + "_organization_invitations",
 	}
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})

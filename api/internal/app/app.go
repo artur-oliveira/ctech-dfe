@@ -45,6 +45,8 @@ var Module = fx.Options(
 		repositories.NewAuditLogRepository,
 		repositories.NewUserRepository,
 		repositories.NewRoleRepository,
+		repositories.NewOrgUserRepository,
+		repositories.NewOrgInvitationRepository,
 		repositories.NewProductRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -63,6 +65,8 @@ var Module = fx.Options(
 		// Services
 		newOrganizationService,
 		newUserService,
+		services.NewMembershipService,
+		services.NewInvitationService,
 		newCertificateService,
 		newProductService,
 		newPersonService,
@@ -80,10 +84,40 @@ var Module = fx.Options(
 		newResultsConsumer,
 		services.NewAuditLogService,
 	),
+	fx.Invoke(seedRoles),
 	fx.Invoke(registerRoutes),
 	fx.Invoke(startResultsConsumer),
 	fx.Invoke(startServer),
 )
+
+// seedRoles upserts the built-in RBAC roles on startup. Without it the roles
+// table is empty and any USER/VIEWER member is denied everything (OWNER/ADMIN
+// work regardless, since they bypass the permission-string check). Upsert is a
+// full PutItem, so it is idempotent — replicas booting in parallel write the
+// same payload. A failure here fails the boot: running without roles would
+// silently break every non-admin member.
+func seedRoles(lc fx.Lifecycle, roleRepo *repositories.RoleRepository) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			var lastErr error
+			for _, r := range repositories.SystemRoles() {
+				for attempt := 0; attempt < 3; attempt++ {
+					if _, err := roleRepo.Upsert(ctx, r.Name, r.Description, r.Permissions); err != nil {
+						lastErr = err
+						continue
+					}
+					lastErr = nil
+					break
+				}
+				if lastErr != nil {
+					return fmt.Errorf("seed role %s: %w", r.Name, lastErr)
+				}
+			}
+			slog.Info("seeded RBAC roles", "count", len(repositories.SystemRoles()))
+			return nil
+		},
+	})
+}
 
 func newDynamoDBClient(clients *awsclient.Clients) *dynamodb.Client {
 	return clients.DynamoDB
@@ -166,12 +200,20 @@ func newNfeEventRepository(db *dynamodb.Client, cfg *config.Config) *repositorie
 
 // --- service factories ---
 
-func newOrganizationService(repo *repositories.OrganizationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.OrganizationService {
-	return services.NewOrganizationService(repo, auditRepo, c)
+func newOrganizationService(
+	repo *repositories.OrganizationRepository,
+	auditRepo *repositories.AuditLogRepository,
+	certRepo *repositories.CertificateRepository,
+	orgUserRepo *repositories.OrgUserRepository,
+	certSvc *services.CertificateService,
+	memberSvc *services.MembershipService,
+	c cache.Backend,
+) *services.OrganizationService {
+	return services.NewOrganizationService(repo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, c)
 }
 
-func newUserService(repo *repositories.UserRepository, c cache.Backend, cfg *config.Config, orgSvc *services.OrganizationService) *services.UserService {
-	return services.NewUserService(repo, c, cfg.CtechURL, orgSvc)
+func newUserService(repo *repositories.UserRepository, c cache.Backend, cfg *config.Config, orgSvc *services.OrganizationService, memberSvc *services.MembershipService) *services.UserService {
+	return services.NewUserService(repo, c, cfg.CtechURL, orgSvc, memberSvc)
 }
 
 func newCertificateService(repo *repositories.CertificateRepository, auditRepo *repositories.AuditLogRepository, clients *awsclient.Clients, cfg *config.Config) *services.CertificateService {
@@ -311,6 +353,8 @@ type Services struct {
 
 	OrgSvc      *services.OrganizationService
 	UserSvc     *services.UserService
+	MemberSvc   *services.MembershipService
+	InvSvc      *services.InvitationService
 	CertSvc     *services.CertificateService
 	ProductSvc  *services.ProductService
 	PersonSvc   *services.PersonService
@@ -336,6 +380,8 @@ func registerRoutes(app *fiber.App, svcs Services) {
 	apiv1.Register(app, svcs.Cache, svcs.Cfg, svcs.WSReg, svcs.AWS, apiv1.Services{
 		Org:          svcs.OrgSvc,
 		User:         svcs.UserSvc,
+		Member:       svcs.MemberSvc,
+		Invitation:   svcs.InvSvc,
 		Cert:         svcs.CertSvc,
 		Product:      svcs.ProductSvc,
 		Person:       svcs.PersonSvc,

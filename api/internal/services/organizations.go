@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
@@ -28,13 +29,33 @@ func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
 
 // OrganizationService mirrors api/app/services/organizations.py.
 type OrganizationService struct {
-	repo      *repositories.OrganizationRepository
-	auditRepo *repositories.AuditLogRepository
-	cache     cache.Backend
+	repo        *repositories.OrganizationRepository
+	auditRepo   *repositories.AuditLogRepository
+	certRepo    *repositories.CertificateRepository
+	orgUserRepo *repositories.OrgUserRepository
+	certSvc     *CertificateService
+	memberSvc   *MembershipService
+	cache       cache.Backend
 }
 
-func NewOrganizationService(repo *repositories.OrganizationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *OrganizationService {
-	return &OrganizationService{repo: repo, auditRepo: auditRepo, cache: c}
+func NewOrganizationService(
+	repo *repositories.OrganizationRepository,
+	auditRepo *repositories.AuditLogRepository,
+	certRepo *repositories.CertificateRepository,
+	orgUserRepo *repositories.OrgUserRepository,
+	certSvc *CertificateService,
+	memberSvc *MembershipService,
+	c cache.Backend,
+) *OrganizationService {
+	return &OrganizationService{
+		repo:        repo,
+		auditRepo:   auditRepo,
+		certRepo:    certRepo,
+		orgUserRepo: orgUserRepo,
+		certSvc:     certSvc,
+		memberSvc:   memberSvc,
+		cache:       c,
+	}
 }
 
 func (s *OrganizationService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
@@ -64,6 +85,160 @@ func (s *OrganizationService) Create(ctx context.Context, cpfOrCNPJ string, fiel
 		return nil, err
 	}
 	return s.repo.GetOrganization(ctx, cpfOrCNPJ)
+}
+
+// cnpjRoot returns the 8-digit CNPJ root (raiz) of an org PK, or "" for a CPF
+// org (no branch concept).
+func cnpjRoot(orgPK string) string {
+	if cnpj, ok := strings.CutPrefix(orgPK, "CNPJ_"); ok && len(cnpj) >= 8 {
+		return cnpj[:8]
+	}
+	return ""
+}
+
+func certNotExpired(item map[string]types.AttributeValue) bool {
+	av, ok := item["expires_at"].(*types.AttributeValueMemberS)
+	if !ok {
+		return false
+	}
+	exp, err := time.Parse(time.RFC3339, av.Value)
+	if err != nil {
+		return false
+	}
+	return time.Now().UTC().Before(exp)
+}
+
+// branchCertificate returns a valid, non-expired certificate from a sibling org
+// that shares this org's CNPJ root and that the user already belongs to — the
+// matriz certificate that also covers this filial. Returns nil when there is
+// none, meaning a certificate is required to create the org. CPF orgs never
+// qualify (they have no root).
+func (s *OrganizationService) branchCertificate(ctx context.Context, userID, cpfOrCNPJ string) (map[string]types.AttributeValue, error) {
+	orgPK, err := repositories.ParseOrgPK(cpfOrCNPJ)
+	if err != nil {
+		return nil, err
+	}
+	root := cnpjRoot(orgPK)
+	if root == "" {
+		return nil, nil
+	}
+	memberships, err := s.memberSvc.ListByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range memberships {
+		if m.OrgPK == orgPK || cnpjRoot(m.OrgPK) != root {
+			continue
+		}
+		certs, err := s.certRepo.List(ctx, m.OrgPK)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range certs {
+			if certNotExpired(c) {
+				return c, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// CertificateRequired reports whether creating the given org requires a
+// certificate upload (true unless the user can inherit a sibling/matriz
+// certificate for the same CNPJ root).
+func (s *OrganizationService) CertificateRequired(ctx context.Context, userID, cpfOrCNPJ string) (bool, error) {
+	cert, err := s.branchCertificate(ctx, userID, cpfOrCNPJ)
+	if err != nil {
+		return true, err
+	}
+	return cert == nil, nil
+}
+
+// CreateWithOwner atomically creates an organization, its certificate row, the
+// founding OWNER membership, and an audit row — enforcing KYC: either a valid
+// A1 certificate matching the org's document is supplied, or the user inherits
+// a matriz certificate for the same CNPJ root (filial). An already-registered
+// org returns the existing item if the caller is already a member, else 409.
+func (s *OrganizationService) CreateWithOwner(
+	ctx context.Context, cpfOrCNPJ, userID, userName string,
+	fields map[string]types.AttributeValue, pfx []byte, password string,
+) (map[string]types.AttributeValue, error) {
+	orgPK, err := repositories.ParseOrgPK(cpfOrCNPJ)
+	if err != nil {
+		return nil, err
+	}
+
+	existing, err := s.repo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		m, mErr := s.memberSvc.Get(ctx, orgPK, userID)
+		if mErr != nil {
+			return nil, mErr
+		}
+		if m != nil {
+			return existing, nil // idempotent for an existing member
+		}
+		return nil, problem.Conflict("organização já cadastrada")
+	}
+
+	// Determine the certificate first, so KYC failures return before any org
+	// item is built or uploaded.
+	var certTx types.TransactWriteItem
+	switch {
+	case len(pfx) > 0:
+		info, s3Key, upErr := s.certSvc.StageUpload(ctx, orgPK, pfx, password)
+		if upErr != nil {
+			return nil, upErr
+		}
+		certTx, _ = s.certSvc.BuildCertTxItem(orgPK, "", info.MD5, password, s3Key, info.CN, info.NotAfter.Format(time.RFC3339))
+	default:
+		branchCert, bErr := s.branchCertificate(ctx, userID, cpfOrCNPJ)
+		if bErr != nil {
+			return nil, bErr
+		}
+		if branchCert == nil {
+			return nil, problem.BadRequest("certificado A1 é obrigatório para cadastrar esta empresa")
+		}
+		// Reuse the matriz PFX (same S3 object) so the filial can emit.
+		certTx, _ = s.certRepo.BuildCreateTxItem(orgPK,
+			attrStrAV(branchCert, "alias"), attrStrAV(branchCert, "md5"),
+			attrStrAV(branchCert, "password"), attrStrAV(branchCert, "s3_key"),
+			attrStrAV(branchCert, "expires_at"))
+	}
+
+	orgTx, orgItem, err := s.repo.BuildCreateTxItem(cpfOrCNPJ, fields)
+	if err != nil {
+		return nil, err
+	}
+	txItems := []types.TransactWriteItem{
+		orgTx,
+		certTx,
+		s.orgUserRepo.BuildCreateTxItem(orgPK, userID, repositories.RoleOwner, "", userName, nil),
+	}
+
+	afterMap, err := attributeMapToPlain(orgItem)
+	if err != nil {
+		return nil, err
+	}
+	auditTx, err := s.auditRepo.BuildLogTxItem(
+		orgPK, repositories.AuditResourceOrganization, orgPK, repositories.AuditActionCreate,
+		userID, userName, Diff(nil, afterMap),
+	)
+	if err != nil {
+		return nil, err
+	}
+	txItems = append(txItems, auditTx)
+
+	if err := s.repo.TransactWrite(ctx, txItems); err != nil {
+		if repositories.IsConditionFailed(err) {
+			return nil, problem.Conflict("organização já cadastrada")
+		}
+		return nil, err
+	}
+	s.memberSvc.Invalidate(ctx, orgPK, userID)
+	return s.repo.GetOrganization(ctx, orgPK)
 }
 
 // Update writes the organization's company-data change and its UPDATE audit

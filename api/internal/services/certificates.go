@@ -27,6 +27,7 @@ type CertInfo struct {
 	MD5       string
 	CN        string
 	CNPJ      string // extracted from CN (format: "COMPANY NAME:12345678000195")
+	CPF       string // extracted from CN of an e-CPF (format: "PERSON NAME:12345678901")
 	NotBefore time.Time
 	NotAfter  time.Time
 	IsExpired bool
@@ -48,13 +49,17 @@ func ParsePFX(pfxData []byte, password string) (*x509.Certificate, *rsa.PrivateK
 	md5hex := fmt.Sprintf("%x", sum)
 
 	cn := cert.Subject.CommonName
-	cnpj := ""
-	// Brazilian A1/A3 certs encode CNPJ after colon: "COMPANY NAME:12345678000195"
+	cnpj, cpf := "", ""
+	// Brazilian ICP-Brasil certs encode the holder's document after a colon:
+	// e-CNPJ → "COMPANY NAME:12345678000195" (14 digits),
+	// e-CPF  → "PERSON NAME:12345678901"     (11 digits).
 	if idx := strings.LastIndex(cn, ":"); idx != -1 {
-		candidate := cn[idx+1:]
-		candidate = strings.NewReplacer(".", "", "/", "", "-", "").Replace(candidate)
-		if cnpjRe.MatchString(candidate) {
+		candidate := strings.NewReplacer(".", "", "/", "", "-", "").Replace(cn[idx+1:])
+		switch {
+		case cnpjRe.MatchString(candidate):
 			cnpj = candidate
+		case cpfRe.MatchString(candidate):
+			cpf = candidate
 		}
 	}
 
@@ -62,11 +67,35 @@ func ParsePFX(pfxData []byte, password string) (*x509.Certificate, *rsa.PrivateK
 		MD5:       md5hex,
 		CN:        cn,
 		CNPJ:      cnpj,
+		CPF:       cpf,
 		NotBefore: cert.NotBefore,
 		NotAfter:  cert.NotAfter,
 		IsExpired: time.Now().UTC().After(cert.NotAfter),
 	}
 	return cert, rsaKey, info, nil
+}
+
+// MatchOrgDocument verifies that the certificate's holder document matches the
+// organization's PK. A CNPJ org (PK "CNPJ_…") must present an e-CNPJ for the
+// same CNPJ; a CPF org (PK "CPF_…") an e-CPF for the same CPF. When the CN
+// carries no recognizable document (some legacy certs) the check is skipped —
+// possession of the PFX + password is still proven by ParsePFX.
+func MatchOrgDocument(orgPK string, info *CertInfo) error {
+	if cnpj, ok := strings.CutPrefix(orgPK, "CNPJ_"); ok {
+		if info.CNPJ != "" && info.CNPJ != cnpj {
+			return problem.BadRequest(fmt.Sprintf(
+				"o CNPJ do certificado (%s) não corresponde ao CNPJ da organização (%s)", info.CNPJ, cnpj))
+		}
+		return nil
+	}
+	if cpf, ok := strings.CutPrefix(orgPK, "CPF_"); ok {
+		if info.CPF != "" && info.CPF != cpf {
+			return problem.BadRequest(fmt.Sprintf(
+				"o CPF do certificado (%s) não corresponde ao CPF da organização (%s)", info.CPF, cpf))
+		}
+		return nil
+	}
+	return nil
 }
 
 // CertificateService mirrors api/app/services/certificates.py.
@@ -99,13 +128,8 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 		return nil, problem.BadRequest("certificate is expired")
 	}
 
-	if strings.HasPrefix(orgPK, "CNPJ_") {
-		orgCNPJ := strings.TrimPrefix(orgPK, "CNPJ_")
-		if info.CNPJ != "" && info.CNPJ != orgCNPJ {
-			return nil, problem.BadRequest(fmt.Sprintf(
-				"certificate CNPJ %s does not match organization CNPJ %s", info.CNPJ, orgCNPJ,
-			))
-		}
+	if err := MatchOrgDocument(orgPK, info); err != nil {
+		return nil, err
 	}
 
 	if alias == "" {
@@ -149,6 +173,45 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 	}
 	delete(out, "password")
 	return out, nil
+}
+
+// StageUpload validates the PFX (password, expiry, document match) and uploads
+// it to S3, returning the parsed info and S3 key so the caller can compose the
+// certificate row into a larger transaction (e.g. atomic org creation). It does
+// NOT write to DynamoDB. The S3 object is keyed by content MD5, so a stray
+// upload from a later-failed transaction is harmless.
+func (s *CertificateService) StageUpload(ctx context.Context, orgPK string, pfxData []byte, password string) (*CertInfo, string, error) {
+	_, _, info, err := ParsePFX(pfxData, password)
+	if err != nil {
+		return nil, "", err
+	}
+	if info.IsExpired {
+		return nil, "", problem.BadRequest("certificate is expired")
+	}
+	if err := MatchOrgDocument(orgPK, info); err != nil {
+		return nil, "", err
+	}
+	s3Key := fmt.Sprintf("certs/%s/%s.pfx", orgPK, info.MD5)
+	_, err = s.awsClients.S3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:               aws.String(s.bucketName),
+		Key:                  aws.String(s3Key),
+		Body:                 bytes.NewReader(pfxData),
+		ContentType:          aws.String("application/x-pkcs12"),
+		ServerSideEncryption: "aws:kms",
+	})
+	if err != nil {
+		return nil, "", problem.InternalServer("failed to upload certificate to S3")
+	}
+	return info, s3Key, nil
+}
+
+// BuildCertTxItem builds the certificate create tx item (and item) for
+// composing into a transaction. alias defaults to the CN when empty.
+func (s *CertificateService) BuildCertTxItem(orgPK, alias, md5, password, s3Key, cn, expiresAt string) (types.TransactWriteItem, map[string]types.AttributeValue) {
+	if alias == "" {
+		alias = cn
+	}
+	return s.repo.BuildCreateTxItem(orgPK, alias, md5, password, s3Key, expiresAt)
 }
 
 func (s *CertificateService) List(ctx context.Context, orgPK string) ([]map[string]any, error) {

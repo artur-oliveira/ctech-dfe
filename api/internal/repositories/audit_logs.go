@@ -29,6 +29,8 @@ const (
 	AuditResourceNfceConfig   = "NFCE_CONFIG"
 	AuditResourceCteConfig    = "CTE_CONFIG"
 	AuditResourceMdfeConfig   = "MDFE_CONFIG"
+	AuditResourceMember       = "MEMBER"
+	AuditResourceInvitation   = "INVITATION"
 )
 
 // Modification is one changed field within an audit_logs row.

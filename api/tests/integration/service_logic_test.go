@@ -26,7 +26,9 @@ import (
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 func freshOrgSvc() *services.OrganizationService {
-	return services.NewOrganizationService(orgRepo, auditRepo, cache.NewMemoryBackend(100))
+	c := cache.NewMemoryBackend(100)
+	ms := services.NewMembershipService(orgUserRepo, roleRepo, c)
+	return services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, ms, c)
 }
 
 func freshProductSvc() *services.ProductService {

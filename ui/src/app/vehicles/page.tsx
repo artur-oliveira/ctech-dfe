@@ -30,15 +30,18 @@ function VehiclesContent() {
       enabled: !!selectedOrg,
     })
 
-  const {handleDelete, isPending: isDeleting} = useEntityDelete<VehicleOut>({
+  const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<VehicleOut>({
     mutationFn: (id) => apiClient.deleteVehicle(id),
     getId: (v) => extractId(v.sk, SK_PREFIX.VEHICLE),
-    getConfirmMessage: (v) => `Excluir veículo ${v.plate}?`,
+    getDeletedMessage: (v) => `Veículo ${v.plate} excluído`,
     onSuccess: () => {
       reset()
       void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
     },
   })
+
+  // Rows inside the undo window are hidden until the delete commits (or is undone).
+  const visibleItems = filterVisible(items)
 
   return (
     <RootLayout>
@@ -57,7 +60,7 @@ function VehiclesContent() {
           <NoOrgBanner/>
         ) : isLoading ? (
           <LoadingSkeleton/>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhum veículo cadastrado"
             description="Cadastre veículos para usar na emissão de CT-e e MDF-e."
@@ -77,7 +80,7 @@ function VehiclesContent() {
               </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-              {items.map((v) => (
+              {visibleItems.map((v) => (
                 <tr key={v.sk} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3.5 font-mono font-medium text-gray-900">{v.plate}</td>
                   <td className="px-5 py-3.5 text-gray-600">{v.plate_uf}</td>

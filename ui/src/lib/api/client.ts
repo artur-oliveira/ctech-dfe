@@ -4,7 +4,10 @@ import type {
   CertificateOut,
   CTeConfigOut,
   DistributionLookupOut,
+  InvitationOut,
+  InvitationPreview,
   LookupOrganizationOut,
+  MemberOut,
   MdfeCargoPreview,
   MDFeConfigOut,
   MdfeDetailOut,
@@ -182,8 +185,30 @@ class ApiClient {
     return this.get<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
   }
 
-  async createOrganization(data: unknown): Promise<OrganizationOut> {
-    return this.post<OrganizationOut>('/v1.0/organizations', data)
+  // createOrganization sends multipart: the org JSON in `data`, plus the A1
+  // certificate (PFX + password) unless it can be inherited from a matriz org
+  // sharing the same CNPJ root (filial).
+  async createOrganization(
+    data: unknown,
+    cert?: { file: File; password: string },
+  ): Promise<OrganizationOut> {
+    const formData = new FormData()
+    formData.append('data', JSON.stringify(data))
+    if (cert) {
+      formData.append('file', cert.file)
+      formData.append('password', cert.password)
+    }
+    return (await this.http.post<OrganizationOut>(
+      '/v1.0/organizations',
+      formData,
+      {headers: {'Content-Type': undefined}},
+    )).data
+  }
+
+  // certificateRequirement reports whether creating the given org requires an
+  // A1 upload (false when a matriz certificate can be inherited).
+  async certificateRequirement(cpfOrCnpj: string): Promise<{ required: boolean }> {
+    return this.get(`/v1.0/organizations/certificate-requirement?cpf_or_cnpj=${unformatCpfCnpj(cpfOrCnpj)}`)
   }
 
   async updateOrganization(pk: string, data: unknown): Promise<OrganizationOut> {
@@ -324,6 +349,44 @@ class ApiClient {
 
   async deleteCertificate(pk: string, md5: string): Promise<void> {
     return this.del(`/v1.0/organizations/${unformatCpfCnpj(pk)}/certificates/${md5}`)
+  }
+
+  // Members & invitations (org-scoped)
+  async listMembers(pk: string): Promise<MemberOut[]> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/members`)
+  }
+
+  async removeMember(pk: string, userId: string): Promise<void> {
+    return this.del(`/v1.0/organizations/${unformatCpfCnpj(pk)}/members/${userId}`)
+  }
+
+  async updateMemberRole(pk: string, userId: string, role: string): Promise<void> {
+    await this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/members/${userId}/role`, {role})
+  }
+
+  async listInvitations(pk: string): Promise<InvitationOut[]> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/invitations`)
+  }
+
+  async createInvitation(pk: string, role: string): Promise<InvitationOut> {
+    return this.post(`/v1.0/organizations/${unformatCpfCnpj(pk)}/invitations`, {role})
+  }
+
+  async revokeInvitation(pk: string, id: string): Promise<void> {
+    return this.del(`/v1.0/organizations/${unformatCpfCnpj(pk)}/invitations/${id}`)
+  }
+
+  // Invitations by token (invitee side)
+  async getInvitation(token: string): Promise<InvitationPreview> {
+    return this.get(`/v1.0/invitations/${encodeURIComponent(token)}`)
+  }
+
+  async acceptInvitation(token: string): Promise<{ org_pk: string; role: string }> {
+    return this.post(`/v1.0/invitations/${encodeURIComponent(token)}/accept`)
+  }
+
+  async declineInvitation(token: string): Promise<void> {
+    await this.post(`/v1.0/invitations/${encodeURIComponent(token)}/decline`)
   }
 
   // NF-es — uses Dfe-Organization-Pk header

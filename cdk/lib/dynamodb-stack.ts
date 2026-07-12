@@ -9,6 +9,8 @@ export type TableName = (
     'roles' |
     'users' |
     'organizations' |
+    'organization_users' |
+    'organization_invitations' |
     'audit_logs' |
     'products' |
     'vehicles' |
@@ -282,6 +284,61 @@ export class DynamoDBStack extends cdk.Stack {
             encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
         });
         this.tables.set('organizations', organizationsTable);
+
+        // Membership is the source of truth for user↔organization access (RBAC, /auth/me, member management).
+        const organizationUsersTable = new dynamodb.TableV2(this, `${tablePrefix}_organization_users`, {
+            tableName: `${tablePrefix}_organization_users`,
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+            billing: Billing.onDemand({
+                maxReadRequestUnits: 5,
+                maxWriteRequestUnits: 5,
+            }),
+            removalPolicy,
+            pointInTimeRecoverySpecification,
+            encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+        });
+        // Inverted index: partition on the member SK ("USER_{sub}") to list every
+        // org a user belongs to (/auth/me, GET /organizations). No attribute
+        // duplication — reuses the base pk/sk.
+        organizationUsersTable.addGlobalSecondaryIndex({
+            indexName: 'user-index',
+            partitionKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+            warmThroughput: undefined,
+            maxReadRequestUnits: 5,
+            maxWriteRequestUnits: 20,
+        });
+        this.tables.set('organization_users', organizationUsersTable);
+
+        // Single-use invitation links. Partition key is the SHA-256 of the opaque
+        // token so acceptance is a strongly-consistent GetItem (never a Scan). TTL
+        // on `ttl` (epoch seconds) is housekeeping only — expiry is always
+        // re-checked in code, since DynamoDB TTL can lag up to 48h.
+        const organizationInvitationsTable = new dynamodb.TableV2(this, `${tablePrefix}_organization_invitations`, {
+            tableName: `${tablePrefix}_organization_invitations`,
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            billing: Billing.onDemand({
+                maxReadRequestUnits: 5,
+                maxWriteRequestUnits: 5,
+            }),
+            timeToLiveAttribute: 'ttl',
+            removalPolicy,
+            pointInTimeRecoverySpecification,
+            encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+        });
+        // List an org's pending invitations, newest first.
+        organizationInvitationsTable.addGlobalSecondaryIndex({
+            indexName: 'org-invite-index',
+            partitionKey: {name: 'org_pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'created_at', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+            warmThroughput: undefined,
+            maxReadRequestUnits: 10,
+            maxWriteRequestUnits: 10,
+        });
+        this.tables.set('organization_invitations', organizationInvitationsTable);
 
         // ============== AUDIT ==============
 

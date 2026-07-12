@@ -8,7 +8,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // Primary action = the app's brand green. The bare `--primary` token is
+        // near-black, but the app's primary scale (--color-primary-*) maps to the
+        // brand palette, so a solid primary button is green to match.
+        default: "bg-brand-600 text-white hover:bg-brand-700",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

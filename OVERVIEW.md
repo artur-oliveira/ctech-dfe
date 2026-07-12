@@ -67,8 +67,10 @@ header or path param.
 ```
 GET    /v1.0/auth/me                        # Current user + orgs (sub from JWT)
 
-POST   /v1.0/organizations                  # Create organization
-PUT    /v1.0/organizations/{pk}/certificate # Upload A1 certificate
+POST   /v1.0/organizations                  # Create organization (multipart + A1 cert, KYC)
+POST   /v1.0/organizations/{pk}/certificates # Upload A1 certificate
+POST   /v1.0/organizations/{pk}/invitations  # Invite a user (single-use link)
+POST   /v1.0/invitations/{token}/accept      # Accept an invitation
 PUT    /v1.0/organizations/{pk}/nfe-config  # Configure NF-e issuance
 
 GET    /v1.0/products                       # List products (paginated)
@@ -105,6 +107,8 @@ worker) · API Gateway · IAM (least privilege) · SQS FIFO · SNS · CloudFront
 |-----------------------------|--------------------------|------------------|
 | users                       | USER_{uuid}              | —                |
 | organizations               | CNPJ_{cnpj} or CPF_{cpf} | —                |
+| organization_users          | {org_pk}                 | USER_{sub}       |
+| organization_invitations    | INVITE_{sha256(token)}   | —                |
 | organization_products       | {org_pk}                 | PRODUCT_{uuid}   |
 | organization_vehicles       | {org_pk}                 | VEHICLE_{id}     |
 | organization_persons        | {cpf_cnpj}               | PERSON_{id}      |
@@ -158,8 +162,14 @@ SQS → worker Lambda (Go)
 - **Token storage (client):** `access_token` in memory only. `refresh_token` in sessionStorage (`pydfe_rt`). Silent
   refresh on 401 via `doRefresh()`.
 - **Certificates:** Stored in S3 with AWS Managed Keys; never returned by the API
-- **Multi-tenancy:** Every route verifies org membership via `require_org_access`
-- **RBAC:** Roles OWNER / ADMIN / USER / VIEWER with `action.resource` permissions
+- **Multi-tenancy:** Every route verifies org membership. Membership lives in `organization_users`
+  (the source of truth); RBAC reads it per request (short-TTL cache, invalidated on member changes).
+- **KYC:** Creating an organization requires an A1 certificate whose holder document matches the
+  org's CNPJ/CPF — a filial (same CNPJ root) inherits the matriz certificate instead.
+- **Invitations:** OWNER/ADMIN share a single-use, 7-day link (opaque token; only its SHA-256 is
+  stored) granting ADMIN/USER/VIEWER — never OWNER.
+- **RBAC:** Roles OWNER / ADMIN / USER / VIEWER (seeded on boot) with `action.resource` permissions;
+  effective permission = role ∪ per-member extras.
 - **IAM:** Least privilege per function (Lambda, API, Worker)
 
 ---

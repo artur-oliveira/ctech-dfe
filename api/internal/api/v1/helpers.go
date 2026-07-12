@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
@@ -56,6 +57,25 @@ func resolveActor(c fiber.Ctx, userSvc *services.UserService) (userID, userName 
 	accessToken := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
 	_, userName = userSvc.ResolveActor(c.Context(), userID, accessToken)
 	return userID, userName
+}
+
+// readOptionalUpload reads the full bytes of a multipart file field. Returns
+// (nil, nil) when the field is absent — callers decide whether that's an error.
+func readOptionalUpload(c fiber.Ctx, field string) ([]byte, error) {
+	file, err := c.FormFile(field)
+	if err != nil {
+		return nil, nil // field not present
+	}
+	f, err := file.Open()
+	if err != nil {
+		return nil, problem.BadRequest("não foi possível abrir o arquivo enviado")
+	}
+	defer func() { _ = f.Close() }()
+	buf, err := io.ReadAll(f)
+	if err != nil {
+		return nil, problem.BadRequest("não foi possível ler o arquivo enviado")
+	}
+	return buf, nil
 }
 
 // attrStr extracts a string attribute from a DynamoDB item, or "" if absent.

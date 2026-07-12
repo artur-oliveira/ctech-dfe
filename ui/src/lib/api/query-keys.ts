@@ -50,4 +50,7 @@ export const queryKeys = {
   auditLogs: {
     list: (orgPk: string | undefined, params?: object) => ['audit-logs', orgPk, params] as const,
   },
+  members: (orgPk: string | undefined) => ['members', orgPk] as const,
+  invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,
+  invitation: (token: string) => ['invitation', token] as const,
 }

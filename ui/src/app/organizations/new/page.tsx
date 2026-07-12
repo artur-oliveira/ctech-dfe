@@ -7,7 +7,7 @@ import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
-import {OrganizationForm} from '@/components/organizations/OrganizationForm'
+import {OrganizationForm, type CertificateInput} from '@/components/organizations/OrganizationForm'
 import type {OrganizationCreate} from '@/lib/types/api'
 
 function NewOrganizationContent() {
@@ -15,7 +15,8 @@ function NewOrganizationContent() {
   const qc = useQueryClient()
 
   const createMutation = useMutation({
-    mutationFn: (data: OrganizationCreate) => apiClient.createOrganization(data),
+    mutationFn: ({data, cert}: {data: OrganizationCreate; cert?: CertificateInput}) =>
+      apiClient.createOrganization(data, cert),
     onSuccess: () => {
       void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
       router.push('/organizations')
@@ -32,8 +33,8 @@ function NewOrganizationContent() {
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Nova organização</h1>
         <OrganizationForm
-          onSubmit={async (d) => {
-            await createMutation.mutateAsync(d)
+          onSubmit={async (data, cert) => {
+            await createMutation.mutateAsync({data, cert})
           }}
           loading={createMutation.isPending}
         />

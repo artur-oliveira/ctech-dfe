@@ -1,6 +1,6 @@
 'use client'
 
-import {useEffect, useState} from 'react'
+import {type ReactNode, useEffect, useState} from 'react'
 import type {Resolver} from 'react-hook-form'
 import {useFieldArray, useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
@@ -39,6 +39,12 @@ export interface EntityFormProps {
   initialCpfCnpj?: string
   onSubmit: (data: EntityFormData) => Promise<void>
   loading?: boolean
+  /**
+   * Extra content rendered just above the submit button. Receives the current
+   * document value so callers (org creation) can react to it — e.g. show the
+   * A1 certificate fields and query whether it's required.
+   */
+  extraSection?: (ctx: { cpfCnpj: string }) => ReactNode
 }
 
 /* ── Icons ───────────────────────────────────────────────────────────── */
@@ -138,7 +144,8 @@ export function EntityForm({
                              lockTipo,
                              initialCpfCnpj,
                              onSubmit,
-                             loading = false
+                             loading = false,
+                             extraSection,
                            }: EntityFormProps) {
   const isEdit = !!initialData
   const isOrg = variant === 'organization'
@@ -179,6 +186,7 @@ export function EntityForm({
   const selectedUFs = watchedIEs.map((r) => r?.uf).filter(Boolean) as string[]
   const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? []
   const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? []
+  const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? ''
 
   // Autofill from SEFAZ lookup
   useEffect(() => {
@@ -546,6 +554,8 @@ export function EntityForm({
             </div>
           )}
         </section>
+
+        {extraSection?.({cpfCnpj: watchedDoc})}
 
         <div className="flex justify-end pt-1">
           <Button type="submit" disabled={loading} className="min-w-44">

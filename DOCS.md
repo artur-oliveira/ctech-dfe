@@ -382,29 +382,64 @@ Profile and password management are handled by ctech-account directly.
 | Method | Endpoint           | Description                              |
 |--------|--------------------|------------------------------------------|
 | GET    | `/v1.0/auth/me`    | Authenticated user profile + org list    |
-| GET    | `/v1.0/auth/roles` | Available RBAC roles                     |
+| GET    | `/v1.0/auth/roles` | Available RBAC roles (OWNER/ADMIN/USER/VIEWER, seeded on boot) |
 
 #### Organizations
 
 | Method | Endpoint                                      | Description           |
 |--------|-----------------------------------------------|-----------------------|
-| POST   | `/v1.0/organizations`                         | Create organization   |
+| POST   | `/v1.0/organizations`                         | Create organization (**multipart** — KYC, see below) |
 | GET    | `/v1.0/organizations`                         | List user's orgs      |
+| GET    | `/v1.0/organizations/certificate-requirement?cpf_or_cnpj=` | `{required: bool}` — is an A1 upload needed to create this org |
 | GET    | `/v1.0/organizations/{pk}`                    | Organization detail   |
 | PUT    | `/v1.0/organizations/{pk}`                    | Update org            |
 | PUT    | `/v1.0/organizations/{pk}/nfe-config`         | Configure NF-e        |
 | PUT    | `/v1.0/organizations/{pk}/nfce-config`        | Configure NFC-e       |
 | PUT    | `/v1.0/organizations/{pk}/cte-config`         | Configure CT-e        |
 | PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e       |
-| POST   | `/v1.0/organizations/{pk}/certificate`        | Upload A1 certificate |
+| POST   | `/v1.0/organizations/{pk}/certificates`       | Upload A1 certificate |
 | GET    | `/v1.0/organizations/{pk}/certificates`       | List certificates     |
 | DELETE | `/v1.0/organizations/{pk}/certificates/{md5}` | Remove certificate    |
 | POST   | `/v1.0/organizations/{pk}/authorized-viewers` | Add SEFAZ autXML viewer (`{cpf_or_cnpj, name}`) — 400 if already at 10, 409 if CPF/CNPJ already authorized |
 | DELETE | `/v1.0/organizations/{pk}/authorized-viewers/{cpf_cnpj}` | Remove autXML viewer (no-op if not present) |
 
+**Organization creation (KYC).** `POST /organizations` is `multipart/form-data`:
+`data` (JSON org body) + optional `file` (A1 PFX) + `password`. The organization, its certificate,
+the founding OWNER membership, and the audit row are written in one `TransactWrite` (all-or-nothing).
+An A1 certificate is **required** unless the caller already belongs to an org with the same CNPJ
+root (raiz, first 8 digits) that has a valid certificate — a filial then inherits the matriz
+certificate (`GET /organizations/certificate-requirement` reports which case applies). The
+certificate's holder document (from its CN) must match the org's CNPJ/CPF. Creating an org whose
+CNPJ already exists returns 409 unless the caller is already a member (idempotent).
+
 `POST`/`PUT` also return 400 if `person.crt` is missing for a CNPJ, or if `person.state_registrations`
 is empty for a CNPJ organization (organizations are always the fiscal emitter — see
 `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`).
+
+#### Members & invitations
+
+Org-scoped (tenant via `Dfe-Organization-Pk` header). Visibility is role-gated.
+
+| Method | Endpoint                                             | Guard          | Description |
+|--------|------------------------------------------------------|----------------|-------------|
+| GET    | `/v1.0/organizations/{pk}/members`                   | OWNER or ADMIN | List members |
+| DELETE | `/v1.0/organizations/{pk}/members/{user_id}`         | OWNER          | Remove member (never self, never the last OWNER) |
+| PUT    | `/v1.0/organizations/{pk}/members/{user_id}/role`    | OWNER          | Change role (`{role}`, ADMIN/USER/VIEWER) |
+| GET    | `/v1.0/organizations/{pk}/invitations`               | OWNER or ADMIN | List pending invitations |
+| POST   | `/v1.0/organizations/{pk}/invitations`               | OWNER or ADMIN | Create invitation (`{role}`); response includes the one-time `token` |
+| DELETE | `/v1.0/organizations/{pk}/invitations/{id}`          | OWNER or ADMIN | Revoke a pending invitation |
+
+Token-addressed (auth only — the invitee is not yet a member):
+
+| Method | Endpoint                              | Description |
+|--------|---------------------------------------|-------------|
+| GET    | `/v1.0/invitations/{token}`           | Non-consuming preview (`org_name`, `role`, `status`, `expired`, `already_member`) |
+| POST   | `/v1.0/invitations/{token}/accept`    | Join the org — single-use, 409 if already used/expired/member |
+| POST   | `/v1.0/invitations/{token}/decline`   | Decline (revokes) |
+
+Invitations expire after 7 days, grant only ADMIN/USER/VIEWER (never OWNER), and are single-use
+(enforced by a conditional TransactWrite on accept). The raw token appears only in the create
+response / link; DynamoDB stores only its SHA-256.
 
 #### Products
 

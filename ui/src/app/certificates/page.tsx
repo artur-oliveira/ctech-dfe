@@ -1,9 +1,6 @@
 'use client'
 
-import {useRef, useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {z} from 'zod'
+import {useState} from 'react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -12,14 +9,8 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
+import {CertificateFields} from '@/components/organizations/CertificateFields'
 import type {CertificateOut} from '@/lib/types/api'
-
-const uploadSchema = z.object({
-  password: z.string().min(1, 'Senha é obrigatória'),
-})
-type UploadFormData = z.infer<typeof uploadSchema>
 
 function certStatus(expiresAt: string): 'valid' | 'expiring' | 'expired' {
   const now = Date.now()
@@ -52,22 +43,24 @@ function UploadModal({
   loading: boolean
   serverError: string | null
 }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [password, setPassword] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
-  const form = useForm<UploadFormData>({
-    resolver: zodResolver(uploadSchema),
-    defaultValues: {password: ''},
-  })
-
-  const handleSubmit = form.handleSubmit((data) => {
-    if (!selectedFile) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    let ok = true
+    if (!file) {
       setFileError('Selecione um arquivo')
-      return
+      ok = false
     }
-    onUpload(selectedFile, data.password)
-  })
+    if (!password) {
+      setPasswordError('Senha é obrigatória')
+      ok = false
+    }
+    if (ok && file) onUpload(file, password)
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
@@ -83,61 +76,33 @@ function UploadModal({
           </Button>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
-              {serverError && (
-                <div
-                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {serverError}
-                </div>
-              )}
+        <form onSubmit={handleSubmit}>
+          <div className="p-6 space-y-4">
+            {serverError && (
+              <div
+                className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {serverError}
+              </div>
+            )}
+            <CertificateFields
+              file={file}
+              onFileChange={(f) => { setFile(f); setFileError(null) }}
+              password={password}
+              onPasswordChange={(p) => { setPassword(p); setPasswordError(null) }}
+              fileError={fileError}
+              passwordError={passwordError}
+            />
+          </div>
 
-              <FormItem>
-                <FormLabel>Arquivo do certificado (.pfx / .p12)</FormLabel>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pfx,.p12"
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50 cursor-pointer"
-                  onChange={(e) => {
-                    setSelectedFile(e.target.files?.[0] ?? null)
-                    setFileError(null)
-                  }}
-                />
-                {fileError && (
-                  <p className="text-[0.8rem] font-medium text-destructive">{fileError}</p>
-                )}
-              </FormItem>
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Senha do certificado</FormLabel>
-                    <Input
-                      {...field}
-                      type="password"
-                      placeholder="Senha"
-                      autoComplete="off"
-                    />
-                    <FormMessage/>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Importando…' : 'Importar'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+          <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Importando…' : 'Importar'}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   )

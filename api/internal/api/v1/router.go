@@ -18,6 +18,8 @@ import (
 type Services struct {
 	Org          *services.OrganizationService
 	User         *services.UserService
+	Member       *services.MembershipService
+	Invitation   *services.InvitationService
 	Cert         *services.CertificateService
 	Product      *services.ProductService
 	Person       *services.PersonService
@@ -40,7 +42,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	// The issuer is ctech-account's public base URL — the iss claim it signs into tokens.
 	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechURL, cacheBackend)
 	authMw := verifier.Middleware()
-	perm := middleware.NewPermChecker(svcs.User, svcs.RoleRepo, cacheBackend)
+	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 
 	v1 := app.Group("/v1.0")
 	RegisterHealth(v1, cacheBackend, awsClients, cfg)
@@ -53,7 +55,10 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		CteConfig:  svcs.CteConfig,
 		MdfeConfig: svcs.MdfeConfig,
 		UserSvc:    svcs.User,
+		MemberSvc:  svcs.Member,
+		InvSvc:     svcs.Invitation,
 	}, authMw, perm)
+	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)
 	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)
@@ -63,5 +68,5 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterDistributions(v1, svcs.Distribution, authMw, perm)
 	RegisterExternal(v1, svcs.External, authMw, perm)
 	RegisterAuditLogs(v1, svcs.AuditLog, authMw, perm)
-	RegisterWS(v1, verifier, svcs.User, wsReg)
+	RegisterWS(v1, verifier, svcs.Member, wsReg)
 }

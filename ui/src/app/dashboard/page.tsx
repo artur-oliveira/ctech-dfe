@@ -63,7 +63,6 @@ function DashboardContent() {
             <ul className="space-y-3">
               {[
                 {text: 'Criar uma organização', href: '/organizations'},
-                {text: 'Fazer upload do certificado A1', href: '/organizations'},
                 {text: 'Configurar NF-e', href: '/organizations'},
                 {text: 'Cadastrar produtos', href: '/products'},
               ].map((step) => (

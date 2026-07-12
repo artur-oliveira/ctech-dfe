@@ -31,15 +31,18 @@ function ProductsContent() {
       enabled: !!selectedOrg,
     })
 
-  const {handleDelete, isPending: isDeleting} = useEntityDelete<ProductOut>({
+  const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ProductOut>({
     mutationFn: (id) => apiClient.deleteProduct(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PRODUCT),
-    getConfirmMessage: (p) => `Excluir "${p.description}"?`,
+    getDeletedMessage: (p) => `Produto "${p.description}" excluído`,
     onSuccess: () => {
       reset()
       void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
     },
   })
+
+  // Rows inside the undo window are hidden until the delete commits (or is undone).
+  const visibleItems = filterVisible(items)
 
   return (
     <RootLayout>
@@ -58,7 +61,7 @@ function ProductsContent() {
           <NoOrgBanner/>
         ) : isLoading ? (
           <LoadingSkeleton/>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhum produto cadastrado"
             description="Adicione produtos para usar na emissão de NF-e e NFC-e."
@@ -78,7 +81,7 @@ function ProductsContent() {
               </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-              {items.map((p) => (
+              {visibleItems.map((p) => (
                 <tr key={p.sk} className="hover:bg-gray-50 transition-colors">
                   <td
                     className="px-5 py-3.5 font-medium text-gray-900">{p.description + (p.brand ? ' ' + p.brand : '')}</td>

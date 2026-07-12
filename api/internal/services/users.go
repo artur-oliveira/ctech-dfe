@@ -42,6 +42,7 @@ type UserService struct {
 	ctechURL   string
 	httpClient *http.Client
 	orgSvc     *OrganizationService
+	memberSvc  *MembershipService
 }
 
 func NewUserService(
@@ -49,6 +50,7 @@ func NewUserService(
 	c cache.Backend,
 	ctechURL string,
 	orgSvc *OrganizationService,
+	memberSvc *MembershipService,
 ) *UserService {
 	return &UserService{
 		repo:       repo,
@@ -56,6 +58,7 @@ func NewUserService(
 		ctechURL:   ctechURL,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		orgSvc:     orgSvc,
+		memberSvc:  memberSvc,
 	}
 }
 
@@ -124,23 +127,17 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 		return nil, problem.InternalServer("failed to unmarshal user")
 	}
 
-	orgsRaw, _ := m["organizations"].([]any)
-	enrichedOrgs := make([]map[string]any, 0, len(orgsRaw))
-	for _, entry := range orgsRaw {
-		ref, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		pk, _ := ref["pk"].(string)
-		role, _ := ref["role"].(string)
-		perms := ref["permissions"]
-		if perms == nil {
-			perms = []any{}
-		}
+	memberships, err := s.memberSvc.ListByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	enrichedOrgs := make([]map[string]any, 0, len(memberships))
+	for _, mem := range memberships {
+		pk := mem.OrgPK
 		enriched := map[string]any{
 			"pk":               pk,
-			"role":             role,
-			"permissions":      perms,
+			"role":             mem.Role,
+			"permissions":      s.memberSvc.EffectivePermissions(ctx, &mem),
 			"name":             pk,
 			"description":      nil,
 			"state_federation": nil,
@@ -245,12 +242,6 @@ func actorNameFromProfile(p *CtechUserInfo) string {
 		return p.Email[:idx]
 	}
 	return ""
-}
-
-// AttachToOrg appends an org membership entry to the user record.
-// Mirrors UserService.attach_to_organization from api.
-func (s *UserService) AttachToOrg(ctx context.Context, userID, orgPK, role string, permissions []string) error {
-	return s.repo.AddOrgMembership(ctx, userID, orgPK, role, permissions)
 }
 
 // GetUserInfo fetches the OIDC userinfo endpoint from ctech-account.

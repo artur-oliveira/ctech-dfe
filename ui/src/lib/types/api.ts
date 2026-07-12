@@ -31,6 +31,39 @@ export interface UserOrganization {
   state_federation: string | null
 }
 
+// Members & invitations
+export interface MemberOut {
+  user_id: string
+  /** Display-only name snapshot taken when the membership was granted. */
+  name: string
+  role: string
+  permissions: string[]
+  invited_by: string
+  created_at: string
+}
+
+export interface InvitationOut {
+  pk: string
+  org_pk: string
+  role: string
+  status: string
+  invited_by_name: string
+  expires_at: string
+  created_at: string
+  /** Present only in the create response — the raw single-use token. */
+  token?: string
+}
+
+export interface InvitationPreview {
+  org_pk: string
+  org_name: string
+  role: string
+  invited_by_name: string
+  status: string
+  expired: boolean
+  already_member: boolean
+}
+
 export interface LookupAddressOut {
   street: string | null
   number: string | null

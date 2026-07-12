@@ -5,12 +5,15 @@ import {usePathname} from 'next/navigation'
 import type {ReactNode} from 'react'
 import {CteIcon, MdfeIcon, NfceIcon, NfeIcon} from "@/components/ui/icon"
 import {Button} from '@/components/ui/button'
+import {useAuth} from '@/lib/hooks/useAuth'
 
 interface NavItem {
   href: string
   label: string
   icon: ReactNode
   sub?: boolean
+  /** When set, the item is shown only to members with one of these roles. */
+  roles?: string[]
 }
 
 interface NavGroup {
@@ -120,6 +123,7 @@ const navGroups: NavGroup[] = [
     label: 'Configurações',
     items: [
       {href: '/organizations', label: 'Organizações', icon: <BuildingIcon/>},
+      {href: '/members', label: 'Usuários', icon: <UsersIcon/>, roles: ['OWNER', 'ADMIN']},
       {href: '/fiscal-config', label: 'Configuração Fiscal', icon: <SettingsIcon/>},
       {href: '/certificates', label: 'Certificados', icon: <ShieldIcon/>},
       {href: '/audit-logs', label: 'Log de Auditoria', icon: <ClipboardIcon/>},
@@ -149,6 +153,8 @@ interface SidebarProps {
 
 export function Sidebar({open, onClose}: SidebarProps) {
   const pathname = usePathname()
+  const {selectedOrg} = useAuth()
+  const role = selectedOrg?.role
 
   return (
     <aside
@@ -194,13 +200,16 @@ export function Sidebar({open, onClose}: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {navGroups.map((group) => (
+        {navGroups.map((group) => {
+          const items = group.items.filter((item) => !item.roles || (role != null && item.roles.includes(role)))
+          if (items.length === 0) return null
+          return (
           <div key={group.label} className="mb-5">
             <p className="px-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               {group.label}
             </p>
             <ul className="space-y-0.5">
-              {group.items.map((item) => {
+              {items.map((item) => {
                 const active = isItemActive(item.href, pathname)
                 return (
                   <li key={item.href}>
@@ -231,7 +240,8 @@ export function Sidebar({open, onClose}: SidebarProps) {
               })}
             </ul>
           </div>
-        ))}
+          )
+        })}
       </nav>
     </aside>
   )

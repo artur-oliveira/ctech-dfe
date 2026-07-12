@@ -9,31 +9,33 @@ PITR: enabled in production only.
 
 ## Table Index
 
-| #  | Table (without prefix)      | PK                           | SK                 | GSIs                              |
-|----|-----------------------------|------------------------------|--------------------|-----------------------------------|
-| 1  | `users`                     | `USER_{uuid}`                | —                  | `email-index`, `username-index`   |
-| 2  | `organizations`             | `CNPJ_{cnpj}` or `CPF_{cpf}` | —                  | —                                 |
-| 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}` | —                                 |
-| 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`   | `code-index`, `description-index` |
-| 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`     | `plate-index`, `role-index`       |
-| 6  | `organization_persons`      | `{org_pk}`                   | `CNPJ_{cnpj}` or `CPF_{cpf}` | `org-name-index`        |
-| 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                  | —                                 |
-| 8  | `organization_nfce_configs` | `{org_pk}`                   | —                  | —                                 |
-| 9  | `organization_cte_configs`  | `{org_pk}`                   | —                  | —                                 |
-| 10 | `organization_mdfe_configs` | `{org_pk}`                   | —                  | —                                 |
-| 11 | `nfes`                      | `{env}#{CNPJ}`               | `{access_key}`     | `number-index-v2`, `dfe-index`    |
-| 12 | `nfces`                     | `{env}#{CNPJ}`               | `{access_key}`     | `number-index-v2`, `dfe-index`    |
-| 13 | `ctes`                      | `{env}#{CNPJ}`               | `{access_key}`     | `number-index-v2`, `dfe-index`    |
-| 14 | `mdfes`                     | `{env}#{CNPJ}`               | `{access_key}`     | `number-index-v2`, `dfe-index`    |
-| 15 | `nfe_events`                | `{org_pk}`                   | `{uuidv7}`         | `org-event-key-index`             |
-| 16 | `nfce_events`               | `{org_pk}`                   | `{uuidv7}`         | `org-event-key-index`             |
-| 17 | `cte_events`                | `{org_pk}`                   | `{uuidv7}`         | `org-event-key-index`             |
-| 18 | `mdfe_events`               | `{org_pk}`                   | `{uuidv7}`         | `org-event-key-index`             |
-| 19 | `nfe_distributions`         | `{org_pk}`                   | `nsu` (N)          | —                                 |
-| 20 | `cte_distributions`         | `{org_pk}`                   | `nsu` (N)          | —                                 |
-| 21 | `mdfe_distributions`        | `{org_pk}`                   | `nsu` (N)          | —                                 |
-| 22 | `roles`                     | `{role_name}`                | —                  | —                                 |
+| #  | Table (without prefix)      | PK                           | SK                                       | GSIs                              |
+|----|-----------------------------|------------------------------|------------------------------------------|-----------------------------------|
+| 1  | `users`                     | `USER_{uuid}`                | —                                        | `email-index`, `username-index`   |
+| 2  | `organizations`             | `CNPJ_{cnpj}` or `CPF_{cpf}` | —                                        | —                                 |
+| 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | —                                 |
+| 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`                         | `code-index`, `description-index` |
+| 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`                           | `plate-index`, `role-index`       |
+| 6  | `organization_persons`      | `{org_pk}`                   | `CNPJ_{cnpj}` or `CPF_{cpf}`             | `org-name-index`                  |
+| 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                                        | —                                 |
+| 8  | `organization_nfce_configs` | `{org_pk}`                   | —                                        | —                                 |
+| 9  | `organization_cte_configs`  | `{org_pk}`                   | —                                        | —                                 |
+| 10 | `organization_mdfe_configs` | `{org_pk}`                   | —                                        | —                                 |
+| 11 | `nfes`                      | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`    |
+| 12 | `nfces`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`    |
+| 13 | `ctes`                      | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`    |
+| 14 | `mdfes`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`    |
+| 15 | `nfe_events`                | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`             |
+| 16 | `nfce_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`             |
+| 17 | `cte_events`                | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`             |
+| 18 | `mdfe_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`             |
+| 19 | `nfe_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                 |
+| 20 | `cte_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                 |
+| 21 | `mdfe_distributions`        | `{org_pk}`                   | `nsu` (N)                                | —                                 |
+| 22 | `roles`                     | `ROLE_{NAME}`                | —                                        | —                                 |
 | 23 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index` |
+| 24 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)           |
+| 25 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                |
 
 ---
 
@@ -73,20 +75,20 @@ organization additionally requires `crt` and ≥1 `state_registrations` entry (e
 `services.RequirePJFields`/`RequireOrgIE`, not just the frontend) — organizations are always the
 fiscal emitter, so these aren't optional the way they can be for a `organization_persons` record.
 
-| Attribute                | Type | Notes                                                                      |
-|---------------------------|------|-----------------------------------------------------------------------------|
-| `pk`                      | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}`                                    |
-| `name`                    | S    | Razão social                                                               |
-| `description`             | S    | Apelido interno (optional)                                                 |
-| `person.fantasy_name`     | S    | Nome fantasia (optional)                                                   |
-| `person.crt`              | N    | `1` Simples / `2` Simples c/ excesso / `3` Real / `4` MEI — required for CNPJ |
-| `person.state_registrations` | L | List of `{uf, state_registration}` — ≥1 entry required for CNPJ            |
-| `person.addresses`        | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1 |
-| `person.contacts`         | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                    |
-| `pickup_locations`        | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation` |
-| `authorized_xml_viewers`  | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer` |
-| `created_at`              | S    | ISO-8601 UTC                                                               |
-| `updated_at`              | S    | ISO-8601 UTC                                                               |
+| Attribute                    | Type | Notes                                                                                                                                      |
+|------------------------------|------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `pk`                         | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}`                                                                                                    |
+| `name`                       | S    | Razão social                                                                                                                               |
+| `description`                | S    | Apelido interno (optional)                                                                                                                 |
+| `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                   |
+| `person.crt`                 | N    | `1` Simples / `2` Simples c/ excesso / `3` Real / `4` MEI — required for CNPJ                                                              |
+| `person.state_registrations` | L    | List of `{uf, state_registration}` — ≥1 entry required for CNPJ                                                                            |
+| `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1                          |
+| `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                                    |
+| `pickup_locations`           | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation` |
+| `authorized_xml_viewers`     | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer`           |
+| `created_at`                 | S    | ISO-8601 UTC                                                                                                                               |
+| `updated_at`                 | S    | ISO-8601 UTC                                                                                                                               |
 
 ---
 
@@ -97,10 +99,11 @@ A1 certificates for SEFAZ communication. Private key never returned by API.
 | Attribute    | Type | Notes                                  |
 |--------------|------|----------------------------------------|
 | `pk`         | S    | `{org_pk}` — partition key             |
-| `sk`         | S    | `CERT_{iso_timestamp}` — sort key      |
-| `alias`      | S    | Human-readable label                   |
+| `sk`         | S    | `CERTIFICATE_{md5}` — sort key         |
+| `alias`      | S    | Human-readable label (defaults to CN)  |
 | `md5`        | S    | MD5 of the PFX file                    |
-| `s3_key`     | S    | `certificates/{org_pk}/{md5}.pfx`      |
+| `password`   | S    | PFX password — never returned by API   |
+| `s3_key`     | S    | `certs/{org_pk}/{md5}.pfx`             |
 | `expires_at` | S    | ISO-8601 (from certificate's NotAfter) |
 | `created_at` | S    | ISO-8601 UTC                           |
 
@@ -139,23 +142,23 @@ cadastro — everything else is optional and gated per doc-type/role at emission
 with `role=trailer` — not nested under a tractor — so one trailer can be reused across multiple
 tractors.
 
-| Attribute    | Type | Notes                                                                 |
-|--------------|------|------------------------------------------------------------------------|
-| `pk`         | S    | `{org_pk}` — partition key                                             |
-| `sk`         | S    | `VEHICLE_{id}` — sort key                                              |
-| `role`       | S    | `tractor` \| `trailer`. GSI: `role-index`                              |
-| `plate`      | S    | Vehicle plate. GSI: `plate-index`                                      |
-| `plate_uf`   | S    | UF of plate registration                                               |
-| `wheelset`   | S    | Tipo de rodado (MDF-e `tpRod`, tractor only). Optional                 |
-| `bodywork`   | S    | Tipo de carroceria (MDF-e `tpCar`). Optional                           |
-| `renavam`    | S    | RENAVAM (optional)                                                     |
-| `weight`     | N    | Tare weight in kg (MDF-e `tara`). Optional                             |
-| `cap_kg`     | N    | Capacity in kg (MDF-e `capKG`, required-for-emission on trailers). Optional |
-| `cap_m3`     | N    | Capacity in m³ (optional)                                              |
-| `cint`       | S    | Internal code (optional)                                               |
+| Attribute    | Type | Notes                                                                                                                                                             |
+|--------------|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `pk`         | S    | `{org_pk}` — partition key                                                                                                                                        |
+| `sk`         | S    | `VEHICLE_{id}` — sort key                                                                                                                                         |
+| `role`       | S    | `tractor` \| `trailer`. GSI: `role-index`                                                                                                                         |
+| `plate`      | S    | Vehicle plate. GSI: `plate-index`                                                                                                                                 |
+| `plate_uf`   | S    | UF of plate registration                                                                                                                                          |
+| `wheelset`   | S    | Tipo de rodado (MDF-e `tpRod`, tractor only). Optional                                                                                                            |
+| `bodywork`   | S    | Tipo de carroceria (MDF-e `tpCar`). Optional                                                                                                                      |
+| `renavam`    | S    | RENAVAM (optional)                                                                                                                                                |
+| `weight`     | N    | Tare weight in kg (MDF-e `tara`). Optional                                                                                                                        |
+| `cap_kg`     | N    | Capacity in kg (MDF-e `capKG`, required-for-emission on trailers). Optional                                                                                       |
+| `cap_m3`     | N    | Capacity in m³ (optional)                                                                                                                                         |
+| `cint`       | S    | Internal code (optional)                                                                                                                                          |
 | `owner`      | M    | `{cpf_cnpj, rntrc, name, type}` — optional fleet metadata only; NOT used for MDF-e's `prop` group (that's a per-emission input, see `MdfeEmitBody.vehicle.owner`) |
-| `created_at` | S    | ISO-8601 UTC                                                            |
-| `updated_at` | S    | ISO-8601 UTC                                                            |
+| `created_at` | S    | ISO-8601 UTC                                                                                                                                                      |
+| `updated_at` | S    | ISO-8601 UTC                                                                                                                                                      |
 
 **GSIs:** `plate-index` (PK: `pk`, SK: `plate`), `role-index` (PK: `pk`, SK: `role`).
 
@@ -171,19 +174,19 @@ org with 409 (`ConditionExpression: attribute_not_exists(pk)` on the transact Pu
 required — unlike organizations, IE is **not** required here even for a CNPJ, since it's a
 per-emission choice (`indIEDest`), not a cadastro requirement.
 
-| Attribute                    | Type | Notes                                                                      |
-|-------------------------------|------|-----------------------------------------------------------------------------|
-| `pk`                          | S    | `{org_pk}` — partition key                                                 |
-| `sk`                          | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}` — sort key                        |
-| `name`                        | S    | Full name / razão social. GSI: `org-name-index`                           |
-| `person.fantasy_name`         | S    | Nome fantasia (optional)                                                   |
-| `person.crt`                  | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE |
-| `person.state_registrations`  | L    | List of `{uf, state_registration}` (optional)                              |
-| `person.addresses`            | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1 |
-| `person.contacts`              | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                    |
-| `delivery_locations`          | L    | List of TLocal-shaped saved "local de entrega" for NF-e emissions to this destinatário, cap 5. See `appendDeliveryLocation` |
-| `created_at`                  | S    | ISO-8601 UTC                                                               |
-| `updated_at`                  | S    | ISO-8601 UTC                                                               |
+| Attribute                    | Type | Notes                                                                                                                       |
+|------------------------------|------|-----------------------------------------------------------------------------------------------------------------------------|
+| `pk`                         | S    | `{org_pk}` — partition key                                                                                                  |
+| `sk`                         | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}` — sort key                                                                          |
+| `name`                       | S    | Full name / razão social. GSI: `org-name-index`                                                                             |
+| `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                    |
+| `person.crt`                 | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE                                             |
+| `person.state_registrations` | L    | List of `{uf, state_registration}` (optional)                                                                               |
+| `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1           |
+| `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                     |
+| `delivery_locations`         | L    | List of TLocal-shaped saved "local de entrega" for NF-e emissions to this destinatário, cap 5. See `appendDeliveryLocation` |
+| `created_at`                 | S    | ISO-8601 UTC                                                                                                                |
+| `updated_at`                 | S    | ISO-8601 UTC                                                                                                                |
 
 **GSI:** `org-name-index` (PK: `pk`, SK: `name`).
 
@@ -317,23 +320,23 @@ tables are append-only, so `user_id`/`user_name` are stamped directly on the rec
 Resource and audit-log row are written atomically in one `TransactWriteItems` call, so a mutation
 can never commit without its audit trail (or vice versa).
 
-| Attribute       | Type | Notes                                                                 |
-|-----------------|------|------------------------------------------------------------------------|
-| `pk`            | S    | `{org_pk}` — the owning organization                                  |
-| `sk`            | S    | `{resource_type}#{resource_id}#{uuidv7}` — sort key                   |
-| `resource_type` | S    | `ORGANIZATION`, `CERTIFICATE`, `PRODUCT`, `VEHICLE`, `PERSON`, `NFE_CONFIG`, `NFCE_CONFIG`, `CTE_CONFIG`, `MDFE_CONFIG` |
+| Attribute       | Type | Notes                                                                                                                                           |
+|-----------------|------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `pk`            | S    | `{org_pk}` — the owning organization                                                                                                            |
+| `sk`            | S    | `{resource_type}#{resource_id}#{uuidv7}` — sort key                                                                                             |
+| `resource_type` | S    | `ORGANIZATION`, `CERTIFICATE`, `PRODUCT`, `VEHICLE`, `PERSON`, `NFE_CONFIG`, `NFCE_CONFIG`, `CTE_CONFIG`, `MDFE_CONFIG`                         |
 | `resource_id`   | S    | The resource's own id (e.g. a product's `sk`, a cert's `md5`, a fiscal-config doc-type string, or `org_pk` itself for organization/config rows) |
-| `action`        | S    | `CREATE` \| `UPDATE` \| `DELETE`                                       |
-| `modifications` | L    | `[{name, before, after}, ...]` — only fields that actually changed     |
-| `user_id`       | S    | Actor's user id (JWT `sub`), or `SYSTEM` for background actions (e.g. worker auto-creating a supplier during NF-e distribution) |
-| `user_name`     | S    | Actor's resolved display name, or `"Sistema (Distribuição DFe)"` for `SYSTEM` |
-| `created_at`    | S    | ISO-8601 UTC                                                           |
+| `action`        | S    | `CREATE` \| `UPDATE` \| `DELETE`                                                                                                                |
+| `modifications` | L    | `[{name, before, after}, ...]` — only fields that actually changed                                                                              |
+| `user_id`       | S    | Actor's user id (JWT `sub`), or `SYSTEM` for background actions (e.g. worker auto-creating a supplier during NF-e distribution)                 |
+| `user_name`     | S    | Actor's resolved display name, or `"Sistema (Distribuição DFe)"` for `SYSTEM`                                                                   |
+| `created_at`    | S    | ISO-8601 UTC                                                                                                                                    |
 
 **GSIs:**
 
-| Index            | PK        | SK           | Use case                                                    |
-|------------------|-----------|--------------|--------------------------------------------------------------|
-| `org-time-index` | `pk`      | `created_at` | Org-wide chronological feed (default view)                  |
+| Index            | PK        | SK           | Use case                                                                                                          |
+|------------------|-----------|--------------|-------------------------------------------------------------------------------------------------------------------|
+| `org-time-index` | `pk`      | `created_at` | Org-wide chronological feed (default view)                                                                        |
 | `user-id-index`  | `user_id` | `created_at` | "Everything user X did" — post-filtered to the caller's org since this GSI's partition key is `user_id`, not `pk` |
 
 The base table itself (`pk` + `sk` prefix `{resource_type}#{resource_id}#`) answers "full change
@@ -341,21 +344,80 @@ history of this one resource" without needing a GSI.
 
 ---
 
+## 24. `organization_users`
+
+**Source of truth for user↔organization membership.** Read on every authorized request (RBAC), so
+its read-capacity cap is set high (500 RCU) unlike the 5-RCU default of other tables. Replaces the
+legacy embedded `users.organizations` list, which no longer carries authorization.
+
+| Attribute     | Type | Notes                                                                                      |
+|---------------|------|--------------------------------------------------------------------------------------------|
+| `pk`          | S    | `{org_pk}` — the organization                                                              |
+| `sk`          | S    | `USER_{sub}` — the member (ctech-account `sub`)                                            |
+| `user_id`     | S    | `{sub}` raw (avoids re-parsing the sk)                                                     |
+| `name`        | S    | Display-only name snapshot taken at grant time. **Never synced** with ctech-account — it only spares the members screen from rendering a bare UUID |
+| `role`        | S    | `OWNER` \| `ADMIN` \| `USER` \| `VIEWER`                                                   |
+| `permissions` | L    | **Extra** grants beyond the role (usually `[]`). Effective perms = role.permissions ∪ this |
+| `invited_by`  | S    | `sub` of the inviter; empty for the founding OWNER                                         |
+| `created_at`  | S    | ISO-8601 UTC                                                                               |
+| `updated_at`  | S    | ISO-8601 UTC                                                                               |
+
+**GSIs:**
+
+| Index        | PK   | SK   | Use case                                                                        |
+|--------------|------|------|---------------------------------------------------------------------------------|
+| `user-index` | `sk` | `pk` | Inverted index — every org a user belongs to (`/auth/me`, `GET /organizations`) |
+
+Access patterns: RBAC → `get_item(pk=org, sk=USER_{sub})` (strong); member list → `query(pk=org, sk begins_with USER_)`;
+user's orgs → `query_gsi(user-index, sk=USER_{sub})`.
+
+---
+
+## 25. `organization_invitations`
+
+Single-use invitation links. Partition key is the SHA-256 of the opaque token, so acceptance is a
+strongly-consistent `get_item` (never a Scan). The raw token exists only in the returned link.
+
+| Attribute     | Type | Notes                                                                 |
+|---------------|------|-----------------------------------------------------------------------|
+| `pk`          | S    | `INVITE_{sha256hex(token)}`                                           |
+| `org_pk`      | S    | Target organization. GSI: `org-invite-index`                          |
+| `role`        | S    | `ADMIN` \| `USER` \| `VIEWER` — **never `OWNER`**                     |
+| `permissions` | L    | Extra grants applied on accept (usually `[]`)                         |
+| `status`      | S    | `PENDING` \| `ACCEPTED` \| `REVOKED`                                  |
+| `invited_by`  | S    | `sub` of the inviter                                                  |
+| `accepted_by` | S    | `sub` of the acceptor (set on accept)                                 |
+| `expires_at`  | S    | ISO-8601 UTC (now + 7d) — checked in code                             |
+| `ttl`         | N    | Epoch seconds (now + 7d + 48h slack) — DynamoDB TTL housekeeping only |
+| `created_at`  | S    | ISO-8601 UTC                                                          |
+| `updated_at`  | S    | ISO-8601 UTC                                                          |
+
+**GSIs:**
+
+| Index              | PK       | SK           | Use case                                                        |
+|--------------------|----------|--------------|-----------------------------------------------------------------|
+| `org-invite-index` | `org_pk` | `created_at` | List an org's invitations (newest first), filtered to `PENDING` |
+
+Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND ttl > now`) inside
+the accept `TransactWriteItems`, not by the TTL sweep.
+
+---
+
 ## Access Pattern Reference
 
-| Operation                  | Method           | Table / GSI                            |
-|----------------------------|------------------|----------------------------------------|
-| Login by email             | `query_gsi`      | `users` / `email-index`                |
-| Get org by CNPJ/CPF        | `get_item`       | `organizations`                        |
-| List products (paginated)  | `query`          | `organization_products`                |
-| Search products by code    | `query_gsi`      | `organization_products` / `code-index` |
-| Get NF-e by access key     | `get_item`       | `nfes`                                 |
-| List NF-e by date range    | `query_gsi`      | `nfes` / `dfe-index`                   |
-| List events for a document | `query_gsi`      | `nfe_events` / `org-event-key-index`   |
-| Get NF-e fiscal config     | `get_item`       | `organization_nfe_configs`             |
-| Increment NF-e numbering   | `transact_write` | `nfes` + `organization_nfe_configs`    |
-| List distribution records  | `query`          | `nfe_distributions`                    |
-| Audit trail for one resource | `query`        | `audit_logs` (sk prefix)               |
-| Org-wide audit feed        | `query_gsi`      | `audit_logs` / `org-time-index`        |
-| Everything a user did      | `query_gsi`      | `audit_logs` / `user-id-index`         |
-| Audit resource + its log atomically | `transact_write` | resource table + `audit_logs` |
+| Operation                           | Method           | Table / GSI                            |
+|-------------------------------------|------------------|----------------------------------------|
+| Login by email                      | `query_gsi`      | `users` / `email-index`                |
+| Get org by CNPJ/CPF                 | `get_item`       | `organizations`                        |
+| List products (paginated)           | `query`          | `organization_products`                |
+| Search products by code             | `query_gsi`      | `organization_products` / `code-index` |
+| Get NF-e by access key              | `get_item`       | `nfes`                                 |
+| List NF-e by date range             | `query_gsi`      | `nfes` / `dfe-index`                   |
+| List events for a document          | `query_gsi`      | `nfe_events` / `org-event-key-index`   |
+| Get NF-e fiscal config              | `get_item`       | `organization_nfe_configs`             |
+| Increment NF-e numbering            | `transact_write` | `nfes` + `organization_nfe_configs`    |
+| List distribution records           | `query`          | `nfe_distributions`                    |
+| Audit trail for one resource        | `query`          | `audit_logs` (sk prefix)               |
+| Org-wide audit feed                 | `query_gsi`      | `audit_logs` / `org-time-index`        |
+| Everything a user did               | `query_gsi`      | `audit_logs` / `user-id-index`         |
+| Audit resource + its log atomically | `transact_write` | resource table + `audit_logs`          |

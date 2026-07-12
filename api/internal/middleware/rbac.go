@@ -16,26 +16,33 @@ import (
 
 const (
 	roleCacheTTL = 600
-	roleOwner    = "OWNER"
-	roleAdmin    = "ADMIN"
 
 	// OrgHeader is the tenant identification header.
 	// MUST match the constant in ui/src/lib/api/client.ts — never rename.
 	OrgHeader = "Dfe-Organization-Pk"
 	OrgPKKey  = "org_pk"
+	// OrgRoleKey stores the resolved member role in Fiber locals so downstream
+	// handlers can read it via GetOrgRole(c).
+	OrgRoleKey = "org_role"
+)
+
+// Role name constants re-exported from the repositories package so middleware
+// callers don't hardcode the strings.
+const (
+	roleOwner = repositories.RoleOwner
+	roleAdmin = repositories.RoleAdmin
 )
 
 // PermChecker validates org membership and role-based permissions.
-// Mirrors require_permission from api/app/dependencies/organization.py.
 type PermChecker struct {
-	userSvc  *services.UserService
-	roleRepo *repositories.RoleRepository
-	c        cache.Backend
+	memberSvc *services.MembershipService
+	roleRepo  *repositories.RoleRepository
+	c         cache.Backend
 }
 
 // NewPermChecker constructs a PermChecker with the required dependencies.
-func NewPermChecker(userSvc *services.UserService, roleRepo *repositories.RoleRepository, c cache.Backend) *PermChecker {
-	return &PermChecker{userSvc: userSvc, roleRepo: roleRepo, c: c}
+func NewPermChecker(memberSvc *services.MembershipService, roleRepo *repositories.RoleRepository, c cache.Backend) *PermChecker {
+	return &PermChecker{memberSvc: memberSvc, roleRepo: roleRepo, c: c}
 }
 
 // Require returns a Fiber handler that enforces the given permission string (e.g. "list.nfes").
@@ -55,66 +62,90 @@ func (p *PermChecker) RequireDynamic(permFmt, paramName string) fiber.Handler {
 	}
 }
 
-func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, string, error) {
+func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, *services.Membership, error) {
 	userID := GetUserID(c)
 	if userID == "" {
-		return "", "", c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
+		return "", nil, c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
 	}
 	foundOrgPK := c.Get(OrgHeader)
 	if foundOrgPK == "" {
 		foundOrgPK = c.Params(OrgPKKey)
 	}
 	if foundOrgPK == "" {
-		return "", "", c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
+		return "", nil, c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
 	}
 	orgPK, err := repositories.ParseOrgPK(foundOrgPK)
 	if err != nil {
-		return "", "", c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
+		return "", nil, c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
 	}
-	user, err := p.userSvc.GetMe(c.Context(), userID)
+	m, err := p.memberSvc.Get(c.Context(), orgPK, userID)
 	if err != nil {
-		return "", "", c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
+		return "", nil, c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
 	}
-	roleName, ok := UserOrgRole(user, orgPK)
-	if !ok {
-		return "", "", c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado a esta organização"))
+	if m == nil {
+		return "", nil, c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado a esta organização"))
 	}
-	return orgPK, roleName, nil
+	return orgPK, m, nil
 }
 
-// RequireOwnerOrAdmin returns a Fiber handler that allows only OWNER/ADMIN org
-// members, bypassing the granular permission-string check entirely — for
-// endpoints like the audit trail where visibility itself is the sensitive
-// thing, not a specific action.
-func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
+// requireRoles returns a handler that allows only members whose role is in the
+// allowed set, bypassing the granular permission-string check — for endpoints
+// where visibility itself is the sensitive thing (audit trail, member
+// management), not a specific action.
+func (p *PermChecker) requireRoles(msg string, allowed ...string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		orgPK, roleName, err := p.parseUserOrganizationRole(c)
+		orgPK, m, err := p.parseUserOrganizationRole(c)
 		if err != nil {
 			return err
 		}
-		if roleName != roleOwner && roleName != roleAdmin {
-			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Apenas proprietários e administradores podem ver o log de auditoria"))
+		if !containsStr(allowed, m.Role) {
+			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden(msg))
+		}
+		// These role-gated actions (member/invitation management, audit trail)
+		// are not grantable via any OAuth scope, so a scoped API-key token can
+		// never perform them — only a full first-party session.
+		if tokenIsScoped(GetScopes(c)) {
+			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("esta ação não é permitida para chaves de API"))
 		}
 		c.Locals(OrgPKKey, orgPK)
+		c.Locals(OrgRoleKey, m.Role)
 		return c.Next()
 	}
 }
 
+// RequireOwner allows only the OWNER — for ownership-level actions (removing a
+// member, changing a member's role).
+func (p *PermChecker) RequireOwner() fiber.Handler {
+	return p.requireRoles("Apenas o proprietário pode executar esta ação", roleOwner)
+}
+
+// RequireOwnerOrAdmin allows OWNER or ADMIN org members.
+func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
+	return p.requireRoles("Apenas proprietários e administradores podem executar esta ação", roleOwner, roleAdmin)
+}
+
 func (p *PermChecker) check(c fiber.Ctx, permission string) error {
-	orgPK, roleName, err := p.parseUserOrganizationRole(c)
+	orgPK, m, err := p.parseUserOrganizationRole(c)
 	if err != nil {
 		return err
 	}
-	if roleName == roleOwner || roleName == roleAdmin {
-		c.Locals(OrgPKKey, orgPK)
-		return c.Next()
-	}
+	c.Locals(OrgPKKey, orgPK)
+	c.Locals(OrgRoleKey, m.Role)
 
-	if !p.hasPermission(c.Context(), roleName, permission) {
+	// RBAC decision: role bypass (OWNER/ADMIN) or effective permission
+	// (role.permissions ∪ membership extras).
+	rbacOK := m.Role == roleOwner || m.Role == roleAdmin ||
+		containsStr(m.Permissions, permission) || p.hasPermission(c.Context(), m.Role, permission)
+	if !rbacOK {
 		return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Permissão insuficiente"))
 	}
 
-	c.Locals(OrgPKKey, orgPK)
+	// Scope decision (defense-in-depth): a scoped API-key token additionally
+	// needs the matching OAuth scope. Identity-only sessions (no dfe:* scope)
+	// are unrestricted, preserving first-party ui behavior.
+	if scopes := GetScopes(c); tokenIsScoped(scopes) && !scopesGrant(scopes, permission) {
+		return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("escopo do token insuficiente para esta ação"))
+	}
 	return c.Next()
 }
 
@@ -141,38 +172,13 @@ func (p *PermChecker) hasPermission(ctx context.Context, roleName, permission st
 	return containsStr(perms, permission)
 }
 
-// UserOrgRole finds the user's role string for the given orgPK in the organizations list.
-// The organizations attribute is a DynamoDB List of Maps, each with "pk" and "role" string fields.
-func UserOrgRole(user map[string]types.AttributeValue, orgPK string) (string, bool) {
-	orgsAV, ok := user["organizations"]
-	if !ok {
-		return "", false
+// GetOrgRole returns the resolved member role stored in locals by the perm
+// guard (empty if not set).
+func GetOrgRole(c fiber.Ctx) string {
+	if v, ok := c.Locals(OrgRoleKey).(string); ok {
+		return v
 	}
-	list, ok := orgsAV.(*types.AttributeValueMemberL)
-	if !ok {
-		return "", false
-	}
-	for _, item := range list.Value {
-		m, ok := item.(*types.AttributeValueMemberM)
-		if !ok {
-			continue
-		}
-		pkAV, ok := m.Value["pk"]
-		if !ok {
-			continue
-		}
-		pkS, ok := pkAV.(*types.AttributeValueMemberS)
-		if !ok || pkS.Value != orgPK {
-			continue
-		}
-		if roleAV, ok := m.Value["role"]; ok {
-			if roleS, ok := roleAV.(*types.AttributeValueMemberS); ok {
-				return roleS.Value, true
-			}
-		}
-		return "", true
-	}
-	return "", false
+	return ""
 }
 
 // RolePermissions extracts the permissions string slice from a role DynamoDB item.

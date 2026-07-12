@@ -69,6 +69,24 @@ func (r *OrganizationRepository) CreateOrganization(ctx context.Context, cpfOrCN
 	return r.PutItem(ctx, item)
 }
 
+// BuildCreateTxItem returns a create-only TransactWriteItem (fails if the org
+// already exists) for the organization, mirroring CreateOrganization's
+// key/timestamp logic without writing. Also returns the finalized item.
+func (r *OrganizationRepository) BuildCreateTxItem(cpfOrCNPJ string, item map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
+	pk, err := ParseOrgPK(cpfOrCNPJ)
+	if err != nil {
+		return types.TransactWriteItem{}, nil, err
+	}
+	if item == nil {
+		item = map[string]types.AttributeValue{}
+	}
+	now := NowStr()
+	item["pk"] = &types.AttributeValueMemberS{Value: pk}
+	item["created_at"] = &types.AttributeValueMemberS{Value: now}
+	item["updated_at"] = &types.AttributeValueMemberS{Value: now}
+	return r.BuildPutTxItemIfAbsent(item), item, nil
+}
+
 // UpdateOrganization applies a partial update.
 func (r *OrganizationRepository) UpdateOrganization(ctx context.Context, orgPK string, updates map[string]any) error {
 	pk, err := ParseOrgPK(orgPK)

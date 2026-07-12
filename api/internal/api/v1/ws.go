@@ -9,7 +9,6 @@ import (
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	fws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -26,7 +25,7 @@ var wsUpgrader = fws.FastHTTPUpgrader{
 
 // RegisterWS registers GET /ws WebSocket upgrade endpoint.
 // Auth via query params: ?token=<jwt>&org_pk=<pk>
-func RegisterWS(router fiber.Router, verifier *middleware.Verifier, userSvc *services.UserService, reg ws.Registry) {
+func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry) {
 	router.Get("/ws", func(c fiber.Ctx) error {
 		token := c.Query("token")
 		orgPKRaw := c.Query("org_pk")
@@ -43,8 +42,8 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, userSvc *ser
 				_ = conn.WriteMessage(fws.TextMessage, data)
 			}
 
-			// Validate JWT
-			sub, err := verifier.Verify(ctx, token)
+			// Validate JWT (scopes don't gate the realtime channel — membership does)
+			sub, _, err := verifier.Verify(ctx, token)
 			if err != nil || sub == "" {
 				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Token inválido ou expirado"})
 				return
@@ -58,12 +57,12 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, userSvc *ser
 			}
 
 			// Verify user belongs to org
-			user, err := userSvc.GetMe(ctx, sub)
-			if err != nil || user == nil {
+			m, err := memberSvc.Get(ctx, orgPK, sub)
+			if err != nil {
 				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Usuário não encontrado"})
 				return
 			}
-			if !wsUserBelongsToOrg(user, orgPK) {
+			if m == nil {
 				send(map[string]any{"type": "error", "code": "forbidden", "message": "Acesso negado a esta organização"})
 				return
 			}
@@ -75,7 +74,9 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, userSvc *ser
 			send(map[string]any{"type": "connected", "org_pk": orgPK, "conn_id": connID})
 			slog.Info("ws connected", "conn", connID, "org", orgPK)
 
-			// Ping loop
+			// Ping loop. Also re-checks membership each tick (cached read, ~zero
+			// cost) so a member removed after the socket opened stops receiving
+			// events instead of staying subscribed forever.
 			done := make(chan struct{})
 			go func() {
 				t := time.NewTicker(wsPingInterval)
@@ -83,6 +84,11 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, userSvc *ser
 				for {
 					select {
 					case <-t.C:
+						if still, e := memberSvc.Get(ctx, orgPK, sub); e == nil && still == nil {
+							send(map[string]any{"type": "error", "code": "forbidden", "message": "Acesso revogado"})
+							_ = conn.Close()
+							return
+						}
 						if e := conn.WriteMessage(fws.TextMessage, []byte(`{"type":"ping"}`)); e != nil {
 							return
 						}
@@ -112,23 +118,4 @@ type wsConnAdapter struct {
 
 func (w *wsConnAdapter) WriteMessage(messageType int, data []byte) error {
 	return w.conn.WriteMessage(messageType, data)
-}
-
-// wsUserBelongsToOrg checks if the DynamoDB user record includes orgPK in its organizations list.
-func wsUserBelongsToOrg(user map[string]types.AttributeValue, orgPK string) bool {
-	orgsAttr, ok := user["organizations"].(*types.AttributeValueMemberL)
-	if !ok {
-		return false
-	}
-	for _, item := range orgsAttr.Value {
-		if m, ok := item.(*types.AttributeValueMemberM); ok {
-			if pk, ok := m.Value["pk"].(*types.AttributeValueMemberS); ok && pk.Value == orgPK {
-				return true
-			}
-			if pk, ok := m.Value["org_pk"].(*types.AttributeValueMemberS); ok && pk.Value == orgPK {
-				return true
-			}
-		}
-	}
-	return false
 }

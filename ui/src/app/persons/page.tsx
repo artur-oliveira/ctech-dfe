@@ -30,15 +30,18 @@ function PersonsContent() {
       enabled: !!selectedOrg,
     })
 
-  const {handleDelete, isPending: isDeleting} = useEntityDelete<PersonItemOut>({
+  const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<PersonItemOut>({
     mutationFn: (id) => apiClient.deletePerson(id),
     getId: (p) => unformatCpfCnpj(p.sk),
-    getConfirmMessage: (p) => `Excluir "${p.name}"?`,
+    getDeletedMessage: (p) => `"${p.name}" excluído`,
     onSuccess: () => {
       reset()
       void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)})
     },
   })
+
+  // Rows inside the undo window are hidden until the delete commits (or is undone).
+  const visibleItems = filterVisible(items)
 
   return (
     <RootLayout>
@@ -57,7 +60,7 @@ function PersonsContent() {
           <NoOrgBanner/>
         ) : isLoading ? (
           <LoadingSkeleton/>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhuma pessoa cadastrada"
             description="Cadastre clientes e fornecedores para usar na emissão de documentos fiscais."
@@ -77,7 +80,7 @@ function PersonsContent() {
               </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-              {items.map((p) => (
+              {visibleItems.map((p) => (
                 <tr key={p.sk} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3.5 font-medium text-gray-900">{p.name}</td>
                   <td className="px-5 py-3.5">

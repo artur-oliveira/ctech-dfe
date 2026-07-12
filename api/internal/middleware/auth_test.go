@@ -88,7 +88,7 @@ func TestVerify_ValidToken(t *testing.T) {
 	js := newJWKSServer(t)
 	js.publish(&key.PublicKey, "kid-1")
 
-	sub, err := newVerifier(js).Verify(context.Background(), signToken(t, key, "kid-1", testIssuer, testAudience))
+	sub, _, err := newVerifier(js).Verify(context.Background(), signToken(t, key, "kid-1", testIssuer, testAudience))
 	if err != nil {
 		t.Fatalf("expected valid token, got %v", err)
 	}
@@ -104,7 +104,7 @@ func TestVerify_WrongIssuer(t *testing.T) {
 	js := newJWKSServer(t)
 	js.publish(&key.PublicKey, "kid-1")
 
-	_, err := newVerifier(js).Verify(context.Background(),
+	_, _, err := newVerifier(js).Verify(context.Background(),
 		signToken(t, key, "kid-1", "https://evil.example", testAudience))
 	if err == nil {
 		t.Fatal("expected token with wrong iss to be rejected")
@@ -116,7 +116,7 @@ func TestVerify_WrongAudience(t *testing.T) {
 	js := newJWKSServer(t)
 	js.publish(&key.PublicKey, "kid-1")
 
-	_, err := newVerifier(js).Verify(context.Background(),
+	_, _, err := newVerifier(js).Verify(context.Background(),
 		signToken(t, key, "kid-1", testIssuer, "https://other.example"))
 	if err == nil {
 		t.Fatal("expected token with wrong aud to be rejected")
@@ -133,7 +133,7 @@ func TestVerify_UnknownKID_Rejected(t *testing.T) {
 	js := newJWKSServer(t)
 	js.publish(&published.PublicKey, "kid-published")
 
-	_, err := newVerifier(js).Verify(context.Background(),
+	_, _, err := newVerifier(js).Verify(context.Background(),
 		signToken(t, signing, "kid-unknown", testIssuer, testAudience))
 	if err == nil {
 		t.Fatal("expected unknown kid to be rejected")
@@ -148,7 +148,7 @@ func TestVerify_BogusKID_NoFallbackToFirstKey(t *testing.T) {
 	js := newJWKSServer(t)
 	js.publish(&key.PublicKey, "kid-real")
 
-	_, err := newVerifier(js).Verify(context.Background(),
+	_, _, err := newVerifier(js).Verify(context.Background(),
 		signToken(t, key, "kid-does-not-exist", testIssuer, testAudience))
 	if err == nil {
 		t.Fatal("token with unlisted kid must be rejected, not verified against keys[0]")
@@ -164,7 +164,7 @@ func TestVerify_RefetchesJWKSOnKeyRotation(t *testing.T) {
 	v := newVerifier(js)
 
 	// Warm the cache with the old key set.
-	if _, err := v.Verify(context.Background(), signToken(t, oldKey, "kid-old", testIssuer, testAudience)); err != nil {
+	if _, _, err := v.Verify(context.Background(), signToken(t, oldKey, "kid-old", testIssuer, testAudience)); err != nil {
 		t.Fatalf("old key should verify: %v", err)
 	}
 	hitsBefore := js.hits.Load()
@@ -173,7 +173,7 @@ func TestVerify_RefetchesJWKSOnKeyRotation(t *testing.T) {
 	newKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	js.publish(&newKey.PublicKey, "kid-new")
 
-	sub, err := v.Verify(context.Background(), signToken(t, newKey, "kid-new", testIssuer, testAudience))
+	sub, _, err := v.Verify(context.Background(), signToken(t, newKey, "kid-new", testIssuer, testAudience))
 	if err != nil {
 		t.Fatalf("expected refetch to pick up rotated key, got %v", err)
 	}
@@ -196,13 +196,13 @@ func TestFetchJWKS_ErrorResponseNotCached(t *testing.T) {
 	v := newVerifier(js)
 	token := signToken(t, key, "kid-1", testIssuer, testAudience)
 
-	if _, err := v.Verify(context.Background(), token); err == nil {
+	if _, _, err := v.Verify(context.Background(), token); err == nil {
 		t.Fatal("expected failure while JWKS endpoint is down")
 	}
 
 	// Endpoint recovers — the next call must succeed, proving nothing bad was cached.
 	js.status.Store(http.StatusOK)
-	if _, err := v.Verify(context.Background(), token); err != nil {
+	if _, _, err := v.Verify(context.Background(), token); err != nil {
 		t.Fatalf("expected recovery after JWKS endpoint returns, got %v", err)
 	}
 }

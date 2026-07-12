@@ -26,6 +26,9 @@ const (
 	jwksCacheKey = "ctech:jwks"
 	jwksTTL      = 3600 // 1 hour — matches Python _JWKS_TTL
 	UserIDKey    = "user_id"
+	// ScopesKey stores the token's OAuth scopes (from the space-delimited `scope`
+	// claim) in Fiber locals, for the RBAC layer to intersect with the role.
+	ScopesKey = "token_scopes"
 
 	// minJWKSRefetchInterval throttles forced JWKS refreshes triggered by an unknown
 	// kid, so a flood of bogus tokens cannot hammer the identity provider.
@@ -68,12 +71,13 @@ func (v *Verifier) Middleware() fiber.Handler {
 		}
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-		sub, err := v.Verify(c.Context(), tokenStr)
+		sub, scopes, err := v.Verify(c.Context(), tokenStr)
 		if err != nil || sub == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("invalid credentials"))
 		}
 
 		c.Locals(UserIDKey, sub)
+		c.Locals(ScopesKey, scopes)
 		return c.Next()
 	}
 }
@@ -84,17 +88,25 @@ func GetUserID(c fiber.Ctx) string {
 	return v
 }
 
-// Verify validates a raw JWT string and returns the subject claim. Used directly by
-// the WebSocket handler, where auth arrives as a query param rather than a header.
-func (v *Verifier) Verify(ctx context.Context, tokenStr string) (string, error) {
+// GetScopes returns the token's OAuth scopes from Fiber locals (nil if none).
+func GetScopes(c fiber.Ctx) []string {
+	v, _ := c.Locals(ScopesKey).([]string)
+	return v
+}
+
+// Verify validates a raw JWT string and returns the subject claim plus the
+// token's OAuth scopes (from the space-delimited `scope` claim). Used directly
+// by the WebSocket handler, where auth arrives as a query param rather than a
+// header.
+func (v *Verifier) Verify(ctx context.Context, tokenStr string) (string, []string, error) {
 	kid, err := tokenKID(tokenStr)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	pubKey, err := v.keyForKID(ctx, kid)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	var parseOpts []jwt.ParserOption
@@ -111,16 +123,17 @@ func (v *Verifier) Verify(ctx context.Context, tokenStr string) (string, error) 
 		return pubKey, nil
 	}, parseOpts...)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return "", fmt.Errorf("invalid claims")
+		return "", nil, fmt.Errorf("invalid claims")
 	}
 
 	sub, _ := claims["sub"].(string)
-	return sub, nil
+	scope, _ := claims["scope"].(string)
+	return sub, strings.Fields(scope), nil
 }
 
 // keyForKID resolves the signing key for kid. On a cache miss it forces one JWKS

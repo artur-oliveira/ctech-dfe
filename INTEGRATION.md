@@ -279,21 +279,43 @@ client                        ctech-account                     api (dfe)
 - The token's `aud` includes `SERVICE_AUDIENCE` only when the key carries at least
   one `dfe:*` scope.
 
-### Scope claim enforcement (REQUIRED — currently missing)
+### Scope claim enforcement (IMPLEMENTED)
 
-`middleware.Auth` today extracts only `sub` and ignores the `scope` claim. Every
-authenticated caller therefore gets whatever its org RBAC allows, regardless of the
-scopes granted to the token/key. To make scoped API keys (and future third-party OAuth
-apps) meaningful, `PermChecker.Require(perm)` must ALSO check the token scopes:
+`Verifier.Verify` extracts the space-delimited `scope` claim alongside `sub`; the
+auth middleware stashes it in locals (`middleware.GetScopes`). `PermChecker`
+enforces it as **defense-in-depth on top of** the org RBAC decision
+(`middleware/scopes.go`, `middleware/rbac.go`):
 
-- Mapping: `dfe:{resource}:read` covers `get.{resource}` + `list.{resource}`;
-  `dfe:{resource}:write` covers `create/update/delete.{resource}` (nfes/nfces/mdfes
-  write also covers their `*_events` permissions).
-- Effective permission = token scopes ∩ org RBAC role. Missing scope → 403,
-  even for org owners.
-- Sessions from the first-party ui receive the full identity scopes and should be
-  treated as unrestricted (backwards compatible); enforcement applies when the token
-  carries `dfe:*` service scopes.
+- **Effective permission = org RBAC role ∩ token scopes.** The scope never widens
+  what the underlying member could do — it only narrows it. Missing scope → 403,
+  even for an org OWNER.
+- **Identity-only sessions are unrestricted.** A token with no `dfe:*` scope (the
+  first-party ui, which carries `openid profile`) skips scope enforcement — pure
+  RBAC, backwards compatible. Enforcement kicks in only when the token carries at
+  least one `dfe:*` service scope (i.e. an API key or third-party OAuth app).
+- **Role-gated endpoints reject scoped tokens.** Member/invitation management and
+  the audit trail are gated by role (`RequireOwner`/`RequireOwnerOrAdmin`), not by a
+  permission string, and no scope grants them — so a scoped API-key token is refused
+  there outright (403). Only a full first-party session can manage members.
+
+Scope → RBAC mapping (`middleware/scopes.go`, `scopeFamilies`):
+
+| Scope                     | Grants (RBAC action.resource)                                            |
+|---------------------------|--------------------------------------------------------------------------|
+| `dfe:nfes:read`           | `get`/`list` of `nfes`, `nfe_events`, `nfe_distributions`, `organization_nfe_configs` |
+| `dfe:nfes:write`          | `create`/`update`/`delete` of the same family                            |
+| `dfe:nfces:*`             | `nfces`, `nfce_events`, `organization_nfce_configs` (NFC-e has no distributions) |
+| `dfe:ctes:*`              | `ctes`, `cte_events`, `cte_distributions`, `organization_cte_configs`    |
+| `dfe:mdfes:*`             | `mdfes`, `mdfe_events`, `mdfe_distributions`, `organization_mdfe_configs` |
+| `dfe:organization_products:*`     | `organization_products`                                          |
+| `dfe:organization_vehicles:*`     | `organization_vehicles`                                          |
+| `dfe:organization_persons:*`      | `organization_persons`                                           |
+| `dfe:organizations:*`             | `organizations`                                                  |
+| `dfe:organization_certificates:*` | `organization_certificates` (isolated — a doc-family `write` never grants it) |
+
+`read` → `get`+`list`; `write` → `create`+`update`+`delete`. A document family's
+scope covers its events, distributions, and fiscal config. Certificate access is a
+dedicated scope (it grants the PFX + private key), never bundled into a doc `write`.
 
 ### Scope catalog
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
@@ -68,36 +66,6 @@ func (r *UserRepository) CreateMinimal(ctx context.Context, userID string) (map[
 func (r *UserRepository) Update(ctx context.Context, userID string, updates map[string]any) (bool, error) {
 	updates["updated_at"] = NowStr()
 	return r.UpdateItem(ctx, BuildUserPK(userID), nil, updates)
-}
-
-// AddOrgMembership atomically appends an organization entry to the user's organizations list.
-// Uses list_append so no read is required. Idempotency is not enforced at the DB level —
-// callers must ensure they don't add duplicates (org creation is the only expected call site).
-func (r *UserRepository) AddOrgMembership(ctx context.Context, userID, orgPK, role string, permissions []string) error {
-	if permissions == nil {
-		permissions = []string{}
-	}
-	entry, err := attributevalue.MarshalMap(map[string]any{"pk": orgPK, "role": role, "permissions": permissions})
-	if err != nil {
-		return fmt.Errorf("marshal org entry: %w", err)
-	}
-	_, err = r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: BuildUserPK(userID)},
-		},
-		UpdateExpression: aws.String(
-			"SET organizations = list_append(if_not_exists(organizations, :empty), :new_org), updated_at = :now",
-		),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":empty": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
-			":new_org": &types.AttributeValueMemberL{Value: []types.AttributeValue{
-				&types.AttributeValueMemberM{Value: entry},
-			}},
-			":now": &types.AttributeValueMemberS{Value: NowStr()},
-		},
-		ConditionExpression: aws.String("attribute_exists(pk)"),
-	})
-	return err
 }
 
 // GenerateID returns a new UUID v7 string.

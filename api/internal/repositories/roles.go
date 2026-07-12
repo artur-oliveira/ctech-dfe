@@ -13,7 +13,24 @@ import (
 	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
 )
 
-var actions = []string{"list", "get", "create", "update", "delete"}
+// System role names. These are the values stored in a membership's `role`
+// attribute and the identity (`ROLE_{NAME}`) of each row in the roles table.
+const (
+	RoleOwner  = "OWNER"
+	RoleAdmin  = "ADMIN"
+	RoleUser   = "USER"
+	RoleViewer = "VIEWER"
+)
+
+const (
+	actionList   = "list"
+	actionGet    = "get"
+	actionCreate = "create"
+	actionUpdate = "update"
+	actionDelete = "delete"
+)
+
+var actions = []string{actionList, actionGet, actionCreate, actionUpdate, actionDelete}
 var resources = []string{
 	"ctes", "cte_distributions", "cte_events",
 	"mdfes", "mdfe_distributions", "mdfe_events",
@@ -29,11 +46,61 @@ var resources = []string{
 // AllPermissions is the full permission set (action.resource pairs).
 var AllPermissions []string
 
+// ViewerPermissions is read-only: every list.* and get.* pair.
+var ViewerPermissions []string
+
+// UserPermissions is the operator set: full CRUD on day-to-day fiscal resources
+// (documents, products, persons, vehicles) but no destructive or
+// org-administration actions — no delete of anything, no update.organizations,
+// and no access to certificates (which carry the private key material). Members
+// who need those belong in ADMIN/OWNER.
+var UserPermissions []string
+
 func init() {
 	for _, a := range actions {
 		for _, r := range resources {
-			AllPermissions = append(AllPermissions, fmt.Sprintf("%s.%s", a, r))
+			perm := fmt.Sprintf("%s.%s", a, r)
+			AllPermissions = append(AllPermissions, perm)
+			if a == actionList || a == actionGet {
+				ViewerPermissions = append(ViewerPermissions, perm)
+			}
+			if userPermitted(a, r) {
+				UserPermissions = append(UserPermissions, perm)
+			}
 		}
+	}
+}
+
+// userPermitted reports whether the USER role gets the given action.resource.
+func userPermitted(action, resource string) bool {
+	if action == actionDelete {
+		return false
+	}
+	if resource == "organization_certificates" {
+		return false
+	}
+	if resource == "organizations" && action == actionUpdate {
+		return false
+	}
+	return true
+}
+
+// SystemRole is a seed definition for a built-in RBAC role.
+type SystemRole struct {
+	Name        string
+	Description string
+	Permissions []string
+}
+
+// SystemRoles returns the four built-in roles seeded at boot. OWNER and ADMIN
+// get the full permission set (they also bypass permission-string checks in the
+// RBAC middleware); USER and VIEWER carry explicit, narrower sets.
+func SystemRoles() []SystemRole {
+	return []SystemRole{
+		{RoleOwner, "Proprietário — acesso total à organização", AllPermissions},
+		{RoleAdmin, "Administrador — acesso total à organização", AllPermissions},
+		{RoleUser, "Operador — emissão e cadastros, sem exclusões nem certificados", UserPermissions},
+		{RoleViewer, "Visualizador — somente leitura", ViewerPermissions},
 	}
 }
 
