@@ -27,6 +27,7 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
+import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
 type Tab = 'emitidas' | 'recebidas' | 'transportadas' | 'distribuicao'
 
