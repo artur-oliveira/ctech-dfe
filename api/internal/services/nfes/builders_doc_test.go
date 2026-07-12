@@ -102,11 +102,8 @@ func TestBuildEnviNFe_NoAutXMLWhenOrgHasNoAuthorizedViewers(t *testing.T) {
 func TestBuildLocal_FullFields(t *testing.T) {
 	cnpj := "11222333000181"
 	xNome := "Depósito Sul"
-	fone := "11988887777"
-	email := "deposito@example.com"
-	xCpl := "Galpão 3"
 	l := &NfeLocalBody{
-		CNPJ: &cnpj, XNome: &xNome, Fone: &fone, Email: &email, XCpl: &xCpl,
+		CNPJ: &cnpj, XNome: &xNome, Fone: new("11988887777"), Email: new("deposito@example.com"), XCpl: new("Galpão 3"),
 		XLgr: "Rua das Flores", Nro: "100", XBairro: "Centro",
 		CMun: "3550308", XMun: "São Paulo", UF: "SP",
 	}

@@ -14,18 +14,16 @@ const ContentType = "application/problem+json"
 // Problem type URIs (RFC 7807 "type" member). Defined as constants so they are
 // never scattered as raw string literals across the codebase.
 const (
-	TypeDynamoDB            = "/problems/dynamodb-error-request"
-	TypeBadRequest          = "/problems/bad-request"
-	TypeNoCertificate       = "/problems/no-certificate"
-	TypeSefazRejection      = "/problems/sefaz-rejection"
-	TypeUnauthorized        = "/problems/unauthorized"
-	TypeForbidden           = "/problems/forbidden"
-	TypeNotFound            = "/problems/not-found"
-	TypeConflict            = "/problems/conflict"
-	TypeUnprocessableEntity = "/problems/unprocessable-entity"
-	TypeValidation          = "/problems/validation-error"
-	TypeTooManyRequests     = "/problems/too-many-requests"
-	TypeInternalServer      = "/problems/internal-server-error"
+	TypeBadRequest      = "/problems/bad-request"
+	TypeNoCertificate   = "/problems/no-certificate"
+	TypeSefazRejection  = "/problems/sefaz-rejection"
+	TypeUnauthorized    = "/problems/unauthorized"
+	TypeForbidden       = "/problems/forbidden"
+	TypeNotFound        = "/problems/not-found"
+	TypeConflict        = "/problems/conflict"
+	TypeValidation      = "/problems/validation-error"
+	TypeTooManyRequests = "/problems/too-many-requests"
+	TypeInternalServer  = "/problems/internal-server-error"
 )
 
 // FieldError is a single field-level validation failure. It mirrors the shape
@@ -64,12 +62,6 @@ func (p *Problem) Send(c fiber.Ctx) error {
 }
 func New(status int, typ, title, detail string) *Problem {
 	return &Problem{Type: typ, Title: title, Status: status, Detail: detail}
-}
-
-// Constructors matching Python ProblemException subclasses.
-
-func DynamoDB(title, detail string) *Problem {
-	return New(http.StatusBadRequest, TypeDynamoDB, title, detail)
 }
 
 func BadRequest(detail string) *Problem {
@@ -116,10 +108,6 @@ func FromFiber(err *fiber.Error) *Problem {
 
 func Conflict(detail string) *Problem {
 	return New(http.StatusConflict, TypeConflict, "Conflict", detail)
-}
-
-func UnprocessableEntity(detail string) *Problem {
-	return New(http.StatusUnprocessableEntity, TypeUnprocessableEntity, "Unprocessable Entity", detail)
 }
 
 func TooManyRequests(detail string) *Problem {

@@ -151,7 +151,7 @@ func TestBuildEnviMDFe_Structure(t *testing.T) {
 		cargo:       buildTestCargo(),
 		vehicle:     resolvedVehicle{Placa: "ABC1D23", Tara: "10000", UF: "SP", TpRod: "01", TpCar: "00", RNTRC: "12345678"},
 		drivers:     []MdfeDriver{{Name: "MOTORISTA", CPF: "111.222.333-44"}},
-		tripStart:   ptrStr("2026-06-12T08:00:00-03:00"),
+		tripStart:   new("2026-06-12T08:00:00-03:00"),
 	})
 
 	mdfe := out["MDFe"].(map[string]any)

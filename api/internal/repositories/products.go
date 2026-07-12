@@ -103,5 +103,3 @@ func (r *ProductRepository) BuildUpdateTxItem(orgPK, sk string, updates map[stri
 func (r *ProductRepository) BuildDeleteTxItem(orgPK, sk string) types.TransactWriteItem {
 	return r.Base.BuildDeleteTxItem(orgPK, buildProductSK(sk))
 }
-
-func strPtr(s string) *string { return &s }

@@ -265,7 +265,12 @@ func (s *UserService) GetUserInfo(ctx context.Context, accessToken string) (*Cte
 	if err != nil {
 		return nil, problem.InternalServer("userinfo request failed")
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {

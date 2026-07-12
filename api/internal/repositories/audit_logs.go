@@ -31,13 +31,6 @@ const (
 	AuditResourceMdfeConfig   = "MDFE_CONFIG"
 )
 
-// SystemActorID/SystemActorName attribute the row to a background process
-// instead of an authenticated user (e.g. worker auto-creating a supplier).
-const (
-	SystemActorID   = "SYSTEM"
-	SystemActorName = "Sistema"
-)
-
 // Modification is one changed field within an audit_logs row.
 type Modification struct {
 	Name   string `dynamodbav:"name"`

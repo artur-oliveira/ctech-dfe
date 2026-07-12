@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"strings"
@@ -96,7 +97,7 @@ func (v *Verifier) Verify(ctx context.Context, tokenStr string) (string, error) 
 		return "", err
 	}
 
-	parseOpts := []jwt.ParserOption{}
+	var parseOpts []jwt.ParserOption
 	if v.audience != "" {
 		parseOpts = append(parseOpts, jwt.WithAudience(v.audience))
 	}
@@ -221,7 +222,12 @@ func fetchJWKSFromURL(ctx context.Context, jwksURL string) ([]jwk, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	// A 4xx/5xx body is not a key set; decoding it would yield zero keys and,
 	// before this check, poison the cache for an hour.

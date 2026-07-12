@@ -6,9 +6,6 @@ import (
 	"github.com/artur-oliveira/ctech-dfe/api/internal/validation"
 )
 
-func strptr(s string) *string { return &s }
-func intptr(i int) *int       { return &i }
-
 func validAddress() AddressBody {
 	return AddressBody{
 		CityIBGECode:    "3550308",
@@ -23,7 +20,7 @@ func validAddress() AddressBody {
 
 func validPerson() PersonObjectBody {
 	return PersonObjectBody{
-		Crt:       intptr(3),
+		Crt:       new(3),
 		Addresses: []AddressBody{validAddress()},
 		Contacts:  &ContactsBody{Emails: []string{"a@b.com"}, Phones: []string{"11999998888"}},
 	}
@@ -106,7 +103,7 @@ func TestValidDTOsPass(t *testing.T) {
 // TestInvalidDTOsFail checks that bad inputs surface field-level errors.
 func TestInvalidDTOsFail(t *testing.T) {
 	// Bad CPF + a present-but-incomplete person (no addresses).
-	bad := PersonCreateBody{CpfOrCnpj: "00000000000", Name: "X", Person: PersonObjectBody{Crt: intptr(3)}}
+	bad := PersonCreateBody{CpfOrCnpj: "00000000000", Name: "X", Person: PersonObjectBody{Crt: new(3)}}
 	p := validation.Struct(bad)
 	if p == nil || p.Status != 422 {
 		t.Fatalf("expected 422 validation problem, got %+v", p)

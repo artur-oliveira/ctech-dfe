@@ -405,20 +405,6 @@ func (b *Base) AtomicIncrement(ctx context.Context, pk string, sk *string, field
 	return 0, nil
 }
 
-// Decode unmarshals DynamoDB attribute values into the target struct.
-func Decode[T any](item map[string]types.AttributeValue) (*T, error) {
-	var out T
-	if err := attributevalue.UnmarshalMap(item, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// Encode marshals a value into DynamoDB attribute values, omitting nulls.
-func Encode(v any) (map[string]types.AttributeValue, error) {
-	return MarshalMapOmitNull(v)
-}
-
 func wrapDynamoErr(err error) error {
 	if err == nil {
 		return nil

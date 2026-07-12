@@ -408,7 +408,7 @@ func (s *DistributionService) invokeAndParse(ctx context.Context, payload map[st
 		if dm, ok := d.(map[string]any); ok {
 			nsu := 0
 			if n, ok := dm["@NSU"].(string); ok {
-				fmt.Sscanf(n, "%d", &nsu)
+				_, _ = fmt.Sscanf(n, "%d", &nsu)
 			}
 			docs = append(docs, map[string]any{"nsu": nsu, "schema": dm["@schema"]})
 		}
@@ -434,7 +434,7 @@ func distStrAttr(item map[string]types.AttributeValue, key string) string {
 func distIntAttr(item map[string]types.AttributeValue, key string, def int) int {
 	if v, ok := item[key].(*types.AttributeValueMemberN); ok {
 		var n int
-		fmt.Sscanf(v.Value, "%d", &n)
+		_, _ = fmt.Sscanf(v.Value, "%d", &n)
 		return n
 	}
 	return def

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -221,7 +222,12 @@ func (s *CertificateService) DownloadPFX(ctx context.Context, s3Key string) ([]b
 	if err != nil {
 		return nil, problem.InternalServer("failed to fetch certificate from S3")
 	}
-	defer out.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(out.Body)
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(out.Body); err != nil {
 		return nil, problem.InternalServer("failed to read certificate from S3")

@@ -83,8 +83,7 @@ func TestRequirePJFields_CNPJWithoutCRT_ReturnsError(t *testing.T) {
 }
 
 func TestRequirePJFields_CNPJWithCRT_OK(t *testing.T) {
-	crt := 1
-	if err := RequirePJFields("11222333000181", &crt); err != nil {
+	if err := RequirePJFields("11222333000181", new(1)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -65,8 +65,7 @@ func TestBase_BuildPutTxItem(t *testing.T) {
 
 func TestBase_BuildUpdateTxItem(t *testing.T) {
 	b := Base{TableName: "test_table"}
-	sk := "SK1"
-	txItem, err := b.BuildUpdateTxItem("PK1", &sk, map[string]any{"name": "new-name"})
+	txItem, err := b.BuildUpdateTxItem("PK1", new("SK1"), map[string]any{"name": "new-name"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

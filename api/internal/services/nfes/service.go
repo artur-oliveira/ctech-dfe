@@ -30,8 +30,6 @@ const (
 	StatusPending       = "pending"
 	StatusAuthorized    = "authorized"
 	StatusCancelPending = "cancel_pending"
-	StatusCanceled      = "canceled"
-	StatusRejected      = "rejected"
 
 	TpEventoCancelamento        = "110111"
 	TpEventoCCe                 = "110110"
@@ -425,7 +423,7 @@ func intAttr(item map[string]types.AttributeValue, key string, def int) int {
 		return def
 	}
 	var n int
-	fmt.Sscanf(v.Value, "%d", &n)
+	_, _ = fmt.Sscanf(v.Value, "%d", &n)
 	return n
 }
 

@@ -275,10 +275,6 @@ func TestResolveICMSIntraAliq_All27UFsDecimalFormat(t *testing.T) {
 	}
 }
 
-// ─── resolveICMSInterAliq ─────────────────────────────────────────────────────
-
-func strP(s string) *string { return &s }
-
 func TestResolveICMSInterAliq_Origin1Returns4(t *testing.T) {
 	got := resolveICMSInterAliq("SP", "AM", new("1"))
 	if got != "4.00" {

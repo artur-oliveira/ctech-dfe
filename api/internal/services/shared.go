@@ -22,9 +22,6 @@ const (
 
 // Fiscal document model codes (campo "mod" da chave de acesso).
 const (
-	ModelNFe  = "55"
-	ModelNFCe = "65"
-	ModelCTe  = "57"
 	ModelMDFe = "58"
 )
 
@@ -32,7 +29,6 @@ const (
 const (
 	DocTypeNFe  = "nfe"
 	DocTypeNFCe = "nfce"
-	DocTypeCTe  = "cte"
 	DocTypeMDFe = "mdfe"
 )
 

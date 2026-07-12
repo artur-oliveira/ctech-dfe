@@ -90,8 +90,7 @@ func extractCrtAndRegs(item map[string]any) (*int, []services.StateRegistrationE
 	var crt *int
 	if v, ok := personRaw["crt"]; ok && v != nil {
 		if n, ok := v.(float64); ok {
-			c := int(n)
-			crt = &c
+			crt = new(int(n))
 		}
 	}
 	var regs []services.StateRegistrationEntry
@@ -145,8 +144,7 @@ func buildNextCursor(key map[string]types.AttributeValue, incomingCursor string)
 	if err != nil {
 		return nil
 	}
-	s := base64.StdEncoding.EncodeToString(raw)
-	return &s
+	return new(base64.StdEncoding.EncodeToString(raw))
 }
 
 // decodeCursor extracts the DynamoDB ExclusiveStartKey from a cursor string.
