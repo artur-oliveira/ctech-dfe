@@ -102,9 +102,9 @@ func (r *FiscalConfigRepository) ClaimDistNSUSlot(ctx context.Context, orgPK, en
 	thresholdStr := now.Add(-distNSURateLimitHours * time.Hour).Format(time.RFC3339)
 
 	input := &dynamodb.UpdateItemInput{
-		Key:                 map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
-		UpdateExpression:    aws.String("SET #f = :now"),
-		ConditionExpression: aws.String("attribute_not_exists(#f) OR #f < :threshold"),
+		Key:                      map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
+		UpdateExpression:         aws.String("SET #f = :now"),
+		ConditionExpression:      aws.String("attribute_not_exists(#f) OR #f < :threshold"),
 		ExpressionAttributeNames: map[string]string{"#f": field},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":now":       &types.AttributeValueMemberS{Value: nowStr},

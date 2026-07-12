@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useEffect, useRef, useState, useCallback} from 'react'
+import React, {useCallback, useEffect, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {FuseResult} from 'fuse.js'
 import {CheckIcon, ChevronDownIcon, LoaderCircleIcon} from 'lucide-react'

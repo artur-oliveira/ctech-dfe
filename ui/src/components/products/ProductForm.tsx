@@ -1,6 +1,6 @@
 'use client'
 
-import {useState, useEffect, startTransition} from 'react'
+import {startTransition, useEffect, useState} from 'react'
 import {useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form'
@@ -20,9 +20,9 @@ import {
 import type {ProductCreate, ProductOut} from '@/lib/types/api'
 import {getAllCfopOptions, getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
 import {isRegimeSimples} from '@/lib/constants/tax'
-import {IBS_CBS_CST_OPTIONS, IBS_CBS_CLASS_BY_CST} from '@/lib/data/ibs_cbs_cst'
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
 import {IPI_CST_OPTIONS} from '@/lib/data/ipi'
-import {IS_CST_OPTIONS, ICMS_MOT_DESONE_OPTIONS} from '@/lib/data/is'
+import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {ORIGIN_OPTIONS} from '@/lib/data/origin'
 import {CSOSN_OPTIONS} from '@/lib/data/csosn'
@@ -829,7 +829,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 Alíquota específica de ICMS (opcional)
               </p>
               {icmsAutoFilled ? (
-                <div className="flex items-center justify-between gap-2 rounded bg-amber-100 px-2.5 py-1.5 text-xs text-amber-800">
+                <div
+                  className="flex items-center justify-between gap-2 rounded bg-amber-100 px-2.5 py-1.5 text-xs text-amber-800">
                   <span>Preenchido automaticamente pela tabela ICMS {uf} para este NCM.</span>
                   <button
                     type="button"
@@ -855,9 +856,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormLabel>% ICMS específico</FormLabel>
                     <NumericInput {...field} id={field.name} decimal integerPlaces={3} decimalPlaces={4}
                                   value={field.value ?? ''} placeholder="Ex: 12.0000" onChange={(v) => {
-                                    field.onChange(v)
-                                    setIcmsAutoFilled(false)
-                                  }}/>
+                      field.onChange(v)
+                      setIcmsAutoFilled(false)
+                    }}/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -866,9 +867,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormLabel>% FCP específico</FormLabel>
                     <NumericInput {...field} id={field.name} decimal integerPlaces={2} decimalPlaces={4}
                                   value={field.value ?? ''} placeholder="Ex: 2.0000" onChange={(v) => {
-                                    field.onChange(v)
-                                    setIcmsAutoFilled(false)
-                                  }}/>
+                      field.onChange(v)
+                      setIcmsAutoFilled(false)
+                    }}/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -1412,7 +1413,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       {cfopRow.icms === '53' && (
                         <div className="grid gap-1">
                           <label className="text-sm font-medium text-gray-700">% Diferimento (53)</label>
-                          <NumericInput value={cfopRow.icms_p_dif_mono ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                          <NumericInput value={cfopRow.icms_p_dif_mono ?? ''} decimal integerPlaces={3}
+                                        decimalPlaces={4}
                                         placeholder="0.0000"
                                         onChange={(v) => setCfopRow((r) => ({...r, icms_p_dif_mono: v}))}/>
                         </div>
@@ -1421,13 +1423,15 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                         <>
                           <div className="grid gap-1">
                             <label className="text-sm font-medium text-gray-700">Ad rem retenção (15)</label>
-                            <NumericInput value={cfopRow.icms_ad_rem_reten ?? ''} decimal integerPlaces={4} decimalPlaces={4}
+                            <NumericInput value={cfopRow.icms_ad_rem_reten ?? ''} decimal integerPlaces={4}
+                                          decimalPlaces={4}
                                           placeholder="0.0000"
                                           onChange={(v) => setCfopRow((r) => ({...r, icms_ad_rem_reten: v}))}/>
                           </div>
                           <div className="grid gap-1">
                             <label className="text-sm font-medium text-gray-700">% Redução ad rem</label>
-                            <NumericInput value={cfopRow.icms_p_red_ad_rem ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                            <NumericInput value={cfopRow.icms_p_red_ad_rem ?? ''} decimal integerPlaces={3}
+                                          decimalPlaces={4}
                                           placeholder="0.0000"
                                           onChange={(v) => setCfopRow((r) => ({...r, icms_p_red_ad_rem: v}))}/>
                           </div>
@@ -1435,7 +1439,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                             <label className="text-sm font-medium text-gray-700">Motivo redução</label>
                             <OptionsSelect value={cfopRow.icms_mot_red_ad_rem ?? ''}
                                            onValueChange={(v) => setCfopRow((r) => ({...r, icms_mot_red_ad_rem: v}))}
-                                           options={[{value: '1', label: '1 – Transporte coletivo'}, {value: '9', label: '9 – Outros'}]}
+                                           options={[{value: '1', label: '1 – Transporte coletivo'}, {
+                                             value: '9',
+                                             label: '9 – Outros'
+                                           }]}
                                            placeholder="Motivo"/>
                           </div>
                         </>
@@ -1893,7 +1900,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_x_cor" render={({field}) => (
                     <FormItem>
                       <FormLabel>Descrição da cor</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Ex: Branco Polar" maxLength={40}/>
+                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Ex: Branco Polar"
+                             maxLength={40}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>

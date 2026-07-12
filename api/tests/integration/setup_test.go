@@ -26,8 +26,8 @@ import (
 const tablePrefix = "test"
 
 var (
-	db          *dynamodb.Client
-	cfg         *config.Config
+	db             *dynamodb.Client
+	cfg            *config.Config
 	orgRepo        *repositories.OrganizationRepository
 	productRepo    *repositories.ProductRepository
 	personRepo     *repositories.PersonRepository

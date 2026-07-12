@@ -2,24 +2,23 @@ import axios, {AxiosError, type AxiosInstance, type AxiosRequestConfig, type Axi
 import type {
   AuditLogOut,
   CertificateOut,
-  LookupOrganizationOut,
   CTeConfigOut,
-  MDFeConfigOut,
-  MeResponse,
+  DistributionLookupOut,
+  LookupOrganizationOut,
   MdfeCargoPreview,
+  MDFeConfigOut,
   MdfeDetailOut,
   MdfeDocRef,
   MdfeEmit,
   MdfeIncludeDFeDoc,
   MdfeListOut,
+  MeResponse,
   NFCeConfigOut,
-  NFeConfigOut,
-  NFeDistributionOut,
-  SyncEnqueuedOut,
-  DistributionLookupOut,
-  NfeDetailOut,
-  NfeEmit,
   NfceEmit,
+  NFeConfigOut,
+  NfeDetailOut,
+  NFeDistributionOut,
+  NfeEmit,
   NfeEventOut,
   NfeListOut,
   OrganizationOut,
@@ -31,6 +30,7 @@ import type {
   ProductOut,
   ProductUpdate,
   RoleOut,
+  SyncEnqueuedOut,
   VehicleCreate,
   VehicleOut,
   VehicleRequirements,
@@ -38,7 +38,7 @@ import type {
 } from '@/lib/types/api'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
-import {stripNulls, isStrippableBody} from '@/lib/utils/strip-nulls'
+import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const ORG_HEADER = 'Dfe-Organization-Pk'
@@ -60,6 +60,7 @@ export function getAccessToken(): string | null {
 interface ErrorResponseBody {
   detail?: string
   title?: string
+
   [key: string]: unknown
 }
 
@@ -156,22 +157,6 @@ class ApiClient {
     _accessToken = token
   }
 
-  private async get<T>(path: string, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.http.get<T>(path, config)).data
-  }
-
-  private async post<T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.http.post<T>(path, body, config)).data
-  }
-
-  private async put<T>(path: string, body?: unknown): Promise<T> {
-    return (await this.http.put<T>(path, body)).data
-  }
-
-  private async del<T>(path: string): Promise<T> {
-    return (await this.http.delete<T>(path)).data
-  }
-
   // Auth
   async me(): Promise<MeResponse> {
     return this.get<MeResponse>('/v1.0/auth/me')
@@ -236,7 +221,11 @@ class ApiClient {
   }
 
   // Vehicles
-  async getVehicles(params?: { role?: 'tractor' | 'trailer'; limit?: number; cursor?: string }): Promise<PaginatedResponse<VehicleOut>> {
+  async getVehicles(params?: {
+    role?: 'tractor' | 'trailer';
+    limit?: number;
+    cursor?: string
+  }): Promise<PaginatedResponse<VehicleOut>> {
     return this.get('/v1.0/vehicles', {params})
   }
 
@@ -557,6 +546,22 @@ class ApiClient {
 
   async getPersonByCpfCnpj(cpfCnpj: string): Promise<PersonItemOut> {
     return this.get(`/v1.0/persons/${cpfCnpj}`)
+  }
+
+  private async get<T>(path: string, config?: AxiosRequestConfig): Promise<T> {
+    return (await this.http.get<T>(path, config)).data
+  }
+
+  private async post<T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return (await this.http.post<T>(path, body, config)).data
+  }
+
+  private async put<T>(path: string, body?: unknown): Promise<T> {
+    return (await this.http.put<T>(path, body)).data
+  }
+
+  private async del<T>(path: string): Promise<T> {
+    return (await this.http.delete<T>(path)).data
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import {useState, type ReactNode} from 'react'
+import {type ReactNode, useState} from 'react'
 import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
@@ -90,7 +90,10 @@ export function useMdfeActions(orgPk?: string) {
       <Modal
         isOpen={cancelTarget !== null}
         title={cancelTarget ? `Cancelar MDF-e nº ${cancelTarget.number}` : ''}
-        onClose={() => { setCancelTarget(null); setJustification('') }}
+        onClose={() => {
+          setCancelTarget(null);
+          setJustification('')
+        }}
         onSubmit={handleConfirmCancel}
         submitLabel="Confirmar cancelamento"
         cancelLabel="Voltar"
@@ -100,7 +103,8 @@ export function useMdfeActions(orgPk?: string) {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Esta ação é <span className="font-medium text-red-600">irreversível</span>. O MDF-e será cancelado junto à SEFAZ.
+            Esta ação é <span className="font-medium text-red-600">irreversível</span>. O MDF-e será cancelado junto à
+            SEFAZ.
             Só é possível cancelar antes do início do transporte.
           </p>
           <div>
@@ -116,7 +120,11 @@ export function useMdfeActions(orgPk?: string) {
       <Modal
         isOpen={closeTarget !== null}
         title={closeTarget ? `Encerrar MDF-e nº ${closeTarget.number}` : ''}
-        onClose={() => { setCloseTarget(null); setCloseMun(''); setCloseUf('') }}
+        onClose={() => {
+          setCloseTarget(null);
+          setCloseMun('');
+          setCloseUf('')
+        }}
         onSubmit={handleConfirmClose}
         submitLabel="Confirmar encerramento"
         cancelLabel="Voltar"

@@ -26,9 +26,9 @@ const FormFieldContext = React.createContext<FormFieldContextValue>(
 export function FormField<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->({ ...props }: ControllerProps<TFieldValues, TName>) {
+>({...props}: ControllerProps<TFieldValues, TName>) {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
+    <FormFieldContext.Provider value={{name: props.name}}>
       <Controller {...props} />
     </FormFieldContext.Provider>
   )
@@ -43,7 +43,7 @@ const FormItemContext = React.createContext<FormItemContextValue>(
 export function useFormField() {
   const fieldContext = React.useContext(FormFieldContext)
   const itemContext = React.useContext(FormItemContext)
-  const { getFieldState, formState } = useFormContext()
+  const {getFieldState, formState} = useFormContext()
   const fieldState = getFieldState(fieldContext.name, formState)
   return {
     id: itemContext.id,
@@ -55,21 +55,21 @@ export function useFormField() {
   }
 }
 
-export function FormItem({ className, ...props }: React.ComponentProps<'div'>) {
+export function FormItem({className, ...props}: React.ComponentProps<'div'>) {
   const id = React.useId()
   return (
-    <FormItemContext.Provider value={{ id }}>
+    <FormItemContext.Provider value={{id}}>
       <div data-slot="form-item" className={cn('grid gap-1', className)} {...props} />
     </FormItemContext.Provider>
   )
 }
 
 export function FormLabel({
-  className,
-  htmlFor,
-  ...props
-}: React.ComponentProps<typeof Label>) {
-  const { error, name } = useFormField()
+                            className,
+                            htmlFor,
+                            ...props
+                          }: React.ComponentProps<typeof Label>) {
+  const {error, name} = useFormField()
   // Controls under a FormField set id={field.name}, so associate the label with
   // that id (the generated formItemId is not applied to any element here).
   // An explicit htmlFor prop still wins; falls back to undefined (no broken for)
@@ -85,10 +85,10 @@ export function FormLabel({
 }
 
 export function FormDescription({
-  className,
-  ...props
-}: React.ComponentProps<'p'>) {
-  const { formDescriptionId } = useFormField()
+                                  className,
+                                  ...props
+                                }: React.ComponentProps<'p'>) {
+  const {formDescriptionId} = useFormField()
   return (
     <p
       id={formDescriptionId}
@@ -100,11 +100,11 @@ export function FormDescription({
 }
 
 export function FormMessage({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<'p'>) {
-  const { error, formMessageId } = useFormField()
+                              className,
+                              children,
+                              ...props
+                            }: React.ComponentProps<'p'>) {
+  const {error, formMessageId} = useFormField()
   const body = error ? String(error.message ?? '') : children
   if (!body) return null
   return (

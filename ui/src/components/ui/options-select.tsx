@@ -14,21 +14,23 @@ interface OptionsSelectProps {
 }
 
 export function OptionsSelect({
-  value,
-  onValueChange,
-  options,
-  placeholder = 'Selecione',
-  disabled,
-  className,
-  id,
-}: OptionsSelectProps) {
+                                value,
+                                onValueChange,
+                                options,
+                                placeholder = 'Selecione',
+                                disabled,
+                                className,
+                                id,
+                              }: OptionsSelectProps) {
   const selected = value ? options.find((o) => o.value === value) : undefined
   const selectedLabel = selected?.display ?? selected?.label
 
   return (
     <Select
       value={value ?? null}
-      onValueChange={(v) => { if (v !== null) onValueChange?.(v) }}
+      onValueChange={(v) => {
+        if (v !== null) onValueChange?.(v)
+      }}
     >
       <SelectTrigger
         id={id}

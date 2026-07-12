@@ -22,7 +22,7 @@ const userCacheTTL = 300
 // CurrentTermsAddendumVersion is the dfe-specific ToS/Privacy addendum version
 // (see ui/src/app/terms-addendum). Bump it to re-gate every account on next
 // login; a user's stored terms_addendum_version must match this exactly.
-const CurrentTermsAddendumVersion = "1.0"
+const CurrentTermsAddendumVersion = "2.0"
 
 // CtechUserInfo mirrors the /v1.0/userinfo response from ctech-account.
 type CtechUserInfo struct {

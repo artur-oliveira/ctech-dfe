@@ -1,6 +1,6 @@
 'use client'
 
-import {useState, type ReactNode} from 'react'
+import {type ReactNode, useState} from 'react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {Modal} from '@/components/ui/modal'
 import {Button} from '@/components/ui/button'
@@ -11,17 +11,8 @@ import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
 import {isTransitionalStatus, NFE_STATUS_CLASSES, NFE_STATUS_LABELS} from '@/components/nfe/NfeStatusBadge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
+import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
-const EVENT_LABELS: Record<string, string> = {
-  '110111': 'Cancelamento',
-  '110112': 'Cancelamento por Substituição',
-  '110110': 'Carta de Correção',
-  '110140': 'Ciência da Operação',
-  '110141': 'Confirmação da Operação',
-  '110142': 'Desconhecimento da Operação',
-  '110143': 'Operação não Realizada',
-  '110115': 'EPEC',
-}
 
 const EVENT_STATUS_CLASSES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700',
@@ -227,7 +218,7 @@ export function DfeDetail({
       {isCancelled && cancelEvent && (
         <div className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-            {EVENT_LABELS[cancelEvent.event_type] ?? 'Cancelamento'}
+            {EVENT_TYPE_LABELS[cancelEvent.event_type] ?? 'Cancelamento'}
           </p>
           <div className="space-y-0.5">
             {cancelEvent.sefaz_status &&
@@ -356,7 +347,7 @@ export function DfeDetail({
             {eventsData.items.map((evt) => (
               <tr key={evt.sk} className="hover:bg-gray-50 transition-colors align-top">
                 <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{EVENT_LABELS[evt.event_type] ?? evt.event_type}</p>
+                  <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
                   {evt.sefaz_motive && (
                     <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
                   )}

@@ -42,7 +42,9 @@ function NewProductContent() {
         <ProductForm
           crt={org?.person.crt}
           uf={org?.person.state_registrations[0]?.uf}
-          onSubmit={async (d) => { await createMutation.mutateAsync(d) }}
+          onSubmit={async (d) => {
+            await createMutation.mutateAsync(d)
+          }}
           loading={createMutation.isPending}
         />
       </div>

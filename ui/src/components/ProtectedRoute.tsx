@@ -8,8 +8,8 @@ import {TermsAddendumGate} from '@/components/terms-addendum-gate'
 const OAUTH_ATTEMPT_KEY = 'oauth_last_attempt_ms'
 const OAUTH_DEBOUNCE_MS = 15_000
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
+export function ProtectedRoute({children}: { children: ReactNode }) {
+  const {user, loading} = useAuth()
   const [blocked, setBlocked] = useState(false)
 
   useEffect(() => {
@@ -28,7 +28,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <div
+            className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
@@ -58,7 +59,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user.terms_addendum_accepted) {
-    return <TermsAddendumGate />
+    return <TermsAddendumGate/>
   }
 
   return <>{children}</>

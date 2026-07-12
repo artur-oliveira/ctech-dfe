@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { DFE_DOCUMENTS } from '@/lib/constants/dfe-documents'
-import type { DfeThemeKey } from '@/lib/theme/dfe-theme'
+import {useEffect, useState} from 'react'
+import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents'
+import type {DfeThemeKey} from '@/lib/theme/dfe-theme'
 
 type Stage = 'draft' | 'transmitting' | 'authorized'
 
@@ -14,17 +14,17 @@ interface CarouselDoc {
 }
 
 const CAROUSEL_DOCS: CarouselDoc[] = [
-  { code: 'NF-e', modelo: 'Modelo 55', fullName: 'Nota Fiscal Eletrônica', theme: 'nfe' },
-  { code: 'NFC-e', modelo: 'Modelo 65', fullName: 'Nota Fiscal de Consumidor Eletrônica', theme: 'nfce' },
-  { code: 'CT-e', modelo: 'Modelo 57', fullName: 'Conhecimento de Transporte Eletrônico', theme: 'cte' },
-  { code: 'MDF-e', modelo: 'Modelo 58', fullName: 'Manifesto Eletrônico de Documentos Fiscais', theme: 'mdfe' },
+  {code: 'NF-e', modelo: 'Modelo 55', fullName: 'Nota Fiscal Eletrônica', theme: 'nfe'},
+  {code: 'NFC-e', modelo: 'Modelo 65', fullName: 'Nota Fiscal de Consumidor Eletrônica', theme: 'nfce'},
+  {code: 'CT-e', modelo: 'Modelo 57', fullName: 'Conhecimento de Transporte Eletrônico', theme: 'cte'},
+  {code: 'MDF-e', modelo: 'Modelo 58', fullName: 'Manifesto Eletrônico de Documentos Fiscais', theme: 'mdfe'},
 ]
 
 function accentFor(code: string): string {
   return DFE_DOCUMENTS.find((d) => d.code === code)?.accent ?? '#2ea87f'
 }
 
-const ACCESS_KEY_GROUPS = Array.from({ length: 11 }, () => '9999')
+const ACCESS_KEY_GROUPS = Array.from({length: 11}, () => '9999')
 
 // Timings lean slower than the real thing on the fast end, but the SEFAZ
 // round trip is genuinely unpredictable in production — this is a floor, not
@@ -49,7 +49,7 @@ interface AuthorizationCardProps {
 // issues a document: the XML is assembled, sent to SEFAZ, and comes back
 // with an access key and an authorization protocol. Cycles through NF-e,
 // NFC-e, CT-e and MDF-e; rests briefly on each before moving to the next.
-export function AuthorizationCard({ onDocChange }: AuthorizationCardProps) {
+export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
   const [reducedMotion] = useState(prefersReducedMotion)
   const [docIndex, setDocIndex] = useState(0)
   const [stage, setStage] = useState<Stage>(() => (reducedMotion ? 'authorized' : 'draft'))
@@ -96,12 +96,12 @@ export function AuthorizationCard({ onDocChange }: AuthorizationCardProps) {
     <div className="w-full max-w-sm rounded-2xl border border-primary-200 bg-white shadow-modal">
       <div className="flex items-center justify-between border-b border-dashed border-primary-200 px-5 py-4">
         <div>
-          <p className="font-mono text-[0.65rem] tracking-widest uppercase" style={{ color: accent }}>
+          <p className="font-mono text-[0.65rem] tracking-widest uppercase" style={{color: accent}}>
             {doc.code} · {doc.modelo}
           </p>
           <p className="text-sm font-semibold text-gray-900">{doc.fullName}</p>
         </div>
-        <StatusPill stage={stage} accent={accent} />
+        <StatusPill stage={stage} accent={accent}/>
       </div>
 
       <div className="space-y-3 px-5 py-4">
@@ -112,7 +112,7 @@ export function AuthorizationCard({ onDocChange }: AuthorizationCardProps) {
               <span
                 key={i}
                 className={i < visibleGroups ? 'opacity-100' : 'opacity-0'}
-                style={{ transitionProperty: 'opacity', transitionDuration: '150ms' }}
+                style={{transitionProperty: 'opacity', transitionDuration: '150ms'}}
               >
                 {group}
                 {i < ACCESS_KEY_GROUPS.length - 1 ? ' ' : ''}
@@ -122,16 +122,16 @@ export function AuthorizationCard({ onDocChange }: AuthorizationCardProps) {
         </div>
 
         <div className="flex items-center gap-4 border-t border-gray-100 pt-3">
-          <Field label="UF" value="PI" />
-          <Field label="Ambiente" value="Produção" />
-          <Field label="Protocolo" value={stage === 'authorized' ? '999999999999999' : '—'} />
+          <Field label="UF" value="PI"/>
+          <Field label="Ambiente" value="Produção"/>
+          <Field label="Protocolo" value={stage === 'authorized' ? '999999999999999' : '—'}/>
         </div>
       </div>
     </div>
   )
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({label, value}: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
       <p className="font-mono text-[0.6rem] tracking-widest text-gray-400 uppercase">{label}</p>
@@ -140,29 +140,31 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StatusPill({ stage, accent }: { stage: Stage; accent: string }) {
+function StatusPill({stage, accent}: { stage: Stage; accent: string }) {
   if (stage === 'authorized') {
     return (
       <span
         className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-medium text-white"
-        style={{ backgroundColor: accent }}
+        style={{backgroundColor: accent}}
       >
-        <span className="size-1.5 rounded-full bg-white" />
+        <span className="size-1.5 rounded-full bg-white"/>
         Autorizado
       </span>
     )
   }
   if (stage === 'transmitting') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[0.7rem] font-medium text-amber-800">
-        <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[0.7rem] font-medium text-amber-800">
+        <span className="size-1.5 animate-pulse rounded-full bg-amber-500"/>
         Transmitindo à SEFAZ
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[0.7rem] font-medium text-gray-600">
-      <span className="size-1.5 rounded-full bg-gray-400" />
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[0.7rem] font-medium text-gray-600">
+      <span className="size-1.5 rounded-full bg-gray-400"/>
       Gerando XML
     </span>
   )

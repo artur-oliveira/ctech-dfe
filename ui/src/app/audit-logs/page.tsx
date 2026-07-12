@@ -117,7 +117,8 @@ function AuditLogsContent() {
                   <tbody className="divide-y divide-gray-100">
                   {items.map((log) => (
                     <tr key={log.sk} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3.5 text-gray-700 whitespace-nowrap">{formatDatetimeBR(log.created_at)}</td>
+                      <td
+                        className="px-5 py-3.5 text-gray-700 whitespace-nowrap">{formatDatetimeBR(log.created_at)}</td>
                       <td className="px-5 py-3.5 font-medium text-gray-900">
                         {resourceTypeLabel(log.resource_type)}
                         <span className="block text-xs text-gray-400 font-normal">{log.resource_id}</span>

@@ -41,7 +41,10 @@ export function PaymentCardFields({card, onChange, isPix}: {
         <Label className="text-xs font-medium text-gray-600">Integração</Label>
         <OptionsSelect value={card?.tp_integra ?? '2'}
                        onValueChange={(v) => set({tp_integra: v as '1' | '2'})}
-                       options={[{value: '1', label: '1 – Integrado (TEF)'}, {value: '2', label: '2 – Não integrado'}]}/>
+                       options={[{value: '1', label: '1 – Integrado (TEF)'}, {
+                         value: '2',
+                         label: '2 – Não integrado'
+                       }]}/>
       </div>
       {!isPix && (
         <div className="flex flex-col gap-1">

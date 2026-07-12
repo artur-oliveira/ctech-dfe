@@ -13,16 +13,16 @@ interface CurrencyInputProps
 }
 
 export function CurrencyInput({
-  value,
-  onChange,
-  decimalPlaces = 2,
-  maxDecimalPlaces,
-  allowZero = true,
-  className,
-  disabled,
-  placeholder,
-  ...props
-}: CurrencyInputProps) {
+                                value,
+                                onChange,
+                                decimalPlaces = 2,
+                                maxDecimalPlaces,
+                                allowZero = true,
+                                className,
+                                disabled,
+                                placeholder,
+                                ...props
+                              }: CurrencyInputProps) {
   const maxDec = maxDecimalPlaces ?? decimalPlaces
   const [focused, setFocused] = React.useState(false)
   const [editValue, setEditValue] = React.useState('')
@@ -32,9 +32,9 @@ export function CurrencyInput({
 
   const formattedDisplay = isValid
     ? numericValue.toLocaleString('pt-BR', {
-        minimumFractionDigits: decimalPlaces,
-        maximumFractionDigits: maxDec,
-      })
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: maxDec,
+    })
     : ''
 
   const displayValue = focused ? editValue : formattedDisplay
@@ -92,7 +92,8 @@ export function CurrencyInput({
         className
       )}
     >
-      <span className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2 text-sm text-muted-foreground select-none">
+      <span
+        className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2 text-sm text-muted-foreground select-none">
         R$
       </span>
       <input

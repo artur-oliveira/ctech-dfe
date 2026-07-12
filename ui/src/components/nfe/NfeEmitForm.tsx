@@ -14,29 +14,34 @@ import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {Modal} from '@/components/ui/modal'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {NF_PAYMENT_TYPES} from '@/lib/types/api'
 import type {
   NfeArmaIn,
   NfeCardIn,
-  NfeEmit,
   NfeDuplicataIn,
+  NfeEmit,
   NfeFatIn,
   NfeListOut,
   NfeLocalIn,
   NfeTransportIn,
+  PersonCreate,
   PersonItemOut,
   ProductOut,
   VehicleOut
 } from '@/lib/types/api'
+import {NF_PAYMENT_TYPES} from '@/lib/types/api'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
 import {PersonForm} from '@/components/persons/PersonForm'
-import type {PersonCreate} from '@/lib/types/api'
 import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
 import {
-  cfopDirection, cfopTpNf, buildNatOpFromCfops,
-  cfopSuffix, groupCfopConfigBySuffix, resolveCfopForUf, cfopGroupCodes,
-  NO_PAYMENT_CFOPS
+  buildNatOpFromCfops,
+  cfopDirection,
+  cfopGroupCodes,
+  cfopSuffix,
+  cfopTpNf,
+  groupCfopConfigBySuffix,
+  NO_PAYMENT_CFOPS,
+  resolveCfopForUf
 } from "@/lib/data/cfop"
 import {resolveUnitPrice} from "@/lib/data/product-price"
 import {PaymentCardFields} from "@/components/nfe/PaymentCardFields"

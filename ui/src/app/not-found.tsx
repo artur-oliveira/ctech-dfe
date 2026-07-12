@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {useAuth} from '@/lib/hooks/useAuth'
 
 export default function NotFound() {
-  const { user } = useAuth()
+  const {user} = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -17,7 +17,7 @@ export default function NotFound() {
         <Link
           href={user ? '/dashboard' : '/login'}
           className="mt-6 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-          style={{ backgroundColor: 'var(--brand-600)' }}
+          style={{backgroundColor: 'var(--brand-600)'}}
         >
           {user ? 'Ir para o painel' : 'Ir para o login'}
         </Link>

@@ -28,16 +28,16 @@ const badgeVariants = cva(
 )
 
 function Badge({
-  className,
-  variant = "default",
-  render,
-  ...props
-}: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+                 className,
+                 variant = "default",
+                 render,
+                 ...props
+               }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
   return useRender({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({variant}), className),
       },
       props
     ),
@@ -49,4 +49,4 @@ function Badge({
   })
 }
 
-export { Badge, badgeVariants }
+export {Badge, badgeVariants}

@@ -80,7 +80,8 @@ function NfeDetail({accessKey}: { accessKey: string }) {
               Não é possível corrigir dados do emitente, destinatário, produto ou impostos.
             </p>
             <div>
-              <label htmlFor="cce-text" className="block text-sm font-medium text-gray-700 mb-1.5">Texto da correção</label>
+              <label htmlFor="cce-text" className="block text-sm font-medium text-gray-700 mb-1.5">Texto da
+                correção</label>
               <textarea
                 id="cce-text"
                 value={cceText}
@@ -98,7 +99,8 @@ function NfeDetail({accessKey}: { accessKey: string }) {
               </div>
             </div>
             <div>
-              <label htmlFor="cce-seq" className="block text-sm font-medium text-gray-700 mb-1.5">Número de sequência</label>
+              <label htmlFor="cce-seq" className="block text-sm font-medium text-gray-700 mb-1.5">Número de
+                sequência</label>
               <input
                 id="cce-seq"
                 type="number"

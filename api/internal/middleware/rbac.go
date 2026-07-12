@@ -55,33 +55,44 @@ func (p *PermChecker) RequireDynamic(permFmt, paramName string) fiber.Handler {
 	}
 }
 
+func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, string, error) {
+	userID := GetUserID(c)
+	if userID == "" {
+		return "", "", c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
+	}
+	foundOrgPK := c.Get(OrgHeader)
+	if foundOrgPK == "" {
+		foundOrgPK = c.Params(OrgPKKey)
+	}
+	if foundOrgPK == "" {
+		return "", "", c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
+	}
+	orgPK, err := repositories.ParseOrgPK(foundOrgPK)
+	if err != nil {
+		return "", "", c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
+	}
+	user, err := p.userSvc.GetMe(c.Context(), userID)
+	if err != nil {
+		return "", "", c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
+	}
+	roleName, ok := UserOrgRole(user, orgPK)
+	if !ok {
+		return "", "", c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado a esta organização"))
+	}
+	return orgPK, roleName, nil
+}
+
 // RequireOwnerOrAdmin returns a Fiber handler that allows only OWNER/ADMIN org
 // members, bypassing the granular permission-string check entirely — for
 // endpoints like the audit trail where visibility itself is the sensitive
 // thing, not a specific action.
 func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		userID := GetUserID(c)
-		if userID == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
-		}
-		foundOrgPK := c.Get(OrgHeader)
-		if foundOrgPK == "" {
-			foundOrgPK = c.Params(OrgPKKey)
-		}
-		if foundOrgPK == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
-		}
-		orgPK, err := repositories.ParseOrgPK(foundOrgPK)
+		orgPK, roleName, err := p.parseUserOrganizationRole(c)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
+			return err
 		}
-		user, err := p.userSvc.GetMe(c.Context(), userID)
-		if err != nil {
-			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
-		}
-		roleName, ok := UserOrgRole(user, orgPK)
-		if !ok || (roleName != roleOwner && roleName != roleAdmin) {
+		if roleName != roleOwner && roleName != roleAdmin {
 			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Apenas proprietários e administradores podem ver o log de auditoria"))
 		}
 		c.Locals(OrgPKKey, orgPK)
@@ -90,33 +101,10 @@ func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
 }
 
 func (p *PermChecker) check(c fiber.Ctx, permission string) error {
-	userID := GetUserID(c)
-	if userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
-	}
-
-	foundOrgPK := c.Get(OrgHeader)
-	if foundOrgPK == "" {
-		foundOrgPK = c.Params(OrgPKKey)
-	}
-	if foundOrgPK == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
-	}
-	orgPK, err := repositories.ParseOrgPK(foundOrgPK)
+	orgPK, roleName, err := p.parseUserOrganizationRole(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
+		return err
 	}
-
-	user, err := p.userSvc.GetMe(c.Context(), userID)
-	if err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
-	}
-
-	roleName, ok := UserOrgRole(user, orgPK)
-	if !ok {
-		return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado a esta organização"))
-	}
-
 	if roleName == roleOwner || roleName == roleAdmin {
 		c.Locals(OrgPKKey, orgPK)
 		return c.Next()

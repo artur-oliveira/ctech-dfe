@@ -75,8 +75,10 @@ function UploadModal({
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Importar Certificado</h2>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </Button>
         </div>

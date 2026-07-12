@@ -1,8 +1,8 @@
 'use client'
 
 import {useEffect, useState} from 'react'
-import {useForm} from 'react-hook-form'
 import type {Resolver} from 'react-hook-form'
+import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Input} from '@/components/ui/input'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
@@ -11,8 +11,8 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
 import {formatDatetimeBR} from '@/lib/utils/dfe'
 import {
-  type BrazilTimezone,
   BRAZIL_TIMEZONES,
+  type BrazilTimezone,
   type CTeConfigFormData,
   cteConfigSchema,
   type DocVariant,

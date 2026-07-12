@@ -57,7 +57,8 @@ function MdfeList({orgPk, onCancel, onClose}: {
 
   return (
     <>
-      <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
+      <div
+        className={`bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
         <table className="w-full text-sm min-w-150">
           <thead className="bg-gray-50 border-b border-gray-200">
           <tr>

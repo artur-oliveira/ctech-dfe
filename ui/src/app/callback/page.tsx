@@ -19,8 +19,8 @@ function CallbackInner() {
   const paramError = errorParam
     ? `Erro de autenticação: ${errorParam}`
     : !code || !state
-    ? 'Parâmetros de callback inválidos.'
-    : null
+      ? 'Parâmetros de callback inválidos.'
+      : null
 
   const error = paramError ?? asyncError
 
@@ -68,7 +68,7 @@ function CallbackInner() {
 export default function CallbackPage() {
   return (
     <Suspense>
-      <CallbackInner />
+      <CallbackInner/>
     </Suspense>
   )
 }

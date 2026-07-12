@@ -81,7 +81,8 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
         </p>
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
           <div className="flex-1 flex flex-col gap-1">
-            <label htmlFor="substitute-query" className="text-xs font-medium text-gray-600">Número ou chave de acesso (44 dígitos)</label>
+            <label htmlFor="substitute-query" className="text-xs font-medium text-gray-600">Número ou chave de acesso
+              (44 dígitos)</label>
             <Input id="substitute-query" value={queryStr} onChange={(e) => setQueryStr(e.target.value)}
                    placeholder="Ex: 43 ou 3526…" className="w-full font-mono"/>
           </div>
@@ -112,8 +113,10 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
         )}
 
         <div>
-          <label htmlFor="substitute-justification" className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
-          <textarea id="substitute-justification" value={justification} onChange={(e) => setJustification(e.target.value)}
+          <label htmlFor="substitute-justification"
+                 className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
+          <textarea id="substitute-justification" value={justification}
+                    onChange={(e) => setJustification(e.target.value)}
                     rows={3} maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
                     placeholder="Motivo da substituição (mínimo 15 caracteres)…"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"/>

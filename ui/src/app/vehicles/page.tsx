@@ -15,7 +15,7 @@ import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
-import {SK_PREFIX, extractId} from '@/lib/constants/entity-keys'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {VehicleOut} from '@/lib/types/api'
 
 function VehiclesContent() {
@@ -83,7 +83,8 @@ function VehiclesContent() {
                   <td className="px-5 py-3.5 text-gray-600">{v.plate_uf}</td>
                   <td className="px-5 py-3.5 text-gray-700">{v.role === 'trailer' ? 'Reboque' : 'Tração'}</td>
                   <td className="px-5 py-3.5 text-gray-600">{v.bodywork ?? '—'}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
+                  <td
+                    className="px-5 py-3.5 text-gray-600">{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
                   <td className="px-5 py-3.5 text-gray-600 max-w-[160px] truncate">{v.owner?.name ?? '—'}</td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1">

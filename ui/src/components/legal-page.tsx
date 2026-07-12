@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import type {ReactNode} from 'react'
 
-export function LegalPage({ title, updatedAt, children }: { title: string; updatedAt: string; children: ReactNode }) {
+export function LegalPage({title, updatedAt, children}: { title: string; updatedAt: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-3xl px-6 py-12">
@@ -20,7 +20,7 @@ export function LegalPage({ title, updatedAt, children }: { title: string; updat
   )
 }
 
-export function LegalSection({ heading, children }: { heading: string; children: ReactNode }) {
+export function LegalSection({heading, children}: { heading: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
       <h2 className="text-base font-semibold tracking-tight text-gray-900">{heading}</h2>

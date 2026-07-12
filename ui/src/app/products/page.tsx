@@ -15,7 +15,7 @@ import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
-import {SK_PREFIX, extractId} from '@/lib/constants/entity-keys'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {ProductOut} from '@/lib/types/api'
 import {formatCurrency} from "@/lib/utils/helpers";
 
@@ -23,14 +23,14 @@ function ProductsContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-  
+
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ProductOut>({
       queryKey: queryKeys.products.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getProducts({cursor}),
       enabled: !!selectedOrg,
     })
-  
+
   const {handleDelete, isPending: isDeleting} = useEntityDelete<ProductOut>({
     mutationFn: (id) => apiClient.deleteProduct(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PRODUCT),
@@ -40,7 +40,7 @@ function ProductsContent() {
       void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
     },
   })
-  
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -53,7 +53,7 @@ function ProductsContent() {
             onClick: () => router.push('/products/new'),
           } : undefined}
         />
-        
+
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : isLoading ? (

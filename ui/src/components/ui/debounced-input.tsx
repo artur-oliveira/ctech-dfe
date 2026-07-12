@@ -11,11 +11,11 @@ interface DebouncedInputProps
 }
 
 export function DebouncedInput({
-  value = '',
-  onChange,
-  debounceMs = 300,
-  ...props
-}: DebouncedInputProps) {
+                                 value = '',
+                                 onChange,
+                                 debounceMs = 300,
+                                 ...props
+                               }: DebouncedInputProps) {
   const [prevValue, setPrevValue] = React.useState(value)
   const [localValue, setLocalValue] = React.useState(value)
   if (prevValue !== value) {
@@ -24,7 +24,9 @@ export function DebouncedInput({
   }
 
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  React.useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+  React.useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value

@@ -12,21 +12,21 @@ import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm'
 import type {DocVariant} from '@/lib/schemas/fiscal-configs'
 
 const TABS: { id: DocVariant; label: string; description: string }[] = [
-  { id: 'nfe',  label: 'NF-e',   description: 'Nota Fiscal Eletrônica' },
-  { id: 'nfce', label: 'NFC-e',  description: 'Nota Fiscal de Consumidor Eletrônica' },
-  { id: 'cte',  label: 'CT-e',   description: 'Conhecimento de Transporte Eletrônico' },
-  { id: 'mdfe', label: 'MDF-e',  description: 'Manifesto Eletrônico de Documentos Fiscais' },
+  {id: 'nfe', label: 'NF-e', description: 'Nota Fiscal Eletrônica'},
+  {id: 'nfce', label: 'NFC-e', description: 'Nota Fiscal de Consumidor Eletrônica'},
+  {id: 'cte', label: 'CT-e', description: 'Conhecimento de Transporte Eletrônico'},
+  {id: 'mdfe', label: 'MDF-e', description: 'Manifesto Eletrônico de Documentos Fiscais'},
 ]
 
 function FiscalConfigContent() {
-  const { selectedOrg } = useAuth()
+  const {selectedOrg} = useAuth()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<DocVariant>('nfe')
 
   const pk = selectedOrg?.pk ?? ''
 
   // Fetch all configs in parallel; treat 404 as null
-  const nfeQuery  = useQuery({
+  const nfeQuery = useQuery({
     queryKey: queryKeys.nfeConfig(pk),
     queryFn: () => apiClient.getNFeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
     enabled: !!pk,
@@ -36,7 +36,7 @@ function FiscalConfigContent() {
     queryFn: () => apiClient.getNFCeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
     enabled: !!pk,
   })
-  const cteQuery  = useQuery({
+  const cteQuery = useQuery({
     queryKey: queryKeys.cteConfig(pk),
     queryFn: () => apiClient.getCTeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
     enabled: !!pk,
@@ -47,28 +47,28 @@ function FiscalConfigContent() {
     enabled: !!pk,
   })
 
-  const nfeMutation  = useMutation({
+  const nfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFeConfig(pk, d),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: queryKeys.nfeConfig(pk) }),
+    onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfeConfig(pk)}),
   })
   const nfceMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFCeConfig(pk, d),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: queryKeys.nfceConfig(pk) }),
+    onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfceConfig(pk)}),
   })
-  const cteMutation  = useMutation({
+  const cteMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertCTeConfig(pk, d),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: queryKeys.cteConfig(pk) }),
+    onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.cteConfig(pk)}),
   })
   const mdfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertMDFeConfig(pk, d),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: queryKeys.mdfeConfig(pk) }),
+    onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.mdfeConfig(pk)}),
   })
 
   const configByTab = {
-    nfe:  { query: nfeQuery,  mutation: nfeMutation },
-    nfce: { query: nfceQuery, mutation: nfceMutation },
-    cte:  { query: cteQuery,  mutation: cteMutation },
-    mdfe: { query: mdfeQuery, mutation: mdfeMutation },
+    nfe: {query: nfeQuery, mutation: nfeMutation},
+    nfce: {query: nfceQuery, mutation: nfceMutation},
+    cte: {query: cteQuery, mutation: cteMutation},
+    mdfe: {query: mdfeQuery, mutation: mdfeMutation},
   }
 
   const active = configByTab[activeTab]
@@ -86,14 +86,14 @@ function FiscalConfigContent() {
         </div>
 
         {!selectedOrg ? (
-          <NoOrgBanner />
+          <NoOrgBanner/>
         ) : (
           <div className="mx-auto max-w-2xl">
             {/* Tabs */}
             <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1">
               {TABS.map((tab) => {
                 const isActive = tab.id === activeTab
-                const { query } = configByTab[tab.id]
+                const {query} = configByTab[tab.id]
                 const hasConfig = !!query.data
                 return (
                   <button
@@ -125,7 +125,8 @@ function FiscalConfigContent() {
 
             {/* Error from fetch */}
             {queryError && (
-              <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div
+                className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {queryError}
               </div>
             )}
@@ -134,7 +135,7 @@ function FiscalConfigContent() {
             {active.query.isPending && (
               <div className="space-y-3">
                 {[80, 60, 100, 60].map((w, i) => (
-                  <div key={i} className={`h-8 w-${w} rounded-md bg-gray-100 animate-pulse`} />
+                  <div key={i} className={`h-8 w-${w} rounded-md bg-gray-100 animate-pulse`}/>
                 ))}
               </div>
             )}
@@ -146,7 +147,9 @@ function FiscalConfigContent() {
                   key={activeTab}
                   variant={activeTab}
                   initialData={active.query.data ?? null}
-                  onSave={async (data) => { await active.mutation.mutateAsync(data) }}
+                  onSave={async (data) => {
+                    await active.mutation.mutateAsync(data)
+                  }}
                   loading={active.mutation.isPending}
                 />
               </div>
@@ -161,7 +164,7 @@ function FiscalConfigContent() {
 export default function FiscalConfigPage() {
   return (
     <ProtectedRoute>
-      <FiscalConfigContent />
+      <FiscalConfigContent/>
     </ProtectedRoute>
   )
 }

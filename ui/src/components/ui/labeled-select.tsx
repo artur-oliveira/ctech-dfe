@@ -8,12 +8,12 @@ interface LabeledSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function LabeledSelect({
-  label,
-  error,
-  options,
-  className,
-  ...props
-}: LabeledSelectProps) {
+                                label,
+                                error,
+                                options,
+                                className,
+                                ...props
+                              }: LabeledSelectProps) {
   return (
     <div className={cn('mb-4', className)}>
       {label && (

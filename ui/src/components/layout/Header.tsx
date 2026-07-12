@@ -12,7 +12,7 @@ export function Header() {
           </div>
           <span className="text-xl font-bold hidden sm:inline">CTech DF-e</span>
         </Link>
-        
+
         <nav className="flex items-center space-x-4">
           <Link href="/organizations" className="hover:bg-primary-700 px-3 py-2 rounded">
             Organizações

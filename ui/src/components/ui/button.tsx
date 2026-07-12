@@ -43,12 +43,12 @@ const buttonVariants = cva(
 )
 
 function Button({
-  className,
-  variant = "default",
-  size = "default",
-  nativeButton,
-  ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+                  className,
+                  variant = "default",
+                  size = "default",
+                  nativeButton,
+                  ...props
+                }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
@@ -56,10 +56,10 @@ function Button({
       // default nativeButton to false in that case so Base UI doesn't warn on
       // every such usage. Callers can still override explicitly.
       nativeButton={nativeButton ?? !props.render}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({variant, size, className}))}
       {...props}
     />
   )
 }
 
-export { Button, buttonVariants }
+export {Button, buttonVariants}

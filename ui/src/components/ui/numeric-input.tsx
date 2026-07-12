@@ -34,7 +34,9 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
     ref
   ) {
     const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-    React.useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+    React.useEffect(() => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }, [])
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       const passThrough = [
@@ -93,7 +95,8 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         )}
       >
         {prefix && (
-          <span className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2.5 text-sm text-muted-foreground select-none">
+          <span
+            className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2.5 text-sm text-muted-foreground select-none">
             {prefix}
           </span>
         )}
@@ -110,7 +113,8 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
           id={props.id ?? props.name}
         />
         {suffix && (
-          <span className="flex h-full shrink-0 items-center border-l border-input bg-muted/30 px-2.5 text-sm text-muted-foreground select-none">
+          <span
+            className="flex h-full shrink-0 items-center border-l border-input bg-muted/30 px-2.5 text-sm text-muted-foreground select-none">
             {suffix}
           </span>
         )}

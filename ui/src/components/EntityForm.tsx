@@ -131,7 +131,15 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
-export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpfCnpj, onSubmit, loading = false}: EntityFormProps) {
+export function EntityForm({
+                             variant,
+                             initialData,
+                             entityPk,
+                             lockTipo,
+                             initialCpfCnpj,
+                             onSubmit,
+                             loading = false
+                           }: EntityFormProps) {
   const isEdit = !!initialData
   const isOrg = variant === 'organization'
   const [tipo, setTipo] = useState<Tipo>(() => lockTipo ?? deriveTipo(entityPk, initialData))
@@ -500,7 +508,8 @@ export function EntityForm({variant, initialData, entityPk, lockTipo, initialCpf
                   {/* Telefones */}
                   <div className="md:border-l md:border-gray-100 md:pl-6 space-y-2">
                     <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
-                      <PhoneIcon/>Telefones <span className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
+                      <PhoneIcon/>Telefones <span
+                      className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
                     </div>
                     <div className="flex gap-2">
                       <Input type="tel" placeholder="(11) 98765-4321" value={phoneInput}

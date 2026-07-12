@@ -17,32 +17,8 @@ import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
 import type {NfeEventOut} from '@/lib/types/api'
+import {EVENT_STATUS_CLASSES, EVENT_STATUS_LABELS, EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
-const MDFE_EVENT_LABELS: Record<string, string> = {
-  '110111': 'Cancelamento',
-  '110112': 'Encerramento',
-  '110114': 'Inclusão de Condutor',
-  '110115': 'Inclusão de DF-e',
-  '110116': 'Pagamento da Operação',
-}
-
-const EVENT_STATUS_CLASSES: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  processing: 'bg-blue-50 text-blue-700',
-  success: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  failed: 'bg-red-200 text-red-800',
-  retry: 'bg-orange-100 text-orange-700',
-}
-
-const EVENT_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendente',
-  processing: 'Processando',
-  success: 'Registrado',
-  rejected: 'Rejeitado',
-  failed: 'Falha',
-  retry: 'Tentando novamente',
-}
 
 function InfoCard({label, children}: { label: string; children: React.ReactNode }) {
   return (
@@ -157,7 +133,8 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </p>
           <div className="space-y-0.5">
             {doc.sefaz_status && <p className="font-mono text-xs text-gray-500">Código: {doc.sefaz_status}</p>}
-            {doc.sefaz_motive && <p className="text-gray-700 whitespace-pre-wrap wrap-break-word">{doc.sefaz_motive}</p>}
+            {doc.sefaz_motive &&
+                <p className="text-gray-700 whitespace-pre-wrap wrap-break-word">{doc.sefaz_motive}</p>}
             {doc.sefaz_protocol && <p className="font-mono text-xs text-gray-400">Protocolo: {doc.sefaz_protocol}</p>}
           </div>
         </div>
@@ -211,13 +188,15 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       {/* Documentos */}
       {doc.documents && doc.documents.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+          <p
+            className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
             Documentos ({doc.documents.length})
           </p>
           <div className="divide-y divide-gray-100">
             {doc.documents.map((d) => (
               <div key={d.access_key} className="flex items-center gap-2 px-4 py-2.5 text-sm">
-                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500 uppercase">{d.type}</span>
+                <span
+                  className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500 uppercase">{d.type}</span>
                 <span className="font-mono text-xs text-gray-500 truncate">{d.access_key}</span>
               </div>
             ))}
@@ -254,18 +233,21 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
             {eventsData.items.map((evt) => (
               <tr key={evt.sk} className="hover:bg-gray-50 transition-colors align-top">
                 <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{MDFE_EVENT_LABELS[evt.event_type] ?? evt.event_type}</p>
+                  <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
                   {evt.sefaz_motive && (
                     <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
                   )}
                 </td>
-                <td className="px-4 py-3 text-gray-500 font-mono text-xs">{String(evt.sequence_number).padStart(3, '0')}</td>
+                <td
+                  className="px-4 py-3 text-gray-500 font-mono text-xs">{String(evt.sequence_number).padStart(3, '0')}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
                     {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDatetimeBR(evt.created_at)}</td>
+                <td
+                  className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDatetimeBR(evt.created_at)}</td>
                 <td className="px-4 py-3 text-right">
                   {evt.xml_s3_key && (
                     <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}

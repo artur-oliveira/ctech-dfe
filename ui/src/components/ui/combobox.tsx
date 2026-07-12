@@ -34,15 +34,15 @@ interface DropdownPos {
 }
 
 export function Combobox({
-  value,
-  onValueChange,
-  options,
-  placeholder = 'Selecione',
-  searchPlaceholder = 'Buscar...',
-  disabled,
-  className,
-  id,
-}: ComboboxProps) {
+                           value,
+                           onValueChange,
+                           options,
+                           placeholder = 'Selecione',
+                           searchPlaceholder = 'Buscar...',
+                           disabled,
+                           className,
+                           id,
+                         }: ComboboxProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [pos, setPos] = useState<DropdownPos | null>(null)
@@ -82,8 +82,8 @@ export function Combobox({
       const openUpward = spaceBelow < DROPDOWN_HEIGHT && rect.top > spaceBelow
       setPos({
         ...(openUpward
-          ? { bottom: window.innerHeight - rect.top + 4 }
-          : { top: rect.bottom + 4 }),
+          ? {bottom: window.innerHeight - rect.top + 4}
+          : {top: rect.bottom + 4}),
         left: rect.left,
         width: rect.width,
         maxWidth: Math.min(320, window.innerWidth - rect.left - 8),
@@ -100,8 +100,8 @@ export function Combobox({
       setOpen(false)
       setSearch('')
     }
-    window.addEventListener('scroll', close, { capture: true, passive: true })
-    return () => window.removeEventListener('scroll', close, { capture: true })
+    window.addEventListener('scroll', close, {capture: true, passive: true})
+    return () => window.removeEventListener('scroll', close, {capture: true})
   }, [open])
 
   // Close on outside click — must exclude both trigger and portalled dropdown
@@ -149,7 +149,7 @@ export function Combobox({
   const dropdown = open && pos ? (
     <div
       ref={dropdownRef}
-      style={{ top: pos.top, bottom: pos.bottom, left: pos.left, minWidth: pos.width, maxWidth: pos.maxWidth }}
+      style={{top: pos.top, bottom: pos.bottom, left: pos.left, minWidth: pos.width, maxWidth: pos.maxWidth}}
       className="fixed z-9999 rounded-lg border border-input bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10"
     >
       <div className="border-b border-input px-3 py-2">
@@ -184,7 +184,8 @@ export function Combobox({
             ))}
             {hasMore && (
               <p className="px-2 py-2 text-center text-xs text-muted-foreground">
-                {filtered.length - visibleCount} resultado{filtered.length - visibleCount !== 1 ? 's' : ''} a mais — continue rolando
+                {filtered.length - visibleCount} resultado{filtered.length - visibleCount !== 1 ? 's' : ''} a mais —
+                continue rolando
               </p>
             )}
           </>
@@ -213,7 +214,7 @@ export function Combobox({
             <span className="text-muted-foreground">{placeholder}</span>
           )}
         </span>
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground"/>
       </button>
 
       {typeof document !== 'undefined' && createPortal(dropdown, document.body)}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, {useMemo} from 'react'
 
 type Range = [number, number]
 
@@ -21,7 +21,7 @@ function buildNormMap(text: string): { normText: string; origPos: Int32Array } {
       origPos[normIdx++] = i
     }
   }
-  return { normText, origPos: origPos.subarray(0, normIdx) }
+  return {normText, origPos: origPos.subarray(0, normIdx)}
 }
 
 function mergeRanges(ranges: Range[]): Range[] {
@@ -36,12 +36,12 @@ function mergeRanges(ranges: Range[]): Range[] {
   return merged
 }
 
-export function Highlighted({ text, query }: { text: string; query: string }) {
+export function Highlighted({text, query}: { text: string; query: string }) {
   const ranges = useMemo((): Range[] => {
     const tokens = query.trim().split(/\s+/).filter(Boolean).map(normalizeStr)
     if (!tokens.length) return []
 
-    const { normText, origPos } = buildNormMap(text)
+    const {normText, origPos} = buildNormMap(text)
     const found: Range[] = []
 
     for (const token of tokens) {

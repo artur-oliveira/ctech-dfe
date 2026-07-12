@@ -22,13 +22,13 @@ interface DownloadPdfButtonProps {
  * loading state. Used in both list rows and detail headers across doc types.
  */
 export function DownloadPdfButton({
-  fetchPdf,
-  filename,
-  label = 'DANFE',
-  variant = 'ghost',
-  size = 'xs',
-  className,
-}: DownloadPdfButtonProps) {
+                                    fetchPdf,
+                                    filename,
+                                    label = 'DANFE',
+                                    variant = 'ghost',
+                                    size = 'xs',
+                                    className,
+                                  }: DownloadPdfButtonProps) {
   const [loading, setLoading] = useState(false)
 
   const handleClick = async () => {

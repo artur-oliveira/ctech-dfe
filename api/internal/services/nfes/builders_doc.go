@@ -30,14 +30,14 @@ const (
 	// recipient, so its data is copied from emit/dest instead of supplied separately.
 	modFreteProprioRemetente    = "3" // Transporte próprio por conta do remetente (emitente)
 	modFreteProprioDestinatario = "4" // Transporte próprio por conta do destinatário
-	qVolPadrao          = "1"
-	cPaisBrasil         = "1058"
-	xPaisBrasil         = "Brasil"
-	indSinc             = "1"
-	natOpVenda          = "Venda de Mercadoria"
-	natOpMaxLen         = 60 // SEFAZ ide.natOp limit (xNatOp: 1-60 chars)
-	homNameReceiver     = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
-	homProduct          = "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+	qVolPadrao                  = "1"
+	cPaisBrasil                 = "1058"
+	xPaisBrasil                 = "Brasil"
+	indSinc                     = "1"
+	natOpVenda                  = "Venda de Mercadoria"
+	natOpMaxLen                 = 60 // SEFAZ ide.natOp limit (xNatOp: 1-60 chars)
+	homNameReceiver             = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+	homProduct                  = "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 )
 
 // TechData holds the technical issuer info included in infRespTec.
@@ -1015,7 +1015,7 @@ func BuildEnviNFe(
 		"transp": buildTransp(hasPesoL, hasPesoB, totalPesoL, totalPesoB, transport,
 			buildPartyTransporta(emitDoc, isEmitPJ, anyStr(org, "name", ""), getIEForUF(orgPerson, emitUF), orgAddress),
 			buildPartyTransporta(destDoc, isDestPJ, anyStr(receiver, "name", ""), destIE, destAddress)),
-		"pag":    buildPag(payments, vTroco),
+		"pag": buildPag(payments, vTroco),
 	}
 	if destStruct != nil {
 		infNFe["dest"] = destStruct

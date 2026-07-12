@@ -2,9 +2,8 @@
 
 import {Suspense} from 'react'
 import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useSearchParams} from 'next/navigation'
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
+import {useRouter, useSearchParams} from 'next/navigation'
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {apiClient} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -66,7 +65,9 @@ function EditProductContent() {
             initialData={product}
             crt={org?.person.crt}
             uf={org?.person.state_registrations[0]?.uf}
-            onSubmit={async (d) => { await updateMutation.mutateAsync(d) }}
+            onSubmit={async (d) => {
+              await updateMutation.mutateAsync(d)
+            }}
             loading={updateMutation.isPending}
           />
         )}

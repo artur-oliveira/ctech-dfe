@@ -136,9 +136,12 @@ Run: `go test ./... -race` from `api/`.
   endpoints).
 - Profile/password management endpoints do not exist here — those belong to ctech-account.
 - JWKS keys cached in Redis (TTL 1h), falls back to in-memory when `VALKEY_URL` is unset.
-- JWT `aud` claim must contain `SERVICE_AUDIENCE` env var value. Set to the DFe API URL (e.g. `https://dfe-api.aoctech.app`). When empty, audience check is skipped — set it in production.
-- JWT `azp` claim carries the OAuth client_id. Tokens issued by ctech-account include both `aud` (resource server) and `azp` (client identity).
-- KID rotation in ctech-account flushes JWKS cache — Redis TTL is 1h; force-flush by restarting or clearing the `ctech:jwks` key.
+- JWT `aud` claim must contain `SERVICE_AUDIENCE` env var value. Set to the DFe API URL (e.g.
+  `https://dfe-api.aoctech.app`). When empty, audience check is skipped — set it in production.
+- JWT `azp` claim carries the OAuth client_id. Tokens issued by ctech-account include both `aud` (resource server) and
+  `azp` (client identity).
+- KID rotation in ctech-account flushes JWKS cache — Redis TTL is 1h; force-flush by restarting or clearing the
+  `ctech:jwks` key.
 
 ---
 

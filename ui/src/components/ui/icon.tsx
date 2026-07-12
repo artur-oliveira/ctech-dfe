@@ -1,4 +1,4 @@
-import {FileText, Truck, Receipt, Route} from 'lucide-react'
+import {FileText, Receipt, Route, Truck} from 'lucide-react'
 
 interface DfeIconProps {
   width?: number

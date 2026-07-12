@@ -51,7 +51,8 @@ export function OrganizationsTable({
         {organizations.map((org, idx) => (
           <tr key={org.pk} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
             <td className="px-6 py-4 text-sm text-gray-900 font-medium">{org.name}</td>
-            <td className="px-6 py-4 text-sm text-gray-600">{formatCpfCnpj(org.pk.replace('CNPJ_', '').replace('CPF_', ''))}</td>
+            <td
+              className="px-6 py-4 text-sm text-gray-600">{formatCpfCnpj(org.pk.replace('CNPJ_', '').replace('CPF_', ''))}</td>
             <td className="px-6 py-4 text-sm text-gray-600">{org.person.fantasy_name}</td>
             <td className="px-6 py-4 text-sm text-gray-600">
               {new Date(org.created_at).toLocaleDateString('pt-BR')}

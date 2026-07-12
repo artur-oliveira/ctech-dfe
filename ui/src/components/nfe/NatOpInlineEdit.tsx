@@ -56,7 +56,8 @@ export function NatOpInlineEdit({value, onChange, onReset, canReset = false, suf
       <button type="button" onClick={() => {
         setDraft(value)
         setEditing(true)
-      }} className="ml-1.5 text-brand-600 hover:text-brand-700">editar</button>
+      }} className="ml-1.5 text-brand-600 hover:text-brand-700">editar
+      </button>
       {canReset && onReset && (
         <button type="button" onClick={onReset} className="ml-1.5 text-gray-400 hover:text-gray-600">automático</button>
       )}

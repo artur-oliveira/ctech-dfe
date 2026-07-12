@@ -1,9 +1,9 @@
 export function DashboardCard({
-  title,
-  value,
-  icon,
-  color = 'primary'
-}: {
+                                title,
+                                value,
+                                icon,
+                                color = 'primary'
+                              }: {
   title: string
   value: string | number
   icon: string

@@ -28,7 +28,7 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
   const invalidate = () => qc.invalidateQueries({queryKey: queryKeys.organizations.detail(orgPk)})
 
   const addMutation = useMutation({
-    mutationFn: (data: {cpf_or_cnpj: string; name: string}) => apiClient.addAuthorizedViewer(orgPk, data),
+    mutationFn: (data: { cpf_or_cnpj: string; name: string }) => apiClient.addAuthorizedViewer(orgPk, data),
     onSuccess: () => {
       invalidate()
       setCpfCnpj('')

@@ -33,21 +33,22 @@ const TRANSITIONAL_STATUSES: ReadonlySet<MdfeStatus> = new Set<MdfeStatus>([
 
 export const isTransitionalMdfeStatus = (status: MdfeStatus): boolean => TRANSITIONAL_STATUSES.has(status)
 
-export function MdfeStatusBadge({status}: {status: MdfeStatus}) {
+export function MdfeStatusBadge({status}: { status: MdfeStatus }) {
   const isTransitional = isTransitionalMdfeStatus(status)
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${MDFE_STATUS_CLASSES[status] ?? 'bg-gray-100 text-gray-600'} ${isTransitional ? 'animate-pulse motion-reduce:animate-none' : ''}`}
     >
       {isTransitional && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
       )}
       {MDFE_STATUS_LABELS[status] ?? status}
     </span>
   )
 }
 
-export function MdfeStatusCell({status, sefazMotive}: {status: MdfeStatus; sefazMotive: string | null}) {
+export function MdfeStatusCell({status, sefazMotive}: { status: MdfeStatus; sefazMotive: string | null }) {
   const [open, setOpen] = useState(false)
   const hasMotive = (status === 'rejected' || status === 'failed') && !!sefazMotive
   if (!hasMotive) return <MdfeStatusBadge status={status}/>

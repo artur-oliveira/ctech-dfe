@@ -88,13 +88,13 @@ func validVehicleWithAllFields() VehicleCreateBody {
 // TestValidDTOsPass ensures the happy-path payloads validate cleanly.
 func TestValidDTOsPass(t *testing.T) {
 	cases := map[string]any{
-		"person":      PersonCreateBody{CpfOrCnpj: "52998224725", Name: "Fulano", Person: validPerson()},
-		"org":         OrganizationCreateBody{CpfOrCnpj: "11222333000181", Name: "Empresa", Person: validPerson()},
-		"product":     validProduct(),
+		"person":             PersonCreateBody{CpfOrCnpj: "52998224725", Name: "Fulano", Person: validPerson()},
+		"org":                OrganizationCreateBody{CpfOrCnpj: "11222333000181", Name: "Empresa", Person: validPerson()},
+		"product":            validProduct(),
 		"vehicle":            validVehicle(),
 		"vehicle-all-fields": validVehicleWithAllFields(),
-		"nfe-config":  FiscalConfigBody{fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}},
-		"nfce-config": NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, ProdCsc: "CSC", ProdCscID: 1, HomCsc: "CSC", HomCscID: 1},
+		"nfe-config":         FiscalConfigBody{fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}},
+		"nfce-config":        NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, ProdCsc: "CSC", ProdCscID: 1, HomCsc: "CSC", HomCscID: 1},
 	}
 	for name, dto := range cases {
 		if p := validation.Struct(dto); p != nil {

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import {useState} from 'react'
 import Link from 'next/link'
-import { Check, CheckCircle2, FileText, Puzzle, ShieldCheck, Zap } from 'lucide-react'
-import { useAuth } from '@/lib/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { AuthorizationCard } from '@/components/landing/authorization-card'
-import { DFE_DOCUMENTS } from '@/lib/constants/dfe-documents'
-import type { DfeThemeKey } from '@/lib/theme/dfe-theme'
+import {Check, CheckCircle2, FileText, Puzzle, ShieldCheck, Zap} from 'lucide-react'
+import {useAuth} from '@/lib/hooks/useAuth'
+import {Button} from '@/components/ui/button'
+import {AuthorizationCard} from '@/components/landing/authorization-card'
+import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents'
+import type {DfeThemeKey} from '@/lib/theme/dfe-theme'
 
 const FLOW_STEPS = [
   {
@@ -128,7 +128,7 @@ function LoadingScreen() {
     <div className="flex items-center justify-center min-h-screen bg-gradient-login">
       <div className="text-center">
         <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-          <FileText className="text-white" size={28} />
+          <FileText className="text-white" size={28}/>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CTech DF-e</h1>
         <p className="text-gray-600 text-sm">Carregando...</p>
@@ -138,11 +138,11 @@ function LoadingScreen() {
 }
 
 export default function Home() {
-  const { user, loading } = useAuth()
+  const {user, loading} = useAuth()
   const [carouselTheme, setCarouselTheme] = useState<DfeThemeKey>('nfe')
 
   if (loading) {
-    return <LoadingScreen />
+    return <LoadingScreen/>
   }
 
   const primaryHref = user ? '/dashboard' : '/login'
@@ -153,11 +153,11 @@ export default function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary-600 text-white">
-            <FileText size={16} />
+            <FileText size={16}/>
           </div>
           <span className="font-semibold text-gray-900">CTech DFe</span>
         </div>
-        <Button variant="brand" render={<Link href={primaryHref} />}>
+        <Button variant="brand" render={<Link href={primaryHref}/>}>
           {primaryLabel}
         </Button>
       </header>
@@ -176,14 +176,14 @@ export default function Home() {
               momentos de instabilidade da SEFAZ.
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="brand" size="lg" render={<Link href={primaryHref} />}>
+              <Button variant="brand" size="lg" render={<Link href={primaryHref}/>}>
                 {primaryLabel}
               </Button>
             </div>
           </div>
 
           <div className="flex justify-center md:justify-end">
-            <AuthorizationCard onDocChange={setCarouselTheme} />
+            <AuthorizationCard onDocChange={setCarouselTheme}/>
           </div>
         </div>
       </section>
@@ -199,7 +199,7 @@ export default function Home() {
             >
               <div
                 className="flex size-10 items-center justify-center rounded-lg text-white"
-                style={{ backgroundColor: doc.accent }}
+                style={{backgroundColor: doc.accent}}
               >
                 {doc.icon}
               </div>
@@ -236,7 +236,7 @@ export default function Home() {
           {BENEFITS.map((benefit) => (
             <div key={benefit.title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                <benefit.icon size={20} />
+                <benefit.icon size={20}/>
               </div>
               <p className="mt-3 font-semibold text-gray-900">{benefit.title}</p>
               <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{benefit.body}</p>
@@ -262,7 +262,8 @@ export default function Home() {
                 }`}
               >
                 {plan.highlight && (
-                  <span className="mb-2 inline-flex w-fit items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary-700">
+                  <span
+                    className="mb-2 inline-flex w-fit items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary-700">
                     Mais popular
                   </span>
                 )}
@@ -275,7 +276,7 @@ export default function Home() {
                 <ul className="mt-4 flex-1 space-y-2">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
-                      <Check size={16} className="mt-0.5 shrink-0 text-primary-600" />
+                      <Check size={16} className="mt-0.5 shrink-0 text-primary-600"/>
                       {feature}
                     </li>
                   ))}
@@ -294,7 +295,8 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ROADMAP.map((item) => (
             <div key={item.title} className="rounded-xl border border-dashed border-gray-300 p-5">
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-gray-500">
+              <span
+                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-gray-500">
                 Em breve
               </span>
               <p className="mt-2 font-semibold text-gray-900">{item.title}</p>
@@ -305,13 +307,16 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-gray-100">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-8 text-sm text-gray-500 md:flex-row md:justify-between">
+        <div
+          className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-8 text-sm text-gray-500 md:flex-row md:justify-between">
           <p>© {new Date().getFullYear()} A O CARVALHO TECH</p>
           <div className="flex items-center gap-4">
-            <a href="https://accounts.aoctech.app/terms" className="hover:text-gray-800" target="_blank" rel="noreferrer">
+            <a href="https://accounts.aoctech.app/terms" className="hover:text-gray-800" target="_blank"
+               rel="noreferrer">
               Termos de Uso
             </a>
-            <a href="https://accounts.aoctech.app/privacy" className="hover:text-gray-800" target="_blank" rel="noreferrer">
+            <a href="https://accounts.aoctech.app/privacy" className="hover:text-gray-800" target="_blank"
+               rel="noreferrer">
               Privacidade
             </a>
           </div>

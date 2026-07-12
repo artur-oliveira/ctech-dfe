@@ -13,7 +13,7 @@ export function LoadingSkeleton({count = 4, height = 'h-12'}: LoadingSkeletonPro
   )
 }
 
-export function DistributionSkeleton({rows = 5}: {rows?: number}) {
+export function DistributionSkeleton({rows = 5}: { rows?: number }) {
   return (
     <div className="divide-y divide-gray-100">
       {Array.from({length: rows}, (_, i) => (

@@ -17,11 +17,11 @@ import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PersonForm} from '@/components/persons/PersonForm'
-import {PaymentCardFields, CARD_PAYMENT_TYPES, isPixPaymentType} from '@/components/nfe/PaymentCardFields'
+import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from '@/components/nfe/PaymentCardFields'
 import {NatOpInlineEdit} from '@/components/nfe/NatOpInlineEdit'
+import type {CfopConfigItem, NfceEmit, NfeCardIn, PersonCreate, ProductOut} from '@/lib/types/api'
 import {NF_PAYMENT_TYPES} from '@/lib/types/api'
-import type {NfceEmit, NfeCardIn, PersonCreate, ProductOut, CfopConfigItem} from '@/lib/types/api'
-import {getCfopDescription, buildNatOpFromCfops} from '@/lib/data/cfop'
+import {buildNatOpFromCfops, getCfopDescription} from '@/lib/data/cfop'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {maskCpf} from '@/lib/utils/masks'
 import {validateCPF} from '@/lib/utils/validators'
@@ -159,11 +159,11 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
           <p className="text-xs text-amber-600">
             CPF não cadastrado — a NFC-e pode ser emitida assim mesmo.{' '}
             <button type="button" className="text-brand-600 hover:text-brand-700 underline"
-                    onClick={() => setShowCreate(true)}>Cadastrar pessoa (opcional)
+                    onClick={() => setShowCreate(true)}>Deseja cadastrar? (opcional)
             </button>
           </p>
         )}
-        <Modal isOpen={showCreate} title="Cadastrar consumidor (pessoa física)"
+        <Modal isOpen={showCreate} title="Cadastrar consumidor"
                onClose={() => setShowCreate(false)} size="xl">
           <PersonForm lockTipo="pf" initialCpfCnpj={value.cpf} onSubmit={handleCreatePerson} loading={createLoading}/>
         </Modal>

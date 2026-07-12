@@ -1,20 +1,19 @@
 'use client'
 
-import {useState} from 'react'
+import React, {useState} from 'react'
 import {usePathname} from 'next/navigation'
 import {Sidebar} from './Sidebar'
 import {Topbar} from './Topbar'
 import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme'
-import React from "react";
 
-export function RootLayout({ children }: { children: React.ReactNode }) {
+export function RootLayout({children}: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const dfeTheme = getDfeThemeFromPath(pathname)
 
   return (
     <div className="min-h-screen bg-gray-50" data-dfe-theme={dfeTheme}>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -24,7 +23,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <Topbar onMenuClick={() => setSidebarOpen(true)} />
+      <Topbar onMenuClick={() => setSidebarOpen(true)}/>
 
       <main
         className="pt-(--topbar-height) md:ml-(--sidebar-width)"

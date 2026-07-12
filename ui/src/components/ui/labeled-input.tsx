@@ -8,7 +8,7 @@ interface LabeledInputProps extends InputHTMLAttributes<HTMLInputElement> {
   help?: string
 }
 
-export function LabeledInput({ label, error, help, className, ...props }: LabeledInputProps) {
+export function LabeledInput({label, error, help, className, ...props}: LabeledInputProps) {
   return (
     <div className={cn('mb-4', className)}>
       {label && (

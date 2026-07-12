@@ -29,21 +29,22 @@ const TRANSITIONAL_STATUSES: ReadonlySet<NfeStatus> = new Set<NfeStatus>(['pendi
 // In-flight statuses (Pendente / Cancelando) signal "work in progress" and get the pulse animation.
 export const isTransitionalStatus = (status: NfeStatus): boolean => TRANSITIONAL_STATUSES.has(status)
 
-export function NfeStatusBadge({status}: {status: NfeStatus}) {
+export function NfeStatusBadge({status}: { status: NfeStatus }) {
   const isTransitional = isTransitionalStatus(status)
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${NFE_STATUS_CLASSES[status] ?? 'bg-gray-100 text-gray-600'} ${isTransitional ? 'animate-pulse motion-reduce:animate-none' : ''}`}
     >
       {isTransitional && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
       )}
       {NFE_STATUS_LABELS[status] ?? status}
     </span>
   )
 }
 
-export function NfeStatusCell({status, sefazMotive}: {status: NfeStatus; sefazMotive: string | null}) {
+export function NfeStatusCell({status, sefazMotive}: { status: NfeStatus; sefazMotive: string | null }) {
   const [open, setOpen] = useState(false)
   const hasMotive = (status === 'rejected' || status === 'failed') && !!sefazMotive
   if (!hasMotive) return <NfeStatusBadge status={status}/>

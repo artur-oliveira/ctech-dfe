@@ -6,8 +6,8 @@ import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
-import {OrganizationsTable} from '@/components/organizations/OrganizationsTable'
 import type {Organization} from '@/components/organizations/OrganizationsTable'
+import {OrganizationsTable} from '@/components/organizations/OrganizationsTable'
 import {Button} from '@/components/ui/button'
 
 function OrganizationsContent() {

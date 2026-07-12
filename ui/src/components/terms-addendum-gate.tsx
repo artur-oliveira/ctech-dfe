@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { apiClient } from '@/lib/api/client'
-import { useAuth } from '@/lib/hooks/useAuth'
+import {useState} from 'react'
+import {apiClient} from '@/lib/api/client'
+import {useAuth} from '@/lib/hooks/useAuth'
 
 // Blocks access until the user explicitly accepts the dfe-specific terms
 // addendum — shown once, right after first login, since Google/SSO sign-up
 // never presents a checkbox of its own for product-specific terms.
 export function TermsAddendumGate() {
-  const { refreshUser } = useAuth()
+  const {refreshUser} = useAuth()
   const [checked, setChecked] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

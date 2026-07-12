@@ -228,7 +228,8 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
   return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+        <div
+          className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
           <h2 className="text-lg font-semibold text-gray-900">
             {editing ? 'Completar dados do veículo' : 'Cadastrar veículo'}
           </h2>
@@ -237,7 +238,9 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
         </div>
         <div className="p-6">
           <VehicleForm initialData={editing} highlightFields={missing}
-                       onSubmit={async (d) => { await mutation.mutateAsync(d) }}
+                       onSubmit={async (d) => {
+                         await mutation.mutateAsync(d)
+                       }}
                        loading={mutation.isPending}/>
         </div>
       </div>
@@ -356,7 +359,7 @@ export function MdfeEmitForm() {
   // Vehicles (registered only) + register/edit modal.
   const [vehicleSk, setVehicleSk] = useState<string | null>(null)
   const [trailerSks, setTrailerSks] = useState<string[]>([])
-  const [gateModal, setGateModal] = useState<{vehicle: VehicleOut; missing: string[]} | null>(null)
+  const [gateModal, setGateModal] = useState<{ vehicle: VehicleOut; missing: string[] } | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
 
   // Drivers.
@@ -597,11 +600,13 @@ export function MdfeEmitForm() {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <Label className="text-xs font-medium text-gray-600">Onde começa? (UF)</Label>
-                <OptionsSelect value={ufIni} onValueChange={setUfIniOverride} options={ufIniOptions} placeholder="UF de início"/>
+                <OptionsSelect value={ufIni} onValueChange={setUfIniOverride} options={ufIniOptions}
+                               placeholder="UF de início"/>
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-xs font-medium text-gray-600">Onde termina? (UF)</Label>
-                <OptionsSelect value={ufFim} onValueChange={setUfFimOverride} options={ufFimOptions} placeholder="UF de fim"/>
+                <OptionsSelect value={ufFim} onValueChange={setUfFimOverride} options={ufFimOptions}
+                               placeholder="UF de fim"/>
               </div>
             </div>
             <p className="text-xs text-gray-400">Preenchido com a origem/destino das notas. Ajuste se necessário.</p>
@@ -638,7 +643,8 @@ export function MdfeEmitForm() {
 
           <MunReorderList title="Onde será carregado?" hint="Ordene os municípios de carregamento na ordem da viagem."
                           muns={loadings} onReorder={setLoadingsOverride}/>
-          <MunReorderList title="Onde será o destino?" hint="Ordene os municípios de descarregamento na ordem da viagem."
+          <MunReorderList title="Onde será o destino?"
+                          hint="Ordene os municípios de descarregamento na ordem da viagem."
                           muns={unloadings} onReorder={setUnloadingsOverride}/>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -746,7 +752,8 @@ export function MdfeEmitForm() {
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-xs font-medium text-gray-600">CPF</Label>
-                <Input value={maskCpf(newDriverCpf.replace(/\D/g, ''))} onChange={(e) => setNewDriverCpf(e.target.value)}
+                <Input value={maskCpf(newDriverCpf.replace(/\D/g, ''))}
+                       onChange={(e) => setNewDriverCpf(e.target.value)}
                        placeholder="000.000.000-00" className="w-full"/>
               </div>
               <Button type="button" variant="brand" onClick={addDriver}
@@ -775,7 +782,10 @@ export function MdfeEmitForm() {
       </div>
 
       <VehicleRegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)}
-                            onSaved={(v) => { setVehicleSk(v.sk); setRegisterOpen(false) }}/>
+                            onSaved={(v) => {
+                              setVehicleSk(v.sk);
+                              setRegisterOpen(false)
+                            }}/>
       <VehicleRegisterModal open={!!gateModal} onClose={() => setGateModal(null)}
                             editing={gateModal?.vehicle} missing={gateModal?.missing}
                             onSaved={() => setGateModal(null)}/>
