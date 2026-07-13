@@ -312,13 +312,26 @@ export class ApiStackV2 extends cdk.Stack {
       //
       // CloudFront's origin-facing ranges change over time, so they are fetched from
       // AWS rather than pinned in the template, and refreshed by a daily timer.
+      //
+      // They come from the AWS-managed prefix list instead of ip-ranges.json:
+      // ip-ranges.amazonaws.com has no AAAA record and these instances are
+      // IPv6-only, so the EC2 dual-stack endpoint is the reachable source. The
+      // list is IPv4-only, which matches reality — CloudFront connects to
+      // origins over IPv4.
       `cat > /opt/app/update-realip.sh << 'REALIP'`,
       `#!/bin/bash`,
       `set -euo pipefail`,
       `CONF=/etc/nginx/conf.d/realip.conf`,
       `TMP=$(mktemp)`,
-      `RANGES=$(curl -sf --retry 3 --retry-delay 2 https://ip-ranges.amazonaws.com/ip-ranges.json)`,
-      `PREFIXES=$(echo "$RANGES" | jq -r '(.prefixes[] | select(.service == "CLOUDFRONT_ORIGIN_FACING") | .ip_prefix), (.ipv6_prefixes[] | select(.service == "CLOUDFRONT_ORIGIN_FACING") | .ipv6_prefix)')`,
+      // systemd units do not inherit /etc/environment, so the dual-stack opt-in
+      // must be set here for the timer-driven runs.
+      `export AWS_USE_DUALSTACK_ENDPOINT=true`,
+      `PL_ID=$(aws ec2 describe-managed-prefix-lists --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing --query 'PrefixLists[0].PrefixListId' --output text --region us-east-1)`,
+      `if [ -z "$PL_ID" ] || [ "$PL_ID" = "None" ]; then`,
+      `  echo "CloudFront origin-facing managed prefix list not found" >&2`,
+      `  exit 1`,
+      `fi`,
+      `PREFIXES=$(aws ec2 get-managed-prefix-list-entries --prefix-list-id "$PL_ID" --query 'Entries[].Cidr' --output text --region us-east-1 | tr '\\t' '\\n')`,
       // A partial list is worse than the old file: an unlisted edge would be treated
       // as the client and become the rate-limit key. Bail and keep what we have.
       `if [ "$(echo "$PREFIXES" | grep -c .)" -lt 10 ]; then`,

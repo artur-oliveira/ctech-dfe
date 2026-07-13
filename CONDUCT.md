@@ -520,8 +520,10 @@ breaks rate limiting — the zone still exists, it just keys on the wrong thing.
 - **Any rate-limit zone keyed on `$binary_remote_addr` requires the realip module.** Without
   `set_real_ip_from`, `$remote_addr` is the ALB's private IP, so every client shares one bucket and
   the limit protects nobody. `/opt/app/update-realip.sh` (in the ASG userdata) writes
-  `/etc/nginx/conf.d/realip.conf` with the VPC CIDR plus CloudFront's `CLOUDFRONT_ORIGIN_FACING`
-  ranges, fetched from `ip-ranges.amazonaws.com` and refreshed by a daily systemd timer.
+  `/etc/nginx/conf.d/realip.conf` with the VPC CIDR plus CloudFront's origin-facing ranges,
+  read from the AWS-managed prefix list `com.amazonaws.global.cloudfront.origin-facing` via the
+  EC2 dual-stack endpoint (the instances are IPv6-only and `ip-ranges.amazonaws.com` has no AAAA
+  record) and refreshed by a daily systemd timer.
 - **Never key on the leftmost `X-Forwarded-For` entry.** CloudFront and the ALB *append* to the
   header, so a client can prepend anything it likes. `real_ip_recursive on` walks the chain
   right-to-left and discards only trusted hops, which is what makes the result unforgeable.
