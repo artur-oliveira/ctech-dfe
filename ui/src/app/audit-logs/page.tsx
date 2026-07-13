@@ -56,16 +56,16 @@ function AuditLogsContent() {
   const {selectedOrg} = useAuth()
   const [resourceType, setResourceType] = useState<string>('')
   const [selected, setSelected] = useState<AuditLogOut | null>(null)
-
+  
   const isOwnerOrAdmin = selectedOrg?.role === 'OWNER' || selectedOrg?.role === 'ADMIN'
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} =
     usePagination<AuditLogOut>({
       queryKey: queryKeys.auditLogs.list(selectedOrg?.pk, {resourceType}),
       queryFn: (cursor) => apiClient.getAuditLogs({resourceType: resourceType || undefined, cursor}),
       enabled: !!selectedOrg && isOwnerOrAdmin,
     })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -73,7 +73,7 @@ function AuditLogsContent() {
           title="Log de Auditoria"
           description="Histórico de alterações realizadas por usuários na organização"
         />
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : !isOwnerOrAdmin ? (
@@ -92,7 +92,7 @@ function AuditLogsContent() {
                 className="w-full"
               />
             </div>
-
+            
             {isLoading ? (
               <LoadingSkeleton/>
             ) : items.length === 0 ? (
@@ -154,7 +154,7 @@ function AuditLogsContent() {
           </>
         )}
       </div>
-
+      
       <Modal
         isOpen={!!selected}
         title="Alterações"

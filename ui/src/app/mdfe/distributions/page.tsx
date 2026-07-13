@@ -64,19 +64,19 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
 function MDFeDistributionsContent() {
   const {selectedOrg} = useAuth()
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
-
+  
   const {data: config} = useQuery({
     queryKey: queryKeys.mdfeConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getMDFeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('mdfe', selectedOrg?.pk),
     queryFn: (cursor) => apiClient.listDistributions('mdfe', {limit: 10, cursor}),
     enabled: !!selectedOrg,
   })
-
+  
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('mdfe'),
     onSuccess: () => {
@@ -91,12 +91,12 @@ function MDFeDistributionsContent() {
       }
     },
   })
-
+  
   const isProd = config?.environment === 1
   const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
   const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
   const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
-
+  
   if (!selectedOrg) {
     return (
       <RootLayout>
@@ -106,7 +106,7 @@ function MDFeDistributionsContent() {
       </RootLayout>
     )
   }
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8 space-y-6">
@@ -135,11 +135,11 @@ function MDFeDistributionsContent() {
             {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
           </Button>
         </div>
-
+        
         {penaltyMessage && (
           <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
         )}
-
+        
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
           {isLoading ? (
             <DistributionSkeleton/>
@@ -166,7 +166,7 @@ function MDFeDistributionsContent() {
             </table>
           )}
         </div>
-
+        
         {(hasNext || hasPrevious) && (
           <Pagination
             hasNext={hasNext}

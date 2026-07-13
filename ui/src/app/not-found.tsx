@@ -5,7 +5,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 
 export default function NotFound() {
   const {user} = useAuth()
-
+  
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="text-center">

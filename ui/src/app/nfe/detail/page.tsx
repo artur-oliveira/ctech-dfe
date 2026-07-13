@@ -21,7 +21,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
   const [showCceModal, setShowCceModal] = useState(false)
   const [cceText, setCceText] = useState('')
   const [cceSeq, setCceSeq] = useState(1)
-
+  
   const cceMutation = useMutation({
     mutationFn: () => apiClient.sendCorrectionLetter(accessKey, cceText.trim(), cceSeq),
     onSuccess: () => {
@@ -32,7 +32,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
       void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)})
     },
   })
-
+  
   return (
     <DfeDetail
       accessKey={accessKey}
@@ -127,7 +127,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
 function NfeDetailContent() {
   const params = useSearchParams()
   const accessKey = params.get('key') ?? ''
-
+  
   const backParams = new URLSearchParams()
   const tab = params.get('tab')
   if (tab) backParams.set('tab', tab)
@@ -140,7 +140,7 @@ function NfeDetailContent() {
   const number = params.get('number')
   if (number) backParams.set('number', number)
   const backHref = `/nfe${backParams.toString() ? `?${backParams.toString()}` : ''}`
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

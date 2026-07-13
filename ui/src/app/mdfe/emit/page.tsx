@@ -18,7 +18,7 @@ function MdfeEmitContent() {
           <h1 className="text-2xl font-semibold text-gray-900">Emitir MDF-e</h1>
           <p className="text-gray-500 text-sm mt-0.5">Manifesto Eletrônico de Documentos Fiscais</p>
         </div>
-
+        
         <MdfeEmitForm/>
       </div>
     </RootLayout>

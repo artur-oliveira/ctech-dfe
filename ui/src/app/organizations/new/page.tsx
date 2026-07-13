@@ -7,22 +7,22 @@ import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
-import {OrganizationForm, type CertificateInput} from '@/components/organizations/OrganizationForm'
+import {type CertificateInput, OrganizationForm} from '@/components/organizations/OrganizationForm'
 import type {OrganizationCreate} from '@/lib/types/api'
 
 function NewOrganizationContent() {
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const createMutation = useMutation({
-    mutationFn: ({data, cert}: {data: OrganizationCreate; cert?: CertificateInput}) =>
+    mutationFn: ({data, cert}: { data: OrganizationCreate; cert?: CertificateInput }) =>
       apiClient.createOrganization(data, cert),
     onSuccess: () => {
       void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
       router.push('/organizations')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

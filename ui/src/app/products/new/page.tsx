@@ -15,13 +15,13 @@ function NewProductContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data: org} = useQuery({
     queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const createMutation = useMutation({
     mutationFn: (d: ProductCreate) => apiClient.createProduct(d),
     onSuccess: () => {
@@ -29,7 +29,7 @@ function NewProductContent() {
       router.push('/products')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

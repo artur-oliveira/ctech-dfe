@@ -15,7 +15,7 @@ function NewVehicleContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const createMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.createVehicle(d),
     onSuccess: () => {
@@ -23,7 +23,7 @@ function NewVehicleContent() {
       router.push('/vehicles')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

@@ -26,7 +26,7 @@ type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
 
 function CTeRow({item}: { item: NFeDistributionOut }) {
   const [xmlLoading, setXmlLoading] = useState(false)
-
+  
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
@@ -38,7 +38,7 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
       setXmlLoading(false)
     }
   }
-
+  
   return (
     <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3 font-mono text-xs text-gray-500">
@@ -76,19 +76,19 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
 
 function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
-
+  
   const {data: config} = useQuery({
     queryKey: queryKeys.cteConfig(orgPk),
     queryFn: () => apiClient.getCTeConfig(orgPk),
     enabled: !!orgPk,
   })
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('cte', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('cte', {limit: 8, cursor}),
     enabled: true,
   })
-
+  
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('cte'),
     onSuccess: () => {
@@ -103,12 +103,12 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
       }
     },
   })
-
+  
   const isProd = config?.environment === 1
   const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
   const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
   const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
-
+  
   return (
     <div className="space-y-4">
       {showSync && (
@@ -135,11 +135,11 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
           </Button>
         </div>
       )}
-
+      
       {penaltyMessage && (
         <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
       )}
-
+      
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
         {isLoading ? (
           <DistributionSkeleton/>
@@ -162,7 +162,7 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
           </table>
         )}
       </div>
-
+      
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                     isLoading={isFetching}/>
@@ -174,19 +174,19 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
 function CTeContent() {
   const {selectedOrg} = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('recebidos')
-
+  
   const {data: cteConfig} = useQuery({
     queryKey: queryKeys.cteConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getCTeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const tabs: { key: Tab; label: string }[] = [
     {key: 'emitidos', label: 'Emitidos'},
     {key: 'recebidos', label: 'Recebidos'},
     {key: 'distribuicao', label: 'Importação/Distribuição'},
   ]
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -196,9 +196,9 @@ function CTeContent() {
             <p className="text-gray-500 text-sm mt-0.5">Conhecimento de Transporte Eletrônico</p>
           </div>
         </div>
-
+        
         <HomologationBanner environment={cteConfig?.environment}/>
-
+        
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {tabs.map(tab => (
             <button
@@ -214,7 +214,7 @@ function CTeContent() {
             </button>
           ))}
         </div>
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : activeTab === 'emitidos' ? (

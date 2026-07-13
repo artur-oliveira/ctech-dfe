@@ -47,7 +47,7 @@ function UploadModal({
   const [password, setPassword] = useState('')
   const [fileError, setFileError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
-
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     let ok = true
@@ -61,7 +61,7 @@ function UploadModal({
     }
     if (ok && file) onUpload(file, password)
   }
-
+  
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -75,7 +75,7 @@ function UploadModal({
             </svg>
           </Button>
         </div>
-
+        
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4">
             {serverError && (
@@ -86,14 +86,20 @@ function UploadModal({
             )}
             <CertificateFields
               file={file}
-              onFileChange={(f) => { setFile(f); setFileError(null) }}
+              onFileChange={(f) => {
+                setFile(f);
+                setFileError(null)
+              }}
               password={password}
-              onPasswordChange={(p) => { setPassword(p); setPasswordError(null) }}
+              onPasswordChange={(p) => {
+                setPassword(p);
+                setPasswordError(null)
+              }}
               fileError={fileError}
               passwordError={passwordError}
             />
           </div>
-
+          
           <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
@@ -150,15 +156,15 @@ function CertificatesContent() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-
+  
   const pk = selectedOrg?.pk ?? ''
-
+  
   const {data: certs, isPending, error: fetchError} = useQuery({
     queryKey: queryKeys.certificates(pk),
     queryFn: () => apiClient.getCertificates(pk),
     enabled: !!pk,
   })
-
+  
   const uploadMutation = useMutation({
     mutationFn: ({file, password}: { file: File; password: string }) =>
       apiClient.uploadCertificate(pk, file, password),
@@ -171,17 +177,17 @@ function CertificatesContent() {
       setUploadError(err instanceof ApiError ? err.detail : 'Erro ao importar certificado')
     },
   })
-
+  
   const deleteMutation = useMutation({
     mutationFn: (md5: string) => apiClient.deleteCertificate(pk, md5),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.certificates(pk)}),
   })
-
+  
   const handleCloseModal = () => {
     setShowModal(false)
     setUploadError(null)
   }
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -198,7 +204,7 @@ function CertificatesContent() {
             </Button>
           )}
         </div>
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : (
@@ -209,7 +215,7 @@ function CertificatesContent() {
                 {fetchError.message}
               </div>
             )}
-
+            
             {isPending ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
@@ -266,7 +272,7 @@ function CertificatesContent() {
           </>
         )}
       </div>
-
+      
       {showModal && (
         <UploadModal
           onClose={handleCloseModal}

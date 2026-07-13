@@ -22,14 +22,14 @@ function PersonsContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<PersonItemOut>({
       queryKey: queryKeys.persons.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getPersons({cursor}),
       enabled: !!selectedOrg,
     })
-
+  
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<PersonItemOut>({
     mutationFn: (id) => apiClient.deletePerson(id),
     getId: (p) => unformatCpfCnpj(p.sk),
@@ -39,10 +39,10 @@ function PersonsContent() {
       void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)})
     },
   })
-
+  
   // Rows inside the undo window are hidden until the delete commits (or is undone).
   const visibleItems = filterVisible(items)
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -55,7 +55,7 @@ function PersonsContent() {
             onClick: () => router.push('/persons/new'),
           } : undefined}
         />
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : isLoading ? (

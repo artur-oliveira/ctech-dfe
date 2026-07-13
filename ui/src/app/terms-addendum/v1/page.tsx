@@ -12,7 +12,7 @@ export default function TermsAddendumPage() {
   return (
     <LegalPage title="Termos Adicionais — CTech DFe" updatedAt={UPDATED_AT}>
       <p className="text-xs text-gray-400">Versão {ADDENDUM_VERSION}</p>
-
+      
       <LegalSection heading="1. Sobre este documento">
         <p>
           Este documento complementa os{' '}
@@ -29,7 +29,7 @@ export default function TermsAddendumPage() {
           emissão e gestão de notas fiscais eletrônicas (NF-e, NFC-e, CT-e, MDF-e).
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="2. Dados de terceiros nas suas notas">
         <p>
           Para emitir uma nota fiscal, você informa dados de outras pessoas ou empresas — seus clientes,
@@ -39,7 +39,7 @@ export default function TermsAddendumPage() {
           fiscal correspondente.
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="3. Certificado digital">
         <p>
           O certificado digital (A1) que você envia é usado exclusivamente para assinar os documentos fiscais da
@@ -47,7 +47,7 @@ export default function TermsAddendumPage() {
           organização dentro da plataforma.
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="4. Envio para a SEFAZ">
         <p>
           Notas fiscais são, por lei, transmitidas à Secretaria da Fazenda (SEFAZ) do seu estado. Esse envio é
@@ -55,7 +55,7 @@ export default function TermsAddendumPage() {
           próprio serviço.
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="5. Guarda dos documentos">
         <p>
           Documentos fiscais autorizados (XML e DANFE) ficam disponíveis para consulta e download na plataforma
@@ -63,14 +63,14 @@ export default function TermsAddendumPage() {
           arquivados ou removidos.
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="6. Alterações">
         <p>
           Alterações materiais a este documento exigem um novo aceite antes de continuar usando o CTech DFe. A
           versão vigente é sempre a publicada nesta página.
         </p>
       </LegalSection>
-
+      
       <LegalSection heading="7. Contato">
         <p>
           Dúvidas sobre este documento:{' '}

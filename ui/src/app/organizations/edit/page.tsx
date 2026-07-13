@@ -18,13 +18,13 @@ function EditOrganizationContent() {
   const pk = params.get('pk') ?? ''
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data: org, isLoading} = useQuery({
     queryKey: queryKeys.organizations.detail(pk),
     queryFn: () => apiClient.getOrganization(pk),
     enabled: !!pk,
   })
-
+  
   const updateMutation = useMutation({
     mutationFn: (data: OrganizationUpdate) => apiClient.updateOrganization(pk, data),
     onSuccess: () => {
@@ -32,7 +32,7 @@ function EditOrganizationContent() {
       router.push('/organizations')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -42,7 +42,7 @@ function EditOrganizationContent() {
           <span className="text-gray-600">Editar organização</span>
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Editar organização</h1>
-
+        
         {isLoading ? (
           <div className="space-y-4 max-w-2xl">
             {[...Array(5)].map((_, i) => (

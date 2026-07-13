@@ -18,13 +18,13 @@ function EditVehicleContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data: vehicle, isLoading} = useQuery({
     queryKey: queryKeys.vehicles.detail(id),
     queryFn: () => apiClient.getVehicle(id),
     enabled: !!id && !!selectedOrg,
   })
-
+  
   const updateMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.updateVehicle(id, d),
     onSuccess: () => {
@@ -33,7 +33,7 @@ function EditVehicleContent() {
       router.push('/vehicles')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -43,7 +43,7 @@ function EditVehicleContent() {
           <span className="text-gray-600">Editar veículo</span>
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Editar veículo</h1>
-
+        
         {isLoading ? (
           <div className="space-y-4 max-w-2xl">
             {[...Array(4)].map((_, i) => (

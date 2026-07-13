@@ -24,15 +24,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://dfe.aoctech.app'),
-
+  
   title: {
     default: 'CTech DF-e',
     template: '%s | CTech DF-e',
   },
-
+  
   description:
     'Plataforma SaaS para emissão de NF-e, NFC-e, CT-e e MDF-e integrada à SEFAZ.',
-
+  
   keywords: [
     'NF-e',
     'NFC-e',
@@ -44,13 +44,13 @@ export const metadata: Metadata = {
     'emissão fiscal',
     'API fiscal',
   ],
-
+  
   authors: [
     {
       name: 'Artur O Carvalho',
     },
   ],
-
+  
   openGraph: {
     title: 'CTech DF-e',
     description:
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: ["/og-image.png"],
   },
-
+  
   twitter: {
     card: 'summary_large_image',
     title: 'CTech DF-e',
@@ -69,12 +69,12 @@ export const metadata: Metadata = {
       'Plataforma SaaS para emissão de documentos fiscais eletrônicos.',
     images: ["/og-image.png"],
   },
-
+  
   robots: {
     index: false,
     follow: false,
   },
-
+  
   manifest: '/site.webmanifest',
 }
 

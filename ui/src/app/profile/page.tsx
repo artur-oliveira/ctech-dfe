@@ -18,11 +18,11 @@ const UserIcon = () => (
 
 function ProfileContent() {
   const {user} = useAuth()
-
+  
   const initials = user
     ? `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase()
     : ''
-
+  
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-4">
@@ -39,7 +39,7 @@ function ProfileContent() {
           <p className="text-sm text-gray-500">{user?.email}</p>
         </div>
       </div>
-
+      
       <SectionCard icon={<UserIcon/>} title="Conta">
         <div className="space-y-3">
           <p className="text-sm text-gray-500 mb-3">

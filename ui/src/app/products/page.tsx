@@ -23,14 +23,14 @@ function ProductsContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ProductOut>({
       queryKey: queryKeys.products.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getProducts({cursor}),
       enabled: !!selectedOrg,
     })
-
+  
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ProductOut>({
     mutationFn: (id) => apiClient.deleteProduct(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PRODUCT),
@@ -40,10 +40,10 @@ function ProductsContent() {
       void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
     },
   })
-
+  
   // Rows inside the undo window are hidden until the delete commits (or is undone).
   const visibleItems = filterVisible(items)
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -56,7 +56,7 @@ function ProductsContent() {
             onClick: () => router.push('/products/new'),
           } : undefined}
         />
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : isLoading ? (

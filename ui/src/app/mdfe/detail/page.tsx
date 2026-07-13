@@ -34,19 +34,19 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
   const [xmlLoading, setXmlLoading] = useState(false)
   const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null)
   const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk)
-
+  
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.mdfes.detail(accessKey),
     queryFn: () => apiClient.getMdfe(accessKey),
     enabled: !!accessKey && !!selectedOrg,
   })
-
+  
   const {data: eventsData, isLoading: eventsLoading} = useQuery({
     queryKey: queryKeys.mdfes.events(accessKey),
     queryFn: () => apiClient.getMdfeEvents(accessKey),
     enabled: !!accessKey && !!selectedOrg,
   })
-
+  
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
@@ -55,7 +55,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       setXmlLoading(false)
     }
   }
-
+  
   const handleDownloadEventXml = async (event: NfeEventOut) => {
     setEventXmlLoading(event.sk)
     try {
@@ -65,7 +65,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       setEventXmlLoading(null)
     }
   }
-
+  
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -80,7 +80,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       </div>
     )
   }
-
+  
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
@@ -121,7 +121,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           )}
         </div>
       </div>
-
+      
       {/* SEFAZ info */}
       {(doc.sefaz_status || doc.sefaz_motive) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
@@ -139,7 +139,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </div>
         </div>
       )}
-
+      
       {/* Trajeto + carga */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InfoCard label="Trajeto">
@@ -158,13 +158,13 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           )}
         </InfoCard>
       </div>
-
+      
       {/* Emitente */}
       <InfoCard label="Emitente">
         <p className="font-medium text-gray-900">{doc.emit_name}</p>
         <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.emit_cpf_cnpj)}</p>
       </InfoCard>
-
+      
       {/* Veículo + condutores */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {doc.vehicle && (
@@ -184,7 +184,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </InfoCard>
         )}
       </div>
-
+      
       {/* Documentos */}
       {doc.documents && doc.documents.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -203,7 +203,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </div>
         </div>
       )}
-
+      
       {/* Eventos */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
         <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
@@ -262,9 +262,9 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </table>
         )}
       </div>
-
+      
       <p className="text-xs text-gray-400">Emissão: {formatDate(doc.year, doc.month, doc.day)}</p>
-
+      
       {modals}
     </div>
   )
@@ -273,7 +273,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
 function MdfeDetailContent() {
   const params = useSearchParams()
   const accessKey = params.get('key') ?? ''
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

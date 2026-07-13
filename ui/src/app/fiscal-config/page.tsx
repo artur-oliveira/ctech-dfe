@@ -22,9 +22,9 @@ function FiscalConfigContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<DocVariant>('nfe')
-
+  
   const pk = selectedOrg?.pk ?? ''
-
+  
   // Fetch all configs in parallel; treat 404 as null
   const nfeQuery = useQuery({
     queryKey: queryKeys.nfeConfig(pk),
@@ -46,7 +46,7 @@ function FiscalConfigContent() {
     queryFn: () => apiClient.getMDFeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
     enabled: !!pk,
   })
-
+  
   const nfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfeConfig(pk)}),
@@ -63,17 +63,17 @@ function FiscalConfigContent() {
     mutationFn: (d: object) => apiClient.upsertMDFeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.mdfeConfig(pk)}),
   })
-
+  
   const configByTab = {
     nfe: {query: nfeQuery, mutation: nfeMutation},
     nfce: {query: nfceQuery, mutation: nfceMutation},
     cte: {query: cteQuery, mutation: cteMutation},
     mdfe: {query: mdfeQuery, mutation: mdfeMutation},
   }
-
+  
   const active = configByTab[activeTab]
   const queryError = active.query.error?.message
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -84,7 +84,7 @@ function FiscalConfigContent() {
             Ambiente, numeração e parâmetros de emissão por tipo de documento
           </p>
         </div>
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : (
@@ -117,12 +117,12 @@ function FiscalConfigContent() {
                 )
               })}
             </div>
-
+            
             {/* Tab description */}
             <p className="mb-6 text-sm text-muted-foreground">
               {TABS.find((t) => t.id === activeTab)?.description}
             </p>
-
+            
             {/* Error from fetch */}
             {queryError && (
               <div
@@ -130,7 +130,7 @@ function FiscalConfigContent() {
                 {queryError}
               </div>
             )}
-
+            
             {/* Loading skeleton */}
             {active.query.isPending && (
               <div className="space-y-3">
@@ -139,7 +139,7 @@ function FiscalConfigContent() {
                 ))}
               </div>
             )}
-
+            
             {/* Form */}
             {!active.query.isPending && (
               <div className="rounded-xl border border-gray-200 bg-white p-6">

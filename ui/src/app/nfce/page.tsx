@@ -50,7 +50,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
   const filterYear = params.get('year') ?? ''
   const filterMonth = params.get('month') ?? ''
   const numberSearch = params.get('number') ?? ''
-
+  
   const setParam = (next: Record<string, string>) => {
     const sp = new URLSearchParams()
     const merged = {year: filterYear, month: filterMonth, number: numberSearch, ...next}
@@ -59,7 +59,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
     })
     router.replace(`/nfce?${sp.toString()}`, {scroll: false})
   }
-
+  
   const queryParams = {
     sort: 'desc' as const,
     incoming: 0 as const,
@@ -68,15 +68,15 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
     ...(filterYear ? {year: parseInt(filterYear, 10)} : {}),
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
   }
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NfeListOut>({
     queryKey: queryKeys.nfces.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.listNfces({...queryParams, cursor}),
     enabled: true,
   })
-
+  
   const hasFilters = numberSearch || filterYear || filterMonth
-
+  
   return (
     <>
       <form onSubmit={(e) => e.preventDefault()} className="flex items-start gap-3 mb-5 flex-wrap">
@@ -113,7 +113,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                   }}>Limpar</Button>
         )}
       </form>
-
+      
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse"/>)}
@@ -195,24 +195,24 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
 function NfceContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
-
+  
   const {data: nfceConfig} = useQuery({
     queryKey: queryKeys.nfceConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getNFCeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
   const [substituteTarget, setSubstituteTarget] = useState<NfeListOut | null>(null)
-
+  
   // Optimistically show the transitional "Cancelando" state (GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
   const markCancelPending = (accessKey: string) => {
     setDocStatusOptimistic(qc, queryKeys.nfces.lists(selectedOrg?.pk), accessKey, 'cancel_pending')
     void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)})
   }
-
+  
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelNfce(accessKey, justification),
@@ -223,7 +223,7 @@ function NfceContent() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao cancelar NFC-e.'),
   })
-
+  
   const substituteMutation = useMutation({
     mutationFn: ({accessKey, substituteKey, justification}: {
       accessKey: string;
@@ -237,12 +237,12 @@ function NfceContent() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao substituir NFC-e.'),
   })
-
+  
   const handleConfirmCancel = () => {
     if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
     cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
   }
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -260,9 +260,9 @@ function NfceContent() {
             </a>
           )}
         </div>
-
+        
         <HomologationBanner environment={nfceConfig?.environment}/>
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : (
@@ -272,7 +272,7 @@ function NfceContent() {
           }} onSubstitute={setSubstituteTarget}/>
         )}
       </div>
-
+      
       <Modal
         isOpen={cancelTarget !== null}
         title={cancelTarget ? `Cancelar NFC-e nº ${cancelTarget.number}` : ''}
@@ -301,7 +301,7 @@ function NfceContent() {
           </div>
         </div>
       </Modal>
-
+      
       {substituteTarget && (
         <SubstituteModal
           target={substituteTarget}

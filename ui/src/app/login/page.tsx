@@ -6,12 +6,12 @@ import {startOAuthFlow} from '@/lib/auth/oauth'
 
 function LoginInner() {
   const searchParams = useSearchParams()
-
+  
   useEffect(() => {
     const returnTo = searchParams.get('returnTo') ?? '/dashboard'
     void startOAuthFlow(returnTo)
   }, [searchParams])
-
+  
   return (
     <div className="min-h-screen bg-gradient-login flex items-center justify-center px-4">
       <div className="text-center space-y-3">

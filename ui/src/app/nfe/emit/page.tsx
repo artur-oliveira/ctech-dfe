@@ -19,7 +19,7 @@ function NfeEmitContent() {
           <p className="text-gray-500 text-sm mt-0.5">Preencha os dados para emitir uma Nota Fiscal
             Eletrônica</p>
         </div>
-
+        
         <NfeEmitForm/>
       </div>
     </RootLayout>

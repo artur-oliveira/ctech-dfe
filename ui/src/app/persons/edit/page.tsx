@@ -19,13 +19,13 @@ function EditPersonContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data: person, isLoading} = useQuery({
     queryKey: queryKeys.persons.detail(id),
     queryFn: () => apiClient.getPerson(id),
     enabled: !!id && !!selectedOrg,
   })
-
+  
   const updateMutation = useMutation({
     mutationFn: (d: PersonCreate) =>
       apiClient.updatePerson(id, {name: d.name, person: d.person}),
@@ -35,7 +35,7 @@ function EditPersonContent() {
       router.push('/persons')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -45,7 +45,7 @@ function EditPersonContent() {
           <span className="text-gray-600">Editar pessoa</span>
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Editar pessoa</h1>
-
+        
         {isLoading ? (
           <div className="space-y-4 max-w-2xl">
             {[...Array(4)].map((_, i) => (

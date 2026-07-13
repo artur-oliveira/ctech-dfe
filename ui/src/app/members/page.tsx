@@ -47,7 +47,7 @@ function MembersContent() {
   const isOwner = selectedOrg?.role === 'OWNER'
   const [shareOpen, setShareOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-
+  
   const membersQuery = useQuery({
     queryKey: queryKeys.members(pk),
     queryFn: () => apiClient.listMembers(pk),
@@ -58,7 +58,7 @@ function MembersContent() {
     queryFn: () => apiClient.listInvitations(pk),
     enabled: !!pk,
   })
-
+  
   // Removal is optimistic with a 5s undo window (same UX as products/persons/vehicles).
   const {handleDelete, filterVisible} = useEntityDelete<MemberOut>({
     mutationFn: (id) => apiClient.removeMember(pk, id),
@@ -66,9 +66,9 @@ function MembersContent() {
     getDeletedMessage: (m) => `${memberLabel(m)} removido`,
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.members(pk)}),
   })
-
+  
   const roleMutation = useMutation({
-    mutationFn: ({userId, role}: {userId: string; role: string}) => apiClient.updateMemberRole(pk, userId, role),
+    mutationFn: ({userId, role}: { userId: string; role: string }) => apiClient.updateMemberRole(pk, userId, role),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.members(pk)}),
     onError: (e) => setActionError(e instanceof ApiError ? e.detail : 'Erro ao alterar função'),
   })
@@ -77,13 +77,13 @@ function MembersContent() {
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.invitations(pk)}),
     onError: (e) => setActionError(e instanceof ApiError ? e.detail : 'Erro ao revogar convite'),
   })
-
+  
   if (!selectedOrg) {
     return <NoOrgBanner/>
   }
-
+  
   const visibleMembers = filterVisible(membersQuery.data ?? [])
-
+  
   return (
     <div className="p-4 md:p-8 max-w-4xl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -93,13 +93,14 @@ function MembersContent() {
         </div>
         <Button className="h-11 sm:h-10" onClick={() => setShareOpen(true)}>Compartilhar acesso</Button>
       </div>
-
+      
       {actionError && (
-        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {actionError}
         </div>
       )}
-
+      
       {/* Members */}
       <section className="rounded-xl border border-gray-200 mb-8">
         <h2 className="text-base font-semibold text-gray-900 px-4 md:px-6 py-3 border-b border-gray-100">Membros</h2>
@@ -115,20 +116,29 @@ function MembersContent() {
                 member={m}
                 isOwner={isOwner}
                 isSelf={m.user_id === user?.user_id}
-                onChangeRole={(role) => { setActionError(null); roleMutation.mutate({userId: m.user_id, role}) }}
-                onRemove={() => { setActionError(null); handleDelete(m) }}
+                onChangeRole={(role) => {
+                  setActionError(null);
+                  roleMutation.mutate({userId: m.user_id, role})
+                }}
+                onRemove={() => {
+                  setActionError(null);
+                  handleDelete(m)
+                }}
                 busy={roleMutation.isPending}
               />
             ))}
           </ul>
         )}
       </section>
-
+      
       {/* Pending invitations */}
       <section className="rounded-xl border border-gray-200">
-        <h2 className="text-base font-semibold text-gray-900 px-4 md:px-6 py-3 border-b border-gray-100">Convites pendentes</h2>
+        <h2 className="text-base font-semibold text-gray-900 px-4 md:px-6 py-3 border-b border-gray-100">Convites
+          pendentes</h2>
         {invitationsQuery.isPending ? (
-          <div className="p-6"><div className="h-10 rounded bg-gray-100 animate-pulse"/></div>
+          <div className="p-6">
+            <div className="h-10 rounded bg-gray-100 animate-pulse"/>
+          </div>
         ) : (invitationsQuery.data ?? []).length === 0 ? (
           <p className="px-4 md:px-6 py-6 text-sm text-gray-500">Nenhum convite pendente.</p>
         ) : (
@@ -143,7 +153,10 @@ function MembersContent() {
                 </div>
                 <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 h-11 sm:h-9"
                         disabled={revokeMutation.isPending}
-                        onClick={() => { setActionError(null); revokeMutation.mutate(inv.pk) }}>
+                        onClick={() => {
+                          setActionError(null);
+                          revokeMutation.mutate(inv.pk)
+                        }}>
                   Revogar
                 </Button>
               </li>
@@ -151,11 +164,14 @@ function MembersContent() {
           </ul>
         )}
       </section>
-
+      
       {shareOpen && (
         <ShareModal
           orgPk={pk}
-          onClose={() => { setShareOpen(false); void qc.invalidateQueries({queryKey: queryKeys.invitations(pk)}) }}
+          onClose={() => {
+            setShareOpen(false);
+            void qc.invalidateQueries({queryKey: queryKeys.invitations(pk)})
+          }}
         />
       )}
     </div>
@@ -163,8 +179,8 @@ function MembersContent() {
 }
 
 function MemberRow({
-  member, isOwner, isSelf, onChangeRole, onRemove, busy,
-}: {
+                     member, isOwner, isSelf, onChangeRole, onRemove, busy,
+                   }: {
   member: MemberOut
   isOwner: boolean
   isSelf: boolean
@@ -201,29 +217,29 @@ function MemberRow({
   )
 }
 
-function ShareModal({orgPk, onClose}: {orgPk: string; onClose: () => void}) {
+function ShareModal({orgPk, onClose}: { orgPk: string; onClose: () => void }) {
   const [role, setRole] = useState('')
   const [invite, setInvite] = useState<InvitationOut | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  
   const inviteUrl = useMemo(
     () => (invite?.token ? `${window.location.origin}/invite?token=${invite.token}` : ''),
     [invite],
   )
-
+  
   const createMutation = useMutation({
     mutationFn: () => apiClient.createInvitation(orgPk, role),
     onSuccess: (data) => setInvite(data),
     onError: (e) => setError(e instanceof ApiError ? e.detail : 'Erro ao gerar convite'),
   })
-
+  
   const copy = async () => {
     await navigator.clipboard.writeText(inviteUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
+  
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full sm:max-w-md">
@@ -233,7 +249,8 @@ function ShareModal({orgPk, onClose}: {orgPk: string; onClose: () => void}) {
         </div>
         <div className="p-6 space-y-4">
           {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -247,7 +264,10 @@ function ShareModal({orgPk, onClose}: {orgPk: string; onClose: () => void}) {
                 <OptionsSelect
                   id="invite-role"
                   value={role}
-                  onValueChange={(v) => { setRole(v); setError(null) }}
+                  onValueChange={(v) => {
+                    setRole(v);
+                    setError(null)
+                  }}
                   options={ASSIGNABLE_ROLES}
                   placeholder="Selecione uma função"
                   className="h-11"
@@ -255,7 +275,10 @@ function ShareModal({orgPk, onClose}: {orgPk: string; onClose: () => void}) {
               </div>
               <Button className="w-full h-11"
                       disabled={!role || createMutation.isPending}
-                      onClick={() => { setError(null); createMutation.mutate() }}>
+                      onClick={() => {
+                        setError(null);
+                        createMutation.mutate()
+                      }}>
                 {createMutation.isPending ? 'Gerando…' : 'Gerar link'}
               </Button>
             </>

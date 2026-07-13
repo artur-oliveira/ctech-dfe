@@ -18,19 +18,19 @@ function EditProductContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data: product, isLoading} = useQuery({
     queryKey: queryKeys.products.detail(id),
     queryFn: () => apiClient.getProduct(id),
     enabled: !!id && !!selectedOrg,
   })
-
+  
   const {data: org} = useQuery({
     queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const updateMutation = useMutation({
     mutationFn: (d: ProductCreate) => apiClient.updateProduct(id, d),
     onSuccess: () => {
@@ -39,7 +39,7 @@ function EditProductContent() {
       router.push('/products')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -49,7 +49,7 @@ function EditProductContent() {
           <span className="text-gray-600">Editar produto</span>
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Editar produto</h1>
-
+        
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (

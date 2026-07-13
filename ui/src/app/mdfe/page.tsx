@@ -40,7 +40,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
     queryFn: (cursor) => apiClient.getMdfes({...queryParams, cursor}),
     enabled: true,
   })
-
+  
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -54,7 +54,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
                   description="Emita o primeiro Manifesto Eletrônico de Documentos Fiscais da organização."/>
     )
   }
-
+  
   return (
     <>
       <div
@@ -122,7 +122,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
 
 function MDFeRow({item}: { item: NFeDistributionOut }) {
   const [xmlLoading, setXmlLoading] = useState(false)
-
+  
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
@@ -134,7 +134,7 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
       setXmlLoading(false)
     }
   }
-
+  
   return (
     <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3 font-mono text-xs text-gray-500">{formatNsu(item.nsu)}</td>
@@ -160,19 +160,19 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
 
 function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
-
+  
   const {data: config} = useQuery({
     queryKey: queryKeys.mdfeConfig(orgPk),
     queryFn: () => apiClient.getMDFeConfig(orgPk),
     enabled: !!orgPk,
   })
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('mdfe', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('mdfe', {limit: 8, cursor}),
     enabled: true,
   })
-
+  
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('mdfe'),
     onSuccess: () => {
@@ -187,12 +187,12 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
       }
     },
   })
-
+  
   const isProd = config?.environment === 1
   const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
   const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
   const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
-
+  
   return (
     <div className="space-y-4">
       {showSync && (
@@ -214,9 +214,9 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
           </Button>
         </div>
       )}
-
+      
       {penaltyMessage && <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>}
-
+      
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
         {isLoading ? (
           <DistributionSkeleton/>
@@ -238,7 +238,7 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
           </table>
         )}
       </div>
-
+      
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                     isLoading={isFetching}/>
@@ -252,21 +252,21 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
 function MDFeContent() {
   const {selectedOrg} = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('emitidos')
-
+  
   const {data: mdfeConfig} = useQuery({
     queryKey: queryKeys.mdfeConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getMDFeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-
+  
   const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk)
-
+  
   const tabs: { key: Tab; label: string }[] = [
     {key: 'emitidos', label: 'Emitidos'},
     {key: 'recebidos', label: 'Recebidos'},
     {key: 'distribuicao', label: 'Importação/Distribuição'},
   ]
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -284,9 +284,9 @@ function MDFeContent() {
             </a>
           )}
         </div>
-
+        
         <HomologationBanner environment={mdfeConfig?.environment}/>
-
+        
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {tabs.map(tab => (
             <button
@@ -302,7 +302,7 @@ function MDFeContent() {
             </button>
           ))}
         </div>
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : activeTab === 'emitidos' ? (
@@ -313,7 +313,7 @@ function MDFeContent() {
           <MDFeDistributionList key="mdfe-distribuicao" orgPk={selectedOrg.pk} showSync={true}/>
         )}
       </div>
-
+      
       {modals}
     </RootLayout>
   )

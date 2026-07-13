@@ -20,12 +20,12 @@ function NfceDetail({accessKey}: { accessKey: string }) {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
   const [showSubstitute, setShowSubstitute] = useState(false)
-
+  
   const invalidate = () => {
     void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)})
     void qc.invalidateQueries({queryKey: queryKeys.nfces.lists(selectedOrg?.pk)})
   }
-
+  
   const substituteMutation = useMutation({
     mutationFn: ({substituteKey, justification}: { substituteKey: string; justification: string }) =>
       apiClient.substituteNfce(accessKey, substituteKey, justification),
@@ -36,7 +36,7 @@ function NfceDetail({accessKey}: { accessKey: string }) {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao substituir NFC-e.'),
   })
-
+  
   return (
     <DfeDetail
       accessKey={accessKey}
@@ -79,7 +79,7 @@ function NfceDetail({accessKey}: { accessKey: string }) {
 function NfceDetailContent() {
   const params = useSearchParams()
   const accessKey = params.get('key') ?? ''
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

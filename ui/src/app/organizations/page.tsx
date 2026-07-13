@@ -13,21 +13,21 @@ import {Button} from '@/components/ui/button'
 function OrganizationsContent() {
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {data, isPending, error} = useQuery({
     queryKey: queryKeys.organizations.all(),
     queryFn: () => apiClient.getOrganizations(),
   })
-
+  
   const deleteMutation = useMutation({
     mutationFn: (pk: string) => apiClient.deleteOrganization(pk),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.organizations.all()}),
   })
-
+  
   const handleEdit = (org: Organization) => {
     router.push(`/organizations/edit?pk=${encodeURIComponent(org.pk)}`)
   }
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -36,7 +36,7 @@ function OrganizationsContent() {
             {error.message}
           </div>
         )}
-
+        
         <div className="flex items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Organizações</h1>
@@ -51,7 +51,7 @@ function OrganizationsContent() {
             Nova Organização
           </Button>
         </div>
-
+        
         <OrganizationsTable
           organizations={data ?? []}
           onEdit={handleEdit}

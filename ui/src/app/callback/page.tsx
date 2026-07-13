@@ -11,23 +11,23 @@ function CallbackInner() {
   const searchParams = useSearchParams()
   const [asyncError, setAsyncError] = useState<string | null>(null)
   const ran = useRef(false)
-
+  
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const errorParam = searchParams.get('error')
-
+  
   const paramError = errorParam
     ? `Erro de autenticação: ${errorParam}`
     : !code || !state
       ? 'Parâmetros de callback inválidos.'
       : null
-
+  
   const error = paramError ?? asyncError
-
+  
   useEffect(() => {
     if (ran.current || paramError) return
     ran.current = true
-
+    
     void (async () => {
       try {
         const {accessToken, refreshToken, idToken, returnTo} = await exchangeCode(code!, state!)
@@ -38,7 +38,7 @@ function CallbackInner() {
       }
     })()
   }, [searchParams, handleCallback, router, paramError, code, state])
-
+  
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -54,7 +54,7 @@ function CallbackInner() {
       </div>
     )
   }
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-2">

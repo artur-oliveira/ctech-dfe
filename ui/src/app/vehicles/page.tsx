@@ -22,14 +22,14 @@ function VehiclesContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<VehicleOut>({
       queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getVehicles({cursor}),
       enabled: !!selectedOrg,
     })
-
+  
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<VehicleOut>({
     mutationFn: (id) => apiClient.deleteVehicle(id),
     getId: (v) => extractId(v.sk, SK_PREFIX.VEHICLE),
@@ -39,10 +39,10 @@ function VehiclesContent() {
       void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
     },
   })
-
+  
   // Rows inside the undo window are hidden until the delete commits (or is undone).
   const visibleItems = filterVisible(items)
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -55,7 +55,7 @@ function VehiclesContent() {
             onClick: () => router.push('/vehicles/new'),
           } : undefined}
         />
-
+        
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : isLoading ? (

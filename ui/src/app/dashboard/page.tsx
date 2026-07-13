@@ -10,7 +10,7 @@ const quickActions = DFE_DOCUMENTS
 
 function DashboardContent() {
   const {user, selectedOrg} = useAuth()
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8 max-w-5xl">
@@ -24,7 +24,7 @@ function DashboardContent() {
               : 'Selecione uma organização para começar'}
           </p>
         </div>
-
+        
         {/* Quick access */}
         <div className="mb-10">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
@@ -55,7 +55,7 @@ function DashboardContent() {
             ))}
           </div>
         </div>
-
+        
         {/* Getting started checklist */}
         {!selectedOrg && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">

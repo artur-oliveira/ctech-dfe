@@ -140,14 +140,14 @@ function LoadingScreen() {
 export default function Home() {
   const {user, loading} = useAuth()
   const [carouselTheme, setCarouselTheme] = useState<DfeThemeKey>('nfe')
-
+  
   if (loading) {
     return <LoadingScreen/>
   }
-
+  
   const primaryHref = user ? '/dashboard' : '/login'
   const primaryLabel = user ? 'Ir para o painel' : 'Entrar'
-
+  
   return (
     <div className="min-h-screen bg-white" data-dfe-theme={carouselTheme}>
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
@@ -161,7 +161,7 @@ export default function Home() {
           {primaryLabel}
         </Button>
       </header>
-
+      
       <section className="bg-gradient-login">
         <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:py-24">
           <div className="space-y-6">
@@ -181,13 +181,13 @@ export default function Home() {
               </Button>
             </div>
           </div>
-
+          
           <div className="flex justify-center md:justify-end">
             <AuthorizationCard onDocChange={setCarouselTheme}/>
           </div>
         </div>
       </section>
-
+      
       <section className="mx-auto max-w-6xl px-6 py-16">
         <p className="mb-6 font-mono text-xs tracking-widest text-gray-400 uppercase">Documentos suportados</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
@@ -212,7 +212,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-
+      
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <p className="mb-8 font-mono text-xs tracking-widest text-gray-400 uppercase">Como funciona</p>
@@ -229,7 +229,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      
       <section className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">Por que escolher a CTech DFe</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -244,7 +244,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-
+      
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <div className="mb-8">
@@ -286,7 +286,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Em desenvolvimento</h2>
@@ -305,7 +305,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-
+      
       <footer className="border-t border-gray-100">
         <div
           className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-8 text-sm text-gray-500 md:flex-row md:justify-between">

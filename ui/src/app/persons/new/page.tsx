@@ -15,7 +15,7 @@ function NewPersonContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-
+  
   const createMutation = useMutation({
     mutationFn: (d: PersonCreate) => apiClient.createPerson(d),
     onSuccess: () => {
@@ -23,7 +23,7 @@ function NewPersonContent() {
       router.push('/persons')
     },
   })
-
+  
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

@@ -1,6 +1,6 @@
 'use client'
 
-import {useState, Suspense} from 'react'
+import {Suspense, useState} from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {useMutation, useQuery} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
@@ -16,18 +16,18 @@ const ROLE_LABEL: Record<string, string> = {
   VIEWER: 'Visualizador',
 }
 
-function InviteContent({token}: {token: string}) {
+function InviteContent({token}: { token: string }) {
   const router = useRouter()
   const {refreshUser} = useAuth()
   const [error, setError] = useState<string | null>(null)
-
+  
   const {data: preview, isPending, error: fetchError} = useQuery({
     queryKey: queryKeys.invitation(token),
     queryFn: () => apiClient.getInvitation(token),
     retry: false,
     enabled: !!token,
   })
-
+  
   const acceptMutation = useMutation({
     mutationFn: () => apiClient.acceptInvitation(token),
     onSuccess: async () => {
@@ -41,7 +41,7 @@ function InviteContent({token}: {token: string}) {
     onSuccess: () => router.replace('/dashboard'),
     onError: (e) => setError(e instanceof ApiError ? e.detail : 'Não foi possível recusar o convite'),
   })
-
+  
   const card = (children: React.ReactNode) => (
     <div className="flex items-center justify-center min-h-[60vh] p-4">
       <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 md:p-8 text-center space-y-4">
@@ -49,17 +49,18 @@ function InviteContent({token}: {token: string}) {
       </div>
     </div>
   )
-
+  
   if (!token) {
     return card(
       <>
         <h1 className="text-lg font-semibold text-gray-900">Convite inválido</h1>
         <p className="text-sm text-gray-500">Nenhum token de convite fornecido.</p>
-        <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o painel</Button>
+        <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o
+          painel</Button>
       </>,
     )
   }
-
+  
   if (isPending) {
     return card(<div className="h-24 animate-pulse rounded bg-gray-100"/>)
   }
@@ -68,17 +69,18 @@ function InviteContent({token}: {token: string}) {
       <>
         <h1 className="text-lg font-semibold text-gray-900">Convite não encontrado</h1>
         <p className="text-sm text-gray-500">O link é inválido ou já não existe.</p>
-        <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o painel</Button>
+        <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o
+          painel</Button>
       </>,
     )
   }
-
+  
   const invalid =
     preview.already_member ? 'Você já faz parte desta organização.'
       : preview.expired ? 'Este convite expirou.'
         : preview.status !== 'PENDING' ? 'Este convite já foi utilizado ou revogado.'
           : null
-
+  
   if (invalid) {
     return card(
       <>
@@ -88,7 +90,7 @@ function InviteContent({token}: {token: string}) {
       </>,
     )
   }
-
+  
   return card(
     <>
       <h1 className="text-lg font-semibold text-gray-900">Convite para {preview.org_name || 'uma organização'}</h1>
@@ -104,12 +106,18 @@ function InviteContent({token}: {token: string}) {
       <div className="flex flex-col sm:flex-row gap-2 pt-2">
         <Button className="flex-1 h-11"
                 disabled={acceptMutation.isPending || declineMutation.isPending}
-                onClick={() => { setError(null); acceptMutation.mutate() }}>
+                onClick={() => {
+                  setError(null);
+                  acceptMutation.mutate()
+                }}>
           {acceptMutation.isPending ? 'Entrando…' : 'Aceitar'}
         </Button>
         <Button variant="outline" className="flex-1 h-11"
                 disabled={acceptMutation.isPending || declineMutation.isPending}
-                onClick={() => { setError(null); declineMutation.mutate() }}>
+                onClick={() => {
+                  setError(null);
+                  declineMutation.mutate()
+                }}>
           Recusar
         </Button>
       </div>
@@ -132,7 +140,7 @@ export default function InvitePage() {
             <div className="w-full max-w-md h-24 animate-pulse rounded bg-gray-100"/>
           </div>
         }>
-          <InviteParamsWrapper />
+          <InviteParamsWrapper/>
         </Suspense>
       </RootLayout>
     </ProtectedRoute>
