@@ -101,10 +101,7 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 
 	// POST /nfces/:access_key/cancel
 	g.Post("/:access_key/cancel", perm.Require("delete.nfces"), func(c fiber.Ctx) error {
-		var body struct {
-			Justification  string `json:"justification" validate:"required,min=15,max=255"`
-			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
-		}
+		var body CancelEventBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
@@ -118,11 +115,7 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 
 	// POST /nfces/:access_key/substitute — cancel by substitution (event 110112)
 	g.Post("/:access_key/substitute", perm.Require("delete.nfces"), func(c fiber.Ctx) error {
-		var body struct {
-			SubstituteKey  string `json:"substitute_key" validate:"required,len=44,numeric"`
-			Justification  string `json:"justification" validate:"required,min=15,max=255"`
-			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
-		}
+		var body SubstituteCancelBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}

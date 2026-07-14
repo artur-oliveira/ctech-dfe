@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"strings"
-
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
@@ -16,7 +14,7 @@ func RegisterAuth(router fiber.Router, userSvc *services.UserService, _ *service
 
 	g.Get("/me", func(c fiber.Ctx) error {
 		userID := middleware.GetUserID(c)
-		accessToken := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+		accessToken := currentAccessToken(c)
 
 		// First login: provision the local row (org memberships only — no
 		// profile fields, see UserRepository.CreateMinimal) before reading it.

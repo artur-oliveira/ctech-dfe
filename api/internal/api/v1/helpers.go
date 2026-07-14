@@ -49,12 +49,17 @@ func sendProblem(c fiber.Ctx, err error) error {
 	return problem.InternalServer(err.Error()).Send(c)
 }
 
+// currentAccessToken extracts the raw Bearer token from the Authorization header.
+func currentAccessToken(c fiber.Ctx) string {
+	return strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+}
+
 // resolveActor extracts the caller's user_id (from auth middleware locals) and
 // resolves their display name for audit attribution. Every mutating route that
 // needs to attribute a change calls this once, right after request validation.
 func resolveActor(c fiber.Ctx, userSvc *services.UserService) (userID, userName string) {
 	userID = middleware.GetUserID(c)
-	accessToken := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+	accessToken := currentAccessToken(c)
 	_, userName = userSvc.ResolveActor(c.Context(), userID, accessToken)
 	return userID, userName
 }
@@ -293,6 +298,17 @@ func sendItem(c fiber.Ctx, item map[string]types.AttributeValue) error {
 		return sendProblem(c, err)
 	}
 	return c.JSON(m)
+}
+
+// sendCreated unmarshals a DynamoDB item and writes it as a 201 Created
+// response. Collapses the repeated `unmarshal + c.Status(201).JSON` tail
+// shared by every resource-creation handler.
+func sendCreated(c fiber.Ctx, item map[string]types.AttributeValue) error {
+	m, err := unmarshal(item)
+	if err != nil {
+		return sendProblem(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(m)
 }
 
 // sendPage unmarshals a QueryResult's items and writes them as a paginated JSON response.

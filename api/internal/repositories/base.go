@@ -439,3 +439,76 @@ func isTransactionCanceled(err error) bool {
 func IsConditionFailed(err error) bool {
 	return isConditionFailed(err) || isTransactionCanceled(err)
 }
+
+// CRUDRepository is a generic repository wrapper for CRUD operations on a DynamoDB table.
+type CRUDRepository[T any] struct {
+	Base
+}
+
+// NewCRUDRepository creates a CRUDRepository.
+func NewCRUDRepository[T any](db *dynamodb.Client, cfg *config.Config, tableName string) CRUDRepository[T] {
+	return CRUDRepository[T]{
+		Base: NewBase(db, cfg, tableName),
+	}
+}
+
+func (r *CRUDRepository[T]) Create(ctx context.Context, orgPK, sk string, entity T) (map[string]types.AttributeValue, error) {
+	now := NowStr()
+	item, err := MarshalMapOmitNull(entity)
+	if err != nil {
+		return nil, err
+	}
+	item["pk"] = &types.AttributeValueMemberS{Value: orgPK}
+	item["sk"] = &types.AttributeValueMemberS{Value: sk}
+	item["created_at"] = &types.AttributeValueMemberS{Value: now}
+	item["updated_at"] = &types.AttributeValueMemberS{Value: now}
+	return item, r.PutItem(ctx, item)
+}
+
+func (r *CRUDRepository[T]) Get(ctx context.Context, orgPK, sk string) (map[string]types.AttributeValue, error) {
+	return r.GetItem(ctx, orgPK, sk)
+}
+
+func (r *CRUDRepository[T]) Update(ctx context.Context, orgPK, sk string, updates map[string]any) (bool, error) {
+	updates["updated_at"] = NowStr()
+	return r.UpdateItem(ctx, orgPK, &sk, updates)
+}
+
+func (r *CRUDRepository[T]) Delete(ctx context.Context, orgPK, sk string) (bool, error) {
+	return r.DeleteItem(ctx, orgPK, sk)
+}
+
+func (r *CRUDRepository[T]) BuildCreateTxItem(orgPK, sk string, entity T) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
+	now := NowStr()
+	item, err := MarshalMapOmitNull(entity)
+	if err != nil {
+		return types.TransactWriteItem{}, nil, err
+	}
+	item["pk"] = &types.AttributeValueMemberS{Value: orgPK}
+	item["sk"] = &types.AttributeValueMemberS{Value: sk}
+	item["created_at"] = &types.AttributeValueMemberS{Value: now}
+	item["updated_at"] = &types.AttributeValueMemberS{Value: now}
+	return r.BuildPutTxItem(item), item, nil
+}
+
+func (r *CRUDRepository[T]) BuildCreateTxItemIfAbsent(orgPK, sk string, entity T) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
+	now := NowStr()
+	item, err := MarshalMapOmitNull(entity)
+	if err != nil {
+		return types.TransactWriteItem{}, nil, err
+	}
+	item["pk"] = &types.AttributeValueMemberS{Value: orgPK}
+	item["sk"] = &types.AttributeValueMemberS{Value: sk}
+	item["created_at"] = &types.AttributeValueMemberS{Value: now}
+	item["updated_at"] = &types.AttributeValueMemberS{Value: now}
+	return r.BuildPutTxItemIfAbsent(item), item, nil
+}
+
+func (r *CRUDRepository[T]) BuildUpdateTxItem(orgPK, sk string, updates map[string]any) (types.TransactWriteItem, error) {
+	updates["updated_at"] = NowStr()
+	return r.Base.BuildUpdateTxItem(orgPK, &sk, updates)
+}
+
+func (r *CRUDRepository[T]) BuildDeleteTxItem(orgPK, sk string) types.TransactWriteItem {
+	return r.Base.BuildDeleteTxItem(orgPK, sk)
+}

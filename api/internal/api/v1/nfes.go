@@ -107,10 +107,7 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.Ext
 
 	// POST /nfes/:access_key/cancel
 	g.Post("/:access_key/cancel", perm.Require("delete.nfes"), func(c fiber.Ctx) error {
-		var body struct {
-			Justification  string `json:"justification" validate:"required,min=15,max=255"`
-			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
-		}
+		var body CancelEventBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}

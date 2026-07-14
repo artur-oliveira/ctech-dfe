@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
 
@@ -30,9 +31,7 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 		token := c.Query("token")
 		orgPKRaw := c.Query("org_pk")
 		if token == "" || orgPKRaw == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"detail": "token e org_pk obrigatórios",
-			})
+			return sendProblem(c, problem.BadRequest("token e org_pk obrigatórios"))
 		}
 
 		return wsUpgrader.Upgrade(c.RequestCtx(), func(conn *fws.Conn) {

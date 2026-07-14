@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -11,38 +10,21 @@ import (
 )
 
 type PersonRepository struct {
-	Base
+	CRUDRepository[map[string]any]
 }
 
 func NewPersonRepository(db *dynamodb.Client, cfg *config.Config) *PersonRepository {
-	return &PersonRepository{Base: NewBase(db, cfg, "organization_persons")}
+	return &PersonRepository{
+		CRUDRepository: NewCRUDRepository[map[string]any](db, cfg, "organization_persons"),
+	}
 }
 
 func (r *PersonRepository) Create(ctx context.Context, orgPK, sk string, fields map[string]any) (map[string]types.AttributeValue, error) {
-	now := NowStr()
-	item := map[string]types.AttributeValue{
-		"pk":         &types.AttributeValueMemberS{Value: orgPK},
-		"sk":         &types.AttributeValueMemberS{Value: sk},
-		"created_at": &types.AttributeValueMemberS{Value: now},
-		"updated_at": &types.AttributeValueMemberS{Value: now},
-	}
-	for k, v := range fields {
-		if _, exists := item[k]; exists {
-			continue
-		}
-		if v == nil {
-			continue // omit null attributes
-		}
-		av, err := attributevalue.Marshal(v)
-		if err == nil {
-			item[k] = av
-		}
-	}
-	return item, r.PutItem(ctx, item)
+	return r.CRUDRepository.Create(ctx, orgPK, sk, fields)
 }
 
 func (r *PersonRepository) Get(ctx context.Context, orgPK, sk string) (map[string]types.AttributeValue, error) {
-	return r.GetItem(ctx, orgPK, sk)
+	return r.CRUDRepository.Get(ctx, orgPK, sk)
 }
 
 type PersonListOpts struct {
@@ -68,47 +50,22 @@ func (r *PersonRepository) List(ctx context.Context, orgPK string, opts PersonLi
 }
 
 func (r *PersonRepository) Update(ctx context.Context, orgPK, sk string, updates map[string]any) (bool, error) {
-	updates["updated_at"] = NowStr()
-	return r.UpdateItem(ctx, orgPK, &sk, updates)
+	return r.CRUDRepository.Update(ctx, orgPK, sk, updates)
 }
 
 func (r *PersonRepository) Delete(ctx context.Context, orgPK, sk string) (bool, error) {
-	return r.DeleteItem(ctx, orgPK, sk)
+	return r.CRUDRepository.Delete(ctx, orgPK, sk)
 }
 
-// BuildCreateTxItem returns a TransactWriteItem for a new person, mirroring
-// Create's key/timestamp/field construction, without writing.
 func (r *PersonRepository) BuildCreateTxItem(orgPK, sk string, fields map[string]any) (types.TransactWriteItem, map[string]types.AttributeValue) {
-	now := NowStr()
-	item := map[string]types.AttributeValue{
-		"pk":         &types.AttributeValueMemberS{Value: orgPK},
-		"sk":         &types.AttributeValueMemberS{Value: sk},
-		"created_at": &types.AttributeValueMemberS{Value: now},
-		"updated_at": &types.AttributeValueMemberS{Value: now},
-	}
-	for k, v := range fields {
-		if _, exists := item[k]; exists {
-			continue
-		}
-		if v == nil {
-			continue // omit null attributes
-		}
-		av, err := attributevalue.Marshal(v)
-		if err == nil {
-			item[k] = av
-		}
-	}
-	return r.BuildPutTxItemIfAbsent(item), item
+	tx, item, _ := r.CRUDRepository.BuildCreateTxItemIfAbsent(orgPK, sk, fields)
+	return tx, item
 }
 
-// BuildUpdateTxItem returns a TransactWriteItem for updating an existing
-// person, mirroring Update's timestamp bump, without writing.
 func (r *PersonRepository) BuildUpdateTxItem(orgPK, sk string, updates map[string]any) (types.TransactWriteItem, error) {
-	updates["updated_at"] = NowStr()
-	return r.Base.BuildUpdateTxItem(orgPK, &sk, updates)
+	return r.CRUDRepository.BuildUpdateTxItem(orgPK, sk, updates)
 }
 
-// BuildDeleteTxItem returns a TransactWriteItem for deleting a person, without writing.
 func (r *PersonRepository) BuildDeleteTxItem(orgPK, sk string) types.TransactWriteItem {
-	return r.Base.BuildDeleteTxItem(orgPK, sk)
+	return r.CRUDRepository.BuildDeleteTxItem(orgPK, sk)
 }
