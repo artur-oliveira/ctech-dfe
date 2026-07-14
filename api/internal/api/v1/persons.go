@@ -63,7 +63,7 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 					if err != nil {
 						return nil, err
 					}
-					crt, _ = extractCrtAndRegs(currentMap)
+					crt = extractCrt(currentMap)
 				}
 				if err := services.RequirePJFields(id, crt); err != nil {
 					return nil, err

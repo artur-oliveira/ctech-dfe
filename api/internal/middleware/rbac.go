@@ -62,28 +62,28 @@ func (p *PermChecker) RequireDynamic(permFmt, paramName string) fiber.Handler {
 	}
 }
 
-func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, *services.Membership, error) {
+func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, *services.Membership, *problem.Problem) {
 	userID := GetUserID(c)
 	if userID == "" {
-		return "", nil, c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("missing user identity"))
+		return "", nil, problem.Unauthorized("missing user identity")
 	}
 	foundOrgPK := c.Get(OrgHeader)
 	if foundOrgPK == "" {
 		foundOrgPK = c.Params(OrgPKKey)
 	}
 	if foundOrgPK == "" {
-		return "", nil, c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("missing organization: " + OrgHeader))
+		return "", nil, problem.BadRequest("missing organization: " + OrgHeader)
 	}
 	orgPK, err := repositories.ParseOrgPK(foundOrgPK)
 	if err != nil {
-		return "", nil, c.Status(fiber.StatusBadRequest).JSON(problem.BadRequest("invalid organization: " + foundOrgPK))
+		return "", nil, problem.BadRequest("invalid organization: " + foundOrgPK)
 	}
 	m, err := p.memberSvc.Get(c.Context(), orgPK, userID)
 	if err != nil {
-		return "", nil, c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado"))
+		return "", nil, problem.Forbidden("Acesso negado")
 	}
 	if m == nil {
-		return "", nil, c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("Acesso negado a esta organização"))
+		return "", nil, problem.Forbidden("Acesso negado a esta organização")
 	}
 	return orgPK, m, nil
 }
@@ -96,7 +96,7 @@ func (p *PermChecker) requireRoles(msg string, allowed ...string) fiber.Handler 
 	return func(c fiber.Ctx) error {
 		orgPK, m, err := p.parseUserOrganizationRole(c)
 		if err != nil {
-			return err
+			return c.Status(err.Status).JSON(err)
 		}
 		if !containsStr(allowed, m.Role) {
 			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden(msg))
@@ -127,7 +127,7 @@ func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
 func (p *PermChecker) check(c fiber.Ctx, permission string) error {
 	orgPK, m, err := p.parseUserOrganizationRole(c)
 	if err != nil {
-		return err
+		return c.Status(err.Status).JSON(err)
 	}
 	c.Locals(OrgPKKey, orgPK)
 	c.Locals(OrgRoleKey, m.Role)
