@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation'
 import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
+import {useAuth} from '@/lib/hooks/useAuth'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {type CertificateInput, OrganizationForm} from '@/components/organizations/OrganizationForm'
@@ -13,12 +14,19 @@ import type {OrganizationCreate} from '@/lib/types/api'
 function NewOrganizationContent() {
   const router = useRouter()
   const qc = useQueryClient()
-  
+  const {refreshUser, setSelectedOrg} = useAuth()
+
   const createMutation = useMutation({
     mutationFn: ({data, cert}: { data: OrganizationCreate; cert?: CertificateInput }) =>
       apiClient.createOrganization(data, cert),
-    onSuccess: () => {
+    onSuccess: async (created) => {
       void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
+      // Refetch /auth/me so the new org appears in the membership list, then make
+      // it the active org. refreshUser prioritizes the previously-saved org, so we
+      // override with the freshly-created one here.
+      const me = await refreshUser()
+      const newOrg = me?.organizations.find((o) => o.pk === created.pk)
+      if (newOrg) setSelectedOrg(newOrg)
       router.push('/organizations')
     },
   })

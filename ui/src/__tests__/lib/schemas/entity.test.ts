@@ -61,7 +61,7 @@ describe('entitySchema — PF edit', () => {
   })
 })
 
-describe('organizationSchema — PJ requires at least one IE, entitySchema (persons) does not', () => {
+describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected', () => {
   const pj: EntityFormData = {
     ...basePF,
     tipo: 'pj',
@@ -69,13 +69,21 @@ describe('organizationSchema — PJ requires at least one IE, entitySchema (pers
     person: {...basePF.person, fantasy_name: 'Loja', crt: '1', state_registrations: []},
   }
 
-  it('organizationSchema rejeita PJ sem inscrição estadual', () => {
-    expect(organizationSchema.safeParse(pj).success).toBe(false)
+  it('organizationSchema aceita PJ sem inscrição estadual', () => {
+    expect(organizationSchema.safeParse(pj).success).toBe(true)
   })
 
   it('organizationSchema aceita PJ com ao menos uma inscrição estadual', () => {
     const withIE = {...pj, person: {...pj.person, state_registrations: [{uf: 'PI' as const, state_registration: '123456'}]}}
     expect(organizationSchema.safeParse(withIE).success).toBe(true)
+  })
+
+  it('organizationSchema rejeita UF duplicada', () => {
+    const dup = {...pj, person: {...pj.person, state_registrations: [
+      {uf: 'PI' as const, state_registration: '111'},
+      {uf: 'PI' as const, state_registration: '222'},
+    ]}}
+    expect(organizationSchema.safeParse(dup).success).toBe(false)
   })
 
   it('entitySchema (pessoas) aceita PJ sem inscrição estadual', () => {

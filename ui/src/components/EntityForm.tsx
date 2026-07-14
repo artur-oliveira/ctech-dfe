@@ -264,11 +264,15 @@ export function EntityForm({
   // Inscrições Estaduais — required (and always visible) for a PJ organization
   // since it's always the fiscal emitter; optional (and tucked into "advanced")
   // for a PJ person, since IE-when-contribuinte is a per-emission choice.
+  // Array-level custom errors (e.g. duplicate UF) live at person.state_registrations
+  // and have no per-item FormField, so render them explicitly here.
+  const ieRootError = form.formState.errors.person?.state_registrations?.message
+
   const ieSection = isPJ && (
     <div className="pt-1 border-t border-gray-100">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Inscrições Estaduais{isOrg ? ' *' : ''}
+          Inscrições Estaduais
         </p>
         <Button type="button" variant="ghost" size="xs"
                 onClick={() => {
@@ -283,6 +287,7 @@ export function EntityForm({
           <PlusIcon/> Adicionar
         </Button>
       </div>
+      {ieRootError && <p className="text-xs text-red-600 mb-2">{ieRootError}</p>}
       {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
       {ieFields.map((field, index) => {
         const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)

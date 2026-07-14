@@ -13,7 +13,7 @@ interface AuthContextType {
   setSelectedOrg: (org: UserOrganization | null) => void
   login: () => void
   logout: () => void
-  refreshUser: () => Promise<boolean>
+  refreshUser: () => Promise<MeResponse | null>
   handleCallback: (accessToken: string, idToken: string | null) => Promise<void>
 }
 
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const refreshUser = useCallback(async (nameClaims?: IdTokenClaims | null): Promise<boolean> => {
+  const refreshUser = useCallback(async (nameClaims?: IdTokenClaims | null): Promise<MeResponse | null> => {
     try {
       const data = applyNameClaims(await apiClient.me(), nameClaims)
       setUser(data)
@@ -74,13 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (data.organizations.length > 0) {
         setSelectedOrg(data.organizations[0])
       }
-      return true
+      return data
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setUser(null)
         localStorage.removeItem(STORAGE_KEY_USER)
       }
-      return false
+      return null
     }
   }, [setSelectedOrg])
 

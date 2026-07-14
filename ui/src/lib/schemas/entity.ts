@@ -64,19 +64,10 @@ export const entitySchema = z.object({
   }
 })
 
-// Organizations are always the fiscal emitter, so — unlike persons, where IE
-// is a per-emission choice (indIEDest) — a PJ organization must declare at
-// least one state registration at cadastro time. See
-// docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md.
-export const organizationSchema = entitySchema.superRefine((data, ctx) => {
-  if (data.tipo === 'pj' && data.person.state_registrations.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Ao menos uma Inscrição Estadual é obrigatória para organização com CNPJ',
-      path: ['person', 'state_registrations'],
-    })
-  }
-})
+// IE is optional at cadastro time — a PJ organization may be registered without
+// any state registration (backend accepts empty state_registrations). Duplicate
+// UF validation still applies via entitySchema's base superRefine.
+export const organizationSchema = entitySchema
 
 export type EntityFormData = z.infer<typeof entitySchema>
 export type AddressData = z.infer<typeof addressSchema>

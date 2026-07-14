@@ -7,12 +7,14 @@ import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
 import {Textarea} from '@/components/ui/textarea'
+import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
+import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Modal} from '@/components/ui/modal'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import type {
@@ -200,7 +202,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
           <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(cpfCnpj)}</p>
         </div>
         <Button type="button" variant="ghost" size="xs" onClick={() => onChange(null)}
-                className="text-red-500 hover:text-red-700 shrink-0">
+                className="text-danger hover:text-red-700 shrink-0">
           Trocar
         </Button>
       </div>
@@ -579,13 +581,13 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
           </div>
         </div>
         <Button type="button" variant="ghost" size="xs" onClick={() => onRemove(index)}
-                className="shrink-0 text-red-500 hover:text-red-700">
+                className="shrink-0 text-danger hover:text-red-700">
           Remover
         </Button>
       </div>
       <div className="grid grid-cols-3 md:grid-cols-12 gap-2 items-end">
         <div className="col-span-3 md:col-span-6 flex flex-col gap-1">
-          <Label className="text-xs font-medium text-gray-600">CFOP</Label>
+          <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
           {cfopOptions.length > 0 ? (
             <OptionsSelect
               value={item.cfopSuffix}
@@ -691,7 +693,7 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
                   <span className="font-mono text-gray-700">série: {a.n_serie} · cano: {a.n_cano}</span>
                   <Button type="button" variant="ghost" size="xs"
                           onClick={() => onChange(index, {armas: (item.armas ?? []).filter((_, i) => i !== ai)})}
-                          className="text-red-500 hover:text-red-700">remover</Button>
+                          className="text-danger hover:text-red-700">remover</Button>
                 </div>
               ))}
             </div>
@@ -1174,10 +1176,10 @@ export function NfeEmitForm() {
       const result = await apiClient.emitNfe(payload)
       toast.success('NF-e enviada para a SEFAZ', {
         description: result.sefaz_protocol
-          ? `Protocolo ${result.sefaz_protocol} · chave ${result.access_key}`
-          : `Chave de acesso ${result.access_key}`,
+          ? `Protocolo ${result.sefaz_protocol} · chave ${result.sk}`
+          : `Chave de acesso ${result.sk}`,
       })
-      router.push(`/nfe/detail?key=${result.access_key}`)
+      router.push(`/nfe/detail?key=${result.sk}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir NF-e.')
       setIsSubmitting(false)
@@ -1358,7 +1360,7 @@ export function NfeEmitForm() {
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
                     <Button type="button" variant="ghost" size="xs" onClick={() => handleRemovePayment(i)}
-                            className="text-red-500 hover:text-red-700">remover</Button>
+                            className="text-danger hover:text-red-700">remover</Button>
                   </div>
                 </div>
               ))}
@@ -1374,7 +1376,7 @@ export function NfeEmitForm() {
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Adicionar pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
               <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium text-gray-600">Forma de pagamento</Label>
+                <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
                 <OptionsSelect value={newPaymentType}
                                onValueChange={(v) => {
                                  setNewPaymentType(v)
@@ -1510,7 +1512,7 @@ export function NfeEmitForm() {
                     </Button>
                     {duplicatas.length > 0 && (
                       <Button type="button" variant="ghost" size="sm" onClick={() => setDuplicatas([])}
-                              className="text-red-500 hover:text-red-700">Limpar</Button>
+                              className="text-danger hover:text-red-700">Limpar</Button>
                     )}
                   </div>
                 </div>
@@ -1586,6 +1588,8 @@ export function NfeEmitForm() {
             </div>
           </div>
 
+          {/* Advanced / expert-mode group (collapsed by default) */}
+          <CollapsibleSection title="Configurações avançadas" description="Transporte e informações adicionais (opcional)">
           {/* Transport */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
             <div className="flex items-center gap-2">
@@ -1606,7 +1610,7 @@ export function NfeEmitForm() {
             {showTransport && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-1 max-w-xs">
-                  <Label className="text-xs font-medium text-gray-600">Modalidade</Label>
+                  <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">Modalidade</Label><GlossaryTerm term="mod_frete"/></div>
                   <OptionsSelect value={transport.mod_frete}
                                  onValueChange={v => setTransport(t => ({...t, mod_frete: v}))}
                                  options={MOD_FRETE_OPTIONS}/>
@@ -1627,7 +1631,7 @@ export function NfeEmitForm() {
                             <div className="flex-1"><p
                               className="font-medium text-gray-900 text-sm">{selectedCarrier.name}</p></div>
                             <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedCarrier(null)}
-                                    className="text-red-500">Trocar</Button>
+                                    className="text-red-600">Trocar</Button>
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -1647,7 +1651,7 @@ export function NfeEmitForm() {
                             className="font-mono text-sm font-medium">{selectedVehicle.plate}</p><p
                             className="text-xs text-gray-500">{selectedVehicle.plate_uf}</p></div>
                           <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedVehicle(null)}
-                                  className="text-red-500">Trocar</Button>
+                                  className="text-red-600">Trocar</Button>
                         </div>
                       ) : (
                         <VehicleSelect vehicles={vehiclesData?.items ?? []} onSelect={setSelectedVehicle}
@@ -1688,6 +1692,7 @@ export function NfeEmitForm() {
             <Textarea value={additionalInfo} onChange={e => setAdditionalInfo(e.target.value)}
                       placeholder="Observações, dados ao fisco, pedido, etc. (opcional)" rows={3}/>
           </div>
+          </CollapsibleSection>
         </div>
       )}
 

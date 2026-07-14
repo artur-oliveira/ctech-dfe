@@ -15,6 +15,9 @@ import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
+import {BulkActionBar} from '@/components/ui/bulk-action-bar'
+import {useRowSelection} from '@/lib/hooks/useRowSelection'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {VehicleOut} from '@/lib/types/api'
 
@@ -42,7 +45,18 @@ function VehiclesContent() {
   
   // Rows inside the undo window are hidden until the delete commits (or is undone).
   const visibleItems = filterVisible(items)
-  
+
+  const rowId = (v: VehicleOut) => extractId(v.sk, SK_PREFIX.VEHICLE)
+  const selection = useRowSelection(visibleItems.map(rowId))
+  const bulkDelete = () => {
+    const byId = new Map(visibleItems.map((v) => [rowId(v), v]))
+    selection.selectedIds.forEach((id) => {
+      const v = byId.get(id)
+      if (v) handleDelete(v)
+    })
+    selection.clear()
+  }
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -67,54 +81,61 @@ function VehiclesContent() {
             action={{label: 'Novo veículo', onClick: () => router.push('/vehicles/new')}}
           />
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                {['Placa', 'UF', 'Tipo', 'Carroceria', 'Tara', 'Proprietário', ''].map((h) => (
-                  <th key={h}
-                      className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
+          <TableShell
+            ariaLabel="Veículos cadastrados"
+            minWidth={640}
+            headers={[
+              {label: '__select', className: 'w-10', node: (
+                <RowCheckbox
+                  checked={selection.allSelected}
+                  indeterminate={selection.someSelected}
+                  onChange={selection.toggleAll}
+                  ariaLabel="Selecionar todos"
+                />
+              )},
+              'Placa', 'UF', 'Tipo', 'Carroceria', 'Tara', 'Proprietário', {label: '', align: 'right'},
+            ]}
+          >
+            {visibleItems.map((v) => (
+              <tr key={v.sk} className={TABLE_ROW}>
+                <td className={TABLE_CELL}>
+                  <RowCheckbox
+                    checked={selection.isSelected(rowId(v))}
+                    onChange={() => selection.toggle(rowId(v))}
+                    ariaLabel={`Selecionar ${v.plate}`}
+                  />
+                </td>
+                <td data-label="Placa" className={`${TABLE_CELL} font-mono font-medium text-gray-900`}>{v.plate}</td>
+                <td data-label="UF" className={`${TABLE_CELL} text-gray-600`}>{v.plate_uf}</td>
+                <td data-label="Tipo" className={`${TABLE_CELL} text-gray-700`}>{v.role === 'trailer' ? 'Reboque' : 'Tração'}</td>
+                <td data-label="Carroceria" className={`${TABLE_CELL} text-gray-600`}>{v.bodywork ?? '—'}</td>
+                <td
+                  data-label="Tara" className={`${TABLE_CELL} text-gray-600`}>{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
+                <td data-label="Proprietário" className={`${TABLE_CELL} text-gray-600 max-w-[160px] truncate`}>{v.owner?.name ?? '—'}</td>
+                <td className={`${TABLE_CELL} text-right`}>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => router.push(`/vehicles/edit?id=${extractId(v.sk, SK_PREFIX.VEHICLE)}`)}
+                      className="text-brand-600 hover:text-brand-700"
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleDelete(v)}
+                      disabled={isDeleting}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                </td>
               </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-              {visibleItems.map((v) => (
-                <tr key={v.sk} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 font-mono font-medium text-gray-900">{v.plate}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{v.plate_uf}</td>
-                  <td className="px-5 py-3.5 text-gray-700">{v.role === 'trailer' ? 'Reboque' : 'Tração'}</td>
-                  <td className="px-5 py-3.5 text-gray-600">{v.bodywork ?? '—'}</td>
-                  <td
-                    className="px-5 py-3.5 text-gray-600">{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
-                  <td className="px-5 py-3.5 text-gray-600 max-w-[160px] truncate">{v.owner?.name ?? '—'}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => router.push(`/vehicles/edit?id=${extractId(v.sk, SK_PREFIX.VEHICLE)}`)}
-                        className="text-brand-600 hover:text-brand-700"
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handleDelete(v)}
-                        disabled={isDeleting}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
+            ))}
+          </TableShell>
         )}
         <Pagination
           hasNext={hasNext}
@@ -123,6 +144,17 @@ function VehiclesContent() {
           onPrevious={goPrevious}
           isLoading={isFetching}
         />
+        <BulkActionBar count={selection.count} onClear={selection.clear}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={bulkDelete}
+            disabled={isDeleting}
+            className="text-red-600 hover:text-red-700"
+          >
+            Excluir selecionados
+          </Button>
+        </BulkActionBar>
       </div>
     </RootLayout>
   )

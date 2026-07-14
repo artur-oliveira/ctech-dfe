@@ -13,6 +13,7 @@ import {StatusBadge} from '@/components/ui/status-badge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 
 
 const EVENT_STATUS_CLASSES: Record<string, string> = {
@@ -258,27 +259,22 @@ export function DfeDetail({
             className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
             Produtos ({doc.products.length})
           </p>
-          <table className="w-full text-sm min-w-120">
-            <thead className="bg-gray-50">
-            <tr>
-              {['Descrição', 'CFOP', 'Qtd', 'Vl. unit.', 'Desconto', 'Total'].map(h => (
-                <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+          <TableShell
+            ariaLabel="Resumo do documento"
+            minWidth={120}
+            headers={['Descrição', 'CFOP', 'Qtd', 'Vl. unit.', 'Desconto', 'Total']}
+          >
             {doc.products.map((p, i) => (
-              <tr key={i} className="hover:bg-gray-50">
-                <td className="px-4 py-2.5 text-gray-900">{p.description}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{p.cfop}</td>
-                <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">{p.quantity} {p.unit}</td>
-                <td className="px-4 py-2.5 text-gray-700">{formatCurrency(p.unit_value)}</td>
-                <td className="px-4 py-2.5 text-gray-700">{formatCurrency(p.discount)}</td>
-                <td className="px-4 py-2.5 font-medium text-gray-900">{formatCurrency(p.total)}</td>
+              <tr key={i} className={TABLE_ROW}>
+                <td data-label="Descrição" className={`${TABLE_CELL} text-gray-900`}>{p.description}</td>
+                <td data-label="CFOP" className={`${TABLE_CELL} font-mono text-xs text-gray-500`}>{p.cfop}</td>
+                <td data-label="Qtd" className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}>{p.quantity} {p.unit}</td>
+                <td data-label="Vl. unit." className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(p.unit_value)}</td>
+                <td data-label="Desconto" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(p.discount)}</td>
+                <td data-label="Total" className={`${TABLE_CELL} font-medium text-gray-900`}>{formatCurrency(p.total)}</td>
               </tr>
             ))}
-            </tbody>
-          </table>
+          </TableShell>
           <div className="px-4 py-3 border-t border-gray-100 text-sm text-right space-x-6 text-gray-500">
             {totalDiscount > 0 && (
               <span>Desconto: <span className="font-medium text-red-600">-{formatCurrency(String(totalDiscount))}</span></span>
@@ -316,65 +312,61 @@ export function DfeDetail({
       )}
 
       {/* Eventos */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-        <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
-          Eventos
-        </p>
+      <TableShell
+        ariaLabel="Eventos do documento"
+        minWidth={120}
+        headers={['Evento', 'Seq.', 'Status', 'Data', '']}
+      >
         {eventsLoading ? (
-          <div className="divide-y divide-gray-100">
-            {[0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-3">
-                <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
-                <div className="h-4 w-8 bg-gray-100 rounded animate-pulse"/>
-                <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse"/>
-                <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+          <tr>
+            <td colSpan={5} className={TABLE_CELL}>
+              <div className="divide-y divide-gray-100">
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
+                    <div className="h-4 w-8 bg-gray-100 rounded animate-pulse"/>
+                    <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse"/>
+                    <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </td>
+          </tr>
         ) : !eventsData?.items.length ? (
-          <p className="px-4 py-4 text-sm text-gray-400">Nenhum evento registrado.</p>
+          <tr>
+            <td colSpan={5} className={TABLE_CELL}>Nenhum evento registrado.</td>
+          </tr>
         ) : (
-          <table className="w-full text-sm min-w-120">
-            <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {['Evento', 'Seq.', 'Status', 'Data', ''].map((h) => (
-                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
+          eventsData.items.map((evt) => (
+            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+              <td data-label="Evento" className={TABLE_CELL}>
+                <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
+                {evt.sefaz_motive && (
+                  <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
+                )}
+              </td>
+              <td
+                data-label="Seq." className={`${TABLE_CELL} text-gray-500 font-mono text-xs`}>{String(evt.sequence_number).padStart(3, '0')}</td>
+              <td data-label="Status" className={TABLE_CELL}>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
+                </span>
+              </td>
+              <td
+                data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
+              <td className={`${TABLE_CELL} text-right`}>
+                {evt.xml_s3_key && (
+                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
+                          disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
+                    {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
+                  </Button>
+                )}
+              </td>
             </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {eventsData.items.map((evt) => (
-              <tr key={evt.sk} className="hover:bg-gray-50 transition-colors align-top">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
-                  {evt.sefaz_motive && (
-                    <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
-                  )}
-                </td>
-                <td
-                  className="px-4 py-3 text-gray-500 font-mono text-xs">{String(evt.sequence_number).padStart(3, '0')}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
-                  </span>
-                </td>
-                <td
-                  className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDatetimeBR(evt.created_at)}</td>
-                <td className="px-4 py-3 text-right">
-                  {evt.xml_s3_key && (
-                    <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
-                            disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
-                      {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
+          ))
         )}
-      </div>
+      </TableShell>
 
       <p className="text-xs text-gray-400">Emissão: {formatDate(doc.year, doc.month, doc.day)}</p>
 
@@ -411,7 +403,7 @@ export function DfeDetail({
             />
             <div className="flex justify-between mt-1">
               {justification.trim().length < 15 && justification.length > 0 && (
-                <p className="text-xs text-red-500">Mínimo 15 caracteres
+                <p className="text-xs text-red-600">Mínimo 15 caracteres
                   ({15 - justification.trim().length} restantes)</p>
               )}
               <p className="text-xs text-gray-400 ml-auto">{justification.length}/255</p>

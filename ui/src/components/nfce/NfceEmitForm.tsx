@@ -10,6 +10,8 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
+import {GlossaryTerm} from '@/components/ui/glossary-term'
+import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Textarea} from '@/components/ui/textarea'
 import {Modal} from '@/components/ui/modal'
 import {CurrencyInput} from '@/components/ui/currency-input'
@@ -153,7 +155,7 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
           <Button type="button" variant="ghost" size="xs" onClick={() => {
             onChange(null)
             setNotFound(false)
-          }} className="text-red-500 hover:text-red-700 shrink-0">Trocar</Button>
+          }} className="text-danger hover:text-red-700 shrink-0">Trocar</Button>
         </div>
         {!value.name && (
           <p className="text-xs text-amber-600">
@@ -281,7 +283,7 @@ function ProductPicker({onSelect, onClose}: { onSelect: (p: ProductOut) => void;
               <span className="text-sm text-gray-900 min-w-0 truncate">
                 {p.description}
                 {p.brand && <span className="ml-1.5 text-xs text-gray-400">{p.brand}</span>}
-                {!valid && <span className="ml-1.5 text-xs text-red-500">sem CFOP de NFC-e</span>}
+                {!valid && <span className="ml-1.5 text-xs text-red-600">sem CFOP de NFC-e</span>}
               </span>
                 <span className="text-xs text-gray-400 shrink-0">
                   {parseFloat(p.value).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -320,11 +322,11 @@ function ProductRow({item, index, onChange, onRemove}: {
           )}
         </p>
         <Button type="button" variant="ghost" size="xs" onClick={() => onRemove(index)}
-                className="shrink-0 text-red-500 hover:text-red-700">Remover</Button>
+                className="shrink-0 text-danger hover:text-red-700">Remover</Button>
       </div>
       <div className="grid grid-cols-3 md:grid-cols-12 gap-2 items-end">
         <div className="col-span-3 md:col-span-6 flex flex-col gap-1">
-          <Label className="text-xs font-medium text-gray-600">CFOP</Label>
+          <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
           {cfopOptions.length > 0 ? (
             <OptionsSelect value={item.cfop} onValueChange={(v) => onChange(index, {cfop: v})}
                            options={cfopOptions} placeholder="CFOP"/>
@@ -574,7 +576,7 @@ export function NfceEmitForm() {
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
                     <Button type="button" variant="ghost" size="xs" onClick={() => removePayment(i)}
-                            className="text-red-500 hover:text-red-700">remover</Button>
+                            className="text-danger hover:text-red-700">remover</Button>
                   </div>
                 </div>
               ))}
@@ -589,7 +591,7 @@ export function NfceEmitForm() {
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
               <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium text-gray-600">Forma de pagamento</Label>
+                <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
                 <OptionsSelect value={newPaymentType} onValueChange={(v) => {
                   setNewPaymentType(v)
                   setShowCardToggle(false)
@@ -628,11 +630,11 @@ export function NfceEmitForm() {
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <CollapsibleSection title="Configurações avançadas" description="Informações adicionais (opcional)">
             <Label className="text-xs font-medium text-gray-600">Informações adicionais (opcional)</Label>
             <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} rows={3}
                       maxLength={2000} placeholder="Observações…" className="w-full mt-1"/>
-          </div>
+          </CollapsibleSection>
 
           {submitError && (
             <div

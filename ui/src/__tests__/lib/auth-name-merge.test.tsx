@@ -101,6 +101,24 @@ describe('AuthContext name merge from id_token', () => {
     expect(result.current.user?.username).toBe('stale.user')
   })
 
+  // Regression: after creating an org, the new-org page needs refreshUser to return
+  // the fresh /auth/me so it can select the just-created org as active by pk.
+  it('refreshUser resolves to the fetched user so a new org can be selected active', async () => {
+    const newOrg = {pk: 'org-new', name: 'Nova', description: null, role: 'owner', permissions: [], state_federation: null}
+    meMock.mockResolvedValue(backendMe({organizations: [newOrg]}))
+
+    const {result} = renderAuth()
+    let me: MeResponse | null = null
+    await act(async () => {
+      me = await result.current.refreshUser()
+    })
+
+    expect(me?.organizations.find((o) => o.pk === 'org-new')).toBeTruthy()
+
+    act(() => result.current.setSelectedOrg(newOrg))
+    expect(result.current.selectedOrg?.pk).toBe('org-new')
+  })
+
   it('persists the merged name to localStorage', async () => {
     meMock.mockResolvedValue(backendMe())
     const idToken = makeToken({given_name: 'Fresh', family_name: 'Name'})

@@ -563,7 +563,9 @@ class ApiClient {
 
   async listDistributions(docType: string, params?: {
     limit?: number;
-    cursor?: string
+    cursor?: string;
+    /** Filter history to NSUs containing this value (server-side). */
+    nsu?: string
   }): Promise<PaginatedResponse<NFeDistributionOut>> {
     return this.get(`/v1.0/distributions/${docType}/history`, {params})
   }

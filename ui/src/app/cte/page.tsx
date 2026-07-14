@@ -21,6 +21,7 @@ import type {NFeDistributionOut} from '@/lib/types/api'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
 import {cteSchemaLabel} from '@/lib/constants/distributions'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 
 type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
 
@@ -40,21 +41,21 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
   }
   
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-gray-500">
+    <tr className={TABLE_ROW}>
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-500`} data-label="NSU">
         {formatNsu(item.nsu)}
       </td>
-      <td className="px-4 py-3">
+      <td className={TABLE_CELL} data-label="Tipo">
         <p className="text-sm font-medium text-gray-900">{cteSchemaLabel(item)}</p>
-        {item.parse_error && <p className="text-xs text-red-500 mt-0.5">Erro ao processar documento</p>}
+        {item.parse_error && <p className="text-xs text-red-600 mt-0.5">Erro ao processar documento</p>}
       </td>
-      <td className="px-4 py-3 font-mono text-xs text-gray-400">
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="Chave">
         {item.access_key ?? <span className="text-gray-300">—</span>}
       </td>
-      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+      <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">
         {formatDatetimeBR(item.created_at)}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className={`${TABLE_CELL} text-right`}>
         <div className="flex items-center justify-end gap-3">
           {item.xml_s3_key && (
             <Button variant="ghost" size="xs" onClick={handleDownloadXml} disabled={xmlLoading}
@@ -140,28 +141,24 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
         <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
       )}
       
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-        {isLoading ? (
+      {isLoading ? (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
           <DistributionSkeleton/>
-        ) : items.length === 0 ? (
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
           <EmptyState title="Nenhum CT-e recebido"
                       description="Clique em «Consultar SEFAZ» para buscar CT-es emitidos para o seu CNPJ."/>
-        ) : (
-          <table className="w-full text-sm min-w-120">
-            <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {['NSU', 'Tipo', 'Chave', 'Recebido em', ''].map(h => (
-                <th key={h}
-                    className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {items.map(item => <CTeRow key={item.nsu} item={item}/>)}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <TableShell
+          ariaLabel="CT-es"
+          minWidth={120}
+          headers={['NSU', 'Tipo', 'Chave', 'Recebido em', {label: '', align: 'right'}]}
+        >
+          {items.map(item => <CTeRow key={item.nsu} item={item}/>)}
+        </TableShell>
+      )}
       
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}

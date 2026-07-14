@@ -4,6 +4,7 @@ import React, {useState} from 'react'
 import {usePathname} from 'next/navigation'
 import {Sidebar} from './Sidebar'
 import {Topbar} from './Topbar'
+import {KeyboardShortcuts} from './KeyboardShortcuts'
 import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme'
 
 export function RootLayout({children}: { children: React.ReactNode }) {
@@ -24,6 +25,8 @@ export function RootLayout({children}: { children: React.ReactNode }) {
       )}
 
       <Topbar onMenuClick={() => setSidebarOpen(true)}/>
+
+      <KeyboardShortcuts/>
 
       <main
         className="pt-(--topbar-height) md:ml-(--sidebar-width)"

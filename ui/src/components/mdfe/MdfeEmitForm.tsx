@@ -573,7 +573,7 @@ export function MdfeEmitForm() {
                 <div key={d.sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <span className="text-gray-700 min-w-0 truncate">Nº {d.number} · {d.dest_name || d.emit_name}</span>
                   <Button type="button" variant="ghost" size="xs" onClick={() => toggleDoc(d)}
-                          className="text-red-500 hover:text-red-700 shrink-0">remover</Button>
+                          className="text-danger hover:text-red-700 shrink-0">remover</Button>
                 </div>
               ))}
             </div>
@@ -715,7 +715,7 @@ export function MdfeEmitForm() {
                     <div key={sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                       <span className="text-gray-700">{t?.label ?? sk}</span>
                       <Button type="button" variant="ghost" size="xs" onClick={() => removeTrailer(sk)}
-                              className="text-red-500 hover:text-red-700">remover</Button>
+                              className="text-danger hover:text-red-700">remover</Button>
                     </div>
                   )
                 })}
@@ -739,7 +739,7 @@ export function MdfeEmitForm() {
                       className="font-mono text-gray-400">{formatCpfCnpj(c.cpf)}</span></span>
                     <Button type="button" variant="ghost" size="xs"
                             onClick={() => setDrivers((p) => p.filter((x) => x.cpf !== c.cpf))}
-                            className="text-red-500 hover:text-red-700">remover</Button>
+                            className="text-danger hover:text-red-700">remover</Button>
                   </div>
                 ))}
               </div>

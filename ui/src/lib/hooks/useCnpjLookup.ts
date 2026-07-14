@@ -4,21 +4,22 @@ import {useCallback, useRef, useState} from 'react'
 import {apiClient, ApiError} from '@/lib/api/client'
 import type {LookupOrganizationOut} from '@/lib/types/api'
 import {bfsUfOrder} from '@/lib/utils/uf-graph'
+import {useAuth} from "./useAuth"
 
 export type CnpjLookupStatus =
-  | 'idle'
-  | 'searching'       // actively querying
-  | 'found'           // CNPJ found, result available
-  | 'not_found'       // exhausted all UFs
-  | 'no_certificate'  // org has no cert — caller should surface this prominently
-  | 'sefaz_rejection'  // org has no cert — caller should surface this prominently
-  | 'error'           // unexpected error
+    | 'idle'
+    | 'searching'       // actively querying
+    | 'found'           // CNPJ found, result available
+    | 'not_found'       // exhausted all UFs
+    | 'no_certificate'  // org has no cert — caller should surface this prominently
+    | 'sefaz_rejection'  // org has no cert — caller should surface this prominently
+    | 'error'           // unexpected error
 
 export interface CnpjLookupState {
-  status: CnpjLookupStatus
-  result: LookupOrganizationOut | null
-  currentUf: string | null
-  errorMessage: string | null
+    status: CnpjLookupStatus
+    result: LookupOrganizationOut | null
+    currentUf: string | null
+    errorMessage: string | null
 }
 
 const NO_CERTIFICATE_TYPE = '/problems/no-certificate'
@@ -33,77 +34,83 @@ const SEFAZ_REJECTION_TYPE = '/problems/sefaz-rejection'
  *   lookup(cnpj14digits, orgStateFederation)
  */
 export function useCnpjLookup() {
-  const [state, setState] = useState<CnpjLookupState>({
-    status: 'idle',
-    result: null,
-    currentUf: null,
-    errorMessage: null,
-  })
+    const [state, setState] = useState<CnpjLookupState>({
+        status: 'idle',
+        result: null,
+        currentUf: null,
+        errorMessage: null,
+    })
 
-  // Ref used to cancel an in-progress search
-  const abortRef = useRef(false)
+    const {selectedOrg} = useAuth()
 
-  const cancel = useCallback(() => {
-    abortRef.current = true
-    setState((s) => s.status === 'searching' ? {...s, status: 'idle', currentUf: null} : s)
-  }, [])
+    // Ref used to cancel an in-progress search
+    const abortRef = useRef(false)
 
-  const lookup = useCallback(async (cpfCnpj: string, orgUf: string) => {
-    const clean = cpfCnpj.replace(/\D/g, '')
-    if (clean.length !== 11 && clean.length !== 14) return
+    const cancel = useCallback(() => {
+        abortRef.current = true
+        setState((s) => s.status === 'searching' ? {...s, status: 'idle', currentUf: null} : s)
+    }, [])
 
-    abortRef.current = false
-    setState({status: 'searching', result: null, currentUf: orgUf, errorMessage: null})
+    const lookup = useCallback(async (cpfCnpj: string, orgUf: string) => {
+        const clean = cpfCnpj.replace(/\D/g, '')
+        if (clean.length !== 11 && clean.length !== 14 || selectedOrg === null) return
 
-    const ufsToTry = bfsUfOrder(orgUf || 'SP')
+        abortRef.current = false
+        setState({status: 'searching', result: null, currentUf: orgUf, errorMessage: null})
 
-    for (const uf of ufsToTry) {
-      if (abortRef.current) return
+        const ufsToTry = bfsUfOrder(orgUf || 'SP')
 
-      setState((s) => ({...s, currentUf: uf}))
+        for (const uf of ufsToTry) {
+            if (abortRef.current) return
 
-      try {
-        const result = await apiClient.lookupOrganization(clean, uf)
-        if (abortRef.current) return
-        setState({status: 'found', result, currentUf: null, errorMessage: null})
-        setTimeout(() => {
-          setState({status: 'idle', result: null, currentUf: null, errorMessage: null})
-        }, 5000);
-        return
-      } catch (err) {
-        if (abortRef.current) return
+            setState((s) => ({...s, currentUf: uf}))
 
-        if (err instanceof ApiError) {
-          // No certificate — stop immediately, surface to user
-          if (err.raw && typeof err.raw === 'object' && (err.raw as { type?: string }).type === NO_CERTIFICATE_TYPE) {
-            setState({status: 'no_certificate', result: null, currentUf: null, errorMessage: err.detail})
-            return
-          }
-          if (err.raw && typeof err.raw === 'object' && (err.raw as { type?: string }).type === SEFAZ_REJECTION_TYPE) {
-            setState({status: 'sefaz_rejection', result: null, currentUf: null, errorMessage: err.detail})
-            return
-          }
-          // Not found in this UF — continue BFS
-          if (err.status === 404) continue
-          // Other API error — stop
-          setState({status: 'error', result: null, currentUf: null, errorMessage: err.detail})
-          return
+            try {
+                const result = await apiClient.lookupOrganization(clean, uf)
+                if (abortRef.current) return
+                setState({status: 'found', result, currentUf: null, errorMessage: null})
+                setTimeout(() => {
+                    setState({status: 'idle', result: null, currentUf: null, errorMessage: null})
+                }, 5000);
+                return
+            } catch (err) {
+                if (abortRef.current) return
+
+                if (err instanceof ApiError) {
+                    // No certificate — stop immediately, surface to user
+                    if (err.raw && typeof err.raw === 'object' && (err.raw as {
+                        type?: string
+                    }).type === NO_CERTIFICATE_TYPE) {
+                        setState({status: 'no_certificate', result: null, currentUf: null, errorMessage: err.detail})
+                        return
+                    }
+                    if (err.raw && typeof err.raw === 'object' && (err.raw as {
+                        type?: string
+                    }).type === SEFAZ_REJECTION_TYPE) {
+                        setState({status: 'sefaz_rejection', result: null, currentUf: null, errorMessage: err.detail})
+                        return
+                    }
+                    // Not found in this UF — continue BFS
+                    if (err.status === 404) continue
+                    // Other API error — stop
+                    setState({status: 'error', result: null, currentUf: null, errorMessage: err.detail})
+                    return
+                }
+
+                // Network or unexpected error — stop
+                setState({status: 'error', result: null, currentUf: null, errorMessage: 'Erro de conexão'})
+                return
+            }
         }
 
-        // Network or unexpected error — stop
-        setState({status: 'error', result: null, currentUf: null, errorMessage: 'Erro de conexão'})
-        return
-      }
-    }
+        // All UFs tried, not found
+        setState({status: 'not_found', result: null, currentUf: null, errorMessage: null})
+    }, [selectedOrg])
 
-    // All UFs tried, not found
-    setState({status: 'not_found', result: null, currentUf: null, errorMessage: null})
-  }, [])
+    const reset = useCallback(() => {
+        abortRef.current = true
+        setState({status: 'idle', result: null, currentUf: null, errorMessage: null})
+    }, [])
 
-  const reset = useCallback(() => {
-    abortRef.current = true
-    setState({status: 'idle', result: null, currentUf: null, errorMessage: null})
-  }, [])
-
-  return {state, lookup, cancel, reset}
+    return {state, lookup, cancel, reset}
 }

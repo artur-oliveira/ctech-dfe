@@ -93,7 +93,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
               />
               <div className="flex justify-between mt-1">
                 {cceText.trim().length < 15 && cceText.length > 0 && (
-                  <p className="text-xs text-red-500">Mínimo 15 caracteres ({15 - cceText.trim().length} restantes)</p>
+                  <p className="text-xs text-red-600">Mínimo 15 caracteres ({15 - cceText.trim().length} restantes)</p>
                 )}
                 <p className="text-xs text-gray-400 ml-auto">{cceText.length}/1000</p>
               </div>

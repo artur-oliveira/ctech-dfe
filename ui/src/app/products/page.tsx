@@ -15,6 +15,9 @@ import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
+import {BulkActionBar} from '@/components/ui/bulk-action-bar'
+import {useRowSelection} from '@/lib/hooks/useRowSelection'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {ProductOut} from '@/lib/types/api'
 import {formatCurrency} from "@/lib/utils/helpers";
@@ -43,7 +46,18 @@ function ProductsContent() {
   
   // Rows inside the undo window are hidden until the delete commits (or is undone).
   const visibleItems = filterVisible(items)
-  
+
+  const rowId = (p: ProductOut) => extractId(p.sk, SK_PREFIX.PRODUCT)
+  const selection = useRowSelection(visibleItems.map(rowId))
+  const bulkDelete = () => {
+    const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
+    selection.selectedIds.forEach((id) => {
+      const p = byId.get(id)
+      if (p) handleDelete(p)
+    })
+    selection.clear()
+  }
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -68,51 +82,57 @@ function ProductsContent() {
             action={{label: 'Novo produto', onClick: () => router.push('/products/new')}}
           />
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm min-w-125">
-              <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                {['Descrição', 'Valor (Revenda)', 'Valor (Consumidor final)', ''].map((h) => (
-                  <th key={h}
-                      className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
+          <TableShell
+            ariaLabel="Produtos cadastrados"
+            minWidth={560}
+            headers={[
+              {label: '__select', className: 'w-10', node: (
+                <RowCheckbox
+                  checked={selection.allSelected}
+                  indeterminate={selection.someSelected}
+                  onChange={selection.toggleAll}
+                  ariaLabel="Selecionar todos"
+                />
+              )},
+              'Descrição', 'Valor (Revenda)', 'Valor (Consumidor final)', {label: '', align: 'right'},
+            ]}
+          >
+            {visibleItems.map((p) => (
+              <tr key={p.sk} className={TABLE_ROW}>
+                <td className={TABLE_CELL}>
+                  <RowCheckbox
+                    checked={selection.isSelected(rowId(p))}
+                    onChange={() => selection.toggle(rowId(p))}
+                    ariaLabel={`Selecionar ${p.description}`}
+                  />
+                </td>
+                <td data-label="Descrição" className={`${TABLE_CELL} font-medium text-gray-900`}>{p.description + (p.brand ? ' ' + p.brand : '')}</td>
+                <td data-label="Valor (Revenda)" className={`${TABLE_CELL} text-gray-700`}>{p.value_resale ? formatCurrency(p.value_resale) : '-'}</td>
+                <td data-label="Valor (Consumidor final)" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(p.value)}</td>
+                <td className={`${TABLE_CELL} text-right`}>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => router.push(`/products/edit?id=${extractId(p.sk, SK_PREFIX.PRODUCT)}`)}
+                      className="text-brand-600 hover:text-brand-700"
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleDelete(p)}
+                      disabled={isDeleting}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                </td>
               </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-              {visibleItems.map((p) => (
-                <tr key={p.sk} className="hover:bg-gray-50 transition-colors">
-                  <td
-                    className="px-5 py-3.5 font-medium text-gray-900">{p.description + (p.brand ? ' ' + p.brand : '')}</td>
-                  <td className="px-5 py-3.5 text-gray-700">{p.value_resale ? formatCurrency(p.value_resale) : '-'}</td>
-                  <td className="px-5 py-3.5 text-gray-700">{formatCurrency(p.value)}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => router.push(`/products/edit?id=${extractId(p.sk, SK_PREFIX.PRODUCT)}`)}
-                        className="text-brand-600 hover:text-brand-700"
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handleDelete(p)}
-                        disabled={isDeleting}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
+            ))}
+          </TableShell>
         )}
         <Pagination
           hasNext={hasNext}
@@ -121,6 +141,17 @@ function ProductsContent() {
           onPrevious={goPrevious}
           isLoading={isFetching}
         />
+        <BulkActionBar count={selection.count} onClear={selection.clear}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={bulkDelete}
+            disabled={isDeleting}
+            className="text-red-600 hover:text-red-700"
+          >
+            Excluir selecionados
+          </Button>
+        </BulkActionBar>
       </div>
     </RootLayout>
   )

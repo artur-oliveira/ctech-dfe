@@ -25,6 +25,7 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 
 const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
@@ -122,67 +123,66 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
         <EmptyState title="Nenhuma NFC-e emitida"
                     description="Emita a primeira Nota Fiscal de Consumidor Eletrônica da organização."/>
       ) : (
-        <div
-          className={`bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
-          <table className="w-full text-sm min-w-150">
-            <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Nº / Série', 'Consumidor', 'Total', 'Status', 'Emissão', ''].map((h) => (
-                <th key={h}
-                    className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {items.map((nfce) => (
-              <tr key={nfce.sk} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3.5">
-                  <span className="font-mono font-medium text-gray-900">{nfce.number}</span>
-                  <span className="text-gray-400 text-xs ml-1">/ {nfce.serie}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  {nfce.dest_cpf_cnpj ? (
-                    <>
-                      <p className="font-medium text-gray-900 truncate max-w-50">{nfce.dest_name || 'Consumidor'}</p>
-                      <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfce.dest_cpf_cnpj)}</p>
-                    </>
-                  ) : (
-                    <span className="text-gray-400">Consumidor não identificado</span>
+        <TableShell
+          ariaLabel="NFC-es"
+          minWidth={150}
+          dimmed={isFetching}
+          headers={[
+            'Nº / Série',
+            'Consumidor',
+            'Total',
+            'Status',
+            'Emissão',
+            {label: '', align: 'right'},
+          ]}
+        >
+          {items.map((nfce) => (
+            <tr key={nfce.sk} className={TABLE_ROW}>
+              <td className={TABLE_CELL} data-label="Nº / Série">
+                <span className="font-mono font-medium text-gray-900">{nfce.number}</span>
+                <span className="text-gray-400 text-xs ml-1">/ {nfce.serie}</span>
+              </td>
+              <td className={TABLE_CELL} data-label="Consumidor">
+                {nfce.dest_cpf_cnpj ? (
+                  <>
+                    <p className="font-medium text-gray-900 truncate max-w-50">{nfce.dest_name || 'Consumidor'}</p>
+                    <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfce.dest_cpf_cnpj)}</p>
+                  </>
+                ) : (
+                  <span className="text-gray-400">Consumidor não identificado</span>
+                )}
+              </td>
+              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Total">{formatCurrency(nfce.total)}</td>
+              <td className={TABLE_CELL} data-label="Status">
+                <NfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
+              </td>
+              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+                {nfce.dh_emi ? new Date(nfce.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfce.year, nfce.month, nfce.day)}
+              </td>
+              <td className={`${TABLE_CELL} text-right`}>
+                <div className="flex items-center justify-end gap-3">
+                  <Link href={`/nfce/detail?key=${nfce.sk}`}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700">
+                    Detalhes
+                  </Link>
+                  {(nfce.status === 'authorized' || nfce.status === 'cancelled') && (
+                    <DownloadPdfButton
+                      fetchPdf={() => apiClient.downloadNfceDanfe(nfce.sk)}
+                      filename={nfce.sk} label="DANFE"/>
                   )}
-                </td>
-                <td className="px-5 py-3.5 text-gray-700 whitespace-nowrap">{formatCurrency(nfce.total)}</td>
-                <td className="px-5 py-3.5">
-                  <NfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
-                </td>
-                <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                  {nfce.dh_emi ? new Date(nfce.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfce.year, nfce.month, nfce.day)}
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <Link href={`/nfce/detail?key=${nfce.sk}`}
-                          className="text-xs font-medium text-brand-600 hover:text-brand-700">
-                      Detalhes
-                    </Link>
-                    {(nfce.status === 'authorized' || nfce.status === 'cancelled') && (
-                      <DownloadPdfButton
-                        fetchPdf={() => apiClient.downloadNfceDanfe(nfce.sk)}
-                        filename={nfce.sk} label="DANFE"/>
-                    )}
-                    {nfce.status === 'authorized' && (
-                      <>
-                        <Button variant="ghost" size="xs" onClick={() => onSubstitute(nfce)}
-                                className="text-gray-500 hover:text-gray-700">Substituir</Button>
-                        <Button variant="ghost" size="xs" onClick={() => onCancel(nfce)}
-                                className="text-red-500 hover:text-red-700">Cancelar</Button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
-        </div>
+                  {nfce.status === 'authorized' && (
+                    <>
+                      <Button variant="ghost" size="xs" onClick={() => onSubstitute(nfce)}
+                              className="text-gray-500 hover:text-gray-700">Substituir</Button>
+                      <Button variant="ghost" size="xs" onClick={() => onCancel(nfce)}
+                              className="text-red-500 hover:text-red-700">Cancelar</Button>
+                    </>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </TableShell>
       )}
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>

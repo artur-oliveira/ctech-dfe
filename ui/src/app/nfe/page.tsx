@@ -26,6 +26,7 @@ import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
@@ -107,25 +108,25 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
   }
   const composition = item.access_key ? parseAccessKey(item.access_key) : null;
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-gray-500">
+    <tr className={TABLE_ROW}>
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-500`} data-label="NSU">
         {formatNsu(item.nsu)}
       </td>
-      <td className="px-4 py-3">
+      <td className={TABLE_CELL} data-label="Tipo">
         <p className="text-sm font-medium text-gray-900">{distSchemaLabel(item)}</p>
-        {item.parse_error && <p className="text-xs text-red-500 mt-0.5">Erro ao processar documento</p>}
+        {item.parse_error && <p className="text-xs text-red-600 mt-0.5">Erro ao processar documento</p>}
       </td>
-      <td className="px-4 py-3 font-mono text-xs text-gray-400">
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="NF-e">
         {composition ? composition.number + ' / ' + composition.serie :
           <span className="text-gray-300">—</span>}
       </td>
-      <td className="px-4 py-3 font-mono text-xs text-gray-400">
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="Chave">
         {composition?.formatted ?? <span className="text-gray-300">—</span>}
       </td>
-      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+      <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">
         {formatDatetimeBR(item.created_at)}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className={`${TABLE_CELL} text-right`}>
         <div className="flex items-center justify-end gap-3">
           {item.xml_s3_key && (
             <Button
@@ -217,28 +218,28 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
         <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
       )}
       
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
+      <TableShell
+        ariaLabel="NF-es emitidas"
+        minWidth={140}
+        headers={['NSU', 'Tipo', 'NF-e', 'Chave', 'Recebido em', {label: '', align: 'right'}]}
+      >
         {isLoading ? (
-          <DistributionSkeleton/>
+          <tr>
+            <td colSpan={6} className={TABLE_CELL}>
+              <DistributionSkeleton/>
+            </td>
+          </tr>
         ) : items.length === 0 ? (
-          <EmptyState title="Nenhuma distribuição encontrada"
-                      description="Clique em «Consultar SEFAZ» para buscar NF-es emitidas para o seu CNPJ."/>
+          <tr>
+            <td colSpan={6} className={TABLE_CELL}>
+              <EmptyState title="Nenhuma distribuição encontrada"
+                          description="Clique em «Consultar SEFAZ» para buscar NF-es emitidas para o seu CNPJ."/>
+            </td>
+          </tr>
         ) : (
-          <table className="w-full text-sm min-w-140">
-            <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {['NSU', 'Tipo', 'NF-e', 'Chave', 'Recebido em', ''].map(h => (
-                <th key={h}
-                    className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {items.map(item => <DistributionRow key={item.nsu} item={item} docType="nfe"/>)}
-            </tbody>
-          </table>
+          items.map(item => <DistributionRow key={item.nsu} item={item} docType="nfe"/>)
         )}
-      </div>
+      </TableShell>
       
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
@@ -419,63 +420,62 @@ function NfeListTab({
       ) : items.length === 0 ? (
         <EmptyState title={tab.emptyLabel} description={tab.emptyDesc}/>
       ) : (
-        <div
-          className={`bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
-          <table className="w-full text-sm min-w-150">
-            <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Nº / Série', tab.incoming === 0 ? 'Destinatário' : 'Emitente', 'Total', 'Status', 'Emissão', ''].map((h) => (
-                <th key={h}
-                    className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {items.map((nfe) => (
-              <tr key={nfe.sk} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3.5">
-                  <span className="font-mono font-medium text-gray-900">{nfe.number}</span>
-                  <span className="text-gray-400 text-xs ml-1">/ {nfe.serie}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  {tab.incoming === 0 ? (
-                    <>
-                      <p className="font-medium text-gray-900 truncate max-w-50">{nfe.dest_name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfe.dest_cpf_cnpj)}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium text-gray-900 truncate max-w-50">{nfe.emit_name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfe.emit_cpf_cnpj)}</p>
-                    </>
+        <TableShell
+          ariaLabel="NF-es recebidas"
+          minWidth={150}
+          dimmed={isFetching}
+          headers={[
+            'Nº / Série',
+            tab.incoming === 0 ? 'Destinatário' : 'Emitente',
+            'Total',
+            'Status',
+            'Emissão',
+            {label: '', align: 'right'},
+          ]}
+        >
+          {items.map((nfe) => (
+            <tr key={nfe.sk} className={TABLE_ROW}>
+              <td className={TABLE_CELL} data-label="Nº / Série">
+                <span className="font-mono font-medium text-gray-900">{nfe.number}</span>
+                <span className="text-gray-400 text-xs ml-1">/ {nfe.serie}</span>
+              </td>
+              <td className={TABLE_CELL} data-label={tab.incoming === 0 ? 'Destinatário' : 'Emitente'}>
+                {tab.incoming === 0 ? (
+                  <>
+                    <p className="font-medium text-gray-900 truncate max-w-50">{nfe.dest_name}</p>
+                    <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfe.dest_cpf_cnpj)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-gray-900 truncate max-w-50">{nfe.emit_name}</p>
+                    <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfe.emit_cpf_cnpj)}</p>
+                  </>
+                )}
+              </td>
+              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Total">{formatCurrency(nfe.total)}</td>
+              <td className={TABLE_CELL} data-label="Status">
+                <NfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
+              </td>
+              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+                {nfe.dh_emi ? new Date(nfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfe.year, nfe.month, nfe.day)}
+              </td>
+              <td className={`${TABLE_CELL} text-right`}>
+                <div className="flex items-center justify-end gap-3">
+                  <Link href={detailLink(nfe.sk)}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700">
+                    Detalhes
+                  </Link>
+                  {nfe.status === 'authorized' && tab.incoming === 0 && (
+                    <Button variant="ghost" size="xs" onClick={() => onCancelRequest(nfe)}
+                            className="text-red-500 hover:text-red-700">
+                      Cancelar
+                    </Button>
                   )}
-                </td>
-                <td className="px-5 py-3.5 text-gray-700 whitespace-nowrap">{formatCurrency(nfe.total)}</td>
-                <td className="px-5 py-3.5">
-                  <NfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
-                </td>
-                <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                  {nfe.dh_emi ? new Date(nfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfe.year, nfe.month, nfe.day)}
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <Link href={detailLink(nfe.sk)}
-                          className="text-xs font-medium text-brand-600 hover:text-brand-700">
-                      Detalhes
-                    </Link>
-                    {nfe.status === 'authorized' && tab.incoming === 0 && (
-                      <Button variant="ghost" size="xs" onClick={() => onCancelRequest(nfe)}
-                              className="text-red-500 hover:text-red-700">
-                        Cancelar
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
-        </div>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </TableShell>
       )}
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>
@@ -608,7 +608,7 @@ function NfesContent() {
             />
             <div className="flex justify-between mt-1">
               {justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH && justification.length > 0 && (
-                <p className="text-xs text-red-500">
+                <p className="text-xs text-red-600">
                   Mínimo {CANCEL_JUSTIFICATION_MIN_LENGTH} caracteres
                   ({CANCEL_JUSTIFICATION_MIN_LENGTH - justification.trim().length} restantes)
                 </p>

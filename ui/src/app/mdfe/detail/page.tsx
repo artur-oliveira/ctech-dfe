@@ -13,6 +13,7 @@ import {Button} from '@/components/ui/button'
 import {MdfeStatusBadge} from '@/components/mdfe/MdfeStatusBadge'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
@@ -205,63 +206,59 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       )}
       
       {/* Eventos */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-        <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
-          Eventos
-        </p>
+      <TableShell
+        ariaLabel="Eventos do MDF-e"
+        minWidth={120}
+        headers={['Evento', 'Seq.', 'Status', 'Data', '']}
+      >
         {eventsLoading ? (
-          <div className="divide-y divide-gray-100">
-            {[0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-3">
-                <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
-                <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+          <tr>
+            <td colSpan={5} className={TABLE_CELL}>
+              <div className="divide-y divide-gray-100">
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
+                    <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </td>
+          </tr>
         ) : !eventsData?.items.length ? (
-          <p className="px-4 py-4 text-sm text-gray-400">Nenhum evento registrado.</p>
+          <tr>
+            <td colSpan={5} className={TABLE_CELL}>Nenhum evento registrado.</td>
+          </tr>
         ) : (
-          <table className="w-full text-sm min-w-120">
-            <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {['Evento', 'Seq.', 'Status', 'Data', ''].map((h) => (
-                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
+          eventsData.items.map((evt) => (
+            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+              <td data-label="Evento" className={TABLE_CELL}>
+                <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
+                {evt.sefaz_motive && (
+                  <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
+                )}
+              </td>
+              <td
+                data-label="Seq." className={`${TABLE_CELL} text-gray-500 font-mono text-xs`}>{String(evt.sequence_number).padStart(3, '0')}</td>
+              <td data-label="Status" className={TABLE_CELL}>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
+                </span>
+              </td>
+              <td
+                data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
+              <td className={`${TABLE_CELL} text-right`}>
+                {evt.xml_s3_key && (
+                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
+                          disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
+                    {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
+                  </Button>
+                )}
+              </td>
             </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {eventsData.items.map((evt) => (
-              <tr key={evt.sk} className="hover:bg-gray-50 transition-colors align-top">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
-                  {evt.sefaz_motive && (
-                    <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>
-                  )}
-                </td>
-                <td
-                  className="px-4 py-3 text-gray-500 font-mono text-xs">{String(evt.sequence_number).padStart(3, '0')}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
-                  </span>
-                </td>
-                <td
-                  className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDatetimeBR(evt.created_at)}</td>
-                <td className="px-4 py-3 text-right">
-                  {evt.xml_s3_key && (
-                    <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
-                            disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
-                      {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
+          ))
         )}
-      </div>
+      </TableShell>
       
       <p className="text-xs text-gray-400">Emissão: {formatDate(doc.year, doc.month, doc.day)}</p>
       

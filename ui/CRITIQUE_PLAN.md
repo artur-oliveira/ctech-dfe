@@ -27,6 +27,26 @@ npm test                         # ui test suite
 | 4 | **distill** (part 2 — badges) | New `components/ui/status-badge.tsx` = single `StatusBadge` + `StatusCell` primitive (doc-neutral fixed palette, recorded in docstring). `NfeStatusBadge.tsx` + `MdfeStatusBadge.tsx` delegate to it (all exports kept → importers untouched). `DfeDetail.tsx` inline span → `<StatusBadge size="md">`. ~60 dup lines removed. `cnpj-lookup-badge.tsx` left alone (it's inline status *text*, not a pill badge). |
 | 5 | **typeset** | `app/page.tsx` landing badges `text-[0.65rem]`→`text-xs` (12px floor). |
 | 7 | **document** | `DESIGN.md §7` "Status Badges Are Doc-Neutral (intentional)" + utility tokens (`--color-gray-400` anchored, gradient/shadow tokens). |
+| 4b | **dead tokens** | Removed 8 unused `--gray-{50,100,200,500,600,700,800,900}` from `globals.css :root` (grep-confirmed 0 `var()` refs). Kept `--gray-300/400` (scrollbar). |
+| 6 | **clarify (glossary)** | New `components/ui/glossary-term.tsx` (`GlossaryTerm`) + `lib/constants/glossary.ts` (copy once). Native Popover API (top-layer → no `overflow` clipping, touch-friendly; `.gt-pop` positions via implicit anchor in `globals.css`). Wired CFOP/ind_pag/mod_frete into `NfeEmitForm`, CFOP/ind_pag into `NfceEmitForm`. Component test added. **Skipped:** `nat_op` (would nest popover in a `<p>` → invalid HTML; field already shows full value + editar/automático), `NSU` (lives in distribution table headers, not the wizard). |
+| 6 | **clarify (PT-BR)** | No change needed — every *displayed* string already accented (`Importação/Distribuição`, `Homologação`, `Cancelamento`). Only unaccented hits are internal TS union keys (`'distribuicao'`), non-user-facing. |
+
+---
+
+## Done this session (part 2) — ESLint 0/0, 160 tests green
+
+| # | Action | What changed |
+|---|--------|--------------|
+| 4b | **TableShell** (full standardize) | New `components/ui/table-shell.tsx` (`TableShell` + `TABLE_ROW`/`TABLE_CELL` + `RowCheckbox`). Migrated ~17 tables across products, vehicles, persons, OrganizationsTable, nfe/nfce/mdfe/cte lists, cte+mdfe distributions, mdfe/nfe details, DfeDetail, certificates, audit-logs. Unified header (gray-50, uppercase 12px), row hover, `aria-label`, `dimmed` refetch state. Tab strips left untouched. Test: `TableShell.test.tsx`. |
+| 4b | **dead tokens** | Removed 8 unused `--gray-*` from `globals.css`. |
+| 6 | **clarify** | `GlossaryTerm` (native popover) + `lib/constants/glossary.ts`; wired CFOP/ind_pag/mod_frete into emit forms. PT-BR already accented. Test: `GlossaryTerm.test.tsx`. |
+| 8 | **keyboard shortcuts** | `useKeyboardShortcuts` hook + `KeyboardShortcuts` provider in `RootLayout`: `n`=nova emissão (doc-type aware), `?`=help dialog, `Esc`=close. `/`=search dropped (no search UI exists yet). Test: `KeyboardShortcuts.test.tsx`. |
+| 8 | **bulk row-select** | `useRowSelection` hook + `BulkActionBar` + `RowCheckbox`. Wired into products/vehicles/persons (select-all + bulk delete via existing undo-delete). Tests: `useRowSelection`, `BulkActionBar`. |
+| 8 | **saved filter views** | `useSavedFilterViews` (localStorage) + `SavedFilterViews` popover on cte/mdfe distribution pages. Test: `useSavedFilterViews`. |
+| 8 | **NSU filter** | Debounced NSU filter on cte/mdfe distributions. **Server-side** per user: `listDistributions` gains `nsu?` query param (backend will support it); filter drives the query key + resets cursor on change. |
+| 8 | **expert mode** | `CollapsibleSection` (collapsed by default); wraps Transport + Informações adicionais in NfeEmitForm, Informações adicionais in NfceEmitForm. Test: `CollapsibleSection`. |
+
+**Pre-existing typecheck error (NOT mine, out of scope):** `src/__tests__/lib/auth-name-merge.test.tsx:29` — `MeResponse.terms_addendum_accepted` required vs optional. Exists on HEAD; left untouched.
 
 ---
 
@@ -72,10 +92,40 @@ This is feature work, not polish. Decide before building:
 - Saved filter views on distribution/list pages.
 - Collapsible "expert mode" section in the emit form (advanced fiscal fields).
 
-### Task 9 — polish (final pass)
-After #4b/#6/#8 land: re-run `/impeccable critique all` and resolve any new flags.
-Then refresh the design sidecar: `/impeccable document` (DESIGN.md is newer than
-`.impeccable/design.json` — non-blocking hook reminder).
+### Task 9 — polish (final pass) — DONE (re-critique + fixes)
+Re-ran `/impeccable critique all` (dual-agent). **Score 36/40** ("Strong"), 0 P0, 1 P1.
+Snapshot: `.impeccable/critique/2026-07-14T23-02-00Z__src.md`. Not AI slop; all absolute
+bans clear. Detector: 4 `gray-on-color` warnings = **false positives** (ghost-button
+`hover:` states, gray+red never co-occur); 19 `design-system-font-size` advisories (8× `0.8rem`
+= intentional ShadCN secondary step, 11× micro-typography — design-owner call, left).
+
+**Fixed (ESLint 0/0, 161 tests, tsc clean except pre-existing auth-name-merge):**
+- **P1 contrast** — resting `text-red-500`→`text-red-600` (≈3.76→4.8:1, AA) across 11 sites
+  (DfeDetail, nfe/nfce/mdfe/cte pages + distributions, NfeEmitForm ×2, products Excluir);
+  status-badge rejection icon `text-red-400`→`red-600`. Left `hover:text-red-500` ghost buttons.
+- **P2 reduced-motion** — global `@media (prefers-reduced-motion: reduce)` guard in `globals.css`
+  (zeroes animation/transition durations; catches the 40 skeleton `animate-pulse`).
+- **P2 44px targets** — `Button` `default` size `h-8`→`min-h-11 sm:min-h-0 sm:h-8` (44px mobile,
+  32px desktop). `sm`/`xs` unchanged (dense tables).
+- **P3 modal token** — `modal.tsx` `shadow-xl`→`shadow-modal` (purpose-built token).
+
+**P2 mobile card tables — DONE (layout pass).** Instead of hand-writing card renderers for
+every table, added ONE responsive layer to the shared `TableShell`: a `.ts-mobile` block in
+`globals.css` that, below the `sm` breakpoint, neutralizes the inline `min-width` (kills the
+horizontal scroll — the actual defect) and collapses each row into a stacked card with the
+column name (`data-label`) shown above each value. Migrated all 14 TableShell tables (products,
+cte/mdfe distributions, nfe/nfce/cte/mdfe lists, persons, vehicles, certificates, audit-logs,
+DfeDetail ×2, mdfe/detail, OrganizationsTable) by adding `data-label` to each data `<td>`;
+checkbox/action/colspan cells omit it. Label-above-value chosen over a flex 2-col so multi-child
+cells (emitente name + CNPJ) stack correctly. Test added to `TableShell.test.tsx`. ESLint 0/0,
+162 tests, tsc clean (pre-existing auth error only). Not visually verified at 375px — no browser
+tool this session; CSS logic reviewed by hand.
+
+**Deferred (product-subjective — NOT silently skipped):**
+- **P3 landing distill** — `app/page.tsx` generic long-scroll (hero→docs→how→benefits→plans→
+  roadmap). Moving pricing/roadmap is a product call. Run `/impeccable distill` on the landing.
+
+Sidecar refresh `/impeccable document` still pending (non-blocking).
 
 ---
 

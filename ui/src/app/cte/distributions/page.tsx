@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {useMutation, useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient, ApiError} from '@/lib/api/client'
@@ -15,7 +15,10 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {Button} from '@/components/ui/button'
+import {DebouncedInput} from '@/components/ui/debounced-input'
+import {SavedFilterViews} from '@/components/ui/saved-filter-views'
 import type {NFeDistributionOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
@@ -25,17 +28,17 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 
 function DistributionRow({item}: { item: NFeDistributionOut }) {
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-gray-500">
+    <tr className={TABLE_ROW}>
+      <td data-label="NSU" className={`${TABLE_CELL} font-mono text-xs text-gray-500`}>
         {formatNsu(item.nsu)}
       </td>
-      <td className="px-4 py-3">
+      <td data-label="Tipo" className={TABLE_CELL}>
         <p className="text-sm font-medium text-gray-900">{cteSchemaLabel(item)}</p>
         {item.parse_error && (
-          <p className="text-xs text-red-500 mt-0.5">Erro ao processar documento</p>
+          <p className="text-xs text-red-600 mt-0.5">Erro ao processar documento</p>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td data-label="Emitente" className={TABLE_CELL}>
         {item.emit_name ? (
           <>
             <p className="text-sm text-gray-900">{item.emit_name}</p>
@@ -47,10 +50,10 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
           <span className="text-xs text-gray-400">—</span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-700">
+      <td data-label="Valor" className={`${TABLE_CELL} text-sm text-gray-700`}>
         {item.total ? formatCurrency(item.total) : <span className="text-gray-400">—</span>}
       </td>
-      <td className="px-4 py-3">
+      <td data-label="Situação" className={TABLE_CELL}>
         {item.sefaz_motive ? (
           <p className="text-xs text-gray-600 max-w-45 truncate" title={item.sefaz_motive}>
             {item.sefaz_motive}
@@ -59,10 +62,10 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
           <span className="text-xs text-gray-400">—</span>
         )}
       </td>
-      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+      <td data-label="Recebido em" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>
         {formatDatetimeBR(item.created_at)}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className={`${TABLE_CELL} text-right`}>
         {item.access_key && (
           <Link
             href={`/cte/detail?key=${item.access_key}`}
@@ -86,12 +89,21 @@ function CTeDistributionsContent() {
     enabled: !!selectedOrg,
   })
   
-  const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
-    queryKey: queryKeys.distributions.history('cte', selectedOrg?.pk),
-    queryFn: (cursor) => apiClient.listDistributions('cte', {limit: 10, cursor}),
+  const [nsuFilter, setNsuFilter] = useState('')
+  const nsuQuery = nsuFilter.trim() || undefined
+
+  const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NFeDistributionOut>({
+    queryKey: [...queryKeys.distributions.history('cte', selectedOrg?.pk), {nsu: nsuQuery}],
+    queryFn: (cursor) => apiClient.listDistributions('cte', {limit: 10, cursor, nsu: nsuQuery}),
     enabled: !!selectedOrg,
   })
-  
+
+  // Changing the NSU filter is a new result set — restart from the first page.
+  useEffect(() => {
+    reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nsuQuery])
+
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('cte'),
     onSuccess: () => {
@@ -140,47 +152,59 @@ function CTeDistributionsContent() {
               </div>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            className="text-brand-600 border-brand-200 hover:bg-brand-50"
-          >
-            {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <DebouncedInput
+              value={nsuFilter}
+              onChange={setNsuFilter}
+              placeholder="Filtrar por NSU"
+              inputMode="numeric"
+              className="h-8 w-44 text-xs"
+            />
+            <SavedFilterViews pageId="cte-distributions" currentNsu={nsuFilter} onApply={setNsuFilter}/>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="text-brand-600 border-brand-200 hover:bg-brand-50"
+            >
+              {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
+            </Button>
+          </div>
         </div>
         
         {penaltyMessage && (
           <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
         )}
         
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
+        <TableShell
+          ariaLabel="Distribuição de CT-e"
+          minWidth={560}
+          headers={['NSU', 'Tipo', 'Emitente', 'Valor', 'Situação', 'Recebido em', {label: '', align: 'right'}]}
+        >
           {isLoading ? (
-            <DistributionSkeleton/>
+            <tr>
+              <td colSpan={7} className={TABLE_CELL}>
+                <DistributionSkeleton/>
+              </td>
+            </tr>
           ) : items.length === 0 ? (
-            <EmptyState
-              title="Nenhuma distribuição encontrada"
-              description="Clique em «Consultar SEFAZ» para buscar CT-es emitidos para o seu CNPJ."
-            />
+            <tr>
+              <td colSpan={7} className={TABLE_CELL}>
+                <EmptyState
+                  title={nsuFilter ? 'Nenhum resultado para o NSU informado' : 'Nenhuma distribuição encontrada'}
+                  description={nsuFilter
+                    ? 'Ajuste o número NSU ou limpe o filtro.'
+                    : 'Clique em «Consultar SEFAZ» para buscar CT-es emitidos para o seu CNPJ.'}
+                />
+              </td>
+            </tr>
           ) : (
-            <table className="w-full text-sm min-w-[560px]">
-              <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['NSU', 'Tipo', 'Emitente', 'Valor', 'Situação', 'Recebido em', ''].map(h => (
-                  <th key={h}
-                      className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-                ))}
-              </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-              {items.map(item => (
-                <DistributionRow key={item.nsu} item={item}/>
-              ))}
-              </tbody>
-            </table>
+            items.map(item => (
+              <DistributionRow key={item.nsu} item={item}/>
+            ))
           )}
-        </div>
+        </TableShell>
         
         {(hasNext || hasPrevious) && (
           <Pagination

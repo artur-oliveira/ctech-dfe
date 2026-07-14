@@ -101,7 +101,7 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-xl shadow-xl outline-none ${SIZE_CLASSES[size]} w-full mx-4 max-h-[90vh] overflow-y-auto`}
+        className={`bg-white rounded-xl shadow-modal outline-none ${SIZE_CLASSES[size]} w-full mx-4 max-h-[90vh] overflow-y-auto`}
       >
         <div
           className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">

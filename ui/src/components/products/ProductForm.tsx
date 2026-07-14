@@ -1060,7 +1060,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                            className="flex items-center justify-between rounded bg-white border border-amber-200 px-3 py-2 text-sm">
                         <span className="font-mono text-gray-700">1 {f.origin_unit} = {f.factor} {f.target_unit}</span>
                         <Button type="button" variant="ghost" size="xs" onClick={() => removeConversion(i)}
-                                className="ml-4 text-red-500 hover:text-red-700">remover
+                                className="ml-4 text-danger hover:text-red-700">remover
                         </Button>
                       </div>
                     ))}
@@ -1654,7 +1654,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                         CFOP {c.cfop} · {icmsPart}{stPart} · PIS {c.pis} · COF {c.cofins}{ipiPart}{isPart} · IBS/CBS {c.ibs_cbs_cst}
                       </span>
                       <Button type="button" variant="ghost" size="xs" onClick={() => removeCfop(i)}
-                              className="ml-4 text-red-500 hover:text-red-700">remover
+                              className="ml-4 text-danger hover:text-red-700">remover
                       </Button>
                     </div>
                   )

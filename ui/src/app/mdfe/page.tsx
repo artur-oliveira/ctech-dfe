@@ -24,6 +24,7 @@ import {mdfeSchemaLabel} from '@/lib/constants/distributions'
 import {MdfeStatusCell} from '@/components/mdfe/MdfeStatusBadge'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 
 type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
 
@@ -57,61 +58,60 @@ function MdfeList({orgPk, onCancel, onClose}: {
   
   return (
     <>
-      <div
-        className={`bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
-        <table className="w-full text-sm min-w-150">
-          <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            {['Nº / Série', 'Trajeto', 'Carga', 'Status', 'Emissão', ''].map((h) => (
-              <th key={h}
-                  className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-            ))}
+      <TableShell
+        ariaLabel="MDF-es emitidos"
+        minWidth={150}
+        dimmed={isFetching}
+        headers={[
+          'Nº / Série',
+          'Trajeto',
+          'Carga',
+          'Status',
+          'Emissão',
+          {label: '', align: 'right'},
+        ]}
+      >
+        {items.map((mdfe) => (
+          <tr key={mdfe.sk} className={TABLE_ROW}>
+            <td className={TABLE_CELL} data-label="Nº / Série">
+              <span className="font-mono font-medium text-gray-900">{mdfe.number}</span>
+              <span className="text-gray-400 text-xs ml-1">/ {mdfe.serie}</span>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Trajeto">
+              <span className="font-medium">{mdfe.uf_start}</span>
+              <span className="text-gray-400 mx-1.5">→</span>
+              <span className="font-medium">{mdfe.uf_end}</span>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Carga">{formatCurrency(mdfe.cargo_value)}</td>
+            <td className={TABLE_CELL} data-label="Status">
+              <MdfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive}/>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+              {mdfe.dh_emi ? new Date(mdfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(mdfe.year, mdfe.month, mdfe.day)}
+            </td>
+            <td className={`${TABLE_CELL} text-right`}>
+              <div className="flex items-center justify-end gap-3">
+                <Link href={`/mdfe/detail?key=${mdfe.sk}`}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700">
+                  Detalhes
+                </Link>
+                {(mdfe.status === 'authorized' || mdfe.status === 'closed' || mdfe.status === 'cancelled') && (
+                  <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(mdfe.sk)}
+                                     filename={mdfe.sk} label="DAMDFE"/>
+                )}
+                {mdfe.status === 'authorized' && (
+                  <>
+                    <Button variant="ghost" size="xs" onClick={() => onClose(mdfe)}
+                            className="text-blue-600 hover:text-blue-700">Encerrar</Button>
+                    <Button variant="ghost" size="xs" onClick={() => onCancel(mdfe)}
+                            className="text-red-500 hover:text-red-700">Cancelar</Button>
+                  </>
+                )}
+              </div>
+            </td>
           </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-          {items.map((mdfe) => (
-            <tr key={mdfe.sk} className="hover:bg-gray-50 transition-colors">
-              <td className="px-5 py-3.5">
-                <span className="font-mono font-medium text-gray-900">{mdfe.number}</span>
-                <span className="text-gray-400 text-xs ml-1">/ {mdfe.serie}</span>
-              </td>
-              <td className="px-5 py-3.5 text-gray-700 whitespace-nowrap">
-                <span className="font-medium">{mdfe.uf_start}</span>
-                <span className="text-gray-400 mx-1.5">→</span>
-                <span className="font-medium">{mdfe.uf_end}</span>
-              </td>
-              <td className="px-5 py-3.5 text-gray-700 whitespace-nowrap">{formatCurrency(mdfe.cargo_value)}</td>
-              <td className="px-5 py-3.5">
-                <MdfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive}/>
-              </td>
-              <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                {mdfe.dh_emi ? new Date(mdfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(mdfe.year, mdfe.month, mdfe.day)}
-              </td>
-              <td className="px-5 py-3.5 text-right">
-                <div className="flex items-center justify-end gap-3">
-                  <Link href={`/mdfe/detail?key=${mdfe.sk}`}
-                        className="text-xs font-medium text-brand-600 hover:text-brand-700">
-                    Detalhes
-                  </Link>
-                  {(mdfe.status === 'authorized' || mdfe.status === 'closed' || mdfe.status === 'cancelled') && (
-                    <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(mdfe.sk)}
-                                       filename={mdfe.sk} label="DAMDFE"/>
-                  )}
-                  {mdfe.status === 'authorized' && (
-                    <>
-                      <Button variant="ghost" size="xs" onClick={() => onClose(mdfe)}
-                              className="text-blue-600 hover:text-blue-700">Encerrar</Button>
-                      <Button variant="ghost" size="xs" onClick={() => onCancel(mdfe)}
-                              className="text-red-500 hover:text-red-700">Cancelar</Button>
-                    </>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-          </tbody>
-        </table>
-      </div>
+        ))}
+      </TableShell>
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>
     </>
@@ -136,17 +136,17 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
   }
   
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-gray-500">{formatNsu(item.nsu)}</td>
-      <td className="px-4 py-3">
+    <tr className={TABLE_ROW}>
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-500`} data-label="NSU">{formatNsu(item.nsu)}</td>
+      <td className={TABLE_CELL} data-label="Tipo">
         <p className="text-sm font-medium text-gray-900">{mdfeSchemaLabel(item)}</p>
-        {item.parse_error && <p className="text-xs text-red-500 mt-0.5">Erro ao processar documento</p>}
+        {item.parse_error && <p className="text-xs text-red-600 mt-0.5">Erro ao processar documento</p>}
       </td>
-      <td className="px-4 py-3 font-mono text-xs text-gray-400">
+      <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="Chave">
         {item.access_key ?? <span className="text-gray-300">—</span>}
       </td>
-      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDatetimeBR(item.created_at)}</td>
-      <td className="px-4 py-3 text-right">
+      <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">{formatDatetimeBR(item.created_at)}</td>
+      <td className={`${TABLE_CELL} text-right`}>
         {item.xml_s3_key && (
           <Button variant="ghost" size="xs" onClick={handleDownloadXml} disabled={xmlLoading}
                   className="text-brand-600 hover:text-brand-700">
@@ -217,27 +217,24 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
       
       {penaltyMessage && <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>}
       
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-        {isLoading ? (
+      {isLoading ? (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
           <DistributionSkeleton/>
-        ) : items.length === 0 ? (
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
           <EmptyState title="Nenhum MDF-e recebido"
                       description="Clique em «Consultar SEFAZ» para buscar MDF-es emitidos para o seu CNPJ."/>
-        ) : (
-          <table className="w-full text-sm min-w-120">
-            <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {['NSU', 'Tipo', 'Chave', 'Recebido em', ''].map(h => (
-                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">{h}</th>
-              ))}
-            </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-            {items.map(item => <MDFeRow key={item.nsu} item={item}/>)}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <TableShell
+          ariaLabel="MDF-es recebidos"
+          minWidth={120}
+          headers={['NSU', 'Tipo', 'Chave', 'Recebido em', {label: '', align: 'right'}]}
+        >
+          {items.map(item => <MDFeRow key={item.nsu} item={item}/>)}
+        </TableShell>
+      )}
       
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}

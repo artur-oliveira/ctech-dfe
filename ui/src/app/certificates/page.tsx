@@ -10,6 +10,7 @@ import {RootLayout} from '@/components/layout/RootLayout'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Button} from '@/components/ui/button'
 import {CertificateFields} from '@/components/organizations/CertificateFields'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import type {CertificateOut} from '@/lib/types/api'
 
 function certStatus(expiresAt: string): 'valid' | 'expiring' | 'expired' {
@@ -117,12 +118,12 @@ function UploadModal({
 function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete: () => void; isDeleting: boolean }) {
   const status = certStatus(cert.expires_at)
   return (
-    <tr className="border-b border-gray-100 last:border-0">
-      <td className="py-3 pl-6 pr-4">
+    <tr className={TABLE_ROW}>
+      <td data-label="Certificado" className={`${TABLE_CELL} pl-6`}>
         <p className="font-medium text-gray-900 text-sm">{cert.alias}</p>
         <p className="text-xs text-gray-400 font-mono mt-0.5">{cert.md5}</p>
       </td>
-      <td className="py-3 pr-4">
+      <td data-label="Validade" className={`${TABLE_CELL} pr-6`}>
         <div className="flex items-center gap-2">
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>
@@ -133,10 +134,10 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
           </span>
         </div>
       </td>
-      <td className="py-3 pr-4 text-sm text-gray-500">
+      <td data-label="Importado em" className={`${TABLE_CELL} pr-6 text-sm text-gray-500`}>
         {new Date(cert.created_at).toLocaleDateString('pt-BR')}
       </td>
-      <td className="py-3 pr-6 text-right">
+      <td className={`${TABLE_CELL} pr-6 text-right`}>
         <Button
           variant="ghost"
           size="xs"
@@ -239,35 +240,20 @@ function CertificatesContent() {
                 </Button>
               </div>
             ) : (
-              <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
-                <table className="w-full min-w-[480px]">
-                  <thead>
-                  <tr className="border-b border-gray-100">
-                    <th
-                      className="py-3 pl-6 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Certificado
-                    </th>
-                    <th className="py-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Validade
-                    </th>
-                    <th className="py-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Importado em
-                    </th>
-                    <th className="py-3 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-gray-400"/>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {certs.map((cert) => (
-                    <CertRow
-                      key={cert.md5}
-                      cert={cert}
-                      onDelete={() => deleteMutation.mutate(cert.md5)}
-                      isDeleting={deleteMutation.isPending && deleteMutation.variables === cert.md5}
-                    />
-                  ))}
-                  </tbody>
-                </table>
-              </div>
+              <TableShell
+                ariaLabel="Certificados"
+                minWidth={480}
+                headers={['Certificado', 'Validade', 'Importado em', {label: '', align: 'right'}]}
+              >
+                {certs.map((cert) => (
+                  <CertRow
+                    key={cert.md5}
+                    cert={cert}
+                    onDelete={() => deleteMutation.mutate(cert.md5)}
+                    isDeleting={deleteMutation.isPending && deleteMutation.variables === cert.md5}
+                  />
+                ))}
+              </TableShell>
             )}
           </>
         )}
