@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import {Duration} from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import {HttpVersion} from 'aws-cdk-lib/aws-cloudfront';
@@ -36,13 +37,13 @@ export class FrontendStack extends cdk.Stack {
   public readonly bucket: s3.Bucket;
   public readonly distribution: cloudfront.Distribution;
   public readonly routeStore: cloudfront.KeyValueStore;
-
+  
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
-
+    
     const {environment, certificateArn, domainName, apiDomainName} = props;
     const isProduction = environment === 'prod';
-
+    
     this.bucket = new s3.Bucket(this, 'Bucket', {
       bucketName: `${environment}-ctech-dfe-frontend`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -51,18 +52,18 @@ export class FrontendStack extends cdk.Stack {
       removalPolicy: isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !isProduction,
     });
-
+    
     const oac = new cloudfront.S3OriginAccessControl(this, 'OAC', {
       originAccessControlName: `${environment}-ctech-dfe-oac`,
     });
-
+    
     // One key per route emitted by the static export, written by the frontend
     // workflow right after it syncs out/ to S3 — so the route list can never
     // drift from the objects actually in the bucket.
     this.routeStore = new cloudfront.KeyValueStore(this, 'RouteStore', {
       keyValueStoreName: `${environment}-ctech-dfe-routes`,
     });
-
+    
     // Rewrites clean URLs to .html files for Next.js static export:
     //   /products      to /products.html
     //   /products/     to /products.html
@@ -91,13 +92,13 @@ async function handler(event) {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       keyValueStore: this.routeStore,
     });
-
+    
     const apiOrigin = new origins.HttpOrigin(apiDomainName, {
       protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
       readTimeout: API_ORIGIN_READ_TIMEOUT,
       keepaliveTimeout: API_ORIGIN_KEEPALIVE_TIMEOUT,
     });
-
+    
     // Security response headers (HSTS, X-Frame-Options, X-Content-Type-Options,
     // Referrer-Policy, CSP) for the statically generated frontend. These MUST live
     // at CloudFront: next.config.ts headers() only run on server-rendered
@@ -108,12 +109,12 @@ async function handler(event) {
     // fetches are not blocked in prod.
     const extraConnectSrc = (this.node.tryGetContext('securityExtraConnectSrc') as string | undefined) ?? '';
     const securityHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
-      responseHeadersPolicyName: `${environment}-${SERVICE}-security-headers`,
+      responseHeadersPolicyName: `${environment}-CtechDfe-security-headers`,
       securityHeadersBehavior: {
-        contentTypeOptions: { override: true },
-        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        contentTypeOptions: {override: true},
+        frameOptions: {frameOption: cloudfront.HeadersFrameOption.DENY, override: true},
         strictTransportSecurity: {
-          accessForSeconds: 63072000,
+          accessControlMaxAge: Duration.seconds(63072000),
           includeSubdomains: true,
           preload: true,
           override: true,
@@ -139,7 +140,7 @@ async function handler(event) {
         },
       },
     });
-
+    
     // No caching and no URL rewrite: the API behavior forwards everything the
     // viewer sent (Authorization, query string, body, WebSocket upgrade) except
     // the Host header, which CloudFront replaces with apiDomainName.
@@ -152,7 +153,7 @@ async function handler(event) {
       compress: true,
       responseHeadersPolicy: securityHeadersPolicy,
     };
-
+    
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       comment: `PyDFe Frontend - ${environment}`,
       defaultBehavior: {
@@ -181,7 +182,7 @@ async function handler(event) {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
     });
-
+    
     new cdk.CfnOutput(this, 'BucketName', {value: this.bucket.bucketName, exportName: `${id}-bucket-name`});
     new cdk.CfnOutput(this, 'DistributionId', {value: this.distribution.distributionId, exportName: `${id}-dist-id`});
     new cdk.CfnOutput(this, 'DistributionDomain', {
