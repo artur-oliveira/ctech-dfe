@@ -12,11 +12,13 @@ import (
 )
 
 type ProductRepository struct {
-	Base
+	CRUDRepository[map[string]types.AttributeValue]
 }
 
 func NewProductRepository(db *dynamodb.Client, cfg *config.Config) *ProductRepository {
-	return &ProductRepository{Base: NewBase(db, cfg, "organization_products")}
+	return &ProductRepository{
+		CRUDRepository: NewCRUDRepository[map[string]types.AttributeValue](db, cfg, "organization_products"),
+	}
 }
 
 func buildProductSK(sk string) string {
@@ -27,17 +29,12 @@ func buildProductSK(sk string) string {
 }
 
 func (r *ProductRepository) Create(ctx context.Context, orgPK string, fields map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
-	now := NowStr()
 	id := GenerateID()
-	fields["pk"] = &types.AttributeValueMemberS{Value: orgPK}
-	fields["sk"] = &types.AttributeValueMemberS{Value: buildProductSK(id)}
-	fields["created_at"] = &types.AttributeValueMemberS{Value: now}
-	fields["updated_at"] = &types.AttributeValueMemberS{Value: now}
-	return fields, r.PutItem(ctx, fields)
+	return r.CRUDRepository.Create(ctx, orgPK, buildProductSK(id), fields)
 }
 
 func (r *ProductRepository) Get(ctx context.Context, orgPK, sk string) (map[string]types.AttributeValue, error) {
-	return r.GetItem(ctx, orgPK, buildProductSK(sk))
+	return r.CRUDRepository.Get(ctx, orgPK, buildProductSK(sk))
 }
 
 type ProductListOpts struct {
@@ -72,34 +69,28 @@ func (r *ProductRepository) List(ctx context.Context, orgPK string, opts Product
 }
 
 func (r *ProductRepository) Update(ctx context.Context, orgPK, sk string, updates map[string]any) (bool, error) {
-	updates["updated_at"] = NowStr()
-	return r.UpdateItem(ctx, orgPK, new(buildProductSK(sk)), updates)
+	return r.CRUDRepository.Update(ctx, orgPK, buildProductSK(sk), updates)
 }
 
 func (r *ProductRepository) Delete(ctx context.Context, orgPK, sk string) (bool, error) {
-	return r.DeleteItem(ctx, orgPK, buildProductSK(sk))
+	return r.CRUDRepository.Delete(ctx, orgPK, buildProductSK(sk))
 }
 
 // BuildCreateTxItem returns a TransactWriteItem for a new product, mirroring
 // Create's key/timestamp construction, without writing.
 func (r *ProductRepository) BuildCreateTxItem(orgPK string, fields map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue) {
-	now := NowStr()
 	id := GenerateID()
-	fields["pk"] = &types.AttributeValueMemberS{Value: orgPK}
-	fields["sk"] = &types.AttributeValueMemberS{Value: buildProductSK(id)}
-	fields["created_at"] = &types.AttributeValueMemberS{Value: now}
-	fields["updated_at"] = &types.AttributeValueMemberS{Value: now}
-	return r.BuildPutTxItem(fields), fields
+	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, buildProductSK(id), fields)
+	return tx, item
 }
 
 // BuildUpdateTxItem returns a TransactWriteItem for updating an existing
 // product, mirroring Update's timestamp bump, without writing.
 func (r *ProductRepository) BuildUpdateTxItem(orgPK, sk string, updates map[string]any) (types.TransactWriteItem, error) {
-	updates["updated_at"] = NowStr()
-	return r.Base.BuildUpdateTxItem(orgPK, new(buildProductSK(sk)), updates)
+	return r.CRUDRepository.BuildUpdateTxItem(orgPK, buildProductSK(sk), updates)
 }
 
 // BuildDeleteTxItem returns a TransactWriteItem for deleting a product, without writing.
 func (r *ProductRepository) BuildDeleteTxItem(orgPK, sk string) types.TransactWriteItem {
-	return r.Base.BuildDeleteTxItem(orgPK, buildProductSK(sk))
+	return r.CRUDRepository.BuildDeleteTxItem(orgPK, buildProductSK(sk))
 }

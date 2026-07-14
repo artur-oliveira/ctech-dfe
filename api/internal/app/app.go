@@ -23,7 +23,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"go.uber.org/fx"
@@ -178,13 +177,6 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 	}
 	app := fiber.New(fibercfg)
 	app.Use(middleware.Recover())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.CorsAllowedOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", middleware.OrgHeader},
-		AllowCredentials: true,
-		MaxAge:           3600,
-	}))
 	app.Use(requestid.New())
 	app.Use(logger.New(logger.Config{
 		Format: `{"time":"${time}","status":${status},"latency":"${latency}","method":"${method}","path":"${path}","request-id":"${request-id}"}` + "\n",

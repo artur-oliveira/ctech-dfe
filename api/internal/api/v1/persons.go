@@ -5,103 +5,78 @@ import (
 	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
 
 // RegisterPersons mounts /persons routes.
 func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
-	g := router.Group("/persons", authMw)
+	mountCRUD(router, "/persons", authMw, perm, userSvc, crudHandlers{
+		listPerm:   "list.organization_persons",
+		createPerm: "create.organization_persons",
+		getPerm:    "get.organization_persons",
+		updatePerm: "update.organization_persons",
+		deletePerm: "delete.organization_persons",
+		param:      "cpf_cnpj",
 
-	// GET /persons
-	g.Get("", perm.Require("list.organization_persons"), func(c fiber.Ctx) error {
-		cursor := c.Query("cursor")
-		res, err := svc.List(c.Context(), middleware.GetOrgPK(c), repositories.PersonListOpts{
-			NamePrefix: c.Query("name"),
-			Sort:       c.Query("sort", "asc"),
-			Limit:      intQuery(c, "limit", 50),
-			StartKey:   decodeCursor(cursor),
-		})
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendPage(c, res, cursor)
-	})
+		list: func(c fiber.Ctx, orgPK string, o crudListOpts) (*repositories.QueryResult, error) {
+			return svc.List(c.Context(), orgPK, repositories.PersonListOpts{
+				NamePrefix: c.Query("name"),
+				Sort:       o.Sort,
+				Limit:      o.Limit,
+				StartKey:   o.StartKey,
+			})
+		},
 
-	// POST /persons
-	g.Post("", perm.Require("create.organization_persons"), func(c fiber.Ctx) error {
-		var dto PersonCreateBody
-		if p := bindJSON(c, &dto); p != nil {
-			return sendProblem(c, p)
-		}
-		if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
-			return sendProblem(c, err)
-		}
-		body, err := structToMap(dto)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Create(c.Context(), middleware.GetOrgPK(c), dto.CpfOrCnpj, body, userID, userName)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		m, err := unmarshal(item)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return c.Status(fiber.StatusCreated).JSON(m)
-	})
-
-	// GET /persons/:cpf_cnpj
-	g.Get("/:cpf_cnpj", perm.Require("get.organization_persons"), func(c fiber.Ctx) error {
-		item, err := svc.Get(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"))
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendItem(c, item)
-	})
-
-	// PUT /persons/:cpf_cnpj
-	g.Put("/:cpf_cnpj", perm.Require("update.organization_persons"), func(c fiber.Ctx) error {
-		var dto PersonUpdateBody
-		if p := bindJSON(c, &dto); p != nil {
-			return sendProblem(c, p)
-		}
-		if dto.Person != nil {
-			crt := dto.Person.Crt
-			if crt == nil {
-				current, err := svc.Get(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"))
-				if err != nil {
-					return sendProblem(c, err)
-				}
-				currentMap, err := unmarshal(current)
-				if err != nil {
-					return sendProblem(c, err)
-				}
-				crt, _ = extractCrtAndRegs(currentMap)
+		create: func(c fiber.Ctx, orgPK, userID, userName string) (map[string]types.AttributeValue, error) {
+			var dto PersonCreateBody
+			if p := bindJSON(c, &dto); p != nil {
+				return nil, p
 			}
-			if err := services.RequirePJFields(c.Params("cpf_cnpj"), crt); err != nil {
-				return sendProblem(c, err)
+			if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
+				return nil, err
 			}
-		}
-		body, err := structToMap(dto)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Update(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"), body, userID, userName)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendItem(c, item)
-	})
+			body, err := structToMap(dto)
+			if err != nil {
+				return nil, err
+			}
+			return svc.Create(c.Context(), orgPK, dto.CpfOrCnpj, body, userID, userName)
+		},
 
-	// DELETE /persons/:cpf_cnpj
-	g.Delete("/:cpf_cnpj", perm.Require("delete.organization_persons"), func(c fiber.Ctx) error {
-		userID, userName := resolveActor(c, userSvc)
-		if err := svc.Delete(c.Context(), middleware.GetOrgPK(c), c.Params("cpf_cnpj"), userID, userName); err != nil {
-			return sendProblem(c, err)
-		}
-		return c.SendStatus(fiber.StatusNoContent)
+		get: func(c fiber.Ctx, orgPK, id string) (map[string]types.AttributeValue, error) {
+			return svc.Get(c.Context(), orgPK, id)
+		},
+
+		update: func(c fiber.Ctx, orgPK, id, userID, userName string) (map[string]types.AttributeValue, error) {
+			var dto PersonUpdateBody
+			if p := bindJSON(c, &dto); p != nil {
+				return nil, p
+			}
+			if dto.Person != nil {
+				crt := dto.Person.Crt
+				if crt == nil {
+					current, err := svc.Get(c.Context(), orgPK, id)
+					if err != nil {
+						return nil, err
+					}
+					currentMap, err := unmarshal(current)
+					if err != nil {
+						return nil, err
+					}
+					crt, _ = extractCrtAndRegs(currentMap)
+				}
+				if err := services.RequirePJFields(id, crt); err != nil {
+					return nil, err
+				}
+			}
+			body, err := structToMap(dto)
+			if err != nil {
+				return nil, err
+			}
+			return svc.Update(c.Context(), orgPK, id, body, userID, userName)
+		},
+		del: func(c fiber.Ctx, orgPK, id, userID, userName string) error {
+			return svc.Delete(c.Context(), orgPK, id, userID, userName)
+		},
 	})
 }

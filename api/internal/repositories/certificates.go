@@ -11,29 +11,38 @@ import (
 )
 
 type CertificateRepository struct {
-	Base
+	CRUDRepository[map[string]any]
 }
 
 func NewCertificateRepository(db *dynamodb.Client, cfg *config.Config) *CertificateRepository {
-	return &CertificateRepository{Base: NewBase(db, cfg, "organization_certificates")}
+	return &CertificateRepository{
+		CRUDRepository: NewCRUDRepository[map[string]any](db, cfg, "organization_certificates"),
+	}
+}
+
+// certSK builds the certificate sort key from the content MD5.
+func certSK(md5 string) string {
+	return fmt.Sprintf("CERTIFICATE_%s", md5)
+}
+
+// certFields is the stored attribute set for a certificate row (excluding the
+// pk/sk/created_at/updated_at keys the generic CRUDRepository adds).
+func certFields(alias, md5, password, s3Key, expiresAt string) map[string]any {
+	return map[string]any{
+		"alias":      alias,
+		"md5":        md5,
+		"password":   password,
+		"s3_key":     s3Key,
+		"expires_at": expiresAt,
+	}
 }
 
 func (r *CertificateRepository) Create(ctx context.Context, orgPK, alias, md5, password, s3Key, expiresAt string) (map[string]types.AttributeValue, error) {
-	item := map[string]types.AttributeValue{
-		"pk":         &types.AttributeValueMemberS{Value: orgPK},
-		"sk":         &types.AttributeValueMemberS{Value: fmt.Sprintf("CERTIFICATE_%s", md5)},
-		"alias":      &types.AttributeValueMemberS{Value: alias},
-		"md5":        &types.AttributeValueMemberS{Value: md5},
-		"password":   &types.AttributeValueMemberS{Value: password},
-		"s3_key":     &types.AttributeValueMemberS{Value: s3Key},
-		"expires_at": &types.AttributeValueMemberS{Value: expiresAt},
-		"created_at": &types.AttributeValueMemberS{Value: NowStr()},
-	}
-	return item, r.PutItem(ctx, item)
+	return r.CRUDRepository.Create(ctx, orgPK, certSK(md5), certFields(alias, md5, password, s3Key, expiresAt))
 }
 
 func (r *CertificateRepository) Get(ctx context.Context, orgPK, md5 string) (map[string]types.AttributeValue, error) {
-	return r.GetItem(ctx, orgPK, fmt.Sprintf("CERTIFICATE_%s", md5))
+	return r.CRUDRepository.Get(ctx, orgPK, certSK(md5))
 }
 
 func (r *CertificateRepository) List(ctx context.Context, orgPK string) ([]map[string]types.AttributeValue, error) {
@@ -45,26 +54,17 @@ func (r *CertificateRepository) List(ctx context.Context, orgPK string) ([]map[s
 }
 
 func (r *CertificateRepository) Delete(ctx context.Context, orgPK, md5 string) (bool, error) {
-	return r.DeleteItem(ctx, orgPK, fmt.Sprintf("CERTIFICATE_%s", md5))
+	return r.CRUDRepository.Delete(ctx, orgPK, certSK(md5))
 }
 
 // BuildCreateTxItem returns a TransactWriteItem for a new certificate,
 // mirroring Create's field construction, without writing.
 func (r *CertificateRepository) BuildCreateTxItem(orgPK, alias, md5, password, s3Key, expiresAt string) (types.TransactWriteItem, map[string]types.AttributeValue) {
-	item := map[string]types.AttributeValue{
-		"pk":         &types.AttributeValueMemberS{Value: orgPK},
-		"sk":         &types.AttributeValueMemberS{Value: fmt.Sprintf("CERTIFICATE_%s", md5)},
-		"alias":      &types.AttributeValueMemberS{Value: alias},
-		"md5":        &types.AttributeValueMemberS{Value: md5},
-		"password":   &types.AttributeValueMemberS{Value: password},
-		"s3_key":     &types.AttributeValueMemberS{Value: s3Key},
-		"expires_at": &types.AttributeValueMemberS{Value: expiresAt},
-		"created_at": &types.AttributeValueMemberS{Value: NowStr()},
-	}
-	return r.BuildPutTxItem(item), item
+	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, certSK(md5), certFields(alias, md5, password, s3Key, expiresAt))
+	return tx, item
 }
 
 // BuildDeleteTxItem returns a TransactWriteItem for deleting a certificate, without writing.
 func (r *CertificateRepository) BuildDeleteTxItem(orgPK, md5 string) types.TransactWriteItem {
-	return r.Base.BuildDeleteTxItem(orgPK, fmt.Sprintf("CERTIFICATE_%s", md5))
+	return r.CRUDRepository.BuildDeleteTxItem(orgPK, certSK(md5))
 }

@@ -63,7 +63,7 @@ func TestMembershipLifecycle(t *testing.T) {
 	if err := memberSvc.ChangeRole(ctx, orgPK, member, repositories.RoleUser); err != nil {
 		t.Fatal(err)
 	}
-	if err := memberSvc.Remove(ctx, orgPK, member); err != nil {
+	if err := memberSvc.Remove(ctx, orgPK, member, "test-actor", "Test Actor"); err != nil {
 		t.Fatal(err)
 	}
 	if m, _ := memberSvc.Get(ctx, orgPK, member); m != nil {
@@ -77,7 +77,7 @@ func TestCannotRemoveLastOwner(t *testing.T) {
 	if err := memberSvc.Create(ctx, orgPK, "solo-owner", repositories.RoleOwner, "", "Solo", nil); err != nil {
 		t.Fatal(err)
 	}
-	err := memberSvc.Remove(ctx, orgPK, "solo-owner")
+	err := memberSvc.Remove(ctx, orgPK, "solo-owner", "test-actor", "Test Actor")
 	if err == nil {
 		t.Fatal("expected error removing the last owner")
 	}

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
+	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 
@@ -40,7 +41,7 @@ func RegisterDistributions(router fiber.Router, svc *services.DistributionServic
 	g.Get("/:doc_type/history/:nsu/xml", perm.RequireDynamic("get.%s_distributions", "doc_type"), func(c fiber.Ctx) error {
 		nsu, err := strconv.Atoi(c.Params("nsu"))
 		if err != nil {
-			return sendProblem(c, fmt.Errorf("nsu inválido"))
+			return sendProblem(c, problem.BadRequest("nsu inválido"))
 		}
 		xmlBytes, err := svc.GetDistributionXML(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), nsu)
 		if err != nil {
@@ -55,7 +56,7 @@ func RegisterDistributions(router fiber.Router, svc *services.DistributionServic
 	g.Get("/:doc_type/nsu/:nsu", perm.RequireDynamic("get.%s_distributions", "doc_type"), func(c fiber.Ctx) error {
 		nsu, err := strconv.Atoi(c.Params("nsu"))
 		if err != nil {
-			return sendProblem(c, fmt.Errorf("nsu inválido"))
+			return sendProblem(c, problem.BadRequest("nsu inválido"))
 		}
 		result, err := svc.LookupByNSU(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), nsu)
 		if err != nil {

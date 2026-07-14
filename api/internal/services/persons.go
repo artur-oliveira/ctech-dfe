@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -12,8 +11,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
-
-const personCacheTTL = 300
 
 var (
 	cnpjRe = regexp.MustCompile(`^\d{14}$`)
@@ -56,18 +53,16 @@ type PersonService struct {
 	repo      *repositories.PersonRepository
 	auditRepo *repositories.AuditLogRepository
 	cache     cache.Backend
+	crud      *CRUDMutationHelper
 }
 
 func NewPersonService(repo *repositories.PersonRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *PersonService {
-	return &PersonService{repo: repo, auditRepo: auditRepo, cache: c}
-}
-
-func personCacheKey(orgPK, sk string) string {
-	return fmt.Sprintf("res:%s:persons:%s", orgPK, sk)
-}
-
-func personListCachePrefix(orgPK string) string {
-	return fmt.Sprintf("res:%s:persons:", orgPK)
+	return &PersonService{
+		repo:      repo,
+		auditRepo: auditRepo,
+		cache:     c,
+		crud:      NewCRUDMutationHelper(auditRepo, c),
+	}
 }
 
 func (s *PersonService) Get(ctx context.Context, orgPK, cpfCNPJ string) (map[string]types.AttributeValue, error) {
@@ -75,23 +70,16 @@ func (s *PersonService) Get(ctx context.Context, orgPK, cpfCNPJ string) (map[str
 	if err != nil {
 		return nil, err
 	}
-	key := personCacheKey(orgPK, sk)
-	if v, ok := cacheGetItem(ctx, s.cache, key); ok {
-		return v, nil
-	}
-	item, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
-		return nil, problem.NotFound("person not found")
-	}
-	cacheSetItem(ctx, s.cache, key, item, personCacheTTL)
-	return item, nil
+	key := BuildItemCacheKey(orgPK, "persons", sk)
+	return GetCachedItem(ctx, s.cache, key, func(ctx context.Context) (map[string]types.AttributeValue, error) {
+		return s.repo.Get(ctx, orgPK, sk)
+	}, "person not found")
 }
 
 func (s *PersonService) List(ctx context.Context, orgPK string, opts repositories.PersonListOpts) (*repositories.QueryResult, error) {
-	return s.repo.List(ctx, orgPK, opts)
+	return GetCachedList(ctx, s.cache, orgPK, "persons", opts, func(ctx context.Context) (*repositories.QueryResult, error) {
+		return s.repo.List(ctx, orgPK, opts)
+	})
 }
 
 // Create writes the person and its CREATE audit row atomically.
@@ -101,78 +89,32 @@ func (s *PersonService) Create(ctx context.Context, orgPK string, cpfCNPJ string
 		return nil, err
 	}
 
-	personTx, finalItem := s.repo.BuildCreateTxItem(orgPK, sk, fields)
-
-	afterMap, err := attributeMapToPlain(finalItem)
-	if err != nil {
-		return nil, err
-	}
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourcePerson, sk, repositories.AuditActionCreate,
-		userID, userName, Diff(nil, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}); err != nil {
-		if repositories.IsConditionFailed(err) {
-			return nil, problem.Conflict("pessoa com este CPF/CNPJ já cadastrada")
+	tw := func(ctx context.Context, items []types.TransactWriteItem) error {
+		if err := s.repo.TransactWrite(ctx, items); err != nil {
+			if repositories.IsConditionFailed(err) {
+				return problem.Conflict("pessoa com este CPF/CNPJ já cadastrada")
+			}
+			return err
 		}
-		return nil, err
+		return nil
 	}
-	_ = s.cache.DeletePrefix(ctx, personListCachePrefix(orgPK))
-	return finalItem, nil
+
+	return s.crud.Create(ctx, orgPK, repositories.AuditResourcePerson, userID, userName, func() (types.TransactWriteItem, map[string]types.AttributeValue, error) {
+		tx, item := s.repo.BuildCreateTxItem(orgPK, sk, fields)
+		return tx, item, nil
+	}, tw)
 }
 
 // Update writes the person change and its UPDATE audit row atomically.
-// Fetches the current item first so only actually-changed fields are logged.
 func (s *PersonService) Update(ctx context.Context, orgPK, cpfCNPJ string, updates map[string]any, userID, userName string) (map[string]types.AttributeValue, error) {
 	sk, err := BuildPersonSK(cpfCNPJ)
 	if err != nil {
 		return nil, err
 	}
 
-	current, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return nil, err
-	}
-	if current == nil {
-		return nil, problem.NotFound("person not found")
-	}
-	beforeMap, err := attributeMapToPlain(current)
-	if err != nil {
-		return nil, err
-	}
-
-	personTx, err := s.repo.BuildUpdateTxItem(orgPK, sk, updates)
-	if err != nil {
-		return nil, err
-	}
-	// updates is a partial map (only the fields the caller wants to change).
-	// Merge it over beforeMap so Diff only reports fields that actually
-	// changed, instead of treating every omitted field as "changed to nil".
-	afterMap := make(map[string]any, len(beforeMap))
-	for k, v := range beforeMap {
-		afterMap[k] = v
-	}
-	for k, v := range updates {
-		afterMap[k] = v
-	}
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourcePerson, sk, repositories.AuditActionUpdate,
-		userID, userName, Diff(beforeMap, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}); err != nil {
-		return nil, err
-	}
-	_ = s.cache.Delete(ctx, personCacheKey(orgPK, sk))
-	_ = s.cache.DeletePrefix(ctx, personListCachePrefix(orgPK))
-	return s.repo.Get(ctx, orgPK, sk)
+	return s.crud.Update(ctx, orgPK, sk, repositories.AuditResourcePerson, updates, userID, userName, s.repo.Get, func(ctx context.Context) (types.TransactWriteItem, error) {
+		return s.repo.BuildUpdateTxItem(orgPK, sk, updates)
+	}, s.repo.TransactWrite)
 }
 
 // Delete removes the person and writes its DELETE audit row atomically.
@@ -182,31 +124,7 @@ func (s *PersonService) Delete(ctx context.Context, orgPK, cpfCNPJ, userID, user
 		return err
 	}
 
-	current, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return err
-	}
-	if current == nil {
-		return problem.NotFound("person not found")
-	}
-	beforeMap, err := attributeMapToPlain(current)
-	if err != nil {
-		return err
-	}
-
-	personTx := s.repo.BuildDeleteTxItem(orgPK, sk)
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourcePerson, sk, repositories.AuditActionDelete,
-		userID, userName, Diff(beforeMap, nil),
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}); err != nil {
-		return err
-	}
-	_ = s.cache.Delete(ctx, personCacheKey(orgPK, sk))
-	_ = s.cache.DeletePrefix(ctx, personListCachePrefix(orgPK))
-	return nil
+	return s.crud.Delete(ctx, orgPK, sk, repositories.AuditResourcePerson, userID, userName, s.repo.Get, func(ctx context.Context) (types.TransactWriteItem, error) {
+		return s.repo.BuildDeleteTxItem(orgPK, sk), nil
+	}, s.repo.TransactWrite)
 }

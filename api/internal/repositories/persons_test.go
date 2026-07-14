@@ -7,7 +7,7 @@ import (
 )
 
 func TestBuildCreateTxItem_UsesConditionalPut(t *testing.T) {
-	repo := &PersonRepository{Base: NewBase(nil, &config.Config{TablePrefix: "test"}, "organization_persons")}
+	repo := &PersonRepository{CRUDRepository: NewCRUDRepository[map[string]any](nil, &config.Config{TablePrefix: "test"}, "organization_persons")}
 	txItem, _ := repo.BuildCreateTxItem("ORG_1", "CPF_11122233344", map[string]any{"name": "Test"})
 	if txItem.Put == nil {
 		t.Fatal("expected Put transact item")

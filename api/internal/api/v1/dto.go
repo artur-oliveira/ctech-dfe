@@ -239,6 +239,23 @@ type ProductBody struct {
 	ArmaDescr  *string `json:"arma_descr" validate:"omitempty,max=256"`
 }
 
+// ── Fiscal event actions (NF-e / NFC-e / MDF-e) ──────────────────────
+
+// CancelEventBody is the payload for POST …/:access_key/cancel, shared
+// across NF-e / NFC-e / MDF-e. Justification is required (min 15);
+// SequenceNumber is optional — the service applies its defaultSeq when zero.
+type CancelEventBody struct {
+	Justification  string `json:"justification" validate:"required,min=15,max=255"`
+	SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
+}
+
+// SubstituteCancelBody extends CancelEventBody with the key of the
+// NF-e that substitutes the cancelled one (event 110112).
+type SubstituteCancelBody struct {
+	CancelEventBody
+	SubstituteKey string `json:"substitute_key" validate:"required,len=44,numeric"`
+}
+
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
 // VehicleOwnerBody is the owner (proprietário) of a vehicle. Optional static

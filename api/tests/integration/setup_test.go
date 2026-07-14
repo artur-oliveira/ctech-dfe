@@ -108,7 +108,7 @@ func TestMain(m *testing.M) {
 	// zero-value *awsclient.Clients{} placeholder. Delete never touches
 	// s.awsClients; Upload/StageUpload must not be exercised against it.
 	certSvc = services.NewCertificateService(certRepo, auditRepo, &awsclient.Clients{}, "unused-test-bucket")
-	memberSvc = services.NewMembershipService(orgUserRepo, roleRepo, memCache)
+	memberSvc = services.NewMembershipService(orgUserRepo, auditRepo, roleRepo, memCache)
 	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, memCache)
 	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)

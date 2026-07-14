@@ -19,6 +19,18 @@ import (
 
 const userCacheTTL = 300
 
+// userItemCacheKey / userMeCacheKey are the two per-user cache keys. Both are
+// keyed by the raw user id (JWT sub, no USER_ prefix) so callers that hold a
+// prefixed id (e.g. membership management) hit the same entry. Shared with
+// MembershipService, which must evict "me:" when membership changes.
+func userItemCacheKey(userID string) string {
+	return fmt.Sprintf("user:%s", repositories.RawUserID(userID))
+}
+
+func userMeCacheKey(userID string) string {
+	return fmt.Sprintf("me:%s", repositories.RawUserID(userID))
+}
+
 // CurrentTermsAddendumVersion is the dfe-specific ToS/Privacy addendum version
 // (see ui/src/app/terms-addendum). Bump it to re-gate every account on next
 // login; a user's stored terms_addendum_version must match this exactly.
@@ -91,7 +103,7 @@ func (s *UserService) AcceptTermsAddendum(ctx context.Context, userID string) er
 
 // GetMe returns the user record, using cache.
 func (s *UserService) GetMe(ctx context.Context, userID string) (map[string]types.AttributeValue, error) {
-	cacheKey := fmt.Sprintf("user:%s", userID)
+	cacheKey := userItemCacheKey(userID)
 	if v, ok := cacheGetItem(ctx, s.cache, cacheKey); ok {
 		return v, nil
 	}
@@ -112,7 +124,7 @@ func (s *UserService) GetMe(ctx context.Context, userID string) (map[string]type
 // copy — so ctech-account remains the single place that owns them. A userinfo
 // fetch failure degrades to a blank profile rather than failing the request.
 func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string) (map[string]any, error) {
-	cacheKey := fmt.Sprintf("me:%s", userID)
+	cacheKey := userMeCacheKey(userID)
 	if v, ok := cacheGet[map[string]any](ctx, s.cache, cacheKey); ok {
 		return *v, nil
 	}
@@ -201,7 +213,7 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 // Never blocks or errors the caller — audit attribution degrades, it never fails
 // the underlying mutation.
 func (s *UserService) ResolveActor(ctx context.Context, userID, accessToken string) (string, string) {
-	if v, ok := cacheGet[map[string]any](ctx, s.cache, fmt.Sprintf("me:%s", userID)); ok {
+	if v, ok := cacheGet[map[string]any](ctx, s.cache, userMeCacheKey(userID)); ok {
 		if name := actorNameFromMeCache(*v); name != "" {
 			return userID, name
 		}
@@ -277,6 +289,6 @@ func (s *UserService) GetUserInfo(ctx context.Context, accessToken string) (*Cte
 
 // InvalidateCache drops cached user and me entries.
 func (s *UserService) InvalidateCache(ctx context.Context, userID string) {
-	_ = s.cache.Delete(ctx, fmt.Sprintf("user:%s", userID))
-	_ = s.cache.Delete(ctx, fmt.Sprintf("me:%s", userID))
+	_ = s.cache.Delete(ctx, userItemCacheKey(userID))
+	_ = s.cache.Delete(ctx, userMeCacheKey(userID))
 }

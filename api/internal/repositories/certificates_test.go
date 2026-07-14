@@ -12,7 +12,7 @@ import (
 // BuildCreateTxItem assembles the same pk/sk/alias/md5/password/s3_key/
 // expires_at/created_at fields as Create, without writing anything.
 func TestCertificateRepository_BuildCreateTxItem(t *testing.T) {
-	r := &CertificateRepository{Base: Base{TableName: "test_organization_certificates"}}
+	r := &CertificateRepository{CRUDRepository: CRUDRepository[map[string]any]{Base: Base{TableName: "test_organization_certificates"}}}
 
 	txItem, item := r.BuildCreateTxItem("CNPJ_12345678000195", "My Cert", "abc123md5", "s3cr3t", "certs/CNPJ_12345678000195/abc123md5.pfx", "2030-01-01T00:00:00Z")
 
@@ -59,7 +59,7 @@ func TestCertificateRepository_BuildCreateTxItem(t *testing.T) {
 }
 
 func TestCertificateRepository_BuildDeleteTxItem(t *testing.T) {
-	r := &CertificateRepository{Base: Base{TableName: "test_organization_certificates"}}
+	r := &CertificateRepository{CRUDRepository: CRUDRepository[map[string]any]{Base: Base{TableName: "test_organization_certificates"}}}
 
 	txItem := r.BuildDeleteTxItem("CNPJ_12345678000195", "abc123md5")
 

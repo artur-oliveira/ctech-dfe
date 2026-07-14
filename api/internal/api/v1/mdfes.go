@@ -115,10 +115,7 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, ext *services.
 
 	// POST /mdfes/:access_key/cancel
 	g.Post("/:access_key/cancel", perm.Require("delete.mdfes"), func(c fiber.Ctx) error {
-		var body struct {
-			Justification  string `json:"justification" validate:"required,min=15,max=255"`
-			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
-		}
+		var body CancelEventBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}

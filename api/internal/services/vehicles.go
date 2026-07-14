@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -12,8 +11,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
-
-const vehicleCacheTTL = 300
 
 // Plate formats: legacy AAA9999, Mercosul AAA9A99.
 var plateRe = regexp.MustCompile(`^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$`)
@@ -26,18 +23,16 @@ type VehicleService struct {
 	repo      *repositories.VehicleRepository
 	auditRepo *repositories.AuditLogRepository
 	cache     cache.Backend
+	crud      *CRUDMutationHelper
 }
 
 func NewVehicleService(repo *repositories.VehicleRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *VehicleService {
-	return &VehicleService{repo: repo, auditRepo: auditRepo, cache: c}
-}
-
-func vehicleCacheKey(orgPK, sk string) string {
-	return fmt.Sprintf("res:%s:vehicles:%s", orgPK, sk)
-}
-
-func vehicleListCachePrefix(orgPK string) string {
-	return fmt.Sprintf("res:%s:vehicles:", orgPK)
+	return &VehicleService{
+		repo:      repo,
+		auditRepo: auditRepo,
+		cache:     c,
+		crud:      NewCRUDMutationHelper(auditRepo, c),
+	}
 }
 
 func ValidatePlate(plate string) error {
@@ -62,33 +57,28 @@ func validateRenavam(renavam string) error {
 }
 
 func (s *VehicleService) Get(ctx context.Context, orgPK, sk string) (map[string]types.AttributeValue, error) {
-	key := vehicleCacheKey(orgPK, sk)
-	if v, ok := cacheGetItem(ctx, s.cache, key); ok {
-		return v, nil
-	}
-	item, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
-		return nil, problem.NotFound("vehicle not found")
-	}
-	cacheSetItem(ctx, s.cache, key, item, vehicleCacheTTL)
-	return item, nil
+	key := BuildItemCacheKey(orgPK, "vehicles", sk)
+	return GetCachedItem(ctx, s.cache, key, func(ctx context.Context) (map[string]types.AttributeValue, error) {
+		return s.repo.Get(ctx, orgPK, sk)
+	}, "vehicle not found")
 }
 
 func (s *VehicleService) List(ctx context.Context, orgPK string, opts repositories.VehicleListOpts) (*repositories.QueryResult, error) {
-	return s.repo.List(ctx, orgPK, opts)
+	return GetCachedList(ctx, s.cache, orgPK, "vehicles", opts, func(ctx context.Context) (*repositories.QueryResult, error) {
+		return s.repo.List(ctx, orgPK, opts)
+	})
 }
 
 func (s *VehicleService) ListByRole(ctx context.Context, orgPK, role string, opts repositories.VehicleListOpts) (*repositories.QueryResult, error) {
-	return s.repo.ListByRole(ctx, orgPK, role, opts)
+	type listByRoleOpts struct {
+		Role string
+		Opts repositories.VehicleListOpts
+	}
+	return GetCachedList(ctx, s.cache, orgPK, "vehicles", listByRoleOpts{Role: role, Opts: opts}, func(ctx context.Context) (*repositories.QueryResult, error) {
+		return s.repo.ListByRole(ctx, orgPK, role, opts)
+	})
 }
 
-// strField/intField pull a plain string/int out of the untyped fields map
-// produced by structToMap, defaulting to the zero value when absent —
-// matching the existing "zero value means unset" convention already used by
-// resolveVehicle for weight/wheelset/bodywork.
 func strField(fields map[string]any, key string) string {
 	v, _ := fields[key].(string)
 	return v
@@ -141,29 +131,13 @@ func (s *VehicleService) Create(ctx context.Context, orgPK string, fields map[st
 		Owner:    owner,
 	}
 
-	vehicleTx, finalItem := s.repo.BuildCreateTxItem(orgPK, f)
-
-	afterMap, err := attributeMapToPlain(finalItem)
-	if err != nil {
-		return nil, err
-	}
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceVehicle, attrStrAV(finalItem, "sk"), repositories.AuditActionCreate,
-		userID, userName, Diff(nil, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{vehicleTx, auditTx}); err != nil {
-		return nil, err
-	}
-	_ = s.cache.DeletePrefix(ctx, vehicleListCachePrefix(orgPK))
-	return finalItem, nil
+	return s.crud.Create(ctx, orgPK, repositories.AuditResourceVehicle, userID, userName, func() (types.TransactWriteItem, map[string]types.AttributeValue, error) {
+		tx, item := s.repo.BuildCreateTxItem(orgPK, f)
+		return tx, item, nil
+	}, s.repo.TransactWrite)
 }
 
 // Update writes the vehicle change and its UPDATE audit row atomically.
-// Fetches the current item first so only actually-changed fields are logged.
 func (s *VehicleService) Update(ctx context.Context, orgPK, sk string, updates map[string]any, userID, userName string) (map[string]types.AttributeValue, error) {
 	if plate, ok := updates["plate"].(string); ok {
 		if err := ValidatePlate(plate); err != nil {
@@ -179,75 +153,14 @@ func (s *VehicleService) Update(ctx context.Context, orgPK, sk string, updates m
 		return nil, problem.BadRequest("owner_type must be TAC, ETC, or CTC")
 	}
 
-	current, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return nil, err
-	}
-	if current == nil {
-		return nil, problem.NotFound("vehicle not found")
-	}
-	beforeMap, err := attributeMapToPlain(current)
-	if err != nil {
-		return nil, err
-	}
-
-	vehicleTx, err := s.repo.BuildUpdateTxItem(orgPK, sk, updates)
-	if err != nil {
-		return nil, err
-	}
-	// updates is a partial map (only the fields the caller wants to change).
-	// Merge it over beforeMap so Diff only reports fields that actually
-	// changed, instead of treating every omitted field as "changed to nil".
-	afterMap := make(map[string]any, len(beforeMap))
-	for k, v := range beforeMap {
-		afterMap[k] = v
-	}
-	for k, v := range updates {
-		afterMap[k] = v
-	}
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceVehicle, attrStrAV(current, "sk"), repositories.AuditActionUpdate,
-		userID, userName, Diff(beforeMap, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{vehicleTx, auditTx}); err != nil {
-		return nil, err
-	}
-	_ = s.cache.Delete(ctx, vehicleCacheKey(orgPK, sk))
-	_ = s.cache.DeletePrefix(ctx, vehicleListCachePrefix(orgPK))
-	return s.repo.Get(ctx, orgPK, sk)
+	return s.crud.Update(ctx, orgPK, sk, repositories.AuditResourceVehicle, updates, userID, userName, s.repo.Get, func(ctx context.Context) (types.TransactWriteItem, error) {
+		return s.repo.BuildUpdateTxItem(orgPK, sk, updates)
+	}, s.repo.TransactWrite)
 }
 
 // Delete removes the vehicle and writes its DELETE audit row atomically.
 func (s *VehicleService) Delete(ctx context.Context, orgPK, sk, userID, userName string) error {
-	current, err := s.repo.Get(ctx, orgPK, sk)
-	if err != nil {
-		return err
-	}
-	if current == nil {
-		return problem.NotFound("vehicle not found")
-	}
-	beforeMap, err := attributeMapToPlain(current)
-	if err != nil {
-		return err
-	}
-
-	vehicleTx := s.repo.BuildDeleteTxItem(orgPK, sk)
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceVehicle, attrStrAV(current, "sk"), repositories.AuditActionDelete,
-		userID, userName, Diff(beforeMap, nil),
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{vehicleTx, auditTx}); err != nil {
-		return err
-	}
-	_ = s.cache.Delete(ctx, vehicleCacheKey(orgPK, sk))
-	_ = s.cache.DeletePrefix(ctx, vehicleListCachePrefix(orgPK))
-	return nil
+	return s.crud.Delete(ctx, orgPK, sk, repositories.AuditResourceVehicle, userID, userName, s.repo.Get, func(ctx context.Context) (types.TransactWriteItem, error) {
+		return s.repo.BuildDeleteTxItem(orgPK, sk), nil
+	}, s.repo.TransactWrite)
 }

@@ -27,7 +27,7 @@ import (
 
 func freshOrgSvc() *services.OrganizationService {
 	c := cache.NewMemoryBackend(100)
-	ms := services.NewMembershipService(orgUserRepo, roleRepo, c)
+	ms := services.NewMembershipService(orgUserRepo, auditRepo, roleRepo, c)
 	return services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, ms, c)
 }
 

@@ -6,109 +6,87 @@ import (
 	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
 	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
 
+// validateVehicleRequirementsParams checks the doc_type/role query params for
+// GET /vehicles/:sk/requirements against the finite set of supported values.
+func validateVehicleRequirementsParams(docType, role string) *problem.Problem {
+	validDocTypes := map[string]bool{services.DocTypeMdfe: true, services.DocTypeNfe: true, services.DocTypeCteOS: true}
+	validRoles := map[string]bool{services.VehicleRoleTractor: true, services.VehicleRoleTrailer: true}
+	if !validDocTypes[docType] {
+		return problem.BadRequest("doc_type inválido: " + docType)
+	}
+	if !validRoles[role] {
+		return problem.BadRequest("role inválido: " + role)
+	}
+	return nil
+}
+
 // RegisterVehicles mounts /vehicles routes.
 func RegisterVehicles(router fiber.Router, svc *services.VehicleService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountCRUD(router, "/vehicles", authMw, perm, userSvc, crudHandlers{
+		listPerm: "list.organization_vehicles", createPerm: "create.organization_vehicles",
+		getPerm: "get.organization_vehicles", updatePerm: "update.organization_vehicles",
+		deletePerm: "delete.organization_vehicles",
+		param: "sk",
+
+		list: func(c fiber.Ctx, orgPK string, o crudListOpts) (*repositories.QueryResult, error) {
+			opts := repositories.VehicleListOpts{
+				PlatePrefix: c.Query("plate"),
+				Sort:        o.Sort,
+				Limit:       o.Limit,
+				StartKey:    o.StartKey,
+			}
+			if role := c.Query("role"); role != "" {
+				return svc.ListByRole(c.Context(), orgPK, role, opts)
+			}
+			return svc.List(c.Context(), orgPK, opts)
+		},
+		create: func(c fiber.Ctx, orgPK, userID, userName string) (map[string]types.AttributeValue, error) {
+			var dto VehicleCreateBody
+			if p := bindJSON(c, &dto); p != nil {
+				return nil, p
+			}
+			body, err := structToMap(dto)
+			if err != nil {
+				return nil, err
+			}
+			return svc.Create(c.Context(), orgPK, body, userID, userName)
+		},
+		get: func(c fiber.Ctx, orgPK, id string) (map[string]types.AttributeValue, error) {
+			return svc.Get(c.Context(), orgPK, id)
+		},
+		update: func(c fiber.Ctx, orgPK, id, userID, userName string) (map[string]types.AttributeValue, error) {
+			var dto VehicleUpdateBody
+			if p := bindJSON(c, &dto); p != nil {
+				return nil, p
+			}
+			body, err := structToMap(dto)
+			if err != nil {
+				return nil, err
+			}
+			return svc.Update(c.Context(), orgPK, id, body, userID, userName)
+		},
+		del: func(c fiber.Ctx, orgPK, id, userID, userName string) error {
+			return svc.Delete(c.Context(), orgPK, id, userID, userName)
+		},
+	})
+
 	g := router.Group("/vehicles", authMw)
-
-	// GET /vehicles
-	g.Get("", perm.Require("list.organization_vehicles"), func(c fiber.Ctx) error {
-		cursor := c.Query("cursor")
-		opts := repositories.VehicleListOpts{
-			PlatePrefix: c.Query("plate"),
-			Sort:        c.Query("sort", "asc"),
-			Limit:       intQuery(c, "limit", 50),
-			StartKey:    decodeCursor(cursor),
-		}
-		var res *repositories.QueryResult
-		var err error
-		if role := c.Query("role"); role != "" {
-			res, err = svc.ListByRole(c.Context(), middleware.GetOrgPK(c), role, opts)
-		} else {
-			res, err = svc.List(c.Context(), middleware.GetOrgPK(c), opts)
-		}
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendPage(c, res, cursor)
-	})
-
-	// POST /vehicles
-	g.Post("", perm.Require("create.organization_vehicles"), func(c fiber.Ctx) error {
-		var dto VehicleCreateBody
-		if p := bindJSON(c, &dto); p != nil {
-			return sendProblem(c, p)
-		}
-		body, err := structToMap(dto)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Create(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		m, err := unmarshal(item)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return c.Status(fiber.StatusCreated).JSON(m)
-	})
-
-	// GET /vehicles/:sk
-	g.Get("/:sk", perm.Require("get.organization_vehicles"), func(c fiber.Ctx) error {
-		item, err := svc.Get(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendItem(c, item)
-	})
 
 	// GET /vehicles/:sk/requirements
 	g.Get("/:sk/requirements", perm.Require("get.organization_vehicles"), func(c fiber.Ctx) error {
 		docType := c.Query("doc_type")
 		role := c.Query("role")
-		validDocTypes := map[string]bool{services.DocTypeMdfe: true, services.DocTypeNfe: true, services.DocTypeCteOS: true}
-		validRoles := map[string]bool{services.VehicleRoleTractor: true, services.VehicleRoleTrailer: true}
-		if !validDocTypes[docType] {
-			return sendProblem(c, problem.BadRequest("doc_type inválido: "+docType))
-		}
-		if !validRoles[role] {
-			return sendProblem(c, problem.BadRequest("role inválido: "+role))
+		if p := validateVehicleRequirementsParams(docType, role); p != nil {
+			return sendProblem(c, p)
 		}
 		item, err := svc.Get(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
 		return c.JSON(fiber.Map{"missing": services.Missing(item, docType, role)})
-	})
-
-	// PUT /vehicles/:sk
-	g.Put("/:sk", perm.Require("update.organization_vehicles"), func(c fiber.Ctx) error {
-		var dto VehicleUpdateBody
-		if p := bindJSON(c, &dto); p != nil {
-			return sendProblem(c, p)
-		}
-		body, err := structToMap(dto)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Update(c.Context(), middleware.GetOrgPK(c), c.Params("sk"), body, userID, userName)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendItem(c, item)
-	})
-
-	// DELETE /vehicles/:sk
-	g.Delete("/:sk", perm.Require("delete.organization_vehicles"), func(c fiber.Ctx) error {
-		userID, userName := resolveActor(c, userSvc)
-		if err := svc.Delete(c.Context(), middleware.GetOrgPK(c), c.Params("sk"), userID, userName); err != nil {
-			return sendProblem(c, err)
-		}
-		return c.SendStatus(fiber.StatusNoContent)
 	})
 }
