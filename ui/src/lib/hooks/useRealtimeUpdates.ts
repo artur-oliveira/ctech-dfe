@@ -14,10 +14,10 @@ import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
 // unset and fall back to the app origin, which CloudFront forwards to the ALB.
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || ''
 
-function buildWsUrl(token: string, orgPk: string): string {
+function buildWsUrl(orgPk: string): string {
   const origin = WS_BASE_URL || window.location.origin
   const base = origin.replace(/^http/, 'ws')
-  return `${base}/v1.0/ws?token=${encodeURIComponent(token)}&org_pk=${encodeURIComponent(orgPk)}`
+  return `${base}/v1.0/ws?org_pk=${encodeURIComponent(orgPk)}`
 }
 
 interface RealtimeMessage {
@@ -52,7 +52,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
   const token = getAccessToken()
 
   const wsUrl = token && selectedOrg?.pk
-    ? buildWsUrl(token, selectedOrg.pk)
+    ? buildWsUrl(selectedOrg.pk)
     : null
 
   const handleMessage = useCallback((data: unknown) => {
@@ -97,6 +97,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     url: wsUrl,
     onMessage: handleMessage,
     enabled: !!wsUrl,
+    authToken: token ?? undefined,
   })
 
   return {wsStatus}

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {Button} from '@/components/ui/button'
 
 export default function NotFound() {
   const {user} = useAuth()
@@ -14,13 +15,9 @@ export default function NotFound() {
         <p className="mt-2 text-sm text-gray-500">
           O endereço que você acessou não existe ou foi removido.
         </p>
-        <Link
-          href={user ? '/dashboard' : '/login'}
-          className="mt-6 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-          style={{backgroundColor: 'var(--brand-600)'}}
-        >
+        <Button variant="brand" className="mt-6" render={<Link href={user ? '/dashboard' : '/login'}/>}>
           {user ? 'Ir para o painel' : 'Ir para o login'}
-        </Link>
+        </Button>
       </div>
     </div>
   )

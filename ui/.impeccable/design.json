@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-14T12:00:00Z",
+  "title": "Design System: ctech-dfe UI",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Soft Green", "canonical": "#218768", "tonalRamp": ["#164738", "#195644", "#1c6c55", "#218768", "#2ea87f", "#44b896", "#74cfb0", "#a9e3cd"] },
+      "accent-nfce": { "role": "accent", "displayName": "NFC-e Blue", "canonical": "#3b82f6", "tonalRamp": ["#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"] },
+      "accent-cte": { "role": "accent", "displayName": "CT-e Violet", "canonical": "#8b5cf6", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"] },
+      "accent-mdfe": { "role": "accent", "displayName": "MDF-e Amber", "canonical": "#f59e0b", "tonalRamp": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fcd34d", "#fde68a"] },
+      "neutral-ink": { "role": "neutral", "displayName": "Ink", "canonical": "#0f172a", "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#f8fafc"] },
+      "neutral-surface": { "role": "neutral", "displayName": "Surface", "canonical": "#f8fafc", "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] },
+      "neutral-border": { "role": "neutral", "displayName": "Hairline", "canonical": "#e2e8f0", "tonalRamp": ["#0f172a", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] },
+      "destructive": { "role": "semantic", "displayName": "Error Red", "canonical": "#dc2626", "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fee2e2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles (PageHeader h1)." },
+      "title": { "displayName": "Title", "purpose": "Section / card / dialog headings." },
+      "body": { "displayName": "Body", "purpose": "Default text, table cells, descriptions." },
+      "label": { "displayName": "Label", "purpose": "Tracked uppercase labels and field captions." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)", "purpose": "Resting cards — barely-there lift off the canvas." },
+      { "name": "card-hover", "value": "0 4px 12px 0 rgb(0 0 0 / 0.10), 0 2px 4px -1px rgb(0 0 0 / 0.06)", "purpose": "On row/card hover, the surface lifts." },
+      { "name": "modal", "value": "0 20px 60px -10px rgb(0 0 0 / 0.25)", "purpose": "Dialogs and slide-overs, top of the stack." },
+      { "name": "topbar", "value": "0 1px 0 0 #e2e8f0", "purpose": "Hairline dividing the top bar from content." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (150–250ms)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The only filled, colored button. Soft-green fill with white text; carries every primary action.",
+      "html": "<button class=\"ds-btn-primary\">Emitir documento</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 6px; background: #218768; color: #ffffff; border: 1px solid transparent; border-radius: 10px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; } .ds-btn-primary:hover { background: #1c6c55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Transparent field, hairline border, 32px tall. Border + green ring on focus; red on error.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Número do documento\" />",
+      "css": ".ds-input { width: 100%; height: 32px; padding: 0 10px; background: transparent; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 10px; font: 400 14px/1 \"Geist Sans\", system-ui, sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: #218768; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-input[aria-invalid=\"true\"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Pill status chip — issued / pending / error. Solid fill, 20px tall, 12px tracked label.",
+      "html": "<span class=\"ds-badge\">Emitido</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; background: #218768; color: #ffffff; border-radius: 9999px; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; letter-spacing: 0.02em; }"
+    },
+    {
+      "name": "Section Card",
+      "kind": "card",
+      "refersTo": "button-primary",
+      "description": "Titled grouping block: a soft Surface header strip with a tracked uppercase label, a hairline divider, then padded body.",
+      "html": "<div class=\"ds-section-card\"><div class=\"ds-section-card-head\"><span class=\"ds-section-card-icon\"></span><h3 class=\"ds-section-card-title\">Dados do emitente</h3></div><div class=\"ds-section-card-body\">…</div></div>",
+      "css": ".ds-section-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; } .ds-section-card-head { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; } .ds-section-card-title { margin: 0; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; } .ds-section-card-body { padding: 20px; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "button-primary",
+      "description": "Left-sidebar link. Active item carries the brand-green tint and ink-strong text.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">NF-e</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; color: #0f172a; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: #f8fafc; } .ds-nav-item-active { background: rgba(33,135,104,0.12); color: #1c6c55; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Operator",
+    "overview": "The interface is the competent colleague who has already done the bureaucratic work for you. It is calm, fast, and invisible — it disappears into the task of issuing and tracking a tax document. The voice is sharp efficiency: plain-language, no fiscal jargon performance, zero wasted motion. Every screen earns its density; nothing is decorative. This system explicitly rejects the bureaucratic government portal, the generic SaaS cream/beige monoculture, playful/gamified consumer aesthetics, and dense enterprise tools with no visual hierarchy.",
+    "keyCharacteristics": [
+      "One quiet green brand, four document accents — color signals which document type you're in.",
+      "Compact, consistent controls (32px height) that respect expert density without clutter.",
+      "Real-time status is always legible — you never wonder 'did it go through?'.",
+      "Flat surfaces at rest; depth appears only as a response to state.",
+      "Mobile-first from 375px; the same vocabulary across every screen."
+    ],
+    "rules": [
+      { "name": "The One Accent Per Surface Rule", "body": "The core UI is green. A non-green accent appears only inside a data-dfe-theme scope (NFC-e/CT-e/MDF-e) — never as free decoration on a green screen.", "section": "colors" },
+      { "name": "The Calm Baseline Rule", "body": "Page and card backgrounds stay near-white (#ffffff / #f8fafc). Depth comes from hairline borders and state shadows, never from a colored wash.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "No display or serif face in UI labels, buttons, or data. Weight and size carry hierarchy; a second font is noise.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only on hover, elevation, or focus — never as ambient decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the core UI green; let NFC-e/CT-e/MDF-e accents appear only inside their data-dfe-theme scope.",
+      "Do hold body text at ≥4.5:1 — bump Muted Slate toward Ink before lighter gray.",
+      "Do reuse the 32px control height and 10px radius everywhere; consistency is the product's virtue.",
+      "Do show skeleton loaders (not center spinners) for initial loads, and a subtle dim for background refetches.",
+      "Do debounce every input that triggers an API call (300ms default).",
+      "Do treat modals as a last resort — exhaust inline and progressive disclosure first."
+    ],
+    "donts": [
+      "Don't build a bureaucratic government portal: dated, low-contrast, no hierarchy, anxiety-inducing.",
+      "Don't fall into the generic SaaS cream/beige monoculture — keep the canvas near-white and the accent intentional.",
+      "Don't use playful / gamified consumer aesthetics that undercut fiscal seriousness.",
+      "Don't ship a dense enterprise tool with no visual hierarchy or breathing room.",
+      "Don't add a second font family for display or labels; weight and size carry hierarchy.",
+      "Don't put a colored wash behind resting surfaces — depth comes from hairlines and state shadows, not fills.",
+      "Don't use a border-left/right stripe wider than 1px as a colored accent on cards or list rows.",
+      "Don't make inactive states full-saturation; reserve the green (and per-type accents) for primary actions, current selection, and state indicators."
+    ]
+  }
+}

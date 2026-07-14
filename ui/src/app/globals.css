@@ -85,6 +85,10 @@
     --color-brand-800: var(--brand-800);
     --color-brand-900: var(--brand-900);
 
+    /* Secondary text should stay AA-legible (≥4.5:1). The default Tailwind
+       gray-400 (#9ca3af) fails, so we anchor it to slate-500 (#64748b). */
+    --color-gray-400: #64748b;
+
     /* Primary as alias */
     --color-primary-50: var(--brand-50);
     --color-primary-100: var(--brand-100);
@@ -208,7 +212,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
     background: var(--gray-300);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -223,7 +227,7 @@ input, textarea, select {
 }
 
 input::placeholder, textarea::placeholder {
-    color: #94a3b8;
+    color: #64748b;
 }
 
 input:-webkit-autofill,
@@ -231,6 +235,17 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
     -webkit-box-shadow: 0 0 0 1000px white inset !important;
     -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Visible keyboard focus for native form controls that Tailwind's ring
+   utilities don't reach (checkboxes, radios, date/file inputs). */
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible,
+input[type="date"]:focus-visible,
+input[type="file"]:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
 }
 
 .dark {

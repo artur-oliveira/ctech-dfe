@@ -9,6 +9,7 @@ import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
 import {isTransitionalStatus, NFE_STATUS_CLASSES, NFE_STATUS_LABELS} from '@/components/nfe/NfeStatusBadge'
+import {StatusBadge} from '@/components/ui/status-badge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
@@ -156,14 +157,12 @@ export function DfeDetail({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium ${NFE_STATUS_CLASSES[doc.status] ?? 'bg-gray-100 text-gray-600'} ${isTransitionalStatus(doc.status) ? 'animate-pulse motion-reduce:animate-none' : ''}`}>
-            {isTransitionalStatus(doc.status) && (
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
-            )}
-            {NFE_STATUS_LABELS[doc.status] ?? doc.status}
-          </span>
+          <StatusBadge
+            size="md"
+            label={NFE_STATUS_LABELS[doc.status] ?? doc.status}
+            className={NFE_STATUS_CLASSES[doc.status] ?? 'bg-gray-100 text-gray-600'}
+            isTransitional={isTransitionalStatus(doc.status)}
+          />
 
           {hasXml && (
             <>

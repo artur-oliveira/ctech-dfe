@@ -1,9 +1,9 @@
 'use client'
 
-import {createContext, ReactNode, useCallback, useEffect, useRef, useState} from 'react'
+import {createContext, ReactNode, useCallback, useEffect, useState} from 'react'
 import {apiClient, ApiError, registerRefreshFn} from '@/lib/api/client'
 import type {MeResponse, UserOrganization} from '@/lib/types/api'
-import {SESSION_KEY_REFRESH, STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
+import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {decodeIdToken, doRefresh, IdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
 
 interface AuthContextType {
@@ -14,7 +14,7 @@ interface AuthContextType {
   login: () => void
   logout: () => void
   refreshUser: () => Promise<boolean>
-  handleCallback: (accessToken: string, refreshToken: string, idToken: string | null) => Promise<void>
+  handleCallback: (accessToken: string, idToken: string | null) => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -50,7 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MeResponse | null>(null)
   const [selectedOrg, setSelectedOrgState] = useState<UserOrganization | null>(null)
   const [loading, setLoading] = useState(true)
-  const refreshTokenRef = useRef<string | null>(null)
 
   const setSelectedOrg = useCallback((org: UserOrganization | null) => {
     setSelectedOrgState(org)
@@ -86,18 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setSelectedOrg])
 
   const tryRefresh = useCallback(async (): Promise<string | null> => {
-    const rt = refreshTokenRef.current ?? sessionStorage.getItem(SESSION_KEY_REFRESH)
-    if (!rt) return null
-
-    const result = await doRefresh(rt)
-    if (!result) {
-      refreshTokenRef.current = null
-      sessionStorage.removeItem(SESSION_KEY_REFRESH)
-      return null
-    }
-
-    refreshTokenRef.current = result.refreshToken
-    sessionStorage.setItem(SESSION_KEY_REFRESH, result.refreshToken)
+    const result = await doRefresh()
+    if (!result) return null
     apiClient.setToken(result.accessToken)
     return result.accessToken
   }, [])
@@ -112,69 +101,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    const rt = refreshTokenRef.current
-    refreshTokenRef.current = null
-    sessionStorage.removeItem(SESSION_KEY_REFRESH)
     apiClient.setToken(null)
     setUser(null)
     setSelectedOrgState(null)
     localStorage.removeItem(STORAGE_KEY_USER)
     localStorage.removeItem(STORAGE_KEY_ORG)
-    if (rt) void revokeToken(rt)
+    void revokeToken()
   }, [])
 
-  const handleCallback = useCallback(async (accessToken: string, refreshToken: string, idToken: string | null) => {
-    refreshTokenRef.current = refreshToken
-    sessionStorage.setItem(SESSION_KEY_REFRESH, refreshToken)
+  const handleCallback = useCallback(async (accessToken: string, idToken: string | null) => {
     apiClient.setToken(accessToken)
     const nameClaims = idToken ? decodeIdToken(idToken) : null
     const ok = await refreshUser(nameClaims)
     if (!ok) throw new Error('Falha ao obter dados do usuário após autenticação. Verifique a conexão com o servidor.')
   }, [refreshUser])
 
-  // On mount: attempt silent refresh from stored refresh token.
+  // On mount: attempt a silent refresh from the HttpOnly ctech_rt cookie (M2).
+  // The cookie is the source of truth — no refresh token is held in JS.
   useEffect(() => {
     void (async () => {
-      const rt = sessionStorage.getItem(SESSION_KEY_REFRESH)
-      if (!rt) {
-        // Check for cached user — if present, we had a session before; attempt refresh.
-        const cached = localStorage.getItem(STORAGE_KEY_USER)
-        if (cached) {
-          localStorage.removeItem(STORAGE_KEY_USER)
-        }
+      const cached = localStorage.getItem(STORAGE_KEY_USER)
+      const result = await doRefresh()
+      if (!result) {
+        if (cached) localStorage.removeItem(STORAGE_KEY_USER)
         setLoading(false)
         return
       }
 
-      const newToken = await (async () => {
-        const result = await doRefresh(rt)
-        if (!result) return null
-        refreshTokenRef.current = result.refreshToken
-        sessionStorage.setItem(SESSION_KEY_REFRESH, result.refreshToken)
-        apiClient.setToken(result.accessToken)
-        return result.accessToken
-      })()
-
-      if (newToken) {
-        const cached = localStorage.getItem(STORAGE_KEY_USER)
-        if (cached) {
-          const parsed: MeResponse = JSON.parse(cached)
-          setUser(parsed)
-          const savedOrg = localStorage.getItem(STORAGE_KEY_ORG)
-          if (savedOrg) {
-            setSelectedOrgState(JSON.parse(savedOrg))
-          } else if (parsed.organizations.length > 0) {
-            setSelectedOrg(parsed.organizations[0])
-          }
-          setLoading(false)
-          void refreshUser()
-        } else {
-          await refreshUser()
-          setLoading(false)
+      apiClient.setToken(result.accessToken)
+      if (cached) {
+        const parsed: MeResponse = JSON.parse(cached)
+        setUser(parsed)
+        const savedOrg = localStorage.getItem(STORAGE_KEY_ORG)
+        if (savedOrg) {
+          setSelectedOrgState(JSON.parse(savedOrg))
+        } else if (parsed.organizations.length > 0) {
+          setSelectedOrg(parsed.organizations[0])
         }
+        setLoading(false)
+        void refreshUser()
       } else {
-        refreshTokenRef.current = null
-        sessionStorage.removeItem(SESSION_KEY_REFRESH)
+        await refreshUser()
         setLoading(false)
       }
     })()

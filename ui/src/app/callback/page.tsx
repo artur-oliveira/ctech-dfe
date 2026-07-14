@@ -30,8 +30,8 @@ function CallbackInner() {
     
     void (async () => {
       try {
-        const {accessToken, refreshToken, idToken, returnTo} = await exchangeCode(code!, state!)
-        await handleCallback(accessToken, refreshToken, idToken)
+        const {accessToken, idToken, returnTo} = await exchangeCode(code!, state!)
+        await handleCallback(accessToken, idToken)
         router.replace(returnTo)
       } catch (err) {
         setAsyncError(err instanceof Error ? err.message : 'Falha na autenticação.')

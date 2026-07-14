@@ -25,6 +25,10 @@ interface FrontendStackProps extends cdk.StackProps {
   // Used as the API origin: ALL_VIEWER_EXCEPT_HOST_HEADER makes CloudFront send
   // this as the Host header, which is what the ALB listener rule matches on.
   apiDomainName: string;
+  // ctech-account OAuth host, e.g. "accounts.aoctech.app". Must be allowed in
+  // connect-src so the browser can fetch /v1.0/token (CSP blocks cross-origin
+  // fetches by default). Derived from BASE_DOMAIN, not hardcoded.
+  authDomainName: string;
 }
 
 /**
@@ -41,7 +45,7 @@ export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
     
-    const {environment, certificateArn, domainName, apiDomainName} = props;
+    const {environment, certificateArn, domainName, apiDomainName, authDomainName} = props;
     const isProduction = environment === 'prod';
     
     this.bucket = new s3.Bucket(this, 'Bucket', {
@@ -103,10 +107,10 @@ async function handler(event) {
     // Referrer-Policy, CSP) for the statically generated frontend. These MUST live
     // at CloudFront: next.config.ts headers() only run on server-rendered
     // responses, and the SSG assets are served straight from the edge. CSP
-    // connect-src allows the app's own origin plus any extra trusted origins
-    // (e.g. the ctech-account host for the OAuth token exchange, viacep) passed
-    // via the `securityExtraConnectSrc` CDK context — required so cross-origin
-    // fetches are not blocked in prod.
+    // connect-src allows the app's own origin plus the ctech-account OAuth host
+    // (authDomainName) and any extra trusted origins (e.g. viacep) passed via the
+    // `securityExtraConnectSrc` CDK context — required so cross-origin fetches
+    // are not blocked in prod.
     const extraConnectSrc = (this.node.tryGetContext('securityExtraConnectSrc') as string | undefined) ?? '';
     const securityHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
       responseHeadersPolicyName: `${environment}-CtechDfe-security-headers`,
@@ -134,7 +138,7 @@ async function handler(event) {
             "img-src 'self' data:",
             "style-src 'self' 'unsafe-inline'",
             "script-src 'self' 'unsafe-inline'",
-            `connect-src 'self'${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
+            `connect-src 'self' https://${authDomainName}${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
           ].join('; '),
           override: true,
         },

@@ -80,7 +80,7 @@ export async function startOAuthFlow(returnTo = '/'): Promise<void> {
 export async function exchangeCode(
   code: string,
   state: string,
-): Promise<{ accessToken: string; refreshToken: string; idToken: string | null; returnTo: string }> {
+): Promise<{ accessToken: string; idToken: string | null; returnTo: string }> {
   const storedState = sessionStorage.getItem('oauth_state')
   if (storedState !== state) throw new Error('OAuth state mismatch')
 
@@ -114,19 +114,18 @@ export async function exchangeCode(
   const data = await res.json()
   return {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token,
     idToken: data.id_token ?? null,
     returnTo,
   }
 }
 
-export async function doRefresh(
-  refreshToken: string,
-): Promise<{ accessToken: string; refreshToken: string } | null> {
+// M2: refresh_token is no longer passed in the request body — ctech-account
+// issues it as an HttpOnly ctech_rt cookie the browser sends automatically via
+// credentials:'include'. The SPA only ever sees the short-lived access token.
+export async function doRefresh(): Promise<{ accessToken: string } | null> {
   try {
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: refreshToken,
       client_id: CLIENT_ID,
     })
 
@@ -139,7 +138,7 @@ export async function doRefresh(
 
     if (!res.ok) return null
     const data = await res.json()
-    return { accessToken: data.access_token, refreshToken: data.refresh_token }
+    return { accessToken: data.access_token }
   } catch {
     return null
   }
@@ -160,14 +159,15 @@ export function endSessionRedirect(returnTo = '/login'): void {
   window.location.href = `${CTECH_URL}/v1.0/auth/end-session?${params}`
 }
 
-export async function revokeToken(refreshToken: string): Promise<void> {
+// M2: the refresh token lives in the HttpOnly ctech_rt cookie; we don't have it
+// in JS. credentials:'include' sends the cookie and ctech-account's /revoke
+// clears it, ending the refresh chain.
+export async function revokeToken(): Promise<void> {
   try {
-    const body = new URLSearchParams({ token: refreshToken })
     await fetch(`${CTECH_URL}/v1.0/revoke`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       credentials: 'include',
-      body: body.toString(),
     })
   } catch {
     // best-effort

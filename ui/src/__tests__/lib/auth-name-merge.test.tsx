@@ -58,7 +58,7 @@ describe('AuthContext name merge from id_token', () => {
 
     const {result} = renderAuth()
     await act(async () => {
-      await result.current.handleCallback('at', 'rt', idToken)
+      await result.current.handleCallback('at', idToken)
     })
 
     await waitFor(() => expect(result.current.user?.first_name).toBe('Fresh'))
@@ -72,7 +72,7 @@ describe('AuthContext name merge from id_token', () => {
 
     const {result} = renderAuth()
     await act(async () => {
-      await result.current.handleCallback('at', 'rt', idToken)
+      await result.current.handleCallback('at', idToken)
     })
     await waitFor(() => expect(result.current.user?.first_name).toBe('Fresh'))
 
@@ -93,7 +93,7 @@ describe('AuthContext name merge from id_token', () => {
 
     const {result} = renderAuth()
     await act(async () => {
-      await result.current.handleCallback('at', 'rt', null)
+      await result.current.handleCallback('at', null)
     })
 
     await waitFor(() => expect(result.current.user).not.toBeNull())
@@ -107,7 +107,7 @@ describe('AuthContext name merge from id_token', () => {
 
     const {result} = renderAuth()
     await act(async () => {
-      await result.current.handleCallback('at', 'rt', idToken)
+      await result.current.handleCallback('at', idToken)
     })
 
     await waitFor(() => expect(result.current.user?.first_name).toBe('Fresh'))

@@ -263,7 +263,7 @@ export default function Home() {
               >
                 {plan.highlight && (
                   <span
-                    className="mb-2 inline-flex w-fit items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary-700">
+                    className="mb-2 inline-flex w-fit items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-700">
                     Mais popular
                   </span>
                 )}
@@ -296,7 +296,7 @@ export default function Home() {
           {ROADMAP.map((item) => (
             <div key={item.title} className="rounded-xl border border-dashed border-gray-300 p-5">
               <span
-                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-gray-500">
+                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Em breve
               </span>
               <p className="mt-2 font-semibold text-gray-900">{item.title}</p>

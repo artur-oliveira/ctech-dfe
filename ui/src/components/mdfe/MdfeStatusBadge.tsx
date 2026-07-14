@@ -1,8 +1,7 @@
 'use client'
 
-import {useState} from 'react'
 import type {MdfeStatus} from '@/lib/types/api'
-import {Modal} from '@/components/ui/modal'
+import {StatusBadge, StatusCell} from '@/components/ui/status-badge'
 
 export const MDFE_STATUS_LABELS: Record<MdfeStatus, string> = {
   pending: 'Pendente',
@@ -34,39 +33,21 @@ const TRANSITIONAL_STATUSES: ReadonlySet<MdfeStatus> = new Set<MdfeStatus>([
 export const isTransitionalMdfeStatus = (status: MdfeStatus): boolean => TRANSITIONAL_STATUSES.has(status)
 
 export function MdfeStatusBadge({status}: { status: MdfeStatus }) {
-  const isTransitional = isTransitionalMdfeStatus(status)
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${MDFE_STATUS_CLASSES[status] ?? 'bg-gray-100 text-gray-600'} ${isTransitional ? 'animate-pulse motion-reduce:animate-none' : ''}`}
-    >
-      {isTransitional && (
-        <span
-          className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse motion-reduce:animate-none"/>
-      )}
-      {MDFE_STATUS_LABELS[status] ?? status}
-    </span>
+    <StatusBadge
+      label={MDFE_STATUS_LABELS[status] ?? status}
+      className={MDFE_STATUS_CLASSES[status] ?? 'bg-gray-100 text-gray-600'}
+      isTransitional={isTransitionalMdfeStatus(status)}
+    />
   )
 }
 
 export function MdfeStatusCell({status, sefazMotive}: { status: MdfeStatus; sefazMotive: string | null }) {
-  const [open, setOpen] = useState(false)
-  const hasMotive = (status === 'rejected' || status === 'failed') && !!sefazMotive
-  if (!hasMotive) return <MdfeStatusBadge status={status}/>
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)}
-              className="inline-flex items-center gap-1 cursor-pointer" title="Ver motivo da rejeição">
-        <MdfeStatusBadge status={status}/>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-             strokeLinecap="round" strokeLinejoin="round" className="text-red-400 shrink-0" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="16" x2="12" y2="12"/>
-          <line x1="12" y1="8" x2="12.01" y2="8"/>
-        </svg>
-      </button>
-      <Modal isOpen={open} title="Motivo da rejeição" onClose={() => setOpen(false)}>
-        <p className="text-sm text-gray-700 whitespace-pre-wrap">{sefazMotive}</p>
-      </Modal>
-    </>
+    <StatusCell
+      badge={<MdfeStatusBadge status={status}/>}
+      sefazMotive={sefazMotive}
+      showMotive={status === 'rejected' || status === 'failed'}
+    />
   )
 }

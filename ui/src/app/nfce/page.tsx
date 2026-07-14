@@ -252,12 +252,10 @@ function NfceContent() {
             <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal de Consumidor Eletrônica</p>
           </div>
           {selectedOrg && (
-            <a href="/nfce/emit"
-               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium shrink-0"
-               style={{backgroundColor: 'var(--brand-600)'}}>
+            <Button variant="brand" render={<Link href="/nfce/emit"/>}>
               <span className="text-base leading-none">+</span>
               Emitir NFC-e
-            </a>
+            </Button>
           )}
         </div>
         

@@ -4,6 +4,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
+import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
 import {Textarea} from '@/components/ui/textarea'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -1170,14 +1171,17 @@ export function NfeEmitForm() {
 
     setIsSubmitting(true)
     try {
-      await apiClient.emitNfe(payload)
+      const result = await apiClient.emitNfe(payload)
+      toast.success('NF-e enviada para a SEFAZ', {
+        description: result.sefaz_protocol
+          ? `Protocolo ${result.sefaz_protocol} · chave ${result.access_key}`
+          : `Chave de acesso ${result.access_key}`,
+      })
+      router.push(`/nfe/detail?key=${result.access_key}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir NF-e.')
       setIsSubmitting(false)
-      return
     }
-    setIsSubmitting(false)
-    router.push('/nfe')
   }
 
   if (!selectedOrg) {

@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
@@ -18,6 +19,33 @@ import (
 
 const wsPingInterval = 30 * time.Second
 
+const wsAuthTimeout = 5 * time.Second
+
+// readAuthToken reads the first WebSocket frame after the upgrade and extracts
+// the bearer JWT. The client sends it as {"token":"..."} (or a raw token) once;
+// a missing or unreadable frame fails closed so no connection hangs open.
+func readAuthToken(conn *fws.Conn) (string, bool) {
+	_ = conn.SetReadDeadline(time.Now().Add(wsAuthTimeout))
+	defer conn.SetReadDeadline(time.Time{})
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		return "", false
+	}
+	return extractBearer(msg), true
+}
+
+// extractBearer returns the token from a {"token":"..."} JSON frame, falling
+// back to the raw trimmed frame body when it isn't JSON.
+func extractBearer(msg []byte) string {
+	var p struct {
+		Token string `json:"token"`
+	}
+	if json.Unmarshal(msg, &p) == nil && p.Token != "" {
+		return p.Token
+	}
+	return strings.TrimSpace(string(msg))
+}
+
 var wsUpgrader = fws.FastHTTPUpgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -25,13 +53,14 @@ var wsUpgrader = fws.FastHTTPUpgrader{
 }
 
 // RegisterWS registers GET /ws WebSocket upgrade endpoint.
-// Auth via query params: ?token=<jwt>&org_pk=<pk>
+// Auth: the JWT is sent as the first post-upgrade text frame (M3 — it must not
+// travel in the ?token= query string, which leaks into LB/CF logs); org_pk stays
+// in the query string as it is a non-secret org identifier.
 func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry) {
 	router.Get("/ws", func(c fiber.Ctx) error {
-		token := c.Query("token")
 		orgPKRaw := c.Query("org_pk")
-		if token == "" || orgPKRaw == "" {
-			return sendProblem(c, problem.BadRequest("token e org_pk obrigatórios"))
+		if orgPKRaw == "" {
+			return sendProblem(c, problem.BadRequest("org_pk obrigatório"))
 		}
 
 		return wsUpgrader.Upgrade(c.RequestCtx(), func(conn *fws.Conn) {
@@ -41,10 +70,21 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 				_ = conn.WriteMessage(fws.TextMessage, data)
 			}
 
+			// M3: auth moved off the ?token= query string. The client sends the
+			// JWT as the first text frame after the upgrade; read exactly one frame
+			// under a short deadline, then clear it.
+			token, ok := readAuthToken(conn)
+			if !ok {
+				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Token ausente ou inválido"})
+				_ = conn.Close()
+				return
+			}
+
 			// Validate JWT (scopes don't gate the realtime channel — membership does)
 			sub, _, err := verifier.Verify(ctx, token)
 			if err != nil || sub == "" {
 				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Token inválido ou expirado"})
+				_ = conn.Close()
 				return
 			}
 

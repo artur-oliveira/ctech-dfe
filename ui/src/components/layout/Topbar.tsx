@@ -77,8 +77,19 @@ export function Topbar({onMenuClick}: TopbarProps) {
       }
     }
 
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOrgDropdownOpen(false)
+        setUserDropdownOpen(false)
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const handleLogout = () => {
@@ -111,6 +122,8 @@ export function Topbar({onMenuClick}: TopbarProps) {
         {user?.organizations && user.organizations.length > 0 ? (
           <button
             onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
+            aria-haspopup="menu"
+            aria-expanded={orgDropdownOpen}
             className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors max-w-full"
           >
             <span className="font-medium truncate max-w-35 sm:max-w-50">
@@ -148,6 +161,8 @@ export function Topbar({onMenuClick}: TopbarProps) {
       <div className="relative shrink-0" ref={userRef}>
         <button
           onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+          aria-haspopup="menu"
+          aria-expanded={userDropdownOpen}
           className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
         >
           <div

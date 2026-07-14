@@ -276,12 +276,10 @@ function MDFeContent() {
             <p className="text-gray-500 text-sm mt-0.5">Manifesto Eletrônico de Documentos Fiscais</p>
           </div>
           {selectedOrg && activeTab === 'emitidos' && (
-            <a href="/mdfe/emit"
-               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium shrink-0"
-               style={{backgroundColor: 'var(--brand-600)'}}>
+            <Button variant="brand" render={<Link href="/mdfe/emit"/>}>
               <span className="text-base leading-none">+</span>
               Emitir MDF-e
-            </a>
+            </Button>
           )}
         </div>
         

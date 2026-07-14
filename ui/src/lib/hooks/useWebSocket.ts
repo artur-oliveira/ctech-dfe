@@ -8,19 +8,26 @@ export interface UseWebSocketOptions {
   url: string | null
   onMessage: (data: unknown) => void
   enabled?: boolean
+  /** JWT sent as the first frame after the upgrade (M3) so it never appears in the URL. */
+  authToken?: string
 }
 
 const BASE_DELAY_MS = 1_000
 const MAX_DELAY_MS = 30_000
 const MAX_RECONNECT_ATTEMPTS = 10
 
-export function useWebSocket({url, onMessage, enabled = true}: UseWebSocketOptions): {status: WSStatus} {
+export function useWebSocket({url, onMessage, enabled = true, authToken}: UseWebSocketOptions): {status: WSStatus} {
   const [status, setStatus] = useState<WSStatus>('disconnected')
   const attemptsRef = useRef(0)
   const onMessageRef = useRef(onMessage)
+  const authTokenRef = useRef(authToken)
 
   useLayoutEffect(() => {
     onMessageRef.current = onMessage
+  })
+
+  useLayoutEffect(() => {
+    authTokenRef.current = authToken
   })
 
   useEffect(() => {
@@ -39,6 +46,13 @@ export function useWebSocket({url, onMessage, enabled = true}: UseWebSocketOptio
       ws.onopen = () => {
         attemptsRef.current = 0
         setStatus('connected')
+        if (authTokenRef.current) {
+          try {
+            ws?.send(JSON.stringify({token: authTokenRef.current}))
+          } catch {
+            // ignore — server closes the socket if auth is missing
+          }
+        }
       }
 
       ws.onmessage = (evt) => {

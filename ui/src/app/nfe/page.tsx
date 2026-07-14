@@ -540,16 +540,10 @@ function NfesContent() {
             <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal Eletrônica</p>
           </div>
           {selectedOrg && (
-            <Link
-              href="/nfe/emit"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors shrink-0"
-              style={{backgroundColor: 'var(--brand-600)'}}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brand-700)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--brand-600)')}
-            >
+            <Button variant="brand" render={<Link href="/nfe/emit"/>}>
               <span className="text-base leading-none">+</span>
               Emitir NF-e
-            </Link>
+            </Button>
           )}
         </div>
         
