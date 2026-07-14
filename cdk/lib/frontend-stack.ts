@@ -98,6 +98,48 @@ async function handler(event) {
       keepaliveTimeout: API_ORIGIN_KEEPALIVE_TIMEOUT,
     });
 
+    // Security response headers (HSTS, X-Frame-Options, X-Content-Type-Options,
+    // Referrer-Policy, CSP) for the statically generated frontend. These MUST live
+    // at CloudFront: next.config.ts headers() only run on server-rendered
+    // responses, and the SSG assets are served straight from the edge. CSP
+    // connect-src allows the app's own origin plus any extra trusted origins
+    // (e.g. the ctech-account host for the OAuth token exchange, viacep) passed
+    // via the `securityExtraConnectSrc` CDK context — required so cross-origin
+    // fetches are not blocked in prod.
+    const extraConnectSrc = (this.node.tryGetContext('securityExtraConnectSrc') as string | undefined) ?? '';
+    const securityHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
+      responseHeadersPolicyName: `${environment}-${SERVICE}-security-headers`,
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        strictTransportSecurity: {
+          accessForSeconds: 63072000,
+          includeSubdomains: true,
+          preload: true,
+          override: true,
+        },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+        contentSecurityPolicy: {
+          // 'unsafe-inline' for script/style is temporary compatibility debt: the
+          // Next.js static export has no nonce/hash pipeline yet. Never 'unsafe-eval'.
+          contentSecurityPolicy: [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "img-src 'self' data:",
+            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline'",
+            `connect-src 'self'${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
+          ].join('; '),
+          override: true,
+        },
+      },
+    });
+
     // No caching and no URL rewrite: the API behavior forwards everything the
     // viewer sent (Authorization, query string, body, WebSocket upgrade) except
     // the Host header, which CloudFront replaces with apiDomainName.
@@ -108,6 +150,7 @@ async function handler(event) {
       originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       compress: true,
+      responseHeadersPolicy: securityHeadersPolicy,
     };
 
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
@@ -120,6 +163,7 @@ async function handler(event) {
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         compress: true,
+        responseHeadersPolicy: securityHeadersPolicy,
         functionAssociations: [{
           function: urlRewrite,
           eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
