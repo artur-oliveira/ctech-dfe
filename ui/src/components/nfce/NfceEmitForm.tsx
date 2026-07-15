@@ -3,7 +3,8 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
+import {toast} from 'sonner'
+import {apiClient, ApiError} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -59,9 +60,23 @@ const STEPS: { id: Step; label: string }[] = [
   {id: 'pagamento', label: 'Pagamento'},
 ]
 
+const CASH_CODES = new Set(['01'])
+const CARD_CODES = new Set(['03', '04', '05', '21'])
+const PIX_CODES = new Set(['17', '20'])
+
+function paymentGroup(code: string): string {
+  if (CASH_CODES.has(code)) return 'Dinheiro'
+  if (CARD_CODES.has(code)) return 'Cartão'
+  if (PIX_CODES.has(code)) return 'PIX'
+  return 'Outros'
+}
+
+const PAYMENT_GROUP_ORDER = ['Dinheiro', 'Cartão', 'PIX', 'Outros']
+
 const PAYMENT_OPTIONS = Object.entries(NF_PAYMENT_TYPES)
-  .map(([value, label]) => ({value, label: `${value} – ${label}`, display: label}))
-  .sort((a, b) => parseInt(a.value) - parseInt(b.value))
+  .map(([value, label]) => ({value, label: `${value} – ${label}`, display: label, group: paymentGroup(value)}))
+  .sort((a, b) => PAYMENT_GROUP_ORDER.indexOf(a.group) - PAYMENT_GROUP_ORDER.indexOf(b.group)
+    || parseInt(a.value) - parseInt(b.value))
 
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
@@ -334,6 +349,7 @@ function ProductRow({item, index, onChange, onRemove}: {
                            options={cfopOptions} placeholder="CFOP"/>
           ) : (
             <Input type="text" value={item.cfop} maxLength={4} placeholder="5102"
+                   aria-invalid={!item.cfop.startsWith('5')}
                    onChange={(e) => onChange(index, {cfop: e.target.value})}/>
           )}
         </div>
@@ -370,13 +386,15 @@ function StepIndicator({current}: { current: Step }) {
         const done = i < idx
         const active = i === idx
         return (
-          <div key={step.id} className="flex items-center flex-1 last:flex-none">
+          <div key={step.id} className="flex items-center flex-1 last:flex-none"
+               aria-current={active ? 'step' : undefined}>
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
                 done || active ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {done ? '✓' : i + 1}
               </div>
-              <span className={`text-xs hidden sm:block ${active ? 'text-brand-600 font-medium' : 'text-gray-400'}`}>
+              <span
+                className={`text-xs sr-only sm:not-sr-only sm:block ${active ? 'text-brand-600 font-medium' : 'text-gray-400'}`}>
                 {step.label}
               </span>
             </div>
@@ -413,13 +431,6 @@ export function NfceEmitForm() {
   const {data: nfceConfig} = useQuery({
     queryKey: queryKeys.nfceConfig(selectedOrg!.pk),
     queryFn: () => apiClient.getNFCeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
-
-  // Products fetched here too (besides the picker) so we can auto-add the first one.
-  const {data: productsData} = useQuery({
-    queryKey: queryKeys.products.list(selectedOrg?.pk),
-    queryFn: () => apiClient.getProducts({limit: 50}),
     enabled: !!selectedOrg,
   })
 
@@ -481,26 +492,17 @@ export function NfceEmitForm() {
 
   const goNext = () => {
     if (stepIdx >= STEPS.length - 1 || !canNext(step)) return
-    // Auto-add the first product when leaving the consumer step with none selected.
-    if (step === 'consumidor' && products.length === 0 && productsData?.items?.length) {
-      const first = productsData.items.find((p) => nfceCfopsForProduct(p).length > 0)
-      if (first) addProduct(first)
-    }
     setStep(STEPS[stepIdx + 1].id)
   }
   const goBack = () => stepIdx > 0 && setStep(STEPS[stepIdx - 1].id)
 
   const handleSubmit = async () => {
     setSubmitError(null)
-    if (products.length === 0) {
-      setSubmitError('Adicione pelo menos um produto.')
+    if (emitBlockedReason) {
+      setSubmitError(emitBlockedReason)
       return
     }
     const allPayments = effectivePayments()
-    if (allPayments.length === 0) {
-      setSubmitError('Informe pelo menos uma forma de pagamento.')
-      return
-    }
     const paid = allPayments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
     if (paid + 0.005 < totalNfce) {
       setSubmitError('O total dos pagamentos é menor que o total da NFC-e.')
@@ -521,15 +523,21 @@ export function NfceEmitForm() {
     setIsSubmitting(true)
     try {
       await apiClient.emitNfce(payload)
+      toast.success('NFC-e enviada, aguardando autorização da SEFAZ.')
       router.push('/nfce')
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir NFC-e.')
+      setSubmitError(err instanceof ApiError ? err.detail : 'Erro ao emitir NFC-e.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const canEmit = products.length > 0 && effectivePayments().length > 0
+  const emitBlockedReason = products.length === 0
+    ? 'Adicione pelo menos um produto.'
+    : effectivePayments().length === 0
+      ? 'Informe pelo menos uma forma de pagamento.'
+      : null
+  const canEmit = !emitBlockedReason
 
   return (
     <div className="max-w-3xl">
@@ -615,17 +623,17 @@ export function NfceEmitForm() {
 
             {(isCardPayment || isPix) && (
               <div className="pt-1 border-t border-gray-100 space-y-2">
-                <div className="flex items-center gap-2">
+                <label htmlFor="nfce-toggle-card" className="flex items-center gap-2 min-h-11 sm:min-h-0 cursor-pointer">
                   <input type="checkbox" id="nfce-toggle-card" checked={showCardToggle}
                          onChange={(e) => {
                            setShowCardToggle(e.target.checked)
                            if (!e.target.checked) setNewPaymentCard(null)
                          }}
                          className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                  <label htmlFor="nfce-toggle-card" className="text-xs font-medium text-gray-500 cursor-pointer">
+                  <span className="text-xs font-medium text-gray-500">
                     {isPix ? 'Informar NSU/autorização (opcional)' : 'Informar dados do cartão'}
-                  </label>
-                </div>
+                  </span>
+                </label>
                 {showCardToggle && (
                   <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
                 )}
@@ -640,20 +648,24 @@ export function NfceEmitForm() {
           </CollapsibleSection>
 
           {submitError && (
-            <div
+            <div role="alert"
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</div>
           )}
         </div>
       )}
 
+      {step === 'pagamento' && emitBlockedReason && (
+        <p className="mt-3 text-xs text-amber-600">{emitBlockedReason}</p>
+      )}
+
       {/* Action bar */}
       <div
         className="sticky bottom-0 -mx-4 px-4 md:-mx-8 md:px-8 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
+        <Button type="button" variant="outline" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
         {step !== 'pagamento' ? (
-          <Button type="button" variant="brand" size="sm" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
+          <Button type="button" variant="brand" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
         ) : (
-          <Button type="button" variant="brand" size="sm" onClick={() => setShowEmitConfirm(true)}
+          <Button type="button" variant="brand" onClick={() => setShowEmitConfirm(true)}
                   disabled={isSubmitting || !canEmit}>
             {isSubmitting ? 'Emitindo…' : 'Emitir NFC-e'}
           </Button>

@@ -4,7 +4,8 @@ import {useMemo, useState} from 'react'
 import {useRouter} from 'next/navigation'
 import {createPortal} from 'react-dom'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
+import {toast} from 'sonner'
+import {apiClient, ApiError} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -70,13 +71,15 @@ function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
         const done = i < idx
         const active = i === idx
         return (
-          <div key={step.id} className="flex items-center flex-1 last:flex-none">
+          <div key={step.id} className="flex items-center flex-1 last:flex-none"
+               aria-current={active ? 'step' : undefined}>
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
                 done || active ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {done ? '✓' : i + 1}
               </div>
-              <span className={`text-xs hidden sm:block ${active ? 'text-brand-600 font-medium' : 'text-gray-400'}`}>
+              <span
+                className={`text-xs sr-only sm:not-sr-only sm:block ${active ? 'text-brand-600 font-medium' : 'text-gray-400'}`}>
                 {step.label}
               </span>
             </div>
@@ -495,11 +498,12 @@ export function MdfeEmitForm() {
 
   const canEmit = docs.length > 0 && !!vehicleSk && drivers.length > 0 && allWeightsKnown
     && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8))
+  const emitBlockedReason = canEmit ? null : 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.'
 
   const handleSubmit = async () => {
     setSubmitError(null)
-    if (!canEmit) {
-      setSubmitError('Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.')
+    if (emitBlockedReason) {
+      setSubmitError(emitBlockedReason)
       return
     }
     const payload: MdfeEmit = {
@@ -524,9 +528,10 @@ export function MdfeEmitForm() {
     setIsSubmitting(true)
     try {
       await apiClient.emitMdfe(payload)
+      toast.success('MDF-e enviado, aguardando autorização da SEFAZ.')
       router.push('/mdfe')
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir MDF-e.')
+      setSubmitError(err instanceof ApiError ? err.detail : 'Erro ao emitir MDF-e.')
     } finally {
       setIsSubmitting(false)
     }
@@ -550,7 +555,7 @@ export function MdfeEmitForm() {
                         m.id === 'rodoviario'
                           ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
                           : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
-                <span className="text-2xl">{m.icon}</span>
+                {m.icon}
                 <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
                 {!m.enabled && <span
                     className="absolute top-2 right-2 text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">em breve</span>}
@@ -761,20 +766,24 @@ export function MdfeEmitForm() {
           </div>
 
           {submitError && (
-            <div
+            <div role="alert"
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</div>
           )}
         </div>
       )}
 
+      {step === 'veiculo' && emitBlockedReason && (
+        <p className="mt-3 text-xs text-amber-600">{emitBlockedReason}</p>
+      )}
+
       {/* Action bar */}
       <div
         className="sticky bottom-0 -mx-4 px-4 md:-mx-8 md:px-8 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
+        <Button type="button" variant="outline" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
         {step !== 'veiculo' ? (
-          <Button type="button" variant="brand" size="sm" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
+          <Button type="button" variant="brand" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
         ) : (
-          <Button type="button" variant="brand" size="sm" onClick={() => setShowEmitConfirm(true)}
+          <Button type="button" variant="brand" onClick={() => setShowEmitConfirm(true)}
                   disabled={isSubmitting || !canEmit}>
             {isSubmitting ? 'Emitindo…' : 'Emitir MDF-e'}
           </Button>
