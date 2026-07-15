@@ -1,5 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {render, waitFor} from '@testing-library/react'
+import {render, screen, waitFor} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import LoginPage from '@/app/login/page'
 
 const startOAuthFlowMock = vi.fn()
@@ -8,10 +9,16 @@ vi.mock('@/lib/auth/oauth', () => ({
   startOAuthFlow: (returnTo: string) => startOAuthFlowMock(returnTo),
 }))
 
+// Soft login page reads auth state but renders without an AuthProvider in the test tree.
+vi.mock('@/lib/hooks/useAuth', () => ({
+  useAuth: () => ({user: null, loading: false}),
+}))
+
 let searchParams: URLSearchParams
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
+  useRouter: () => ({replace: vi.fn()}),
 }))
 
 describe('LoginPage', () => {
@@ -25,6 +32,7 @@ describe('LoginPage', () => {
     searchParams = new URLSearchParams()
     render(<LoginPage />)
 
+    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}))
     await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/dashboard'))
   })
 
@@ -32,6 +40,7 @@ describe('LoginPage', () => {
     searchParams = new URLSearchParams({returnTo: '/nfe/123'})
     render(<LoginPage />)
 
+    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}))
     await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/nfe/123'))
   })
 })
