@@ -63,20 +63,6 @@ const PLANS = [
     highlight: false,
   },
   {
-    name: 'Basic',
-    tagline: 'Para quem já emite todo mês',
-    price: 'R$ 100',
-    period: '/mês',
-    features: [
-      'Até 5 empresas',
-      'Até 300 NF-e por mês',
-      'Até 1.500 NFC-e por mês',
-      'Até 300 CT-e por mês',
-      'Até 300 MDF-e por mês',
-    ],
-    highlight: false,
-  },
-  {
     name: 'Pro',
     tagline: 'Para operações em crescimento',
     price: 'R$ 350',
@@ -89,14 +75,6 @@ const PLANS = [
       'Até 1.200 MDF-e por mês',
     ],
     highlight: true,
-  },
-  {
-    name: 'Max',
-    tagline: 'Para alto volume',
-    price: 'R$ 1.000',
-    period: '/mês',
-    features: ['Até 20 empresas', 'Emissões ilimitadas'],
-    highlight: false,
   },
   {
     name: 'Sob demanda',
@@ -189,7 +167,7 @@ export default function Home() {
       </section>
       
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <p className="mb-6 font-mono text-xs tracking-widest text-gray-400 uppercase">Documentos suportados</p>
+        <h2 className="mb-6 text-2xl font-bold text-gray-900 md:text-3xl">Documentos suportados</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           {DFE_DOCUMENTS.map((doc) => (
             <Link
@@ -215,7 +193,7 @@ export default function Home() {
       
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <p className="mb-8 font-mono text-xs tracking-widest text-gray-400 uppercase">Como funciona</p>
+          <h2 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">Como funciona</h2>
           <div className="grid gap-8 md:grid-cols-3">
             {FLOW_STEPS.map((step, i) => (
               <div key={step.label} className="relative pl-6">
@@ -249,9 +227,12 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-16">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Planos</h2>
-            <p className="mt-2 text-sm text-gray-500">Cobrança ainda não habilitada — valores de referência.</p>
+            <p className="mt-2 text-sm text-gray-600">
+              Cobrança ainda não habilitada — valores de referência. Planos Basic e Max disponíveis sob
+              consulta.
+            </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
@@ -268,7 +249,7 @@ export default function Home() {
                   </span>
                 )}
                 <p className="font-semibold text-gray-900">{plan.name}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{plan.tagline}</p>
+                <p className="mt-0.5 text-xs text-gray-600">{plan.tagline}</p>
                 <p className="mt-3 text-2xl font-bold text-gray-900">
                   {plan.price}
                   {plan.period && <span className="text-sm font-normal text-gray-500">{plan.period}</span>}
@@ -290,14 +271,14 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Em desenvolvimento</h2>
-          <p className="mt-2 text-sm text-gray-500">Funcionalidades a caminho.</p>
+          <p className="mt-2 text-sm text-gray-600">Funcionalidades a caminho.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ROADMAP.map((item) => (
             <div key={item.title} className="rounded-xl border border-dashed border-gray-300 p-5">
               <span
                 className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Em breve
+                Planejado
               </span>
               <p className="mt-2 font-semibold text-gray-900">{item.title}</p>
               <p className="mt-1 text-sm leading-relaxed text-gray-600">{item.body}</p>
@@ -306,6 +287,20 @@ export default function Home() {
         </div>
       </section>
       
+      <section className="bg-gradient-login">
+        <div className="mx-auto max-w-6xl px-6 py-16 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Comece a emitir grátis</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
+            Emita seus primeiros documentos fiscais em minutos, sem burocracia.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Button variant="brand" size="lg" render={<Link href={primaryHref}/>}>
+              {primaryLabel}
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-gray-100">
         <div
           className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-8 text-sm text-gray-500 md:flex-row md:justify-between">

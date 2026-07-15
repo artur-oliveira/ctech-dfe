@@ -96,7 +96,8 @@ export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
     <div className="w-full max-w-sm rounded-2xl border border-primary-200 bg-white shadow-modal">
       <div className="flex items-center justify-between border-b border-dashed border-primary-200 px-5 py-4">
         <div>
-          <p className="font-mono text-[0.65rem] tracking-widest uppercase" style={{color: accent}}>
+          <p className="flex items-center gap-1.5 font-mono text-xs tracking-widest uppercase text-gray-700">
+            <span className="size-2 rounded-sm" style={{backgroundColor: accent}}/>
             {doc.code} · {doc.modelo}
           </p>
           <p className="text-sm font-semibold text-gray-900">{doc.fullName}</p>
@@ -106,8 +107,8 @@ export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
 
       <div className="space-y-3 px-5 py-4">
         <div className="space-y-1">
-          <p className="font-mono text-[0.65rem] tracking-widest text-gray-400 uppercase">Chave de acesso</p>
-          <p className="font-mono text-[0.8rem] leading-relaxed text-gray-800 tabular-nums">
+          <p className="font-mono text-xs tracking-widest text-gray-500 uppercase">Chave de acesso</p>
+          <p className="break-all font-mono text-sm leading-relaxed text-gray-800 tabular-nums">
             {ACCESS_KEY_GROUPS.map((group, i) => (
               <span
                 key={i}
@@ -134,7 +135,7 @@ export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
 function Field({label, value}: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
-      <p className="font-mono text-[0.6rem] tracking-widest text-gray-400 uppercase">{label}</p>
+      <p className="font-mono text-xs tracking-widest text-gray-500 uppercase">{label}</p>
       <p className="font-mono text-xs text-gray-700 tabular-nums">{value}</p>
     </div>
   )
@@ -144,7 +145,7 @@ function StatusPill({stage, accent}: { stage: Stage; accent: string }) {
   if (stage === 'authorized') {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-medium text-white"
+        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white"
         style={{backgroundColor: accent}}
       >
         <span className="size-1.5 rounded-full bg-white"/>
@@ -155,7 +156,7 @@ function StatusPill({stage, accent}: { stage: Stage; accent: string }) {
   if (stage === 'transmitting') {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[0.7rem] font-medium text-amber-800">
+        className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
         <span className="size-1.5 animate-pulse rounded-full bg-amber-500"/>
         Transmitindo à SEFAZ
       </span>
@@ -163,7 +164,7 @@ function StatusPill({stage, accent}: { stage: Stage; accent: string }) {
   }
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[0.7rem] font-medium text-gray-600">
+      className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
       <span className="size-1.5 rounded-full bg-gray-400"/>
       Gerando XML
     </span>
