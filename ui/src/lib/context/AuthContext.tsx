@@ -4,7 +4,7 @@ import {createContext, ReactNode, useCallback, useEffect, useState} from 'react'
 import {apiClient, ApiError, registerRefreshFn} from '@/lib/api/client'
 import type {MeResponse, UserOrganization} from '@/lib/types/api'
 import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
-import {decodeIdToken, doRefresh, IdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
+import {decodeIdToken, doRefresh, endSessionRedirect, IdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
 
 interface AuthContextType {
   user: MeResponse | null
@@ -12,7 +12,7 @@ interface AuthContextType {
   selectedOrg: UserOrganization | null
   setSelectedOrg: (org: UserOrganization | null) => void
   login: () => void
-  logout: () => void
+  logout: (returnTo?: string) => void
   refreshUser: () => Promise<MeResponse | null>
   handleCallback: (accessToken: string, idToken: string | null) => Promise<void>
 }
@@ -100,13 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void startOAuthFlow(window.location.pathname)
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async (returnTo = '/'): Promise<void> => {
+    // Clear local session immediately; UI reflects logged-out state right away.
     apiClient.setToken(null)
     setUser(null)
     setSelectedOrgState(null)
     localStorage.removeItem(STORAGE_KEY_USER)
     localStorage.removeItem(STORAGE_KEY_ORG)
-    void revokeToken()
+    // Await /revoke so the end-session redirect below fires only after the
+    // request settles — navigating while it's in flight starves/cancels end-session.
+    await revokeToken()
+    endSessionRedirect(returnTo)
   }, [])
 
   const handleCallback = useCallback(async (accessToken: string, idToken: string | null) => {
