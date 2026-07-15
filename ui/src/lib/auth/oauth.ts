@@ -1,5 +1,25 @@
+import {AUTH_STATE_ACTIVE, AUTH_STATE_REVOKED, SESSION_KEY_AUTH_STATE} from '@/lib/constants/storage'
+
 const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!
 const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!
+
+function setAuthState(state: typeof AUTH_STATE_ACTIVE | typeof AUTH_STATE_REVOKED): void {
+  try {
+    sessionStorage.setItem(SESSION_KEY_AUTH_STATE, state)
+  } catch {
+    // ignore storage failures (SSR / private mode)
+  }
+}
+
+/** True once /token or /revoke reported no valid session this tab — used to
+ *  skip further /token calls that would just 400. */
+export function isRevoked(): boolean {
+  try {
+    return sessionStorage.getItem(SESSION_KEY_AUTH_STATE) === AUTH_STATE_REVOKED
+  } catch {
+    return false
+  }
+}
 
 /** Name-related profile claims decoded from the OIDC id_token. */
 export interface IdTokenClaims {
@@ -112,6 +132,7 @@ export async function exchangeCode(
   }
 
   const data = await res.json()
+  setAuthState(AUTH_STATE_ACTIVE)
   return {
     accessToken: data.access_token,
     idToken: data.id_token ?? null,
@@ -123,6 +144,9 @@ export async function exchangeCode(
 // issues it as an HttpOnly ctech_rt cookie the browser sends automatically via
 // credentials:'include'. The SPA only ever sees the short-lived access token.
 export async function doRefresh(): Promise<{ accessToken: string } | null> {
+  // Session was revoked this tab — the refresh cookie is gone, so /token would
+  // just 400. Skip the request entirely.
+  if (isRevoked()) return null
   try {
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -136,8 +160,14 @@ export async function doRefresh(): Promise<{ accessToken: string } | null> {
       body: body.toString(),
     })
 
-    if (!res.ok) return null
+    // A rejected refresh means no valid session — remember it so we stop retrying.
+    // Network errors (catch) stay silent: they may be transient.
+    if (!res.ok) {
+      setAuthState(AUTH_STATE_REVOKED)
+      return null
+    }
     const data = await res.json()
+    setAuthState(AUTH_STATE_ACTIVE)
     return { accessToken: data.access_token }
   } catch {
     return null
@@ -163,6 +193,8 @@ export function endSessionRedirect(returnTo = '/login'): void {
 // in JS. credentials:'include' sends the cookie and ctech-account's /revoke
 // clears it, ending the refresh chain.
 export async function revokeToken(): Promise<void> {
+  // Mark revoked up front so any concurrent/subsequent doRefresh() short-circuits.
+  setAuthState(AUTH_STATE_REVOKED)
   try {
     await fetch(`${CTECH_URL}/v1.0/revoke`, {
       method: 'POST',

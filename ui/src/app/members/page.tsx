@@ -151,7 +151,7 @@ function MembersContent() {
                     <p className="text-xs text-gray-500">expira em {formatDate(inv.expires_at)}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 h-11 sm:h-9"
+                <Button variant="ghost" size="sm" className="text-danger hover:text-red-700 h-11 sm:h-9"
                         disabled={revokeMutation.isPending}
                         onClick={() => {
                           setActionError(null);
@@ -205,7 +205,7 @@ function MemberRow({
             disabled={busy}
             className="h-11 sm:h-9 w-44"
           />
-          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 h-11 sm:h-9"
+          <Button variant="ghost" size="sm" className="text-danger hover:text-red-700 h-11 sm:h-9"
                   disabled={busy} onClick={onRemove}>
             Remover
           </Button>
@@ -242,7 +242,7 @@ function ShareModal({orgPk, onClose}: { orgPk: string; onClose: () => void }) {
   
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full sm:max-w-md">
+      <div className="bg-white rounded-lg shadow-modal w-full sm:max-w-md">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Compartilhar acesso</h2>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">✕</Button>

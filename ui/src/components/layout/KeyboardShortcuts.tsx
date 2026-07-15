@@ -46,7 +46,7 @@ export function KeyboardShortcuts() {
         role="dialog"
         aria-modal="true"
         aria-label="Atalhos de teclado"
-        className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg"
+        className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-modal"
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-sm font-semibold text-gray-900">Atalhos de teclado</h2>

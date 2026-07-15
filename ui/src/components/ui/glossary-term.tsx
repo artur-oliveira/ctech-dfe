@@ -43,7 +43,7 @@ export function GlossaryTerm({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- popover attribute typing lands in a later @types/react
         {...({popover: 'auto'} as any)}
         role="tooltip"
-        className="gt-pop m-0 block max-w-xs rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-700 shadow-lg"
+        className="gt-pop m-0 block max-w-xs rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-700 shadow-popover"
       >
         <span className="mb-1 block text-xs font-semibold tracking-normal text-gray-900 normal-case">{label}</span>
         {definition}

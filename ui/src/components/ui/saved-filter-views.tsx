@@ -48,7 +48,7 @@ export function SavedFilterViews({
         {...({popover: 'auto'} as any)}
         role="dialog"
         aria-label="Visualizações de filtro salvas"
-        className="gt-pop m-0 block w-64 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg"
+        className="gt-pop m-0 block w-64 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-popover"
       >
         {views.length === 0 ? (
           <p className="px-1 py-2 text-gray-400">Nenhuma visualização salva.</p>

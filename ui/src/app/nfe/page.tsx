@@ -467,7 +467,7 @@ function NfeListTab({
                   </Link>
                   {nfe.status === 'authorized' && tab.incoming === 0 && (
                     <Button variant="ghost" size="xs" onClick={() => onCancelRequest(nfe)}
-                            className="text-red-500 hover:text-red-700">
+                            className="text-danger hover:text-red-700">
                       Cancelar
                     </Button>
                   )}

@@ -254,7 +254,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
 
         {open && !isDoc && suggestions.length > 0 && (
           <div
-            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
             {suggestions.map((p) => {
               const cpfCnpj = unformatCpfCnpj(p.pk)
               return (
@@ -279,14 +279,14 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
 
         {open && !isDoc && nameQuery.isLoading && (
           <div
-            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-4 py-3 space-y-2">
+            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover px-4 py-3 space-y-2">
             <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse"/>
             <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse"/>
           </div>
         )}
 
         {open && !isDoc && debouncedQuery.length >= 2 && !nameQuery.isLoading && suggestions.length === 0 && !showCreate && (
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg px-4 py-3">
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover px-4 py-3">
             <p className="text-sm text-gray-500 mb-2">Nenhuma pessoa encontrada.</p>
             <Button
               type="button"
@@ -393,7 +393,7 @@ function CarrierSearch({onSelect}: CarrierSearchProps) {
         )}
       </div>
       {open && !isDoc && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
           {suggestions.map((p) => (
             <button key={p.sk} type="button"
                     onMouseDown={(e) => e.preventDefault()}
@@ -617,14 +617,14 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
           <div className="flex items-center">
             <button type="button"
                     onClick={() => onChange(index, {qty: String(Math.max(0, (parseFloat(item.qty) || 0) - 1))})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
+                    className="h-11 w-11 sm:h-8 sm:w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
             </button>
             <NumericInput decimal integerPlaces={7} decimalPlaces={4} value={item.qty}
                           onChange={(v) => onChange(index, {qty: v})} placeholder="1"
                           className="rounded-none border-x-0 text-center"/>
             <button type="button"
                     onClick={() => onChange(index, {qty: String((parseFloat(item.qty) || 0) + 1)})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
+                    className="h-11 w-11 sm:h-8 sm:w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
             </button>
           </div>
         </div>
@@ -1547,7 +1547,7 @@ export function NfeEmitForm() {
                                        className="flex-1 min-w-0 h-7"/>
                         <Button type="button" variant="ghost" size="xs"
                                 onClick={() => setDuplicatas(prev => prev.filter((_, j) => j !== i))}
-                                className="text-red-400 hover:text-red-600 shrink-0 px-1">×</Button>
+                                className="text-danger hover:text-red-700 shrink-0 px-1">×</Button>
                       </div>
                     ))}
                   </div>

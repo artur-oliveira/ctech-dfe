@@ -101,7 +101,7 @@ function FiscalConfigContent() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`relative flex flex-1 flex-col items-center rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                       isActive
-                        ? 'bg-white text-gray-900 shadow-sm'
+                        ? 'bg-white text-gray-900 shadow-card'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >

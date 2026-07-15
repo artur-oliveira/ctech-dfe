@@ -65,7 +65,7 @@ function UploadModal({
   
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg shadow-modal w-full max-w-md mx-4">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Importar Certificado</h2>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">
@@ -143,7 +143,7 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
           size="xs"
           onClick={onDelete}
           disabled={isDeleting}
-          className="text-red-500 hover:text-red-700"
+          className="text-danger hover:text-red-700"
         >
           {isDeleting ? 'Removendo…' : 'Remover'}
         </Button>

@@ -175,7 +175,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                       <Button variant="ghost" size="xs" onClick={() => onSubstitute(nfce)}
                               className="text-gray-500 hover:text-gray-700">Substituir</Button>
                       <Button variant="ghost" size="xs" onClick={() => onCancel(nfce)}
-                              className="text-red-500 hover:text-red-700">Cancelar</Button>
+                              className="text-danger hover:text-red-700">Cancelar</Button>
                     </>
                   )}
                 </div>

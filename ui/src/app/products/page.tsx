@@ -115,7 +115,7 @@ function ProductsContent() {
                       variant="ghost"
                       size="xs"
                       onClick={() => router.push(`/products/edit?id=${extractId(p.sk, SK_PREFIX.PRODUCT)}`)}
-                      className="text-brand-600 hover:text-brand-700"
+                      className="min-h-11 sm:min-h-0 text-brand-600 hover:text-brand-700"
                     >
                       Editar
                     </Button>
@@ -124,7 +124,7 @@ function ProductsContent() {
                       size="xs"
                       onClick={() => handleDelete(p)}
                       disabled={isDeleting}
-                      className="text-red-600 hover:text-red-700"
+                      className="min-h-11 sm:min-h-0 text-danger hover:text-red-700"
                     >
                       Excluir
                     </Button>

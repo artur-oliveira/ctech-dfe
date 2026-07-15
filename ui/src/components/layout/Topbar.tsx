@@ -94,7 +94,7 @@ export function Topbar({onMenuClick}: TopbarProps) {
 
   const handleLogout = () => {
     logout()
-    endSessionRedirect('/login')
+    endSessionRedirect('/')
   }
 
   const initials = user
@@ -111,7 +111,7 @@ export function Topbar({onMenuClick}: TopbarProps) {
         variant="ghost"
         size="icon-sm"
         onClick={onMenuClick}
-        className="md:hidden mr-3 shrink-0 text-gray-500 hover:text-gray-700"
+        className="md:hidden mr-3 shrink-0 min-h-11 min-w-11 text-gray-500 hover:text-gray-700"
         aria-label="Abrir menu"
       >
         <MenuIcon/>
@@ -124,7 +124,7 @@ export function Topbar({onMenuClick}: TopbarProps) {
             onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
             aria-haspopup="menu"
             aria-expanded={orgDropdownOpen}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors max-w-full"
+            className="flex items-center gap-2 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-gray-200 text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors max-w-full"
           >
             <span className="font-medium truncate max-w-35 sm:max-w-50">
               {selectedOrg?.description ?? selectedOrg?.name ?? 'Selecionar organização'}
@@ -163,7 +163,7 @@ export function Topbar({onMenuClick}: TopbarProps) {
           onClick={() => setUserDropdownOpen(!userDropdownOpen)}
           aria-haspopup="menu"
           aria-expanded={userDropdownOpen}
-          className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 pl-2 pr-3 py-1.5 min-h-11 sm:min-h-0 rounded-md hover:bg-gray-50 transition-colors"
         >
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"

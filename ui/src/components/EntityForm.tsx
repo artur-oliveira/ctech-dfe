@@ -337,7 +337,7 @@ export function EntityForm({
             {(['pj', 'pf'] as Tipo[]).map((t) => (
               <button key={t} type="button" onClick={() => switchTipo(t)}
                       className={['flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-all',
-                        tipo === t ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                        tipo === t ? 'bg-white shadow-card text-gray-900' : 'text-gray-500 hover:text-gray-700',
                       ].join(' ')}>
                 {t === 'pj' ? <BuildingIcon/> : <UserIcon/>}
                 {t === 'pj' ? 'Pessoa Jurídica' : 'Pessoa Física'}

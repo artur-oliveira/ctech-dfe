@@ -127,7 +127,7 @@ function LoadingScreen() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-login">
       <div className="text-center">
-        <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-card">
           <FileText className="text-white" size={28}/>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CTech DF-e</h1>
@@ -234,7 +234,7 @@ export default function Home() {
         <h2 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">Por que escolher a CTech DFe</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {BENEFITS.map((benefit) => (
-            <div key={benefit.title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div key={benefit.title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-card">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
                 <benefit.icon size={20}/>
               </div>

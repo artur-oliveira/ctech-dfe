@@ -104,7 +104,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
                     <Button variant="ghost" size="xs" onClick={() => onClose(mdfe)}
                             className="text-blue-600 hover:text-blue-700">Encerrar</Button>
                     <Button variant="ghost" size="xs" onClick={() => onCancel(mdfe)}
-                            className="text-red-500 hover:text-red-700">Cancelar</Button>
+                            className="text-danger hover:text-red-700">Cancelar</Button>
                   </>
                 )}
               </div>

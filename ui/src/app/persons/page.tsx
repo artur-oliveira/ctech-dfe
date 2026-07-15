@@ -134,7 +134,7 @@ function PersonsContent() {
                       size="xs"
                       onClick={() => handleDelete(p)}
                       disabled={isDeleting}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-danger hover:text-red-700"
                     >
                       Excluir
                     </Button>

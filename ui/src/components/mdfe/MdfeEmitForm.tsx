@@ -144,7 +144,7 @@ function DocumentPicker({selected, onToggle}: {
                       className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${checked ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300'}`}>
-                  {checked && <span className="text-[10px] leading-none">✓</span>}
+                  {checked && <span className="text-xs leading-none">✓</span>}
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-medium text-gray-900 truncate">
@@ -227,7 +227,7 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
   if (!open || typeof document === 'undefined') return null
   return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-modal max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div
           className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -554,7 +554,7 @@ export function MdfeEmitForm() {
                 <span className="text-2xl">{m.icon}</span>
                 <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
                 {!m.enabled && <span
-                    className="absolute top-2 right-2 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">em breve</span>}
+                    className="absolute top-2 right-2 text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">em breve</span>}
               </button>
             ))}
           </div>

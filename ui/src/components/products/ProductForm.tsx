@@ -728,7 +728,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-gray-900 shadow-sm'
+                  ? 'bg-white text-gray-900 shadow-card'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

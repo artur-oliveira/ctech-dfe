@@ -35,7 +35,7 @@ export function SlideOver({open, title, children, onClose, width = 'lg'}: SlideO
 
       {/* Panel — full width on mobile, capped on larger screens */}
       <div
-        className={`relative ml-auto h-full w-full sm:${widthClass[width]} bg-white shadow-xl flex flex-col`}
+        className={`relative ml-auto h-full w-full sm:${widthClass[width]} bg-white shadow-modal flex flex-col`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">

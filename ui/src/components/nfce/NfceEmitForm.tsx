@@ -199,7 +199,7 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
 
         {open && !isCpf && suggestions.length > 0 && (
           <div
-            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+            className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
             {suggestions.map((p) => (
               <button key={p.sk} type="button" onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
