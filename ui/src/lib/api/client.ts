@@ -1,4 +1,4 @@
-import axios, {AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
+import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   AuditLogOut,
   CertificateOut,
@@ -161,6 +161,12 @@ class ApiClient {
 
   setToken(token: string | null): void {
     _accessToken = token
+  }
+
+  /** Dev-only seam: lets the mock layer replace axios's adapter with an
+   *  in-memory fixture handler. Never call in production paths. */
+  setAdapter(adapter: AxiosAdapter): void {
+    this.http.defaults.adapter = adapter
   }
 
   // Auth

@@ -4,6 +4,7 @@ import {AuthProvider} from "@/lib/context/AuthContext";
 import {QueryProvider} from "@/lib/providers/QueryProvider";
 import {RealtimeProvider} from "@/lib/providers/RealtimeProvider";
 import {Toaster} from "sonner";
+import {MOCK_ENABLED, MockDevPanel} from "@/lib/mock";
 import "./globals.css";
 import React from "react";
 
@@ -93,6 +94,7 @@ export default function RootLayout({
     <QueryProvider>
       <AuthProvider>
         <RealtimeProvider>{children}</RealtimeProvider>
+        {MOCK_ENABLED && <MockDevPanel/>}
       </AuthProvider>
     </QueryProvider>
     <Toaster richColors position="top-right"/>

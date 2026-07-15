@@ -5,6 +5,8 @@ import {apiClient, ApiError, registerRefreshFn} from '@/lib/api/client'
 import type {MeResponse, UserOrganization} from '@/lib/types/api'
 import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {decodeIdToken, doRefresh, endSessionRedirect, IdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
+import {MOCK_ENABLED} from '@/lib/mock/env'
+import {mockDoRefresh} from '@/lib/mock/auth'
 
 interface AuthContextType {
   user: MeResponse | null
@@ -125,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       const cached = localStorage.getItem(STORAGE_KEY_USER)
-      const result = await doRefresh()
+      const result = MOCK_ENABLED ? await mockDoRefresh() : await doRefresh()
       if (!result) {
         if (cached) localStorage.removeItem(STORAGE_KEY_USER)
         setLoading(false)

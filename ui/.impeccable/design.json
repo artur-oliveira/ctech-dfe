@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-14T12:00:00Z",
+  "generatedAt": "2026-07-15T16:30:00Z",
   "title": "Design System: ctech-dfe UI",
   "extensions": {
     "colorMeta": {
@@ -14,19 +14,20 @@
       "destructive": { "role": "semantic", "displayName": "Error Red", "canonical": "#dc2626", "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fee2e2"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Page titles (PageHeader h1)." },
-      "title": { "displayName": "Title", "purpose": "Section / card / dialog headings." },
-      "body": { "displayName": "Body", "purpose": "Default text, table cells, descriptions." },
-      "label": { "displayName": "Label", "purpose": "Tracked uppercase labels and field captions." }
+      "display": { "displayName": "Display", "purpose": "Page titles (PageHeader h1, text-2xl)." },
+      "title": { "displayName": "Title", "purpose": "Section / card / dialog headings (text-lg)." },
+      "body": { "displayName": "Body", "purpose": "Default text, table cells, descriptions. Mobile inputs step to text-base (16px) to stop iOS zoom, then md:text-sm." },
+      "label": { "displayName": "Label", "purpose": "Tracked uppercase labels and field captions (text-xs)." }
     },
     "shadows": [
       { "name": "card", "value": "0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)", "purpose": "Resting cards — barely-there lift off the canvas." },
       { "name": "card-hover", "value": "0 4px 12px 0 rgb(0 0 0 / 0.10), 0 2px 4px -1px rgb(0 0 0 / 0.06)", "purpose": "On row/card hover, the surface lifts." },
       { "name": "modal", "value": "0 20px 60px -10px rgb(0 0 0 / 0.25)", "purpose": "Dialogs and slide-overs, top of the stack." },
+      { "name": "popover", "value": "0 10px 24px -8px rgb(0 0 0 / 0.15), 0 2px 6px -2px rgb(0 0 0 / 0.08)", "purpose": "Floating overlays — dropdowns, popovers, suggestion lists. The tier between card and modal." },
       { "name": "topbar", "value": "0 1px 0 0 #e2e8f0", "purpose": "Hairline dividing the top bar from content." }
     ],
     "motion": [
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (150–250ms)." }
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (150–250ms). Reduced-motion suppresses all." }
     ],
     "breakpoints": [
       { "name": "sm", "value": "640px" },
@@ -39,9 +40,9 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The only filled, colored button. Soft-green fill with white text; carries every primary action.",
+      "description": "The only filled, colored button. Soft-green fill with white text; carries every primary action. Mobile-first 44px touch target collapsing to 32px desktop.",
       "html": "<button class=\"ds-btn-primary\">Emitir documento</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 6px; background: #218768; color: #ffffff; border: 1px solid transparent; border-radius: 10px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; } .ds-btn-primary:hover { background: #1c6c55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; height: 44px; padding: 0 10px; gap: 6px; background: #218768; color: #ffffff; border: 1px solid transparent; border-radius: 14px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; } @media (min-width: 640px) { .ds-btn-primary { min-height: 0; height: 32px; } } .ds-btn-primary:hover { background: #1c6c55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
     },
     {
       "name": "Input",
@@ -49,15 +50,15 @@
       "refersTo": "input",
       "description": "Transparent field, hairline border, 32px tall. Border + green ring on focus; red on error.",
       "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Número do documento\" />",
-      "css": ".ds-input { width: 100%; height: 32px; padding: 0 10px; background: transparent; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 10px; font: 400 14px/1 \"Geist Sans\", system-ui, sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: #218768; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-input[aria-invalid=\"true\"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }"
+      "css": ".ds-input { width: 100%; height: 32px; padding: 0 10px; background: transparent; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 400 16px/1 \"Geist Sans\", system-ui, sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } @media (min-width: 768px) { .ds-input { font-size: 14px; } } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: #218768; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-input[aria-invalid=\"true\"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }"
     },
     {
-      "name": "Status Badge",
+      "name": "Status Badge (doc-neutral)",
       "kind": "chip",
       "refersTo": "badge-default",
-      "description": "Pill status chip — issued / pending / error. Solid fill, 20px tall, 12px tracked label.",
-      "html": "<span class=\"ds-badge\">Emitido</span>",
-      "css": ".ds-badge { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; background: #218768; color: #ffffff; border-radius: 9999px; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; letter-spacing: 0.02em; }"
+      "description": "Pill status chip with a FIXED semantic palette — never recolored by data-dfe-theme. Status is a universal vocabulary the user must recognize across every doc type.",
+      "html": "<span class=\"ds-status ds-status-authorized\">Autorizada</span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; border-radius: 9999px; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; } .ds-status-pending { background: #fffbeb; color: #b45309; } .ds-status-authorized { background: #dcfce7; color: #15803d; } .ds-status-rejected { background: #fee2e2; color: #b91c1c; } .ds-status-failed { background: #fecaca; color: #991b1b; } .ds-status-cancelled { background: #f1f5f9; color: #64748b; }"
     },
     {
       "name": "Section Card",
@@ -68,12 +69,20 @@
       "css": ".ds-section-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; } .ds-section-card-head { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; } .ds-section-card-title { margin: 0; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; } .ds-section-card-body { padding: 20px; }"
     },
     {
+      "name": "Modal / Dialog",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "Portal dialog: white rounded panel, shadow-modal, sticky header + footer, max-w-lg default. Always w-full + mx-4 so it never overflows at 375px.",
+      "html": "<div class=\"ds-modal-backdrop\"><div class=\"ds-modal\" role=\"dialog\" aria-modal=\"true\"><div class=\"ds-modal-head\"><h2 class=\"ds-modal-title\">Confirmar</h2></div><div class=\"ds-modal-body\">…</div><div class=\"ds-modal-foot\"><button class=\"ds-btn-outline\">Cancelar</button><button class=\"ds-btn-primary\">Salvar</button></div></div></div>",
+      "css": ".ds-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); } .ds-modal { width: 100%; max-width: 512px; margin: 0 16px; max-height: 90vh; overflow-y: auto; background: #ffffff; border-radius: 14px; box-shadow: 0 20px 60px -10px rgba(0,0,0,0.25); } .ds-modal-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #ffffff; border-bottom: 1px solid #e2e8f0; } .ds-modal-title { margin: 0; font: 600 18px/1 \"Geist Sans\", system-ui, sans-serif; color: #0f172a; } .ds-modal-body { padding: 24px; } .ds-modal-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; } .ds-btn-outline { height: 32px; padding: 0 12px; background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; } .ds-btn-outline:hover { background: #f8fafc; }"
+    },
+    {
       "name": "Sidebar Nav Item",
       "kind": "nav",
       "refersTo": "button-primary",
       "description": "Left-sidebar link. Active item carries the brand-green tint and ink-strong text.",
       "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">NF-e</a>",
-      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; color: #0f172a; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: #f8fafc; } .ds-nav-item-active { background: rgba(33,135,104,0.12); color: #1c6c55; font-weight: 600; }"
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 14px; color: #0f172a; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: #f8fafc; } .ds-nav-item-active { background: rgba(33,135,104,0.12); color: #1c6c55; font-weight: 600; }"
     }
   ],
   "narrative": {
@@ -81,10 +90,10 @@
     "overview": "The interface is the competent colleague who has already done the bureaucratic work for you. It is calm, fast, and invisible — it disappears into the task of issuing and tracking a tax document. The voice is sharp efficiency: plain-language, no fiscal jargon performance, zero wasted motion. Every screen earns its density; nothing is decorative. This system explicitly rejects the bureaucratic government portal, the generic SaaS cream/beige monoculture, playful/gamified consumer aesthetics, and dense enterprise tools with no visual hierarchy.",
     "keyCharacteristics": [
       "One quiet green brand, four document accents — color signals which document type you're in.",
-      "Compact, consistent controls (32px height) that respect expert density without clutter.",
+      "Compact, consistent controls (32px desktop / 44px touch on mobile) that respect expert density without clutter.",
       "Real-time status is always legible — you never wonder 'did it go through?'.",
       "Flat surfaces at rest; depth appears only as a response to state.",
-      "Mobile-first from 375px; the same vocabulary across every screen."
+      "Mobile-first from 375px; the same vocabulary across every screen and breakpoint."
     ],
     "rules": [
       { "name": "The One Accent Per Surface Rule", "body": "The core UI is green. A non-green accent appears only inside a data-dfe-theme scope (NFC-e/CT-e/MDF-e) — never as free decoration on a green screen.", "section": "colors" },
@@ -94,11 +103,11 @@
     ],
     "dos": [
       "Do keep the core UI green; let NFC-e/CT-e/MDF-e accents appear only inside their data-dfe-theme scope.",
-      "Do hold body text at ≥4.5:1 — bump Muted Slate toward Ink before lighter gray.",
-      "Do reuse the 32px control height and 10px radius everywhere; consistency is the product's virtue.",
+      "Do reuse the control vocabulary everywhere (32px / 44px height, 14px radius); consistency is the product's virtue.",
+      "Do route all destructive text through --color-danger (#dc2626, red-600) so the AA floor can't drift to red-500.",
       "Do show skeleton loaders (not center spinners) for initial loads, and a subtle dim for background refetches.",
       "Do debounce every input that triggers an API call (300ms default).",
-      "Do treat modals as a last resort — exhaust inline and progressive disclosure first."
+      "Do treat modals as a last resort — exhaust inline and progressive disclosure first. When a modal is right, use the shared Modal (sticky chrome, focus-trap, mobile-safe)."
     ],
     "donts": [
       "Don't build a bureaucratic government portal: dated, low-contrast, no hierarchy, anxiety-inducing.",
@@ -108,7 +117,9 @@
       "Don't add a second font family for display or labels; weight and size carry hierarchy.",
       "Don't put a colored wash behind resting surfaces — depth comes from hairlines and state shadows, not fills.",
       "Don't use a border-left/right stripe wider than 1px as a colored accent on cards or list rows.",
-      "Don't make inactive states full-saturation; reserve the green (and per-type accents) for primary actions, current selection, and state indicators."
+      "Don't make inactive states full-saturation; reserve the green (and per-type accents) for primary actions, current selection, and state indicators.",
+      "Don't recolor status badges by data-dfe-theme — status is a fixed, universal vocabulary (green/red/amber/gray/blue), not a per-type accent.",
+      "Don't use red-500 (#ef4444) for resting destructive text; it fails AA. Use text-danger (red-600)."
     ]
   }
 }
