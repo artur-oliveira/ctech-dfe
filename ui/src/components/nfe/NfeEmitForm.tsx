@@ -17,6 +17,7 @@ import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Modal} from '@/components/ui/modal'
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import type {
   NfeArmaIn,
@@ -854,6 +855,7 @@ export function NfeEmitForm() {
   const [vehicleSearchQuery, setVehicleSearchQuery] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [loadingFavCpfCnpj, setLoadingFavCpfCnpj] = useState<string | null>(null)
 
   // ─── Queries ──────────────────────────────────────────────────────────────
@@ -1723,7 +1725,8 @@ export function NfeEmitForm() {
               Próximo →
             </Button>
           ) : (
-            <Button type="button" variant="brand" size="sm" disabled={isSubmitting} onClick={handleSubmit}>
+            <Button type="button" variant="brand" size="sm" disabled={isSubmitting}
+                    onClick={() => setShowEmitConfirm(true)}>
               {isSubmitting ? 'Emitindo...' : 'Emitir NF-e'}
             </Button>
           )}
@@ -1735,6 +1738,20 @@ export function NfeEmitForm() {
              onClose={() => setShowCarrierModal(false)} size="xl">
         <PersonForm onSubmit={handleCreateCarrier} loading={createCarrierLoading}/>
       </Modal>
+      <EmitConfirmModal
+        open={showEmitConfirm}
+        onClose={() => setShowEmitConfirm(false)}
+        onConfirm={() => {
+          setShowEmitConfirm(false)
+          void handleSubmit()
+        }}
+        docLabel="NF-e"
+        summary={[
+          {label: 'Destinatário', value: selfIssuance ? 'Emissão própria' : (receiver?.name ?? '—')},
+          {label: 'Total', value: fmt(totalNfe)},
+          {label: 'Produtos', value: `${products.length} item(s)`},
+        ]}
+      />
     </div>
   )
 }

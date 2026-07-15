@@ -49,6 +49,26 @@ type Config struct {
 	TechnicalPhone string `env:"TECHNICAL_PHONE" envDefault:"86988033430"`
 }
 
+func (c *Config) prodValidation() error {
+	if c.Env != "prod" {
+		return nil
+	}
+	if c.ServiceAudience == "" {
+		// Fail closed: without an audience check, any RS256 token the identity
+		// provider signs for any client (id_tokens, api-key tokens, tokens minted
+		// for other resource servers) would be accepted here. That is never a
+		// safe prod posture, so refuse to start rather than warn.
+		return fmt.Errorf("config: SERVICE_AUDIENCE must be set in prod so the aud claim is verified")
+	}
+	if c.WorkerTopicARN == "" {
+		return fmt.Errorf("config: WORKER_TOPIC_ARN must be set in prod so the requests to sefaz will be sent")
+	}
+	if c.CtechURL == "" {
+		slog.Warn("CTECH_URL is empty in prod — the iss claim is not being checked")
+	}
+	return nil
+}
+
 // Load reads config from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{}
@@ -58,15 +78,8 @@ func Load() (*Config, error) {
 	if cfg.CtechJWKSURL == "" && cfg.CtechURL != "" {
 		cfg.CtechJWKSURL = cfg.CtechURL + "/.well-known/jwks.json"
 	}
-	if cfg.ServiceAudience == "" && cfg.Env == "production" {
-		// Fail closed: without an audience check, any RS256 token the identity
-		// provider signs for any client (id_tokens, api-key tokens, tokens minted
-		// for other resource servers) would be accepted here. That is never a
-		// safe production posture, so refuse to start rather than warn.
-		return nil, fmt.Errorf("config: SERVICE_AUDIENCE must be set in production so the aud claim is verified")
-	}
-	if cfg.CtechURL == "" && cfg.Env == "production" {
-		slog.Warn("CTECH_URL is empty in production — the iss claim is not being checked")
+	if err := cfg.prodValidation(); err != nil {
+		return nil, err
 	}
 	return cfg, nil
 }

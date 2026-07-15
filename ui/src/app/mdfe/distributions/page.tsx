@@ -10,6 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {MdfeIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
@@ -176,6 +177,7 @@ function MDFeDistributionsContent() {
                 description={nsuFilter
                   ? 'Ajuste o número NSU ou limpe o filtro.'
                   : 'Clique em «Consultar SEFAZ» para buscar MDF-es emitidos para o seu CNPJ.'}
+                icon={<MdfeIcon width={20} height={20}/>}
               />
             </td></tr>
           ) : (

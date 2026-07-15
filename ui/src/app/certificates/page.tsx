@@ -9,8 +9,12 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Button} from '@/components/ui/button'
+import {Modal} from '@/components/ui/modal'
+import {EmptyState} from '@/components/ui/empty-state'
+import {ShieldIcon} from '@/components/ui/icon'
 import {CertificateFields} from '@/components/organizations/CertificateFields'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
 import type {CertificateOut} from '@/lib/types/api'
 
 function certStatus(expiresAt: string): 'valid' | 'expiring' | 'expired' {
@@ -49,8 +53,7 @@ function UploadModal({
   const [fileError, setFileError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = () => {
     let ok = true
     if (!file) {
       setFileError('Selecione um arquivo')
@@ -64,54 +67,31 @@ function UploadModal({
   }
   
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-modal w-full max-w-md mx-4">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Importar Certificado</h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                 strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </Button>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4">
-            {serverError && (
-              <div
-                className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {serverError}
-              </div>
-            )}
-            <CertificateFields
-              file={file}
-              onFileChange={(f) => {
-                setFile(f);
-                setFileError(null)
-              }}
-              password={password}
-              onPasswordChange={(p) => {
-                setPassword(p);
-                setPasswordError(null)
-              }}
-              fileError={fileError}
-              passwordError={passwordError}
-            />
+    <Modal isOpen title="Importar Certificado" onClose={onClose} onSubmit={handleSubmit}
+           submitLabel="Importar" loading={loading}>
+      <div className="space-y-4">
+        {serverError && (
+          <div
+            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {serverError}
           </div>
-          
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Importando…' : 'Importar'}
-            </Button>
-          </div>
-        </form>
+        )}
+        <CertificateFields
+          file={file}
+          onFileChange={(f) => {
+            setFile(f);
+            setFileError(null)
+          }}
+          password={password}
+          onPasswordChange={(p) => {
+            setPassword(p);
+            setPasswordError(null)
+          }}
+          fileError={fileError}
+          passwordError={passwordError}
+        />
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -145,7 +125,7 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
           disabled={isDeleting}
           className="text-danger hover:text-red-700"
         >
-          {isDeleting ? 'Removendo…' : 'Remover'}
+          Remover
         </Button>
       </td>
     </tr>
@@ -179,11 +159,14 @@ function CertificatesContent() {
     },
   })
   
-  const deleteMutation = useMutation({
-    mutationFn: (md5: string) => apiClient.deleteCertificate(pk, md5),
+  const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<CertificateOut>({
+    mutationFn: (md5) => apiClient.deleteCertificate(pk, md5),
+    getId: (cert) => cert.md5,
+    getDeletedMessage: (cert) => `Certificado "${cert.alias}" excluído`,
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.certificates(pk)}),
   })
-  
+  const visibleCerts = filterVisible(certs ?? [])
+
   const handleCloseModal = () => {
     setShowModal(false)
     setUploadError(null)
@@ -223,34 +206,25 @@ function CertificatesContent() {
                   <div key={i} className="h-14 rounded-lg bg-gray-100 animate-pulse"/>
                 ))}
               </div>
-            ) : !certs?.length ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                       strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-900">Nenhum certificado cadastrado</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Importe um certificado A1 no formato .pfx ou .p12
-                </p>
-                <Button className="mt-4" onClick={() => setShowModal(true)}>
-                  Importar certificado
-                </Button>
-              </div>
+            ) : !visibleCerts.length ? (
+              <EmptyState
+                title="Nenhum certificado cadastrado"
+                description="Importe um certificado A1 no formato .pfx ou .p12"
+                action={{label: 'Importar certificado', onClick: () => setShowModal(true)}}
+                icon={<ShieldIcon width={20} height={20}/>}
+              />
             ) : (
               <TableShell
                 ariaLabel="Certificados"
                 minWidth={480}
                 headers={['Certificado', 'Validade', 'Importado em', {label: '', align: 'right'}]}
               >
-                {certs.map((cert) => (
+                {visibleCerts.map((cert) => (
                   <CertRow
                     key={cert.md5}
                     cert={cert}
-                    onDelete={() => deleteMutation.mutate(cert.md5)}
-                    isDeleting={deleteMutation.isPending && deleteMutation.variables === cert.md5}
+                    onDelete={() => handleDelete(cert)}
+                    isDeleting={isDeleting}
                   />
                 ))}
               </TableShell>

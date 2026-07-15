@@ -16,6 +16,7 @@ import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {VehicleForm} from '@/components/vehicles/VehicleForm'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {suggestRoute, ufsBorder} from '@/lib/utils/uf-graph'
@@ -365,6 +366,7 @@ export function MdfeEmitForm() {
   const [newDriverCpf, setNewDriverCpf] = useState('')
 
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {data: mdfeConfig} = useQuery({
@@ -772,11 +774,26 @@ export function MdfeEmitForm() {
         {step !== 'veiculo' ? (
           <Button type="button" variant="brand" size="sm" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
         ) : (
-          <Button type="button" variant="brand" size="sm" onClick={handleSubmit} disabled={isSubmitting || !canEmit}>
+          <Button type="button" variant="brand" size="sm" onClick={() => setShowEmitConfirm(true)}
+                  disabled={isSubmitting || !canEmit}>
             {isSubmitting ? 'Emitindo…' : 'Emitir MDF-e'}
           </Button>
         )}
       </div>
+      <EmitConfirmModal
+        open={showEmitConfirm}
+        onClose={() => setShowEmitConfirm(false)}
+        onConfirm={() => {
+          setShowEmitConfirm(false)
+          void handleSubmit()
+        }}
+        docLabel="MDF-e"
+        summary={[
+          {label: 'Documentos', value: `${docs.length} documento(s)`},
+          {label: 'Veículo', value: tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—'},
+          {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '—'},
+        ]}
+      />
 
       <VehicleRegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)}
                             onSaved={(v) => {

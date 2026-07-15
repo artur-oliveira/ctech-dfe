@@ -12,6 +12,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {NfceIcon} from '@/components/ui/icon'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Modal} from '@/components/ui/modal'
 import {JustificationField} from '@/components/ui/justification-field'
@@ -120,7 +121,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
       {isLoading ? (
         <LoadingSkeleton/>
       ) : items.length === 0 ? (
-        <EmptyState title="Nenhuma NFC-e emitida"
+        <EmptyState title="Nenhuma NFC-e emitida" icon={<NfceIcon width={20} height={20}/>}
                     description="Emita a primeira Nota Fiscal de Consumidor Eletrônica da organização."/>
       ) : (
         <TableShell

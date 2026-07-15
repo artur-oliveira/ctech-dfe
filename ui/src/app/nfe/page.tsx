@@ -12,6 +12,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {NfeIcon} from '@/components/ui/icon'
 import {Modal} from '@/components/ui/modal'
 import {JustificationField} from '@/components/ui/justification-field'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
@@ -233,7 +234,7 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
         ) : items.length === 0 ? (
           <tr>
             <td colSpan={6} className={TABLE_CELL}>
-              <EmptyState title="Nenhuma distribuição encontrada"
+              <EmptyState title="Nenhuma distribuição encontrada" icon={<NfeIcon width={20} height={20}/>}
                           description="Clique em «Consultar SEFAZ» para buscar NF-es emitidas para o seu CNPJ."/>
             </td>
           </tr>
@@ -415,7 +416,7 @@ function NfeListTab({
       {isLoading ? (
         <LoadingSkeleton/>
       ) : items.length === 0 ? (
-        <EmptyState title={tab.emptyLabel} description={tab.emptyDesc}/>
+        <EmptyState title={tab.emptyLabel} description={tab.emptyDesc} icon={<NfeIcon width={20} height={20}/>}/>
       ) : (
         <TableShell
           ariaLabel="NF-es recebidas"

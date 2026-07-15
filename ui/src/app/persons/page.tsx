@@ -10,6 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {UsersIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
@@ -79,6 +80,7 @@ function PersonsContent() {
             title="Nenhuma pessoa cadastrada"
             description="Cadastre clientes e fornecedores para usar na emissão de documentos fiscais."
             action={{label: 'Nova pessoa', onClick: () => router.push('/persons/new')}}
+            icon={<UsersIcon width={20} height={20}/>}
           />
         ) : (
           <TableShell

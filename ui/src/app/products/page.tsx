@@ -10,6 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {ShoppingBagIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
@@ -80,6 +81,7 @@ function ProductsContent() {
             title="Nenhum produto cadastrado"
             description="Adicione produtos para usar na emissão de NF-e e NFC-e."
             action={{label: 'Novo produto', onClick: () => router.push('/products/new')}}
+            icon={<ShoppingBagIcon width={20} height={20}/>}
           />
         ) : (
           <TableShell

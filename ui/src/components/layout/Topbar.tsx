@@ -4,6 +4,7 @@ import {useRouter} from 'next/navigation'
 import {Menu} from '@base-ui/react/menu'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {Button} from '@/components/ui/button'
+import {SettingsIcon} from '@/components/ui/icon'
 
 const MENU_POPUP_CLASSNAME = 'rounded-lg border border-gray-200 bg-white shadow-popover py-1 ' +
   'origin-(--transform-origin) duration-100 data-[side=bottom]:slide-in-from-top-2 ' +
@@ -25,15 +26,6 @@ const UserIcon = () => (
        strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
     <circle cx="12" cy="7" r="4"/>
-  </svg>
-)
-
-const SettingsIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path
-      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 )
 
@@ -160,7 +152,7 @@ export function Topbar({onMenuClick}: TopbarProps) {
                   Meu perfil
                 </Menu.Item>
                 <Menu.Item onClick={() => router.push('/organizations')} className={MENU_ITEM_CLASSNAME}>
-                  <SettingsIcon/>
+                  <SettingsIcon width={14} height={14}/>
                   Configurar organização
                 </Menu.Item>
                 <div className="border-t border-gray-100 mt-1 pt-1">

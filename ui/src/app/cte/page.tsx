@@ -12,6 +12,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {ComingSoon} from '@/components/ui/coming-soon'
 import {EmptyState} from '@/components/ui/empty-state'
+import {CteIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
@@ -147,7 +148,7 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-          <EmptyState title="Nenhum CT-e recebido"
+          <EmptyState title="Nenhum CT-e recebido" icon={<CteIcon width={20} height={20}/>}
                       description="Clique em «Consultar SEFAZ» para buscar CT-es emitidos para o seu CNPJ."/>
         </div>
       ) : (

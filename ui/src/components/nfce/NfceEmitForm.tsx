@@ -15,6 +15,7 @@ import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Textarea} from '@/components/ui/textarea'
 import {Modal} from '@/components/ui/modal'
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -406,6 +407,7 @@ export function NfceEmitForm() {
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {data: nfceConfig} = useQuery({
@@ -651,12 +653,26 @@ export function NfceEmitForm() {
         {step !== 'pagamento' ? (
           <Button type="button" variant="brand" size="sm" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
         ) : (
-          <Button type="button" variant="brand" size="sm" onClick={handleSubmit}
+          <Button type="button" variant="brand" size="sm" onClick={() => setShowEmitConfirm(true)}
                   disabled={isSubmitting || !canEmit}>
             {isSubmitting ? 'Emitindo…' : 'Emitir NFC-e'}
           </Button>
         )}
       </div>
+      <EmitConfirmModal
+        open={showEmitConfirm}
+        onClose={() => setShowEmitConfirm(false)}
+        onConfirm={() => {
+          setShowEmitConfirm(false)
+          void handleSubmit()
+        }}
+        docLabel="NFC-e"
+        summary={[
+          {label: 'Consumidor', value: consumer ? formatCpfCnpj(consumer.cpf) : 'Não identificado'},
+          {label: 'Total', value: fmt(totalNfce)},
+          {label: 'Produtos', value: `${products.length} item(s)`},
+        ]}
+      />
     </div>
   )
 }

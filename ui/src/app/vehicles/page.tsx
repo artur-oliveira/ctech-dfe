@@ -10,6 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {TruckIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PageHeader} from '@/components/ui/page-header'
@@ -79,6 +80,7 @@ function VehiclesContent() {
             title="Nenhum veículo cadastrado"
             description="Cadastre veículos para usar na emissão de CT-e e MDF-e."
             action={{label: 'Novo veículo', onClick: () => router.push('/vehicles/new')}}
+            icon={<TruckIcon width={20} height={20}/>}
           />
         ) : (
           <TableShell

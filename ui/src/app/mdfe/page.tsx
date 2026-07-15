@@ -11,6 +11,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {MdfeIcon} from '@/components/ui/icon'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
@@ -47,7 +48,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
   }
   if (items.length === 0) {
     return (
-      <EmptyState title="Nenhum MDF-e emitido"
+      <EmptyState title="Nenhum MDF-e emitido" icon={<MdfeIcon width={20} height={20}/>}
                   description="Emita o primeiro Manifesto Eletrônico de Documentos Fiscais da organização."/>
     )
   }
@@ -219,7 +220,7 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden overflow-x-auto">
-          <EmptyState title="Nenhum MDF-e recebido"
+          <EmptyState title="Nenhum MDF-e recebido" icon={<MdfeIcon width={20} height={20}/>}
                       description="Clique em «Consultar SEFAZ» para buscar MDF-es emitidos para o seu CNPJ."/>
         </div>
       ) : (
