@@ -10,6 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {Modal} from '@/components/ui/modal'
+import {JustificationField} from '@/components/ui/justification-field'
 import {Button} from '@/components/ui/button'
 import {DfeDetail} from '@/components/dfe/DfeDetail'
 
@@ -79,25 +80,16 @@ function NfeDetail({accessKey}: { accessKey: string }) {
               A Carta de Correção permite corrigir informações da NF-e que não afetem o valor fiscal.
               Não é possível corrigir dados do emitente, destinatário, produto ou impostos.
             </p>
-            <div>
-              <label htmlFor="cce-text" className="block text-sm font-medium text-gray-700 mb-1.5">Texto da
-                correção</label>
-              <textarea
-                id="cce-text"
-                value={cceText}
-                onChange={(e) => setCceText(e.target.value)}
-                rows={5}
-                maxLength={1000}
-                placeholder="Descreva a correção (mínimo 15 caracteres)…"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-              />
-              <div className="flex justify-between mt-1">
-                {cceText.trim().length < 15 && cceText.length > 0 && (
-                  <p className="text-xs text-red-600">Mínimo 15 caracteres ({15 - cceText.trim().length} restantes)</p>
-                )}
-                <p className="text-xs text-gray-400 ml-auto">{cceText.length}/1000</p>
-              </div>
-            </div>
+            <JustificationField
+              id="cce-text"
+              label="Texto da correção"
+              value={cceText}
+              onChange={setCceText}
+              minLength={15}
+              maxLength={1000}
+              rows={5}
+              placeholder="Descreva a correção (mínimo 15 caracteres)…"
+            />
             <div>
               <label htmlFor="cce-seq" className="block text-sm font-medium text-gray-700 mb-1.5">Número de
                 sequência</label>

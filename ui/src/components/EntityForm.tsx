@@ -313,6 +313,7 @@ export function EntityForm({
                        )}
             />
             <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
+                    aria-label="Remover inscrição estadual"
                     className="mb-0.5 text-gray-400 hover:text-red-500 hover:bg-red-50">
               <XIcon/>
             </Button>
@@ -468,6 +469,7 @@ export function EntityForm({
               {addressFields.slice(1).map((field, idx) => (
                 <SectionCard key={field.id} icon={<MapPinIcon/>} title={`Endereço ${idx + 2}`} className="relative">
                   <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeAddress(idx + 1)}
+                          aria-label="Remover endereço"
                           className="absolute top-3 right-4 text-gray-400 hover:text-red-500 hover:bg-red-50">
                     <XIcon/>
                   </Button>
@@ -500,6 +502,7 @@ export function EntityForm({
                              disabled={emails.length >= 5}/>
                       <Button type="button" variant="outline" size="icon-lg" onClick={addEmail}
                               disabled={emails.length >= 5 || !emailInput}
+                              aria-label="Adicionar e-mail"
                               className="shrink-0 text-gray-400 hover:text-gray-600">
                         <PlusIcon/>
                       </Button>
@@ -511,6 +514,7 @@ export function EntityForm({
                               className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
                             <span className="truncate text-gray-700">{e}</span>
                             <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(i)}
+                                    aria-label="Remover e-mail"
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
                           </li>
@@ -536,6 +540,7 @@ export function EntityForm({
                              disabled={phones.length >= 5}/>
                       <Button type="button" variant="outline" size="icon-lg" onClick={addPhone}
                               disabled={phones.length >= 5 || phoneInput.replace(/\D/g, '').length < 10}
+                              aria-label="Adicionar telefone"
                               className="shrink-0 text-gray-400 hover:text-gray-600">
                         <PlusIcon/>
                       </Button>
@@ -547,6 +552,7 @@ export function EntityForm({
                               className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
                             <span className="text-gray-700">{maskPhone(p)}</span>
                             <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(i)}
+                                    aria-label="Remover telefone"
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
                           </li>

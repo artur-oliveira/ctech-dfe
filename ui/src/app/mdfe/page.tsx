@@ -14,7 +14,7 @@ import {EmptyState} from '@/components/ui/empty-state'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
+import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import type {MdfeListOut, NFeDistributionOut} from '@/lib/types/api'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
@@ -43,11 +43,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
   })
   
   if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse"/>)}
-      </div>
-    )
+    return <LoadingSkeleton/>
   }
   if (items.length === 0) {
     return (

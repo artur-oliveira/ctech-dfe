@@ -10,6 +10,7 @@ import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -129,8 +130,8 @@ function DocumentPicker({selected, onToggle}: {
 
       <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
         {isLoading ? (
-          <div className="p-3 space-y-2">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-10 rounded-md bg-gray-100 animate-pulse"/>)}
+          <div className="p-3">
+            <LoadingSkeleton count={4} height="h-10" rounded="rounded-md"/>
           </div>
         ) : items.length === 0 ? (
           <p className="p-4 text-sm text-gray-500 text-center">Nenhuma NF-e autorizada encontrada.</p>
@@ -259,11 +260,7 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange}:
   onWeightChange: (key: string, weight: string) => void
 }) {
   if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-100 animate-pulse"/>)}
-      </div>
-    )
+    return <LoadingSkeleton count={3} height="h-20" rounded="rounded-xl"/>
   }
   if (error) {
     return <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>

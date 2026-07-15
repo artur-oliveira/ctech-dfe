@@ -13,6 +13,7 @@ import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Modal} from '@/components/ui/modal'
@@ -506,10 +507,8 @@ function ProductPicker({onSelect, onClose}: ProductPickerProps) {
       />
       <div className="max-h-48 overflow-y-auto space-y-0.5">
         {isLoading ? (
-          <div className="space-y-2 py-1">
-            <div className="h-8 rounded-md bg-gray-100 animate-pulse"/>
-            <div className="h-8 rounded-md bg-gray-100 animate-pulse"/>
-            <div className="h-8 rounded-md bg-gray-100 animate-pulse"/>
+          <div className="py-1">
+            <LoadingSkeleton count={3} height="h-8" rounded="rounded-md"/>
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-gray-500 py-2">Nenhum produto encontrado.</p>

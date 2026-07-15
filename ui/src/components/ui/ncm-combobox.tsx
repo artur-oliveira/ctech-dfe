@@ -251,7 +251,7 @@ export function NcmCombobox({
     <div
       ref={dropdownRef}
       style={{top: pos.top, left: pos.left, width: pos.width, maxWidth: pos.maxWidth}}
-      className="fixed z-9999 rounded-lg border border-input bg-popover text-popover-foreground shadow-popover ring-1 ring-foreground/10"
+      className="fixed z-50 rounded-lg border border-input bg-popover text-popover-foreground shadow-popover ring-1 ring-foreground/10"
     >
       <div className="flex items-center gap-2 border-b border-input px-3 py-2">
         <input

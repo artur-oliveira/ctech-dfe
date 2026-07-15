@@ -1,13 +1,14 @@
 interface LoadingSkeletonProps {
   count?: number
   height?: string
+  rounded?: string
 }
 
-export function LoadingSkeleton({count = 4, height = 'h-12'}: LoadingSkeletonProps) {
+export function LoadingSkeleton({count = 4, height = 'h-12', rounded = 'rounded-lg'}: LoadingSkeletonProps) {
   return (
     <div className="space-y-2">
       {Array.from({length: count}, (_, i) => (
-        <div key={i} className={`${height} bg-gray-100 rounded-lg animate-pulse`}/>
+        <div key={i} className={`${height} bg-gray-100 ${rounded} animate-pulse`}/>
       ))}
     </div>
   )

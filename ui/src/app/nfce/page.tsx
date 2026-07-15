@@ -12,7 +12,9 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Modal} from '@/components/ui/modal'
+import {JustificationField} from '@/components/ui/justification-field'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -116,9 +118,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
       </form>
       
       {isLoading ? (
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse"/>)}
-        </div>
+        <LoadingSkeleton/>
       ) : items.length === 0 ? (
         <EmptyState title="Nenhuma NFC-e emitida"
                     description="Emita a primeira Nota Fiscal de Consumidor Eletrônica da organização."/>
@@ -290,13 +290,14 @@ function NfceContent() {
             Esta ação é <span className="font-medium text-red-600">irreversível</span>. A NFC-e será
             cancelada junto à SEFAZ.
           </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
-            <textarea value={justification} onChange={(e) => setJustification(e.target.value)} rows={4}
-                      maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
-                      placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"/>
-          </div>
+          <JustificationField
+            id="nfce-cancel-justification"
+            value={justification}
+            onChange={setJustification}
+            minLength={CANCEL_JUSTIFICATION_MIN_LENGTH}
+            maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
+            placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
+          />
         </div>
       </Modal>
       

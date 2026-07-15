@@ -21,7 +21,7 @@ const CAROUSEL_DOCS: CarouselDoc[] = [
 ]
 
 function accentFor(code: string): string {
-  return DFE_DOCUMENTS.find((d) => d.code === code)?.accent ?? '#2ea87f'
+  return DFE_DOCUMENTS.find((d) => d.code === code)?.accent ?? 'var(--brand-500)'
 }
 
 const ACCESS_KEY_GROUPS = Array.from({length: 11}, () => '9999')

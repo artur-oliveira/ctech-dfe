@@ -3,6 +3,7 @@
 import {useState} from 'react'
 import {apiClient} from '@/lib/api/client'
 import {Modal} from '@/components/ui/modal'
+import {JustificationField} from '@/components/ui/justification-field'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import type {NfeListOut} from '@/lib/types/api'
@@ -112,15 +113,15 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
           </div>
         )}
 
-        <div>
-          <label htmlFor="substitute-justification"
-                 className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
-          <textarea id="substitute-justification" value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
-                    rows={3} maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
-                    placeholder="Motivo da substituição (mínimo 15 caracteres)…"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"/>
-        </div>
+        <JustificationField
+          id="substitute-justification"
+          value={justification}
+          onChange={setJustification}
+          minLength={CANCEL_JUSTIFICATION_MIN_LENGTH}
+          maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
+          rows={3}
+          placeholder="Motivo da substituição (mínimo 15 caracteres)…"
+        />
       </div>
     </Modal>
   )

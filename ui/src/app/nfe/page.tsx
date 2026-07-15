@@ -13,6 +13,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
 import {Modal} from '@/components/ui/modal'
+import {JustificationField} from '@/components/ui/justification-field'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -25,7 +26,7 @@ import {formatDatetimeBR, formatNsu, parseAccessKey, triggerDownload} from '@/li
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
+import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
@@ -412,11 +413,7 @@ function NfeListTab({
       </form>
       
       {isLoading ? (
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse"/>
-          ))}
-        </div>
+        <LoadingSkeleton/>
       ) : items.length === 0 ? (
         <EmptyState title={tab.emptyLabel} description={tab.emptyDesc}/>
       ) : (
@@ -596,26 +593,14 @@ function NfesContent() {
             cancelada junto à
             SEFAZ e não poderá ser reativada.
           </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
-            <textarea
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
-              rows={4}
-              maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
-              placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-            />
-            <div className="flex justify-between mt-1">
-              {justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH && justification.length > 0 && (
-                <p className="text-xs text-red-600">
-                  Mínimo {CANCEL_JUSTIFICATION_MIN_LENGTH} caracteres
-                  ({CANCEL_JUSTIFICATION_MIN_LENGTH - justification.trim().length} restantes)
-                </p>
-              )}
-              <p className="text-xs text-gray-400 ml-auto">{justification.length}/{CANCEL_JUSTIFICATION_MAX_LENGTH}</p>
-            </div>
-          </div>
+          <JustificationField
+            id="nfe-cancel-justification"
+            value={justification}
+            onChange={setJustification}
+            minLength={CANCEL_JUSTIFICATION_MIN_LENGTH}
+            maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
+            placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
+          />
         </div>
       </Modal>
     </RootLayout>

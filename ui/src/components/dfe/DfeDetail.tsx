@@ -3,6 +3,8 @@
 import {type ReactNode, useState} from 'react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {Modal} from '@/components/ui/modal'
+import {JustificationField} from '@/components/ui/justification-field'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import {displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
@@ -123,11 +125,7 @@ export function DfeDetail({
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse"/>)}
-      </div>
-    )
+    return <LoadingSkeleton count={3} height="h-24" rounded="rounded-xl"/>
   }
 
   if (error || !doc) {
@@ -389,26 +387,14 @@ export function DfeDetail({
             Esta ação é <span className="font-medium text-red-600">irreversível</span>. A {docLabel} será cancelada
             junto à SEFAZ e não poderá ser reativada.
           </p>
-          <div>
-            <label htmlFor="cancel-justification"
-                   className="block text-sm font-medium text-gray-700 mb-1.5">Justificativa</label>
-            <textarea
-              id="cancel-justification"
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
-              rows={4}
-              maxLength={255}
-              placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-            />
-            <div className="flex justify-between mt-1">
-              {justification.trim().length < 15 && justification.length > 0 && (
-                <p className="text-xs text-red-600">Mínimo 15 caracteres
-                  ({15 - justification.trim().length} restantes)</p>
-              )}
-              <p className="text-xs text-gray-400 ml-auto">{justification.length}/255</p>
-            </div>
-          </div>
+          <JustificationField
+            id="cancel-justification"
+            value={justification}
+            onChange={setJustification}
+            minLength={15}
+            maxLength={255}
+            placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
+          />
         </div>
       </Modal>
 

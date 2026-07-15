@@ -134,8 +134,8 @@ function FiscalConfigContent() {
             {/* Loading skeleton */}
             {active.query.isPending && (
               <div className="space-y-3">
-                {[80, 60, 100, 60].map((w, i) => (
-                  <div key={i} className={`h-8 w-${w} rounded-md bg-gray-100 animate-pulse`}/>
+                {['w-80', 'w-60', 'w-100', 'w-60'].map((w, i) => (
+                  <div key={i} className={`h-8 ${w} rounded-md bg-gray-100 animate-pulse`}/>
                 ))}
               </div>
             )}

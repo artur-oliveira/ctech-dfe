@@ -1,9 +1,17 @@
 'use client'
 
-import {useEffect, useRef, useState} from 'react'
 import {useRouter} from 'next/navigation'
+import {Menu} from '@base-ui/react/menu'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {Button} from '@/components/ui/button'
+
+const MENU_POPUP_CLASSNAME = 'rounded-lg border border-gray-200 bg-white shadow-popover py-1 ' +
+  'origin-(--transform-origin) duration-100 data-[side=bottom]:slide-in-from-top-2 ' +
+  'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 ' +
+  'data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95'
+
+const MENU_ITEM_CLASSNAME = 'w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 ' +
+  'cursor-default outline-hidden transition-colors data-highlighted:bg-gray-50'
 
 const ChevronDownIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -61,35 +69,6 @@ interface TopbarProps {
 export function Topbar({onMenuClick}: TopbarProps) {
   const {user, selectedOrg, setSelectedOrg, logout} = useAuth()
   const router = useRouter()
-  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false)
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
-  const orgRef = useRef<HTMLDivElement>(null)
-  const userRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (orgRef.current && !orgRef.current.contains(e.target as Node)) {
-        setOrgDropdownOpen(false)
-      }
-      if (userRef.current && !userRef.current.contains(e.target as Node)) {
-        setUserDropdownOpen(false)
-      }
-    }
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setOrgDropdownOpen(false)
-        setUserDropdownOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [])
 
   const handleLogout = () => {
     void logout('/')
@@ -116,105 +95,87 @@ export function Topbar({onMenuClick}: TopbarProps) {
       </Button>
 
       {/* Org selector */}
-      <div className="relative flex-1 min-w-0" ref={orgRef}>
+      <div className="relative flex-1 min-w-0">
         {user?.organizations && user.organizations.length > 0 ? (
-          <button
-            onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
-            aria-haspopup="menu"
-            aria-expanded={orgDropdownOpen}
-            className="flex items-center gap-2 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-gray-200 text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors max-w-full"
-          >
-            <span className="font-medium truncate max-w-35 sm:max-w-50">
-              {selectedOrg?.description ?? selectedOrg?.name ?? 'Selecionar organização'}
-            </span>
-            <ChevronDownIcon/>
-          </button>
+          <Menu.Root>
+            <Menu.Trigger
+              className="flex items-center gap-2 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-gray-200 text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors max-w-full"
+            >
+              <span className="font-medium truncate max-w-35 sm:max-w-50">
+                {selectedOrg?.description ?? selectedOrg?.name ?? 'Selecionar organização'}
+              </span>
+              <ChevronDownIcon/>
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner side="bottom" align="start" sideOffset={4} className="isolate z-50">
+                <Menu.Popup className={`w-64 ${MENU_POPUP_CLASSNAME}`}>
+                  {user.organizations.map((org) => (
+                    <Menu.Item
+                      key={org.pk}
+                      onClick={() => setSelectedOrg(org)}
+                      className={`${MENU_ITEM_CLASSNAME} text-left ${
+                        selectedOrg?.pk === org.pk ? 'text-brand-700 font-medium' : ''
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium">{org.name}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{org.role}</div>
+                      </div>
+                    </Menu.Item>
+                  ))}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         ) : (
           <span className="text-sm text-gray-400">Nenhuma organização</span>
-        )}
-
-        {orgDropdownOpen && user?.organizations && (
-          <div
-            className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-modal z-50 py-1">
-            {user.organizations.map((org) => (
-              <button
-                key={org.pk}
-                onClick={() => {
-                  setSelectedOrg(org)
-                  setOrgDropdownOpen(false)
-                }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
-                  selectedOrg?.pk === org.pk ? 'text-brand-700 font-medium' : 'text-gray-700'
-                }`}
-              >
-                <div className="font-medium">{org.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{org.role}</div>
-              </button>
-            ))}
-          </div>
         )}
       </div>
 
       {/* User menu */}
-      <div className="relative shrink-0" ref={userRef}>
-        <button
-          onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-          aria-haspopup="menu"
-          aria-expanded={userDropdownOpen}
-          className="flex items-center gap-2 pl-2 pr-3 py-1.5 min-h-11 sm:min-h-0 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-            style={{backgroundColor: 'var(--brand-600)'}}
+      <div className="relative shrink-0">
+        <Menu.Root>
+          <Menu.Trigger
+            className="flex items-center gap-2 pl-2 pr-3 py-1.5 min-h-11 sm:min-h-0 rounded-md hover:bg-gray-50 transition-colors"
           >
-            {initials || <UserIcon/>}
-          </div>
-          <span className="hidden sm:inline text-sm text-gray-700 font-medium">
-            {user?.first_name} {user?.last_name}
-          </span>
-          <ChevronDownIcon/>
-        </button>
-
-        {userDropdownOpen && (
-          <div
-            className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-modal z-50 py-1">
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <p className="text-sm font-medium text-gray-900">
-                {user?.first_name} {user?.last_name}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">{user?.email}</p>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-brand-600 text-white text-xs font-semibold shrink-0">
+              {initials || <UserIcon/>}
             </div>
-            <button
-              onClick={() => {
-                router.push('/profile')
-                setUserDropdownOpen(false)
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <EditUserIcon/>
-              Meu perfil
-            </button>
-            <button
-              onClick={() => {
-                router.push('/organizations')
-                setUserDropdownOpen(false)
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <SettingsIcon/>
-              Configurar organização
-            </button>
-            <div className="border-t border-gray-100 mt-1 pt-1">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <LogOutIcon/>
-                Sair
-              </button>
-            </div>
-          </div>
-        )}
+            <span className="hidden sm:inline text-sm text-gray-700 font-medium">
+              {user?.first_name} {user?.last_name}
+            </span>
+            <ChevronDownIcon/>
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner side="bottom" align="end" sideOffset={4} className="isolate z-50">
+              <Menu.Popup className={`w-52 ${MENU_POPUP_CLASSNAME}`}>
+                <div className="px-4 py-2.5 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.first_name} {user?.last_name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{user?.email}</p>
+                </div>
+                <Menu.Item onClick={() => router.push('/profile')} className={MENU_ITEM_CLASSNAME}>
+                  <EditUserIcon/>
+                  Meu perfil
+                </Menu.Item>
+                <Menu.Item onClick={() => router.push('/organizations')} className={MENU_ITEM_CLASSNAME}>
+                  <SettingsIcon/>
+                  Configurar organização
+                </Menu.Item>
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <Menu.Item
+                    onClick={handleLogout}
+                    className={`${MENU_ITEM_CLASSNAME} text-red-600 data-highlighted:bg-red-50`}
+                  >
+                    <LogOutIcon/>
+                    Sair
+                  </Menu.Item>
+                </div>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       </div>
     </header>
   )

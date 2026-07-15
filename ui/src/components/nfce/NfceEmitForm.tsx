@@ -9,6 +9,7 @@ import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
@@ -269,8 +270,8 @@ function ProductPicker({onSelect, onClose}: { onSelect: (p: ProductOut) => void;
              placeholder="Código ou descrição..." className="w-full"/>
       <div className="max-h-48 overflow-y-auto space-y-0.5">
         {isLoading ? (
-          <div className="space-y-2 py-1">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-8 rounded-md bg-gray-100 animate-pulse"/>)}
+          <div className="py-1">
+            <LoadingSkeleton count={3} height="h-8" rounded="rounded-md"/>
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-gray-500 py-2">Nenhum produto encontrado.</p>
