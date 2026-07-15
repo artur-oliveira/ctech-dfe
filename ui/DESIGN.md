@@ -105,6 +105,7 @@ Each accent drives the same `--brand-*` / `--primary-*` scale, so components nev
 - **Hairline** (#e2e8f0): borders, dividers, input strokes.
 - **Surface** (#f8fafc): section headers, sidebar fill, the calm second layer behind white cards.
 - **Canvas** (#ffffff): page background and card surfaces.
+- **Danger** (#dc2626, `text-danger`): destructive-action *text* ("Cancelar", "Remover", "Excluir", "×"). red-600 ≈ 4.83:1 on white — the AA floor; red-500 (#ef4444 ≈ 3.76:1) fails and must not be used for resting destructive text. All destructive text routes through the `--color-danger` token so contrast can't drift.
 
 ### Named Rules
 **The One Accent Per Surface Rule.** The core UI is green. A non-green accent appears only inside a `data-dfe-theme` scope (NFC-e/CT-e/MDF-e) — never as free decoration on a green screen.
@@ -124,6 +125,7 @@ Each accent drives the same `--brand-*` / `--primary-*` scale, so components nev
 - **Title** (600, 1.125rem / 18px, line-height 1.3): section headings, card titles, dialog titles.
 - **Body** (400, 0.875rem / 14px, line-height 1.5): default text, table cells, descriptions. Prose caps at 65–75ch; data tables run denser.
 - **Label** (600, 0.75rem / 12px, tracked 0.06em, uppercase): `SectionCard` headers and form-field labels. Small but never muted-gray-on-tint.
+- **Caption / Secondary** (0.8rem / ~12.8px): the ShadCN secondary step — `sm` button text, form validation/description messages (`form.tsx`, `button.tsx`), and compact field notes. Sits between Body and Label; a deliberate, documented step, not off-ramp drift.
 
 ### Named Rules
 **The One Family Rule.** No display or serif face in UI labels, buttons, or data. Weight and size carry hierarchy; a second font is noise.
@@ -137,6 +139,7 @@ Flat by default. Surfaces sit on the canvas with hairline borders; shadow appear
 - **Card Hover** (`0 4px 12px 0 rgb(0 0 0 / 0.10), 0 2px 4px -1px rgb(0 0 0 / 0.06)`): on row/card hover, the surface lifts.
 - **Modal** (`0 20px 60px -10px rgb(0 0 0 / 0.25)`): dialogs and slide-overs, the top of the stack.
 - **Topbar** (`0 1px 0 0 #e2e8f0`): a hairline, not a shadow, separating the top bar from content.
+- **Popover** (`0 10px 24px -8px rgb(0 0 0 / 0.15), 0 2px 6px -2px rgb(0 0 0 / 0.08)`): floating overlays — dropdowns, popovers, suggestion lists, the org/keyboard-shortcuts surfaces. The tier between a resting card and a modal; all floating overlays route through this, never raw `shadow-lg`.
 
 ### Named Rules
 **The Flat-By-Default Rule.** Surfaces are flat at rest. Shadows appear only on hover, elevation, or focus — never as ambient decoration.

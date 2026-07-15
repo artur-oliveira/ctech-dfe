@@ -121,11 +121,47 @@ cells (emitente name + CNPJ) stack correctly. Test added to `TableShell.test.tsx
 162 tests, tsc clean (pre-existing auth error only). Not visually verified at 375px — no browser
 tool this session; CSS logic reviewed by hand.
 
-**Deferred (product-subjective — NOT silently skipped):**
-- **P3 landing distill** — `app/page.tsx` generic long-scroll (hero→docs→how→benefits→plans→
-  roadmap). Moving pricing/roadmap is a product call. Run `/impeccable distill` on the landing.
-
 Sidecar refresh `/impeccable document` still pending (non-blocking).
+
+---
+
+## Done this session (part 3) — re-critique round 2, all P1–P3 fixed
+
+Re-ran `/impeccable critique all` (dual-agent). **Score 36/40** (held). Snapshot:
+`.impeccable/critique/2026-07-14T23-48-02Z__src.md`. Trend `src`: 36 → 36. Detector 23→18
+(all remaining = intentional `0.8rem` ShadCN step now documented + landing facsimile + 4
+gray-on-color false positives). User chose **Everything (P1–P3)** + **text-danger token** +
+landing **distill in place, keep all content**.
+
+**Fixed (ESLint 0/0, tsc clean except pre-existing auth-name-merge; login-page.test.tsx ×2 fail
+is PRE-EXISTING — reproduced on clean HEAD with my page.tsx stashed):**
+- **P1 destructive contrast (regression from part 2)** — new `--color-danger` (#dc2626 ≈ 4.83:1)
+  token in `globals.css` @theme. Swapped **21× resting `text-red-500` + 1× `text-red-400`** →
+  `text-danger` across nfe/nfce/mdfe pages + emit forms, ProductForm, persons/vehicles/
+  certificates/members pages. The 6 `hover:text-red-500` ghost buttons left (hover-state FPs,
+  not resting). Documented in DESIGN.md §2.
+- **P2 mobile 44px targets** — `min-h-11 sm:min-h-0` (+`min-w-11` on icons) on Topbar
+  hamburger/org-switcher/avatar, Sidebar close + nav items, products row actions; qty steppers
+  `h-8 w-7`→`h-11 w-11 sm:h-8 sm:w-7`.
+- **P2 token drift** — new `shadow-popover` token (tailwind.config + DESIGN.md §4); routed all
+  floating overlays (dropdowns/popovers/suggestion lists/select) off raw `shadow-lg`/`shadow-md`;
+  dialogs→`shadow-modal`; segmented thumbs + landing cards→`shadow-card`. Snapped off-ramp fonts:
+  Sidebar px-literals (15/11/13px→text-base/xs/sm), MdfeEmitForm 10px→text-xs. Documented the
+  `0.8rem` ShadCN step in DESIGN.md §3 (was recurring as "off-ramp"; it's intentional).
+- **P3 landing distill** — folded *Como funciona* + *Benefits* into one trust block (numbered flow
+  + borderless benefit strip, killed the 2nd white-card grid); removed the roadmap section +
+  `ROADMAP` const; kept pricing below the fold. No new route.
+
+**Not-fixed (verified false / intentional):**
+- **P3 silent delete-undo** — FALSE finding: `useEntityDelete` already fires a `toast(..., {action:
+  {label:'Desfazer'}})`; all four list pages use it. No change.
+- **4× `gray-on-color`** detector warnings — false positives (`text-gray-400 hover:text-red-500
+  hover:bg-red-50`; gray + red-50 never co-occur).
+- **`authorization-card.tsx`** tiny fonts (landing hero) — intentional fiscal-document facsimile.
+- **`Header.tsx`** `shadow-lg` — dead code (unimported), left per scope rules.
+
+**Pre-existing, out of scope:** `login-page.test.tsx` ×2 (useAuth-without-AuthProvider, fails on
+HEAD); `auth-name-merge.test.tsx` tsc error (`terms_addendum_accepted`).
 
 ---
 
