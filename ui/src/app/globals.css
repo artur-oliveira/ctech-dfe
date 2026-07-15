@@ -248,7 +248,8 @@ select:focus-visible {
 /* Glossary popover (components/ui/glossary-term.tsx). Positioned by JS on open
    (getBoundingClientRect); CSS anchor positioning is Chrome-only so we don't
    rely on it. Just the open animation lives here. */
-.gt-pop {
+.gt-pop:popover-open {
+    display: block;
     animation: gt-pop-in 120ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 

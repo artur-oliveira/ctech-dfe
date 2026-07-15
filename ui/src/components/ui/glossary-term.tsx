@@ -61,7 +61,7 @@ export function GlossaryTerm({
           popover="auto"
           role="tooltip"
           onToggle={(e) => e.newState === 'open' && place()}
-          className="gt-pop fixed m-0 block max-w-xs rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-700 shadow-popover"
+          className="gt-pop fixed m-0 max-w-xs rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-700 shadow-popover"
       >
         <span className="mb-1 block text-xs font-semibold tracking-normal text-gray-900 normal-case">{label}</span>
           {definition}
