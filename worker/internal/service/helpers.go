@@ -41,6 +41,7 @@ const (
 
 	// docTypeMDFe is the doc_type carried on the worker message for MDF-e.
 	docTypeMDFe = "mdfe"
+	docTypeNFCe = "nfce"
 
 	cancellationEvent = "110111"
 	// cancellationSubstEvent — NFC-e "Cancelamento por Substituição"; like a
@@ -64,7 +65,7 @@ func isCancellationEvent(docType string, eventType *string) bool {
 	if *eventType == cancellationEvent {
 		return true
 	}
-	return *eventType == cancellationSubstEvent && docType != docTypeMDFe
+	return *eventType == cancellationSubstEvent && docType == docTypeNFCe
 }
 
 // isCloseEvent reports whether the event encerra (closes) an MDF-e (110112).

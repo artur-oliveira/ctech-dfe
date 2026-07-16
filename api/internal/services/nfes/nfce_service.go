@@ -282,7 +282,7 @@ func buildSubstituteBody(accessKey, cnpj string, environment int, sefazProtocol,
 					"detEvento": map[string]any{
 						"@versao":     "1.00",
 						"@xmlns":      "http://www.portalfiscal.inf.br/nfe",
-						"descEvento":  "Cancelamento por Substituicao",
+						"descEvento":  "Cancelamento por substituicao",
 						"cOrgaoAutor": accessKey[:2],
 						"tpAutor":     "1",
 						"verAplic":    verAplic,

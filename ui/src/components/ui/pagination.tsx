@@ -28,6 +28,7 @@ export function Pagination({
         size="sm"
         onClick={onPrevious}
         disabled={!hasPrevious || isLoading}
+        aria-label="Página anterior"
       >
         <ChevronLeft/>
       </Button>
@@ -37,6 +38,7 @@ export function Pagination({
         size="sm"
         onClick={onNext}
         disabled={!hasNext || isLoading}
+        aria-label="Próxima página"
       >
         <ChevronRight/>
       </Button>

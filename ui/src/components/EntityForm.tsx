@@ -386,6 +386,7 @@ export function EntityForm({
                              <FormLabel>{isPJ ? 'Razão Social *' : 'Nome *'}</FormLabel>
                              <Input {...field} id={field.name}
                                     placeholder={isPJ ? 'Empresa LTDA' : 'João da Silva'} maxLength={255}
+                                    autoComplete={isPJ ? 'organization' : 'name'}
                                     onChange={variant === 'person'
                                       ? (e) => field.onChange(e.target.value.toUpperCase())
                                       : field.onChange}/>

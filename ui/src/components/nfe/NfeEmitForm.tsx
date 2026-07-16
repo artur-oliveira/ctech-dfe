@@ -587,9 +587,10 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
       </div>
       <div className="grid grid-cols-3 md:grid-cols-12 gap-2 items-end">
         <div className="col-span-3 md:col-span-6 flex flex-col gap-1">
-          <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
+          <div className="flex items-center gap-1"><Label htmlFor={`nfe-item-${index}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
           {cfopOptions.length > 0 ? (
             <OptionsSelect
+              id={`nfe-item-${index}-cfop`}
               value={item.cfopSuffix}
               onValueChange={(suffix) => {
                 const group = cfopGroups.find(g => g.suffix === suffix)
@@ -598,7 +599,7 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
               }}
               options={cfopOptions} placeholder="CFOP"/>
           ) : (
-            <Input type="text" value={item.cfop} onChange={(e) => onChange(index, {cfop: e.target.value})}
+            <Input id={`nfe-item-${index}-cfop`} type="text" value={item.cfop} onChange={(e) => onChange(index, {cfop: e.target.value})}
                    maxLength={4} placeholder="5102"/>
           )}
           {cfopUfUnknown && (
@@ -613,29 +614,29 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
           )}
         </div>
         <div className="col-span-1 md:col-span-2 flex-col gap-1">
-          <Label className="text-xs font-medium text-gray-600">Qtd ({item.product.unit ?? 'UN'})</Label>
+          <Label htmlFor={`nfe-item-${index}-qty`} className="text-xs font-medium text-gray-600">Qtd ({item.product.unit ?? 'UN'})</Label>
           <div className="flex items-center">
-            <button type="button"
+            <button type="button" aria-label="Diminuir quantidade"
                     onClick={() => onChange(index, {qty: String(Math.max(0, (parseFloat(item.qty) || 0) - 1))})}
-                    className="h-11 w-11 sm:h-8 sm:w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
+                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
             </button>
-            <NumericInput decimal integerPlaces={7} decimalPlaces={4} value={item.qty}
+            <NumericInput id={`nfe-item-${index}-qty`} decimal integerPlaces={7} decimalPlaces={4} value={item.qty}
                           onChange={(v) => onChange(index, {qty: v})} placeholder="1"
                           className="rounded-none border-x-0 text-center"/>
-            <button type="button"
+            <button type="button" aria-label="Aumentar quantidade"
                     onClick={() => onChange(index, {qty: String((parseFloat(item.qty) || 0) + 1)})}
-                    className="h-11 w-11 sm:h-8 sm:w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
+                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
             </button>
           </div>
         </div>
         <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label className="text-xs font-medium text-gray-600">Valor unitário</Label>
-          <CurrencyInput decimalPlaces={2} maxDecimalPlaces={10} value={item.unitValue}
+          <Label htmlFor={`nfe-item-${index}-unit-value`} className="text-xs font-medium text-gray-600">Valor unitário</Label>
+          <CurrencyInput id={`nfe-item-${index}-unit-value`} decimalPlaces={2} maxDecimalPlaces={10} value={item.unitValue}
                          onChange={(v) => onChange(index, {unitValue: v})} placeholder="0,00"/>
         </div>
         <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label className="text-xs font-medium text-gray-600">Desconto</Label>
-          <CurrencyInput decimalPlaces={2} value={item.discount}
+          <Label htmlFor={`nfe-item-${index}-discount`} className="text-xs font-medium text-gray-600">Desconto</Label>
+          <CurrencyInput id={`nfe-item-${index}-discount`} decimalPlaces={2} value={item.discount}
                          onChange={(v) => onChange(index, {discount: v})} placeholder="0,00"/>
         </div>
       </div>
@@ -786,7 +787,8 @@ function StepIndicator({current, steps}: { current: EmitStep; steps: typeof STEP
         const done = i < idx
         const active = i === idx
         return (
-          <div key={step.id} className="flex items-center flex-1 last:flex-none">
+          <div key={step.id} className="flex items-center flex-1 last:flex-none"
+               aria-current={active ? 'step' : undefined}>
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
@@ -795,7 +797,7 @@ function StepIndicator({current, steps}: { current: EmitStep; steps: typeof STEP
                 {done ? '✓' : i + 1}
               </div>
               <span
-                className={`text-xs hidden sm:block ${active ? 'text-brand-600 font-medium' : done ? 'text-gray-500' : 'text-gray-400'}`}>
+                className={`text-xs sr-only sm:not-sr-only sm:block ${active ? 'text-brand-600 font-medium' : done ? 'text-gray-500' : 'text-gray-400'}`}>
                 {step.label}
               </span>
             </div>
@@ -1377,8 +1379,8 @@ export function NfeEmitForm() {
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Adicionar pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1"><Label className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
-                <OptionsSelect value={newPaymentType}
+                <div className="flex items-center gap-1"><Label htmlFor="nfe-payment-type" className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
+                <OptionsSelect id="nfe-payment-type" value={newPaymentType}
                                onValueChange={(v) => {
                                  setNewPaymentType(v)
                                  setShowCardToggle(false)
@@ -1388,15 +1390,15 @@ export function NfeEmitForm() {
               </div>
               {newPaymentType !== '90' && (
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs font-medium text-gray-600 whitespace-nowrap">À vista / Parcelado</Label>
-                  <OptionsSelect value={newPaymentIndPag} onValueChange={v => setNewPaymentIndPag(v as '0' | '1')}
+                  <Label htmlFor="nfe-payment-ind-pag" className="text-xs font-medium text-gray-600 whitespace-nowrap">À vista / Parcelado</Label>
+                  <OptionsSelect id="nfe-payment-ind-pag" value={newPaymentIndPag} onValueChange={v => setNewPaymentIndPag(v as '0' | '1')}
                                  options={[{value: '0', label: '0 – À vista'}, {value: '1', label: '1 – Parcelado'}]}/>
                 </div>
               )}
               {newPaymentType !== '90' && (
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs font-medium text-gray-600">Valor</Label>
-                  <CurrencyInput decimalPlaces={2} value={newPaymentValue}
+                  <Label htmlFor="nfe-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
+                  <CurrencyInput id="nfe-payment-value" decimalPlaces={2} value={newPaymentValue}
                                  onChange={(v) => {
                                    paymentValueLockedRef.current = true
                                    setNewPaymentValue(v)

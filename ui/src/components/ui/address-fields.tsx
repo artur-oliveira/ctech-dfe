@@ -59,6 +59,7 @@ export function AddressFields({control, setValue, basePath}: AddressFieldsProps)
               id={field.name}
               placeholder="12345-678"
               maxLength={9}
+              autoComplete="postal-code"
               value={maskCep(String(field.value ?? ''))}
               onChange={(e) => {
                 const raw = e.target.value.replace(/\D/g, '').slice(0, 8)

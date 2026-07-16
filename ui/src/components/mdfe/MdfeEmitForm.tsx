@@ -550,7 +550,7 @@ export function MdfeEmitForm() {
           <p className="text-sm text-gray-500">Selecione o tipo de transporte.</p>
           <div className="grid grid-cols-2 gap-3">
             {MODAIS.map((m) => (
-              <button key={m.id} type="button" disabled={!m.enabled}
+              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === 'rodoviario'}
                       className={`relative rounded-xl border p-4 text-left transition-colors ${
                         m.id === 'rodoviario'
                           ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
