@@ -1,177 +1,47 @@
-import {AUTH_STATE_ACTIVE, AUTH_STATE_REVOKED, SESSION_KEY_AUTH_STATE} from '@/lib/constants/storage'
+import { OAuthClient, decodeIdToken as sdkDecodeIdToken } from '@aoctech/auth-client'
+import type { IdTokenClaims } from '@aoctech/auth-client'
 
 const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!
 const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!
 
-function setAuthState(state: typeof AUTH_STATE_ACTIVE | typeof AUTH_STATE_REVOKED): void {
-  try {
-    sessionStorage.setItem(SESSION_KEY_AUTH_STATE, state)
-  } catch {
-    // ignore storage failures (SSR / private mode)
-  }
-}
+const client = new OAuthClient({
+  baseUrl: CTECH_URL,
+  clientId: CLIENT_ID,
+  redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : '',
+  scope: 'openid profile',
+})
 
-/** True once /token or /revoke reported no valid session this tab — used to
- *  skip further /token calls that would just 400. */
-export function isRevoked(): boolean {
-  try {
-    return sessionStorage.getItem(SESSION_KEY_AUTH_STATE) === AUTH_STATE_REVOKED
-  } catch {
-    return false
-  }
-}
-
-/** Name-related profile claims decoded from the OIDC id_token. */
-export interface IdTokenClaims {
-  username?: string
-  first_name?: string
-  last_name?: string
-}
+export type { IdTokenClaims }
 
 /**
  * Decodes the name-related profile claims from an OIDC id_token.
  *
  * The id_token's audience is the OAuth client itself, so reading profile data from it
  * client-side avoids the ctech-account /userinfo audience block on the DFe access token.
- * Maps preferred_username -> username, given_name -> first_name, family_name -> last_name.
- * Returns null on any parse failure or when no name claim is present.
  */
-export function decodeIdToken(idToken: string): IdTokenClaims | null {
-  try {
-    const payload = idToken.split('.')[1]
-    if (!payload) return null
-
-    let b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    b64 += '='.repeat((4 - (b64.length % 4)) % 4)
-
-    // atob yields a binary string; re-decode as UTF-8 so accented names survive.
-    const json = decodeURIComponent(
-      Array.from(atob(b64), (c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''),
-    )
-    const claims = JSON.parse(json) as Record<string, unknown>
-
-    const firstName = typeof claims.given_name === 'string' ? claims.given_name : undefined
-    const lastName = typeof claims.family_name === 'string' ? claims.family_name : undefined
-    const username = typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined
-
-    if (!firstName && !lastName && !username) return null
-    return { username, first_name: firstName, last_name: lastName }
-  } catch {
-    return null
-  }
-}
-
-function randomHex(n: number): string {
-  const arr = new Uint8Array(n)
-  crypto.getRandomValues(arr)
-  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-async function sha256base64url(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
-}
+export const decodeIdToken = sdkDecodeIdToken
 
 export async function startOAuthFlow(returnTo = '/'): Promise<void> {
-  const state = randomHex(16)
-  const verifier = randomHex(32)
-  const challenge = await sha256base64url(verifier)
-
-  sessionStorage.setItem('oauth_state', state)
-  sessionStorage.setItem('oauth_verifier', verifier)
-  sessionStorage.setItem('oauth_return_to', returnTo)
-
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: CLIENT_ID,
-    redirect_uri: `${window.location.origin}/callback`,
-    scope: 'openid profile',
-    state,
-    code_challenge: challenge,
-    code_challenge_method: 'S256',
-  })
-
-  window.location.href = `${CTECH_URL}/v1.0/authorize?${params}`
+  await client.startOAuthFlow(returnTo)
 }
 
 export async function exchangeCode(
   code: string,
   state: string,
 ): Promise<{ accessToken: string; idToken: string | null; returnTo: string }> {
-  const storedState = sessionStorage.getItem('oauth_state')
-  if (storedState !== state) throw new Error('OAuth state mismatch')
-
-  const verifier = sessionStorage.getItem('oauth_verifier') ?? ''
-  const returnTo = sessionStorage.getItem('oauth_return_to') ?? '/'
-
-  sessionStorage.removeItem('oauth_state')
-  sessionStorage.removeItem('oauth_verifier')
-  sessionStorage.removeItem('oauth_return_to')
-
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    code_verifier: verifier,
-    client_id: CLIENT_ID,
-    redirect_uri: `${window.location.origin}/callback`,
-  })
-
-  const res = await fetch(`${CTECH_URL}/v1.0/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    credentials: 'include',
-    body: body.toString(),
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Token exchange failed (${res.status}): ${text}`)
-  }
-
-  const data = await res.json()
-  setAuthState(AUTH_STATE_ACTIVE)
-  return {
-    accessToken: data.access_token,
-    idToken: data.id_token ?? null,
-    returnTo,
-  }
+  const result = await client.exchangeCode(code, state)
+  return { accessToken: result.accessToken, idToken: result.idToken ?? null, returnTo: result.returnTo }
 }
 
 // M2: refresh_token is no longer passed in the request body — ctech-account
 // issues it as an HttpOnly ctech_rt cookie the browser sends automatically via
 // credentials:'include'. The SPA only ever sees the short-lived access token.
+// Guarded + single-flight (ctech-oauth-client): skips the request entirely
+// without the ctech_auth hint cookie or after a local revoked mark, so it
+// never burns the shared /token rate limit on a doomed request.
 export async function doRefresh(): Promise<{ accessToken: string } | null> {
-  // Session was revoked this tab — the refresh cookie is gone, so /token would
-  // just 400. Skip the request entirely.
-  if (isRevoked()) return null
-  try {
-    const body = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: CLIENT_ID,
-    })
-
-    const res = await fetch(`${CTECH_URL}/v1.0/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      credentials: 'include',
-      body: body.toString(),
-    })
-
-    // A rejected refresh means no valid session — remember it so we stop retrying.
-    // Network errors (catch) stay silent: they may be transient.
-    if (!res.ok) {
-      setAuthState(AUTH_STATE_REVOKED)
-      return null
-    }
-    const data = await res.json()
-    setAuthState(AUTH_STATE_ACTIVE)
-    return { accessToken: data.access_token }
-  } catch {
-    return null
-  }
+  const result = await client.refresh()
+  return result ? { accessToken: result.accessToken } : null
 }
 
 /**
@@ -182,26 +52,12 @@ export async function doRefresh(): Promise<{ accessToken: string } | null> {
  * back in instead of showing a fresh login.
  */
 export function endSessionRedirect(returnTo = '/login'): void {
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    post_logout_redirect_uri: `${window.location.origin}${returnTo}`,
-  })
-  window.location.href = `${CTECH_URL}/v1.0/auth/end-session?${params}`
+  client.endSessionRedirect(returnTo)
 }
 
 // M2: the refresh token lives in the HttpOnly ctech_rt cookie; we don't have it
 // in JS. credentials:'include' sends the cookie and ctech-account's /revoke
 // clears it, ending the refresh chain.
 export async function revokeToken(): Promise<void> {
-  // Mark revoked up front so any concurrent/subsequent doRefresh() short-circuits.
-  setAuthState(AUTH_STATE_REVOKED)
-  try {
-    await fetch(`${CTECH_URL}/v1.0/revoke`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      credentials: 'include',
-    })
-  } catch {
-    // best-effort
-  }
+  await client.revoke()
 }
