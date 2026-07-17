@@ -85,13 +85,17 @@ function AuditLogsContent() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-              <OptionsSelect
-                value={resourceType || null}
-                onValueChange={setResourceType}
-                options={RESOURCE_TYPE_OPTIONS}
-                placeholder="Todos os recursos"
-                className="w-full"
-              />
+              <div className="flex flex-col gap-1">
+                <label htmlFor="audit-log-resource" className="text-xs font-medium text-gray-600">Recurso</label>
+                <OptionsSelect
+                  id="audit-log-resource"
+                  value={resourceType || null}
+                  onValueChange={setResourceType}
+                  options={RESOURCE_TYPE_OPTIONS}
+                  placeholder="Todos os recursos"
+                  className="w-full"
+                />
+              </div>
             </div>
             
             {isLoading ? (

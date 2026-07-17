@@ -11,6 +11,7 @@ interface OptionsSelectProps {
   disabled?: boolean
   className?: string
   id?: string
+  ariaLabel?: string
 }
 
 export function OptionsSelect({
@@ -21,6 +22,7 @@ export function OptionsSelect({
                                 disabled,
                                 className,
                                 id,
+                                ariaLabel,
                               }: OptionsSelectProps) {
   const selected = value ? options.find((o) => o.value === value) : undefined
   const selectedLabel = selected?.display ?? selected?.label
@@ -46,6 +48,7 @@ export function OptionsSelect({
       <SelectTrigger
         id={id}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={cn('w-full overflow-hidden', className)}
       >
         <SelectValue placeholder={placeholder} className="min-w-0 overflow-hidden">

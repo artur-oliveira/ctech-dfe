@@ -139,7 +139,7 @@ function NfeDetailContent() {
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
           <Link href={backHref} className="hover:text-brand-600">NF-e</Link>
           <span>/</span>
-          <span className="text-gray-600 font-mono truncate max-w-[200px]">{accessKey || 'Detalhe'}</span>
+          <span className="text-gray-600 font-mono truncate min-w-0 max-w-[200px]">{accessKey || 'Detalhe'}</span>
         </div>
         {accessKey ? (
           <NfeDetail accessKey={accessKey}/>

@@ -55,6 +55,16 @@ export function Modal({
     const first = focusables && focusables.length ? focusables[0] : panel
     first?.focus()
 
+    return () => {
+      document.body.style.overflow = prevOverflow
+      previouslyFocused.current?.focus?.()
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const panel = panelRef.current
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -77,11 +87,7 @@ export function Modal({
     }
     document.addEventListener('keydown', onKeyDown)
 
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = prevOverflow
-      previouslyFocused.current?.focus?.()
-    }
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [isOpen, onClose])
 
   if (!isOpen) return null

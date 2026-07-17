@@ -2,8 +2,7 @@
 
 import {type ReactNode, useState} from 'react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
+import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import {displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse} from '@/lib/types/api'
@@ -369,34 +368,19 @@ export function DfeDetail({
       <p className="text-xs text-gray-400">Emissão: {formatDate(doc.year, doc.month, doc.day)}</p>
 
       {/* Cancel modal (common) */}
-      <Modal
+      <CancelDfeModal
         isOpen={showCancelModal}
-        title={`Cancelar ${docLabel} nº ${doc.number}`}
+        docLabel={docLabel}
+        docNumber={doc.number}
+        justification={justification}
+        onJustificationChange={setJustification}
         onClose={() => setShowCancelModal(false)}
-        onSubmit={() => {
-          if (justification.trim().length >= 15) cancelMutation.mutate(justification.trim())
+        onConfirm={() => {
+          if (justification.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH) cancelMutation.mutate(justification.trim())
         }}
-        submitLabel="Confirmar cancelamento"
-        cancelLabel="Voltar"
-        danger
         loading={cancelMutation.isPending}
-        submitDisabled={justification.trim().length < 15}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Esta ação é <span className="font-medium text-red-600">irreversível</span>. A {docLabel} será cancelada
-            junto à SEFAZ e não poderá ser reativada.
-          </p>
-          <JustificationField
-            id="cancel-justification"
-            value={justification}
-            onChange={setJustification}
-            minLength={15}
-            maxLength={255}
-            placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
-          />
-        </div>
-      </Modal>
+        error={cancelMutation.error}
+      />
 
       {renderExtra?.(doc)}
     </div>

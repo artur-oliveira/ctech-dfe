@@ -13,8 +13,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
 import {NfeIcon} from '@/components/ui/icon'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
+import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -28,9 +27,10 @@ import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
+import {DownloadPdfButton} from "@/components/dfe/DownloadPdfButton";
 
 type Tab = 'emitidas' | 'recebidas' | 'transportadas' | 'distribuicao'
 
@@ -77,8 +77,6 @@ const MONTHS = [
   {value: 10, label: 'Out'}, {value: 11, label: 'Nov'}, {value: 12, label: 'Dez'},
 ]
 
-const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
-const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
 
@@ -96,7 +94,7 @@ function distSchemaLabel(item: NFeDistributionOut): string {
 function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: string }) {
   const [xmlLoading, setXmlLoading] = useState(false)
   const isFullNfe = item.schema_type === 'procNFe'
-  
+
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
@@ -157,19 +155,19 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
 
 function NfeDistributionTab({orgPk}: { orgPk: string }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
-  
+
   const {data: config} = useQuery({
     queryKey: queryKeys.nfeConfig(orgPk),
     queryFn: () => apiClient.getNFeConfig(orgPk),
     enabled: !!orgPk,
   })
-  
+
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('nfe', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('nfe', {limit: 10, cursor}),
     enabled: true,
   })
-  
+
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('nfe'),
     onSuccess: () => {
@@ -184,12 +182,12 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
       }
     },
   })
-  
+
   const isProd = config?.environment === 1
   const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
   const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
   const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
-  
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -215,11 +213,11 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
           {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
         </Button>
       </div>
-      
+
       {penaltyMessage && (
         <PenaltyBanner message={penaltyMessage} onDismiss={() => setPenaltyMessage(null)}/>
       )}
-      
+
       <TableShell
         ariaLabel="NF-es emitidas"
         minWidth={140}
@@ -242,7 +240,7 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
           items.map(item => <DistributionRow key={item.nsu} item={item} docType="nfe"/>)
         )}
       </TableShell>
-      
+
       {(hasNext || hasPrevious) && (
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                     isLoading={isFetching}/>
@@ -262,20 +260,20 @@ function NfeListTab({
 }) {
   const router = useRouter()
   const params = useSearchParams()
-  
+
   const filterYear = params.get('year') ?? ''
   const filterMonth = params.get('month') ?? ''
   const filterDay = params.get('day') ?? ''
   const numberSearch = params.get('number') ?? ''
   const activeTab = params.get('tab') ?? 'emitidas'
-  
+
   const setFilterYear = (v: string) => {
     const sp = new URLSearchParams()
     sp.set('tab', activeTab)
     if (v) sp.set('year', v)
     router.replace(`/nfe?${sp.toString()}`, {scroll: false})
   }
-  
+
   const setFilterMonth = (v: string) => {
     const sp = new URLSearchParams()
     sp.set('tab', activeTab)
@@ -284,7 +282,7 @@ function NfeListTab({
     if (numberSearch) sp.set('number', numberSearch)
     router.replace(`/nfe?${sp.toString()}`, {scroll: false})
   }
-  
+
   const setFilterDay = (v: string) => {
     const sp = new URLSearchParams()
     sp.set('tab', activeTab)
@@ -294,7 +292,7 @@ function NfeListTab({
     if (numberSearch) sp.set('number', numberSearch)
     router.replace(`/nfe?${sp.toString()}`, {scroll: false})
   }
-  
+
   const setNumberSearch = (v: string) => {
     const sp = new URLSearchParams()
     sp.set('tab', activeTab)
@@ -304,7 +302,7 @@ function NfeListTab({
     if (v) sp.set('number', v)
     router.replace(`/nfe?${sp.toString()}`, {scroll: false})
   }
-  
+
   const queryParams = {
     sort: 'desc' as const,
     limit: 8,
@@ -314,20 +312,20 @@ function NfeListTab({
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
     ...(filterDay ? {day: parseInt(filterDay, 10)} : {}),
   }
-  
+
   const hasFilters = numberSearch || filterYear || filterMonth || filterDay
-  
+
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NfeListOut>({
     queryKey: queryKeys.nfes.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.getNfes({...queryParams, cursor}),
     enabled: true,
   })
-  
+
   const clearFilters = () => {
     reset()
     router.replace(`/nfe?tab=${activeTab}`, {scroll: false})
   }
-  
+
   const detailLink = (accessKey: string) => {
     const sp = new URLSearchParams()
     sp.set('key', accessKey)
@@ -338,7 +336,7 @@ function NfeListTab({
     if (numberSearch) sp.set('number', numberSearch)
     return `/nfe/detail?${sp.toString()}`
   }
-  
+
   const maxDay = filterYear && filterMonth
     ? new Date(parseInt(filterYear), parseInt(filterMonth), 0).getDate()
     : 31
@@ -346,13 +344,14 @@ function NfeListTab({
     value: String(i + 1),
     label: String(i + 1).padStart(2, '0')
   }))
-  
+
   return (
     <>
       <form onSubmit={(e) => e.preventDefault()} className="flex items-start gap-3 mb-5 flex-wrap">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600">Ano</label>
+          <label htmlFor="nfe-filter-year" className="text-xs font-medium text-gray-600">Ano</label>
           <OptionsSelect
+            id="nfe-filter-year"
             value={filterYear}
             onValueChange={setFilterYear}
             options={[{value: '', label: 'Todos'}, ...YEARS.map(y => ({
@@ -363,11 +362,12 @@ function NfeListTab({
             className="h-8 w-20 text-sm"
           />
         </div>
-        
+
         {filterYear && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Mês</label>
+            <label htmlFor="nfe-filter-month" className="text-xs font-medium text-gray-600">Mês</label>
             <OptionsSelect
+              id="nfe-filter-month"
               value={filterMonth}
               onValueChange={setFilterMonth}
               options={[{value: '', label: 'Todos'}, ...MONTHS.map(m => ({
@@ -379,11 +379,12 @@ function NfeListTab({
             />
           </div>
         )}
-        
+
         {filterMonth && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Dia</label>
+            <label htmlFor="nfe-filter-day" className="text-xs font-medium text-gray-600">Dia</label>
             <OptionsSelect
+              id="nfe-filter-day"
               value={filterDay}
               onValueChange={setFilterDay}
               options={[{value: '', label: 'Todos'}, ...dayOptions]}
@@ -392,10 +393,11 @@ function NfeListTab({
             />
           </div>
         )}
-        
+
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600">Número</label>
+          <label htmlFor="nfe-filter-number" className="text-xs font-medium text-gray-600">Número</label>
           <NumericInput
+            id="nfe-filter-number"
             value={numberSearch}
             onChange={setNumberSearch}
             placeholder="Ex: 42"
@@ -404,7 +406,7 @@ function NfeListTab({
             className="w-28"
           />
         </div>
-        
+
         {hasFilters && (
           <Button type="button" variant="outline" size="sm" onClick={clearFilters}
                   className="self-end text-gray-500 hover:text-gray-700">
@@ -412,11 +414,12 @@ function NfeListTab({
           </Button>
         )}
       </form>
-      
+
       {isLoading ? (
         <LoadingSkeleton/>
       ) : items.length === 0 ? (
-        <EmptyState title={tab.emptyLabel} description={tab.emptyDesc} icon={<NfeIcon width={20} height={20}/>}/>
+        <EmptyState title={tab.emptyLabel} description={tab.emptyDesc}
+                    icon={<NfeIcon width={20} height={20}/>}/>
       ) : (
         <TableShell
           ariaLabel="NF-es recebidas"
@@ -450,22 +453,29 @@ function NfeListTab({
                   </>
                 )}
               </td>
-              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Total">{formatCurrency(nfe.total)}</td>
+              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
+                  data-label="Total">{formatCurrency(nfe.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
                 <NfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
               </td>
-              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
+                  data-label="Emissão">
                 {nfe.dh_emi ? new Date(nfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfe.year, nfe.month, nfe.day)}
               </td>
               <td className={`${TABLE_CELL} text-right`}>
                 <div className="flex items-center justify-end gap-3">
                   <Link href={detailLink(nfe.sk)}
-                        className="text-xs font-medium text-brand-600 hover:text-brand-700">
+                        className="flex items-center min-h-11 sm:min-h-0 text-xs font-medium text-brand-600 hover:text-brand-700">
                     Detalhes
                   </Link>
+                  {(nfe.status === 'authorized' || nfe.status === 'cancelled') && (
+                    <DownloadPdfButton
+                      fetchPdf={() => apiClient.downloadNfeDanfe(nfe.sk)}
+                      filename={nfe.sk} label="DANFE"/>
+                  )}
                   {nfe.status === 'authorized' && tab.incoming === 0 && (
-                    <Button variant="ghost" size="xs" onClick={() => onCancelRequest(nfe)}
-                            className="text-danger hover:text-red-700">
+                    <Button variant="ghost" size="default" onClick={() => onCancelRequest(nfe)}
+                            className="text-xs text-danger hover:text-red-700">
                       Cancelar
                     </Button>
                   )}
@@ -486,22 +496,22 @@ function NfesContent() {
   const router = useRouter()
   const params = useSearchParams()
   const qc = useQueryClient()
-  
+
   const {data: nfeConfig} = useQuery({
     queryKey: queryKeys.nfeConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getNFeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-  
+
   const activeTab = (params.get('tab') as Tab) || 'emitidas'
-  
+
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
-  
+
   const setActiveTab = (tab: Tab) => {
     router.replace(`/nfe?tab=${tab}`, {scroll: false})
   }
-  
+
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelNfe(accessKey, justification),
@@ -515,19 +525,19 @@ function NfesContent() {
       void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)})
     },
   })
-  
+
   const openCancelModal = (nfe: NfeListOut) => {
     setJustification('')
     setCancelTarget(nfe)
   }
-  
+
   const handleConfirmCancel = () => {
     if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
     cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
   }
-  
+
   const currentListTab = LIST_TABS.find(t => t.key === activeTab)
-  
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -544,9 +554,9 @@ function NfesContent() {
             </Button>
           )}
         </div>
-        
+
         <HomologationBanner environment={nfeConfig?.environment}/>
-        
+
         {/* Submenu tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {ALL_TAB_LABELS.map(tab => (
@@ -563,7 +573,7 @@ function NfesContent() {
             </button>
           ))}
         </div>
-        
+
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : activeTab === 'distribuicao' ? (
@@ -573,37 +583,21 @@ function NfesContent() {
                       onCancelRequest={openCancelModal}/>
         ) : null}
       </div>
-      
-      <Modal
+
+      <CancelDfeModal
         isOpen={cancelTarget !== null}
-        title={cancelTarget ? `Cancelar NF-e nº ${cancelTarget.number}` : ''}
+        docLabel="NF-e"
+        docNumber={cancelTarget?.number ?? ''}
+        justification={justification}
+        onJustificationChange={setJustification}
         onClose={() => {
           setCancelTarget(null);
           setJustification('')
         }}
-        onSubmit={handleConfirmCancel}
-        submitLabel="Confirmar cancelamento"
-        cancelLabel="Voltar"
-        danger
+        onConfirm={handleConfirmCancel}
         loading={cancelMutation.isPending}
-        submitDisabled={justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Esta ação é <span className="font-medium text-red-600">irreversível</span>. A NF-e será
-            cancelada junto à
-            SEFAZ e não poderá ser reativada.
-          </p>
-          <JustificationField
-            id="nfe-cancel-justification"
-            value={justification}
-            onChange={setJustification}
-            minLength={CANCEL_JUSTIFICATION_MIN_LENGTH}
-            maxLength={CANCEL_JUSTIFICATION_MAX_LENGTH}
-            placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
-          />
-        </div>
-      </Modal>
+        error={cancelMutation.error}
+      />
     </RootLayout>
   )
 }

@@ -28,7 +28,7 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 
 const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
@@ -54,7 +54,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
   const filterYear = params.get('year') ?? ''
   const filterMonth = params.get('month') ?? ''
   const numberSearch = params.get('number') ?? ''
-  
+
   const setParam = (next: Record<string, string>) => {
     const sp = new URLSearchParams()
     const merged = {year: filterYear, month: filterMonth, number: numberSearch, ...next}
@@ -63,7 +63,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
     })
     router.replace(`/nfce?${sp.toString()}`, {scroll: false})
   }
-  
+
   const queryParams = {
     sort: 'desc' as const,
     incoming: 0 as const,
@@ -72,21 +72,22 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
     ...(filterYear ? {year: parseInt(filterYear, 10)} : {}),
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
   }
-  
+
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NfeListOut>({
     queryKey: queryKeys.nfces.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.listNfces({...queryParams, cursor}),
     enabled: true,
   })
-  
+
   const hasFilters = numberSearch || filterYear || filterMonth
-  
+
   return (
     <>
       <form onSubmit={(e) => e.preventDefault()} className="flex items-start gap-3 mb-5 flex-wrap">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600">Ano</label>
-          <OptionsSelect value={filterYear} onValueChange={(v) => setParam({year: v, month: ''})}
+          <label htmlFor="nfce-filter-year" className="text-xs font-medium text-gray-600">Ano</label>
+          <OptionsSelect id="nfce-filter-year" value={filterYear}
+                         onValueChange={(v) => setParam({year: v, month: ''})}
                          options={[{value: '', label: 'Todos'}, ...YEARS.map(y => ({
                            value: String(y),
                            label: String(y)
@@ -95,8 +96,9 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
         </div>
         {filterYear && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Mês</label>
-            <OptionsSelect value={filterMonth} onValueChange={(v) => setParam({month: v})}
+            <label htmlFor="nfce-filter-month" className="text-xs font-medium text-gray-600">Mês</label>
+            <OptionsSelect id="nfce-filter-month" value={filterMonth}
+                           onValueChange={(v) => setParam({month: v})}
                            options={[{value: '', label: 'Todos'}, ...MONTHS.map(m => ({
                              value: String(m.value),
                              label: m.label
@@ -105,8 +107,9 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-600">Número</label>
-          <NumericInput value={numberSearch} onChange={(v) => setParam({number: v})} placeholder="Ex: 42"
+          <label htmlFor="nfce-filter-number" className="text-xs font-medium text-gray-600">Número</label>
+          <NumericInput id="nfce-filter-number" value={numberSearch} onChange={(v) => setParam({number: v})}
+                        placeholder="Ex: 42"
                         integerPlaces={9} debounceMs={300} className="w-28"/>
         </div>
         {hasFilters && (
@@ -117,7 +120,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                   }}>Limpar</Button>
         )}
       </form>
-      
+
       {isLoading ? (
         <LoadingSkeleton/>
       ) : items.length === 0 ? (
@@ -153,11 +156,13 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                   <span className="text-gray-400">Consumidor não identificado</span>
                 )}
               </td>
-              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Total">{formatCurrency(nfce.total)}</td>
+              <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
+                  data-label="Total">{formatCurrency(nfce.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
                 <NfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
               </td>
-              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+              <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
+                  data-label="Emissão">
                 {nfce.dh_emi ? new Date(nfce.dh_emi).toLocaleDateString('pt-BR') : formatDate(nfce.year, nfce.month, nfce.day)}
               </td>
               <td className={`${TABLE_CELL} text-right`}>
@@ -196,24 +201,24 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
 function NfceContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
-  
+
   const {data: nfceConfig} = useQuery({
     queryKey: queryKeys.nfceConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getNFCeConfig(selectedOrg!.pk),
     enabled: !!selectedOrg,
   })
-  
+
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
   const [substituteTarget, setSubstituteTarget] = useState<NfeListOut | null>(null)
-  
+
   // Optimistically show the transitional "Cancelando" state (GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
   const markCancelPending = (accessKey: string) => {
     setDocStatusOptimistic(qc, queryKeys.nfces.lists(selectedOrg?.pk), accessKey, 'cancel_pending')
     void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)})
   }
-  
+
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelNfce(accessKey, justification),
@@ -224,7 +229,7 @@ function NfceContent() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao cancelar NFC-e.'),
   })
-  
+
   const substituteMutation = useMutation({
     mutationFn: ({accessKey, substituteKey, justification}: {
       accessKey: string;
@@ -238,12 +243,12 @@ function NfceContent() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao substituir NFC-e.'),
   })
-  
+
   const handleConfirmCancel = () => {
     if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
     cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
   }
-  
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
@@ -259,9 +264,9 @@ function NfceContent() {
             </Button>
           )}
         </div>
-        
+
         <HomologationBanner environment={nfceConfig?.environment}/>
-        
+
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : (
@@ -271,7 +276,7 @@ function NfceContent() {
           }} onSubstitute={setSubstituteTarget}/>
         )}
       </div>
-      
+
       <Modal
         isOpen={cancelTarget !== null}
         title={cancelTarget ? `Cancelar NFC-e nº ${cancelTarget.number}` : ''}
@@ -301,7 +306,7 @@ function NfceContent() {
           />
         </div>
       </Modal>
-      
+
       {substituteTarget && (
         <SubstituteModal
           target={substituteTarget}

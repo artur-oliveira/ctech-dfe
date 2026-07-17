@@ -2,8 +2,8 @@
 name: ctech-dfe UI
 description: Calm, efficient fiscal-document workspace — one quiet operator, four document accents
 colors:
-  primary: "#218768"
-  primary-strong: "#1c6c55"
+  primary: "#1c6c55"
+  primary-strong: "#195644"
   primary-soft: "#f0faf6"
   neutral-bg: "#ffffff"
   neutral-surface: "#f8fafc"
@@ -88,11 +88,11 @@ The interface is the competent colleague who has already done the bureaucratic w
 A near-white canvas with a single soft-green brand accent, plus four contextual accents that recolor the whole surface per document type. Neutrals are a cool slate ramp; the brand green is the only always-on color.
 
 ### Primary
-- **Soft Green** (#218768): the brand accent and the fill of every primary action (buttons, active nav, key links). Hover deepens to #1c6c55.
+- **Soft Green** (#1c6c55): the brand accent and the fill of every primary action (buttons, active nav, key links). Hover deepens to #195644. (Darkened from the original #218768/#1c6c55 pair — the resting shade measured 4.4:1 against white, under the 4.5:1 AA floor for normal text.)
 - **Green Wash** (#f0faf6): tinted backgrounds for selected rows, soft callouts, and the login gradient base.
 
 ### Contextual accents (one per document type)
-- **NF-e Green** (#218768): the default — no `data-dfe-theme` attribute needed. Carries the NF-e surface.
+- **NF-e Green** (#1c6c55): the default — no `data-dfe-theme` attribute needed. Carries the NF-e surface.
 - **NFC-e Blue** (#3b82f6): applied via `data-dfe-theme="nfce"`; recolors sidebar, buttons, and badges for NFC-e.
 - **CT-e Violet** (#8b5cf6): applied via `data-dfe-theme="cte"`.
 - **MDF-e Amber** (#f59e0b): applied via `data-dfe-theme="mdfe"`.
