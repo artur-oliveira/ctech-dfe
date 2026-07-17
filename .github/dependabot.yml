@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      
+  - package-ecosystem: "gomod"
+    directory: "/worker"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/py-dfe"
+    schedule:
+      interval: "weekly"
+      
+  - package-ecosystem: "npm"
+    directory: "/cdk"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
