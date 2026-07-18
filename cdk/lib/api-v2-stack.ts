@@ -1,14 +1,17 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as autoscaling from 'aws-cdk-lib/aws-autoscaling';
-import {AdditionalHealthCheckType} from 'aws-cdk-lib/aws-autoscaling';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
+import {
+  addCloudWatchAgentDualStackOverride,
+  addDualStackSsmAgentCommands,
+  addRealipRefreshCommands,
+  addSwapCommands,
+  PrivateIpv4Ec2Service,
+} from '@aoctech/cdk';
 import {Environment} from './types';
-import {Duration} from 'aws-cdk-lib';
 
 interface ApiStackV2Props extends cdk.StackProps {
   environment: Environment;
@@ -62,15 +65,6 @@ export class ApiStackV2 extends cdk.Stack {
     );
     const albSg = ec2.SecurityGroup.fromSecurityGroupId(this, 'AlbSg', albSgId);
 
-    const apiSecurityGroup = new ec2.SecurityGroup(this, 'ApiSg', {
-      vpc,
-      securityGroupName: `${environment}-ctech-dfe-api-sg`,
-      description: 'ctech-dfe API instances',
-      allowAllOutbound: true,
-      allowAllIpv6Outbound: true,
-    });
-    apiSecurityGroup.addIngressRule(albSg, ec2.Port.tcp(8080), 'ALB to API');
-
     const httpsListenerArn = ssm.StringParameter.valueForStringParameter(
       this, `/ctech/${environment}/alb/https-listener-arn`,
     );
@@ -80,40 +74,16 @@ export class ApiStackV2 extends cdk.Stack {
     );
 
     const isProd = environment === 'prod';
-    this.asgName = `${environment}-ctech-dfe-api-v2`;
+    // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
+    // PrivateIpv4Ec2Service changes their CloudFormation logical IDs, which
+    // CloudFormation treats as delete-old/create-new. Explicit physical names
+    // must differ from the old ones or the create side of that swap collides
+    // with the still-live old resource.
+    const svcName = 'ctech-dfe-v2';
+    this.asgName = `${environment}-${svcName}-api`;
     const logRetention: logs.RetentionDays = isProd ? logs.RetentionDays.ONE_MONTH : logs.RetentionDays.ONE_WEEK;
-    const logGroupApp = `/ctech-dfe/${environment}/app`;
-    const logGroupNginx = `/ctech-dfe/${environment}/nginx`;
-
-    // ── CloudWatch Log Groups ─────────────────────────────────────────────────
-    const appLogGroup = new logs.LogGroup(this, 'AppLogGroup', {
-      logGroupName: logGroupApp,
-      retention: logRetention,
-      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
-
-    const nginxLogGroup = new logs.LogGroup(this, 'NginxLogGroup', {
-      logGroupName: logGroupNginx,
-      retention: logRetention,
-      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
-
-    // ── HTTP status code metric filters (nginx JSON access log) ───────────────
-    for (const [name, pattern] of [
-      ['HTTP2XX', '{ ($.status >= 200) && ($.status < 300) }'],
-      ['HTTP3XX', '{ ($.status >= 300) && ($.status < 400) }'],
-      ['HTTP4XX', '{ ($.status >= 400) && ($.status < 500) }'],
-      ['HTTP5XX', '{ $.status >= 500 }'],
-    ] as [string, string][]) {
-      new logs.MetricFilter(this, `${name}Filter`, {
-        logGroup: nginxLogGroup,
-        metricNamespace: `CtechDfe/${environment}`,
-        metricName: name,
-        filterPattern: logs.FilterPattern.literal(pattern),
-        metricValue: '1',
-        defaultValue: 0,
-      });
-    }
+    const logGroupApp = `/${svcName}/${environment}/app`;
+    const logGroupNginx = `/${svcName}/${environment}/nginx`;
 
     // ── User Data ─────────────────────────────────────────────────────────────
     const userData = ec2.UserData.forLinux();
@@ -124,29 +94,12 @@ export class ApiStackV2 extends cdk.Stack {
       'useradd --system --no-create-home --shell /sbin/nologin webapp',
       'mkdir -p /opt/app/releases /var/log/app /etc/nginx/conf.d',
       'chown -R webapp:webapp /opt/app /var/log/app',
+    );
 
-      // ── Swap (256 MB) ──────────────────────────────────────────────────────────
-      // Prevents OOM on t4g.micro (1 GB RAM) under memory pressure.
-      'if [ ! -f /var/swapfile ]; then',
-      '  dd if=/dev/zero of=/var/swapfile bs=1M count=256',
-      '  chmod 600 /var/swapfile',
-      '  mkswap /var/swapfile',
-      '  swapon /var/swapfile',
-      '  echo "/var/swapfile swap swap defaults 0 0" >> /etc/fstab',
-      'fi',
+    addSwapCommands(userData);
+    addDualStackSsmAgentCommands(userData);
 
-      // ── System-wide dual-stack endpoint (SSM agent, CW agent, boto3 CLI) ────
-      'echo "AWS_USE_DUALSTACK_ENDPOINT=true" >> /etc/environment',
-
-      // ── SSM agent: force IPv6 dual-stack endpoint ────────────────────────────
-      // Without this the SSM agent fails to connect when the instance has no public IPv4.
-      `mkdir -p /etc/amazon/ssm`,
-      `cat > /etc/amazon/ssm/amazon-ssm-agent.json << 'SSM'`,
-      `{ "Agent": { "UseDualStackEndpoint": true } }`,
-      `SSM`,
-      'systemctl enable amazon-ssm-agent',
-      'systemctl restart amazon-ssm-agent',
-
+    userData.addCommands(
       // ── nginx: listens :8080, proxies to app :8000 ───────────────────────────
       // Incorporates all production tuning from .platform/nginx/nginx.conf.
       // Quoted delimiter prevents bash from expanding nginx $variables.
@@ -303,106 +256,18 @@ export class ApiStackV2 extends cdk.Stack {
       `    }`,
       `}`,
       `NGINX`,
+    );
 
-      // ── realip: trust the ALB and CloudFront, nobody else ─────────────────────
-      // Without this, $remote_addr is the ALB's private IP: every client collapses
-      // into one rate-limit bucket. Walking X-Forwarded-For right-to-left and
-      // discarding only trusted hops is what makes the resolved IP unforgeable —
-      // taking the leftmost entry instead would let a client spoof the header.
-      //
-      // CloudFront's origin-facing ranges change over time, so they are fetched from
-      // AWS rather than pinned in the template, and refreshed by a daily timer.
-      //
-      // They come from the AWS-managed prefix list instead of ip-ranges.json:
-      // ip-ranges.amazonaws.com has no AAAA record and these instances are
-      // IPv6-only, so the EC2 dual-stack endpoint is the reachable source. The
-      // list is IPv4-only, which matches reality — CloudFront connects to
-      // origins over IPv4.
-      `cat > /opt/app/update-realip.sh << 'REALIP'`,
-      `#!/bin/bash`,
-      `set -euo pipefail`,
-      `CONF=/etc/nginx/conf.d/realip.conf`,
-      `TMP=$(mktemp)`,
-      // systemd units do not inherit /etc/environment, so the dual-stack opt-in
-      // must be set here for the timer-driven runs.
-      `export AWS_USE_DUALSTACK_ENDPOINT=true`,
-      `PL_ID=$(aws ec2 describe-managed-prefix-lists --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing --query 'PrefixLists[0].PrefixListId' --output text --region us-east-1)`,
-      `if [ -z "$PL_ID" ] || [ "$PL_ID" = "None" ]; then`,
-      `  echo "CloudFront origin-facing managed prefix list not found" >&2`,
-      `  exit 1`,
-      `fi`,
-      `PREFIXES=$(aws ec2 get-managed-prefix-list-entries --prefix-list-id "$PL_ID" --query 'Entries[].Cidr' --output text --region us-east-1 | tr '\\t' '\\n')`,
-      // A partial list is worse than the old file: an unlisted edge would be treated
-      // as the client and become the rate-limit key. Bail and keep what we have.
-      `if [ "$(echo "$PREFIXES" | grep -c .)" -lt 10 ]; then`,
-      `  echo "Refusing to write realip.conf: only $(echo "$PREFIXES" | grep -c .) CloudFront prefixes returned" >&2`,
-      `  exit 1`,
-      `fi`,
-      `{`,
-      `  echo "# Generated by /opt/app/update-realip.sh — do not edit."`,
-      `  echo "set_real_ip_from __VPC_CIDR__;"`,
-      `  echo "$PREFIXES" | sed -e 's|^|set_real_ip_from |' -e 's|$|;|'`,
-      `  echo "real_ip_header X-Forwarded-For;"`,
-      `  echo "real_ip_recursive on;"`,
-      `} > "$TMP"`,
-      `install -m 644 "$TMP" "$CONF"`,
-      `rm -f "$TMP"`,
-      // nginx -t reads the live config, so a bad file is caught before it is served.
-      `if ! nginx -t 2>/dev/null; then`,
-      `  echo "nginx rejected the generated realip.conf — reverting" >&2`,
-      `  rm -f "$CONF"`,
-      `  exit 1`,
-      `fi`,
-      // Guarded with `if` rather than `&&`: under `set -e`, a false `&&` chain as the
-      // last statement would exit non-zero on the bootstrap run, when nginx is not up yet.
-      `if systemctl is-active --quiet nginx; then`,
-      `  systemctl reload nginx`,
-      `fi`,
-      `REALIP`,
-      `sed -i 's|__VPC_CIDR__|${vpc.vpcCidrBlock}|g' /opt/app/update-realip.sh`,
-      `chmod +x /opt/app/update-realip.sh`,
+    addRealipRefreshCommands(userData, vpc.vpcCidrBlock);
 
-      `cat > /etc/systemd/system/update-realip.service << 'REALIPSVC'`,
-      `[Unit]`,
-      `Description=Refresh nginx realip trusted proxy ranges`,
-      `After=network-online.target`,
-      `Wants=network-online.target`,
-      ``,
-      `[Service]`,
-      `Type=oneshot`,
-      `ExecStart=/opt/app/update-realip.sh`,
-      `REALIPSVC`,
+    userData.addCommands(
+      'systemctl enable nginx',
+      'systemctl start nginx',
+    );
 
-      `cat > /etc/systemd/system/update-realip.timer << 'REALIPTIMER'`,
-      `[Unit]`,
-      `Description=Daily refresh of nginx realip trusted proxy ranges`,
-      ``,
-      `[Timer]`,
-      `OnCalendar=daily`,
-      `RandomizedDelaySec=1h`,
-      `Persistent=true`,
-      ``,
-      `[Install]`,
-      `WantedBy=timers.target`,
-      `REALIPTIMER`,
+    addCloudWatchAgentDualStackOverride(userData);
 
-      // Generate the file before nginx first starts, so no request is ever served
-      // with the ALB as the rate-limit key.
-      `/opt/app/update-realip.sh || echo "realip bootstrap failed — rate limiting will key on the ALB until the timer succeeds"`,
-      `systemctl enable nginx`,
-      `systemctl start nginx`,
-      `systemctl daemon-reload`,
-      `systemctl enable --now update-realip.timer`,
-
-      // ── CloudWatch agent ─────────────────────────────────────────────────────
-      // Force dual-stack endpoint so the agent can reach CloudWatch Logs over
-      // IPv6 (instances have no public IPv4).
-      `mkdir -p /etc/systemd/system/amazon-cloudwatch-agent.service.d`,
-      `cat > /etc/systemd/system/amazon-cloudwatch-agent.service.d/override.conf << 'CWAENV'`,
-      `[Service]`,
-      `Environment=AWS_USE_DUALSTACK_ENDPOINT=true`,
-      `CWAENV`,
-
+    userData.addCommands(
       // {instance_id} is resolved by the CW agent at runtime, not by bash.
       `cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWA'`,
       `{`,
@@ -571,104 +436,43 @@ export class ApiStackV2 extends cdk.Stack {
       `aws s3api head-object --bucket "${deploymentsBucketName}" --key "ctech-dfe/api/current.zip" 2>/dev/null && /opt/app/deploy.sh ctech-dfe/api/current.zip || echo "No bootstrap artifact, waiting for first deploy"`,
     );
 
-    // ── Launch Template ───────────────────────────────────────────────────────
-    const instanceProfile = iam.InstanceProfile.fromInstanceProfileName(
-      this, 'InstanceProfile', instanceProfileName,
-    );
-
-    const launchTemplate = new ec2.LaunchTemplate(this, 'LaunchTemplate', {
-      launchTemplateName: `${this.asgName}-lt`,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({
-        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
-        edition: ec2.AmazonLinuxEdition.MINIMAL,
-      }),
-      blockDevices: [{
-        deviceName: '/dev/xvda',
-        volume: ec2.BlockDeviceVolume.ebs(3, {
-          volumeType: ec2.EbsDeviceVolumeType.GP3,
-          deleteOnTermination: true,
-        }),
-      }],
+    // ── Shared no-NAT-Gateway EC2/ASG pattern (@aoctech/cdk) ───────────────────
+    // Priority bumped 10 → 15: the old ListenerRule (still live under the old
+    // logical ID until this deploy completes) already holds priority 10, and
+    // ALB rejects two rules on the same listener sharing a priority.
+    const service = new PrivateIpv4Ec2Service(this, 'ApiService', {
+      vpc,
+      albSg,
+      httpsListener,
+      securityGroupName: `${environment}-${svcName}-api-sg`,
+      securityGroupDescription: 'ctech-dfe API instances',
+      appPort: 8080,
+      instanceProfileName,
       userData,
-      instanceProfile,
-      requireImdsv2: true,
-      // securityGroup is passed so CDK can resolve IConnectable for
-      // attachToApplicationTargetGroup. The generated SecurityGroupIds property
-      // is deleted below and moved into NetworkInterfaces, which is the only
-      // place AssociatePublicIpAddress and Ipv6AddressCount can be set.
-      securityGroup: apiSecurityGroup,
-    });
-
-    const cfnLT = launchTemplate.node.defaultChild as ec2.CfnLaunchTemplate;
-
-    // Move security group from SecurityGroupIds into NetworkInterfaces so we
-    // can disable public IPv4 and request one IPv6 address per instance.
-    // AWS rejects a launch template that has both fields simultaneously.
-    cfnLT.addPropertyDeletionOverride('LaunchTemplateData.SecurityGroupIds');
-    cfnLT.addPropertyOverride('LaunchTemplateData.NetworkInterfaces', [{
-      DeviceIndex: 0,
-      Groups: [apiSecurityGroup.securityGroupId],
-      AssociatePublicIpAddress: false,
-      Ipv6AddressCount: 1,
-    }]);
-
-    // ── Target Group ──────────────────────────────────────────────────────────
-    const targetGroup = new elbv2.ApplicationTargetGroup(this, 'TargetGroup', {
-      targetGroupName: `${this.asgName}-tg-v2`,
-      vpc,
-      port: 8080,
-      protocol: elbv2.ApplicationProtocol.HTTP,
-      targetType: elbv2.TargetType.INSTANCE,
-      healthCheck: {
-        path: '/v1.0/health-check',
-        interval: cdk.Duration.seconds(15),
-        timeout: cdk.Duration.seconds(5),
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 5,
-        healthyHttpCodes: '200,207',
-      },
-      deregistrationDelay: cdk.Duration.seconds(30),
-    });
-
-    // ── Auto Scaling Group ────────────────────────────────────────────────────
-    const asg = new autoscaling.AutoScalingGroup(this, 'ASG', {
-      autoScalingGroupName: this.asgName,
-      vpc,
-      vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC},
-      launchTemplate,
+      logGroupAppName: logGroupApp,
+      logGroupNginxName: logGroupNginx,
+      logRetention,
+      logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      metricNamespace: `CtechDfe/${environment}`,
+      targetGroupName: `${this.asgName}-tg`,
+      healthCheckPath: '/v1.0/health-check',
+      healthyHttpCodes: '200,207',
+      asgName: this.asgName,
       minCapacity: 1,
       maxCapacity: isProd ? 3 : 1,
-      cooldown: cdk.Duration.seconds(120),
-      healthChecks: autoscaling.HealthChecks.withAdditionalChecks({
-        additionalTypes: [AdditionalHealthCheckType.ELB],
-        gracePeriod: Duration.seconds(120),
-      }),
-      // healthChecks omitted → defaults to EC2-only.
-      // ASG replaces only truly dead instances (VM crash/stop).
-      // ALB target group health check handles traffic routing independently.
-      // Adding ELB here causes infinite replacement loops before first deploy.
-    });
-
-    asg.attachToApplicationTargetGroup(targetGroup);
-
-    // ── ALB Listener Rule ─────────────────────────────────────────────────────
-    new elbv2.ApplicationListenerRule(this, 'ListenerRule', {
-      listener: httpsListener,
-      priority: 10,
-      conditions: [
-        elbv2.ListenerCondition.hostHeaders([domainName]),
-        elbv2.ListenerCondition.pathPatterns(['/*']),
-      ],
-      action: elbv2.ListenerAction.forward([targetGroup]),
+      domainName,
+      listenerRulePriority: 15,
     });
 
     // ── Outputs ───────────────────────────────────────────────────────────────
-    new cdk.CfnOutput(this, 'AsgName', {value: this.asgName, exportName: `${id}-asg-name`});
-    new cdk.CfnOutput(this, 'AppLogGroupName', {value: appLogGroup.logGroupName, exportName: `${id}-app-log-group`});
+    new cdk.CfnOutput(this, 'AsgName', {value: service.asgName, exportName: `${id}-asg-name`});
+    new cdk.CfnOutput(this, 'AppLogGroupName', {
+      value: service.appLogGroup.logGroupName,
+      exportName: `${id}-app-log-group`,
+    });
     new cdk.CfnOutput(this, 'NginxLogGroupName', {
-      value: nginxLogGroup.logGroupName,
-      exportName: `${id}-nginx-log-group`
+      value: service.nginxLogGroup.logGroupName,
+      exportName: `${id}-nginx-log-group`,
     });
   }
 }
