@@ -22,7 +22,7 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/valyala/fasthttp v1.72.0
 	go.uber.org/fx v1.24.0
-	gopkg.aoctech.app/api-commons v1.0.0
+	gopkg.aoctech.app/api-commons v1.0.1
 	software.sslmate.com/src/go-pkcs12 v0.7.3
 )
 
