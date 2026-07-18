@@ -555,6 +555,8 @@ func (s *DfeService) publishEventResult(ctx context.Context, msg WorkerMessage, 
 // SNS topic. No-op when SNS is disabled or no topic is configured.
 func (s *DfeService) publishResult(ctx context.Context, payload map[string]any) {
 	if s.sns == nil || s.cfg.ResultsTopicARN == "" {
+		slog.Warn("results notification skipped: SNS disabled or RESULTS_TOPIC_ARN unset",
+			"access_key", payload[notifyKeyAccessKey])
 		return
 	}
 	body, err := json.Marshal(payload)

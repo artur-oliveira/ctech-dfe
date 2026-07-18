@@ -3,6 +3,8 @@ import * as sns from 'aws-cdk-lib/aws-sns'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions'
 import * as iam from 'aws-cdk-lib/aws-iam'
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
+import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions'
 import {Construct} from 'constructs'
 import {Environment} from './types'
 
@@ -33,10 +35,33 @@ export class EventBusStack extends cdk.Stack {
       displayName: `CTech DF-e Results Bus - ${environment}`,
     })
 
+    const opsAlertsTopic = new sns.Topic(this, 'results-ops-alerts-topic', {
+      topicName: `${environment}-ctech-dfe-results-ops-alerts`,
+    })
+
+    const resultsDlq = new sqs.Queue(this, 'ResultsQueue-dlq', {
+      queueName: `${environment}-ctech-dfe-results-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+    })
+
+    new cloudwatch.Alarm(this, 'ResultsQueue-dlq-alarm', {
+      alarmName: `${environment}-ctech-dfe-results-dlq-alarm`,
+      alarmDescription: 'One or more messages landed in the results DLQ — a worker→api WebSocket notification failed after all retries.',
+      metric: resultsDlq.metricApproximateNumberOfMessagesVisible({period: cdk.Duration.minutes(1)}),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
+
     const resultsQueue = new sqs.Queue(this, 'ResultsQueue', {
       queueName: `${environment}-ctech-dfe-results`,
       visibilityTimeout: cdk.Duration.seconds(30),
       retentionPeriod: cdk.Duration.hours(1),
+      deadLetterQueue: {
+        queue: resultsDlq,
+        maxReceiveCount: 3,
+      },
     })
 
     this.resultsTopic.addSubscription(
