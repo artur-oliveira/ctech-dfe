@@ -53,6 +53,20 @@ jobs:
         working-directory: cdk
         run: npm ci
 
+      - name: Check for duplicated infra patterns
+        working-directory: cdk
+        run: |
+          FAIL=0
+          if grep -rn "AssociatePublicIpAddress" --include="*.ts" lib/ bin/ 2>/dev/null; then
+            echo "::error::Hand-rolled AssociatePublicIpAddress found — use PrivateIpv4Ec2Service from @aoctech/cdk instead"
+            FAIL=1
+          fi
+          if grep -rEn "max(Read|Write)RequestUnits: [0-9]{1,2}[,}]" --include="*.ts" lib/ 2>/dev/null; then
+            echo "::error::DynamoDB on-demand throughput cap suspiciously low (<100 RCU/WCU) — see _analysis P0 finding"
+            FAIL=1
+          fi
+          exit $FAIL
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -122,6 +136,20 @@ jobs:
       - name: Install dependencies
         working-directory: cdk
         run: npm ci
+
+      - name: Check for duplicated infra patterns
+        working-directory: cdk
+        run: |
+          FAIL=0
+          if grep -rn "AssociatePublicIpAddress" --include="*.ts" lib/ bin/ 2>/dev/null; then
+            echo "::error::Hand-rolled AssociatePublicIpAddress found — use PrivateIpv4Ec2Service from @aoctech/cdk instead"
+            FAIL=1
+          fi
+          if grep -rEn "max(Read|Write)RequestUnits: [0-9]{1,2}[,}]" --include="*.ts" lib/ 2>/dev/null; then
+            echo "::error::DynamoDB on-demand throughput cap suspiciously low (<100 RCU/WCU) — see _analysis P0 finding"
+            FAIL=1
+          fi
+          exit $FAIL
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6

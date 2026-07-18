@@ -52,8 +52,8 @@ const getDfeTable = (
         partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
         sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
         billing: Billing.onDemand({
-            maxReadRequestUnits: 5,
-            maxWriteRequestUnits: 5,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         }),
         removalPolicy,
         pointInTimeRecoverySpecification,
@@ -75,8 +75,8 @@ const getDfeTable = (
         ],
         projectionType: dynamodb.ProjectionType.ALL,
         warmThroughput: undefined,
-        maxReadRequestUnits: 10,
-        maxWriteRequestUnits: 10,
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
     });
 
     dfeTable.addGlobalSecondaryIndex({
@@ -105,8 +105,8 @@ const getDfeTable = (
         ],
         projectionType: dynamodb.ProjectionType.ALL,
         warmThroughput: undefined,
-        maxReadRequestUnits: 10,
-        maxWriteRequestUnits: 10,
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
     });
 
     return dfeTable;
@@ -127,8 +127,8 @@ const getDistributionTable = (
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'nsu', type: dynamodb.AttributeType.NUMBER},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -158,8 +158,8 @@ const getEventsTable = (
                 type: dynamodb.AttributeType.STRING,
             },
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification: pointInTimeRecoverySpecification,
@@ -180,8 +180,8 @@ const getEventsTable = (
         },
         projectionType: dynamodb.ProjectionType.ALL,
         warmThroughput: undefined,
-        maxReadRequestUnits: 10,
-        maxWriteRequestUnits: 10,
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
     });
     return eventsTable;
 }
@@ -200,8 +200,8 @@ const getDfeConfigTable = (
             tableName: `${tbPrefix}_organization_${tbName}`,
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -226,8 +226,8 @@ export class DynamoDBStack extends cdk.Stack {
             tableName: `${tablePrefix}_roles`,
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -239,8 +239,8 @@ export class DynamoDBStack extends cdk.Stack {
             tableName: `${tablePrefix}_users`,
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -251,24 +251,24 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'email', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         usersTable.addGlobalSecondaryIndex({
             indexName: 'username-index',
             partitionKey: {name: 'username', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         usersTable.addGlobalSecondaryIndex({
             indexName: 'ctech-user-id-index',
             partitionKey: {name: 'ctech_user_id', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('users', usersTable);
 
@@ -276,8 +276,8 @@ export class DynamoDBStack extends cdk.Stack {
             tableName: `${tablePrefix}_organizations`,
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -291,8 +291,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -307,8 +307,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 5,
-            maxWriteRequestUnits: 20,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('organization_users', organizationUsersTable);
 
@@ -320,8 +320,8 @@ export class DynamoDBStack extends cdk.Stack {
             tableName: `${tablePrefix}_organization_invitations`,
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             timeToLiveAttribute: 'ttl',
             removalPolicy,
@@ -335,8 +335,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'created_at', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('organization_invitations', organizationInvitationsTable);
 
@@ -347,8 +347,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -360,8 +360,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'created_at', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         auditLogsTable.addGlobalSecondaryIndex({
             indexName: 'user-id-index',
@@ -369,8 +369,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'created_at', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('audit_logs', auditLogsTable);
 
@@ -381,8 +381,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -395,8 +395,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -408,8 +408,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'description', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         productsTable.addGlobalSecondaryIndex({
             indexName: 'code-index',
@@ -417,8 +417,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'code', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('products', productsTable);
 
@@ -427,8 +427,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -440,8 +440,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'plate', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         vehiclesTable.addGlobalSecondaryIndex({
             indexName: 'role-index',
@@ -449,8 +449,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'role', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('vehicles', vehiclesTable);
 
@@ -459,8 +459,8 @@ export class DynamoDBStack extends cdk.Stack {
             partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
             sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
             billing: Billing.onDemand({
-                maxReadRequestUnits: 5,
-                maxWriteRequestUnits: 5,
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
             }),
             removalPolicy,
             pointInTimeRecoverySpecification,
@@ -472,8 +472,8 @@ export class DynamoDBStack extends cdk.Stack {
             sortKey: {name: 'name', type: dynamodb.AttributeType.STRING},
             projectionType: dynamodb.ProjectionType.ALL,
             warmThroughput: undefined,
-            maxReadRequestUnits: 10,
-            maxWriteRequestUnits: 10,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
         });
         this.tables.set('persons', personsTable);
 
