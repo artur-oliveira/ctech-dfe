@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	pkcs12 "software.sslmate.com/src/go-pkcs12"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 // makePFX builds a self-signed cert whose CN is `cn`, wraps it + a fresh RSA key

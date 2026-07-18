@@ -52,8 +52,10 @@ api/
 
 - Never duplicate functions. If two functions do the same thing, unify them.
 - Before adding any function or type, search `internal/` for existing implementations.
-- CRUD repositories must extend `CRUDRepository[T]` (defined in `base.go`) using Go generics to reuse standard CRUD operations.
-- CRUD services must use `CRUDMutationHelper` and caching helpers (`GetCachedItem`, `GetCachedList` in `crud.go`) to handle unified caching, list/detail retrieval, audit logging, and cache eviction within the organization context.
+- CRUD repositories must extend `CRUDRepository[T]` (defined in `base.go`) using Go generics to reuse standard CRUD
+  operations.
+- CRUD services must use `CRUDMutationHelper` and caching helpers (`GetCachedItem`, `GetCachedList` in `crud.go`) to
+  handle unified caching, list/detail retrieval, audit logging, and cache eviction within the organization context.
 - UF→IBGE code maps and SEFAZ environment strings MUST NOT be redeclared in individual files.
   Search `internal/` for existing constant definitions before adding any new constant.
 
