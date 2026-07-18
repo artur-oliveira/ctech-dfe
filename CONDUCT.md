@@ -331,6 +331,17 @@ Never commit or expose:
 
 - Prefer static rendering over server-side rendering when possible.
 - Avoid duplicate fetches for the same data in a single render cycle.
+- **`useWebSocket` lives in the shared `@aoctech/ws-client` package (repo `ctech-ws-client`), not
+  locally** — it's also consumed by `ctech-wallet/ui`. Do not fork or re-add a local copy; extend
+  the shared package instead. WS heartbeat contract: the server (`api/internal/api/v1/ws.go`)
+  sends a native ping every 30s and enforces a 45s read-deadline via `SetPongHandler` — the browser
+  answers this transparently, no app code involved. The client can't send native ping frames
+  (WHATWG constraint), so it sends its own app-level `{"type":"ping"}` every 20s and closes the
+  socket if no `{"type":"pong"}` reply arrives within 10s; the server's read loop must reply to
+  that. `ctech-wallet/api`'s `ws.go` only implements the pong-reply half of this (native-frame
+  ping/pong there is an open follow-up, see `docs/specs/2026-07-18-websocket-resilience-design.md`).
+  `subscribeAccessToken` (`client.ts`) notifies the hook on every new access token (login + silent
+  refresh) so it reconnects immediately instead of holding a stale token.
 
 ---
 

@@ -1519,6 +1519,19 @@ DLQ for failed events, and FIFO deduplication.
 JWKS keys and WebSocket connections are stored in Redis (Valkey). Shared across all API instances — no stale reads
 or reconnect storms after rolling deploys. In-memory fallback is available for local dev (no Redis required).
 
+### Why native WS ping/pong on the server but app-level JSON on the client?
+
+The server (`api/internal/api/v1/ws.go`) sends a native ping control frame every 30s and enforces a
+45s read-deadline via `SetPongHandler`/`SetReadDeadline` — a half-open connection (TCP reset lost
+somewhere in the proxy chain) now breaks the read loop within a bounded time instead of blocking
+`ReadMessage()` forever. The client side can't mirror this with native frames: the WHATWG WebSocket
+API gives browser JS no way to send a ping frame itself (only Node's `ws` library exposes `.ping()`).
+So the client sends its own app-level `{"type":"ping"}` every 20s and closes the socket if no
+`{"type":"pong"}` arrives within 10s — the server's read loop replies to that explicitly. The hook
+implementing this (`useWebSocket`) lives in the shared `@aoctech/ws-client` npm package (repo
+`ctech-ws-client`), consumed by both `ctech-dfe/ui` and `ctech-wallet/ui`, so the heartbeat/backoff/
+reconnect-on-token-refresh logic isn't duplicated across the two frontends.
+
 ### Why OAuth 2.0 via ctech-account?
 
 Auth is fully delegated to ctech-account (accounts.aoctech.app): PKCE redirect flow, RS256 token issuance,
