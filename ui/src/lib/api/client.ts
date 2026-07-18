@@ -63,6 +63,20 @@ export function getAccessToken(): string | null {
   return _accessToken
 }
 
+const tokenListeners = new Set<(token: string) => void>()
+
+// Notified on every genuinely new access token (login, silent refresh) — lets
+// a WebSocket consumer force an immediate reconnect instead of holding a
+// stale token indefinitely (see @aoctech/ws-client's subscribeToken).
+export function subscribeAccessToken(cb: (token: string) => void): () => void {
+  tokenListeners.add(cb)
+  return () => tokenListeners.delete(cb)
+}
+
+function notifyTokenListeners(token: string): void {
+  tokenListeners.forEach((cb) => cb(token))
+}
+
 interface ErrorResponseBody {
   detail?: string
   title?: string
@@ -128,6 +142,7 @@ function createAxiosInstance(): AxiosInstance {
         const newToken = await _refreshFn()
         if (newToken) {
           _accessToken = newToken
+          notifyTokenListeners(newToken)
           original.headers = {
             ...original.headers,
             Authorization: `Bearer ${newToken}`,
@@ -161,6 +176,7 @@ class ApiClient {
 
   setToken(token: string | null): void {
     _accessToken = token
+    if (token) notifyTokenListeners(token)
   }
 
   /** Dev-only seam: lets the mock layer replace axios's adapter with an

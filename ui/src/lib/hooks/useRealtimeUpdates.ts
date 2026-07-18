@@ -4,9 +4,9 @@ import {useCallback} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {useAuth} from './useAuth'
-import {useWebSocket, type WSStatus} from './useWebSocket'
+import {useWebSocket, type WSStatus} from '@aoctech/ws-client'
 import {queryKeys} from '@/lib/api/query-keys'
-import {getAccessToken} from '@/lib/api/client'
+import {getAccessToken, subscribeAccessToken} from '@/lib/api/client'
 import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
 
 // `next dev` rewrites do not proxy the WebSocket upgrade, so local development
@@ -98,6 +98,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     onMessage: handleMessage,
     enabled: !!wsUrl,
     authToken: token ?? undefined,
+    subscribeToken: subscribeAccessToken,
   })
 
   return {wsStatus}
