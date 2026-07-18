@@ -138,6 +138,7 @@ golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
 golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=
 gopkg.aoctech.app/api-commons v0.1.2 h1:l33IlF209Rox7oG45h1iYEbVHylD6/6IQeR6lg4dvNM=
 gopkg.aoctech.app/api-commons v0.1.2/go.mod h1:sHFttKgPh9fymT2ZI8p7VHqkfnD3/H0+jEp/1Bx4Y4Q=
+gopkg.aoctech.app/api-commons v1.0.0 h1:D4DFqv8T3/1tkhlDFVk6UNH5CsbNvAM67MXlrHOM5ms=
 gopkg.aoctech.app/api-commons v1.0.0/go.mod h1:sHFttKgPh9fymT2ZI8p7VHqkfnD3/H0+jEp/1Bx4Y4Q=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
