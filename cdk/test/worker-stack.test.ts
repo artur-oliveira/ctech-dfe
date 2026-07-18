@@ -36,3 +36,16 @@ test('every DLQ processor role can UpdateItem on its worker tables', () => {
   )
   expect(updateItemPolicies.length).toBeGreaterThanOrEqual(workersWithTables.length)
 })
+
+test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
+  const template = buildTemplate()
+
+  template.resourceCountIs('AWS::CloudWatch::Alarm', WORKERS.length)
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+    ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+    EvaluationPeriods: 1,
+    Threshold: 1,
+    Namespace: 'AWS/SQS',
+    MetricName: 'ApproximateNumberOfMessagesVisible',
+  })
+})

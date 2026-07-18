@@ -7,6 +7,8 @@ import * as lambdaEvents from 'aws-cdk-lib/aws-lambda-event-sources'
 import * as scheduler from 'aws-cdk-lib/aws-scheduler'
 import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
+import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions'
 import {Construct} from 'constructs'
 import {Duration} from 'aws-cdk-lib'
 import {WorkerDefinition} from './worker-definitions'
@@ -96,12 +98,26 @@ export class WorkerStack extends cdk.Stack {
     // =========================
     const queueById = new Map<string, sqs.Queue>()
 
+    const opsAlertsTopic = new sns.Topic(this, 'ops-alerts-topic', {
+      topicName: `${environment}-dfe-ops-alerts`,
+    })
+
     for (const worker of workers) {
 
       const dlq = new sqs.Queue(this, `${worker.id}-dlq`, {
         queueName: `${environment}-${worker.queueName}-dlq`,
         retentionPeriod: Duration.days(14),
       })
+
+      new cloudwatch.Alarm(this, `${worker.id}-dlq-alarm`, {
+        alarmName: `${environment}-${worker.queueName}-dlq-alarm`,
+        alarmDescription: `One or more messages landed in the ${worker.queueName} DLQ — a fiscal document/event failed after all retries.`,
+        metric: dlq.metricApproximateNumberOfMessagesVisible({period: Duration.minutes(1)}),
+        threshold: 1,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
 
       const queue = new sqs.Queue(this, `${worker.id}-queue`, {
         queueName: `${environment}-${worker.queueName}`,
