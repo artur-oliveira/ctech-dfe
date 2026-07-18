@@ -40,9 +40,11 @@ TanStack Query), AWS CDK (TypeScript), Python (py-dfe — no changes needed, alr
 ### Task 1: CDK — add `role-index` GSI to `organization_vehicles`
 
 **Files:**
+
 - Modify: `cdk/lib/dynamodb-stack.ts:368-389`
 
 **Interfaces:**
+
 - Produces: `role-index` GSI (PK: `pk`, SK: `role`) on the `organization_vehicles` table, used
   by Task 2's `ListByRole`.
 
@@ -80,10 +82,12 @@ git commit -m "feat(cdk): add role-index GSI to organization_vehicles table"
 ### Task 2: Repository — flat schema, `role`, drop `trailers[]`, add `ListByRole`
 
 **Files:**
+
 - Modify: `api/internal/repositories/vehicles.go`
 - Test: `api/internal/repositories/vehicles_test.go` (new)
 
 **Interfaces:**
+
 - Produces: `type VehicleFields struct{Plate, PlateUF, Role, Wheelset, Bodywork, Renavam string;
   Weight, CapKG, CapM3 int; Cint string; Owner map[string]any}`; `Create(ctx, orgPK string, f
   VehicleFields) (map[string]types.AttributeValue, error)`;
@@ -293,10 +297,12 @@ git commit -m "feat(api): flatten organization_vehicles schema, add role + ListB
 ### Task 3: DTOs — relax required fields, add `role`/`cap_kg`/`cap_m3`/`cint`, drop trailers
 
 **Files:**
+
 - Modify: `api/internal/api/v1/dto.go:237-278`
 - Modify: `api/internal/api/v1/dto_test.go:59-74`
 
 **Interfaces:**
+
 - Produces: `VehicleCreateBody{Plate, PlateUf, Role string; Wheelset, Bodywork, Renavam string
   \`omitempty\`; Weight, CapKG, CapM3 int \`omitempty\`; Cint string \`omitempty\`; Owner
   *VehicleOwnerBody \`omitempty\`}`, `VehicleUpdateBody` mirrored with all-pointer fields except
@@ -441,10 +447,12 @@ git commit -m "feat(api): relax vehicle DTOs to plate+plate_uf+role only, drop t
 ### Task 4: Required-fields matrix — `services.Missing`
 
 **Files:**
+
 - Create: `api/internal/services/vehicle_requirements.go`
 - Test: `api/internal/services/vehicle_requirements_test.go`
 
 **Interfaces:**
+
 - Produces: constants `DocTypeMdfe = "mdfe"`, `DocTypeNfe = "nfe"`, `DocTypeCteOS = "cte_os"`,
   `VehicleRoleTractor = "tractor"`, `VehicleRoleTrailer = "trailer"`; function
   `Missing(item map[string]types.AttributeValue, docType, role string) []string` returning the
@@ -613,9 +621,11 @@ git commit -m "feat(api): add vehicle required-fields matrix (services.Missing)"
 ### Task 5: Service layer — `role` on create, drop trailers handling
 
 **Files:**
+
 - Modify: `api/internal/services/vehicles.go:86-134` (Create), `:138-193` (Update)
 
 **Interfaces:**
+
 - Consumes: `repositories.VehicleFields` (Task 2), `Missing`/constants (Task 4, not called here
   yet — cadastro itself is never gated, only emission is).
 - Produces: `VehicleService.Create`/`Update` now build `repositories.VehicleFields` instead of
@@ -750,9 +760,11 @@ git commit -m "refactor(api): VehicleService.Create builds repositories.VehicleF
 ### Task 6: Routes — role filter + `GET /vehicles/:sk/requirements`
 
 **Files:**
+
 - Modify: `api/internal/api/v1/vehicles.go`
 
 **Interfaces:**
+
 - Consumes: `services.Missing`, `services.DocTypeMdfe/Nfe/CteOS`,
   `services.VehicleRoleTractor/Trailer` (Task 4); `repositories.VehicleRepository.ListByRole`
   (Task 2).
@@ -875,12 +887,14 @@ git commit -m "feat(api): add GET /vehicles/:sk/requirements and role list filte
 ### Task 7: MDF-e emission — gate on `Missing`, remove silent defaults, resolve trailers
 
 **Files:**
+
 - Modify: `api/internal/services/mdfes/emit.go`
 - Modify: `api/internal/services/mdfes/builder.go`
 - Test: `api/internal/services/mdfes/builder_test.go`, `api/internal/services/mdfes/emit_test.go`
   (check whether `emit_test.go` already exists before creating it)
 
 **Interfaces:**
+
 - Consumes: `services.Missing`, `services.DocTypeMdfe`, `services.VehicleRoleTractor/Trailer`.
 - Produces: `MdfeEmitBody.Trailers []MdfeTrailer` (`{SK string}`, `validate:"omitempty,max=3,dive"`);
   `resolveTrailers(ctx, orgPK string, trailers []MdfeTrailer) ([]resolvedVehicle, error)`;
@@ -919,6 +933,7 @@ Expected: FAIL — compile error, `buildParams` has no `trailers` field.
 In `api/internal/services/mdfes/builder.go`:
 
 Remove the now-unused constants (lines 36-38):
+
 ```go
 	// Default traction-vehicle codes when the registered vehicle omits them.
 	defaultTpRod = "01" // Truck
@@ -1146,11 +1161,13 @@ git commit -m "feat(api): MDF-e gates incomplete tractor/trailers, adds veicRebo
 ### Task 8: API integration tests — gating + successful trailer emission
 
 **Files:**
+
 - Modify: `api/tests/integration/vehicles_test.go` (from Task 6, or a new adjacent file if that
   one is getting long — follow the existing file's size/convention)
 - Modify or create: `api/tests/integration/mdfes_test.go` (check if it already exists first)
 
 **Interfaces:**
+
 - Consumes: everything from Tasks 2-7.
 
 - [ ] **Step 1: Write the failing integration tests**
@@ -1218,12 +1235,14 @@ git commit -m "test(api): cover MDF-e vehicle-completeness gating and trailer em
 ### Task 9: UI — types + api client + query keys
 
 **Files:**
+
 - Modify: `ui/src/lib/types/api.ts:392-442` (`VehicleOut`/`VehicleCreate`/`VehicleUpdate`),
   `:716-726` (`MdfeVehicleIn`), `:748-764` (`MdfeEmit`)
 - Modify: `ui/src/lib/api/client.ts:229-248`
 - Modify: `ui/src/lib/api/query-keys.ts:17-20`
 
 **Interfaces:**
+
 - Produces: `VehicleOut{role: 'tractor'|'trailer'; wheelset?, bodywork?, renavam?: string;
   weight?, cap_kg?, cap_m3?: number; cint?: string; owner?: OwnerOut}` (drops `trailers`);
   `VehicleRequirements = {missing: string[]}`; `apiClient.getVehicles(params?: {role?:
@@ -1405,10 +1424,12 @@ git commit -m "feat(ui): vehicle types/client for role, cap_kg/cap_m3/cint, requ
 ### Task 10: UI — `vehicles.ts` zod schema (role, optional fields, drop trailers)
 
 **Files:**
+
 - Modify: `ui/src/lib/schemas/vehicles.ts`
 - Test: `ui/src/__tests__/lib/schemas/vehicles.test.ts` (new)
 
 **Interfaces:**
+
 - Produces: `vehicleSchema` requiring only `plate`, `plate_uf`, `role`; `ROLE_OPTIONS` constant;
   `VehicleFormData` type without `trailers`.
 
@@ -1540,9 +1561,11 @@ git commit -m "feat(ui): vehicle schema requires only plate/plate_uf/role"
 ### Task 11: UI — `VehicleForm.tsx` role selector + advanced section, drop reboque UI
 
 **Files:**
+
 - Modify: `ui/src/components/vehicles/VehicleForm.tsx`
 
 **Interfaces:**
+
 - Consumes: `vehicleSchema`, `ROLE_OPTIONS` (Task 10); `VehicleOut`/`VehicleCreate` (Task 9).
 - Produces: `VehicleForm` renders a role selector + always-visible identification fields
   (plate/UF) + a collapsible "Configurações avançadas" section (wheelset only for tractor role;
@@ -1911,9 +1934,11 @@ git commit -m "feat(ui): VehicleForm gets role selector, advanced section, drops
 ### Task 12: UI — `MdfeEmitForm.tsx` trailer picker + emission-time gating modal
 
 **Files:**
+
 - Modify: `ui/src/components/mdfe/MdfeEmitForm.tsx`
 
 **Interfaces:**
+
 - Consumes: `apiClient.getVehicles({role})`, `apiClient.getVehicleRequirements` (Task 9),
   `VehicleForm` with `highlightFields` (Task 11).
 - Produces: tractor picker (existing, now gated) + new trailer picker (0-3, `role=trailer`);
@@ -2129,6 +2154,7 @@ the gating modal:
 - [ ] **Step 4: Manual browser verification**
 
 Run: `cd ui && npm run dev`, then in a browser:
+
 1. Go to the MDF-e emit flow, reach the "Veículo" step.
 2. Select a tractor with missing `weight`/`wheelset`/`bodywork` (create one with only
    plate/UF via "+ Cadastrar veículo" to set this up) → confirm the edit modal opens
@@ -2138,8 +2164,8 @@ Run: `cd ui && npm run dev`, then in a browser:
 4. Add a trailer with missing `cap_kg` → confirm the same gating fires for the trailer role.
 5. Confirm emission with a fully-complete tractor + trailer succeeds and no longer silently
    defaults `tpRod`/`tpCar`.
-Test at 375px viewport per `ui/CLAUDE.md` mobile-first rules (modal `max-w-2xl w-full mx-4`
-already responsive from the existing component — just confirm no overflow).
+   Test at 375px viewport per `ui/CLAUDE.md` mobile-first rules (modal `max-w-2xl w-full mx-4`
+   already responsive from the existing component — just confirm no overflow).
 
 - [ ] **Step 5: Run ESLint, typecheck, commit**
 
@@ -2156,6 +2182,7 @@ git commit -m "feat(ui): MDF-e emit form gains trailer picker and vehicle-comple
 ### Task 13: Docs — `DynamoDB-Tables.md`, `DOCS.md`, `CONDUCT.md`
 
 **Files:**
+
 - Modify: `DynamoDB-Tables.md:129-144`
 - Modify: `DOCS.md` (vehicle CRUD section + MDF-e emit section — locate via
   `grep -n "organization_vehicles\|/vehicles\|MdfeEmitBody" DOCS.md` first)
@@ -2212,6 +2239,7 @@ the new `trailers: [{sk}]` request field and note `veicReboque` is now emitted i
 
 Read the last 2-3 entries in `CONDUCT.md` to match its exact heading/dating convention, then
 append a new entry summarizing:
+
 - `services.Missing` (in `api/internal/services/vehicle_requirements.go`) is the single source
   of truth for vehicle field completeness per doc-type/role — never duplicate this matrix in
   `ui`; call `GET /vehicles/:sk/requirements` instead.
@@ -2241,9 +2269,9 @@ After all 13 tasks:
 
 - [ ] `cd api && go build ./... && go test ./... -race` — full backend suite passes.
 - [ ] `cd ui && npx eslint src --ext .ts,.tsx && npx tsc --noEmit && npm test` — full frontend
-      gate passes.
+  gate passes.
 - [ ] `cd cdk && npx cdk synth CtechDfe-Prod-DynamoDB > /dev/null` — infra still synths.
 - [ ] Manually re-run the Task 12 Step 4 browser walkthrough once more end-to-end.
 - [ ] Confirm `grep -rn "defaultTpRod\|defaultTpCar" api/` returns nothing.
 - [ ] Confirm `grep -rn "TrailerOut\|VehicleTrailerBody\|trailerSchema" api/ ui/` returns
-      nothing (all superseded by `role`-tagged first-class vehicles).
+  nothing (all superseded by `role`-tagged first-class vehicles).

@@ -1,17 +1,24 @@
 # CFOP Suffix Grouping + Null Omission Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Group same-suffix saída CFOPs into one NF-e dropdown option resolved by destination UF, and stop persisting null attributes to DynamoDB across `ui`, `api`, and `worker` while keeping the API contract nullable.
+**Goal:** Group same-suffix saída CFOPs into one NF-e dropdown option resolved by destination UF, and stop persisting
+null attributes to DynamoDB across `ui`, `api`, and `worker` while keeping the API contract nullable.
 
-**Architecture:** Feature A is client-only: helpers in `cfop.ts` group `cfop_config` by the 3-digit suffix; `NfeEmitForm` derives the concrete CFOP (5xxx intra / 6xxx inter) from issuer-vs-recipient UF and re-resolves dynamically. Feature B centralizes null omission at each storage encode point: a shared omit-null encoder in `api`, a `REMOVE`-on-nil UpdateItem, the worker's `mapToAttr` skipping nils, and a `stripNulls` request transform in the UI ApiClient. Reads are untouched, so JSON responses keep emitting `null`.
+**Architecture:** Feature A is client-only: helpers in `cfop.ts` group `cfop_config` by the 3-digit suffix;
+`NfeEmitForm` derives the concrete CFOP (5xxx intra / 6xxx inter) from issuer-vs-recipient UF and re-resolves
+dynamically. Feature B centralizes null omission at each storage encode point: a shared omit-null encoder in `api`, a
+`REMOVE`-on-nil UpdateItem, the worker's `mapToAttr` skipping nils, and a `stripNulls` request transform in the UI
+ApiClient. Reads are untouched, so JSON responses keep emitting `null`.
 
 **Tech Stack:** Next.js 16 / React 19 / TypeScript / Vitest+RTL (ui); Go 1.x / aws-sdk-go-v2 / Fiber v3 (api, worker).
 
 ## Global Constraints
 
 - `ui`: `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before any commit.
-- `ui`: all API calls go through `ApiClient`; never hardcode `ORG_HEADER` (`'Dfe-Organization-Pk'`, defined once in `client.ts`); never write `access_token` to storage.
+- `ui`: all API calls go through `ApiClient`; never hardcode `ORG_HEADER` (`'Dfe-Organization-Pk'`, defined once in
+  `client.ts`); never write `access_token` to storage.
 - `ui`: mobile-first — inputs `w-full`, touch targets, no horizontal overflow at 375px.
 - Backend storage encoder option: `OmitNullAttributeValues` (available in `feature/dynamodb/attributevalue v1.20.48`).
 - API contract stays nullable: responses still emit `null`; only persisted items drop null attributes.
@@ -23,11 +30,15 @@
 ## File Structure
 
 **Feature A (ui):**
-- `src/lib/data/cfop.ts` — add `cfopScope`, `cfopSuffix`, `groupCfopConfigBySuffix`, `resolveCfopForUf`, `CfopSuffixGroup`.
-- `src/components/nfe/NfeEmitForm.tsx` — `sameUf` computation, `EmitProduct.cfopSuffix`, grouped dropdown, dynamic re-resolution, block validation.
+
+- `src/lib/data/cfop.ts` — add `cfopScope`, `cfopSuffix`, `groupCfopConfigBySuffix`, `resolveCfopForUf`,
+  `CfopSuffixGroup`.
+- `src/components/nfe/NfeEmitForm.tsx` — `sameUf` computation, `EmitProduct.cfopSuffix`, grouped dropdown, dynamic
+  re-resolution, block validation.
 - `src/__tests__/lib/cfop.test.ts` — unit tests for new helpers.
 
 **Feature B (api):**
+
 - `api/internal/repositories/marshal.go` — new: `MarshalMapOmitNull`; route `Encode`/`EncodeItem` through it.
 - `api/internal/repositories/base.go` — `UpdateItem` REMOVE-on-nil via extracted `buildUpdateExpr`.
 - `api/internal/repositories/persons.go`, `fiscal_config.go`, `dfe_events.go` — skip nil instead of writing NULL.
@@ -35,10 +46,12 @@
 - `api/internal/repositories/marshal_test.go`, `base_test.go` — unit tests.
 
 **Feature B (worker):**
+
 - `worker/internal/service/distribution.go` — `mapToAttr` skips nil values.
 - `worker/internal/service/distribution_maptoattr_test.go` — unit test.
 
 **Feature B (ui):**
+
 - `src/lib/utils/strip-nulls.ts` — new: `stripNulls`.
 - `src/lib/api/client.ts` — apply `stripNulls` in request interceptor.
 - `src/__tests__/lib/strip-nulls.test.ts` — unit test.
@@ -50,21 +63,25 @@
 ## Task 1: CFOP suffix helpers (ui)
 
 **Files:**
+
 - Modify: `src/lib/data/cfop.ts` (append near `cfopDirection`, ~line 3631)
 - Test: `src/__tests__/lib/cfop.test.ts`
 
 **Interfaces:**
-- Consumes: `getCfopDescription(code: string): string | null` (cfop.ts:3592); `CfopConfigItem` (`@/lib/types/api`, has `cfop: string`).
+
+- Consumes: `getCfopDescription(code: string): string | null` (cfop.ts:3592); `CfopConfigItem` (`@/lib/types/api`, has
+  `cfop: string`).
 - Produces:
-  - `cfopScope(cfop: string): string`
-  - `cfopSuffix(cfop: string): string`
-  - `interface CfopSuffixGroup { suffix: string; intra?: string; inter?: string; label: string }`
-  - `groupCfopConfigBySuffix(config: CfopConfigItem[]): CfopSuffixGroup[]`
-  - `resolveCfopForUf(group: CfopSuffixGroup, sameUf: boolean): string | null`
+    - `cfopScope(cfop: string): string`
+    - `cfopSuffix(cfop: string): string`
+    - `interface CfopSuffixGroup { suffix: string; intra?: string; inter?: string; label: string }`
+    - `groupCfopConfigBySuffix(config: CfopConfigItem[]): CfopSuffixGroup[]`
+    - `resolveCfopForUf(group: CfopSuffixGroup, sameUf: boolean): string | null`
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `src/__tests__/lib/cfop.test.ts` (create the file if absent, mirroring existing Vitest imports `import {describe, it, expect} from 'vitest'`):
+Add to `src/__tests__/lib/cfop.test.ts` (create the file if absent, mirroring existing Vitest imports
+`import {describe, it, expect} from 'vitest'`):
 
 ```ts
 import {describe, it, expect} from 'vitest'
@@ -122,7 +139,9 @@ Expected: FAIL — `cfopScope`/`cfopSuffix`/`groupCfopConfigBySuffix`/`resolveCf
 
 - [ ] **Step 3: Implement the helpers**
 
-Append to `src/lib/data/cfop.ts` (after the `cfopTpNf` export, ~line 3647). `CfopConfigItem` is already importable from `@/lib/types/api`; add the import at the top of the file if not present (`import type {CfopConfigItem} from '@/lib/types/api'`):
+Append to `src/lib/data/cfop.ts` (after the `cfopTpNf` export, ~line 3647). `CfopConfigItem` is already importable from
+`@/lib/types/api`; add the import at the top of the file if not present (
+`import type {CfopConfigItem} from '@/lib/types/api'`):
 
 ```ts
 // ─── CFOP suffix grouping (UF-dynamic selection) ──────────────────────────────
@@ -191,16 +210,20 @@ git commit -m "feat(ui): add CFOP suffix grouping and UF-based resolution helper
 ## Task 2: NfeEmitForm CFOP grouping integration (ui)
 
 **Files:**
+
 - Modify: `src/components/nfe/NfeEmitForm.tsx`
-  - `EmitProduct` interface (~line 43)
-  - `ProductRowProps` + `ProductRow` (~lines 527-575)
-  - `handleSelectProduct` (~line 939)
-  - `sameUf` computation + `canAdvance`/submit guards (~lines 867-906, 1013)
-  - `ProductRow` render site (~line 1178)
+    - `EmitProduct` interface (~line 43)
+    - `ProductRowProps` + `ProductRow` (~lines 527-575)
+    - `handleSelectProduct` (~line 939)
+    - `sameUf` computation + `canAdvance`/submit guards (~lines 867-906, 1013)
+    - `ProductRow` render site (~line 1178)
 - Test: `src/__tests__/components/NfeProductRow.test.tsx` (new)
 
 **Interfaces:**
-- Consumes: `groupCfopConfigBySuffix`, `resolveCfopForUf`, `cfopSuffix`, `CfopSuffixGroup` (Task 1); `useAuth().selectedOrg.state_federation` (`UserOrganization`, api.ts); `receiver.person.addresses[0].state_federation` (`PersonAddressOut`); existing `OptionsSelect`.
+
+- Consumes: `groupCfopConfigBySuffix`, `resolveCfopForUf`, `cfopSuffix`, `CfopSuffixGroup` (Task 1);
+  `useAuth().selectedOrg.state_federation` (`UserOrganization`, api.ts);
+  `receiver.person.addresses[0].state_federation` (`PersonAddressOut`); existing `OptionsSelect`.
 - Produces: `EmitProduct.cfopSuffix: string`; per-line resolved `cfop` sent to backend unchanged.
 
 - [ ] **Step 1: Add `cfopSuffix` to `EmitProduct`**
@@ -291,7 +314,8 @@ const handleSelectProduct = (product: ProductOut) => {
 
 - [ ] **Step 5: Grouped dropdown in `ProductRow`**
 
-Add `sameUf: boolean | null` to `ProductRowProps` (line 527) and the destructure (line 534). Replace the `cfopOptions` block (lines 535-539) and the CFOP `<div>` (lines 567-576):
+Add `sameUf: boolean | null` to `ProductRowProps` (line 527) and the destructure (line 534). Replace the `cfopOptions`
+block (lines 535-539) and the CFOP `<div>` (lines 567-576):
 
 ```ts
 interface ProductRowProps {
@@ -375,7 +399,9 @@ if (cfopUnresolvedError) {
 
 - [ ] **Step 7: Write the component test**
 
-Create `src/__tests__/components/NfeProductRow.test.tsx`. (Verify the export style of `ProductRow` first; if it is module-private, export it for test, or test through `NfeEmitForm`. The plan assumes `ProductRow` is exported — add `export` to its declaration if needed.)
+Create `src/__tests__/components/NfeProductRow.test.tsx`. (Verify the export style of `ProductRow` first; if it is
+module-private, export it for test, or test through `NfeEmitForm`. The plan assumes `ProductRow` is exported — add
+`export` to its declaration if needed.)
 
 ```tsx
 import {describe, it, expect, vi} from 'vitest'
@@ -410,7 +436,8 @@ describe('ProductRow CFOP grouping', () => {
 - [ ] **Step 8: Run the component test**
 
 Run: `cd ui && npx vitest run src/__tests__/components/NfeProductRow.test.tsx`
-Expected: PASS. (If `OptionsSelect` needs a portal/provider, wrap in the existing test render helper used elsewhere in `src/__tests__/components`.)
+Expected: PASS. (If `OptionsSelect` needs a portal/provider, wrap in the existing test render helper used elsewhere in
+`src/__tests__/components`.)
 
 - [ ] **Step 9: Lint + full test sweep**
 
@@ -429,13 +456,16 @@ git commit -m "feat(ui): group saida CFOPs by suffix and resolve by destination 
 ## Task 3: Omit-null encoder (api)
 
 **Files:**
+
 - Create: `api/internal/repositories/marshal.go`
 - Modify: `api/internal/repositories/base.go` (`Encode`, line 311), `documents.go` (`EncodeItem`, line 229)
 - Modify: `api/internal/api/v1/helpers.go` (`bindAV`, line 159), `api/internal/api/v1/organizations.go` (line 72)
 - Test: `api/internal/repositories/marshal_test.go`
 
 **Interfaces:**
-- Produces: `repositories.MarshalMapOmitNull(v any) (map[string]types.AttributeValue, error)` — marshals omitting null attributes; `Encode`/`EncodeItem` delegate to it.
+
+- Produces: `repositories.MarshalMapOmitNull(v any) (map[string]types.AttributeValue, error)` — marshals omitting null
+  attributes; `Encode`/`EncodeItem` delegate to it.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -545,7 +575,8 @@ func bindAV(c fiber.Ctx) (map[string]types.AttributeValue, error) {
 
 (Remove the now-unused `attributevalue` import from helpers.go if nothing else uses it; `go build` will flag it.)
 
-In `api/internal/api/v1/organizations.go` (line 72) — replace `attributevalue.MarshalMap(body)` with `repositories.MarshalMapOmitNull(body)` (drop the `attributevalue` import if unused).
+In `api/internal/api/v1/organizations.go` (line 72) — replace `attributevalue.MarshalMap(body)` with
+`repositories.MarshalMapOmitNull(body)` (drop the `attributevalue` import if unused).
 
 - [ ] **Step 5: Run test + build**
 
@@ -564,11 +595,15 @@ git commit -m "feat(api): omit null attributes when encoding items for DynamoDB"
 ## Task 4: UpdateItem REMOVE-on-nil (api)
 
 **Files:**
+
 - Modify: `api/internal/repositories/base.go` (`UpdateItem`, lines 96-135)
 - Test: `api/internal/repositories/base_test.go`
 
 **Interfaces:**
-- Produces: `buildUpdateExpr(updates map[string]any) (expr string, names map[string]string, values map[string]types.AttributeValue, err error)` — nil values become `REMOVE`, non-nil become `SET`.
+
+- Produces:
+  `buildUpdateExpr(updates map[string]any) (expr string, names map[string]string, values map[string]types.AttributeValue, err error)` —
+  nil values become `REMOVE`, non-nil become `SET`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -665,7 +700,8 @@ func buildUpdateExpr(updates map[string]any) (string, map[string]string, map[str
 }
 ```
 
-Replace the body of `UpdateItem` (the manual `setParts`/`expr` building, lines 105-134) so it calls the helper and only passes `ExpressionAttributeValues` when non-empty:
+Replace the body of `UpdateItem` (the manual `setParts`/`expr` building, lines 105-134) so it calls the helper and only
+passes `ExpressionAttributeValues` when non-empty:
 
 ```go
 func (b *Base) UpdateItem(ctx context.Context, pk string, sk *string, updates map[string]any) (bool, error) {
@@ -716,11 +752,13 @@ git commit -m "feat(api): clear fields via REMOVE instead of storing NULL on Upd
 ## Task 5: Drop explicit NULL writes (api)
 
 **Files:**
+
 - Modify: `api/internal/repositories/dfe_events.go` (`setNullableStr`, lines 73-79)
 - Modify: `api/internal/repositories/persons.go` (`Create`, lines 30-37)
 - Modify: `api/internal/repositories/fiscal_config.go` (preserve defaults, lines 48-60)
 
 **Interfaces:**
+
 - Consumes: nothing new. Behavioral change only: nil → attribute omitted.
 
 - [ ] **Step 1: `setNullableStr` — omit instead of NULL**
@@ -787,10 +825,12 @@ git commit -m "refactor(api): omit attributes instead of writing NULL to DynamoD
 ## Task 6: Worker mapToAttr omit-null
 
 **Files:**
+
 - Modify: `worker/internal/service/distribution.go` (`mapToAttr`, lines 1219-1228)
 - Test: `worker/internal/service/distribution_maptoattr_test.go` (new)
 
 **Interfaces:**
+
 - Consumes: existing `toAttr` (distribution.go:1230). Behavioral change: `mapToAttr` skips keys whose value is `nil`.
 
 - [ ] **Step 1: Write the failing test**
@@ -860,12 +900,15 @@ git commit -m "feat(worker): omit null attributes when building DynamoDB items"
 ## Task 7: UI stripNulls in ApiClient
 
 **Files:**
+
 - Create: `src/lib/utils/strip-nulls.ts`
 - Modify: `src/lib/api/client.ts` (request interceptor, lines 74-89)
 - Test: `src/__tests__/lib/strip-nulls.test.ts`
 
 **Interfaces:**
-- Produces: `stripNulls<T>(value: T, dropNull: boolean): T` — deep-removes `undefined` always; removes `null` only when `dropNull` is true; preserves `0`, `''`, `false`, arrays.
+
+- Produces: `stripNulls<T>(value: T, dropNull: boolean): T` — deep-removes `undefined` always; removes `null` only when
+  `dropNull` is true; preserves `0`, `''`, `false`, arrays.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -951,7 +994,8 @@ In the request interceptor (after the org-header block, before `return config`, 
 
 - [ ] **Step 6: Add the ApiClient interceptor test**
 
-Append to an appropriate client test (or create `src/__tests__/lib/client-stripnulls.test.ts`). Confirm the existing test harness for `ApiClient`/axios first; mirror its mock setup. Minimum assertion:
+Append to an appropriate client test (or create `src/__tests__/lib/client-stripnulls.test.ts`). Confirm the existing
+test harness for `ApiClient`/axios first; mirror its mock setup. Minimum assertion:
 
 ```ts
 import {describe, it, expect} from 'vitest'
@@ -984,15 +1028,21 @@ git commit -m "feat(ui): strip null fields from create payloads in ApiClient"
 ## Task 8: Documentation
 
 **Files:**
+
 - Modify: `DOCS.md`, `INTEGRATION.md`, `CONDUCT.md`
 
 - [ ] **Step 1: DOCS.md / INTEGRATION.md — storage vs contract**
 
-Add a note (DOCS.md data-layer section and INTEGRATION.md): "DynamoDB items omit null attributes to reduce item size. The API contract remains nullable — responses still emit `null` for absent attributes, and clients clear a field by sending `null` (persisted as a DynamoDB `REMOVE` on updates). CFOP: the NF-e emit form groups same-suffix saída CFOPs and sends the concrete intra (5xxx) / inter (6xxx) variant resolved from the destinatário's UF."
+Add a note (DOCS.md data-layer section and INTEGRATION.md): "DynamoDB items omit null attributes to reduce item size.
+The API contract remains nullable — responses still emit `null` for absent attributes, and clients clear a field by
+sending `null` (persisted as a DynamoDB `REMOVE` on updates). CFOP: the NF-e emit form groups same-suffix saída CFOPs
+and sends the concrete intra (5xxx) / inter (6xxx) variant resolved from the destinatário's UF."
 
 - [ ] **Step 2: CONDUCT.md — new constraint**
 
-Add: "Do not write `NULL` attributes to DynamoDB. Encode items via `repositories.MarshalMapOmitNull` (or `Encode`/`EncodeItem`, which delegate to it); clear fields on update via `REMOVE` (handled in `Base.UpdateItem`). The worker's `mapToAttr` skips nil values. UI strips null fields from POST payloads only."
+Add: "Do not write `NULL` attributes to DynamoDB. Encode items via `repositories.MarshalMapOmitNull` (or `Encode`/
+`EncodeItem`, which delegate to it); clear fields on update via `REMOVE` (handled in `Base.UpdateItem`). The worker's
+`mapToAttr` skips nil values. UI strips null fields from POST payloads only."
 
 - [ ] **Step 3: Commit**
 
@@ -1005,6 +1055,9 @@ git commit -m "docs: document null-omission storage policy and CFOP UF resolutio
 
 ## Self-Review Notes
 
-- **Spec coverage:** A (helpers→T1, form→T2), B-api (encoder→T3, UpdateItem→T4, explicit NULLs→T5), B-worker (T6), B-ui (T7), docs (T8). All spec sections mapped.
-- **Type consistency:** `CfopSuffixGroup`/`resolveCfopForUf`/`groupCfopConfigBySuffix` names identical across T1/T2. `MarshalMapOmitNull` consistent across T3 and CONDUCT note. `buildUpdateExpr` signature consistent T4.
-- **Known verification points flagged inline:** `ProductRow` export for testing (T2 S7); `attributevalue` import removal after T3 edits; existing ApiClient test harness shape (T7 S6); `OptionsSelect` portal in component test (T2 S8).
+- **Spec coverage:** A (helpers→T1, form→T2), B-api (encoder→T3, UpdateItem→T4, explicit NULLs→T5), B-worker (T6),
+  B-ui (T7), docs (T8). All spec sections mapped.
+- **Type consistency:** `CfopSuffixGroup`/`resolveCfopForUf`/`groupCfopConfigBySuffix` names identical across T1/T2.
+  `MarshalMapOmitNull` consistent across T3 and CONDUCT note. `buildUpdateExpr` signature consistent T4.
+- **Known verification points flagged inline:** `ProductRow` export for testing (T2 S7); `attributevalue` import removal
+  after T3 edits; existing ApiClient test harness shape (T7 S6); `OptionsSelect` portal in component test (T2 S8).

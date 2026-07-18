@@ -1,10 +1,15 @@
 # DANFC-e Generation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an in-house `GerarDanfe` service to `py_dfe` that renders a DANFC-e (DANFE NFC-e) PDF + HTML from an authorized NFC-e XML, with no certificate and no SEFAZ call.
+**Goal:** Add an in-house `GerarDanfe` service to `py_dfe` that renders a DANFC-e (DANFE NFC-e) PDF + HTML from an
+authorized NFC-e XML, with no certificate and no SEFAZ call.
 
-**Architecture:** New generic-first subpackage `py_dfe/danfe/`: shared `render.py` (Jinja2→WeasyPrint), `qr.py` (segno→data-URI), `formatters.py` (BR formatting); DANFC-e-specific `danfce.py` + `templates/danfce.html`. Routed through the existing `_NFServiceClient.call` via a new `GerarDanfe` service key that branches before any SEFAZ work. `LambdaRequest` certificate fields become optional.
+**Architecture:** New generic-first subpackage `py_dfe/danfe/`: shared `render.py` (Jinja2→WeasyPrint), `qr.py` (
+segno→data-URI), `formatters.py` (BR formatting); DANFC-e-specific `danfce.py` + `templates/danfce.html`. Routed through
+the existing `_NFServiceClient.call` via a new `GerarDanfe` service key that branches before any SEFAZ work.
+`LambdaRequest` certificate fields become optional.
 
 **Tech Stack:** Python 3.14, WeasyPrint, Jinja2, segno, lxml (existing), Pydantic v2 (existing), pytest.
 
@@ -13,16 +18,19 @@
 - Python `>=3.14`; Lambda `provided` runtime via CDK layer.
 - All errors MUST be raised as `DFeError(status_code, error_code, message)` — never raw `Exception`/`ValueError`.
 - No magic strings/numbers — every key/code/text constant lives in `constants/` (new `constants/danfe.py`).
-- DRY: reuse existing `parse_xml_bytes` (`xmlops/builder.py`), `DOC_TYPE_CODE`, `mask`/parse utilities; do not duplicate.
+- DRY: reuse existing `parse_xml_bytes` (`xmlops/builder.py`), `DOC_TYPE_CODE`, `mask`/parse utilities; do not
+  duplicate.
 - DANFC-e contains ONLY data from the NFC-e XML (manual mandate).
 - **Do NOT `git commit`.** Stage changes only; the user commits manually (project policy).
-- Frontend/UI untouched. Cross-project note only: cdk Lambda layer must bundle WeasyPrint native libs (cairo/pango/gdk-pixbuf/glib/gobject + fonts) — flagged, not implemented here.
+- Frontend/UI untouched. Cross-project note only: cdk Lambda layer must bundle WeasyPrint native libs (
+  cairo/pango/gdk-pixbuf/glib/gobject + fonts) — flagged, not implemented here.
 
 ---
 
 ### Task 1: Constants + dependencies
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/constants/danfe.py`
 - Modify: `py-dfe/py_dfe/exceptions.py` (add error-code constants)
 - Modify: `py-dfe/pyproject.toml` (add runtime deps)
@@ -30,13 +38,21 @@
 - Test: `py-dfe/tests/unit/test_danfe_constants.py`
 
 **Interfaces:**
+
 - Produces:
-  - `constants/danfe.py`: `SERVICE_GERAR_DANFE = "GerarDanfe"`, `LAYOUT_COMPLETO = "completo"`, `LAYOUT_RESUMIDO = "resumido"`, `VALID_LAYOUTS = frozenset({...})`, `TP_EMIS_NORMAL = "1"`, `TP_EMIS_CONTINGENCIA_OFFLINE = "9"`, `TP_AMB_PRODUCAO = "1"`, `TP_AMB_HOMOLOGACAO = "2"`, `MODELO_NFCE = "65"`, text constants (`TEXT_DOC_AUXILIAR`, `TEXT_CONTINGENCIA_L1`, `TEXT_CONTINGENCIA_L2`, `TEXT_HOMOLOGACAO`, `TEXT_CONSUMIDOR_NAO_IDENTIFICADO`, `VIA_CONSUMIDOR`, `VIA_ESTABELECIMENTO`, `TEXT_WATERMARK_CANCELADA`), `TPAG_LABELS: dict[str, str]`.
-  - `exceptions.py`: `DANFE_INVALID_XML`, `DANFE_UNSUPPORTED_MODEL`, `DANFE_MISSING_QRCODE`, `DANFE_RENDER_FAILED`, `CERT_REQUIRED` (str code constants).
+    - `constants/danfe.py`: `SERVICE_GERAR_DANFE = "GerarDanfe"`, `LAYOUT_COMPLETO = "completo"`,
+      `LAYOUT_RESUMIDO = "resumido"`, `VALID_LAYOUTS = frozenset({...})`, `TP_EMIS_NORMAL = "1"`,
+      `TP_EMIS_CONTINGENCIA_OFFLINE = "9"`, `TP_AMB_PRODUCAO = "1"`, `TP_AMB_HOMOLOGACAO = "2"`, `MODELO_NFCE = "65"`,
+      text constants (`TEXT_DOC_AUXILIAR`, `TEXT_CONTINGENCIA_L1`, `TEXT_CONTINGENCIA_L2`, `TEXT_HOMOLOGACAO`,
+      `TEXT_CONSUMIDOR_NAO_IDENTIFICADO`, `VIA_CONSUMIDOR`, `VIA_ESTABELECIMENTO`, `TEXT_WATERMARK_CANCELADA`),
+      `TPAG_LABELS: dict[str, str]`.
+    - `exceptions.py`: `DANFE_INVALID_XML`, `DANFE_UNSUPPORTED_MODEL`, `DANFE_MISSING_QRCODE`, `DANFE_RENDER_FAILED`,
+      `CERT_REQUIRED` (str code constants).
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfe_constants.py`:
+
 ```python
 from py_dfe.constants import danfe as c
 
@@ -138,6 +154,7 @@ TPAG_LABELS = {
 - [ ] **Step 4: Add error-code constants to `exceptions.py`**
 
 Add after the existing code-constant block (after line `UNEXPECTED_ERROR_CODE = 'unexpected error'`):
+
 ```python
 DANFE_INVALID_XML = 'danfe invalid xml'
 DANFE_UNSUPPORTED_MODEL = 'danfe unsupported model'
@@ -149,6 +166,7 @@ CERT_REQUIRED = 'certificate required'
 - [ ] **Step 5: Add dependencies**
 
 `pyproject.toml` — extend `[project].dependencies`:
+
 ```toml
 dependencies = [
     "httpx>=0.28.1",
@@ -163,6 +181,7 @@ dependencies = [
 ```
 
 `layer/requirements.txt` — append pinned lines:
+
 ```
 jinja2==3.1.4
 segno==1.6.1
@@ -185,21 +204,25 @@ git add py-dfe/py_dfe/constants/danfe.py py-dfe/py_dfe/exceptions.py py-dfe/pypr
 ### Task 2: `formatters.py` — BR value/date/document formatting
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/__init__.py` (empty)
 - Create: `py-dfe/py_dfe/danfe/formatters.py`
 - Test: `py-dfe/tests/unit/test_danfe_formatters.py`
 
 **Interfaces:**
+
 - Produces (`py_dfe.danfe.formatters`):
-  - `money_br(value: str | float | int | None) -> str` — `"1.234,56"`; `None`/`""` → `"0,00"`.
-  - `dt_local(iso: str | None) -> str` — ISO-8601 (with offset) → `"dd/mm/yyyy HH:MM:SS"`, respecting the embedded offset (no tz conversion). `None`/`""` → `""`.
-  - `mask_cnpj(digits: str) -> str` — 14 digits → `"99.999.999/9999-99"`.
-  - `mask_cpf(digits: str) -> str` — 11 digits → `"999.999.999-99"`.
-  - `chave_blocks(key: str) -> str` — 44 digits → 11 space-separated 4-digit blocks.
+    - `money_br(value: str | float | int | None) -> str` — `"1.234,56"`; `None`/`""` → `"0,00"`.
+    - `dt_local(iso: str | None) -> str` — ISO-8601 (with offset) → `"dd/mm/yyyy HH:MM:SS"`, respecting the embedded
+      offset (no tz conversion). `None`/`""` → `""`.
+    - `mask_cnpj(digits: str) -> str` — 14 digits → `"99.999.999/9999-99"`.
+    - `mask_cpf(digits: str) -> str` — 11 digits → `"999.999.999-99"`.
+    - `chave_blocks(key: str) -> str` — 44 digits → 11 space-separated 4-digit blocks.
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfe_formatters.py`:
+
 ```python
 from py_dfe.danfe import formatters as f
 
@@ -245,6 +268,7 @@ Expected: FAIL — `ModuleNotFoundError: py_dfe.danfe`.
 Create empty `py-dfe/py_dfe/danfe/__init__.py`.
 
 `py-dfe/py_dfe/danfe/formatters.py`:
+
 ```python
 """Pure Brazilian-locale formatting helpers for DANFE rendering."""
 
@@ -310,16 +334,20 @@ git add py-dfe/py_dfe/danfe/__init__.py py-dfe/py_dfe/danfe/formatters.py py-dfe
 ### Task 3: `qr.py` — QR Code data-URI
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/qr.py`
 - Test: `py-dfe/tests/unit/test_danfe_qr.py`
 
 **Interfaces:**
+
 - Consumes: nothing from prior tasks.
-- Produces (`py_dfe.danfe.qr`): `qr_data_uri(payload: str) -> str` — returns `"data:image/png;base64,<...>"`; QR error level **M**, UTF-8 (manual §4.5). Raises `DFeError(422, DANFE_MISSING_QRCODE, ...)` on empty payload.
+- Produces (`py_dfe.danfe.qr`): `qr_data_uri(payload: str) -> str` — returns `"data:image/png;base64,<...>"`; QR error
+  level **M**, UTF-8 (manual §4.5). Raises `DFeError(422, DANFE_MISSING_QRCODE, ...)` on empty payload.
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfe_qr.py`:
+
 ```python
 import base64
 
@@ -350,6 +378,7 @@ Expected: FAIL — `ModuleNotFoundError`.
 - [ ] **Step 3: Implement**
 
 `py-dfe/py_dfe/danfe/qr.py`:
+
 ```python
 """QR Code image generation for fiscal auxiliary documents."""
 
@@ -393,19 +422,23 @@ git add py-dfe/py_dfe/danfe/qr.py py-dfe/tests/unit/test_danfe_qr.py
 ### Task 4: `render.py` — generic Jinja2 → WeasyPrint
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/render.py`
 - Create: `py-dfe/py_dfe/danfe/templates/_probe.html` (tiny template used only by this task's test)
 - Test: `py-dfe/tests/unit/test_danfe_render.py`
 
 **Interfaces:**
+
 - Consumes: nothing from prior tasks.
 - Produces (`py_dfe.danfe.render`):
-  - `render_html(template_name: str, context: dict) -> str` — render a Jinja2 template from `py_dfe/danfe/templates/`.
-  - `html_to_pdf(html: str) -> bytes` — WeasyPrint conversion; raises `DFeError(500, DANFE_RENDER_FAILED, ...)` on failure.
+    - `render_html(template_name: str, context: dict) -> str` — render a Jinja2 template from `py_dfe/danfe/templates/`.
+    - `html_to_pdf(html: str) -> bytes` — WeasyPrint conversion; raises `DFeError(500, DANFE_RENDER_FAILED, ...)` on
+      failure.
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfe_render.py`:
+
 ```python
 import pytest
 
@@ -431,11 +464,13 @@ Expected: FAIL — `ModuleNotFoundError: py_dfe.danfe.render`.
 - [ ] **Step 3: Implement**
 
 Create `py-dfe/py_dfe/danfe/templates/_probe.html`:
+
 ```html
 <p>Olá {{ name }}</p>
 ```
 
 `py-dfe/py_dfe/danfe/render.py`:
+
 ```python
 """Generic HTML(Jinja2) → PDF(WeasyPrint) rendering. Document-agnostic."""
 
@@ -476,7 +511,8 @@ def html_to_pdf(html: str) -> bytes:
 - [ ] **Step 4: Run test, verify it passes**
 
 Run: `cd py-dfe && python -m pytest tests/unit/test_danfe_render.py -v`
-Expected: PASS (`test_render_html_substitutes_context` PASS; `test_html_to_pdf_returns_pdf_bytes` PASS if WeasyPrint native libs present, else SKIPPED).
+Expected: PASS (`test_render_html_substitutes_context` PASS; `test_html_to_pdf_returns_pdf_bytes` PASS if WeasyPrint
+native libs present, else SKIPPED).
 
 - [ ] **Step 5: Stage (do not commit)**
 
@@ -489,18 +525,23 @@ git add py-dfe/py_dfe/danfe/render.py py-dfe/py_dfe/danfe/templates/_probe.html 
 ### Task 5: Shared test fixture — sample authorized NFC-e XML
 
 **Files:**
+
 - Create: `py-dfe/tests/danfe_fixtures.py`
 - Test: `py-dfe/tests/unit/test_danfe_fixtures.py`
 
 **Interfaces:**
+
 - Produces (`tests.danfe_fixtures`):
-  - `sample_nfe_proc(*, tp_emis="1", tp_amb="1", with_dest=True, n_items=2) -> str` — returns a well-formed `<nfeProc>` NFC-e XML string with `protNFe`, `infNFeSupl/qrCode`, `infNFeSupl/urlChave`. Mutating `tp_emis`/`tp_amb` toggles contingency/homologation. `with_dest=False` omits `dest`.
+    - `sample_nfe_proc(*, tp_emis="1", tp_amb="1", with_dest=True, n_items=2) -> str` — returns a well-formed
+      `<nfeProc>` NFC-e XML string with `protNFe`, `infNFeSupl/qrCode`, `infNFeSupl/urlChave`. Mutating `tp_emis`/
+      `tp_amb` toggles contingency/homologation. `with_dest=False` omits `dest`.
 
 This fixture is consumed by Tasks 6 and 8. It is plain data, no logic to unit-test beyond well-formedness.
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfe_fixtures.py`:
+
 ```python
 from lxml import etree
 
@@ -529,6 +570,7 @@ Expected: FAIL — `ModuleNotFoundError: tests.danfe_fixtures`.
 - [ ] **Step 3: Implement**
 
 `py-dfe/tests/danfe_fixtures.py`:
+
 ```python
 """Synthetic authorized NFC-e XML for DANFC-e tests. No real CNPJ/CPF."""
 
@@ -651,17 +693,24 @@ git add py-dfe/tests/danfe_fixtures.py py-dfe/tests/unit/test_danfe_fixtures.py
 ### Task 6: `danfce.py` — context build + variant logic + entrypoint
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/danfce.py`
 - Create: `py-dfe/py_dfe/danfe/templates/danfce.html`
 - Test: `py-dfe/tests/unit/test_danfce.py`
 
 **Interfaces:**
-- Consumes: `parse_xml_bytes` (`py_dfe.xmlops.builder`); `formatters.*`; `qr.qr_data_uri`; `render.render_html` + `render.html_to_pdf`; all `constants/danfe.py` names; `exceptions` codes.
+
+- Consumes: `parse_xml_bytes` (`py_dfe.xmlops.builder`); `formatters.*`; `qr.qr_data_uri`; `render.render_html` +
+  `render.html_to_pdf`; all `constants/danfe.py` names; `exceptions` codes.
 - Produces (`py_dfe.danfe.danfce`):
-  - `generate_danfce(payload: dict) -> dict` — `{"pdf_b64": str, "html": list[str]}`. Reads `payload["xml"]` (required), `payload.get("layout", LAYOUT_COMPLETO)`, `payload.get("canceled", False)`.
-  - `build_context(inf_nfe: dict, prot: dict | None, *, layout: str, canceled: bool, tp_emis: str, tp_amb: str, chave: str) -> dict` — assembles the template context (no rendering).
+    - `generate_danfce(payload: dict) -> dict` — `{"pdf_b64": str, "html": list[str]}`. Reads `payload["xml"]` (
+      required), `payload.get("layout", LAYOUT_COMPLETO)`, `payload.get("canceled", False)`.
+    -
+    `build_context(inf_nfe: dict, prot: dict | None, *, layout: str, canceled: bool, tp_emis: str, tp_amb: str, chave: str) -> dict` —
+    assembles the template context (no rendering).
 
 **Context dict shape produced by `build_context`** (the template in this task consumes exactly these keys):
+
 ```
 {
   "emit": {"cnpj": str, "nome": str, "endereco": str},
@@ -688,6 +737,7 @@ git add py-dfe/tests/danfe_fixtures.py py-dfe/tests/unit/test_danfe_fixtures.py
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfce.py`:
+
 ```python
 import base64
 
@@ -778,6 +828,7 @@ Expected: FAIL — `ModuleNotFoundError: py_dfe.danfe.danfce`.
 - [ ] **Step 3: Implement `danfce.py`**
 
 `py-dfe/py_dfe/danfe/danfce.py`:
+
 ```python
 """DANFC-e (DANFE NFC-e) generation from an authorized NFC-e XML."""
 
@@ -996,6 +1047,7 @@ def _consumidor(dest: dict | None) -> str:
 - [ ] **Step 4: Implement the template `danfce.html`**
 
 `py-dfe/py_dfe/danfe/templates/danfce.html`:
+
 ```html
 <style>
   @page { size: 58mm auto; margin: 2mm; }
@@ -1100,7 +1152,8 @@ def _consumidor(dest: dict | None) -> str:
 - [ ] **Step 5: Run tests, verify they pass**
 
 Run: `cd py-dfe && python -m pytest tests/unit/test_danfce.py -v`
-Expected: PASS — error-path tests (`test_unsupported_model_raises`, `test_invalid_xml_raises`, `test_missing_xml_key_raises`) PASS unconditionally; render tests PASS if WeasyPrint native libs present, else SKIPPED.
+Expected: PASS — error-path tests (`test_unsupported_model_raises`, `test_invalid_xml_raises`,
+`test_missing_xml_key_raises`) PASS unconditionally; render tests PASS if WeasyPrint native libs present, else SKIPPED.
 
 - [ ] **Step 6: Stage (do not commit)**
 
@@ -1113,6 +1166,7 @@ git add py-dfe/py_dfe/danfe/danfce.py py-dfe/py_dfe/danfe/templates/danfce.html 
 ### Task 7: Routing — optional certificate + `GerarDanfe` branch
 
 **Files:**
+
 - Modify: `py-dfe/py_dfe/models/request.py:37-39` (certificate fields optional)
 - Modify: `py-dfe/py_dfe/handler.py:42-67` (conditional cert + CERT_REQUIRED guard + log guard)
 - Modify: `py-dfe/py_dfe/services/_nf.py:62-82` (branch in `call`)
@@ -1120,12 +1174,15 @@ git add py-dfe/py_dfe/danfe/danfce.py py-dfe/py_dfe/danfe/templates/danfce.html 
 - Test (modify): existing `py-dfe/tests/unit/test_handler.py` (ensure still green)
 
 **Interfaces:**
+
 - Consumes: `generate_danfce` (Task 6); `SERVICE_GERAR_DANFE` (Task 1).
-- Produces: a `LambdaRequest` accepting absent certificate; `handler` that routes `GerarDanfe` without a certificate and rejects cert-less SEFAZ services with `DFeError(400, CERT_REQUIRED, ...)`.
+- Produces: a `LambdaRequest` accepting absent certificate; `handler` that routes `GerarDanfe` without a certificate and
+  rejects cert-less SEFAZ services with `DFeError(400, CERT_REQUIRED, ...)`.
 
 - [ ] **Step 1: Write the failing test**
 
 `py-dfe/tests/unit/test_danfce_routing.py`:
+
 ```python
 import json
 
@@ -1176,6 +1233,7 @@ Expected: FAIL — `LambdaRequest` still requires `certificate_b64` (ValidationE
 - [ ] **Step 3: Make certificate fields optional**
 
 `models/request.py` — replace lines 37-39:
+
 ```python
     cnpj: str = Field(..., pattern=r"^\d{14}$")
     certificate_b64: str | None = Field(default=None)
@@ -1185,6 +1243,7 @@ Expected: FAIL — `LambdaRequest` still requires `certificate_b64` (ValidationE
 - [ ] **Step 4: Update the handler**
 
 `handler.py` — replace the log block + service construction (lines 42-68) with:
+
 ```python
     logger.info(
         "Request: doc_type=%s service=%s uf=%s environment=%s cnpj=%s "
@@ -1223,21 +1282,28 @@ Expected: FAIL — `LambdaRequest` still requires `certificate_b64` (ValidationE
         )
         result = service.call(req.service, req.body)
 ```
+
 Add imports at the top of `handler.py`:
+
 ```python
 from py_dfe.constants.danfe import SERVICE_GERAR_DANFE
 from py_dfe.exceptions import CERT_REQUIRED
 ```
-(extend the existing `from py_dfe.exceptions import (...)` block to include `CERT_REQUIRED`, and the existing `DFeError` import already present).
+
+(extend the existing `from py_dfe.exceptions import (...)` block to include `CERT_REQUIRED`, and the existing `DFeError`
+import already present).
 
 - [ ] **Step 5: Branch in `_NFServiceClient.call`**
 
 `services/_nf.py` — add import near the top:
+
 ```python
 from py_dfe.constants.danfe import SERVICE_GERAR_DANFE
 from py_dfe.danfe.danfce import generate_danfce
 ```
+
 Then at the very start of `call` (before `authorizer = get_authorizer(...)`):
+
 ```python
     def call(self, service: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Generic call for any NF-e service."""
@@ -1250,7 +1316,9 @@ Then at the very start of `call` (before `authorizer = get_authorizer(...)`):
 - [ ] **Step 6: Run tests, verify they pass**
 
 Run: `cd py-dfe && python -m pytest tests/unit/test_danfce_routing.py tests/unit/test_handler.py -v`
-Expected: PASS — `test_request_accepts_missing_certificate` and `test_handler_rejects_sefaz_service_without_cert` PASS unconditionally; `test_handler_routes_gerardanfe_without_cert` PASS if WeasyPrint present, else SKIPPED. Existing `test_handler.py` still green.
+Expected: PASS — `test_request_accepts_missing_certificate` and `test_handler_rejects_sefaz_service_without_cert` PASS
+unconditionally; `test_handler_routes_gerardanfe_without_cert` PASS if WeasyPrint present, else SKIPPED. Existing
+`test_handler.py` still green.
 
 - [ ] **Step 7: Stage (do not commit)**
 
@@ -1263,16 +1331,19 @@ git add py-dfe/py_dfe/models/request.py py-dfe/py_dfe/handler.py py-dfe/py_dfe/s
 ### Task 8: Integration test + documentation
 
 **Files:**
+
 - Create: `py-dfe/tests/integration/test_danfce_generation.py`
 - Modify: `DOCS.md` (§3 — new render service)
 - Modify: `CONDUCT.md` (WeasyPrint native-lib constraint)
 
 **Interfaces:**
+
 - Consumes: `handler` (Task 7); `sample_nfe_proc` (Task 5); constants (Task 1).
 
 - [ ] **Step 1: Write the integration test**
 
 `py-dfe/tests/integration/test_danfce_generation.py`:
+
 ```python
 """Integration: full DANFC-e render through the Lambda handler.
 
@@ -1334,7 +1405,8 @@ def test_full_homologacao_and_resumido():
 - [ ] **Step 2: Run the integration test**
 
 Run: `cd py-dfe && python -m pytest tests/integration/test_danfce_generation.py -v`
-Expected: PASS if WeasyPrint native libs present, else SKIPPED (no SEFAZ/cert needed — these run without `TEST_CERT_PATH`).
+Expected: PASS if WeasyPrint native libs present, else SKIPPED (no SEFAZ/cert needed — these run without
+`TEST_CERT_PATH`).
 
 - [ ] **Step 3: Run the full unit suite (regression)**
 
@@ -1343,11 +1415,15 @@ Expected: All PASS (render-dependent ones SKIPPED if WeasyPrint native libs miss
 
 - [ ] **Step 4: Update `DOCS.md` §3**
 
-Add a row/subsection documenting the new render service: `doc_type="nfce"`, `service="GerarDanfe"`, no certificate, body `{xml, layout?, canceled?}`, returns `{pdf_b64, html[]}`. Variants: completo/resumido (`layout`), contingência auto (`tpEmis=9`, 2 vias), homologação auto (`tpAmb=2`), cancelada (`canceled`). Note QR/data read only from XML.
+Add a row/subsection documenting the new render service: `doc_type="nfce"`, `service="GerarDanfe"`, no certificate, body
+`{xml, layout?, canceled?}`, returns `{pdf_b64, html[]}`. Variants: completo/resumido (`layout`), contingência auto (
+`tpEmis=9`, 2 vias), homologação auto (`tpAmb=2`), cancelada (`canceled`). Note QR/data read only from XML.
 
 - [ ] **Step 5: Update `CONDUCT.md`**
 
-Add a constraint entry: "py-dfe DANFC-e rendering uses WeasyPrint, which requires native libraries (cairo, pango, gdk-pixbuf, glib, gobject, fonts) bundled in the Lambda layer/image. CDK layer build MUST include them. Render/QR are pure-local — no certificate, no SEFAZ."
+Add a constraint entry: "py-dfe DANFC-e rendering uses WeasyPrint, which requires native libraries (cairo, pango,
+gdk-pixbuf, glib, gobject, fonts) bundled in the Lambda layer/image. CDK layer build MUST include them. Render/QR are
+pure-local — no certificate, no SEFAZ."
 
 - [ ] **Step 6: Stage (do not commit)**
 
@@ -1360,13 +1436,24 @@ git add py-dfe/tests/integration/test_danfce_generation.py DOCS.md CONDUCT.md
 ## Cross-project impact
 
 - **py-dfe:** all new code (this plan).
-- **cdk:** Lambda layer MUST bundle WeasyPrint native libraries — flagged in `CONDUCT.md`; layer build change owned by cdk, out of scope here.
-- **api / worker:** `api/internal/services/nfes/danfe.go` currently calls `consultadanfe.com`. Swapping it to invoke the `GerarDanfe` py-dfe service is a follow-up (not in scope).
+- **cdk:** Lambda layer MUST bundle WeasyPrint native libraries — flagged in `CONDUCT.md`; layer build change owned by
+  cdk, out of scope here.
+- **api / worker:** `api/internal/services/nfes/danfe.go` currently calls `consultadanfe.com`. Swapping it to invoke the
+  `GerarDanfe` py-dfe service is a follow-up (not in scope).
 - **ui:** unchanged (existing DANFE download button keeps working via the api path).
 
 ## Self-Review
 
-- **Spec coverage:** §4 architecture → Tasks 2-6; §5 routing → Tasks 1,7; §6 extraction → Task 6 `build_context`; §7 all variants (completo/resumido/contingência-2vias/homologação/cancelada) → Task 6 tests + template; §8 output shape → Task 6 `generate_danfce`; §9 paper/QR sizing → Task 6 template `@page`/`.qr`; §10 deps + cross-project → Task 1 + Task 8 docs; §11 error handling → Tasks 1,3,6,7 (all DFeError codes covered); §12 testing → Tasks 2-8.
-- **Placeholder scan:** none — every code/test step contains full content; docs steps (8.4/8.5) specify exact text to add.
-- **Type consistency:** `generate_danfce(payload)->{pdf_b64,html[]}` consistent across Tasks 6,7,8; `qr_data_uri`, `render_html`, `html_to_pdf`, `money_br`/`dt_local`/`mask_cnpj`/`mask_cpf`/`chave_blocks`, `sample_nfe_proc(tp_emis,tp_amb,with_dest,n_items)`, `SERVICE_GERAR_DANFE` all used with matching signatures across tasks.
-- **Manual coverage:** Divisões I-IX all present in `danfce.html`; contingency 2-via + "Via do Estabelecimento" + suppressed protocol (manual §3.1.7/§3.1.8); homologação banner (§3.1.8); QR level M/UTF-8 (§4.5); 58mm/2mm margins + 25mm QR (§3.3/§3.4); chave 11 blocks (§3.1.4); money comma-decimal (§3.1.2).
+- **Spec coverage:** §4 architecture → Tasks 2-6; §5 routing → Tasks 1,7; §6 extraction → Task 6 `build_context`; §7 all
+  variants (completo/resumido/contingência-2vias/homologação/cancelada) → Task 6 tests + template; §8 output shape →
+  Task 6 `generate_danfce`; §9 paper/QR sizing → Task 6 template `@page`/`.qr`; §10 deps + cross-project → Task 1 + Task
+  8 docs; §11 error handling → Tasks 1,3,6,7 (all DFeError codes covered); §12 testing → Tasks 2-8.
+- **Placeholder scan:** none — every code/test step contains full content; docs steps (8.4/8.5) specify exact text to
+  add.
+- **Type consistency:** `generate_danfce(payload)->{pdf_b64,html[]}` consistent across Tasks 6,7,8; `qr_data_uri`,
+  `render_html`, `html_to_pdf`, `money_br`/`dt_local`/`mask_cnpj`/`mask_cpf`/`chave_blocks`,
+  `sample_nfe_proc(tp_emis,tp_amb,with_dest,n_items)`, `SERVICE_GERAR_DANFE` all used with matching signatures across
+  tasks.
+- **Manual coverage:** Divisões I-IX all present in `danfce.html`; contingency 2-via + "Via do Estabelecimento" +
+  suppressed protocol (manual §3.1.7/§3.1.8); homologação banner (§3.1.8); QR level M/UTF-8 (§4.5); 58mm/2mm margins +
+  25mm QR (§3.3/§3.4); chave 11 blocks (§3.1.4); money comma-decimal (§3.1.2).

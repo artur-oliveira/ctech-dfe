@@ -1,6 +1,7 @@
 # autXML — Pessoas Autorizadas — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let an organization register up to 10 CPF/CNPJ+name pairs authorized to view its NF-e
 XMLs (SEFAZ `autXML`), with add/remove endpoints, no duplicates, always included in NF-e XML build.
@@ -26,14 +27,18 @@ through the already-existing generic `Update` (fetch→merge→diff→TransactWr
 ### Task 1: Backend — DTO + service methods
 
 **Files:**
+
 - Modify: `api/internal/api/v1/dto.go`
 - Modify: `api/internal/services/organizations.go`
 - Test: `api/internal/services/organizations_test.go`
 
 **Interfaces:**
+
 - Produces: `AuthorizedViewerBody{CpfOrCnpj, Name string}`.
-- Produces: `OrganizationService.AddAuthorizedViewer(ctx, orgPK, v, userID, userName) (map[string]types.AttributeValue, error)`.
-- Produces: `OrganizationService.RemoveAuthorizedViewer(ctx, orgPK, cpfCnpj, userID, userName) (map[string]types.AttributeValue, error)`.
+- Produces:
+  `OrganizationService.AddAuthorizedViewer(ctx, orgPK, v, userID, userName) (map[string]types.AttributeValue, error)`.
+- Produces:
+  `OrganizationService.RemoveAuthorizedViewer(ctx, orgPK, cpfCnpj, userID, userName) (map[string]types.AttributeValue, error)`.
 - Consumes: `OrganizationService.Update` (existing, unchanged — `organizations.go:58-104`),
   `attributeMapToPlain` (`services/shared.go:71`).
 
@@ -42,6 +47,7 @@ through the already-existing generic `Update` (fetch→merge→diff→TransactWr
 `api/internal/services/organizations_test.go` — append (check existing file first; this task
 assumes Task 1 of the pessoas/organizações plan already added `RequireOrgIE` tests here — append
 alongside, don't overwrite):
+
 ```go
 func TestAddAuthorizedViewer_RejectsDuplicateCpfCnpj(t *testing.T) {
 	current := map[string]any{
@@ -91,6 +97,7 @@ func TestRemoveAuthorizedViewer_FiltersMatching(t *testing.T) {
 	}
 }
 ```
+
 (Add `"fmt"` to the test file's imports if not already present.)
 
 - [ ] **Step 2: Run, confirm fail**
@@ -101,6 +108,7 @@ Expected: FAIL — types/functions undefined.
 - [ ] **Step 3: DTO**
 
 `api/internal/api/v1/dto.go` — add near the other org-adjacent bodies:
+
 ```go
 // AuthorizedViewerBody is one entry in an organization's SEFAZ autXML list
 // (CPF/CNPJ + name authorized to view that organization's NF-e XMLs).
@@ -113,6 +121,7 @@ type AuthorizedViewerBody struct {
 - [ ] **Step 4: Service implementation**
 
 `api/internal/services/organizations.go` — add:
+
 ```go
 const maxAuthorizedViewers = 10
 
@@ -209,6 +218,7 @@ func (s *OrganizationService) RemoveAuthorizedViewer(ctx context.Context, orgPK,
 	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
 }
 ```
+
 Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports if not
 already present in this file (Task 1 of the pessoas/organizações plan may have already added
 `problem` — check before adding a duplicate import).
@@ -233,6 +243,7 @@ git commit -m "feat(api): add/remove organization authorized XML viewers"
 ### Task 2: Backend — routes
 
 **Files:**
+
 - Modify: `api/internal/api/v1/organizations.go`
 - Test: `api/tests/integration/organizations_test.go`
 
@@ -240,6 +251,7 @@ git commit -m "feat(api): add/remove organization authorized XML viewers"
 
 In `RegisterOrganizations`, inside the `scoped` group (after the `PUT ""` handler, before
 `registerFiscalConfig` calls — `organizations.go:119`), add:
+
 ```go
 	// ── Authorized XML viewers (SEFAZ autXML) ──────────────────────────────────
 
@@ -272,6 +284,7 @@ In `RegisterOrganizations`, inside the `scoped` group (after the `PUT ""` handle
 `api/tests/integration/organizations_test.go` — add, following the existing HTTP-harness pattern
 in that file (look at an existing `TestOrganization_Update*` test for the request/org-setup
 boilerplate):
+
 ```go
 func TestOrganization_AddAuthorizedViewer(t *testing.T) {
 	// POST /organizations/:pk/authorized-viewers with valid cpf_or_cnpj+name → 200,
@@ -306,6 +319,7 @@ git commit -m "feat(api): expose authorized-viewers endpoints on organizations"
 ### Task 3: Backend — wire into NF-e builder
 
 **Files:**
+
 - Modify: `api/internal/services/nfes/builders_doc.go`
 - Test: `api/internal/services/nfes/builders_doc_test.go`
 
@@ -347,6 +361,7 @@ Expected: FAIL — `buildAutXML` undefined.
 
 `api/internal/services/nfes/builders_doc.go` — add near `buildLocal` (or, if Task 3 of the
 pessoas/organizações plan hasn't landed yet, near `buildEnder`):
+
 ```go
 // buildAutXML builds the autXML list (CPF/CNPJ authorized to view this
 // organization's NF-e XML) from the organization's authorized_xml_viewers
@@ -391,11 +406,13 @@ Expected: PASS
 In the same `infNFe` map assembly touched by Task 3/Step 6 of the pessoas/organizações plan (or,
 if that task hasn't run yet, locate it directly — search `BuildEnviNFe` for where `"dest"` is set
 on the `infNFe` map), add:
+
 ```go
 if autXML := buildAutXML(org); autXML != nil {
 	infNFe["autXML"] = autXML
 }
 ```
+
 `org` here is the same `map[string]any` already passed into `BuildEnviNFe` for `buildEnder`/emit
 fields — no new parameter needed.
 
@@ -413,6 +430,7 @@ git commit -m "feat(api): include organization authorized viewers as autXML in N
 ### Task 4: Frontend — types, client, UI section
 
 **Files:**
+
 - Modify: `ui/src/lib/types/api.ts`
 - Modify: `ui/src/lib/api/client.ts`
 - Modify: `ui/src/lib/api/query-keys.ts`
@@ -424,17 +442,20 @@ git commit -m "feat(api): include organization authorized viewers as autXML in N
 - [ ] **Step 1: Types**
 
 `ui/src/lib/types/api.ts` — add near `OrganizationOut`:
+
 ```ts
 export interface AuthorizedViewerOut {
   cpf_cnpj: string
   name: string
 }
 ```
+
 Extend `OrganizationOut` (line 90-97): `authorized_xml_viewers?: AuthorizedViewerOut[]`.
 
 - [ ] **Step 2: Client methods**
 
 `ui/src/lib/api/client.ts` — add near `updateOrganization` (line 201-203):
+
 ```ts
 async addAuthorizedViewer(orgPk: string, data: { cpf_or_cnpj: string; name: string }): Promise<OrganizationOut> {
   return this.post<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(orgPk)}/authorized-viewers`, data)
@@ -444,6 +465,7 @@ async removeAuthorizedViewer(orgPk: string, cpfCnpj: string): Promise<Organizati
   return this.delete<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(orgPk)}/authorized-viewers/${unformatCpfCnpj(cpfCnpj)}`)
 }
 ```
+
 (Check the class already has a `delete<T>` helper — mirrors `get`/`post`/`put` used elsewhere in
 this file; if absent, look at how `removeAuthorizedViewer`'s Vehicle/Certificate delete
 counterparts call `this.client.delete(...)` directly and match that style instead.)
@@ -451,12 +473,15 @@ counterparts call `this.client.delete(...)` directly and match that style instea
 - [ ] **Step 3: Query key + schema**
 
 `ui/src/lib/api/query-keys.ts` — add under the organizations section:
+
 ```ts
 authorizedViewers: (orgPk: string) => [...queryKeys.organizations.detail(orgPk), 'authorized-viewers'] as const,
 ```
+
 (Adapt to however `organizations.detail` is actually named in this file — read it first.)
 
 `ui/src/lib/schemas/authorized-viewers.ts`:
+
 ```ts
 import {z} from 'zod'
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators'
@@ -483,6 +508,7 @@ export const MAX_AUTHORIZED_VIEWERS = 10
 - [ ] **Step 4: Schema test**
 
 `ui/src/__tests__/lib/schemas/authorized-viewers.test.ts`:
+
 ```ts
 import {describe, expect, it} from 'vitest'
 import {authorizedViewerSchema, hasDuplicateViewer} from '@/lib/schemas/authorized-viewers'
@@ -547,6 +573,7 @@ git commit -m "feat(ui): manage organization authorized XML viewers"
 ### Task 5: Documentation
 
 **Files:**
+
 - Modify: `DOCS.md`
 - Modify: `DynamoDB-Tables.md`
 

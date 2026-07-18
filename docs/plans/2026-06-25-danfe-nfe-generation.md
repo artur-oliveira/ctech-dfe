@@ -1,36 +1,56 @@
 # DANF-e (NF-e modelo 55) Generation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add DANF-e (NF-e modelo 55) auxiliary-document rendering (4 variants + full contingency) to the existing `py_dfe/danfe/` package, dispatched from the same `GerarDanfe` service that already serves DANFC-e (mod 65).
+**Goal:** Add DANF-e (NF-e modelo 55) auxiliary-document rendering (4 variants + full contingency) to the existing
+`py_dfe/danfe/` package, dispatched from the same `GerarDanfe` service that already serves DANFC-e (mod 65).
 
-**Architecture:** A model-dispatcher (`document.py`) reads `ide/mod` and routes mod 65 → existing `danfce.generate_danfce` (untouched), mod 55 → new `nfe55.generate_danfe_nfe`. Mod-55 building, barcode generation, and the generic HTML→PDF renderer are isolated units. Four Jinja templates (composed from shared macros) cover retrato/paisagem (fixed A4, multi-page) and simplificado/etiqueta (roll, auto-height).
+**Architecture:** A model-dispatcher (`document.py`) reads `ide/mod` and routes mod 65 → existing
+`danfce.generate_danfce` (untouched), mod 55 → new `nfe55.generate_danfe_nfe`. Mod-55 building, barcode generation, and
+the generic HTML→PDF renderer are isolated units. Four Jinja templates (composed from shared macros) cover
+retrato/paisagem (fixed A4, multi-page) and simplificado/etiqueta (roll, auto-height).
 
-**Tech Stack:** Python 3.14, lxml (XML parse, reuse `xmlops.builder.parse_xml_bytes`), Jinja2 (templating), WeasyPrint (HTML→PDF), python-barcode (CODE-128 SVG), segno (existing, NFC-e QR only).
+**Tech Stack:** Python 3.14, lxml (XML parse, reuse `xmlops.builder.parse_xml_bytes`), Jinja2 (templating), WeasyPrint (
+HTML→PDF), python-barcode (CODE-128 SVG), segno (existing, NFC-e QR only).
 
 ## Global Constraints
 
-- **Errors:** every failure raises `DFeError(status_code, error_code, message)`. Never raise bare `Exception`/`ValueError`.
-- **Constants:** no magic strings/numbers — all model codes, tpEmis/tpNF values, layout keys, labels, and copy live in `py_dfe/constants/danfe.py`.
-- **DRY:** reuse `formatters.py`, `render.py`, `xmlops.builder.parse_xml_bytes`, and existing `exceptions.py` codes before adding new ones.
+- **Errors:** every failure raises `DFeError(status_code, error_code, message)`. Never raise bare `Exception`/
+  `ValueError`.
+- **Constants:** no magic strings/numbers — all model codes, tpEmis/tpNF values, layout keys, labels, and copy live in
+  `py_dfe/constants/danfe.py`.
+- **DRY:** reuse `formatters.py`, `render.py`, `xmlops.builder.parse_xml_bytes`, and existing `exceptions.py` codes
+  before adding new ones.
 - **Secrets:** test fixtures use only synthetic CNPJ/CPF (`12345678000199`, `12345678909`). No real customer data.
-- **Dependency floor:** `python-barcode>=0.15.1` (pyproject), pinned `python-barcode==0.15.1` (layer/requirements.txt). No new native libraries.
-- **NFC-e path is frozen:** `danfce.py`, `qr.py`, and `templates/danfce.html` MUST NOT change behavior. Only `render.py` is extended (backward-compatible default).
-- **Output shape:** `generate_danfe_nfe` returns `{"pdf_b64": <ascii base64>, "html": [<str>, ...]}` — identical shape to `generate_danfce`.
-- **Commits:** do NOT auto-commit. Per repo policy, stage changes only (`git add`); the user commits explicitly. Commit-message lines below are suggestions for when the user asks. Never add a `Co-Authored-By` trailer.
-- **Test runner:** `cd py-dfe && python -m pytest`. WeasyPrint-dependent tests guard with `pytest.importorskip("weasyprint")`.
+- **Dependency floor:** `python-barcode>=0.15.1` (pyproject), pinned `python-barcode==0.15.1` (layer/requirements.txt).
+  No new native libraries.
+- **NFC-e path is frozen:** `danfce.py`, `qr.py`, and `templates/danfce.html` MUST NOT change behavior. Only `render.py`
+  is extended (backward-compatible default).
+- **Output shape:** `generate_danfe_nfe` returns `{"pdf_b64": <ascii base64>, "html": [<str>, ...]}` — identical shape
+  to `generate_danfce`.
+- **Commits:** do NOT auto-commit. Per repo policy, stage changes only (`git add`); the user commits explicitly.
+  Commit-message lines below are suggestions for when the user asks. Never add a `Co-Authored-By` trailer.
+- **Test runner:** `cd py-dfe && python -m pytest`. WeasyPrint-dependent tests guard with
+  `pytest.importorskip("weasyprint")`.
 
 ---
 
 ### Task 1: Constants + barcode error code
 
 **Files:**
+
 - Modify: `py-dfe/py_dfe/constants/danfe.py` (append)
 - Modify: `py-dfe/py_dfe/exceptions.py:18` (add one code constant)
 - Test: `py-dfe/tests/unit/test_danfe_constants.py` (append)
 
 **Interfaces:**
-- Produces: `MODELO_NFE`, `LAYOUT_RETRATO`, `LAYOUT_PAISAGEM`, `LAYOUT_SIMPLIFICADO`, `LAYOUT_ETIQUETA`, `VALID_DANFE_NFE_LAYOUTS`, `DEFAULT_DANFE_NFE_LAYOUT`, `DANFE_NFE_TEMPLATES`, `ROLL_LAYOUTS`, `TP_EMIS_FS`, `TP_EMIS_SCAN`, `TP_EMIS_EPEC`, `TP_EMIS_FSDA`, `TP_EMIS_SVC_AN`, `TP_EMIS_SVC_RS`, `TP_EMIS_NORMAL_LIKE`, `TP_EMIS_FS_LIKE`, `TP_NF_ENTRADA`, `TP_NF_SAIDA`, `TP_NF_LABELS`, `MOD_FRETE_LABELS`, and the `TEXT_*` copy constants. `DANFE_INVALID_BARCODE` in `exceptions.py`.
+
+- Produces: `MODELO_NFE`, `LAYOUT_RETRATO`, `LAYOUT_PAISAGEM`, `LAYOUT_SIMPLIFICADO`, `LAYOUT_ETIQUETA`,
+  `VALID_DANFE_NFE_LAYOUTS`, `DEFAULT_DANFE_NFE_LAYOUT`, `DANFE_NFE_TEMPLATES`, `ROLL_LAYOUTS`, `TP_EMIS_FS`,
+  `TP_EMIS_SCAN`, `TP_EMIS_EPEC`, `TP_EMIS_FSDA`, `TP_EMIS_SVC_AN`, `TP_EMIS_SVC_RS`, `TP_EMIS_NORMAL_LIKE`,
+  `TP_EMIS_FS_LIKE`, `TP_NF_ENTRADA`, `TP_NF_SAIDA`, `TP_NF_LABELS`, `MOD_FRETE_LABELS`, and the `TEXT_*` copy
+  constants. `DANFE_INVALID_BARCODE` in `exceptions.py`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -173,12 +193,15 @@ git add py-dfe/py_dfe/constants/danfe.py py-dfe/py_dfe/exceptions.py py-dfe/test
 ### Task 2: Formatter extensions
 
 **Files:**
+
 - Modify: `py-dfe/py_dfe/danfe/formatters.py` (append functions)
 - Test: `py-dfe/tests/unit/test_danfe_formatters.py` (append)
 
 **Interfaces:**
+
 - Consumes: nothing new.
-- Produces: `mask_cpf_cnpj(digits: str) -> str`, `num_nf(value: str) -> str`, `mask_cep(digits: str) -> str`, `pct(value: str | float | int | None) -> str`.
+- Produces: `mask_cpf_cnpj(digits: str) -> str`, `num_nf(value: str) -> str`, `mask_cep(digits: str) -> str`,
+  `pct(value: str | float | int | None) -> str`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -270,17 +293,21 @@ git add py-dfe/py_dfe/danfe/formatters.py py-dfe/tests/unit/test_danfe_formatter
 ### Task 3: Barcode module + dependency
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/barcode.py`
 - Modify: `py-dfe/pyproject.toml` (dependencies)
 - Modify: `py-dfe/layer/requirements.txt`
 - Test: `py-dfe/tests/unit/test_danfe_barcode.py`
 
 **Interfaces:**
+
 - Consumes: `DFeError`, `DANFE_INVALID_BARCODE` (Task 1).
 - Produces:
-  - `code128c_data_uri(value: str) -> str` — `data:image/svg+xml;base64,...`
-  - `dados_nfe_code(*, cuf: str, tp_emis: str, doc: str, vnf: str, icms_proprio: bool, icms_st: bool, dia_emissao: str) -> str` — 36-char string with mod-11 DV.
-  - `_mod11_dv(digits: str) -> str` — single-char DV (also used internally).
+    - `code128c_data_uri(value: str) -> str` — `data:image/svg+xml;base64,...`
+    -
+    `dados_nfe_code(*, cuf: str, tp_emis: str, doc: str, vnf: str, icms_proprio: bool, icms_st: bool, dia_emissao: str) -> str` —
+    36-char string with mod-11 DV.
+    - `_mod11_dv(digits: str) -> str` — single-char DV (also used internally).
 
 - [ ] **Step 1: Add the dependency**
 
@@ -440,12 +467,15 @@ def dados_nfe_code(
     return body + _mod11_dv(body)
 ```
 
-> Note: the test's `icms_proprio=True` expects `code[31] == "1"`. Index map: cUF `0:2`, tpEmis `2:3`, doc `3:17`, vNF `17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded to `00000000012345`.
+> Note: the test's `icms_proprio=True` expects `code[31] == "1"`. Index map: cUF `0:2`, tpEmis `2:3`, doc `3:17`, vNF
+`17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded to
+`00000000012345`.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd py-dfe && python -m pytest tests/unit/test_danfe_barcode.py -q`
-Expected: PASS. If `test_dados_nfe_code_layout` asserts on `vNF`, confirm the caller passes vNF with centavos already encoded (Task 6 passes the digits of `vNF` formatted as integer centavos).
+Expected: PASS. If `test_dados_nfe_code_layout` asserts on `vNF`, confirm the caller passes vNF with centavos already
+encoded (Task 6 passes the digits of `vNF` formatted as integer centavos).
 
 - [ ] **Step 6: Stage**
 
@@ -459,12 +489,15 @@ git add py-dfe/py_dfe/danfe/barcode.py py-dfe/pyproject.toml py-dfe/layer/requir
 ### Task 4: Render extension (`fit_height` flag)
 
 **Files:**
+
 - Modify: `py-dfe/py_dfe/danfe/render.py:35-55` (`htmls_to_pdf`)
 - Test: `py-dfe/tests/unit/test_danfe_render.py` (append)
 
 **Interfaces:**
+
 - Consumes: existing `_render_fitted`, `_content_height_px`.
-- Produces: `htmls_to_pdf(pages: list[str], *, fit_height: bool = True) -> bytes` (backward compatible). `html_to_pdf(html: str) -> bytes` unchanged.
+- Produces: `htmls_to_pdf(pages: list[str], *, fit_height: bool = True) -> bytes` (backward compatible).
+  `html_to_pdf(html: str) -> bytes` unchanged.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -553,11 +586,14 @@ git add py-dfe/py_dfe/danfe/render.py py-dfe/tests/unit/test_danfe_render.py py-
 ### Task 5: Mod-55 test fixture
 
 **Files:**
+
 - Modify: `py-dfe/tests/danfe_fixtures.py` (append `sample_nfe55_proc`)
 - Test: `py-dfe/tests/unit/test_danfe_fixtures.py` (append)
 
 **Interfaces:**
-- Produces: `sample_nfe55_proc(*, tp_emis="1", tp_amb="1", n_items=2, with_transp=True, with_dup=True, with_issqn=False) -> str`.
+
+- Produces:
+  `sample_nfe55_proc(*, tp_emis="1", tp_amb="1", n_items=2, with_transp=True, with_dup=True, with_issqn=False) -> str`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -762,17 +798,23 @@ git add py-dfe/tests/danfe_fixtures.py py-dfe/tests/unit/test_danfe_fixtures.py
 ### Task 6: Mod-55 context builder + generator (`nfe55.py`)
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/nfe55.py`
 - Test: `py-dfe/tests/unit/test_danfe_nfe.py`
 
 **Interfaces:**
-- Consumes: `parse_xml_bytes` (`py_dfe.xmlops.builder`), `formatters` (Task 2), `barcode` (Task 3), `render.render_html` + `render.htmls_to_pdf` (Task 4), constants (Task 1), `sample_nfe55_proc` (Task 5).
-- Produces:
-  - `generate_danfe_nfe(payload: dict) -> dict` → `{"pdf_b64", "html"}`.
-  - `build_context(inf_nfe, prot, *, layout, canceled, tp_emis, tp_amb, chave) -> dict`.
-  - `_extract_roots(xml) -> tuple[dict, dict|None, str, str, str]` (validates mod 55).
 
-> This task creates the generator and its context. The HTML templates do not exist yet (Tasks 7-8), so the PDF-rendering assertions in this task's tests guard with `importorskip` AND are written to tolerate a missing template by asserting on `build_context` output (pure, no WeasyPrint). Full end-to-end PDF assertions live in Tasks 7-8 and 9 once templates exist.
+- Consumes: `parse_xml_bytes` (`py_dfe.xmlops.builder`), `formatters` (Task 2), `barcode` (Task 3),
+  `render.render_html` + `render.htmls_to_pdf` (Task 4), constants (Task 1), `sample_nfe55_proc` (Task 5).
+- Produces:
+    - `generate_danfe_nfe(payload: dict) -> dict` → `{"pdf_b64", "html"}`.
+    - `build_context(inf_nfe, prot, *, layout, canceled, tp_emis, tp_amb, chave) -> dict`.
+    - `_extract_roots(xml) -> tuple[dict, dict|None, str, str, str]` (validates mod 55).
+
+> This task creates the generator and its context. The HTML templates do not exist yet (Tasks 7-8), so the PDF-rendering
+> assertions in this task's tests guard with `importorskip` AND are written to tolerate a missing template by asserting on
+`build_context` output (pure, no WeasyPrint). Full end-to-end PDF assertions live in Tasks 7-8 and 9 once templates
+> exist.
 
 - [ ] **Step 1: Write the failing test (context only — no template needed)**
 
@@ -1134,12 +1176,14 @@ git add py-dfe/py_dfe/danfe/nfe55.py py-dfe/tests/unit/test_danfe_nfe.py
 ### Task 7: Macros + retrato/paisagem templates (full A4)
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/templates/_danfe_macros.html`
 - Create: `py-dfe/py_dfe/danfe/templates/danfe_retrato.html`
 - Create: `py-dfe/py_dfe/danfe/templates/danfe_paisagem.html`
 - Test: `py-dfe/tests/unit/test_danfe_nfe.py` (append PDF + HTML assertions)
 
 **Interfaces:**
+
 - Consumes: context from `build_context` (Task 6), `generate_danfe_nfe` (Task 6).
 - Produces: rendered HTML containing all mandatory quadros; valid `%PDF` for retrato/paisagem.
 
@@ -1361,7 +1405,10 @@ Create `py-dfe/py_dfe/danfe/templates/danfe_retrato.html`:
 {{ m.infadic_box(ctx) }}
 ```
 
-> The context dict is passed under the name `ctx`. Update `generate_danfe_nfe` Step 3 (Task 6) render call to wrap: change `render_html(template, context)` to `render_html(template, {"ctx": context})`. **Apply this one-line change now** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context` is unaffected; only the render wrapper changes.
+> The context dict is passed under the name `ctx`. Update `generate_danfe_nfe` Step 3 (Task 6) render call to wrap:
+> change `render_html(template, context)` to `render_html(template, {"ctx": context})`. **Apply this one-line change now
+** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context` is
+> unaffected; only the render wrapper changes.
 
 - [ ] **Step 5: Create `danfe_paisagem.html`**
 
@@ -1409,7 +1456,8 @@ Create `py-dfe/py_dfe/danfe/templates/danfe_paisagem.html` (identical blocks; la
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cd py-dfe && python -m pytest tests/unit/test_danfe_nfe.py -q`
-Expected: PASS (context + A4 PDF tests). If WeasyPrint warns about unknown `running()`/`element()`, that is non-fatal; the PDF still renders.
+Expected: PASS (context + A4 PDF tests). If WeasyPrint warns about unknown `running()`/`element()`, that is non-fatal;
+the PDF still renders.
 
 - [ ] **Step 7: Stage**
 
@@ -1423,11 +1471,13 @@ git add py-dfe/py_dfe/danfe/templates/_danfe_macros.html py-dfe/py_dfe/danfe/tem
 ### Task 8: Simplificado + etiqueta templates (roll, auto-height)
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/templates/danfe_simplificado.html`
 - Create: `py-dfe/py_dfe/danfe/templates/danfe_etiqueta.html`
 - Test: `py-dfe/tests/unit/test_danfe_nfe.py` (append)
 
 **Interfaces:**
+
 - Consumes: `generate_danfe_nfe`, context, `_danfe_macros.html`.
 - Produces: valid `%PDF` for simplificado/etiqueta with only the §3.11.4 / §3.12.4 mandatory fields.
 
@@ -1465,7 +1515,9 @@ Expected: FAIL (`TemplateNotFound: danfe_simplificado.html`).
 
 - [ ] **Step 3: Create `danfe_simplificado.html`**
 
-Create `py-dfe/py_dfe/danfe/templates/danfe_simplificado.html` (§3.11.4 obrigatórios: emit Nome/UF/CNPJ/IE; ide tpNF/série/nº/dhEmi; dest Nome/UF/CNPJ-CPF; itens descrição/un/qtd/vUnit/vTotal; total vNF; "DANFE Simplificado"; chave + barcode; protocolo):
+Create `py-dfe/py_dfe/danfe/templates/danfe_simplificado.html` (§3.11.4 obrigatórios: emit Nome/UF/CNPJ/IE; ide
+tpNF/série/nº/dhEmi; dest Nome/UF/CNPJ-CPF; itens descrição/un/qtd/vUnit/vTotal; total vNF; "DANFE Simplificado";
+chave + barcode; protocolo):
 
 ```html
 {% import "_danfe_macros.html" as m %}
@@ -1520,7 +1572,9 @@ Create `py-dfe/py_dfe/danfe/templates/danfe_simplificado.html` (§3.11.4 obrigat
 
 - [ ] **Step 4: Create `danfe_etiqueta.html`**
 
-Create `py-dfe/py_dfe/danfe/templates/danfe_etiqueta.html` (§3.12.4 obrigatórios: "DANFE Simplificado - Etiqueta"; emit Nome/UF/CNPJ/IE; ide tpNF/série/nº/dhEmi; dest Nome/UF/CNPJ-CPF/IE; total vNF; chave + barcode; protocolo/EPEC — no item list):
+Create `py-dfe/py_dfe/danfe/templates/danfe_etiqueta.html` (§3.12.4 obrigatórios: "DANFE Simplificado - Etiqueta"; emit
+Nome/UF/CNPJ/IE; ide tpNF/série/nº/dhEmi; dest Nome/UF/CNPJ-CPF/IE; total vNF; chave + barcode; protocolo/EPEC — no item
+list):
 
 ```html
 {% import "_danfe_macros.html" as m %}
@@ -1575,12 +1629,14 @@ git add py-dfe/py_dfe/danfe/templates/danfe_simplificado.html py-dfe/py_dfe/danf
 ### Task 9: Dispatcher + service wiring
 
 **Files:**
+
 - Create: `py-dfe/py_dfe/danfe/document.py`
 - Modify: `py-dfe/py_dfe/services/_nf.py:8` (import) and `:66-67` (route)
 - Test: `py-dfe/tests/unit/test_danfe_document.py`
 - Test: `py-dfe/tests/unit/test_danfce_routing.py` (verify still green)
 
 **Interfaces:**
+
 - Consumes: `generate_danfce` (existing), `generate_danfe_nfe` (Task 6), `parse_xml_bytes`, constants.
 - Produces: `generate_danfe(payload: dict) -> dict` (dispatch by `ide/mod`).
 
@@ -1698,7 +1754,8 @@ and the route inside `call` (lines 66-67):
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cd py-dfe && python -m pytest tests/unit/test_danfe_document.py tests/unit/test_danfce_routing.py tests/unit/test_danfce.py -q`
+Run:
+`cd py-dfe && python -m pytest tests/unit/test_danfe_document.py tests/unit/test_danfce_routing.py tests/unit/test_danfce.py -q`
 Expected: PASS (dispatcher + existing NFC-e routing/behaviour intact).
 
 - [ ] **Step 6: Stage**
@@ -1713,9 +1770,11 @@ git add py-dfe/py_dfe/danfe/document.py py-dfe/py_dfe/services/_nf.py py-dfe/tes
 ### Task 10: Integration test (end-to-end, all variants + contingency)
 
 **Files:**
+
 - Create: `py-dfe/tests/integration/test_danfe_nfe_generation.py`
 
 **Interfaces:**
+
 - Consumes: `generate_danfe` dispatcher, `sample_nfe55_proc`.
 
 - [ ] **Step 1: Write the test**
@@ -1771,11 +1830,13 @@ def test_retrato_paginates_with_many_items():
 - [ ] **Step 2: Run the test**
 
 Run: `cd py-dfe && python -m pytest tests/integration/test_danfe_nfe_generation.py -q`
-Expected: PASS. If `test_retrato_paginates_with_many_items` yields 1 page, increase `n_items` until overflow (the A4 body must exceed one page) — 80 items is comfortably beyond one A4.
+Expected: PASS. If `test_retrato_paginates_with_many_items` yields 1 page, increase `n_items` until overflow (the A4
+body must exceed one page) — 80 items is comfortably beyond one A4.
 
 - [ ] **Step 3: Run the full DANFE suite**
 
-Run: `cd py-dfe && python -m pytest tests/unit/test_danfe_constants.py tests/unit/test_danfe_formatters.py tests/unit/test_danfe_barcode.py tests/unit/test_danfe_render.py tests/unit/test_danfe_fixtures.py tests/unit/test_danfe_nfe.py tests/unit/test_danfe_document.py tests/unit/test_danfce.py tests/unit/test_danfce_routing.py tests/integration/test_danfe_nfe_generation.py tests/integration/test_danfce_generation.py -q`
+Run:
+`cd py-dfe && python -m pytest tests/unit/test_danfe_constants.py tests/unit/test_danfe_formatters.py tests/unit/test_danfe_barcode.py tests/unit/test_danfe_render.py tests/unit/test_danfe_fixtures.py tests/unit/test_danfe_nfe.py tests/unit/test_danfe_document.py tests/unit/test_danfce.py tests/unit/test_danfce_routing.py tests/integration/test_danfe_nfe_generation.py tests/integration/test_danfce_generation.py -q`
 Expected: PASS (DANF-e + DANFC-e, no regressions).
 
 - [ ] **Step 4: Stage**
@@ -1790,6 +1851,7 @@ git add py-dfe/tests/integration/test_danfe_nfe_generation.py
 ### Task 11: Documentation
 
 **Files:**
+
 - Modify: `DOCS.md` (§3 GerarDanfe section)
 - Modify: `CONDUCT.md` (DANFE rendering section)
 
@@ -1797,7 +1859,8 @@ git add py-dfe/tests/integration/test_danfe_nfe_generation.py
 
 - [ ] **Step 1: Update `DOCS.md` §3**
 
-In the existing GerarDanfe subsection of `DOCS.md §3`, replace the DANFC-e-only description with the model-dispatched version. Add:
+In the existing GerarDanfe subsection of `DOCS.md §3`, replace the DANFC-e-only description with the model-dispatched
+version. Add:
 
 ```markdown
 #### GerarDanfe (auxiliary documents)
@@ -1851,24 +1914,30 @@ git add DOCS.md CONDUCT.md
 
 **Spec coverage:**
 
-| Spec section | Task |
-|--------------|------|
-| §2.1 Dispatch by mod | Task 9 |
-| §2.2 Module layout | Tasks 3,6,7,8,9 |
-| §2.3 Render `fit_height` | Task 4 |
-| §2.4 Multi-page / running header | Task 7 (templates) + Task 10 (pagination test) |
-| §3 Constants | Task 1 |
-| §4 Barcode (CODE-128 + FS/FS-DA mod-11 DV) | Task 3 |
-| §5 Context builder (all tags + flags) | Task 6 |
-| §6 Templates (macros + 4 variants) | Tasks 7,8 |
-| §7 Errors (DANFE_INVALID_BARCODE) | Tasks 1,3 |
-| §8 python-barcode dep | Task 3 |
-| §9 Tests (unit + integration + fixtures) | Tasks 1,2,3,4,5,6,7,8,9,10 |
-| §10 Docs | Task 11 |
-| §11 Cross-project (no worker/api/cdk change) | Task 9 (contract preserved) |
+| Spec section                                 | Task                                           |
+|----------------------------------------------|------------------------------------------------|
+| §2.1 Dispatch by mod                         | Task 9                                         |
+| §2.2 Module layout                           | Tasks 3,6,7,8,9                                |
+| §2.3 Render `fit_height`                     | Task 4                                         |
+| §2.4 Multi-page / running header             | Task 7 (templates) + Task 10 (pagination test) |
+| §3 Constants                                 | Task 1                                         |
+| §4 Barcode (CODE-128 + FS/FS-DA mod-11 DV)   | Task 3                                         |
+| §5 Context builder (all tags + flags)        | Task 6                                         |
+| §6 Templates (macros + 4 variants)           | Tasks 7,8                                      |
+| §7 Errors (DANFE_INVALID_BARCODE)            | Tasks 1,3                                      |
+| §8 python-barcode dep                        | Task 3                                         |
+| §9 Tests (unit + integration + fixtures)     | Tasks 1,2,3,4,5,6,7,8,9,10                     |
+| §10 Docs                                     | Task 11                                        |
+| §11 Cross-project (no worker/api/cdk change) | Task 9 (contract preserved)                    |
 
-**Type consistency:** `generate_danfe` (dispatcher, Task 9) ≠ `generate_danfe_nfe` (mod-55 generator, Task 6) ≠ `generate_danfce` (existing NFC-e). `htmls_to_pdf(pages, *, fit_height=True)` signature is identical in Tasks 4, 6. `code128c_data_uri` / `dados_nfe_code` / `_mod11_dv` signatures match between Task 3 (def) and Task 6 (use). Context root name `ctx` is consistent across Task 6 render wrapper and Tasks 7-8 templates (the `render_html(template, {"ctx": context})` wrap is applied in Task 7 Step 4).
+**Type consistency:** `generate_danfe` (dispatcher, Task 9) ≠ `generate_danfe_nfe` (mod-55 generator, Task 6) ≠
+`generate_danfce` (existing NFC-e). `htmls_to_pdf(pages, *, fit_height=True)` signature is identical in Tasks 4, 6.
+`code128c_data_uri` / `dados_nfe_code` / `_mod11_dv` signatures match between Task 3 (def) and Task 6 (use). Context
+root name `ctx` is consistent across Task 6 render wrapper and Tasks 7-8 templates (the
+`render_html(template, {"ctx": context})` wrap is applied in Task 7 Step 4).
 
-**Placeholder scan:** no TBD/TODO; every code step has complete code; commit messages are explicit; the one deferred edit (render wrapper `{"ctx": context}`) is called out in Task 7 Step 4 with the exact change.
+**Placeholder scan:** no TBD/TODO; every code step has complete code; commit messages are explicit; the one deferred
+edit (render wrapper `{"ctx": context}`) is called out in Task 7 Step 4 with the exact change.
 
-**Note on dependencies:** `pypdf` is used by render/integration pagination tests (Tasks 4, 10). If absent, add `pypdf` to the test/dev dependencies in `pyproject.toml` (pure-Python). Mentioned in Task 4 Step 1.
+**Note on dependencies:** `pypdf` is used by render/integration pagination tests (Tasks 4, 10). If absent, add `pypdf`
+to the test/dev dependencies in `pyproject.toml` (pure-Python). Mentioned in Task 4 Step 1.

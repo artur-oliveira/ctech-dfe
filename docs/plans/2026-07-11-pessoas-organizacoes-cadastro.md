@@ -1,6 +1,7 @@
 # Cadastro de Pessoas/Organizações — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Tighten backend validation (CRT/IE required for PJ organizations, person CPF/CNPJ dedup),
 collapse optional fields into a progressive-disclosure "advanced" section shared by
@@ -31,18 +32,21 @@ attributes on existing DynamoDB items.
 ### Task 1: Backend — CRT/IE required validation for PJ
 
 **Files:**
+
 - Modify: `api/internal/services/persons.go`
 - Modify: `api/internal/services/organizations.go`
 - Test: `api/internal/services/persons_test.go` (new or extend)
 - Test: `api/internal/services/organizations_test.go` (new or extend)
 
 **Interfaces:**
+
 - Produces: `services.RequirePJFields(cpfOrCNPJ string, crt *int) error` (shared helper, both
   services call it) and `services.RequireOrgIE(cpfOrCNPJ string, stateRegs []StateRegistrationBody) error`.
 
 - [ ] **Step 1: Write failing tests**
 
 `api/internal/services/persons_test.go`:
+
 ```go
 package services
 
@@ -79,6 +83,7 @@ var _ = v1.PersonCreateBody{} // keep import if unused elsewhere in package test
 will catch it.)
 
 `api/internal/services/organizations_test.go`:
+
 ```go
 package services
 
@@ -113,6 +118,7 @@ Expected: FAIL — `RequirePJFields`/`RequireOrgIE`/`StateRegistrationEntry` und
 - [ ] **Step 3: Implement**
 
 In `api/internal/services/persons.go`, add near the top (after `cnpjRe`/`cpfRe`):
+
 ```go
 // StateRegistrationEntry is the plain-value shape of a state_registrations
 // entry, shared by RequireOrgIE and any caller that already has decoded data.
@@ -133,6 +139,7 @@ func RequirePJFields(cpfOrCNPJ string, crt *int) error {
 ```
 
 In `api/internal/services/organizations.go`, add:
+
 ```go
 // RequireOrgIE returns a BadRequest problem if cpfOrCNPJ is a CNPJ and regs
 // is empty. Organizations (always the fiscal emitter) must declare at least
@@ -147,6 +154,7 @@ func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
 	return nil
 }
 ```
+
 Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports to
 `organizations.go` if not already present (check the file first — `persons.go` already imports
 both).
@@ -165,6 +173,7 @@ before calling the service. Read both files first to find the exact decode point
 service call:
 
 Persons route (Create handler):
+
 ```go
 if err := services.RequirePJFields(body.CpfOrCnpj, body.Person.Crt); err != nil {
 	return sendProblem(c, err)
@@ -172,6 +181,7 @@ if err := services.RequirePJFields(body.CpfOrCnpj, body.Person.Crt); err != nil 
 ```
 
 Organizations route (Create handler):
+
 ```go
 if err := services.RequirePJFields(body.CpfOrCnpj, body.Person.Crt); err != nil {
 	return sendProblem(c, err)
@@ -221,6 +231,7 @@ if body.Person != nil {
 	}
 }
 ```
+
 Mirror the same pre-fetch pattern (without the IE check) for the Persons Update handler. Write
 `extractCrtAndRegs` once as an unexported helper in `api/internal/api/v1/organizations.go` (used
 by both org and person update handlers — if persons.go needs it too, move it to a shared
@@ -230,9 +241,10 @@ by both org and person update handlers — if persons.go needs it too, move it t
 
 Add to `api/tests/integration/persons_test.go` (or organizations_test.go): `POST /organizations`
 with `cpf_or_cnpj` = valid CNPJ, `person.crt = null`, `person.state_registrations = []` → expect
+
 400. `POST /persons` with CNPJ and `crt = null` → expect 400 (IE not required for persons, only
-CRT). Follow the existing integration test setup pattern in that file (look at an existing
-`TestOrganization_Create*`/`TestPerson_Create*` test for the HTTP harness boilerplate).
+     CRT). Follow the existing integration test setup pattern in that file (look at an existing
+     `TestOrganization_Create*`/`TestPerson_Create*` test for the HTTP harness boilerplate).
 
 - [ ] **Step 7: Run full suite, commit**
 
@@ -252,6 +264,7 @@ git commit -m "feat(api): require CRT for PJ and IE for CNPJ organizations"
 ### Task 2: Backend — person CPF/CNPJ dedup (409 on Create)
 
 **Files:**
+
 - Modify: `api/internal/repositories/base.go`
 - Modify: `api/internal/repositories/persons.go`
 - Modify: `api/internal/services/persons.go`
@@ -259,6 +272,7 @@ git commit -m "feat(api): require CRT for PJ and IE for CNPJ organizations"
 - Test: `api/tests/integration/persons_test.go`
 
 **Interfaces:**
+
 - Produces: `repositories.IsConditionFailed(err error) bool` (exported), used by the service layer.
 - Produces: `PersonRepository.BuildCreateTxItem` now conditions on `attribute_not_exists(pk)`.
 
@@ -266,6 +280,7 @@ git commit -m "feat(api): require CRT for PJ and IE for CNPJ organizations"
 
 `api/internal/repositories/persons_test.go` (extends the existing file from the vehicle work —
 check it exists first via `ls api/internal/repositories/persons_test.go`; if absent, create it):
+
 ```go
 package repositories
 
@@ -282,6 +297,7 @@ func TestBuildCreateTxItem_UsesConditionalPut(t *testing.T) {
 	}
 }
 ```
+
 (If a `testConfig()` helper doesn't already exist in that package's tests, check
 `vehicles_test.go` from the prior vehicle task — it defined one; reuse it, don't redefine.)
 
@@ -293,6 +309,7 @@ Expected: FAIL (ConditionExpression is nil today).
 - [ ] **Step 3: Implement**
 
 `api/internal/repositories/base.go` — add next to `BuildPutTxItem` (line ~189):
+
 ```go
 // BuildPutTxItemIfAbsent is like BuildPutTxItem but fails the transaction if
 // an item with the same key already exists — used for create-only semantics
@@ -320,6 +337,7 @@ func IsConditionFailed(err error) bool {
 `return r.BuildPutTxItem(item), item` to `return r.BuildPutTxItemIfAbsent(item), item`.
 
 `api/internal/services/persons.go` — in `Create` (line 99), wrap the `TransactWrite` error:
+
 ```go
 if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}); err != nil {
 	if repositories.IsConditionFailed(err) {
@@ -331,12 +349,14 @@ if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{personTx, auditTx}
 
 - [ ] **Step 4: Run, confirm pass**
 
-Run: `cd api && go test ./internal/repositories/... ./internal/services/... -v -run 'TestBuildCreateTxItem_UsesConditionalPut|TestPersonSvc'`
+Run:
+`cd api && go test ./internal/repositories/... ./internal/services/... -v -run 'TestBuildCreateTxItem_UsesConditionalPut|TestPersonSvc'`
 Expected: PASS
 
 - [ ] **Step 5: Integration test — real dedup against DynamoDB Local**
 
 Add to `api/tests/integration/persons_test.go`:
+
 ```go
 func TestPerson_CreateDuplicateCpfCnpj_Returns409(t *testing.T) {
 	// ... use the existing integration harness (see an existing TestPerson_Create test in
@@ -366,19 +386,23 @@ git commit -m "fix(api): reject duplicate CPF/CNPJ on person create"
 ### Task 3: Backend — NF-e local de entrega/retirada (DTO + builder)
 
 **Files:**
+
 - Modify: `api/internal/services/nfes/emit.go`
 - Modify: `api/internal/services/nfes/builders_doc.go`
 - Test: `api/internal/services/nfes/builders_doc_test.go`
 - Test: `api/internal/services/nfes/emit_test.go`
 
 **Interfaces:**
+
 - Produces: `NfeLocalBody` struct, `NfeEmitBody.{Retirada,Entrega,SaveRetiradaLocation,SaveEntregaLocation}`.
 - Produces: `buildLocal(l *NfeLocalBody) map[string]any`.
-- Consumes: `cPaisBrasil`/`xPaisBrasil` constants (`builders_doc.go:34-35`), `anyStr`/`anyStrPtr` helpers (`builders_doc.go:87-100`).
+- Consumes: `cPaisBrasil`/`xPaisBrasil` constants (`builders_doc.go:34-35`), `anyStr`/`anyStrPtr` helpers (
+  `builders_doc.go:87-100`).
 
 - [ ] **Step 1: Write failing test**
 
 `api/internal/services/nfes/builders_doc_test.go` — append:
+
 ```go
 func TestBuildLocal_FullFields(t *testing.T) {
 	cnpj := "11222333000181"
@@ -428,6 +452,7 @@ Expected: FAIL — `NfeLocalBody`/`buildLocal` undefined.
 - [ ] **Step 3: Implement DTO**
 
 `api/internal/services/nfes/emit.go` — add after `NfeDuplicataItem` (line 99):
+
 ```go
 // NfeLocalBody is a TLocal-shaped address (local de retirada/entrega) — a
 // lighter shape than TEndereco (AddressBody): no CEP/postal code in the XSD.
@@ -446,7 +471,9 @@ type NfeLocalBody struct {
 	Email   *string `json:"email" validate:"omitempty,email"`
 }
 ```
+
 Add to `NfeEmitBody` (after `VTroco`, line 39):
+
 ```go
 	Retirada             *NfeLocalBody `json:"retirada" validate:"omitempty"`
 	Entrega              *NfeLocalBody `json:"entrega" validate:"omitempty"`
@@ -457,6 +484,7 @@ Add to `NfeEmitBody` (after `VTroco`, line 39):
 - [ ] **Step 4: Implement builder**
 
 `api/internal/services/nfes/builders_doc.go` — add after `buildEnder` (line 313):
+
 ```go
 // buildLocal builds a TLocal-shaped map (local de retirada/entrega) — same
 // field set for both, per xsd_order.py's "retirada"/"entrega" ordering.
@@ -508,6 +536,7 @@ Read `BuildEnviNFe` (`builders_doc.go:317` onward) to find where `infNFe` dict f
 assembled (`dest`, `det`, etc.) and where `buildParams`/equivalent struct carries per-call data
 into it. Add `retirada *NfeLocalBody` and `entrega *NfeLocalBody` fields to that params struct,
 and in the `infNFe` map construction add:
+
 ```go
 if retirada := buildLocal(p.retirada); retirada != nil {
 	infNFe["retirada"] = retirada
@@ -516,6 +545,7 @@ if entrega := buildLocal(p.entrega); entrega != nil {
 	infNFe["entrega"] = entrega
 }
 ```
+
 placed after `dest` is set (matches XSD order `dest, retirada, entrega, autXML, det` — Go map
 insertion order doesn't matter since `xsd_order.py` re-orders on the Python side, but keep this
 placement for readability). In `NfeService.Emit` (`emit.go`), pass `req.Retirada`/`req.Entrega`
@@ -545,10 +575,12 @@ git commit -m "feat(api): support NF-e local de retirada/entrega"
 ### Task 4: Backend — persist entrega/retirada for reuse
 
 **Files:**
+
 - Modify: `api/internal/services/nfes/emit.go`
 - Test: `api/internal/services/nfes/emit_test.go` or a new integration test
 
 **Interfaces:**
+
 - Consumes: `PersonService.Update`, `OrganizationService.Update` (existing, unchanged signatures).
 
 - [ ] **Step 1: Implement**
@@ -572,6 +604,7 @@ if req.SaveRetiradaLocation && req.Retirada != nil {
 
 Add the two helpers to `NfeService` (or a shared file if `NfeService` doesn't already have a
 natural home — check `service.go` for where similar side-effect helpers live):
+
 ```go
 const maxSavedLocations = 5
 
@@ -597,6 +630,7 @@ func (s *NfeService) appendPickupLocation(ctx context.Context, orgPK string, loc
 	return err
 }
 ```
+
 `extractLocations`/`dedupeAppendLocation` are small new helpers (in the same file): decode the
 existing attribute (if any) into `[]map[string]any`, compute a dedup key from
 `xLgr+"|"+nro+"|"+xCpl` (normalized/uppercased), skip append if already present, cap at
@@ -630,6 +664,7 @@ git commit -m "feat(api): persist NF-e entrega/retirada locations for reuse"
 ### Task 5: Frontend — progressive disclosure + organizationSchema
 
 **Files:**
+
 - Modify: `ui/src/lib/schemas/entity.ts`
 - Modify: `ui/src/lib/schemas/organizations.ts`
 - Modify: `ui/src/components/EntityForm.tsx`
@@ -638,6 +673,7 @@ git commit -m "feat(api): persist NF-e entrega/retirada locations for reuse"
 - [ ] **Step 1: Write failing test**
 
 `ui/src/__tests__/lib/schemas/entity.test.ts`:
+
 ```ts
 import {describe, expect, it} from 'vitest'
 import {organizationSchema} from '@/lib/schemas/organizations'
@@ -692,6 +728,7 @@ Expected: FAIL — `organizationSchema` not exported.
 
 `ui/src/lib/schemas/entity.ts` — export `entitySchema` stays as-is (used by persons, unchanged
 semantics). Add after it:
+
 ```ts
 export const organizationSchema = entitySchema.superRefine((data, ctx) => {
   if (data.tipo === 'pj' && data.person.state_registrations.length === 0) {
@@ -705,6 +742,7 @@ export const organizationSchema = entitySchema.superRefine((data, ctx) => {
 ```
 
 `ui/src/lib/schemas/organizations.ts` — add `organizationSchema` to the re-export list:
+
 ```ts
 export {
   type EntityFormData as OrganizationFormData,
@@ -724,6 +762,7 @@ Expected: PASS
 
 `ui/src/components/EntityForm.tsx` — import `organizationSchema` alongside `entitySchema`, and
 in the `useForm` call (line 135-136) pick the resolver based on `variant`:
+
 ```ts
 import {organizationSchema} from '@/lib/schemas/organizations'
 // ...
@@ -736,6 +775,7 @@ const form = useForm<EntityFormData>({
 
 `ui/src/components/EntityForm.tsx` — add local state near the top of the component body (after
 `const [submitError, ...]`, line 125):
+
 ```ts
 const hasAdvancedData = !!(
   initialData?.person.fantasy_name ||
@@ -746,11 +786,13 @@ const hasAdvancedData = !!(
 )
 const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedData)
 ```
+
 Then restructure the JSX: move the "Nome Fantasia" field (currently unconditionally shown at
 line 305-316), the "Endereços adicionais" block (line 429-443), the "Contatos" `SectionCard`
 (line 445-518), and — **only when `!isOrg`** — the Inscrições Estaduais block (line 364-416,
 currently always shown for `isPJ`) behind a single collapsible section, same visual pattern as
 `VehicleForm.tsx`'s advanced toggle:
+
 ```tsx
 <Button type="button" variant="ghost" size="xs" onClick={() => setAdvancedOpen(!advancedOpen)}
         className="text-brand-600 hover:text-brand-700">
@@ -766,11 +808,13 @@ currently always shown for `isPJ`) behind a single collapsible section, same vis
 )}
 {isOrg && isPJ && (/* Inscrições Estaduais block stays OUTSIDE advanced, always visible — now required */)}
 ```
+
 Keep the endereço principal (`SectionCard title="Endereço Principal"`, line 419-425) and the
 "Adicionar endereço" button (line 440-443) — the button itself can stay outside advanced (it's
 how the user gets to a 2nd address in the first place) but the resulting 2nd+ address cards
 render inside the advanced block once `advancedOpen` is true; if `advancedOpen` is false and the
-user clicks "+ Adicionar endereço", auto-open the section (`onClick={() => { appendAddress(...); setAdvancedOpen(true) }}`)
+user clicks "+ Adicionar endereço", auto-open the section (
+`onClick={() => { appendAddress(...); setAdvancedOpen(true) }}`)
 so the newly added card is actually visible.
 
 - [ ] **Step 7: Component test**
@@ -795,6 +839,7 @@ git commit -m "feat(ui): progressive disclosure for pessoa/organização cadastr
 ### Task 6: Frontend — types + client for entrega/retirada and saved locations
 
 **Files:**
+
 - Modify: `ui/src/lib/types/api.ts`
 - Modify: `ui/src/lib/api/client.ts` (only if `emitNfe` needs no signature change — it already
   takes `NfeEmit`, so this task is type-only)
@@ -802,6 +847,7 @@ git commit -m "feat(ui): progressive disclosure for pessoa/organização cadastr
 - [ ] **Step 1: Add types**
 
 `ui/src/lib/types/api.ts` — add near `NfeTransportIn` (search for it):
+
 ```ts
 export interface NfeLocalOut {
   cnpj?: string
@@ -833,13 +879,16 @@ export interface NfeLocalIn {
   email?: string | null
 }
 ```
+
 Extend `NfeEmit` (line 597-613):
+
 ```ts
   retirada?: NfeLocalIn | null
   entrega?: NfeLocalIn | null
   save_retirada_location?: boolean
   save_entrega_location?: boolean
 ```
+
 Extend `PersonDetailsOut` (line 461-467): `delivery_locations?: NfeLocalOut[]`.
 Extend `OrganizationOut` (line 90-97): `pickup_locations?: NfeLocalOut[]`.
 
@@ -857,21 +906,25 @@ git commit -m "feat(ui): types for NF-e entrega/retirada and saved locations"
 ### Task 7: Frontend — NfeEmitForm entrega/retirada picker
 
 **Files:**
+
 - Modify: `ui/src/components/nfe/NfeEmitForm.tsx`
 
 **Interfaces:**
+
 - Consumes: `receiver: PersonItemOut | null` (state at line 809), `selectedOrg` from `useAuth()`
   (already destructured in this file — verify import), `NfeLocalIn` (Task 6).
 
 - [ ] **Step 1: Local state**
 
 Near `const [receiver, setReceiver] = useState<PersonItemOut | null>(null)` (line 809), add:
+
 ```ts
 const [entrega, setEntrega] = useState<NfeLocalIn | null>(null)
 const [saveEntregaLocation, setSaveEntregaLocation] = useState(false)
 const [retirada, setRetirada] = useState<NfeLocalIn | null>(null)
 const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false)
 ```
+
 Reset `entrega`/`saveEntregaLocation` to `null`/`false` in the same place `receiver` is reset
 (the `setSelfIssuance`/`setReceiver(null)` toggle around line 1176-1181, and wherever
 `onChange`/`ReceiverSearch` clears the receiver) — entrega is tied to the selected destinatário,
@@ -882,6 +935,7 @@ stale entrega data must not survive a receiver change.
 After the `<ReceiverSearch value={receiver} onChange={setReceiver}/>` line (1238), inside the
 `{receiver && (...)}`-guarded block (find or add one — entrega should only show once a receiver
 is picked and `!selfIssuance`), add a new collapsible block:
+
 ```tsx
 {receiver && !selfIssuance && (
   <LocationPicker
@@ -894,6 +948,7 @@ is picked and `!selfIssuance`), add a new collapsible block:
   />
 )}
 ```
+
 Add the analogous block for retirada, fed by `selectedOrg?.pickup_locations ?? []` — note
 `selectedOrg` here needs `pickup_locations` on its type; if `useAuth()`'s org type is a narrower
 shape than full `OrganizationOut`, either extend it or fetch the full org record via the existing
@@ -911,6 +966,7 @@ sub-component to reuse rather than reinventing city lookup — xMun, UF, fone, e
 xNome optional), and a "Salvar este local para reutilizar" checkbox wired to `onSaveChange`
 (checked by default when the manual form has been touched and doesn't match an existing saved
 location). Props:
+
 ```ts
 interface LocationPickerProps {
   label: string
@@ -921,6 +977,7 @@ interface LocationPickerProps {
   onSaveChange: (save: boolean) => void
 }
 ```
+
 Follow `ui/CLAUDE.md` mobile-first rules (44px touch targets, `grid-cols-1 sm:grid-cols-2`, no
 horizontal overflow) and debounce any text input that would trigger a lookup (300ms via
 `DebouncedInput`, matching the rest of the codebase).
@@ -928,6 +985,7 @@ horizontal overflow) and debounce any text input that would trigger a lookup (30
 - [ ] **Step 4: Submit payload**
 
 In `handleSubmit`'s `payload` construction (line 1098-1135), add:
+
 ```ts
   retirada: retirada,
   entrega: entrega,
@@ -963,6 +1021,7 @@ git commit -m "feat(ui): NF-e local de entrega/retirada picker with history reus
 ### Task 8: Documentation
 
 **Files:**
+
 - Modify: `DOCS.md`
 - Modify: `CONDUCT.md`
 - Modify: `DynamoDB-Tables.md`
@@ -1004,5 +1063,7 @@ git commit -m "docs: document pessoa/organização validation and NF-e entrega/r
 - [ ] `cd api && go build ./... && go test ./... -race`
 - [ ] `cd api && go test ./tests/integration/... -tags=integration` (DynamoDB Local running)
 - [ ] `cd ui && npx eslint src --ext .ts,.tsx && npx tsc --noEmit && npm test`
-- [ ] `grep -rn "TODO\|FIXME" api/internal/services/persons.go api/internal/services/organizations.go api/internal/services/nfes/emit.go` — confirm clean
+- [ ] 
+  `grep -rn "TODO\|FIXME" api/internal/services/persons.go api/internal/services/organizations.go api/internal/services/nfes/emit.go` —
+  confirm clean
 - [ ] Manual browser walkthrough of NF-e emission with entrega/retirada (Task 7 Step 6)
