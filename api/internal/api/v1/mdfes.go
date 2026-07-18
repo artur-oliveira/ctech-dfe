@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
-	mdfesvc "github.com/artur-oliveira/ctech-dfe/api/internal/services/mdfes"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
+	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 
 	"github.com/gofiber/fiber/v3"
 )

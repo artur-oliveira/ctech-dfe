@@ -49,7 +49,7 @@ package services
 import (
 	"testing"
 
-	v1 "github.com/artur-oliveira/ctech-dfe/api/internal/api/v1"
+	v1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 )
 
 func TestRequirePJFields_CNPJWithoutCRT_ReturnsError(t *testing.T) {
@@ -147,7 +147,7 @@ func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
 	return nil
 }
 ```
-Add `"strings"` and `"github.com/artur-oliveira/ctech-dfe/api/internal/problem"` imports to
+Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports to
 `organizations.go` if not already present (check the file first — `persons.go` already imports
 both).
 

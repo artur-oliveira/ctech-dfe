@@ -1,9 +1,9 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 )

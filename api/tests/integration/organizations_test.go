@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 func orgFields(cnpj, name string) map[string]types.AttributeValue {

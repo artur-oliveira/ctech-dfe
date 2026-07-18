@@ -16,11 +16,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/awsclient"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 const tablePrefix = "test"

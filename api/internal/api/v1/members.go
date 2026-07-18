@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
 	"github.com/gofiber/fiber/v3"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // MemberRoleBody is the payload for changing a member's role or creating an

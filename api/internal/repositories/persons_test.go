@@ -3,7 +3,7 @@ package repositories
 import (
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
 func TestBuildCreateTxItem_UsesConditionalPut(t *testing.T) {

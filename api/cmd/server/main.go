@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/app"
+	"gopkg.aoctech.app/dfe/api/internal/app"
 
 	"go.uber.org/fx"
 )

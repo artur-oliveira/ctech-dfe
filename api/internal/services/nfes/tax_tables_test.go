@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 var decimalRe = regexp.MustCompile(`^\d+\.\d{2}$`)

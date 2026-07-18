@@ -209,7 +209,7 @@ func (s *OrganizationService) RemoveAuthorizedViewer(ctx context.Context, orgPK,
 	return s.Update(ctx, orgPK, map[string]any{"authorized_xml_viewers": viewers}, userID, userName)
 }
 ```
-Add `"strings"` and `"github.com/artur-oliveira/ctech-dfe/api/internal/problem"` imports if not
+Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports if not
 already present in this file (Task 1 of the pessoas/organizações plan may have already added
 `problem` — check before adding a duplicate import).
 

@@ -141,7 +141,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
 type VehicleRepository struct {
@@ -844,7 +844,7 @@ Then add the new route, right after the existing `GET /vehicles/:sk` block (afte
 	})
 ```
 
-Add `"github.com/artur-oliveira/ctech-dfe/api/internal/problem"` to this file's imports if not
+Add `"gopkg.aoctech.app/dfe/api/internal/problem"` to this file's imports if not
 already present (check the top of the file first).
 
 Add `ListByRole` to `VehicleService` (`api/internal/services/vehicles.go`, right after the
@@ -1102,7 +1102,7 @@ func (s *MdfeService) resolveTrailers(ctx context.Context, orgPK string, trailer
 }
 ```
 
-Add the `"github.com/artur-oliveira/ctech-dfe/api/internal/services"` import if not already
+Add the `"gopkg.aoctech.app/dfe/api/internal/services"` import if not already
 present (check the top of `emit.go` — the file is `package mdfes`, so it needs the parent
 `services` package for `Missing`/`DocTypeMdfe`/etc.; this is already how `builder.go` imports
 `services` for its `procEmiOwn` etc., so this import almost certainly already exists — verify

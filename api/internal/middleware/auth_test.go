@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
 
 	"github.com/golang-jwt/jwt/v5"
 )

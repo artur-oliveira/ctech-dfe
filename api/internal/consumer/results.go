@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/ws"
 )
 
 const (

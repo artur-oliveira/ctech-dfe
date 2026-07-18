@@ -8,8 +8,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 func TestAuditLogService_List_ByOrgTimeIndex(t *testing.T) {

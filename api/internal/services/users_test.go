@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func TestUserService_ResolveActor_CacheHit(t *testing.T) {

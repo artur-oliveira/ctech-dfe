@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
 // Clients holds all AWS SDK v2 service clients.

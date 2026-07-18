@@ -354,7 +354,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
 // Audit action constants — the `action` attribute on an audit_logs row.
@@ -472,7 +472,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func TestDiff_UpdateOnlyChangedFields(t *testing.T) {
@@ -523,7 +523,7 @@ package services
 import (
 	"reflect"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // auditHousekeepingKeys are never surfaced as modifications — they're storage
@@ -812,7 +812,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func TestProductService_CreateUpdateDelete_WriteAuditLogs(t *testing.T) {
@@ -1134,7 +1134,7 @@ func resolveActor(c fiber.Ctx, userSvc *services.UserService) (userID, userName 
 }
 ```
 
-(Add `"strings"` and `"github.com/artur-oliveira/ctech-dfe/api/internal/services"` to `helpers.go`'s imports if not already present — check first.)
+(Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/services"` to `helpers.go`'s imports if not already present — check first.)
 
 - [ ] **Step 8: Update `RegisterProducts`'s signature and its call site**
 
@@ -2034,8 +2034,8 @@ func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"

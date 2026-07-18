@@ -10,9 +10,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // QueryResultJSON is the JSON-serializable representation of QueryResult.

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 	"github.com/shopspring/decimal"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 const (

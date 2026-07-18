@@ -1,9 +1,9 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
@@ -15,7 +15,7 @@ func RegisterProducts(router fiber.Router, svc *services.ProductService, userSvc
 		listPerm: "list.organization_products", createPerm: "create.organization_products",
 		getPerm: "get.organization_products", updatePerm: "update.organization_products",
 		deletePerm: "delete.organization_products",
-		param: "product_id",
+		param:      "product_id",
 
 		list: func(c fiber.Ctx, orgPK string, o crudListOpts) (*repositories.QueryResult, error) {
 			return svc.List(c.Context(), orgPK, repositories.ProductListOpts{

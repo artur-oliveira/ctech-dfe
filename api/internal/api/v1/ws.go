@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/ws"
 
 	fws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"

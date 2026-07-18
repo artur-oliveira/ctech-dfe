@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/awsclient"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 // WorkerMessage is the SNS payload sent to py-dfe workers.

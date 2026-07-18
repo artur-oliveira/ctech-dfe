@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
@@ -30,7 +30,7 @@ func RegisterVehicles(router fiber.Router, svc *services.VehicleService, userSvc
 		listPerm: "list.organization_vehicles", createPerm: "create.organization_vehicles",
 		getPerm: "get.organization_vehicles", updatePerm: "update.organization_vehicles",
 		deletePerm: "delete.organization_vehicles",
-		param: "sk",
+		param:      "sk",
 
 		list: func(c fiber.Ctx, orgPK string, o crudListOpts) (*repositories.QueryResult, error) {
 			opts := repositories.VehicleListOpts{

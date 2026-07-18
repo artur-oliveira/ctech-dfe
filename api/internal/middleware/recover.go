@@ -3,7 +3,7 @@ package middleware
 import (
 	"log/slog"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 
 	"github.com/gofiber/fiber/v3"
 )

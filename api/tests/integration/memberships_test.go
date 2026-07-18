@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // seedCertForOrg writes a non-expired certificate row directly (no S3), so

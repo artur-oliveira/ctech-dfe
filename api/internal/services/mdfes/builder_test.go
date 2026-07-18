@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 // baseParams returns a minimal valid buildParams for rodoviário emission.

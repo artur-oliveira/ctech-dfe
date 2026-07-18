@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/artur-oliveira/ctech-dfe/worker/internal/config"
+	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
 var docTypes = []string{"nfe", "cte", "mdfe"}

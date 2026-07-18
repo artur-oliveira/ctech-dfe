@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/validation"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/validation"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -46,6 +47,7 @@ func sendProblem(c fiber.Ctx, err error) error {
 	if p, ok := errors.AsType[*problem.Problem](err); ok {
 		return p.Send(c)
 	}
+	slog.ErrorContext(c.Context(), "unhandled error", "path", c.Path(), "err", err)
 	return problem.InternalServer(err.Error()).Send(c)
 }
 

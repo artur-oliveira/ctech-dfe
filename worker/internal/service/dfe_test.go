@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
-	"github.com/artur-oliveira/ctech-dfe/worker/internal/config"
+	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
 // ---------------------------------------------------------------------------

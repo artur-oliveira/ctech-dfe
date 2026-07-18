@@ -3,7 +3,7 @@ package v1
 import (
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/validation"
+	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
 func validAddress() AddressBody {

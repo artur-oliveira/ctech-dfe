@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 
 	"github.com/go-playground/validator/v10"
 )

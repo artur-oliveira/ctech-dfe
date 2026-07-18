@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 const sampleNFeXML = `<?xml version="1.0" encoding="UTF-8"?>

@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func productFields(code, desc string) map[string]types.AttributeValue {

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func TestDiff_UpdateOnlyChangedFields(t *testing.T) {

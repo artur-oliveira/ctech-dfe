@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/artur-oliveira/ctech-dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 const qrCodeVersion = "2"

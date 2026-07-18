@@ -1,15 +1,15 @@
 package v1
 
 import (
-	"github.com/artur-oliveira/ctech-dfe/api/internal/awsclient"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/cache"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/config"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/middleware"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/repositories"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/services"
-	mdfesvc "github.com/artur-oliveira/ctech-dfe/api/internal/services/mdfes"
-	nfesvc "github.com/artur-oliveira/ctech-dfe/api/internal/services/nfes"
-	"github.com/artur-oliveira/ctech-dfe/api/internal/ws"
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
+	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/dfe/api/internal/config"
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
+	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
+	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
+	"gopkg.aoctech.app/dfe/api/internal/ws"
 
 	"github.com/gofiber/fiber/v3"
 )

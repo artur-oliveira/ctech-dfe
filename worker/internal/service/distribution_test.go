@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/artur-oliveira/ctech-dfe/worker/internal/config"
+	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
 // ---------------------------------------------------------------------------
