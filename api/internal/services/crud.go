@@ -10,7 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )

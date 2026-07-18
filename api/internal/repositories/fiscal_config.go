@@ -113,7 +113,7 @@ func (r *FiscalConfigRepository) ClaimDistNSUSlot(ctx context.Context, orgPK, en
 	}
 	_, err := r.UpdateItemRaw(ctx, input)
 	if err != nil {
-		if isConditionFailed(err) {
+		if IsConditionFailed(err) {
 			return false, nil
 		}
 		return false, err

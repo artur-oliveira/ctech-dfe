@@ -1,52 +1,17 @@
 package repositories
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func TestBuildUpdateExpr_SetAndRemove(t *testing.T) {
-	expr, names, values, err := buildUpdateExpr(map[string]any{
-		"name": "X",
-		"cest": nil,
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(expr, "SET #name = :name") {
-		t.Errorf("expected SET clause for name, got %q", expr)
-	}
-	if !strings.Contains(expr, "REMOVE #cest") {
-		t.Errorf("expected REMOVE clause for cest, got %q", expr)
-	}
-	if _, ok := values[":cest"]; ok {
-		t.Errorf("nil value must not be in ExpressionAttributeValues")
-	}
-	if names["#cest"] != "cest" {
-		t.Errorf("expected name mapping for cest")
-	}
-}
-
-func TestBuildUpdateExpr_RemoveOnly(t *testing.T) {
-	expr, _, values, err := buildUpdateExpr(map[string]any{"cest": nil})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if strings.Contains(expr, "SET") {
-		t.Errorf("expected no SET clause, got %q", expr)
-	}
-	if !strings.HasPrefix(expr, "REMOVE") {
-		t.Errorf("expected REMOVE-only expression, got %q", expr)
-	}
-	if len(values) != 0 {
-		t.Errorf("expected no expression values, got %d", len(values))
-	}
-}
+// buildUpdateExpr's own unit coverage (TestBuildUpdateExpr_SetAndRemove,
+// TestBuildUpdateExpr_RemoveOnly) now lives in gopkg.aoctech.app/api-commons/dynamo,
+// since the helper itself moved there and is no longer defined in this package.
 
 func TestBase_BuildPutTxItem(t *testing.T) {
-	b := Base{TableName: "test_table"} // no client needed — these builders only read TableName, exactly like existing base_test.go tests construct pure inputs (see TestBuildUpdateExpr_* in the same file) without a DynamoDB client
+	b := Base{TableName: "test_table"} // no client needed — these builders only read TableName
 	item := map[string]types.AttributeValue{
 		"pk": &types.AttributeValueMemberS{Value: "PK1"},
 		"sk": &types.AttributeValueMemberS{Value: "SK1"},

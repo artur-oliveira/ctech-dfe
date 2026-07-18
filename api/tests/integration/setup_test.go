@@ -16,8 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/cache"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"

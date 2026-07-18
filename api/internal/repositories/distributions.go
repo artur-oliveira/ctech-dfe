@@ -16,10 +16,14 @@ import (
 // PK: {env}#{org_pk} — NSU is the numeric sort key (NOT the standard string "sk").
 type DistributionRepository struct {
 	Base
+	// db is kept alongside Base for ListDistributions' custom sort-key query
+	// shape, which Base.Query does not cover (Base's db field is unexported
+	// in the shared api-commons/dynamo package).
+	db *dynamodb.Client
 }
 
 func newDistributionRepo(db *dynamodb.Client, cfg *config.Config, table string) DistributionRepository {
-	return DistributionRepository{Base: NewBase(db, cfg, table)}
+	return DistributionRepository{Base: NewBase(db, cfg, table), db: db}
 }
 
 // NFeDistributionRepository wraps DistributionRepository for nfe_distributions table.

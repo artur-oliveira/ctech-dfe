@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -15,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
+	"gopkg.aoctech.app/api-commons/awsconfig"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
@@ -49,17 +49,9 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 }
 
 func loadAWSConfig(ctx context.Context, cfg *config.Config) (aws.Config, error) {
-	return awsconfig.LoadDefaultConfig(ctx,
-		awsconfig.WithRegion(cfg.AWSRegion),
-	)
+	return awsconfig.Load(ctx, cfg.AWSRegion)
 }
 
 func newDynamoDB(awsCfg aws.Config, cfg *config.Config) *dynamodb.Client {
-	var opts []func(*dynamodb.Options)
-	if cfg.DynamoDBEndpoint != "" {
-		opts = append(opts, func(o *dynamodb.Options) {
-			o.BaseEndpoint = aws.String(cfg.DynamoDBEndpoint)
-		})
-	}
-	return dynamodb.NewFromConfig(awsCfg, opts...)
+	return awsconfig.NewDynamoDBClient(awsCfg, cfg.DynamoDBEndpoint)
 }

@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
-	"gopkg.aoctech.app/dfe/api/internal/cache"
-	"gopkg.aoctech.app/dfe/api/internal/ws"
+	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/ws"
 )
 
 const (

@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
-	"gopkg.aoctech.app/dfe/api/internal/ws"
 
 	fws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"

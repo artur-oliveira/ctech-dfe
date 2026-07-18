@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 
 	"github.com/gofiber/fiber/v3"

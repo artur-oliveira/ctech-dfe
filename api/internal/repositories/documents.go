@@ -16,6 +16,10 @@ import (
 // pk = {env}#{org_pk}  sk = access_key (44-digit chave de acesso)
 type DocumentRepository struct {
 	Base
+	// db is kept alongside Base for queryNumberIndex/queryDateIndex's custom
+	// GSI query shapes, which Base.Query does not cover (Base's db field is
+	// unexported in the shared api-commons/dynamo package).
+	db *dynamodb.Client
 }
 
 func (r *DocumentRepository) Create(ctx context.Context, item map[string]types.AttributeValue) error {
@@ -50,7 +54,7 @@ type NfeRepository struct {
 }
 
 func NewNfeRepository(db *dynamodb.Client, cfg *config.Config) *NfeRepository {
-	return &NfeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfes")}}
+	return &NfeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfes"), db: db}}
 }
 
 // NfceRepository — nfces table. Shares all query/persist logic with NF-e via
@@ -60,7 +64,7 @@ type NfceRepository struct {
 }
 
 func NewNfceRepository(db *dynamodb.Client, cfg *config.Config) *NfceRepository {
-	return &NfceRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfces")}}
+	return &NfceRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfces"), db: db}}
 }
 
 // CteRepository — ctes table. Shares the DocumentRepository key schema; used by
@@ -70,7 +74,7 @@ type CteRepository struct {
 }
 
 func NewCteRepository(db *dynamodb.Client, cfg *config.Config) *CteRepository {
-	return &CteRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "ctes")}}
+	return &CteRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "ctes"), db: db}}
 }
 
 // MdfeRepository — mdfes table. Same key schema and GSIs as the other DFe tables.
@@ -79,7 +83,7 @@ type MdfeRepository struct {
 }
 
 func NewMdfeRepository(db *dynamodb.Client, cfg *config.Config) *MdfeRepository {
-	return &MdfeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "mdfes")}}
+	return &MdfeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "mdfes"), db: db}}
 }
 
 // NFeListOpts mirrors list_nfes parameters in Python NfeRepository.
@@ -218,10 +222,7 @@ func (r *DocumentRepository) TransactReserveAndCreate(ctx context.Context, confi
 		},
 	}
 
-	_, err := r.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
-		TransactItems: items,
-	})
-	return wrapDynamoErr(err)
+	return r.TransactWrite(ctx, items)
 }
 
 // EncodeItem encodes a map[string]any into DynamoDB attribute values, omitting nulls.

@@ -141,7 +141,7 @@ func (r *OrgInvitationRepository) Revoke(ctx context.Context, pk, orgPK string) 
 		},
 	})
 	if err != nil {
-		if isConditionFailed(err) {
+		if IsConditionFailed(err) {
 			return false, nil
 		}
 		return false, wrapDynamoErr(err)

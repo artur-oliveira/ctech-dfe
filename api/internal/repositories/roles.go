@@ -106,10 +106,14 @@ func SystemRoles() []SystemRole {
 
 type RoleRepository struct {
 	Base
+	// db is kept alongside Base for ListAll's Scan call, which Base does not
+	// expose (Base's db field is unexported in the shared api-commons/dynamo
+	// package).
+	db *dynamodb.Client
 }
 
 func NewRoleRepository(db *dynamodb.Client, cfg *config.Config) *RoleRepository {
-	return &RoleRepository{Base: NewBase(db, cfg, "roles")}
+	return &RoleRepository{Base: NewBase(db, cfg, "roles"), db: db}
 }
 
 func (r *RoleRepository) Get(ctx context.Context, name string) (map[string]types.AttributeValue, error) {

@@ -8,9 +8,10 @@ import (
 	"log/slog"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/ws"
 	apiv1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/cache"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
@@ -19,7 +20,6 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
-	"gopkg.aoctech.app/dfe/api/internal/ws"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gofiber/fiber/v3"
@@ -139,7 +139,8 @@ func newCacheBackend(lc fx.Lifecycle, cfg *config.Config) cache.Backend {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error { return rb.Ping(ctx) },
 		OnStop: func(ctx context.Context) error {
-			return rb.Client().Close()
+			rb.Client().Close() // valkey.Client.Close() has no return value, unlike go-redis
+			return nil
 		},
 	})
 	slog.Info("cache: Redis backend active", "url", cfg.RedisURL)

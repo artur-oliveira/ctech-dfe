@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/cache"
+	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 
 	"github.com/golang-jwt/jwt/v5"
