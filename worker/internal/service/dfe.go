@@ -33,6 +33,7 @@ type LambdaClient interface {
 
 // DynamoClient is the DynamoDB operations subset used by the worker.
 type DynamoClient interface {
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 }
 
@@ -107,6 +108,60 @@ type lambdaResponse struct {
 	Body       string `json:"body"`
 }
 
+// docTerminalStatuses / eventTerminalStatuses are the statuses that mean "this
+// message was already fully processed — do not invoke SEFAZ again."
+var docTerminalStatuses = map[string]bool{
+	StatusAuthorized: true, StatusRejected: true, StatusFailed: true,
+	StatusCancelled: true, StatusClosed: true,
+}
+
+var eventTerminalStatuses = map[string]bool{
+	EventStatusSuccess: true, EventStatusError: true,
+}
+
+// alreadyTerminal reports whether msg's target item is already in a terminal
+// status, i.e. this is a redelivered message (standard SQS is at-least-once,
+// see docs/specs/2026-07-18-audit-findings-remediation-design.md §2). On a
+// DynamoDB read error it fails OPEN (returns false, logs a warning) — SEFAZ's
+// own duplicate-rejection (DuplicatedEventError) remains the backstop, so a
+// transient read error must not block real processing.
+func (s *DfeService) alreadyTerminal(ctx context.Context, msg WorkerMessage) bool {
+	var table, pk, sk string
+	var terminal map[string]bool
+
+	if msg.EventsTableName != nil && msg.EventSK != nil {
+		table = s.cfg.TablePrefix + "_" + *msg.EventsTableName
+		pk, sk = msg.AccessKey, *msg.EventSK
+		terminal = eventTerminalStatuses
+	} else {
+		table = s.cfg.TablePrefix + "_" + msg.TableName
+		pk, sk = msg.DocPK, msg.AccessKey
+		terminal = docTerminalStatuses
+	}
+
+	out, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(table),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: pk},
+			"sk": &types.AttributeValueMemberS{Value: sk},
+		},
+		ProjectionExpression:     aws.String("#status"),
+		ExpressionAttributeNames: map[string]string{"#status": "status"},
+	})
+	if err != nil {
+		slog.Warn("idempotency check failed, proceeding with processing", "access_key", msg.AccessKey, "err", err)
+		return false
+	}
+	if out.Item == nil {
+		return false
+	}
+	statusAttr, ok := out.Item["status"].(*types.AttributeValueMemberS)
+	if !ok {
+		return false
+	}
+	return terminal[statusAttr.Value]
+}
+
 // Process handles a single DFe SEFAZ operation from an SQS message.
 func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	slog.Info("processing dfe",
@@ -115,6 +170,11 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		"doc_pk", msg.DocPK,
 		"access_key", msg.AccessKey,
 	)
+
+	if s.alreadyTerminal(ctx, msg) {
+		slog.Info("skipping already-terminal message (redelivery)", "access_key", msg.AccessKey, "doc_pk", msg.DocPK)
+		return nil
+	}
 
 	certB64, err := s.getCertB64(ctx, msg.CertS3Key)
 	if err != nil {

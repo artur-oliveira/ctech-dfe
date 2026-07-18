@@ -48,9 +48,11 @@ func (m *mockS3) PutObject(_ context.Context, in *s3.PutObjectInput, _ ...func(*
 type mockLambda struct {
 	payload []byte
 	err     error
+	calls   int
 }
 
 func (m *mockLambda) Invoke(_ context.Context, _ *lambdaSDK.InvokeInput, _ ...func(*lambdaSDK.Options)) (*lambdaSDK.InvokeOutput, error) {
+	m.calls++
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -66,6 +68,21 @@ type capturedUpdate struct {
 type mockDynamo struct {
 	updates []capturedUpdate
 	err     error
+	// getItemOutput/getItemErr configure the response to GetItem (used by the
+	// idempotency guard). Nil getItemOutput.Item (the zero value) means "not
+	// found", matching the default behavior needed by every pre-existing test.
+	getItemOutput *dynamodb.GetItemOutput
+	getItemErr    error
+}
+
+func (m *mockDynamo) GetItem(_ context.Context, _ *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	if m.getItemErr != nil {
+		return nil, m.getItemErr
+	}
+	if m.getItemOutput != nil {
+		return m.getItemOutput, nil
+	}
+	return &dynamodb.GetItemOutput{}, nil
 }
 
 func (m *mockDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
@@ -686,4 +703,72 @@ func startsWith(s, prefix string) bool {
 
 func endsWith(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+// ---------------------------------------------------------------------------
+// Idempotency guard
+// ---------------------------------------------------------------------------
+
+func statusItem(status string) *dynamodb.GetItemOutput {
+	return &dynamodb.GetItemOutput{
+		Item: map[string]types.AttributeValue{
+			"status": &types.AttributeValueMemberS{Value: status},
+		},
+	}
+}
+
+func TestProcess_SkipsWhenDocumentAlreadyTerminal(t *testing.T) {
+	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
+	dynm := &mockDynamo{getItemOutput: statusItem(StatusAuthorized)}
+	svc := newSvc(certS3(), lamm, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lamm.calls != 0 {
+		t.Errorf("expected invokePyDfe NOT to be called, got %d calls", lamm.calls)
+	}
+	if len(dynm.updates) != 0 {
+		t.Errorf("expected no UpdateItem calls, got %d", len(dynm.updates))
+	}
+}
+
+func TestProcess_SkipsWhenEventAlreadyTerminal(t *testing.T) {
+	lamm := &mockLambda{payload: invokeResp("135", "Sucesso", "")}
+	dynm := &mockDynamo{getItemOutput: statusItem(EventStatusSuccess)}
+	svc := newSvc(certS3(), lamm, dynm)
+
+	msg := cancelMsg
+	if err := svc.Process(context.Background(), msg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lamm.calls != 0 {
+		t.Errorf("expected invokePyDfe NOT to be called, got %d calls", lamm.calls)
+	}
+}
+
+func TestProcess_ProceedsWhenNotYetTerminal(t *testing.T) {
+	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
+	dynm := &mockDynamo{} // GetItem returns "not found" by default
+	svc := newSvc(certS3(), lamm, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lamm.calls != 1 {
+		t.Errorf("expected invokePyDfe to be called once, got %d", lamm.calls)
+	}
+}
+
+func TestProcess_GetItemErrorFallsThroughToProcessing(t *testing.T) {
+	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
+	dynm := &mockDynamo{getItemErr: errors.New("transient dynamodb error")}
+	svc := newSvc(certS3(), lamm, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lamm.calls != 1 {
+		t.Errorf("a GetItem error must not block processing (SEFAZ's own dedup is the backstop): expected 1 call, got %d", lamm.calls)
+	}
 }
