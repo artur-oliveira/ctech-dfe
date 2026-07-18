@@ -84,7 +84,7 @@ jobs:
         run: |
           ENVIRONMENT="${{ steps.env.outputs.name }}"
           BUCKET=$(aws ssm get-parameter --name "/ctech/$ENVIRONMENT/s3/deployments-bucket" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-ctech-deployments")
-          ASG_NAME="${ENVIRONMENT}-ctech-dfe-api-v2"
+          ASG_NAME="${ENVIRONMENT}-ctech-dfe-v2-api"
           echo "DEPLOYMENTS_BUCKET=$BUCKET" >> $GITHUB_ENV
           echo "ASG_NAME=$ASG_NAME" >> $GITHUB_ENV
 
