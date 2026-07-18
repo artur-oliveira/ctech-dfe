@@ -1,5 +1,5 @@
 import { OAuthClient, decodeIdToken as sdkDecodeIdToken } from '@aoctech/auth-client'
-import type { IdTokenClaims } from '@aoctech/auth-client'
+import type { UnverifiedIdTokenClaims } from '@aoctech/auth-client'
 
 const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!
 const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!
@@ -11,7 +11,9 @@ const client = new OAuthClient({
   scope: 'openid profile',
 })
 
-export type { IdTokenClaims }
+export type { UnverifiedIdTokenClaims }
+/** @deprecated Use UnverifiedIdTokenClaims instead */
+export type IdTokenClaims = UnverifiedIdTokenClaims
 
 /**
  * Decodes the name-related profile claims from an OIDC id_token.
@@ -60,4 +62,9 @@ export function endSessionRedirect(returnTo = '/login'): void {
 // clears it, ending the refresh chain.
 export async function revokeToken(): Promise<void> {
   await client.revoke()
+}
+
+/** Closes the OAuth client's BroadcastChannel to prevent memory/event-loop leaks in tests. */
+export function close(): void {
+  client.close()
 }

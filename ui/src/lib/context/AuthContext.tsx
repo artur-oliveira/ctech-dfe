@@ -4,7 +4,7 @@ import {createContext, ReactNode, useCallback, useEffect, useState} from 'react'
 import {apiClient, ApiError, registerRefreshFn} from '@/lib/api/client'
 import type {MeResponse, UserOrganization} from '@/lib/types/api'
 import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
-import {decodeIdToken, doRefresh, endSessionRedirect, IdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
+import {decodeIdToken, doRefresh, endSessionRedirect, UnverifiedIdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
 import {MOCK_ENABLED} from '@/lib/mock/env'
 import {mockDoRefresh} from '@/lib/mock/auth'
 
@@ -22,7 +22,7 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 /** Reads the name claims persisted in the cached user, or null if none is cached. */
-function cachedNameClaims(): IdTokenClaims | null {
+function cachedNameClaims(): UnverifiedIdTokenClaims | null {
   const cached = localStorage.getItem(STORAGE_KEY_USER)
   if (!cached) return null
   try {
@@ -37,7 +37,7 @@ function cachedNameClaims(): IdTokenClaims | null {
  * Overrides the name fields of a /auth/me response.
  * Priority: fresh id_token claims -> previously cached name -> backend fallback (data as-is).
  */
-function applyNameClaims(data: MeResponse, claims?: IdTokenClaims | null): MeResponse {
+function applyNameClaims(data: MeResponse, claims?: UnverifiedIdTokenClaims | null): MeResponse {
   const src = claims ?? cachedNameClaims()
   if (!src) return data
   return {
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const refreshUser = useCallback(async (nameClaims?: IdTokenClaims | null): Promise<MeResponse | null> => {
+  const refreshUser = useCallback(async (nameClaims?: UnverifiedIdTokenClaims | null): Promise<MeResponse | null> => {
     try {
       const data = applyNameClaims(await apiClient.me(), nameClaims)
       setUser(data)

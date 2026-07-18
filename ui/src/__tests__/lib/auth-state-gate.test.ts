@@ -1,5 +1,5 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {doRefresh, revokeToken} from '@/lib/auth/oauth'
+import {afterAll, afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {doRefresh, revokeToken, close} from '@/lib/auth/oauth'
 
 const fetchMock = vi.fn()
 
@@ -19,6 +19,9 @@ describe('auth state gate (revoked / no hint → skip /token)', () => {
     vi.stubGlobal('fetch', fetchMock)
   })
   afterEach(() => vi.unstubAllGlobals())
+  afterAll(() => {
+    close()
+  })
 
   it('doRefresh skips the /token fetch entirely without the ctech_auth hint cookie', async () => {
     // The common case this guards: a first visit with no session at all —

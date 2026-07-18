@@ -1,5 +1,5 @@
-import {describe, it, expect} from 'vitest'
-import {decodeIdToken} from '@/lib/auth/oauth'
+import {afterAll, describe, it, expect} from 'vitest'
+import {decodeIdToken, close} from '@/lib/auth/oauth'
 
 // Builds a fake JWT (header.payload.signature) whose payload is base64url(JSON(claims)).
 function makeToken(claims: Record<string, unknown>): string {
@@ -11,6 +11,9 @@ function makeToken(claims: Record<string, unknown>): string {
 }
 
 describe('decodeIdToken', () => {
+  afterAll(() => {
+    close()
+  })
   it('maps given_name/family_name/preferred_username to name fields', () => {
     const token = makeToken({
       sub: 'u1',
