@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
-import { Template } from 'aws-cdk-lib/assertions'
+import { Match, Template } from 'aws-cdk-lib/assertions'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import { WorkerStack } from '../lib/worker-stack'
 import { WORKERS } from '../lib/worker-definitions'
@@ -55,4 +55,22 @@ test('distribution poller schedule is enabled', () => {
   template.hasResourceProperties('AWS::Scheduler::Schedule', {
     State: 'ENABLED',
   })
+})
+
+test('every worker has a keep-warm ping schedule invoking it directly with {"ping":true}', () => {
+  const template = buildTemplate()
+
+  // One ping schedule per worker + one distribution poller schedule.
+  template.resourceCountIs('AWS::Scheduler::Schedule', WORKERS.length + 1)
+
+  for (const worker of WORKERS) {
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: `dev-${worker.name}-ping-schedule`,
+      ScheduleExpression: 'rate(5 minutes)',
+      State: 'ENABLED',
+      Target: Match.objectLike({
+        Input: JSON.stringify({ping: true}),
+      }),
+    })
+  }
 })

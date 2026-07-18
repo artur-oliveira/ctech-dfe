@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
+import {Duration} from 'aws-cdk-lib'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
@@ -10,7 +11,6 @@ import * as iam from 'aws-cdk-lib/aws-iam'
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions'
 import {Construct} from 'constructs'
-import {Duration} from 'aws-cdk-lib'
 import {WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
@@ -221,6 +221,19 @@ export class WorkerStack extends cdk.Stack {
           reportBatchItemFailures: true
         })
       )
+
+      // Keep-warm: direct invoke with {"ping":true} every 5 min, short-circuited
+      // before SQS parsing (service.IsPingEvent) — no SEFAZ/AWS calls, avoids
+      // cold start on real traffic once this worker starts calling go-dfe in-process.
+      new scheduler.Schedule(this, `${worker.id}-ping-schedule`, {
+        scheduleName: `${environment}-${worker.name}-ping-schedule`,
+        description: `Keeps ${worker.name} warm — direct invoke, no SEFAZ call`,
+        schedule: scheduler.ScheduleExpression.rate(Duration.minutes(1)),
+        target: new schedulerTargets.LambdaInvoke(fn, {
+          input: scheduler.ScheduleTargetInput.fromObject({ping: true}),
+        }),
+        enabled: true,
+      })
 
       // Distribution worker needs to publish Ciência da Operação to the event bus
       // so the nfe-event worker processes it asynchronously.

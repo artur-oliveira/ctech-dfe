@@ -350,9 +350,13 @@ func invokeSefazLambda(ctx context.Context, lam *lambda.Client, funcName string,
 		statusCode = int(sc)
 	}
 	var respBody map[string]any
-	if bs, ok := resp["body"].(string); ok {
-		_ = json.Unmarshal([]byte(bs), &respBody)
+	bodyStr, _ := resp["body"].(string)
+	if bodyStr != "" {
+		_ = json.Unmarshal([]byte(bodyStr), &respBody)
 	}
+
+	shadowCallGoDfeFromMap(ctx, payload, statusCode, bodyStr)
+
 	if statusCode != 200 {
 		detail := "Erro na consulta à SEFAZ"
 		if respBody != nil {

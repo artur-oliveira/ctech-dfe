@@ -255,6 +255,70 @@ jinja2         # DANFE HTML templating
 segno          # QR Code generation
 ```
 
+### go-dfe — In-Process Go Migration (New)
+
+**Location:** `/go-dfe/` (module `gopkg.aoctech.app/dfe/go-dfe`, go 1.26; sibling of `worker/`/`api/`,
+linked via root `go.work`). See `docs/plans/2026-07-17-go-dfe-migration.md` and `MIGRATION.md` (2026-07-18
+entry) for the full rationale and phasing.
+
+**Purpose:** incremental, in-process replacement for py-dfe's SEFAZ SOAP/mTLS communication —
+called directly from `worker`/`api` (no Lambda Invoke round trip) instead of the py-dfe Lambda,
+one operation at a time, with automatic fallback to py-dfe for anything not yet ported.
+
+```
+go-dfe/
+  dfe.go                       # Call(ctx, Request) (Response, error); Implements(docType, service) bool
+  request.go                   # Request/Response/Problem — same JSON contract as py-dfe's LambdaRequest/LambdaResponse
+  internal/
+    certificate/manager.go     # PKCS12 → tls.Certificate + http.Client (mTLS, InsecureSkipVerify — deliberate, mirrors py-dfe)
+    xmlops/
+      builder.go                # dict ↔ XML (@xmlns/@key/#text conventions)
+      signer.go                 # XML-DSig: rsa-sha1 + sha1 + hand-written Canonical XML 1.0 (no exclusive C14N, no prefix)
+      xsdorder/table.go          # 1:1 port of py-dfe's xsd_order.py (child-element ordering per XSD)
+    soap/envelope.go            # SOAP 1.2 envelope build/parse
+    services/
+      config.go                 # ServiceConfig per doc_type (signature/validation sets, sign xpath)
+      client.go                 # SefazClient.Call: payload prep → endpoint resolve → POST+retry → parse
+    endpoints/table.go           # (doc_type, uf, env, service) → URL, incl. SVRS redirects + MT special-casing
+    constants/constants.go       # enums, WSDL service/operation tables, retry defaults
+```
+
+**Dispatch/fallback mechanism** — no new feature-flag system, reuses the repo's existing
+dual-path-with-fallback precedent.
+
+- **`worker`** (`internal/service/dfe.go`'s `Process` seam and `distribution.go`'s `invokePyDfe`):
+  hard cutover as of 2026-07-18. `godfeImplements`/`godfeCall` (package vars wrapping
+  `godfe.Implements`/`godfe.Call`, `internal/service/godfe_shadow.go`) dispatch straight to go-dfe
+  in-process for every implemented `(docType, service)` — the py-dfe Lambda is skipped entirely, not
+  shadow-compared. This was done at explicit operator direction during a controlled zero-traffic
+  window, ahead of the plan's normal shadow-mode/byte-identical gates for the signed operations this
+  promoted (see below) — an accepted, explicit exception, documented in `go-dfe/dfe.go`'s
+  `implemented` map doc comment and `go-dfe/CLAUDE.md`, not a silent skip. Each seam keeps one
+  commented-out line to force the old unconditional py-dfe call again if this needs reverting.
+- **`api`** (`internal/services/external.go`'s `invokeSefazLambda`): still **shadow mode** — the
+  py-dfe Lambda call stays unconditional and authoritative; `godfe.ShadowCompare` runs alongside it
+  for `Implements()` operations and only logs a divergence, never affecting the response. Unchanged
+  by the worker cutover above.
+
+**Current `Implements()` set:** every `(docType, service)` `worker` actually processes today (see
+`cdk/lib/worker-definitions.ts`) — status/consulta/distribuição (unsigned, gated normally) plus
+`NFeAutorizacao`/`RecepcaoEvento`/`NfeInutilizacao` (nfe+nfce) and CT-e/MDF-e's emission/event
+services (signed, promoted 2026-07-18 per the exception above — the byte-identical gate against a
+captured py-dfe corpus has NOT run for these; no dedicated test certificate exists in this repo yet.
+See `internal/xmlops/signer.go`'s test file for what's verified today instead: W3C C14N spec vectors
+and an internal sign/verify round trip, not a py-dfe diff).
+
+**Explicitly out of scope:** XSD validation (no mature pure-Go validator, `CGO_ENABLED=0` rules out
+libxml2-based options) and DANFE/DAMDFE rendering (no cert/signature/SOAP/mTLS involved — no fiscal
+or security upside to porting it; py-dfe remains the only path for rendering indefinitely).
+
+**CI:** a dedicated `godfe` job (`.github/workflows/godfe.yml`, build+test only — this package has no
+deploy target of its own) runs in `deploy.yml`, gated on a `go-dfe/**`/`go.work`/`go.work.sum` path
+filter. That same filter is also added to `worker`/`api`'s own filters (they consume `go-dfe`
+in-process via the workspace, so a change there must re-run their test suites too, not just
+`go-dfe`'s) and `worker`/`api`'s deploy jobs `needs: godfe`, so a `go-dfe` test failure blocks their
+deploys.
+
 ---
 
 ## 4. ctech-dfe-api — REST Backend

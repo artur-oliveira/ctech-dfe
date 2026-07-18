@@ -1,0 +1,36 @@
+name: go-dfe
+
+# Called by deploy.yml. go-dfe is a library, not a deployable service — no
+# cmd/, no Lambda handler, nothing to ship — so this only tests it. worker
+# and api both import it in-process via the root go.work; deploy.yml gates
+# their deploy jobs on this one (see its `needs`) so a go-dfe regression
+# blocks both, the same way a worker regression already blocks api.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go-dfe/go.mod
+          # go-dfe has no go.sum of its own: in workspace mode (go.work at
+          # the repo root) its checksums live in the shared go.work.sum
+          # instead — see go-dfe/CLAUDE.md's "Known Constraints".
+          cache-dependency-path: go.work.sum
+
+      - name: Build (arm64, CGO disabled — matches the worker/api Lambda target)
+        working-directory: go-dfe
+        run: CGO_ENABLED=0 GOARCH=arm64 go build ./...
+
+      - name: Run tests
+        working-directory: go-dfe
+        run: go test ./... -race -count=1

@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -182,7 +183,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		return fmt.Errorf("getCertB64: %w", err)
 	}
 
-	lambdaResp, err := s.invokePyDfe(ctx, lambdaPayload{
+	pyDfePayload := lambdaPayload{
 		CNPJ:                msg.CNPJ,
 		CertificateB64:      certB64,
 		CertificatePassword: msg.CertPassword,
@@ -191,13 +192,33 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		DocType:             msg.DocType,
 		Service:             msg.SefazService,
 		Body:                msg.Body,
-	})
-	if err != nil {
-		s.failDoc(ctx, msg, "lambda invocation error: "+err.Error())
-		return fmt.Errorf("invokePyDfe: %w", err)
 	}
 
-	slog.Info("py-dfe response", "status_code", lambdaResp.StatusCode, "access_key", msg.AccessKey)
+	// 2026-07-18: worker cut over to go-dfe in-process for every
+	// (docType, service) it implements (see go-dfe/dfe.go's `implemented`
+	// map) — done at explicit operator direction during a controlled
+	// zero-traffic window, ahead of the plan's normal shadow-mode/
+	// byte-identical gates for the newly-promoted signed operations.
+	// Revert to py-dfe-only (undo this cutover): comment the if/else block
+	// below, uncomment the line under it.
+	var lambdaResp lambdaResponse
+	if godfeImplements(msg.DocType, msg.SefazService) {
+		resp, callErr := godfeCall(ctx, godfe.Request{
+			CNPJ: msg.CNPJ, CertificateB64: certB64, CertificatePassword: msg.CertPassword,
+			UF: msg.UF, Environment: normalizeSefazEnvironment(msg.SefazEnvironment),
+			DocType: msg.DocType, Service: msg.SefazService, Body: msg.Body,
+		})
+		lambdaResp, err = lambdaResponse{StatusCode: resp.StatusCode, Body: resp.Body}, callErr
+	} else {
+		lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
+	}
+	// lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
+	if err != nil {
+		s.failDoc(ctx, msg, "sefaz invocation error: "+err.Error())
+		return fmt.Errorf("sefaz call: %w", err)
+	}
+
+	slog.Info("sefaz response", "status_code", lambdaResp.StatusCode, "access_key", msg.AccessKey)
 
 	if lambdaResp.StatusCode != 200 {
 		detail := "py-dfe error"
@@ -392,6 +413,9 @@ func (s *DfeService) failDoc(ctx context.Context, msg WorkerMessage, motive stri
 }
 
 func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, error) {
+	if cached, ok := certCache.get(certS3Key); ok {
+		return cached, nil
+	}
 	out, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.cfg.CertsBucket),
 		Key:    aws.String(certS3Key),
@@ -409,7 +433,9 @@ func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, 
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	certB64 := base64.StdEncoding.EncodeToString(data)
+	certCache.set(certS3Key, certB64)
+	return certB64, nil
 }
 
 func (s *DfeService) invokePyDfe(ctx context.Context, payload lambdaPayload) (lambdaResponse, error) {

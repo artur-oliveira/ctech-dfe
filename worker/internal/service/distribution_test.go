@@ -12,8 +12,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
+
+// This file's tests exercise DistributionService's pagination/idempotency/
+// persistence logic against a fake Lambda client (mockLambda below) — they
+// predate go-dfe's in-process cutover (invokePyDfe now calls go-dfe directly
+// for every implemented service, see distribution.go). Force godfeImplements
+// to always report false here so invokePyDfe keeps taking the mockLambda
+// path these tests actually control; production code never touches this var.
+func init() {
+	godfeImplements = func(string, string) bool { return false }
+}
 
 // ---------------------------------------------------------------------------
 // mockDistDynamo — implements DistributionDynamoClient with queued responses.
@@ -403,6 +414,46 @@ func TestDistNSU_NoDocs_cStat137_UpdatesNSU(t *testing.T) {
 		t.Fatalf("Process: %v", err)
 	}
 	// Expected UpdateItem calls: 1 (slot claim) + 1 (updateNSU) = 2.
+	if len(dynm.updateCalls) != 2 {
+		t.Errorf("expected 2 UpdateItem calls (claim + NSU), got %d", len(dynm.updateCalls))
+	}
+}
+
+// TestDistNSU_GoDfeCutover_SkipsLambdaEntirely is the one distribution test
+// that actually exercises the 2026-07-18 hard-cutover branch (every other
+// test in this file forces godfeImplements=false, via this file's init, to
+// keep testing against a controllable fake py-dfe response). It stubs
+// godfeImplements/godfeCall directly to prove invokePyDfe skips the mock
+// Lambda entirely and routes go-dfe's response through the same
+// pagination/NSU-update path a py-dfe response would.
+func TestDistNSU_GoDfeCutover_SkipsLambdaEntirely(t *testing.T) {
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NFeDistribuicaoDFe" }
+	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		body, _ := json.Marshal(map[string]any{
+			"retDistDFeInt": map[string]any{"cStat": cStatNoDocs, "ultNSU": "00000000000500", "maxNSU": "00000000000500"},
+		})
+		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
+	}
+
+	dynm := &mockDistDynamo{
+		gets:    []getResult{{item: configItem(2, "hom", "", "")}, {item: orgItemWithUF("SP")}},
+		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+	}
+	lam := &mockLambda{payload: []byte(`{"statusCode":500,"body":"{}"}`)}
+	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)
+
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
+	})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lam.calls != 0 {
+		t.Errorf("expected py-dfe Lambda to never be invoked, got %d calls", lam.calls)
+	}
 	if len(dynm.updateCalls) != 2 {
 		t.Errorf("expected 2 UpdateItem calls (claim + NSU), got %d", len(dynm.updateCalls))
 	}

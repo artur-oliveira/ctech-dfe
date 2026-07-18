@@ -20,7 +20,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: api/go.mod
-          cache-dependency-path: api/go.sum
+          cache-dependency-path: |
+            api/go.sum
+            go.work.sum
 
       - name: Run tests
         working-directory: api
@@ -37,7 +39,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: api/go.mod
-          cache-dependency-path: api/go.sum
+          cache-dependency-path: |
+            api/go.sum
+            go.work.sum
 
       - name: Resolve environment
         id: env

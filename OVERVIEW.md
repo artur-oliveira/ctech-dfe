@@ -54,6 +54,15 @@ LambdaRequest → CertificateManager → ServiceClient → SEFAZ SOAP → Lambda
 - `certificate_b64` (PFX in base64), `certificate_password`
 - `body` (dict that becomes XML), `max_retries` (0-10, default 3)
 
+### go-dfe — In-Process Go Migration (New)
+
+In-process Go replacement for py-dfe's SEFAZ SOAP/mTLS calls, adopted operation-by-operation
+(`docs/plans/2026-07-17-go-dfe-migration.md`, `MIGRATION.md`). `worker`/`api` call `dfe.Call`
+directly (no Lambda Invoke) for any `(docType, service)` in `dfe.Implements()`; everything else
+still goes through the py-dfe Lambda — same request/response JSON contract either way. Currently
+implements unsigned operations only (status/consulta/distribuição); signed operations stay on
+py-dfe until the XML-DSig/C14N port passes a byte-identical gate against captured py-dfe output.
+
 ### api — REST Backend
 
 Multi-tenant Go API (Fiber v3). Manages organizations, users, certificates, products, vehicles, persons, and fiscal

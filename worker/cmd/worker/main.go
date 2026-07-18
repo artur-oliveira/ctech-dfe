@@ -52,6 +52,11 @@ func main() {
 	}, cfg)
 
 	lambda.Start(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
+		if service.IsPingEvent(raw) {
+			slog.Info("ping: keep-warm invoke, no-op")
+			return batchResponse{}, nil
+		}
+
 		var ev sqsEvent
 		if err := json.Unmarshal(raw, &ev); err != nil {
 			slog.Error("failed to parse SQS event", "err", err)

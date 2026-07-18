@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -185,6 +186,43 @@ func TestProcess_CStat100_SavesAndMarksAuthorized(t *testing.T) {
 	}
 	if dynm.updates[0].status != StatusAuthorized {
 		t.Errorf("status = %q, want %q", dynm.updates[0].status, StatusAuthorized)
+	}
+}
+
+// TestProcess_GoDfeCutover_SkipsLambdaEntirely is the one test in this
+// package that actually exercises the 2026-07-18 hard-cutover branch (every
+// other test forces godfeImplements=false via distribution_test.go's init,
+// to keep testing Process()'s logic against a controllable fake response
+// without a real certificate/network call). It stubs godfeImplements/
+// godfeCall directly to prove: (a) the mock Lambda is never invoked when
+// go-dfe implements the operation, (b) go-dfe's response flows through the
+// exact same status-update path as a py-dfe response would.
+func TestProcess_GoDfeCutover_SkipsLambdaEntirely(t *testing.T) {
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NFeAutorizacao" }
+	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		if req.DocType != "nfe" || req.Service != "NFeAutorizacao" {
+			t.Errorf("unexpected godfe.Request: %+v", req)
+		}
+		body, _ := json.Marshal(map[string]any{"cStat": "100", "xMotivo": "Autorizado", "nProt": "135"})
+		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
+	}
+
+	s3m := certS3()
+	dynm := &mockDynamo{}
+	lamm := &mockLambda{payload: invokeResp("999", "should never be read", "")}
+	svc := newSvc(s3m, lamm, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lamm.calls != 0 {
+		t.Errorf("expected py-dfe Lambda to never be invoked, got %d calls", lamm.calls)
+	}
+	if len(dynm.updates) != 1 || dynm.updates[0].status != StatusAuthorized {
+		t.Fatalf("expected 1 update with status=%q, got %+v", StatusAuthorized, dynm.updates)
 	}
 }
 

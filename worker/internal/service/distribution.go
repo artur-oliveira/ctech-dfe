@@ -1007,6 +1007,9 @@ func (s *DistributionService) loadOrg(ctx context.Context, orgPK string) (map[st
 }
 
 func (s *DistributionService) getCertB64(ctx context.Context, s3Key string) (string, error) {
+	if cached, ok := certCache.get(s3Key); ok {
+		return cached, nil
+	}
 	out, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.cfg.CertsBucket),
 		Key:    aws.String(s3Key),
@@ -1019,7 +1022,9 @@ func (s *DistributionService) getCertB64(ctx context.Context, s3Key string) (str
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	certB64 := base64.StdEncoding.EncodeToString(data)
+	certCache.set(s3Key, certB64)
+	return certB64, nil
 }
 
 // ------------------------------------------------------------------
@@ -1067,7 +1072,25 @@ func (s *DistributionService) buildPayload(
 	}
 }
 
+// invokePyDfe dispatches a distribution SEFAZ call. 2026-07-18: cut over to
+// go-dfe in-process for every (docType, service) it implements (see
+// go-dfe/dfe.go's `implemented` map — NFeDistribuicaoDFe/CTeDistribuicaoDFe/
+// MDFeDistribuicaoDFe are all in it) — same worker-wide cutover, same
+// explicit-operator-direction caveat, as dfe.go's Process().
+// Revert to py-dfe-only: delete the if block below (keep only the
+// unconditional call to invokePyDfeLambda that follows it).
 func (s *DistributionService) invokePyDfe(ctx context.Context, payload map[string]any) (map[string]any, error) {
+	if req, ok := mapToDfeRequest(payload); ok && godfeImplements(req.DocType, req.Service) {
+		resp, err := godfeCall(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"statusCode": float64(resp.StatusCode), "body": resp.Body}, nil
+	}
+	return s.invokePyDfeLambda(ctx, payload)
+}
+
+func (s *DistributionService) invokePyDfeLambda(ctx context.Context, payload map[string]any) (map[string]any, error) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err

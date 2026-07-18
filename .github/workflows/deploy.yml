@@ -24,6 +24,10 @@ on:
         description: 'Deploy py-dfe Lambda'
         type: boolean
         default: false
+      godfe:
+        description: 'Test go-dfe'
+        type: boolean
+        default: false
       worker:
         description: 'Deploy Worker Lambda'
         type: boolean
@@ -54,6 +58,7 @@ jobs:
     outputs:
       infra: ${{ steps.decide.outputs.infra }}
       pydfe: ${{ steps.decide.outputs.pydfe }}
+      godfe: ${{ steps.decide.outputs.godfe }}
       worker: ${{ steps.decide.outputs.worker }}
       api: ${{ steps.decide.outputs.api }}
       frontend: ${{ steps.decide.outputs.frontend }}
@@ -67,6 +72,9 @@ jobs:
         with:
           # py-dfe/layer/requirements.txt is in BOTH infra and pydfe: it changes the
           # Lambda layer the CDK stack bundles, and the code that runs on top of it.
+          # go-dfe/** and go.work(.sum) are in BOTH worker and api (and godfe): it's
+          # a library both import in-process via the root go.work — a change there
+          # must re-run both consumers' test suites, not just go-dfe's own.
           filters: |
             infra:
               - 'cdk/**'
@@ -75,11 +83,22 @@ jobs:
             pydfe:
               - 'py-dfe/**'
               - '.github/workflows/pydfe.yml'
+            godfe:
+              - 'go-dfe/**'
+              - 'go.work'
+              - 'go.work.sum'
+              - '.github/workflows/godfe.yml'
             worker:
               - 'worker/**'
+              - 'go-dfe/**'
+              - 'go.work'
+              - 'go.work.sum'
               - '.github/workflows/worker.yml'
             api:
               - 'api/**'
+              - 'go-dfe/**'
+              - 'go.work'
+              - 'go.work.sum'
               - '.github/workflows/api.yml'
             frontend:
               - 'ui/**'
@@ -92,12 +111,14 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "infra=${{ inputs.infra }}"       >> "$GITHUB_OUTPUT"
             echo "pydfe=${{ inputs.pydfe }}"       >> "$GITHUB_OUTPUT"
+            echo "godfe=${{ inputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ inputs.worker }}"     >> "$GITHUB_OUTPUT"
             echo "api=${{ inputs.api }}"           >> "$GITHUB_OUTPUT"
             echo "frontend=${{ inputs.frontend }}" >> "$GITHUB_OUTPUT"
           else
             echo "infra=${{ steps.filter.outputs.infra }}"       >> "$GITHUB_OUTPUT"
             echo "pydfe=${{ steps.filter.outputs.pydfe }}"       >> "$GITHUB_OUTPUT"
+            echo "godfe=${{ steps.filter.outputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}"     >> "$GITHUB_OUTPUT"
             echo "api=${{ steps.filter.outputs.api }}"           >> "$GITHUB_OUTPUT"
             echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
@@ -122,9 +143,17 @@ jobs:
       id-token: write
       contents: read
 
+  godfe:
+    name: go-dfe
+    needs: changes
+    if: ${{ needs.changes.outputs.godfe == 'true' }}
+    uses: ./.github/workflows/godfe.yml
+    permissions:
+      contents: read
+
   worker:
     name: Worker
-    needs: [ changes, infra, pydfe ]
+    needs: [ changes, infra, pydfe, godfe ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.worker == 'true' }}
     uses: ./.github/workflows/worker.yml
     permissions:
@@ -133,7 +162,7 @@ jobs:
 
   api:
     name: API
-    needs: [ changes, infra, pydfe, worker ]
+    needs: [ changes, infra, pydfe, godfe, worker ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.api == 'true' }}
     uses: ./.github/workflows/api.yml
     permissions:
