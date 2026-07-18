@@ -9,7 +9,9 @@ For infrastructure architecture, stacks, and environment details, see:
 
 # Infrastructure Overview
 
-TODO: Replace with actual stack topology.
+The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load
+Balancer — see `cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda
+workers (`cdk/lib/worker-stack.ts`) and the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
 
 ```text
 AWS Account
@@ -210,7 +212,7 @@ sudo systemctl status amazon-cloudwatch-agent
 
 Where:
 
-* `app` = FastAPI/Gunicorn
+* `app` = the Go/Fiber binary (`app`), managed by systemd
 * `nginx` = Reverse proxy
 
 ---
@@ -368,7 +370,7 @@ systemctl status amazon-ssm-agent
 ls -la /opt/app/current/
 ```
 
-4. Verify Gunicorn:
+4. Verify the app service:
 
 ```bash
 systemctl status app
