@@ -230,6 +230,17 @@ export class WorkerStack extends cdk.Stack {
         resources: [resultsTopicArn],
       }))
 
+      if (worker.dynamoTables?.length) {
+        const dlqTableArns = worker.dynamoTables.flatMap(t => [
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`,
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/*`,
+        ])
+        dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
+          actions: ['dynamodb:UpdateItem'],
+          resources: dlqTableArns,
+        }))
+      }
+
       const dlqProcessor = new lambda.Function(this, `${worker.id}-dlq-processor`, {
         functionName: `${environment}-${worker.name}-dlq-processor`,
         runtime: lambda.Runtime.PROVIDED_AL2023,
