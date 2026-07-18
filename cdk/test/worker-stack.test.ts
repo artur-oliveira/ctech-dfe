@@ -49,3 +49,10 @@ test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
     MetricName: 'ApproximateNumberOfMessagesVisible',
   })
 })
+
+test('distribution poller schedule is enabled', () => {
+  const template = buildTemplate()
+  template.hasResourceProperties('AWS::Scheduler::Schedule', {
+    State: 'ENABLED',
+  })
+})

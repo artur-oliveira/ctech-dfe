@@ -351,7 +351,7 @@ export class WorkerStack extends cdk.Stack {
       description: 'Triggers distribution dispatcher every 30 minutes to pull DFe documents from SEFAZ',
       schedule: scheduler.ScheduleExpression.rate(Duration.minutes(30)),
       target: new schedulerTargets.LambdaInvoke(dispatcher),
-      enabled: false,
+      enabled: true,
     })
   }
 }
