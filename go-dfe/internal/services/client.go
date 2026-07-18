@@ -113,6 +113,8 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 		}
 	}
 
+	slog.Info("sending xml", "xml", string(xmlBytes))
+
 	if c.validateSchema && c.config.RequiresValidation(service) {
 		return nil, fmt.Errorf("services: %q requires XSD validation, which go-dfe does not implement (see docs/plans/2026-07-17-go-dfe-migration.md)", service)
 	}
@@ -126,6 +128,8 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 		return nil, fmt.Errorf("services: %w", err)
 	}
 
+	slog.Info("soap body", "body", string(soapBody))
+
 	url, err := endpoints.Resolve(c.docType, c.uf, c.environment, service)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
@@ -137,6 +141,9 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 	}
 
 	resultXML, err := soap.ParseResult(c.docType, raw)
+
+	slog.Info("soap response", "response", string(resultXML))
+
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}

@@ -564,11 +564,16 @@ func (s *DfeService) publishResult(ctx context.Context, payload map[string]any) 
 		slog.Error("sns marshal failed", "err", err)
 		return
 	}
-	if _, err := s.sns.Publish(ctx, &sns.PublishInput{
+	out, err := s.sns.Publish(ctx, &sns.PublishInput{
 		TopicArn: aws.String(s.cfg.ResultsTopicARN),
 		Message:  aws.String(string(body)),
-	}); err != nil {
+	})
+	if err != nil {
 		slog.Error("sns publish failed", "err", err)
+	} else if out == nil {
+		slog.Error("no response from sns publish")
+	} else {
+		slog.Info("sns publish result", "result", out)
 	}
 }
 
