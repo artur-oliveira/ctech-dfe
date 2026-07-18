@@ -15,7 +15,7 @@
 | DynamoDB access patterns | `get_item`/`query` only; `transact_write` for NF-e numbering atomicity  |
 | SEFAZ isolation          | py-dfe is a clean Lambda boundary — XML-DSig + mTLS fully encapsulated  |
 | Auth                     | RS256 JWKS validation; no shared secret; rotated refresh tokens         |
-| Worker                   | SQS FIFO with `org_pk` as `MessageGroupId` — correct ordering guarantee |
+| Worker                   | SQS standard queues; idempotency enforced via an application-level status guard, not queue ordering |
 | WebSocket                | Redis pub/sub registry already implemented (`RedisConnectionRegistry`)  |
 
 ### Weaknesses
@@ -118,7 +118,7 @@ SQS Event → Lambda handler
 ### Phase 2 — ctech-dfe-worker (4–6 weeks)
 
 1. Go Lambda with `aws-lambda-go`
-2. SQS FIFO event parsing (same schema)
+2. SQS standard event parsing (same schema)
 3. DFe processing: S3 cert → invoke ctech-dfe → parse response → DynamoDB + S3
 4. Redis Pub/Sub notification after SEFAZ response
 5. DLQ handler
@@ -194,7 +194,7 @@ graph TD
     ALB --> API[ctech-dfe-api\nFiber / ECS Fargate]
     API -->|AWS SDK v2| DDB[(DynamoDB\n21 tables)]
     API -->|AWS SDK v2| S3[(S3\ncerts + xmls)]
-    API -->|AWS SDK v2 FIFO| SQS[SQS FIFO]
+    API -->|AWS SDK v2| SQS[SQS standard]
     API -->|Pub/Sub| Redis[(Redis\nValkey)]
     SQS --> Worker[ctech-dfe-worker\nGo Lambda]
     Worker -->|InvokeFunction| PyDfe[ctech-dfe\nLambda Python]
@@ -214,7 +214,7 @@ sequenceDiagram
     participant C as ctech-dfe-client
     participant A as ctech-dfe-api
     participant D as DynamoDB
-    participant Q as SQS FIFO
+    participant Q as SQS (standard)
     participant W as ctech-dfe-worker
     participant L as ctech-dfe (py-dfe)
     participant S as SEFAZ
@@ -223,10 +223,10 @@ sequenceDiagram
     C->>A: POST /v1.0/nfes (JWT)
     A->>D: GetItem org, cert, config, products
     A->>D: TransactWrite (reserve number + create NF-e PENDING)
-    A->>Q: SendMessage (DfeWorkerEvent, GroupId=org_pk)
+    A->>Q: SendMessage (DfeWorkerEvent)
     A-->>C: 202 {access_key, status: pending}
 
-    Q->>W: SQS trigger (FIFO ordered)
+    Q->>W: SQS trigger (at-least-once, order not guaranteed)
     W->>S3: GetObject certificate.pfx
     W->>L: InvokeFunction (cnpj, uf, env, cert, body)
     L->>SEFAZ: SOAP NFeAutorizacao (mTLS)

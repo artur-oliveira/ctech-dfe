@@ -61,7 +61,7 @@ api/
 
 - All string keys, status codes, table name suffixes, header names, cache key prefixes, and env
   strings MUST be defined as named constants or config fields.
-- The `PyDfe-Organization-Pk` header name is defined once in `middleware/tenant.go` — never
+- The `Dfe-Organization-Pk` header name is defined once in `middleware/rbac.go` (`OrgHeader`) — never
   hardcoded in route files.
 
 ### Error Handling (MUST follow)
@@ -132,9 +132,9 @@ Run: `go test ./... -race` from `api/`.
 ## Known Constraints
 
 - `InMemoryCache` TTL=300s — not shared across replicas. Redis/Valkey is authoritative for JWKS and WebSocket pub/sub.
-- Lambda invocation for doc issuance is async: API enqueues to SQS FIFO, returns 202, worker processes and pushes
+- Lambda invocation for doc issuance is async: API enqueues to SQS (standard), returns 202, worker processes and pushes
   WebSocket update.
-- Organization context is always via `PyDfe-Organization-Pk` header — never path parameters (except org creation
+- Organization context is always via `Dfe-Organization-Pk` header — never path parameters (except org creation
   endpoints).
 - Profile/password management endpoints do not exist here — those belong to ctech-account.
 - JWKS keys cached in Redis (TTL 1h), falls back to in-memory when `VALKEY_URL` is unset.

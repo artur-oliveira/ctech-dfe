@@ -28,7 +28,7 @@ ctech-dfe/
 | SEFAZ lib | Python 3.14 Lambda (py-dfe) — XML-DSig + SOAP mTLS          |
 | Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN              |
 | Database  | DynamoDB (21 tables) + S3 (certificates and XMLs)           |
-| Messaging | SQS (FIFO) + SNS                                            |
+| Messaging | SQS (standard) + SNS                                        |
 | Infra     | AWS CDK TypeScript                                          |
 | Auth      | OAuth 2.0 PKCE + RS256 via ctech-account                    |
 
@@ -59,7 +59,7 @@ LambdaRequest → CertificateManager → ServiceClient → SEFAZ SOAP → Lambda
 Multi-tenant Go API (Fiber v3). Manages organizations, users, certificates, products, vehicles, persons, and fiscal
 document issuance.
 
-**Authentication:** JWT RS256 Bearer validated against JWKS from ctech-account. Org access via `PyDfe-Organization-Pk`
+**Authentication:** JWT RS256 Bearer validated against JWKS from ctech-account. Org access via `Dfe-Organization-Pk`
 header or path param.
 
 **Main endpoints:**
@@ -97,7 +97,7 @@ Certificates · Fiscal Configuration
 14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
 
 **Main resources:** DynamoDB (21 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe,
-worker) · API Gateway · IAM (least privilege) · SQS FIFO · SNS · CloudFront
+worker) · API Gateway · IAM (least privilege) · SQS (standard) · SNS · CloudFront
 
 ---
 
@@ -136,7 +136,7 @@ HTTP Client
   → Download certificate from S3
   → Generate access key (44 digits)
   → transact_write reserves fiscal number
-  → Send DfeWorkerEvent to SQS FIFO
+  → Send DfeWorkerEvent to SQS (standard, at-least-once — idempotency enforced at the application layer, see worker/internal/service/dfe.go's alreadyTerminal guard)
   → Return 202 Accepted + WebSocket channel to client
 
 SQS → worker Lambda (Go)

@@ -1,6 +1,6 @@
 # CLAUDE.md — worker (ctech-dfe-worker)
 
-Go Lambda — SQS FIFO consumer, async DFe issuance pipeline, `provided.al2023`.
+Go Lambda — SQS (standard) consumer, async DFe issuance pipeline, `provided.al2023`.
 
 **Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §6`.
 
@@ -8,11 +8,11 @@ Go Lambda — SQS FIFO consumer, async DFe issuance pipeline, `provided.al2023`.
 
 ## Role
 
-Consumes `DfeWorkerEvent` messages from SQS FIFO, orchestrates the full DFe issuance:
+Consumes `DfeWorkerEvent` messages from SQS (standard), orchestrates the full DFe issuance:
 fetches certificate from S3 → invokes py-dfe Lambda (XML-DSig + SEFAZ SOAP) → persists result
 in DynamoDB → uploads XML to S3 → publishes status to Redis pub/sub for WebSocket delivery.
 
-**Flow:** `SQS FIFO → Handler → S3 (cert) → py-dfe Lambda → DynamoDB + S3 + Redis`
+**Flow:** `SQS (standard) → Handler → S3 (cert) → py-dfe Lambda → DynamoDB + S3 + Redis`
 
 ---
 
@@ -68,9 +68,8 @@ worker/
 
 ### Idempotency (critical)
 
-- SQS FIFO provides at-least-once delivery — every handler **MUST be idempotent**.
-- Before writing to DynamoDB, check existing state to avoid double-processing.
-- `MessageGroupId = org_pk` ensures ordering per organization.
+- SQS is a standard queue: at-least-once delivery, no ordering guarantee — every handler **MUST be idempotent**.
+- Before writing to DynamoDB, check existing state to avoid double-processing (see `DfeService.alreadyTerminal`, `internal/service/dfe.go`).
 
 ### Layer Separation
 
@@ -117,8 +116,8 @@ Run: `go test ./... -race` from `worker/`.
 
 ## Known Constraints
 
-- DLQ receives messages after max retries — monitor via CloudWatch alarms (configured in CDK).
-- `MessageGroupId = org_pk` — messages for the same org are strictly ordered.
+- DLQ receives messages after max retries — monitored via a CloudWatch alarm per queue (configured in `cdk/lib/worker-stack.ts`).
+- SQS is standard (not FIFO) — ordering across messages for the same org is NOT guaranteed; correctness relies on the fiscal-numbering `transact_write` (atomic, order-independent) plus the idempotency guard in `DfeService.Process`.
 - py-dfe Lambda is the only path for XML signing + SEFAZ SOAP; do not duplicate this logic.
 - After SEFAZ response: always update DynamoDB status, upload XML to S3, publish to Redis — in that order.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.

@@ -64,7 +64,7 @@ ui                   ctech-account                   api
      │                               │                               │
      │  5. API calls                 │                               │
      │     Authorization: Bearer ... │──────────────────────────────>│
-     │     PyDfe-Organization-Pk: ..  │                               │
+     │     Dfe-Organization-Pk: ..  │                               │
 ```
 
 ---
@@ -117,7 +117,7 @@ If `doRefresh` fails (revoked token, expired), the user is logged out and redire
 ```typescript
 import {apiClient} from '@/lib/api/client'
 
-// All calls inject Authorization and PyDfe-Organization-Pk automatically.
+// All calls inject Authorization and Dfe-Organization-Pk automatically.
 await apiClient.me()                       // GET /v1.0/auth/me
 await apiClient.listNfes(params)           // GET /v1.0/nfes
 await apiClient.emitNfe(body)              // POST /v1.0/nfes
@@ -125,7 +125,7 @@ await apiClient.cancelNfe(accessKey, body) // POST /v1.0/nfes/{key}/cancel
 await apiClient.getAuditLogs(params)       // GET /v1.0/audit-logs (OWNER/ADMIN only)
 ```
 
-**`ORG_HEADER`** (`'PyDfe-Organization-Pk'`) is defined once in `client.ts`. Never hardcode this string elsewhere.
+**`ORG_HEADER`** (`'Dfe-Organization-Pk'`) is defined once in `client.ts`. Never hardcode this string elsewhere.
 
 The active org PK is read from localStorage (`pydfe_org`) on every request — no need to pass it explicitly.
 
@@ -164,7 +164,7 @@ session re-logs in and reflects a name changed in ctech-account.
 
 ## Organization Context
 
-Every API call to api that requires an org scope sends the `PyDfe-Organization-Pk` header. The active org is:
+Every API call to api that requires an org scope sends the `Dfe-Organization-Pk` header. The active org is:
 
 1. Set in `AuthContext.setSelectedOrg(org)` — persisted to localStorage `pydfe_org`
 2. Injected by the Axios request interceptor from localStorage on every request
