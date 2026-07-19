@@ -140,6 +140,8 @@ gopkg.aoctech.app/api-commons v1.0.2 h1:TDe+PoP2fQotadIgB7yKVMH99jlBYMVU6kKF/sqO
 gopkg.aoctech.app/api-commons v1.0.2/go.mod h1:bQzE7ZikcuAP+n3Ytgdhc9B28+PRRxoN2mIFbaiEDYA=
 gopkg.aoctech.app/api-commons v1.1.0 h1:G6knAhidacmN8Gq+Zq75U/MtH75GcEyx4LKjTZlkqvs=
 gopkg.aoctech.app/api-commons v1.1.0/go.mod h1:bQzE7ZikcuAP+n3Ytgdhc9B28+PRRxoN2mIFbaiEDYA=
+gopkg.aoctech.app/api-commons v1.2.0 h1:8FNuY+9gaNSz0QK4hIhCCDNqsZ7trU50PGrIYi/ygqw=
+gopkg.aoctech.app/api-commons v1.2.0/go.mod h1:bQzE7ZikcuAP+n3Ytgdhc9B28+PRRxoN2mIFbaiEDYA=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 software.sslmate.com/src/go-pkcs12 v0.7.3 h1:JBQD3FDqYjTeyDAeZQklj2ar88ykBLtALloPJHyAauU=

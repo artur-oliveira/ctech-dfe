@@ -3,6 +3,7 @@
 import {useState} from 'react'
 import {apiClient} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {DFE_TERMS_URL} from '@/lib/legal'
 
 // Blocks access until the user explicitly accepts the dfe-specific terms
 // addendum — shown once, right after first login, since Google/SSO sign-up
@@ -47,7 +48,7 @@ export function TermsAddendumGate() {
           />
           <span>
             Li e concordo com os{' '}
-            <a href="/terms-addendum" target="_blank" className="text-gray-900 underline underline-offset-4">
+            <a href={DFE_TERMS_URL} target="_blank" rel="noreferrer" className="text-gray-900 underline underline-offset-4">
               Termos Adicionais do CTech DFe
             </a>
             .

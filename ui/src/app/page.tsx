@@ -2,6 +2,7 @@
 
 import {useState} from 'react'
 import Link from 'next/link'
+import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal'
 import {Check, CheckCircle2, FileText, Puzzle, ShieldCheck, Zap} from 'lucide-react'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {Button} from '@/components/ui/button'
@@ -306,13 +307,16 @@ export default function Home() {
           className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-8 text-sm text-gray-500 md:flex-row md:justify-between">
           <p>© {new Date().getFullYear()} A O CARVALHO TECH</p>
           <div className="flex items-center gap-4">
-            <a href="https://accounts.aoctech.app/terms" className="hover:text-gray-800" target="_blank"
+            <a href={DFE_TERMS_URL} className="hover:text-gray-800" target="_blank"
                rel="noreferrer">
-              Termos de Uso
+              Termos do DF-e
             </a>
-            <a href="https://accounts.aoctech.app/privacy" className="hover:text-gray-800" target="_blank"
+            <a href={PRIVACY_POLICY_URL} className="hover:text-gray-800" target="_blank"
                rel="noreferrer">
               Privacidade
+            </a>
+            <a href={ACCOUNTS_LEGAL_URL} className="hover:text-gray-800" target="_blank" rel="noreferrer">
+              Central Jurídica
             </a>
           </div>
         </div>
