@@ -72,7 +72,7 @@ unless the rule genuinely does not apply and the reason is commented.
 
 ### Constants — no magic strings
 
-- `ORG_HEADER` (`'PyDfe-Organization-Pk'`) is defined **once** in `lib/api/client.ts`.
+- `ORG_HEADER` (`'Dfe-Organization-Pk'`) is defined **once** in `lib/api/client.ts`.
   Never hardcode this string in any other file.
 - localStorage/sessionStorage keys (`pydfe_rt`, `pydfe_user`, `pydfe_org`) must be defined as
   named constants — not inline string literals scattered across files.

@@ -1,18 +1,25 @@
 # AGENTS.md — worker (ctech-dfe-worker)
 
-Go Lambda — SQS FIFO consumer, async DFe issuance pipeline, `provided.al2023`.
+Go Lambda — SQS consumer (standard queue, at-least-once), async DFe issuance pipeline,
+`provided.al2023`.
 
-**Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §6`.
+**Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §6`,
+`../MIGRATION.md`, `../worker/README.md`.
 
 ---
 
 ## Role
 
-Consumes `DfeWorkerEvent` messages from SQS FIFO, orchestrates the full DFe issuance:
-fetches certificate from S3 → invokes py-dfe Lambda (XML-DSig + SEFAZ SOAP) → persists result
-in DynamoDB → uploads XML to S3 → publishes status to Redis pub/sub for WebSocket delivery.
+Consumes `WorkerMessage` / `DistributionMessage` from SQS (standard — **not** FIFO),
+orchestrates the full DFe issuance:
+fetches certificate from S3 → calls SEFAZ via **go-dfe in-process (primary)** or
+**py-dfe Lambda (fallback)** → persists result in DynamoDB → uploads XML to S3 →
+publishes result to the **SNS results bus** (`${env}-ctech-dfe-results`), which the API's
+`ResultsConsumer` polls and fans out over WebSocket.
 
-**Flow:** `SQS FIFO → Handler → S3 (cert) → py-dfe Lambda → DynamoDB + S3 + Redis`
+**Flow:** `SQS (standard) → Handler → S3 (cert) → go-dfe (in-process SEFAZ; py-dfe Lambda fallback) → DynamoDB + S3 → SNS results topic`
+
+See [`README.md`](README.md) for the full contract and the go-dfe/py-dfe dispatch decision.
 
 ---
 

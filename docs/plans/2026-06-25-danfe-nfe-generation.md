@@ -11,8 +11,8 @@
 the generic HTML→PDF renderer are isolated units. Four Jinja templates (composed from shared macros) cover
 retrato/paisagem (fixed A4, multi-page) and simplificado/etiqueta (roll, auto-height).
 
-**Tech Stack:** Python 3.14, lxml (XML parse, reuse `xmlops.builder.parse_xml_bytes`), Jinja2 (templating), WeasyPrint (
-HTML→PDF), python-barcode (CODE-128 SVG), segno (existing, NFC-e QR only).
+**Tech Stack:** Python 3.14, lxml (XML parse, reuse `xmlops.builder.parse_xml_bytes`), Jinja2 (templating), WeasyPrint
+(HTML→PDF), python-barcode (CODE-128 SVG), segno (existing, NFC-e QR only).
 
 ## Global Constraints
 
@@ -305,8 +305,8 @@ git add py-dfe/py_dfe/danfe/formatters.py py-dfe/tests/unit/test_danfe_formatter
 - Produces:
     - `code128c_data_uri(value: str) -> str` — `data:image/svg+xml;base64,...`
     -
-    `dados_nfe_code(*, cuf: str, tp_emis: str, doc: str, vnf: str, icms_proprio: bool, icms_st: bool, dia_emissao: str) -> str` —
-    36-char string with mod-11 DV.
+  `dados_nfe_code(*, cuf: str, tp_emis: str, doc: str, vnf: str, icms_proprio: bool, icms_st: bool, dia_emissao: str) -> str` —
+  36-char string with mod-11 DV.
     - `_mod11_dv(digits: str) -> str` — single-char DV (also used internally).
 
 - [ ] **Step 1: Add the dependency**
@@ -468,8 +468,8 @@ def dados_nfe_code(
 ```
 
 > Note: the test's `icms_proprio=True` expects `code[31] == "1"`. Index map: cUF `0:2`, tpEmis `2:3`, doc `3:17`, vNF
-`17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded to
-`00000000012345`.
+> `17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded to
+> `00000000012345`.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -812,8 +812,9 @@ git add py-dfe/tests/danfe_fixtures.py py-dfe/tests/unit/test_danfe_fixtures.py
     - `_extract_roots(xml) -> tuple[dict, dict|None, str, str, str]` (validates mod 55).
 
 > This task creates the generator and its context. The HTML templates do not exist yet (Tasks 7-8), so the PDF-rendering
-> assertions in this task's tests guard with `importorskip` AND are written to tolerate a missing template by asserting on
-`build_context` output (pure, no WeasyPrint). Full end-to-end PDF assertions live in Tasks 7-8 and 9 once templates
+> assertions in this task's tests guard with `importorskip` AND are written to tolerate a missing template by asserting
+> on
+> `build_context` output (pure, no WeasyPrint). Full end-to-end PDF assertions live in Tasks 7-8 and 9 once templates
 > exist.
 
 - [ ] **Step 1: Write the failing test (context only — no template needed)**
@@ -1407,7 +1408,7 @@ Create `py-dfe/py_dfe/danfe/templates/danfe_retrato.html`:
 
 > The context dict is passed under the name `ctx`. Update `generate_danfe_nfe` Step 3 (Task 6) render call to wrap:
 > change `render_html(template, context)` to `render_html(template, {"ctx": context})`. **Apply this one-line change now
-** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context` is
+> ** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context` is
 > unaffected; only the render wrapper changes.
 
 - [ ] **Step 5: Create `danfe_paisagem.html`**

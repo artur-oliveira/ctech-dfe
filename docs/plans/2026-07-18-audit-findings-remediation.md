@@ -756,8 +756,8 @@ func strPtr(s string) *string { return &s }
 Run: `cd worker && go test ./internal/service/... -race`
 Expected: build failure — `mockDynamo` does not implement `DynamoClient` yet in the new tests' usage is fine (it already
 does via `UpdateItem`), but `s.dynamo.GetItem` doesn't exist on the interface yet, so `newSvc`'s `Clients{Dynamo: dynm}`
-line will fail once Step 3 changes the interface. Confirm the failure is specifically about the missing guard behavior (
-all 4 new tests fail on assertions, e.g. `lamm.calls != 0` when it's actually 1) before moving to Step 3 if the code
+line will fail once Step 3 changes the interface. Confirm the failure is specifically about the missing guard behavior
+(all 4 new tests fail on assertions, e.g. `lamm.calls != 0` when it's actually 1) before moving to Step 3 if the code
 still compiles at this point (it will, since `GetItem` is additive to `mockDynamo` and not yet required by
 `DynamoClient`).
 
@@ -1153,9 +1153,9 @@ Replace the `TODO:` line and restate the topology accurately (the list below it 
 
 # Infrastructure Overview
 
-The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load
-Balancer — see `cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda
-workers (`cdk/lib/worker-stack.ts`) and the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
+The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load Balancer — see
+`cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda workers (`cdk/lib/worker-stack.ts`) and
+the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
 
 ```text
 AWS Account

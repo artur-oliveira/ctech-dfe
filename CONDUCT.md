@@ -443,7 +443,7 @@ Must follow Conventional Commits:
 - Auth is RS256-only. JWT `sub` claim is the ctech user ID. There is no `SECRET_KEY` — do not add HS256.
 - JWKS keys are cached in Redis/Valkey (TTL 1h). Falls back to in-memory when `VALKEY_URL` is unset.
 - NF-e numbering uses `transact_write` for atomicity — never replace with separate read/write.
-- Organization context is passed via `PyDfe-Organization-Pk` header — never path parameters.
+- Organization context is passed via `Dfe-Organization-Pk` header — never path parameters.
 - All route errors go through `sendProblem(c, err)` — never return raw errors or `fiber.NewError`.
 - Services return `*problem.Problem` via `problem.BadRequest/NotFound/InternalServer` helpers.
 - **Every mutating endpoint binds a typed request DTO and validates it before persistence.**

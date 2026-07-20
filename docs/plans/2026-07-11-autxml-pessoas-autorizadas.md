@@ -3,12 +3,12 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
 > executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let an organization register up to 10 CPF/CNPJ+name pairs authorized to view its NF-e
-XMLs (SEFAZ `autXML`), with add/remove endpoints, no duplicates, always included in NF-e XML build.
+**Goal:** Let an organization register up to 10 CPF/CNPJ+name pairs authorized to view its NF-e XMLs (SEFAZ `autXML`),
+with add/remove endpoints, no duplicates, always included in NF-e XML build.
 
 **Architecture:** New `authorized_xml_viewers` list attribute on the existing `organizations`
-item — no new table. `OrganizationService` gets two new methods that read-modify-write the list
-through the already-existing generic `Update` (fetch→merge→diff→TransactWrite+audit). Builder gets
+item — no new table. `OrganizationService` gets two new methods that read-modify-write the list through the
+already-existing generic `Update` (fetch→merge→diff→TransactWrite+audit). Builder gets
 `buildAutXML`. No py-dfe change (`xsd_order.py` already orders `autXML`).
 
 **Tech Stack:** Go/Fiber v3/DynamoDB (api), Next.js/TS/Zod (ui).
@@ -18,9 +18,9 @@ through the already-existing generic `Update` (fetch→merge→diff→TransactWr
 - No `Co-Authored-By:` trailer on any commit.
 - `api`: errors via `problem.*`; layer separation strict; no new goroutines in handlers.
 - `ui`: `npx eslint src --ext .ts,.tsx` zero errors/warnings; mobile-first; debounced inputs.
-- Reuse the existing `update.organizations` RBAC permission for the two new routes — do not
-  invent a new permission key (no seed-data/RBAC-migration mechanism was found for this repo in
-  prior research; adding one is out of scope for this feature).
+- Reuse the existing `update.organizations` RBAC permission for the two new routes — do not invent a new permission key
+  (no seed-data/RBAC-migration mechanism was found for this repo in prior research; adding one is out of scope for this
+  feature).
 
 ---
 
@@ -44,9 +44,8 @@ through the already-existing generic `Update` (fetch→merge→diff→TransactWr
 
 - [ ] **Step 1: Write failing tests**
 
-`api/internal/services/organizations_test.go` — append (check existing file first; this task
-assumes Task 1 of the pessoas/organizações plan already added `RequireOrgIE` tests here — append
-alongside, don't overwrite):
+`api/internal/services/organizations_test.go` — append (check existing file first; this task assumes Task 1 of the
+pessoas/organizações plan already added `RequireOrgIE` tests here — append alongside, don't overwrite):
 
 ```go
 func TestAddAuthorizedViewer_RejectsDuplicateCpfCnpj(t *testing.T) {
@@ -219,8 +218,8 @@ func (s *OrganizationService) RemoveAuthorizedViewer(ctx context.Context, orgPK,
 }
 ```
 
-Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports if not
-already present in this file (Task 1 of the pessoas/organizações plan may have already added
+Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports if not already present in this file (Task 1
+of the pessoas/organizações plan may have already added
 `problem` — check before adding a duplicate import).
 
 - [ ] **Step 5: Run, confirm pass**
@@ -281,9 +280,8 @@ In `RegisterOrganizations`, inside the `scoped` group (after the `PUT ""` handle
 
 - [ ] **Step 2: Integration tests**
 
-`api/tests/integration/organizations_test.go` — add, following the existing HTTP-harness pattern
-in that file (look at an existing `TestOrganization_Update*` test for the request/org-setup
-boilerplate):
+`api/tests/integration/organizations_test.go` — add, following the existing HTTP-harness pattern in that file (look at
+an existing `TestOrganization_Update*` test for the request/org-setup boilerplate):
 
 ```go
 func TestOrganization_AddAuthorizedViewer(t *testing.T) {
@@ -359,8 +357,8 @@ Expected: FAIL — `buildAutXML` undefined.
 
 - [ ] **Step 3: Implement**
 
-`api/internal/services/nfes/builders_doc.go` — add near `buildLocal` (or, if Task 3 of the
-pessoas/organizações plan hasn't landed yet, near `buildEnder`):
+`api/internal/services/nfes/builders_doc.go` — add near `buildLocal` (or, if Task 3 of the pessoas/organizações plan
+hasn't landed yet, near `buildEnder`):
 
 ```go
 // buildAutXML builds the autXML list (CPF/CNPJ authorized to view this
@@ -403,9 +401,8 @@ Expected: PASS
 
 - [ ] **Step 5: Wire into `BuildEnviNFe`**
 
-In the same `infNFe` map assembly touched by Task 3/Step 6 of the pessoas/organizações plan (or,
-if that task hasn't run yet, locate it directly — search `BuildEnviNFe` for where `"dest"` is set
-on the `infNFe` map), add:
+In the same `infNFe` map assembly touched by Task 3/Step 6 of the pessoas/organizações plan (or, if that task hasn't run
+yet, locate it directly — search `BuildEnviNFe` for where `"dest"` is set on the `infNFe` map), add:
 
 ```go
 if autXML := buildAutXML(org); autXML != nil {
@@ -413,8 +410,8 @@ if autXML := buildAutXML(org); autXML != nil {
 }
 ```
 
-`org` here is the same `map[string]any` already passed into `BuildEnviNFe` for `buildEnder`/emit
-fields — no new parameter needed.
+`org` here is the same `map[string]any` already passed into `BuildEnviNFe` for `buildEnder`/emit fields — no new
+parameter needed.
 
 - [ ] **Step 6: Run full suite, commit**
 
@@ -466,9 +463,9 @@ async removeAuthorizedViewer(orgPk: string, cpfCnpj: string): Promise<Organizati
 }
 ```
 
-(Check the class already has a `delete<T>` helper — mirrors `get`/`post`/`put` used elsewhere in
-this file; if absent, look at how `removeAuthorizedViewer`'s Vehicle/Certificate delete
-counterparts call `this.client.delete(...)` directly and match that style instead.)
+(Check the class already has a `delete<T>` helper — mirrors `get`/`post`/`put` used elsewhere in this file; if absent,
+look at how `removeAuthorizedViewer`'s Vehicle/Certificate delete counterparts call `this.client.delete(...)` directly
+and match that style instead.)
 
 - [ ] **Step 3: Query key + schema**
 
@@ -536,30 +533,28 @@ Expected: PASS
 - [ ] **Step 6: UI section component**
 
 `ui/src/components/organizations/AuthorizedViewersSection.tsx` — new component: takes
-`orgPk: string` and `viewers: AuthorizedViewerOut[]` props, renders a list with remove buttons, a
-CPF/CNPJ+name add form gated by `authorizedViewerSchema` + `hasDuplicateViewer` (block submit
-client-side, show inline error — the 409 from the backend is the source of truth, this is just to
-avoid a wasted round-trip) and a "X/10" counter (disable add form at `MAX_AUTHORIZED_VIEWERS`).
-Use `useMutation` + `apiClient.addAuthorizedViewer`/`removeAuthorizedViewer`, invalidate the org
-query on success (loading state on the add button and each remove button per `ui/CLAUDE.md`).
-Follow the mobile-first rules (stacked list on mobile, ≥44px touch targets on remove buttons).
+`orgPk: string` and `viewers: AuthorizedViewerOut[]` props, renders a list with remove buttons, a CPF/CNPJ+name add form
+gated by `authorizedViewerSchema` + `hasDuplicateViewer` (block submit client-side, show inline error — the 409 from the
+backend is the source of truth, this is just to avoid a wasted round-trip) and a "X/10" counter (disable add form at
+`MAX_AUTHORIZED_VIEWERS`). Use `useMutation` + `apiClient.addAuthorizedViewer`/`removeAuthorizedViewer`, invalidate the
+org query on success (loading state on the add button and each remove button per `ui/CLAUDE.md`). Follow the
+mobile-first rules (stacked list on mobile, ≥44px touch targets on remove buttons).
 
 - [ ] **Step 7: Mount in organization edit page**
 
 `ui/src/app/organizations/edit/page.tsx` — read the file first to find where `OrganizationForm`
 is rendered, then add `<AuthorizedViewersSection orgPk={...} viewers={org.authorized_xml_viewers ?? []}/>`
-below it (or in an adjacent tab/section, matching whatever layout convention that page already
-uses — do not restructure the page beyond adding this section).
+below it (or in an adjacent tab/section, matching whatever layout convention that page already uses — do not restructure
+the page beyond adding this section).
 
 - [ ] **Step 8: Lint + test, commit**
 
 Run: `cd ui && npx eslint src --ext .ts,.tsx && npx tsc --noEmit && npm test`
 Expected: zero errors/warnings, all tests pass.
 
-Manual verification: start dev server (reuse a running instance if one already exists — check
-before starting a duplicate), open an organization's edit page, add an authorized viewer, confirm
-it appears and the counter updates, try adding a duplicate CPF/CNPJ and confirm the inline error,
-remove one and confirm it disappears.
+Manual verification: start dev server (reuse a running instance if one already exists — check before starting a
+duplicate), open an organization's edit page, add an authorized viewer, confirm it appears and the counter updates, try
+adding a duplicate CPF/CNPJ and confirm the inline error, remove one and confirm it disappears.
 
 ```bash
 git add ui/src/lib/types/api.ts ui/src/lib/api/client.ts ui/src/lib/api/query-keys.ts \
@@ -584,8 +579,8 @@ Table `organizations`: add `authorized_xml_viewers` (L, optional, cap 10, `{cpf_
 - [ ] **Step 2: `DOCS.md`**
 
 Organizations endpoint table: add `POST/DELETE /v1.0/organizations/{pk}/authorized-viewers[/{cpf_cnpj}]`
-rows (400 if ≥10, 409 if duplicate). NF-e emission section: note `autXML` is automatic
-(organization-level setting), not a per-emission payload field.
+rows (400 if ≥10, 409 if duplicate). NF-e emission section: note `autXML` is automatic (organization-level setting), not
+a per-emission payload field.
 
 - [ ] **Step 3: Commit**
 

@@ -146,6 +146,8 @@ Run: `go test ./... -race` from `api/`.
   `azp` (client identity).
 - KID rotation in ctech-account flushes JWKS cache — Redis TTL is 1h; force-flush by restarting or clearing the
   `ctech:jwks` key.
+- `CORS_ALLOWED_ORIGINS` is configured in env but the CORS middleware is NOT wired in `app.go` (browser is
+  same-origin, so no production impact today). Treat CORS as inactive until the middleware is added.
 
 ---
 

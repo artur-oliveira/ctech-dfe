@@ -1,30 +1,51 @@
 # WebSocket Resilience Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make WebSocket connections in `ctech-dfe` and `ctech-wallet` detect a dead peer within a bounded time on both sides (native ping/pong on the server, app-level heartbeat on the client), reconnect immediately on a token refresh, and expose connection status through a small shared package instead of two duplicated hooks.
+**Goal:** Make WebSocket connections in `ctech-dfe` and `ctech-wallet` detect a dead peer within a bounded time on both
+sides (native ping/pong on the server, app-level heartbeat on the client), reconnect immediately on a token refresh, and
+expose connection status through a small shared package instead of two duplicated hooks.
 
-**Architecture:** New standalone repo `ctech-ws-client` publishes `@aoctech/ws-client` (mirrors the existing `ctech-oauth-client` → `@aoctech/auth-client` pattern: TS, `tsc` build, `node --test`, published under the `@aoctech` npm scope). It exports a resilient `useWebSocket` hook with a client-side app-level heartbeat, immediate reconnect-on-token-change, and a new `reconnecting` status. `ctech-dfe/ui` and `ctech-wallet/ui` both drop their local `useWebSocket.ts` in favor of this package. `ctech-dfe/api`'s `ws.go` gets real native-frame ping/pong (`WriteControl`/`SetPongHandler`/`SetReadDeadline`) so a half-open connection is detected within ~45s instead of never. `ctech-wallet/api`'s `ws.go` gets a smaller patch — just replying to the client's app-level ping — since its full native-frame port is out of scope here (different repo/deploy cadence, flagged in the spec as a separate follow-up).
+**Architecture:** New standalone repo `ctech-ws-client` publishes `@aoctech/ws-client` (mirrors the existing
+`ctech-oauth-client` → `@aoctech/auth-client` pattern: TS, `tsc` build, `node --test`, published under the `@aoctech`
+npm scope). It exports a resilient `useWebSocket` hook with a client-side app-level heartbeat, immediate
+reconnect-on-token-change, and a new `reconnecting` status. `ctech-dfe/ui` and `ctech-wallet/ui` both drop their local
+`useWebSocket.ts` in favor of this package. `ctech-dfe/api`'s `ws.go` gets real native-frame ping/pong (`WriteControl`/
+`SetPongHandler`/`SetReadDeadline`) so a half-open connection is detected within ~45s instead of never.
+`ctech-wallet/api`'s `ws.go` gets a smaller patch — just replying to the client's app-level ping — since its full
+native-frame port is out of scope here (different repo/deploy cadence, flagged in the spec as a separate follow-up).
 
-**Tech Stack:** Go (Fiber v3, `fasthttp/websocket`), TypeScript (Next.js 16 hooks, `node:test`), AWS CDK (no changes needed — see Global Constraints).
+**Tech Stack:** Go (Fiber v3, `fasthttp/websocket`), TypeScript (Next.js 16 hooks, `node:test`), AWS CDK (no changes
+needed — see Global Constraints).
 
 ## Global Constraints
 
-- `CLIENT_PING_INTERVAL_MS = 20_000`, `CLIENT_PONG_TIMEOUT_MS = 10_000` — client-side heartbeat cadence (spec-mandated values).
+- `CLIENT_PING_INTERVAL_MS = 20_000`, `CLIENT_PONG_TIMEOUT_MS = 10_000` — client-side heartbeat cadence (spec-mandated
+  values).
 - `wsPingInterval = 30 * time.Second` (existing, unchanged) — server-side native ping cadence.
 - `wsPongWait = wsPingInterval + 15*time.Second` = 45s — server-side read deadline after the last native pong.
-- Browser JS cannot send native WS ping frames (WHATWG constraint) — client heartbeat MUST stay app-level JSON; only the server can use native control frames.
+- Browser JS cannot send native WS ping frames (WHATWG constraint) — client heartbeat MUST stay app-level JSON; only the
+  server can use native control frames.
 - `@aoctech/ws-client` peer-depends on `react` (`>=18`) — do not pin the exact React version consuming apps use.
-- No new abstractions beyond what each task needs — do not build a generic pub/sub library, a generic retry library, etc.
-- **Correction to the approved spec:** the spec's CDK action item (set `deregistrationDelay` on the Target Group, claimed unset/defaulting to 300s) is based on incomplete investigation — `deregistrationDelay` is already hardcoded to 30s in the shared `@aoctech/cdk` construct (`ctech-cdk/lib/private-ipv4-ec2-service.ts:168`), which `ctech-dfe/cdk/lib/api-v2-stack.ts` uses. **No CDK task in this plan.** ALB `idleTimeout` is also unset anywhere in `ctech-cdk` (AWS default 60s applies), which was already the spec's expected/no-change conclusion.
-- ctech-wallet/ui has no test tooling configured (no `test` script, no Vitest) — do not introduce one as a side effect of this plan; ctech-wallet tasks are import-swap + minimal server patch only, matching its existing conventions.
-- The visual connection indicator (colored dot near the user icon) is explicitly out of scope for this plan — a separate `/impeccable` pass, once `useRealtimeStatus()` (Task 4) exists for it to consume.
+- No new abstractions beyond what each task needs — do not build a generic pub/sub library, a generic retry library,
+  etc.
+- **Correction to the approved spec:** the spec's CDK action item (set `deregistrationDelay` on the Target Group,
+  claimed unset/defaulting to 300s) is based on incomplete investigation — `deregistrationDelay` is already hardcoded to
+  30s in the shared `@aoctech/cdk` construct (`ctech-cdk/lib/private-ipv4-ec2-service.ts:168`), which
+  `ctech-dfe/cdk/lib/api-v2-stack.ts` uses. **No CDK task in this plan.** ALB `idleTimeout` is also unset anywhere in
+  `ctech-cdk` (AWS default 60s applies), which was already the spec's expected/no-change conclusion.
+- ctech-wallet/ui has no test tooling configured (no `test` script, no Vitest) — do not introduce one as a side effect
+  of this plan; ctech-wallet tasks are import-swap + minimal server patch only, matching its existing conventions.
+- The visual connection indicator (colored dot near the user icon) is explicitly out of scope for this plan — a separate
+  `/impeccable` pass, once `useRealtimeStatus()` (Task 4) exists for it to consume.
 
 ---
 
 ### Task 1: Scaffold `ctech-ws-client` repo + pure heartbeat helpers
 
 **Files:**
+
 - Create: `~/Documents/Projects/Ctech/ctech-ws-client/package.json`
 - Create: `~/Documents/Projects/Ctech/ctech-ws-client/tsconfig.json`
 - Create: `~/Documents/Projects/Ctech/ctech-ws-client/.gitignore`
@@ -32,7 +53,10 @@
 - Create: `~/Documents/Projects/Ctech/ctech-ws-client/test/heartbeat.test.js`
 
 **Interfaces:**
-- Produces: `nextBackoffDelay(attempt: number): number`, `isPongMessage(data: unknown): boolean`, and constants `BASE_DELAY_MS`, `MAX_DELAY_MS`, `MAX_RECONNECT_ATTEMPTS`, `CLIENT_PING_INTERVAL_MS`, `CLIENT_PONG_TIMEOUT_MS` — all consumed by Task 2's `useWebSocket.ts`.
+
+- Produces: `nextBackoffDelay(attempt: number): number`, `isPongMessage(data: unknown): boolean`, and constants
+  `BASE_DELAY_MS`, `MAX_DELAY_MS`, `MAX_RECONNECT_ATTEMPTS`, `CLIENT_PING_INTERVAL_MS`, `CLIENT_PONG_TIMEOUT_MS` — all
+  consumed by Task 2's `useWebSocket.ts`.
 
 - [ ] **Step 1: Create the GitHub repo**
 
@@ -221,14 +245,24 @@ EOF
 ### Task 2: Implement the resilient `useWebSocket` hook + publish the package
 
 **Files:**
+
 - Create: `~/Documents/Projects/Ctech/ctech-ws-client/src/useWebSocket.ts`
 - Modify: `~/Documents/Projects/Ctech/ctech-ws-client/src/index.ts`
 
 **Interfaces:**
-- Consumes: `nextBackoffDelay`, `isPongMessage`, `MAX_RECONNECT_ATTEMPTS`, `CLIENT_PING_INTERVAL_MS`, `CLIENT_PONG_TIMEOUT_MS` from `./heartbeat.js` (Task 1).
-- Produces: `useWebSocket(options: UseWebSocketOptions): {status: WSStatus}`, `type WSStatus = 'disconnected' | 'connecting' | 'reconnecting' | 'connected' | 'error'`, `interface UseWebSocketOptions {url, onMessage, enabled?, authToken?, subscribeToken?}` — consumed by Task 4 (`ctech-dfe/ui`) and Task 6 (`ctech-wallet/ui`).
 
-This hook has no automated test in this repo (see Global Constraints note on why: rendering a hook needs either jsdom+RTL, adding real testing infra to a repo whose only precedent (`ctech-oauth-client`) has none, or `react-test-renderer`, which React 19 deprecates). Task 4 adds the actual behavioral test using `ctech-dfe/ui`'s existing Vitest+RTL setup once the package is installed there — that's the right place for it, not a new harness invented here.
+- Consumes: `nextBackoffDelay`, `isPongMessage`, `MAX_RECONNECT_ATTEMPTS`, `CLIENT_PING_INTERVAL_MS`,
+  `CLIENT_PONG_TIMEOUT_MS` from `./heartbeat.js` (Task 1).
+- Produces: `useWebSocket(options: UseWebSocketOptions): {status: WSStatus}`,
+  `type WSStatus = 'disconnected' | 'connecting' | 'reconnecting' | 'connected' | 'error'`,
+  `interface UseWebSocketOptions {url, onMessage, enabled?, authToken?, subscribeToken?}` — consumed by Task 4
+  (`ctech-dfe/ui`) and Task 6 (`ctech-wallet/ui`).
+
+This hook has no automated test in this repo (see Global Constraints note on why: rendering a hook needs either
+jsdom+RTL, adding real testing infra to a repo whose only precedent (`ctech-oauth-client`) has none, or
+`react-test-renderer`, which React 19 deprecates). Task 4 adds the actual behavioral test using `ctech-dfe/ui`'s
+existing Vitest+RTL setup once the package is installed there — that's the right place for it, not a new harness
+invented here.
 
 - [ ] **Step 1: Write `src/useWebSocket.ts`**
 
@@ -448,15 +482,25 @@ git push -u origin main
 ### Task 3: `ctech-dfe/api` — native ping/pong in `ws.go`
 
 **Files:**
+
 - Modify: `ctech-dfe/api/internal/api/v1/ws.go`
 - Create: `ctech-dfe/api/internal/api/v1/ws_test.go`
 
 **Interfaces:**
-- Produces: `startHeartbeat(conn *fws.Conn, done <-chan struct{}, pingInterval, pongWait time.Duration, checkAlive func() bool)`, `isClientPing(msg []byte) bool` — both package-private, used only inside `ws.go`/`ws_test.go`.
 
-The existing ping loop sends a JSON `{"type":"ping"}` text frame with no reply verification, and the read loop has no deadline — a half-open connection blocks `ReadMessage()` forever. This task replaces that with native `WriteControl(PingMessage)` + `SetPongHandler` + `SetReadDeadline`, and makes the read loop reply to the client's own app-level `{"type":"ping"}` heartbeat (added in Task 2).
+- Produces:
+  `startHeartbeat(conn *fws.Conn, done <-chan struct{}, pingInterval, pongWait time.Duration, checkAlive func() bool)`,
+  `isClientPing(msg []byte) bool` — both package-private, used only inside `ws.go`/`ws_test.go`.
 
-No existing test infra covers `RegisterWS`'s full auth flow (it needs a live JWKS-backed RS256 `Verifier` — no fixture for that exists anywhere in `api/`). Rather than building that from scratch here (real scope creep for a ping/pong fix), the heartbeat mechanics are extracted into `startHeartbeat`/`isClientPing`, testable directly against a bare `fws.Upgrader` over `httptest.Server` with no auth involved at all.
+The existing ping loop sends a JSON `{"type":"ping"}` text frame with no reply verification, and the read loop has no
+deadline — a half-open connection blocks `ReadMessage()` forever. This task replaces that with native
+`WriteControl(PingMessage)` + `SetPongHandler` + `SetReadDeadline`, and makes the read loop reply to the client's own
+app-level `{"type":"ping"}` heartbeat (added in Task 2).
+
+No existing test infra covers `RegisterWS`'s full auth flow (it needs a live JWKS-backed RS256 `Verifier` — no fixture
+for that exists anywhere in `api/`). Rather than building that from scratch here (real scope creep for a ping/pong fix),
+the heartbeat mechanics are extracted into `startHeartbeat`/`isClientPing`, testable directly against a bare
+`fws.Upgrader` over `httptest.Server` with no auth involved at all.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -716,6 +760,7 @@ EOF
 ### Task 4: `ctech-dfe/ui` — consume `@aoctech/ws-client`, reconnect-on-refresh, status Context
 
 **Files:**
+
 - Modify: `ctech-dfe/ui/package.json`
 - Delete: `ctech-dfe/ui/src/lib/hooks/useWebSocket.ts`
 - Modify: `ctech-dfe/ui/src/lib/hooks/useRealtimeUpdates.ts`
@@ -724,8 +769,12 @@ EOF
 - Test: `ctech-dfe/ui/src/__tests__/lib/useRealtimeUpdates.test.tsx`
 
 **Interfaces:**
-- Consumes: `useWebSocket`, `WSStatus` from `@aoctech/ws-client` (Task 2); `CLIENT_PING_INTERVAL_MS`, `CLIENT_PONG_TIMEOUT_MS` from the same package, for the test's fake timers.
-- Produces: `subscribeAccessToken(cb: (token: string) => void): () => void` (in `client.ts`), `useRealtimeStatus(): WSStatus` (in `RealtimeProvider.tsx`) — both are new public surface other files may use later (e.g. the future connection indicator).
+
+- Consumes: `useWebSocket`, `WSStatus` from `@aoctech/ws-client` (Task 2); `CLIENT_PING_INTERVAL_MS`,
+  `CLIENT_PONG_TIMEOUT_MS` from the same package, for the test's fake timers.
+- Produces: `subscribeAccessToken(cb: (token: string) => void): () => void` (in `client.ts`),
+  `useRealtimeStatus(): WSStatus` (in `RealtimeProvider.tsx`) — both are new public surface other files may use later
+  (e.g. the future connection indicator).
 
 - [ ] **Step 1: Add the dependency**
 
@@ -743,7 +792,8 @@ cd ctech-dfe/ui && npm install
 
 - [ ] **Step 2: Add `subscribeAccessToken` to `client.ts`**
 
-In `ctech-dfe/ui/src/lib/api/client.ts`, after the `_refreshFn`/`registerRefreshFn` block (after line 60, before `export function getAccessToken`):
+In `ctech-dfe/ui/src/lib/api/client.ts`, after the `_refreshFn`/`registerRefreshFn` block (after line 60, before
+`export function getAccessToken`):
 
 ```ts
 const tokenListeners = new Set<(token: string) => void>()
@@ -970,7 +1020,10 @@ describe('useRealtimeUpdates', () => {
 cd ctech-dfe/ui && npx vitest run src/__tests__/lib/useRealtimeUpdates.test.tsx
 ```
 
-Expected: FAIL — before Task 3/4's code changes are all in place this may fail for various reasons (missing export, wrong mock shape); confirm the failure is about the assertions, not an import error unrelated to this task. If `getAccessToken`/`apiClient` mock shape mismatches the real module, adjust the `vi.mock` factory to match `client.ts`'s actual exports.
+Expected: FAIL — before Task 3/4's code changes are all in place this may fail for various reasons (missing export,
+wrong mock shape); confirm the failure is about the assertions, not an import error unrelated to this task. If
+`getAccessToken`/`apiClient` mock shape mismatches the real module, adjust the `vi.mock` factory to match `client.ts`'s
+actual exports.
 
 - [ ] **Step 8: Run the test to verify it passes**
 
@@ -1014,13 +1067,19 @@ EOF
 ### Task 5: `ctech-wallet/api` — minimal patch: reply to the client's app-level ping
 
 **Files:**
+
 - Modify: `ctech-wallet/api/internal/api/v1/ws.go`
 - Create: `ctech-wallet/api/internal/api/v1/ws_test.go`
 
 **Interfaces:**
-- Produces: `isClientPing(msg []byte) bool` (package-private, duplicated from `ctech-dfe/api` — the two `ws.go` files are in different repos/modules and the spec explicitly deferred unifying them).
 
-Full native-frame ping/pong is **not** done here (separate follow-up, per the spec and the earlier scoping decision) — this task only makes the server reply `{"type":"pong"}` to the client's own heartbeat ping, since swapping `ctech-wallet/ui` to `@aoctech/ws-client` (Task 6) means the client now expects that reply. Without this, every wallet connection would spuriously close every ~30s (client heartbeat times out waiting for a pong the server never sends).
+- Produces: `isClientPing(msg []byte) bool` (package-private, duplicated from `ctech-dfe/api` — the two `ws.go` files
+  are in different repos/modules and the spec explicitly deferred unifying them).
+
+Full native-frame ping/pong is **not** done here (separate follow-up, per the spec and the earlier scoping decision) —
+this task only makes the server reply `{"type":"pong"}` to the client's own heartbeat ping, since swapping
+`ctech-wallet/ui` to `@aoctech/ws-client` (Task 6) means the client now expects that reply. Without this, every wallet
+connection would spuriously close every ~30s (client heartbeat times out waiting for a pong the server never sends).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1132,12 +1191,14 @@ EOF
 ### Task 6: `ctech-wallet/ui` — consume `@aoctech/ws-client`
 
 **Files:**
+
 - Modify: `ctech-wallet/ui/package.json`
 - Delete: `ctech-wallet/ui/src/lib/hooks/useWebSocket.ts`
 - Modify: `ctech-wallet/ui/src/lib/hooks/useWalletRealtime.ts`
 - Modify: `ctech-wallet/ui/src/lib/api/client.ts`
 
-No new test in this task — `ctech-wallet/ui` has no test tooling configured at all (no `test` script, no Vitest/Jest), and this plan doesn't introduce one as a side effect (see Global Constraints).
+No new test in this task — `ctech-wallet/ui` has no test tooling configured at all (no `test` script, no Vitest/Jest),
+and this plan doesn't introduce one as a side effect (see Global Constraints).
 
 - [ ] **Step 1: Add the dependency**
 
@@ -1272,7 +1333,8 @@ Expected: zero errors.
 npm run dev
 ```
 
-Open the app, confirm the dashboard loads and the wallet WebSocket connects (network tab shows a `101` upgrade on `/v1.0/ws`, no repeated reconnect loop within the first minute).
+Open the app, confirm the dashboard loads and the wallet WebSocket connects (network tab shows a `101` upgrade on
+`/v1.0/ws`, no repeated reconnect loop within the first minute).
 
 - [ ] **Step 7: Commit**
 
@@ -1296,6 +1358,7 @@ EOF
 ### Task 7: Update `ctech-dfe` docs
 
 **Files:**
+
 - Modify: `ctech-dfe/CONDUCT.md`
 - Modify: `ctech-dfe/DOCS.md`
 
@@ -1303,11 +1366,15 @@ EOF
 
 - [ ] **Step 1: Add a CONDUCT.md entry**
 
-Add a bullet under the constraint/workaround section (match existing formatting in the file) documenting: the WS heartbeat protocol (server native ping/45s pong-wait deadline; client app-level `{"type":"ping"}`/10s pong-timeout every 20s); that `@aoctech/ws-client` is now the canonical hook for both `ctech-dfe` and `ctech-wallet`; and that `ctech-wallet/api`'s native-frame port remains an open follow-up.
+Add a bullet under the constraint/workaround section (match existing formatting in the file) documenting: the WS
+heartbeat protocol (server native ping/45s pong-wait deadline; client app-level `{"type":"ping"}`/10s pong-timeout every
+20s); that `@aoctech/ws-client` is now the canonical hook for both `ctech-dfe` and `ctech-wallet`; and that
+`ctech-wallet/api`'s native-frame port remains an open follow-up.
 
 - [ ] **Step 2: Add a DOCS.md entry**
 
-Document the new `@aoctech/ws-client` package (what it replaces, where it's published) and the `ws.go` heartbeat behavior change, in whichever section already documents the WebSocket endpoint.
+Document the new `@aoctech/ws-client` package (what it replaces, where it's published) and the `ws.go` heartbeat
+behavior change, in whichever section already documents the WebSocket endpoint.
 
 - [ ] **Step 3: Commit**
 
