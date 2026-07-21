@@ -70,13 +70,7 @@ export class OidcStack extends cdk.Stack {
       roleName: 'ctech-dfe-gha-api',
       assumedBy: trust,
     });
-    // AWSElasticBeanstalkFullAccess covers all the internal operations EB does
-    // during UpdateEnvironment (CloudFormation, EC2, AutoScaling, S3, etc.).
-    // Scoping individual actions is impractical - each EB release may require new ones.
-    apiRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess-AWSElasticBeanstalk'),
-    );
-    // Deployments bucket (our own, not EB-managed)
+    // Deployments bucket
     apiRole.addToPolicy(new iam.PolicyStatement({
       actions: ['s3:ListBucket'],
       resources: [

@@ -241,7 +241,7 @@ export class WorkerStack extends cdk.Stack {
       new scheduler.Schedule(this, `${worker.id}-ping-schedule`, {
         scheduleName: `${environment}-${worker.name}-ping-schedule`,
         description: `Keeps ${worker.name} warm — direct invoke, no SEFAZ call`,
-        schedule: scheduler.ScheduleExpression.rate(Duration.minutes(1)),
+        schedule: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
         target: new schedulerTargets.LambdaInvoke(fn, {
           input: scheduler.ScheduleTargetInput.fromObject({ping: true}),
         }),

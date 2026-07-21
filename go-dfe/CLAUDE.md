@@ -148,6 +148,10 @@ run it in CI/wherever a C compiler exists).
 
 ## Known Constraints
 
+- The C14N signer (`xmlops/signer.go`) is **verified in production** — go-dfe signs live fiscal
+  documents accepted by SEFAZ (B5, confirmed by the operator 2026-07). The byte-identical
+  signature gate remains deferred: it would only add value for A3 (hardware token) certificates,
+  and none exists to test against.
 - No dedicated SEFAZ test certificate exists in this repo yet — the byte-identical signature gate and
   any live-homologação integration test are blocked on obtaining one.
 - `go.work` at the repo root links `./api ./go-dfe ./worker` for local `go build`/`go test`. CDK's
