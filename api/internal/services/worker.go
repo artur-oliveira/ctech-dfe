@@ -8,29 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/contract"
 )
 
-// WorkerMessage is the SNS payload sent to py-dfe workers.
-type WorkerMessage struct {
-	DocPK            string `json:"doc_pk"`
-	AccessKey        string `json:"access_key"`
-	TableName        string `json:"table_name"`
-	S3Prefix         string `json:"s3_prefix"`
-	ExpectedFileName string `json:"expected_file_name"`
-	CNPJ             string `json:"cnpj"`
-	UF               string `json:"uf"`
-	SefazEnvironment string `json:"sefaz_environment"`
-	CertS3Key        string `json:"cert_s3_key"`
-	CertPassword     string `json:"cert_password"`
-	DocType          string `json:"doc_type"`
-	SefazService     string `json:"sefaz_service"`
-	Body             any    `json:"body"`
-	// Optional event fields (cancellation, CC-e, manifestation).
-	EventsTableName *string `json:"events_table_name,omitempty"`
-	EventType       *string `json:"event_type,omitempty"`
-	SequenceNumber  *int    `json:"sequence_number,omitempty"`
-	EventSK         *string `json:"event_sk,omitempty"`
-}
+// WorkerMessage is the SNS payload sent to the SQS workers — defined once in
+// the shared contract module (B17).
+type WorkerMessage = contract.WorkerMessage
 
 type WorkerService struct {
 	clients  *awsclient.Clients

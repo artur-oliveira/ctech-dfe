@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	"gopkg.aoctech.app/dfe/contract"
 	godfe "gopkg.aoctech.app/dfe/go-dfe"
 	"gopkg.aoctech.app/dfe/worker/internal/certcrypt"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
@@ -76,42 +77,9 @@ func New(clients Clients, cfg *config.Config) *DfeService {
 }
 
 // WorkerMessage is the SQS message body for a DFe SEFAZ operation.
-type WorkerMessage struct {
-	DocPK            string         `json:"doc_pk"`
-	AccessKey        string         `json:"access_key"`
-	TableName        string         `json:"table_name"`
-	S3Prefix         string         `json:"s3_prefix"`
-	ExpectedFileName string         `json:"expected_file_name"`
-	CNPJ             string         `json:"cnpj"`
-	UF               string         `json:"uf"`
-	SefazEnvironment string         `json:"sefaz_environment"`
-	CertS3Key        string         `json:"cert_s3_key"`
-	CertPassword     string         `json:"cert_password"`
-	DocType          string         `json:"doc_type"`
-	SefazService     string         `json:"sefaz_service"`
-	Body             map[string]any `json:"body"`
-	// Event fields — present only for SEFAZ event operations (cancellation, CC-e, …)
-	EventsTableName *string `json:"events_table_name,omitempty"`
-	EventType       *string `json:"event_type,omitempty"`
-	SequenceNumber  *int    `json:"sequence_number,omitempty"`
-	EventSK         *string `json:"event_sk,omitempty"`
-}
-
-type lambdaPayload struct {
-	CNPJ                string         `json:"cnpj"`
-	CertificateB64      string         `json:"certificate_b64"`
-	CertificatePassword string         `json:"certificate_password"`
-	UF                  string         `json:"uf"`
-	Environment         string         `json:"environment"`
-	DocType             string         `json:"doc_type"`
-	Service             string         `json:"service"`
-	Body                map[string]any `json:"body"`
-}
-
-type lambdaResponse struct {
-	StatusCode int    `json:"statusCode"`
-	Body       string `json:"body"`
-}
+// WorkerMessage is the SNS payload published by the API — defined once in the
+// shared contract module (B17).
+type WorkerMessage = contract.WorkerMessage
 
 // docTerminalStatuses / eventTerminalStatuses are the statuses that mean "this
 // message was already fully processed — do not invoke SEFAZ again."
@@ -195,7 +163,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		return fmt.Errorf("certcrypt: %w", err)
 	}
 
-	pyDfePayload := lambdaPayload{
+	pyDfePayload := godfe.Request{
 		CNPJ:                msg.CNPJ,
 		CertificateB64:      certB64,
 		CertificatePassword: certPassword,
@@ -213,14 +181,13 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	// byte-identical gates for the newly-promoted signed operations.
 	// Revert to py-dfe-only (undo this cutover): comment the if/else block
 	// below, uncomment the line under it.
-	var lambdaResp lambdaResponse
+	var lambdaResp godfe.Response
 	if godfeImplements(msg.DocType, msg.SefazService) {
-		resp, callErr := godfeCall(ctx, godfe.Request{
+		lambdaResp, err = godfeCall(ctx, godfe.Request{
 			CNPJ: msg.CNPJ, CertificateB64: certB64, CertificatePassword: certPassword,
 			UF: msg.UF, Environment: normalizeSefazEnvironment(msg.SefazEnvironment),
 			DocType: msg.DocType, Service: msg.SefazService, Body: msg.Body,
 		})
-		lambdaResp, err = lambdaResponse{StatusCode: resp.StatusCode, Body: resp.Body}, callErr
 	} else {
 		lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
 	}
@@ -450,24 +417,24 @@ func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, 
 	return certB64, nil
 }
 
-func (s *DfeService) invokePyDfe(ctx context.Context, payload lambdaPayload) (lambdaResponse, error) {
+func (s *DfeService) invokePyDfe(ctx context.Context, payload godfe.Request) (godfe.Response, error) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return lambdaResponse{}, err
+		return godfe.Response{}, err
 	}
 	out, err := s.lam.Invoke(ctx, &lambdaSDK.InvokeInput{
 		FunctionName: aws.String(s.cfg.DfeLambdaName),
 		Payload:      payloadBytes,
 	})
 	if err != nil {
-		return lambdaResponse{}, err
+		return godfe.Response{}, err
 	}
 	if out.FunctionError != nil {
-		return lambdaResponse{}, fmt.Errorf("lambda function error: %s", *out.FunctionError)
+		return godfe.Response{}, fmt.Errorf("lambda function error: %s", *out.FunctionError)
 	}
-	var resp lambdaResponse
+	var resp godfe.Response
 	if err := json.Unmarshal(out.Payload, &resp); err != nil {
-		return lambdaResponse{}, err
+		return godfe.Response{}, err
 	}
 	return resp, nil
 }
