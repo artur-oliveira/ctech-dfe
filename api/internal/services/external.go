@@ -119,7 +119,11 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 	cert := certs[0]
 
 	s3Key := avStr(cert, "s3_key")
-	certPassword := avStr(cert, "password")
+	// B4: the stored password may be KMS-encrypted; py-dfe needs the plaintext.
+	certPassword, err := s.clients.CertCodec.Decrypt(ctx, avStr(cert, "password"))
+	if err != nil {
+		return nil, problem.InternalServer("failed to read certificate password")
+	}
 
 	// Download PFX from S3 and base64-encode
 	pfxBytes, err := s.downloadPFX(ctx, s3Key)

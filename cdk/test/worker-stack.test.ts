@@ -19,6 +19,7 @@ function buildTemplate(): Template {
     documentsBucketName: 'dev-ctech-dfe-documents',
     dfeLambdaName: 'dev-py-dfe',
     resultsTopicArn: resultsTopic.topicArn,
+    certPasswordKeyArn: 'arn:aws:kms:us-east-1:111111111111:key/test-cert-password-key',
   })
   return Template.fromStack(stack)
 }

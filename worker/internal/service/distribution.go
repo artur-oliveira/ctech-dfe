@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/google/uuid"
 
+	"gopkg.aoctech.app/dfe/worker/internal/certcrypt"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -109,25 +110,28 @@ type DistributionClients struct {
 	Lambda LambdaClient
 	Dynamo DistributionDynamoClient
 	SNS    SNSClient
+	KMS    certcrypt.KMSClient
 }
 
 // DistributionService processes distribution jobs received from the distribution SQS queue.
 type DistributionService struct {
-	s3     S3Client
-	lam    LambdaClient
-	dynamo DistributionDynamoClient
-	sns    SNSClient
-	cfg    *config.Config
+	s3      S3Client
+	lam     LambdaClient
+	dynamo  DistributionDynamoClient
+	sns     SNSClient
+	cfg     *config.Config
+	decoder *certcrypt.Decoder
 }
 
 // NewDistribution creates a new DistributionService.
 func NewDistribution(clients DistributionClients, cfg *config.Config) *DistributionService {
 	return &DistributionService{
-		s3:     clients.S3,
-		lam:    clients.Lambda,
-		dynamo: clients.Dynamo,
-		sns:    clients.SNS,
-		cfg:    cfg,
+		s3:      clients.S3,
+		lam:     clients.Lambda,
+		dynamo:  clients.Dynamo,
+		sns:     clients.SNS,
+		cfg:     cfg,
+		decoder: certcrypt.NewDecoder(clients.KMS),
 	}
 }
 
@@ -207,7 +211,10 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 	if err != nil {
 		return fmt.Errorf("getCertB64: %w", err)
 	}
-	certPassword := attrS(cert, "password")
+	certPassword, err := s.decoder.Decrypt(ctx, attrS(cert, "password")) // B4: may be KMS-encrypted
+	if err != nil {
+		return fmt.Errorf("certcrypt: %w", err)
+	}
 
 	currentNSU := attrN(cfg, envPrefix+"_nsu", 0)
 
@@ -336,7 +343,10 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 	if err != nil {
 		return err
 	}
-	certPassword := attrS(cert, "password")
+	certPassword, err := s.decoder.Decrypt(ctx, attrS(cert, "password")) // B4: may be KMS-encrypted
+	if err != nil {
+		return fmt.Errorf("certcrypt: %w", err)
+	}
 	orgName := ""
 	if org != nil {
 		orgName = attrS(org, "name")
@@ -392,7 +402,10 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 	if err != nil {
 		return err
 	}
-	certPassword := attrS(cert, "password")
+	certPassword, err := s.decoder.Decrypt(ctx, attrS(cert, "password")) // B4: may be KMS-encrypted
+	if err != nil {
+		return fmt.Errorf("certcrypt: %w", err)
+	}
 	orgName := ""
 	if org != nil {
 		orgName = attrS(org, "name")

@@ -52,17 +52,35 @@ func extractBearer(msg []byte) string {
 	return strings.TrimSpace(string(msg))
 }
 
-var wsUpgrader = fws.FastHTTPUpgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(_ *fasthttp.RequestCtx) bool { return true },
+// newWSUpgrader builds the upgrader with a CheckOrigin tied to the same
+// origin allow-list as the CORS middleware (B8 — CSWSH). A missing Origin
+// header is allowed (non-browser clients); with no configured origins every
+// origin is accepted (dev / same-origin deployments, mirroring CORS).
+func newWSUpgrader(allowedOrigins []string) fws.FastHTTPUpgrader {
+	return fws.FastHTTPUpgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
+			origin := string(ctx.Request.Header.Peek("Origin"))
+			if origin == "" || len(allowedOrigins) == 0 {
+				return true
+			}
+			for _, o := range allowedOrigins {
+				if strings.EqualFold(origin, o) {
+					return true
+				}
+			}
+			return false
+		},
+	}
 }
 
 // RegisterWS registers GET /ws WebSocket upgrade endpoint.
 // Auth: the JWT is sent as the first post-upgrade text frame (M3 — it must not
 // travel in the ?token= query string, which leaks into LB/CF logs); org_pk stays
 // in the query string as it is a non-secret org identifier.
-func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry) {
+func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry, allowedOrigins []string) {
+	wsUpgrader := newWSUpgrader(allowedOrigins)
 	router.Get("/ws", func(c fiber.Ctx) error {
 		orgPKRaw := c.Query("org_pk")
 		if orgPKRaw == "" {

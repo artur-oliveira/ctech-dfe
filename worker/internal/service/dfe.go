@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
 	godfe "gopkg.aoctech.app/dfe/go-dfe"
+	"gopkg.aoctech.app/dfe/worker/internal/certcrypt"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -49,25 +50,28 @@ type Clients struct {
 	Lambda LambdaClient
 	Dynamo DynamoClient
 	SNS    SNSClient // optional; set to nil to disable result notifications
+	KMS    certcrypt.KMSClient
 }
 
 // DfeService processes DFe SEFAZ operations received from SQS.
 type DfeService struct {
-	s3     S3Client
-	lam    LambdaClient
-	dynamo DynamoClient
-	sns    SNSClient
-	cfg    *config.Config
+	s3      S3Client
+	lam     LambdaClient
+	dynamo  DynamoClient
+	sns     SNSClient
+	cfg     *config.Config
+	decoder *certcrypt.Decoder
 }
 
 // New creates a new DfeService.
 func New(clients Clients, cfg *config.Config) *DfeService {
 	return &DfeService{
-		s3:     clients.S3,
-		lam:    clients.Lambda,
-		dynamo: clients.Dynamo,
-		sns:    clients.SNS,
-		cfg:    cfg,
+		s3:      clients.S3,
+		lam:     clients.Lambda,
+		dynamo:  clients.Dynamo,
+		sns:     clients.SNS,
+		cfg:     cfg,
+		decoder: certcrypt.NewDecoder(clients.KMS),
 	}
 }
 
@@ -183,10 +187,18 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		return fmt.Errorf("getCertB64: %w", err)
 	}
 
+	// B4: cert_password may be KMS-encrypted (API encrypts before publishing);
+	// SEFAZ needs the plaintext. Legacy plaintext values pass through as-is.
+	certPassword, err := s.decoder.Decrypt(ctx, msg.CertPassword)
+	if err != nil {
+		s.failDoc(ctx, msg, "failed to read certificate password: "+err.Error())
+		return fmt.Errorf("certcrypt: %w", err)
+	}
+
 	pyDfePayload := lambdaPayload{
 		CNPJ:                msg.CNPJ,
 		CertificateB64:      certB64,
-		CertificatePassword: msg.CertPassword,
+		CertificatePassword: certPassword,
 		UF:                  msg.UF,
 		Environment:         msg.SefazEnvironment,
 		DocType:             msg.DocType,
@@ -204,7 +216,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	var lambdaResp lambdaResponse
 	if godfeImplements(msg.DocType, msg.SefazService) {
 		resp, callErr := godfeCall(ctx, godfe.Request{
-			CNPJ: msg.CNPJ, CertificateB64: certB64, CertificatePassword: msg.CertPassword,
+			CNPJ: msg.CNPJ, CertificateB64: certB64, CertificatePassword: certPassword,
 			UF: msg.UF, Environment: normalizeSefazEnvironment(msg.SefazEnvironment),
 			DocType: msg.DocType, Service: msg.SefazService, Body: msg.Body,
 		})

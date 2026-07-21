@@ -68,5 +68,5 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterDistributions(v1, svcs.Distribution, authMw, perm)
 	RegisterExternal(v1, svcs.External, authMw, perm)
 	RegisterAuditLogs(v1, svcs.AuditLog, authMw, perm)
-	RegisterWS(v1, verifier, svcs.Member, wsReg)
+	RegisterWS(v1, verifier, svcs.Member, wsReg, cfg.CorsAllowedOrigins)
 }

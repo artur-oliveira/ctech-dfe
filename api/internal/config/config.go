@@ -26,6 +26,9 @@ type Config struct {
 	S3BucketDocuments string `env:"S3_BUCKET_DOCUMENTS,required"`
 	SefazFunctionName string `env:"SEFAZ_FUNCTION_NAME,required"`
 	DynamoDBEndpoint  string `env:"DYNAMODB_ENDPOINT"` // local override
+	// KMS key (id, ARN, or alias) used to encrypt certificate PFX passwords
+	// before they reach DynamoDB/SNS (B4). Empty = store plaintext (dev only).
+	CertPasswordKMSKeyID string `env:"CERT_PASSWORD_KMS_KEY_ID"`
 
 	// SNS
 	WorkerTopicARN string `env:"DFE_TOPIC_ARN"`
@@ -65,6 +68,17 @@ func (c *Config) prodValidation() error {
 	}
 	if c.CtechURL == "" {
 		slog.Warn("CTECH_URL is empty in prod — the iss claim is not being checked")
+	}
+	if c.RedisURL == "" {
+		// Fail closed: without Valkey the cache, distributed lock, and WS
+		// registry silently degrade to in-memory stores that are NOT shared
+		// across the ASG's instances. Refuse to boot into that state.
+		return fmt.Errorf("config: VALKEY_URL must be set in prod so cache/lock/ws are fleet-shared")
+	}
+	if c.CertPasswordKMSKeyID == "" {
+		// Fail closed: without the key, newly uploaded certificate passwords
+		// would silently land in DynamoDB/SNS as plaintext again (B4).
+		return fmt.Errorf("config: CERT_PASSWORD_KMS_KEY_ID must be set in prod so PFX passwords are encrypted at rest")
 	}
 	return nil
 }

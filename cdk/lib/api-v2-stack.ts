@@ -33,6 +33,8 @@ interface ApiStackV2Props extends cdk.StackProps {
   // SSM path written by ValkeyStack at boot. If omitted, VALKEY_URL is not set
   // and the app falls back to NoCacheBackend.
   valkeyUrlSsmPath: string;
+  // KMS key (alias) for certificate PFX password encryption (B4).
+  certPasswordKmsKeyId: string;
 }
 
 export class ApiStackV2 extends cdk.Stack {
@@ -301,6 +303,7 @@ export class ApiStackV2 extends cdk.Stack {
       `SEFAZ_FUNCTION_NAME=${environment}-py-dfe`,
       `TRUSTED_PROXIES=127.0.0.1`,
       `CORS_ALLOWED_ORIGINS=https://${appDomainName}`,
+      `CERT_PASSWORD_KMS_KEY_ID=${props.certPasswordKmsKeyId}`,
       `ENV`,
 
       // ── start.sh: fetches secrets from SSM then exec-replaces into the Go binary

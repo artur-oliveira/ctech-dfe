@@ -112,6 +112,7 @@ const workerStack = new WorkerStack(app, id('Worker'), {
   documentsBucketName: s3Stack.documentsBucketName,
   dfeLambdaName: `${ENVIRONMENT}-py-dfe`,
   resultsTopicArn: eventBusStack.resultsTopic.topicArn,
+  certPasswordKeyArn: eventBusStack.certPasswordKey.keyArn,
   description: `CTech DFe Worker (SNS + SQS + Lambda) - ${ENVIRONMENT}`,
 });
 
@@ -126,6 +127,7 @@ const iamStack = new IAMStack(app, id('IAM'), {
   topicArn: eventBusStack.topic.topicArn,
   resultsQueueArn: eventBusStack.resultsQueueArn,
   distributionQueueArn: workerStack.distributionQueueArn,
+  certPasswordKeyArn: eventBusStack.certPasswordKey.keyArn,
   description: `CTech DFe IAM Roles - ${ENVIRONMENT}`,
 });
 iamStack.addDependency(dynamodbStack);
@@ -152,6 +154,7 @@ const apiV2Stack = new ApiStackV2(app, id('API-V2'), {
   distributionQueueUrl: workerStack.distributionQueueUrl,
   // Shared Valkey instance owned by ctech-cdk — same SSM path convention.
   valkeyUrlSsmPath: `/ctech/${ENVIRONMENT}/valkey/url`,
+  certPasswordKmsKeyId: `alias/${ENVIRONMENT}-ctech-dfe-cert-password`,
   description: `CTech DFe API (EC2 + ASG + ALB) - ${ENVIRONMENT}`,
 });
 // instanceProfileNameV2 is a plain string, not a CFN token — CDK cannot

@@ -295,11 +295,16 @@ func (s *DistributionService) orgContext(ctx context.Context, orgPK, docType str
 		cUF = "35"
 	}
 	cert := certs[0]
+	// B4: the stored password may be KMS-encrypted; py-dfe needs the plaintext.
+	certPassword, err := s.clients.CertCodec.Decrypt(ctx, distStrAttr(cert, "password"))
+	if err != nil {
+		return nil, problem.InternalServer("failed to read certificate password")
+	}
 	return &distOrgCtx{
 		cnpj: cnpj, uf: uf, cUF: cUF,
 		environment: environment, sefazEnv: sefazEnv,
 		certS3Key:    distStrAttr(cert, "s3_key"),
-		certPassword: distStrAttr(cert, "password"),
+		certPassword: certPassword,
 	}, nil
 }
 

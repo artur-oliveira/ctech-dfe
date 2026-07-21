@@ -148,7 +148,14 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 		return nil, problem.InternalServer("failed to upload certificate to S3")
 	}
 
-	certTx, item := s.repo.BuildCreateTxItem(orgPK, alias, info.MD5, password, s3Key, info.NotAfter.Format(time.RFC3339))
+	// B4: never persist the PFX password in plaintext — encrypt via KMS when
+	// a key is configured (mandatory in prod, see config.prodValidation).
+	storedPassword, err := s.awsClients.CertCodec.Encrypt(ctx, password)
+	if err != nil {
+		return nil, problem.InternalServer("failed to protect certificate password")
+	}
+
+	certTx, item := s.repo.BuildCreateTxItem(orgPK, alias, info.MD5, storedPassword, s3Key, info.NotAfter.Format(time.RFC3339))
 
 	afterMap, err := attributeMapToPlain(item)
 	if err != nil {
@@ -207,11 +214,17 @@ func (s *CertificateService) StageUpload(ctx context.Context, orgPK string, pfxD
 
 // BuildCertTxItem builds the certificate create tx item (and item) for
 // composing into a transaction. alias defaults to the CN when empty.
-func (s *CertificateService) BuildCertTxItem(orgPK, alias, md5, password, s3Key, cn, expiresAt string) (types.TransactWriteItem, map[string]types.AttributeValue) {
+// The password is KMS-encrypted before it enters the item (B4).
+func (s *CertificateService) BuildCertTxItem(ctx context.Context, orgPK, alias, md5, password, s3Key, cn, expiresAt string) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
 	if alias == "" {
 		alias = cn
 	}
-	return s.repo.BuildCreateTxItem(orgPK, alias, md5, password, s3Key, expiresAt)
+	storedPassword, err := s.awsClients.CertCodec.Encrypt(ctx, password)
+	if err != nil {
+		return types.TransactWriteItem{}, nil, problem.InternalServer("failed to protect certificate password")
+	}
+	tx, item := s.repo.BuildCreateTxItem(orgPK, alias, md5, storedPassword, s3Key, expiresAt)
+	return tx, item, nil
 }
 
 func (s *CertificateService) List(ctx context.Context, orgPK string) ([]map[string]any, error) {

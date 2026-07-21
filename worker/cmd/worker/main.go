@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
@@ -49,6 +50,7 @@ func main() {
 		Lambda: lambdaSDK.NewFromConfig(ac),
 		Dynamo: dynamodb.NewFromConfig(ac),
 		SNS:    sns.NewFromConfig(ac),
+		KMS:    kms.NewFromConfig(ac),
 	}, cfg)
 
 	lambda.Start(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {

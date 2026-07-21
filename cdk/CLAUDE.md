@@ -132,7 +132,7 @@ See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 - `ApiStackV2` ASG uses combined EC2 + ELB health checks with `gracePeriod: 120s`.
 - Worker Lambda binary must be named `bootstrap` (runtime: `provided.al2023`).
 - API binary must be named `app` (EC2 userdata expects `/opt/app/current/app`).
-- CloudFront has Brazil geo-restriction on the `FrontendStack`.
+- CloudFront has **no** geo-restriction on the `FrontendStack` (B39 — decide and apply `geoRestriction: GeoRestriction.allowlist('BR')` if wanted; today access is global).
 
 ---
 

@@ -1203,7 +1203,7 @@ MessageGroupId = `org_pk`.
 | `DynamoDBStack` | `dynamodb-stack.ts`  | 23 tables + GSIs                                          |
 | `S3Stack`       | `s3-stack.ts`        | 4 buckets: certificates, documents, deployments, logs     |
 | `NetworkStack`  | `network-stack.ts`   | Dual-stack VPC, public subnets, security groups           |
-| `EventBusStack` | `event-bus-stack.ts` | SNS command topic + SNS results topic + SQS results queue |
+| `EventBusStack` | `event-bus-stack.ts` | SNS command topic + SNS results topic + SQS results queue; KMS CMK `alias/{env}-ctech-dfe-cert-password` (B4 — app-level PFX-password encryption + SSE dos tópicos; ~$1/mês + $0.03/10k req) |
 | `IAMStack`      | `iam-stack.ts`       | Lambda roles, EC2 (V1 EB + V2 custom), instance profiles  |
 | `LayersStack`   | `layers-stack.ts`    | Lambda Layers scaffold                                    |
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda (SEFAZ) + inline layer                      |

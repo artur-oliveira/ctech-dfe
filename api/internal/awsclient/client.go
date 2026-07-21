@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
 	"gopkg.aoctech.app/api-commons/awsconfig"
+	"gopkg.aoctech.app/dfe/api/internal/certcrypt"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
@@ -26,6 +28,10 @@ type Clients struct {
 	SNS           *sns.Client
 	Lambda        *lambda.Client
 	SecretManager *secretsmanager.Client
+	// CertCodec encrypts/decrypts certificate PFX passwords (B4). Encryption
+	// is active only when CERT_PASSWORD_KMS_KEY_ID is set; decryption always
+	// handles both encrypted and legacy plaintext values.
+	CertCodec *certcrypt.Codec
 }
 
 // New creates all AWS clients from the loaded configuration.
@@ -44,6 +50,7 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 		SNS:           sns.NewFromConfig(awsCfg),
 		Lambda:        lambda.NewFromConfig(awsCfg),
 		SecretManager: secretsmanager.NewFromConfig(awsCfg),
+		CertCodec:     certcrypt.New(kms.NewFromConfig(awsCfg), cfg.CertPasswordKMSKeyID),
 	}
 	return clients, nil
 }

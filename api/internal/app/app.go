@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"go.uber.org/fx"
@@ -126,15 +127,21 @@ func newAWSClients(cfg *config.Config) (*awsclient.Clients, error) {
 	return awsclient.New(context.Background(), cfg)
 }
 
-func newCacheBackend(lc fx.Lifecycle, cfg *config.Config) cache.Backend {
+func newCacheBackend(lc fx.Lifecycle, cfg *config.Config) (cache.Backend, error) {
 	if cfg.RedisURL == "" {
 		slog.Warn("VALKEY_URL not set — using in-memory cache (not shared across replicas)")
-		return cache.NewMemoryBackend(1000)
+		return cache.NewMemoryBackend(1000), nil
 	}
 	rb, err := cache.NewRedisBackend(cfg.RedisURL)
 	if err != nil {
+		if cfg.Env == "prod" {
+			// Fail closed: a memory fallback here would silently drop the
+			// fleet-shared cache/lock/WS registry — mirror config.go's
+			// empty-VALKEY_URL prod guard instead of degrading.
+			return nil, fmt.Errorf("valkey backend init failed in prod: %w", err)
+		}
 		slog.Warn("redis connection failed, falling back to in-memory", "err", err)
-		return cache.NewMemoryBackend(1000)
+		return cache.NewMemoryBackend(1000), nil
 	}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error { return rb.Ping(ctx) },
@@ -144,7 +151,7 @@ func newCacheBackend(lc fx.Lifecycle, cfg *config.Config) cache.Backend {
 		},
 	})
 	slog.Info("cache: Redis backend active", "url", cfg.RedisURL)
-	return rb
+	return rb, nil
 }
 
 func newWSRegistry(lc fx.Lifecycle, cacheBackend cache.Backend) ws.Registry {
@@ -178,6 +185,19 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 	}
 	app := fiber.New(fibercfg)
 	app.Use(middleware.Recover())
+	// AllowCredentials requires explicit origins (a wildcard is rejected by
+	// Fiber), so only enable it when origins are configured; without any
+	// configured origin the default wildcard applies (dev).
+	corsCfg := cors.Config{
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", middleware.OrgHeader},
+		MaxAge:       3600,
+	}
+	if len(cfg.CorsAllowedOrigins) > 0 {
+		corsCfg.AllowOrigins = cfg.CorsAllowedOrigins
+		corsCfg.AllowCredentials = true
+	}
+	app.Use(cors.New(corsCfg))
 	app.Use(requestid.New())
 	app.Use(logger.New(logger.Config{
 		Format: `{"time":"${time}","status":${status},"latency":"${latency}","method":"${method}","path":"${path}","request-id":"${request-id}"}` + "\n",

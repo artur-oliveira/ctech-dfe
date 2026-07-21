@@ -179,7 +179,10 @@ func (s *OrganizationService) CreateWithOwner(
 		if upErr != nil {
 			return nil, upErr
 		}
-		certTx, _ = s.certSvc.BuildCertTxItem(orgPK, "", info.MD5, password, s3Key, info.CN, info.NotAfter.Format(time.RFC3339))
+		certTx, _, upErr = s.certSvc.BuildCertTxItem(ctx, orgPK, "", info.MD5, password, s3Key, info.CN, info.NotAfter.Format(time.RFC3339))
+		if upErr != nil {
+			return nil, upErr
+		}
 	default:
 		branchCert, bErr := s.branchCertificate(ctx, userID, cpfOrCNPJ)
 		if bErr != nil {

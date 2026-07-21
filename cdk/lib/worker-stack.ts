@@ -71,6 +71,9 @@ interface WorkerStackProps extends cdk.StackProps {
   documentsBucketName: string
   dfeLambdaName: string
   resultsTopicArn: string
+  // CMK used for certificate password decryption (B4) and for publishing to
+  // the SSE-KMS SNS buses.
+  certPasswordKeyArn: string
 }
 
 export class WorkerStack extends cdk.Stack {
@@ -89,6 +92,7 @@ export class WorkerStack extends cdk.Stack {
       documentsBucketName,
       dfeLambdaName,
       resultsTopicArn,
+      certPasswordKeyArn,
     } = props
 
     const dfeLambdaArn = `arn:aws:lambda:${this.region}:${this.account}:function:${dfeLambdaName}`
@@ -107,6 +111,7 @@ export class WorkerStack extends cdk.Stack {
       const dlq = new sqs.Queue(this, `${worker.id}-dlq`, {
         queueName: `${environment}-${worker.queueName}-dlq`,
         retentionPeriod: Duration.days(14),
+        encryption: sqs.QueueEncryption.SQS_MANAGED,
       })
 
       new cloudwatch.Alarm(this, `${worker.id}-dlq-alarm`, {
@@ -122,6 +127,7 @@ export class WorkerStack extends cdk.Stack {
       const queue = new sqs.Queue(this, `${worker.id}-queue`, {
         queueName: `${environment}-${worker.queueName}`,
         visibilityTimeout: Duration.seconds(worker.timeoutSeconds ?? 300),
+        encryption: sqs.QueueEncryption.SQS_MANAGED,
         deadLetterQueue: {
           queue: dlq,
           maxReceiveCount: 3,
@@ -177,6 +183,13 @@ export class WorkerStack extends cdk.Stack {
       role.addToPrincipalPolicy(new iam.PolicyStatement({
         actions: ['sns:Publish'],
         resources: [resultsTopicArn],
+      }))
+
+      // B4: decrypt stored/message certificate passwords, and publish to the
+      // CMK-encrypted SNS buses (SNS SSE requires GenerateDataKey on publish).
+      role.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey*'],
+        resources: [certPasswordKeyArn],
       }))
 
       if (worker.dynamoTables?.length) {

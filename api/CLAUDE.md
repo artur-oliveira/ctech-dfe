@@ -146,8 +146,11 @@ Run: `go test ./... -race` from `api/`.
   `azp` (client identity).
 - KID rotation in ctech-account flushes JWKS cache — Redis TTL is 1h; force-flush by restarting or clearing the
   `ctech:jwks` key.
-- `CORS_ALLOWED_ORIGINS` is configured in env but the CORS middleware is NOT wired in `app.go` (browser is
-  same-origin, so no production impact today). Treat CORS as inactive until the middleware is added.
+- `CORS_ALLOWED_ORIGINS` is wired to the CORS middleware in `app.go` (B34) and to the WebSocket
+  upgrader's `CheckOrigin` (B8). Empty list = allow all (dev/same-origin).
+- Certificate PFX passwords are KMS-encrypted (`internal/certcrypt`, B4): `kms1:`-prefixed values in
+  DynamoDB/SNS; legacy plaintext rows pass through until re-upload. `CERT_PASSWORD_KMS_KEY_ID` is
+  mandatory in prod, as are `VALKEY_URL` (fail-closed, B7) and `SERVICE_AUDIENCE`.
 
 ---
 

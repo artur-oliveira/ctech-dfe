@@ -18,6 +18,8 @@ interface IAMStackProps extends cdk.StackProps {
   
   resultsQueueArn: string;
   distributionQueueArn: string;
+  // CMK for certificate password encryption (B4)
+  certPasswordKeyArn: string;
 }
 
 export class IAMStack extends cdk.Stack {
@@ -235,6 +237,14 @@ export class IAMStack extends cdk.Stack {
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['ec2:DescribeManagedPrefixLists', 'ec2:GetManagedPrefixListEntries'],
       resources: ['*'],
+    }));
+
+    // B4: encrypt certificate PFX passwords on upload, decrypt them for the
+    // direct py-dfe invocations, and publish to the CMK-encrypted SNS bus
+    // (SNS SSE requires GenerateDataKey on publish).
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['kms:Encrypt', 'kms:Decrypt', 'kms:GenerateDataKey*'],
+      resources: [props.certPasswordKeyArn],
     }));
   }
 }

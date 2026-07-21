@@ -72,6 +72,12 @@ func dispatch(
 }
 
 // scanOrgPKs scans the config table and returns all org PKs (auto-paginates).
+//
+// Documented exception to the "no Scan in production" rule (B14): this runs
+// once per 30-minute dispatch tick against the three *fiscal-config* tables,
+// which hold one small row per organization (projection: pk only). At the
+// current org count a Scan is cheaper and simpler than maintaining a GSI.
+// Revisit (GSI or org registry table) if org count grows past a few thousand.
 func scanOrgPKs(ctx context.Context, dynamo *dynamodb.Client, table string) ([]string, error) {
 	var orgPKs []string
 	input := &dynamodb.ScanInput{

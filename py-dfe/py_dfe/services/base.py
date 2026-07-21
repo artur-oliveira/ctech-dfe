@@ -166,7 +166,7 @@ class SefazClient:
         """
         doc_type = self._config.doc_type.value
         xml_bytes = self._prepare_payload(doc_type, service, payload)
-        logger.info("raw xml: %s", xml_bytes.decode())
+        logger.debug("raw xml: %s", xml_bytes.decode())
         url = get_endpoint(doc_type, self._uf, self._environment, service)
         builder = SOAPEnvelopeBuilder(
             doc_type,
@@ -174,10 +174,10 @@ class SefazClient:
             service,
         )
         soap_body = builder.build(xml_bytes, service in _GZIP_ENDPOINTS, include_header)
-        logger.info("soap xml: %s", soap_body.decode())
+        logger.debug("soap xml: %s", soap_body.decode())
         headers = {"Content-Type": builder.content_type}
         raw_response = self._post_with_retry(url, soap_body, headers)
-        logger.info("received xml: %s", raw_response.decode())
+        logger.debug("received xml: %s", raw_response.decode())
         result = self._parse_response(raw_response)
         processed = build_processed_xml(
             doc_type, service, xml_bytes, extract_body(raw_response)
