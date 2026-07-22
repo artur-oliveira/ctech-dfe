@@ -7,8 +7,8 @@
 state-changing resources and in-record `user_id`/`user_name` fields for append-only DF-e issuance/events.
 
 **Architecture:** A new `AuditLogRepository` + `AuditService` (diff + actor resolution) are wired into every mutating
-resource service. Each resource mutation and its audit row are written in a single `dynamodb.TransactWriteItems` call (
-new non-executing `Build*TxItem` companions to `Base.PutItem`/`UpdateItem`/`DeleteItem`), so the two can never diverge.
+resource service. Each resource mutation and its audit row are written in a single `dynamodb.TransactWriteItems` call
+(new non-executing `Build*TxItem` companions to `Base.PutItem`/`UpdateItem`/`DeleteItem`), so the two can never diverge.
 DF-e issuance/events get two new fields on write — no separate table row, since those records are never mutated in
 place.
 
@@ -73,8 +73,8 @@ export type TableName = (
 
 (Leave the rest of the union untouched — this only adds one new member.)
 
-- [ ] **Step 3: Add the table construction, right after the `organizationsTable` block (after line
-  283 `this.tables.set('organizations', organizationsTable);`)**
+- [ ] **Step 3: Add the table construction, right after the `organizationsTable` block (after line 283
+  `this.tables.set('organizations', organizationsTable);`)**
 
 ```typescript
         // ============== AUDIT ==============
@@ -628,9 +628,8 @@ git commit -m "feat(api): add Diff helper for audit modification lists"
 
 - [ ] **Step 1: Write the failing tests**
 
-Check `api/internal/services/users_test.go` for the existing `cache.Backend` test double used elsewhere in this
-package (search `cache.NewMemoryBackend` or a mock in `_test.go` files under `internal/services/`) and reuse it. Then
-add:
+Check `api/internal/services/users_test.go` for the existing `cache.Backend` test double used elsewhere in this package
+(search `cache.NewMemoryBackend` or a mock in `_test.go` files under `internal/services/`) and reuse it. Then add:
 
 ```go
 func TestUserService_ResolveActor_CacheHit(t *testing.T) {
@@ -1320,8 +1319,8 @@ products), `BuildDeleteTxItem`.
 
 - [ ] **Step 5: Rewrite `VehicleService.Create`/`Update`/`Delete`**
 
-Same structure as Task 7 Step 6 — `NewVehicleService` gains an `auditRepo *repositories.AuditLogRepository` parameter (
-matching Step 1's updated construction), keep the existing plate/renavam/owner-type validation at the top of `Create`/
+Same structure as Task 7 Step 6 — `NewVehicleService` gains an `auditRepo *repositories.AuditLogRepository` parameter
+(matching Step 1's updated construction), keep the existing plate/renavam/owner-type validation at the top of `Create`/
 `Update` unchanged, then build both `TransactWriteItem`s and call `s.repo.TransactWrite`. Use
 `repositories.AuditResourceVehicle` and the vehicle's own `sk` as `resourceID`.
 
@@ -1617,13 +1616,13 @@ per org (no `sk`).
 - Produces: `NfeConfigService.Upsert`/`NfceConfigService.Upsert`/`CteConfigService.Upsert`/`MdfeConfigService.Upsert`
   gain `userID, userName string` parameters.
 
-`api/tests/integration/setup_test.go` has **no** config repo/service vars or config tables yet — this task adds all
-four (`nfeConfigRepo`/`nfeConfigSvc`, etc.), following the `productRepo`/`productSvc` pattern from `TestMain`. Per
+`api/tests/integration/setup_test.go` has **no** config repo/service vars or config tables yet — this task adds all four
+(`nfeConfigRepo`/`nfeConfigSvc`, etc.), following the `productRepo`/`productSvc` pattern from `TestMain`. Per
 `DynamoDB-Tables.md`, each config table is `pk`-only (no `sk`, no GSI) — simplest table shape in the file, one
 `CreateTableInput` per doc type, four total.
 
-- [ ] **Step 1: Read the repository file(s) to confirm `Upsert`'s exact behavior (does it use `PutItem` or `UpdateItem`?
-  Is it truly upsert-or-create, i.e. does CREATE vs UPDATE distinction even apply?)**
+- [ ] **Step 1: Read the repository file (s) to confirm `Upsert`'s exact behavior (does it use `PutItem` or
+  `UpdateItem`? Is it truly upsert-or-create, i.e. does CREATE vs UPDATE distinction even apply?)**
 
 - [ ] **Step 2: Extend `setup_test.go`**: add all four config repo/service vars, initialize in `TestMain`, add all four
   `pk`-only table definitions to `createTables` (`organization_nfe_configs`, `organization_nfce_configs`,
@@ -1793,8 +1792,8 @@ git commit -m "feat(api): DocumentEventRepository.CreateEvent stamps actor field
 
 **Interfaces:**
 
-- Produces: `NfeService.Emit`/`Cancel`/`CorrectionLetter`/`Manifestation` gain `userID, userName string` parameters (
-  appended last, after existing params).
+- Produces: `NfeService.Emit`/`Cancel`/`CorrectionLetter`/`Manifestation` gain `userID, userName string` parameters
+  (appended last, after existing params).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1859,8 +1858,8 @@ func (s *NfeService) Manifestation(ctx context.Context, orgPK, accessKey, eventT
 - [ ] **Step 5: Update the four route handlers in `api/internal/api/v1/nfes.go`**
 
 Add `userSvc *services.UserService` to `RegisterNFes`'s signature, call `resolveActor(c, userSvc)` in the `POST ""`,
-`POST "/:access_key/cancel"`, `POST "/:access_key/correction-letter"`, `POST "/:access_key/manifestation"` handlers (
-lines 16, 86, 102, 118), pass `userID, userName` as the trailing args to each `svc.*` call. Update the `RegisterNFes(`
+`POST "/:access_key/cancel"`, `POST "/:access_key/correction-letter"`, `POST "/:access_key/manifestation"` handlers
+(lines 16, 86, 102, 118), pass `userID, userName` as the trailing args to each `svc.*` call. Update the `RegisterNFes(`
 call site (`router.go`) to pass the user service.
 
 - [ ] **Step 6: Run tests and full build**
@@ -2175,7 +2174,7 @@ func personToModifications(item map[string]types.AttributeValue) []auditModifica
 }
 ```
 
-- [ ] **Step 6: Run the existing `persistPerson` test(s) plus the new build**
+- [ ] **Step 6: Run the existing `persistPerson` test (s) plus the new build**
 
 Run: `cd worker && go build ./... && go test ./internal/service/... -run 'Person|Audit' -v`
 Expected: PASS. If an existing `persistPerson` test asserts on `PutItem` call count/args via a mock, update it to expect
@@ -2641,5 +2640,5 @@ git commit -m "docs: document audit_logs table, endpoint, and transactional-audi
   look first.
 - **Type consistency:** `userID, userName string` is appended as the last two parameters on every touched method,
   consistently, across Parts B and C. `repositories.Modification` (Task 3) is the one shared type used by `Diff` (Task
-  4) and every `BuildLogTxItem` call. Worker (Task 17) intentionally does **not** import `api`'s types — it's a separate
-  Go module — and instead has its own tiny mirror (`auditModification`), documented as such.
+    4) and every `BuildLogTxItem` call. Worker (Task 17) intentionally does **not** import `api`'s types — it's a
+       separate Go module — and instead has its own tiny mirror (`auditModification`), documented as such.

@@ -134,7 +134,7 @@ SQS Event → Lambda handler
 
 - `transact_write` for NF-e numbering
 - DynamoDB PK format: `CNPJ_...` / `CPF_...`
-- `PyDfe-Organization-Pk` header name
+- `Dfe-Organization-Pk` header name
 - RS256 JWKS validation via `CTECH_JWKS_URL`
 - WebSocket: Redis pub/sub keyed by `org_pk`
 

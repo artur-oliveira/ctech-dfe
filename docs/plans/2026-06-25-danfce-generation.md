@@ -6,9 +6,9 @@
 **Goal:** Add an in-house `GerarDanfe` service to `py_dfe` that renders a DANFC-e (DANFE NFC-e) PDF + HTML from an
 authorized NFC-e XML, with no certificate and no SEFAZ call.
 
-**Architecture:** New generic-first subpackage `py_dfe/danfe/`: shared `render.py` (Jinja2→WeasyPrint), `qr.py` (
-segno→data-URI), `formatters.py` (BR formatting); DANFC-e-specific `danfce.py` + `templates/danfce.html`. Routed through
-the existing `_NFServiceClient.call` via a new `GerarDanfe` service key that branches before any SEFAZ work.
+**Architecture:** New generic-first subpackage `py_dfe/danfe/`: shared `render.py` (Jinja2→WeasyPrint), `qr.py`
+(segno→data-URI), `formatters.py` (BR formatting); DANFC-e-specific `danfce.py` + `templates/danfce.html`. Routed
+through the existing `_NFServiceClient.call` via a new `GerarDanfe` service key that branches before any SEFAZ work.
 `LambdaRequest` certificate fields become optional.
 
 **Tech Stack:** Python 3.14, WeasyPrint, Jinja2, segno, lxml (existing), Pydantic v2 (existing), pytest.
@@ -22,8 +22,8 @@ the existing `_NFServiceClient.call` via a new `GerarDanfe` service key that bra
   duplicate.
 - DANFC-e contains ONLY data from the NFC-e XML (manual mandate).
 - **Do NOT `git commit`.** Stage changes only; the user commits manually (project policy).
-- Frontend/UI untouched. Cross-project note only: cdk Lambda layer must bundle WeasyPrint native libs (
-  cairo/pango/gdk-pixbuf/glib/gobject + fonts) — flagged, not implemented here.
+- Frontend/UI untouched. Cross-project note only: cdk Lambda layer must bundle WeasyPrint native libs
+  (cairo/pango/gdk-pixbuf/glib/gobject + fonts) — flagged, not implemented here.
 
 ---
 
@@ -703,11 +703,11 @@ git add py-dfe/tests/danfe_fixtures.py py-dfe/tests/unit/test_danfe_fixtures.py
 - Consumes: `parse_xml_bytes` (`py_dfe.xmlops.builder`); `formatters.*`; `qr.qr_data_uri`; `render.render_html` +
   `render.html_to_pdf`; all `constants/danfe.py` names; `exceptions` codes.
 - Produces (`py_dfe.danfe.danfce`):
-    - `generate_danfce(payload: dict) -> dict` — `{"pdf_b64": str, "html": list[str]}`. Reads `payload["xml"]` (
-      required), `payload.get("layout", LAYOUT_COMPLETO)`, `payload.get("canceled", False)`.
+    - `generate_danfce(payload: dict) -> dict` — `{"pdf_b64": str, "html": list[str]}`. Reads `payload["xml"]`
+      (required), `payload.get("layout", LAYOUT_COMPLETO)`, `payload.get("canceled", False)`.
     -
-    `build_context(inf_nfe: dict, prot: dict | None, *, layout: str, canceled: bool, tp_emis: str, tp_amb: str, chave: str) -> dict` —
-    assembles the template context (no rendering).
+  `build_context(inf_nfe: dict, prot: dict | None, *, layout: str, canceled: bool, tp_emis: str, tp_amb: str, chave: str) -> dict` —
+  assembles the template context (no rendering).
 
 **Context dict shape produced by `build_context`** (the template in this task consumes exactly these keys):
 

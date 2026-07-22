@@ -1055,8 +1055,8 @@ git commit -m "docs: document null-omission storage policy and CFOP UF resolutio
 
 ## Self-Review Notes
 
-- **Spec coverage:** A (helpers→T1, form→T2), B-api (encoder→T3, UpdateItem→T4, explicit NULLs→T5), B-worker (T6),
-  B-ui (T7), docs (T8). All spec sections mapped.
+- **Spec coverage:** A (helpers→T1, form→T2), B-api (encoder→T3, UpdateItem→T4, explicit NULLs→T5), B-worker (T6), B-ui
+  (T7), docs (T8). All spec sections mapped.
 - **Type consistency:** `CfopSuffixGroup`/`resolveCfopForUf`/`groupCfopConfigBySuffix` names identical across T1/T2.
   `MarshalMapOmitNull` consistent across T3 and CONDUCT note. `buildUpdateExpr` signature consistent T4.
 - **Known verification points flagged inline:** `ProductRow` export for testing (T2 S7); `attributevalue` import removal

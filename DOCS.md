@@ -336,7 +336,7 @@ ctech-dfe-api/
 │   ├── problem/                # RFC 7807 Problem type + helpers
 │   ├── middleware/
 │   │   ├── auth.go             # RS256 JWT validation, JWKS cached in Redis
-│   │   ├── tenant.go           # PyDfe-Organization-Pk header → org context
+│   │   ├── tenant.go           # Dfe-Organization-Pk header → org context
 │   │   └── perm.go             # RBAC permission checker (OWNER/ADMIN bypass)
 │   ├── cache/                  # Redis + in-memory backends
 │   ├── ws/                     # WebSocket registry (Redis pub/sub)
@@ -507,7 +507,7 @@ response / link; DynamoDB stores only its SHA-256.
 
 #### Products
 
-Use the `PyDfe-Organization-Pk` header for org context.
+Use the `Dfe-Organization-Pk` header for org context.
 
 | Method | Endpoint              | Description                    |
 |--------|-----------------------|--------------------------------|
@@ -665,7 +665,7 @@ When `emit_uf='RJ'` and `cst='40'` without a configured `icms_mot_des`, the syst
 
 #### Vehicles
 
-Organization is always resolved from the `PyDfe-Organization-Pk` header, not a path parameter.
+Organization is always resolved from the `Dfe-Organization-Pk` header, not a path parameter.
 Only `plate`/`plate_uf`/`role` are required to create a vehicle — every other field is optional
 and is gated per doc-type/role at emission time via the requirements endpoint below. Trailers
 are ordinary vehicle rows with `role=trailer`, independently selectable — not nested under a
@@ -1093,7 +1093,7 @@ app/
 ### ApiClient (`lib/api/client.ts`)
 
 Type-safe Axios wrapper. Holds `access_token` in module-level memory (never localStorage). Injects
-`Authorization: Bearer {token}` and `PyDfe-Organization-Pk` headers on every request. On 401, calls the registered
+`Authorization: Bearer {token}` and `Dfe-Organization-Pk` headers on every request. On 401, calls the registered
 `_refreshFn` to silently refresh via ctech-account before retrying once. The request interceptor also strips null
 fields from POST (create) payloads (`stripNulls`/`isStrippableBody`) — see "DynamoDB storage policy — null omission".
 

@@ -9,7 +9,11 @@ AWS CDK infrastructure — TypeScript, CDK v2.257.
 ## Role
 
 Defines and deploys all AWS infrastructure: DynamoDB tables, S3 buckets, Lambda functions,
-EC2 ASG (API), ALB, CloudFront, SQS FIFO, SNS, IAM roles, VPC, and CloudWatch.
+EC2 ASG (API), ALB, CloudFront, SQS (standard — **not** FIFO), SNS, IAM roles, VPC, and
+CloudWatch.
+
+> SQS is **standard** everywhere (no `.fifo` suffix, no FIFO queues). See [`README.md`](README.md)
+> for the Lambda/SQS/SNS inventory and the on-demand DynamoDB billing model.
 
 ---
 

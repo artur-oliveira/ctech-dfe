@@ -17,8 +17,18 @@ comunicação direta à SEFAZ.
 
 ## Subprojetos
 
+| Diretório | Papel | README |
+|-----------|-------|--------|
+| `py-dfe/` | Biblioteca Python core — Lambda + SEFAZ SOAP (mTLS) | [py-dfe/README.md](py-dfe/README.md) |
+| `go-dfe/` | Cliente Go SEFAZ (mTLS, in-process) | [go-dfe/README.md](go-dfe/README.md) |
+| `api/`    | Backend REST — Go (Fiber v3), multi-tenant | [api/README.md](api/README.md) |
+| `ui/`     | Frontend SaaS — Next.js + TypeScript + ShadCN | [ui/README.md](ui/README.md) |
+| `worker/` | Workers assíncronos — Go Lambda (SQS consumers) | [worker/README.md](worker/README.md) |
+| `cdk/`    | Infraestrutura AWS — CDK TypeScript | [cdk/README.md](cdk/README.md) |
+
 ```
 py-dfe/     # Biblioteca Python core — Lambda + SEFAZ SOAP (mTLS)
+go-dfe/     # Cliente Go SEFAZ (mTLS, in-process) — primário; py-dfe é fallback
 api/        # Backend REST — Go (Fiber v3), multi-tenant
 ui/         # Frontend SaaS — Next.js + TypeScript + ShadCN
 worker/     # Workers assíncronos — Go Lambda (SQS consumers)

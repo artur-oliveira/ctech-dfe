@@ -16,8 +16,8 @@ Decisões confirmadas com usuário:
   ganho fiscal ou de segurança — só custo (WeasyPrint sem equivalente Go). py-dfe continua vivo só pra isso,
   indefinidamente.
 - **Validação XSD não portada por enquanto.** `CGO_ENABLED=0` é regra fixa em worker/api/cdk (build ARM64 Lambda
-  `provided.al2023`) — única opção completa (libxml2) exige cgo. Sem validador XSD maduro em Go puro. Operações
-  iniciais (status/consulta) têm payload trivial; SEFAZ valida server-side. Reavaliar só se operação assinada precisar
+  `provided.al2023`) — única opção completa (libxml2) exige cgo. Sem validador XSD maduro em Go puro. Operações iniciais
+  (status/consulta) têm payload trivial; SEFAZ valida server-side. Reavaliar só se operação assinada precisar
   `validate_schema=true`.
 
 ## Arquitetura
@@ -101,8 +101,8 @@ ser cortada.
   resposta/erro, chama `go-dfe`, compara, loga divergência. Promover só depois de janela de paridade limpa em produção.
 - **Gate de assinatura (fase 4, o forte)**: RSA-SHA1/PKCS#1v1.5 é determinístico dado mesma chave+mensagem → py-dfe e
   go-dfe DEVEM produzir XML assinado byte-idêntico pro mesmo input canonicalizado + mesmo certificado. Teste
-  automatizado table-driven em `go-dfe/testdata/`: captura output assinado do py-dfe pra corpus de documentos reais (
-  certificado de teste dedicado, nunca certificado real de cliente), compara byte a byte com saída do go-dfe. Tem que
+  automatizado table-driven em `go-dfe/testdata/`: captura output assinado do py-dfe pra corpus de documentos reais
+  (certificado de teste dedicado, nunca certificado real de cliente), compara byte a byte com saída do go-dfe. Tem que
   passar antes de qualquer corte de tráfego em operação assinada. Isola bug de C14N/signer de falha intermitente de
   rede/SEFAZ. Manter bar do `MIGRATION.md` (10k+ docs em homologação) como critério pra fase 4.
 
@@ -140,5 +140,5 @@ ser cortada.
 - Fase 0: build `CGO_ENABLED=0 GOARCH=arm64 go build ./...` verde em go-dfe; chamada de status contra homologação SEFAZ
   retorna cStat esperado.
 - Cada fase 1-3: `go test ./... -race` verde; shadow mode sem divergência por janela definida antes de promover.
-- Fase 4: teste byte-idêntico de assinatura verde offline antes de qualquer corte; shadow mode + volume de homologação (
-  10k+, conforme MIGRATION.md) antes de flip de operação assinada.
+- Fase 4: teste byte-idêntico de assinatura verde offline antes de qualquer corte; shadow mode + volume de homologação
+  (10k+, conforme MIGRATION.md) antes de flip de operação assinada.

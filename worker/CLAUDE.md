@@ -9,10 +9,11 @@ Go Lambda — SQS (standard) consumer, async DFe issuance pipeline, `provided.al
 ## Role
 
 Consumes `DfeWorkerEvent` messages from SQS (standard), orchestrates the full DFe issuance:
-fetches certificate from S3 → invokes py-dfe Lambda (XML-DSig + SEFAZ SOAP) → persists result
-in DynamoDB → uploads XML to S3 → publishes status to Redis pub/sub for WebSocket delivery.
+fetches certificate from S3 → invokes go-dfe in-process (XML-DSig + SEFAZ SOAP; py-dfe Lambda
+is the fallback for operations not yet ported) → persists result in DynamoDB → uploads XML to S3 →
+publishes results to the SNS results topic (DfeResultsBus).
 
-**Flow:** `SQS (standard) → Handler → S3 (cert) → py-dfe Lambda → DynamoDB + S3 + Redis`
+**Flow:** `SQS (standard) → Handler → S3 (cert) → go-dfe (in-process SEFAZ; py-dfe Lambda fallback) → DynamoDB + S3 → SNS results topic`
 
 ---
 
@@ -126,7 +127,9 @@ Run: `go test ./... -race` from `worker/`.
 - SQS is standard (not FIFO) — ordering across messages for the same org is NOT guaranteed; correctness relies on the fiscal-numbering `transact_write` (atomic, order-independent) plus the idempotency guard in `DfeService.Process`.
 - py-dfe Lambda is the fallback path for XML signing + SEFAZ SOAP not yet ported to `go-dfe`, and the
   permanent path for DANFE/DAMDFE rendering; do not duplicate SEFAZ logic outside `go-dfe`/py-dfe.
-- After SEFAZ response: always update DynamoDB status, upload XML to S3, publish to Redis — in that order.
+- After SEFAZ response: always update DynamoDB status, upload XML to S3, publish results to the SNS
+  results topic (DfeResultsBus) — in that order. Redis pub/sub and WebSocket fan-out are done by the
+  API's ResultsConsumer, not the worker.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
 
 ---
@@ -136,7 +139,7 @@ Run: `go test ./... -race` from `worker/`.
 - DFe issuance handlers (NF-e, NFC-e, CT-e, MDF-e)
 - py-dfe Lambda invocation and response parsing
 - DynamoDB status persistence and idempotency checks
-- Redis pub/sub publish (WebSocket delivery)
+- SNS results topic publish (DfeResultsBus); Redis/WebSocket fan-out is done by the API's ResultsConsumer.
 - DLQ handling and retry logic
 
 Before touching: identify risks + side effects, verify backward compatibility + regulatory impact.

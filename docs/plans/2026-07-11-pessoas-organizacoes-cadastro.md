@@ -3,9 +3,9 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
 > executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Tighten backend validation (CRT/IE required for PJ organizations, person CPF/CNPJ dedup),
-collapse optional fields into a progressive-disclosure "advanced" section shared by
-persons/organizations, and add NF-e local de entrega/retirada with reuse-from-history.
+**Goal:** Tighten backend validation (CRT/IE required for PJ organizations, person CPF/CNPJ dedup), collapse optional
+fields into a progressive-disclosure "advanced" section shared by persons/organizations, and add NF-e local de
+entrega/retirada with reuse-from-history.
 
 **Architecture:** Backend validation lives in `PersonService`/`OrganizationService` (Create/Update).
 `NfeLocalBody` is a new nested struct on `NfeEmitBody`, built into the XML via a new
@@ -14,16 +14,15 @@ persons/organizations, and add NF-e local de entrega/retirada with reuse-from-hi
 gains a collapsible section (mirrors `VehicleForm.tsx`'s pattern) and a new `organizationSchema`;
 `NfeEmitForm.tsx` gains an entrega/retirada picker fed by the person/org record.
 
-**Tech Stack:** Go/Fiber v3/DynamoDB (api), Next.js/TS/Zod/react-hook-form (ui). No py-dfe or cdk
-changes — `xsd_order.py` already orders `retirada`/`entrega`; new fields are plain optional
-attributes on existing DynamoDB items.
+**Tech Stack:** Go/Fiber v3/DynamoDB (api), Next.js/TS/Zod/react-hook-form (ui). No py-dfe or cdk changes —
+`xsd_order.py` already orders `retirada`/`entrega`; new fields are plain optional attributes on existing DynamoDB items.
 
 ## Global Constraints
 
 - No `Co-Authored-By:` trailer on any commit.
 - `api`: errors via `problem.*` helpers only; layer separation (route→service→repo) strict.
-- `ui`: `npx eslint src --ext .ts,.tsx` zero errors/warnings; mobile-first; loading states on all
-  async ops; inputs triggering API calls debounced 300ms.
+- `ui`: `npx eslint src --ext .ts,.tsx` zero errors/warnings; mobile-first; loading states on all async ops; inputs
+  triggering API calls debounced 300ms.
 - DynamoDB: no Scans; `Query`/`GetItem` only.
 - CT-e is out of scope — no backend service exists yet (`api/internal/services/ctes` absent).
 
@@ -40,8 +39,8 @@ attributes on existing DynamoDB items.
 
 **Interfaces:**
 
-- Produces: `services.RequirePJFields(cpfOrCNPJ string, crt *int) error` (shared helper, both
-  services call it) and `services.RequireOrgIE(cpfOrCNPJ string, stateRegs []StateRegistrationBody) error`.
+- Produces: `services.RequirePJFields(cpfOrCNPJ string, crt *int) error` (shared helper, both services call it) and
+  `services.RequireOrgIE(cpfOrCNPJ string, stateRegs []StateRegistrationBody) error`.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -79,8 +78,7 @@ func TestRequirePJFields_CPF_NoCRTRequired(t *testing.T) {
 var _ = v1.PersonCreateBody{} // keep import if unused elsewhere in package tests
 ```
 
-(If `v1` import ends up unused after adding real assertions, drop the blank var line — go vet
-will catch it.)
+(If `v1` import ends up unused after adding real assertions, drop the blank var line — go vet will catch it.)
 
 `api/internal/services/organizations_test.go`:
 
@@ -156,8 +154,7 @@ func RequireOrgIE(cpfOrCNPJ string, regs []StateRegistrationEntry) error {
 ```
 
 Add `"strings"` and `"gopkg.aoctech.app/dfe/api/internal/problem"` imports to
-`organizations.go` if not already present (check the file first — `persons.go` already imports
-both).
+`organizations.go` if not already present (check the file first — `persons.go` already imports both).
 
 - [ ] **Step 4: Run tests, confirm pass**
 
@@ -166,11 +163,10 @@ Expected: PASS
 
 - [ ] **Step 5: Wire into Create/Update call sites**
 
-`api/internal/api/v1/persons.go` and `api/internal/api/v1/organizations.go` are the route
-handlers that decode `PersonCreateBody`/`OrganizationCreateBody` into `fields map[string]any`
+`api/internal/api/v1/persons.go` and `api/internal/api/v1/organizations.go` are the route handlers that decode
+`PersonCreateBody`/`OrganizationCreateBody` into `fields map[string]any`
 before calling the service. Read both files first to find the exact decode point (search for
-`PersonCreateBody{}` / `bindJSON`). Add, right after successful body binding and before the
-service call:
+`PersonCreateBody{}` / `bindJSON`). Add, right after successful body binding and before the service call:
 
 Persons route (Create handler):
 
@@ -197,12 +193,12 @@ if err := services.RequireOrgIE(body.CpfOrCnpj, regs); err != nil {
 
 For the **Update** handlers (`PersonUpdateBody`/`OrganizationUpdateBody`), both are partial —
 `Person *PersonObjectBody` may be nil (caller not touching those fields) or `Crt`/
-`StateRegistrations` may be omitted while other fields change. The correct check needs the
-**merged** result, not just the patch. Simplest correct approach: after `service.Update(...)`
+`StateRegistrations` may be omitted while other fields change. The correct check needs the **merged** result, not just
+the patch. Simplest correct approach: after `service.Update(...)`
 returns the updated item, decode `crt`/`state_registrations` back out of the returned
-`map[string]types.AttributeValue` via `attributevalue.Unmarshal` and validate; if invalid, this
-means the update produced a bad state — but the write already happened. To avoid a bad
-write-then-reject, validate **before** calling Update by fetching current state first:
+`map[string]types.AttributeValue` via `attributevalue.Unmarshal` and validate; if invalid, this means the update
+produced a bad state — but the write already happened. To avoid a bad write-then-reject, validate **before** calling
+Update by fetching current state first:
 
 ```go
 // Organizations Update handler, before calling svc.Update:
@@ -233,8 +229,8 @@ if body.Person != nil {
 ```
 
 Mirror the same pre-fetch pattern (without the IE check) for the Persons Update handler. Write
-`extractCrtAndRegs` once as an unexported helper in `api/internal/api/v1/organizations.go` (used
-by both org and person update handlers — if persons.go needs it too, move it to a shared
+`extractCrtAndRegs` once as an unexported helper in `api/internal/api/v1/organizations.go` (used by both org and person
+update handlers — if persons.go needs it too, move it to a shared
 `api/internal/api/v1/dto.go`-adjacent helper file instead of duplicating).
 
 - [ ] **Step 6: Add route-level regression tests**
@@ -242,8 +238,8 @@ by both org and person update handlers — if persons.go needs it too, move it t
 Add to `api/tests/integration/persons_test.go` (or organizations_test.go): `POST /organizations`
 with `cpf_or_cnpj` = valid CNPJ, `person.crt = null`, `person.state_registrations = []` → expect
 
-400. `POST /persons` with CNPJ and `crt = null` → expect 400 (IE not required for persons, only
-     CRT). Follow the existing integration test setup pattern in that file (look at an existing
+400. `POST /persons` with CNPJ and `crt = null` → expect 400 (IE not required for persons, only CRT). Follow the
+     existing integration test setup pattern in that file (look at an existing
      `TestOrganization_Create*`/`TestPerson_Create*` test for the HTTP harness boilerplate).
 
 - [ ] **Step 7: Run full suite, commit**
@@ -278,8 +274,8 @@ git commit -m "feat(api): require CRT for PJ and IE for CNPJ organizations"
 
 - [ ] **Step 1: Write failing test**
 
-`api/internal/repositories/persons_test.go` (extends the existing file from the vehicle work —
-check it exists first via `ls api/internal/repositories/persons_test.go`; if absent, create it):
+`api/internal/repositories/persons_test.go` (extends the existing file from the vehicle work — check it exists first via
+`ls api/internal/repositories/persons_test.go`; if absent, create it):
 
 ```go
 package repositories
@@ -532,10 +528,9 @@ Expected: PASS
 
 - [ ] **Step 6: Wire into `BuildEnviNFe`**
 
-Read `BuildEnviNFe` (`builders_doc.go:317` onward) to find where `infNFe` dict fields are
-assembled (`dest`, `det`, etc.) and where `buildParams`/equivalent struct carries per-call data
-into it. Add `retirada *NfeLocalBody` and `entrega *NfeLocalBody` fields to that params struct,
-and in the `infNFe` map construction add:
+Read `BuildEnviNFe` (`builders_doc.go:317` onward) to find where `infNFe` dict fields are assembled (`dest`, `det`,
+etc.) and where `buildParams`/equivalent struct carries per-call data into it. Add `retirada *NfeLocalBody` and
+`entrega *NfeLocalBody` fields to that params struct, and in the `infNFe` map construction add:
 
 ```go
 if retirada := buildLocal(p.retirada); retirada != nil {
@@ -546,18 +541,18 @@ if entrega := buildLocal(p.entrega); entrega != nil {
 }
 ```
 
-placed after `dest` is set (matches XSD order `dest, retirada, entrega, autXML, det` — Go map
-insertion order doesn't matter since `xsd_order.py` re-orders on the Python side, but keep this
-placement for readability). In `NfeService.Emit` (`emit.go`), pass `req.Retirada`/`req.Entrega`
+placed after `dest` is set (matches XSD order `dest, retirada, entrega, autXML, det` — Go map insertion order doesn't
+matter since `xsd_order.py` re-orders on the Python side, but keep this placement for readability). In `NfeService.Emit`
+(`emit.go`), pass `req.Retirada`/`req.Entrega`
 through to the params literal used to call `BuildEnviNFe` (find the existing `buildParams{...}`
 or equivalent call site — same pattern as the MDF-e `trailers` wiring from the vehicle task).
 
 - [ ] **Step 7: Emit-level test**
 
-`api/internal/services/nfes/emit_test.go` — add a test asserting that when `req.Entrega` is set,
-the built `infNFe` (or whatever the test already inspects for `dest`) contains an `entrega` key
-with the right `xLgr`; and that it's absent when `req.Entrega` is nil. Follow the existing test's
-pattern for constructing a minimal valid `NfeEmitBody` in that file.
+`api/internal/services/nfes/emit_test.go` — add a test asserting that when `req.Entrega` is set, the built `infNFe` (or
+whatever the test already inspects for `dest`) contains an `entrega` key with the right `xLgr`; and that it's absent
+when `req.Entrega` is nil. Follow the existing test's pattern for constructing a minimal valid `NfeEmitBody` in that
+file.
 
 - [ ] **Step 8: Run full suite, commit**
 
@@ -585,9 +580,9 @@ git commit -m "feat(api): support NF-e local de retirada/entrega"
 
 - [ ] **Step 1: Implement**
 
-In `NfeService.Emit`, after the emission succeeds (dispatch to worker/SQS — find that success
-point, the same place where the prior vehicle-gating work confirmed the final return), add
-best-effort persistence (never fail the emission on this):
+In `NfeService.Emit`, after the emission succeeds (dispatch to worker/SQS — find that success point, the same place
+where the prior vehicle-gating work confirmed the final return), add best-effort persistence (never fail the emission on
+this):
 
 ```go
 if req.SaveEntregaLocation && req.Entrega != nil && req.ReceiverID != nil {
@@ -602,8 +597,8 @@ if req.SaveRetiradaLocation && req.Retirada != nil {
 }
 ```
 
-Add the two helpers to `NfeService` (or a shared file if `NfeService` doesn't already have a
-natural home — check `service.go` for where similar side-effect helpers live):
+Add the two helpers to `NfeService` (or a shared file if `NfeService` doesn't already have a natural home — check
+`service.go` for where similar side-effect helpers live):
 
 ```go
 const maxSavedLocations = 5
@@ -631,23 +626,22 @@ func (s *NfeService) appendPickupLocation(ctx context.Context, orgPK string, loc
 }
 ```
 
-`extractLocations`/`dedupeAppendLocation` are small new helpers (in the same file): decode the
-existing attribute (if any) into `[]map[string]any`, compute a dedup key from
+`extractLocations`/`dedupeAppendLocation` are small new helpers (in the same file): decode the existing attribute (if
+any) into `[]map[string]any`, compute a dedup key from
 `xLgr+"|"+nro+"|"+xCpl` (normalized/uppercased), skip append if already present, cap at
 `maxSavedLocations` by dropping the oldest. **Check first** whether `NfeService` already holds a
-`*services.PersonService`/`*services.OrganizationService` field (`NewNfeService` constructor) —
-if not, add them via the fx-wired constructor (mirrors how `orgRepo`/other deps are already
-injected there — do not instantiate manually per `api/CLAUDE.md`'s DI rule).
+`*services.PersonService`/`*services.OrganizationService` field (`NewNfeService` constructor) — if not, add them via the
+fx-wired constructor (mirrors how `orgRepo`/other deps are already injected there — do not instantiate manually per
+`api/CLAUDE.md`'s DI rule).
 
 - [ ] **Step 2: Integration test**
 
-New test in `api/tests/integration/nfes_test.go` (or wherever NF-e emit integration tests
-already live): emit an NF-e with `entrega` set and `save_entrega_location: true`, then
-`GET /persons/:cpf_cnpj` and assert `person.delivery_locations` contains the entry. Follow the
-existing NF-e emit integration test's harness (worker/SQS mocking — check how the prior MDF-e
-gating integration test in this codebase handled the "no worker infra in tests" limitation from
-the vehicle task; if full `Emit()` end-to-end still isn't testable without new mock
-infrastructure, test `appendDeliveryLocation`/`appendPickupLocation` directly as white-box
+New test in `api/tests/integration/nfes_test.go` (or wherever NF-e emit integration tests already live): emit an NF-e
+with `entrega` set and `save_entrega_location: true`, then
+`GET /persons/:cpf_cnpj` and assert `person.delivery_locations` contains the entry. Follow the existing NF-e emit
+integration test's harness (worker/SQS mocking — check how the prior MDF-e gating integration test in this codebase
+handled the "no worker infra in tests" limitation from the vehicle task; if full `Emit()` end-to-end still isn't
+testable without new mock infrastructure, test `appendDeliveryLocation`/`appendPickupLocation` directly as white-box
 functions against real DynamoDB Local, same pattern as `mdfes/vehicle_gating_test.go`).
 
 - [ ] **Step 3: Run full suite, commit**
@@ -726,8 +720,7 @@ Expected: FAIL — `organizationSchema` not exported.
 
 - [ ] **Step 3: Implement `organizationSchema`**
 
-`ui/src/lib/schemas/entity.ts` — export `entitySchema` stays as-is (used by persons, unchanged
-semantics). Add after it:
+`ui/src/lib/schemas/entity.ts` — export `entitySchema` stays as-is (used by persons, unchanged semantics). Add after it:
 
 ```ts
 export const organizationSchema = entitySchema.superRefine((data, ctx) => {
@@ -760,8 +753,8 @@ Expected: PASS
 
 - [ ] **Step 5: Wire `organizationSchema` into `EntityForm`**
 
-`ui/src/components/EntityForm.tsx` — import `organizationSchema` alongside `entitySchema`, and
-in the `useForm` call (line 135-136) pick the resolver based on `variant`:
+`ui/src/components/EntityForm.tsx` — import `organizationSchema` alongside `entitySchema`, and in the `useForm` call
+(line 135-136) pick the resolver based on `variant`:
 
 ```ts
 import {organizationSchema} from '@/lib/schemas/organizations'
@@ -787,10 +780,10 @@ const hasAdvancedData = !!(
 const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedData)
 ```
 
-Then restructure the JSX: move the "Nome Fantasia" field (currently unconditionally shown at
-line 305-316), the "Endereços adicionais" block (line 429-443), the "Contatos" `SectionCard`
-(line 445-518), and — **only when `!isOrg`** — the Inscrições Estaduais block (line 364-416,
-currently always shown for `isPJ`) behind a single collapsible section, same visual pattern as
+Then restructure the JSX: move the "Nome Fantasia" field (currently unconditionally shown at line 305-316), the
+"Endereços adicionais" block (line 429-443), the "Contatos" `SectionCard`
+(line 445-518), and — **only when `!isOrg`** — the Inscrições Estaduais block (line 364-416, currently always shown for
+`isPJ`) behind a single collapsible section, same visual pattern as
 `VehicleForm.tsx`'s advanced toggle:
 
 ```tsx
@@ -810,18 +803,17 @@ currently always shown for `isPJ`) behind a single collapsible section, same vis
 ```
 
 Keep the endereço principal (`SectionCard title="Endereço Principal"`, line 419-425) and the
-"Adicionar endereço" button (line 440-443) — the button itself can stay outside advanced (it's
-how the user gets to a 2nd address in the first place) but the resulting 2nd+ address cards
-render inside the advanced block once `advancedOpen` is true; if `advancedOpen` is false and the
-user clicks "+ Adicionar endereço", auto-open the section (
+"Adicionar endereço" button (line 440-443) — the button itself can stay outside advanced (it's how the user gets to a
+2nd address in the first place) but the resulting 2nd+ address cards render inside the advanced block once
+`advancedOpen` is true; if `advancedOpen` is false and the user clicks "+ Adicionar endereço", auto-open the section (
 `onClick={() => { appendAddress(...); setAdvancedOpen(true) }}`)
 so the newly added card is actually visible.
 
 - [ ] **Step 7: Component test**
 
-`ui/src/__tests__/components/EntityForm.test.tsx` (check if this file already exists from prior
-work — extend it, don't duplicate): add a test asserting the advanced section is collapsed by
-default for a new organization, and expanded when `initialData` has `fantasy_name` set.
+`ui/src/__tests__/components/EntityForm.test.tsx` (check if this file already exists from prior work — extend it, don't
+duplicate): add a test asserting the advanced section is collapsed by default for a new organization, and expanded when
+`initialData` has `fantasy_name` set.
 
 - [ ] **Step 8: Lint + test, commit**
 
@@ -841,8 +833,8 @@ git commit -m "feat(ui): progressive disclosure for pessoa/organização cadastr
 **Files:**
 
 - Modify: `ui/src/lib/types/api.ts`
-- Modify: `ui/src/lib/api/client.ts` (only if `emitNfe` needs no signature change — it already
-  takes `NfeEmit`, so this task is type-only)
+- Modify: `ui/src/lib/api/client.ts` (only if `emitNfe` needs no signature change — it already takes `NfeEmit`, so this
+  task is type-only)
 
 - [ ] **Step 1: Add types**
 
@@ -889,8 +881,8 @@ Extend `NfeEmit` (line 597-613):
   save_entrega_location?: boolean
 ```
 
-Extend `PersonDetailsOut` (line 461-467): `delivery_locations?: NfeLocalOut[]`.
-Extend `OrganizationOut` (line 90-97): `pickup_locations?: NfeLocalOut[]`.
+Extend `PersonDetailsOut` (line 461-467): `delivery_locations?: NfeLocalOut[]`. Extend `OrganizationOut` (line 90-97):
+`pickup_locations?: NfeLocalOut[]`.
 
 - [ ] **Step 2: Lint, commit**
 
@@ -925,16 +917,16 @@ const [retirada, setRetirada] = useState<NfeLocalIn | null>(null)
 const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false)
 ```
 
-Reset `entrega`/`saveEntregaLocation` to `null`/`false` in the same place `receiver` is reset
-(the `setSelfIssuance`/`setReceiver(null)` toggle around line 1176-1181, and wherever
-`onChange`/`ReceiverSearch` clears the receiver) — entrega is tied to the selected destinatário,
-stale entrega data must not survive a receiver change.
+Reset `entrega`/`saveEntregaLocation` to `null`/`false` in the same place `receiver` is reset (the `setSelfIssuance`/
+`setReceiver(null)` toggle around line 1176-1181, and wherever
+`onChange`/`ReceiverSearch` clears the receiver) — entrega is tied to the selected destinatário, stale entrega data must
+not survive a receiver change.
 
 - [ ] **Step 2: Entrega picker UI**
 
 After the `<ReceiverSearch value={receiver} onChange={setReceiver}/>` line (1238), inside the
-`{receiver && (...)}`-guarded block (find or add one — entrega should only show once a receiver
-is picked and `!selfIssuance`), add a new collapsible block:
+`{receiver && (...)}`-guarded block (find or add one — entrega should only show once a receiver is picked and
+`!selfIssuance`), add a new collapsible block:
 
 ```tsx
 {receiver && !selfIssuance && (
@@ -950,22 +942,21 @@ is picked and `!selfIssuance`), add a new collapsible block:
 ```
 
 Add the analogous block for retirada, fed by `selectedOrg?.pickup_locations ?? []` — note
-`selectedOrg` here needs `pickup_locations` on its type; if `useAuth()`'s org type is a narrower
-shape than full `OrganizationOut`, either extend it or fetch the full org record via the existing
-`apiClient.getOrganization(selectedOrg.pk)` `useQuery` (check whether one already exists in this
-file for the org, reuse it — don't add a duplicate query).
+`selectedOrg` here needs `pickup_locations` on its type; if `useAuth()`'s org type is a narrower shape than full
+`OrganizationOut`, either extend it or fetch the full org record via the existing
+`apiClient.getOrganization(selectedOrg.pk)` `useQuery` (check whether one already exists in this file for the org, reuse
+it — don't add a duplicate query).
 
 - [ ] **Step 3: New `LocationPicker` component**
 
-Create `ui/src/components/nfe/LocationPicker.tsx` — a small collapsible: closed by default
-(header "+ Local de entrega" / "− Ocultar"); when open, shows `savedLocations` as selectable
-chips (click → `onChange(loc)`), a "endereço diferente" toggle that reveals a manual entry
-mini-form (xLgr, nro, xCpl, xBairro, cMun via IBGE lookup — reuse whatever city/IBGE picker
-`AddressFields` already uses, check `ui/src/components/ui/address-fields.tsx` for the exact
-sub-component to reuse rather than reinventing city lookup — xMun, UF, fone, email, CNPJ/CPF+
-xNome optional), and a "Salvar este local para reutilizar" checkbox wired to `onSaveChange`
-(checked by default when the manual form has been touched and doesn't match an existing saved
-location). Props:
+Create `ui/src/components/nfe/LocationPicker.tsx` — a small collapsible: closed by default (header "+ Local de
+entrega" / "− Ocultar"); when open, shows `savedLocations` as selectable chips (click → `onChange(loc)`), a "endereço
+diferente" toggle that reveals a manual entry mini-form (xLgr, nro, xCpl, xBairro, cMun via IBGE lookup — reuse whatever
+city/IBGE picker
+`AddressFields` already uses, check `ui/src/components/ui/address-fields.tsx` for the exact sub-component to reuse
+rather than reinventing city lookup — xMun, UF, fone, email, CNPJ/CPF+ xNome optional), and a "Salvar este local para
+reutilizar" checkbox wired to `onSaveChange`
+(checked by default when the manual form has been touched and doesn't match an existing saved location). Props:
 
 ```ts
 interface LocationPickerProps {
@@ -978,8 +969,8 @@ interface LocationPickerProps {
 }
 ```
 
-Follow `ui/CLAUDE.md` mobile-first rules (44px touch targets, `grid-cols-1 sm:grid-cols-2`, no
-horizontal overflow) and debounce any text input that would trigger a lookup (300ms via
+Follow `ui/CLAUDE.md` mobile-first rules (44px touch targets, `grid-cols-1 sm:grid-cols-2`, no horizontal overflow) and
+debounce any text input that would trigger a lookup (300ms via
 `DebouncedInput`, matching the rest of the codebase).
 
 - [ ] **Step 4: Submit payload**
@@ -995,20 +986,19 @@ In `handleSubmit`'s `payload` construction (line 1098-1135), add:
 
 - [ ] **Step 5: Component test**
 
-`ui/src/__tests__/components/nfe/LocationPicker.test.tsx` (new): renders collapsed by default;
-clicking a saved-location chip calls `onChange` with that location; toggling "endereço diferente"
+`ui/src/__tests__/components/nfe/LocationPicker.test.tsx` (new): renders collapsed by default; clicking a saved-location
+chip calls `onChange` with that location; toggling "endereço diferente"
 reveals the manual form.
 
 - [ ] **Step 6: Lint + test + manual check, commit**
 
 Run: `cd ui && npx eslint src --ext .ts,.tsx && npm test`
 
-Manual verification (per `ui/CLAUDE.md` — UI changes must be exercised in a browser before
-claiming done): start the dev server if none is already running (`cd ui && npm run dev` — check
-for a port conflict from an existing instance first, as in the prior vehicle-task session), open
-the NF-e emission flow, select a destinatário with no saved delivery locations, verify "Local de
-entrega" shows the manual-entry form; select a destinatário that has saved locations (seed one via
-the API or a prior test emission) and verify the chips render and populate the fields on click.
+Manual verification (per `ui/CLAUDE.md` — UI changes must be exercised in a browser before claiming done): start the dev
+server if none is already running (`cd ui && npm run dev` — check for a port conflict from an existing instance first,
+as in the prior vehicle-task session), open the NF-e emission flow, select a destinatário with no saved delivery
+locations, verify "Local de entrega" shows the manual-entry form; select a destinatário that has saved locations (seed
+one via the API or a prior test emission) and verify the chips render and populate the fields on click.
 
 ```bash
 git add ui/src/components/nfe/NfeEmitForm.tsx ui/src/components/nfe/LocationPicker.tsx \
@@ -1028,26 +1018,24 @@ git commit -m "feat(ui): NF-e local de entrega/retirada picker with history reus
 
 - [ ] **Step 1: `DynamoDB-Tables.md`**
 
-Table `organization_persons`: add `delivery_locations` (L, optional, cap 5, TLocal-shaped) to the
-attribute list. Table `organizations`: add `pickup_locations` (L, optional, cap 5, same shape).
-Also fix the pre-existing staleness noted during research (table #6's documented `pk`/`sk`/`ie`/
+Table `organization_persons`: add `delivery_locations` (L, optional, cap 5, TLocal-shaped) to the attribute list. Table
+`organizations`: add `pickup_locations` (L, optional, cap 5, same shape). Also fix the pre-existing staleness noted
+during research (table #6's documented `pk`/`sk`/`ie`/
 `address` shape doesn't match the real `org_pk`/`CNPJ_`-`CPF_`-prefixed-sk`/
 `state_registrations[]`/`addresses[]` shape in code) — correct it while touching this section.
 
 - [ ] **Step 2: `DOCS.md`**
 
-Persons/Organizations endpoint tables: note the new 400 (CRT/IE required for PJ) and 409
-(duplicate CPF/CNPJ) responses on `POST /persons`/`POST /organizations`. NF-e emission body: add
-`retirada`/`entrega`/`save_retirada_location`/`save_entrega_location` fields with the TLocal
-shape.
+Persons/Organizations endpoint tables: note the new 400 (CRT/IE required for PJ) and 409 (duplicate CPF/CNPJ) responses
+on `POST /persons`/`POST /organizations`. NF-e emission body: add
+`retirada`/`entrega`/`save_retirada_location`/`save_entrega_location` fields with the TLocal shape.
 
 - [ ] **Step 3: `CONDUCT.md`**
 
 Add a note under wherever party/pessoa conventions are documented (or a new subsection):
-"Gating por doc-type (bloqueia emissão + modal, como em veículos) não se aplica a pessoas/
-organizações — ver `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`
-para o porquê. CRT e IE de organização PJ são validados como obrigatórios no cadastro, não na
-emissão."
+"Gating por doc-type (bloqueia emissão + modal, como em veículos) não se aplica a pessoas/ organizações — ver
+`docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`
+para o porquê. CRT e IE de organização PJ são validados como obrigatórios no cadastro, não na emissão."
 
 - [ ] **Step 4: Commit**
 
