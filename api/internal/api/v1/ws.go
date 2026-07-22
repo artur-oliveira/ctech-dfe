@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.aoctech.app/api-commons/ws"
@@ -70,10 +71,24 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 		}
 
 		return wsUpgrader.Upgrade(c.RequestCtx(), func(conn *fws.Conn) {
+			// Post-upgrade the handler runs on a hijacked goroutine outside
+			// Fiber's recover middleware — an unrecovered panic here kills the
+			// whole process, not just this connection.
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("ws handler panic", "panic", r)
+					_ = conn.Close()
+				}
+			}()
 			ctx := c.Context()
+			// Single adapter shared by this handler, the heartbeat goroutine
+			// and the fan-out registry: its mutex is the only thing
+			// serializing data-frame writes (fasthttp/websocket panics on
+			// concurrent writes).
+			safeConn := &wsConnAdapter{conn: conn}
 			send := func(msg any) {
 				data, _ := json.Marshal(msg)
-				_ = conn.WriteMessage(fws.TextMessage, data)
+				_ = safeConn.WriteMessage(fws.TextMessage, data)
 			}
 
 			// M3: auth moved off the ?token= query string. The client sends the
@@ -113,7 +128,7 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 			}
 
 			connID := uuid.NewString()
-			reg.Register(orgPK, connID, &wsConnAdapter{conn: conn})
+			reg.Register(orgPK, connID, safeConn)
 			defer reg.Unregister(orgPK, connID)
 
 			send(map[string]any{"type": "connected", "org_pk": orgPK, "conn_id": connID})
@@ -192,11 +207,17 @@ func isClientPing(msg []byte) bool {
 	return json.Unmarshal(msg, &p) == nil && p.Type == "ping"
 }
 
-// wsConnAdapter adapts fasthttp/websocket.Conn to ws.Conn.
+// wsConnAdapter adapts fasthttp/websocket.Conn to ws.Conn, serializing
+// writes: the registry broadcasts from other goroutines while the read
+// loop and heartbeat reply inline, and fasthttp/websocket allows only one
+// concurrent data-frame writer per conn.
 type wsConnAdapter struct {
+	mu   sync.Mutex
 	conn *fws.Conn
 }
 
 func (w *wsConnAdapter) WriteMessage(messageType int, data []byte) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.conn.WriteMessage(messageType, data)
 }
