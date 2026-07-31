@@ -230,3 +230,11 @@ Before touching: identify risks + side effects, verify backward compatibility.
 - [ ] `access_token` never written to localStorage/sessionStorage
 - [ ] Docs updated (`../DOCS.md`, `../INTEGRATION.md`, or `../CONDUCT.md`)
 - [ ] Cross-project impact reviewed (ui ↔ api)
+
+## Mandatory Documentation Policy
+
+**Every code change MUST be documented.**
+
+There are NO exceptions.
+
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.

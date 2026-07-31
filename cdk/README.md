@@ -21,11 +21,11 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 | Stack | id | Creates |
 |-------|-----|---------|
 | `OidcStack` | `CtechDfe-Global-OIDC` | GitHub Actions OIDC deploy roles (`bin:60-65`) |
-| `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 25 tables (§4) (`bin:70-75`) |
+| `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 26 tables, including streamed worker outbox (§4) (`bin:70-75`) |
 | `S3Stack` | `CtechDfe-{Env}-S3` | Certificates + Documents buckets (`bin:79-84`) |
 | `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results SQS (`bin:86-90`) |
 | `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (`bin:97-101`) |
-| `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher (§2/§3) (`bin:105-116`) |
+| `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher + outbox publisher (§2/§3) (`bin:105-116`) |
 | `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies (`bin:118-130`) |
 | `ApiStackV2` | `CtechDfe-{Env}-API-V2` | EC2 ASG + ALB (§5) (`bin:139-156`) |
 | `FrontendStack` | `CtechDfe-{Env}-Frontend` | S3 + CloudFront (§6) (`bin:168-176`) |
@@ -49,6 +49,8 @@ handler `bootstrap`):
 Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
 - **DLQ processor** per worker: `${env}-{name}-dlq-processor`, timeout 30 / mem 128
   (`worker-stack.ts:273-290`).
+- **outbox-publisher**: `${env}-dfe-outbox-publisher`, consumes `${p}_worker_outbox` `NEW_IMAGE` stream records,
+  publishes command SNS, and conditionally acknowledges the row; its own DLQ has a CloudWatch alarm.
 - **distribution-dispatcher**: `${env}-distribution-dispatcher`, timeout 60 / mem 128,
   EventBridge schedule every **30 min** (`worker-stack.ts:346-368`).
 - **py-dfe**: `${env}-py-dfe`, Python 3.14, arm64, timeout 30 / mem 512, handler
@@ -70,7 +72,7 @@ All **standard** (no FIFO anywhere).
 
 `TableV2`, **`Billing.onDemand({ maxReadRequestUnits: 1000, maxWriteRequestUnits: 1000 })`**
 (on-demand, capped — NOT provisioned autoscaling). `RemovalPolicy` DESTROY in dev / RETAIN
-otherwise; **PITR prod only** (`:221-222`). 25 tables; notable GSIs:
+otherwise; **PITR prod only** (`:221-222`). 26 tables; notable GSIs:
 
 | table | keys | GSIs |
 |-------|------|------|
@@ -85,6 +87,7 @@ otherwise; **PITR prod only** (`:221-222`). 25 tables; notable GSIs:
 | `${p}_{nfe,nfce,cte,mdfe}_events` | pk+sk | org-event-key-index |
 | `${p}_{nfe,cte,mdfe}_distributions` | pk + nsu(N) | — |
 | `${p}_organization_{nfe,nfce,cte,mdfe}_configs` | pk only | — |
+| `${p}_worker_outbox` | pk+sk (+TTL `ttl`, `NEW_IMAGE` stream) | — |
 
 The `TableName` union (`:8-34`) is a **logical-name enum**, not the physical name — map via
 the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` builders.

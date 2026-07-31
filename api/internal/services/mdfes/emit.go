@@ -281,16 +281,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.InternalServer("failed to encode MDF-e record")
 	}
 
-	if err := s.mdfeRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded,
-	); err != nil {
-		if strings.Contains(err.Error(), "TransactionCanceledException") {
-			return nil, problem.Conflict("conflito ao reservar número do MDF-e. Tente novamente.")
-		}
-		return nil, err
-	}
-
-	if err := s.workerSvc.PublishWorkerEvent(ctx, services.WorkerMessage{
+	workerMsg := services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        accessKey,
 		TableName:        tableMdfes,
@@ -304,7 +295,19 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		DocType:          s3PrefixMdfe,
 		SefazService:     sefazServiceAutorizacao,
 		Body:             mdfeBody,
-	}); err != nil {
+	}
+	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+	if err != nil {
+		return nil, err
+	}
+	encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+
+	if err := s.mdfeRepo.TransactReserveAndCreate(
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, outboxTx,
+	); err != nil {
+		if strings.Contains(err.Error(), "TransactionCanceledException") {
+			return nil, problem.Conflict("conflito ao reservar número do MDF-e. Tente novamente.")
+		}
 		return nil, err
 	}
 

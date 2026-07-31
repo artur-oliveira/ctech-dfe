@@ -437,6 +437,18 @@ Must follow Conventional Commits:
 - XML structure must follow SEFAZ specification strictly.
 - Schema validation is disabled by default in production for performance reasons.
 
+### SEFAZ TLS compatibility exception
+
+- Both fiscal engines currently keep TLS server-certificate verification disabled
+  because deployed SEFAZ chains are not accepted by the default client trust store;
+  the same endpoints can be reported as insecure by a browser.
+- This is an explicit interoperability requirement for the current deployment, not
+  an accidental insecure default or an unreviewed cleanup target.
+- Endpoint selection remains restricted to the source-controlled SEFAZ catalog;
+  certificate verification must not be toggled per request or from user input.
+- Do not enable default verification without first homologating every supported UF
+  and deploying a verified trust-bundle/pinning strategy that preserves connectivity.
+
 ## ctech-dfe-api (Go + Fiber backend)
 
 - Uses AWS SDK v2 for Go — do not add boto3 or any Python client.
@@ -545,10 +557,15 @@ breaks rate limiting — the zone still exists, it just keys on the wrong thing.
 ## ctech-dfe-worker (Go Lambda)
 
 - Runtime: `provided.al2023`. Binary must be named `bootstrap`.
-- SQS FIFO ensures ordering per organization (`org_pk` as MessageGroupId).
-- Handlers must be idempotent (at-least-once delivery guarantee).
-- Invokes `ctech-dfe` Python Lambda for SEFAZ XML-DSig + SOAP — do not rewrite this path.
-- After SEFAZ response: update DynamoDB, upload XML to S3, publish to Redis pub/sub.
+- Command queues are standard SQS and provide at-least-once delivery; never rely on ordering or queue deduplication.
+- Issuance/event handlers must conditionally claim the document with a processing owner and lease before SEFAZ.
+  Only the owner may finalize, and a DynamoDB claim/read error must fail closed.
+- Infrastructure, storage, engine, HTTP 408/425/429/5xx, and malformed-response failures remain retryable and
+  release the lease. SEFAZ business rejection is terminal.
+- API issuance must transact document/counter state with an immutable `worker_outbox` command. The DynamoDB Stream
+  `outbox-publisher` publishes it to command SNS and conditionally acknowledges the row.
+- The worker invokes go-dfe in-process when supported and the Python Lambda as fallback.
+- After SEFAZ response: update DynamoDB, upload XML to S3, publish terminal results to SNS.
 - DLQ receives messages after max retries — monitor and alert.
 
 ---

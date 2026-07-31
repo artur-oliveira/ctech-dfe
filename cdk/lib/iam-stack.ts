@@ -91,6 +91,7 @@ export class IAMStack extends cdk.Stack {
             'dynamodb:Scan',
             'dynamodb:BatchGetItem',
             'dynamodb:BatchWriteItem',
+			'dynamodb:TransactWriteItems',
           ],
           resources: [...props.dynamoDBTables.values()].flatMap(it => [
             it.tableArn, `${it.tableArn}/index/*`

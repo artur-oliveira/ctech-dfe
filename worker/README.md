@@ -17,6 +17,7 @@ Sibling docs: [`../api/README.md`](../api/README.md) · [`../go-dfe/README.md`](
 | `distribution-worker` | `cmd/distribution-worker/main.go` | Inbound Distribuição DF-e pipeline | SQS distribution queue | S3, SNS results, DynamoDB |
 | `distribution-dispatcher` | `cmd/distribution-dispatcher/main.go` | Scheduler/enqueuer (no SEFAZ) | EventBridge (cron) | SQS distribution queue |
 | `dlq-processor` | `cmd/dlq-processor/main.go` | Terminal sink for dead-letter messages | SQS DLQ | DynamoDB terminal status, SNS results (optional) |
+| `outbox-publisher` | `cmd/outbox-publisher/main.go` | Durable command dispatcher | `worker_outbox` DynamoDB Stream | command SNS, conditional outbox acknowledgement |
 
 Common handler pattern (`cmd/worker/main.go:54-80`, `cmd/distribution-worker/main.go:54-80`):
 `IsPingEvent` keep-warm short-circuit → unmarshal SQS records → `svc.Process` → failures
@@ -26,6 +27,8 @@ Env vars (`internal/config/config.go`):
 - `worker` / `distribution-worker`: require `DOCUMENTS_BUCKET`, `CERTIFICATES_BUCKET`,
   `DFE_LAMBDA_NAME` (py-dfe function); optional `RESULTS_TOPIC_ARN`, `EVENT_BUS_TOPIC_ARN`,
   `DISTRIBUTION_QUEUE_URL` (`config.go:32-40`).
+- `outbox-publisher`: requires `EVENT_BUS_TOPIC_ARN` and `OUTBOX_TABLE_NAME`; row identity and payload are carried by
+  each DynamoDB Stream record.
 - `distribution-dispatcher`: requires `DISTRIBUTION_QUEUE_URL`; `TABLE_PREFIX`, `AWS_REGION`
   have defaults (`config.go:51`).
 - `dlq-processor`: reads `RESULTS_TOPIC_ARN`, `TABLE_PREFIX` directly via `os.Getenv`
@@ -54,8 +57,14 @@ Env vars (`internal/config/config.go`):
 
 **Retry / DLQ** (`cdk/lib/worker-stack.ts`): per-worker main queue → DLQ,
 `maxReceiveCount: 3`; DLQ retention 14 days; SQS `reportBatchItemFailures: true`.
-SEFAZ *business* rejections return `nil` (no retry); only infra errors trigger redelivery
-(`internal/service/dfe.go:223-234`).
+Before any fiscal side effect, the issuance/event worker conditionally writes `status=processing`, a random
+`processing_owner`, six-minute `processing_lease_until`, and an incremented attempt. Concurrent delivery while the
+lease is active is rejected for redelivery; an expired lease can be stolen, and only its owner can finalize.
+DynamoDB claim/read failures fail closed.
+
+Certificate/S3/Lambda/engine failures, malformed responses, and HTTP 408/425/429/5xx set
+`retryable_failed`, release the lease, and return an error so SQS retries. SEFAZ business rejection and other
+non-retryable 4xx responses are terminal. The DLQ processor is the terminal sink after delivery exhaustion.
 
 ---
 

@@ -102,6 +102,7 @@ new DfeStack(app, id('Dfe'), {
 
 // WorkerStack is created before IAMStack so that distributionQueueArn is
 // available to grant sqs:SendMessage to the API v2 role.
+const workerOutboxTable = dynamodbStack.tables.get('worker_outbox')!;
 const workerStack = new WorkerStack(app, id('Worker'), {
   env,
   environment: ENVIRONMENT,
@@ -112,6 +113,9 @@ const workerStack = new WorkerStack(app, id('Worker'), {
   documentsBucketName: s3Stack.documentsBucketName,
   dfeLambdaName: `${ENVIRONMENT}-py-dfe`,
   resultsTopicArn: eventBusStack.resultsTopic.topicArn,
+  outboxTableName: workerOutboxTable.tableName,
+  outboxTableArn: workerOutboxTable.tableArn,
+  outboxStreamArn: workerOutboxTable.tableStreamArn!,
   description: `CTech DFe Worker (SNS + SQS + Lambda) - ${ENVIRONMENT}`,
 });
 

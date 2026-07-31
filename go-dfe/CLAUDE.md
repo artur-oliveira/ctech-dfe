@@ -192,3 +192,11 @@ Before touching: identify risks + side effects, verify parity with the equivalen
 - [ ] All constants named (no magic strings)
 - [ ] Docs updated (`../DOCS.md`/`../MIGRATION.md` and/or `../CONDUCT.md`)
 - [ ] Cross-project impact reviewed (go-dfe ↔ worker ↔ api ↔ py-dfe ↔ cdk)
+
+## Mandatory Documentation Policy
+
+**Every code change MUST be documented.**
+
+There are NO exceptions.
+
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.

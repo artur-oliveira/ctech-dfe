@@ -37,6 +37,7 @@ PITR: enabled in production only.
 | 24 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)           |
 | 25 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                |
 
+| 26 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                 |
 ---
 
 ## 1. `users`
@@ -403,6 +404,30 @@ the accept `TransactWriteItems`, not by the TTL sweep.
 
 ---
 
+## 26. `worker_outbox`
+
+One immutable issuance command per fiscal operation. The API creates this row in
+the same `TransactWriteItems` as the fiscal document and number reservation.
+
+| Attribute        | Type | Notes |
+|------------------|------|-------|
+| `pk`             | S    | Operation ID: `{table_name}#{access_key}` |
+| `sk`             | S    | Constant `command` |
+| `status`         | S    | `pending` → `published` |
+| `payload`        | S    | Exact JSON `WorkerMessage` published to command SNS |
+| `created_at`     | S    | ISO-8601 UTC |
+| `published_at`   | S    | ISO-8601 UTC, set after SNS accepts the message |
+| `sns_message_id` | S    | SNS acknowledgement identity |
+| `ttl`            | N    | Epoch seconds, 30 days after creation |
+
+The API put is create-only. A `NEW_IMAGE` DynamoDB Stream invokes
+`outbox-publisher`, which publishes pending rows and conditionally changes only
+`pending` to `published`. Failed invocation is retried by the stream event source;
+downstream workers remain idempotent because SNS publication and acknowledgement
+cannot be made atomic.
+
+---
+
 ## Access Pattern Reference
 
 | Operation                           | Method           | Table / GSI                            |
@@ -421,3 +446,4 @@ the accept `TransactWriteItems`, not by the TTL sweep.
 | Org-wide audit feed                 | `query_gsi`      | `audit_logs` / `org-time-index`        |
 | Everything a user did               | `query_gsi`      | `audit_logs` / `user-id-index`         |
 | Audit resource + its log atomically | `transact_write` | resource table + `audit_logs`          |
+| Persist document command atomically | `transact_write` | document/config + `worker_outbox`       |

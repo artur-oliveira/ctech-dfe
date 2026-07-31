@@ -19,6 +19,9 @@ function buildTemplate(): Template {
     documentsBucketName: 'dev-ctech-dfe-documents',
     dfeLambdaName: 'dev-py-dfe',
     resultsTopicArn: resultsTopic.topicArn,
+	outboxTableName: 'dev_dfe_worker_outbox',
+	outboxTableArn: 'arn:aws:dynamodb:us-east-1:123456789012:table/dev_dfe_worker_outbox',
+	outboxStreamArn: 'arn:aws:dynamodb:us-east-1:123456789012:table/dev_dfe_worker_outbox/stream/2026-07-31T00:00:00.000',
   })
   return Template.fromStack(stack)
 }
@@ -40,7 +43,7 @@ test('every DLQ processor role can UpdateItem on its worker tables', () => {
 test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
   const template = buildTemplate()
 
-  template.resourceCountIs('AWS::CloudWatch::Alarm', WORKERS.length)
+  template.resourceCountIs('AWS::CloudWatch::Alarm', WORKERS.length + 1)
   template.hasResourceProperties('AWS::CloudWatch::Alarm', {
     ComparisonOperator: 'GreaterThanOrEqualToThreshold',
     EvaluationPeriods: 1,
@@ -66,7 +69,7 @@ test('every worker has a keep-warm ping schedule invoking it directly with {"pin
   for (const worker of WORKERS) {
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
       Name: `dev-${worker.name}-ping-schedule`,
-      ScheduleExpression: 'rate(5 minutes)',
+      ScheduleExpression: 'rate(1 minute)',
       State: 'ENABLED',
       Target: Match.objectLike({
         Input: JSON.stringify({ping: true}),

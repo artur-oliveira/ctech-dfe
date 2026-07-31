@@ -67,8 +67,10 @@ type capturedUpdate struct {
 }
 
 type mockDynamo struct {
-	updates []capturedUpdate
-	err     error
+	updates    []capturedUpdate
+	err        error
+	claimErr   error
+	claimCalls int
 	// getItemOutput/getItemErr configure the response to GetItem (used by the
 	// idempotency guard). Nil getItemOutput.Item (the zero value) means "not
 	// found", matching the default behavior needed by every pre-existing test.
@@ -87,6 +89,19 @@ func (m *mockDynamo) GetItem(_ context.Context, _ *dynamodb.GetItemInput, _ ...f
 }
 
 func (m *mockDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	if _, isClaim := in.ExpressionAttributeValues[":processing"]; isClaim {
+		m.claimCalls++
+		if m.claimErr != nil {
+			return nil, m.claimErr
+		}
+		if m.getItemOutput != nil {
+			if status, ok := m.getItemOutput.Item["status"].(*types.AttributeValueMemberS); ok &&
+				(docTerminalStatuses[status.Value] || eventTerminalStatuses[status.Value] || status.Value == StatusProcessing) {
+				return nil, &types.ConditionalCheckFailedException{}
+			}
+		}
+		return &dynamodb.UpdateItemOutput{}, nil
+	}
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -373,7 +388,19 @@ func TestProcess_PyDfe422_MarksFailed(t *testing.T) {
 	}
 }
 
-func TestProcess_LambdaError_MarksFailedAndReturnsError(t *testing.T) {
+func TestProcess_PyDfe500_RemainsRetryable(t *testing.T) {
+	dynm := &mockDynamo{}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeRespStatus(503, "SEFAZ indisponível")}, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); err == nil {
+		t.Fatal("expected retryable engine error")
+	}
+	if len(dynm.updates) != 1 || dynm.updates[0].status != StatusRetryableFailed {
+		t.Fatalf("expected retryable_failed, got %+v", dynm.updates)
+	}
+}
+
+func TestProcess_LambdaError_MarksRetryableAndReturnsError(t *testing.T) {
 	dynm := &mockDynamo{}
 	svc := newSvc(certS3(), &mockLambda{err: errors.New("network timeout")}, dynm)
 
@@ -381,12 +408,12 @@ func TestProcess_LambdaError_MarksFailedAndReturnsError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if len(dynm.updates) == 0 || dynm.updates[0].status != StatusFailed {
-		t.Errorf("expected document marked as failed; updates: %+v", dynm.updates)
+	if len(dynm.updates) == 0 || dynm.updates[0].status != StatusRetryableFailed {
+		t.Errorf("expected document marked retryable_failed; updates: %+v", dynm.updates)
 	}
 }
 
-func TestProcess_S3CertError_MarksFailedAndReturnsError(t *testing.T) {
+func TestProcess_S3CertError_MarksRetryableAndReturnsError(t *testing.T) {
 	dynm := &mockDynamo{}
 	svc := newSvc(&mockS3{getErr: errors.New("s3 error")}, &mockLambda{}, dynm)
 
@@ -394,8 +421,8 @@ func TestProcess_S3CertError_MarksFailedAndReturnsError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if len(dynm.updates) == 0 || dynm.updates[0].status != StatusFailed {
-		t.Errorf("expected document marked as failed; updates: %+v", dynm.updates)
+	if len(dynm.updates) == 0 || dynm.updates[0].status != StatusRetryableFailed {
+		t.Errorf("expected document marked retryable_failed; updates: %+v", dynm.updates)
 	}
 }
 
@@ -785,6 +812,19 @@ func TestProcess_SkipsWhenEventAlreadyTerminal(t *testing.T) {
 	}
 }
 
+func TestProcess_ActiveLeaseDoesNotInvokeSefaz(t *testing.T) {
+	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
+	dynm := &mockDynamo{getItemOutput: statusItem(StatusProcessing)}
+	svc := newSvc(certS3(), lamm, dynm)
+
+	if err := svc.Process(context.Background(), baseMsg); !errors.Is(err, errProcessingLeaseHeld) {
+		t.Fatalf("expected processing lease error, got %v", err)
+	}
+	if lamm.calls != 0 {
+		t.Fatalf("active lease must block duplicate SEFAZ call, got %d", lamm.calls)
+	}
+}
+
 func TestProcess_ProceedsWhenNotYetTerminal(t *testing.T) {
 	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
 	dynm := &mockDynamo{} // GetItem returns "not found" by default
@@ -798,15 +838,15 @@ func TestProcess_ProceedsWhenNotYetTerminal(t *testing.T) {
 	}
 }
 
-func TestProcess_GetItemErrorFallsThroughToProcessing(t *testing.T) {
+func TestProcess_ClaimStoreErrorFailsClosed(t *testing.T) {
 	lamm := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
-	dynm := &mockDynamo{getItemErr: errors.New("transient dynamodb error")}
+	dynm := &mockDynamo{claimErr: errors.New("transient dynamodb error")}
 	svc := newSvc(certS3(), lamm, dynm)
 
-	if err := svc.Process(context.Background(), baseMsg); err != nil {
-		t.Fatalf("Process: %v", err)
+	if err := svc.Process(context.Background(), baseMsg); err == nil {
+		t.Fatal("expected claim-store error")
 	}
-	if lamm.calls != 1 {
-		t.Errorf("a GetItem error must not block processing (SEFAZ's own dedup is the backstop): expected 1 call, got %d", lamm.calls)
+	if lamm.calls != 0 {
+		t.Errorf("claim-store failure must fail closed before SEFAZ; got %d calls", lamm.calls)
 	}
 }

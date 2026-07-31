@@ -187,10 +187,11 @@ func (r *DocumentRepository) queryDateIndex(ctx context.Context, pk string, inco
 	return &QueryResult{Items: out.Items, LastEvaluatedKey: out.LastEvaluatedKey}, nil
 }
 
-// TransactReserveAndCreate atomically increments the NF-e counter and inserts the NF-e record.
+// TransactReserveAndCreate atomically increments the fiscal counter, inserts
+// the document, and commits any supplied workflow records (notably outbox).
 // Mirrors _transact_reserve_and_create in Python NfeService.
 // Uses attribute_not_exists fallback so the condition works on first emission.
-func (r *DocumentRepository) TransactReserveAndCreate(ctx context.Context, configTable, orgPK, envPrefix string, currentNumber int, nfeItem map[string]types.AttributeValue) error {
+func (r *DocumentRepository) TransactReserveAndCreate(ctx context.Context, configTable, orgPK, envPrefix string, currentNumber int, nfeItem map[string]types.AttributeValue, extra ...types.TransactWriteItem) error {
 	nextNumber := currentNumber + 1
 	now := NowStr()
 	counterField := fmt.Sprintf("%s_current_number", envPrefix)
@@ -221,6 +222,7 @@ func (r *DocumentRepository) TransactReserveAndCreate(ctx context.Context, confi
 			},
 		},
 	}
+	items = append(items, extra...)
 
 	return r.TransactWrite(ctx, items)
 }

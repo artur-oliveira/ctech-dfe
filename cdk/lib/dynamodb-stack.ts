@@ -30,7 +30,8 @@ export type TableName = (
     'mdfe_events' |
     'nfe_distributions' |
     'cte_distributions' |
-    'mdfe_distributions'
+    'mdfe_distributions' |
+    'worker_outbox'
     )
 
 type TablePrefix = `${Environment}_dfe`
@@ -527,6 +528,24 @@ export class DynamoDBStack extends cdk.Stack {
 
         const mdfeDistributionsTable = getDistributionTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_distributions');
         this.tables.set('mdfe_distributions', mdfeDistributionsTable);
+
+        // Transactional command outbox. New images are streamed to the
+        // outbox-publisher Lambda; published rows expire after 30 days.
+        const workerOutboxTable = new dynamodb.TableV2(this, `${tablePrefix}_worker_outbox`, {
+            tableName: `${tablePrefix}_worker_outbox`,
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+            billing: Billing.onDemand({
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
+            }),
+            dynamoStream: dynamodb.StreamViewType.NEW_IMAGE,
+            timeToLiveAttribute: 'ttl',
+            removalPolicy,
+            pointInTimeRecoverySpecification,
+            encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+        });
+        this.tables.set('worker_outbox', workerOutboxTable);
 
         // ============== OUTPUTS ==============
 

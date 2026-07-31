@@ -136,6 +136,19 @@ aws dynamodb describe-table \
 
 ---
 
+## Verify durable issuance dispatch
+
+After deployment, verify the outbox stream and publisher mapping before accepting fiscal traffic:
+
+```bash
+aws dynamodb describe-table --table-name "${TABLE_PREFIX}_dfe_worker_outbox" --region us-east-1
+aws lambda list-event-source-mappings --function-name "${ENVIRONMENT}-dfe-outbox-publisher" --region us-east-1
+```
+
+The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ alarm
+must be `OK`. Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the
+five-minute maximum batching window; do not replace it with a fixed value below the function execution budget.
+
 # Destroy
 
 ## WARNING

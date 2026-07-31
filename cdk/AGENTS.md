@@ -162,3 +162,11 @@ Before touching: identify blast radius, verify environment, confirm with user fo
 - [ ] New resources documented in `../DOCS.md §8` and/or `../DynamoDB-Tables.md`
 - [ ] Cost impact assessed
 - [ ] Cross-project impact reviewed (cdk ↔ api ↔ worker ↔ py-dfe ↔ ui)
+
+## Mandatory Documentation Policy
+
+**Every code change MUST be documented.**
+
+There are NO exceptions.
+
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.

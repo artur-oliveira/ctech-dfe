@@ -51,10 +51,10 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
        │              │          │             │
   ┌────▼─────┐  ┌─────▼──────┐  │   ┌─────────▼──────┐
   │ DynamoDB │  │     S3     │  │   │ Redis (Valkey)  │
-  │ 21 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
+  │ 26 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
   └──────────┘  └────────────┘  │   └────────────────┘
                             ┌───▼────────────────────┐
-                            │  SQS FIFO              │
+                            │ Outbox → SNS → SQS     │
                             └───┬────────────────────┘
                                 │
                         ┌───────▼──────────────┐
@@ -77,11 +77,12 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
 
 1. HTTP client authenticates via JWT and selects the active organization
 2. ctech-dfe-api validates JWT (RS256, JWKS cached in Redis), loads data from DynamoDB and certificate from S3
-3. For fiscal document issuance: transact_write reserves the number, sends `DfeWorkerEvent` to SQS FIFO
-4. ctech-dfe-worker Lambda receives the SQS event, fetches the certificate, invokes the py-dfe Lambda
-5. py-dfe Lambda signs the XML, opens mTLS with the A1 certificate, and submits to SEFAZ
-6. Worker persists result in DynamoDB, uploads XML to S3, publishes to Redis pub/sub
-7. ctech-dfe-api delivers real-time status update to the client via WebSocket
+3. Issuance transacts the fiscal number, document, and immutable `worker_outbox` command
+4. The outbox DynamoDB Stream publisher forwards the command through SNS to standard SQS
+5. ctech-dfe-worker conditionally claims the target, fetches the certificate, and invokes go-dfe or py-dfe
+6. The fiscal engine signs XML, opens mTLS with the A1 certificate, and submits to SEFAZ
+7. Worker persists the result, uploads XML to S3, and publishes terminal status to results SNS
+8. ctech-dfe-api consumes results and delivers the update through Valkey/WebSocket
 
 ---
 
@@ -382,7 +383,7 @@ S3_BUCKET_CERTIFICATES=dev-py-dfe-certificates
 S3_BUCKET_DOCUMENTS=dev-py-dfe-documents
 ENVIRONMENT=dev
 PYDFE_FUNCTION_NAME=dev-py-dfe  # Python SEFAZ Lambda (Scenario A)
-SQS_WORKER_QUEUE_URL=           # SQS FIFO URL for DFe worker events
+DFE_TOPIC_ARN=                  # SNS command topic; issuance reaches it through worker_outbox
 TECHNICAL_CNPJ=62787449000107   # Technical contact CNPJ (DFe)
 ```
 
@@ -1166,11 +1167,13 @@ React Hook Form + Zod. Zod schemas in `lib/schemas/` mirror the backend Pydantic
 
 **Responsibility:**
 
-- Consume SQS FIFO for async DFe issuances (`DfeWorkerEvent`)
+- Publish immutable API command outbox rows from DynamoDB Streams to command SNS
+- Consume standard SQS for at-least-once DFe issuance/event delivery (`DfeWorkerEvent`)
+- Conditionally claim each document/event with an owner and six-minute processing lease before SEFAZ
 - Fetch A1 certificate from S3, invoke `ctech-dfe` Python Lambda (SEFAZ XML-DSig + SOAP)
 - Parse SEFAZ response, update DynamoDB (status, protocol, xml_s3_key)
 - Upload signed XML to S3
-- Publish status update to Redis pub/sub → WebSocket push to browser
+- Publish terminal status to results SNS → API results consumer → Valkey/WebSocket
 
 **Deployment:**
 
@@ -1185,8 +1188,10 @@ GitHub push → worker.yml
      e. wait   aws lambda wait function-updated
 ```
 
-**Constraints (see CONDUCT.md §5):** Every SQS message may be delivered more than once. Handlers must be idempotent.
-MessageGroupId = `org_pk`.
+**Constraints (see CONDUCT.md §11):** Every SQS message may be delivered more than once. The handler must fail closed
+if it cannot claim DynamoDB state, only the lease owner may finalize, and retryable infrastructure failures must not
+write a terminal status. Command publication is also at-least-once because SNS publish and outbox acknowledgement are
+separate operations; the worker claim is the downstream duplicate guard.
 
 ---
 
@@ -1200,14 +1205,14 @@ MessageGroupId = `org_pk`.
 | Stack           | File                 | Responsibility                                            |
 |-----------------|----------------------|-----------------------------------------------------------|
 | `OidcStack`     | `oidc-stack.ts`      | GitHub Actions OIDC provider + deploy roles (global)      |
-| `DynamoDBStack` | `dynamodb-stack.ts`  | 23 tables + GSIs                                          |
+| `DynamoDBStack` | `dynamodb-stack.ts`  | 26 tables + GSIs, including streamed worker outbox        |
 | `S3Stack`       | `s3-stack.ts`        | 4 buckets: certificates, documents, deployments, logs     |
 | `NetworkStack`  | `network-stack.ts`   | Dual-stack VPC, public subnets, security groups           |
 | `EventBusStack` | `event-bus-stack.ts` | SNS command topic + SNS results topic + SQS results queue |
 | `IAMStack`      | `iam-stack.ts`       | Lambda roles, EC2 (V1 EB + V2 custom), instance profiles  |
 | `LayersStack`   | `layers-stack.ts`    | Lambda Layers scaffold                                    |
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda (SEFAZ) + inline layer                      |
-| `WorkerStack`   | `worker-stack.ts`    | 7 Lambda workers + SQS + DLQ + inline layer               |
+| `WorkerStack`   | `worker-stack.ts`    | 8 fiscal workers + outbox publisher + SQS/DLQ             |
 | `AlbStack`      | `alb-stack.ts`       | Dual-stack ALB without public IPv4, HTTPS listener        |
 | `ApiStack`      | `api-stack.ts`       | **Legacy** — Elastic Beanstalk (migration in progress)    |
 | `ApiStackV2`    | `api-v2-stack.ts`    | EC2 + ASG + Launch Template + Target Group + CW Logs      |
@@ -1508,11 +1513,13 @@ async support and adds Lambda cold start overhead. That constraint does not appl
 
 ### Why async SQS worker instead of synchronous Lambda invocation?
 
-NF-e issuance enqueues a `DfeWorkerEvent` to SQS FIFO and returns 202 immediately.
-`ctech-dfe-worker` Lambda processes the event, invokes the SEFAZ Lambda, and pushes status via WebSocket.
+NF-e/NFC-e/MDF-e issuance transacts the fiscal document, number reservation, and immutable `worker_outbox` command,
+then returns immediately with a durable operation ID. A DynamoDB Stream publisher forwards the command through SNS
+to standard SQS; `ctech-dfe-worker` claims it with a lease, invokes SEFAZ, and publishes terminal results for WebSocket.
 
-**Benefits:** API doesn't block on SEFAZ latency; SQS provides ordering (MessageGroupId = org_pk), visibility timeout,
-DLQ for failed events, and FIFO deduplication.
+**Benefits:** the API does not block on SEFAZ latency; a committed document cannot lose its command; SQS supplies
+visibility timeout and DLQ redelivery; and the conditional worker claim, not FIFO ordering or deduplication, protects
+the fiscal side effect from concurrent at-least-once delivery.
 
 ### Why Redis instead of in-memory cache?
 

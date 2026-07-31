@@ -3,12 +3,16 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -91,6 +95,8 @@ type WorkerMessage struct {
 	EventType       *string `json:"event_type,omitempty"`
 	SequenceNumber  *int    `json:"sequence_number,omitempty"`
 	EventSK         *string `json:"event_sk,omitempty"`
+
+	processingOwner string
 }
 
 type lambdaPayload struct {
@@ -120,16 +126,20 @@ var eventTerminalStatuses = map[string]bool{
 	EventStatusSuccess: true, EventStatusError: true,
 }
 
-// alreadyTerminal reports whether msg's target item is already in a terminal
-// status, i.e. this is a redelivered message (standard SQS is at-least-once,
-// see docs/specs/2026-07-18-audit-findings-remediation-design.md §2). On a
-// DynamoDB read error it fails OPEN (returns false, logs a warning) — SEFAZ's
-// own duplicate-rejection (DuplicatedEventError) remains the backstop, so a
-// transient read error must not block real processing.
-func (s *DfeService) alreadyTerminal(ctx context.Context, msg WorkerMessage) bool {
+const processingLeaseDuration = 6 * time.Minute
+
+var errProcessingLeaseHeld = errors.New("dfe processing lease is held by another worker")
+
+type processingTarget struct {
+	table    string
+	pk       string
+	sk       string
+	terminal map[string]bool
+}
+
+func (s *DfeService) processingTarget(msg WorkerMessage) processingTarget {
 	var table, pk, sk string
 	var terminal map[string]bool
-
 	if msg.EventsTableName != nil && msg.EventSK != nil {
 		table = s.cfg.TablePrefix + "_" + *msg.EventsTableName
 		pk, sk = msg.AccessKey, *msg.EventSK
@@ -139,28 +149,78 @@ func (s *DfeService) alreadyTerminal(ctx context.Context, msg WorkerMessage) boo
 		pk, sk = msg.DocPK, msg.AccessKey
 		terminal = docTerminalStatuses
 	}
+	return processingTarget{table: table, pk: pk, sk: sk, terminal: terminal}
+}
+
+func newProcessingOwner() (string, error) {
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generate processing owner: %w", err)
+	}
+	return hex.EncodeToString(raw), nil
+}
+
+// claimProcessing is the idempotency boundary for every external SEFAZ call.
+// It atomically claims pending/retryable work or steals an expired lease. A
+// DynamoDB failure fails closed; no certificate or SEFAZ operation is touched.
+func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, owner string) (bool, error) {
+	target := s.processingTarget(msg)
+	now := time.Now().UTC()
+	_, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(target.table),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: target.pk},
+			"sk": &types.AttributeValueMemberS{Value: target.sk},
+		},
+		UpdateExpression:         aws.String("SET #status = :processing, processing_owner = :owner, processing_lease_until = :lease, processing_attempt = if_not_exists(processing_attempt, :zero) + :one, updated_at = :updated"),
+		ConditionExpression:      aws.String("attribute_exists(pk) AND (#status = :pending OR #status = :retryable OR #status = :cancel_pending OR #status = :close_pending OR (#status = :processing AND processing_lease_until < :now))"),
+		ExpressionAttributeNames: map[string]string{"#status": "status"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pending":        &types.AttributeValueMemberS{Value: StatusPending},
+			":retryable":      &types.AttributeValueMemberS{Value: StatusRetryableFailed},
+			":cancel_pending": &types.AttributeValueMemberS{Value: StatusCancelPending},
+			":close_pending":  &types.AttributeValueMemberS{Value: StatusClosePending},
+			":processing":     &types.AttributeValueMemberS{Value: StatusProcessing},
+			":owner":          &types.AttributeValueMemberS{Value: owner},
+			":now":            &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Unix())},
+			":lease":          &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Add(processingLeaseDuration).Unix())},
+			":zero":           &types.AttributeValueMemberN{Value: "0"},
+			":one":            &types.AttributeValueMemberN{Value: "1"},
+			":updated":        &types.AttributeValueMemberS{Value: now.Format(time.RFC3339Nano)},
+		},
+	})
+	if err == nil {
+		return true, nil
+	}
+	var conditionFailed *types.ConditionalCheckFailedException
+	if !errors.As(err, &conditionFailed) {
+		return false, fmt.Errorf("claim processing %s/%s: %w", target.table, target.sk, err)
+	}
 
 	out, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(table),
+		TableName: aws.String(target.table),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: pk},
-			"sk": &types.AttributeValueMemberS{Value: sk},
+			"pk": &types.AttributeValueMemberS{Value: target.pk},
+			"sk": &types.AttributeValueMemberS{Value: target.sk},
 		},
 		ProjectionExpression:     aws.String("#status"),
 		ExpressionAttributeNames: map[string]string{"#status": "status"},
+		ConsistentRead:           aws.Bool(true),
 	})
 	if err != nil {
-		slog.Warn("idempotency check failed, proceeding with processing", "access_key", msg.AccessKey, "err", err)
-		return false
+		return false, fmt.Errorf("read processing claim %s/%s: %w", target.table, target.sk, err)
 	}
 	if out.Item == nil {
-		return false
+		return false, fmt.Errorf("processing target %s/%s does not exist", target.table, target.sk)
 	}
 	statusAttr, ok := out.Item["status"].(*types.AttributeValueMemberS)
 	if !ok {
-		return false
+		return false, fmt.Errorf("processing target %s/%s has no string status", target.table, target.sk)
 	}
-	return terminal[statusAttr.Value]
+	if target.terminal[statusAttr.Value] {
+		return false, nil
+	}
+	return false, errProcessingLeaseHeld
 }
 
 // Process handles a single DFe SEFAZ operation from an SQS message.
@@ -172,15 +232,24 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		"access_key", msg.AccessKey,
 	)
 
-	if s.alreadyTerminal(ctx, msg) {
+	owner, err := newProcessingOwner()
+	if err != nil {
+		return err
+	}
+	claimed, err := s.claimProcessing(ctx, msg, owner)
+	if err != nil {
+		return err
+	}
+	if !claimed {
 		slog.Info("skipping already-terminal message (redelivery)", "access_key", msg.AccessKey, "doc_pk", msg.DocPK)
 		return nil
 	}
+	msg.processingOwner = owner
 
 	certB64, err := s.getCertB64(ctx, msg.CertS3Key)
 	if err != nil {
-		s.failDoc(ctx, msg, "failed to retrieve certificate: "+err.Error())
-		return fmt.Errorf("getCertB64: %w", err)
+		cause := fmt.Errorf("getCertB64: %w", err)
+		return s.markRetryable(ctx, msg, "failed to retrieve certificate: "+err.Error(), cause)
 	}
 
 	pyDfePayload := lambdaPayload{
@@ -214,8 +283,8 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	}
 	// lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
 	if err != nil {
-		s.failDoc(ctx, msg, "sefaz invocation error: "+err.Error())
-		return fmt.Errorf("sefaz call: %w", err)
+		cause := fmt.Errorf("sefaz call: %w", err)
+		return s.markRetryable(ctx, msg, "sefaz invocation error: "+err.Error(), cause)
 	}
 
 	slog.Info("sefaz response", "status_code", lambdaResp.StatusCode, "access_key", msg.AccessKey)
@@ -229,18 +298,24 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 			}
 		}
 		slog.Warn("py-dfe returned error", "access_key", msg.AccessKey, "detail", detail)
-		s.failDoc(ctx, msg, detail)
-		return nil
+		if isRetryableEngineStatus(lambdaResp.StatusCode) {
+			cause := fmt.Errorf("SEFAZ engine returned retryable status %d: %s", lambdaResp.StatusCode, detail)
+			return s.markRetryable(ctx, msg, detail, cause)
+		}
+		return s.failTerminal(ctx, msg, detail)
 	}
 
 	var respBody map[string]any
 	if err := json.Unmarshal([]byte(lambdaResp.Body), &respBody); err != nil {
 		motive := "failed to parse lambda response body"
-		s.failDoc(ctx, msg, motive)
-		return fmt.Errorf("parse lambda body: %w", err)
+		cause := fmt.Errorf("parse lambda body: %w", err)
+		return s.markRetryable(ctx, msg, motive, cause)
 	}
 
-	return s.handleSefazResponse(ctx, msg, respBody)
+	if err := s.handleSefazResponse(ctx, msg, respBody); err != nil {
+		return s.markRetryable(ctx, msg, err.Error(), err)
+	}
+	return nil
 }
 
 func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage, respBody map[string]any) error {
@@ -296,7 +371,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 				return err
 			}
 		} else if !isSefazEvent {
-			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusAuthorized, updateAttrs{
+			if err := s.updateClaimedDocument(ctx, msg, StatusAuthorized, updateAttrs{
 				SefazStatus:   cStat,
 				SefazMotive:   xMotivo,
 				SefazProtocol: nProt,
@@ -332,7 +407,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 				return err
 			}
 		} else if !isSefazEvent {
-			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusRejected, updateAttrs{
+			if err := s.updateClaimedDocument(ctx, msg, StatusRejected, updateAttrs{
 				SefazStatus: cStat,
 				SefazMotive: xMotivo,
 			}, true); err != nil {
@@ -341,22 +416,11 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 		}
 
 	default:
-		eventStatus = EventStatusError
-		if isClose || isCancellation {
-			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusAuthorized, updateAttrs{}, false); err != nil {
-				return err
-			}
-		} else if !isSefazEvent {
-			motive := strVal(xMotivo)
-			if motive == "" {
-				motive = "cStat ausente na resposta SEFAZ"
-			}
-			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusFailed, updateAttrs{
-				SefazMotive: &motive,
-			}, true); err != nil {
-				return err
-			}
+		motive := strVal(xMotivo)
+		if motive == "" {
+			motive = "cStat ausente na resposta SEFAZ"
 		}
+		return errors.New(motive)
 	}
 
 	if isSefazEvent {
@@ -366,7 +430,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			SefazProtocol: nProt,
 			XMLS3Key:      xmlS3Key,
 		}
-		if err := s.updateEvent(ctx, *msg.EventsTableName, msg.AccessKey, *msg.EventSK, eventStatus, eventAttrs); err != nil {
+		if err := s.updateClaimedEvent(ctx, msg, eventStatus, eventAttrs); err != nil {
 			return err
 		}
 		// Notify on the event outcome — not the document status, which may have
@@ -377,39 +441,51 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 	return nil
 }
 
-// failDoc marks a document or event as failed depending on the message type.
-// Errors are logged but not returned — this is a best-effort recovery path.
-//
-// Routing rules:
-//   - Cancellation event failure → revert original document to "authorized" + update event as error.
-//   - Other event failure        → update event as error only; original document is NOT touched.
-//   - Non-event failure          → mark original document as failed.
-func (s *DfeService) failDoc(ctx context.Context, msg WorkerMessage, motive string) {
+func isRetryableEngineStatus(statusCode int) bool {
+	return statusCode == 408 || statusCode == 425 || statusCode == 429 || statusCode >= 500
+}
+
+// markRetryable records an infrastructure/transport failure without making
+// the target terminal. Releasing the lease lets the next SQS delivery claim it.
+func (s *DfeService) markRetryable(ctx context.Context, msg WorkerMessage, motive string, cause error) error {
+	attrs := updateAttrs{SefazMotive: &motive}
+	var err error
+	if msg.EventsTableName != nil && msg.EventSK != nil {
+		err = s.updateClaimedEvent(ctx, msg, StatusRetryableFailed, attrs)
+	} else {
+		err = s.updateClaimedDocument(ctx, msg, StatusRetryableFailed, attrs, false)
+	}
+	if err != nil {
+		return errors.Join(cause, fmt.Errorf("persist retryable failure: %w", err))
+	}
+	return cause
+}
+
+// failTerminal records a non-retryable engine validation failure. SEFAZ
+// business rejections are finalized separately from their cStat response.
+func (s *DfeService) failTerminal(ctx context.Context, msg WorkerMessage, motive string) error {
 	isSefazEvent := msg.EventsTableName != nil && msg.EventType != nil && msg.EventSK != nil
 	isCancellation := isCancellationEvent(msg.DocType, msg.EventType)
 	isClose := isCloseEvent(msg.DocType, msg.EventType)
 
 	if isCancellation || isClose {
 		if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusAuthorized, updateAttrs{}, false); err != nil {
-			slog.Error("failed to revert document to authorized after event failure", "access_key", msg.AccessKey, "err", err)
+			return err
 		}
 	} else if !isSefazEvent {
-		if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusFailed, updateAttrs{
+		return s.updateClaimedDocument(ctx, msg, StatusFailed, updateAttrs{
 			SefazMotive: &motive,
-		}, true); err != nil {
-			slog.Error("failed to mark document as failed", "access_key", msg.AccessKey, "err", err)
-		}
+		}, true)
 	}
 
 	if isSefazEvent {
 		eventAttrs := updateAttrs{SefazMotive: &motive}
-		if err := s.updateEvent(ctx, *msg.EventsTableName, msg.AccessKey, *msg.EventSK, EventStatusError, eventAttrs); err != nil {
-			slog.Error("failed to mark event as failed", "event_sk", *msg.EventSK, "err", err)
+		if err := s.updateClaimedEvent(ctx, msg, EventStatusError, eventAttrs); err != nil {
+			return err
 		}
-		// Surface the event failure to the client — the reverted document
-		// status above is intentionally not notified.
 		s.publishEventResult(ctx, msg, EventStatusError, eventAttrs)
 	}
+	return nil
 }
 
 func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, error) {
@@ -498,10 +574,18 @@ func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expected
 // cancellation) must pass notify=false — the user-facing notification for those
 // is published by publishEventResult, not by the reverted document status.
 func (s *DfeService) updateStatus(ctx context.Context, docPK, accessKey, tableName, status string, attrs updateAttrs, notify bool) error {
+	return s.updateStatusOwned(ctx, docPK, accessKey, tableName, status, attrs, notify, "")
+}
+
+func (s *DfeService) updateClaimedDocument(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs, notify bool) error {
+	return s.updateStatusOwned(ctx, msg.DocPK, msg.AccessKey, msg.TableName, status, attrs, notify, msg.processingOwner)
+}
+
+func (s *DfeService) updateStatusOwned(ctx context.Context, docPK, accessKey, tableName, status string, attrs updateAttrs, notify bool, owner string) error {
 	table := s.cfg.TablePrefix + "_" + tableName
 	parts := buildUpdateExpression(status, attrs)
 
-	if _, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+	input := &dynamodb.UpdateItemInput{
 		TableName: aws.String(table),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: docPK},
@@ -510,7 +594,13 @@ func (s *DfeService) updateStatus(ctx context.Context, docPK, accessKey, tableNa
 		UpdateExpression:          aws.String(parts.expression),
 		ExpressionAttributeNames:  parts.attrNames,
 		ExpressionAttributeValues: parts.attrValues,
-	}); err != nil {
+	}
+	if owner != "" {
+		input.UpdateExpression = aws.String(parts.expression + " REMOVE processing_owner, processing_lease_until")
+		input.ConditionExpression = aws.String("processing_owner = :owner")
+		input.ExpressionAttributeValues[":owner"] = &types.AttributeValueMemberS{Value: owner}
+	}
+	if _, err := s.dynamo.UpdateItem(ctx, input); err != nil {
 		return fmt.Errorf("updateStatus %s %s: %w", table, accessKey, err)
 	}
 	slog.Info("updated document status", "table", table, "access_key", accessKey, "status", status)
@@ -577,23 +667,27 @@ func (s *DfeService) publishResult(ctx context.Context, payload map[string]any) 
 	}
 }
 
-func (s *DfeService) updateEvent(ctx context.Context, eventsTableName, accessKey, eventSK, status string, attrs updateAttrs) error {
-	table := s.cfg.TablePrefix + "_" + eventsTableName
+func (s *DfeService) updateClaimedEvent(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs) error {
+	if msg.EventsTableName == nil || msg.EventSK == nil {
+		return errors.New("event processing target is incomplete")
+	}
+	table := s.cfg.TablePrefix + "_" + *msg.EventsTableName
 	parts := buildUpdateExpression(status, attrs)
+	parts.attrValues[":owner"] = &types.AttributeValueMemberS{Value: msg.processingOwner}
 
 	if _, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(table),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: accessKey},
-			"sk": &types.AttributeValueMemberS{Value: eventSK},
+			"pk": &types.AttributeValueMemberS{Value: msg.AccessKey},
+			"sk": &types.AttributeValueMemberS{Value: *msg.EventSK},
 		},
-		UpdateExpression:          aws.String(parts.expression),
+		UpdateExpression:          aws.String(parts.expression + " REMOVE processing_owner, processing_lease_until"),
 		ExpressionAttributeNames:  parts.attrNames,
 		ExpressionAttributeValues: parts.attrValues,
-		ConditionExpression:       aws.String("attribute_exists(pk)"),
+		ConditionExpression:       aws.String("processing_owner = :owner"),
 	}); err != nil {
-		return fmt.Errorf("updateEvent %s %s: %w", table, eventSK, err)
+		return fmt.Errorf("updateEvent %s %s: %w", table, *msg.EventSK, err)
 	}
-	slog.Info("updated event status", "table", table, "event_sk", eventSK, "status", status)
+	slog.Info("updated event status", "table", table, "event_sk", *msg.EventSK, "status", status)
 	return nil
 }

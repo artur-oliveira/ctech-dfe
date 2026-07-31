@@ -65,6 +65,9 @@ function goCode(cmd: string): lambda.AssetCode {
 interface WorkerStackProps extends cdk.StackProps {
   environment: Environment
   tablePrefix: string
+	outboxTableName: string
+	outboxTableArn: string
+	outboxStreamArn: string
   eventBus: sns.Topic
   workers: WorkerDefinition[]
   certificatesBucketName: string
@@ -89,6 +92,9 @@ export class WorkerStack extends cdk.Stack {
       documentsBucketName,
       dfeLambdaName,
       resultsTopicArn,
+	  outboxTableName,
+	  outboxTableArn,
+	  outboxStreamArn,
     } = props
 
     const dfeLambdaArn = `arn:aws:lambda:${this.region}:${this.account}:function:${dfeLambdaName}`
@@ -121,7 +127,8 @@ export class WorkerStack extends cdk.Stack {
 
       const queue = new sqs.Queue(this, `${worker.id}-queue`, {
         queueName: `${environment}-${worker.queueName}`,
-        visibilityTimeout: Duration.seconds(worker.timeoutSeconds ?? 300),
+        // AWS recommends six times the Lambda timeout, plus the batch window.
+        visibilityTimeout: Duration.seconds((worker.timeoutSeconds ?? 300) * 6 + 300),
         deadLetterQueue: {
           queue: dlq,
           maxReceiveCount: 3,
@@ -298,6 +305,74 @@ export class WorkerStack extends cdk.Stack {
         })
       )
     }
+
+    // =========================
+    // TRANSACTIONAL OUTBOX PUBLISHER
+    // =========================
+    const outboxDlq = new sqs.Queue(this, 'outbox-publisher-dlq', {
+      queueName: `${environment}-dfe-outbox-publisher-dlq`,
+      retentionPeriod: Duration.days(14),
+    })
+    new cloudwatch.Alarm(this, 'outbox-publisher-dlq-alarm', {
+      alarmName: `${environment}-dfe-outbox-publisher-dlq-alarm`,
+      alarmDescription: 'A durable DFe command could not be published from the transactional outbox.',
+      metric: outboxDlq.metricApproximateNumberOfMessagesVisible({period: Duration.minutes(1)}),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
+
+    const outboxRole = new iam.Role(this, 'outbox-publisher-role', {
+      roleName: `${environment}-dfe-outbox-publisher-role`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    })
+    outboxRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem', 'dynamodb:UpdateItem'],
+      resources: [outboxTableArn],
+    }))
+    outboxRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:DescribeStream', 'dynamodb:GetRecords', 'dynamodb:GetShardIterator', 'dynamodb:ListStreams'],
+      resources: [outboxStreamArn],
+    }))
+    outboxRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [eventBus.topicArn],
+    }))
+
+    const outboxPublisher = new lambda.Function(this, 'outbox-publisher-lambda', {
+      functionName: `${environment}-dfe-outbox-publisher`,
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      handler: 'bootstrap',
+      code: goCode('outbox-publisher'),
+      role: outboxRole,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 128,
+      environment: {
+        EVENT_BUS_TOPIC_ARN: eventBus.topicArn,
+        OUTBOX_TABLE_NAME: outboxTableName,
+      },
+    })
+    outboxDlq.addToResourcePolicy(new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('lambda.amazonaws.com')],
+      actions: ['sqs:SendMessage'],
+      resources: [outboxDlq.queueArn],
+      conditions: {ArnEquals: {'aws:SourceArn': outboxPublisher.functionArn}},
+    }))
+    new lambda.CfnEventSourceMapping(this, 'outbox-stream-mapping', {
+      functionName: outboxPublisher.functionName,
+      eventSourceArn: outboxStreamArn,
+      startingPosition: 'TRIM_HORIZON',
+      batchSize: 10,
+      bisectBatchOnFunctionError: true,
+      maximumRecordAgeInSeconds: 82800,
+      maximumRetryAttempts: -1,
+      destinationConfig: {onFailure: {destination: outboxDlq.queueArn}},
+    })
 
     // =========================
     // DISTRIBUTION DISPATCHER

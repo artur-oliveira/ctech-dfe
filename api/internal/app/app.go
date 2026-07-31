@@ -254,7 +254,7 @@ func newExternalService(certRepo *repositories.CertificateRepository, clients *a
 }
 
 func newWorkerService(clients *awsclient.Clients, cfg *config.Config) *services.WorkerService {
-	return services.NewWorkerService(clients, cfg.WorkerTopicARN)
+	return services.NewWorkerService(clients, cfg.WorkerTopicARN, cfg.TablePrefix)
 }
 
 func newNFeService(

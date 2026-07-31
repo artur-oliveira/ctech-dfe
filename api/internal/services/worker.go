@@ -3,8 +3,11 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
@@ -32,16 +35,49 @@ type WorkerMessage struct {
 	EventSK         *string `json:"event_sk,omitempty"`
 }
 
+const (
+	workerOutboxTable   = "worker_outbox"
+	workerOutboxSK      = "command"
+	workerOutboxPending = "pending"
+	workerOutboxTTL     = 30 * 24 * time.Hour
+)
+
 type WorkerService struct {
-	clients  *awsclient.Clients
-	topicARN string
+	clients     *awsclient.Clients
+	topicARN    string
+	tablePrefix string
 }
 
-func NewWorkerService(clients *awsclient.Clients, topicARN string) *WorkerService {
+func NewWorkerService(clients *awsclient.Clients, topicARN, tablePrefix string) *WorkerService {
 	return &WorkerService{
-		clients:  clients,
-		topicARN: topicARN,
+		clients:     clients,
+		topicARN:    topicARN,
+		tablePrefix: tablePrefix,
 	}
+}
+
+// BuildOutboxTx serializes a worker command into an immutable DynamoDB
+// transaction item. The document/counter transaction includes this item, so
+// publication can never be lost after a successful issuance commit.
+func (s *WorkerService) BuildOutboxTx(msg WorkerMessage) (types.TransactWriteItem, string, error) {
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return types.TransactWriteItem{}, "", problem.InternalServer("failed to marshal worker event")
+	}
+	operationID := fmt.Sprintf("%s#%s", msg.TableName, msg.AccessKey)
+	now := time.Now().UTC()
+	return types.TransactWriteItem{Put: &types.Put{
+		TableName: aws.String(s.tablePrefix + "_" + workerOutboxTable),
+		Item: map[string]types.AttributeValue{
+			"pk":         &types.AttributeValueMemberS{Value: operationID},
+			"sk":         &types.AttributeValueMemberS{Value: workerOutboxSK},
+			"status":     &types.AttributeValueMemberS{Value: workerOutboxPending},
+			"payload":    &types.AttributeValueMemberS{Value: string(body)},
+			"created_at": &types.AttributeValueMemberS{Value: now.Format(time.RFC3339Nano)},
+			"ttl":        &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Add(workerOutboxTTL).Unix())},
+		},
+		ConditionExpression: aws.String("attribute_not_exists(pk) AND attribute_not_exists(sk)"),
+	}}, operationID, nil
 }
 
 func (s *WorkerService) PublishWorkerEvent(ctx context.Context, msg WorkerMessage) error {

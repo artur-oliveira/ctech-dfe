@@ -9,11 +9,16 @@ import (
 )
 
 const (
-	StatusAuthorized = "authorized"
-	StatusRejected   = "rejected"
-	StatusFailed     = "failed"
-	StatusCancelled  = "cancelled"
-	StatusClosed     = "closed"
+	StatusPending         = "pending"
+	StatusProcessing      = "processing"
+	StatusRetryableFailed = "retryable_failed"
+	StatusCancelPending   = "cancel_pending"
+	StatusClosePending    = "close_pending"
+	StatusAuthorized      = "authorized"
+	StatusRejected        = "rejected"
+	StatusFailed          = "failed"
+	StatusCancelled       = "cancelled"
+	StatusClosed          = "closed"
 
 	EventStatusSuccess = "success"
 	EventStatusError   = "error"

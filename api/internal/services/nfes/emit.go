@@ -321,29 +321,18 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, problem.InternalServer("failed to encode NF-e record")
 	}
 
-	if err := s.nfeRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded,
-	); err != nil {
-		if strings.Contains(err.Error(), "TransactionCanceledException") {
-			return nil, problem.Conflict("conflito ao reservar número da NF-e. Tente novamente.")
-		}
-		return nil, err
-	}
-
 	emitUF := extractEmitUFFromItem(orgItem)
 	sefazEnv := SefazEnvHom
 	if environment == 1 {
 		sefazEnv = SefazEnvProd
 	}
-	cnpj := services.StripPKPrefix(orgPK)
-
-	if err := s.workerSvc.PublishWorkerEvent(ctx, services.WorkerMessage{
+	workerMsg := services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        accessKey,
 		TableName:        "nfes",
 		S3Prefix:         "nfe",
 		ExpectedFileName: accessKey,
-		CNPJ:             cnpj,
+		CNPJ:             services.StripPKPrefix(orgPK),
 		UF:               emitUF,
 		SefazEnvironment: sefazEnv,
 		CertS3Key:        strAttr(cert, "s3_key"),
@@ -351,11 +340,23 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		DocType:          "nfe",
 		SefazService:     "NFeAutorizacao",
 		Body:             enviNFe,
-	}); err != nil {
+	}
+	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+	if err != nil {
+		return nil, err
+	}
+	nfeEncoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+
+	if err := s.nfeRepo.TransactReserveAndCreate(
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, outboxTx,
+	); err != nil {
+		if strings.Contains(err.Error(), "TransactionCanceledException") {
+			return nil, problem.Conflict("conflito ao reservar número da NF-e. Tente novamente.")
+		}
 		return nil, err
 	}
 
-	// Best-effort — a failure here must never fail an already-dispatched
+	// Best-effort — a failure here must never fail an already-committed
 	// emission. Saved locations are a UX convenience for next time.
 	if req.SaveEntregaLocation && req.Entrega != nil && req.ReceiverID != nil {
 		_ = s.appendDeliveryLocation(ctx, orgPK, *req.ReceiverID, req.Entrega)

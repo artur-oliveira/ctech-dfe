@@ -127,11 +127,13 @@ filters: products `description`,`code`,`order_by`; persons `name`; vehicles `pla
 
 ### 3.5 Fiscal documents (NF-e / NFC-e / MDF-e)
 
-All emission/cancellation routes publish a `WorkerMessage` to the **SNS event bus**
-(`WorkerTopicARN` = `${env}-ctech-dfe`) via `WorkerService.PublishWorkerEvent`
-(`services/worker.go:47-63`); the worker Lambda(s) consume it. API returns `201` with
-`status: pending` — the SEFAZ result arrives asynchronously and is pushed over WebSocket
-(see §4). **CT-e has no emission route in this API** (inbound/distribution only).
+NF-e, NFC-e, and MDF-e emission builds the immutable `WorkerMessage` before persistence and writes it to
+`${TABLE_PREFIX}_worker_outbox` in the same DynamoDB transaction as the document and fiscal-number reservation.
+The response includes the durable `operation_id`; a DynamoDB Stream publisher forwards the command to the SNS event
+bus (`WorkerTopicARN` = `${env}-ctech-dfe`). Cancellation/event routes still call
+`WorkerService.PublishWorkerEvent` directly because their event state is created by the worker. API returns `201`
+with `status: pending` — the SEFAZ result arrives asynchronously and is pushed over WebSocket (see §4).
+**CT-e has no emission route in this API** (inbound/distribution only).
 
 #### NF-e — `/nfes` (`nfes.go`)
 | Method | Path | Perm | Notes |
@@ -214,10 +216,12 @@ This is the ALB/health-check target (`healthCheckPath: /v1.0/health-check` in CD
 
 ## 4. Async flow & side-effects
 
-1. **Emit / cancel / event** → service builds `WorkerMessage` and calls
-   `WorkerService.PublishWorkerEvent` → **SNS `${env}-ctech-dfe`** (event bus)
-   (`services/worker.go:47-63`). Worker Lambda(s) consume, call SEFAZ (go-dfe in-process
-   or py-dfe Lambda fallback), write results.
+1. **Emit** → service builds `WorkerMessage`; document/config/outbox commit atomically → DynamoDB Stream invokes
+   `outbox-publisher` → **SNS `${env}-ctech-dfe`**. A publish failure leaves the immutable outbox row pending and
+   causes stream redelivery. **Cancel / event** messages currently publish directly with
+   `WorkerService.PublishWorkerEvent`. Worker Lambda(s) conditionally claim the document/event with an owner and
+   six-minute lease, call SEFAZ (go-dfe in-process or py-dfe Lambda fallback), and allow only the lease owner to
+   finalize. Retryable infrastructure failures release the lease and return an SQS batch failure.
 2. **Distribution sync** → `DistributionService.EnqueueSync` sends to **SQS
    `DistributionQueueURL`** (`services/distributions.go:155`). The `distribution-dispatcher`
    Lambda also enqueues per-org/per-docType jobs on a schedule.

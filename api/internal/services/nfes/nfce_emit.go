@@ -209,21 +209,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, problem.InternalServer("failed to encode NFC-e record")
 	}
 
-	if err := s.nfceRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded,
-	); err != nil {
-		if strings.Contains(err.Error(), "TransactionCanceledException") {
-			return nil, problem.Conflict("conflito ao reservar número da NFC-e. Tente novamente.")
-		}
-		return nil, err
-	}
-
 	sefazEnv := SefazEnvHom
 	if environment == 1 {
 		sefazEnv = SefazEnvProd
 	}
-
-	if err := s.workerSvc.PublishWorkerEvent(ctx, services.WorkerMessage{
+	workerMsg := services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        accessKey,
 		TableName:        "nfces",
@@ -237,7 +227,19 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		DocType:          "nfce",
 		SefazService:     "NFeAutorizacao",
 		Body:             enviNFe,
-	}); err != nil {
+	}
+	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+	if err != nil {
+		return nil, err
+	}
+	nfceEncoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+
+	if err := s.nfceRepo.TransactReserveAndCreate(
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded, outboxTx,
+	); err != nil {
+		if strings.Contains(err.Error(), "TransactionCanceledException") {
+			return nil, problem.Conflict("conflito ao reservar número da NFC-e. Tente novamente.")
+		}
 		return nil, err
 	}
 

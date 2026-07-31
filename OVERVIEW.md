@@ -144,11 +144,14 @@ HTTP Client
   → Load organization from DynamoDB
   → Download certificate from S3
   → Generate access key (44 digits)
-  → transact_write reserves fiscal number
-  → Send DfeWorkerEvent to SQS (standard, at-least-once — idempotency enforced at the application layer, see worker/internal/service/dfe.go's alreadyTerminal guard)
-  → Return 202 Accepted + WebSocket channel to client
+  → One transact_write reserves the fiscal number and creates the document plus an immutable worker_outbox command
+  → Return 202 Accepted + operation_id + WebSocket channel to client
+
+DynamoDB Stream → outbox-publisher Lambda → command SNS → SQS (standard, at-least-once)
 
 SQS → worker Lambda (Go)
+  → Conditionally claim the document/event with owner + six-minute processing lease
+  → Fail closed when the claim store is unavailable; only the owner may finalize
   → Fetch certificate from S3
   → Invoke py-dfe Lambda
       → Sign XML (XML-DSig)
@@ -156,8 +159,9 @@ SQS → worker Lambda (Go)
       → Return result
   → Persist NF-e + events in DynamoDB
   → Save XML to S3
-  → Publish result to Redis pub/sub
-  → api pushes WebSocket update to client
+  → Publish terminal result to results SNS
+  → API results consumer updates state and publishes via Valkey
+  → API pushes WebSocket update to client
 ```
 
 ---

@@ -171,3 +171,11 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 - [ ] Errors returned via `sendProblem` / `problem.*` helpers
 - [ ] Docs updated (`../DOCS.md` and/or `../CONDUCT.md`)
 - [ ] Cross-project impact reviewed (api ↔ worker ↔ ui ↔ ctech-account)
+
+## Mandatory Documentation Policy
+
+**Every code change MUST be documented.**
+
+There are NO exceptions.
+
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
