@@ -313,7 +313,7 @@ export class ApiStackV2 extends cdk.Stack {
       // VALKEY_URL is written by the Valkey instance at boot. If the instance is
       // scaled to 0 or not deployed, the parameter may not exist — fall back to empty
       // so the app uses NoCacheBackend instead of crashing.
-      `VALKEY_URL=$(aws ssm get-parameter --name "${valkeyUrlSsmPath}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `VALKEY_URL=$(aws ssm get-parameter --name "${valkeyUrlSsmPath}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CTECH_JWKS_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/jwks-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CTECH_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/base-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `export CTECH_JWKS_URL CTECH_URL VALKEY_URL`,

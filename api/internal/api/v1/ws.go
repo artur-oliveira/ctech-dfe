@@ -63,7 +63,9 @@ var wsUpgrader = fws.FastHTTPUpgrader{
 // Auth: the JWT is sent as the first post-upgrade text frame (M3 — it must not
 // travel in the ?token= query string, which leaks into LB/CF logs); org_pk stays
 // in the query string as it is a non-secret org identifier.
-func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry) {
+func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *services.MembershipService, reg ws.Registry, allowedOrigins []string) {
+	wsUpgrader := fws.FastHTTPUpgrader{ReadBufferSize: 1024, WriteBufferSize: 1024, CheckOrigin: func(ctx *fasthttp.RequestCtx) bool { return wsAllowedOrigin(ctx, allowedOrigins) }}
+
 	router.Get("/ws", func(c fiber.Ctx) error {
 		orgPKRaw := c.Query("org_pk")
 		if orgPKRaw == "" {

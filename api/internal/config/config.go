@@ -64,7 +64,10 @@ func (c *Config) prodValidation() error {
 		return fmt.Errorf("config: WORKER_TOPIC_ARN must be set in prod so the requests to sefaz will be sent")
 	}
 	if c.CtechURL == "" {
-		slog.Warn("CTECH_URL is empty in prod — the iss claim is not being checked")
+		return fmt.Errorf("config: CTECH_URL must be set in prod so the iss claim is verified")
+	}
+	if len(c.CorsAllowedOrigins) == 0 {
+		return fmt.Errorf("config: CORS_ALLOWED_ORIGINS must be set in prod")
 	}
 	return nil
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"time"
 
 	"gopkg.aoctech.app/api-commons/cache"
@@ -177,6 +179,13 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 		ErrorHandler: errorHandler,
 	}
 	app := fiber.New(fibercfg)
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     cfg.CorsAllowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "Dfe-Organization-Pk"},
+		AllowCredentials: true,
+		MaxAge:           3600,
+	}))
 	app.Use(middleware.Recover())
 	app.Use(requestid.New())
 	app.Use(logger.New(logger.Config{
