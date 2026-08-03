@@ -342,6 +342,7 @@ export class WorkerStack extends cdk.Stack {
       actions: ['sns:Publish'],
       resources: [eventBus.topicArn],
     }))
+    outboxDlq.grantSendMessages(outboxRole)
 
     const outboxPublisher = new lambda.Function(this, 'outbox-publisher-lambda', {
       functionName: `${environment}-dfe-outbox-publisher`,
