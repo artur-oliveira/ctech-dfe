@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,12 @@ const wsWriteWait = 5 * time.Second
 // a missing or unreadable frame fails closed so no connection hangs open.
 func readAuthToken(conn *fws.Conn) (string, bool) {
 	_ = conn.SetReadDeadline(time.Now().Add(wsAuthTimeout))
-	defer conn.SetReadDeadline(time.Time{})
+	defer func(conn *fws.Conn, t time.Time) {
+		err := conn.SetReadDeadline(t)
+		if err != nil {
+
+		}
+	}(conn, time.Time{})
 	_, msg, err := conn.ReadMessage()
 	if err != nil {
 		return "", false
@@ -53,10 +59,15 @@ func extractBearer(msg []byte) string {
 	return strings.TrimSpace(string(msg))
 }
 
-var wsUpgrader = fws.FastHTTPUpgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(_ *fasthttp.RequestCtx) bool { return true },
+func wsAllowedOrigin(ctx *fasthttp.RequestCtx, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	origin := string(ctx.Request.Header.Peek("Origin"))
+	if origin == "" {
+		return true
+	}
+	return slices.Contains(allowed, origin)
 }
 
 // RegisterWS registers GET /ws WebSocket upgrade endpoint.

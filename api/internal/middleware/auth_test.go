@@ -63,12 +63,13 @@ func TestVerify_DelegatesToSharedVerifier(t *testing.T) {
 
 	now := time.Now().Unix()
 	token := signToken(t, key, jwt.MapClaims{
-		"sub":   "user-1",
-		"scope": "dfe:nfes:read dfe:nfes:write",
-		"iss":   testIssuer,
-		"aud":   []string{testAudience},
-		"iat":   now,
-		"exp":   now + 900,
+		"sub":       "user-1",
+		"scope":     "dfe:nfes:read dfe:nfes:write",
+		"token_use": "access",
+		"iss":       testIssuer,
+		"aud":       []string{testAudience},
+		"iat":       now,
+		"exp":       now + 900,
 	})
 
 	sub, scopes, err := v.Verify(context.Background(), token)
