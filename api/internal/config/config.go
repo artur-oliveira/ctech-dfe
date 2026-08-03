@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/caarlos0/env/v11"
 )

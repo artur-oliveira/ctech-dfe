@@ -41,9 +41,9 @@ var implemented = map[string]map[string]bool{
 		"NFeRetAutorizacao": true,
 		// Signed — worker's nfe-emission/-event/-inutilization workers. See
 		// doc comment above: promoted without the byte-identical gate.
-		"NFeAutorizacao":   true,
-		"RecepcaoEvento":   true,
-		"NfeInutilizacao":  true,
+		"NFeAutorizacao":  true,
+		"RecepcaoEvento":  true,
+		"NfeInutilizacao": true,
 	},
 	constants.DocTypeNFCE: {
 		"NfeStatusServico": true,

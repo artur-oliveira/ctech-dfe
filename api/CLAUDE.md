@@ -8,8 +8,8 @@ Go REST API — Fiber v3, multi-tenant, DynamoDB, S3, AWS SDK v2.
 
 ## Role
 
-Handles authentication, organization management, fiscal document issuance, and all business logic
-that bridges the frontend and the async worker/SEFAZ pipeline.
+Handles authentication, organization management, fiscal document issuance, and all business logic that bridges the
+frontend and the async worker/SEFAZ pipeline.
 
 **Request flow:** `HTTP → Middleware (auth, tenant, RBAC) → Route → Service → Repository → DynamoDB`
 
@@ -56,20 +56,19 @@ api/
   operations.
 - CRUD services must use `CRUDMutationHelper` and caching helpers (`GetCachedItem`, `GetCachedList` in `crud.go`) to
   handle unified caching, list/detail retrieval, audit logging, and cache eviction within the organization context.
-- UF→IBGE code maps and SEFAZ environment strings MUST NOT be redeclared in individual files.
-  Search `internal/` for existing constant definitions before adding any new constant.
+- UF→IBGE code maps and SEFAZ environment strings MUST NOT be redeclared in individual files. Search `internal/` for
+  existing constant definitions before adding any new constant.
 
 ### Constants — no magic strings/numbers
 
-- All string keys, status codes, table name suffixes, header names, cache key prefixes, and env
-  strings MUST be defined as named constants or config fields.
-- The `Dfe-Organization-Pk` header name is defined once in `middleware/rbac.go` (`OrgHeader`) — never
-  hardcoded in route files.
+- All string keys, status codes, table name suffixes, header names, cache key prefixes, and env strings MUST be defined
+  as named constants or config fields.
+- The `Dfe-Organization-Pk` header name is defined once in `middleware/rbac.go` (`OrgHeader`) — never hardcoded in route
+  files.
 
 ### Error Handling (MUST follow)
 
-- **All route errors go through `sendProblem(c, err)`** — never return raw errors, `fiber.Map`,
-  or `fiber.NewError`.
+- **All route errors go through `sendProblem(c, err)`** — never return raw errors, `fiber.Map`, or `fiber.NewError`.
 - **Services return `*problem.Problem`** via `problem.BadRequest`, `problem.NotFound`,
   `problem.InternalServer` helpers (or wrap unexpected errors).
 - Route handler shape:
@@ -146,8 +145,8 @@ Run: `go test ./... -race` from `api/`.
   `azp` (client identity).
 - KID rotation in ctech-account flushes JWKS cache — Redis TTL is 1h; force-flush by restarting or clearing the
   `ctech:jwks` key.
-- `CORS_ALLOWED_ORIGINS` is configured in env but the CORS middleware is NOT wired in `app.go` (browser is
-  same-origin, so no production impact today). Treat CORS as inactive until the middleware is added.
+- `CORS_ALLOWED_ORIGINS` is configured in env but the CORS middleware is NOT wired in `app.go` (browser is same-origin,
+  so no production impact today). Treat CORS as inactive until the middleware is added.
 
 ---
 
@@ -178,4 +177,5 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 
 There are NO exceptions.
 
-Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business
+rules, or developer workflow MUST include the corresponding documentation update in the same change.
