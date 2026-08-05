@@ -166,17 +166,58 @@ Mesma forma e mesmo serviço-base dos configs existentes (`fiscal_configs.go`).
 | `processing_owner`, `processing_lease_until` | S | Lease do worker (idêntico a NF-e) |
 | `created_at` / `updated_at` | S | ISO-8601 UTC |
 
-**Decisão de chave (SK):** a chave de acesso de 50 dígitos só existe **depois** da resposta do fisco, e
-a SK do DynamoDB é imutável. Usa-se portanto o **`idDPS`**, determinístico e conhecido no momento da
-emissão:
+**Decisão de chave (SK): `id_dps`, não a chave de acesso.**
+
+A regra de formação da chave está em `TSIdNFSe` (`tiposSimples_v1.01.xsd:34`):
 
 ```
-idDPS = "DPS" + cLocEmi(7) + tpInsc(1) + inscFederal(14) + serie(5) + nDPS(15)
+"NFS" + cMun(7) + ambGer(1) + tpInsc(1) + inscFederal(14) + nNFSe(13) + AAAAMM(4) + cNum(9) + DV(1)
+                                                            ^^^^^^^^^              ^^^^^^^^
 ```
+
+Dois dos campos são gerados pelo fisco, não pelo emitente:
+
+- `nNFSe(13)` — a documentação do XSD é explícita: *"A Sefin Nacional NFS-e irá gerar o número da
+  NFS-e de forma sequencial por emitente. […] não irá reutilizar números inutilizados durante a
+  geração da NFS-e."*
+- `cNum(9)` — código numérico gerado pelo sistema nacional.
+
+A chave de acesso, portanto, **só passa a existir na resposta HTTP 201 da Sefin**. Isso difere da
+NF-e, onde a chave de 44 dígitos é inteiramente nossa (`cNF` aleatório gerado por nós, `nNF`
+reservado por nós antes do envio) — por isso lá `sk = access_key` funciona e aqui não.
+
+O `idDPS` (`TSIdDPS`, `tiposSimples_v1.01.xsd:47`) é composto só de campos que o emitente controla,
+e é exatamente o que o `transact_write` reserva antes de publicar no outbox:
+
+```
+idDPS = "DPS" + cLocEmi(7) + tpInsc(1) + inscFederal(14) + serie(5) + nDPS(15)   // "DPS" + 42 dígitos
+```
+
+Isso não é preferência de modelagem — é imposto pelo pipeline. Entre `POST /v1.0/nfses` e a resposta
+do fisco existe a janela outbox → SNS → SQS → worker, e nessa janela o registro precisa já existir
+com chave imutável para sustentar idempotência, lease de processamento, retry, DLQ e o push por
+WebSocket. As alternativas foram descartadas:
+
+- gravar a linha só depois da resposta do fisco — perde a idempotência da requisição e o rastro das
+  rejeitadas;
+- gravar com SK placeholder e reescrever ao receber a chave — SK é imutável no DynamoDB, exigiria
+  `delete` + `put`, o que emite dois eventos de stream (quebrando o outbox) e órfã as linhas filhas
+  de `nfse_events`, cuja `pk` referencia a linha pai.
+
+A própria API nacional adota o mesmo handle: `GET /dps/{id}` e `HEAD /dps/{id}` existem para
+*"verificar se uma NFS-e foi emitida a partir do Id do DPS"*. O caminho de recuperação em retry é
+chaveado por `idDPS`, não por chave de acesso — nossa SK e o handle de recuperação do fisco ficam
+idênticos, sem tabela de mapeamento intermediária.
 
 Para ABRASF, a mesma posição recebe `RPS{codigoMunicipio}{cnpj}{serie}{numero}` com o mesmo
 comprimento fixo. `access_key` fica como atributo, indexado pela GSI `access-key-index`, e é
 preenchido quando a nota é gerada.
+
+**Nota sobre o documento emitido:** o contribuinte assina e envia **`TCDPS`** (`DPS_v1.01.xsd:9`);
+o fisco devolve **`TCNFSe`** (`NFSe_v1.01.xsd:10`), que embute a DPS enviada
+(`TCInfNFSe` termina com `<xs:element name="DPS" type="TCDPS"/>`). `TCNFSe` nunca é assinado por
+nós — só recebido e persistido. A única rota que recepciona uma NFS-e pronta é
+`POST /decisao-judicial/nfse`, destinada ao município, fora do escopo deste módulo.
 
 **GSIs:** `access-key-index` (pk + access_key), `number-index` e `date-index` espelhando `nfes`.
 
