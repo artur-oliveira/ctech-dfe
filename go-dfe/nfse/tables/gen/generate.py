@@ -149,11 +149,11 @@ def main():
               ("CampoLeiaute", "campo_leiaute")])
 
     write_ts("nfse_trib_nacional.ts", "NFSE_TRIB_NACIONAL",
-             "interface TribNacionalEntry {\n  code: string;\n  item: string;\n"
+             "export interface TribNacionalEntry {\n  code: string;\n  item: string;\n"
              "  subitem: string;\n  desdobro: string;\n  description: string;\n}",
              trib)
     write_ts("nfse_indop.ts", "NFSE_INDOP",
-             "interface IndOpEntry {\n  code: string;\n  tipo_operacao: string;\n"
+             "export interface IndOpEntry {\n  code: string;\n  tipo_operacao: string;\n"
              "  caracteristica_fornecimento: string;\n  local_fornecimento: string;\n"
              "  campo_leiaute: string;\n}",
              indop)

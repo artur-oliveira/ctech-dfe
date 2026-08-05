@@ -503,14 +503,14 @@ infraestrutura. IAM do worker e da API estendidos para as tabelas novas e para o
 
 ## 10. Fases
 
-| Fase | Entrega | Depende de |
-|---|---|---|
-| **F1** | Tabelas + cadastros: `organization_services`, grupo `nfse` em `PersonObjectBody` (cobre `organizations` e `organization_persons`), `organization_nfse_configs`, CDK, tabelas de referência (Anexos B/C) | — |
-| **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — |
-| **F3** | `api` (emissão, eventos, consultas, proxies) + `worker` (pipeline NFS-e) | F1, F2 |
-| **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 |
-| **F5** | `go-dfe/nfse/abrasf204` — motor genérico das 10 operações do WSDL + wiring na API/worker | F2, F3 |
-| **F6** | Hardening — homologação em produção restrita, testes ponta a ponta, documentação | todas |
+| Fase | Entrega | Depende de | Status |
+|---|---|---|---|
+| **F1** | Tabelas + cadastros: `organization_services`, grupo `nfse` em `PersonObjectBody` (cobre `organizations` e `organization_persons`), `organization_nfse_configs`, CDK, tabelas de referência (Anexos B/C) | — | Concluída 2026-08-05 |
+| **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — | — |
+| **F3** | `api` (emissão, eventos, consultas, proxies) + `worker` (pipeline NFS-e) | F1, F2 | — |
+| **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 | — |
+| **F5** | `go-dfe/nfse/abrasf204` — motor genérico das 10 operações do WSDL + wiring na API/worker | F2, F3 | — |
+| **F6** | Hardening — homologação em produção restrita, testes ponta a ponta, documentação | todas | — |
 
 ---
 

@@ -202,6 +202,38 @@ Never commit or expose:
   `map[string]any` com chaves explícitas (ou faça o round-trip JSON como em `nfeLocalToMap`) —
   nunca passe o struct typed cru.
 
+## NFS-e (F1 — modelo de dados e cadastros)
+
+- **A SK de `nfses` é o `idDPS`, nunca a chave de acesso**, porque `nNFSe` e `cNum` são gerados
+  pelo fisco e a chave de acesso de 50 dígitos só existe depois da resposta. Consulta por chave
+  passa pela GSI `access-key-index`.
+- **O grupo `nfse` do objeto `person` é compartilhado por `organizations` e
+  `organization_persons`** (`NfseInfoBody`/`NfseRegTribBody`/`NfseForeignAddressBody` em
+  `api/internal/api/v1/dto.go`). `reg_trib` mora ali, e não na config da organização, porque
+  quando `tpEmit` é 2 (tomador) ou 3 (intermediário) o prestador é uma pessoa do cadastro, não a
+  própria organização — ver `docs/specs/2026-08-04-nfse-design.md` §3.2 e §3.3.
+- **As tabelas de referência da NFS-e** (`go-dfe/nfse/tables/{trib_nacional,nbs,indop}.go`,
+  `ui/src/lib/data/nfse_{trib_nacional,indop}.ts`) **são geradas por
+  `go-dfe/nfse/tables/gen/generate.py` e versionadas — nunca edite os `.go`/`.ts` gerados à mão.**
+  Regenerar quando a Receita publicar um anexo novo (`python3 go-dfe/nfse/tables/gen/generate.py`
+  a partir da raiz do repo, com os anexos em `tmp/`). O código de tributação nacional é
+  reconstruído a partir de ITEM/SUBITEM/DESDOBRO (`%02d%02d%02d`), nunca lido da coluna A da
+  planilha — ela perde o zero à esquerda do item por ser numérica. Códigos NBS mantêm só linhas
+  com descrição preenchida (a linha-exemplo `9.9999.99.99` da planilha não é um código real).
+- **O stream do outbox fica só em `worker_outbox`; tabelas de documento (`nfses`, `nfse_events`,
+  e as análogas de NF-e/NFC-e/CT-e/MDF-e) não têm stream** — a distribuição de eventos passa pelo
+  outbox transacional, não por DynamoDB Streams por tabela.
+- `api` depende de `go-dfe/nfse/tables` (mesmo mecanismo de `replace` que `worker` já usa) para
+  que os validadores `tribnac`/`nbs`/`indop` (`internal/validation`) consultem a mesma fonte que
+  a `go-dfe` vai usar na F2 para montar/validar o XML da DPS — nunca duplique essas tabelas.
+- Os cinco serviços de config fiscal (NF-e/NFC-e/CT-e/MDF-e/NFS-e) compartilham um
+  `fiscalConfigService` — ver a entrada em "ctech-dfe-api" abaixo.
+- **F1 não emite nenhum documento.** `nfses`/`nfse_events` existem no schema mas nenhum código
+  lê ou escreve nelas ainda (F3). Nenhuma comunicação com Sefin Nacional ou município ABRASF (F2,
+  F5). Nenhuma tela nova (F4). Nenhuma validação de obrigatoriedade condicional entre campos
+  (ex.: `reg_ap_trib_sn` exigido quando `op_simp_nac=3`) — essas regras dependem do contexto da
+  emissão e entram junto com `NfseService.Emit` na F3.
+
 ## NFC-e (modelo 65)
 
 - NFC-e reuses `BuildEnviNFe(..., model="65", supl)` — do not fork the builder.
