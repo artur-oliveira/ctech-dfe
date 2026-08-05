@@ -2,8 +2,6 @@ package repositories
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -99,63 +97,10 @@ func (r *DistributionRepository) ListDistributions(ctx context.Context, pk strin
 	return &QueryResult{Items: out.Items, LastEvaluatedKey: out.LastEvaluatedKey}, nil
 }
 
-// distributionCursorSK é o item de cursor por organização. O ADN pagina por
-// NSU sequencial, não por ultNSU+maxNSU como o DistDFe da NF-e (spec §3.6) —
-// por isso o cursor é um único inteiro monotônico.
-const distributionCursorSK = "CURSOR"
-
-// NfseDistributionRepository guarda os documentos recebidos do ADN.
+// NfseDistributionRepository wraps DistributionRepository for nfse_distributions table.
 type NfseDistributionRepository struct{ DistributionRepository }
 
 func NewNfseDistributionRepository(db *dynamodb.Client, cfg *config.Config) *NfseDistributionRepository {
-	return &NfseDistributionRepository{newDistributionRepo(db, cfg, TableNfses+"_distributions")}
-}
-
-func isConditionalCheckFailed(err error) bool {
-	var ccf *types.ConditionalCheckFailedException
-	return errors.As(err, &ccf)
-}
-
-// GetLastNSU devolve o último NSU consumido por pk. Zero quando nunca rodou.
-func (r *DistributionRepository) GetLastNSU(ctx context.Context, pk string) (int64, error) {
-	out, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(r.TableName),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: pk},
-			"sk": &types.AttributeValueMemberS{Value: distributionCursorSK},
-		},
-	})
-	if err != nil {
-		return 0, fmt.Errorf("get cursor: %w", err)
-	}
-	n, ok := out.Item["last_nsu"].(*types.AttributeValueMemberN)
-	if !ok {
-		return 0, nil
-	}
-	var v int64
-	if _, err := fmt.Sscanf(n.Value, "%d", &v); err != nil {
-		return 0, fmt.Errorf("parse last_nsu %q: %w", n.Value, err)
-	}
-	return v, nil
-}
-
-// SetLastNSU avança o cursor. A condição impede regressão: uma entrega
-// duplicada de SQS não pode fazer o cursor voltar e reprocessar o lote.
-func (r *DistributionRepository) SetLastNSU(ctx context.Context, pk string, nsu int64) error {
-	_, err := r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-		TableName: aws.String(r.TableName),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: pk},
-			"sk": &types.AttributeValueMemberS{Value: distributionCursorSK},
-		},
-		UpdateExpression:    aws.String("SET last_nsu = :n"),
-		ConditionExpression: aws.String("attribute_not_exists(last_nsu) OR last_nsu < :n"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":n": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", nsu)},
-		},
-	})
-	if err != nil && !isConditionalCheckFailed(err) {
-		return fmt.Errorf("set cursor: %w", err)
-	}
-	return nil
+	r := newDistributionRepo(db, cfg, "nfse_distributions")
+	return &NfseDistributionRepository{r}
 }

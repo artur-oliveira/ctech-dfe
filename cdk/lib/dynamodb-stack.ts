@@ -35,6 +35,7 @@ export type TableName = (
     'nfe_distributions' |
     'cte_distributions' |
     'mdfe_distributions' |
+    'nfse_distributions' |
     'worker_outbox'
     )
 
@@ -586,6 +587,9 @@ export class DynamoDBStack extends cdk.Stack {
 
         const mdfeDistributionsTable = getDistributionTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_distributions');
         this.tables.set('mdfe_distributions', mdfeDistributionsTable);
+
+        const nfseDistributionsTable = getDistributionTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_distributions');
+        this.tables.set('nfse_distributions', nfseDistributionsTable);
 
         // Transactional command outbox. New images are streamed to the
         // outbox-publisher Lambda; published rows expire after 30 days.

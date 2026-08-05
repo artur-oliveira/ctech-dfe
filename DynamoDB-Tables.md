@@ -32,15 +32,16 @@ PITR: enabled in production only.
 | 19 | `nfe_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
 | 20 | `cte_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
 | 21 | `mdfe_distributions`        | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
-| 22 | `roles`                     | `ROLE_{NAME}`                | —                                        | —                                                  |
-| 23 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index`                  |
-| 24 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)                            |
-| 25 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                                 |
-| 26 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                                  |
-| 27 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index`                  |
-| 28 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
-| 29 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
-| 30 | `nfse_events`               | `{id_dps}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
+| 22 | `nfse_distributions`        | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
+| 23 | `roles`                     | `ROLE_{NAME}`                | —                                        | —                                                  |
+| 24 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index`                  |
+| 25 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)                            |
+| 26 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                                 |
+| 27 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                                  |
+| 28 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index`                  |
+| 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
+| 30 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
+| 31 | `nfse_events`               | `{id_dps}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
 
 ---
 
@@ -460,11 +461,11 @@ Service catalog per org (NFS-e line items — analogous to `organization_product
 
 ---
 
-## 28. `organization_nfse_configs`
+## 29. `organization_nfse_configs`
 
 Fiscal configuration per org for NFS-e issuance. PK only (no SK), same base shape as the other
-`organization_*_configs` tables (#7–10), but without the NF-e-family distribution/quota fields (NFS-e has no
-distribution flow) and with its own numbering counters (per `NfseConfigBody`).
+`organization_*_configs` tables (#7–10), with numbering counters (per `NfseConfigBody`) and ADN distribution
+cursor fields (for tracking the last consumed NSU during ADN polling).
 
 | Attribute             | Type | Notes                                                                                           |
 |-----------------------|------|-------------------------------------------------------------------------------------------------|
@@ -475,6 +476,10 @@ distribution flow) and with its own numbering counters (per `NfseConfigBody`).
 | `serie`               | S    | Document series, up to 5 digits                                                                 |
 | `prod_current_number` | N    | Next production DPS number; preserved across `Upsert` (never zeroed)                            |
 | `hom_current_number`  | N    | Next homologação DPS number; preserved across `Upsert`                                          |
+| `prod_nsu`            | N    | Last consumed NSU in production ADN distribution; preserved across `Upsert`                     |
+| `hom_nsu`             | N    | Last consumed NSU in homologação ADN distribution; preserved across `Upsert`                    |
+| `prod_last_dist_nsu_at` | S  | ISO-8601 UTC timestamp of last production NSU cursor update; used for rate-limiting              |
+| `hom_last_dist_nsu_at`  | S  | ISO-8601 UTC timestamp of last homologação NSU cursor update; used for rate-limiting             |
 | `certificate_sk`      | S    | Optional: `organization_certificates` SK to use for this provider                               |
 | `abrasf`              | M    | Only for `provider=abrasf204`: `{endpoint_url, wsdl_version, codigo_municipio, envio_sincrono}` |
 | `updated_at`          | S    | ISO-8601 UTC                                                                                    |
@@ -485,7 +490,24 @@ tomador/intermediário (`tpEmit` 2/3) the prestador is a different person from t
 
 ---
 
-## 29. `nfses`
+## 22. `nfse_distributions`
+
+Stores NFS-e distribution records received from ABRASF ADN (Ambiente de Distribuição Nacional). Mirrors the schema
+of NF-e/CT-e/MDF-e distribution tables with numeric NSU (sequential National Service Number) as the sort key.
+
+| Attribute         | Type | Notes                                                      |
+|-------------------|------|------------------------------------------------------------|
+| `pk`              | S    | `{org_pk}` — partition key                                 |
+| `nsu`             | N    | Numeric NSU — sort key (ADN sequences by NSU)              |
+| `doc_type`        | S    | `"nfse"` — document type identifier                        |
+| `schema`          | S    | RPS schema version (e.g., `"RPS_v1"`)                      |
+| `access_key`      | S    | 50-digit NFS-e access key                                  |
+| `xml_s3_key`      | S    | S3 path to the XML document                                |
+| `created_at`      | S    | ISO-8601 UTC                                               |
+
+---
+
+## 30. `nfses`
 
 One item per issued NFS-e. Reuses the same `getDfeTable` shape as `nfes`/`nfces`/`ctes`/`mdfes`
 (`number-index-v2` + `dfe-index`), plus an extra GSI for lookup by access key.
@@ -512,7 +534,7 @@ populated once the response arrives and is looked up via
 
 ---
 
-## 30. `nfse_events`
+## 31. `nfse_events`
 
 SEFAZ/municipal communication events for an NFS-e. Reuses `getEventsTable`, but is keyed by the document's `id_dps`
 rather than `org_pk`, since events can arrive before the access key exists.
