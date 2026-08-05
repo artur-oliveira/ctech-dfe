@@ -2,12 +2,18 @@ package dfe
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"gopkg.aoctech.app/dfe/go-dfe/internal/certificate"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
+	"gopkg.aoctech.app/dfe/go-dfe/nfse"
+	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 )
 
 // implemented is the compiled set of (docType, service) pairs go-dfe handles
@@ -78,6 +84,21 @@ var implemented = map[string]map[string]bool{
 		"MDFeRecepcaoSinc":   true,
 		"MDFeRecepcaoEvento": true,
 	},
+	// NFS-e não migra do py-dfe: py-dfe nunca implementou NFS-e, então não
+	// existe autoridade anterior contra a qual rodar shadow-mode nem corpus
+	// para o portão de assinatura byte-idêntica. O portão aplicável é a
+	// homologação em produção restrita (fase F6 do plano de NFS-e), não a
+	// comparação de paridade descrita acima.
+	constants.DocTypeNFSE: {
+		constants.ServiceNFSeRecepcao:             true,
+		constants.ServiceNFSeConsulta:             true,
+		constants.ServiceNFSeConsultaDPS:          true,
+		constants.ServiceNFSeEvento:               true,
+		constants.ServiceNFSeConsultaEvento:       true,
+		constants.ServiceNFSeDistribuicao:         true,
+		constants.ServiceNFSeDANFSE:               true,
+		constants.ServiceNFSeParametrosMunicipais: true,
+	},
 }
 
 // Implements reports whether go-dfe handles (docType, service) in-process.
@@ -117,6 +138,10 @@ func Call(ctx context.Context, req Request) (Response, error) {
 		return problemResponse(400, constants.ErrCodeCertificate, err.Error())
 	}
 
+	if req.DocType == constants.DocTypeNFSE {
+		return callNFSe(ctx, req, httpClient, cert, key, maxRetries)
+	}
+
 	client, err := services.NewClient(req.DocType, req.UF, req.Environment, httpClient, cert, key, req.ValidateSchema, maxRetries)
 	if err != nil {
 		return problemResponse(400, constants.ErrCodeValidation, err.Error())
@@ -132,6 +157,52 @@ func Call(ctx context.Context, req Request) (Response, error) {
 		return problemResponse(500, constants.ErrCodeUnexpected, "failed to encode response")
 	}
 	return Response{StatusCode: 200, Body: string(bodyJSON), Headers: map[string]string{}}, nil
+}
+
+// callNFSe é o caminho NFS-e: REST + JSON, sem SOAP e sem endpoints.Resolve.
+// Mantém o mesmo contrato de Response (Body como JSON string) que o caminho
+// SOAP, para que worker/api não distingam os dois.
+func callNFSe(ctx context.Context, req Request, httpClient *http.Client,
+	cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int) (Response, error) {
+	providerName, _ := req.Body[nfse.BodyKeyProvider].(string)
+	provider, err := newNFSeProvider(providerName, req.Environment, httpClient, cert, key, maxRetries, req.CNPJ)
+	if err != nil {
+		return problemResponse(400, constants.ErrCodeValidation, err.Error())
+	}
+
+	result, err := nfse.Dispatch(ctx, provider, req.Service, req.Body)
+	if err != nil {
+		var fe *nfse.FiscalError
+		if errors.As(err, &fe) {
+			return problemResponse(fe.Status, constants.ErrCodeSOAPRequest, fe.Error())
+		}
+		return problemResponse(400, constants.ErrCodeValidation, err.Error())
+	}
+
+	bodyJSON, err := json.Marshal(result)
+	if err != nil {
+		return problemResponse(500, constants.ErrCodeUnexpected, "failed to encode response")
+	}
+	return Response{StatusCode: 200, Body: string(bodyJSON), Headers: map[string]string{}}, nil
+}
+
+// newNFSeProvider constrói o provider nacional/ABRASF a partir do nome vindo
+// do Body. Vive em dfe.go (não em nfse/dispatch.go) porque nfse/nacional já
+// importa nfse — nfse não pode importar nfse/nacional de volta sem criar um
+// ciclo; dfe é o único ponto que legitimamente conhece os dois.
+func newNFSeProvider(name, environment string, httpClient *http.Client,
+	cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int, cnpj string) (nfse.Provider, error) {
+	switch name {
+	case nfse.ProviderNacional:
+		return nacional.New(nacional.Config{
+			Environment: environment, HTTPClient: httpClient, Cert: cert,
+			Key: key, MaxRetries: maxRetries, CNPJ: cnpj,
+		})
+	case nfse.ProviderAbrasf204:
+		return nil, fmt.Errorf("nfse: provider %q chega na fase F5", name)
+	default:
+		return nil, fmt.Errorf("nfse: provider desconhecido %q", name)
+	}
 }
 
 // problemResponse builds a Response carrying an RFC7807-shaped Problem body,

@@ -311,3 +311,13 @@ func DecodeDocument(body map[string]any) (Document, error) {
 	}
 	return doc, nil
 }
+
+// jsonMarshal e jsonUnmarshalStrict são usados por dispatch.go para decodificar
+// EventRequest com a mesma política de campo desconhecido de DecodeDocument.
+func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
+
+func jsonUnmarshalStrict(raw []byte, out any) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	return dec.Decode(out)
+}

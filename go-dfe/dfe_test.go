@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 )
 
 func TestImplements(t *testing.T) {
@@ -68,5 +70,34 @@ func TestCall_InvalidCertificateReturnsProblemResponse(t *testing.T) {
 	}
 	if resp.StatusCode != 400 {
 		t.Errorf("StatusCode = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestImplements_NFSe(t *testing.T) {
+	for _, svc := range []string{
+		constants.ServiceNFSeRecepcao, constants.ServiceNFSeConsulta,
+		constants.ServiceNFSeConsultaDPS, constants.ServiceNFSeEvento,
+		constants.ServiceNFSeConsultaEvento, constants.ServiceNFSeDistribuicao,
+		constants.ServiceNFSeDANFSE, constants.ServiceNFSeParametrosMunicipais,
+	} {
+		if !Implements(constants.DocTypeNFSE, svc) {
+			t.Errorf("Implements(nfse, %q) = false, esperado true", svc)
+		}
+	}
+	if Implements(constants.DocTypeNFSE, "ServicoInexistente") {
+		t.Error("Implements aceitou serviço desconhecido")
+	}
+}
+
+func TestCall_NFSeRequiresProvider(t *testing.T) {
+	resp, err := Call(context.Background(), Request{
+		DocType: constants.DocTypeNFSE, Service: constants.ServiceNFSeRecepcao,
+		Environment: "hom", CertificateB64: "x", Body: map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("Call devolveu erro cru em vez de Problem: %v", err)
+	}
+	if resp.StatusCode != 400 {
+		t.Errorf("StatusCode = %d, esperado 400 para body sem provider", resp.StatusCode)
 	}
 }
