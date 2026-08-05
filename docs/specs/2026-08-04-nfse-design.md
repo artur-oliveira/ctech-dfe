@@ -59,7 +59,7 @@ ABRASF: endpoint por município, configurado por organização — sem tabela em
 | DANFSE | Nacional: proxy do PDF do ADN. ABRASF: não suportado na v1 (501) |
 | Distribuição ADN (`GET /DFe/{NSU}`) | Incluída |
 | Catálogo de serviços | Tabela nova `organization_services` |
-| Pessoas | Estender `organization_persons` |
+| Pessoas | Estender o objeto `person` compartilhado — cobre `organizations` e `organization_persons` |
 
 ---
 
@@ -113,9 +113,9 @@ Catálogo de serviços — análogo direto a `organization_products`.
 **GSIs:** `code-index` (pk + code), `description-index` (pk + description) — idênticos aos de
 `organization_products`.
 
-### 3.2. `organization_persons` — extensão
+### 3.2. `organization_persons` **e** `organizations` — extensão única
 
-Nenhum campo existente muda. Adiciona-se um grupo `nfse` opcional:
+Nenhum campo existente muda. Adiciona-se um grupo `nfse` opcional ao objeto `person`:
 
 ```
 nfse: {
@@ -123,12 +123,30 @@ nfse: {
   caepf,         # Cadastro de Atividade Econômica da Pessoa Física
   nif,           # Número de Identificação Fiscal (exterior)
   c_nao_nif,     # 0 não informado | 1 dispensado | 2 não exigência
+  reg_trib: { op_simp_nac, reg_ap_trib_sn, reg_esp_trib },   # TCRegTrib
   foreign_address: { c_pais, c_end_post, x_cidade, x_estado_prov, x_lgr, nro, x_cpl, x_bairro }
 }
 ```
 
-Motivo: o tomador/intermediário de NFS-e é a mesma entidade jurídica que o destinatário de NF-e.
-Duas tabelas obrigariam o usuário a manter o mesmo cliente cadastrado em dois lugares.
+**Uma extensão cobre as duas tabelas.** `PersonObjectBody` (`api/internal/api/v1/dto.go:41`) já é o
+objeto `person` compartilhado por `OrganizationCreateBody`/`OrganizationUpdateBody` e por
+`PersonCreateBody`/`PersonUpdateBody`. Adicionar o grupo ali estende `organizations` e
+`organization_persons` no mesmo campo, sem duplicar schema nem validação.
+
+Isso corresponde ao leiaute: `TCInfoPrestador` e `TCInfoPessoa` têm exatamente os mesmos campos de
+identidade (`CNPJ`/`CPF`/`NIF`/`cNaoNIF`/`CAEPF`/`IM`/`end`/`fone`/`email`). Divergem só em dois
+pontos — `xNome` é obrigatório em pessoa e opcional em prestador, e `regTrib` existe apenas no
+prestador.
+
+**`reg_trib` mora aqui, não na config.** A organização não é sempre o prestador: com `tpEmit` 2 ou 3
+ela emite como tomador ou intermediário e o **prestador é uma pessoa do cadastro** — que precisa do
+próprio `regTrib`, obrigatório em `TCInfoPrestador`. Manter `reg_trib` junto da identidade dá uma
+fonte única para os dois casos, em vez de um valor na config da org e outro na pessoa, com regra de
+precedência e risco de divergência. Em pessoas o grupo é opcional; só é exigido quando aquela pessoa
+é usada como prestador numa emissão `tpEmit` 2/3, e a validação ocorre na emissão.
+
+Motivo geral: o tomador/intermediário de NFS-e é a mesma entidade jurídica que o destinatário de
+NF-e. Tabelas separadas obrigariam o usuário a manter o mesmo cliente cadastrado em dois lugares.
 
 ### 3.3. `organization_nfse_configs` (nova)
 
@@ -139,14 +157,18 @@ Duas tabelas obrigariam o usuário a manter o mesmo cliente cadastrado em dois l
 | `environment` | N | `1` produção \| `2` homologação (produção restrita) |
 | `c_loc_emi` | S | Código IBGE do município emissor (7 dígitos) |
 | `serie` | S | Série da DPS/RPS (até 5 chars) |
-| `next_number` | N | Próximo `nDPS` / número de RPS — reservado transacionalmente |
-| `im` | S | Inscrição municipal do prestador |
-| `reg_trib` | M | `{op_simp_nac, reg_ap_trib_sn, reg_esp_trib}` |
+| `prod_current_number` / `hom_current_number` | N | Último `nDPS`/número de RPS emitido por ambiente — reservado por `IncrementNumber` |
 | `abrasf` | M | `{endpoint_url, wsdl_version, codigo_municipio, envio_sincrono}` — só quando `provider=abrasf204` |
 | `certificate_sk` | S | Certificado usado na transmissão (default: o da org) |
 | `created_at` / `updated_at` | S | ISO-8601 UTC |
 
-Mesma forma e mesmo serviço-base dos configs existentes (`fiscal_configs.go`).
+Inscrição municipal e regime tributário do prestador **não** ficam aqui — vêm do grupo `nfse` do
+objeto `person` da própria organização (§3.2).
+
+O contador segue a convenção já existente de `FiscalConfigRepository.IncrementNumber`, que opera
+sobre `{envPrefix}_current_number` (`api/internal/repositories/fiscal_config.go:91`) — não se
+introduz um campo `next_number` divergente. Mesma forma e mesmo serviço-base dos configs existentes
+(`fiscal_configs.go`).
 
 ### 3.4. `nfses` (nova)
 
@@ -404,7 +426,7 @@ GET    /v1.0/nfse/distributions             Documentos recebidos via ADN (NSU)
    referenciar `service_sk` e sobrescrever valor/alíquota por item.
 3. Resolve tomador/intermediário do cadastro de pessoas, ou aceita inline.
 4. Calcula `id_dps` determinístico.
-5. Um `transact_write`: reserva `next_number` em `organization_nfse_configs` + cria item em `nfses` +
+5. Um `transact_write`: reserva `{env}_current_number` em `organization_nfse_configs` + cria item em `nfses` +
    cria comando imutável em `worker_outbox`.
 6. Responde 202 com `operation_id` e canal WebSocket.
 
@@ -481,7 +503,7 @@ outbox. IAM do worker e da API estendidos para as tabelas novas e para o prefixo
 
 | Fase | Entrega | Depende de |
 |---|---|---|
-| **F1** | Tabelas + cadastros: `organization_services`, extensão de `organization_persons`, `organization_nfse_configs`, CDK, tabelas de referência (Anexos A/B/C) | — |
+| **F1** | Tabelas + cadastros: `organization_services`, grupo `nfse` em `PersonObjectBody` (cobre `organizations` e `organization_persons`), `organization_nfse_configs`, CDK, tabelas de referência (Anexos B/C) | — |
 | **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — |
 | **F3** | `api` (emissão, eventos, consultas, proxies) + `worker` (pipeline NFS-e) | F1, F2 |
 | **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 |
@@ -509,5 +531,5 @@ outbox. IAM do worker e da API estendidos para as tabelas novas e para o prefixo
 ## 12. Documentação a atualizar
 
 `OVERVIEW.md` (tipos de documento, tabelas, fluxo), `DOCS.md` (endpoints, schemas, módulos),
-`DynamoDB-Tables.md` (4 tabelas novas + extensão de `organization_persons`), `CONDUCT.md` (decisão da
+`DynamoDB-Tables.md` (4 tabelas novas + grupo `nfse` em `organizations` e `organization_persons`), `CONDUCT.md` (decisão da
 SK por `idDPS`; regra de falha explícita no adapter ABRASF), `INTEGRATION.md` (contratos do wizard).
