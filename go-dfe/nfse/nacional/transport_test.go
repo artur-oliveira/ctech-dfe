@@ -1,0 +1,88 @@
+package nacional
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"gopkg.aoctech.app/dfe/go-dfe/nfse"
+)
+
+func TestGzipB64_RoundTrip(t *testing.T) {
+	raw := []byte("<DPS><infDPS/></DPS>")
+	enc, err := GzipB64(raw)
+	if err != nil {
+		t.Fatalf("GzipB64: %v", err)
+	}
+	got, err := UngzipB64(enc)
+	if err != nil {
+		t.Fatalf("UngzipB64: %v", err)
+	}
+	if string(got) != string(raw) {
+		t.Errorf("round-trip = %q, esperado %q", got, raw)
+	}
+}
+
+func TestHTTPDo_FiscalErrorPreservesCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"erros": []map[string]string{
+				{"codigo": "E0001", "descricao": "cTribNac inválido", "complemento": "linha 1"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	var out map[string]any
+	_, err := httpDo(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, &out, 0)
+	var fe *nfse.FiscalError
+	if !errors.As(err, &fe) {
+		t.Fatalf("esperado *nfse.FiscalError, veio %v", err)
+	}
+	if len(fe.Messages) != 1 || fe.Messages[0].Codigo != "E0001" {
+		t.Errorf("mensagem do fisco perdida: %+v", fe.Messages)
+	}
+	if fe.Status != http.StatusBadRequest {
+		t.Errorf("Status = %d, esperado 400", fe.Status)
+	}
+}
+
+func TestHTTPDo_RetriesOn5xxNotOn4xx(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls < 3 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"chaveAcesso": "abc"})
+	}))
+	defer srv.Close()
+
+	var out map[string]any
+	if _, err := httpDo(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, &out, 3); err != nil {
+		t.Fatalf("httpDo: %v", err)
+	}
+	if calls != 3 {
+		t.Errorf("chamadas = %d, esperado 3 (dois 502 + sucesso)", calls)
+	}
+	if out["chaveAcesso"] != "abc" {
+		t.Errorf("resposta não decodificada: %+v", out)
+	}
+
+	calls = 0
+	srv4 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"erro": map[string]string{"codigo": "X"}})
+	}))
+	defer srv4.Close()
+	_, _ = httpDo(context.Background(), srv4.Client(), http.MethodGet, srv4.URL, nil, &out, 3)
+	if calls != 1 {
+		t.Errorf("4xx foi repetido %d vezes; rejeição de negócio nunca se repete", calls)
+	}
+}
