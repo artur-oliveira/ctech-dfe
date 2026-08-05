@@ -39,6 +39,11 @@ go-dfe/
 │   │   └── response.go           # per-(authorizer,service) response node-path unwrap + ensure_list normalization
 │   ├── endpoints/table.go        # (doc_type, uf, env, service) → URL, incl. SVRS redirects + MT special-casing
 │   └── constants/constants.go    # enums, WSDL service/operation tables, retry defaults
+└── nfse/                        # NFS-e layer (F2): neutral document model + provider dispatch
+    ├── document.go, result.go, provider.go, errors.go, constants.go, dispatch.go
+    ├── tables/                   # F1 reference tables (trib nacional, NBS, indOp) — generated, never hand-edit
+    └── nacional/                 # Sistema Nacional NFS-e provider: REST+JSON, no SOAP, no internal/services
+        endpoints.go, dps.go, dps_ibscbs.go, evento.go, transport.go, provider.go, adn.go
 ```
 
 No `nf.go`/`cte.go`/`mdfe.go` OOP facade *classes* (py-dfe's `NFeServiceClient`/`CTeServiceClient`/etc,
@@ -109,6 +114,11 @@ Promoting an operation = adding its `(docType, service)` key to the `implemented
 Reverting = removing the key (falls back to the py-dfe Lambda automatically, no other code change). Do not add a key to
 `implemented` without its gate having actually run — this is fiscal software talking to a government tax authority; a
 bad promotion produces real rejected/wrong tax documents.
+
+**Exception — NFS-e (`nfse/`, F2):** py-dfe never implemented NFS-e, so there is no prior authority to shadow-compare
+against and no py-dfe corpus for the byte-identical signature gate. The applicable gate instead is homologação against
+produção restrita (NFS-e plan's F6) — this is a documented exception to the promotion rule above, not a silent skip.
+See `dfe.go`'s `implemented` map doc comment on the `constants.DocTypeNFSE` entry.
 
 ### XSD validation and DANFE — explicitly out of scope
 

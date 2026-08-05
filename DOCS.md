@@ -320,6 +320,61 @@ in-process via the workspace, so a change there must re-run their test suites to
 `go-dfe`'s) and `worker`/`api`'s deploy jobs `needs: godfe`, so a `go-dfe` test failure blocks their
 deploys.
 
+**Camada NFS-e (`go-dfe/nfse/`, F2 — 2026-08-05):** NFS-e não é SOAP e não passa por
+`internal/services` nem `internal/soap` — `dfe.Call` desvia para o pacote `nfse` logo após
+`certificate.Load` (o certificado é o mesmo) e antes de montar qualquer cliente SOAP. Estrutura:
+
+```
+go-dfe/nfse/
+  document.go, result.go, provider.go, errors.go, constants.go, dispatch.go
+  tables/                      # tabelas de referência da F1 (trib nacional, NBS, indOp)
+  nacional/                    # provider REST+JSON do Sistema Nacional NFS-e (F2)
+    endpoints.go, dps.go, dps_ibscbs.go, evento.go, transport.go, provider.go, adn.go
+```
+
+- **Modelo neutro:** `nfse.Document` (moldado no DPS 1.01) é o formato que `api` monta em
+  `dfe.Request.Body["document"]`; `nfse.DecodeDocument` rejeita campo desconhecido
+  (`json.Decoder.DisallowUnknownFields`) — um typo na api estoura no decode, nunca vira DPS
+  incompleta aceita pelo fisco.
+- **Serialização:** `nacional/dps.go`'s structs `encoding/xml` têm a ordem de campo normativa —
+  ela É a ordem do XSD (`tiposComplexos_v1.01.xsd`); não existe tabela `xsdorder` para NFS-e como
+  para os demais doc types. `TestBuildDPS_MatchesGolden` é o guarda contra reordenação acidental.
+- **`Body` de `dfe.Request` para NFS-e** (chaves lidas por `nfse.Dispatch`,
+  `go-dfe/nfse/dispatch.go`):
+
+  | Chave | Serviço(s) | Uso |
+  |---|---|---|
+  | `provider` | todos | `"nacional"` ou `"abrasf204"` (F5) |
+  | `document` | `NFSeRecepcao` | `nfse.Document` completo |
+  | `event` | `NFSeEvento` | `nfse.EventRequest` completo |
+  | `chave_acesso` | `NFSeConsulta`, `NFSeConsultaEvento`, `NFSeDistribuicao`*, `NFSeDANFSE` | chave de acesso da NFS-e |
+  | `id_dps` | `NFSeConsultaDPS` | identificador da DPS |
+  | `nsu` | `NFSeDistribuicao` | número sequencial único |
+  | `cnpj_consulta` | `NFSeDistribuicao` | CNPJ de consulta (raiz do certificado) |
+  | `param_kind` | `NFSeParametrosMunicipais` | `aliquota`\|`convenio`\|`beneficio`\|`regimes_especiais`\|`retencoes` |
+  | `param_args` | `NFSeParametrosMunicipais` | argumentos posicionais do path (arity por `param_kind`) |
+
+  \* `NFSeConsultaEvento` também aceita `tipo_evento`/`n_seq_evento`; sem eles a consulta lista
+  todos os eventos pelo ADN.
+
+- **Ambientes (Sistema Nacional):**
+
+  | Sistema | Produção | Produção restrita (homologação) |
+  |---|---|---|
+  | Sefin | `https://sefin.nfse.gov.br/SefinNacional` | `https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional` |
+  | ADN | `https://adn.nfse.gov.br/contribuintes` | `https://adn.producaorestrita.nfse.gov.br/contribuintes` |
+  | DANFSE | `https://adn.nfse.gov.br/danfse` | `https://adn.producaorestrita.nfse.gov.br/danfse` |
+  | Parametrização | `https://adn.nfse.gov.br/parametrizacao` | `https://adn.producaorestrita.nfse.gov.br/parametrizacao` |
+
+  O segmento `/API` existe SÓ na produção restrita do Sefin — `go-dfe/nfse/nacional/endpoints.go`
+  é a fonte de verdade em código (a tabela de ambientes de `docs/specs/2026-08-04-nfse-design.md`
+  §1 foi corrigida para bater com isto).
+- **`dfe.Implements(nfse, ...)`:** os 8 serviços acima estão promovidos sem shadow-mode — py-dfe
+  nunca implementou NFS-e, então não há autoridade anterior para comparar. O portão aplicável é a
+  homologação em produção restrita (F6), não a comparação de paridade normal.
+- **Não implementado nesta fase:** ABRASF 2.04 (F5), persistência (F3), geração própria de DANFSE
+  (fora de escopo — `DANFSE` baixa o PDF pronto do ADN).
+
 ---
 
 ## 4. ctech-dfe-api — REST Backend

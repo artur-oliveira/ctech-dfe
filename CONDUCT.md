@@ -202,7 +202,7 @@ Never commit or expose:
   `map[string]any` com chaves explícitas (ou faça o round-trip JSON como em `nfeLocalToMap`) —
   nunca passe o struct typed cru.
 
-## NFS-e (F1 — modelo de dados e cadastros)
+## NFS-e (F1 — modelo de dados e cadastros; F2 — go-dfe/nfse, provider nacional)
 
 - **A SK de `nfses` é o `idDPS`, nunca a chave de acesso**, porque `nNFSe` e `cNum` são gerados
   pelo fisco e a chave de acesso de 50 dígitos só existe depois da resposta. Consulta por chave
@@ -233,6 +233,21 @@ Never commit or expose:
   F5). Nenhuma tela nova (F4). Nenhuma validação de obrigatoriedade condicional entre campos
   (ex.: `reg_ap_trib_sn` exigido quando `op_simp_nac=3`) — essas regras dependem do contexto da
   emissão e entram junto com `NfseService.Emit` na F3.
+- **NFS-e não tem portão de shadow-mode** (`go-dfe/dfe.go`'s `implemented`, F2). py-dfe nunca
+  implementou NFS-e; não há autoridade anterior contra a qual comparar. O portão aplicável é a
+  homologação em produção restrita (F6). Isso é uma exceção documentada à regra de promoção de
+  `dfe.Implements` (`go-dfe/CLAUDE.md`), não um descuido.
+- **A ordem dos campos das structs em `go-dfe/nfse/nacional/dps.go` é normativa.** Ela É a ordem
+  do XSD (`tiposComplexos_v1.01.xsd`) — não existe tabela `xsdorder` para NFS-e como para os
+  demais doc types. Reordenar campo de struct por estética quebra a validação no Sefin.
+  `TestBuildDPS_MatchesGolden` é o guarda. Uma revisão da F2 encontrou 5 grupos (IBSCBS/valores,
+  imóvel, obra, informações complementares, benefício municipal) cujo shape divergia do XSD real
+  por terem sido modelados a partir de prosa do plano em vez do XSD — o XSD sempre prevalece sobre
+  texto de plano/spec quando divergem (mesmo precedente da F1 com `cTribNac`).
+- **Campo não suportado falha explicitamente.** `nfse.FieldNotSupportedError` nomeia o campo.
+  Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as
+  capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros municipais,
+  `go-dfe/nfse/dispatch.go`).
 
 ## NFC-e (modelo 65)
 

@@ -40,10 +40,13 @@ natureza diferente:
 
 | | Produção restrita | Produção |
 |---|---|---|
-| Sefin Nacional | `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` | `https://sefin.nfse.gov.br/SefinNacional` |
+| Sefin Nacional | `https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional` | `https://sefin.nfse.gov.br/SefinNacional` |
 | ADN contribuintes | `https://adn.producaorestrita.nfse.gov.br/contribuintes` | `https://adn.nfse.gov.br/contribuintes` |
 | DANFSE | `https://adn.producaorestrita.nfse.gov.br/danfse` | `https://adn.nfse.gov.br/danfse` |
 | Parâmetros municipais | `https://adn.producaorestrita.nfse.gov.br/parametrizacao` | `https://adn.nfse.gov.br/parametrizacao` |
+
+O segmento `/API` existe apenas na produção restrita do Sefin Nacional (`tmp/apis-prod-restrita-e-producao.txt`). A
+tabela de bases em `go-dfe/nfse/nacional/endpoints.go` é a fonte de verdade em código.
 
 ABRASF: endpoint por município, configurado por organização — sem tabela embutida.
 
@@ -506,7 +509,7 @@ infraestrutura. IAM do worker e da API estendidos para as tabelas novas e para o
 | Fase | Entrega | Depende de | Status |
 |---|---|---|---|
 | **F1** | Tabelas + cadastros: `organization_services`, grupo `nfse` em `PersonObjectBody` (cobre `organizations` e `organization_persons`), `organization_nfse_configs`, CDK, tabelas de referência (Anexos B/C) | — | Concluída 2026-08-05 |
-| **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — | — |
+| **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — | Concluída 2026-08-05 |
 | **F3** | `api` (emissão, eventos, consultas, proxies) + `worker` (pipeline NFS-e) | F1, F2 | — |
 | **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 | — |
 | **F5** | `go-dfe/nfse/abrasf204` — motor genérico das 10 operações do WSDL + wiring na API/worker | F2, F3 | — |
