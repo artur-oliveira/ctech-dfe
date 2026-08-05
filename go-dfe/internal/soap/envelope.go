@@ -106,6 +106,12 @@ func (b *Builder) Build(payloadXML []byte, gzipPayload, includeHeader bool) ([]b
 	if gzipPayload {
 		var gz bytes.Buffer
 		zw := gzip.NewWriter(&gz)
+		defer func(zw *gzip.Writer) {
+			err := zw.Close()
+			if err != nil {
+
+			}
+		}(zw)
 		if _, err := zw.Write(payloadXML); err != nil {
 			return nil, fmt.Errorf("soap: gzip payload: %w", err)
 		}

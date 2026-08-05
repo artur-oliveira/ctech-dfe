@@ -285,23 +285,23 @@ event_key == f"{access_key}#{event_type}#001"
 
 ---
 
-## 19–21. `nfe_distributions` / `cte_distributions` / `mdfe_distributions`
+## 19–22. `nfe_distributions` / `cte_distributions` / `mdfe_distributions` / `nfse_distributions`
 
-Records received via NFeDistribuicaoDFe (`distNSU`). SK is numeric NSU for range queries.
+Records received via DFe distribution services (NFeDistribuicaoDFe, DistDFe for CT-e/MDF-e, or ABRASF ADN for NFS-e). SK is numeric NSU for range queries.
 
 | Attribute    | Type | Notes                                                      |
 |--------------|------|------------------------------------------------------------|
 | `pk`         | S    | `{org_pk}` — partition key                                 |
 | `nsu`        | N    | NSU number — sort key                                      |
-| `doc_type`   | S    | `nfe`, `cte`, `mdfe`                                       |
-| `schema`     | S    | SEFAZ schema type (`resNFe`, `procNFe`, `resEvento`, etc.) |
-| `access_key` | S    | 44-digit key (present for `procNFe` / `resNFe`)            |
+| `doc_type`   | S    | `nfe`, `cte`, `mdfe`, or `nfse`                            |
+| `schema`     | S    | SEFAZ schema type (`resNFe`, `procNFe`, `resEvento`, etc.); for `nfse` — RPS schema version |
+| `access_key` | S    | 44-digit key for DFe (NF-e/CT-e/MDF-e); 50-digit for NFS-e |
 | `xml_s3_key` | S    | S3 key of the received XML                                 |
 | `created_at` | S    | ISO-8601 UTC                                               |
 
 ---
 
-## 22. `roles`
+## 23. `roles`
 
 Pre-seeded RBAC role definitions. Items are written once at bootstrap.
 
@@ -317,7 +317,7 @@ Resources: DynamoDB table names without prefix (e.g. `organization_products`, `n
 
 ---
 
-## 23. `audit_logs`
+## 24. `audit_logs`
 
 Per-field change record for org-owned mutating resources (products, vehicles, persons, certificates, organizations,
 fiscal configs). DF-e issuance and events do NOT write here — those tables are append-only, so `user_id`/`user_name` are
@@ -350,7 +350,7 @@ resource" without needing a GSI.
 
 ---
 
-## 24. `organization_users`
+## 25. `organization_users`
 
 **Source of truth for user↔organization membership.** Read on every authorized request (RBAC), so its read-capacity cap
 is set high (500 RCU) unlike the 5-RCU default of other tables. Replaces the legacy embedded `users.organizations` list,
@@ -379,7 +379,7 @@ user's orgs → `query_gsi(user-index, sk=USER_{sub})`.
 
 ---
 
-## 25. `organization_invitations`
+## 26. `organization_invitations`
 
 Single-use invitation links. Partition key is the SHA-256 of the opaque token, so acceptance is a strongly-consistent
 `get_item` (never a Scan). The raw token exists only in the returned link.
@@ -409,7 +409,7 @@ Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND
 
 ---
 
-## 26. `worker_outbox`
+## 27. `worker_outbox`
 
 One immutable issuance command per fiscal operation. The API creates this row in the same `TransactWriteItems` as the
 fiscal document and number reservation.
@@ -432,7 +432,7 @@ because SNS publication and acknowledgement cannot be made atomic.
 
 ---
 
-## 27. `organization_services`
+## 28. `organization_services`
 
 Service catalog per org (NFS-e line items — analogous to `organization_products` for goods). Persists
 `api/internal/api/v1.ServiceBody` (see `dto.go`) as a dynamic map, same pattern as
@@ -487,23 +487,6 @@ cursor fields (for tracking the last consumed NSU during ADN polling).
 Inscrição municipal and the prestador's regime tributário are NOT stored here — they live on the organization's own
 `person.nfse` group (see `organizations`/`organization_persons` above), since when the org emits as
 tomador/intermediário (`tpEmit` 2/3) the prestador is a different person from the cadastro, not the organization itself.
-
----
-
-## 22. `nfse_distributions`
-
-Stores NFS-e distribution records received from ABRASF ADN (Ambiente de Distribuição Nacional). Mirrors the schema
-of NF-e/CT-e/MDF-e distribution tables with numeric NSU (sequential National Service Number) as the sort key.
-
-| Attribute         | Type | Notes                                                      |
-|-------------------|------|------------------------------------------------------------|
-| `pk`              | S    | `{org_pk}` — partition key                                 |
-| `nsu`             | N    | Numeric NSU — sort key (ADN sequences by NSU)              |
-| `doc_type`        | S    | `"nfse"` — document type identifier                        |
-| `schema`          | S    | RPS schema version (e.g., `"RPS_v1"`)                      |
-| `access_key`      | S    | 50-digit NFS-e access key                                  |
-| `xml_s3_key`      | S    | S3 path to the XML document                                |
-| `created_at`      | S    | ISO-8601 UTC                                               |
 
 ---
 

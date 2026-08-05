@@ -28,4 +28,3 @@ func TestNfseListOpts_DefaultSort(t *testing.T) {
 		t.Error("sort desc não preservado")
 	}
 }
-

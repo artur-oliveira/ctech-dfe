@@ -46,6 +46,12 @@ func SignPedRegEvento(xmlBytes []byte, cert *x509.Certificate, key *rsa.PrivateK
 func GzipB64(raw []byte) (string, error) {
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
+	defer func(zw *gzip.Writer) {
+		err := zw.Close()
+		if err != nil {
+
+		}
+	}(zw)
 	if _, err := zw.Write(raw); err != nil {
 		return "", fmt.Errorf("nacional: gzip: %w", err)
 	}

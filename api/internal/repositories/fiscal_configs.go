@@ -75,10 +75,10 @@ type NfseConfigRepository struct {
 func NewNfseConfigRepository(db *dynamodb.Client, cfg *config.Config) *NfseConfigRepository {
 	return &NfseConfigRepository{
 		FiscalConfigRepository: newFiscalConfigBase(db, cfg, "organization_nfse_configs", map[string]any{
-			"prod_current_number":  0,
-			"hom_current_number":   0,
-			"prod_nsu":             0,
-			"hom_nsu":              0,
+			"prod_current_number":   0,
+			"hom_current_number":    0,
+			"prod_nsu":              0,
+			"hom_nsu":               0,
 			"prod_last_dist_nsu_at": nil,
 			"hom_last_dist_nsu_at":  nil,
 		}),
