@@ -446,7 +446,7 @@ python3 -c "import openpyxl" || pip install --user openpyxl
 python3 go-dfe/nfse/tables/gen/generate.py
 ```
 
-Esperado: cinco linhas de saída, com `trib_nacional.go` com 338 entradas, `nbs.go` com 918 entradas e `indop.go` com 26 entradas.
+Esperado: cinco linhas de saída, com `trib_nacional.go` com 338 entradas, `nbs.go` com 917 entradas e `indop.go` com 26 entradas.
 
 - [ ] **Step 6: Rodar os testes e confirmar que passam**
 

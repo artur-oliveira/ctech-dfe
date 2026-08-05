@@ -921,5 +921,4 @@ var nbsTable = map[string]NBSEntry{
 	"126040000": {Code: "126040000", Description: "Serviços de confecção de roupas e outros artigos têxteis"},
 	"126050000": {Code: "126050000", Description: "Serviços domésticos"},
 	"126060000": {Code: "126060000", Description: "Serviços pessoais não classificados em posições anteriores"},
-	"999999999": {Code: "999999999", Description: ""},
 }

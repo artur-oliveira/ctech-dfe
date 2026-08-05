@@ -71,12 +71,15 @@ def parse_nbs(path):
     # A aba mistura códigos-folha (9 dígitos sem pontos) com linhas de hierarquia
     # (seção/posição, com menos dígitos) — só os códigos-folha de 9 dígitos são
     # códigos NBS válidos (TSCodNBS no XSD); as linhas de hierarquia são descartadas.
+    # A linha "9.9999.99.99" (sem descrição) é o exemplo de formato da planilha, não
+    # um código real — todo código NBS real tem descrição preenchida — e é descartada.
     out = []
     for row in rows(path, "LISTA.NBS_v2.0"):
         code = clean(row[0]).replace(".", "")
-        if len(code) != 9 or not code.isdigit():
+        description = clean(row[1])
+        if len(code) != 9 or not code.isdigit() or not description:
             continue
-        out.append({"code": code, "description": clean(row[1])})
+        out.append({"code": code, "description": description})
     return out
 
 
