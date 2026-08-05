@@ -84,3 +84,34 @@ func TestTimezoneAndPercent(t *testing.T) {
 		t.Fatal("expected errors for bad timezone/percent")
 	}
 }
+
+func TestNfseValidators(t *testing.T) {
+	type body struct {
+		IM      string `json:"im" validate:"required,inscmun"`
+		Caepf   string `json:"caepf" validate:"omitempty,caepf"`
+		TribNac string `json:"trib_nac" validate:"required,tribnac"`
+		NBS     string `json:"nbs" validate:"omitempty,nbs"`
+		IndOp   string `json:"ind_op" validate:"omitempty,indop"`
+	}
+
+	valid := body{IM: "123456", Caepf: "12345678901234", TribNac: "010101", NBS: "101011100", IndOp: "020101"}
+	if p := Struct(valid); p != nil {
+		t.Fatalf("payload válido rejeitado: %+v", p)
+	}
+
+	cases := map[string]body{
+		"im com letra":        {IM: "12A456", TribNac: "010101"},
+		"caepf curto":         {IM: "123456", Caepf: "123", TribNac: "010101"},
+		"tribnac inexistente": {IM: "123456", TribNac: "999999"},
+		"tribnac curto":       {IM: "123456", TribNac: "101"},
+		// Forma antiga de 5 dígitos (zero do item perdido pela planilha) — inválida.
+		"tribnac sem zero à esquerda": {IM: "123456", TribNac: "10101"},
+		"nbs inexistente":             {IM: "123456", TribNac: "010101", NBS: "999999999"},
+		"indop inexistente":           {IM: "123456", TribNac: "010101", IndOp: "999999"},
+	}
+	for name, in := range cases {
+		if p := Struct(in); p == nil {
+			t.Errorf("%s: esperado erro de validação, veio nil", name)
+		}
+	}
+}

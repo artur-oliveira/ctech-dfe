@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"gopkg.aoctech.app/dfe/go-dfe/nfse/tables"
 )
 
 // UFSet holds the 27 Brazilian federation units (26 states + DF). Defined once
@@ -30,6 +31,10 @@ var regexValidators = map[string]*regexp.Regexp{
 	"placa":   regexp.MustCompile(`^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$`),
 	"rntrc":   regexp.MustCompile(`^\d{8,12}$`),
 	"renavam": regexp.MustCompile(`^\d{9,11}$`),
+	"inscmun": regexp.MustCompile(`^\d{1,15}$`),
+	"caepf":   regexp.MustCompile(`^\d{14}$`),
+	"nif":     regexp.MustCompile(`^[A-Za-z0-9]{1,40}$`),
+	"cnae":    regexp.MustCompile(`^\d{7}$`),
 	// Generic numeric / units
 	"unit":     regexp.MustCompile(`^[A-Z]{1,6}$`),
 	"decimalv": regexp.MustCompile(`^\d+(\.\d+)?$`),
@@ -154,7 +159,7 @@ func ValidCNPJ(s string) bool {
 	}
 	w1 := []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
 	s1 := 0
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		s1 += val(clean[i]) * w1[i]
 	}
 	r1 := s1 % 11
@@ -167,7 +172,7 @@ func ValidCNPJ(s string) bool {
 	}
 	w2 := []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
 	s2 := 0
-	for i := 0; i < 13; i++ {
+	for i := range 13 {
 		s2 += val(clean[i]) * w2[i]
 	}
 	r2 := s2 % 11
@@ -186,4 +191,19 @@ func allSameByte(s string) bool {
 		}
 	}
 	return len(s) > 0
+}
+
+// Validadores de tabela NFS-e. Consultam as tabelas de referência geradas dos
+// Anexos B e C, versionadas em go-dfe/nfse/tables — a mesma fonte que a go-dfe
+// usa para montar o XML da DPS, para que api e go-dfe nunca divirjam.
+func tribNacionalValidator(fl validator.FieldLevel) bool {
+	return tables.IsValidTribNacional(fl.Field().String())
+}
+
+func nbsValidator(fl validator.FieldLevel) bool {
+	return tables.IsValidNBS(fl.Field().String())
+}
+
+func indOpValidator(fl validator.FieldLevel) bool {
+	return tables.IsValidIndOp(fl.Field().String())
 }

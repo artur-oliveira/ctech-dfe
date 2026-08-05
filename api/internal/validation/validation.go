@@ -54,6 +54,11 @@ func get() *validator.Validate {
 		_ = v.RegisterValidation("cnpj", cnpjValidator)
 		_ = v.RegisterValidation("cpfcnpj", cpfCnpjValidator)
 
+		// Validadores de tabela oficial NFS-e (Anexos B e C).
+		_ = v.RegisterValidation("tribnac", tribNacionalValidator)
+		_ = v.RegisterValidation("nbs", nbsValidator)
+		_ = v.RegisterValidation("indop", indOpValidator)
+
 		instance = v
 	})
 	return instance
@@ -168,6 +173,20 @@ func message(fe validator.FieldError) string {
 		return "percentual inválido"
 	case "serie":
 		return "série deve ter 1 a 3 dígitos"
+	case "inscmun":
+		return "inscrição municipal deve ter de 1 a 15 dígitos"
+	case "caepf":
+		return "CAEPF deve ter 14 dígitos"
+	case "nif":
+		return "NIF inválido (até 40 caracteres alfanuméricos)"
+	case "cnae":
+		return "CNAE deve ter 7 dígitos"
+	case "tribnac":
+		return "código de tributação nacional inexistente na lista de serviços"
+	case "nbs":
+		return "código NBS inexistente (informe sem pontos)"
+	case "indop":
+		return "código indOp inexistente na tabela do Anexo C"
 	default:
 		return "valor inválido para a regra '" + fe.Tag() + "'"
 	}
