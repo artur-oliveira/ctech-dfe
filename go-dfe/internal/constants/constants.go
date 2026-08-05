@@ -20,6 +20,7 @@ const (
 	DocTypeNFCE = "nfce"
 	DocTypeCTE  = "cte"
 	DocTypeMDFE = "mdfe"
+	DocTypeNFSE = "nfse"
 )
 
 // Retry defaults (py-dfe/py_dfe/models/request.py: max_retries 0-10, default 3).
@@ -27,6 +28,20 @@ const (
 	DefaultMaxRetries = 3
 	MinMaxRetries     = 0
 	MaxMaxRetries     = 10
+)
+
+// Serviços NFS-e. Diferente dos demais doc types, não existem operações de
+// WSDL aqui: o Sistema Nacional é REST e o nome do serviço só seleciona a
+// rota dentro de nfse/nacional.
+const (
+	ServiceNFSeRecepcao             = "NFSeRecepcao"
+	ServiceNFSeConsulta             = "NFSeConsulta"
+	ServiceNFSeConsultaDPS          = "NFSeConsultaDPS"
+	ServiceNFSeEvento               = "NFSeEvento"
+	ServiceNFSeConsultaEvento       = "NFSeConsultaEvento"
+	ServiceNFSeDistribuicao         = "NFSeDistribuicao"
+	ServiceNFSeDANFSE               = "NFSeDANFSE"
+	ServiceNFSeParametrosMunicipais = "NFSeParametrosMunicipais"
 )
 
 // UFList is every valid UF code, including "EX" (exterior/estrangeiro).
