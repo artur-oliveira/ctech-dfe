@@ -225,9 +225,7 @@ func (n *Nacional) QueryEvents(ctx context.Context, f nfse.EventFilter) (nfse.Re
 		}
 		return n.toResult(resp)
 	}
-	// listEventsADN é implementado na Task 7 (adn.go); até lá, filtro vazio
-	// não é suportado — mantém a suíte verde entre commits.
-	return nfse.Result{}, fmt.Errorf("nacional: listagem de eventos sem filtro exige ADN (ainda não implementado)")
+	return n.listEventsADN(ctx, f.ChaveAcesso)
 }
 
 func (n *Nacional) toResult(resp queryResponse) (nfse.Result, error) {
