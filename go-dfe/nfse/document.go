@@ -109,27 +109,46 @@ type ComExt struct {
 	MdicMovTempBens string `json:"mdic,omitempty"`
 }
 
+// Obra espelha TCInfoObra: inscImobFisc? seguido da escolha obrigatória
+// cObra|cCIB|end (TCEnderObraEvento).
 type Obra struct {
-	CObra        string    `json:"c_obra,omitempty"`
-	InscImobFisc string    `json:"insc_imob_fisc,omitempty"`
-	CCIB         string    `json:"c_cib,omitempty"`
-	End          *Endereco `json:"endereco,omitempty"`
+	InscImobFisc string           `json:"insc_imob_fisc,omitempty"`
+	CObra        string           `json:"c_obra,omitempty"`
+	CCIB         string           `json:"c_cib,omitempty"`
+	End          *EnderecoSimples `json:"endereco,omitempty"`
 }
 
+// AtvEvento espelha TCAtvEvento: xNome, dtIni e dtFim são obrigatórios;
+// idAtvEvt|end (TCEnderecoSimples) é uma escolha obrigatória.
 type AtvEvento struct {
-	XNome    string    `json:"x_nome"`
-	DtIni    string    `json:"dt_ini,omitempty"`
-	DtFim    string    `json:"dt_fim,omitempty"`
-	IDAtvEvt string    `json:"id_atv_evt,omitempty"`
-	End      *Endereco `json:"endereco,omitempty"`
+	XNome    string           `json:"x_nome"`
+	DtIni    string           `json:"dt_ini"`
+	DtFim    string           `json:"dt_fim"`
+	IDAtvEvt string           `json:"id_atv_evt,omitempty"`
+	End      *EnderecoSimples `json:"endereco,omitempty"`
 }
 
+// EnderecoSimples espelha TCEnderecoSimples/TCEnderObraEvento (mesmo shape,
+// nomes de tipo diferentes no XSD): escolha CEP|endExt (sem cPais, diferente
+// do TCEndereco completo), depois xLgr, nro, xCpl?, xBairro.
+type EnderecoSimples struct {
+	CEP         string `json:"cep,omitempty"`
+	CEndPost    string `json:"c_end_post,omitempty"`
+	XCidade     string `json:"x_cidade,omitempty"`
+	XEstadoProv string `json:"x_estado_prov,omitempty"`
+	XLgr        string `json:"x_lgr"`
+	Nro         string `json:"nro"`
+	XCpl        string `json:"x_cpl,omitempty"`
+	XBairro     string `json:"x_bairro"`
+}
+
+// InfoCompl espelha TCInfoCompl: idDocTec?, docRef?, xPed?, gItemPed?, xInfComp?.
 type InfoCompl struct {
-	IDDocTec   string `json:"id_doc_tec,omitempty"`
-	DocRef     string `json:"doc_ref,omitempty"`
-	XInfComp   string `json:"x_inf_comp,omitempty"`
-	NPedido    string `json:"n_pedido,omitempty"`
-	ItemPedido string `json:"item_pedido,omitempty"`
+	IDDocTec string   `json:"id_doc_tec,omitempty"`
+	DocRef   string   `json:"doc_ref,omitempty"`
+	XPed     string   `json:"x_ped,omitempty"`
+	ItensPed []string `json:"itens_ped,omitempty"` // gItemPed>xItemPed, até 99
+	XInfComp string   `json:"x_inf_comp,omitempty"`
 }
 
 type Valores struct {
@@ -165,10 +184,13 @@ type DedRedDoc struct {
 	DtEmiDoc string `json:"dt_emi_doc,omitempty"`
 }
 
+// Tributacao espelha TCInfoTributacao: tribMun e totTrib são obrigatórios
+// (TCTribTotal é sempre uma escolha, nunca ausente — mesmo quando o único
+// dado é indTotTrib=0, valor fixo do Decreto 8.264/2014).
 type Tributacao struct {
 	TribMun TribMunicipal `json:"trib_mun"`
 	TribFed *TribFederal  `json:"trib_fed,omitempty"`
-	TotTrib *TotTrib      `json:"tot_trib,omitempty"`
+	TotTrib TotTrib       `json:"tot_trib"`
 }
 
 type TribMunicipal struct {
@@ -186,10 +208,12 @@ type ExigSusp struct {
 	NProcesso string `json:"n_processo"`
 }
 
+// BenefMun espelha TCBeneficioMunicipal: nBM obrigatório, seguido da escolha
+// vRedBCBM|pRedBCBM.
 type BenefMun struct {
-	TBM   int    `json:"t_bm"`
-	NBM   string `json:"n_bm"`
-	VlRed string `json:"vl_red,omitempty"`
+	NBM      string `json:"n_bm"`
+	VRedBCBM string `json:"v_red_bc_bm,omitempty"`
+	PRedBCBM string `json:"p_red_bc_bm,omitempty"`
 }
 
 type TribFederal struct {
@@ -230,45 +254,45 @@ type IBSCBS struct {
 	Valores   IBSCBSValores `json:"valores"`
 }
 
+// RefNFSe espelha TCInfoRefNFSe: refNFSe é repetível (até 99).
 type RefNFSe struct {
-	ChNFSe string `json:"ch_nfse"`
+	Chaves []string `json:"chaves"`
 }
 
+// Imovel espelha TCRTCInfoImovel: inscImobFisc? seguido da escolha
+// obrigatória cCIB|end (TCEnderObraEvento).
 type Imovel struct {
-	CIB          string `json:"cib,omitempty"`
-	InscImobFisc string `json:"insc_imob_fisc,omitempty"`
-	CMun         string `json:"c_mun,omitempty"`
+	InscImobFisc string           `json:"insc_imob_fisc,omitempty"`
+	CIB          string           `json:"cib,omitempty"`
+	End          *EnderecoSimples `json:"endereco,omitempty"`
 }
 
+// IBSCBSValores espelha TCRTCInfoValoresIBSCBS. gReeRepRes (reembolso/
+// repasse/ressarcimento de terceiros) não é suportado nesta fase — é um
+// grupo opcional e nenhum campo do modelo neutro o alimenta ainda.
 type IBSCBSValores struct {
-	CST        string         `json:"cst"`
-	CClassTrib string         `json:"c_class_trib"`
-	VBC        string         `json:"v_bc,omitempty"`
-	GIBSUF     *IBSComponente `json:"g_ibs_uf,omitempty"`
-	GIBSMun    *IBSComponente `json:"g_ibs_mun,omitempty"`
-	GCBS       *IBSComponente `json:"g_cbs,omitempty"`
-	GDif       *Diferimento   `json:"g_dif,omitempty"`
-	GCredPres  *CredPresumido `json:"g_cred_pres,omitempty"`
-	VTotIBS    string         `json:"v_tot_ibs,omitempty"`
-	VTotCBS    string         `json:"v_tot_cbs,omitempty"`
+	Trib TribIBSCBS `json:"trib"`
 }
 
-type IBSComponente struct {
-	PAliq    string `json:"p_aliq,omitempty"`
-	VTrib    string `json:"v_trib,omitempty"`
-	PRedAliq string `json:"p_red_aliq,omitempty"`
-	VTribOp  string `json:"v_trib_op,omitempty"`
+// TribIBSCBS espelha TCRTCInfoTributosSitClas (dentro de trib>gIBSCBS).
+type TribIBSCBS struct {
+	CST         string       `json:"cst"`
+	CClassTrib  string       `json:"c_class_trib"`
+	CCredPres   string       `json:"c_cred_pres,omitempty"`
+	TribRegular *TribRegular `json:"trib_regular,omitempty"`
+	Dif         *DifIBSCBS   `json:"dif,omitempty"`
 }
 
-type Diferimento struct {
-	PDif string `json:"p_dif,omitempty"`
-	VDif string `json:"v_dif,omitempty"`
+type TribRegular struct {
+	CSTReg        string `json:"cst_reg"`
+	CClassTribReg string `json:"c_class_trib_reg"`
 }
 
-type CredPresumido struct {
-	CCredPres string `json:"c_cred_pres,omitempty"`
-	PCredPres string `json:"p_cred_pres,omitempty"`
-	VCredPres string `json:"v_cred_pres,omitempty"`
+// DifIBSCBS espelha TCRTCInfoTributosDif — três percentuais, todos obrigatórios.
+type DifIBSCBS struct {
+	PDifUF  string `json:"p_dif_uf"`
+	PDifMun string `json:"p_dif_mun"`
+	PDifCBS string `json:"p_dif_cbs"`
 }
 
 // DecodeDocument converte o Body["document"] recebido em dfe.Request para o

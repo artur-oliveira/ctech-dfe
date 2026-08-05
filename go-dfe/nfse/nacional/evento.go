@@ -80,6 +80,14 @@ func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 	if ev.CNPJAutor == "" && ev.CPFAutor == "" {
 		return nil, "", fmt.Errorf("nacional: evento sem CNPJAutor nem CPFAutor")
 	}
+	if ev.TipoEvento == nfse.EventCancelamentoPorSubst && ev.ChSubstituta == "" {
+		return nil, "", fmt.Errorf("nacional: evento %q exige chSubstituta", ev.TipoEvento)
+	}
+	if ev.TipoEvento == nfse.EventAnulacaoRejeicao {
+		if ev.CPFAgTrib == "" || ev.IDEvManifRej == "" || ev.Motivo == nil || ev.Motivo.Descricao == "" {
+			return nil, "", fmt.Errorf("nacional: evento %q exige CPFAgTrib, idEvManifRej e xMotivo", ev.TipoEvento)
+		}
+	}
 
 	seq := ev.NSeqEvento
 	if seq == 0 {

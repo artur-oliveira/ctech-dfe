@@ -1,6 +1,7 @@
 package nacional
 
 import (
+	"encoding/xml"
 	"os"
 	"strings"
 	"testing"
@@ -116,5 +117,113 @@ func TestBuildDPS_MatchesGolden(t *testing.T) {
 	}
 	if string(got) != strings.TrimSpace(string(want)) {
 		t.Errorf("DPS divergiu do golden.\ngot:  %s\nwant: %s", got, want)
+	}
+}
+
+// TestBuildDPS_OptionalGroupsMatchXSDShape exercita Obra, AtvEvento,
+// InfoCompl e BM — grupos cujo shape (nomes/ordem de elemento) precisa
+// bater exatamente com tiposComplexos_v1.01.xsd; um regression test para o
+// bug em que essas structs foram inicialmente modeladas com campos/tipos
+// que não existem no XSD real (ex.: obra sem escolha cObra|cCIB|end,
+// BM com tBM/vlRed em vez de nBM+vRedBCBM|pRedBCBM).
+func TestBuildDPS_OptionalGroupsMatchXSDShape(t *testing.T) {
+	doc := minimalDoc()
+	doc.Servico.Obra = &nfse.Obra{InscImobFisc: "123", CCIB: "CIB001"}
+	doc.Servico.AtvEvento = &nfse.AtvEvento{
+		XNome: "Feira", DtIni: "2026-08-01", DtFim: "2026-08-02",
+		End: &nfse.EnderecoSimples{CEP: "01000000", XLgr: "Rua A", Nro: "10", XBairro: "Centro"},
+	}
+	doc.Servico.InfoCompl = &nfse.InfoCompl{XPed: "PED1", ItensPed: []string{"1", "2"}}
+	doc.Valores.Trib.TribMun.BM = &nfse.BenefMun{NBM: "2211001010001", PRedBCBM: "50.00"}
+
+	xmlBytes, _, err := BuildDPS(doc, time.Now())
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+
+	for _, want := range []string{
+		"<obra><inscImobFisc>123</inscImobFisc><cCIB>CIB001</cCIB></obra>",
+		"<atvEvento><xNome>Feira</xNome><dtIni>2026-08-01</dtIni><dtFim>2026-08-02</dtFim>" +
+			"<end><CEP>01000000</CEP><xLgr>Rua A</xLgr><nro>10</nro><xBairro>Centro</xBairro></end></atvEvento>",
+		"<infoCompl><xPed>PED1</xPed><gItemPed><xItemPed>1</xItemPed><xItemPed>2</xItemPed></gItemPed></infoCompl>",
+		"<BM><nBM>2211001010001</nBM><pRedBCBM>50.00</pRedBCBM></BM>",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("XML não contém %q\nXML: %s", want, s)
+		}
+	}
+}
+
+// TestToXMLTotTrib_ChoosesExactlyOneBranch é um regression test para o bug
+// em que TCTribTotal (xs:choice) era serializado com múltiplos ramos
+// simultâneos e indTotTrib=0 (o ramo padrão) nunca aparecia por causa de
+// omitempty num int não-ponteiro.
+func TestToXMLTotTrib_ChoosesExactlyOneBranch(t *testing.T) {
+	cases := []struct {
+		name string
+		in   nfse.TotTrib
+		want string
+	}{
+		{"default indTotTrib", nfse.TotTrib{}, "<indTotTrib>0</indTotTrib>"},
+		{"vTotTrib", nfse.TotTrib{VTotTribFed: "1.00", VTotTribEst: "2.00", VTotTribMun: "3.00"},
+			"<vTotTrib><vTotTribFed>1.00</vTotTribFed><vTotTribEst>2.00</vTotTribEst><vTotTribMun>3.00</vTotTribMun></vTotTrib>"},
+		{"pTotTrib", nfse.TotTrib{PTotTribFed: "1.00", PTotTribEst: "2.00", PTotTribMun: "3.00"},
+			"<pTotTrib><pTotTribFed>1.00</pTotTribFed><pTotTribEst>2.00</pTotTribEst><pTotTribMun>3.00</pTotTribMun></pTotTrib>"},
+		{"pTotTribSN", nfse.TotTrib{PTotTribSN: "4.00"}, "<pTotTribSN>4.00</pTotTribSN>"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := xml.Marshal(toXMLTotTrib(c.in))
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			if !strings.Contains(string(got), c.want) {
+				t.Errorf("xmlTotTrib = %s, esperado conter %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestBuildDPS_IBSCBSTribShape é um regression test para o bug em que
+// IBSCBS.valores.trib.gIBSCBS era serializado com campos fabricados
+// (vBC/gIBSUF/gIBSMun/gCBS/vTotIBS/vTotCBS) que não existem em
+// TCRTCInfoTributosSitClas — o shape real é CST/cClassTrib/cCredPres?/
+// gTribRegular?/gDif?.
+func TestBuildDPS_IBSCBSTribShape(t *testing.T) {
+	doc := minimalDoc()
+	doc.IBSCBS = &nfse.IBSCBS{
+		FinNFSe: 0, CIndOp: "020101", IndDest: 0,
+		GRefNFSe: &nfse.RefNFSe{Chaves: []string{"chave1", "chave2"}},
+		Imovel:   &nfse.Imovel{InscImobFisc: "999", CIB: "CIB002"},
+		Valores: nfse.IBSCBSValores{
+			Trib: nfse.TribIBSCBS{
+				CST: "000", CClassTrib: "000001",
+				TribRegular: &nfse.TribRegular{CSTReg: "000", CClassTribReg: "000001"},
+				Dif:         &nfse.DifIBSCBS{PDifUF: "10.00", PDifMun: "10.00", PDifCBS: "10.00"},
+			},
+		},
+	}
+	xmlBytes, _, err := BuildDPS(doc, time.Now())
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+	for _, want := range []string{
+		"<gRefNFSe><refNFSe>chave1</refNFSe><refNFSe>chave2</refNFSe></gRefNFSe>",
+		"<imovel><inscImobFisc>999</inscImobFisc><cCIB>CIB002</cCIB></imovel>",
+		"<valores><trib><gIBSCBS><CST>000</CST><cClassTrib>000001</cClassTrib>" +
+			"<gTribRegular><CSTReg>000</CSTReg><cClassTribReg>000001</cClassTribReg></gTribRegular>" +
+			"<gDif><pDifUF>10.00</pDifUF><pDifMun>10.00</pDifMun><pDifCBS>10.00</pDifCBS></gDif>" +
+			"</gIBSCBS></trib></valores>",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("XML não contém %q\nXML: %s", want, s)
+		}
+	}
+	for _, unwanted := range []string{"<vBC>", "<gIBSUF>", "<gIBSMun>", "<gCBS>", "<vTotIBS>", "<vTotCBS>"} {
+		if strings.Contains(s, unwanted) {
+			t.Errorf("XML contém campo fabricado %q que não existe em TCRTCInfoTributosSitClas", unwanted)
+		}
 	}
 }

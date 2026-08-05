@@ -73,3 +73,76 @@ func TestBuildPedRegEvento_RequiresMotivoWhenTypeDemandsIt(t *testing.T) {
 		t.Fatal("esperado erro: cancelamento exige motivo")
 	}
 }
+
+func TestBuildPedRegEvento_RequiresChSubstitutaForSubstituicao(t *testing.T) {
+	ev := baseEvent(nfse.EventCancelamentoPorSubst)
+	ev.Motivo = &nfse.EventMotivo{Codigo: "1"}
+	if _, _, err := BuildPedRegEvento(ev); err == nil {
+		t.Fatal("esperado erro: cancelamento por substituição exige chSubstituta")
+	}
+}
+
+func TestBuildPedRegEvento_AnulacaoRejeicao(t *testing.T) {
+	ev := baseEvent(nfse.EventAnulacaoRejeicao)
+	ev.CPFAgTrib = "12345678909"
+	ev.IDEvManifRej = "PRE" + strings.Repeat("1", 50) + "203206" + "001"
+	ev.Motivo = &nfse.EventMotivo{Descricao: "Manifestação equivocada"}
+	out, id, err := BuildPedRegEvento(ev)
+	if err != nil {
+		t.Fatalf("BuildPedRegEvento: %v", err)
+	}
+	s := string(out)
+	if !strings.Contains(s, "<e205208>") {
+		t.Error("elemento e205208 ausente")
+	}
+	if !strings.Contains(s, "<CPFAgTrib>"+ev.CPFAgTrib+"</CPFAgTrib>") {
+		t.Error("CPFAgTrib ausente")
+	}
+	if !strings.Contains(s, "<idEvManifRej>"+ev.IDEvManifRej+"</idEvManifRej>") {
+		t.Error("idEvManifRej ausente")
+	}
+	if !strings.Contains(s, "<xMotivo>"+ev.Motivo.Descricao+"</xMotivo>") {
+		t.Error("xMotivo ausente")
+	}
+	if !strings.Contains(s, `Id="`+id+`"`) {
+		t.Errorf("infPedReg sem Id=%q", id)
+	}
+}
+
+func TestBuildPedRegEvento_AnulacaoRejeicaoRequiresAllFields(t *testing.T) {
+	if _, _, err := BuildPedRegEvento(baseEvent(nfse.EventAnulacaoRejeicao)); err == nil {
+		t.Fatal("esperado erro: anulação de rejeição exige CPFAgTrib, idEvManifRej e xMotivo")
+	}
+}
+
+// TestBuildPedRegEvento_RemainingEventTypes cobre os tipos que ainda não
+// tinham nenhum teste dedicado (regression test para um copy/paste errado
+// no switch de evento.go trocar o elemento de um tipo pelo de outro).
+func TestBuildPedRegEvento_RemainingEventTypes(t *testing.T) {
+	cases := []struct {
+		tipo, elemento string
+		needsMotivo    bool
+	}{
+		{nfse.EventSolicAnaliseFiscalCanc, "e101103", true},
+		{nfse.EventConfirmacaoPrestador, "e202201", false},
+		{nfse.EventConfirmacaoIntermediario, "e204203", false},
+		{nfse.EventRejeicaoPrestador, "e202205", true},
+		{nfse.EventRejeicaoTomador, "e203206", true},
+		{nfse.EventRejeicaoIntermediario, "e204207", true},
+	}
+	for _, c := range cases {
+		t.Run(c.tipo, func(t *testing.T) {
+			ev := baseEvent(c.tipo)
+			if c.needsMotivo {
+				ev.Motivo = &nfse.EventMotivo{Codigo: "1"}
+			}
+			out, _, err := BuildPedRegEvento(ev)
+			if err != nil {
+				t.Fatalf("BuildPedRegEvento: %v", err)
+			}
+			if !strings.Contains(string(out), "<"+c.elemento+">") {
+				t.Errorf("elemento %s ausente: %s", c.elemento, out)
+			}
+		})
+	}
+}

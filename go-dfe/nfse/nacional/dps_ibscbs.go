@@ -22,45 +22,48 @@ type xmlIBSCBS struct {
 	Valores   xmlIBSCBSValores `xml:"valores"`
 }
 
+// xmlRefNFSe espelha TCInfoRefNFSe: refNFSe é repetível (até 99).
 type xmlRefNFSe struct {
-	ChNFSe string `xml:"chNFSe"`
+	RefNFSe []string `xml:"refNFSe"`
 }
 
+// xmlImovel espelha TCRTCInfoImovel: inscImobFisc? seguido da escolha
+// obrigatória cCIB|end.
 type xmlImovel struct {
-	CIB          string `xml:"cIB,omitempty"`
-	InscImobFisc string `xml:"inscImobFisc,omitempty"`
-	CMun         string `xml:"cMun,omitempty"`
+	InscImobFisc string         `xml:"inscImobFisc,omitempty"`
+	CCIB         string         `xml:"cCIB,omitempty"`
+	End          *xmlEndSimples `xml:"end,omitempty"`
 }
 
+// xmlIBSCBSValores espelha TCRTCInfoValoresIBSCBS. gReeRepRes não é emitido
+// nesta fase (ver nfse.IBSCBSValores).
 type xmlIBSCBSValores struct {
-	CST        string            `xml:"CST"`
-	CClassTrib string            `xml:"cClassTrib"`
-	VBC        string            `xml:"vBC,omitempty"`
-	GIBSUF     *xmlIBSComponente `xml:"gIBSUF,omitempty"`
-	GIBSMun    *xmlIBSComponente `xml:"gIBSMun,omitempty"`
-	GCBS       *xmlIBSComponente `xml:"gCBS,omitempty"`
-	GDif       *xmlDiferimento   `xml:"gDif,omitempty"`
-	GCredPres  *xmlCredPresumido `xml:"gCredPres,omitempty"`
-	VTotIBS    string            `xml:"vTotIBS,omitempty"`
-	VTotCBS    string            `xml:"vTotCBS,omitempty"`
+	Trib xmlTribIBSCBS `xml:"trib"`
 }
 
-type xmlIBSComponente struct {
-	PAliq    string `xml:"pAliq,omitempty"`
-	PRedAliq string `xml:"pRedAliq,omitempty"`
-	VTribOp  string `xml:"vTribOp,omitempty"`
-	VTrib    string `xml:"vTrib,omitempty"`
+// xmlTribIBSCBS espelha TCRTCInfoTributosIBSCBS>gIBSCBS (TCRTCInfoTributosSitClas).
+type xmlTribIBSCBS struct {
+	GIBSCBS xmlInfoTributosSitClas `xml:"gIBSCBS"`
 }
 
-type xmlDiferimento struct {
-	PDif string `xml:"pDif,omitempty"`
-	VDif string `xml:"vDif,omitempty"`
+type xmlInfoTributosSitClas struct {
+	CST          string                `xml:"CST"`
+	CClassTrib   string                `xml:"cClassTrib"`
+	CCredPres    string                `xml:"cCredPres,omitempty"`
+	GTribRegular *xmlTribRegular       `xml:"gTribRegular,omitempty"`
+	GDif         *xmlDiferimentoIBSCBS `xml:"gDif,omitempty"`
 }
 
-type xmlCredPresumido struct {
-	CCredPres string `xml:"cCredPres,omitempty"`
-	PCredPres string `xml:"pCredPres,omitempty"`
-	VCredPres string `xml:"vCredPres,omitempty"`
+type xmlTribRegular struct {
+	CSTReg        string `xml:"CSTReg"`
+	CClassTribReg string `xml:"cClassTribReg"`
+}
+
+// xmlDiferimentoIBSCBS espelha TCRTCInfoTributosDif — três percentuais obrigatórios.
+type xmlDiferimentoIBSCBS struct {
+	PDifUF  string `xml:"pDifUF"`
+	PDifMun string `xml:"pDifMun"`
+	PDifCBS string `xml:"pDifCBS"`
 }
 
 func toXMLIBSCBS(g *nfse.IBSCBS) *xmlIBSCBS {
@@ -72,32 +75,26 @@ func toXMLIBSCBS(g *nfse.IBSCBS) *xmlIBSCBS {
 		TpOper: g.TpOper, TpEnteGov: g.TpEnteGov, IndDest: g.IndDest,
 		Dest: toXMLPessoa(g.Dest),
 		Valores: xmlIBSCBSValores{
-			CST: g.Valores.CST, CClassTrib: g.Valores.CClassTrib, VBC: g.Valores.VBC,
-			GIBSUF: toXMLComponente(g.Valores.GIBSUF), GIBSMun: toXMLComponente(g.Valores.GIBSMun),
-			GCBS:    toXMLComponente(g.Valores.GCBS),
-			VTotIBS: g.Valores.VTotIBS, VTotCBS: g.Valores.VTotCBS,
+			Trib: xmlTribIBSCBS{GIBSCBS: xmlInfoTributosSitClas{
+				CST: g.Valores.Trib.CST, CClassTrib: g.Valores.Trib.CClassTrib,
+				CCredPres: g.Valores.Trib.CCredPres,
+			}},
 		},
 	}
 	if g.GRefNFSe != nil {
-		out.GRefNFSe = &xmlRefNFSe{ChNFSe: g.GRefNFSe.ChNFSe}
+		out.GRefNFSe = &xmlRefNFSe{RefNFSe: g.GRefNFSe.Chaves}
 	}
 	if g.Imovel != nil {
-		out.Imovel = &xmlImovel{CIB: g.Imovel.CIB, InscImobFisc: g.Imovel.InscImobFisc, CMun: g.Imovel.CMun}
+		out.Imovel = &xmlImovel{InscImobFisc: g.Imovel.InscImobFisc,
+			CCIB: g.Imovel.CIB, End: toXMLEndSimples(g.Imovel.End)}
 	}
-	if d := g.Valores.GDif; d != nil {
-		out.Valores.GDif = &xmlDiferimento{PDif: d.PDif, VDif: d.VDif}
+	if r := g.Valores.Trib.TribRegular; r != nil {
+		out.Valores.Trib.GIBSCBS.GTribRegular = &xmlTribRegular{
+			CSTReg: r.CSTReg, CClassTribReg: r.CClassTribReg}
 	}
-	if c := g.Valores.GCredPres; c != nil {
-		out.Valores.GCredPres = &xmlCredPresumido{CCredPres: c.CCredPres,
-			PCredPres: c.PCredPres, VCredPres: c.VCredPres}
+	if d := g.Valores.Trib.Dif; d != nil {
+		out.Valores.Trib.GIBSCBS.GDif = &xmlDiferimentoIBSCBS{
+			PDifUF: d.PDifUF, PDifMun: d.PDifMun, PDifCBS: d.PDifCBS}
 	}
 	return out
-}
-
-func toXMLComponente(c *nfse.IBSComponente) *xmlIBSComponente {
-	if c == nil {
-		return nil
-	}
-	return &xmlIBSComponente{PAliq: c.PAliq, PRedAliq: c.PRedAliq,
-		VTribOp: c.VTribOp, VTrib: c.VTrib}
 }

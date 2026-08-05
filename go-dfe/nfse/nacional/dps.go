@@ -150,27 +150,53 @@ type xmlComExt struct {
 	MdicMoeda   string `xml:"mdic,omitempty"`
 }
 
+// xmlObra espelha TCInfoObra: inscImobFisc? seguido da escolha obrigatória
+// cObra|cCIB|end.
 type xmlObra struct {
-	CObra        string  `xml:"cObra,omitempty"`
-	InscImobFisc string  `xml:"inscImobFisc,omitempty"`
-	CCIB         string  `xml:"cCIB,omitempty"`
-	End          *xmlEnd `xml:"end,omitempty"`
+	InscImobFisc string         `xml:"inscImobFisc,omitempty"`
+	CObra        string         `xml:"cObra,omitempty"`
+	CCIB         string         `xml:"cCIB,omitempty"`
+	End          *xmlEndSimples `xml:"end,omitempty"`
 }
 
+// xmlAtvEvento espelha TCAtvEvento: xNome, dtIni, dtFim obrigatórios,
+// seguidos da escolha obrigatória idAtvEvt|end.
 type xmlAtvEvento struct {
-	XNome    string  `xml:"xNome"`
-	DtIni    string  `xml:"dtIni,omitempty"`
-	DtFim    string  `xml:"dtFim,omitempty"`
-	IDAtvEvt string  `xml:"idAtvEvt,omitempty"`
-	End      *xmlEnd `xml:"end,omitempty"`
+	XNome    string         `xml:"xNome"`
+	DtIni    string         `xml:"dtIni"`
+	DtFim    string         `xml:"dtFim"`
+	IDAtvEvt string         `xml:"idAtvEvt,omitempty"`
+	End      *xmlEndSimples `xml:"end,omitempty"`
 }
 
+// xmlEndSimples espelha TCEnderecoSimples/TCEnderObraEvento (mesmo shape):
+// escolha CEP|endExt (sem cPais), depois xLgr, nro, xCpl?, xBairro.
+type xmlEndSimples struct {
+	CEP     string            `xml:"CEP,omitempty"`
+	EndExt  *xmlEndExtSimples `xml:"endExt,omitempty"`
+	XLgr    string            `xml:"xLgr"`
+	Nro     string            `xml:"nro"`
+	XCpl    string            `xml:"xCpl,omitempty"`
+	XBairro string            `xml:"xBairro"`
+}
+
+type xmlEndExtSimples struct {
+	CEndPost    string `xml:"cEndPost"`
+	XCidade     string `xml:"xCidade"`
+	XEstProvReg string `xml:"xEstProvReg"`
+}
+
+// xmlInfoCompl espelha TCInfoCompl: idDocTec?, docRef?, xPed?, gItemPed?, xInfComp?.
 type xmlInfoCompl struct {
-	IDDocTec   string `xml:"idDocTec,omitempty"`
-	DocRef     string `xml:"docRef,omitempty"`
-	XInfComp   string `xml:"xInfComp,omitempty"`
-	NPedido    string `xml:"nPedido,omitempty"`
-	ItemPedido string `xml:"itemPedido,omitempty"`
+	IDDocTec string          `xml:"idDocTec,omitempty"`
+	DocRef   string          `xml:"docRef,omitempty"`
+	XPed     string          `xml:"xPed,omitempty"`
+	GItemPed *xmlInfoItemPed `xml:"gItemPed,omitempty"`
+	XInfComp string          `xml:"xInfComp,omitempty"`
+}
+
+type xmlInfoItemPed struct {
+	XItemPed []string `xml:"xItemPed"`
 }
 
 type xmlValores struct {
@@ -209,7 +235,7 @@ type xmlDedRedDoc struct {
 type xmlTrib struct {
 	TribMun xmlTribMun  `xml:"tribMun"`
 	TribFed *xmlTribFed `xml:"tribFed,omitempty"`
-	TotTrib *xmlTotTrib `xml:"totTrib,omitempty"`
+	TotTrib xmlTotTrib  `xml:"totTrib"`
 }
 
 type xmlTribMun struct {
@@ -227,10 +253,12 @@ type xmlExigSusp struct {
 	NProcesso string `xml:"nProcesso"`
 }
 
+// xmlBenefMun espelha TCBeneficioMunicipal: nBM obrigatório, seguido da
+// escolha vRedBCBM|pRedBCBM.
 type xmlBenefMun struct {
-	TBM   int    `xml:"tBM"`
-	NBM   string `xml:"nBM"`
-	VlRed string `xml:"vlRed,omitempty"`
+	NBM      string `xml:"nBM"`
+	VRedBCBM string `xml:"vRedBCBM,omitempty"`
+	PRedBCBM string `xml:"pRedBCBM,omitempty"`
 }
 
 type xmlTribFed struct {
@@ -250,10 +278,12 @@ type xmlPisCofins struct {
 	TpRetPisCofins int    `xml:"tpRetPisCofins,omitempty"`
 }
 
+// xmlTotTrib espelha TCTribTotal: xs:choice de exatamente um dos quatro
+// campos — toXMLTotTrib decide qual ramo emitir.
 type xmlTotTrib struct {
 	VTotTrib   *xmlVTotTrib `xml:"vTotTrib,omitempty"`
 	PTotTrib   *xmlPTotTrib `xml:"pTotTrib,omitempty"`
-	IndTotTrib int          `xml:"indTotTrib,omitempty"`
+	IndTotTrib *int         `xml:"indTotTrib,omitempty"`
 	PTotTribSN string       `xml:"pTotTribSN,omitempty"`
 }
 
@@ -365,6 +395,22 @@ func toXMLEnd(e *nfse.Endereco) *xmlEnd {
 	return out
 }
 
+// toXMLEndSimples converte nfse.EnderecoSimples (usado em Obra, AtvEvento e
+// IBSCBS.Imovel — TCEnderecoSimples/TCEnderObraEvento, sem cPais).
+func toXMLEndSimples(e *nfse.EnderecoSimples) *xmlEndSimples {
+	if e == nil {
+		return nil
+	}
+	out := &xmlEndSimples{XLgr: e.XLgr, Nro: e.Nro, XCpl: e.XCpl, XBairro: e.XBairro}
+	if e.CEP != "" {
+		out.CEP = e.CEP
+	} else {
+		out.EndExt = &xmlEndExtSimples{CEndPost: e.CEndPost,
+			XCidade: e.XCidade, XEstProvReg: e.XEstadoProv}
+	}
+	return out
+}
+
 func toXMLPrestador(p nfse.Prestador) xmlPrestador {
 	return xmlPrestador{
 		CNPJ: p.CNPJ, CPF: p.CPF, NIF: p.NIF, CNaoNIF: p.CNaoNIF,
@@ -400,16 +446,20 @@ func toXMLServ(s nfse.Servico) xmlServ {
 			NDI: c.NDI, NRE: c.NRE, MdicMoeda: c.MdicMovTempBens}
 	}
 	if o := s.Obra; o != nil {
-		out.Obra = &xmlObra{CObra: o.CObra, InscImobFisc: o.InscImobFisc,
-			CCIB: o.CCIB, End: toXMLEnd(o.End)}
+		out.Obra = &xmlObra{InscImobFisc: o.InscImobFisc, CObra: o.CObra,
+			CCIB: o.CCIB, End: toXMLEndSimples(o.End)}
 	}
 	if a := s.AtvEvento; a != nil {
 		out.AtvEvento = &xmlAtvEvento{XNome: a.XNome, DtIni: a.DtIni, DtFim: a.DtFim,
-			IDAtvEvt: a.IDAtvEvt, End: toXMLEnd(a.End)}
+			IDAtvEvt: a.IDAtvEvt, End: toXMLEndSimples(a.End)}
 	}
 	if i := s.InfoCompl; i != nil {
-		out.InfoCompl = &xmlInfoCompl{IDDocTec: i.IDDocTec, DocRef: i.DocRef,
-			XInfComp: i.XInfComp, NPedido: i.NPedido, ItemPedido: i.ItemPedido}
+		ic := &xmlInfoCompl{IDDocTec: i.IDDocTec, DocRef: i.DocRef,
+			XPed: i.XPed, XInfComp: i.XInfComp}
+		if len(i.ItensPed) > 0 {
+			ic.GItemPed = &xmlInfoItemPed{XItemPed: i.ItensPed}
+		}
+		out.InfoCompl = ic
 	}
 	return out
 }
@@ -421,7 +471,7 @@ func toXMLValores(v nfse.Valores) xmlValores {
 			TribISSQN: v.Trib.TribMun.TribISSQN, CPaisResult: v.Trib.TribMun.CPaisResult,
 			TpImunidade: v.Trib.TribMun.TpImunidade,
 			TpRetISSQN:  v.Trib.TribMun.TpRetISSQN, PAliq: v.Trib.TribMun.PAliq,
-		}},
+		}, TotTrib: toXMLTotTrib(v.Trib.TotTrib)},
 	}
 	if d := v.VDescCondIncond; d != nil {
 		out.VDescCondIncond = &xmlDescCondIncond{VDescIncond: d.VDescIncond, VDescCond: d.VDescCond}
@@ -441,7 +491,7 @@ func toXMLValores(v nfse.Valores) xmlValores {
 		out.Trib.TribMun.ExigSusp = &xmlExigSusp{TpSusp: e.TpSusp, NProcesso: e.NProcesso}
 	}
 	if b := v.Trib.TribMun.BM; b != nil {
-		out.Trib.TribMun.BM = &xmlBenefMun{TBM: b.TBM, NBM: b.NBM, VlRed: b.VlRed}
+		out.Trib.TribMun.BM = &xmlBenefMun{NBM: b.NBM, VRedBCBM: b.VRedBCBM, PRedBCBM: b.PRedBCBM}
 	}
 	if f := v.Trib.TribFed; f != nil {
 		tf := &xmlTribFed{VRetCP: f.VRetCP, VRetIRRF: f.VRetIRRF, VRetCSLL: f.VRetCSLL}
@@ -452,17 +502,24 @@ func toXMLValores(v nfse.Valores) xmlValores {
 		}
 		out.Trib.TribFed = tf
 	}
-	if t := v.Trib.TotTrib; t != nil {
-		tt := &xmlTotTrib{IndTotTrib: t.IndTotTrib, PTotTribSN: t.PTotTribSN}
-		if t.VTotTribFed != "" {
-			tt.VTotTrib = &xmlVTotTrib{VTotTribFed: t.VTotTribFed,
-				VTotTribEst: t.VTotTribEst, VTotTribMun: t.VTotTribMun}
-		}
-		if t.PTotTribFed != "" {
-			tt.PTotTrib = &xmlPTotTrib{PTotTribFed: t.PTotTribFed,
-				PTotTribEst: t.PTotTribEst, PTotTribMun: t.PTotTribMun}
-		}
-		out.Trib.TotTrib = tt
-	}
 	return out
+}
+
+// toXMLTotTrib resolve o xs:choice de TCTribTotal: o primeiro ramo com dado
+// vence; na ausência de qualquer valor informado, o ramo padrão é
+// indTotTrib=0 (Decreto 8.264/2014 — nenhum valor estimado de tributos).
+func toXMLTotTrib(t nfse.TotTrib) xmlTotTrib {
+	switch {
+	case t.VTotTribFed != "":
+		return xmlTotTrib{VTotTrib: &xmlVTotTrib{VTotTribFed: t.VTotTribFed,
+			VTotTribEst: t.VTotTribEst, VTotTribMun: t.VTotTribMun}}
+	case t.PTotTribFed != "":
+		return xmlTotTrib{PTotTrib: &xmlPTotTrib{PTotTribFed: t.PTotTribFed,
+			PTotTribEst: t.PTotTribEst, PTotTribMun: t.PTotTribMun}}
+	case t.PTotTribSN != "":
+		return xmlTotTrib{PTotTribSN: t.PTotTribSN}
+	default:
+		ind := t.IndTotTrib
+		return xmlTotTrib{IndTotTrib: &ind}
+	}
 }
