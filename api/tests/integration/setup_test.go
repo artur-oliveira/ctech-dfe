@@ -44,6 +44,7 @@ var (
 	mdfeConfigRepo *repositories.MdfeConfigRepository
 	orgSvc         *services.OrganizationService
 	productSvc     *services.ProductService
+	serviceSvc     *services.ServiceService
 	personSvc      *services.PersonService
 	vehicleSvc     *services.VehicleService
 	certSvc        *services.CertificateService
@@ -112,6 +113,8 @@ func TestMain(m *testing.M) {
 	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, memCache)
 	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
+	serviceRepo := repositories.NewServiceRepository(db, cfg)
+	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
 	nfeConfigSvc = services.NewNfeConfigService(nfeConfigRepo, auditRepo)
@@ -138,6 +141,38 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 		},
 		{
 			TableName:   aws.String(tablePrefix + "_organization_products"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("description"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("code"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+				{
+					IndexName: aws.String("description-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("description"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+				{
+					IndexName: aws.String("code-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("code"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_organization_services"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
 				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
@@ -386,6 +421,7 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 	tables := []string{
 		tablePrefix + "_organizations",
 		tablePrefix + "_organization_products",
+		tablePrefix + "_organization_services",
 		tablePrefix + "_organization_persons",
 		tablePrefix + "_organization_vehicles",
 		tablePrefix + "_organization_certificates",

@@ -23,6 +23,7 @@ const (
 	AuditResourceOrganization = "ORGANIZATION"
 	AuditResourceCertificate  = "CERTIFICATE"
 	AuditResourceProduct      = "PRODUCT"
+	AuditResourceService      = "SERVICE"
 	AuditResourceVehicle      = "VEHICLE"
 	AuditResourcePerson       = "PERSON"
 	AuditResourceNfeConfig    = "NFE_CONFIG"
