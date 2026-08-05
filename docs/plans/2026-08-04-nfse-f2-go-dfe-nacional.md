@@ -140,7 +140,7 @@ func TestDecodeDocument_RoundTrip(t *testing.T) {
 		Tomador: &Pessoa{CPF: "12345678909", XNome: "Tomador Teste"},
 		Servico: Servico{
 			LocPrest: LocPrest{CLocPrestacao: "2211001"},
-			CServ:    CServ{CTribNac: "10101", XDescServ: "Análise de sistemas"},
+			CServ:    CServ{CTribNac: "010101", XDescServ: "Análise de sistemas"},
 		},
 		Valores: Valores{VServPrest: VServPrest{VServ: "1000.00"},
 			Trib: Tributacao{TribMun: TribMunicipal{TribISSQN: 1, TpRetISSQN: 1, PAliq: "2.00"}}},
@@ -165,8 +165,8 @@ func TestDecodeDocument_RoundTrip(t *testing.T) {
 	if got.Tomador == nil || got.Tomador.CPF != "12345678909" {
 		t.Errorf("tomador perdido no round-trip: %+v", got.Tomador)
 	}
-	if got.Servico.CServ.CTribNac != "10101" {
-		t.Errorf("cTribNac = %q, esperado 10101", got.Servico.CServ.CTribNac)
+	if got.Servico.CServ.CTribNac != "010101" {
+		t.Errorf("cTribNac = %q, esperado 010101", got.Servico.CServ.CTribNac)
 	}
 	if got.Valores.Trib.TribMun.PAliq != "2.00" {
 		t.Errorf("pAliq = %q, esperado 2.00", got.Valores.Trib.TribMun.PAliq)
@@ -942,7 +942,7 @@ func minimalDoc() nfse.Document {
 		Tomador: &nfse.Pessoa{CPF: "12345678909", XNome: "Tomador Teste"},
 		Servico: nfse.Servico{
 			LocPrest: nfse.LocPrest{CLocPrestacao: "2211001"},
-			CServ:    nfse.CServ{CTribNac: "10101", XDescServ: "Análise de sistemas"},
+			CServ:    nfse.CServ{CTribNac: "010101", XDescServ: "Análise de sistemas"},
 		},
 		Valores: nfse.Valores{
 			VServPrest: nfse.VServPrest{VServ: "1000.00"},

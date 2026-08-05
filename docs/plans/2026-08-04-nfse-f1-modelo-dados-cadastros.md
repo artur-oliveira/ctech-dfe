@@ -89,8 +89,8 @@ Primeira porque a validação da `api` (Task 5) depende dela.
 **Contexto para quem implementa:** as planilhas fonte estão em `tmp/` na raiz do repositório. Estrutura já verificada:
 
 - `tmp/anexo_b-nbs2-lista_servico_nacional-snnfse-v1-01-20260122.xlsx`
-  - aba `LISTA.SERV.NAC.` — cabeçalho na linha 1: `CÓDIGO DE TRIBUTAÇÃO NACIONAL | ITEM | SUBITEM | DESDOBRO NACIONAL | DESCRIÇÃO`. Linhas com a primeira coluna vazia são cabeçalhos de agrupamento (item/subitem sem desdobro) — **descartar**; só entram linhas com código preenchido (5 dígitos).
-  - aba `LISTA.NBS_v2.0` — cabeçalho `CÓDIGO NBS | DESCRIÇÃO`. Os códigos vêm com pontos (`1.0101.11.00`); normalizar removendo `.`.
+  - aba `LISTA.SERV.NAC.` — cabeçalho na linha 1: `CÓDIGO DE TRIBUTAÇÃO NACIONAL | ITEM | SUBITEM | DESDOBRO NACIONAL | DESCRIÇÃO`. Linhas com a primeira coluna vazia são cabeçalhos de agrupamento (item/subitem sem desdobro) — **descartar**; só entram linhas com código preenchido. **A coluna de código é numérica e perde o zero à esquerda do item quando item < 10** (item 1/subitem 1/desdobro 1 aparece como `10101`, não `010101`). O código oficial (`TSCodTribNac` em `tmp/nfse-esquemas_xsd-v1-01-20260209/Schemas/1.01/tiposSimples_v1.01.xsd`, linha 1358) tem sempre **6 dígitos**: item(2) + subitem(2) + desdobro(2) — reconstrua o código a partir das colunas ITEM/SUBITEM/DESDOBRO com zero-padding, nunca leia a coluna de código diretamente.
+  - aba `LISTA.NBS_v2.0` — cabeçalho `CÓDIGO NBS | DESCRIÇÃO`. Mistura códigos-folha com linhas de hierarquia (seção/posição). Os códigos vêm com pontos (`1.0101.11.00`); normalizar removendo `.` e manter só os que resultam em **9 dígitos** (`TSCodNBS` no mesmo XSD, linha 1369) — linhas de hierarquia como `1.0101` (5 dígitos) ou `1.0101.1` (6 dígitos) não são códigos válidos e devem ser descartadas.
 - `tmp/anexo_c-indop_ibscbs-snnfse-v1-01-20260122.xlsx`, aba `IndOp`, cabeçalho na linha 1. A coluna 7 (índice 6, zero-based) é `Código indOp`, com 6 dígitos. Colunas 2, 4, 8 e 9 (índices 1, 3, 7, 8) são `Tipo de operação`, `Característica do fornecimento`, `Local do fornecimento` e `Campo no leiaute da NFSe`. Células mescladas deixam valores `None` nas linhas seguintes — propagar o último valor não-nulo para frente (forward-fill) nessas quatro colunas. Linhas sem código `indOp` são descartadas.
 
 - [ ] **Step 1: Escrever o teste que falha**
@@ -103,9 +103,9 @@ package tables
 import "testing"
 
 func TestTribNacional_KnownCode(t *testing.T) {
-	e, ok := TribNacional("10101")
+	e, ok := TribNacional("010101")
 	if !ok {
-		t.Fatal("TribNacional(10101): esperado encontrado")
+		t.Fatal("TribNacional(010101): esperado encontrado")
 	}
 	if e.Item != "1" || e.Subitem != "1" || e.Desdobro != "1" {
 		t.Errorf("item/subitem/desdobro = %q/%q/%q, esperado 1/1/1", e.Item, e.Subitem, e.Desdobro)
@@ -117,29 +117,34 @@ func TestTribNacional_KnownCode(t *testing.T) {
 
 func TestTribNacional_RejectsGroupingRows(t *testing.T) {
 	// "1" e "10" são cabeçalhos de item/subitem na planilha, nunca códigos válidos.
-	for _, code := range []string{"", "1", "10", "99999"} {
+	// "10101" é a forma de 5 dígitos com o item sem zero à esquerda — a coluna de código
+	// da planilha perde esse zero por ser numérica; o código correto é "010101".
+	for _, code := range []string{"", "1", "10", "99999", "10101"} {
 		if IsValidTribNacional(code) {
 			t.Errorf("IsValidTribNacional(%q) = true, esperado false", code)
 		}
 	}
 }
 
-func TestTribNacional_AllCodesAreFiveDigits(t *testing.T) {
-	if len(tribNacionalTable) < 500 {
-		t.Fatalf("tabela com %d entradas, esperado >= 500", len(tribNacionalTable))
+func TestTribNacional_AllCodesAreSixDigits(t *testing.T) {
+	if len(tribNacionalTable) < 300 {
+		t.Fatalf("tabela com %d entradas, esperado >= 300", len(tribNacionalTable))
 	}
 	for code := range tribNacionalTable {
-		if len(code) != 5 {
-			t.Errorf("código %q tem %d dígitos, esperado 5", code, len(code))
+		if len(code) != 6 {
+			t.Errorf("código %q tem %d dígitos, esperado 6", code, len(code))
 		}
 	}
 }
 
 func TestNBS_NormalizedCodes(t *testing.T) {
-	if len(nbsTable) < 1000 {
-		t.Fatalf("tabela NBS com %d entradas, esperado >= 1000", len(nbsTable))
+	if len(nbsTable) < 900 {
+		t.Fatalf("tabela NBS com %d entradas, esperado >= 900", len(nbsTable))
 	}
 	for code := range nbsTable {
+		if len(code) != 9 {
+			t.Errorf("código NBS %q tem %d dígitos, esperado 9", code, len(code))
+		}
 		for _, r := range code {
 			if r < '0' || r > '9' {
 				t.Fatalf("código NBS %q contém caractere não numérico", code)
@@ -236,11 +241,17 @@ def go_quote(s):
 
 
 def parse_trib_nacional(path):
+    # Coluna A (CÓDIGO DE TRIBUTAÇÃO NACIONAL) é numérica na planilha e perde o zero à
+    # esquerda do item quando item < 10 (ex.: item 1/subitem 1/desdobro 1 vira 10101 em
+    # vez de 010101). O código oficial (TSCodTribNac no XSD) tem sempre 6 dígitos:
+    # item(2) + subitem(2) + desdobro(2). Por isso o código é reconstruído a partir das
+    # colunas ITEM/SUBITEM/DESDOBRO, nunca lido diretamente da coluna A.
     out = []
     for row in rows(path, "LISTA.SERV.NAC."):
-        code = clean(row[0])
-        if not code:
+        if not clean(row[0]):
             continue  # linha de agrupamento (item/subitem sem desdobro)
+        item, subitem, desdobro = int(row[1]), int(row[2]), int(row[3])
+        code = f"{item:02d}{subitem:02d}{desdobro:02d}"
         out.append({
             "code": code,
             "item": clean(row[1]),
@@ -252,10 +263,13 @@ def parse_trib_nacional(path):
 
 
 def parse_nbs(path):
+    # A aba mistura códigos-folha (9 dígitos sem pontos) com linhas de hierarquia
+    # (seção/posição, com menos dígitos) — só os códigos-folha de 9 dígitos são
+    # códigos NBS válidos (TSCodNBS no XSD); as linhas de hierarquia são descartadas.
     out = []
     for row in rows(path, "LISTA.NBS_v2.0"):
         code = clean(row[0]).replace(".", "")
-        if not code:
+        if len(code) != 9 or not code.isdigit():
             continue
         out.append({"code": code, "description": clean(row[1])})
     return out
@@ -356,7 +370,11 @@ Crie `go-dfe/nfse/tables/lookup.go`:
 package tables
 
 // TribNacionalEntry é uma linha da lista de serviços nacional (Anexo B).
-// Code tem 5 dígitos: item(2) + subitem(2) + desdobro(1).
+// Code tem 6 dígitos: item(2) + subitem(2) + desdobro(2) — formato TSCodTribNac do XSD
+// oficial (tiposSimples_v1.01.xsd). O gerador reconstrói Code a partir das colunas
+// ITEM/SUBITEM/DESDOBRO da planilha, não da coluna de código: essa coluna é numérica e
+// perde o zero à esquerda do item quando item < 10 (ex.: "10101" em vez de "010101").
+// Não "simplifique" isso de volta para ler a coluna A diretamente.
 type TribNacionalEntry struct {
 	Code        string
 	Item        string
@@ -366,7 +384,9 @@ type TribNacionalEntry struct {
 }
 
 // NBSEntry é uma linha da Nomenclatura Brasileira de Serviços 2.0 (Anexo B).
-// Code é normalizado sem pontos.
+// Code é normalizado sem pontos e tem sempre 9 dígitos (TSCodNBS do XSD oficial) — só
+// os códigos-folha da planilha são mantidos; linhas de hierarquia (seção/posição, com
+// menos de 9 dígitos) são descartadas pelo gerador.
 type NBSEntry struct {
 	Code        string
 	Description string
@@ -426,7 +446,7 @@ python3 -c "import openpyxl" || pip install --user openpyxl
 python3 go-dfe/nfse/tables/gen/generate.py
 ```
 
-Esperado: cinco linhas de saída, com `trib_nacional.go` acima de 500 entradas, `nbs.go` acima de 1000 e `indop.go` com aproximadamente 34.
+Esperado: cinco linhas de saída, com `trib_nacional.go` com 338 entradas, `nbs.go` com 918 entradas e `indop.go` com 26 entradas.
 
 - [ ] **Step 6: Rodar os testes e confirmar que passam**
 
