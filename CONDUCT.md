@@ -476,6 +476,14 @@ Must follow Conventional Commits:
 - Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
   one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
   inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.
+- `CRUDRepository[T]`'s `Create`/`BuildCreateTxItem`/`BuildCreateTxItemIfAbsent` marshal `entity T`
+  via `marshalEntity` (`internal/repositories/base.go`), never `MarshalMapOmitNull` directly — when
+  `T = map[string]types.AttributeValue` (`ProductRepository`, `ServiceRepository`), the values are
+  already `AttributeValue`s and re-marshaling them via `attributevalue.MarshalMap` wraps each one in
+  a nested Map (no special case for values already implementing `types.AttributeValue`) instead of
+  passing it through, and DynamoDB rejects the write. `marshalEntity` passes such maps through
+  unchanged (shallow copy); anything else still goes through `MarshalMapOmitNull` as before. Found
+  because it silently broke `ProductRepository.Create` against real DynamoDB, not just in tests.
 - The five fiscal config services (NF-e/NFC-e/CT-e/MDF-e/NFS-e) share one `fiscalConfigService`
   base (`internal/services/fiscal_configs.go`) — `Get`/`Upsert` live there once. A new config
   variant is added by declaring a thin `struct{ fiscalConfigService }` wrapper + constructor

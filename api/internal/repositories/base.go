@@ -71,9 +71,29 @@ func NewCRUDRepository[T any](db *dynamodb.Client, cfg *config.Config, tableName
 	}
 }
 
+// marshalEntity converts entity to a DynamoDB attribute map. When T is
+// already map[string]types.AttributeValue (ProductRepository,
+// ServiceRepository), it is passed through as a shallow copy instead of
+// being re-marshaled: attributevalue.MarshalMap has no special case for
+// values that already implement types.AttributeValue, so re-marshaling
+// wraps each one in a nested Map (e.g. a String becomes
+// M{"Value": S{...}}) instead of passing it through — DynamoDB then
+// rejects the write with "Invalid attribute value type". The copy avoids
+// mutating the caller's map when pk/sk/timestamps are added below.
+func marshalEntity[T any](entity T) (map[string]types.AttributeValue, error) {
+	if av, ok := any(entity).(map[string]types.AttributeValue); ok {
+		item := make(map[string]types.AttributeValue, len(av))
+		for k, v := range av {
+			item[k] = v
+		}
+		return item, nil
+	}
+	return MarshalMapOmitNull(entity)
+}
+
 func (r *CRUDRepository[T]) Create(ctx context.Context, orgPK, sk string, entity T) (map[string]types.AttributeValue, error) {
 	now := NowStr()
-	item, err := MarshalMapOmitNull(entity)
+	item, err := marshalEntity(entity)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +119,7 @@ func (r *CRUDRepository[T]) Delete(ctx context.Context, orgPK, sk string) (bool,
 
 func (r *CRUDRepository[T]) BuildCreateTxItem(orgPK, sk string, entity T) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
 	now := NowStr()
-	item, err := MarshalMapOmitNull(entity)
+	item, err := marshalEntity(entity)
 	if err != nil {
 		return types.TransactWriteItem{}, nil, err
 	}
@@ -112,7 +132,7 @@ func (r *CRUDRepository[T]) BuildCreateTxItem(orgPK, sk string, entity T) (types
 
 func (r *CRUDRepository[T]) BuildCreateTxItemIfAbsent(orgPK, sk string, entity T) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
 	now := NowStr()
-	item, err := MarshalMapOmitNull(entity)
+	item, err := marshalEntity(entity)
 	if err != nil {
 		return types.TransactWriteItem{}, nil, err
 	}
