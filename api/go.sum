@@ -38,6 +38,8 @@ github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.56 h1:w5beQVH
 github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.56/go.mod h1:NqkHpT81ACVq3nNMkoGCLnFh/+2UO3PljF0Uws/zVLY=
 github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.57 h1:IBfgdSI882VzxxtW811kVGt7zb01RdE1s6O/Ao3+4a4=
 github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.57/go.mod h1:i1ZjVdYw2y5AczXpmZo1CyqUUCCA/27fp1JctNfVwEQ=
+github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.58 h1:K1XF70e4/hmrd6FzFLT/Pt9x88dqAqpazPUquIc9E9I=
+github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.58/go.mod h1:buklrEBt2jO+o6G1dXgzOmXMZ5dvx5Zfikm8vjfnWx4=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 h1:/hi1JADLEW9YYryEz1w4GQu0EtP23pP553Cf9KgsDV4=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30/go.mod h1:/3AOgy4K17Dm4ucMZVC/MJkzy5kmfKUcINRHZyo0koQ=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.31 h1:kfVL5wAunCJycL6MOQ6aNh6PlAYEymflcjuKmrWUA0o=
@@ -78,6 +80,8 @@ github.com/aws/aws-sdk-go-v2/service/dynamodb v1.62.2 h1:Eq7mCqHwVCHp9NM3hrJCH+q
 github.com/aws/aws-sdk-go-v2/service/dynamodb v1.62.2/go.mod h1:WXr7sZ4MwgaXGpCYE5x1rhINyablykBgq/sox8unPE8=
 github.com/aws/aws-sdk-go-v2/service/dynamodb v1.62.3 h1:DpQEvokO8q/qgifYKBXsDGSjng+j5JG0A4s75T4u1xs=
 github.com/aws/aws-sdk-go-v2/service/dynamodb v1.62.3/go.mod h1:8HkdFkH/KcxfnzNYPtHibUZEejby7hwbqDUAoytEKZE=
+github.com/aws/aws-sdk-go-v2/service/dynamodb v1.63.0 h1:+Q5ZvlcRvlwDr/+pJovNbuNKOMvKXoeuiyUtKSqalwU=
+github.com/aws/aws-sdk-go-v2/service/dynamodb v1.63.0/go.mod h1:8HkdFkH/KcxfnzNYPtHibUZEejby7hwbqDUAoytEKZE=
 github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.35.1 h1:EY90pH3YPkNvBjiZvWxIaPZHVwO5DvmgMYDRf82IOgc=
 github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.35.1/go.mod h1:2hgy3N0+CUZxbEKTNCTDWLevN+5pV7lY3B7hMl+oEQ4=
 github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.36.0 h1:7kym7t+G4XJwNR27HVVCakp5DK8fJlc7AbT8MjdxzCE=
@@ -140,6 +144,8 @@ github.com/aws/aws-sdk-go-v2/service/s3 v1.106.2 h1:lFSYDEyC1JHucMH3fdczMTnDaghq
 github.com/aws/aws-sdk-go-v2/service/s3 v1.106.2/go.mod h1:aw1E7RCjxs5Sd8N6WdICMcMroff12Tzxte+ELXXNqRU=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.106.3 h1:oSfubHEP3a0nTRAtm99IDaws0f15qwf+fOwS1Esh5jI=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.106.3/go.mod h1:lWk6L5Q3YkaC7so1bQUJkvF7hj2KUFzdZ4w15wc2GHY=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.106.4 h1:nN+nb2rhWmPOMwFA+e6xDJZJ0h/VAI39XVBzn52Fn8A=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.106.4/go.mod h1:lWk6L5Q3YkaC7so1bQUJkvF7hj2KUFzdZ4w15wc2GHY=
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.43.1 h1:ZI18/nuaDBwwMJ95paJrb4NT2TbqEvptj/rlMkEO7DI=
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.43.1/go.mod h1:oUyL28WfxY0RqPhFpkrWZx26Cu4JlyrWMMcWq8qqhi0=
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.0 h1:pFFG4fjjuxCrCnAQJg/O33h947MBR8dvQb+FX93Ed+k=
