@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.aoctech.app/dfe/api/internal/validation"
@@ -193,3 +194,61 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 
 //go:fix inline
 func ptrInt(v int) *int { return new(v) }
+
+func TestServiceBody_Validation(t *testing.T) {
+	valid := ServiceBody{
+		Code:             "SRV001",
+		Description:      "Análise e desenvolvimento de sistemas",
+		TribNacionalCode: "010101",
+		Unit:             "UN",
+		Value:            "1500.00",
+		Iss:              ServiceIssBody{TribISSQN: 1, Aliquota: "5.00"},
+	}
+	if p := validation.Struct(valid); p != nil {
+		t.Fatalf("ServiceBody válido rejeitado: %+v", p)
+	}
+
+	t.Run("trib_nacional_code inexistente é rejeitado", func(t *testing.T) {
+		b := valid
+		b.TribNacionalCode = "999999"
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("código inexistente aceito")
+		}
+	})
+
+	t.Run("descrição acima de 2000 chars é rejeitada", func(t *testing.T) {
+		b := valid
+		b.Description = strings.Repeat("x", 2001)
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("descrição longa demais aceita")
+		}
+	})
+}
+
+func TestNfseConfigBody_Validation(t *testing.T) {
+	valid := NfseConfigBody{
+		Provider:    "nacional",
+		Environment: 2,
+		CLocEmi:     "2211001",
+		Serie:       "00001",
+	}
+	if p := validation.Struct(valid); p != nil {
+		t.Fatalf("NfseConfigBody válido rejeitado: %+v", p)
+	}
+
+	t.Run("provider desconhecido é rejeitado", func(t *testing.T) {
+		b := valid
+		b.Provider = "gissonline"
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("provider desconhecido aceito")
+		}
+	})
+
+	t.Run("c_loc_emi fora do formato IBGE é rejeitado", func(t *testing.T) {
+		b := valid
+		b.CLocEmi = "2211"
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("código IBGE curto aceito")
+		}
+	})
+}

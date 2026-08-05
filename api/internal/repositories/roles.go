@@ -36,10 +36,13 @@ var resources = []string{
 	"mdfes", "mdfe_distributions", "mdfe_events",
 	"nfces", "nfce_events",
 	"nfes", "nfe_distributions", "nfe_events",
+	"nfses", "nfse_events",
 	"organizations",
 	"organization_products", "organization_vehicles", "organization_persons",
+	"organization_services",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
+	"organization_nfse_configs",
 	"organization_certificates",
 }
 

@@ -19,6 +19,7 @@ type OrgHandlers struct {
 	NfceConfig *services.NfceConfigService
 	CteConfig  *services.CteConfigService
 	MdfeConfig *services.MdfeConfigService
+	NfseConfig *services.NfseConfigService
 	UserSvc    *services.UserService
 	MemberSvc  *services.MembershipService
 	InvSvc     *services.InvitationService
@@ -195,6 +196,9 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	registerFiscalConfig(scoped, "/mdfe-config",
 		"get.organization_mdfe_configs", "update.organization_mdfe_configs",
 		h.MdfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc)
+	registerFiscalConfig(scoped, "/nfse-config",
+		"get.organization_nfse_configs", "update.organization_nfse_configs",
+		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc)
 
 	// ── Certificates ────────────────────────────────────────────────────────
 

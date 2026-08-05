@@ -285,6 +285,90 @@ type ProductBody struct {
 	ArmaDescr  *string `json:"arma_descr" validate:"omitempty,max=256"`
 }
 
+// ── Serviços (catálogo NFS-e) ────────────────────────────────────────────────
+
+// ServiceIssBody são os defaults de ISSQN do serviço (grupo tribMun do DPS).
+type ServiceIssBody struct {
+	// 1 operação tributável | 2 exportação | 3 não incidência | 4 imunidade
+	TribISSQN int    `json:"trib_issqn" validate:"required,oneof=1 2 3 4"`
+	Aliquota  string `json:"aliquota" validate:"required,percent"`
+	// 1 não retido | 2 retido pelo tomador | 3 retido pelo intermediário
+	TpRetISSQN     *int    `json:"tp_ret_issqn" validate:"omitempty,oneof=1 2 3"`
+	TpImunidade    *int    `json:"tp_imunidade" validate:"omitempty,gte=0,lte=9"`
+	CPaisResultado *string `json:"c_pais_resultado" validate:"omitempty,len=2,alpha"`
+}
+
+// ServiceFederalBody são os defaults de tributos federais do serviço.
+type ServiceFederalBody struct {
+	CstPisCofins   *string `json:"cst_pis_cofins" validate:"omitempty,len=2,number"`
+	AliqPis        *string `json:"aliq_pis" validate:"omitempty,percent"`
+	AliqCofins     *string `json:"aliq_cofins" validate:"omitempty,percent"`
+	TpRetPisCofins *int    `json:"tp_ret_pis_cofins" validate:"omitempty,oneof=1 2"`
+	VRetCP         *string `json:"v_ret_cp" validate:"omitempty,money2"`
+	VRetIRRF       *string `json:"v_ret_irrf" validate:"omitempty,money2"`
+	VRetCSLL       *string `json:"v_ret_csll" validate:"omitempty,money2"`
+}
+
+// ServiceIbsCbsBody são os defaults de IBS/CBS do serviço (reforma tributária).
+type ServiceIbsCbsBody struct {
+	CIndOp     *string `json:"c_ind_op" validate:"omitempty,indop"`
+	Cst        *string `json:"cst" validate:"omitempty,len=3,number"`
+	CClassTrib *string `json:"c_class_trib" validate:"omitempty,max=6,number"`
+	IndDest    *int    `json:"ind_dest" validate:"omitempty,oneof=0 1 2"`
+	TpOper     *int    `json:"tp_oper" validate:"omitempty,oneof=1 2 3 4"`
+	FinNFSe    *int    `json:"fin_nfse" validate:"omitempty,oneof=1 2 3 4"`
+}
+
+// ServiceTotTribBody é a Lei da Transparência (grupo totTrib do DPS).
+type ServiceTotTribBody struct {
+	// 0 não informar | 1 informar valores | 2 informar percentuais
+	IndTotTrib int     `json:"ind_tot_trib" validate:"oneof=0 1 2"`
+	PTotTribSN *string `json:"p_tot_trib_sn" validate:"omitempty,percent"`
+}
+
+// ServiceBody is the body for POST /services and PUT /services/:service_id.
+// O frontend envia o objeto completo em ambos.
+type ServiceBody struct {
+	Code              string              `json:"code" validate:"required,max=60"`
+	Description       string              `json:"description" validate:"required,min=2,max=2000"`
+	TribNacionalCode  string              `json:"trib_nacional_code" validate:"required,tribnac"`
+	TribMunicipalCode *string             `json:"trib_municipal_code" validate:"omitempty,max=20"`
+	NbsCode           *string             `json:"nbs_code" validate:"omitempty,nbs"`
+	Cnae              *string             `json:"cnae" validate:"omitempty,cnae"`
+	Unit              string              `json:"unit" validate:"required,unit"`
+	Value             string              `json:"value" validate:"required,money"`
+	Iss               ServiceIssBody      `json:"iss" validate:"required"`
+	Federal           *ServiceFederalBody `json:"federal" validate:"omitempty"`
+	IbsCbs            *ServiceIbsCbsBody  `json:"ibs_cbs" validate:"omitempty"`
+	TotTrib           *ServiceTotTribBody `json:"tot_trib" validate:"omitempty"`
+}
+
+// ── Config NFS-e ─────────────────────────────────────────────────────────────
+
+// NfseAbrasfBody é a configuração específica do provider abrasf204.
+type NfseAbrasfBody struct {
+	EndpointURL     string `json:"endpoint_url" validate:"required,url"`
+	WsdlVersion     string `json:"wsdl_version" validate:"required,max=10"`
+	CodigoMunicipio string `json:"codigo_municipio" validate:"required,ibge"`
+	EnvioSincrono   bool   `json:"envio_sincrono"`
+}
+
+// NfseConfigBody is the body for PUT /organizations/:org_pk/nfse-config.
+// Inscrição municipal e regime tributário do prestador NÃO ficam aqui — vêm do
+// grupo `nfse` do objeto person da própria organização, porque quando ela emite
+// como tomador ou intermediário o prestador é outra pessoa. Ver
+// docs/specs/2026-08-04-nfse-design.md §3.2 e §3.3.
+type NfseConfigBody struct {
+	Provider          string          `json:"provider" validate:"required,oneof=nacional abrasf204"`
+	Environment       int             `json:"environment" validate:"required,oneof=1 2"`
+	CLocEmi           string          `json:"c_loc_emi" validate:"required,ibge"`
+	Serie             string          `json:"serie" validate:"required,max=5,number"`
+	ProdCurrentNumber int             `json:"prod_current_number" validate:"gte=0"`
+	HomCurrentNumber  int             `json:"hom_current_number" validate:"gte=0"`
+	CertificateSK     *string         `json:"certificate_sk" validate:"omitempty,max=60"`
+	Abrasf            *NfseAbrasfBody `json:"abrasf" validate:"omitempty"`
+}
+
 // ── Fiscal event actions (NF-e / NFC-e / MDF-e) ──────────────────────
 
 // CancelEventBody is the payload for POST …/:access_key/cancel, shared

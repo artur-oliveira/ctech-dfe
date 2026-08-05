@@ -50,12 +50,14 @@ var Module = fx.Options(
 		repositories.NewOrgUserRepository,
 		repositories.NewOrgInvitationRepository,
 		repositories.NewProductRepository,
+		repositories.NewServiceRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
 		repositories.NewNfeConfigRepository,
 		repositories.NewNfceConfigRepository,
 		repositories.NewCteConfigRepository,
 		repositories.NewMdfeConfigRepository,
+		repositories.NewNfseConfigRepository,
 		repositories.NewNfeRepository,
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
@@ -71,12 +73,14 @@ var Module = fx.Options(
 		services.NewInvitationService,
 		newCertificateService,
 		newProductService,
+		newServiceService,
 		newPersonService,
 		newVehicleService,
 		services.NewNfeConfigService,
 		services.NewNfceConfigService,
 		services.NewCteConfigService,
 		services.NewMdfeConfigService,
+		services.NewNfseConfigService,
 		newExternalService,
 		newWorkerService,
 		newNFeService,
@@ -227,6 +231,10 @@ func newProductService(repo *repositories.ProductRepository, auditRepo *reposito
 	return services.NewProductService(repo, auditRepo, c)
 }
 
+func newServiceService(repo *repositories.ServiceRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.ServiceService {
+	return services.NewServiceService(repo, auditRepo, c)
+}
+
 func newPersonService(repo *repositories.PersonRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PersonService {
 	return services.NewPersonService(repo, auditRepo, c)
 }
@@ -360,6 +368,7 @@ type Services struct {
 	InvSvc      *services.InvitationService
 	CertSvc     *services.CertificateService
 	ProductSvc  *services.ProductService
+	ServiceSvc  *services.ServiceService
 	PersonSvc   *services.PersonService
 	VehicleSvc  *services.VehicleService
 	NfeSvc      *nfesvc.NfeService
@@ -369,6 +378,7 @@ type Services struct {
 	NfceConf    *services.NfceConfigService
 	CteConf     *services.CteConfigService
 	MdfeConf    *services.MdfeConfigService
+	NfseConf    *services.NfseConfigService
 	DistSvc     *services.DistributionService
 	ExternalSvc *services.ExternalService
 	AuditLogSvc *services.AuditLogService
@@ -387,6 +397,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Invitation:   svcs.InvSvc,
 		Cert:         svcs.CertSvc,
 		Product:      svcs.ProductSvc,
+		Service:      svcs.ServiceSvc,
 		Person:       svcs.PersonSvc,
 		Vehicle:      svcs.VehicleSvc,
 		NFe:          svcs.NfeSvc,
@@ -396,6 +407,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NfceConfig:   svcs.NfceConf,
 		CteConfig:    svcs.CteConf,
 		MdfeConfig:   svcs.MdfeConf,
+		NfseConfig:   svcs.NfseConf,
 		Distribution: svcs.DistSvc,
 		External:     svcs.ExternalSvc,
 		AuditLog:     svcs.AuditLogSvc,

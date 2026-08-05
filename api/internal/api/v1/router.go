@@ -22,6 +22,7 @@ type Services struct {
 	Invitation   *services.InvitationService
 	Cert         *services.CertificateService
 	Product      *services.ProductService
+	Service      *services.ServiceService
 	Person       *services.PersonService
 	Vehicle      *services.VehicleService
 	NFe          *nfesvc.NfeService
@@ -31,6 +32,7 @@ type Services struct {
 	NfceConfig   *services.NfceConfigService
 	CteConfig    *services.CteConfigService
 	MdfeConfig   *services.MdfeConfigService
+	NfseConfig   *services.NfseConfigService
 	Distribution *services.DistributionService
 	External     *services.ExternalService
 	AuditLog     *services.AuditLogService
@@ -54,12 +56,14 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		NfceConfig: svcs.NfceConfig,
 		CteConfig:  svcs.CteConfig,
 		MdfeConfig: svcs.MdfeConfig,
+		NfseConfig: svcs.NfseConfig,
 		UserSvc:    svcs.User,
 		MemberSvc:  svcs.Member,
 		InvSvc:     svcs.Invitation,
 	}, authMw, perm)
 	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)
 	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
+	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)
 	RegisterNFes(v1, svcs.NFe, svcs.External, svcs.User, authMw, perm)

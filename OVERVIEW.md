@@ -84,6 +84,8 @@ PUT    /v1.0/organizations/{pk}/nfe-config  # Configure NF-e issuance
 
 GET    /v1.0/products                       # List products (paginated)
 POST   /v1.0/products                       # Create product
+GET    /v1.0/services                       # List NFS-e service catalog (paginated)
+PUT    /v1.0/organizations/{pk}/nfse-config # Configure NFS-e issuance
 GET    /v1.0/persons                        # List customers/suppliers
 POST   /v1.0/nfes                           # Issue NF-e
 POST   /v1.0/nfes/{access_key}/cancel       # Cancel NF-e

@@ -677,6 +677,38 @@ When `emit_uf='RJ'` and `cst='40'` without a configured `icms_mot_des`, the syst
 | 5915/6915           | Repair shipment         | 50 (suspension) |
 | 5916/6916           | Repair return           | 40 (exempt)     |
 
+#### Services (catálogo NFS-e) & Config NFS-e
+
+Use the `Dfe-Organization-Pk` header for org context.
+
+| Method | Endpoint                       | Description                                                                    |
+|--------|---------------------------------|----------------------------------------------------------------------------------|
+| GET    | `/v1.0/services`                | Listar catálogo (paginado; filtros `code`, `description`, `order_by`, `sort`, `limit`, `cursor`) |
+| POST   | `/v1.0/services`                | Criar serviço                                                                    |
+| GET    | `/v1.0/services/{service_id}`   | Detalhe                                                                          |
+| PUT    | `/v1.0/services/{service_id}`   | Atualizar (objeto completo)                                                      |
+| DELETE | `/v1.0/services/{service_id}`   | Remover                                                                          |
+| GET    | `/v1.0/organizations/{pk}/nfse-config` | Config NFS-e da organização                                              |
+| PUT    | `/v1.0/organizations/{pk}/nfse-config` | Upsert da config                                                          |
+
+`ServiceBody` mirrors `ProductBody`'s pattern of one full-object payload for both create and update
+(see `api/internal/api/v1/dto.go`, `ServiceBody`) — its fields cover the DPS `serv` group defaults
+(`trib_nacional_code` from the Anexo B lookup, optional `iss`/`federal`/`ibs_cbs`/`tot_trib`
+sub-objects). `NfseConfigBody` mirrors the other fiscal config bodies (`provider`, `environment`,
+`c_loc_emi`, `serie`, numbering counters, optional `abrasf` block for the `abrasf204` provider) — it
+deliberately does NOT carry the prestador's inscrição municipal or regime tributário, which live on
+the organization's own `person.nfse` group instead (see Organizations above and
+`docs/specs/2026-08-04-nfse-design.md` §3.2–§3.3).
+
+**RBAC permissions:** `{list,get,create,update,delete}.organization_services` and
+`{get,update}.organization_nfse_configs`, following the same pattern as `organization_products` and
+the other fiscal config resources.
+
+**OAuth scope families:** `dfe:organization_services:{read,write}` and `dfe:nfses:{read,write}` —
+the latter also covers `nfses`, `nfse_events`, and `organization_nfse_configs` (read = list/get
+across the family, write = create/update/delete), mirroring the `dfe:nfes:*`/`dfe:ctes:*`/etc.
+document families.
+
 #### Vehicles
 
 Organization is always resolved from the `Dfe-Organization-Pk` header, not a path parameter.
