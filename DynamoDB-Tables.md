@@ -473,7 +473,7 @@ Fiscal configuration per org for NFS-e issuance. PK only (no SK), same base shap
 |-----------------------|------|-----------------------------------------------------------------------|
 | `pk`                  | S    | `{org_pk}` — partition key                                            |
 | `provider`            | S    | `nacional` or `abrasf204`                                             |
-| `environment`         | N    | `1` homologação / `2` produção                                        |
+| `environment`         | N    | `1` produção / `2` homologação                                        |
 | `c_loc_emi`           | S    | 7-digit IBGE code of the local de emissão (município do prestador)    |
 | `serie`               | S    | Document series, up to 5 digits                                       |
 | `prod_current_number` | N    | Next production DPS number; preserved across `Upsert` (never zeroed) |
