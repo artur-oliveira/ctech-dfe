@@ -480,8 +480,10 @@ colapsados e só abrem quando o serviço ou a config os exigir.
 ## 8. `cdk`
 
 Quatro tabelas novas — `organization_services`, `organization_nfse_configs`, `nfses`, `nfse_events` —
-com os mesmos padrões: prefixo por ambiente, on-demand, PITR em produção, stream em `nfses` para o
-outbox. IAM do worker e da API estendidos para as tabelas novas e para o prefixo S3 `nfse/`.
+com os mesmos padrões: prefixo por ambiente, on-demand, PITR em produção. Nenhuma delas leva stream:
+o stream do outbox já existe e fica em `worker_outbox` (`cdk/lib/dynamodb-stack.ts:542`), que é a
+tabela de comandos compartilhada por todos os tipos de documento — NFS-e entra nela sem alteração de
+infraestrutura. IAM do worker e da API estendidos para as tabelas novas e para o prefixo S3 `nfse/`.
 
 ---
 
