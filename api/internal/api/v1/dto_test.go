@@ -144,3 +144,52 @@ func TestProductNestedFieldPath(t *testing.T) {
 		}
 	}
 }
+
+func TestPersonObjectBody_NfseGroup(t *testing.T) {
+	base := func() PersonObjectBody {
+		return PersonObjectBody{
+			Addresses: []AddressBody{{
+				CityIBGECode: "2211001", Street: "Rua A", Neighborhood: "Centro",
+				Number: "10", City: "Teresina", StateFederation: "PI", PostalCode: "64000000",
+			}},
+		}
+	}
+
+	t.Run("grupo ausente é válido", func(t *testing.T) {
+		if p := validation.Struct(base()); p != nil {
+			t.Fatalf("person sem grupo nfse rejeitado: %+v", p)
+		}
+	})
+
+	t.Run("grupo completo é válido", func(t *testing.T) {
+		b := base()
+		im := "987654"
+		b.Nfse = &NfseInfoBody{
+			IM:      &im,
+			RegTrib: &NfseRegTribBody{OpSimpNac: 3, RegApTribSN: ptrInt(1), RegEspTrib: 0},
+		}
+		if p := validation.Struct(b); p != nil {
+			t.Fatalf("grupo nfse válido rejeitado: %+v", p)
+		}
+	})
+
+	t.Run("op_simp_nac fora do domínio é rejeitado", func(t *testing.T) {
+		b := base()
+		b.Nfse = &NfseInfoBody{RegTrib: &NfseRegTribBody{OpSimpNac: 9, RegEspTrib: 0}}
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("op_simp_nac=9 aceito, esperado erro")
+		}
+	})
+
+	t.Run("im não numérica é rejeitada", func(t *testing.T) {
+		b := base()
+		im := "ABC123"
+		b.Nfse = &NfseInfoBody{IM: &im}
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("im alfanumérica aceita, esperado erro")
+		}
+	})
+}
+
+//go:fix inline
+func ptrInt(v int) *int { return new(v) }

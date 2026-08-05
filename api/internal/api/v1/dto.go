@@ -36,6 +36,51 @@ type ContactsBody struct {
 	Phones []string `json:"phones" validate:"omitempty,max=5,dive,phonebr"`
 }
 
+// NfseRegTribBody é o regime tributário do prestador (TCRegTrib do DPS 1.01).
+// Vive junto da identidade, e não na config da organização, porque quando a org
+// emite como tomador ou intermediário (tpEmit 2 ou 3) o prestador é uma pessoa
+// do cadastro e precisa do próprio regime — ver
+// docs/specs/2026-08-04-nfse-design.md §3.2.
+type NfseRegTribBody struct {
+	// 1 não optante | 2 optante MEI | 3 optante ME/EPP
+	OpSimpNac int `json:"op_simp_nac" validate:"required,oneof=1 2 3"`
+	// Exigido apenas quando op_simp_nac = 3.
+	// 1 federais e municipal pelo SN | 2 federais pelo SN, ISSQN por fora | 3 ambos por fora
+	RegApTribSN *int `json:"reg_ap_trib_sn" validate:"omitempty,oneof=1 2 3"`
+	// 0 nenhum | 1 ato cooperado | 2 estimativa | 3 microempresa municipal
+	// 4 notário/registrador | 5 profissional autônomo | 6 sociedade de profissionais
+	RegEspTrib int `json:"reg_esp_trib" validate:"oneof=0 1 2 3 4 5 6"`
+}
+
+// NfseForeignAddressBody é o endereço no exterior (TCEnderExt do DPS 1.01),
+// usado quando a pessoa não tem endereço nacional.
+type NfseForeignAddressBody struct {
+	CPais       string  `json:"c_pais" validate:"required,len=2,alpha"`
+	CEndPost    string  `json:"c_end_post" validate:"required,max=11"`
+	XCidade     string  `json:"x_cidade" validate:"required,max=60"`
+	XEstadoProv string  `json:"x_estado_prov" validate:"required,max=60"`
+	XLgr        string  `json:"x_lgr" validate:"required,max=255"`
+	Nro         string  `json:"nro" validate:"required,max=60"`
+	XCpl        *string `json:"x_cpl" validate:"omitempty,max=156"`
+	XBairro     string  `json:"x_bairro" validate:"required,max=60"`
+}
+
+// NfseInfoBody é o grupo de campos exigidos pela NFS-e que não existem no
+// cadastro de NF-e. Fica em PersonObjectBody porque TCInfoPrestador e
+// TCInfoPessoa têm os mesmos campos de identidade — assim organizations e
+// organization_persons são estendidas por uma única mudança.
+type NfseInfoBody struct {
+	IM    *string `json:"im" validate:"omitempty,inscmun"`
+	Caepf *string `json:"caepf" validate:"omitempty,caepf"`
+	NIF   *string `json:"nif" validate:"omitempty,nif"`
+	// 0 não informado | 1 dispensado | 2 não exigência
+	CNaoNIF *int `json:"c_nao_nif" validate:"omitempty,oneof=0 1 2"`
+	// Obrigatório apenas quando a pessoa for usada como prestador numa emissão;
+	// a validação dessa obrigatoriedade ocorre na emissão, não no cadastro.
+	RegTrib        *NfseRegTribBody        `json:"reg_trib" validate:"omitempty"`
+	ForeignAddress *NfseForeignAddressBody `json:"foreign_address" validate:"omitempty"`
+}
+
 // PersonObjectBody is the nested `person` object shared by person and
 // organization payloads. crt is sent as a number (1–4) or null.
 type PersonObjectBody struct {
@@ -44,6 +89,7 @@ type PersonObjectBody struct {
 	StateRegistrations []StateRegistrationBody `json:"state_registrations" validate:"omitempty,dive"`
 	Addresses          []AddressBody           `json:"addresses" validate:"required,min=1,dive"`
 	Contacts           *ContactsBody           `json:"contacts" validate:"omitempty"`
+	Nfse               *NfseInfoBody           `json:"nfse" validate:"omitempty"`
 }
 
 // ── Persons ──────────────────────────────────────────────────────────────────

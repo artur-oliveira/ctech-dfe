@@ -399,7 +399,9 @@ Every mutating endpoint binds the JSON body into a **typed request DTO** and val
 (`json.Decoder.DisallowUnknownFields`). Validation uses `go-playground/validator/v10`
 through the shared instance in `internal/validation`, configured with custom rules that mirror
 the frontend Zod schemas (`cpf`, `cnpj`, `cpfcnpj`, `uf`, `timezone`, `cfop`, `ncm`, `cest`,
-`ibge`, `cep`, `phonebr`, `placa`, `rntrc`, `renavam`, `percent`, `money`, `ibscst`, etc.).
+`ibge`, `cep`, `phonebr`, `placa`, `rntrc`, `renavam`, `percent`, `money`, `ibscst`, `inscmun`,
+`caepf`, `nif`, `cnae`, `tribnac`, `nbs`, `indop`, etc. — the last three consult the NFS-e
+reference tables in `go-dfe/nfse/tables`, not a regex).
 
 - DTOs live in `internal/api/v1/dto.go` (persons, organizations, products, vehicles, fiscal
   configs) and in the service packages for fiscal issuance (`NfeEmitBody`, `NfceEmitBody`,
@@ -480,6 +482,17 @@ CNPJ already exists returns 409 unless the caller is already a member (idempoten
 `POST`/`PUT` also return 400 if `person.crt` is missing for a CNPJ, or if `person.state_registrations`
 is empty for a CNPJ organization (organizations are always the fiscal emitter — see
 `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`).
+
+`POST /organizations` and `PUT /organizations/{pk}` (and the equivalent person endpoints below)
+accept an optional `person.nfse` object with the NFS-e identity fields that don't exist on the
+NF-e cadastro: `im` (inscrição municipal), `caepf`, `nif`, `c_nao_nif` (`0` não informado, `1`
+dispensado, `2` não exigência), `reg_trib` (`{op_simp_nac: 1` não optante`|2` MEI`|3` ME/EPP,
+`reg_ap_trib_sn` — only when `op_simp_nac=3`: `1` federais e municipal pelo SN`|2` federais pelo
+SN e ISSQN por fora`|3` ambos por fora, `reg_esp_trib: 0` nenhum`|1` ato cooperado`|2` estimativa
+`|3` microempresa municipal`|4` notário/registrador`|5` profissional autônomo`|6` sociedade de
+profissionais`}`), and `foreign_address` for a prestador/tomador without a national address. All
+optional at cadastro; required only when this person/org is used as prestador in a DPS emission
+(F2+), enforced at emission time, not here.
 
 #### Members & invitations
 
@@ -694,6 +707,10 @@ CRT is required for a CNPJ person (same rule as organizations), but IE (`state_r
 **not** required even for a CNPJ — unlike organizations, a person is a destinatário/counterparty,
 and whether they're an ICMS contributor is a per-emission choice (`indIEDest`), not a cadastro
 requirement. See `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`.
+
+`POST /persons` and `PUT /persons/{cpf_cnpj}` accept the same optional `person.nfse` object
+described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_trib`,
+`foreign_address`) — used when this person is the prestador/tomador of a DPS.
 
 #### NF-e
 

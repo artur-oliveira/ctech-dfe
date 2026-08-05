@@ -90,6 +90,7 @@ fiscal emitter, so these aren't optional the way they can be for a `organization
 | `person.state_registrations` | L    | List of `{uf, state_registration}` — ≥1 entry required for CNPJ                                                                            |
 | `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1                          |
 | `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                                    |
+| `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — NFS-e identity fields, optional, shared verbatim with `organization_persons.person.nfse` (see below) |
 | `pickup_locations`           | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation` |
 | `authorized_xml_viewers`     | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer`           |
 | `created_at`                 | S    | ISO-8601 UTC                                                                                                                               |
@@ -189,6 +190,7 @@ per-emission choice (`indIEDest`), not a cadastro requirement.
 | `person.state_registrations` | L    | List of `{uf, state_registration}` (optional)                                                                               |
 | `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1           |
 | `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                     |
+| `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — same shape as `organizations.person.nfse` above; needed when this person is used as prestador/intermediário in a DPS (tpEmit 2/3) |
 | `delivery_locations`         | L    | List of TLocal-shaped saved "local de entrega" for NF-e emissions to this destinatário, cap 5. See `appendDeliveryLocation` |
 | `created_at`                 | S    | ISO-8601 UTC                                                                                                                |
 | `updated_at`                 | S    | ISO-8601 UTC                                                                                                                |
