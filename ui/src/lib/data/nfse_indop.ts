@@ -8,7 +8,7 @@ export interface IndOpEntry {
   campo_leiaute: string;
 }
 
-export const NFSE_INDOP = [
+export const NFSE_INDOP: readonly IndOpEntry[] = [
   {
     "code": "020101",
     "tipo_operacao": "Operação com bem imóvel, bem imaterial, inclusive direito,  relacionada a bem imóvel",

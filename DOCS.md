@@ -700,9 +700,11 @@ deliberately does NOT carry the prestador's inscrição municipal or regime trib
 the organization's own `person.nfse` group instead (see Organizations above and
 `docs/specs/2026-08-04-nfse-design.md` §3.2–§3.3).
 
-**RBAC permissions:** `{list,get,create,update,delete}.organization_services` and
-`{get,update}.organization_nfse_configs`, following the same pattern as `organization_products` and
-the other fiscal config resources.
+**RBAC permissions:** the routes above are gated on `{list,get,create,update,delete}.organization_services`
+and `{get,update}.organization_nfse_configs`. `seedRoles` grants the full
+`{list,get,create,update,delete}` set for both resources (same as every resource in `roles.go`'s
+generic list) — the `{get,update}` pair above is only what `/nfse-config`'s two routes actually
+check, not a smaller permission set than what's seeded.
 
 **OAuth scope families:** `dfe:organization_services:{read,write}` and `dfe:nfses:{read,write}` —
 the latter also covers `nfses`, `nfse_events`, and `organization_nfse_configs` (read = list/get

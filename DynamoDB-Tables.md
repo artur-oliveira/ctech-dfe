@@ -437,15 +437,27 @@ cannot be made atomic.
 ## 27. `organization_services`
 
 Service catalog per org (NFS-e line items — analogous to `organization_products` for goods).
+Persists `api/internal/api/v1.ServiceBody` (see `dto.go`) as a dynamic map, same pattern as
+`organization_products`/`ProductBody`.
 
-| Attribute      | Type | Notes                                      |
-|----------------|------|---------------------------------------------|
-| `pk`           | S    | `{org_pk}` — partition key                  |
-| `sk`           | S    | `SERVICE_{uuid}` — sort key                 |
-| `code`         | S    | Internal service code. GSI: `code-index`    |
-| `description`  | S    | GSI: `description-index`                    |
-| `created_at`   | S    | ISO-8601 UTC                                |
-| `updated_at`   | S    | ISO-8601 UTC                                |
+| Attribute            | Type | Notes                                                                |
+|----------------------|------|------------------------------------------------------------------------|
+| `pk`                 | S    | `{org_pk}` — partition key                                             |
+| `sk`                 | S    | `SERVICE_{uuid}` — sort key                                            |
+| `code`               | S    | Internal service code. GSI: `code-index`                               |
+| `description`        | S    | GSI: `description-index`                                              |
+| `trib_nacional_code` | S    | 6-digit código de tributação nacional (Anexo B) — validated against `go-dfe/nfse/tables` |
+| `trib_municipal_code`| S    | Optional municipal-specific code (max 20 chars)                        |
+| `nbs_code`           | S    | Optional 9-digit NBS code (Anexo B), validated against `go-dfe/nfse/tables` |
+| `cnae`               | S    | Optional 7-digit CNAE                                                  |
+| `unit`               | S    | Unit of measure                                                        |
+| `value`              | S    | Unit price as decimal string                                          |
+| `iss`                | M    | `{trib_issqn, aliquota, tp_ret_issqn?, tp_imunidade?, c_pais_resultado?}` — DPS `tribMun` defaults |
+| `federal`            | M    | Optional `{cst_pis_cofins?, aliq_pis?, aliq_cofins?, tp_ret_pis_cofins?, v_ret_cp?, v_ret_irrf?, v_ret_csll?}` |
+| `ibs_cbs`            | M    | Optional `{c_ind_op?, cst?, c_class_trib?, ind_dest?, tp_oper?, fin_nfse?}` — reforma tributária defaults |
+| `tot_trib`           | M    | `{ind_tot_trib, p_tot_trib_sn?}` — Lei da Transparência                |
+| `created_at`         | S    | ISO-8601 UTC                                                           |
+| `updated_at`         | S    | ISO-8601 UTC                                                           |
 
 **GSIs:** `description-index` (PK: `pk`, SK: `description`), `code-index` (PK: `pk`, SK: `code`).
 
@@ -453,13 +465,27 @@ Service catalog per org (NFS-e line items — analogous to `organization_product
 
 ## 28. `organization_nfse_configs`
 
-Fiscal configuration per org for NFS-e issuance. PK only (no SK), same shape as the other
-`organization_*_configs` tables (#7–10).
+Fiscal configuration per org for NFS-e issuance. PK only (no SK), same base shape as the other
+`organization_*_configs` tables (#7–10), but without the NF-e-family distribution/quota fields
+(NFS-e has no distribution flow) and with its own numbering counters (per `NfseConfigBody`).
 
-| Attribute      | Type | Notes                        |
-|----------------|------|--------------------------------|
-| `pk`           | S    | `{org_pk}` — partition key    |
-| `updated_at`   | S    | ISO-8601 UTC                  |
+| Attribute             | Type | Notes                                                              |
+|-----------------------|------|-----------------------------------------------------------------------|
+| `pk`                  | S    | `{org_pk}` — partition key                                            |
+| `provider`            | S    | `nacional` or `abrasf204`                                             |
+| `environment`         | N    | `1` homologação / `2` produção                                        |
+| `c_loc_emi`           | S    | 7-digit IBGE code of the local de emissão (município do prestador)    |
+| `serie`               | S    | Document series, up to 5 digits                                       |
+| `prod_current_number` | N    | Next production DPS number; preserved across `Upsert` (never zeroed) |
+| `hom_current_number`   | N    | Next homologação DPS number; preserved across `Upsert`                |
+| `certificate_sk`      | S    | Optional: `organization_certificates` SK to use for this provider     |
+| `abrasf`              | M    | Only for `provider=abrasf204`: `{endpoint_url, wsdl_version, codigo_municipio, envio_sincrono}` |
+| `updated_at`          | S    | ISO-8601 UTC                                                          |
+
+Inscrição municipal and the prestador's regime tributário are NOT stored here — they live on the
+organization's own `person.nfse` group (see `organizations`/`organization_persons` above), since
+when the org emits as tomador/intermediário (`tpEmit` 2/3) the prestador is a different person from
+the cadastro, not the organization itself.
 
 ---
 

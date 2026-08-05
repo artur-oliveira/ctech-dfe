@@ -82,6 +82,7 @@ func (r *ServiceRepository) Delete(ctx context.Context, orgPK, sk string) (bool,
 // Create's key/timestamp construction, without writing.
 func (r *ServiceRepository) BuildCreateTxItem(orgPK string, fields map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue) {
 	id := GenerateID()
+	// marshalEntity never errors for T = map[string]types.AttributeValue (base.go) — safe to discard.
 	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, buildServiceSK(id), fields)
 	return tx, item
 }

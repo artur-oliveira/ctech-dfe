@@ -48,8 +48,8 @@ type NfseRegTribBody struct {
 	// 1 federais e municipal pelo SN | 2 federais pelo SN, ISSQN por fora | 3 ambos por fora
 	RegApTribSN *int `json:"reg_ap_trib_sn" validate:"omitempty,oneof=1 2 3"`
 	// 0 nenhum | 1 ato cooperado | 2 estimativa | 3 microempresa municipal
-	// 4 notário/registrador | 5 profissional autônomo | 6 sociedade de profissionais
-	RegEspTrib int `json:"reg_esp_trib" validate:"oneof=0 1 2 3 4 5 6"`
+	// 4 notário/registrador | 5 profissional autônomo | 6 sociedade de profissionais | 9 outros
+	RegEspTrib int `json:"reg_esp_trib" validate:"oneof=0 1 2 3 4 5 6 9"`
 }
 
 // NfseForeignAddressBody é o endereço no exterior (TCEnderExt do DPS 1.01),
@@ -289,21 +289,27 @@ type ProductBody struct {
 
 // ServiceIssBody são os defaults de ISSQN do serviço (grupo tribMun do DPS).
 type ServiceIssBody struct {
-	// 1 operação tributável | 2 exportação | 3 não incidência | 4 imunidade
+	// 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
 	TribISSQN int    `json:"trib_issqn" validate:"required,oneof=1 2 3 4"`
 	Aliquota  string `json:"aliquota" validate:"required,percent"`
 	// 1 não retido | 2 retido pelo tomador | 3 retido pelo intermediário
-	TpRetISSQN     *int    `json:"tp_ret_issqn" validate:"omitempty,oneof=1 2 3"`
-	TpImunidade    *int    `json:"tp_imunidade" validate:"omitempty,gte=0,lte=9"`
+	TpRetISSQN *int `json:"tp_ret_issqn" validate:"omitempty,oneof=1 2 3"`
+	// Somente para trib_issqn=2 (imunidade). 0 tipo não informado | 1-5 hipóteses
+	// constitucionais específicas (CF88 Art 150, VI) — ver TSTipoImunidadeISSQN.
+	TpImunidade    *int    `json:"tp_imunidade" validate:"omitempty,gte=0,lte=5"`
 	CPaisResultado *string `json:"c_pais_resultado" validate:"omitempty,len=2,alpha"`
 }
 
 // ServiceFederalBody são os defaults de tributos federais do serviço.
 type ServiceFederalBody struct {
-	CstPisCofins   *string `json:"cst_pis_cofins" validate:"omitempty,len=2,number"`
-	AliqPis        *string `json:"aliq_pis" validate:"omitempty,percent"`
-	AliqCofins     *string `json:"aliq_cofins" validate:"omitempty,percent"`
-	TpRetPisCofins *int    `json:"tp_ret_pis_cofins" validate:"omitempty,oneof=1 2"`
+	CstPisCofins *string `json:"cst_pis_cofins" validate:"omitempty,len=2,number"`
+	AliqPis      *string `json:"aliq_pis" validate:"omitempty,percent"`
+	AliqCofins   *string `json:"aliq_cofins" validate:"omitempty,percent"`
+	// 0 nenhum retido | 1 PIS/COFINS retidos | 2 PIS/COFINS não retidos
+	// 3 PIS/COFINS/CSLL retidos | 4 PIS/COFINS retidos, CSLL não | 5 PIS retido, COFINS/CSLL não
+	// 6 COFINS retido, PIS/CSLL não | 7 PIS não retido, COFINS/CSLL retidos
+	// 8 PIS/COFINS não retidos, CSLL retido | 9 COFINS não retido, PIS/CSLL retidos
+	TpRetPisCofins *int    `json:"tp_ret_pis_cofins" validate:"omitempty,oneof=0 1 2 3 4 5 6 7 8 9"`
 	VRetCP         *string `json:"v_ret_cp" validate:"omitempty,money2"`
 	VRetIRRF       *string `json:"v_ret_irrf" validate:"omitempty,money2"`
 	VRetCSLL       *string `json:"v_ret_csll" validate:"omitempty,money2"`
@@ -314,15 +320,21 @@ type ServiceIbsCbsBody struct {
 	CIndOp     *string `json:"c_ind_op" validate:"omitempty,indop"`
 	Cst        *string `json:"cst" validate:"omitempty,len=3,number"`
 	CClassTrib *string `json:"c_class_trib" validate:"omitempty,max=6,number"`
-	IndDest    *int    `json:"ind_dest" validate:"omitempty,oneof=0 1 2"`
-	TpOper     *int    `json:"tp_oper" validate:"omitempty,oneof=1 2 3 4"`
-	FinNFSe    *int    `json:"fin_nfse" validate:"omitempty,oneof=1 2 3 4"`
+	// 0 destinatário é o próprio tomador | 1 destinatário diferente do tomador
+	IndDest *int `json:"ind_dest" validate:"omitempty,oneof=0 1"`
+	// 1 fornecimento com pagamento posterior | 2 recebimento com fornecimento já realizado
+	// 3 fornecimento com pagamento já realizado | 4 recebimento com fornecimento posterior
+	// 5 fornecimento e recebimento concomitantes
+	TpOper *int `json:"tp_oper" validate:"omitempty,oneof=1 2 3 4 5"`
+	// Valor fixo — TSRTCFinNFSe só admite 0 (NFS-e regular).
+	FinNFSe *int `json:"fin_nfse" validate:"omitempty,oneof=0"`
 }
 
 // ServiceTotTribBody é a Lei da Transparência (grupo totTrib do DPS).
 type ServiceTotTribBody struct {
-	// 0 não informar | 1 informar valores | 2 informar percentuais
-	IndTotTrib int     `json:"ind_tot_trib" validate:"oneof=0 1 2"`
+	// Valor fixo — TSTipoIndTotTrib só admite 0 (Decreto 8.264/2014 veda estimar
+	// tributos na NFS-e).
+	IndTotTrib int     `json:"ind_tot_trib" validate:"oneof=0"`
 	PTotTribSN *string `json:"p_tot_trib_sn" validate:"omitempty,percent"`
 }
 
@@ -358,6 +370,13 @@ type NfseAbrasfBody struct {
 // grupo `nfse` do objeto person da própria organização, porque quando ela emite
 // como tomador ou intermediário o prestador é outra pessoa. Ver
 // docs/specs/2026-08-04-nfse-design.md §3.2 e §3.3.
+//
+// Não embeda fiscalConfigBase (usado por FiscalConfigBody/NfceConfigBody):
+// a NFS-e tem uma única `serie` (não uma por ambiente) e não tem `timezone`
+// próprio — a DPS deriva o fuso de `c_loc_emi` (município do prestador), ao
+// contrário de NF-e/NFC-e/CT-e/MDF-e, que não têm um município de emissão
+// fixo por config. Ver spec §3.3 (a tabela de campos ali não lista nenhum
+// dos dois).
 type NfseConfigBody struct {
 	Provider          string          `json:"provider" validate:"required,oneof=nacional abrasf204"`
 	Environment       int             `json:"environment" validate:"required,oneof=1 2"`

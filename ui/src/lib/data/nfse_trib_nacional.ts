@@ -8,7 +8,7 @@ export interface TribNacionalEntry {
   description: string;
 }
 
-export const NFSE_TRIB_NACIONAL = [
+export const NFSE_TRIB_NACIONAL: readonly TribNacionalEntry[] = [
   {
     "code": "010101",
     "item": "1",
