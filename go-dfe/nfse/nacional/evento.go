@@ -49,13 +49,22 @@ type xmlMotivo struct {
 	XMotivo string `xml:"xMotivo,omitempty"`
 }
 
+// Descrições fixas de xDesc (TE105102/TE205208) — enumeração de valor único
+// no XSD, nunca preenchida pelo chamador.
+const (
+	xDescCancelamentoPorSubst = "Cancelamento de NFS-e por Substituição"
+	xDescAnulacaoRejeicao     = "Manifestação de NFS-e - Anulação da Rejeição"
+)
+
 type xmlSubstEvt struct {
+	XDesc        string `xml:"xDesc"`
 	CMotivo      string `xml:"cMotivo"`
 	XMotivo      string `xml:"xMotivo,omitempty"`
 	ChSubstituta string `xml:"chSubstituta"`
 }
 
 type xmlAnulacao struct {
+	XDesc        string `xml:"xDesc"`
 	CPFAgTrib    string `xml:"CPFAgTrib"`
 	IDEvManifRej string `xml:"idEvManifRej"`
 	XMotivo      string `xml:"xMotivo"`
@@ -112,8 +121,8 @@ func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 	case nfse.EventCancelamento:
 		inf.E101101 = motivo
 	case nfse.EventCancelamentoPorSubst:
-		inf.E105102 = &xmlSubstEvt{CMotivo: motivo.CMotivo, XMotivo: motivo.XMotivo,
-			ChSubstituta: ev.ChSubstituta}
+		inf.E105102 = &xmlSubstEvt{XDesc: xDescCancelamentoPorSubst,
+			CMotivo: motivo.CMotivo, XMotivo: motivo.XMotivo, ChSubstituta: ev.ChSubstituta}
 	case nfse.EventSolicAnaliseFiscalCanc:
 		inf.E101103 = motivo
 	case nfse.EventConfirmacaoPrestador:
@@ -129,7 +138,7 @@ func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 	case nfse.EventRejeicaoIntermediario:
 		inf.E204207 = motivo
 	case nfse.EventAnulacaoRejeicao:
-		inf.E205208 = &xmlAnulacao{CPFAgTrib: ev.CPFAgTrib,
+		inf.E205208 = &xmlAnulacao{XDesc: xDescAnulacaoRejeicao, CPFAgTrib: ev.CPFAgTrib,
 			IDEvManifRej: ev.IDEvManifRej, XMotivo: motivo.XMotivo}
 	}
 

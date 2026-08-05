@@ -59,6 +59,9 @@ func TestBuildPedRegEvento_Substituicao(t *testing.T) {
 	if !strings.Contains(string(out), "<chSubstituta>"+ev.ChSubstituta+"</chSubstituta>") {
 		t.Error("chSubstituta ausente")
 	}
+	if !strings.Contains(string(out), "<xDesc>Cancelamento de NFS-e por Substituição</xDesc>") {
+		t.Error("xDesc (TE105102, valor fixo do XSD) ausente")
+	}
 }
 
 func TestBuildPedRegEvento_RejectsFiscoOnlyEvent(t *testing.T) {
@@ -103,6 +106,9 @@ func TestBuildPedRegEvento_AnulacaoRejeicao(t *testing.T) {
 	}
 	if !strings.Contains(s, "<xMotivo>"+ev.Motivo.Descricao+"</xMotivo>") {
 		t.Error("xMotivo ausente")
+	}
+	if !strings.Contains(s, "<xDesc>Manifestação de NFS-e - Anulação da Rejeição</xDesc>") {
+		t.Error("xDesc (TE205208, valor fixo do XSD) ausente")
 	}
 	if !strings.Contains(s, `Id="`+id+`"`) {
 		t.Errorf("infPedReg sem Id=%q", id)
