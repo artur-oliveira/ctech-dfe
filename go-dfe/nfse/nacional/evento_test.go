@@ -33,7 +33,9 @@ func TestBuildPedRegEvento_Cancelamento(t *testing.T) {
 	if !strings.Contains(s, `Id="`+id+`"`) {
 		t.Errorf("infPedReg sem Id=%q", id)
 	}
-	if !strings.HasPrefix(id, "PRE") || len(id) != 3+50+6+3 {
+	// TSIdPedRegEvt: "PRE" + chave(50) + tipoEvento(6) = 59 (padrão
+	// PRE[0-9]{56} não deixa espaço para nSeqEvento).
+	if !strings.HasPrefix(id, "PRE") || len(id) != 3+50+6 {
 		t.Errorf("Id malformado: %q (len %d)", id, len(id))
 	}
 }
@@ -140,7 +142,7 @@ func TestBuildPedRegEvento_RemainingEventTypes(t *testing.T) {
 		t.Run(c.tipo, func(t *testing.T) {
 			ev := baseEvent(c.tipo)
 			if c.needsMotivo {
-				ev.Motivo = &nfse.EventMotivo{Codigo: "1"}
+				ev.Motivo = &nfse.EventMotivo{Codigo: "1", Descricao: "motivo de teste"}
 			}
 			out, _, err := BuildPedRegEvento(ev)
 			if err != nil {
@@ -150,5 +152,90 @@ func TestBuildPedRegEvento_RemainingEventTypes(t *testing.T) {
 				t.Errorf("elemento %s ausente: %s", c.elemento, out)
 			}
 		})
+	}
+}
+
+// TestBuildPedRegEvento_AllTypesHaveXDesc é um regression test: os 8 tipos
+// de evento além de TE105102/TE205208 (já cobertos antes) também exigem
+// xDesc como primeiro elemento, com o valor fixo exato do XSD
+// (tiposEventos_v1.01.xsd) — inclui os 3 tipos "vazios" (TE202201/203202/
+// 204203), que antes eram serializados sem nenhum conteúdo (<e202201></e202201>).
+func TestBuildPedRegEvento_AllTypesHaveXDesc(t *testing.T) {
+	cases := []struct {
+		tipo, xDesc string
+	}{
+		{nfse.EventCancelamento, "Cancelamento de NFS-e"},
+		{nfse.EventSolicAnaliseFiscalCanc, "Solicitação de Análise Fiscal para Cancelamento de NFS-e"},
+		{nfse.EventConfirmacaoPrestador, "Manifestação de NFS-e - Confirmação do Prestador"},
+		{nfse.EventConfirmacaoTomador, "Manifestação de NFS-e - Confirmação do Tomador"},
+		{nfse.EventConfirmacaoIntermediario, "Manifestação de NFS-e - Confirmação do Intermediário"},
+		{nfse.EventRejeicaoPrestador, "Manifestação de NFS-e - Rejeição do Prestador"},
+		{nfse.EventRejeicaoTomador, "Manifestação de NFS-e - Rejeição do Tomador"},
+		{nfse.EventRejeicaoIntermediario, "Manifestação de NFS-e - Rejeição do Intermediário"},
+	}
+	for _, c := range cases {
+		t.Run(c.tipo, func(t *testing.T) {
+			ev := baseEvent(c.tipo)
+			ev.Motivo = &nfse.EventMotivo{Codigo: "1", Descricao: "motivo de teste"}
+			out, _, err := BuildPedRegEvento(ev)
+			if err != nil {
+				t.Fatalf("BuildPedRegEvento: %v", err)
+			}
+			if !strings.Contains(string(out), "<xDesc>"+c.xDesc+"</xDesc>") {
+				t.Errorf("xDesc ausente ou incorreto para %s: %s", c.tipo, out)
+			}
+		})
+	}
+}
+
+// TestBuildPedRegEvento_CancelamentoRequiresXMotivo e
+// TestBuildPedRegEvento_SolicAnaliseFiscalRequiresXMotivo são regression
+// tests: TE101101/TE101103 têm xMotivo obrigatório (sem minOccurs="0" no
+// XSD, diferente de TE202205/203206/204207), mas a validação só checava
+// cMotivo.
+func TestBuildPedRegEvento_CancelamentoRequiresXMotivo(t *testing.T) {
+	ev := baseEvent(nfse.EventCancelamento)
+	ev.Motivo = &nfse.EventMotivo{Codigo: "1"} // sem Descricao
+	if _, _, err := BuildPedRegEvento(ev); err == nil {
+		t.Fatal("esperado erro: TE101101 exige xMotivo")
+	}
+}
+
+func TestBuildPedRegEvento_SolicAnaliseFiscalRequiresXMotivo(t *testing.T) {
+	ev := baseEvent(nfse.EventSolicAnaliseFiscalCanc)
+	ev.Motivo = &nfse.EventMotivo{Codigo: "1"} // sem Descricao
+	if _, _, err := BuildPedRegEvento(ev); err == nil {
+		t.Fatal("esperado erro: TE101103 exige xMotivo")
+	}
+}
+
+// TestBuildPedRegEvento_RejectsBothCNPJAndCPFAutor é um regression test:
+// TCInfoPedReg exige exatamente um de CNPJAutor|CPFAutor (xs:choice); a
+// validação anterior só rejeitava a ausência de ambos, nunca a presença dos dois.
+func TestBuildPedRegEvento_RejectsBothCNPJAndCPFAutor(t *testing.T) {
+	ev := baseEvent(nfse.EventConfirmacaoTomador)
+	ev.CPFAutor = "12345678909" // já tem CNPJAutor de baseEvent
+	if _, _, err := BuildPedRegEvento(ev); err == nil {
+		t.Fatal("esperado erro: CNPJAutor e CPFAutor simultâneos violam o xs:choice")
+	}
+}
+
+// TestBuildPedRegEvento_IdMatchesXSDPattern é um regression test: TSIdPedRegEvt
+// (tiposSimples_v1.01.xsd) tem maxLength 59 e padrão PRE[0-9]{56} — a
+// implementação anterior incluía nSeqEvento e produzia 62 caracteres.
+func TestBuildPedRegEvento_IdMatchesXSDPattern(t *testing.T) {
+	ev := baseEvent(nfse.EventConfirmacaoTomador)
+	_, id, err := BuildPedRegEvento(ev)
+	if err != nil {
+		t.Fatalf("BuildPedRegEvento: %v", err)
+	}
+	if len(id) != 59 {
+		t.Errorf("len(id) = %d, esperado 59 (TSIdPedRegEvt)", len(id))
+	}
+	for _, c := range id[3:] {
+		if c < '0' || c > '9' {
+			t.Errorf("Id %q tem caractere não numérico após o prefixo PRE, esperado PRE[0-9]{56}", id)
+			break
+		}
 	}
 }

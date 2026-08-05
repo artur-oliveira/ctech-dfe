@@ -3,7 +3,6 @@ package nacional
 import (
 	"encoding/xml"
 	"fmt"
-	"time"
 
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
@@ -11,7 +10,6 @@ import (
 const (
 	idPedRegPrefix  = "PRE"
 	widthTipoEvento = 6
-	widthNSeqEvento = 3
 )
 
 type xmlPedRegEvento struct {
@@ -23,38 +21,61 @@ type xmlPedRegEvento struct {
 
 // xmlInfPedReg espelha TCInfPedReg. Apenas UM dos ponteiros e* é preenchido.
 type xmlInfPedReg struct {
-	ID        string       `xml:"Id,attr"`
-	TpAmb     int          `xml:"tpAmb"`
-	VerAplic  string       `xml:"verAplic"`
-	DhEvento  string       `xml:"dhEvento"`
-	CNPJAutor string       `xml:"CNPJAutor,omitempty"`
-	CPFAutor  string       `xml:"CPFAutor,omitempty"`
-	ChNFSe    string       `xml:"chNFSe"`
-	E101101   *xmlMotivo   `xml:"e101101,omitempty"`
-	E105102   *xmlSubstEvt `xml:"e105102,omitempty"`
-	E101103   *xmlMotivo   `xml:"e101103,omitempty"`
-	E202201   *xmlVazio    `xml:"e202201,omitempty"`
-	E203202   *xmlVazio    `xml:"e203202,omitempty"`
-	E204203   *xmlVazio    `xml:"e204203,omitempty"`
-	E202205   *xmlMotivo   `xml:"e202205,omitempty"`
-	E203206   *xmlMotivo   `xml:"e203206,omitempty"`
-	E204207   *xmlMotivo   `xml:"e204207,omitempty"`
-	E205208   *xmlAnulacao `xml:"e205208,omitempty"`
+	ID        string        `xml:"Id,attr"`
+	TpAmb     int           `xml:"tpAmb"`
+	VerAplic  string        `xml:"verAplic"`
+	DhEvento  string        `xml:"dhEvento"`
+	CNPJAutor string        `xml:"CNPJAutor,omitempty"`
+	CPFAutor  string        `xml:"CPFAutor,omitempty"`
+	ChNFSe    string        `xml:"chNFSe"`
+	E101101   *xmlMotivoReq `xml:"e101101,omitempty"`
+	E105102   *xmlSubstEvt  `xml:"e105102,omitempty"`
+	E101103   *xmlMotivoReq `xml:"e101103,omitempty"`
+	E202201   *xmlXDesc     `xml:"e202201,omitempty"`
+	E203202   *xmlXDesc     `xml:"e203202,omitempty"`
+	E204203   *xmlXDesc     `xml:"e204203,omitempty"`
+	E202205   *xmlMotivoOpt `xml:"e202205,omitempty"`
+	E203206   *xmlMotivoOpt `xml:"e203206,omitempty"`
+	E204207   *xmlMotivoOpt `xml:"e204207,omitempty"`
+	E205208   *xmlAnulacao  `xml:"e205208,omitempty"`
 }
 
-type xmlVazio struct{}
+// Descrições fixas de xDesc — cada tipo de evento tem uma única enumeração
+// possível no XSD (tiposEventos_v1.01.xsd), nunca preenchida pelo chamador.
+const (
+	xDescCancelamento             = "Cancelamento de NFS-e"
+	xDescCancelamentoPorSubst     = "Cancelamento de NFS-e por Substituição"
+	xDescSolicAnaliseFiscalCanc   = "Solicitação de Análise Fiscal para Cancelamento de NFS-e"
+	xDescConfirmacaoPrestador     = "Manifestação de NFS-e - Confirmação do Prestador"
+	xDescConfirmacaoTomador       = "Manifestação de NFS-e - Confirmação do Tomador"
+	xDescConfirmacaoIntermediario = "Manifestação de NFS-e - Confirmação do Intermediário"
+	xDescRejeicaoPrestador        = "Manifestação de NFS-e - Rejeição do Prestador"
+	xDescRejeicaoTomador          = "Manifestação de NFS-e - Rejeição do Tomador"
+	xDescRejeicaoIntermediario    = "Manifestação de NFS-e - Rejeição do Intermediário"
+	xDescAnulacaoRejeicao         = "Manifestação de NFS-e - Anulação da Rejeição"
+)
 
-type xmlMotivo struct {
+// xmlXDesc cobre os eventos "vazios" (TE202201/TE203202/TE204203), cujo
+// único conteúdo é a descrição fixa do evento.
+type xmlXDesc struct {
+	XDesc string `xml:"xDesc"`
+}
+
+// xmlMotivoReq é usado por TE101101/TE101103, onde xMotivo é obrigatório
+// (sem minOccurs="0" no XSD).
+type xmlMotivoReq struct {
+	XDesc   string `xml:"xDesc"`
+	CMotivo string `xml:"cMotivo"`
+	XMotivo string `xml:"xMotivo"`
+}
+
+// xmlMotivoOpt é usado por TE202205/TE203206/TE204207, onde xMotivo é
+// opcional (minOccurs="0" no XSD).
+type xmlMotivoOpt struct {
+	XDesc   string `xml:"xDesc"`
 	CMotivo string `xml:"cMotivo"`
 	XMotivo string `xml:"xMotivo,omitempty"`
 }
-
-// Descrições fixas de xDesc (TE105102/TE205208) — enumeração de valor único
-// no XSD, nunca preenchida pelo chamador.
-const (
-	xDescCancelamentoPorSubst = "Cancelamento de NFS-e por Substituição"
-	xDescAnulacaoRejeicao     = "Manifestação de NFS-e - Anulação da Rejeição"
-)
 
 type xmlSubstEvt struct {
 	XDesc        string `xml:"xDesc"`
@@ -77,6 +98,13 @@ var eventsRequiringMotivo = map[string]bool{
 	nfse.EventRejeicaoTomador: true, nfse.EventRejeicaoIntermediario: true,
 }
 
+// eventsRequiringXMotivo são os tipos cujo xMotivo NÃO tem minOccurs="0" no
+// XSD — TE105102 e TE202205/TE203206/TE204207 o têm opcional, mas
+// TE101101/TE101103 exigem.
+var eventsRequiringXMotivo = map[string]bool{
+	nfse.EventCancelamento: true, nfse.EventSolicAnaliseFiscalCanc: true,
+}
+
 // BuildPedRegEvento serializa o pedido de registro de evento, ainda SEM
 // assinatura. Devolve o XML e o Id do infPedReg.
 func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
@@ -86,8 +114,14 @@ func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 	if eventsRequiringMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Codigo == "") {
 		return nil, "", fmt.Errorf("nacional: evento %q exige cMotivo", ev.TipoEvento)
 	}
+	if eventsRequiringXMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Descricao == "") {
+		return nil, "", fmt.Errorf("nacional: evento %q exige xMotivo", ev.TipoEvento)
+	}
 	if ev.CNPJAutor == "" && ev.CPFAutor == "" {
 		return nil, "", fmt.Errorf("nacional: evento sem CNPJAutor nem CPFAutor")
+	}
+	if ev.CNPJAutor != "" && ev.CPFAutor != "" {
+		return nil, "", fmt.Errorf("nacional: evento com CNPJAutor e CPFAutor simultâneos — TCInfPedReg exige escolha única")
 	}
 	if ev.TipoEvento == nfse.EventCancelamentoPorSubst && ev.ChSubstituta == "" {
 		return nil, "", fmt.Errorf("nacional: evento %q exige chSubstituta", ev.TipoEvento)
@@ -98,48 +132,45 @@ func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 		}
 	}
 
-	seq := ev.NSeqEvento
-	if seq == 0 {
-		seq = 1
-	}
-	id := idPedRegPrefix + ev.ChaveAcesso +
-		leftPad(ev.TipoEvento, widthTipoEvento) +
-		leftPad(fmt.Sprintf("%d", seq), widthNSeqEvento)
+	// TSIdPedRegEvt (tiposSimples_v1.01.xsd) é "PRE" + chave(50) + tipoEvento(6)
+	// = 59 caracteres, padrão PRE[0-9]{56} — sem espaço para nSeqEvento, apesar
+	// da anotação do XSD mencioná-lo; o padrão (regex) prevalece sobre a prosa.
+	id := idPedRegPrefix + ev.ChaveAcesso + leftPad(ev.TipoEvento, widthTipoEvento)
 
 	inf := xmlInfPedReg{
 		ID: id, TpAmb: ev.TpAmb, VerAplic: ev.VerAplic,
-		DhEvento:  ev.DhEvento.UTC().Format(time.RFC3339),
+		DhEvento:  ev.DhEvento.UTC().Format(dateTimeUTCLayout),
 		CNPJAutor: ev.CNPJAutor, CPFAutor: ev.CPFAutor, ChNFSe: ev.ChaveAcesso,
 	}
 
-	motivo := &xmlMotivo{}
+	var cMotivo, xMotivo string
 	if ev.Motivo != nil {
-		motivo = &xmlMotivo{CMotivo: ev.Motivo.Codigo, XMotivo: ev.Motivo.Descricao}
+		cMotivo, xMotivo = ev.Motivo.Codigo, ev.Motivo.Descricao
 	}
 
 	switch ev.TipoEvento {
 	case nfse.EventCancelamento:
-		inf.E101101 = motivo
+		inf.E101101 = &xmlMotivoReq{XDesc: xDescCancelamento, CMotivo: cMotivo, XMotivo: xMotivo}
 	case nfse.EventCancelamentoPorSubst:
 		inf.E105102 = &xmlSubstEvt{XDesc: xDescCancelamentoPorSubst,
-			CMotivo: motivo.CMotivo, XMotivo: motivo.XMotivo, ChSubstituta: ev.ChSubstituta}
+			CMotivo: cMotivo, XMotivo: xMotivo, ChSubstituta: ev.ChSubstituta}
 	case nfse.EventSolicAnaliseFiscalCanc:
-		inf.E101103 = motivo
+		inf.E101103 = &xmlMotivoReq{XDesc: xDescSolicAnaliseFiscalCanc, CMotivo: cMotivo, XMotivo: xMotivo}
 	case nfse.EventConfirmacaoPrestador:
-		inf.E202201 = &xmlVazio{}
+		inf.E202201 = &xmlXDesc{XDesc: xDescConfirmacaoPrestador}
 	case nfse.EventConfirmacaoTomador:
-		inf.E203202 = &xmlVazio{}
+		inf.E203202 = &xmlXDesc{XDesc: xDescConfirmacaoTomador}
 	case nfse.EventConfirmacaoIntermediario:
-		inf.E204203 = &xmlVazio{}
+		inf.E204203 = &xmlXDesc{XDesc: xDescConfirmacaoIntermediario}
 	case nfse.EventRejeicaoPrestador:
-		inf.E202205 = motivo
+		inf.E202205 = &xmlMotivoOpt{XDesc: xDescRejeicaoPrestador, CMotivo: cMotivo, XMotivo: xMotivo}
 	case nfse.EventRejeicaoTomador:
-		inf.E203206 = motivo
+		inf.E203206 = &xmlMotivoOpt{XDesc: xDescRejeicaoTomador, CMotivo: cMotivo, XMotivo: xMotivo}
 	case nfse.EventRejeicaoIntermediario:
-		inf.E204207 = motivo
+		inf.E204207 = &xmlMotivoOpt{XDesc: xDescRejeicaoIntermediario, CMotivo: cMotivo, XMotivo: xMotivo}
 	case nfse.EventAnulacaoRejeicao:
 		inf.E205208 = &xmlAnulacao{XDesc: xDescAnulacaoRejeicao, CPFAgTrib: ev.CPFAgTrib,
-			IDEvManifRej: ev.IDEvManifRej, XMotivo: motivo.XMotivo}
+			IDEvManifRej: ev.IDEvManifRej, XMotivo: xMotivo}
 	}
 
 	out, err := xml.Marshal(xmlPedRegEvento{

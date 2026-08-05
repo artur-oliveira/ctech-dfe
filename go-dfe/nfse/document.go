@@ -34,11 +34,14 @@ type Substituicao struct {
 	XMotivo   string `json:"x_motivo,omitempty"`
 }
 
+// Pessoa. CNaoNIF é ponteiro porque TSCodNaoNIF inclui 0 ("não informado na
+// nota de origem") como valor válido — int simples com omitempty descartaria
+// esse 0 legítimo do xs:choice CNPJ|CPF|NIF+cNaoNIF.
 type Pessoa struct {
 	CNPJ    string    `json:"cnpj,omitempty"`
 	CPF     string    `json:"cpf,omitempty"`
 	NIF     string    `json:"nif,omitempty"`
-	CNaoNIF int       `json:"c_nao_nif,omitempty"`
+	CNaoNIF *int      `json:"c_nao_nif,omitempty"`
 	CAEPF   string    `json:"caepf,omitempty"`
 	IM      string    `json:"im,omitempty"`
 	XNome   string    `json:"x_nome,omitempty"`
@@ -82,10 +85,11 @@ type Servico struct {
 	InfoCompl *InfoCompl `json:"info_compl,omitempty"`
 }
 
+// LocPrest espelha TCLocPrest: xs:choice cLocPrestacao|cPaisPrestacao — não
+// tem nenhum outro campo (não existe "opConsumServ" no XSD).
 type LocPrest struct {
 	CLocPrestacao  string `json:"c_loc_prestacao,omitempty"`
 	CPaisPrestacao string `json:"c_pais_prestacao,omitempty"`
-	OpConsumServ   int    `json:"op_consum_serv,omitempty"`
 }
 
 type CServ struct {
@@ -96,17 +100,22 @@ type CServ struct {
 	CIntContrib string `json:"c_int_contrib,omitempty"`
 }
 
+// ComExt espelha TCComExterior. mecAFComexP/mecAFComexT são strings (enums
+// de 2 dígitos com zero à esquerda, ex. "00" — nunca int). mdPrestacao,
+// vincPrest, mecAFComexP/T, movTempBens e mdic são todos obrigatórios dentro
+// do grupo — nenhum tem minOccurs="0" no XSD — por isso nenhum leva
+// omitempty (um valor 0/"" real do domínio não pode desaparecer do XML).
 type ComExt struct {
-	MdPrestacao     int    `json:"md_prestacao"`
-	VincPrest       int    `json:"vinc_prest"`
-	TpMoeda         string `json:"tp_moeda"`
-	VServMoeda      string `json:"v_serv_moeda"`
-	MecAFComexP     int    `json:"mec_af_comex_p,omitempty"`
-	MecAFComexT     int    `json:"mec_af_comex_t,omitempty"`
-	MovTempBens     int    `json:"mov_temp_bens,omitempty"`
-	NDI             string `json:"n_di,omitempty"`
-	NRE             string `json:"n_re,omitempty"`
-	MdicMovTempBens string `json:"mdic,omitempty"`
+	MdPrestacao int    `json:"md_prestacao"`
+	VincPrest   int    `json:"vinc_prest"`
+	TpMoeda     string `json:"tp_moeda"`
+	VServMoeda  string `json:"v_serv_moeda"`
+	MecAFComexP string `json:"mec_af_comex_p"`
+	MecAFComexT string `json:"mec_af_comex_t"`
+	MovTempBens int    `json:"mov_temp_bens"`
+	NDI         string `json:"n_di,omitempty"`
+	NRE         string `json:"n_re,omitempty"`
+	MDIC        int    `json:"mdic"`
 }
 
 // Obra espelha TCInfoObra: inscImobFisc? seguido da escolha obrigatória
@@ -174,14 +183,37 @@ type DedRed struct {
 	Documentos []DedRedDoc `json:"documentos,omitempty"`
 }
 
+// DedRedDoc espelha TCDocDedRed: escolha obrigatória
+// chNFSe|chNFe|NFSeMun|NFNFS|nDocFisc|nDoc, seguida de tpDedRed (obrigatório),
+// xDescOutDed?, dtEmiDoc (obrigatório), vDedutivelRedutivel (obrigatório),
+// vDeducaoReducao (obrigatório) e fornec? (TCInfoPessoa).
 type DedRedDoc struct {
-	ChNFSe   string `json:"ch_nfse,omitempty"`
-	ChNFe    string `json:"ch_nfe,omitempty"`
-	NDocFisc string `json:"n_doc_fisc,omitempty"`
-	NDoc     string `json:"n_doc,omitempty"`
-	TpDedRed int    `json:"tp_ded_red,omitempty"`
-	VDedRed  string `json:"v_ded_red,omitempty"`
-	DtEmiDoc string `json:"dt_emi_doc,omitempty"`
+	ChNFSe              string         `json:"ch_nfse,omitempty"`
+	ChNFe               string         `json:"ch_nfe,omitempty"`
+	NFSeMun             *DocOutNFSeMun `json:"nfse_mun,omitempty"`
+	NFNFS               *DocNFNFS      `json:"nfnfs,omitempty"`
+	NDocFisc            string         `json:"n_doc_fisc,omitempty"`
+	NDoc                string         `json:"n_doc,omitempty"`
+	TpDedRed            int            `json:"tp_ded_red"`
+	XDescOutDed         string         `json:"x_desc_out_ded,omitempty"`
+	DtEmiDoc            string         `json:"dt_emi_doc"`
+	VDedutivelRedutivel string         `json:"v_dedutivel_redutivel"`
+	VDeducaoReducao     string         `json:"v_deducao_reducao"`
+	Fornec              *Pessoa        `json:"fornec,omitempty"`
+}
+
+// DocOutNFSeMun espelha TCDocOutNFSe (NFS-e de padrão municipal anterior).
+type DocOutNFSeMun struct {
+	CMunNFSeMun   string `json:"c_mun_nfse_mun"`
+	NNFSeMun      string `json:"n_nfse_mun"`
+	CVerifNFSeMun string `json:"c_verif_nfse_mun"`
+}
+
+// DocNFNFS espelha TCDocNFNFS (NF ou NFS de modelo não eletrônico).
+type DocNFNFS struct {
+	NNFS     string `json:"n_nfs"`
+	ModNFS   string `json:"mod_nfs"`
+	SerieNFS string `json:"serie_nfs"`
 }
 
 // Tributacao espelha TCInfoTributacao: tribMun e totTrib são obrigatórios
@@ -193,10 +225,12 @@ type Tributacao struct {
 	TotTrib TotTrib       `json:"tot_trib"`
 }
 
+// TribMunicipal. TpImunidade é ponteiro porque TSTipoImunidadeISSQN inclui 0
+// ("tipo não informado") como valor válido.
 type TribMunicipal struct {
 	TribISSQN   int       `json:"trib_issqn"`
 	CPaisResult string    `json:"c_pais_result,omitempty"`
-	TpImunidade int       `json:"tp_imunidade,omitempty"`
+	TpImunidade *int      `json:"tp_imunidade,omitempty"`
 	ExigSusp    *ExigSusp `json:"exig_susp,omitempty"`
 	BM          *BenefMun `json:"bm,omitempty"`
 	TpRetISSQN  int       `json:"tp_ret_issqn"`
@@ -216,6 +250,8 @@ type BenefMun struct {
 	PRedBCBM string `json:"p_red_bc_bm,omitempty"`
 }
 
+// TribFederal. TpRetPisCofins é ponteiro porque TSTipoRetPISCofins inclui 0
+// ("não retidos") como valor válido.
 type TribFederal struct {
 	CST            string `json:"cst,omitempty"`
 	VBCPisCofins   string `json:"v_bc_pis_cofins,omitempty"`
@@ -223,7 +259,7 @@ type TribFederal struct {
 	PAliqCofins    string `json:"p_aliq_cofins,omitempty"`
 	VPis           string `json:"v_pis,omitempty"`
 	VCofins        string `json:"v_cofins,omitempty"`
-	TpRetPisCofins int    `json:"tp_ret_pis_cofins,omitempty"`
+	TpRetPisCofins *int   `json:"tp_ret_pis_cofins,omitempty"`
 	VRetCP         string `json:"v_ret_cp,omitempty"`
 	VRetIRRF       string `json:"v_ret_irrf,omitempty"`
 	VRetCSLL       string `json:"v_ret_csll,omitempty"`
@@ -240,10 +276,11 @@ type TotTrib struct {
 	PTotTribMun string `json:"p_tot_trib_mun,omitempty"`
 }
 
-// IBSCBS espelha TCRTCInfoIBSCBS (reforma tributária).
+// IBSCBS espelha TCRTCInfoIBSCBS (reforma tributária). IndFinal é ponteiro
+// porque TSRTCIndFinal inclui 0 ("não") como valor válido.
 type IBSCBS struct {
 	FinNFSe   int           `json:"fin_nfse"`
-	IndFinal  int           `json:"ind_final,omitempty"`
+	IndFinal  *int          `json:"ind_final,omitempty"`
 	CIndOp    string        `json:"c_ind_op"` // Anexo C, 6 dígitos
 	TpOper    int           `json:"tp_oper,omitempty"`
 	GRefNFSe  *RefNFSe      `json:"g_ref_nfse,omitempty"`

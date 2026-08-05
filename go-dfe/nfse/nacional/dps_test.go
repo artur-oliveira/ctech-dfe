@@ -227,3 +227,95 @@ func TestBuildDPS_IBSCBSTribShape(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildDPS_DhEmiUsesNumericOffsetNotZ é um regression test: TSDateTimeUTC
+// (tiposSimples_v1.01.xsd) exige TZD numérico (+hh:mm|-hh:mm) e não aceita o
+// sufixo "Z" — time.RFC3339 emite "Z" para UTC, o que produzia dhEmi
+// schema-inválido em toda DPS gerada.
+func TestBuildDPS_DhEmiUsesNumericOffsetNotZ(t *testing.T) {
+	now := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
+	xmlBytes, _, err := BuildDPS(minimalDoc(), now)
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+	if strings.Contains(s, "<dhEmi>2026-08-04T12:00:00Z</dhEmi>") {
+		t.Error("dhEmi usa sufixo Z — TSDateTimeUTC não aceita, exige offset numérico")
+	}
+	if !strings.Contains(s, "<dhEmi>2026-08-04T12:00:00+00:00</dhEmi>") {
+		t.Errorf("dhEmi não usa o offset numérico esperado: %s", s)
+	}
+}
+
+// TestBuildDPS_ComExtRequiredFieldsNeverOmitted é um regression test: todos
+// os campos de TCComExterior até movTempBens (mais mdic) são obrigatórios no
+// XSD; omitempty num int/string zero-value os descartava silenciosamente, e
+// mecAFComexP/T são enums string de 2 dígitos ("00"), nunca int.
+func TestBuildDPS_ComExtRequiredFieldsNeverOmitted(t *testing.T) {
+	doc := minimalDoc()
+	doc.Servico.ComExt = &nfse.ComExt{
+		MdPrestacao: 0, VincPrest: 0, TpMoeda: "USD", VServMoeda: "100.00",
+		MecAFComexP: "00", MecAFComexT: "00", MovTempBens: 0, MDIC: 0,
+	}
+	xmlBytes, _, err := BuildDPS(doc, time.Now())
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+	for _, want := range []string{
+		"<mdPrestacao>0</mdPrestacao>", "<vincPrest>0</vincPrest>",
+		"<mecAFComexP>00</mecAFComexP>", "<mecAFComexT>00</mecAFComexT>",
+		"<movTempBens>0</movTempBens>", "<mdic>0</mdic>",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("campo obrigatório %q com valor zero foi descartado\nXML: %s", want, s)
+		}
+	}
+}
+
+// TestBuildDPS_ZeroValueEnumsPreserved é um regression test para campos cujo
+// domínio inclui 0 como valor legítimo ("não informado"/"não"): cNaoNIF,
+// tpImunidade, tpRetPisCofins, indFinal — omitempty num int simples
+// descartava esse 0 e deixava o xs:choice/grupo sem nenhum membro.
+func TestBuildDPS_ZeroValueEnumsPreserved(t *testing.T) {
+	doc := minimalDoc()
+	zero := 0
+	doc.Tomador.CPF = ""
+	doc.Tomador.NIF = "12345"
+	doc.Tomador.CNaoNIF = &zero
+	doc.Valores.Trib.TribMun.TpImunidade = &zero
+	doc.Valores.Trib.TribFed = &nfse.TribFederal{CST: "01", TpRetPisCofins: &zero}
+	doc.IBSCBS = &nfse.IBSCBS{
+		CIndOp: "020101", IndDest: 0, IndFinal: &zero,
+		Valores: nfse.IBSCBSValores{Trib: nfse.TribIBSCBS{CST: "000", CClassTrib: "000001"}},
+	}
+
+	xmlBytes, _, err := BuildDPS(doc, time.Now())
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+	for _, want := range []string{
+		"<cNaoNIF>0</cNaoNIF>", "<tpImunidade>0</tpImunidade>",
+		"<tpRetPisCofins>0</tpRetPisCofins>", "<indFinal>0</indFinal>",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("valor 0 legítimo de enum foi descartado, esperado %q\nXML: %s", want, s)
+		}
+	}
+}
+
+// TestBuildDPS_IBSCBSDestRejectsCAEPFAndIM é um regression test: TCRTCInfoDest
+// não tem CAEPF nem IM (diferente de TCInfoPessoa, usado em toma/interm) —
+// BuildDPS deve falhar explicitamente, nunca descartar em silêncio.
+func TestBuildDPS_IBSCBSDestRejectsCAEPFAndIM(t *testing.T) {
+	doc := minimalDoc()
+	doc.IBSCBS = &nfse.IBSCBS{
+		CIndOp: "020101", IndDest: 1,
+		Dest:    &nfse.Pessoa{CPF: "12345678909", XNome: "Dest Teste", CAEPF: "12345678000190"},
+		Valores: nfse.IBSCBSValores{Trib: nfse.TribIBSCBS{CST: "000", CClassTrib: "000001"}},
+	}
+	if _, _, err := BuildDPS(doc, time.Now()); err == nil {
+		t.Fatal("esperado erro: TCRTCInfoDest não suporta CAEPF")
+	}
+}

@@ -23,6 +23,11 @@ const (
 	widthNDPS        = 15
 )
 
+// dateTimeUTCLayout formata TSDateTimeUTC (tiposSimples_v1.01.xsd), cujo
+// padrão exige TZD numérico (+hh:mm|-hh:mm) e NÃO aceita o sufixo "Z" que
+// time.RFC3339 emite para UTC — por isso não usamos time.RFC3339 aqui.
+const dateTimeUTCLayout = "2006-01-02T15:04:05-07:00"
+
 // xmlDPS é a raiz do documento (DPS_v1.01.xsd:9 — elemento DPS, tipo TCDPS).
 type xmlDPS struct {
 	XMLName xml.Name  `xml:"DPS"`
@@ -63,7 +68,7 @@ type xmlPrestador struct {
 	CNPJ    string     `xml:"CNPJ,omitempty"`
 	CPF     string     `xml:"CPF,omitempty"`
 	NIF     string     `xml:"NIF,omitempty"`
-	CNaoNIF int        `xml:"cNaoNIF,omitempty"`
+	CNaoNIF *int       `xml:"cNaoNIF,omitempty"`
 	CAEPF   string     `xml:"CAEPF,omitempty"`
 	IM      string     `xml:"IM,omitempty"`
 	XNome   string     `xml:"xNome,omitempty"`
@@ -77,7 +82,7 @@ type xmlPessoa struct {
 	CNPJ    string  `xml:"CNPJ,omitempty"`
 	CPF     string  `xml:"CPF,omitempty"`
 	NIF     string  `xml:"NIF,omitempty"`
-	CNaoNIF int     `xml:"cNaoNIF,omitempty"`
+	CNaoNIF *int    `xml:"cNaoNIF,omitempty"`
 	CAEPF   string  `xml:"CAEPF,omitempty"`
 	IM      string  `xml:"IM,omitempty"`
 	XNome   string  `xml:"xNome"`
@@ -123,10 +128,10 @@ type xmlServ struct {
 	InfoCompl *xmlInfoCompl `xml:"infoCompl,omitempty"`
 }
 
+// xmlLocPrest espelha TCLocPrest: xs:choice, sem nenhum outro campo.
 type xmlLocPrest struct {
 	CLocPrestacao  string `xml:"cLocPrestacao,omitempty"`
 	CPaisPrestacao string `xml:"cPaisPrestacao,omitempty"`
-	OpConsumServ   int    `xml:"opConsumServ,omitempty"`
 }
 
 type xmlCServ struct {
@@ -137,17 +142,20 @@ type xmlCServ struct {
 	CIntContrib string `xml:"cIntContrib,omitempty"`
 }
 
+// xmlComExt espelha TCComExterior: todos os campos até movTempBens (mais
+// mdic) são obrigatórios no XSD (nenhum tem minOccurs="0") — sem omitempty.
+// mecAFComexP/T são enums string de 2 dígitos ("00"), nunca int.
 type xmlComExt struct {
 	MdPrestacao int    `xml:"mdPrestacao"`
 	VincPrest   int    `xml:"vincPrest"`
 	TpMoeda     string `xml:"tpMoeda"`
 	VServMoeda  string `xml:"vServMoeda"`
-	MecAFComexP int    `xml:"mecAFComexP,omitempty"`
-	MecAFComexT int    `xml:"mecAFComexT,omitempty"`
-	MovTempBens int    `xml:"movTempBens,omitempty"`
+	MecAFComexP string `xml:"mecAFComexP"`
+	MecAFComexT string `xml:"mecAFComexT"`
+	MovTempBens int    `xml:"movTempBens"`
 	NDI         string `xml:"nDI,omitempty"`
 	NRE         string `xml:"nRE,omitempty"`
-	MdicMoeda   string `xml:"mdic,omitempty"`
+	MDIC        int    `xml:"mdic"`
 }
 
 // xmlObra espelha TCInfoObra: inscImobFisc? seguido da escolha obrigatória
@@ -222,14 +230,35 @@ type xmlDedRed struct {
 	DocDedRed []xmlDedRedDoc `xml:"documentos>docDedRed,omitempty"`
 }
 
+// xmlDedRedDoc espelha TCDocDedRed: escolha obrigatória
+// chNFSe|chNFe|NFSeMun|NFNFS|nDocFisc|nDoc, tpDedRed (obrigatório),
+// xDescOutDed?, dtEmiDoc (obrigatório), vDedutivelRedutivel (obrigatório),
+// vDeducaoReducao (obrigatório), fornec?.
 type xmlDedRedDoc struct {
-	ChNFSe   string `xml:"chNFSe,omitempty"`
-	ChNFe    string `xml:"chNFe,omitempty"`
-	NDocFisc string `xml:"nDocFisc,omitempty"`
-	NDoc     string `xml:"nDoc,omitempty"`
-	TpDedRed int    `xml:"tpDedRed,omitempty"`
-	VDedRed  string `xml:"vDedRed,omitempty"`
-	DtEmiDoc string `xml:"dtEmiDoc,omitempty"`
+	ChNFSe              string            `xml:"chNFSe,omitempty"`
+	ChNFe               string            `xml:"chNFe,omitempty"`
+	NFSeMun             *xmlDocOutNFSeMun `xml:"NFSeMun,omitempty"`
+	NFNFS               *xmlDocNFNFS      `xml:"NFNFS,omitempty"`
+	NDocFisc            string            `xml:"nDocFisc,omitempty"`
+	NDoc                string            `xml:"nDoc,omitempty"`
+	TpDedRed            int               `xml:"tpDedRed"`
+	XDescOutDed         string            `xml:"xDescOutDed,omitempty"`
+	DtEmiDoc            string            `xml:"dtEmiDoc"`
+	VDedutivelRedutivel string            `xml:"vDedutivelRedutivel"`
+	VDeducaoReducao     string            `xml:"vDeducaoReducao"`
+	Fornec              *xmlPessoa        `xml:"fornec,omitempty"`
+}
+
+type xmlDocOutNFSeMun struct {
+	CMunNFSeMun   string `xml:"cMunNFSeMun"`
+	NNFSeMun      string `xml:"nNFSeMun"`
+	CVerifNFSeMun string `xml:"cVerifNFSeMun"`
+}
+
+type xmlDocNFNFS struct {
+	NNFS     string `xml:"nNFS"`
+	ModNFS   string `xml:"modNFS"`
+	SerieNFS string `xml:"serieNFS"`
 }
 
 type xmlTrib struct {
@@ -241,7 +270,7 @@ type xmlTrib struct {
 type xmlTribMun struct {
 	TribISSQN   int          `xml:"tribISSQN"`
 	CPaisResult string       `xml:"cPaisResult,omitempty"`
-	TpImunidade int          `xml:"tpImunidade,omitempty"`
+	TpImunidade *int         `xml:"tpImunidade,omitempty"`
 	ExigSusp    *xmlExigSusp `xml:"exigSusp,omitempty"`
 	BM          *xmlBenefMun `xml:"BM,omitempty"`
 	TpRetISSQN  int          `xml:"tpRetISSQN"`
@@ -275,7 +304,7 @@ type xmlPisCofins struct {
 	PAliqCofins    string `xml:"pAliqCofins,omitempty"`
 	VPis           string `xml:"vPis,omitempty"`
 	VCofins        string `xml:"vCofins,omitempty"`
-	TpRetPisCofins int    `xml:"tpRetPisCofins,omitempty"`
+	TpRetPisCofins *int   `xml:"tpRetPisCofins,omitempty"`
 }
 
 // xmlTotTrib espelha TCTribTotal: xs:choice de exatamente um dos quatro
@@ -330,7 +359,12 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 
 	dhEmi := doc.DhEmi
 	if dhEmi == "" {
-		dhEmi = now.UTC().Format(time.RFC3339)
+		dhEmi = now.UTC().Format(dateTimeUTCLayout)
+	}
+
+	ibscbs, err := toXMLIBSCBS(doc.IBSCBS)
+	if err != nil {
+		return nil, "", err
 	}
 
 	inf := xmlInfDPS{
@@ -343,7 +377,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		Interm:  toXMLPessoa(doc.Intermediario),
 		Serv:    toXMLServ(doc.Servico),
 		Valores: toXMLValores(doc.Valores),
-		IBSCBS:  toXMLIBSCBS(doc.IBSCBS),
+		IBSCBS:  ibscbs,
 	}
 	if doc.Substituicao != nil {
 		inf.Subst = &xmlSubst{
@@ -435,7 +469,7 @@ func toXMLPessoa(p *nfse.Pessoa) *xmlPessoa {
 func toXMLServ(s nfse.Servico) xmlServ {
 	out := xmlServ{
 		LocPrest: xmlLocPrest{CLocPrestacao: s.LocPrest.CLocPrestacao,
-			CPaisPrestacao: s.LocPrest.CPaisPrestacao, OpConsumServ: s.LocPrest.OpConsumServ},
+			CPaisPrestacao: s.LocPrest.CPaisPrestacao},
 		CServ: xmlCServ{CTribNac: s.CServ.CTribNac, CTribMun: s.CServ.CTribMun,
 			XDescServ: s.CServ.XDescServ, CNBS: s.CServ.CNBS, CIntContrib: s.CServ.CIntContrib},
 	}
@@ -443,7 +477,7 @@ func toXMLServ(s nfse.Servico) xmlServ {
 		out.ComExt = &xmlComExt{MdPrestacao: c.MdPrestacao, VincPrest: c.VincPrest,
 			TpMoeda: c.TpMoeda, VServMoeda: c.VServMoeda, MecAFComexP: c.MecAFComexP,
 			MecAFComexT: c.MecAFComexT, MovTempBens: c.MovTempBens,
-			NDI: c.NDI, NRE: c.NRE, MdicMoeda: c.MdicMovTempBens}
+			NDI: c.NDI, NRE: c.NRE, MDIC: c.MDIC}
 	}
 	if o := s.Obra; o != nil {
 		out.Obra = &xmlObra{InscImobFisc: o.InscImobFisc, CObra: o.CObra,
@@ -479,11 +513,24 @@ func toXMLValores(v nfse.Valores) xmlValores {
 	if d := v.VDedRed; d != nil {
 		dr := &xmlDedRed{PDR: d.PDR, VDR: d.VDR}
 		for _, doc := range d.Documentos {
-			dr.DocDedRed = append(dr.DocDedRed, xmlDedRedDoc{
+			ddoc := xmlDedRedDoc{
 				ChNFSe: doc.ChNFSe, ChNFe: doc.ChNFe, NDocFisc: doc.NDocFisc,
-				NDoc: doc.NDoc, TpDedRed: doc.TpDedRed, VDedRed: doc.VDedRed,
-				DtEmiDoc: doc.DtEmiDoc,
-			})
+				NDoc: doc.NDoc, TpDedRed: doc.TpDedRed, XDescOutDed: doc.XDescOutDed,
+				DtEmiDoc: doc.DtEmiDoc, VDedutivelRedutivel: doc.VDedutivelRedutivel,
+				VDeducaoReducao: doc.VDeducaoReducao,
+			}
+			if doc.NFSeMun != nil {
+				ddoc.NFSeMun = &xmlDocOutNFSeMun{CMunNFSeMun: doc.NFSeMun.CMunNFSeMun,
+					NNFSeMun: doc.NFSeMun.NNFSeMun, CVerifNFSeMun: doc.NFSeMun.CVerifNFSeMun}
+			}
+			if doc.NFNFS != nil {
+				ddoc.NFNFS = &xmlDocNFNFS{NNFS: doc.NFNFS.NNFS, ModNFS: doc.NFNFS.ModNFS,
+					SerieNFS: doc.NFNFS.SerieNFS}
+			}
+			if doc.Fornec != nil {
+				ddoc.Fornec = toXMLPessoa(doc.Fornec)
+			}
+			dr.DocDedRed = append(dr.DocDedRed, ddoc)
 		}
 		out.VDedRed = dr
 	}
