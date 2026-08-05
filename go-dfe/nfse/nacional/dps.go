@@ -112,11 +112,13 @@ type xmlEndNac struct {
 	CEP  string `xml:"CEP"`
 }
 
+// xmlEndExt espelha TCEnderExt — os 4 campos são obrigatórios (nenhum tem
+// minOccurs="0" no XSD).
 type xmlEndExt struct {
 	CPais       string `xml:"cPais"`
-	CEndPost    string `xml:"cEndPost,omitempty"`
+	CEndPost    string `xml:"cEndPost"`
 	XCidade     string `xml:"xCidade"`
-	XEstProvReg string `xml:"xEstProvReg,omitempty"`
+	XEstProvReg string `xml:"xEstProvReg"`
 }
 
 type xmlServ struct {
