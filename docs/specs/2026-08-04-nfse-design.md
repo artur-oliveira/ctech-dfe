@@ -98,7 +98,7 @@ Catálogo de serviços — análogo direto a `organization_products`.
 | `sk` | S | `SERVICE_{uuid}` |
 | `code` | S | Código interno (`cIntContrib`). GSI `code-index` |
 | `description` | S | Discriminação do serviço (`xDescServ`, até 2000 chars). GSI `description-index` |
-| `trib_nacional_code` | S | Código de tributação nacional, 5 dígitos (Anexo B) — item+subitem+desdobro |
+| `trib_nacional_code` | S | Código de tributação nacional, 6 dígitos (Anexo B) — item(2)+subitem(2)+desdobro(2), `TSCodTribNac` |
 | `trib_municipal_code` | S | `cTribMun` — código municipal, opcional |
 | `nbs_code` | S | `cNBS`, 9 dígitos — opcional |
 | `cnae` | S | CNAE (usado por ABRASF) — opcional |
