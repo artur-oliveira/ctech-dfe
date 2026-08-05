@@ -35,19 +35,18 @@ Two implementations that solve the same problem must be unified.
 
 ### Constants — no magic variables
 
-Every string key, numeric code, URL, header name, or enum value must be a named constant.
-Never scatter raw string literals across files.
+Every string key, numeric code, URL, header name, or enum value must be a named constant. Never scatter raw string
+literals across files.
 
 ### Backend error handling
 
-- **api / worker:** All errors MUST be returned as RFC 7807 Problem JSON via `problem.*` helpers.
-  Never return raw errors, `fiber.Map`, or unstructured responses.
+- **api / worker:** All errors MUST be returned as RFC 7807 Problem JSON via `problem.*` helpers. Never return raw
+  errors, `fiber.Map`, or unstructured responses.
 - **py-dfe:** All errors MUST be raised as `DFeError` with explicit `status_code`, `code`, `message`.
 
 ### Frontend quality gate
 
-- **ui:** `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before
-  any commit.
+- **ui:** `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before any commit.
 
 ### Testing — core functions need integration tests
 
@@ -65,16 +64,14 @@ Every core function must be covered by an integration test in addition to unit t
 
 ## Scope Control
 
-Implement only what was requested. No unrelated fixes, opportunistic refactors, dir reorganization,
-or API changes.
+Implement only what was requested. No unrelated fixes, opportunistic refactors, dir reorganization, or API changes.
 
 ---
 
 ## Never Assume
 
-Never assume DynamoDB table/index names, API contracts, payload formats, tax XML structures,
-AWS resource names, or business rules.
-If not explicit: search codebase → search docs → ask user.
+Never assume DynamoDB table/index names, API contracts, payload formats, tax XML structures, AWS resource names, or
+business rules. If not explicit: search codebase → search docs → ask user.
 
 ---
 
@@ -185,4 +182,5 @@ clarifying questions come before implementation rather than after mistakes.
 
 There are NO exceptions.
 
-Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
+Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business
+rules, or developer workflow MUST include the corresponding documentation update in the same change.

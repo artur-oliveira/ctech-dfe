@@ -79,19 +79,15 @@ primary-900: #1a463e  (very dark, backgrounds)
 
 ## Contextual DF-e Theme
 
-The `primary-*`/`brand-*` Tailwind scale resolves from CSS custom properties
-(`--brand-50`…`--brand-900`, defined in `ui/src/app/globals.css`) rather than
-fixed hex values. Setting `data-dfe-theme="nfce" | "cte" | "mdfe"` on any
-ancestor element overrides that scale for everything underneath it — no
-component changes needed, since every `bg-primary-600`, `text-brand-700`,
-etc. picks it up automatically via inheritance. `"nfe"` (or no attribute) is
-the default green scale.
+The `primary-*`/`brand-*` Tailwind scale resolves from CSS custom properties (`--brand-50`…`--brand-900`, defined in
+`ui/src/app/globals.css`) rather than fixed hex values. Setting `data-dfe-theme="nfce" | "cte" | "mdfe"` on any ancestor
+element overrides that scale for everything underneath it — no component changes needed, since every `bg-primary-600`,
+`text-brand-700`, etc. picks it up automatically via inheritance. `"nfe"` (or no attribute) is the default green scale.
 
-- `ui/src/lib/theme/dfe-theme.ts` — `getDfeThemeFromPath()` maps a route
-  (`/nfce/...`, `/cte/...`, `/mdfe/...`) to its theme key.
-- `RootLayout` applies it app-wide based on the current route, so the whole
-  authenticated UI (sidebar, buttons, badges) recolors to match whichever
-  document type the user is working in.
+- `ui/src/lib/theme/dfe-theme.ts` — `getDfeThemeFromPath()` maps a route (`/nfce/...`, `/cte/...`, `/mdfe/...`) to its
+  theme key.
+- `RootLayout` applies it app-wide based on the current route, so the whole authenticated UI (sidebar, buttons, badges)
+  recolors to match whichever document type the user is working in.
 - The landing page (`ui/src/app/page.tsx`) applies it from the
   `AuthorizationCard` carousel's current document instead of the route.
 

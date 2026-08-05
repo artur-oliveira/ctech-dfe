@@ -9,9 +9,9 @@ For infrastructure architecture, stacks, and environment details, see:
 
 # Infrastructure Overview
 
-The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load
-Balancer — see `cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda
-workers (`cdk/lib/worker-stack.ts`) and the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
+The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load Balancer — see
+`cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda workers (`cdk/lib/worker-stack.ts`) and
+the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
 
 ```text
 AWS Account
@@ -145,9 +145,9 @@ aws dynamodb describe-table --table-name "${TABLE_PREFIX}_dfe_worker_outbox" --r
 aws lambda list-event-source-mappings --function-name "${ENVIRONMENT}-dfe-outbox-publisher" --region us-east-1
 ```
 
-The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ alarm
-must be `OK`. Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the
-five-minute maximum batching window; do not replace it with a fixed value below the function execution budget.
+The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ alarm must
+be `OK`. Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the five-minute
+maximum batching window; do not replace it with a fixed value below the function execution budget.
 
 # Destroy
 
@@ -404,7 +404,7 @@ curl -s http://localhost:8080/v1.0/health-check
 | `No credentials have been configured`          | Missing AWS credentials                                             | Run `aws configure` or set environment variables                |
 | `InvalidClientTokenId`                         | Expired credentials                                                 | Regenerate credentials in AWS Console                           |
 | `Access Denied`                                | Missing IAM permissions                                             | Grant CloudFormation and DynamoDB permissions                   |
-| `Account 868899309401 is not available`        | Wrong AWS account                                                   | Verify `bin/cdk.ts`                                      |
+| `Account 868899309401 is not available`        | Wrong AWS account                                                   | Verify `bin/cdk.ts`                                             |
 | `Bootstrap required`                           | CDK bootstrap not executed                                          | Run the bootstrap command                                       |
 | `iamInstanceProfile.arn is invalid`            | Instance profile not created yet                                    | Verify IAM stack deployment completed successfully              |
 | `Volume of size XGB is smaller than snapshot`  | EBS volume smaller than AMI snapshot requirements                   | Use a larger volume or AL2023 Minimal                           |

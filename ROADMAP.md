@@ -2,9 +2,9 @@
 
 ## Context
 
-The platform currently has **production-grade NF-e support** across all stacks.
-The SEFAZ communication layer (`py-dfe` Lambda) already supports NF-e, NFC-e, CT-e and MDF-e fully.
-Infrastructure (DynamoDB tables, S3 buckets, CDK stacks, SQS queues) is provisioned for these 4 types.
+The platform currently has **production-grade NF-e support** across all stacks. The SEFAZ communication layer (`py-dfe`
+Lambda) already supports NF-e, NFC-e, CT-e and MDF-e fully. Infrastructure (DynamoDB tables, S3 buckets, CDK stacks, SQS
+queues) is provisioned for these 4 types.
 
 **Gap summary:**
 
@@ -41,8 +41,7 @@ Infrastructure (DynamoDB tables, S3 buckets, CDK stacks, SQS queues) is provisio
     - ~~Service: `NfeService.inutilization(org, serie, num_ini, num_fin, justification)`~~
     - ~~Reuse existing `nfe-inutilization-worker` (already in CDK WorkerStack)~~
     - ~~Files: `app/api/nfes.py`, `app/services/nfe_service.py`~~
-    - This task requires a new research because nfe inutilization does
-      not have a DynamoDB dable and its schema does not
+    - This task requires a new research because nfe inutilization does not have a DynamoDB dable and its schema does not
       match either nfes or nfe_events
 
 - [ ] **0.2** `POST /v1.0/nfes/{access_key}/correction-letter` — Carta de Correção (CC-e)
@@ -515,5 +514,5 @@ For Phase 4+ agents: always provide the agent with:
 | 4     | Issue NF3e HOM → cStat=100 → XML in S3                                                     |
 | 5–6   | Same pattern per document type using HOM environment                                       |
 
-**HOM environment:** set `sefaz_environment=homologacao` in org config.
-Use SEFAZ test CNPJ `99999090910270` for homologação testing where required.
+**HOM environment:** set `sefaz_environment=homologacao` in org config. Use SEFAZ test CNPJ `99999090910270` for
+homologação testing where required.

@@ -42,9 +42,9 @@ ctech-dfe-worker (Go)
   → ctech-dfe Lambda (Python) → XML-DSig + mTLS SOAP → SEFAZ
 ```
 
-**Rationale:** py-dfe has 100+ unit tests covering XSD order, signing, SOAP envelopes.
-A Go rewrite requires byte-perfect XML canonicalization — fiscal compliance risk unacceptable.
-Revisit Scenario B after 10,000+ documents validated in homologação.
+**Rationale:** py-dfe has 100+ unit tests covering XSD order, signing, SOAP envelopes. A Go rewrite requires
+byte-perfect XML canonicalization — fiscal compliance risk unacceptable. Revisit Scenario B after 10,000+ documents
+validated in homologação.
 
 ### Scenario B — Full Golang rewrite (Phase 4, conditional)
 
@@ -52,24 +52,23 @@ Precondition: Phases 1–3 stable in production for ≥3 months + extensive homo
 
 ### 2026-07-18 Update — Incremental path supersedes the Scenario A/B timing above
 
-The rationale above (byte-perfect canonicalization risk, revisit after 10k+ homologação docs) still
-holds — it is not being discarded. What changed: instead of waiting for the full ≥3-month/10k-doc bar
-before touching any Go SEFAZ code, the org adopted an intermediate path (`docs/plans/2026-07-17-go-dfe-migration.md`):
-a new in-process module `go-dfe/` is built now, operation-by-operation, in increasing risk order
-(status → consulta → distribuição → signed operations), with automatic fallback to the py-dfe Lambda
-for any operation not yet ported.
+The rationale above (byte-perfect canonicalization risk, revisit after 10k+ homologação docs) still holds — it is not
+being discarded. What changed: instead of waiting for the full ≥3-month/10k-doc bar before touching any Go SEFAZ code,
+the org adopted an intermediate path (`docs/plans/2026-07-17-go-dfe-migration.md`):
+a new in-process module `go-dfe/` is built now, operation-by-operation, in increasing risk order (status → consulta →
+distribuição → signed operations), with automatic fallback to the py-dfe Lambda for any operation not yet ported.
 
-- **Unsigned operations** (status/consulta/distribuição): cut over after a shadow-mode window
-  (both paths called, py-dfe stays authoritative, divergence logged) shows clean parity — a much
-  lower bar than the byte-identical gate, since no fiscal signature is at stake.
-- **Signed operations** (autorização, eventos, inutilização): the Scenario A canonicalization risk
-  applies in full. These stay on py-dfe until go-dfe's XML-DSig/C14N implementation passes a
-  byte-identical test (go-dfe output vs. captured py-dfe output, same test certificate, same input)
-  — this is the same 10k+ homologação bar from Scenario B's precondition, just verified per-operation
-  instead of gating the entire rewrite.
-- **DANFE/DAMDFE rendering** is excluded from `go-dfe`'s scope permanently — no certificate, signature,
-  SOAP, or mTLS involved, so there is no fiscal or security upside, only WeasyPrint-equivalent cost.
-  py-dfe remains the only path for this indefinitely.
+- **Unsigned operations** (status/consulta/distribuição): cut over after a shadow-mode window (both paths called, py-dfe
+  stays authoritative, divergence logged) shows clean parity — a much lower bar than the byte-identical gate, since no
+  fiscal signature is at stake.
+- **Signed operations** (autorização, eventos, inutilização): the Scenario A canonicalization risk applies in full.
+  These stay on py-dfe until go-dfe's XML-DSig/C14N implementation passes a byte-identical test (go-dfe output vs.
+  captured py-dfe output, same test certificate, same input)
+  — this is the same 10k+ homologação bar from Scenario B's precondition, just verified per-operation instead of gating
+  the entire rewrite.
+- **DANFE/DAMDFE rendering** is excluded from `go-dfe`'s scope permanently — no certificate, signature, SOAP, or mTLS
+  involved, so there is no fiscal or security upside, only WeasyPrint-equivalent cost. py-dfe remains the only path for
+  this indefinitely.
 
 See `go-dfe/CLAUDE.md` for the module's own conventions and current `Implements()` set.
 

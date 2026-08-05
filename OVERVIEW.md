@@ -21,16 +21,16 @@ ctech-dfe/
 
 ## Technology Stack
 
-| Layer     | Technology                                                  |
-|-----------|-------------------------------------------------------------|
-| Backend   | Go (Fiber v3), aws-sdk-go-v2                                |
-| Workers   | Go Lambda (aws-lambda-go), SQS consumers                    |
-| SEFAZ lib | Python 3.14 Lambda (py-dfe) — XML-DSig + SOAP mTLS          |
-| Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN              |
-| Database  | DynamoDB (30 tables) + S3 (certificates and XMLs)           |
-| Messaging | SQS (standard) + SNS                                        |
-| Infra     | AWS CDK TypeScript                                          |
-| Auth      | OAuth 2.0 PKCE + RS256 via ctech-account                    |
+| Layer     | Technology                                         |
+|-----------|----------------------------------------------------|
+| Backend   | Go (Fiber v3), aws-sdk-go-v2                       |
+| Workers   | Go Lambda (aws-lambda-go), SQS consumers           |
+| SEFAZ lib | Python 3.14 Lambda (py-dfe) — XML-DSig + SOAP mTLS |
+| Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN     |
+| Database  | DynamoDB (30 tables) + S3 (certificates and XMLs)  |
+| Messaging | SQS (standard) + SNS                               |
+| Infra     | AWS CDK TypeScript                                 |
+| Auth      | OAuth 2.0 PKCE + RS256 via ctech-account           |
 
 ---
 
@@ -58,10 +58,10 @@ LambdaRequest → CertificateManager → ServiceClient → SEFAZ SOAP → Lambda
 
 In-process Go replacement for py-dfe's SEFAZ SOAP/mTLS calls, adopted operation-by-operation
 (`docs/plans/2026-07-17-go-dfe-migration.md`, `MIGRATION.md`). `worker`/`api` call `dfe.Call`
-directly (no Lambda Invoke) for any `(docType, service)` in `dfe.Implements()`; everything else
-still goes through the py-dfe Lambda — same request/response JSON contract either way. Currently
-implements unsigned operations only (status/consulta/distribuição); signed operations stay on
-py-dfe until the XML-DSig/C14N port passes a byte-identical gate against captured py-dfe output.
+directly (no Lambda Invoke) for any `(docType, service)` in `dfe.Implements()`; everything else still goes through the
+py-dfe Lambda — same request/response JSON contract either way. Currently implements unsigned operations only
+(status/consulta/distribuição); signed operations stay on py-dfe until the XML-DSig/C14N port passes a byte-identical
+gate against captured py-dfe output.
 
 ### api — REST Backend
 
@@ -107,8 +107,8 @@ Certificates · Fiscal Configuration
 
 14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
 
-**Main resources:** DynamoDB (30 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe,
-worker) · API Gateway · IAM (least privilege) · SQS (standard) · SNS · CloudFront
+**Main resources:** DynamoDB (30 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe, worker) · API
+Gateway · IAM (least privilege) · SQS (standard) · SNS · CloudFront
 
 ---
 
@@ -174,21 +174,21 @@ SQS → worker Lambda (Go)
 
 ## Security
 
-- **Auth:** OAuth 2.0 Authorization Code + PKCE. ui redirects to accounts.aoctech.app; ctech-account issues RS256
-  access tokens (15m) and opaque refresh tokens (30d).
-- **JWT verification:** api validates RS256 tokens by fetching JWKS from `CTECH_JWKS_URL`; keys are cached in
-  Valkey (TTL 1h). No HS256, no local `SECRET_KEY`.
+- **Auth:** OAuth 2.0 Authorization Code + PKCE. ui redirects to accounts.aoctech.app; ctech-account issues RS256 access
+  tokens (15m) and opaque refresh tokens (30d).
+- **JWT verification:** api validates RS256 tokens by fetching JWKS from `CTECH_JWKS_URL`; keys are cached in Valkey
+  (TTL 1h). No HS256, no local `SECRET_KEY`.
 - **Token storage (client):** `access_token` in memory only. `refresh_token` in sessionStorage (`pydfe_rt`). Silent
   refresh on 401 via `doRefresh()`.
 - **Certificates:** Stored in S3 with AWS Managed Keys; never returned by the API
 - **Multi-tenancy:** Every route verifies org membership. Membership lives in `organization_users`
   (the source of truth); RBAC reads it per request (short-TTL cache, invalidated on member changes).
-- **KYC:** Creating an organization requires an A1 certificate whose holder document matches the
-  org's CNPJ/CPF — a filial (same CNPJ root) inherits the matriz certificate instead.
-- **Invitations:** OWNER/ADMIN share a single-use, 7-day link (opaque token; only its SHA-256 is
-  stored) granting ADMIN/USER/VIEWER — never OWNER.
-- **RBAC:** Roles OWNER / ADMIN / USER / VIEWER (seeded on boot) with `action.resource` permissions;
-  effective permission = role ∪ per-member extras.
+- **KYC:** Creating an organization requires an A1 certificate whose holder document matches the org's CNPJ/CPF — a
+  filial (same CNPJ root) inherits the matriz certificate instead.
+- **Invitations:** OWNER/ADMIN share a single-use, 7-day link (opaque token; only its SHA-256 is stored) granting
+  ADMIN/USER/VIEWER — never OWNER.
+- **RBAC:** Roles OWNER / ADMIN / USER / VIEWER (seeded on boot) with `action.resource` permissions; effective
+  permission = role ∪ per-member extras.
 - **IAM:** Least privilege per function (Lambda, API, Worker)
 
 ---

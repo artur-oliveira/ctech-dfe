@@ -1,7 +1,6 @@
 # py-dfe — Frontend-Backend Integration Guide
 
-This document covers how ui (Next.js) authenticates against ctech-account and communicates with
-api.
+This document covers how ui (Next.js) authenticates against ctech-account and communicates with api.
 
 ---
 
@@ -9,13 +8,13 @@ api.
 
 ### ui
 
-| Variable                      | Example                          | Description                                              |
-|-------------------------------|----------------------------------|----------------------------------------------------------|
-| `NEXT_PUBLIC_API_URL`         | `https://dfe.aoctech.app`        | api base URL — the **app** domain, empty locally          |
-| `DEV_API_ORIGIN`              | `http://localhost:8000`          | dev only: where `next dev` proxies `/v1.0/*`              |
-| `NEXT_PUBLIC_WS_URL`          | `http://localhost:8000`          | dev only: `next dev` does not proxy the WebSocket upgrade |
-| `NEXT_PUBLIC_CTECH_URL`       | `https://accounts.aoctech.app`   | ctech-account base URL (serves both its UI and `/v1.0/*`) |
-| `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                            | OAuth client_id registered in ctech                       |
+| Variable                      | Example                        | Description                                               |
+|-------------------------------|--------------------------------|-----------------------------------------------------------|
+| `NEXT_PUBLIC_API_URL`         | `https://dfe.aoctech.app`      | api base URL — the **app** domain, empty locally          |
+| `DEV_API_ORIGIN`              | `http://localhost:8000`        | dev only: where `next dev` proxies `/v1.0/*`              |
+| `NEXT_PUBLIC_WS_URL`          | `http://localhost:8000`        | dev only: `next dev` does not proxy the WebSocket upgrade |
+| `NEXT_PUBLIC_CTECH_URL`       | `https://accounts.aoctech.app` | ctech-account base URL (serves both its UI and `/v1.0/*`) |
+| `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                          | OAuth client_id registered in ctech                       |
 
 > Browsers never call `dfe-api.aoctech.app` directly. CloudFront forwards
 > `dfe.aoctech.app/v1.0/*` to the ALB, so the app is same-origin and CORS never applies;
@@ -28,11 +27,11 @@ api.
 
 ### api
 
-| Variable         | Example                                                     | Description                               |
-|------------------|-------------------------------------------------------------|-------------------------------------------|
+| Variable         | Example                                              | Description                               |
+|------------------|------------------------------------------------------|-------------------------------------------|
 | `CTECH_URL`      | `https://accounts.aoctech.app`                       | Derives `CTECH_JWKS_URL` automatically    |
 | `CTECH_JWKS_URL` | `https://accounts.aoctech.app/.well-known/jwks.json` | Override only when `CTECH_URL` is not set |
-| `VALKEY_URL`     | `redis://10.0.1.5:6379`                                     | Caches JWKS keys (DB 0); pub/sub (DB 1)   |
+| `VALKEY_URL`     | `redis://10.0.1.5:6379`                              | Caches JWKS keys (DB 0); pub/sub (DB 1)   |
 
 ---
 
@@ -154,11 +153,11 @@ Never expose the `code_verifier` to the server.
 
 **User name from id_token:** `exchangeCode` also returns the `id_token` (issued because `scope=openid profile`).
 `AuthContext` decodes it with `decodeIdToken()` (`given_name`→`first_name`, `family_name`→`last_name`,
-`preferred_username`→`username`) and uses those as the user's name. `GET /auth/me` supplies **organizations and
-email** only; its name fields are a fallback. The DFe access token's `aud` is the DFe API, so ctech-account's
+`preferred_username`→`username`) and uses those as the user's name. `GET /auth/me` supplies **organizations and email**
+only; its name fields are a fallback. The DFe access token's `aud` is the DFe API, so ctech-account's
 `/userinfo` rejects it — the id_token (aud = the OAuth client) is the only profile source the UI can read. A fresh
-id_token arrives only on login (not on refresh); `refresh_token` lives in `sessionStorage`, so each new browser
-session re-logs in and reflects a name changed in ctech-account.
+id_token arrives only on login (not on refresh); `refresh_token` lives in `sessionStorage`, so each new browser session
+re-logs in and reflects a name changed in ctech-account.
 
 ---
 
@@ -179,9 +178,9 @@ re-validated against the current `GET /auth/me` response.
 
 **Location:** `src/lib/hooks/useWebSocket.ts`, `src/lib/providers/RealtimeProvider.tsx`
 
-api exposes a WebSocket endpoint (`/v1.0/ws`) for real-time document status updates. The client connects
-after login and subscribes per org. The access token is sent in the WebSocket handshake. On token expiry, the
-connection is re-established after a silent refresh.
+api exposes a WebSocket endpoint (`/v1.0/ws`) for real-time document status updates. The client connects after login and
+subscribes per org. The access token is sent in the WebSocket handshake. On token expiry, the connection is
+re-established after a silent refresh.
 
 ---
 
@@ -199,13 +198,13 @@ All API errors from api follow RFC 7807:
 }
 ```
 
-`ApiError` in `client.ts` wraps these with `status` and `detail` fields. Components should catch `ApiError` and
-display `err.detail` to the user.
+`ApiError` in `client.ts` wraps these with `status` and `detail` fields. Components should catch `ApiError` and display
+`err.detail` to the user.
 
-**Request-body validation (422).** Mutating endpoints validate the body strictly server-side
-(unknown JSON fields are rejected with 400; invalid values return 422). A 422 from
-`type: "/problems/validation-error"` carries a field-level `errors` array so the UI can map each
-message back to its input:
+**Request-body validation (422).** Mutating endpoints validate the body strictly server-side (unknown JSON fields are
+rejected with 400; invalid values return 422). A 422 from
+`type: "/problems/validation-error"` carries a field-level `errors` array so the UI can map each message back to its
+input:
 
 ```json
 {
@@ -219,9 +218,9 @@ message back to its input:
 }
 ```
 
-`field` is a dotted JSON path (with `[i]` for array items). These server rules mirror the
-frontend Zod schemas, so a payload that passes client validation should pass the server too —
-the server is the authoritative gate. Send the documented contract exactly (`ui/src/lib/types/api.ts`):
+`field` is a dotted JSON path (with `[i]` for array items). These server rules mirror the frontend Zod schemas, so a
+payload that passes client validation should pass the server too — the server is the authoritative gate. Send the
+documented contract exactly (`ui/src/lib/types/api.ts`):
 do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial PUT body.
 
 ---
@@ -256,9 +255,8 @@ Both must be registered in ctech-account for the `pydfe` OAuth client (`redirect
 
 ## API Key Authentication (machine-to-machine)
 
-Programmatic clients do not send raw API keys to the dfe API. Keys are exchanged at
-ctech-account for a short-lived RS256 access token, and the dfe API keeps validating
-only JWTs via JWKS — it never sees, stores, or looks up API keys:
+Programmatic clients do not send raw API keys to the dfe API. Keys are exchanged at ctech-account for a short-lived
+RS256 access token, and the dfe API keeps validating only JWTs via JWKS — it never sees, stores, or looks up API keys:
 
 ```
 client                        ctech-account                     api (dfe)
@@ -274,53 +272,47 @@ client                        ctech-account                     api (dfe)
   │─────────────────────────────────────────────────────────────────>│
 ```
 
-- Re-exchange when the token expires (~15 min). Revoking the key at
-  accounts stops new exchanges immediately; outstanding tokens die within the TTL.
-- The token's `aud` includes `SERVICE_AUDIENCE` only when the key carries at least
-  one `dfe:*` scope.
+- Re-exchange when the token expires (~15 min). Revoking the key at accounts stops new exchanges immediately;
+  outstanding tokens die within the TTL.
+- The token's `aud` includes `SERVICE_AUDIENCE` only when the key carries at least one `dfe:*` scope.
 
 ### Scope claim enforcement (IMPLEMENTED)
 
-`Verifier.Verify` extracts the space-delimited `scope` claim alongside `sub`; the
-auth middleware stashes it in locals (`middleware.GetScopes`). `PermChecker`
-enforces it as **defense-in-depth on top of** the org RBAC decision
-(`middleware/scopes.go`, `middleware/rbac.go`):
+`Verifier.Verify` extracts the space-delimited `scope` claim alongside `sub`; the auth middleware stashes it in locals
+(`middleware.GetScopes`). `PermChecker`
+enforces it as **defense-in-depth on top of** the org RBAC decision (`middleware/scopes.go`, `middleware/rbac.go`):
 
-- **Effective permission = org RBAC role ∩ token scopes.** The scope never widens
-  what the underlying member could do — it only narrows it. Missing scope → 403,
-  even for an org OWNER.
-- **Identity-only sessions are unrestricted.** A token with no `dfe:*` scope (the
-  first-party ui, which carries `openid profile`) skips scope enforcement — pure
-  RBAC, backwards compatible. Enforcement kicks in only when the token carries at
-  least one `dfe:*` service scope (i.e. an API key or third-party OAuth app).
-- **Role-gated endpoints reject scoped tokens.** Member/invitation management and
-  the audit trail are gated by role (`RequireOwner`/`RequireOwnerOrAdmin`), not by a
-  permission string, and no scope grants them — so a scoped API-key token is refused
-  there outright (403). Only a full first-party session can manage members.
+- **Effective permission = org RBAC role ∩ token scopes.** The scope never widens what the underlying member could do —
+  it only narrows it. Missing scope → 403, even for an org OWNER.
+- **Identity-only sessions are unrestricted.** A token with no `dfe:*` scope (the first-party ui, which carries
+  `openid profile`) skips scope enforcement — pure RBAC, backwards compatible. Enforcement kicks in only when the token
+  carries at least one `dfe:*` service scope (i.e. an API key or third-party OAuth app).
+- **Role-gated endpoints reject scoped tokens.** Member/invitation management and the audit trail are gated by role
+  (`RequireOwner`/`RequireOwnerOrAdmin`), not by a permission string, and no scope grants them — so a scoped API-key
+  token is refused there outright (403). Only a full first-party session can manage members.
 
 Scope → RBAC mapping (`middleware/scopes.go`, `scopeFamilies`):
 
-| Scope                     | Grants (RBAC action.resource)                                            |
-|---------------------------|--------------------------------------------------------------------------|
-| `dfe:nfes:read`           | `get`/`list` of `nfes`, `nfe_events`, `nfe_distributions`, `organization_nfe_configs` |
-| `dfe:nfes:write`          | `create`/`update`/`delete` of the same family                            |
-| `dfe:nfces:*`             | `nfces`, `nfce_events`, `organization_nfce_configs` (NFC-e has no distributions) |
-| `dfe:ctes:*`              | `ctes`, `cte_events`, `cte_distributions`, `organization_cte_configs`    |
-| `dfe:mdfes:*`             | `mdfes`, `mdfe_events`, `mdfe_distributions`, `organization_mdfe_configs` |
-| `dfe:organization_products:*`     | `organization_products`                                          |
-| `dfe:organization_vehicles:*`     | `organization_vehicles`                                          |
-| `dfe:organization_persons:*`      | `organization_persons`                                           |
-| `dfe:organizations:*`             | `organizations`                                                  |
-| `dfe:organization_certificates:*` | `organization_certificates` (isolated — a doc-family `write` never grants it) |
+| Scope                             | Grants (RBAC action.resource)                                                         |
+|-----------------------------------|---------------------------------------------------------------------------------------|
+| `dfe:nfes:read`                   | `get`/`list` of `nfes`, `nfe_events`, `nfe_distributions`, `organization_nfe_configs` |
+| `dfe:nfes:write`                  | `create`/`update`/`delete` of the same family                                         |
+| `dfe:nfces:*`                     | `nfces`, `nfce_events`, `organization_nfce_configs` (NFC-e has no distributions)      |
+| `dfe:ctes:*`                      | `ctes`, `cte_events`, `cte_distributions`, `organization_cte_configs`                 |
+| `dfe:mdfes:*`                     | `mdfes`, `mdfe_events`, `mdfe_distributions`, `organization_mdfe_configs`             |
+| `dfe:organization_products:*`     | `organization_products`                                                               |
+| `dfe:organization_vehicles:*`     | `organization_vehicles`                                                               |
+| `dfe:organization_persons:*`      | `organization_persons`                                                                |
+| `dfe:organizations:*`             | `organizations`                                                                       |
+| `dfe:organization_certificates:*` | `organization_certificates` (isolated — a doc-family `write` never grants it)         |
 
-`read` → `get`+`list`; `write` → `create`+`update`+`delete`. A document family's
-scope covers its events, distributions, and fiscal config. Certificate access is a
-dedicated scope (it grants the PFX + private key), never bundled into a doc `write`.
+`read` → `get`+`list`; `write` → `create`+`update`+`delete`. A document family's scope covers its events, distributions,
+and fiscal config. Certificate access is a dedicated scope (it grants the PFX + private key), never bundled into a doc
+`write`.
 
 ### Scope catalog
 
 The list of grantable scopes lives in **ctech-account** (`internal/scopes/catalog.go`)
-and is served by `GET /v1.0/scopes`. When the dfe API gains a new resource or
-permission, add the corresponding `dfe:{resource}:{read|write}` entry to that catalog
-in the ctech-account repo — otherwise users cannot select it for API keys or OAuth
-clients. Keep the RBAC ↔ scope mapping above in sync.
+and is served by `GET /v1.0/scopes`. When the dfe API gains a new resource or permission, add the corresponding
+`dfe:{resource}:{read|write}` entry to that catalog in the ctech-account repo — otherwise users cannot select it for API
+keys or OAuth clients. Keep the RBAC ↔ scope mapping above in sync.
