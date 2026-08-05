@@ -476,6 +476,14 @@ Must follow Conventional Commits:
 - Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
   one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
   inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.
+- The five fiscal config services (NF-e/NFC-e/CT-e/MDF-e/NFS-e) share one `fiscalConfigService`
+  base (`internal/services/fiscal_configs.go`) — `Get`/`Upsert` live there once. A new config
+  variant is added by declaring a thin `struct{ fiscalConfigService }` wrapper + constructor
+  (repo, audit resource constant, resource ID, 404 message); never re-implement `Get`/`Upsert`
+  per variant. The audit diff on `Upsert` always compares the pre-existing item against the
+  **final merged fields** (post preserve-field carry-forward from `FiscalConfigRepository.BuildUpsertTxItem`),
+  never against the caller's raw input — otherwise a preserved internal-process field (e.g. an
+  NSU/number counter silently carried forward) would be misreported as a user-initiated change.
 
 ## ui (Frontend)
 

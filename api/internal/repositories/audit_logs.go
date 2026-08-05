@@ -30,6 +30,7 @@ const (
 	AuditResourceNfceConfig   = "NFCE_CONFIG"
 	AuditResourceCteConfig    = "CTE_CONFIG"
 	AuditResourceMdfeConfig   = "MDFE_CONFIG"
+	AuditResourceNfseConfig   = "NFSE_CONFIG"
 	AuditResourceMember       = "MEMBER"
 	AuditResourceInvitation   = "INVITATION"
 )

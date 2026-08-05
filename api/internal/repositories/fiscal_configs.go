@@ -65,3 +65,18 @@ func NewMdfeConfigRepository(db *dynamodb.Client, cfg *config.Config) *MdfeConfi
 		}),
 	}
 }
+
+// NfseConfigRepository — organization_nfse_configs.
+// preserve: contadores de numeração da DPS/RPS, atualizados pela emissão.
+type NfseConfigRepository struct {
+	FiscalConfigRepository
+}
+
+func NewNfseConfigRepository(db *dynamodb.Client, cfg *config.Config) *NfseConfigRepository {
+	return &NfseConfigRepository{
+		FiscalConfigRepository: newFiscalConfigBase(db, cfg, "organization_nfse_configs", map[string]any{
+			"prod_current_number": 0,
+			"hom_current_number":  0,
+		}),
+	}
+}

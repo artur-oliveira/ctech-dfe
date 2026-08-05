@@ -16,35 +16,52 @@ const (
 	nfceConfigResourceID = "nfce_config"
 	cteConfigResourceID  = "cte_config"
 	mdfeConfigResourceID = "mdfe_config"
+	nfseConfigResourceID = "nfse_config"
 )
 
-// NfeConfigService wraps NfeConfigRepository.
-// Mirrors api/app/services/fiscal_configs.py NfeConfigService.
-type NfeConfigService struct {
-	repo      *repositories.NfeConfigRepository
-	auditRepo *repositories.AuditLogRepository
+// fiscalConfigRepo é a parte de FiscalConfigRepository que o serviço usa.
+// A assinatura de TransactWrite vem de dynamo.Base:
+//
+//	func (b *Base) TransactWrite(ctx context.Context, items []types.TransactWriteItem) error
+//
+// Os cinco repositórios de config a satisfazem por embedding.
+type fiscalConfigRepo interface {
+	Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
+	BuildUpsertTxItem(orgPK string, fields map[string]types.AttributeValue, existing map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error)
+	TransactWrite(ctx context.Context, items []types.TransactWriteItem) error
 }
 
-func NewNfeConfigService(repo *repositories.NfeConfigRepository, auditRepo *repositories.AuditLogRepository) *NfeConfigService {
-	return &NfeConfigService{repo: repo, auditRepo: auditRepo}
+// fiscalConfigService implementa Get/Upsert para qualquer config fiscal
+// singleton. Antes cada variante repetia o mesmo Upsert; a lógica de auditoria
+// (diff contra os campos FINAIS, pós carry-forward dos campos preservados) é
+// sutil o bastante para não valer cinco cópias — ver
+// FiscalConfigRepository.BuildUpsertTxItem.
+type fiscalConfigService struct {
+	repo         fiscalConfigRepo
+	auditRepo    *repositories.AuditLogRepository
+	resourceType string
+	resourceID   string
+	notFoundMsg  string
 }
 
-func (s *NfeConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
+func (s *fiscalConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
 	item, err := s.repo.Get(ctx, orgPK)
 	if err != nil {
 		return nil, err
 	}
 	if item == nil {
-		return nil, problem.NotFound("nfe config not found")
+		return nil, problem.NotFound(s.notFoundMsg)
 	}
 	return item, nil
 }
 
 // Upsert writes the config and its CREATE/UPDATE audit row atomically. The
 // audit diff compares the pre-existing item against the FINAL merged fields
-// (post preserve-field carry-forward), never against the caller's raw input —
-// see FiscalConfigRepository.BuildUpsertTxItem.
-func (s *NfeConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
+// (post preserve-field carry-forward), never against the caller's raw input.
+// The single Get below feeds both the preserve-merge and the audit baseline:
+// two independent reads could straddle a concurrent internal-process write
+// (e.g. a counter increment) and misattribute it to the acting user.
+func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
 	current, err := s.repo.Get(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -70,7 +87,7 @@ func (s *NfeConfigService) Upsert(ctx context.Context, orgPK string, fields map[
 	}
 
 	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceNfeConfig, nfeConfigResourceID, action,
+		orgPK, s.resourceType, s.resourceID, action,
 		userID, userName, Diff(beforeMap, afterMap),
 	)
 	if err != nil {
@@ -81,190 +98,59 @@ func (s *NfeConfigService) Upsert(ctx context.Context, orgPK string, fields map[
 		return nil, err
 	}
 	return finalItem, nil
+}
+
+// NfeConfigService wraps NfeConfigRepository.
+type NfeConfigService struct{ fiscalConfigService }
+
+func NewNfeConfigService(repo *repositories.NfeConfigRepository, auditRepo *repositories.AuditLogRepository) *NfeConfigService {
+	return &NfeConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceNfeConfig, resourceID: nfeConfigResourceID,
+		notFoundMsg: "nfe config not found",
+	}}
 }
 
 // NfceConfigService wraps NfceConfigRepository.
-type NfceConfigService struct {
-	repo      *repositories.NfceConfigRepository
-	auditRepo *repositories.AuditLogRepository
-}
+type NfceConfigService struct{ fiscalConfigService }
 
 func NewNfceConfigService(repo *repositories.NfceConfigRepository, auditRepo *repositories.AuditLogRepository) *NfceConfigService {
-	return &NfceConfigService{repo: repo, auditRepo: auditRepo}
-}
-
-func (s *NfceConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
-	item, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
-		return nil, problem.NotFound("nfce config not found")
-	}
-	return item, nil
-}
-
-// Upsert writes the config and its CREATE/UPDATE audit row atomically. See
-// NfeConfigService.Upsert for the preserve-field/diff reasoning (identical here).
-func (s *NfceConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
-	current, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	action := repositories.AuditActionUpdate
-	var beforeMap map[string]any
-	if current == nil {
-		action = repositories.AuditActionCreate
-	} else {
-		beforeMap, err = attributeMapToPlain(current)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	configTx, finalItem, err := s.repo.BuildUpsertTxItem(orgPK, fields, current)
-	if err != nil {
-		return nil, err
-	}
-	afterMap, err := attributeMapToPlain(finalItem)
-	if err != nil {
-		return nil, err
-	}
-
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceNfceConfig, nfceConfigResourceID, action,
-		userID, userName, Diff(beforeMap, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{configTx, auditTx}); err != nil {
-		return nil, err
-	}
-	return finalItem, nil
+	return &NfceConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceNfceConfig, resourceID: nfceConfigResourceID,
+		notFoundMsg: "nfce config not found",
+	}}
 }
 
 // CteConfigService wraps CteConfigRepository.
-type CteConfigService struct {
-	repo      *repositories.CteConfigRepository
-	auditRepo *repositories.AuditLogRepository
-}
+type CteConfigService struct{ fiscalConfigService }
 
 func NewCteConfigService(repo *repositories.CteConfigRepository, auditRepo *repositories.AuditLogRepository) *CteConfigService {
-	return &CteConfigService{repo: repo, auditRepo: auditRepo}
-}
-
-func (s *CteConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
-	item, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
-		return nil, problem.NotFound("cte config not found")
-	}
-	return item, nil
-}
-
-// Upsert writes the config and its CREATE/UPDATE audit row atomically. See
-// NfeConfigService.Upsert for the preserve-field/diff reasoning (identical here).
-func (s *CteConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
-	current, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	action := repositories.AuditActionUpdate
-	var beforeMap map[string]any
-	if current == nil {
-		action = repositories.AuditActionCreate
-	} else {
-		beforeMap, err = attributeMapToPlain(current)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	configTx, finalItem, err := s.repo.BuildUpsertTxItem(orgPK, fields, current)
-	if err != nil {
-		return nil, err
-	}
-	afterMap, err := attributeMapToPlain(finalItem)
-	if err != nil {
-		return nil, err
-	}
-
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceCteConfig, cteConfigResourceID, action,
-		userID, userName, Diff(beforeMap, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{configTx, auditTx}); err != nil {
-		return nil, err
-	}
-	return finalItem, nil
+	return &CteConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceCteConfig, resourceID: cteConfigResourceID,
+		notFoundMsg: "cte config not found",
+	}}
 }
 
 // MdfeConfigService wraps MdfeConfigRepository.
-type MdfeConfigService struct {
-	repo      *repositories.MdfeConfigRepository
-	auditRepo *repositories.AuditLogRepository
-}
+type MdfeConfigService struct{ fiscalConfigService }
 
 func NewMdfeConfigService(repo *repositories.MdfeConfigRepository, auditRepo *repositories.AuditLogRepository) *MdfeConfigService {
-	return &MdfeConfigService{repo: repo, auditRepo: auditRepo}
+	return &MdfeConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceMdfeConfig, resourceID: mdfeConfigResourceID,
+		notFoundMsg: "mdfe config not found",
+	}}
 }
 
-func (s *MdfeConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
-	item, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	if item == nil {
-		return nil, problem.NotFound("mdfe config not found")
-	}
-	return item, nil
-}
+// NfseConfigService wraps NfseConfigRepository.
+type NfseConfigService struct{ fiscalConfigService }
 
-// Upsert writes the config and its CREATE/UPDATE audit row atomically. See
-// NfeConfigService.Upsert for the preserve-field/diff reasoning (identical here).
-func (s *MdfeConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
-	current, err := s.repo.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	action := repositories.AuditActionUpdate
-	var beforeMap map[string]any
-	if current == nil {
-		action = repositories.AuditActionCreate
-	} else {
-		beforeMap, err = attributeMapToPlain(current)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	configTx, finalItem, err := s.repo.BuildUpsertTxItem(orgPK, fields, current)
-	if err != nil {
-		return nil, err
-	}
-	afterMap, err := attributeMapToPlain(finalItem)
-	if err != nil {
-		return nil, err
-	}
-
-	auditTx, err := s.auditRepo.BuildLogTxItem(
-		orgPK, repositories.AuditResourceMdfeConfig, mdfeConfigResourceID, action,
-		userID, userName, Diff(beforeMap, afterMap),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{configTx, auditTx}); err != nil {
-		return nil, err
-	}
-	return finalItem, nil
+func NewNfseConfigService(repo *repositories.NfseConfigRepository, auditRepo *repositories.AuditLogRepository) *NfseConfigService {
+	return &NfseConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceNfseConfig, resourceID: nfseConfigResourceID,
+		notFoundMsg: "nfse config not found",
+	}}
 }

@@ -42,6 +42,7 @@ var (
 	nfceConfigRepo *repositories.NfceConfigRepository
 	cteConfigRepo  *repositories.CteConfigRepository
 	mdfeConfigRepo *repositories.MdfeConfigRepository
+	nfseConfigRepo *repositories.NfseConfigRepository
 	orgSvc         *services.OrganizationService
 	productSvc     *services.ProductService
 	serviceSvc     *services.ServiceService
@@ -54,6 +55,7 @@ var (
 	nfceConfigSvc  *services.NfceConfigService
 	cteConfigSvc   *services.CteConfigService
 	mdfeConfigSvc  *services.MdfeConfigService
+	nfseConfigSvc  *services.NfseConfigService
 	memCache       cache.Backend
 )
 
@@ -103,6 +105,7 @@ func TestMain(m *testing.M) {
 	nfceConfigRepo = repositories.NewNfceConfigRepository(db, cfg)
 	cteConfigRepo = repositories.NewCteConfigRepository(db, cfg)
 	mdfeConfigRepo = repositories.NewMdfeConfigRepository(db, cfg)
+	nfseConfigRepo = repositories.NewNfseConfigRepository(db, cfg)
 
 	// certSvc is Delete-only usable in this harness: Upload needs a real S3
 	// client (no S3 test double exists in this codebase), so it's wired with a
@@ -121,6 +124,7 @@ func TestMain(m *testing.M) {
 	nfceConfigSvc = services.NewNfceConfigService(nfceConfigRepo, auditRepo)
 	cteConfigSvc = services.NewCteConfigService(cteConfigRepo, auditRepo)
 	mdfeConfigSvc = services.NewMdfeConfigService(mdfeConfigRepo, auditRepo)
+	nfseConfigSvc = services.NewNfseConfigService(nfseConfigRepo, auditRepo)
 
 	code := m.Run()
 	dropTables(ctx, db)
@@ -311,6 +315,16 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			},
 		},
 		{
+			TableName:   aws.String(tablePrefix + "_organization_nfse_configs"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
 			TableName:   aws.String(tablePrefix + "_audit_logs"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
@@ -429,6 +443,7 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_organization_nfce_configs",
 		tablePrefix + "_organization_cte_configs",
 		tablePrefix + "_organization_mdfe_configs",
+		tablePrefix + "_organization_nfse_configs",
 		tablePrefix + "_audit_logs",
 		tablePrefix + "_users",
 		tablePrefix + "_roles",
