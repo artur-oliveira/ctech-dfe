@@ -27,7 +27,7 @@ ctech-dfe/
 | Workers   | Go Lambda (aws-lambda-go), SQS consumers                    |
 | SEFAZ lib | Python 3.14 Lambda (py-dfe) — XML-DSig + SOAP mTLS          |
 | Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN              |
-| Database  | DynamoDB (21 tables) + S3 (certificates and XMLs)           |
+| Database  | DynamoDB (30 tables) + S3 (certificates and XMLs)           |
 | Messaging | SQS (standard) + SNS                                        |
 | Infra     | AWS CDK TypeScript                                          |
 | Auth      | OAuth 2.0 PKCE + RS256 via ctech-account                    |
@@ -105,7 +105,7 @@ Certificates · Fiscal Configuration
 
 14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
 
-**Main resources:** DynamoDB (21 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe,
+**Main resources:** DynamoDB (30 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe,
 worker) · API Gateway · IAM (least privilege) · SQS (standard) · SNS · CloudFront
 
 ---
@@ -125,6 +125,10 @@ worker) · API Gateway · IAM (least privilege) · SQS (standard) · SNS · Clou
 | nfes / nfces / ctes / mdfes | {env}#{CNPJ}             | {access_key}     |
 | nfe_events / ...            | {access_key}             | {uuidv7}         |
 | organization_nfe_configs    | {org_pk}                 | —                |
+| organization_services       | {org_pk}                 | SERVICE_{uuid}   |
+| organization_nfse_configs   | {org_pk}                 | —                |
+| nfses                       | {env}#{CNPJ}             | id_dps           |
+| nfse_events                 | {id_dps}                 | {uuidv7}         |
 
 **S3:**
 
@@ -244,7 +248,7 @@ NEXT_PUBLIC_CTECH_CLIENT_ID=dfe
 |----------------------|------------------------------------|
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Detailed schema for all 22 tables  |
+| `DynamoDB-Tables.md` | Detailed schema for all 30 tables  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |

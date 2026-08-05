@@ -36,8 +36,12 @@ PITR: enabled in production only.
 | 23 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index` |
 | 24 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)           |
 | 25 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                |
-
 | 26 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                 |
+| 27 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index` |
+| 28 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                 |
+| 29 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
+| 30 | `nfse_events`               | `{id_dps}`                   | `{uuidv7}`                               | `org-event-key-index`             |
+
 ---
 
 ## 1. `users`
@@ -425,6 +429,79 @@ The API put is create-only. A `NEW_IMAGE` DynamoDB Stream invokes
 `pending` to `published`. Failed invocation is retried by the stream event source;
 downstream workers remain idempotent because SNS publication and acknowledgement
 cannot be made atomic.
+
+---
+
+## 27. `organization_services`
+
+Service catalog per org (NFS-e line items — analogous to `organization_products` for goods).
+
+| Attribute      | Type | Notes                                      |
+|----------------|------|---------------------------------------------|
+| `pk`           | S    | `{org_pk}` — partition key                  |
+| `sk`           | S    | `SERVICE_{uuid}` — sort key                 |
+| `code`         | S    | Internal service code. GSI: `code-index`    |
+| `description`  | S    | GSI: `description-index`                    |
+| `created_at`   | S    | ISO-8601 UTC                                |
+| `updated_at`   | S    | ISO-8601 UTC                                |
+
+**GSIs:** `description-index` (PK: `pk`, SK: `description`), `code-index` (PK: `pk`, SK: `code`).
+
+---
+
+## 28. `organization_nfse_configs`
+
+Fiscal configuration per org for NFS-e issuance. PK only (no SK), same shape as the other
+`organization_*_configs` tables (#7–10).
+
+| Attribute      | Type | Notes                        |
+|----------------|------|--------------------------------|
+| `pk`           | S    | `{org_pk}` — partition key    |
+| `updated_at`   | S    | ISO-8601 UTC                  |
+
+---
+
+## 29. `nfses`
+
+One item per issued NFS-e. Reuses the same `getDfeTable` shape as `nfes`/`nfces`/`ctes`/`mdfes`
+(`number-index-v2` + `dfe-index`), plus an extra GSI for lookup by access key.
+
+| Attribute      | Type | Notes                                                       |
+|----------------|------|--------------------------------------------------------------|
+| `pk`           | S    | `{env}#{CNPJ}` — partition key (`producao#12345678901234`)  |
+| `sk`           | S    | `id_dps` — sort key                                          |
+| `access_key`   | S    | 50-digit access key. GSI: `access-key-index`                |
+| `org_pk`       | S    | Org's DynamoDB PK (`CNPJ_...`)                               |
+| `number`       | N    | Document number. GSI: `number-index-v2`                      |
+| `status`       | S    | `authorized`, `rejected`, `pending`, `cancelled`, `failed`   |
+| `incoming`     | N    | `0` = outgoing, `1` = incoming. Used in `dfe-index`           |
+| `year`         | N    | Issue year. Used in `dfe-index`                               |
+| `month`        | N    | Issue month (1–12). Used in `dfe-index`                       |
+| `day`          | N    | Issue day (1–31). Used in `dfe-index`                          |
+| `created_at`   | S    | ISO-8601 UTC                                                  |
+| `updated_at`   | S    | ISO-8601 UTC                                                  |
+
+The sort key is `id_dps`, not the access key, because the 50-digit NFS-e access key only exists
+after the SEFAZ/municipal fisco response — unlike the other DF-e, the DPS is submitted before the
+key is known. `access_key` is populated once the response arrives and is looked up via
+`access-key-index` (PK: `pk`, SK: `access_key`).
+
+---
+
+## 30. `nfse_events`
+
+SEFAZ/municipal communication events for an NFS-e. Reuses `getEventsTable`, but is keyed by the
+document's `id_dps` rather than `org_pk`, since events can arrive before the access key exists.
+
+| Attribute         | Type | Notes                                                        |
+|-------------------|------|----------------------------------------------------------------|
+| `pk`              | S    | `{id_dps}` — partition key                                    |
+| `sk`              | S    | `{uuidv7}` — sort key (time-sortable, unique per event)        |
+| `event_type`      | S    | Event type code                                                |
+| `event_key`       | S    | GSI sort key on `org-event-key-index`                          |
+| `status`          | S    | `authorized`, `rejected`, `pending`, `failed`                  |
+| `created_at`      | S    | ISO-8601 UTC                                                   |
+| `updated_at`      | S    | ISO-8601 UTC                                                   |
 
 ---
 

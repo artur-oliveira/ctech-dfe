@@ -20,14 +20,18 @@ export type TableName = (
     'nfce_configs' |
     'cte_configs' |
     'mdfe_configs' |
+    'nfse_configs' |
+    'services' |
     'nfes' |
     'nfces' |
     'ctes' |
     'mdfes' |
+    'nfses' |
     'nfe_events' |
     'nfce_events' |
     'cte_events' |
     'mdfe_events' |
+    'nfse_events' |
     'nfe_distributions' |
     'cte_distributions' |
     'mdfe_distributions' |
@@ -478,6 +482,38 @@ export class DynamoDBStack extends cdk.Stack {
         });
         this.tables.set('persons', personsTable);
 
+        const servicesTable = new dynamodb.TableV2(this, `${tablePrefix}_organization_services`, {
+            tableName: `${tablePrefix}_organization_services`,
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+            billing: Billing.onDemand({
+                maxReadRequestUnits: 1000,
+                maxWriteRequestUnits: 1000,
+            }),
+            removalPolicy,
+            pointInTimeRecoverySpecification,
+            encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+        });
+        servicesTable.addGlobalSecondaryIndex({
+            indexName: 'description-index',
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'description', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+            warmThroughput: undefined,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
+        });
+        servicesTable.addGlobalSecondaryIndex({
+            indexName: 'code-index',
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'code', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+            warmThroughput: undefined,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
+        });
+        this.tables.set('services', servicesTable);
+
         // ============== CONFIGURATION TABLES ==============
 
         const nfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfe_configs');
@@ -491,6 +527,9 @@ export class DynamoDBStack extends cdk.Stack {
 
         const mdfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_configs');
         this.tables.set('mdfe_configs', mdfeConfigTable);
+
+        const nfseConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_configs');
+        this.tables.set('nfse_configs', nfseConfigTable);
 
         // ============== DOCUMENT & EVENT TABLES ==============
 
@@ -506,6 +545,9 @@ export class DynamoDBStack extends cdk.Stack {
         const mdfeEventsTable = getEventsTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_events');
         this.tables.set('mdfe_events', mdfeEventsTable);
 
+        const nfseEventsTable = getEventsTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_events');
+        this.tables.set('nfse_events', nfseEventsTable);
+
         const nfesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfes');
         this.tables.set('nfes', nfesTable);
 
@@ -517,6 +559,22 @@ export class DynamoDBStack extends cdk.Stack {
 
         const mdfesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfes');
         this.tables.set('mdfes', mdfesTable);
+
+        // nfses reutiliza getDfeTable (number-index-v2 + dfe-index) e acrescenta
+        // access-key-index: a SK é o id_dps, porque a chave de acesso de 50
+        // dígitos só existe depois da resposta do fisco — ver
+        // docs/specs/2026-08-04-nfse-design.md §3.4.
+        const nfsesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfses');
+        nfsesTable.addGlobalSecondaryIndex({
+            indexName: 'access-key-index',
+            partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+            sortKey: {name: 'access_key', type: dynamodb.AttributeType.STRING},
+            projectionType: dynamodb.ProjectionType.ALL,
+            warmThroughput: undefined,
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
+        });
+        this.tables.set('nfses', nfsesTable);
 
         // ============== DISTRIBUTION TABLES ==============
 

@@ -400,7 +400,7 @@ export class WorkerStack extends cdk.Stack {
 
     // Dispatcher scans the config tables to enumerate active orgs.
     // These tables are small control-plane tables (one item per org), not transaction tables.
-    const configTableArns = ['organization_nfe_configs', 'organization_cte_configs', 'organization_mdfe_configs'].flatMap(t => [
+    const configTableArns = ['organization_nfe_configs', 'organization_cte_configs', 'organization_mdfe_configs', 'organization_nfse_configs'].flatMap(t => [
       `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`,
       `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/*`,
     ])
