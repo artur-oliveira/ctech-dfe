@@ -6,6 +6,22 @@
 // internal/soap — dfe.Call desvia para cá antes de montar um cliente SOAP.
 package nfse
 
+import "gopkg.aoctech.app/dfe/go-dfe/internal/constants"
+
+// Espelho exportado dos nomes de serviço NFS-e. Consumidores fora do módulo
+// (a api monta dfe.Request.Service) não podem importar internal/constants;
+// aliasar em vez de redigitar garante que os dois lados nunca divirjam.
+const (
+	ServiceRecepcao             = constants.ServiceNFSeRecepcao
+	ServiceConsulta             = constants.ServiceNFSeConsulta
+	ServiceConsultaDPS          = constants.ServiceNFSeConsultaDPS
+	ServiceEvento               = constants.ServiceNFSeEvento
+	ServiceConsultaEvento       = constants.ServiceNFSeConsultaEvento
+	ServiceDistribuicao         = constants.ServiceNFSeDistribuicao
+	ServiceDANFSE               = constants.ServiceNFSeDANFSE
+	ServiceParametrosMunicipais = constants.ServiceNFSeParametrosMunicipais
+)
+
 // Namespace e versão do leiaute nacional
 // (tmp/nfse-esquemas_xsd-v1-01-20260209/Schemas/1.01/DPS_v1.01.xsd).
 const (

@@ -151,8 +151,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	totalNFe := totalProducts.Sub(totalDiscount).RoundBank(2)
 	var vTroco *string
 	if troco := totalPaid.Sub(totalNFe); troco.GreaterThan(decimal.Zero) {
-		t := q2(troco.RoundBank(2))
-		vTroco = &t
+		vTroco = new(q2(troco.RoundBank(2)))
 	}
 
 	enviNFe := BuildEnviNFe(

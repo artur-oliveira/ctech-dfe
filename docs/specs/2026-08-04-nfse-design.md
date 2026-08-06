@@ -107,7 +107,7 @@ Catálogo de serviços — análogo direto a `organization_products`.
 | `cnae` | S | CNAE (usado por ABRASF) — opcional |
 | `unit` | S | Unidade |
 | `value` | S | Valor unitário, decimal string |
-| `iss` | M | `{trib_issqn, aliquota, tp_ret_issqn, tp_imunidade, exig_susp{tp, n_processo}, bm{tp, n_ben, vl_red}, c_pais_resultado}` |
+| `iss` | M | `{trib_issqn, tax_rate, tp_ret_issqn, tp_imunidade, exig_susp{tp, n_processo}, bm{tp, n_ben, vl_red}, c_pais_resultado}` |
 | `federal` | M | `{cst_pis_cofins, aliq_pis, aliq_cofins, tp_ret_pis_cofins, v_ret_cp, v_ret_irrf, v_ret_csll}` |
 | `ibs_cbs` | M | `{c_ind_op (Anexo C), cst, c_class_trib, ind_dest, tp_oper, fin_nfse}` — defaults do serviço |
 | `tot_trib` | M | `{ind_tot_trib, p_tot_trib_sn, v_tot_trib{...}, p_tot_trib{...}}` — Lei da Transparência |
@@ -161,7 +161,7 @@ NF-e. Tabelas separadas obrigariam o usuário a manter o mesmo cliente cadastrad
 | `c_loc_emi` | S | Código IBGE do município emissor (7 dígitos) |
 | `serie` | S | Série da DPS/RPS (até 5 chars) |
 | `prod_current_number` / `hom_current_number` | N | Último `nDPS`/número de RPS emitido por ambiente — reservado por `IncrementNumber` |
-| `abrasf` | M | `{endpoint_url, wsdl_version, codigo_municipio, envio_sincrono}` — só quando `provider=abrasf204` |
+| `abrasf` | M | `{endpoint_url, wsdl_version, municipality_code, synchronous}` — só quando `provider=abrasf204` |
 | `certificate_sk` | S | Certificado usado na transmissão (default: o da org) |
 | `created_at` / `updated_at` | S | ISO-8601 UTC |
 
@@ -426,7 +426,7 @@ GET    /v1.0/nfse/distributions             Documentos recebidos via ADN (NSU)
 
 1. Carrega org, config NFS-e e certificado.
 2. Resolve serviços do catálogo (`resolveServices`, análogo a `resolveProducts`) — o body pode
-   referenciar `service_sk` e sobrescrever valor/alíquota por item.
+   referenciar `service_id` e sobrescrever valor/alíquota por item.
 3. Resolve tomador/intermediário do cadastro de pessoas, ou aceita inline.
 4. Calcula `id_dps` determinístico.
 5. Um `transact_write`: reserva `{env}_current_number` em `organization_nfse_configs` + cria item em `nfses` +

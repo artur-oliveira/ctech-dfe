@@ -20,6 +20,16 @@ const (
 	SefazEnvHom  = "homologacao"
 )
 
+// EnvToPrefix converts the environment code (1=produção, 2=homologação) to the
+// prefix used by every per-environment config field (`{prefix}_current_number`,
+// `{prefix}_nsu`, …) and by the document PK (`{prefix}#{org_pk}`).
+func EnvToPrefix(environment int) string {
+	if environment == 1 {
+		return EnvProd
+	}
+	return EnvHom
+}
+
 // Fiscal document model codes (campo "mod" da chave de acesso).
 const (
 	ModelMDFe = "58"

@@ -172,8 +172,7 @@ func callNFSe(ctx context.Context, req Request, httpClient *http.Client,
 
 	result, err := nfse.Dispatch(ctx, provider, req.Service, req.Body)
 	if err != nil {
-		var fe *nfse.FiscalError
-		if errors.As(err, &fe) {
+		if fe, ok := errors.AsType[*nfse.FiscalError](err); ok {
 			return problemResponse(fe.Status, constants.ErrCodeSOAPRequest, fe.Error())
 		}
 		return problemResponse(400, constants.ErrCodeValidation, err.Error())

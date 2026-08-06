@@ -51,7 +51,7 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 		Ambiente: in.Environment, VerAplic: appVersion,
 		TpEmit: in.Body.TpEmit, MotivoEmisTI: in.Body.MotivoEmisTI,
 		ChNFSeRej:   in.Body.ChNFSeRej,
-		Competencia: in.Body.Competencia,
+		Competencia: in.Body.Competence,
 		Serie:       in.Serie, Numero: in.Numero,
 		CLocEmi:       cLocEmi,
 		Prestador:     prest,
@@ -66,13 +66,13 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 	// não recebe a config, então o valor é aplicado aqui.
 	doc.Servico.LocPrest.CLocPrestacao = cLocEmi
 
-	if in.Body.SubstituiChave != nil {
+	if in.Body.SubstitutesAccessKey != nil {
 		motivo := ""
-		if in.Body.SubstituiMotivo != nil {
-			motivo = *in.Body.SubstituiMotivo
+		if in.Body.SubstitutesReason != nil {
+			motivo = *in.Body.SubstitutesReason
 		}
 		doc.Substituicao = &nfse.Substituicao{
-			ChSubstda: *in.Body.SubstituiChave, CMotivo: motivo,
+			ChSubstda: *in.Body.SubstitutesAccessKey, CMotivo: motivo,
 		}
 	}
 	return doc, nil
@@ -110,8 +110,7 @@ func buildPessoa(item map[string]types.AttributeValue) *nfse.Pessoa {
 	if item == nil {
 		return nil
 	}
-	p := basePessoa(item, mapAttr(item, "nfse"))
-	return &p
+	return new(basePessoa(item, mapAttr(item, "nfse")))
 }
 
 // basePessoa mapeia identidade + endereço. Os campos de NFS-e (IM, CAEPF,
@@ -205,9 +204,9 @@ func buildValores(service map[string]types.AttributeValue, body NfseEmitBody) nf
 	}
 
 	iss := mapAttr(service, "iss")
-	pAliq := strAttr(iss, "aliquota")
-	if body.Service.Aliquota != nil {
-		pAliq = *body.Service.Aliquota
+	pAliq := strAttr(iss, "tax_rate")
+	if body.Service.TaxRate != nil {
+		pAliq = *body.Service.TaxRate
 	}
 
 	tribMun := nfse.TribMunicipal{

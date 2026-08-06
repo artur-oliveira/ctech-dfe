@@ -766,6 +766,30 @@ the latter also covers `nfses`, `nfse_events`, and `organization_nfse_configs` (
 across the family, write = create/update/delete), mirroring the `dfe:nfes:*`/`dfe:ctes:*`/etc.
 document families.
 
+#### Emissão de NFS-e (`NfseService.Emit`)
+
+`api/internal/services/nfses` mirrors `NfeService.Emit` step by step (load cadastro context → build
+the document → reserve the number and commit document + worker command in ONE `TransactWrite`), with
+three NFS-e-specific differences:
+
+| Difference | Why |
+|---|---|
+| The row's SK is the `id_dps`, not the access key | The 45-char `id_dps` is known before submission; the 50-digit access key only exists in the fisco response. `BuildIDDPS` delegates to `nacional.BuildIDDPS` so the SK and the signed `infDPS/@Id` can never diverge |
+| `access_key` is NOT written on creation | Writing it empty would pollute the `access-key-index` GSI. `GetNfse` accepts either identifier and falls back to the GSI |
+| `WorkerMessage.UF` is empty | NFS-e is municipal: there is no UF autorizadora. The município travels in the command's `Body.document.c_loc_emi` |
+
+`WorkerMessage.SefazService` is `nfse.ServiceRecepcao` and `Body` is exactly what `nfse.Dispatch`
+reads (`{provider, document}` — see the go-dfe section above). `nfse.Service*` are exported aliases
+of `go-dfe/internal/constants`, so the api never retypes a service name.
+
+**Field naming in NFS-e bodies:** JSON keys are English like the rest of the API
+(`competence`, `provider_person_id`, `customer_id`, `intermediary_id`, `substitutes_access_key`,
+`additional_info`, `service_id`, `tax_rate`). The exceptions are DPS layout codes kept under their
+normative field name (`tp_emit`, `motivo_emis_ti`, `ch_nfse_rej`, `c_trib_mun`, `c_loc_emi`,
+`trib_issqn`, …) — the same rule NF-e already applies to `tp_nf`/`fin_nfe`/`nat_op`. The neutral
+`nfse.Document` inside `payload` is a separate contract: it mirrors the DPS 1.01 layout element
+names on purpose and is not part of this convention.
+
 #### Vehicles
 
 Organization is always resolved from the `Dfe-Organization-Pk` header, not a path parameter.

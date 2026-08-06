@@ -17,7 +17,7 @@ func attrs(m map[string]string) map[string]types.AttributeValue {
 
 // minimalInput builds a valid documentInput: organização com CNPJ e grupo nfse
 // (op_simp_nac=1), config nacional (c_loc_emi=2211001, serie=1), um item de
-// catálogo (trib_nacional_code=10101, value=1000.00, iss.aliquota=2.00) e um
+// catálogo (trib_nacional_code=10101, value=1000.00, iss.tax_rate=2.00) e um
 // body de emissão do prestador (tp_emit=1) referenciando o catálogo.
 func minimalInput() documentInput {
 	org := map[string]types.AttributeValue{
@@ -53,7 +53,7 @@ func minimalInput() documentInput {
 		"value":              &types.AttributeValueMemberS{Value: "1000.00"},
 		"iss": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
 			"trib_issqn":   &types.AttributeValueMemberN{Value: "1"},
-			"aliquota":     &types.AttributeValueMemberS{Value: "2.00"},
+			"tax_rate":     &types.AttributeValueMemberS{Value: "2.00"},
 			"tp_ret_issqn": &types.AttributeValueMemberN{Value: "1"},
 		}},
 	}
@@ -69,7 +69,7 @@ func minimalInput() documentInput {
 		Body: NfseEmitBody{
 			TpEmit: 1,
 			Service: NfseServiceItem{
-				ServiceSK: "SERVICE_x",
+				ServiceID: "SERVICE_x",
 			},
 		},
 	}

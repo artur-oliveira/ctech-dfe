@@ -164,9 +164,8 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 
 	t.Run("grupo completo é válido", func(t *testing.T) {
 		b := base()
-		im := "987654"
 		b.Nfse = &NfseInfoBody{
-			IM:      &im,
+			IM:      new("987654"),
 			RegTrib: &NfseRegTribBody{OpSimpNac: 3, RegApTribSN: ptrInt(1), RegEspTrib: 0},
 		}
 		if p := validation.Struct(b); p != nil {
@@ -184,8 +183,7 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 
 	t.Run("im não numérica é rejeitada", func(t *testing.T) {
 		b := base()
-		im := "ABC123"
-		b.Nfse = &NfseInfoBody{IM: &im}
+		b.Nfse = &NfseInfoBody{IM: new("ABC123")}
 		if p := validation.Struct(b); p == nil {
 			t.Fatal("im alfanumérica aceita, esperado erro")
 		}
@@ -202,7 +200,7 @@ func TestServiceBody_Validation(t *testing.T) {
 		TribNacionalCode: "010101",
 		Unit:             "UN",
 		Value:            "1500.00",
-		Iss:              ServiceIssBody{TribISSQN: 1, Aliquota: "5.00"},
+		Iss:              ServiceIssBody{TribISSQN: 1, TaxRate: "5.00"},
 	}
 	if p := validation.Struct(valid); p != nil {
 		t.Fatalf("ServiceBody válido rejeitado: %+v", p)

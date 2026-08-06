@@ -1,12 +1,20 @@
 # NFS-e — Fase F2: `go-dfe/nfse` — Provider Nacional — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Entregar em `go-dfe` toda a comunicação com o Sistema Nacional NFS-e — modelo neutro de documento, serialização e assinatura da DPS 1.01 (incluindo IBS/CBS), pedido de registro de evento, consultas, distribuição ADN, DANFSE e parâmetros municipais — acessível pelo mesmo `dfe.Call(ctx, Request)` que hoje serve NF-e/CT-e/MDF-e.
+**Goal:** Entregar em `go-dfe` toda a comunicação com o Sistema Nacional NFS-e — modelo neutro de documento,
+serialização e assinatura da DPS 1.01 (incluindo IBS/CBS), pedido de registro de evento, consultas, distribuição ADN,
+DANFSE e parâmetros municipais — acessível pelo mesmo `dfe.Call(ctx, Request)` que hoje serve NF-e/CT-e/MDF-e.
 
-**Arquitetura:** NFS-e não é SOAP. O caminho `services.Client` (SOAP + `endpoints.Resolve` + `xmlops.BuildXML`) não é reusado; `dfe.Call` ganha um desvio antes dele para `docType == "nfse"`. Dentro de `nfse/`, o modelo neutro `nfse.Document` é serializado por structs `encoding/xml` — a ordem dos campos da struct É a ordem do XSD, o que dispensa a tabela `xsdorder` usada pelos outros doc types. Assinatura, carga de certificado e mTLS são os existentes, sem alteração: `xmlops.Sign` e `certificate.Load`.
+**Arquitetura:** NFS-e não é SOAP. O caminho `services.Client` (SOAP + `endpoints.Resolve` + `xmlops.BuildXML`) não é
+reusado; `dfe.Call` ganha um desvio antes dele para `docType == "nfse"`. Dentro de `nfse/`, o modelo neutro
+`nfse.Document` é serializado por structs `encoding/xml` — a ordem dos campos da struct É a ordem do XSD, o que dispensa
+a tabela `xsdorder` usada pelos outros doc types. Assinatura, carga de certificado e mTLS são os existentes, sem
+alteração: `xmlops.Sign` e `certificate.Load`.
 
-**Tech Stack:** Go 1.26, `encoding/xml`, `compress/gzip`, `encoding/base64`, `net/http`, `crypto/tls`. Zero dependência nova.
+**Tech Stack:** Go 1.26, `encoding/xml`, `compress/gzip`, `encoding/base64`, `net/http`, `crypto/tls`. Zero dependência
+nova.
 
 **Spec:** `docs/specs/2026-08-04-nfse-design.md` §4 inteiro, §3.7 (consome as tabelas da F1), §9 (linhas `go-dfe`).
 
@@ -15,14 +23,19 @@
 ## Global Constraints
 
 - `CGO_ENABLED=0 GOARCH=arm64 go build ./...` limpo e `go test ./...` verde em `go-dfe/` antes de qualquer commit.
-- Zero string mágica: nome de serviço, host, path, código de evento, namespace XML e versão de leiaute são constantes nomeadas em `nfse/constants.go` ou `nfse/nacional/endpoints.go`.
-- `internal/xmlops/signer.go` NÃO é modificado. NFS-e usa `xmlops.Sign` como está (enveloped, RSA-SHA1, digest SHA-1, C14N 1.0).
+- Zero string mágica: nome de serviço, host, path, código de evento, namespace XML e versão de leiaute são constantes
+  nomeadas em `nfse/constants.go` ou `nfse/nacional/endpoints.go`.
+- `internal/xmlops/signer.go` NÃO é modificado. NFS-e usa `xmlops.Sign` como está (enveloped, RSA-SHA1, digest SHA-1,
+  C14N 1.0).
 - `internal/certificate/manager.go` NÃO é modificado, incluindo `InsecureSkipVerify: true`, que é deliberado.
 - Erros do provider carregam código e descrição devolvidos pelo fisco. Nunca engolir mensagem de rejeição.
-- Campo do modelo neutro sem equivalente no destino faz o adapter **falhar explicitamente** nomeando o campo — nunca descartar em silêncio (regra da spec §4.3, valerá para ABRASF na F5; o nacional cobre tudo).
-- Nenhum commit leva certificado PFX, credencial AWS, CNPJ real ou dado de cliente real. CNPJs em teste são fictícios com DV válido.
+- Campo do modelo neutro sem equivalente no destino faz o adapter **falhar explicitamente** nomeando o campo — nunca
+  descartar em silêncio (regra da spec §4.3, valerá para ABRASF na F5; o nacional cobre tudo).
+- Nenhum commit leva certificado PFX, credencial AWS, CNPJ real ou dado de cliente real. CNPJs em teste são fictícios
+  com DV válido.
 - Nenhum commit leva trailer `Co-Authored-By: Claude`.
-- Toda mudança de comportamento atualiza `DOCS.md` (seção go-dfe) e, se criar restrição durável, `CONDUCT.md` — no MESMO commit.
+- Toda mudança de comportamento atualiza `DOCS.md` (seção go-dfe) e, se criar restrição durável, `CONDUCT.md` — no MESMO
+  commit.
 - Commits em Conventional Commit, sem emoji.
 
 ## Correção de spec que esta fase carrega
@@ -42,32 +55,32 @@ A tabela de endpoints da Task 2 segue a fonte primária. A Task 9 corrige a spec
 
 ## Estrutura de arquivos
 
-| Arquivo | Responsabilidade | Ação |
-|---|---|---|
-| `go-dfe/internal/constants/constants.go` | `DocTypeNFSE` + nomes de serviço NFS-e | Modificar |
-| `go-dfe/nfse/document.go` | Modelo neutro `Document` e sub-structs | Criar |
-| `go-dfe/nfse/document_test.go` | Round-trip JSON do modelo neutro | Criar |
-| `go-dfe/nfse/result.go` | `Result`, `EventResult`, `Message`, `DistributionItem` | Criar |
-| `go-dfe/nfse/provider.go` | Interface `Provider` + `Decode`/dispatch por serviço | Criar |
-| `go-dfe/nfse/errors.go` | `FieldNotSupportedError`, `FiscalError` | Criar |
-| `go-dfe/nfse/constants.go` | Serviços, tipos de evento, namespace, versões | Criar |
-| `go-dfe/nfse/nacional/endpoints.go` | Hosts e paths por ambiente | Criar |
-| `go-dfe/nfse/nacional/endpoints_test.go` | Resolução de URL | Criar |
-| `go-dfe/nfse/nacional/dps.go` | Structs XML do DPS 1.01 + conversão do modelo neutro | Criar |
-| `go-dfe/nfse/nacional/dps_ibscbs.go` | Grupo `IBSCBS` (`TCRTCInfoIBSCBS`) | Criar |
-| `go-dfe/nfse/nacional/dps_test.go` | Ordem de elementos, campos opcionais, `Id` | Criar |
-| `go-dfe/nfse/nacional/evento.go` | `pedRegEvento` + tipos `TE*` | Criar |
-| `go-dfe/nfse/nacional/evento_test.go` | Serialização por tipo de evento | Criar |
-| `go-dfe/nfse/nacional/transport.go` | gzip+base64, HTTP mTLS, envelopes JSON | Criar |
-| `go-dfe/nfse/nacional/transport_test.go` | `httptest` — sucesso, erro fiscal, retry | Criar |
-| `go-dfe/nfse/nacional/provider.go` | `Nacional` implementando `Provider` | Criar |
-| `go-dfe/nfse/nacional/provider_test.go` | Emissão/evento/consulta ponta a ponta com `httptest` | Criar |
-| `go-dfe/nfse/nacional/adn.go` | Distribuição NSU, DANFSE, parâmetros municipais | Criar |
-| `go-dfe/nfse/nacional/adn_test.go` | Parsing das respostas do ADN | Criar |
-| `go-dfe/nfse/testdata/*.xml` | XMLs golden | Criar |
-| `go-dfe/dfe.go` | Desvio `docType == nfse` + `implemented` | Modificar |
-| `go-dfe/dfe_test.go` | `Implements` para NFS-e | Modificar |
-| `DOCS.md`, `CONDUCT.md`, `docs/specs/2026-08-04-nfse-design.md` | Documentação | Modificar |
+| Arquivo                                                         | Responsabilidade                                       | Ação      |
+|-----------------------------------------------------------------|--------------------------------------------------------|-----------|
+| `go-dfe/internal/constants/constants.go`                        | `DocTypeNFSE` + nomes de serviço NFS-e                 | Modificar |
+| `go-dfe/nfse/document.go`                                       | Modelo neutro `Document` e sub-structs                 | Criar     |
+| `go-dfe/nfse/document_test.go`                                  | Round-trip JSON do modelo neutro                       | Criar     |
+| `go-dfe/nfse/result.go`                                         | `Result`, `EventResult`, `Message`, `DistributionItem` | Criar     |
+| `go-dfe/nfse/provider.go`                                       | Interface `Provider` + `Decode`/dispatch por serviço   | Criar     |
+| `go-dfe/nfse/errors.go`                                         | `FieldNotSupportedError`, `FiscalError`                | Criar     |
+| `go-dfe/nfse/constants.go`                                      | Serviços, tipos de evento, namespace, versões          | Criar     |
+| `go-dfe/nfse/nacional/endpoints.go`                             | Hosts e paths por ambiente                             | Criar     |
+| `go-dfe/nfse/nacional/endpoints_test.go`                        | Resolução de URL                                       | Criar     |
+| `go-dfe/nfse/nacional/dps.go`                                   | Structs XML do DPS 1.01 + conversão do modelo neutro   | Criar     |
+| `go-dfe/nfse/nacional/dps_ibscbs.go`                            | Grupo `IBSCBS` (`TCRTCInfoIBSCBS`)                     | Criar     |
+| `go-dfe/nfse/nacional/dps_test.go`                              | Ordem de elementos, campos opcionais, `Id`             | Criar     |
+| `go-dfe/nfse/nacional/evento.go`                                | `pedRegEvento` + tipos `TE*`                           | Criar     |
+| `go-dfe/nfse/nacional/evento_test.go`                           | Serialização por tipo de evento                        | Criar     |
+| `go-dfe/nfse/nacional/transport.go`                             | gzip+base64, HTTP mTLS, envelopes JSON                 | Criar     |
+| `go-dfe/nfse/nacional/transport_test.go`                        | `httptest` — sucesso, erro fiscal, retry               | Criar     |
+| `go-dfe/nfse/nacional/provider.go`                              | `Nacional` implementando `Provider`                    | Criar     |
+| `go-dfe/nfse/nacional/provider_test.go`                         | Emissão/evento/consulta ponta a ponta com `httptest`   | Criar     |
+| `go-dfe/nfse/nacional/adn.go`                                   | Distribuição NSU, DANFSE, parâmetros municipais        | Criar     |
+| `go-dfe/nfse/nacional/adn_test.go`                              | Parsing das respostas do ADN                           | Criar     |
+| `go-dfe/nfse/testdata/*.xml`                                    | XMLs golden                                            | Criar     |
+| `go-dfe/dfe.go`                                                 | Desvio `docType == nfse` + `implemented`               | Modificar |
+| `go-dfe/dfe_test.go`                                            | `Implements` para NFS-e                                | Modificar |
+| `DOCS.md`, `CONDUCT.md`, `docs/specs/2026-08-04-nfse-design.md` | Documentação                                           | Modificar |
 
 ---
 
@@ -76,26 +89,35 @@ A tabela de endpoints da Task 2 segue a fonte primária. A Task 9 corrige a spec
 Primeira porque tudo depende dos tipos. Nada de rede aqui.
 
 **Files:**
-- Create: `go-dfe/nfse/constants.go`, `go-dfe/nfse/document.go`, `go-dfe/nfse/result.go`, `go-dfe/nfse/errors.go`, `go-dfe/nfse/provider.go`
+
+- Create: `go-dfe/nfse/constants.go`, `go-dfe/nfse/document.go`, `go-dfe/nfse/result.go`, `go-dfe/nfse/errors.go`,
+  `go-dfe/nfse/provider.go`
 - Test: `go-dfe/nfse/document_test.go`
 - Modify: `go-dfe/internal/constants/constants.go`
 
 **Interfaces:**
-- Consumes: `gopkg.aoctech.app/dfe/go-dfe/nfse/tables` (F1) — só nos testes desta task, para provar que um `cTribNac` inválido é rejeitado antes de virar XML.
-- Produces:
-  - `nfse.Document` e sub-structs (abaixo), todos com tags `json:"..."` — a `api` monta esse JSON em `dfe.Request.Body["document"]`.
-  - `nfse.DecodeDocument(body map[string]any) (Document, error)`
-  - `nfse.Provider` interface
-  - `nfse.Result{ChaveAcesso, IDDPS, NFSeXML, DPSXML, EventoXML, Ambiente, VersaoAplicativo, DataHoraProcessamento string; Alertas, Erros []Message}`
-  - `nfse.Message{Codigo, Descricao, Complemento string}`
-  - `nfse.EventRequest{ChaveAcesso, TipoEvento string; NSeqEvento int; CNPJAutor, CPFAutor string; DhEvento time.Time; Motivo *EventMotivo; ChSubstituta string; CPFAgTrib string; IDEvManifRej string; TpAmb int; VerAplic string}`
-  - `nfse.EventMotivo{Codigo, Descricao string}`
-  - `nfse.EventFilter{ChaveAcesso, TipoEvento string; NSeqEvento int}`
-  - `nfse.DistributionItem{NSU int64; ChaveAcesso, TipoDocumento, TipoEvento, XML, DataHoraGeracao string}`
-  - `nfse.FieldNotSupportedError{Provider, Field string}` e `nfse.FiscalError{Status int; Messages []Message}`
-  - constantes de serviço em `internal/constants`
 
-**Contexto para quem implementa:** o modelo neutro é moldado no DPS 1.01, o leiaute mais rico (spec §4.2). A ordem dos campos das structs de `document.go` é irrelevante — quem serializa é `nacional/dps.go`. O que importa aqui é cobrir todos os grupos.
+- Consumes: `gopkg.aoctech.app/dfe/go-dfe/nfse/tables` (F1) — só nos testes desta task, para provar que um `cTribNac`
+  inválido é rejeitado antes de virar XML.
+- Produces:
+    - `nfse.Document` e sub-structs (abaixo), todos com tags `json:"..."` — a `api` monta esse JSON em
+      `dfe.Request.Body["document"]`.
+    - `nfse.DecodeDocument(body map[string]any) (Document, error)`
+    - `nfse.Provider` interface
+    -
+    `nfse.Result{ChaveAcesso, IDDPS, NFSeXML, DPSXML, EventoXML, Ambiente, VersaoAplicativo, DataHoraProcessamento string; Alertas, Erros []Message}`
+    - `nfse.Message{Codigo, Descricao, Complemento string}`
+    -
+    `nfse.EventRequest{ChaveAcesso, TipoEvento string; NSeqEvento int; CNPJAutor, CPFAutor string; DhEvento time.Time; Motivo *EventMotivo; ChSubstituta string; CPFAgTrib string; IDEvManifRej string; TpAmb int; VerAplic string}`
+    - `nfse.EventMotivo{Codigo, Descricao string}`
+    - `nfse.EventFilter{ChaveAcesso, TipoEvento string; NSeqEvento int}`
+    - `nfse.DistributionItem{NSU int64; ChaveAcesso, TipoDocumento, TipoEvento, XML, DataHoraGeracao string}`
+    - `nfse.FieldNotSupportedError{Provider, Field string}` e `nfse.FiscalError{Status int; Messages []Message}`
+    - constantes de serviço em `internal/constants`
+
+**Contexto para quem implementa:** o modelo neutro é moldado no DPS 1.01, o leiaute mais rico (spec §4.2). A ordem dos
+campos das structs de `document.go` é irrelevante — quem serializa é `nacional/dps.go`. O que importa aqui é cobrir
+todos os grupos.
 
 Referência exata do leiaute (`tmp/nfse-esquemas_xsd-v1-01-20260209/Schemas/1.01/tiposComplexos_v1.01.xsd`):
 
@@ -283,7 +305,8 @@ func (e *FiscalError) Error() string {
 
 - [ ] **Step 5: Escrever `document.go`**
 
-Modelo neutro completo. Todos os campos monetários e de alíquota são `string` decimal — nunca `float64`, para não introduzir erro de arredondamento em valor fiscal.
+Modelo neutro completo. Todos os campos monetários e de alíquota são `string` decimal — nunca `float64`, para não
+introduzir erro de arredondamento em valor fiscal.
 
 ```go
 package nfse
@@ -716,37 +739,46 @@ git commit -m "feat(nfse): modelo neutro, constantes e erros da camada NFS-e"
 ### Task 2: Tabela de endpoints do ambiente nacional
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/endpoints.go`
 - Test: `go-dfe/nfse/nacional/endpoints_test.go`
 
 **Interfaces:**
+
 - Consumes: `constants.EnvironmentProd` / `constants.EnvironmentHom` de `go-dfe/internal/constants`.
 - Produces:
-  - `nacional.ResolveBase(system, environment string) (string, error)`
-  - constantes `nacional.SystemSefin`, `SystemADN`, `SystemDANFSE`, `SystemParametros`
-  - constantes de path: `PathNFSe`, `PathNFSeByKey`, `PathDPS`, `PathEventos`, `PathEventoEspecifico`, `PathDistribuicaoNSU`, `PathEventosADN`, `PathDANFSE`, `PathParamAliquota`, `PathParamConvenio`, `PathParamBeneficio`, `PathParamRegimesEspeciais`, `PathParamRetencoes`
+    - `nacional.ResolveBase(system, environment string) (string, error)`
+    - constantes `nacional.SystemSefin`, `SystemADN`, `SystemDANFSE`, `SystemParametros`
+    - constantes de path: `PathNFSe`, `PathNFSeByKey`, `PathDPS`, `PathEventos`, `PathEventoEspecifico`,
+      `PathDistribuicaoNSU`, `PathEventosADN`, `PathDANFSE`, `PathParamAliquota`, `PathParamConvenio`,
+      `PathParamBeneficio`, `PathParamRegimesEspeciais`, `PathParamRetencoes`
 
-**Contexto:** hosts e paths saem de `tmp/apis-prod-restrita-e-producao.txt` (hosts) e dos Swaggers (`tmp/nfse-sefin.json`, `tmp/nfse-adn-contribuintes.json`, `tmp/nfse-danfse.json`, `tmp/nfse-parametros-municipais.json`). Rotas confirmadas:
+**Contexto:** hosts e paths saem de `tmp/apis-prod-restrita-e-producao.txt` (hosts) e dos Swaggers (
+`tmp/nfse-sefin.json`, `tmp/nfse-adn-contribuintes.json`, `tmp/nfse-danfse.json`,
+`tmp/nfse-parametros-municipais.json`). Rotas confirmadas:
 
-| Sistema | Rota | Método |
-|---|---|---|
-| Sefin | `/nfse` | POST |
-| Sefin | `/nfse/{chaveAcesso}` | GET |
-| Sefin | `/dps/{id}` | GET, HEAD |
-| Sefin | `/nfse/{chaveAcesso}/eventos` | POST |
-| Sefin | `/nfse/{chaveAcesso}/eventos/{tipoEvento}/{numSeqEvento}` | GET |
-| ADN contribuintes | `/DFe/{NSU}?cnpjConsulta=&lote=` | GET |
-| ADN contribuintes | `/NFSe/{ChaveAcesso}/Eventos` | GET |
-| DANFSE | `/{chaveAcesso}` | GET |
-| Parametrização | `/{codigoMunicipio}/{codigoServico}/{competencia}/aliquota` | GET |
-| Parametrização | `/{codigoMunicipio}/convenio` | GET |
-| Parametrização | `/{codigoMunicipio}/{numeroBeneficio}/{competencia}/beneficio` | GET |
-| Parametrização | `/{codigoMunicipio}/{codigoServico}/{competencia}/regimes_especiais` | GET |
-| Parametrização | `/{codigoMunicipio}/{competencia}/retencoes` | GET |
+| Sistema           | Rota                                                                 | Método    |
+|-------------------|----------------------------------------------------------------------|-----------|
+| Sefin             | `/nfse`                                                              | POST      |
+| Sefin             | `/nfse/{chaveAcesso}`                                                | GET       |
+| Sefin             | `/dps/{id}`                                                          | GET, HEAD |
+| Sefin             | `/nfse/{chaveAcesso}/eventos`                                        | POST      |
+| Sefin             | `/nfse/{chaveAcesso}/eventos/{tipoEvento}/{numSeqEvento}`            | GET       |
+| ADN contribuintes | `/DFe/{NSU}?cnpjConsulta=&lote=`                                     | GET       |
+| ADN contribuintes | `/NFSe/{ChaveAcesso}/Eventos`                                        | GET       |
+| DANFSE            | `/{chaveAcesso}`                                                     | GET       |
+| Parametrização    | `/{codigoMunicipio}/{codigoServico}/{competencia}/aliquota`          | GET       |
+| Parametrização    | `/{codigoMunicipio}/convenio`                                        | GET       |
+| Parametrização    | `/{codigoMunicipio}/{numeroBeneficio}/{competencia}/beneficio`       | GET       |
+| Parametrização    | `/{codigoMunicipio}/{codigoServico}/{competencia}/regimes_especiais` | GET       |
+| Parametrização    | `/{codigoMunicipio}/{competencia}/retencoes`                         | GET       |
 
-Duas rotas do Swagger do Sefin retornam 501 lá e têm o serviço real em outro host: `GET /DANFSe` e `GET /ParametrosMunicipais`. Por isso `SystemDANFSE` e `SystemParametros` são sistemas próprios, não paths do Sefin.
+Duas rotas do Swagger do Sefin retornam 501 lá e têm o serviço real em outro host: `GET /DANFSe` e
+`GET /ParametrosMunicipais`. Por isso `SystemDANFSE` e `SystemParametros` são sistemas próprios, não paths do Sefin.
 
-O Swagger do Sefin **não** expõe listagem de todos os eventos de uma chave — só o evento específico por `{tipoEvento}/{numSeqEvento}`. A listagem completa é do ADN (`GET /NFSe/{ChaveAcesso}/Eventos`). `QueryEvents` roteia por isso (Task 6).
+O Swagger do Sefin **não** expõe listagem de todos os eventos de uma chave — só o evento específico por
+`{tipoEvento}/{numSeqEvento}`. A listagem completa é do ADN (`GET /NFSe/{ChaveAcesso}/Eventos`). `QueryEvents` roteia
+por isso (Task 6).
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -892,15 +924,18 @@ git commit -m "feat(nfse): tabela de endpoints do ambiente nacional"
 O núcleo da fase. Structs `encoding/xml` cuja ordem de campos É a ordem do XSD.
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/dps.go`
 - Test: `go-dfe/nfse/nacional/dps_test.go`
 - Create: `go-dfe/nfse/testdata/dps_minima.xml`
 
 **Interfaces:**
+
 - Consumes: `nfse.Document` e sub-structs (Task 1); `tables.IsValidTribNacional` e `tables.IsValidNBS` (F1).
 - Produces:
-  - `nacional.BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error)` — devolve o XML da DPS **sem assinatura** e o `idDPS` calculado.
-  - `nacional.BuildIDDPS(cLocEmi, tpInsc, inscFederal, serie string, nDPS int) string`
+    - `nacional.BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error)` — devolve o XML da DPS **sem
+      assinatura** e o `idDPS` calculado.
+    - `nacional.BuildIDDPS(cLocEmi, tpInsc, inscFederal, serie string, nDPS int) string`
 
 **Contexto:** a regra do `idDPS` está em `TSIdDPS` (`tiposSimples_v1.01.xsd:47`) — 45 caracteres:
 
@@ -908,13 +943,16 @@ O núcleo da fase. Structs `encoding/xml` cuja ordem de campos É a ordem do XSD
 "DPS" + cLocEmi(7) + tpInsc(1) + inscFederal(14) + serie(5) + nDPS(15)
 ```
 
-`tpInsc` é `1` para CPF e `2` para CNPJ. `inscFederal` tem 14 posições: CPF completa com zeros à esquerda. `serie` completa com zeros à esquerda até 5. `nDPS` completa com zeros à esquerda até 15.
+`tpInsc` é `1` para CPF e `2` para CNPJ. `inscFederal` tem 14 posições: CPF completa com zeros à esquerda. `serie`
+completa com zeros à esquerda até 5. `nDPS` completa com zeros à esquerda até 15.
 
 `infDPS` leva `Id="{idDPS}"` — é esse atributo que a assinatura referencia.
 
-Formato de `dhEmi`: `TSDateTimeUTC`, ou seja `AAAA-MM-DDThh:mm:ss-03:00` ou com `Z`. Use UTC com sufixo `Z`, via `t.UTC().Format(time.RFC3339)`.
+Formato de `dhEmi`: `TSDateTimeUTC`, ou seja `AAAA-MM-DDThh:mm:ss-03:00` ou com `Z`. Use UTC com sufixo `Z`, via
+`t.UTC().Format(time.RFC3339)`.
 
-Elementos vazios não podem aparecer no XML — todos os campos opcionais são ponteiro ou têm `omitempty`. `encoding/xml` **não** respeita `omitempty` em struct aninhada não-ponteiro, por isso todo grupo opcional é ponteiro.
+Elementos vazios não podem aparecer no XML — todos os campos opcionais são ponteiro ou têm `omitempty`. `encoding/xml` *
+*não** respeita `omitempty` em struct aninhada não-ponteiro, por isso todo grupo opcional é ponteiro.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -1620,7 +1658,8 @@ Expected: PASS.
 
 - [ ] **Step 6: Gravar o golden da DPS mínima**
 
-Rode o build de uma DPS mínima e salve a saída formatada em `go-dfe/nfse/testdata/dps_minima.xml`, depois adicione um teste que compara byte-a-byte:
+Rode o build de uma DPS mínima e salve a saída formatada em `go-dfe/nfse/testdata/dps_minima.xml`, depois adicione um
+teste que compara byte-a-byte:
 
 ```go
 func TestBuildDPS_MatchesGolden(t *testing.T) {
@@ -1639,7 +1678,9 @@ func TestBuildDPS_MatchesGolden(t *testing.T) {
 }
 ```
 
-Para gerar o golden na primeira vez: rode o teste, copie a saída de `got` do output da falha para o arquivo, rode de novo e confirme PASS. O golden protege contra reordenação acidental de campos numa refatoração futura — é exatamente o risco que a spec §9 chama de "golden por leiaute".
+Para gerar o golden na primeira vez: rode o teste, copie a saída de `got` do output da falha para o arquivo, rode de
+novo e confirme PASS. O golden protege contra reordenação acidental de campos numa refatoração futura — é exatamente o
+risco que a spec §9 chama de "golden por leiaute".
 
 - [ ] **Step 7: Commit**
 
@@ -1654,12 +1695,15 @@ git commit -m "feat(nfse): serializacao da DPS 1.01 com IBS/CBS"
 ### Task 4: Pedido de registro de evento
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/evento.go`
 - Test: `go-dfe/nfse/nacional/evento_test.go`
 
 **Interfaces:**
+
 - Consumes: `nfse.EventRequest`, `nfse.ContribuinteEvents`, `nfse.Namespace` (Task 1).
-- Produces: `nacional.BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error)` — XML sem assinatura e o `Id` do `infPedReg`.
+- Produces: `nacional.BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error)` — XML sem assinatura e o `Id` do
+  `infPedReg`.
 
 **Contexto:** estrutura confirmada em `tiposEventos_v1.01.xsd`:
 
@@ -1671,20 +1715,21 @@ TCInfPedReg  = tpAmb, verAplic, dhEvento, CNPJAutor|CPFAutor, chNFSe,
 
 Os grupos específicos que o contribuinte emite:
 
-| Elemento | Tipo | Campos |
-|---|---|---|
-| `e101101` | TE101101 | `cMotivo`, `xMotivo` |
-| `e105102` | TE105102 | `cMotivo`, `xMotivo?`, `chSubstituta` |
-| `e101103` | TE101103 | `cMotivo`, `xMotivo` |
-| `e202201` | TE202201 | vazio |
-| `e203202` | TE203202 | vazio |
-| `e204203` | TE204203 | vazio |
-| `e202205` | TE202205 | `cMotivo`, `xMotivo?` |
-| `e203206` | TE203206 | `cMotivo`, `xMotivo?` |
-| `e204207` | TE204207 | `cMotivo`, `xMotivo?` |
+| Elemento  | Tipo     | Campos                                 |
+|-----------|----------|----------------------------------------|
+| `e101101` | TE101101 | `cMotivo`, `xMotivo`                   |
+| `e105102` | TE105102 | `cMotivo`, `xMotivo?`, `chSubstituta`  |
+| `e101103` | TE101103 | `cMotivo`, `xMotivo`                   |
+| `e202201` | TE202201 | vazio                                  |
+| `e203202` | TE203202 | vazio                                  |
+| `e204203` | TE204203 | vazio                                  |
+| `e202205` | TE202205 | `cMotivo`, `xMotivo?`                  |
+| `e203206` | TE203206 | `cMotivo`, `xMotivo?`                  |
+| `e204207` | TE204207 | `cMotivo`, `xMotivo?`                  |
 | `e205208` | TE205208 | `CPFAgTrib`, `idEvManifRej`, `xMotivo` |
 
-Os tipos `105104`, `105105`, `205204`, `305101`, `305102` e `305103` são privativos do fisco. Emitir um deles é erro — `ContribuinteEvents` é o conjunto fechado.
+Os tipos `105104`, `105105`, `205204`, `305101`, `305102` e `305103` são privativos do fisco. Emitir um deles é erro —
+`ContribuinteEvents` é o conjunto fechado.
 
 O `Id` do `infPedReg` segue `PRE` + chave da NFS-e (50) + tipo do evento (6) + `nSeqEvento` com 3 posições.
 
@@ -1932,27 +1977,38 @@ git commit -m "feat(nfse): pedido de registro de evento do padrao nacional"
 ### Task 5: Transporte — assinatura, gzip/base64 e HTTP mTLS
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/transport.go`
 - Test: `go-dfe/nfse/nacional/transport_test.go`
 
 **Interfaces:**
-- Consumes: `xmlops.Sign(xmlDoc []byte, idXPath string, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error)` de `go-dfe/internal/xmlops`; `nfse.FiscalError`, `nfse.Message`.
+
+- Consumes: `xmlops.Sign(xmlDoc []byte, idXPath string, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error)` de
+  `go-dfe/internal/xmlops`; `nfse.FiscalError`, `nfse.Message`.
 - Produces:
-  - `nacional.SignDPS(xmlBytes []byte, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error)`
-  - `nacional.SignPedRegEvento(...)` — mesma assinatura
-  - `nacional.GzipB64(raw []byte) (string, error)` e `nacional.UngzipB64(s string) ([]byte, error)`
-  - `nacional.httpDo(ctx, client *http.Client, method, url string, body any, out any) (int, error)`
+    - `nacional.SignDPS(xmlBytes []byte, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error)`
+    - `nacional.SignPedRegEvento(...)` — mesma assinatura
+    - `nacional.GzipB64(raw []byte) (string, error)` e `nacional.UngzipB64(s string) ([]byte, error)`
+    - `nacional.httpDo(ctx, client *http.Client, method, url string, body any, out any) (int, error)`
 
 **Contexto:**
 
-- `xmlops.Sign` recebe o xpath no formato Clark (`.//{namespace}localName`) — o mesmo formato que `services.Client.Call` monta hoje (`client.go`, ramo `RequiresSignature`). Para NFS-e: `.//{http://www.sped.fazenda.gov.br/nfse}infDPS` e `.//{http://www.sped.fazenda.gov.br/nfse}infPedReg`.
+- `xmlops.Sign` recebe o xpath no formato Clark (`.//{namespace}localName`) — o mesmo formato que `services.Client.Call`
+  monta hoje (`client.go`, ramo `RequiresSignature`). Para NFS-e: `.//{http://www.sped.fazenda.gov.br/nfse}infDPS` e
+  `.//{http://www.sped.fazenda.gov.br/nfse}infPedReg`.
 - Envelopes JSON confirmados em `tmp/nfse-sefin.json`:
-  - `POST /nfse` recebe `{"dpsXmlGZipB64": "..."}`; 201 devolve `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDps, chaveAcesso, nfseXmlGZipB64, alertas}`; 400 devolve `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDPS, erros}` — repare que a chave do id muda de `idDps` para `idDPS` no caminho de erro.
-  - `POST /nfse/{chave}/eventos` recebe `{"pedidoRegistroEventoXmlGZipB64": "..."}`; sucesso devolve `{..., eventoXmlGZipB64}`.
-  - `GET /nfse/{chave}` devolve `{..., chaveAcesso, nfseXmlGZipB64}`.
-  - `GET /dps/{id}` devolve `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDps, chaveAcesso}`.
-  - Erro genérico: `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, erro}` com `erro` sendo `MensagemProcessamento{codigo, descricao, complemento}`.
-- Retry: só 5xx e erro de rede, nunca 4xx — a mesma política de `internal/services/client.go` (`retryableHTTPStatus`). Backoff base de 1s, igual.
+    - `POST /nfse` recebe `{"dpsXmlGZipB64": "..."}`; 201 devolve
+      `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDps, chaveAcesso, nfseXmlGZipB64, alertas}`; 400
+      devolve `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDPS, erros}` — repare que a chave do id muda de
+      `idDps` para `idDPS` no caminho de erro.
+    - `POST /nfse/{chave}/eventos` recebe `{"pedidoRegistroEventoXmlGZipB64": "..."}`; sucesso devolve
+      `{..., eventoXmlGZipB64}`.
+    - `GET /nfse/{chave}` devolve `{..., chaveAcesso, nfseXmlGZipB64}`.
+    - `GET /dps/{id}` devolve `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, idDps, chaveAcesso}`.
+    - Erro genérico: `{tipoAmbiente, versaoAplicativo, dataHoraProcessamento, erro}` com `erro` sendo
+      `MensagemProcessamento{codigo, descricao, complemento}`.
+- Retry: só 5xx e erro de rede, nunca 4xx — a mesma política de `internal/services/client.go` (`retryableHTTPStatus`).
+  Backoff base de 1s, igual.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -2234,19 +2290,26 @@ git commit -m "feat(nfse): transporte REST mTLS com gzip base64 e retry"
 ### Task 6: Provider nacional — emissão, evento e consultas
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/provider.go`
 - Test: `go-dfe/nfse/nacional/provider_test.go`
 
 **Interfaces:**
+
 - Consumes: tudo das Tasks 2 a 5.
 - Produces:
-  - `nacional.Config{Environment string; HTTPClient *http.Client; Cert *x509.Certificate; Key *rsa.PrivateKey; MaxRetries int; CNPJ string}`
-  - `nacional.New(cfg Config) (*Nacional, error)`
-  - `*Nacional` implementando `nfse.Provider`
+    -
+    `nacional.Config{Environment string; HTTPClient *http.Client; Cert *x509.Certificate; Key *rsa.PrivateKey; MaxRetries int; CNPJ string}`
+    - `nacional.New(cfg Config) (*Nacional, error)`
+    - `*Nacional` implementando `nfse.Provider`
 
-**Contexto:** `Emit` faz, em ordem: `BuildDPS` → `SignDPS` → `GzipB64` → `POST /nfse` com `{"dpsXmlGZipB64": ...}` → descompacta `nfseXmlGZipB64` → devolve `Result` com `ChaveAcesso`, `IDDPS`, `NFSeXML` e o `DPSXML` assinado (o worker persiste os dois no S3, spec §6).
+**Contexto:** `Emit` faz, em ordem: `BuildDPS` → `SignDPS` → `GzipB64` → `POST /nfse` com `{"dpsXmlGZipB64": ...}` →
+descompacta `nfseXmlGZipB64` → devolve `Result` com `ChaveAcesso`, `IDDPS`, `NFSeXML` e o `DPSXML` assinado (o worker
+persiste os dois no S3, spec §6).
 
-`QueryEvents` tem duas rotas: com `TipoEvento` e `NSeqEvento` preenchidos vai no Sefin (`GET /nfse/{chave}/eventos/{tipo}/{seq}`); sem eles vai no ADN (`GET /NFSe/{chave}/Eventos`), porque o Swagger do Sefin não expõe listagem completa.
+`QueryEvents` tem duas rotas: com `TipoEvento` e `NSeqEvento` preenchidos vai no Sefin (
+`GET /nfse/{chave}/eventos/{tipo}/{seq}`); sem eles vai no ADN (`GET /NFSe/{chave}/Eventos`), porque o Swagger do Sefin
+não expõe listagem completa.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -2646,7 +2709,9 @@ func (n *Nacional) toResult(resp queryResponse) (nfse.Result, error) {
 - [ ] **Step 4: Rodar os testes**
 
 Run: `cd go-dfe && go test ./nfse/... -v`
-Expected: FAIL em `TestNacional_QueryEvents`-adjacentes por `listEventsADN` indefinido — implementado na Task 7. Os demais testes desta task passam. Se preferir manter a suíte verde entre commits, mova o corpo de `QueryEvents` sem-filtro para `return nfse.Result{}, fmt.Errorf("nacional: listagem de eventos exige ADN")` e substitua na Task 7.
+Expected: FAIL em `TestNacional_QueryEvents`-adjacentes por `listEventsADN` indefinido — implementado na Task 7. Os
+demais testes desta task passam. Se preferir manter a suíte verde entre commits, mova o corpo de `QueryEvents`
+sem-filtro para `return nfse.Result{}, fmt.Errorf("nacional: listagem de eventos exige ADN")` e substitua na Task 7.
 
 - [ ] **Step 5: Commit**
 
@@ -2660,19 +2725,22 @@ git commit -m "feat(nfse): provider nacional com emissao, evento e consultas"
 ### Task 7: ADN — distribuição por NSU, DANFSE e parâmetros municipais
 
 **Files:**
+
 - Create: `go-dfe/nfse/nacional/adn.go`
 - Test: `go-dfe/nfse/nacional/adn_test.go`
 
 **Interfaces:**
+
 - Consumes: `httpDo`, `ResolveBase`, paths da Task 2.
 - Produces, em `*Nacional`:
-  - `Distribute(ctx context.Context, nsu int64, cnpjConsulta string, lote bool) (nfse.Result, error)`
-  - `DANFSE(ctx context.Context, chave string) ([]byte, error)`
-  - `MunicipalParameters(ctx context.Context, kind string, args ...string) (nfse.Result, error)`
-  - `listEventsADN(ctx context.Context, chave string) (nfse.Result, error)`
-  - constantes `ParamAliquota`, `ParamConvenio`, `ParamBeneficio`, `ParamRegimesEspeciais`, `ParamRetencoes`
+    - `Distribute(ctx context.Context, nsu int64, cnpjConsulta string, lote bool) (nfse.Result, error)`
+    - `DANFSE(ctx context.Context, chave string) ([]byte, error)`
+    - `MunicipalParameters(ctx context.Context, kind string, args ...string) (nfse.Result, error)`
+    - `listEventsADN(ctx context.Context, chave string) (nfse.Result, error)`
+    - constantes `ParamAliquota`, `ParamConvenio`, `ParamBeneficio`, `ParamRegimesEspeciais`, `ParamRetencoes`
 
-**Contexto:** `GET /DFe/{NSU}` devolve `LoteDistribuicaoNSUResponse` (`tmp/nfse-adn-contribuintes.json`), com **PascalCase** nos campos — diferente do Sefin, que usa camelCase:
+**Contexto:** `GET /DFe/{NSU}` devolve `LoteDistribuicaoNSUResponse` (`tmp/nfse-adn-contribuintes.json`), com *
+*PascalCase** nos campos — diferente do Sefin, que usa camelCase:
 
 ```
 { StatusProcessamento, LoteDFe: [{NSU, ChaveAcesso, TipoDocumento, TipoEvento,
@@ -2680,7 +2748,9 @@ git commit -m "feat(nfse): provider nacional com emissao, evento e consultas"
   VersaoAplicativo, DataHoraProcessamento }
 ```
 
-`StatusProcessamento` é enum: `REJEICAO`, `NENHUM_DOCUMENTO_LOCALIZADO`, `DOCUMENTOS_LOCALIZADOS`. `MensagemProcessamento` do ADN também é PascalCase (`Codigo`, `Descricao`, `Complemento`) — daí a struct própria `adnMessage`, sem reuso de `nfse.Message`, cujas tags são camelCase.
+`StatusProcessamento` é enum: `REJEICAO`, `NENHUM_DOCUMENTO_LOCALIZADO`, `DOCUMENTOS_LOCALIZADOS`.
+`MensagemProcessamento` do ADN também é PascalCase (`Codigo`, `Descricao`, `Complemento`) — daí a struct própria
+`adnMessage`, sem reuso de `nfse.Message`, cujas tags são camelCase.
 
 O DANFSE devolve PDF binário, não JSON.
 
@@ -2773,7 +2843,8 @@ func TestNacional_MunicipalParameters_WrongArity(t *testing.T) {
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `cd go-dfe && go test ./nfse/nacional/ -run 'TestNacional_Distribute|TestNacional_DANFSE|TestNacional_Municipal' -v`
+Run:
+`cd go-dfe && go test ./nfse/nacional/ -run 'TestNacional_Distribute|TestNacional_DANFSE|TestNacional_Municipal' -v`
 Expected: FAIL — `undefined: Distribute`.
 
 - [ ] **Step 3: Escrever `adn.go`**
@@ -2983,17 +3054,25 @@ git commit -m "feat(nfse): distribuicao ADN, DANFSE e parametros municipais"
 ### Task 8: Wiring em `dfe.Call` e `dfe.Implements`
 
 **Files:**
+
 - Modify: `go-dfe/dfe.go`
 - Modify: `go-dfe/dfe_test.go`
 - Create: `go-dfe/nfse/dispatch.go`
 
 **Interfaces:**
+
 - Consumes: `nacional.New`, `nacional.Config`, `nfse.DecodeDocument`, todos os métodos do provider.
-- Produces: `nfse.Dispatch(ctx context.Context, p Provider, service string, body map[string]any) (Result, error)` e `nfse.NewProvider(providerName, environment string, httpClient *http.Client, cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int, cnpj string) (Provider, error)`.
+- Produces: `nfse.Dispatch(ctx context.Context, p Provider, service string, body map[string]any) (Result, error)` e
+  `nfse.NewProvider(providerName, environment string, httpClient *http.Client, cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int, cnpj string) (Provider, error)`.
 
-**Contexto:** `dfe.Call` hoje faz `certificate.Load` e depois `services.NewClient` (SOAP). NFS-e desvia **depois** do `certificate.Load` — o certificado é o mesmo — e **antes** do `services.NewClient`. O contrato externo não muda: `Response.Body` continua sendo JSON string.
+**Contexto:** `dfe.Call` hoje faz `certificate.Load` e depois `services.NewClient` (SOAP). NFS-e desvia **depois** do
+`certificate.Load` — o certificado é o mesmo — e **antes** do `services.NewClient`. O contrato externo não muda:
+`Response.Body` continua sendo JSON string.
 
-Sobre o portão de promoção (`go-dfe/CLAUDE.md`, "dfe.Implements() — o portão de promoção"): a regra de shadow-mode/assinatura byte-idêntica existe para operações que **migram** do py-dfe. NFS-e não existe no py-dfe — não há autoridade anterior contra a qual comparar, então não há shadow-mode a rodar. Isso precisa ficar escrito no comentário do `implemented`, não presumido; a homologação real contra a produção restrita é a F6.
+Sobre o portão de promoção (`go-dfe/CLAUDE.md`, "dfe.Implements() — o portão de promoção"): a regra de
+shadow-mode/assinatura byte-idêntica existe para operações que **migram** do py-dfe. NFS-e não existe no py-dfe — não há
+autoridade anterior contra a qual comparar, então não há shadow-mode a rodar. Isso precisa ficar escrito no comentário
+do `implemented`, não presumido; a homologação real contra a produção restrita é a F6.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -3210,7 +3289,8 @@ func decodeEvent(m map[string]any) (EventRequest, error) {
 }
 ```
 
-Adicione a `document.go` os dois helpers usados acima, ao lado de `DecodeDocument`, para manter a política de campo desconhecido idêntica nos dois caminhos:
+Adicione a `document.go` os dois helpers usados acima, ao lado de `DecodeDocument`, para manter a política de campo
+desconhecido idêntica nos dois caminhos:
 
 ```go
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
@@ -3283,7 +3363,8 @@ func callNFSe(ctx context.Context, req Request, httpClient *http.Client,
 }
 ```
 
-Imports novos em `dfe.go`: `"crypto/rsa"`, `"crypto/x509"`, `"errors"`, `"net/http"`, `"gopkg.aoctech.app/dfe/go-dfe/nfse"`.
+Imports novos em `dfe.go`: `"crypto/rsa"`, `"crypto/x509"`, `"errors"`, `"net/http"`,
+`"gopkg.aoctech.app/dfe/go-dfe/nfse"`.
 
 - [ ] **Step 5: Rodar tudo**
 
@@ -3302,6 +3383,7 @@ git commit -m "feat(nfse): wiring de NFS-e em dfe.Call e dfe.Implements"
 ### Task 9: Fechamento — suíte completa, documentação e correção da spec
 
 **Files:**
+
 - Modify: `DOCS.md`, `CONDUCT.md`, `docs/specs/2026-08-04-nfse-design.md`, `go-dfe/CLAUDE.md`
 
 - [ ] **Step 1: Rodar tudo que a F2 toca**
@@ -3312,7 +3394,8 @@ cd ../api && go build ./... && go test ./...
 cd ../worker && go build ./... && go test ./...
 ```
 
-Expected: tudo verde. `api` e `worker` não mudam nesta fase, mas compartilham o `go.work` — a suíte deles é a rede contra uma quebra de compilação transitiva.
+Expected: tudo verde. `api` e `worker` não mudam nesta fase, mas compartilham o `go.work` — a suíte deles é a rede
+contra uma quebra de compilação transitiva.
 
 - [ ] **Step 2: Corrigir a tabela de ambientes da spec**
 
@@ -3330,19 +3413,28 @@ E acrescente logo abaixo da tabela:
 
 - [ ] **Step 3: Documentar em `DOCS.md`**
 
-Na seção do go-dfe, acrescente uma subseção "Camada NFS-e" com: os oito serviços e o método de provider que cada um dispara; o formato do `Body` de `dfe.Request` para NFS-e (chaves `provider`, `document`, `event`, `chave_acesso`, `id_dps`, `nsu`, `param_kind`, `param_args`); a nota de que NFS-e não passa por `internal/soap` nem `internal/services`; e a tabela de bases por ambiente.
+Na seção do go-dfe, acrescente uma subseção "Camada NFS-e" com: os oito serviços e o método de provider que cada um
+dispara; o formato do `Body` de `dfe.Request` para NFS-e (chaves `provider`, `document`, `event`, `chave_acesso`,
+`id_dps`, `nsu`, `param_kind`, `param_args`); a nota de que NFS-e não passa por `internal/soap` nem `internal/services`;
+e a tabela de bases por ambiente.
 
 - [ ] **Step 4: Registrar as decisões duráveis em `CONDUCT.md`**
 
 Três entradas:
 
-1. **NFS-e não tem portão de shadow-mode.** py-dfe nunca implementou NFS-e; não há autoridade anterior para comparar. O portão aplicável é homologação em produção restrita (F6). Isso é uma exceção documentada à regra de promoção de `dfe.Implements`, não um descuido.
-2. **A ordem dos campos das structs em `nfse/nacional/dps.go` é normativa.** Ela É a ordem do XSD. Reordenar campo de struct por estética quebra a validação no Sefin. O teste golden `TestBuildDPS_MatchesGolden` é o guarda.
-3. **Campo não suportado falha explicitamente.** `FieldNotSupportedError` nomeia o campo. Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros).
+1. **NFS-e não tem portão de shadow-mode.** py-dfe nunca implementou NFS-e; não há autoridade anterior para comparar. O
+   portão aplicável é homologação em produção restrita (F6). Isso é uma exceção documentada à regra de promoção de
+   `dfe.Implements`, não um descuido.
+2. **A ordem dos campos das structs em `nfse/nacional/dps.go` é normativa.** Ela É a ordem do XSD. Reordenar campo de
+   struct por estética quebra a validação no Sefin. O teste golden `TestBuildDPS_MatchesGolden` é o guarda.
+3. **Campo não suportado falha explicitamente.** `FieldNotSupportedError` nomeia o campo. Nenhum adapter de NFS-e pode
+   descartar dado em silêncio — vale para o ABRASF da F5 e para as capacidades opcionais do dispatch (distribuição,
+   DANFSE, parâmetros).
 
 - [ ] **Step 5: Atualizar `go-dfe/CLAUDE.md`**
 
-Na "Directory Structure", acrescente o ramo `nfse/`. Na seção "dfe.Implements() — o portão de promoção", acrescente o parágrafo de exceção do item 1 acima.
+Na "Directory Structure", acrescente o ramo `nfse/`. Na seção "dfe.Implements() — o portão de promoção", acrescente o
+parágrafo de exceção do item 1 acima.
 
 - [ ] **Step 6: Marcar a F2 como concluída na spec**
 
@@ -3359,20 +3451,21 @@ git commit -m "docs(nfse): documenta a camada NFS-e do go-dfe e corrige a base d
 
 ## Impacto entre projetos
 
-| Projeto | Impacto nesta fase |
-|---|---|
-| `go-dfe` | Toda a mudança. Pacote `nfse/` novo, desvio em `dfe.Call`, `implemented` estendido |
-| `api` | Nenhuma mudança de código. Passa a poder chamar `dfe.Call` com `doc_type=nfse` — consumido na F3 |
-| `worker` | Idem |
-| `py-dfe` | Nenhum. NFS-e nunca teve caminho py-dfe e não terá |
-| `cdk` | Nenhum. Sem função Lambda nova; go-dfe é biblioteca linkada |
-| `ui` | Nenhum |
+| Projeto  | Impacto nesta fase                                                                               |
+|----------|--------------------------------------------------------------------------------------------------|
+| `go-dfe` | Toda a mudança. Pacote `nfse/` novo, desvio em `dfe.Call`, `implemented` estendido               |
+| `api`    | Nenhuma mudança de código. Passa a poder chamar `dfe.Call` com `doc_type=nfse` — consumido na F3 |
+| `worker` | Idem                                                                                             |
+| `py-dfe` | Nenhum. NFS-e nunca teve caminho py-dfe e não terá                                               |
+| `cdk`    | Nenhum. Sem função Lambda nova; go-dfe é biblioteca linkada                                      |
+| `ui`     | Nenhum                                                                                           |
 
 ## O que a F2 deliberadamente NÃO faz
 
 - **Não emite nada de verdade.** Todo teste usa `httptest`. Homologação contra a produção restrita é a F6.
 - **Não implementa ABRASF 2.04.** `NewProvider` devolve erro explícito para `abrasf204`. É a F5.
-- **Não valida contra XSD.** `CGO_ENABLED=0` inviabiliza libxml2 — a mesma limitação já documentada dos demais doc types. As validações estruturais são as de `validateDoc`, e as regras fiscais ficam com o Sefin (spec §11).
+- **Não valida contra XSD.** `CGO_ENABLED=0` inviabiliza libxml2 — a mesma limitação já documentada dos demais doc
+  types. As validações estruturais são as de `validateDoc`, e as regras fiscais ficam com o Sefin (spec §11).
 - **Não persiste nada.** `go-dfe` é biblioteca: sem DynamoDB, sem S3, sem SQS. A persistência é da F3.
 - **Não gera DANFSE própria.** `DANFSE` é download do PDF do ADN. Gerador próprio segue fora de escopo (spec §11).
 

@@ -1,27 +1,42 @@
 # NFS-e — Fase F1: Modelo de Dados e Cadastros — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:
+> executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Entregar toda a base de dados e cadastro que a emissão de NFS-e vai consumir — catálogo de serviços, grupo `nfse` em organizações e pessoas, config NFS-e por organização, tabelas DynamoDB e tabelas de referência dos Anexos B e C — sem ainda emitir nenhum documento.
+**Goal:** Entregar toda a base de dados e cadastro que a emissão de NFS-e vai consumir — catálogo de serviços, grupo
+`nfse` em organizações e pessoas, config NFS-e por organização, tabelas DynamoDB e tabelas de referência dos Anexos B e
+C — sem ainda emitir nenhum documento.
 
-**Arquitetura:** Espelha o que já existe. `organization_services` é um clone estrutural de `organization_products` (CRUD genérico + `CRUDRepository` + `CRUDMutationHelper`). `organization_nfse_configs` é um quinto config singleton sobre `FiscalConfigRepository`. A extensão de identidade entra em `PersonObjectBody`, o objeto `person` já compartilhado por `organizations` e `organization_persons` — uma mudança cobre as duas tabelas. As tabelas de referência (código de tributação nacional, NBS, `indOp`) viram um pacote Go exportado em `go-dfe`, consumido pela `api` para validação e depois pela própria `go-dfe` na montagem do XML.
+**Arquitetura:** Espelha o que já existe. `organization_services` é um clone estrutural de `organization_products` (CRUD
+genérico + `CRUDRepository` + `CRUDMutationHelper`). `organization_nfse_configs` é um quinto config singleton sobre
+`FiscalConfigRepository`. A extensão de identidade entra em `PersonObjectBody`, o objeto `person` já compartilhado por
+`organizations` e `organization_persons` — uma mudança cobre as duas tabelas. As tabelas de referência (código de
+tributação nacional, NBS, `indOp`) viram um pacote Go exportado em `go-dfe`, consumido pela `api` para validação e
+depois pela própria `go-dfe` na montagem do XML.
 
-**Tech Stack:** Go 1.26 (Fiber v3, aws-sdk-go-v2, go-playground/validator, uber/fx), AWS CDK v2 TypeScript, DynamoDB, Next.js/TypeScript (só dados de referência nesta fase), Python 3 + openpyxl (apenas para gerar as tabelas, não roda em produção).
+**Tech Stack:** Go 1.26 (Fiber v3, aws-sdk-go-v2, go-playground/validator, uber/fx), AWS CDK v2 TypeScript, DynamoDB,
+Next.js/TypeScript (só dados de referência nesta fase), Python 3 + openpyxl (apenas para gerar as tabelas, não roda em
+produção).
 
 **Spec:** `docs/specs/2026-08-04-nfse-design.md` §3.1, §3.2, §3.3, §3.7, §8.
 
 ## Global Constraints
 
-- Erros de api/worker SEMPRE em RFC 7807, via `problem.BadRequest` / `problem.NotFound` / `problem.InternalServer`. Rotas respondem por `sendProblem(c, err)`. Nunca `fiber.Map`, nunca `fiber.NewError`, nunca erro cru.
-- Separação de camadas rígida: Repository só toca DynamoDB; Service só regra de negócio e cache; Route só parseia, chama UM método de service e responde.
-- Zero string mágica. Todo nome de tabela, chave, prefixo de cache, tag de validação e código fiscal é constante nomeada.
+- Erros de api/worker SEMPRE em RFC 7807, via `problem.BadRequest` / `problem.NotFound` / `problem.InternalServer`.
+  Rotas respondem por `sendProblem(c, err)`. Nunca `fiber.Map`, nunca `fiber.NewError`, nunca erro cru.
+- Separação de camadas rígida: Repository só toca DynamoDB; Service só regra de negócio e cache; Route só parseia, chama
+  UM método de service e responde.
+- Zero string mágica. Todo nome de tabela, chave, prefixo de cache, tag de validação e código fiscal é constante
+  nomeada.
 - DRY: antes de criar qualquer função, `rg` no `internal/`. Duas implementações do mesmo problema devem ser unificadas.
 - Serviços e repositórios são injetados por `go.uber.org/fx`. Nunca instanciar dentro de handler.
 - DynamoDB: `GetItem` > `Query` > `Scan`. Sem scan em produção.
 - `RemovalPolicy.DESTROY` é exclusivo de dev. PITR só em staging/prod.
 - Prefixo de tabela no CDK: `TablePrefix = ${Environment}_dfe` — nomes sempre derivados, nunca literais completos.
-- Testes: `go test ./... -race` na `api/`. Integração roda com build tag `integration`. `npm test` e `cdk synth` na `cdk/`.
-- Nenhum commit pode conter certificado PFX, credencial AWS, segredo JWT, CPF/CNPJ real ou dado de cliente real. CNPJs de teste vêm de `randomCNPJ()`.
+- Testes: `go test ./... -race` na `api/`. Integração roda com build tag `integration`. `npm test` e `cdk synth` na
+  `cdk/`.
+- Nenhum commit pode conter certificado PFX, credencial AWS, segredo JWT, CPF/CNPJ real ou dado de cliente real. CNPJs
+  de teste vêm de `randomCNPJ()`.
 - Nenhum commit leva trailer `Co-Authored-By: Claude` — preferência global do usuário.
 - Toda mudança de comportamento leva a atualização de documentação no MESMO commit.
 - Commits em Conventional Commit, sem emoji.
@@ -30,38 +45,38 @@
 
 ## Estrutura de arquivos
 
-| Arquivo | Responsabilidade | Ação |
-|---|---|---|
-| `cdk/lib/dynamodb-stack.ts` | Definição das 4 tabelas novas + `TableName` | Modificar |
-| `cdk/test/dynamodb-stack.test.ts` | Snapshot/asserções das tabelas novas | Criar |
-| `cdk/lib/worker-stack.ts` | ARNs de config para o distribution-dispatcher | Modificar |
-| `go-dfe/nfse/tables/trib_nacional.go` | Tabela do código de tributação nacional (Anexo B) — gerada | Criar |
-| `go-dfe/nfse/tables/nbs.go` | Tabela NBS 2.0 (Anexo B) — gerada | Criar |
-| `go-dfe/nfse/tables/indop.go` | Tabela `indOp` IBS/CBS (Anexo C) — gerada | Criar |
-| `go-dfe/nfse/tables/lookup.go` | API de consulta das três tabelas | Criar |
-| `go-dfe/nfse/tables/lookup_test.go` | Testes de consulta | Criar |
-| `go-dfe/nfse/tables/gen/generate.py` | Gerador xlsx → Go + JSON | Criar |
-| `ui/src/lib/data/nfse_trib_nacional.ts` | Mesma tabela para o front — gerada | Criar |
-| `ui/src/lib/data/nfse_indop.ts` | Mesma tabela para o front — gerada | Criar |
-| `api/go.mod` | Dependência + replace para `go-dfe` | Modificar |
-| `api/internal/repositories/services.go` | `ServiceRepository` (organization_services) | Criar |
-| `api/internal/repositories/fiscal_configs.go` | `NfseConfigRepository` | Modificar |
-| `api/internal/repositories/audit_logs.go` | Constantes `AuditResourceService`, `AuditResourceNfseConfig` | Modificar |
-| `api/internal/repositories/roles.go` | Recursos RBAC novos | Modificar |
-| `api/internal/middleware/scopes.go` | Famílias de escopo novas | Modificar |
-| `api/internal/services/services.go` | `ServiceService` (catálogo) | Criar |
-| `api/internal/services/fiscal_configs.go` | Base genérica + `NfseConfigService` | Modificar |
-| `api/internal/api/v1/dto.go` | `ServiceBody`, `NfseInfoBody`, `NfseConfigBody`, extensão de `PersonObjectBody` | Modificar |
-| `api/internal/api/v1/services.go` | Rotas `/services` | Criar |
-| `api/internal/api/v1/organizations.go` | Rota `/nfse-config` | Modificar |
-| `api/internal/api/v1/router.go` | Registro das rotas novas | Modificar |
-| `api/internal/app/app.go` | Providers fx novos | Modificar |
-| `api/internal/validation/validators.go` | Tags `tribnac`, `nbs`, `inscmun`, `caepf`, `indop` | Modificar |
-| `api/internal/validation/validation.go` | Mensagens das tags novas | Modificar |
-| `api/tests/integration/setup_test.go` | Bootstrap dos serviços novos | Modificar |
-| `api/tests/integration/services_test.go` | Integração do catálogo | Criar |
-| `api/tests/integration/nfse_configs_test.go` | Integração da config | Criar |
-| `DynamoDB-Tables.md`, `DOCS.md`, `OVERVIEW.md`, `CONDUCT.md` | Documentação | Modificar |
+| Arquivo                                                      | Responsabilidade                                                                | Ação      |
+|--------------------------------------------------------------|---------------------------------------------------------------------------------|-----------|
+| `cdk/lib/dynamodb-stack.ts`                                  | Definição das 4 tabelas novas + `TableName`                                     | Modificar |
+| `cdk/test/dynamodb-stack.test.ts`                            | Snapshot/asserções das tabelas novas                                            | Criar     |
+| `cdk/lib/worker-stack.ts`                                    | ARNs de config para o distribution-dispatcher                                   | Modificar |
+| `go-dfe/nfse/tables/trib_nacional.go`                        | Tabela do código de tributação nacional (Anexo B) — gerada                      | Criar     |
+| `go-dfe/nfse/tables/nbs.go`                                  | Tabela NBS 2.0 (Anexo B) — gerada                                               | Criar     |
+| `go-dfe/nfse/tables/indop.go`                                | Tabela `indOp` IBS/CBS (Anexo C) — gerada                                       | Criar     |
+| `go-dfe/nfse/tables/lookup.go`                               | API de consulta das três tabelas                                                | Criar     |
+| `go-dfe/nfse/tables/lookup_test.go`                          | Testes de consulta                                                              | Criar     |
+| `go-dfe/nfse/tables/gen/generate.py`                         | Gerador xlsx → Go + JSON                                                        | Criar     |
+| `ui/src/lib/data/nfse_trib_nacional.ts`                      | Mesma tabela para o front — gerada                                              | Criar     |
+| `ui/src/lib/data/nfse_indop.ts`                              | Mesma tabela para o front — gerada                                              | Criar     |
+| `api/go.mod`                                                 | Dependência + replace para `go-dfe`                                             | Modificar |
+| `api/internal/repositories/services.go`                      | `ServiceRepository` (organization_services)                                     | Criar     |
+| `api/internal/repositories/fiscal_configs.go`                | `NfseConfigRepository`                                                          | Modificar |
+| `api/internal/repositories/audit_logs.go`                    | Constantes `AuditResourceService`, `AuditResourceNfseConfig`                    | Modificar |
+| `api/internal/repositories/roles.go`                         | Recursos RBAC novos                                                             | Modificar |
+| `api/internal/middleware/scopes.go`                          | Famílias de escopo novas                                                        | Modificar |
+| `api/internal/services/services.go`                          | `ServiceService` (catálogo)                                                     | Criar     |
+| `api/internal/services/fiscal_configs.go`                    | Base genérica + `NfseConfigService`                                             | Modificar |
+| `api/internal/api/v1/dto.go`                                 | `ServiceBody`, `NfseInfoBody`, `NfseConfigBody`, extensão de `PersonObjectBody` | Modificar |
+| `api/internal/api/v1/services.go`                            | Rotas `/services`                                                               | Criar     |
+| `api/internal/api/v1/organizations.go`                       | Rota `/nfse-config`                                                             | Modificar |
+| `api/internal/api/v1/router.go`                              | Registro das rotas novas                                                        | Modificar |
+| `api/internal/app/app.go`                                    | Providers fx novos                                                              | Modificar |
+| `api/internal/validation/validators.go`                      | Tags `tribnac`, `nbs`, `inscmun`, `caepf`, `indop`                              | Modificar |
+| `api/internal/validation/validation.go`                      | Mensagens das tags novas                                                        | Modificar |
+| `api/tests/integration/setup_test.go`                        | Bootstrap dos serviços novos                                                    | Modificar |
+| `api/tests/integration/services_test.go`                     | Integração do catálogo                                                          | Criar     |
+| `api/tests/integration/nfse_configs_test.go`                 | Integração da config                                                            | Criar     |
+| `DynamoDB-Tables.md`, `DOCS.md`, `OVERVIEW.md`, `CONDUCT.md` | Documentação                                                                    | Modificar |
 
 ---
 
@@ -70,6 +85,7 @@
 Primeira porque a validação da `api` (Task 5) depende dela.
 
 **Files:**
+
 - Create: `go-dfe/nfse/tables/gen/generate.py`
 - Create: `go-dfe/nfse/tables/trib_nacional.go` (gerado)
 - Create: `go-dfe/nfse/tables/nbs.go` (gerado)
@@ -78,6 +94,7 @@ Primeira porque a validação da `api` (Task 5) depende dela.
 - Test: `go-dfe/nfse/tables/lookup_test.go`
 
 **Interfaces:**
+
 - Consumes: nada.
 - Produces: pacote `gopkg.aoctech.app/dfe/go-dfe/nfse/tables` exportando
   `IsValidTribNacional(code string) bool`, `TribNacional(code string) (TribNacionalEntry, bool)`,
@@ -89,9 +106,23 @@ Primeira porque a validação da `api` (Task 5) depende dela.
 **Contexto para quem implementa:** as planilhas fonte estão em `tmp/` na raiz do repositório. Estrutura já verificada:
 
 - `tmp/anexo_b-nbs2-lista_servico_nacional-snnfse-v1-01-20260122.xlsx`
-  - aba `LISTA.SERV.NAC.` — cabeçalho na linha 1: `CÓDIGO DE TRIBUTAÇÃO NACIONAL | ITEM | SUBITEM | DESDOBRO NACIONAL | DESCRIÇÃO`. Linhas com a primeira coluna vazia são cabeçalhos de agrupamento (item/subitem sem desdobro) — **descartar**; só entram linhas com código preenchido. **A coluna de código é numérica e perde o zero à esquerda do item quando item < 10** (item 1/subitem 1/desdobro 1 aparece como `10101`, não `010101`). O código oficial (`TSCodTribNac` em `tmp/nfse-esquemas_xsd-v1-01-20260209/Schemas/1.01/tiposSimples_v1.01.xsd`, linha 1358) tem sempre **6 dígitos**: item(2) + subitem(2) + desdobro(2) — reconstrua o código a partir das colunas ITEM/SUBITEM/DESDOBRO com zero-padding, nunca leia a coluna de código diretamente.
-  - aba `LISTA.NBS_v2.0` — cabeçalho `CÓDIGO NBS | DESCRIÇÃO`. Mistura códigos-folha com linhas de hierarquia (seção/posição). Os códigos vêm com pontos (`1.0101.11.00`); normalizar removendo `.` e manter só os que resultam em **9 dígitos** (`TSCodNBS` no mesmo XSD, linha 1369) — linhas de hierarquia como `1.0101` (5 dígitos) ou `1.0101.1` (6 dígitos) não são códigos válidos e devem ser descartadas.
-- `tmp/anexo_c-indop_ibscbs-snnfse-v1-01-20260122.xlsx`, aba `IndOp`, cabeçalho na linha 1. A coluna 7 (índice 6, zero-based) é `Código indOp`, com 6 dígitos. Colunas 2, 4, 8 e 9 (índices 1, 3, 7, 8) são `Tipo de operação`, `Característica do fornecimento`, `Local do fornecimento` e `Campo no leiaute da NFSe`. Células mescladas deixam valores `None` nas linhas seguintes — propagar o último valor não-nulo para frente (forward-fill) nessas quatro colunas. Linhas sem código `indOp` são descartadas.
+    - aba `LISTA.SERV.NAC.` — cabeçalho na linha 1:
+      `CÓDIGO DE TRIBUTAÇÃO NACIONAL | ITEM | SUBITEM | DESDOBRO NACIONAL | DESCRIÇÃO`. Linhas com a primeira coluna
+      vazia são cabeçalhos de agrupamento (item/subitem sem desdobro) — **descartar**; só entram linhas com código
+      preenchido. **A coluna de código é numérica e perde o zero à esquerda do item quando item < 10** (item 1/subitem
+      1/desdobro 1 aparece como `10101`, não `010101`). O código oficial (`TSCodTribNac` em
+      `tmp/nfse-esquemas_xsd-v1-01-20260209/Schemas/1.01/tiposSimples_v1.01.xsd`, linha 1358) tem sempre **6 dígitos**:
+      item(2) + subitem(2) + desdobro(2) — reconstrua o código a partir das colunas ITEM/SUBITEM/DESDOBRO com
+      zero-padding, nunca leia a coluna de código diretamente.
+    - aba `LISTA.NBS_v2.0` — cabeçalho `CÓDIGO NBS | DESCRIÇÃO`. Mistura códigos-folha com linhas de hierarquia (
+      seção/posição). Os códigos vêm com pontos (`1.0101.11.00`); normalizar removendo `.` e manter só os que resultam
+      em **9 dígitos** (`TSCodNBS` no mesmo XSD, linha 1369) — linhas de hierarquia como `1.0101` (5 dígitos) ou
+      `1.0101.1` (6 dígitos) não são códigos válidos e devem ser descartadas.
+- `tmp/anexo_c-indop_ibscbs-snnfse-v1-01-20260122.xlsx`, aba `IndOp`, cabeçalho na linha 1. A coluna 7 (índice 6,
+  zero-based) é `Código indOp`, com 6 dígitos. Colunas 2, 4, 8 e 9 (índices 1, 3, 7, 8) são `Tipo de operação`,
+  `Característica do fornecimento`, `Local do fornecimento` e `Campo no leiaute da NFSe`. Células mescladas deixam
+  valores `None` nas linhas seguintes — propagar o último valor não-nulo para frente (forward-fill) nessas quatro
+  colunas. Linhas sem código `indOp` são descartadas.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -446,7 +477,8 @@ python3 -c "import openpyxl" || pip install --user openpyxl
 python3 go-dfe/nfse/tables/gen/generate.py
 ```
 
-Esperado: cinco linhas de saída, com `trib_nacional.go` com 338 entradas, `nbs.go` com 917 entradas e `indop.go` com 26 entradas.
+Esperado: cinco linhas de saída, com `trib_nacional.go` com 338 entradas, `nbs.go` com 917 entradas e `indop.go` com 26
+entradas.
 
 - [ ] **Step 6: Rodar os testes e confirmar que passam**
 
@@ -477,15 +509,20 @@ git commit -m "feat(nfse): tabelas de referencia dos anexos B e C"
 ### Task 2: Tabelas DynamoDB no CDK
 
 **Files:**
+
 - Modify: `cdk/lib/dynamodb-stack.ts:8-35` (tipo `TableName`), `cdk/lib/dynamodb-stack.ts:479-494` (bloco de tabelas)
 - Modify: `cdk/lib/worker-stack.ts:403`
 - Test: `cdk/test/dynamodb-stack.test.ts`
 
 **Interfaces:**
-- Consumes: nada.
-- Produces: as tabelas `${prefix}_organization_services`, `${prefix}_organization_nfse_configs`, `${prefix}_nfses`, `${prefix}_nfse_events`, registradas no mapa `this.tables` sob as chaves `'services'`, `'nfse_configs'`, `'nfses'`, `'nfse_events'`.
 
-**Nota de escopo:** `nfses` e `nfse_events` só passam a ser lidas na F3, mas entram aqui para que a infraestrutura da NFS-e suba num único ciclo de synth/deploy em vez de dois. Tabela on-demand vazia não gera custo relevante.
+- Consumes: nada.
+- Produces: as tabelas `${prefix}_organization_services`, `${prefix}_organization_nfse_configs`, `${prefix}_nfses`,
+  `${prefix}_nfse_events`, registradas no mapa `this.tables` sob as chaves `'services'`, `'nfse_configs'`, `'nfses'`,
+  `'nfse_events'`.
+
+**Nota de escopo:** `nfses` e `nfse_events` só passam a ser lidas na F3, mas entram aqui para que a infraestrutura da
+NFS-e suba num único ciclo de synth/deploy em vez de dois. Tabela on-demand vazia não gera custo relevante.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -562,7 +599,8 @@ Esperado: FAIL — as tabelas não existem.
 
 - [ ] **Step 3: Estender o tipo `TableName`**
 
-Em `cdk/lib/dynamodb-stack.ts`, no tipo que começa na linha 8, acrescente as quatro entradas mantendo o agrupamento existente:
+Em `cdk/lib/dynamodb-stack.ts`, no tipo que começa na linha 8, acrescente as quatro entradas mantendo o agrupamento
+existente:
 
 ```typescript
     'mdfe_configs' |
@@ -582,7 +620,9 @@ Em `cdk/lib/dynamodb-stack.ts`, no tipo que começa na linha 8, acrescente as qu
 
 - [ ] **Step 4: Criar as quatro tabelas**
 
-Em `cdk/lib/dynamodb-stack.ts`, logo após o bloco de `personsTable` (que termina em `this.tables.set('persons', personsTable);`), insira a tabela do catálogo. Ela repete o formato de `productsTable` porque tem exatamente a mesma forma de acesso:
+Em `cdk/lib/dynamodb-stack.ts`, logo após o bloco de `personsTable` (que termina em
+`this.tables.set('persons', personsTable);`), insira a tabela do catálogo. Ela repete o formato de `productsTable`
+porque tem exatamente a mesma forma de acesso:
 
 ```typescript
         const servicesTable = new dynamodb.TableV2(this, `${tablePrefix}_organization_services`, {
@@ -670,9 +710,14 @@ Esperado: todos os testes PASS e o synth conclui sem erro.
 
 - [ ] **Step 7: Documentar as tabelas**
 
-Em `DynamoDB-Tables.md`, acrescente as quatro tabelas seguindo o formato das existentes. Registre para cada uma: PK, SK, GSIs, atributos e padrão de acesso. Em `organization_services`, PK `{org_pk}` e SK `SERVICE_{uuid}`, GSIs `code-index` e `description-index`. Em `organization_nfse_configs`, PK `{org_pk}` sem SK. Em `nfses`, PK `{env}#{CNPJ}` e SK `id_dps` — inclua a nota de que a SK é o `idDPS` e não a chave de acesso, com o motivo (a chave só existe depois da resposta do fisco), e o GSI `access-key-index`. Em `nfse_events`, PK `{id_dps}` e SK `{uuidv7}`.
+Em `DynamoDB-Tables.md`, acrescente as quatro tabelas seguindo o formato das existentes. Registre para cada uma: PK, SK,
+GSIs, atributos e padrão de acesso. Em `organization_services`, PK `{org_pk}` e SK `SERVICE_{uuid}`, GSIs `code-index` e
+`description-index`. Em `organization_nfse_configs`, PK `{org_pk}` sem SK. Em `nfses`, PK `{env}#{CNPJ}` e SK `id_dps` —
+inclua a nota de que a SK é o `idDPS` e não a chave de acesso, com o motivo (a chave só existe depois da resposta do
+fisco), e o GSI `access-key-index`. Em `nfse_events`, PK `{id_dps}` e SK `{uuidv7}`.
 
-Em `OVERVIEW.md`, atualize a contagem de tabelas do DynamoDB (de 21 para 25) nas duas ocorrências (tabela de stack e seção `cdk`) e acrescente as quatro linhas à tabela `Data Model (DynamoDB Keys)`.
+Em `OVERVIEW.md`, atualize a contagem de tabelas do DynamoDB (de 21 para 25) nas duas ocorrências (tabela de stack e
+seção `cdk`) e acrescente as quatro linhas à tabela `Data Model (DynamoDB Keys)`.
 
 - [ ] **Step 8: Commit**
 
@@ -687,16 +732,23 @@ git commit -m "feat(cdk): tabelas dynamodb da nfse"
 ### Task 3: Validadores de campos NFS-e
 
 **Files:**
+
 - Modify: `api/internal/validation/validators.go:22-45` (mapa `regexValidators`)
 - Modify: `api/internal/validation/validation.go:145-160` (mensagens) e `:50-55` (registro)
 - Modify: `api/go.mod`
 - Test: `api/internal/validation/validation_test.go`
 
 **Interfaces:**
-- Consumes: `gopkg.aoctech.app/dfe/go-dfe/nfse/tables` da Task 1 — `IsValidTribNacional`, `IsValidNBS`, `IsValidIndOp`.
-- Produces: as tags de validação `inscmun`, `caepf`, `nif`, `tribnac`, `nbs`, `indop`, `cnae`, usáveis em qualquer DTO. Valores monetários com quatro casas usam a tag `money` já existente (`^\d+(\.\d{1,4})?$`) — não crie uma tag nova para o mesmo formato.
 
-**Por que a `api` passa a depender de `go-dfe`:** a tabela de códigos de tributação nacional é a mesma que a `go-dfe` vai usar na F2 para montar e validar o XML da DPS. Duas cópias violariam a regra de DRY do projeto ("Two implementations that solve the same problem must be unified"). O `worker` já depende de `go-dfe` pelo mesmo mecanismo (`worker/go.mod:41,44`).
+- Consumes: `gopkg.aoctech.app/dfe/go-dfe/nfse/tables` da Task 1 — `IsValidTribNacional`, `IsValidNBS`, `IsValidIndOp`.
+- Produces: as tags de validação `inscmun`, `caepf`, `nif`, `tribnac`, `nbs`, `indop`, `cnae`, usáveis em qualquer DTO.
+  Valores monetários com quatro casas usam a tag `money` já existente (`^\d+(\.\d{1,4})?$`) — não crie uma tag nova para
+  o mesmo formato.
+
+**Por que a `api` passa a depender de `go-dfe`:** a tabela de códigos de tributação nacional é a mesma que a `go-dfe`
+vai usar na F2 para montar e validar o XML da DPS. Duas cópias violariam a regra de DRY do projeto ("Two implementations
+that solve the same problem must be unified"). O `worker` já depende de `go-dfe` pelo mesmo mecanismo (
+`worker/go.mod:41,44`).
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -763,7 +815,8 @@ Em `api/internal/validation/validators.go`, no mapa `regexValidators`, acrescent
 	"cnae":    regexp.MustCompile(`^\d{7}$`),
 ```
 
-Nada a acrescentar na seção `Generic numeric / units`: a tag `money` já existente aceita até quatro casas decimais, que é exatamente o formato dos valores da DPS.
+Nada a acrescentar na seção `Generic numeric / units`: a tag `money` já existente aceita até quatro casas decimais, que
+é exatamente o formato dos valores da DPS.
 
 Ainda em `validators.go`, ao fim do arquivo, os três validadores que consultam as tabelas oficiais:
 
@@ -839,14 +892,22 @@ git commit -m "feat(api): validadores de campos nfse com tabelas oficiais"
 Cobre `organizations` e `organization_persons` de uma vez.
 
 **Files:**
+
 - Modify: `api/internal/api/v1/dto.go:16-47`
 - Test: `api/internal/api/v1/dto_test.go`
 
 **Interfaces:**
-- Consumes: as tags de validação da Task 3.
-- Produces: os tipos `NfseRegTribBody`, `NfseForeignAddressBody` e `NfseInfoBody`, além do campo `Nfse *NfseInfoBody` em `PersonObjectBody`, que aparece automaticamente em `OrganizationCreateBody`, `OrganizationUpdateBody`, `PersonCreateBody` e `PersonUpdateBody`.
 
-**Contexto:** os valores permitidos vêm do XSD `tiposSimples_v1.01.xsd`. `opSimpNac`: 1 não optante, 2 optante MEI, 3 optante ME/EPP. `regApTribSN` (só quando `opSimpNac` = 3): 1 federais e municipal pelo SN, 2 federais pelo SN e ISSQN por fora, 3 federais e municipal por fora. `regEspTrib`: 0 nenhum, 1 ato cooperado, 2 estimativa, 3 microempresa municipal, 4 notário/registrador, 5 profissional autônomo, 6 sociedade de profissionais. `cNaoNIF`: 0 não informado, 1 dispensado, 2 não exigência.
+- Consumes: as tags de validação da Task 3.
+- Produces: os tipos `NfseRegTribBody`, `NfseForeignAddressBody` e `NfseInfoBody`, além do campo `Nfse *NfseInfoBody` em
+  `PersonObjectBody`, que aparece automaticamente em `OrganizationCreateBody`, `OrganizationUpdateBody`,
+  `PersonCreateBody` e `PersonUpdateBody`.
+
+**Contexto:** os valores permitidos vêm do XSD `tiposSimples_v1.01.xsd`. `opSimpNac`: 1 não optante, 2 optante MEI, 3
+optante ME/EPP. `regApTribSN` (só quando `opSimpNac` = 3): 1 federais e municipal pelo SN, 2 federais pelo SN e ISSQN
+por fora, 3 federais e municipal por fora. `regEspTrib`: 0 nenhum, 1 ato cooperado, 2 estimativa, 3 microempresa
+municipal, 4 notário/registrador, 5 profissional autônomo, 6 sociedade de profissionais. `cNaoNIF`: 0 não informado, 1
+dispensado, 2 não exigência.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -902,7 +963,8 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 func ptrInt(v int) *int { return &v }
 ```
 
-Se `dto_test.go` ainda não importar `validation`, acrescente `"gopkg.aoctech.app/dfe/api/internal/validation"` aos imports.
+Se `dto_test.go` ainda não importar `validation`, acrescente `"gopkg.aoctech.app/dfe/api/internal/validation"` aos
+imports.
 
 - [ ] **Step 2: Rodar o teste e confirmar que falha**
 
@@ -975,13 +1037,16 @@ E acrescente o campo em `PersonObjectBody`, ao fim da struct:
 cd api && go test ./internal/api/v1/... -race
 ```
 
-Esperado: PASS, inclusive os testes já existentes de organizações e pessoas — o campo é opcional e nenhum payload atual muda.
+Esperado: PASS, inclusive os testes já existentes de organizações e pessoas — o campo é opcional e nenhum payload atual
+muda.
 
 - [ ] **Step 5: Documentar**
 
-Em `DynamoDB-Tables.md`, nas seções de `organizations` e `organization_persons`, acrescente o atributo `person.nfse` com os subcampos e a observação de que o grupo é opcional e compartilhado entre as duas tabelas.
+Em `DynamoDB-Tables.md`, nas seções de `organizations` e `organization_persons`, acrescente o atributo `person.nfse` com
+os subcampos e a observação de que o grupo é opcional e compartilhado entre as duas tabelas.
 
-Em `DOCS.md`, na descrição dos payloads de `POST /v1.0/organizations`, `PUT /v1.0/organizations/{pk}`, `POST /v1.0/persons` e `PUT /v1.0/persons/{cpf_cnpj}`, acrescente o objeto `nfse` com o domínio de cada código.
+Em `DOCS.md`, na descrição dos payloads de `POST /v1.0/organizations`, `PUT /v1.0/organizations/{pk}`,
+`POST /v1.0/persons` e `PUT /v1.0/persons/{cpf_cnpj}`, acrescente o objeto `nfse` com o domínio de cada código.
 
 - [ ] **Step 6: Commit**
 
@@ -996,6 +1061,7 @@ git commit -m "feat(api): grupo nfse no objeto person compartilhado"
 ### Task 5: Catálogo de serviços — repositório e serviço
 
 **Files:**
+
 - Create: `api/internal/repositories/services.go`
 - Create: `api/internal/services/services.go`
 - Modify: `api/internal/repositories/audit_logs.go:22-35`
@@ -1003,12 +1069,18 @@ git commit -m "feat(api): grupo nfse no objeto person compartilhado"
 - Modify: `api/tests/integration/setup_test.go`
 
 **Interfaces:**
-- Consumes: `CRUDRepository[map[string]types.AttributeValue]`, `NewCRUDRepository`, `GenerateID`, `QueryResult`, `QueryOpts` (de `repositories/base.go`); `CRUDMutationHelper`, `BuildItemCacheKey`, `GetCachedItem`, `GetCachedList` (de `services/crud.go`).
+
+- Consumes: `CRUDRepository[map[string]types.AttributeValue]`, `NewCRUDRepository`, `GenerateID`, `QueryResult`,
+  `QueryOpts` (de `repositories/base.go`); `CRUDMutationHelper`, `BuildItemCacheKey`, `GetCachedItem`, `GetCachedList` (
+  de `services/crud.go`).
 - Produces:
-  - `repositories.NewServiceRepository(db *dynamodb.Client, cfg *config.Config) *ServiceRepository`
-  - `repositories.ServiceListOpts{DescriptionPrefix, CodePrefix, OrderBy, Sort string; Limit int; StartKey map[string]types.AttributeValue}`
-  - `services.NewServiceService(repo *repositories.ServiceRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ServiceService` com `Get`, `List`, `Create`, `Update`, `Delete` de assinaturas idênticas às de `ProductService`.
-  - `repositories.AuditResourceService = "SERVICE"`
+    - `repositories.NewServiceRepository(db *dynamodb.Client, cfg *config.Config) *ServiceRepository`
+    -
+    `repositories.ServiceListOpts{DescriptionPrefix, CodePrefix, OrderBy, Sort string; Limit int; StartKey map[string]types.AttributeValue}`
+    -
+    `services.NewServiceService(repo *repositories.ServiceRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ServiceService`
+    com `Get`, `List`, `Create`, `Update`, `Delete` de assinaturas idênticas às de `ProductService`.
+    - `repositories.AuditResourceService = "SERVICE"`
 
 - [ ] **Step 1: Escrever o teste de integração que falha**
 
@@ -1327,9 +1399,11 @@ E instancie junto das outras, ao lado de `productSvc`:
 	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
 ```
 
-Use o mesmo nome de variável do cliente DynamoDB e do `cfg` que o arquivo já usa nas linhas vizinhas — não introduza novos.
+Use o mesmo nome de variável do cliente DynamoDB e do `cfg` que o arquivo já usa nas linhas vizinhas — não introduza
+novos.
 
-Se o arquivo criar as tabelas de teste explicitamente, acrescente `organization_services` à lista, seguindo o formato das existentes (PK `pk`, SK `sk`, GSIs `code-index` e `description-index`).
+Se o arquivo criar as tabelas de teste explicitamente, acrescente `organization_services` à lista, seguindo o formato
+das existentes (PK `pk`, SK `sk`, GSIs `code-index` e `description-index`).
 
 - [ ] **Step 7: Rodar os testes e confirmar que passam**
 
@@ -1351,9 +1425,11 @@ git commit -m "feat(api): repositorio e servico do catalogo de servicos"
 
 ### Task 6: Config NFS-e por organização
 
-Inclui a unificação dos `Upsert` de config, que hoje são quatro cópias idênticas de 40 linhas. Acrescentar uma quinta cópia violaria a regra de DRY do projeto, então a base genérica entra junto.
+Inclui a unificação dos `Upsert` de config, que hoje são quatro cópias idênticas de 40 linhas. Acrescentar uma quinta
+cópia violaria a regra de DRY do projeto, então a base genérica entra junto.
 
 **Files:**
+
 - Modify: `api/internal/repositories/fiscal_configs.go`
 - Modify: `api/internal/services/fiscal_configs.go`
 - Test: `api/tests/integration/nfse_configs_test.go`
@@ -1361,11 +1437,16 @@ Inclui a unificação dos `Upsert` de config, que hoje são quatro cópias idên
 - Modify: `api/internal/repositories/audit_logs.go`
 
 **Interfaces:**
-- Consumes: `FiscalConfigRepository`, `newFiscalConfigBase`, `BuildUpsertTxItem`, `IncrementNumber` (de `repositories/fiscal_config.go`); `attributeMapToPlain`, `Diff`, `AuditLogRepository.BuildLogTxItem`.
+
+- Consumes: `FiscalConfigRepository`, `newFiscalConfigBase`, `BuildUpsertTxItem`, `IncrementNumber` (de
+  `repositories/fiscal_config.go`); `attributeMapToPlain`, `Diff`, `AuditLogRepository.BuildLogTxItem`.
 - Produces:
-  - `repositories.NewNfseConfigRepository(db, cfg) *NfseConfigRepository`
-  - `services.NewNfseConfigService(repo *repositories.NfseConfigRepository, auditRepo *repositories.AuditLogRepository) *NfseConfigService` com `Get(ctx, orgPK)` e `Upsert(ctx, orgPK, fields, userID, userName)` — a mesma assinatura da interface `fiscalConfigSvc` já usada por `registerFiscalConfig`.
-  - `repositories.AuditResourceNfseConfig = "NFSE_CONFIG"`
+    - `repositories.NewNfseConfigRepository(db, cfg) *NfseConfigRepository`
+    -
+    `services.NewNfseConfigService(repo *repositories.NfseConfigRepository, auditRepo *repositories.AuditLogRepository) *NfseConfigService`
+    com `Get(ctx, orgPK)` e `Upsert(ctx, orgPK, fields, userID, userName)` — a mesma assinatura da interface
+    `fiscalConfigSvc` já usada por `registerFiscalConfig`.
+    - `repositories.AuditResourceNfseConfig = "NFSE_CONFIG"`
 
 - [ ] **Step 1: Escrever o teste de integração que falha**
 
@@ -1513,9 +1594,12 @@ Em `api/internal/repositories/audit_logs.go`, após `AuditResourceMdfeConfig`:
 
 - [ ] **Step 5: Extrair a base genérica do serviço de config**
 
-Em `api/internal/services/fiscal_configs.go`, acrescente `nfseConfigResourceID = "nfse_config"` ao bloco `const` já existente no topo do arquivo (o que declara `nfeConfigResourceID`, `nfceConfigResourceID`, `cteConfigResourceID` e `mdfeConfigResourceID`) — não abra um `const` novo.
+Em `api/internal/services/fiscal_configs.go`, acrescente `nfseConfigResourceID = "nfse_config"` ao bloco `const` já
+existente no topo do arquivo (o que declara `nfeConfigResourceID`, `nfceConfigResourceID`, `cteConfigResourceID` e
+`mdfeConfigResourceID`) — não abra um `const` novo.
 
-Depois, a base genérica. `Nfe`, `Nfce`, `Cte` e `Mdfe` já têm `Upsert` byte a byte idênticos — só variam no repositório, na constante de auditoria e no texto do 404:
+Depois, a base genérica. `Nfe`, `Nfce`, `Cte` e `Mdfe` já têm `Upsert` byte a byte idênticos — só variam no repositório,
+na constante de auditoria e no texto do 404:
 
 ```go
 // fiscalConfigRepo é a parte de FiscalConfigRepository que o serviço usa.
@@ -1600,7 +1684,8 @@ func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields m
 
 - [ ] **Step 6: Reduzir os cinco serviços à base**
 
-Ainda em `api/internal/services/fiscal_configs.go`, substitua os quatro blocos `NfeConfigService`, `NfceConfigService`, `CteConfigService` e `MdfeConfigService` (structs, construtores, `Get` e `Upsert`) por:
+Ainda em `api/internal/services/fiscal_configs.go`, substitua os quatro blocos `NfeConfigService`, `NfceConfigService`,
+`CteConfigService` e `MdfeConfigService` (structs, construtores, `Get` e `Upsert`) por:
 
 ```go
 // NfeConfigService wraps NfeConfigRepository.
@@ -1685,11 +1770,14 @@ Se o arquivo criar tabelas de teste explicitamente, acrescente `organization_nfs
 cd api && go test ./... -race && go test -tags integration ./tests/integration/ -v
 ```
 
-Esperado: PASS. `fiscal_configs_audit_test.go` é a rede de segurança da extração do Step 6 — se o comportamento de auditoria de NF-e, NFC-e, CT-e ou MDF-e mudou, ele falha.
+Esperado: PASS. `fiscal_configs_audit_test.go` é a rede de segurança da extração do Step 6 — se o comportamento de
+auditoria de NF-e, NFC-e, CT-e ou MDF-e mudou, ele falha.
 
 - [ ] **Step 9: Documentar a unificação**
 
-Em `CONDUCT.md`, na seção de padrões do backend, registre que os serviços de config fiscal compartilham `fiscalConfigService` e que uma variante nova se declara pelo construtor, sem reescrever `Get`/`Upsert`. Registre também que o diff de auditoria compara sempre contra os campos finais pós carry-forward, e o motivo.
+Em `CONDUCT.md`, na seção de padrões do backend, registre que os serviços de config fiscal compartilham
+`fiscalConfigService` e que uma variante nova se declara pelo construtor, sem reescrever `Get`/`Upsert`. Registre também
+que o diff de auditoria compara sempre contra os campos finais pós carry-forward, e o motivo.
 
 - [ ] **Step 10: Commit**
 
@@ -1704,6 +1792,7 @@ git commit -m "feat(api): config nfse por organizacao e unificacao dos services 
 ### Task 7: Rotas, RBAC e wiring
 
 **Files:**
+
 - Create: `api/internal/api/v1/services.go`
 - Modify: `api/internal/api/v1/dto.go`
 - Modify: `api/internal/api/v1/organizations.go:185-198`
@@ -1714,8 +1803,14 @@ git commit -m "feat(api): config nfse por organizacao e unificacao dos services 
 - Test: `api/internal/api/v1/dto_test.go`
 
 **Interfaces:**
-- Consumes: `ServiceService` (Task 5), `NfseConfigService` (Task 6), `mountCRUD`, `crudHandlers`, `crudListOpts`, `bindAVValidated`, `bindJSON`, `structToMap`, `registerFiscalConfig`, `fiscalConfigSvc`.
-- Produces: `RegisterServices(router fiber.Router, svc *services.ServiceService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker)`; os tipos `ServiceBody`, `ServiceIssBody`, `ServiceFederalBody`, `ServiceIbsCbsBody`, `NfseConfigBody`, `NfseAbrasfBody`; e o campo `Service *services.ServiceService` e `NfseConfig *services.NfseConfigService` em `v1.Services`.
+
+- Consumes: `ServiceService` (Task 5), `NfseConfigService` (Task 6), `mountCRUD`, `crudHandlers`, `crudListOpts`,
+  `bindAVValidated`, `bindJSON`, `structToMap`, `registerFiscalConfig`, `fiscalConfigSvc`.
+- Produces:
+  `RegisterServices(router fiber.Router, svc *services.ServiceService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker)`;
+  os tipos `ServiceBody`, `ServiceIssBody`, `ServiceFederalBody`, `ServiceIbsCbsBody`, `NfseConfigBody`,
+  `NfseAbrasfBody`; e o campo `Service *services.ServiceService` e `NfseConfig *services.NfseConfigService` em
+  `v1.Services`.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -1793,7 +1888,10 @@ Esperado: FAIL de compilação — os tipos não existem.
 
 - [ ] **Step 3: Declarar os DTOs**
 
-Em `api/internal/api/v1/dto.go`, após a seção de produtos, acrescente uma seção nova. Os domínios de código vêm de `tiposSimples_v1.01.xsd`: `tribISSQN` 1 operação tributável, 2 exportação, 3 não incidência, 4 imunidade; `tpRetISSQN` 1 não retido, 2 retido pelo tomador, 3 retido pelo intermediário; `tpImunidade` 0 a 9; `cstPisCofins` 00 a 99; `indTotTrib` 0 ou 1.
+Em `api/internal/api/v1/dto.go`, após a seção de produtos, acrescente uma seção nova. Os domínios de código vêm de
+`tiposSimples_v1.01.xsd`: `tribISSQN` 1 operação tributável, 2 exportação, 3 não incidência, 4 imunidade; `tpRetISSQN` 1
+não retido, 2 retido pelo tomador, 3 retido pelo intermediário; `tpImunidade` 0 a 9; `cstPisCofins` 00 a 99;
+`indTotTrib` 0 ou 1.
 
 ```go
 // ── Serviços (catálogo NFS-e) ────────────────────────────────────────────────
@@ -1961,7 +2059,8 @@ E acrescente o campo à struct `OrgHandlers` (mesmo arquivo), ao lado de `MdfeCo
 
 - [ ] **Step 6: Registrar RBAC e escopos**
 
-Em `api/internal/repositories/roles.go`, na lista `resources`, acrescente as entradas na posição que mantém o agrupamento por família:
+Em `api/internal/repositories/roles.go`, na lista `resources`, acrescente as entradas na posição que mantém o
+agrupamento por família:
 
 ```go
 	"nfses", "nfse_events",
@@ -2007,7 +2106,8 @@ Em `api/internal/api/v1/router.go`, na struct `Services`:
 	NfseConfig   *services.NfseConfigService
 ```
 
-No `RegisterOrganizations`, acrescente `NfseConfig: svcs.NfseConfig,` ao literal de `OrgHandlers`. E após `RegisterProducts`:
+No `RegisterOrganizations`, acrescente `NfseConfig: svcs.NfseConfig,` ao literal de `OrgHandlers`. E após
+`RegisterProducts`:
 
 ```go
 	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)
@@ -2036,7 +2136,8 @@ GET    /v1.0/organizations/{pk}/nfse-config    Config NFS-e da organização
 PUT    /v1.0/organizations/{pk}/nfse-config    Upsert da config
 ```
 
-Registre também as permissões RBAC novas (`{list,get,create,update,delete}.organization_services` e `.organization_nfse_configs`) e as famílias de escopo `dfe:nfses:*` e `dfe:organization_services:*`.
+Registre também as permissões RBAC novas (`{list,get,create,update,delete}.organization_services` e
+`.organization_nfse_configs`) e as famílias de escopo `dfe:nfses:*` e `dfe:organization_services:*`.
 
 Em `OVERVIEW.md`, acrescente `/v1.0/services` à lista de endpoints principais.
 
@@ -2053,6 +2154,7 @@ git commit -m "feat(api): rotas do catalogo de servicos e da config nfse"
 ### Task 8: Fechamento da fase
 
 **Files:**
+
 - Modify: `CONDUCT.md`
 - Modify: `docs/specs/2026-08-04-nfse-design.md`
 
@@ -2073,9 +2175,12 @@ Esperado: tudo PASS. O eslint precisa terminar com zero erros e zero avisos.
 
 Em `CONDUCT.md`, acrescente:
 
-- A SK de `nfses` é o `idDPS`, nunca a chave de acesso, porque `nNFSe` e `cNum` são gerados pelo fisco e a chave só existe depois da resposta. Consulta por chave passa pela GSI `access-key-index`.
-- O grupo `nfse` do objeto `person` é compartilhado por `organizations` e `organization_persons`; `reg_trib` mora ali e não na config, porque com `tpEmit` 2 ou 3 o prestador é uma pessoa do cadastro.
-- As tabelas de referência da NFS-e são geradas por `go-dfe/nfse/tables/gen/generate.py` e versionadas; nunca edite os `.go` gerados à mão. Regenerar quando a Receita publicar um anexo novo.
+- A SK de `nfses` é o `idDPS`, nunca a chave de acesso, porque `nNFSe` e `cNum` são gerados pelo fisco e a chave só
+  existe depois da resposta. Consulta por chave passa pela GSI `access-key-index`.
+- O grupo `nfse` do objeto `person` é compartilhado por `organizations` e `organization_persons`; `reg_trib` mora ali e
+  não na config, porque com `tpEmit` 2 ou 3 o prestador é uma pessoa do cadastro.
+- As tabelas de referência da NFS-e são geradas por `go-dfe/nfse/tables/gen/generate.py` e versionadas; nunca edite os
+  `.go` gerados à mão. Regenerar quando a Receita publicar um anexo novo.
 - O stream do outbox fica em `worker_outbox`; tabelas de documento não têm stream.
 
 - [ ] **Step 3: Marcar a fase no spec**
@@ -2094,19 +2199,21 @@ git commit -m "docs(nfse): fecha a fase F1 do modulo nfse"
 
 ## Revisão cruzada de impacto
 
-| Componente | Impacto da F1 |
-|---|---|
-| `api` | Tabelas, DTOs, validadores, rotas e RBAC novos. Nenhuma rota existente muda de contrato — o grupo `nfse` é opcional. |
-| `go-dfe` | Pacote `nfse/tables` novo, sem tocar em nada existente. |
-| `worker` | Nenhuma mudança de código. Recompilar para confirmar que o `go.sum` compartilhado segue consistente. |
-| `ui` | Dois arquivos de dados gerados, ainda não importados. Nenhuma tela muda. |
-| `cdk` | Quatro tabelas novas e o dispatcher passa a enxergar `organization_nfse_configs`. Nenhuma tabela existente é alterada. |
-| `py-dfe` | Nenhum impacto — py-dfe não tem NFS-e e nunca terá. |
-| `ctech-account` | Nenhum impacto. |
+| Componente      | Impacto da F1                                                                                                          |
+|-----------------|------------------------------------------------------------------------------------------------------------------------|
+| `api`           | Tabelas, DTOs, validadores, rotas e RBAC novos. Nenhuma rota existente muda de contrato — o grupo `nfse` é opcional.   |
+| `go-dfe`        | Pacote `nfse/tables` novo, sem tocar em nada existente.                                                                |
+| `worker`        | Nenhuma mudança de código. Recompilar para confirmar que o `go.sum` compartilhado segue consistente.                   |
+| `ui`            | Dois arquivos de dados gerados, ainda não importados. Nenhuma tela muda.                                               |
+| `cdk`           | Quatro tabelas novas e o dispatcher passa a enxergar `organization_nfse_configs`. Nenhuma tabela existente é alterada. |
+| `py-dfe`        | Nenhum impacto — py-dfe não tem NFS-e e nunca terá.                                                                    |
+| `ctech-account` | Nenhum impacto.                                                                                                        |
 
 ## O que a F1 deliberadamente não faz
 
 - Não emite nenhum documento. `nfses` e `nfse_events` são criadas mas nenhum código as lê ou escreve — isso é a F3.
 - Não implementa nenhuma comunicação com o Sefin Nacional ou com município ABRASF — isso é a F2 e a F5.
 - Não cria nenhuma tela. As rotas `/services` e `/nfse` do front são a F4.
-- Não valida obrigatoriedade condicional entre campos (por exemplo, `reg_ap_trib_sn` exigido quando `op_simp_nac` = 3, ou `abrasf` exigido quando `provider` = `abrasf204`). Essas regras dependem do contexto da emissão e entram junto com `NfseService.Emit`, na F3.
+- Não valida obrigatoriedade condicional entre campos (por exemplo, `reg_ap_trib_sn` exigido quando `op_simp_nac` = 3,
+  ou `abrasf` exigido quando `provider` = `abrasf204`). Essas regras dependem do contexto da emissão e entram junto com
+  `NfseService.Emit`, na F3.

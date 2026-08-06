@@ -235,12 +235,7 @@ func (s *MdfeService) GetEventXML(ctx context.Context, accessKey, eventSK string
 
 // --- internal helpers ---
 
-func envToPrefix(environment int) string {
-	if environment == 1 {
-		return EnvProd
-	}
-	return EnvHom
-}
+func envToPrefix(environment int) string { return services.EnvToPrefix(environment) }
 
 func sefazEnvFor(environment int) string {
 	if environment == 1 {

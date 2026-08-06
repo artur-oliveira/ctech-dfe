@@ -95,8 +95,7 @@ func processRecord(ctx context.Context, record events.DynamoDBEventRecord) error
 		},
 	})
 	if err != nil {
-		var conditionFailed *types.ConditionalCheckFailedException
-		if errors.As(err, &conditionFailed) {
+		if _, ok2 := errors.AsType[*types.ConditionalCheckFailedException](err); ok2 {
 			return nil
 		}
 		return fmt.Errorf("acknowledge outbox %s: %w", pk.String(), err)

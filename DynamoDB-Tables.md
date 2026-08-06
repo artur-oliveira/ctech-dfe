@@ -450,7 +450,7 @@ Service catalog per org (NFS-e line items — analogous to `organization_product
 | `cnae`                | S    | Optional 7-digit CNAE                                                                                          |
 | `unit`                | S    | Unit of measure                                                                                                |
 | `value`               | S    | Unit price as decimal string                                                                                   |
-| `iss`                 | M    | `{trib_issqn, aliquota, tp_ret_issqn?, tp_imunidade?, c_pais_resultado?}` — DPS `tribMun` defaults             |
+| `iss`                 | M    | `{trib_issqn, tax_rate, tp_ret_issqn?, tp_imunidade?, c_pais_resultado?}` — DPS `tribMun` defaults             |
 | `federal`             | M    | Optional `{cst_pis_cofins?, aliq_pis?, aliq_cofins?, tp_ret_pis_cofins?, v_ret_cp?, v_ret_irrf?, v_ret_csll?}` |
 | `ibs_cbs`             | M    | Optional `{c_ind_op?, cst?, c_class_trib?, ind_dest?, tp_oper?, fin_nfse?}` — reforma tributária defaults      |
 | `tot_trib`            | M    | `{ind_tot_trib, p_tot_trib_sn?}` — Lei da Transparência                                                        |
@@ -481,7 +481,7 @@ cursor fields (for tracking the last consumed NSU during ADN polling).
 | `prod_last_dist_nsu_at` | S  | ISO-8601 UTC timestamp of last production NSU cursor update; used for rate-limiting              |
 | `hom_last_dist_nsu_at`  | S  | ISO-8601 UTC timestamp of last homologação NSU cursor update; used for rate-limiting             |
 | `certificate_sk`      | S    | Optional: `organization_certificates` SK to use for this provider                               |
-| `abrasf`              | M    | Only for `provider=abrasf204`: `{endpoint_url, wsdl_version, codigo_municipio, envio_sincrono}` |
+| `abrasf`              | M    | Only for `provider=abrasf204`: `{endpoint_url, wsdl_version, municipality_code, synchronous}` |
 | `updated_at`          | S    | ISO-8601 UTC                                                                                    |
 
 Inscrição municipal and the prestador's regime tributário are NOT stored here — they live on the organization's own
@@ -509,6 +509,29 @@ One item per issued NFS-e. Reuses the same `getDfeTable` shape as `nfes`/`nfces`
 | `day`        | N    | Issue day (1–31). Used in `dfe-index`                      |
 | `created_at` | S    | ISO-8601 UTC                                               |
 | `updated_at` | S    | ISO-8601 UTC                                               |
+
+Written by `NfseService.Emit` in the same `TransactWrite` that reserves the DPS number:
+
+| Attribute          | Type | Notes                                                                                      |
+|--------------------|------|--------------------------------------------------------------------------------------------|
+| `provider`         | S    | `nacional` or `abrasf204` — copied from the org's NFS-e config at issuance time             |
+| `tp_emit`          | N    | `1` prestador / `2` tomador / `3` intermediário (DPS `tpEmit`)                              |
+| `c_motivo_emis_ti` | N    | Only when `tp_emit != 1` (DPS `cMotivoEmisTI`)                                              |
+| `serie`            | S    | DPS series, from the config                                                                 |
+| `competence`       | S    | `AAAA-MM-DD` competence date (DPS `dCompet`)                                                 |
+| `c_loc_emi`        | S    | 7-digit IBGE code of the local de emissão                                                    |
+| `emit_cpf_cnpj`    | S    | Issuer document, PK prefix stripped                                                          |
+| `emit_name`        | S    | Issuer name                                                                                  |
+| `dest_cpf_cnpj`    | S    | Tomador document (absent for self-issuance) — same attribute names as `nfes`/`nfces`         |
+| `dest_name`        | S    | Tomador name                                                                                 |
+| `total`            | S    | `vServPrest.vServ` as decimal string                                                          |
+| `payload`          | M    | The full neutral `nfse.Document` as issued — the same object sent in the worker command       |
+| `operation_id`     | S    | `{table}#{id_dps}` — the `worker_outbox` PK of the command committed with this item           |
+| `user_id`          | S    | Acting user                                                                                  |
+| `user_name`        | S    | Acting user's display name                                                                   |
+
+`access_key` is deliberately absent on creation: writing it empty would pollute `access-key-index`. The worker adds it
+with the fisco response.
 
 The sort key is `id_dps`, not the access key, because the 50-digit NFS-e access key only exists after the
 SEFAZ/municipal fisco response — unlike the other DF-e, the DPS is submitted before the key is known. `access_key` is

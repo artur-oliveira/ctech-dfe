@@ -726,9 +726,9 @@ func TestProcess_CancellationFailure_NotifiesEventNotDocument(t *testing.T) {
 	msg := baseMsg
 	msg.DocType = "mdfe"
 	msg.TableName = "mdfes"
-	msg.EventsTableName = strPtr("mdfe_events")
-	msg.EventType = strPtr(cancellationEvent)
-	msg.EventSK = strPtr("019f00a3-017e-7965-be14-090609df4ffb")
+	msg.EventsTableName = new("mdfe_events")
+	msg.EventType = new(cancellationEvent)
+	msg.EventSK = new("019f00a3-017e-7965-be14-090609df4ffb")
 
 	if err := svc.Process(context.Background(), msg); err != nil {
 		t.Fatalf("Process: %v", err)

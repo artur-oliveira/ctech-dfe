@@ -291,7 +291,7 @@ type ProductBody struct {
 type ServiceIssBody struct {
 	// 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
 	TribISSQN int    `json:"trib_issqn" validate:"required,oneof=1 2 3 4"`
-	Aliquota  string `json:"aliquota" validate:"required,percent"`
+	TaxRate   string `json:"tax_rate" validate:"required,percent"`
 	// 1 não retido | 2 retido pelo tomador | 3 retido pelo intermediário
 	TpRetISSQN *int `json:"tp_ret_issqn" validate:"omitempty,oneof=1 2 3"`
 	// Somente para trib_issqn=2 (imunidade). 0 tipo não informado | 1-5 hipóteses
@@ -359,10 +359,10 @@ type ServiceBody struct {
 
 // NfseAbrasfBody é a configuração específica do provider abrasf204.
 type NfseAbrasfBody struct {
-	EndpointURL     string `json:"endpoint_url" validate:"required,url"`
-	WsdlVersion     string `json:"wsdl_version" validate:"required,max=10"`
-	CodigoMunicipio string `json:"codigo_municipio" validate:"required,ibge"`
-	EnvioSincrono   bool   `json:"envio_sincrono"`
+	EndpointURL      string `json:"endpoint_url" validate:"required,url"`
+	WsdlVersion      string `json:"wsdl_version" validate:"required,max=10"`
+	MunicipalityCode string `json:"municipality_code" validate:"required,ibge"`
+	Synchronous      bool   `json:"synchronous"`
 }
 
 // NfseConfigBody is the body for PUT /organizations/:org_pk/nfse-config.

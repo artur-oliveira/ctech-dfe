@@ -468,7 +468,8 @@ def dados_nfe_code(
 ```
 
 > Note: the test's `icms_proprio=True` expects `code[31] == "1"`. Index map: cUF `0:2`, tpEmis `2:3`, doc `3:17`, vNF
-> `17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded to
+> `17:31`, ICMSp `31`, ICMSs `32`, DD `33:35`, DV `35`. The `vnf="123.45"` test strips to digits `12345` → zero-padded
+> to
 > `00000000012345`.
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -1408,7 +1409,8 @@ Create `py-dfe/py_dfe/danfe/templates/danfe_retrato.html`:
 
 > The context dict is passed under the name `ctx`. Update `generate_danfe_nfe` Step 3 (Task 6) render call to wrap:
 > change `render_html(template, context)` to `render_html(template, {"ctx": context})`. **Apply this one-line change now
-> ** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context` is
+> ** (it was deferred from Task 6 so the macros have a single `ctx` root). Re-run Task 6 tests after — `build_context`
+> is
 > unaffected; only the render wrapper changes.
 
 - [ ] **Step 5: Create `danfe_paisagem.html`**

@@ -121,8 +121,7 @@ func (r *OrgUserRepository) UpdateRole(ctx context.Context, orgPK, userID, role 
 	if permissions == nil {
 		permissions = []string{}
 	}
-	sk := BuildMemberSK(userID)
-	return r.UpdateItem(ctx, orgPK, &sk, map[string]any{
+	return r.UpdateItem(ctx, orgPK, new(BuildMemberSK(userID)), map[string]any{
 		"role":        role,
 		"permissions": permissions,
 	})

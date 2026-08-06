@@ -428,12 +428,7 @@ func intAttr(item map[string]types.AttributeValue, key string, def int) int {
 }
 
 // envToPrefix converts environment int (1=prod, 2=hom) to string prefix.
-func envToPrefix(environment int) string {
-	if environment == 1 {
-		return EnvProd
-	}
-	return EnvHom
-}
+func envToPrefix(environment int) string { return services.EnvToPrefix(environment) }
 
 // extractEmitUF extracts the UF from the first address in org.person.addresses.
 func extractEmitUF(org map[string]types.AttributeValue) string {

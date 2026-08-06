@@ -568,7 +568,6 @@ func toXMLTotTrib(t nfse.TotTrib) xmlTotTrib {
 	case t.PTotTribSN != "":
 		return xmlTotTrib{PTotTribSN: t.PTotTribSN}
 	default:
-		ind := t.IndTotTrib
-		return xmlTotTrib{IndTotTrib: &ind}
+		return xmlTotTrib{IndTotTrib: new(t.IndTotTrib)}
 	}
 }

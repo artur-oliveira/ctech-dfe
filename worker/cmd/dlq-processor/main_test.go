@@ -79,14 +79,13 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 	fd := &fakeDynamo{}
 	dynamoClient = fd
 
-	eventsTable := "nfe_events"
 	eventSK := "01930000-0000-7000-8000-000000000001"
 	msg := service.WorkerMessage{
 		DocPK:           "prod#CNPJ_12345678000195",
 		AccessKey:       "35250512345678000195550010000000011000000011",
 		TableName:       "nfes",
-		EventsTableName: &eventsTable,
-		EventType:       ptr("110111"),
+		EventsTableName: new("nfe_events"),
+		EventType:       new("110111"),
 		EventSK:         &eventSK,
 	}
 	body, _ := json.Marshal(msg)

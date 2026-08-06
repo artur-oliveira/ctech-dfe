@@ -192,8 +192,7 @@ func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, own
 	if err == nil {
 		return true, nil
 	}
-	var conditionFailed *types.ConditionalCheckFailedException
-	if !errors.As(err, &conditionFailed) {
+	if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); !ok {
 		return false, fmt.Errorf("claim processing %s/%s: %w", target.table, target.sk, err)
 	}
 
