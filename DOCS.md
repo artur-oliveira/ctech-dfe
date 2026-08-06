@@ -1462,6 +1462,37 @@ via `documentS3Key`/`putObject`, extraídos de `saveResponse` para não duplicar
 `updateAttrs` ganhou `AccessKey` e `DPSXMLS3Key` — os dois só são preenchidos por NFS-e, e `buildUpdateExpression`
 continua omitindo do SET tudo que for nil.
 
+### Distribuição ADN (F3)
+
+`DistributionService.Process` desvia `dist_nsu` para `runNfseDistNSU` (`worker/internal/service/distribution_nfse.go`)
+quando `doc_type = nfse`. O `distribution-dispatcher` varre `{prefix}_organization_nfse_configs` e enfileira um job
+por organização, sem mudança própria — só `nfse` na lista de `docTypes`.
+
+Não reusa `runDistNSU` porque os dois só parecem o mesmo problema:
+
+|             | NF-e / CT-e / MDF-e (`runDistNSU`)   | NFS-e (`runNfseDistNSU`)                    |
+|-------------|--------------------------------------|---------------------------------------------|
+| Protocolo   | SOAP `distDFeInt`                    | REST `GET /DFe/{NSU}` no ADN                |
+| Paginação   | `ultNSU` + `maxNSU` na resposta      | NSU sequencial; pede-se sempre `cursor + 1` |
+| Fim do lote | `cStat` 137 / 238                    | lote vazio                                  |
+| Punição     | consumo indevido                     | não existe no ADN                           |
+| Teto        | `ultNSU >= maxNSU`                   | `maxNfseDistBatches = 20` por invocação     |
+
+O que é comum — `loadConfig`, `loadCert`, `getCertB64`, `claimDistNSUSlot`, `invokePyDfe`, `updateNSU` — é reusado
+sem cópia.
+
+| Regra | Por quê |
+|---|---|
+| Só `provider = nacional` distribui | O ADN é do Sistema Nacional; ABRASF 2.04 não tem distribuição |
+| Cursor em `organization_nfse_configs` (`{env}_nsu`), igual à família NF-e | Homologação e produção têm sequências de NSU independentes |
+| Erro do ADN (HTTP != 200) é terminal — loga e devolve nil | Repetir a chamada devolve a mesma recusa; só falha de rede merece retry (o `error` de `invokePyDfe`) |
+| `PutItem` do NSU é condicional (`attribute_not_exists`) | SQS é at-least-once: a re-entrega não pode duplicar o registro |
+| Não passa por `processDocZip` | Aquele descompacta gzip+base64 e faz parsing de `procNFe`/`resNFe`; o ADN já entrega o XML pronto em `xml` |
+| `mapToDfeRequest` aceita UF vazia quando `doc_type = nfse` | NFS-e é competência municipal e viaja sem UF; o guard antigo jogaria a chamada no py-dfe, que não implementa NFS-e |
+
+XML recebido: `nfse-distribution/{env}/{org_pk}/NSU_{015d}.xml` — mesma convenção dos outros tipos. O registro vai
+para `nfse_distributions` (`pk = {env}#{org_pk}`, `sk = nsu`), que é o que `GET /nfse/distributions` lista.
+
 ---
 
 ## 8. cdk — Infrastructure

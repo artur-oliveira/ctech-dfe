@@ -92,6 +92,15 @@ var docTypeConfigs = map[string]docTypeConfig{
 		docTable:          "mdfes",
 		eventsTable:       "mdfe_events",
 	},
+	// NFS-e não usa SOAP: sefazService/xmlns/version ficam vazios de propósito —
+	// a distribuição é REST via ADN e o payload é montado por
+	// buildNfseDistPayload, não por buildPayload.
+	docTypeNfse: {
+		configTableSuffix: "nfse_configs",
+		distTable:         "nfse_distributions",
+		docTable:          "nfses",
+		eventsTable:       "nfse_events",
+	},
 }
 
 // DistributionDynamoClient is the DynamoDB subset used by DistributionService.
@@ -158,6 +167,9 @@ func (s *DistributionService) Process(ctx context.Context, msg DistributionMessa
 
 	switch msg.JobType {
 	case "dist_nsu", "":
+		if isNfse(msg.DocType) {
+			return s.runNfseDistNSU(ctx, msg.OrgPK, msg.Trigger, dtcfg)
+		}
 		return s.runDistNSU(ctx, msg.OrgPK, msg.DocType, msg.Trigger, dtcfg)
 	case "cons_nsu":
 		if msg.NSU == nil {

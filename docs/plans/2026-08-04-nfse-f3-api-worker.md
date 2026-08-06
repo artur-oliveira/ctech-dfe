@@ -1976,7 +1976,7 @@ então a constante é declarada duas vezes com o **mesmo valor literal `"CURSOR"
 dois valores parte o cursor em dois itens e reprocessa o histórico inteiro a cada ciclo. O Step 6
 registra isso no `CONDUCT.md` e o teste do Step 1 trava o valor nos dois lados.
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [x] **Step 1: Escrever o teste que falha**
 
 Crie `worker/internal/service/distribution_nfse_test.go`:
 
@@ -2081,12 +2081,12 @@ func TestBuildNfseDistPayload(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd worker && go test ./internal/service/ -run 'TestNfseDist|TestParseNfseDist|TestMaxNSU|TestBuildNfseDist' -v`
 Expected: FAIL — `undefined: nfseDistCursorSK`.
 
-- [ ] **Step 3: Escrever `distribution_nfse.go`**
+- [x] **Step 3: Escrever `distribution_nfse.go`**
 
 ```go
 package service
@@ -2189,7 +2189,7 @@ func maxNSUOf(items []nfseDistItem) int64 {
 }
 ```
 
-- [ ] **Step 4: Escrever `runNfseDistNSU` no mesmo arquivo**
+- [x] **Step 4: Escrever `runNfseDistNSU` no mesmo arquivo**
 
 Fluxo, na ordem exata:
 
@@ -2228,7 +2228,7 @@ injetados. Não chame `processDocZip`: aquele decodifica o gzip+base64 do DistDF
 parsing de `procNFe`/`resNFe`, que não existem em NFS-e — o go-dfe já entrega o XML descompactado
 em `it.XML`.
 
-- [ ] **Step 5: Registrar `nfse` em `docTypeConfigs` e no `Process`**
+- [x] **Step 5: Registrar `nfse` em `docTypeConfigs` e no `Process`**
 
 Em `distribution.go`, dentro de `docTypeConfigs` (`:64`):
 
@@ -2267,7 +2267,7 @@ var docTypes = []string{"nfe", "cte", "mdfe", "nfse"}
 O dispatcher varre `{prefix}_organization_nfse_configs` — tabela criada na F1 — e enfileira um job
 por organização, sem nenhuma outra mudança: o `scanOrgPKs` já é genérico sobre o nome da tabela.
 
-- [ ] **Step 6: Registrar a duplicação da constante no `CONDUCT.md`**
+- [x] **Step 6: Registrar a duplicação da constante no `CONDUCT.md`**
 
 Acrescente à seção de decisões duráveis:
 
@@ -2282,12 +2282,34 @@ Ambos têm teste que trava o valor literal. Se um pacote comum surgir entre os d
 a primeira constante a migrar.
 ```
 
-- [ ] **Step 7: Rodar os testes**
+- [x] **Step 7: Rodar os testes**
 
 Run: `cd worker && go build ./... && go test ./... -race`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+
+**Desvios do plano na implementação (2026-08-05):**
+
+- **O cursor não está mais na tabela de distribuição.** O commit `7272cc4` moveu o NSU para
+  `organization_nfse_configs` (`{env}_nsu`, `{env}_last_dist_nsu_at`), igual à família NF-e. Caem com ele o
+  `nfseDistCursorSK`, o `getNfseLastNSU`/`setNfseLastNSU`, o teste do Step 1 que travava a constante e o Step 6
+  inteiro (não há mais constante duplicada entre `api` e `worker`). `runNfseDistNSU` reusa `updateNSU` e
+  `claimDistNSUSlot` sem cópia.
+- **`parseNfseDistResponse` não devolve `error`** — item malformado é logado e pulado; abortar o ciclo por causa de
+  um NSU perderia o lote inteiro.
+- **`nfseDistStatusFound`/`nfseDistStatusEmpty` não existem.** A parada é `len(batch.Items) == 0`; nenhuma
+  comparação usa os literais, então nomear os dois seria constante morta. O status vai para o log.
+- **XML recebido segue a convenção dos outros docTypes**: `nfse-distribution/{env}/{org_pk}/NSU_{015d}.xml`, e não o
+  `{org_pk}/nfse/incoming/{nsu}.xml` do plano. O registro em `nfse_distributions` usa `pk = {env}#{org_pk}`, que é o
+  que `NfseService.ListDistributions` consulta.
+- **`mapToDfeRequest` ganhou exceção de UF vazia para NFS-e** (fora do escopo listado). Sem isso o payload da
+  distribuição era rejeitado pelo guard e caía no py-dfe, que não implementa NFS-e — a rotina inteira seria no-op.
+  Registrado no `CONDUCT.md`.
+- **`mockLambda` ganhou `payloads [][]byte`** para o teste de paginação (lote + lote vazio).
+- **Rate limit reusa `claimDistNSUSlot` uma vez por invocação**, não por iteração como a NF-e: o ADN não documenta
+  limite por chamada, e os campos `{env}_last_dist_nsu_at` já existem no config de NFS-e.
+
+- [x] **Step 8: Commit**
 
 ```bash
 git add worker/internal/service/distribution_nfse.go worker/internal/service/distribution_nfse_test.go \

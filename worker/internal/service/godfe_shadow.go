@@ -44,7 +44,9 @@ func mapToDfeRequest(payload map[string]any) (godfe.Request, bool) {
 	docType, _ := payload["doc_type"].(string)
 	service, _ := payload["service"].(string)
 	body, ok := payload["body"].(map[string]any)
-	if !ok || docType == "" || service == "" || uf == "" {
+	// UF vazia só é válida em NFS-e (competência municipal, sem UF autorizadora);
+	// nos demais docTypes ela endereça o webservice, e sem ela a chamada é inútil.
+	if !ok || docType == "" || service == "" || (uf == "" && !isNfse(docType)) {
 		return godfe.Request{}, false
 	}
 	return godfe.Request{

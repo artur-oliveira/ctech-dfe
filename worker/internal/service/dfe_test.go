@@ -48,16 +48,24 @@ func (m *mockS3) PutObject(_ context.Context, in *s3.PutObjectInput, _ ...func(*
 
 type mockLambda struct {
 	payload []byte
-	err     error
-	calls   int
+	// payloads devolve uma resposta diferente por chamada (paginação); tem
+	// precedência sobre payload enquanto não esgota.
+	payloads [][]byte
+	err      error
+	calls    int
 }
 
 func (m *mockLambda) Invoke(_ context.Context, _ *lambdaSDK.InvokeInput, _ ...func(*lambdaSDK.Options)) (*lambdaSDK.InvokeOutput, error) {
-	m.calls++
 	if m.err != nil {
+		m.calls++
 		return nil, m.err
 	}
-	return &lambdaSDK.InvokeOutput{Payload: m.payload}, nil
+	payload := m.payload
+	if m.calls < len(m.payloads) {
+		payload = m.payloads[m.calls]
+	}
+	m.calls++
+	return &lambdaSDK.InvokeOutput{Payload: payload}, nil
 }
 
 type capturedUpdate struct {

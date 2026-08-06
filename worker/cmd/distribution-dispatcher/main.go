@@ -14,7 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
-var docTypes = []string{"nfe", "cte", "mdfe"}
+var docTypes = []string{"nfe", "cte", "mdfe", "nfse"}
 
 func main() {
 	cfg, err := config.LoadDispatcher()

@@ -289,15 +289,20 @@ event_key == f"{access_key}#{event_type}#001"
 
 Records received via DFe distribution services (NFeDistribuicaoDFe, DistDFe for CT-e/MDF-e, or ABRASF ADN for NFS-e). SK is numeric NSU for range queries.
 
-| Attribute    | Type | Notes                                                      |
-|--------------|------|------------------------------------------------------------|
-| `pk`         | S    | `{org_pk}` — partition key                                 |
-| `nsu`        | N    | NSU number — sort key                                      |
-| `doc_type`   | S    | `nfe`, `cte`, `mdfe`, or `nfse`                            |
-| `schema`     | S    | SEFAZ schema type (`resNFe`, `procNFe`, `resEvento`, etc.); for `nfse` — RPS schema version |
-| `access_key` | S    | 44-digit key for DFe (NF-e/CT-e/MDF-e); 50-digit for NFS-e |
-| `xml_s3_key` | S    | S3 key of the received XML                                 |
-| `created_at` | S    | ISO-8601 UTC                                               |
+| Attribute         | Type | Notes                                                                                       |
+|-------------------|------|---------------------------------------------------------------------------------------------|
+| `pk`              | S    | `{env}#{org_pk}` — partition key (`hom`/`prod`)                                              |
+| `nsu`             | N    | NSU number — sort key                                                                        |
+| `schema`          | S    | SEFAZ schema URI; NF-e family only (NFS-e não tem, o ADN devolve o XML pronto)               |
+| `schema_type`     | S    | `resNFe`, `procNFe`, `resEvento`, …; em NFS-e é o `tipo_documento` do ADN (`NFSE`/`EVENTO`)  |
+| `doc_type`        | S    | `nfse` — gravado só pela distribuição de NFS-e                                                |
+| `access_key`      | S    | 44-digit key for DFe (NF-e/CT-e/MDF-e); 50-digit for NFS-e                                    |
+| `event_type`      | S    | Código do evento, quando o NSU é um evento                                                    |
+| `sequence_number` | S    | `nSeqEvento`; NF-e family only                                                                |
+| `xml_s3_key`      | S    | S3 key of the received XML (`{doc_type}-distribution/{env}/{org_pk}/NSU_{015d}.xml`)          |
+| `created_at`      | S    | ISO-8601 UTC                                                                                  |
+
+O cursor de NSU **não** mora aqui: fica em `organization_{doc_type}_configs` (`{env}_nsu`), inclusive para NFS-e.
 
 ---
 

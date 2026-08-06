@@ -125,6 +125,13 @@ Nunca montar `Content-Disposition` concatenando parâmetro de rota. Os params ch
 `%22`/`%0d%0a` escapam do `filename="..."` e injetam header. Use `sendXML` / `sendAttachment` (`internal/api/v1/helpers.go`),
 que passam o nome por `safeFilename`.
 
+## UF vazia em NFS-e (worker)
+
+`mapToDfeRequest` (`worker/internal/service/godfe_shadow.go`) rejeita payload sem UF — ela endereça o webservice da
+SEFAZ. NFS-e é competência municipal e viaja com `uf: ""` em toda a stack (`api/internal/services/nfses/*.go`), então
+o guard tem exceção explícita para `doc_type = nfse`. Tirar a exceção não quebra a compilação: a chamada só cai
+silenciosamente no py-dfe, que não implementa NFS-e. `TestMapToDfeRequest_NfseSemUF` trava os dois lados.
+
 ---
 
 # 7. Infrastructure and Cost Management
