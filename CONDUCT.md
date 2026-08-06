@@ -119,6 +119,12 @@ Never commit or expose:
 - CI/CD: GitHub Actions secrets
 - Test environments: synthetic or generated data only
 
+## Downloads (api)
+
+Nunca montar `Content-Disposition` concatenando parâmetro de rota. Os params chegam URL-decodados no Fiber, então
+`%22`/`%0d%0a` escapam do `filename="..."` e injetam header. Use `sendXML` / `sendAttachment` (`internal/api/v1/helpers.go`),
+que passam o nome por `safeFilename`.
+
 ---
 
 # 7. Infrastructure and Cost Management

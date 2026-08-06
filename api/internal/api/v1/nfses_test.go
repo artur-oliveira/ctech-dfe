@@ -68,3 +68,20 @@ func TestMunicipalParamArgs(t *testing.T) {
 		}
 	}
 }
+
+// TestSafeFilename cobre o header injection: params de rota chegam
+// URL-decodados, então aspas e CRLF sairiam crus no Content-Disposition.
+func TestSafeFilename(t *testing.T) {
+	tests := map[string]string{
+		"35260112345678901234550010000000011000000017": "35260112345678901234550010000000011000000017",
+		"DPS-abc_123.xml":    "DPS-abc_123.xml",
+		"a\"; filename=\"x":  "afilenamex",
+		"a\r\nX-Injected: 1": "aX-Injected1",
+		"../../etc/passwd":   "....etcpasswd",
+	}
+	for in, want := range tests {
+		if got := safeFilename(in); got != want {
+			t.Errorf("safeFilename(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

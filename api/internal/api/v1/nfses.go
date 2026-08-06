@@ -14,6 +14,9 @@ import (
 // acesso — GetNfse resolve os dois, porque a chave só existe após autorização.
 const paramID = "id"
 
+// mimeApplicationPDF é o Content-Type do DANFSE devolvido pelo ADN.
+const mimeApplicationPDF = "application/pdf"
+
 // municipalParamArgs monta os argumentos posicionais da consulta de
 // parametrização municipal na ordem do path do ADN (nacional.MunicipalParameters).
 // A aridade é validada no serviço contra nacional.ParamArity; aqui só se
@@ -104,9 +107,7 @@ func RegisterNfses(router fiber.Router, svc *nfsesvc.NfseService, userSvc *servi
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		c.Set(fiber.HeaderContentType, "application/pdf")
-		c.Set(fiber.HeaderContentDisposition, `attachment; filename="`+c.Params(paramID)+`.pdf"`)
-		return c.Send(pdf)
+		return sendAttachment(c, pdf, mimeApplicationPDF, c.Params(paramID), ".pdf")
 	})
 
 	// POST /nfses/:id/cancel

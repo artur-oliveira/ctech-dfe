@@ -225,11 +225,31 @@ func ptrQuery(c fiber.Ctx, key string) *string {
 	return &s
 }
 
+// safeFilename keeps only characters valid in a quoted Content-Disposition
+// filename. Route params reach here URL-decoded, so a raw quote or CRLF would
+// escape the header value.
+func safeFilename(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			return r
+		case r == '-', r == '_', r == '.':
+			return r
+		}
+		return -1
+	}, s)
+}
+
+// sendAttachment replies with data as a download named filename.ext.
+func sendAttachment(c fiber.Ctx, data []byte, contentType, filename, ext string) error {
+	c.Set(fiber.HeaderContentType, contentType)
+	c.Set(fiber.HeaderContentDisposition, `attachment; filename="`+safeFilename(filename)+ext+`"`)
+	return c.Send(data)
+}
+
 // sendXML replies with an XML attachment named filename.xml.
 func sendXML(c fiber.Ctx, data []byte, filename string) error {
-	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationXML)
-	c.Set(fiber.HeaderContentDisposition, `attachment; filename="`+filename+`.xml"`)
-	return c.Send(data)
+	return sendAttachment(c, data, fiber.MIMEApplicationXML, filename, ".xml")
 }
 
 // bindJSON strictly decodes the JSON request body into dst, rejecting unknown

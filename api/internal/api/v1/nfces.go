@@ -68,9 +68,7 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		c.Set("Content-Type", "application/xml")
-		c.Set("Content-Disposition", `attachment; filename="`+c.Params("access_key")+`.xml"`)
-		return c.Send(data)
+		return sendXML(c, data, c.Params("access_key"))
 	})
 
 	// GET /nfces/:access_key/danfce — DANFC-e PDF rendered by py-dfe
@@ -94,9 +92,7 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		c.Set("Content-Type", "application/pdf")
-		c.Set("Content-Disposition", `attachment; filename="`+accessKey+`.pdf"`)
-		return c.Send(pdf)
+		return sendAttachment(c, pdf, mimeApplicationPDF, accessKey, ".pdf")
 	})
 
 	// POST /nfces/:access_key/cancel
@@ -144,8 +140,6 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		c.Set("Content-Type", "application/xml")
-		c.Set("Content-Disposition", `attachment; filename="`+eventType+`-`+c.Params("access_key")+`.xml"`)
-		return c.Send(data)
+		return sendXML(c, data, eventType+"-"+c.Params("access_key"))
 	})
 }
