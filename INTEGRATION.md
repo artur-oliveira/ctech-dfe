@@ -260,6 +260,22 @@ confirmação (prestador/tomador/intermediário), `202205`/`203206`/`204207` rej
 use `POST /v1.0/nfses/{id}/substitute`) nor the fisco-private codes `105104`, `105105`, `205204`,
 `305101`–`305103`, which only arrive through ADN distribution.
 
+**Cancellation body is different from every other document type** — `POST /v1.0/nfses/{id}/cancel`
+requires **both** `reason_code` (≤2 chars, `cMotivo`) and `reason_description` (≤255 chars,
+`xMotivo`); NF-e/NFC-e/MDF-e take a single free-text justification. The UI does not reuse
+`CancelDfeModal` for NFS-e — see `components/nfse/NfseCancelModal.tsx`.
+
+**Real-time updates.** The worker publishes `table_name: "nfses"` and `access_key: <id_dps>` (the
+row's SK, not the fisco access key — it doesn't exist yet for `pending`/`processing` rows) on the
+same `dfe_result` WebSocket channel as the other document types. `useRealtimeUpdates.ts`'s
+`DOC_QUERY_KEYS` maps `nfses: queryKeys.nfses` so list/detail/event caches invalidate the same way.
+
+**ABRASF 2.04 is configurable but not emittable from the front (F4).** `/fiscal-config`'s NFS-e tab
+accepts `provider: "abrasf204"`, but `/nfse/emit` blocks submission with an explicit message when
+the saved config has that provider, and DANFSE download is only offered when
+`status === "authorized" && provider === "nacional"` — ABRASF 2.04 has no DANFSE proxy yet. Full
+SOAP-municipal emission is F5.
+
 ---
 
 ## Local Development

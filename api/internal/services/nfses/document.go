@@ -66,6 +66,10 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 	// não recebe a config, então o valor é aplicado aqui.
 	doc.Servico.LocPrest.CLocPrestacao = cLocEmi
 
+	if in.Body.AdditionalInfo != nil {
+		doc.Servico.InfoCompl = &nfse.InfoCompl{XInfComp: *in.Body.AdditionalInfo}
+	}
+
 	if in.Body.SubstitutesAccessKey != nil {
 		motivo := ""
 		if in.Body.SubstitutesReason != nil {

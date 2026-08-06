@@ -9,10 +9,15 @@ export const queryKeys = {
   nfceConfig: (pk: string) => ['nfce-config', pk] as const,
   cteConfig: (pk: string) => ['cte-config', pk] as const,
   mdfeConfig: (pk: string) => ['mdfe-config', pk] as const,
+  nfseConfig: (pk: string) => ['nfse-config', pk] as const,
   certificates: (pk: string) => ['certificates', pk] as const,
   products: {
     list: (orgPk: string | undefined) => ['products', orgPk] as const,
     detail: (id: string) => ['product', id] as const,
+  },
+  services: {
+    list: (orgPk: string | undefined) => ['services', orgPk] as const,
+    detail: (id: string) => ['service', id] as const,
   },
   vehicles: {
     list: (orgPk: string | undefined, role?: string) => ['vehicles', orgPk, role] as const,
@@ -44,9 +49,17 @@ export const queryKeys = {
     events: (accessKey: string) => ['mdfe-events', accessKey] as const,
     cargoPreview: (orgPk: string | undefined, keys: string[]) => ['mdfe-cargo-preview', orgPk, keys] as const,
   },
+  nfses: {
+    lists: (orgPk: string | undefined) => ['nfses', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['nfses', orgPk, params] as const,
+    detail: (id: string) => ['nfse', id] as const,
+    events: (id: string) => ['nfse-events', id] as const,
+  },
   distributions: {
     history: (docType: string, orgPk: string | undefined) => [`${docType}-distributions`, orgPk] as const,
   },
+  nfseDistributions: (orgPk: string | undefined) => ['nfse-distributions', orgPk] as const,
+  municipalParams: (city: string, kind: string, params?: object) => ['municipal-params', city, kind, params] as const,
   auditLogs: {
     list: (orgPk: string | undefined, params?: object) => ['audit-logs', orgPk, params] as const,
   },

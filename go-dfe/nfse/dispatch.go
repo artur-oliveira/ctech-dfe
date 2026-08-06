@@ -116,26 +116,41 @@ func str(body map[string]any, key string) string {
 	return s
 }
 
+// intOf reads an integer body value. body arrives either JSON-decoded (worker
+// SQS payloads, always float64) or as native Go types (in-process api/worker
+// callers building the map directly, e.g. int64 NSU cursors) — both must be
+// handled, or the in-process path silently reads 0.
 func intOf(body map[string]any, key string) int {
 	switch v := body[key].(type) {
 	case float64:
 		return int(v)
 	case int:
 		return v
+	case int64:
+		return int(v)
 	default:
 		return 0
 	}
 }
 
+// strSlice reads a []string body value. Same dual-transport concern as
+// intOf: JSON-decoded bodies carry []any, in-process callers pass []string
+// directly.
 func strSlice(body map[string]any, key string) []string {
-	raw, _ := body[key].([]any)
-	out := make([]string, 0, len(raw))
-	for _, v := range raw {
-		if s, ok := v.(string); ok {
-			out = append(out, s)
+	switch raw := body[key].(type) {
+	case []string:
+		return raw
+	case []any:
+		out := make([]string, 0, len(raw))
+		for _, v := range raw {
+			if s, ok := v.(string); ok {
+				out = append(out, s)
+			}
 		}
+		return out
+	default:
+		return nil
 	}
-	return out
 }
 
 // DecodeEventRequest decodifica o submapa "event" do Body com a mesma política

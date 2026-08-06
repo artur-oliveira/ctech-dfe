@@ -16,6 +16,7 @@ import type {
   MdfeIncludeDFeDoc,
   MdfeListOut,
   MeResponse,
+  MunicipalParamsOut,
   NFCeConfigOut,
   NfceEmit,
   NFeConfigOut,
@@ -24,6 +25,13 @@ import type {
   NfeEmit,
   NfeEventOut,
   NfeListOut,
+  NfseConfigOut,
+  NfseDetailOut,
+  NfseDistributionOut,
+  NfseEmit,
+  NfseEventBody,
+  NfseEventOut,
+  NfseListOut,
   OrganizationOut,
   PaginatedResponse,
   PersonCreate,
@@ -33,6 +41,9 @@ import type {
   ProductOut,
   ProductUpdate,
   RoleOut,
+  ServiceCreate,
+  ServiceOut,
+  ServiceUpdate,
   SyncEnqueuedOut,
   VehicleCreate,
   VehicleOut,
@@ -270,6 +281,27 @@ class ApiClient {
     return this.del(`/v1.0/products/${id}`)
   }
 
+  // Services (catálogo NFS-e) — org context auto-injected via Dfe-Organization-Pk header
+  async getServices(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<ServiceOut>> {
+    return this.get('/v1.0/services', {params})
+  }
+
+  async getService(id: string): Promise<ServiceOut> {
+    return this.get(`/v1.0/services/${id}`)
+  }
+
+  async createService(data: ServiceCreate): Promise<ServiceOut> {
+    return this.post('/v1.0/services', data)
+  }
+
+  async updateService(id: string, data: ServiceUpdate): Promise<ServiceOut> {
+    return this.put(`/v1.0/services/${id}`, data)
+  }
+
+  async deleteService(id: string): Promise<void> {
+    return this.del(`/v1.0/services/${id}`)
+  }
+
   // Vehicles
   async getVehicles(params?: {
     role?: 'tractor' | 'trailer';
@@ -351,6 +383,14 @@ class ApiClient {
 
   async upsertMDFeConfig(pk: string, data: object): Promise<MDFeConfigOut> {
     return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/mdfe-config`, data)
+  }
+
+  async getNfseConfig(pk: string): Promise<NfseConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfse-config`)
+  }
+
+  async upsertNfseConfig(pk: string, data: object): Promise<NfseConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfse-config`, data)
   }
 
   // Certificates
@@ -577,6 +617,75 @@ class ApiClient {
 
   async downloadMdfeDamdfe(accessKey: string): Promise<Blob> {
     return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/damdfe`, {responseType: 'blob'})).data
+  }
+
+  // NFS-e — id é sempre o id_dps (45 chars), nunca a chave de acesso (spec §7 decisão 2)
+  async getNfses(params?: {
+    limit?: number;
+    cursor?: string;
+    status?: string;
+    number?: number;
+    year?: number;
+    month?: number;
+    sort?: 'asc' | 'desc';
+  }): Promise<PaginatedResponse<NfseListOut>> {
+    return this.get('/v1.0/nfses', {params})
+  }
+
+  async getNfse(id: string): Promise<NfseDetailOut> {
+    return this.get(`/v1.0/nfses/${id}`)
+  }
+
+  async emitNfse(data: NfseEmit): Promise<NfseDetailOut> {
+    return this.post('/v1.0/nfses', data)
+  }
+
+  async substituteNfse(id: string, data: NfseEmit): Promise<NfseDetailOut> {
+    return this.post(`/v1.0/nfses/${id}/substitute`, data)
+  }
+
+  async cancelNfse(id: string, reasonCode: string, reasonDescription: string, sequenceNumber?: number): Promise<NfseDetailOut> {
+    return this.post(`/v1.0/nfses/${id}/cancel`, {
+      reason_code: reasonCode, reason_description: reasonDescription, sequence_number: sequenceNumber,
+    })
+  }
+
+  async sendNfseEvent(id: string, data: NfseEventBody): Promise<NfseEventOut> {
+    return this.post(`/v1.0/nfses/${id}/events`, data)
+  }
+
+  async getNfseEvents(id: string): Promise<PaginatedResponse<NfseEventOut>> {
+    return this.get(`/v1.0/nfses/${id}/events`, {params: {limit: 50}})
+  }
+
+  async downloadNfseXml(id: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfseDpsXml(id: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/dps-xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadNfseEventXml(id: string, eventSk: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  }
+
+  async downloadDanfse(id: string): Promise<Blob> {
+    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/danfse`, {responseType: 'blob'})).data
+  }
+
+  async getMunicipalParameters(city: string, kind: string, params?: {
+    service?: string;
+    competence?: string;
+    benefit_number?: string;
+  }): Promise<MunicipalParamsOut> {
+    return this.get(`/v1.0/nfse/municipal-parameters/${city}/${kind}`, {params})
+  }
+
+  // Distribuição ADN — rota dedicada (não a genérica /distributions/{docType}/*,
+  // que api/internal/services/distributions.go não registra para "nfse").
+  async listNfseDistributions(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<NfseDistributionOut>> {
+    return this.get('/v1.0/nfse/distributions', {params})
   }
 
   async downloadDistributionXml(docType: string, nsu: number): Promise<Blob> {

@@ -309,6 +309,39 @@ produziria um item órfão.
   (`ContribuinteEvents`, `EventsRequiringMotivo`, `EventsRequiringXMotivo`): a api valida antes de
   enfileirar e a `nacional.BuildPedRegEvento` valida ao serializar — duas cópias da regra
   divergiriam. Mesmo precedente de `BuildIDDPS`.
+- **`go-dfe/nfse/dispatch.go`'s `intOf`/`strSlice` têm que aceitar tipos nativos do Go, não só os
+  pós-decode de JSON.** `dfe.Call` tem duas rotas de transporte: o worker chamando via
+  `invokePyDfeLambda` (o corpo passa por `json.Marshal`/`Unmarshal`, então `int`/`[]string` viram
+  `float64`/`[]any`) e chamadas in-process — `worker/internal/service/distribution_nfse.go`
+  (`BodyKeyNSU` com `int64`) e `api/internal/services/nfses/municipal.go` (`BodyKeyParamArgs` com
+  `[]string`) — que constroem o `map[string]any` direto, sem round-trip de JSON. Um `intOf`/
+  `strSlice` que só reconhece `float64`/`[]any` lê 0/vazio em silêncio na rota in-process: a F3
+  enviou a distribuição ADN sempre com NSU 0 (preso na primeira página) e consultas de parâmetro
+  municipal sem argumento nenhum, sem erro nenhum — só descoberto por teste de execução real, não
+  por leitura de diff. Ao adicionar uma chave nova no `body` de um serviço NFS-e, teste as duas
+  rotas de transporte, não só a que o teste existente exercita.
+- **`worker/internal/service/distribution_test.go`'s `init()` força `godfeImplements = false` para
+  todo o pacote**, restaurando o caminho pré-cutover (mockLambda) para os testes que não têm nada a
+  ver com a chamada SEFAZ em si. Isso mascara qualquer teste de NFS-e que não reverta esse stub
+  explicitamente: `distribution_nfse_test.go` tinha testes cobrindo `runNfseDistNSU` só pelo caminho
+  mockLambda/JSON, nunca pelo caminho in-process real que a produção de fato usa (NFS-e está em
+  `dfe.Implements`) — por isso o bug do NSU `int64` (ver bullet acima) passou pela suíte inteira sem
+  quebrar nenhum teste. Ao testar qualquer serviço NFS-e que rode em produção pelo caminho
+  in-process, stub `godfeImplements`/`godfeCall` diretamente (como
+  `TestRunNfseDistNSU_RealInProcessPath` faz) — não confie só nos testes que passam pelo mockLambda
+  deste pacote.
+- **O cursor de NSU da distribuição NFS-e só pode avançar depois que o item foi persistido com
+  sucesso (S3 + DynamoDB).** O ADN não permite reconsultar um NSU já ultrapassado — se o upload do
+  XML no S3 falhar e o cursor avançar mesmo assim, aquele documento se perde para sempre.
+  `runNfseDistNSU` propaga qualquer erro de `persistNfseIncoming` (incluindo falha de S3) e de
+  `updateNSU` antes de seguir para o próximo lote; nenhum dos dois pode voltar a ser um erro
+  silencioso (`_ = `/log-only).
+- **`NfseServiceItem.Quantity` foi removido do corpo de `POST /v1.0/nfses`.** O layout DPS 1.01 não
+  tem campo de quantidade no grupo de serviço (só valor total, `vServ`) — o campo existia na
+  validação e na doc (`DOCS.md`) mas nunca teve destino em `buildServico`/`buildValores` nem em
+  `nfse.Document`, então qualquer valor enviado era descartado em silêncio. Não reintroduza esse
+  campo sem antes confirmar contra o XSD (`tmp/nfse-esquemas_xsd-.../DPS_v1.01.xsd`) onde ele se
+  encaixaria.
 
 ## NFC-e (modelo 65)
 

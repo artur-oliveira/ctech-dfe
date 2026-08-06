@@ -1,4 +1,4 @@
-import {FileText, Receipt, Route, Truck} from 'lucide-react'
+import {ClipboardList, FileSignature, FileText, Receipt, Route, Truck} from 'lucide-react'
 
 interface IconProps {
   width?: number
@@ -25,12 +25,30 @@ export const MdfeIcon = ({width = 16, height = 16}: IconProps) => (
   <Route width={width} height={height}/>
 )
 
+/** Catálogo de serviços (NFS-e) */
+export const ServiceIcon = ({width = 16, height = 16}: IconProps) => (
+  <ClipboardList width={width} height={height}/>
+)
+
+/** NFS-e — Nota Fiscal de Serviços Eletrônica */
+export const NfseIcon = ({width = 16, height = 16}: IconProps) => (
+  <FileSignature width={width} height={height}/>
+)
+
 export const ShoppingBagIcon = ({width = 16, height = 16}: IconProps) => (
   <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
        strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
     <line x1="3" y1="6" x2="21" y2="6"/>
     <path d="M16 10a4 4 0 0 1-8 0"/>
+  </svg>
+)
+
+export const BriefcaseIcon = ({width = 16, height = 16}: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2"/>
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
   </svg>
 )
 

@@ -467,9 +467,9 @@ Novo cursor de distribuição no `distribution-dispatcher` para NSU do ADN.
 | Rota | Conteúdo |
 |---|---|
 | `/services` | CRUD do catálogo, espelhando `/products` (lista, busca por código/descrição, form) |
-| `/nfse` | Listagem com filtros (competência, status, tomador), detalhe, timeline de eventos |
-| `/nfse/new` | Wizard: Prestador → Tomador/Intermediário → Serviço → Valores → IBS/CBS → Revisão |
-| `/nfse/distributions` | Notas recebidas via ADN, com ações de manifestação (confirmar/rejeitar) |
+| `/nfse` | Listagem com filtros (competência, status, número), detalhe, timeline de eventos |
+| `/nfse/emit` | Wizard: Prestador → Tomador/Intermediário → Serviço → Valores → Revisão (segue a convenção `/emit` das outras três telas de emissão — não `/new`). Também usado para substituição via `?substitute={id_dps}` |
+| `/nfse/distributions` | Notas recebidas via ADN, somente leitura (a API ainda não expõe manifestação — F6+) |
 | `/fiscal-config` | Aba NFS-e (provider, ambiente, município, série, regime tributário, ABRASF) |
 
 Princípio de simplicidade: o wizard preenche a maior parte a partir do **serviço selecionado** e da
@@ -511,7 +511,7 @@ infraestrutura. IAM do worker e da API estendidos para as tabelas novas e para o
 | **F1** | Tabelas + cadastros: `organization_services`, grupo `nfse` em `PersonObjectBody` (cobre `organizations` e `organization_persons`), `organization_nfse_configs`, CDK, tabelas de referência (Anexos B/C) | — | Concluída 2026-08-05 |
 | **F2** | `go-dfe/nfse` — provider `nacional` completo: DPS + IBS/CBS, eventos, consultas, DPS por id, DANFSE, parâmetros municipais, distribuição ADN | — | Concluída 2026-08-05 |
 | **F3** | `api` (emissão, eventos, consultas, proxies) + `worker` (pipeline NFS-e) | F1, F2 | Concluída 2026-08-05 |
-| **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 | — |
+| **F4** | `ui` — catálogo, wizard de emissão, eventos, distribuição, config | F3 | Concluída 2026-08-06 |
 | **F5** | `go-dfe/nfse/abrasf204` — motor genérico das 10 operações do WSDL + wiring na API/worker | F2, F3 | — |
 | **F6** | Hardening — homologação em produção restrita, testes ponta a ponta, documentação | todas | — |
 

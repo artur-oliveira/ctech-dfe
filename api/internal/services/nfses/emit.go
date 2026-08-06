@@ -62,7 +62,6 @@ type NfseServiceItem struct {
 	Description *string `json:"description" validate:"omitempty,max=2000"`
 	Value       *string `json:"value" validate:"omitempty,money"`
 	TaxRate     *string `json:"tax_rate" validate:"omitempty,money"`
-	Quantity    *string `json:"quantity" validate:"omitempty,money"`
 	CTribMun    *string `json:"c_trib_mun" validate:"omitempty,max=20"`
 }
 

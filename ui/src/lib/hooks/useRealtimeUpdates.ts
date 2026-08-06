@@ -43,6 +43,7 @@ const DOC_QUERY_KEYS = {
   nfes: queryKeys.nfes,
   nfces: queryKeys.nfces,
   mdfes: queryKeys.mdfes,
+  nfses: queryKeys.nfses,
 } as const
 
 export function useRealtimeUpdates(): { wsStatus: WSStatus } {

@@ -173,6 +173,8 @@ func message(fe validator.FieldError) string {
 		return "percentual inválido"
 	case "serie":
 		return "série deve ter 1 a 3 dígitos"
+	case "datebr":
+		return "data inválida (formato dd/mm/aaaa)"
 	case "inscmun":
 		return "inscrição municipal deve ter de 1 a 15 dígitos"
 	case "caepf":

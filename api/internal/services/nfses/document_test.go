@@ -132,6 +132,36 @@ func TestBuildDocument_ItemOverridesCatalogValue(t *testing.T) {
 	}
 }
 
+// TestBuildDocument_AdditionalInfoMapsToInfoCompl is a regression test:
+// req.AdditionalInfo was parsed and validated but never copied into the
+// neutral document, so anything the caller wrote there was silently dropped
+// from the DPS. Confirms it now lands in Servico.InfoCompl.XInfComp.
+func TestBuildDocument_AdditionalInfoMapsToInfoCompl(t *testing.T) {
+	in := minimalInput()
+	info := "informação complementar de teste"
+	in.Body.AdditionalInfo = &info
+
+	doc, err := buildDocument(in)
+	if err != nil {
+		t.Fatalf("buildDocument: %v", err)
+	}
+	if doc.Servico.InfoCompl == nil || doc.Servico.InfoCompl.XInfComp != info {
+		t.Errorf("InfoCompl.XInfComp = %+v, esperado %q", doc.Servico.InfoCompl, info)
+	}
+}
+
+// TestBuildDocument_NoAdditionalInfo_OmitsInfoCompl: sem additional_info, o
+// grupo opcional infoCompl não deve ser criado.
+func TestBuildDocument_NoAdditionalInfo_OmitsInfoCompl(t *testing.T) {
+	doc, err := buildDocument(minimalInput())
+	if err != nil {
+		t.Fatalf("buildDocument: %v", err)
+	}
+	if doc.Servico.InfoCompl != nil {
+		t.Errorf("InfoCompl = %+v, esperado nil sem additional_info", doc.Servico.InfoCompl)
+	}
+}
+
 func TestBuildDocument_RequiresRegApTribSNWhenOpSimpNacIs3(t *testing.T) {
 	in := minimalInput()
 	in.Prestador = map[string]types.AttributeValue{

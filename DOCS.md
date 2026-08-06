@@ -803,7 +803,7 @@ documento — `service` é objeto, não lista.
 | `tp_emit`                             | sim         | 1 prestador, 2 tomador, 3 intermediário                              |
 | `competence`                          | sim         | `dd/mm/aaaa`                                                         |
 | `service.service_id`                  | sim         | SK em `organization_services`; o catálogo fornece os defaults        |
-| `service.{description,value,tax_rate,quantity,c_trib_mun}` | não | sobrescrevem o catálogo nesta emissão              |
+| `service.{description,value,tax_rate,c_trib_mun}`  | não | sobrescrevem o catálogo nesta emissão              |
 | `motivo_emis_ti`                      | condicional | exigido quando `tp_emit != 1`                                        |
 | `provider_person_id`                  | condicional | exigido quando `tp_emit != 1` — o prestador vira pessoa do cadastro  |
 | `customer_id` / `intermediary_id`     | não         | pessoas do cadastro; 404 se o id não existir                         |
@@ -1358,11 +1358,16 @@ app/
 ├── nfce/           # NFC-e
 ├── cte/            # CT-e
 ├── mdfe/           # MDF-e
+├── nfse/           # NFS-e list + issuance (F4)
+│   ├── emit/       # Wizard (also used for substitution — ?substitute={id_dps})
+│   ├── detail/     # Specific NFS-e detail (by id_dps, not access_key)
+│   └── distributions/ # ADN-received documents (read-only)
 ├── products/       # Product catalog
+├── services/       # Service catalog (NFS-e) (F4)
 ├── vehicles/       # Fleet
 ├── persons/        # Customers/suppliers
 ├── certificates/   # A1 certificates
-└── fiscal-config/  # Issuance configuration
+└── fiscal-config/  # Issuance configuration (includes an NFS-e tab, F4)
 ```
 
 ### ApiClient (`lib/api/client.ts`)
@@ -1419,6 +1424,28 @@ background revalidations rather than overwriting it with the backend fallback.
 ### Form Validation
 
 React Hook Form + Zod. Zod schemas in `lib/schemas/` mirror the backend Pydantic schemas.
+
+### NFS-e no front (F4)
+
+Cinco rotas novas (`/services`, `/nfse`, `/nfse/emit`, `/nfse/detail`, `/nfse/distributions`) e uma aba nova em
+`/fiscal-config`. Consomem só rotas já expostas pela F3 — nenhuma mudança de API.
+
+| Regra | Por quê |
+|---|---|
+| `/nfse` e `/nfse/detail` navegam sempre por `id_dps` (`?id={id_dps}`), nunca por `access_key` | Documentos em `processing`/`pending` não têm chave de acesso ainda — link por chave quebraria no estado em que o usuário mais clica. `NfseListOut.sk`/`NfseDetailOut.sk` é o `id_dps`. |
+| `/nfse` é uma lista única, sem abas emitidas/recebidas/transportadas | NFS-e não tem `incoming`: recebidos chegam só pela distribuição ADN (`/nfse/distributions`), tela própria |
+| `/nfse/emit` bloqueia o envio com aviso explícito quando `nfseConfig.provider === 'abrasf204'` | Emissão por ABRASF 2.04 (SOAP municipal) fica para F5; o front não tenta montar um corpo que a API rejeitaria |
+| DANFSE só é oferecido quando `status === 'authorized' && provider === 'nacional'` | O PDF é proxy do ADN (nacional); ABRASF 2.04 não tem endpoint de DANFSE ainda |
+| Cancelamento de NFS-e usa `NfseCancelModal` (código do motivo + descrição), não `CancelDfeModal` | TE101101 exige `cMotivo` (código) **e** `xMotivo` (descrição) — os outros documentos usam só uma justificativa |
+| O seletor de evento genérico em `/nfse/detail` oferece somente `CONTRIBUINTE_EVENTS` (`lib/schemas/nfse.ts`) | Espelha `nfse.ContribuinteEvents` (go-dfe) menos `105102`, que a API rejeita em `POST /events` (gerado pelo fisco na substituição) |
+| Substituição não é evento: o botão "Substituir" leva a `/nfse/emit?substitute={id_dps}`, que pré-carrega o wizard e chama `POST /nfses/{id}/substitute` | O fisco gera o `105102` e cancela a original por conta própria — não existe corpo de evento para isso |
+| `useRealtimeUpdates` ganhou `nfses` em `DOC_QUERY_KEYS` | O worker publica `table_name: "nfses"` e `access_key: <id_dps>` (a SK da linha) — o mesmo campo genérico que o hook já usava para invalidar NF-e/NFC-e/MDF-e |
+| `StepIndicator` foi extraído de `NfeEmitForm.tsx` para `components/ui/step-indicator.tsx` (componente genérico `<Id extends string>`) | `NfseEmitForm` precisava do mesmo indicador de passos — extração mecânica, sem mudança visual em `/nfe/emit` |
+
+**Deliberadamente fora do escopo F4:** manifestação sobre documentos recebidos (tela de distribuição é só
+leitura — a API ainda não expõe a ação); IBS/CBS na emissão (o contrato real de `NfseServiceItem`
+(`api/internal/services/nfses/emit.go`) não tem campos de reforma tributária); desconto/dedução na emissão (mesmo
+motivo — `NfseServiceItem` só tem `service_id/description/value/tax_rate/c_trib_mun`).
 
 ### Main Dependencies
 

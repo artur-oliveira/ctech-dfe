@@ -196,6 +196,32 @@ export interface NFCeConfigOut {
 export type CTeConfigOut = NFeConfigOut
 export type MDFeConfigOut = NFeConfigOut
 
+// NFS-e não tem timezone próprio nem serie por ambiente — deriva o fuso de
+// c_loc_emi e usa uma única serie (docs/specs/2026-08-04-nfse-design.md §3.3).
+export interface NfseAbrasfBody {
+  endpoint_url: string
+  wsdl_version: string
+  municipality_code: string
+  synchronous: boolean
+}
+
+export interface NfseConfigOut {
+  pk: string
+  provider: 'nacional' | 'abrasf204'
+  environment: number
+  c_loc_emi: string
+  serie: string
+  prod_current_number: number
+  hom_current_number: number
+  certificate_sk: string | null
+  abrasf: NfseAbrasfBody | null
+  prod_nsu: number
+  prod_last_dist_nsu_at: string | null
+  hom_nsu: number
+  hom_last_dist_nsu_at: string | null
+  updated_at: string
+}
+
 // Products
 export interface CfopConfigItem {
   cfop: string
@@ -422,6 +448,77 @@ export interface ProductUpdate {
   cfop_config?: CfopConfigItem[]
   conversion_factors?: ConversionFactorItem[]
 }
+
+// Serviços (catálogo NFS-e)
+export interface ServiceIssBody {
+  // 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
+  trib_issqn: number
+  tax_rate: string
+  // 1 não retido | 2 retido pelo tomador | 3 retido pelo intermediário
+  tp_ret_issqn?: number | null
+  tp_imunidade?: number | null
+  c_pais_resultado?: string | null
+}
+
+export interface ServiceFederalBody {
+  cst_pis_cofins?: string | null
+  aliq_pis?: string | null
+  aliq_cofins?: string | null
+  tp_ret_pis_cofins?: number | null
+  v_ret_cp?: string | null
+  v_ret_irrf?: string | null
+  v_ret_csll?: string | null
+}
+
+export interface ServiceIbsCbsBody {
+  c_ind_op?: string | null
+  cst?: string | null
+  c_class_trib?: string | null
+  ind_dest?: number | null
+  tp_oper?: number | null
+  fin_nfse?: number | null
+}
+
+export interface ServiceTotTribBody {
+  ind_tot_trib: number
+  p_tot_trib_sn?: string | null
+}
+
+export interface ServiceOut {
+  pk: string
+  sk: string
+  code: string
+  description: string
+  trib_nacional_code: string
+  trib_municipal_code: string | null
+  nbs_code: string | null
+  cnae: string | null
+  unit: string
+  value: string
+  iss: ServiceIssBody
+  federal: ServiceFederalBody | null
+  ibs_cbs: ServiceIbsCbsBody | null
+  tot_trib: ServiceTotTribBody | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ServiceCreate {
+  code: string
+  description: string
+  trib_nacional_code: string
+  trib_municipal_code?: string | null
+  nbs_code?: string | null
+  cnae?: string | null
+  unit: string
+  value: string
+  iss: ServiceIssBody
+  federal?: ServiceFederalBody | null
+  ibs_cbs?: ServiceIbsCbsBody | null
+  tot_trib?: ServiceTotTribBody | null
+}
+
+export type ServiceUpdate = ServiceCreate
 
 // Vehicles
 export interface OwnerOut {
@@ -927,6 +1024,108 @@ export interface MdfeIncludeDFeDoc {
   unloading_city: string
   nfe_key: string
 }
+
+// ─── NFS-e ───────────────────────────────────────────────────────────────
+
+export type NfseStatus = 'pending' | 'processing' | 'authorized' | 'rejected' | 'cancelled' | 'error'
+
+export interface NfseServiceItem {
+  service_id: string
+  description?: string | null
+  value?: string | null
+  tax_rate?: string | null
+  c_trib_mun?: string | null
+}
+
+export interface NfseEmit {
+  tp_emit: 1 | 2 | 3
+  motivo_emis_ti?: 1 | 2 | 3 | 4
+  ch_nfse_rej?: string
+  competence: string
+  provider_person_id?: string | null
+  customer_id?: string | null
+  intermediary_id?: string | null
+  service: NfseServiceItem
+  substitutes_access_key?: string | null
+  substitutes_reason?: string | null
+  additional_info?: string | null
+}
+
+export interface NfseEventBody {
+  event_type: string
+  sequence_number?: number
+  reason_code?: string
+  reason_description?: string
+  substitute_access_key?: string
+  cpf_ag_trib?: string
+  id_ev_manif_rej?: string
+}
+
+export interface NfseListOut {
+  pk: string    // {env}#{org_pk}
+  sk: string    // id_dps (45 chars) — não a chave de acesso
+  provider: 'nacional' | 'abrasf204'
+  status: NfseStatus
+  tp_emit: number
+  serie: string
+  number: number
+  competence: string
+  c_loc_emi: string
+  year: number
+  month: number
+  emit_cpf_cnpj: string
+  emit_name: string
+  dest_cpf_cnpj: string | null
+  dest_name: string | null
+  total: string
+  payload: Record<string, unknown>
+  access_key: string | null
+  xml_s3_key: string | null
+  dps_xml_s3_key: string | null
+  sefaz_motive: string | null
+  c_motivo_emis_ti: number | null
+  user_id: string
+  user_name: string
+  created_at: string
+  updated_at: string
+}
+
+// GET /nfses e GET /nfses/{id} devolvem o mesmo item — o backend não projeta
+// campos entre lista e detalhe (nfses.go, api/internal/api/v1/nfses.go).
+export type NfseDetailOut = NfseListOut
+
+export interface NfseEventOut {
+  pk: string           // id_dps (não org_pk — spec §3.5)
+  sk: string
+  access_key: string   // aqui carrega o id_dps, não a chave de acesso
+  event_type: string
+  sequence_number: number
+  status: 'pending' | 'processing' | 'success' | 'rejected' | 'failed' | 'retry'
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  sefaz_protocol: string | null
+  xml_s3_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+// persistNfseIncoming (worker/internal/service/distribution_nfse.go) não faz
+// parsing de campos do XML — ao contrário de NF-e/CT-e/MDF-e, não há
+// emit_name/dest_name/total/sefaz_*/dh_emi aqui.
+export interface NfseDistributionOut {
+  nsu: number
+  doc_type: string
+  schema_type: string
+  access_key: string | null
+  event_type: string | null
+  xml_s3_key: string
+  created_at: string
+}
+
+// GET /nfse/municipal-parameters/{city}/{kind} — proxy do ADN; a forma varia
+// por kind (aliquota/regimes-especiais/beneficio/retencoes), então tipar
+// campo a campo aqui reimplementaria o leiaute do ADN sem necessidade.
+export type MunicipalParamsOut = Record<string, unknown>
 
 export interface NFeDistributionOut {
   nsu: number

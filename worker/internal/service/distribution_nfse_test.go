@@ -3,10 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
+	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
 func TestParseNfseDistResponse_LoteComDocumentos(t *testing.T) {
@@ -208,5 +212,107 @@ func TestRunNfseDistNSU_ProviderAbrasf_NoOp(t *testing.T) {
 	}
 	if lamm.calls != 0 {
 		t.Errorf("abrasf204 não distribui, mas houve %d chamadas", lamm.calls)
+	}
+}
+
+// TestRunNfseDistNSU_S3UploadFailure_DoesNotAdvanceCursor is a regression
+// test: persistNfseIncoming used to swallow the S3 PutObject error (just
+// logged it) and the loop advanced the NSU cursor regardless. Since the ADN
+// only serves documents strictly after the requested NSU, advancing past a
+// document whose XML never made it to S3 lost that document permanently —
+// the next cycle would never ask for it again. The fix propagates the S3
+// error so the cycle aborts before writing the distribution record or
+// moving the cursor; the next cycle retries the same NSU.
+func TestRunNfseDistNSU_S3UploadFailure_DoesNotAdvanceCursor(t *testing.T) {
+	dynm := &mockDistDynamo{gets: []getResult{{item: nfseConfigItem("nacional", 10)}}}
+	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
+	s3m := certS3()
+	s3m.putErr = errors.New("s3 unavailable")
+	lamm := &mockLambda{payloads: [][]byte{
+		nfseDistResp([]map[string]any{
+			{"nsu": 11, "chave_acesso": testAK, "tipo_documento": "NFSE", "xml": "<NFSe/>"},
+		}),
+	}}
+
+	svc := newDistSvc(dynm, s3m, lamm, &mockSNS{}, distCfg)
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: docTypeNfse, Trigger: "scheduler",
+	})
+	if err == nil {
+		t.Fatal("esperado erro por falha de upload S3, veio nil")
+	}
+	if len(dynm.putCalls) != 0 {
+		t.Errorf("registro de distribuição não deveria ser gravado com upload S3 falho, houve %d", len(dynm.putCalls))
+	}
+	// updateCalls[0] é o claim do slot (trigger=scheduler); o cursor (segundo
+	// UpdateItem) não deve acontecer.
+	if len(dynm.updateCalls) != 1 {
+		t.Errorf("cursor de NSU não deveria avançar com upload S3 falho, houve %d UpdateItem", len(dynm.updateCalls))
+	}
+}
+
+// TestRunNfseDistNSU_UpdateNSUFailure_Propagates is a regression test: the
+// cursor UpdateItem error used to be discarded (`_ = s.updateNSU(...)`), so a
+// DynamoDB failure right after persisting a batch went unnoticed — the loop
+// kept using its in-memory currentNSU for the next ADN request while the
+// persisted cursor silently stayed behind.
+func TestRunNfseDistNSU_UpdateNSUFailure_Propagates(t *testing.T) {
+	dynm := &mockDistDynamo{
+		gets:       []getResult{{item: nfseConfigItem("nacional", 10)}},
+		updateErrs: []error{nil, errors.New("dynamodb unavailable")}, // [0]=claim ok, [1]=cursor update fails
+	}
+	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
+	lamm := &mockLambda{payloads: [][]byte{
+		nfseDistResp([]map[string]any{
+			{"nsu": 11, "chave_acesso": testAK, "tipo_documento": "NFSE", "xml": "<NFSe/>"},
+		}),
+	}}
+
+	svc := newDistSvc(dynm, certS3(), lamm, &mockSNS{}, distCfg)
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: docTypeNfse, Trigger: "scheduler",
+	})
+	if err == nil {
+		t.Fatal("esperado erro por falha no UpdateItem do cursor, veio nil")
+	}
+}
+
+// TestRunNfseDistNSU_RealInProcessPath exercises the actual production route
+// (godfeImplements=true, godfeCall wired) instead of this file's mockLambda,
+// which every other test in this package uses (see distribution_test.go's
+// package-level init forcing godfeImplements=false). That masking is why the
+// int64 NSU / dispatch.go intOf mismatch shipped undetected: no test ever
+// sent a native (non-JSON-decoded) body through the real in-process call.
+// This test stubs godfeCall directly and asserts the NSU cursor reaches it
+// as int64, proving the path this package's other NFS-e tests never touch.
+func TestRunNfseDistNSU_RealInProcessPath(t *testing.T) {
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+
+	var gotNSU any
+	godfeImplements = func(docType, service string) bool {
+		return docType == docTypeNfse && service == serviceNFSeDistribuicao
+	}
+	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		gotNSU = req.Body[nfse.BodyKeyNSU]
+		body, _ := json.Marshal(map[string]any{"status_distribuicao": "NENHUM_DOCUMENTO_LOCALIZADO"})
+		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
+	}
+
+	dynm := &mockDistDynamo{gets: []getResult{{item: nfseConfigItem("nacional", 10)}}}
+	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
+	lam := &mockLambda{}
+	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)
+
+	if err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: docTypeNfse, Trigger: "scheduler",
+	}); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if lam.calls != 0 {
+		t.Errorf("py-dfe Lambda não deveria ser chamado (go-dfe implementa nfse dist), houve %d chamadas", lam.calls)
+	}
+	if nsu, ok := gotNSU.(int64); !ok || nsu != 11 {
+		t.Errorf("req.Body[%q] = %v (%T), esperado int64(11)", nfse.BodyKeyNSU, gotNSU, gotNSU)
 	}
 }

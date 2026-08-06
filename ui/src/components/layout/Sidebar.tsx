@@ -4,10 +4,12 @@ import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 import type {ReactNode} from 'react'
 import {
+  BriefcaseIcon,
   CteIcon,
   MdfeIcon,
   NfceIcon,
   NfeIcon,
+  NfseIcon,
   ShieldIcon,
   ShoppingBagIcon,
   TruckIcon,
@@ -74,12 +76,14 @@ const navGroups: NavGroup[] = [
       {href: '/nfce', label: 'NFC-e', icon: <NfceIcon/>},
       {href: '/cte', label: 'CT-e', icon: <CteIcon/>},
       {href: '/mdfe', label: 'MDF-e', icon: <MdfeIcon/>},
+      {href: '/nfse', label: 'NFS-e', icon: <NfseIcon/>},
     ],
   },
   {
     label: 'Cadastros',
     items: [
       {href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>},
+      {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
       {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
     ],

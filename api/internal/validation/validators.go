@@ -40,6 +40,7 @@ var regexValidators = map[string]*regexp.Regexp{
 	"decimalv": regexp.MustCompile(`^\d+(\.\d+)?$`),
 	"percent":  regexp.MustCompile(`^\d{1,3}(\.\d{1,4})?$`),
 	"serie":    regexp.MustCompile(`^\d{1,3}$`),
+	"datebr":   regexp.MustCompile(`^\d{2}/\d{2}/\d{4}$`),
 	"money":    regexp.MustCompile(`^\d+(\.\d{1,4})?$`),
 	"money2":   regexp.MustCompile(`^\d+(\.\d{1,2})?$`),
 	"weight3":  regexp.MustCompile(`^\d+(\.\d{1,3})?$`),

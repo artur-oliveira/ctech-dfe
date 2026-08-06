@@ -61,4 +61,35 @@ export type NFCeConfigFormData = z.infer<typeof nfceConfigSchema>
 export type CTeConfigFormData  = z.infer<typeof cteConfigSchema>
 export type MDFeConfigFormData = z.infer<typeof mdfeConfigSchema>
 
-export type DocVariant = 'nfe' | 'nfce' | 'cte' | 'mdfe'
+// NFS-e não embeda baseFields: uma única serie (não prod/hom), sem timezone
+// próprio (deriva de c_loc_emi), e o formato do provider nacional troca
+// prod_current_serie por um município emissor. Ver api/internal/api/v1/dto.go
+// NfseConfigBody e docs/specs/2026-08-04-nfse-design.md §3.3.
+export const nfseConfigSchema = z.object({
+  provider: z.enum(['nacional', 'abrasf204']),
+  environment: z.enum(['1', '2']),
+  c_loc_emi: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),
+  serie: serieField,
+  prod_current_number: numberField,
+  hom_current_number: numberField,
+  certificate_sk: z.string().optional().or(z.literal('')),
+  abrasf_endpoint_url: z.string().url('URL inválida').optional().or(z.literal('')),
+  abrasf_wsdl_version: z.string().max(10).optional().or(z.literal('')),
+  abrasf_municipality_code: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos').optional().or(z.literal('')),
+  abrasf_synchronous: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if (v.provider !== 'abrasf204') return
+  if (!v.abrasf_endpoint_url) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['abrasf_endpoint_url'], message: 'Endpoint obrigatório para ABRASF 2.04'})
+  }
+  if (!v.abrasf_wsdl_version) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['abrasf_wsdl_version'], message: 'Versão do WSDL obrigatória para ABRASF 2.04'})
+  }
+  if (!v.abrasf_municipality_code) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['abrasf_municipality_code'], message: 'Código do município obrigatório para ABRASF 2.04'})
+  }
+})
+
+export type NfseConfigFormData = z.infer<typeof nfseConfigSchema>
+
+export type DocVariant = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse'

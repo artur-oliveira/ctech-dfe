@@ -13,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
 const (
@@ -65,9 +67,9 @@ func buildNfseDistPayload(cnpj, certB64, certPassword, sefazEnv, provider string
 		"validate_schema":      false,
 		"max_retries":          2,
 		"body": map[string]any{
-			"provider":      provider,
-			"nsu":           nsu,
-			"cnpj_consulta": cnpj,
+			nfse.BodyKeyProvider:     provider,
+			nfse.BodyKeyNSU:          nsu,
+			nfse.BodyKeyCNPJConsulta: cnpj,
 		},
 	}
 }
@@ -166,7 +168,9 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 
 		var respBody map[string]any
 		if b, ok := resp["body"].(string); ok {
-			_ = json.Unmarshal([]byte(b), &respBody)
+			if err := json.Unmarshal([]byte(b), &respBody); err != nil {
+				return fmt.Errorf("unmarshal ADN response: %w", err)
+			}
 		}
 		if statusCode := int(getFloat(resp, "statusCode")); statusCode != 200 {
 			// Erro do ADN é terminal: repetir a chamada devolve a mesma recusa.
@@ -182,11 +186,19 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 		}
 
 		for _, it := range batch.Items {
-			s.persistNfseIncoming(ctx, docPK, orgPK, envPrefix, it, dtcfg)
+			// Erro de upload S3 aborta o ciclo sem avançar o cursor: o item
+			// fica "não entregue" (não gravado no DynamoDB), e o próximo
+			// ciclo pede o mesmo NSU de novo ao ADN — perder o upload e ainda
+			// assim avançar o cursor perderia o XML para sempre.
+			if err := s.persistNfseIncoming(ctx, docPK, orgPK, envPrefix, it, dtcfg); err != nil {
+				return fmt.Errorf("persistNfseIncoming nsu=%d: %w", it.NSU, err)
+			}
 		}
 
 		currentNSU = maxNSUOf(batch.Items)
-		_ = s.updateNSU(ctx, orgPK, configTable, envPrefix, int(currentNSU))
+		if err := s.updateNSU(ctx, orgPK, configTable, envPrefix, int(currentNSU)); err != nil {
+			return fmt.Errorf("updateNSU nfse: %w", err)
+		}
 	}
 
 	slog.Info("teto de lotes atingido — retoma no próximo ciclo", "org_pk", orgPK, "nsu", currentNSU)
@@ -196,12 +208,16 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 // persistNfseIncoming grava o XML recebido e o registro do NSU. Não passa por
 // processDocZip: aquele descompacta o gzip+base64 do DistDFe e faz parsing de
 // procNFe/resNFe, que não existem em NFS-e — o go-dfe já entrega o XML pronto.
+//
+// Falha de upload no S3 retorna erro (em vez de só logar) para que o chamador
+// pare o ciclo sem avançar o cursor de NSU: sem isso o XML seria perdido para
+// sempre, já que o ADN não permite re-consultar um NSU já ultrapassado.
 func (s *DistributionService) persistNfseIncoming(
 	ctx context.Context,
 	docPK, orgPK, envPrefix string,
 	it nfseDistItem,
 	dtcfg docTypeConfig,
-) {
+) error {
 	item := map[string]types.AttributeValue{
 		"pk":          &types.AttributeValueMemberS{Value: docPK},
 		"nsu":         &types.AttributeValueMemberN{Value: strconv.FormatInt(it.NSU, 10)},
@@ -225,12 +241,13 @@ func (s *DistributionService) persistNfseIncoming(
 		Body:        bytes.NewReader([]byte(it.XML)),
 		ContentType: aws.String(contentTypeXML),
 	}); err != nil {
-		slog.Error("failed to upload NFS-e distribution XML", "nsu", it.NSU, "key", s3Key, "err", err)
-	} else {
-		item["xml_s3_key"] = &types.AttributeValueMemberS{Value: s3Key}
+		return fmt.Errorf("upload S3 %s: %w", s3Key, err)
 	}
+	item["xml_s3_key"] = &types.AttributeValueMemberS{Value: s3Key}
 
 	// Condicional: a re-entrega do SQS não pode duplicar o registro do NSU.
+	// Falha aqui não é propagada — inclui o caso esperado de re-entrega
+	// (ConditionalCheckFailedException), que não deve interromper o ciclo.
 	table := s.cfg.TablePrefix + "_" + dtcfg.distTable
 	if _, err := s.dynamo.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName:           aws.String(table),
@@ -239,4 +256,5 @@ func (s *DistributionService) persistNfseIncoming(
 	}); err != nil {
 		slog.Warn("NSU already exists or PutItem failed", "nsu", it.NSU, "table", table)
 	}
+	return nil
 }

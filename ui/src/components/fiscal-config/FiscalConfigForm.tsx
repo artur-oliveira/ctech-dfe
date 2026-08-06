@@ -24,14 +24,15 @@ import {
   nfeConfigSchema,
   TIMEZONE_LABELS,
 } from '@/lib/schemas/fiscal-configs'
-import type {MDFeConfigOut, NFCeConfigOut, NFeConfigOut} from '@/lib/types/api'
+import type {MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api'
+import {NfseConfigForm} from '@/components/fiscal-config/NfseConfigForm'
 
 type AnyConfigOut = NFeConfigOut | NFCeConfigOut | MDFeConfigOut | null | undefined
 type AnyFormData = NFeConfigFormData | NFCeConfigFormData | CTeConfigFormData | MDFeConfigFormData
 
 interface FiscalConfigFormProps {
   variant: DocVariant
-  initialData: AnyConfigOut
+  initialData: AnyConfigOut | NfseConfigOut
   onSave: (data: Record<string, unknown>) => Promise<void>
   loading?: boolean
 }
@@ -48,6 +49,7 @@ const LABEL_BY_VARIANT: Record<DocVariant, string> = {
   nfce: 'NFC-e',
   cte: 'CT-e',
   mdfe: 'MDF-e',
+  nfse: 'NFS-e',
 }
 
 function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
@@ -102,6 +104,25 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
 }
 
 export function FiscalConfigForm({variant, initialData, onSave, loading = false}: FiscalConfigFormProps) {
+  // NFS-e não cabe no layout prod/hom-split: série única (não uma por
+  // ambiente), sem timezone próprio, e o provider troca o conjunto de campos
+  // (nacional x abrasf204) em vez de csc x sem-csc. Componente próprio em vez
+  // de forçar o formato aqui — ver NfseConfigForm.tsx.
+  if (variant === 'nfse') {
+    return <NfseConfigForm initialData={initialData as NfseConfigOut | null} onSave={onSave} loading={loading}/>
+  }
+
+  return (
+    <FiscalConfigFormInner variant={variant} initialData={initialData as AnyConfigOut} onSave={onSave} loading={loading}/>
+  )
+}
+
+function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: {
+  variant: Exclude<DocVariant, 'nfse'>
+  initialData: AnyConfigOut
+  onSave: (data: Record<string, unknown>) => Promise<void>
+  loading?: boolean
+}) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const savedAt = lastSavedAt ?? (initialData?.updated_at
