@@ -150,9 +150,17 @@ Run: `go test ./... -race` from `api/`.
 
 ---
 
+## NFS-e
+
+Lives in `internal/services/nfses/` (its own package, not `internal/services`): the row SK is the `id_dps`, not the
+access key; `WorkerMessage.UF` is empty (municipal competence); reads that hit the ADN (`municipal.go`) call go-dfe
+in-process, never py-dfe. See `../DOCS.md` → *Emissão de NFS-e* and `../CONDUCT.md`.
+
+---
+
 ## Critical Areas (require analysis before touching)
 
-- Fiscal document issuance (NF-e/NFC-e/CT-e/MDF-e)
+- Fiscal document issuance (NF-e/NFC-e/CT-e/MDF-e/NFS-e)
 - Fiscal numbering (`transact_write` reservation)
 - Certificate upload and management
 - JWT validation and RBAC middleware

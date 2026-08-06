@@ -172,6 +172,40 @@ SQS → worker Lambda (Go)
 
 ---
 
+## NFS-e Issuance Flow
+
+Same outbox → SNS → SQS spine as NF-e; what changes is everything downstream of the worker.
+
+```
+HTTP Client
+  → POST /v1.0/nfses  (Go Fiber)
+  → Build the id_dps (45 chars) — the access key does NOT exist yet
+  → One transact_write reserves the DPS number and creates the document plus the worker_outbox command
+  → Return 202 Accepted + operation_id
+
+DynamoDB Stream → outbox-publisher Lambda → command SNS → SQS
+
+SQS → worker Lambda (Go)
+  → go-dfe IN-PROCESS (no py-dfe at any point in NFS-e)
+      → Sign the DPS (XML-DSig) → gzip+base64 → REST/mTLS to Sefin Nacional
+  → Persist the NFS-e row (status authorized/rejected — a rejection is terminal, never retried)
+  → Save DPS + NFS-e XML to S3
+  → Publish terminal result to results SNS → WebSocket
+```
+
+Distribution runs on its own schedule and never touches SOAP `distDFe`:
+
+```
+EventBridge scheduler
+  → distribution-dispatcher Lambda (sweeps organization_{nfe,cte,mdfe,nfse}_configs)
+  → SQS
+  → distribution worker
+  → go-dfe → ADN REST GET /DFe/{NSU}?lote=true, sequential NSU paging
+  → nfse_distributions rows + XML in S3; the cursor advances in organization_nfse_configs.{env}_nsu
+```
+
+---
+
 ## Security
 
 - **Auth:** OAuth 2.0 Authorization Code + PKCE. ui redirects to accounts.aoctech.app; ctech-account issues RS256 access

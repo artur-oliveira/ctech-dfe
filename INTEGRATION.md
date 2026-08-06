@@ -225,6 +225,43 @@ do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial P
 
 ---
 
+## NFS-e (frontend contract)
+
+**Emission body** — `POST /v1.0/nfses`. One service per document (`service` is an object, not a list):
+
+```json
+{
+  "tp_emit": 1,
+  "competence": "05/08/2026",
+  "service": { "service_id": "SERVICE_01HZ...", "value": "1000.00", "tax_rate": "5.00" },
+  "customer_id": "CNPJ_12345678000195",
+  "additional_info": "..."
+}
+```
+
+`tp_emit` 2 (tomador) or 3 (intermediário) additionally require `motivo_emis_ti` and
+`provider_person_id`. Full field table and the conditional rules: `DOCS.md` → *Emissão de NFS-e*.
+
+**The `{id}` path parameter accepts either identifier.** `GET /v1.0/nfses/{id}` (and every
+`/{id}/...` sub-route) resolves both the 45-char `id_dps` — which the emission response returns as
+`sk` and which is the only identifier that exists before the fisco answers — and the 50-digit access
+key, which only appears after authorization. Do not build a UI that requires the access key to open
+a document.
+
+**Outcome is asynchronous.** `POST` returns 202 with `operation_id`; the row starts as
+`status: "pending"`. The final state (`authorized` / `rejected` / `cancelled`) arrives over the same
+WebSocket channel as NF-e, or by polling `GET /v1.0/nfses/{id}`. NFS-e responses have no
+`cStat`/`xMotivo`: a rejection is terminal and its reason arrives as the Problem `detail`.
+
+**Event types the UI may offer** — only the 10 contributor-emittable ones (`nfse.ContribuinteEvents`):
+`101101` cancelamento, `101103` solicitação de análise fiscal de cancelamento, `202201`/`203202`/`204203`
+confirmação (prestador/tomador/intermediário), `202205`/`203206`/`204207` rejeição
+(prestador/tomador/intermediário), `205208` anulação de rejeição. Never offer `105102` (substituição —
+use `POST /v1.0/nfses/{id}/substitute`) nor the fisco-private codes `105104`, `105105`, `205204`,
+`305101`–`305103`, which only arrive through ADN distribution.
+
+---
+
 ## Local Development
 
 ```bash

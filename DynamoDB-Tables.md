@@ -29,10 +29,10 @@ PITR: enabled in production only.
 | 16 | `nfce_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
 | 17 | `cte_events`                | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
 | 18 | `mdfe_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
-| 19 | `nfe_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
-| 20 | `cte_distributions`         | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
-| 21 | `mdfe_distributions`        | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
-| 22 | `nfse_distributions`        | `{org_pk}`                   | `nsu` (N)                                | —                                                  |
+| 19 | `nfe_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
+| 20 | `cte_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
+| 21 | `mdfe_distributions`        | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
+| 22 | `nfse_distributions`        | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 23 | `roles`                     | `ROLE_{NAME}`                | —                                        | —                                                  |
 | 24 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index`                  |
 | 25 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)                            |

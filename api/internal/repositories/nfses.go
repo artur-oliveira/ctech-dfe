@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -95,10 +97,30 @@ func (r *NfseRepository) ListNfses(ctx context.Context, pk string, opts NfseList
 		ScanIndexForward:  aws.Bool(sort == "asc"),
 		ExclusiveStartKey: opts.StartKey,
 	}
+	// status/year/month são filtros de atributo, não de chave: a dfe-index de
+	// nfes indexa por `incoming`, que NFS-e não tem (não há documento recebido
+	// com numeração própria aqui). O filtro roda sobre a partição da
+	// organização, já limitada pelo KeyConditionExpression.
+	names := map[string]string{}
+	var filters []string
 	if opts.Status != nil {
-		input.FilterExpression = aws.String("#st = :st")
-		input.ExpressionAttributeNames = map[string]string{"#st": "status"}
+		filters = append(filters, "#st = :st")
+		names["#st"] = "status"
 		input.ExpressionAttributeValues[":st"] = &types.AttributeValueMemberS{Value: *opts.Status}
+	}
+	if opts.Year != nil {
+		filters = append(filters, "#yr = :yr")
+		names["#yr"] = "year"
+		input.ExpressionAttributeValues[":yr"] = &types.AttributeValueMemberN{Value: strconv.Itoa(*opts.Year)}
+	}
+	if opts.Month != nil {
+		filters = append(filters, "#mo = :mo")
+		names["#mo"] = "month"
+		input.ExpressionAttributeValues[":mo"] = &types.AttributeValueMemberN{Value: strconv.Itoa(*opts.Month)}
+	}
+	if len(filters) > 0 {
+		input.FilterExpression = aws.String(strings.Join(filters, " AND "))
+		input.ExpressionAttributeNames = names
 	}
 
 	out, err := r.db.Query(ctx, input)

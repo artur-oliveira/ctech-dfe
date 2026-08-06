@@ -795,6 +795,38 @@ normative field name (`tp_emit`, `motivo_emis_ti`, `ch_nfse_rej`, `c_trib_mun`, 
 `nfse.Document` inside `payload` is a separate contract: it mirrors the DPS 1.01 layout element
 names on purpose and is not part of this convention.
 
+**Corpo de `POST /v1.0/nfses` (`NfseEmitBody`).** Diferente da NF-e, a NFS-e tem **um** serviço por
+documento — `service` é objeto, não lista.
+
+| Campo                                 | Obrigatório | Observação                                                          |
+|---------------------------------------|-------------|---------------------------------------------------------------------|
+| `tp_emit`                             | sim         | 1 prestador, 2 tomador, 3 intermediário                              |
+| `competence`                          | sim         | `dd/mm/aaaa`                                                         |
+| `service.service_id`                  | sim         | SK em `organization_services`; o catálogo fornece os defaults        |
+| `service.{description,value,tax_rate,quantity,c_trib_mun}` | não | sobrescrevem o catálogo nesta emissão              |
+| `motivo_emis_ti`                      | condicional | exigido quando `tp_emit != 1`                                        |
+| `provider_person_id`                  | condicional | exigido quando `tp_emit != 1` — o prestador vira pessoa do cadastro  |
+| `customer_id` / `intermediary_id`     | não         | pessoas do cadastro; 404 se o id não existir                         |
+| `ch_nfse_rej`                         | não         | chave da NFS-e rejeitada que esta emissão substitui                  |
+| `substitutes_access_key` / `substitutes_reason` | não | preenchidos pelo próprio serviço em `POST /{id}/substitute`  |
+| `additional_info`                     | não         | ≤2000 caracteres                                                     |
+
+Três validações condicionais rejeitam antes de qualquer escrita ou chamada externa:
+
+1. `tp_emit` 2 ou 3 exige `motivo_emis_ti` **e** `provider_person_id`.
+2. Prestador com `nfse.reg_trib.op_simp_nac = 3` exige `reg_ap_trib_sn` no cadastro; prestador sem o
+   grupo `nfse.reg_trib` é recusado com 400 citando o campo.
+3. `provider = abrasf204` exige o grupo `abrasf` completo na config (`ErrNfseNoAbrasf`).
+
+**Ciclo de vida da linha em `nfses`:**
+
+| `status`     | Quem escreve | Quando                                                                 |
+|--------------|--------------|------------------------------------------------------------------------|
+| `pending`    | api          | na emissão, dentro da transação que reserva o número                    |
+| `authorized` | worker       | resposta do fisco com a NFS-e emitida (grava `access_key` e `xml_s3_key`) |
+| `rejected`   | worker       | rejeição do fisco — terminal, sem retry (não há `cStat` em NFS-e)       |
+| `cancelled`  | worker       | evento 101101 registrado com sucesso                                    |
+
 #### Eventos de NFS-e (`NfseService.SendEvent` / `Cancel` / `Substitute`)
 
 `api/internal/services/nfses/events.go`. The event row goes to `nfse_events` with `pk = id_dps`

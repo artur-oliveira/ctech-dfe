@@ -2341,7 +2341,7 @@ Confira antes de escrever como os testes de integração existentes sobem suas d
 `rg -l "func TestMain" api/tests/integration/` e leia o mais próximo (`nfes_test.go`). **Não**
 introduza um segundo mecanismo de bootstrap.
 
-- [ ] **Step 1: Escrever o teste de integração da emissão**
+- [x] **Step 1: Escrever o teste de integração da emissão**
 
 Crie `api/tests/integration/nfses_test.go` cobrindo, cada um como subteste nomeado:
 
@@ -2361,18 +2361,18 @@ Crie `api/tests/integration/nfses_test.go` cobrindo, cada um como subteste nomea
 Toda asserção de erro deve checar o `Content-Type: application/problem+json` e o campo `type`, não
 só o status — é a regra de erro do `CLAUDE.md` raiz e o teste é o que a mantém viva.
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd api && go test ./tests/integration/ -run TestNfse -v`
 Expected: FAIL nos subtestes ainda não cobertos pelas Tasks 1–7 (se algum falhar por bug real,
 corrija o código de produção, nunca o teste).
 
-- [ ] **Step 3: Fazer passar**
+- [x] **Step 3: Fazer passar**
 
 Run: `cd api && go test ./tests/integration/ -run TestNfse -v`
 Expected: PASS em todos os subtestes.
 
-- [ ] **Step 4: Rodar a bateria completa dos dois projetos**
+- [x] **Step 4: Rodar a bateria completa dos dois projetos**
 
 Run:
 
@@ -2384,7 +2384,7 @@ cd ../worker && go build ./... && go vet ./... && go test ./... -race
 Expected: PASS, zero falhas. Se a F2 já estiver mesclada, rode também `cd go-dfe && go test ./...`
 para garantir que a assinatura de `nfse.Dispatch` consumida aqui não mudou.
 
-- [ ] **Step 5: `DOCS.md`**
+- [x] **Step 5: `DOCS.md`**
 
 Acrescente:
 
@@ -2398,21 +2398,21 @@ Acrescente:
 5. Uma linha na tabela de tabelas: `nfse_distributions` com `pk = {org_pk}#{env}`,
    `sk = NSU#{015d}` mais o item de cursor `sk = CURSOR`.
 
-- [ ] **Step 6: `OVERVIEW.md`**
+- [x] **Step 6: `OVERVIEW.md`**
 
 No diagrama/descrição de fluxo, acrescente o caminho de NFS-e ao lado do de NF-e, marcando o que
 muda: `API → outbox → SQS → worker → go-dfe (in-process, REST/mTLS) → Sefin Nacional`, sem
 py-dfe em nenhum ponto, e a distribuição `scheduler → distribution-dispatcher → SQS →
 distribution-worker → go-dfe → ADN`.
 
-- [ ] **Step 7: `INTEGRATION.md`**
+- [x] **Step 7: `INTEGRATION.md`**
 
 Documente para o front (consumido pela F4): a forma exata do corpo de emissão, o formato do
 `id` aceito por `GET /nfses/{id}` (aceita `id_dps` **ou** chave de 50 dígitos), o polling/WebSocket
 do desfecho, e a lista de `event_type` que o front pode oferecer ao usuário — que é estritamente o
 `ContribuinteEvents` da F2, não a lista completa de eventos.
 
-- [ ] **Step 8: `CONDUCT.md`**
+- [x] **Step 8: `CONDUCT.md`**
 
 Registre duas decisões duráveis (além da do Step 6 da Task 8):
 
@@ -2432,22 +2432,51 @@ documento na sua tabela" em todos os tipos. Em NFS-e essa SK é o `id_dps`. `upd
 depende disso; trocar por `out.AccessKey` produziria um item órfão.
 ```
 
-- [ ] **Step 9: `api/CLAUDE.md` e `worker/CLAUDE.md`**
+- [x] **Step 9: `api/CLAUDE.md` e `worker/CLAUDE.md`**
 
 Uma linha em cada: onde vive o serviço de NFS-e (`api/internal/services/nfses/`) e o desvio do
 worker (`worker/internal/service/nfse.go`, `distribution_nfse.go`), com a advertência de que a
 resposta de NFS-e não tem `cStat`/`xMotivo` e a rejeição é sempre terminal.
 
-- [ ] **Step 10: Marcar F3 na spec**
+- [x] **Step 10: Marcar F3 na spec**
 
 Em `docs/specs/2026-08-04-nfse-design.md`, na tabela de fases (§ final), marque F3 como concluída
 com a data.
 
-- [ ] **Step 11: Commit**
+**Desvios do plano na implementação (2026-08-05):**
+
+- **O harness de integração é de serviço, não de HTTP.** `api/tests/integration/` não sobe o app Fiber
+  (não existe `nfes_test.go`); os testes chamam o serviço e verificam o `*problem.Problem` devolvido.
+  As asserções são `problemStatus` + `problemType` — o `Content-Type: application/problem+json` é
+  responsabilidade de `Problem.Send`, coberta na camada de rota. Não foi introduzido um segundo
+  bootstrap, como o plano exige.
+- **Status na criação é `pending`, não `processing`**, e `problem.BadRequest` é **400**, não 422 — os
+  subtestes seguem o código, não a tabela do plano.
+- **`EmitDuplicadoRejeita` reproduz o conflito real.** Duas emissões seguidas nunca colidem: o número
+  é reservado na mesma transação do `Put`. O teste recua o contador para que a emissão seguinte
+  recalcule um `id_dps` já existente — o mesmo estado de um retry concorrente — e confirma 409 +
+  linha original intacta.
+- **`ParametrosMunicipaisUsamCache` virou `ParametrosMunicipaisValidamAridade`.** `callGoDfe` chama
+  `godfe.Call` direto (sem ponto de stub na api), então contar invocações do provider exigiria rede.
+  A chave de cache e a aridade já são cobertas por `TestCacheKeyMunicipalParams_ExcludesTenant` e
+  `TestMunicipalParamKind_Validation`; o subtest de integração prova que a validação acontece **antes**
+  de qualquer ida ao ADN.
+- **Subteste extra `EventoExigeNfseAutorizada`**: evento sobre NFS-e ainda pendente é recusado.
+- **Bug real corrigido (Step 3).** `NfseListOpts.Year`/`Month` eram parseados pela rota e descartados
+  por `ListNfses`. O filtro foi implementado como `FilterExpression` sobre a partição, não pela
+  `dfe-index`: aquela GSI é chaveada por `incoming`, que NFS-e não tem. Verificado vermelho antes,
+  verde depois.
+- **Tabelas novas no harness**: `nfses` (com `access-key-index`), `nfse_events` e `worker_outbox`.
+  `nfse_distributions` ficou de fora — `ListDistributions` não é exercida aqui.
+- **`DynamoDB-Tables.md`**: o índice de tabelas ainda dizia `pk = {org_pk}` nas quatro tabelas de
+  distribuição; corrigido para `{env}#{org_pk}`, alinhando com a §19–22.
+
+- [x] **Step 11: Commit**
 
 ```bash
-git add api/tests/integration/nfses_test.go DOCS.md OVERVIEW.md INTEGRATION.md CONDUCT.md \
-        api/CLAUDE.md worker/CLAUDE.md docs/specs/2026-08-04-nfse-design.md
+git add api/tests/integration/ api/internal/repositories/nfses.go DOCS.md OVERVIEW.md INTEGRATION.md \
+        CONDUCT.md DynamoDB-Tables.md api/CLAUDE.md worker/CLAUDE.md \
+        docs/specs/2026-08-04-nfse-design.md docs/plans/2026-08-04-nfse-f3-api-worker.md
 git commit -m "docs(nfse): documenta API e worker de NFS-e; testes de integracao"
 ```
 

@@ -131,6 +131,9 @@ Run: `go test ./... -race` from `worker/`.
   results topic (DfeResultsBus) — in that order. Redis pub/sub and WebSocket fan-out are done by the
   API's ResultsConsumer, not the worker.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
+- NFS-e branches out of the shared pipeline in `internal/service/nfse.go` (issuance/events) and
+  `distribution_nfse.go` (ADN NSU cursor). It never reaches py-dfe, the response carries no
+  `cStat`/`xMotivo`, and a rejection is always terminal — never retry it.
 
 ---
 

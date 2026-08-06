@@ -21,6 +21,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/nfses"
 )
 
 const tablePrefix = "test"
@@ -56,6 +57,9 @@ var (
 	cteConfigSvc   *services.CteConfigService
 	mdfeConfigSvc  *services.MdfeConfigService
 	nfseConfigSvc  *services.NfseConfigService
+	serviceRepo    *repositories.ServiceRepository
+	nfseRepo       *repositories.NfseRepository
+	nfseSvc        *nfses.NfseService
 	memCache       cache.Backend
 )
 
@@ -116,7 +120,7 @@ func TestMain(m *testing.M) {
 	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, memCache)
 	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
-	serviceRepo := repositories.NewServiceRepository(db, cfg)
+	serviceRepo = repositories.NewServiceRepository(db, cfg)
 	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
@@ -125,6 +129,20 @@ func TestMain(m *testing.M) {
 	cteConfigSvc = services.NewCteConfigService(cteConfigRepo, auditRepo)
 	mdfeConfigSvc = services.NewMdfeConfigService(mdfeConfigRepo, auditRepo)
 	nfseConfigSvc = services.NewNfseConfigService(nfseConfigRepo, auditRepo)
+
+	// NfseService roda inteiro contra o DynamoDB local: BuildOutboxTx só monta
+	// item de transação e PublishWorkerEvent é no-op com topicARN vazio. As
+	// operações que dependem de S3 ou do go-dfe (XML, DANFSE, parâmetros
+	// municipais sem cache) não são exercidas aqui.
+	nfseRepo = repositories.NewNfseRepository(db, cfg)
+	nfseSvc = nfses.NewNfseService(
+		orgRepo, certRepo, personRepo, nfseConfigRepo, serviceRepo, nfseRepo,
+		repositories.NewDocumentEventRepository(db, cfg, nfses.DocTypeNfse),
+		repositories.NewNfseDistributionRepository(db, cfg),
+		services.NewWorkerService(&awsclient.Clients{}, "", tablePrefix),
+		services.NewExternalService(certRepo, &awsclient.Clients{}, "", "unused-test-bucket"),
+		&awsclient.Clients{}, memCache, "unused-test-bucket",
+	)
 
 	code := m.Run()
 	dropTables(ctx, db)
@@ -325,6 +343,55 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			},
 		},
 		{
+			// nfses: a SK é o id_dps. A access-key-index existe porque a chave
+			// de acesso de 50 dígitos só chega na resposta do fisco.
+			TableName:   aws.String(tablePrefix + "_nfses"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("access_key"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+				{
+					IndexName: aws.String("access-key-index"),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("access_key"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_nfse_events"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
+			TableName:   aws.String(tablePrefix + "_worker_outbox"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
 			TableName:   aws.String(tablePrefix + "_audit_logs"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
@@ -444,6 +511,9 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_organization_cte_configs",
 		tablePrefix + "_organization_mdfe_configs",
 		tablePrefix + "_organization_nfse_configs",
+		tablePrefix + "_nfses",
+		tablePrefix + "_nfse_events",
+		tablePrefix + "_worker_outbox",
 		tablePrefix + "_audit_logs",
 		tablePrefix + "_users",
 		tablePrefix + "_roles",

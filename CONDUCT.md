@@ -132,6 +132,20 @@ SEFAZ. NFS-e é competência municipal e viaja com `uf: ""` em toda a stack (`ap
 o guard tem exceção explícita para `doc_type = nfse`. Tirar a exceção não quebra a compilação: a chamada só cai
 silenciosamente no py-dfe, que não implementa NFS-e. `TestMapToDfeRequest_NfseSemUF` trava os dois lados.
 
+## SK de `nfses` é o `id_dps`, não a chave de acesso
+
+A chave de acesso de 50 dígitos contém `nNFSe` e `cNum`, gerados pelo fisco — não existe no momento do insert. O
+`id_dps` (45 caracteres, `DPS` + `cLocEmi` + `tpInsc` + `inscFederal` + `serie` + `nDPS`) é conhecido antes da chamada e
+é o mesmo valor assinado no atributo `Id` do XML. A `access_key` entra como atributo quando o fisco responde e é
+consultável pela GSI `access-key-index`. Nunca gravar `access_key` vazia: poluiria a GSI.
+`TestNfse/EmitPersisteComSKIDDPS` e `TestNfse/GetNfsePorIDDPSEPorChave` travam os dois lados.
+
+## `WorkerMessage.AccessKey` carrega o `id_dps` quando `DocType = "nfse"`
+
+Nenhum campo novo foi acrescentado ao `WorkerMessage`, porque o campo já significa "a SK do documento na sua tabela" em
+todos os tipos. Em NFS-e essa SK é o `id_dps`. `updateClaimedDocument` depende disso; trocar por `out.AccessKey`
+produziria um item órfão.
+
 ---
 
 # 7. Infrastructure and Cost Management
