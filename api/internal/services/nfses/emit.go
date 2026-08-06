@@ -22,6 +22,12 @@ const (
 	tpInscCNPJ = "2"
 )
 
+// Comprimento das inscrições federais, usado para decidir CPF vs CNPJ.
+const (
+	lenCPF  = 11
+	lenCNPJ = 14
+)
+
 // NfseEmitBody é o corpo de POST /v1.0/nfses. Diferente da NF-e, NFS-e tem
 // UM serviço por documento — TCServ não é lista.
 //

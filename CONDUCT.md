@@ -248,6 +248,27 @@ Never commit or expose:
   Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as
   capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros municipais,
   `go-dfe/nfse/dispatch.go`).
+- **O corpo da API de NFS-e é em inglês** (`competence`, `provider_person_id`, `customer_id`,
+  `intermediary_id`, `substitutes_access_key`, `service_id`, `tax_rate`, `reason_code`,
+  `reason_description`, `substitute_access_key`), como o resto da API. A exceção são os códigos do
+  leiaute do DPS, que mantêm o nome normativo (`tp_emit`, `motivo_emis_ti`, `ch_nfse_rej`,
+  `c_trib_mun`, `c_loc_emi`, `trib_issqn`, `cpf_ag_trib`, `id_ev_manif_rej`) — a mesma regra que a
+  NF-e aplica em `tp_nf`/`fin_nfe`/`nat_op`. O `nfse.Document` neutro dentro de `payload` é outro
+  contrato: espelha os nomes dos elementos do DPS 1.01 de propósito.
+- **Substituição não é evento.** `POST /nfses/{id}/substitute` entra em `NfseService.Emit` com o
+  grupo `subst` preenchido; o fisco gera o evento `105102` e cancela a original por conta própria
+  (manual do contribuinte §1.3.2). Pedir `105102` pelo endpoint genérico de eventos devolve 400
+  apontando para essa rota — nunca monte um `EventRequest` de `105102`.
+- **Eventos de NFS-e usam `PublishWorkerEvent` (SNS direto), não o outbox transacional** — o mesmo
+  caminho que NF-e/NFC-e/MDF-e já usam. O outbox existe para tornar a *reserva de número fiscal*
+  atômica com o comando do worker; um evento não reserva número, e o `operation_id` do outbox
+  (`{tabela}#{access_key}`) colidiria com a linha da emissão, cuja `ConditionExpression` é
+  `attribute_not_exists(pk)`. Tornar eventos transacionais é uma mudança para todos os doc types,
+  não só NFS-e.
+- **As regras de evento moram em `go-dfe/nfse/constants.go`, não em `nacional`**
+  (`ContribuinteEvents`, `EventsRequiringMotivo`, `EventsRequiringXMotivo`): a api valida antes de
+  enfileirar e a `nacional.BuildPedRegEvento` valida ao serializar — duas cópias da regra
+  divergiriam. Mesmo precedente de `BuildIDDPS`.
 
 ## NFC-e (modelo 65)
 
@@ -539,6 +560,11 @@ Must follow Conventional Commits:
   **final merged fields** (post preserve-field carry-forward from `FiscalConfigRepository.BuildUpsertTxItem`),
   never against the caller's raw input — otherwise a preserved internal-process field (e.g. an
   NSU/number counter silently carried forward) would be misreported as a user-initiated change.
+- Cross-doc-type helpers live once in `internal/services/shared.go` and are called from the
+  per-doc-type packages, never re-declared: `EnvToPrefix` (environment code → `prod`/`hom` prefix,
+  used by every `{prefix}_current_number`/`{prefix}_nsu` field and by the document PK) and
+  `DownloadS3` (bucket read for stored XML/PDF). `nfes`/`mdfes` keep one-line private wrappers only
+  to avoid churn at the call sites; a third copy of either function is a bug.
 
 ## ui (Frontend)
 

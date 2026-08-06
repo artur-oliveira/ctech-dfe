@@ -127,9 +127,9 @@ func basePessoa(item, grupo map[string]types.AttributeValue) nfse.Pessoa {
 		Fone:    strAttr(item, "phone"),
 		Email:   strAttr(item, "email"),
 	}
-	if len(doc) == 14 {
+	if len(doc) == lenCNPJ {
 		p.CNPJ = doc
-	} else if len(doc) == 11 {
+	} else if len(doc) == lenCPF {
 		p.CPF = doc
 	}
 	p.End = buildEndereco(item, grupo)

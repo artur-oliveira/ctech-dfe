@@ -54,7 +54,7 @@ func Dispatch(ctx context.Context, p Provider, service string, body map[string]a
 		if err != nil {
 			return Result{}, err
 		}
-		ev, err := decodeEvent(sub)
+		ev, err := DecodeEventRequest(sub)
 		if err != nil {
 			return Result{}, err
 		}
@@ -138,7 +138,10 @@ func strSlice(body map[string]any, key string) []string {
 	return out
 }
 
-func decodeEvent(m map[string]any) (EventRequest, error) {
+// DecodeEventRequest decodifica o submapa "event" do Body com a mesma política
+// de campo desconhecido de DecodeDocument. Exportada para a api validar o
+// pedido que ela mesma monta antes de enfileirar.
+func DecodeEventRequest(m map[string]any) (EventRequest, error) {
 	raw, err := jsonMarshal(m)
 	if err != nil {
 		return EventRequest{}, err

@@ -1,14 +1,20 @@
 package services
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
@@ -28,6 +34,26 @@ func EnvToPrefix(environment int) string {
 		return EnvProd
 	}
 	return EnvHom
+}
+
+// DownloadS3 reads an object from the documents bucket into memory. Shared by
+// every DFe service that serves stored XML/PDF (NF-e, MDF-e, NFS-e); a 404 is
+// reported as NotFound because the only caller-visible cause is a key written
+// by the worker that has not landed yet.
+func DownloadS3(ctx context.Context, clients *awsclient.Clients, bucket, s3Key string) ([]byte, error) {
+	out, err := clients.S3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(s3Key),
+	})
+	if err != nil {
+		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
+	}
+	defer func(body io.ReadCloser) { _ = body.Close() }(out.Body)
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(out.Body); err != nil {
+		return nil, problem.InternalServer("failed to read S3 object")
+	}
+	return buf.Bytes(), nil
 }
 
 // Fiscal document model codes (campo "mod" da chave de acesso).

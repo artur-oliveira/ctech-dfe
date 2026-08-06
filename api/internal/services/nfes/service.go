@@ -5,10 +5,8 @@
 package nfes
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"math/rand"
 	"strings"
 	"time"
@@ -20,7 +18,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 const (
@@ -387,24 +384,7 @@ func resolveEventContext(ctx context.Context, orgRepo *repositories.Organization
 
 // downloadS3 fetches an object's bytes. Shared by NF-e and NFC-e services.
 func downloadS3(ctx context.Context, clients *awsclient.Clients, bucket, s3Key string) ([]byte, error) {
-	out, err := clients.S3.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(s3Key),
-	})
-	if err != nil {
-		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(out.Body)
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(out.Body); err != nil {
-		return nil, problem.InternalServer("failed to read S3 object")
-	}
-	return buf.Bytes(), nil
+	return services.DownloadS3(ctx, clients, bucket, s3Key)
 }
 
 // strAttr extracts a string from a DynamoDB attribute map.

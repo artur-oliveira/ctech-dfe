@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -50,7 +51,10 @@ type NfseService struct {
 	configRepo  *repositories.NfseConfigRepository
 	serviceRepo *repositories.ServiceRepository
 	nfseRepo    *repositories.NfseRepository
+	eventRepo   *repositories.DocumentEventRepository
 	workerSvc   *services.WorkerService
+	clients     *awsclient.Clients
+	bucketDocs  string
 }
 
 func NewNfseService(
@@ -60,7 +64,10 @@ func NewNfseService(
 	configRepo *repositories.NfseConfigRepository,
 	serviceRepo *repositories.ServiceRepository,
 	nfseRepo *repositories.NfseRepository,
+	eventRepo *repositories.DocumentEventRepository,
 	workerSvc *services.WorkerService,
+	clients *awsclient.Clients,
+	bucketDocs string,
 ) *NfseService {
 	return &NfseService{
 		orgRepo:     orgRepo,
@@ -69,7 +76,10 @@ func NewNfseService(
 		configRepo:  configRepo,
 		serviceRepo: serviceRepo,
 		nfseRepo:    nfseRepo,
+		eventRepo:   eventRepo,
 		workerSvc:   workerSvc,
+		clients:     clients,
+		bucketDocs:  bucketDocs,
 	}
 }
 

@@ -91,30 +91,16 @@ type xmlAnulacao struct {
 	XMotivo      string `xml:"xMotivo"`
 }
 
-// eventsRequiringMotivo são os tipos cujo grupo específico tem cMotivo obrigatório.
-var eventsRequiringMotivo = map[string]bool{
-	nfse.EventCancelamento: true, nfse.EventCancelamentoPorSubst: true,
-	nfse.EventSolicAnaliseFiscalCanc: true, nfse.EventRejeicaoPrestador: true,
-	nfse.EventRejeicaoTomador: true, nfse.EventRejeicaoIntermediario: true,
-}
-
-// eventsRequiringXMotivo são os tipos cujo xMotivo NÃO tem minOccurs="0" no
-// XSD — TE105102 e TE202205/TE203206/TE204207 o têm opcional, mas
-// TE101101/TE101103 exigem.
-var eventsRequiringXMotivo = map[string]bool{
-	nfse.EventCancelamento: true, nfse.EventSolicAnaliseFiscalCanc: true,
-}
-
 // BuildPedRegEvento serializa o pedido de registro de evento, ainda SEM
 // assinatura. Devolve o XML e o Id do infPedReg.
 func BuildPedRegEvento(ev nfse.EventRequest) ([]byte, string, error) {
 	if !nfse.ContribuinteEvents[ev.TipoEvento] {
 		return nil, "", fmt.Errorf("nacional: evento %q não pode ser emitido pelo contribuinte", ev.TipoEvento)
 	}
-	if eventsRequiringMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Codigo == "") {
+	if nfse.EventsRequiringMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Codigo == "") {
 		return nil, "", fmt.Errorf("nacional: evento %q exige cMotivo", ev.TipoEvento)
 	}
-	if eventsRequiringXMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Descricao == "") {
+	if nfse.EventsRequiringXMotivo[ev.TipoEvento] && (ev.Motivo == nil || ev.Motivo.Descricao == "") {
 		return nil, "", fmt.Errorf("nacional: evento %q exige xMotivo", ev.TipoEvento)
 	}
 	if ev.CNPJAutor == "" && ev.CPFAutor == "" {

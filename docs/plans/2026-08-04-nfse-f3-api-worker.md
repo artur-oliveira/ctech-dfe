@@ -1188,7 +1188,24 @@ git commit -m "feat(nfse): emissao assincrona com reserva de numero e outbox"
   `api/internal/services/worker.go:32`).
 - A NFS-e precisa estar autorizada e ter `access_key`: o evento é endereçado à chave, não ao `id_dps`.
 
-- [ ] **Step 1: Escrever o teste que falha**
+**Desvios do plano na implementação (2026-08-05):**
+
+1. **Sem outbox transacional para eventos.** O passo 6 abaixo pedia `BuildOutboxTx`, mas o
+   `operation_id` do outbox é `{tabela}#{access_key}` e a `ConditionExpression` é
+   `attribute_not_exists(pk)`: a linha da emissão já ocupa `nfses#{id_dps}`, então o evento
+   colidiria. Eventos usam `PublishWorkerEvent` (SNS direto), o mesmo caminho de NF-e/NFC-e/MDF-e.
+   Tornar eventos transacionais é mudança para todos os doc types — fora do escopo da F3.
+2. **Regras de motivo não foram duplicadas na api.** `eventsRequiringMotivo`/`eventsRequiringXMotivo`
+   saíram de `go-dfe/nfse/nacional/evento.go` para `go-dfe/nfse/constants.go` como
+   `EventsRequiringMotivo`/`EventsRequiringXMotivo`; a api lê os mesmos mapas. `decodeEvent` virou
+   `nfse.DecodeEventRequest` (exportado) para o teste da api rodar o mesmo decode estrito do worker.
+3. `NfseEventBody` não tem `MotivoCodigo`/`MotivoDescricao`/`ChaveSubstituta`: os nomes são
+   `ReasonCode`/`ReasonDescription`/`SubstituteAccessKey` (Global Constraint de chaves em inglês).
+4. `NfseService` ganhou `eventRepo`, `clients` e `bucketDocs` (necessários para `GetEventXML`).
+   `services.DownloadS3` foi extraído para `internal/services/shared.go` — havia duas cópias
+   privadas idênticas em `nfes` e `mdfes`.
+
+- [x] **Step 1: Escrever o teste que falha**
 
 ```go
 package nfses
@@ -1249,12 +1266,12 @@ func TestBuildEventRequest_DefaultsSequenceToOne(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd api && go test ./internal/services/nfses/ -run 'TestValidateEventType|TestBuildEventRequest' -v`
 Expected: FAIL — `undefined: validateEventType`.
 
-- [ ] **Step 3: Escrever `events.go`**
+- [x] **Step 3: Escrever `events.go`**
 
 ```go
 package nfses
@@ -1348,12 +1365,12 @@ Complete com `SendEvent`, que:
 `Cancel` é um invólucro de `SendEvent` com `EventType: nfse.EventCancelamento`. `Substitute` chama `s.Emit` com
 `req.SubstituiChave` apontando para a `access_key` da nota original — nunca monta evento.
 
-- [ ] **Step 4: Rodar os testes**
+- [x] **Step 4: Rodar os testes**
 
 Run: `cd api && go test ./internal/services/nfses/ -race -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/internal/services/nfses/events.go api/internal/services/nfses/events_test.go

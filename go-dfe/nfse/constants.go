@@ -60,3 +60,19 @@ var ContribuinteEvents = map[string]bool{
 	EventRejeicaoPrestador: true, EventRejeicaoTomador: true,
 	EventRejeicaoIntermediario: true, EventAnulacaoRejeicao: true,
 }
+
+// EventsRequiringMotivo são os tipos cujo grupo específico tem cMotivo
+// obrigatório. Vive aqui, e não em nacional, porque quem monta o pedido (a api)
+// valida antes de enfileirar: duas cópias da regra divergiriam.
+var EventsRequiringMotivo = map[string]bool{
+	EventCancelamento: true, EventCancelamentoPorSubst: true,
+	EventSolicAnaliseFiscalCanc: true, EventRejeicaoPrestador: true,
+	EventRejeicaoTomador: true, EventRejeicaoIntermediario: true,
+}
+
+// EventsRequiringXMotivo são os tipos cujo xMotivo NÃO tem minOccurs="0" no
+// XSD — TE105102 e TE202205/TE203206/TE204207 o têm opcional, mas
+// TE101101/TE101103 exigem.
+var EventsRequiringXMotivo = map[string]bool{
+	EventCancelamento: true, EventSolicAnaliseFiscalCanc: true,
+}

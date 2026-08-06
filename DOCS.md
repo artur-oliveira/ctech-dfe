@@ -335,7 +335,12 @@ go-dfe/nfse/
 - **Modelo neutro:** `nfse.Document` (moldado no DPS 1.01) é o formato que `api` monta em
   `dfe.Request.Body["document"]`; `nfse.DecodeDocument` rejeita campo desconhecido
   (`json.Decoder.DisallowUnknownFields`) — um typo na api estoura no decode, nunca vira DPS
-  incompleta aceita pelo fisco.
+  incompleta aceita pelo fisco. `nfse.DecodeEventRequest` é o equivalente para
+  `Body["event"]`, exportado para a api rodar o mesmo decode nos próprios testes.
+- **Regras de evento no pacote `nfse`, não em `nacional`:** `ContribuinteEvents`,
+  `EventsRequiringMotivo` e `EventsRequiringXMotivo` vivem em `nfse/constants.go` porque quem monta
+  o pedido (a api, que valida antes de enfileirar) e quem o serializa (`nacional.BuildPedRegEvento`)
+  precisam da mesma regra — duas cópias divergiriam.
 - **Serialização:** `nacional/dps.go`'s structs `encoding/xml` têm a ordem de campo normativa —
   ela É a ordem do XSD (`tiposComplexos_v1.01.xsd`); não existe tabela `xsdorder` para NFS-e como
   para os demais doc types. `TestBuildDPS_MatchesGolden` é o guarda contra reordenação acidental.
@@ -789,6 +794,35 @@ normative field name (`tp_emit`, `motivo_emis_ti`, `ch_nfse_rej`, `c_trib_mun`, 
 `trib_issqn`, …) — the same rule NF-e already applies to `tp_nf`/`fin_nfe`/`nat_op`. The neutral
 `nfse.Document` inside `payload` is a separate contract: it mirrors the DPS 1.01 layout element
 names on purpose and is not part of this convention.
+
+#### Eventos de NFS-e (`NfseService.SendEvent` / `Cancel` / `Substitute`)
+
+`api/internal/services/nfses/events.go`. The event row goes to `nfse_events` with `pk = id_dps`
+(not the access key — see DynamoDB-Tables.md §31) and the request is dispatched with
+`SefazService: nfse.ServiceEvento` and `Body = {provider, event}`, the shape
+`nfse.DecodeEventRequest` reads. `WorkerMessage.AccessKey` stays the `id_dps` (the `nfses` row SK),
+while the *event itself* is addressed to the 50-digit access key, so an NFS-e without
+`status == authorized` **and** a non-empty `access_key` is rejected with 400.
+
+| Rule | Where it lives |
+|---|---|
+| Only the 10 contributor-emittable event types are accepted; `105104`, `105105`, `205204`, `305101`-`305103` are fisco-private and arrive only through ADN distribution | `nfse.ContribuinteEvents` — one map, read by both the api and `nacional.BuildPedRegEvento` |
+| `cMotivo` / `xMotivo` requirements per event type | `nfse.EventsRequiringMotivo` / `nfse.EventsRequiringXMotivo` (moved out of `nacional` in F3 so the api can fail fast with a 400 instead of producing an asynchronously rejected event, without a second copy of the layout rule) |
+| `TCInfPedReg` accepts either `CNPJAutor` or `CPFAutor`, never both | `buildEventRequest` picks by the length of the org's federal registration |
+
+`Substitute` does **not** emit an event: substitution is a new DPS carrying the `subst` group with
+the original note's access key, and the fisco generates event `105102` and cancels the original by
+itself (manual do contribuinte, §1.3.2). `POST /nfses/{id}/substitute` therefore routes into `Emit`.
+Requesting `105102` through the generic event endpoint returns 400 pointing at that route.
+
+Events are published with `WorkerService.PublishWorkerEvent` (SNS directly), the same path NF-e,
+NFC-e and MDF-e events already use — not the transactional outbox. The outbox exists to make fiscal
+*number reservation* atomic with the worker command; an event reserves no number, and its
+`operation_id` (`{table}#{access_key}`) would collide with the issuance row's. Making events
+transactional is a cross-doc-type change, not an NFS-e-only one.
+
+`ListEvents` and `GetEventXML` accept either identifier in `{id}`: `GetNfse` resolves it and the
+`nfse_events` partition is always the `id_dps`.
 
 #### Vehicles
 

@@ -5,10 +5,8 @@
 package mdfes
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -17,9 +15,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 const (
@@ -296,17 +292,5 @@ func envPrefixFromPK(pk string) string {
 
 // downloadS3 fetches an object's bytes from the documents bucket.
 func downloadS3(ctx context.Context, clients *awsclient.Clients, bucket, s3Key string) ([]byte, error) {
-	out, err := clients.S3.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(s3Key),
-	})
-	if err != nil {
-		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
-	}
-	defer func(body io.ReadCloser) { _ = body.Close() }(out.Body)
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(out.Body); err != nil {
-		return nil, problem.InternalServer("failed to read S3 object")
-	}
-	return buf.Bytes(), nil
+	return services.DownloadS3(ctx, clients, bucket, s3Key)
 }
