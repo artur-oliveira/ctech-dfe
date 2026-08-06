@@ -265,6 +265,19 @@ Never commit or expose:
   (`{tabela}#{access_key}`) colidiria com a linha da emissão, cuja `ConditionExpression` é
   `attribute_not_exists(pk)`. Tornar eventos transacionais é uma mudança para todos os doc types,
   não só NFS-e.
+- **A chave de cache de parâmetros municipais NÃO inclui o tenant.** `nfse:munparams:{kind}:{args}`
+  — são dados públicos por município/competência (spec §5.4). Incluir `orgPK` faria cada organização
+  pagar a mesma consulta ao ADN. TTL de 6h. A aridade dos argumentos é validada contra
+  `nacional.ParamArity`, a mesma tabela que o provider usa para montar o path.
+- **`GetDANFSE` responde 501 para `provider == abrasf204`** (`problem.NotImplemented`): o leiaute
+  ABRASF 2.04 não define PDF padronizado (spec §11). É lacuna do padrão do município, não
+  implementação faltando do nosso lado — por isso 501 e não 400/500.
+- **`nfses` tem DOIS ponteiros de XML**: `xml_s3_key` (a NFS-e autorizada, mesmo nome dos demais doc
+  types) e `dps_xml_s3_key` (a DPS que assinamos). NFS-e é o único doc type onde o documento
+  assinado e o documento autorizado são XMLs distintos.
+- **`MunicipalParameters` e `GetDANFSE` chamam `dfe.Call` direto do serviço, não pelo worker** — são
+  leituras públicas, sem escrita e sem risco de timeout longo. O par certificado/senha vem de
+  `ExternalService.CertificateB64`, compartilhado com a consulta de cadastro da NF-e.
 - **As regras de evento moram em `go-dfe/nfse/constants.go`, não em `nacional`**
   (`ContribuinteEvents`, `EventsRequiringMotivo`, `EventsRequiringXMotivo`): a api valida antes de
   enfileirar e a `nacional.BuildPedRegEvento` valida ao serializar — duas cópias da regra

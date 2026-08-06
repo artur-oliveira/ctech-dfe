@@ -824,6 +824,37 @@ transactional is a cross-doc-type change, not an NFS-e-only one.
 `ListEvents` and `GetEventXML` accept either identifier in `{id}`: `GetNfse` resolves it and the
 `nfse_events` partition is always the `id_dps`.
 
+#### Consultas de NFS-e: XML, DANFSE e parâmetros municipais
+
+| Method | What it returns | Source |
+|---|---|---|
+| `ListNfses` | Page of `nfses` rows for the configured environment | `NfseRepository.ListNfses` |
+| `GetNfseXML` | Authorized NFS-e XML | `xml_s3_key` → S3 (`{org_pk}/nfse/{id_dps}.xml`) |
+| `GetDPSXML` | The DPS we signed and submitted | `dps_xml_s3_key` → S3 (`{org_pk}/nfse/{id_dps}/dps.xml`) |
+| `GetDANFSE` | PDF proxied from the ADN | `dfe.Call` with `nfse.ServiceDANFSE`; never stored by us |
+| `MunicipalParameters` | ADN municipal parametrization | `dfe.Call` with `nfse.ServiceParametrosMunicipais`, cached 6h |
+| `ListDistributions` | Documents received through ADN distribution | `NfseDistributionRepository` |
+
+Two XML attributes exist because NFS-e is the only doc type where the document we sign (the DPS) and
+the document the fisco returns (the NFS-e) are different XMLs. The authorized one keeps the
+`xml_s3_key` name every other doc type uses; the DPS is `dps_xml_s3_key`.
+
+`GetDANFSE` returns **501** for `provider == abrasf204`: the ABRASF 2.04 layout defines no
+standard DANFSE PDF, so this is a real capability gap in the municipality's standard, not a missing
+implementation on our side (`problem.NotImplemented`, type `/problems/not-implemented`).
+
+**Municipal-parameter cache key excludes the tenant.** The key is
+`nfse:munparams:{kind}:{arg}:{arg}…` — these are public per municipality/competence, so keying by
+`orgPK` would make every organization pay for the same ADN query. TTL is 6h
+(`municipalParamsTTL`). Argument arity is validated against `nacional.ParamArity`, the same table the
+provider uses to build the request path.
+
+`MunicipalParameters` and `GetDANFSE` call `dfe.Call` **synchronously from the service**, not through
+the worker: both are public reads with no write and no long-timeout risk. The certificate pair comes
+from `ExternalService.CertificateB64` (org's first certificate, S3 read + base64), shared with the
+NF-e cadastre lookup rather than re-implemented. A non-200 from go-dfe is translated by
+`problemFromDfeBody`, preserving the fisco's status and detail instead of collapsing to a 500.
+
 #### Vehicles
 
 Organization is always resolved from the `Dfe-Organization-Pk` header, not a path parameter.

@@ -1381,6 +1381,28 @@ git commit -m "feat(nfse): eventos de cancelamento, manifestacao e substituicao"
 
 ### Task 5: Consultas, XML, DANFSE e parâmetros municipais
 
+**Desvios do plano na implementação (2026-08-05):**
+
+1. **Atributos de XML.** O plano pedia `s3_key_nfse`/`s3_key_dps`; ficou `xml_s3_key` (o mesmo nome
+   que `nfes`/`nfces`/`ctes`/`mdfes` usam para o documento autorizado) e `dps_xml_s3_key`. Inventar
+   um nome novo para o XML principal quebraria a consistência com todas as outras tabelas. A Task 7
+   (worker) tem que gravar exatamente esses dois nomes.
+2. **`paramArity` não foi duplicada na api.** Virou `nacional.ParamArity` (exportada); a api valida
+   contra a mesma tabela que monta o path. Mesmo precedente de `BuildIDDPS`.
+3. **`cacheGetAny`/`cacheSetAny` não existem.** `cacheGet`/`cacheSet` de `internal/services/cache.go`
+   foram exportadas (`CacheGet`/`CacheSet`) e usadas direto, como o próprio plano pedia no caso de as
+   genéricas servirem.
+4. **501 ganhou helper.** `problem.NotImplemented` + `problem.TypeNotImplemented`, em vez de
+   `problem.New(fiber.StatusNotImplemented, ...)` na chamada — mantém o padrão de todos os outros
+   status.
+5. **`ExternalService.CertificateB64` foi extraída** (S3 + base64 do primeiro certificado da
+   organização) e `LookupOrganization` passou a usá-la: a chamada síncrona ao go-dfe precisava do
+   mesmo par e não podia alcançar o `downloadPFX` privado.
+6. **`ListDistributions` ficou em `NfseService`, não em `DistributionService`.** Aquele serviço é
+   construído em volta do DistDFe SOAP (`ultNSU`/`maxNSU`, body `distDFeInt`, `docTypeSefazService`);
+   o ADN pagina por NSU sequencial em REST. Encaixar NFS-e lá exigiria furar a abstração.
+
+
 **Files:**
 
 - Modify: `api/internal/services/nfses/service.go`
@@ -1413,7 +1435,7 @@ git commit -m "feat(nfse): eventos de cancelamento, manifestacao e substituicao"
 - A chamada ao ADN passa pelo mesmo `dfe.Call` síncrono, feito direto do handler: é consulta pública, sem escrita, sem
   risco de timeout longo. Não vai para o worker.
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [x] **Step 1: Escrever o teste que falha**
 
 ```go
 package nfses
@@ -1447,12 +1469,12 @@ func TestMunicipalParamKind_Validation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd api && go test ./internal/services/nfses/ -run 'TestCacheKey|TestMunicipalParam' -v`
 Expected: FAIL — `undefined: cacheKeyMunicipalParams`.
 
-- [ ] **Step 3: Escrever `municipal.go`**
+- [x] **Step 3: Escrever `municipal.go`**
 
 ```go
 package nfses
@@ -1522,17 +1544,17 @@ e chama `dfe.Call`, desembrulhando `Result.Parametros` do JSON de resposta. `cac
 sobre `cacheGet[map[string]any]`/`cacheSet` já existentes em `api/internal/services/cache.go:15,28` — se as funções
 genéricas puderem ser usadas direto, use-as e não crie invólucro nenhum.
 
-- [ ] **Step 4: Acrescentar consultas e DANFSE a `service.go`**
+- [x] **Step 4: Acrescentar consultas e DANFSE a `service.go`**
 
 `GetNfseXML`/`GetDPSXML` leem `s3_key_nfse`/`s3_key_dps` do item e baixam do bucket. `GetDANFSE` verifica o provider e
 responde 501 para `abrasf204`; para `nacional`, chama `dfe.Call` com `nfse.ServiceDANFSE` e devolve `Result.PDF`.
 
-- [ ] **Step 5: Rodar os testes**
+- [x] **Step 5: Rodar os testes**
 
 Run: `cd api && go test ./internal/services/nfses/ -race -v && go build ./...`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add api/internal/services/nfses

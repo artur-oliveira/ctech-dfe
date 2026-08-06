@@ -92,7 +92,7 @@ func userOrgsCacheKey(userID string) string {
 // the new table. The result is cached either way (positive or tombstone).
 func (s *MembershipService) Get(ctx context.Context, orgPK, userID string) (*Membership, error) {
 	key := memberCacheKey(orgPK, userID)
-	if v, ok := cacheGet[Membership](ctx, s.cache, key); ok {
+	if v, ok := CacheGet[Membership](ctx, s.cache, key); ok {
 		if v.Revoked {
 			return nil, nil
 		}
@@ -105,18 +105,18 @@ func (s *MembershipService) Get(ctx context.Context, orgPK, userID string) (*Mem
 	}
 	if item != nil {
 		m := membershipFromItem(item)
-		cacheSet(ctx, s.cache, key, *m, membershipCacheTTL)
+		CacheSet(ctx, s.cache, key, *m, membershipCacheTTL)
 		return m, nil
 	}
 
 	// Cache a tombstone so repeated unauthorized hits don't all reach DynamoDB.
-	cacheSet(ctx, s.cache, key, Membership{OrgPK: orgPK, UserID: repositories.RawUserID(userID), Revoked: true}, membershipCacheTTL)
+	CacheSet(ctx, s.cache, key, Membership{OrgPK: orgPK, UserID: repositories.RawUserID(userID), Revoked: true}, membershipCacheTTL)
 	return nil, nil
 }
 
 // ListByUser returns every organization the user belongs to.
 func (s *MembershipService) ListByUser(ctx context.Context, userID string) ([]Membership, error) {
-	if v, ok := cacheGet[[]Membership](ctx, s.cache, userOrgsCacheKey(userID)); ok {
+	if v, ok := CacheGet[[]Membership](ctx, s.cache, userOrgsCacheKey(userID)); ok {
 		return *v, nil
 	}
 
@@ -129,7 +129,7 @@ func (s *MembershipService) ListByUser(ctx context.Context, userID string) ([]Me
 		out = append(out, *membershipFromItem(it))
 	}
 
-	cacheSet(ctx, s.cache, userOrgsCacheKey(userID), out, userOrgsCacheTTL)
+	CacheSet(ctx, s.cache, userOrgsCacheKey(userID), out, userOrgsCacheTTL)
 	return out, nil
 }
 
@@ -215,7 +215,7 @@ func (s *MembershipService) Invalidate(ctx context.Context, orgPK, userID string
 // tombstone caches a "no access" marker for the invalidation window, closing
 // the removed-member repopulation race described on the Membership type.
 func (s *MembershipService) tombstone(ctx context.Context, orgPK, userID string) {
-	cacheSet(ctx, s.cache, memberCacheKey(orgPK, userID),
+	CacheSet(ctx, s.cache, memberCacheKey(orgPK, userID),
 		Membership{OrgPK: orgPK, UserID: repositories.RawUserID(userID), Revoked: true}, membershipCacheTTL)
 }
 

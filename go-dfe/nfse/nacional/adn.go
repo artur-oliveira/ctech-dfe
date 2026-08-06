@@ -18,8 +18,10 @@ const (
 	ParamRetencoes        = "retencoes"
 )
 
-// paramArity é quantos argumentos além do tipo cada consulta exige.
-var paramArity = map[string]int{
+// ParamArity é quantos argumentos além do tipo cada consulta exige. Exportada
+// porque a api valida a aridade antes de chamar (a rota é síncrona e pública);
+// duas cópias da tabela divergiriam.
+var ParamArity = map[string]int{
 	ParamAliquota: 3, ParamConvenio: 1, ParamBeneficio: 3,
 	ParamRegimesEspeciais: 3, ParamRetencoes: 2,
 }
@@ -147,7 +149,7 @@ func (n *Nacional) DANFSE(ctx context.Context, chave string) ([]byte, error) {
 //	regimes_especiais -> município, serviço, competência
 //	retencoes         -> município, competência
 func (n *Nacional) MunicipalParameters(ctx context.Context, kind string, args ...string) (nfse.Result, error) {
-	want, ok := paramArity[kind]
+	want, ok := ParamArity[kind]
 	if !ok {
 		return nfse.Result{}, fmt.Errorf("nacional: tipo de parâmetro municipal desconhecido %q", kind)
 	}

@@ -108,25 +108,10 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 		return nil, problem.BadRequest("Serviço de consulta não configurado (sefaz_function_name)")
 	}
 
-	// Get first certificate for org
-	certs, err := s.certRepo.List(ctx, orgPK)
+	certB64, certPassword, err := s.CertificateB64(ctx, orgPK)
 	if err != nil {
 		return nil, err
 	}
-	if len(certs) == 0 {
-		return nil, problem.NoCertificate("organização sem certificado digital")
-	}
-	cert := certs[0]
-
-	s3Key := avStr(cert, "s3_key")
-	certPassword := avStr(cert, "password")
-
-	// Download PFX from S3 and base64-encode
-	pfxBytes, err := s.downloadPFX(ctx, s3Key)
-	if err != nil {
-		return nil, err
-	}
-	certB64 := base64.StdEncoding.EncodeToString(pfxBytes)
 
 	orgCNPJ := StripPKPrefix(orgPK)
 
@@ -243,6 +228,27 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 		Addresses:          addresses,
 		StateRegistrations: stateRegs,
 	}, nil
+}
+
+// CertificateB64 returns the organization's first certificate base64-encoded
+// plus its password — the exact pair `dfe.Request` wants. Exported for the
+// services that call go-dfe synchronously from a handler (NFS-e municipal
+// parameters, DANFSE) so the S3 read and the encoding are not re-implemented
+// per doc type.
+func (s *ExternalService) CertificateB64(ctx context.Context, orgPK string) (string, string, error) {
+	certs, err := s.certRepo.List(ctx, orgPK)
+	if err != nil {
+		return "", "", err
+	}
+	if len(certs) == 0 {
+		return "", "", problem.NoCertificate("organização sem certificado digital")
+	}
+	cert := certs[0]
+	pfxBytes, err := s.downloadPFX(ctx, avStr(cert, "s3_key"))
+	if err != nil {
+		return "", "", err
+	}
+	return base64.StdEncoding.EncodeToString(pfxBytes), avStr(cert, "password"), nil
 }
 
 func (s *ExternalService) downloadPFX(ctx context.Context, s3Key string) ([]byte, error) {

@@ -531,7 +531,15 @@ Written by `NfseService.Emit` in the same `TransactWrite` that reserves the DPS 
 | `user_name`        | S    | Acting user's display name                                                                   |
 
 `access_key` is deliberately absent on creation: writing it empty would pollute `access-key-index`. The worker adds it
-with the fisco response.
+with the fisco response, along with the two XML pointers:
+
+| Attribute          | Type | Notes                                                                                   |
+|--------------------|------|-----------------------------------------------------------------------------------------|
+| `xml_s3_key`       | S    | Authorized NFS-e XML — `{org_pk}/nfse/{id_dps}.xml`. Same attribute name as every other doc type |
+| `dps_xml_s3_key`   | S    | The DPS we signed and submitted — `{org_pk}/nfse/{id_dps}/dps.xml`                       |
+
+NFS-e is the only doc type with two XMLs on the row: elsewhere the document we sign *is* the document
+the fisco authorizes, so one `xml_s3_key` suffices.
 
 The sort key is `id_dps`, not the access key, because the 50-digit NFS-e access key only exists after the
 SEFAZ/municipal fisco response — unlike the other DF-e, the DPS is submitted before the key is known. `access_key` is

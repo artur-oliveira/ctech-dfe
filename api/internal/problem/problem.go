@@ -26,6 +26,7 @@ const (
 	TypeValidation      = "/problems/validation-error"
 	TypeTooManyRequests = "/problems/too-many-requests"
 	TypeInternalServer  = "/problems/internal-server-error"
+	TypeNotImplemented  = "/problems/not-implemented"
 )
 
 // FieldError is a single field-level validation failure. It mirrors the shape
@@ -112,6 +113,14 @@ func Conflict(detail string) *Problem {
 
 func TooManyRequests(detail string) *Problem {
 	return wrap(commonproblem.TooManyRequests(detail))
+}
+
+// NotImplemented reports a capability the requested provider/backend genuinely
+// does not have (e.g. the ABRASF 2.04 layout defines no standard DANFSE PDF) —
+// not a missing implementation on our side. 501 keeps that distinguishable from
+// a 400 (bad input) and a 500 (our bug).
+func NotImplemented(detail string) *Problem {
+	return wrap(commonproblem.New(http.StatusNotImplemented, TypeNotImplemented, "Not Implemented", detail))
 }
 
 func InternalServer(detail string) *Problem {

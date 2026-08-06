@@ -11,8 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// cacheGet deserializes a cached JSON value into T. Returns zero value if miss.
-func cacheGet[T any](ctx context.Context, c cache.Backend, key string) (*T, bool) {
+// CacheGet deserializes a cached JSON value into T. Returns zero value if miss.
+// Exported so the per-doc-type service packages (nfses, …) cache through the
+// same helper instead of hand-rolling JSON + TTL handling.
+func CacheGet[T any](ctx context.Context, c cache.Backend, key string) (*T, bool) {
 	data, ok, err := c.Get(ctx, key)
 	if err != nil || !ok || len(data) == 0 {
 		return nil, false
@@ -24,8 +26,8 @@ func cacheGet[T any](ctx context.Context, c cache.Backend, key string) (*T, bool
 	return &v, true
 }
 
-// cacheSet serializes v to JSON and stores it with the given TTL (seconds).
-func cacheSet[T any](ctx context.Context, c cache.Backend, key string, v T, ttl int) {
+// CacheSet serializes v to JSON and stores it with the given TTL (seconds).
+func CacheSet[T any](ctx context.Context, c cache.Backend, key string, v T, ttl int) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return

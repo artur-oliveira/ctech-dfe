@@ -125,7 +125,7 @@ func (s *UserService) GetMe(ctx context.Context, userID string) (map[string]type
 // fetch failure degrades to a blank profile rather than failing the request.
 func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string) (map[string]any, error) {
 	cacheKey := userMeCacheKey(userID)
-	if v, ok := cacheGet[map[string]any](ctx, s.cache, cacheKey); ok {
+	if v, ok := CacheGet[map[string]any](ctx, s.cache, cacheKey); ok {
 		return *v, nil
 	}
 
@@ -202,7 +202,7 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 		"terms_addendum_accepted": termsAddendumVersion == CurrentTermsAddendumVersion,
 	}
 
-	cacheSet(ctx, s.cache, cacheKey, result, userCacheTTL)
+	CacheSet(ctx, s.cache, cacheKey, result, userCacheTTL)
 	return result, nil
 }
 
@@ -213,7 +213,7 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 // Never blocks or errors the caller — audit attribution degrades, it never fails
 // the underlying mutation.
 func (s *UserService) ResolveActor(ctx context.Context, userID, accessToken string) (string, string) {
-	if v, ok := cacheGet[map[string]any](ctx, s.cache, userMeCacheKey(userID)); ok {
+	if v, ok := CacheGet[map[string]any](ctx, s.cache, userMeCacheKey(userID)); ok {
 		if name := actorNameFromMeCache(*v); name != "" {
 			return userID, name
 		}

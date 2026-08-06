@@ -13,7 +13,7 @@ func TestUserService_ResolveActor_CacheHit(t *testing.T) {
 	repo := &repositories.UserRepository{} // not touched on a cache hit
 	svc := NewUserService(repo, c, "http://ctech.invalid", nil, nil)
 
-	cacheSet(context.Background(), c, "me:user-1", map[string]any{
+	CacheSet(context.Background(), c, "me:user-1", map[string]any{
 		"username": "jane", "email": "jane@example.com", "first_name": "Jane", "last_name": "Doe",
 	}, userCacheTTL)
 
