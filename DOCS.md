@@ -1064,6 +1064,53 @@ elements via its `XSD_ORDER` table before signing.
 `cargo_weight`, `cargo_value`, `predominant`, `vehicle` (with `owner?` when third-party), `drivers[]`,
 `trip_start?`, `bulk_cargo?`.
 
+#### NFS-e (Sistema Nacional — DPS 1.01)
+
+O identificador de rota (`{id}`) aceita **id_dps ou chave de acesso**: a chave de 50 dígitos só
+existe depois da resposta do fisco, então a linha é chaveada por `id_dps` e `GetNfse` resolve os
+dois. Toda chave JSON é em inglês; as exceções são os códigos do leiaute do DPS (`tp_emit`,
+`motivo_emis_ti`, `ch_nfse_rej`, `c_trib_mun`, `cpf_ag_trib`, `id_ev_manif_rej`).
+
+| Method | Endpoint                                          | Permissão            | Description                                     |
+|--------|---------------------------------------------------|----------------------|-------------------------------------------------|
+| GET    | `/v1.0/nfses`                                     | `list.nfses`         | List (filtros: `status`, `number`, `year`, `month`, `sort`) |
+| POST   | `/v1.0/nfses`                                     | `create.nfses`       | Emitir NFS-e (assíncrono, 201)                  |
+| GET    | `/v1.0/nfses/{id}`                                | `get.nfses`          | Detalhe                                          |
+| GET    | `/v1.0/nfses/{id}/xml`                            | `get.nfses`          | XML da NFS-e autorizada (`xml_s3_key`)          |
+| GET    | `/v1.0/nfses/{id}/dps-xml`                        | `get.nfses`          | XML da DPS assinada (`dps_xml_s3_key`)          |
+| GET    | `/v1.0/nfses/{id}/danfse`                         | `get.nfses`          | PDF da DANFSE (proxy do ADN; 501 em abrasf204)  |
+| POST   | `/v1.0/nfses/{id}/cancel`                         | `delete.nfses`       | Cancelamento (evento 101101)                     |
+| POST   | `/v1.0/nfses/{id}/substitute`                     | `create.nfses`       | Substituição — nova emissão, não evento (201)   |
+| POST   | `/v1.0/nfses/{id}/events`                         | `create.nfse_events` | Evento genérico do contribuinte                  |
+| GET    | `/v1.0/nfses/{id}/events`                         | `get.nfse_events`    | Lista de eventos                                 |
+| GET    | `/v1.0/nfses/{id}/events/{event_sk}/xml`          | `get.nfse_events`    | XML do evento                                    |
+| GET    | `/v1.0/nfse/municipal-parameters/{city}/{kind}`   | `get.nfses`          | Parametrização municipal (cache 6h)              |
+| GET    | `/v1.0/nfse/distributions`                        | `list.nfses`         | Documentos recebidos do ADN                      |
+
+**Cancelamento (`POST /v1.0/nfses/{id}/cancel`):** `reason_code` (obrigatório, ≤2) —
+`reason_description` (obrigatório, ≤255) — `sequence_number` (opcional, default 1).
+
+**Evento genérico (`POST /v1.0/nfses/{id}/events`):** `event_type` (6 dígitos), `sequence_number?`,
+`reason_code?`, `reason_description?`, `substitute_access_key?`, `cpf_ag_trib?`, `id_ev_manif_rej?`.
+Só os tipos de `nfse.ContribuinteEvents` são aceitos; 105102 é recusado com 400 apontando para
+`/substitute`, porque quem o gera é o fisco a partir de uma nova emissão. `reason_code` e
+`reason_description` são exigidos conforme `nfse.EventsRequiringMotivo` / `EventsRequiringXMotivo`.
+
+**Substituição (`POST /v1.0/nfses/{id}/substitute`):** corpo idêntico ao de emissão; o serviço
+preenche `substitutes_access_key` a partir da NFS-e original e exige `substitutes_reason`.
+
+**Parâmetros municipais:** os argumentos extras vêm por query e são posicionados conforme o `kind`
+(a aridade é validada contra `nacional.ParamArity`):
+
+| kind                | Query params usados            | args                                  |
+|---------------------|--------------------------------|---------------------------------------|
+| `aliquota`          | `service`, `competence`        | município, serviço, competência        |
+| `convenio`          | —                              | município                              |
+| `beneficio`         | `benefit_number`, `competence` | município, benefício, competência      |
+| `regimes_especiais` | `service`, `competence`        | município, serviço, competência        |
+| `retencoes`         | `competence`                   | município, competência                 |
+
+
 #### DFe Distribution
 
 | Method | Endpoint                                   | Description                                                         |

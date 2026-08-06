@@ -1601,7 +1601,7 @@ mesmo formato, com os mesmos helpers, e nenhum deles deve ser reimplementado.
 O `:id` aceita `id_dps` ou chave de acesso — `GetNfse` resolve os dois (Task 3). A rota de parâmetros municipais recebe
 os argumentos extras por query (`servico`, `competencia`, `beneficio`), montados em `args` conforme a aridade do `kind`.
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [x] **Step 1: Escrever o teste que falha**
 
 ```go
 package v1
@@ -1642,33 +1642,52 @@ os handlers não chegam a rodar por causa do `perm.Require` nil — se isso caus
 `PermChecker` permissivo construído no teste. Ajuste o teste ao que o `middleware` realmente exige; o que precisa ser
 verificado é que nenhuma rota devolve 404.
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd api && go test ./internal/api/v1/ -run TestRegisterNfses -v`
 Expected: FAIL — `undefined: RegisterNfses`.
 
-- [ ] **Step 3: Escrever `nfses.go`** seguindo exatamente a forma de `nfes.go`.
+- [x] **Step 3: Escrever `nfses.go`** seguindo exatamente a forma de `nfes.go`.
 
-- [ ] **Step 4: Registrar RBAC e escopos**
+- [x] **Step 4: Registrar RBAC e escopos**
 
 Em `api/internal/repositories/roles.go`, acrescente os recursos `nfses` e `nfse_events` ao conjunto existente. Em
 `api/internal/middleware/scopes.go`, acrescente as famílias correspondentes. Rode
 `rg "nfe_events" api/internal/repositories/roles.go api/internal/middleware/scopes.go` primeiro e siga exatamente o
 padrão encontrado — não invente forma nova.
 
-- [ ] **Step 5: Wiring fx**
+- [x] **Step 5: Wiring fx**
 
 Em `api/internal/app/app.go`, adicione os providers: `repositories.NewNfseRepository`,
 `repositories.NewNfseDistributionRepository`, o `DocumentEventRepository` de NFS-e (via uma função nomeada, porque
 `NewDocumentEventRepository` recebe o `docType` como argumento — siga o padrão já usado para os eventos de NF-e) e
 `nfses.NewNfseService`. Registre `RegisterNfses` no `router.go`.
 
-- [ ] **Step 6: Rodar tudo**
+- [x] **Step 6: Rodar tudo**
 
 Run: `cd api && go build ./... && go test ./... -race`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+**Desvios do plano na implementação (2026-08-05):**
+
+1. **Step 4 já estava pronto.** `nfses` e `nfse_events` já constavam em `repositories/roles.go`
+   (`resources`) e em `middleware/scopes.go` (`scopeFamilies["nfses"]`). Nenhuma linha alterada —
+   RBAC e escopos de NFS-e já funcionavam desde a F1.
+2. **O teste inspeciona `app.GetRoutes()`** em vez de disparar requisições: com `perm` nil o handler
+   entra em pânico ao executar (`p.check` desreferencia o receptor), e o que se verifica é montagem.
+   Cobre também `municipalParamArgs`, onde um deslocamento posicional consultaria o parâmetro errado.
+3. **Rota de parâmetros municipais:** `:city` (não `:mun`) e query em inglês — `service`,
+   `competence`, `benefit_number` — pela regra de chaves em inglês. A montagem posicional vive em
+   `municipalParamArgs` (tradução de query string em posição é assunto de rota); a aridade continua
+   validada no serviço contra `nacional.ParamArity`.
+4. **Dois helpers novos em `helpers.go`:** `ptrQuery` (filtro `status`, que é `*string`) e `sendXML`
+   (três rotas de XML neste arquivo). Os arquivos de NF-e/MDF-e continuam com os `c.Set` inline —
+   trocá-los está fora do escopo desta task.
+5. **`newNfseService` recebe 13 dependências**, não a forma do snippet do plano: o construtor cresceu
+   nas Tasks 3-5 (`distRepo`, `extSvc`, `cacheBackend`). O `DocumentEventRepository` de NFS-e é criado
+   dentro da factory, como em `newNFCeService`/`newMDFeService`.
+
+- [x] **Step 7: Commit**
 
 ```bash
 git add api/internal/api/v1 api/internal/app api/internal/repositories/roles.go api/internal/middleware/scopes.go

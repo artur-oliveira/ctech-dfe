@@ -10,6 +10,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
+	nfsesvc "gopkg.aoctech.app/dfe/api/internal/services/nfses"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -28,6 +29,7 @@ type Services struct {
 	NFe          *nfesvc.NfeService
 	NFCe         *nfesvc.NfceService
 	MDFe         *mdfesvc.MdfeService
+	Nfse         *nfsesvc.NfseService
 	NfeConfig    *services.NfeConfigService
 	NfceConfig   *services.NfceConfigService
 	CteConfig    *services.CteConfigService
@@ -69,6 +71,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterNFes(v1, svcs.NFe, svcs.External, svcs.User, authMw, perm)
 	RegisterNFCes(v1, svcs.NFCe, svcs.External, svcs.User, authMw, perm)
 	RegisterMDFes(v1, svcs.MDFe, svcs.External, svcs.User, authMw, perm)
+	RegisterNfses(v1, svcs.Nfse, svcs.User, authMw, perm)
 	RegisterDistributions(v1, svcs.Distribution, authMw, perm)
 	RegisterExternal(v1, svcs.External, authMw, perm)
 	RegisterAuditLogs(v1, svcs.AuditLog, authMw, perm)

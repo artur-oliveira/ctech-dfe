@@ -23,6 +23,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
+	nfsesvc "gopkg.aoctech.app/dfe/api/internal/services/nfses"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gofiber/fiber/v3"
@@ -62,6 +63,8 @@ var Module = fx.Options(
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
 		repositories.NewMdfeRepository,
+		repositories.NewNfseRepository,
+		repositories.NewNfseDistributionRepository,
 		newNfeEventRepository,
 		repositories.NewNfeDistributionRepository,
 		repositories.NewCteDistributionRepository,
@@ -86,6 +89,7 @@ var Module = fx.Options(
 		newNFeService,
 		newNFCeService,
 		newMDFeService,
+		newNfseService,
 		newDistributionService,
 		newResultsConsumer,
 		services.NewAuditLogService,
@@ -356,6 +360,32 @@ func newMDFeService(
 	)
 }
 
+// newNfseService monta o serviço de NFS-e. O repositório de eventos é criado
+// aqui (e não como provider) porque NewDocumentEventRepository recebe o docType
+// — mesmo padrão de newNFCeService/newMDFeService.
+func newNfseService(
+	orgRepo *repositories.OrganizationRepository,
+	certRepo *repositories.CertificateRepository,
+	personRepo *repositories.PersonRepository,
+	configRepo *repositories.NfseConfigRepository,
+	serviceRepo *repositories.ServiceRepository,
+	nfseRepo *repositories.NfseRepository,
+	distRepo *repositories.NfseDistributionRepository,
+	workerSvc *services.WorkerService,
+	extSvc *services.ExternalService,
+	clients *awsclient.Clients,
+	cacheBackend cache.Backend,
+	db *dynamodb.Client,
+	cfg *config.Config,
+) *nfsesvc.NfseService {
+	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfse")
+	return nfsesvc.NewNfseService(
+		orgRepo, certRepo, personRepo, configRepo, serviceRepo,
+		nfseRepo, eventRepo, distRepo, workerSvc, extSvc,
+		clients, cacheBackend, cfg.S3BucketDocuments,
+	)
+}
+
 // --- route registration ---
 
 // Services bundles all service layer dependencies for the route layer.
@@ -374,6 +404,7 @@ type Services struct {
 	NfeSvc      *nfesvc.NfeService
 	NfceSvc     *nfesvc.NfceService
 	MdfeSvc     *mdfesvc.MdfeService
+	NfseSvc     *nfsesvc.NfseService
 	NfeConf     *services.NfeConfigService
 	NfceConf    *services.NfceConfigService
 	CteConf     *services.CteConfigService
@@ -403,6 +434,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NFe:          svcs.NfeSvc,
 		NFCe:         svcs.NfceSvc,
 		MDFe:         svcs.MdfeSvc,
+		Nfse:         svcs.NfseSvc,
 		NfeConfig:    svcs.NfeConf,
 		NfceConfig:   svcs.NfceConf,
 		CteConfig:    svcs.CteConf,

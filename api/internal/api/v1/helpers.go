@@ -216,6 +216,22 @@ func ptrIntQuery(c fiber.Ctx, key string) *int {
 	return &v
 }
 
+// ptrQuery reads a query param as *string; returns nil on missing.
+func ptrQuery(c fiber.Ctx, key string) *string {
+	s := c.Query(key)
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// sendXML replies with an XML attachment named filename.xml.
+func sendXML(c fiber.Ctx, data []byte, filename string) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationXML)
+	c.Set(fiber.HeaderContentDisposition, `attachment; filename="`+filename+`.xml"`)
+	return c.Send(data)
+}
+
 // bindJSON strictly decodes the JSON request body into dst, rejecting unknown
 // fields, then runs struct validation. Returns nil on success, or a
 // *problem.Problem (400 for malformed JSON, 422 for validation failures) ready
