@@ -1745,7 +1745,7 @@ Persistência (spec §6):
 Rejeição do fisco (`erros` preenchido) é **terminal**: `failTerminal`, nunca retry. A regra já existe em
 `worker/CLAUDE.md` — "SEFAZ business rejections must NOT be retried" — e vale igual aqui.
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [x] **Step 1: Escrever o teste que falha**
 
 ```go
 package service
@@ -1808,12 +1808,12 @@ func TestIsNfse(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `cd worker && go test ./internal/service/ -run 'TestParseNfse|TestIsNfse' -v`
 Expected: FAIL — `undefined: parseNfseResponse`.
 
-- [ ] **Step 3: Escrever `nfse.go`**
+- [x] **Step 3: Escrever `nfse.go`**
 
 ```go
 package service
@@ -1874,7 +1874,7 @@ func strFromAny(v any) string {
 }
 ```
 
-- [ ] **Step 4: Escrever `handleNfseResponse` em `nfse.go`**
+- [x] **Step 4: Escrever `handleNfseResponse` em `nfse.go`**
 
 Fluxo, na ordem:
 
@@ -1892,21 +1892,38 @@ Fluxo, na ordem:
 `id_dps`, não a chave de acesso recebida. A `access_key` do fisco entra como **atributo** no mesmo update. Trocar os
 dois é o erro mais provável desta task e produziria um item órfão.
 
-- [ ] **Step 5: Ligar o desvio em `Process`**
+- [x] **Step 5: Ligar o desvio em `Process`**
 
 Insira o bloco de cinco linhas mostrado no Contexto, imediatamente antes da chamada existente a `s.handleSefazResponse`.
 
-- [ ] **Step 6: Rodar os testes**
+- [x] **Step 6: Rodar os testes**
 
 Run: `cd worker && go build ./... && go test ./... -race`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add worker/internal/service/nfse.go worker/internal/service/nfse_test.go worker/internal/service/dfe.go
 git commit -m "feat(nfse): processamento de NFS-e no worker"
 ```
+
+**Desvios do plano na implementação (2026-08-05):**
+
+1. `parseNfseResponse` não devolve `error` — não há caminho de falha na tradução do mapa. Testes ajustados.
+2. Caminhos no S3 seguem a convenção já usada por todos os outros tipos (`{s3_prefix}/{doc_pk com # → /}/{arquivo}.xml`),
+   não o `{org_pk}/nfse/{id_dps}/dps.xml` da tabela acima: a DPS é `{expected_file_name}_dps.xml` ao lado da NFS-e.
+   `DOCS.md` e `DynamoDB-Tables.md` foram corrigidos para o caminho real.
+3. Atributos gravados: `xml_s3_key` e `dps_xml_s3_key` (nomes escolhidos na Task 5), não `s3_key_nfse`/`s3_key_dps`.
+   `updateAttrs` ganhou `AccessKey` e `DPSXMLS3Key`.
+4. Em vez de chamar `saveResponse` (que decide XML-ou-JSON pela chave `@xml`), extraí dele `documentS3Key` e
+   `putObject`; `saveResponse` passou a usar os dois. Zero duplicação de upload, e o caminho SOAP não mudou de
+   comportamento.
+5. `isCancellationEvent` ganhou o ramo de NFS-e (`101101`) em vez de uma segunda função no `nfse.go` — o
+   cancelamento aceito precisa reverter a NFS-e para `cancelled`, e essa pergunta já tinha dono.
+6. Além dos testes do plano, três testes de persistência com os mocks existentes (`TestHandleNfseResponse_*`):
+   documento autorizado, rejeição sem upload, e cancelamento revertendo o documento. `capturedUpdate` ganhou
+   `values` para permitir asserção sobre os atributos gravados.
 
 ---
 

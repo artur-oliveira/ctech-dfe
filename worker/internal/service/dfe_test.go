@@ -64,6 +64,7 @@ type capturedUpdate struct {
 	table     string
 	status    string
 	condition string // ConditionExpression, empty if absent
+	values    map[string]types.AttributeValue
 }
 
 type mockDynamo struct {
@@ -119,7 +120,7 @@ func (m *mockDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput,
 	if in.TableName != nil {
 		table = *in.TableName
 	}
-	m.updates = append(m.updates, capturedUpdate{table: table, status: status, condition: cond})
+	m.updates = append(m.updates, capturedUpdate{table: table, status: status, condition: cond, values: in.ExpressionAttributeValues})
 	return &dynamodb.UpdateItemOutput{}, nil
 }
 

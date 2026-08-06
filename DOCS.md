@@ -829,8 +829,8 @@ transactional is a cross-doc-type change, not an NFS-e-only one.
 | Method | What it returns | Source |
 |---|---|---|
 | `ListNfses` | Page of `nfses` rows for the configured environment | `NfseRepository.ListNfses` |
-| `GetNfseXML` | Authorized NFS-e XML | `xml_s3_key` → S3 (`{org_pk}/nfse/{id_dps}.xml`) |
-| `GetDPSXML` | The DPS we signed and submitted | `dps_xml_s3_key` → S3 (`{org_pk}/nfse/{id_dps}/dps.xml`) |
+| `GetNfseXML` | Authorized NFS-e XML | `xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}.xml`) |
+| `GetDPSXML` | The DPS we signed and submitted | `dps_xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}_dps.xml`) |
 | `GetDANFSE` | PDF proxied from the ADN | `dfe.Call` with `nfse.ServiceDANFSE`; never stored by us |
 | `MunicipalParameters` | ADN municipal parametrization | `dfe.Call` with `nfse.ServiceParametrosMunicipais`, cached 6h |
 | `ListDistributions` | Documents received through ADN distribution | `NfseDistributionRepository` |
@@ -1434,6 +1434,33 @@ GitHub push → worker.yml
 if it cannot claim DynamoDB state, only the lease owner may finalize, and retryable infrastructure failures must not
 write a terminal status. Command publication is also at-least-once because SNS publish and outbox acknowledgement are
 separate operations; the worker claim is the downstream duplicate guard.
+
+### NFS-e no worker (F3)
+
+O roteamento não mudou: `Process` já escolhe go-dfe por `godfeImplements(msg.DocType, msg.SefazService)`, e a F2
+colocou os serviços de NFS-e nesse mapa. O que muda é o tratamento da resposta — `handleSefazResponse` procura
+`cStat`/`xMotivo`/`nProt`, que não existem no layout nacional. `Process` desvia para `handleNfseResponse`
+(`worker/internal/service/nfse.go`) quando `isNfse(msg.DocType)`.
+
+| Regra | Por quê |
+|---|---|
+| A SK da linha em `nfses` é o `id_dps` (`msg.AccessKey`); a `access_key` do fisco entra como **atributo** no mesmo update | A chave de acesso só existe na resposta; usá-la como SK criaria um item órfão ao lado do que a API criou |
+| Rejeição (lista `erros` no corpo 200, ou `FiscalError` com HTTP != 200) é terminal — `failTerminal`, nunca retry | O fisco já avaliou a regra de negócio; repetir devolve a mesma recusa. Mesma regra do `cStat` da NF-e |
+| O motivo gravado preserva `codigo - descricao` do fisco | É o que o usuário precisa para corrigir a DPS |
+| Cancelamento aceito (evento `101101`) reverte a NFS-e para `cancelled` | `isCancellationEvent` ganhou o ramo de NFS-e: o código é `101101`, não o `110111` da NF-e |
+| A notificação do evento sai de `publishEventResult`, não do status do documento | Igual ao caminho SOAP: o usuário vê o resultado do evento, não o status revertido |
+
+Artefatos no S3 (mesma convenção `{s3_prefix}/{doc_pk com # → /}/{expected_file_name}.{ext}` dos outros tipos,
+via `documentS3Key`/`putObject`, extraídos de `saveResponse` para não duplicar upload):
+
+| Artefato | Chave | Atributo |
+|---|---|---|
+| NFS-e autorizada | `nfse/{env}/{org_pk}/{id_dps}.xml` | `xml_s3_key` em `nfses` |
+| DPS assinada | `nfse/{env}/{org_pk}/{id_dps}_dps.xml` | `dps_xml_s3_key` em `nfses` |
+| Evento | `nfse/{env}/{org_pk}/{id_dps}_{tipo_evento}_{nseq}.xml` | `xml_s3_key` em `nfse_events` |
+
+`updateAttrs` ganhou `AccessKey` e `DPSXMLS3Key` — os dois só são preenchidos por NFS-e, e `buildUpdateExpression`
+continua omitindo do SET tudo que for nil.
 
 ---
 

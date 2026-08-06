@@ -535,8 +535,8 @@ with the fisco response, along with the two XML pointers:
 
 | Attribute          | Type | Notes                                                                                   |
 |--------------------|------|-----------------------------------------------------------------------------------------|
-| `xml_s3_key`       | S    | Authorized NFS-e XML — `{org_pk}/nfse/{id_dps}.xml`. Same attribute name as every other doc type |
-| `dps_xml_s3_key`   | S    | The DPS we signed and submitted — `{org_pk}/nfse/{id_dps}/dps.xml`                       |
+| `xml_s3_key`       | S    | Authorized NFS-e XML — `nfse/{env}/{org_pk}/{id_dps}.xml`. Same attribute name as every other doc type |
+| `dps_xml_s3_key`   | S    | The DPS we signed and submitted — `nfse/{env}/{org_pk}/{id_dps}_dps.xml`                       |
 
 NFS-e is the only doc type with two XMLs on the row: elsewhere the document we sign *is* the document
 the fisco authorizes, so one `xml_s3_key` suffices.

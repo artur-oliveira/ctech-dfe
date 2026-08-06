@@ -311,6 +311,13 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		return s.markRetryable(ctx, msg, motive, cause)
 	}
 
+	if isNfse(msg.DocType) {
+		if err := s.handleNfseResponse(ctx, msg, respBody); err != nil {
+			return s.markRetryable(ctx, msg, err.Error(), err)
+		}
+		return nil
+	}
+
 	if err := s.handleSefazResponse(ctx, msg, respBody); err != nil {
 		return s.markRetryable(ctx, msg, err.Error(), err)
 	}
@@ -535,27 +542,20 @@ func (s *DfeService) invokePyDfe(ctx context.Context, payload lambdaPayload) (la
 	return resp, nil
 }
 
-func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expectedFileName string, respBody map[string]any) (string, error) {
-	docPath := strings.ReplaceAll(docPK, "#", "/")
+const (
+	extXML          = "xml"
+	extJSON         = "json"
+	contentTypeXML  = "application/xml"
+	contentTypeJSON = "application/json"
+)
 
-	var key string
-	var data []byte
-	var contentType string
+// documentS3Key builds the object key for a document artifact. The docPK's "#"
+// separators become path segments so the bucket mirrors the tenant hierarchy.
+func (s *DfeService) documentS3Key(docPK, s3Prefix, fileName, ext string) string {
+	return fmt.Sprintf("%s/%s/%s.%s", s3Prefix, strings.ReplaceAll(docPK, "#", "/"), fileName, ext)
+}
 
-	if xmlRaw, ok := respBody["@xml"].(string); ok && xmlRaw != "" {
-		key = fmt.Sprintf("%s/%s/%s.xml", s3Prefix, docPath, expectedFileName)
-		data = []byte(xmlRaw)
-		contentType = "application/xml"
-	} else {
-		key = fmt.Sprintf("%s/%s/%s.json", s3Prefix, docPath, expectedFileName)
-		var err error
-		data, err = json.Marshal(respBody)
-		if err != nil {
-			return "", err
-		}
-		contentType = "application/json"
-	}
-
+func (s *DfeService) putObject(ctx context.Context, key string, data []byte, contentType string) (string, error) {
 	if _, err := s.s3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.cfg.DocumentsBucket),
 		Key:         aws.String(key),
@@ -565,6 +565,18 @@ func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expected
 		return "", err
 	}
 	return key, nil
+}
+
+func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expectedFileName string, respBody map[string]any) (string, error) {
+	if xmlRaw, ok := respBody["@xml"].(string); ok && xmlRaw != "" {
+		return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, expectedFileName, extXML), []byte(xmlRaw), contentTypeXML)
+	}
+
+	data, err := json.Marshal(respBody)
+	if err != nil {
+		return "", err
+	}
+	return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, expectedFileName, extJSON), data, contentTypeJSON)
 }
 
 // updateStatus updates a document's status in DynamoDB. When notify is true a

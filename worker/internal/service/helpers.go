@@ -67,6 +67,9 @@ func isCancellationEvent(docType string, eventType *string) bool {
 	if eventType == nil {
 		return false
 	}
+	if docType == docTypeNfse {
+		return *eventType == nfseCancellationEvent
+	}
 	if *eventType == cancellationEvent {
 		return true
 	}
@@ -102,6 +105,10 @@ type updateAttrs struct {
 	SefazMotive   *string
 	SefazProtocol *string
 	XMLS3Key      *string
+	// NFS-e only: the fisco's access key (the row's SK is the id_dps) and the
+	// signed DPS we sent, stored alongside the authorized document XML.
+	AccessKey   *string
+	DPSXMLS3Key *string
 }
 
 // buildUpdateExpression builds DynamoDB SET expression components for a status
@@ -123,6 +130,8 @@ func buildUpdateExpression(status string, attrs updateAttrs) updateParts {
 		{"sefaz_motive", attrs.SefazMotive},
 		{"sefaz_protocol", attrs.SefazProtocol},
 		{"xml_s3_key", attrs.XMLS3Key},
+		{"access_key", attrs.AccessKey},
+		{"dps_xml_s3_key", attrs.DPSXMLS3Key},
 	}
 	for _, o := range optionals {
 		if o.val != nil {
