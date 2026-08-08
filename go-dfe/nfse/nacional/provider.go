@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/textutil"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
@@ -83,12 +84,14 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 	if err != nil {
 		return nfse.Result{}, err
 	}
+	raw = []byte(textutil.RemoveDiacritics(string(raw)))
 	if n.cfg.Key != nil {
 		raw, err = SignDPS(raw, n.cfg.Cert, n.cfg.Key)
 		if err != nil {
 			return nfse.Result{}, fmt.Errorf("nacional: assinar DPS: %w", err)
 		}
 	}
+	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err
@@ -145,12 +148,14 @@ func (n *Nacional) Event(ctx context.Context, ev nfse.EventRequest) (nfse.Result
 	if err != nil {
 		return nfse.Result{}, err
 	}
+	raw = []byte(textutil.RemoveDiacritics(string(raw)))
 	if n.cfg.Key != nil {
 		raw, err = SignPedRegEvento(raw, n.cfg.Cert, n.cfg.Key)
 		if err != nil {
 			return nfse.Result{}, fmt.Errorf("nacional: assinar pedRegEvento: %w", err)
 		}
 	}
+	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err

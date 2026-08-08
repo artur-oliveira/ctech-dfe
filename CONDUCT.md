@@ -281,12 +281,14 @@ produziria um item órfão.
   imóvel, obra, informações complementares, benefício municipal) cujo shape divergia do XSD real
   por terem sido modelados a partir de prosa do plano em vez do XSD — o XSD sempre prevalece sobre
   texto de plano/spec quando divergem (mesmo precedente da F1 com `cTribNac`).
-- **Os XMLs do Sistema Nacional são enviados temporariamente sem declaração XML.** Após o Sefin
-  passar de E1229 para E1235 com o prólogo explícito, DPS e pedidos de evento não recebem
-  `xml.Header` antes do gzip+base64, para isolar a falha de esquema. Enquanto esse diagnóstico estiver
-  ativo, uma rejeição de emissão registra `dpsXmlGZipB64` no CloudWatch. Esse valor contém a DPS fiscal
-  completa, a assinatura e o certificado público: mantenha retenção curta, restrinja o acesso ao log
-  e remova essa instrumentação assim que a causa for confirmada.
+- **DPS e pedidos de evento do Sistema Nacional declaram UTF-8 explicitamente.** O Sefin devolve
+  E1229 quando o XML dentro do gzip+base64 não começa com `<?xml version="1.0" encoding="UTF-8"?>`.
+  Antes da assinatura, seus textos passam por `textutil.RemoveDiacritics`; depois da assinatura,
+  `xml.Header` é acrescentado uma única vez. NF-e autorizada por MT reutiliza a mesma transformação
+  antes de assinar; outras UFs preservam os acentos. Enquanto o diagnóstico estiver ativo, uma
+  rejeição de NFS-e registra `dpsXmlGZipB64` no CloudWatch. Esse valor contém a DPS fiscal completa,
+  a assinatura e o certificado público: mantenha retenção curta, restrinja o acesso e remova o log
+  assim que a causa for confirmada.
 - **Campo não suportado falha explicitamente.** `nfse.FieldNotSupportedError` nomeia o campo.
   Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as
   capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros municipais,
@@ -302,6 +304,15 @@ produziria um item órfão.
   API como ISO Date `AAAA-MM-DD` e alimenta `dCompet`, cuja definição é a data de início da prestação.
   Não converta esse campo por timezone. A API gera `dhEmi` separadamente no timezone da configuração
   NFS-e; configurações legadas sem o campo usam `America/Sao_Paulo` até serem salvas novamente.
+- **Duplicação de NFS-e depende do snapshot imutável `emit_input`.** A API persiste junto à linha as
+  referências do cadastro e os overrides usados na emissão; a UI só oferece **Duplicar** quando esse
+  snapshot existe. A cópia nunca leva `substitutes_*` e avança `competence` por um mês civil, limitando
+  o dia ao último dia do mês de destino. Não tente reconstruir uma emissão antiga a partir do XML ou
+  do texto renderizado: isso perderia IDs e defaults do catálogo sem avisar o usuário.
+- **O prazo de cancelamento da NFS-e não é um dado uniforme do ADN.** Enquanto a API não expuser uma
+  regra municipal verificável, a UI deve informar que o prazo depende do município e deixar o fisco
+  validar a solicitação; nunca invente um contador global ou desabilite o cancelamento por uma regra
+  presumida.
 - **Substituição não é evento.** `POST /nfses/{id}/substitute` entra em `NfseService.Emit` com o
   grupo `subst` preenchido; o fisco gera o evento `105102` e cancela a original por conta própria
   (manual do contribuinte §1.3.2). Pedir `105102` pelo endpoint genérico de eventos devolve 400
@@ -356,6 +367,10 @@ produziria um item órfão.
   `runNfseDistNSU` propaga qualquer erro de `persistNfseIncoming` (incluindo falha de S3) e de
   `updateNSU` antes de seguir para o próximo lote; nenhum dos dois pode voltar a ser um erro
   silencioso (`_ = `/log-only).
+- **Histórico/download de distribuição aceitam `doc_type = nfse`; consulta síncrona por NSU ou chave
+  continua exclusiva de NF-e/CT-e/MDF-e.** O ADN é acionado pelo mesmo `POST /distributions/nfse/sync`
+  assíncrono, com a janela atômica de uma hora da configuração NFS-e. Não encaminhe `nfse` para os
+  serviços SOAP de consulta pontual da SEFAZ.
 - **`NfseServiceItem.Quantity` foi removido do corpo de `POST /v1.0/nfses`.** O layout DPS 1.01 não
   tem campo de quantidade no grupo de serviço (só valor total, `vServ`) — o campo existia na
   validação e na doc (`DOCS.md`) mas nunca teve destino em `buildServico`/`buildValores` nem em

@@ -72,6 +72,14 @@ distribuição → signed operations), with automatic fallback to the py-dfe Lam
 
 See `go-dfe/CLAUDE.md` for the module's own conventions and current `Implements()` set.
 
+### 2026-08-08 Update — Compatibilidade textual por autorizador
+
+`go-dfe/internal/textutil.RemoveDiacritics` centraliza a transliteração Unicode que preserva case
+(`á → a`, `Ã → A`, `ç → c`). O provider Nacional aplica a transformação aos textos da DPS e dos
+pedidos de evento antes da assinatura; NF-e aplica a mesma compatibilidade somente quando a UF
+autorizadora é MT. A declaração UTF-8 da NFS-e continua sendo acrescentada depois da assinatura,
+pois sua ausência é rejeitada pelo Sefin com E1229.
+
 ---
 
 ## 3. Target Architecture

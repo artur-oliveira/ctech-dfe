@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -65,11 +66,11 @@ func TestNacional_Emit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("descompactar DPS enviada: %v", err)
 	}
-	if strings.HasPrefix(string(sentDPS), "<?xml") {
-		t.Error("DPS enviada não deve conter declaração XML")
+	if !strings.HasPrefix(string(sentDPS), xml.Header) {
+		t.Error("DPS enviada deve declarar UTF-8")
 	}
-	if !strings.HasPrefix(string(sentDPS), "<DPS") {
-		t.Errorf("DPS enviada deve começar pelo elemento raiz: %q", sentDPS[:min(len(sentDPS), len("<DPS"))])
+	if strings.Contains(string(sentDPS), "Análise") || !strings.Contains(string(sentDPS), "Analise") {
+		t.Errorf("DPS não removeu diacríticos antes da assinatura: %s", sentDPS)
 	}
 	if res.ChaveAcesso != strings.Repeat("9", 50) {
 		t.Errorf("ChaveAcesso = %q", res.ChaveAcesso)
@@ -129,11 +130,11 @@ func TestNacional_Event(t *testing.T) {
 	if err != nil {
 		t.Fatalf("descompactar evento enviado: %v", err)
 	}
-	if strings.HasPrefix(string(sentEvent), "<?xml") {
-		t.Error("evento enviado não deve conter declaração XML")
+	if !strings.HasPrefix(string(sentEvent), xml.Header) {
+		t.Error("evento enviado deve declarar UTF-8")
 	}
-	if !strings.HasPrefix(string(sentEvent), "<pedRegEvento") {
-		t.Errorf("evento enviado deve começar pelo elemento raiz: %q", sentEvent[:min(len(sentEvent), len("<pedRegEvento"))])
+	if strings.Contains(string(sentEvent), "emissão") || !strings.Contains(string(sentEvent), "emissao") {
+		t.Errorf("evento não removeu diacríticos antes da assinatura: %s", sentEvent)
 	}
 }
 
@@ -162,5 +163,12 @@ func TestNacional_EmitPropagatesFiscalError(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), packed) {
 		t.Errorf("log da rejeição não contém %s", fieldDpsXMLGZipB64)
+	}
+	sentDPS, err := UngzipB64(packed)
+	if err != nil {
+		t.Fatalf("descompactar DPS rejeitada: %v", err)
+	}
+	if !strings.HasPrefix(string(sentDPS), xml.Header) {
+		t.Error("DPS rejeitada logada deve declarar UTF-8")
 	}
 }

@@ -533,6 +533,7 @@ Written by `NfseService.Emit` in the same `TransactWrite` that reserves the DPS 
 | `dest_name`        | S    | Tomador name                                                                                 |
 | `total`            | S    | `vServPrest.vServ` as decimal string                                                          |
 | `payload`          | M    | The full neutral `nfse.Document` as issued — the same object sent in the worker command       |
+| `emit_input`       | M    | Normalized emission input snapshot (person/service references and overrides), used only for safe duplication; substitution metadata is omitted |
 | `operation_id`     | S    | `{table}#{id_dps}` — the `worker_outbox` PK of the command committed with this item           |
 | `user_id`          | S    | Acting user                                                                                  |
 | `user_name`        | S    | Acting user's display name                                                                   |

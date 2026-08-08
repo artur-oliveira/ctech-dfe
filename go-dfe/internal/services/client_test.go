@@ -15,7 +15,23 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 )
+
+func TestNormalizeFiscalTextOnlyForNFeMatoGrosso(t *testing.T) {
+	xmlWithAccents := []byte("<NFe><xNome>AÇÃO São José</xNome></NFe>")
+
+	got := normalizeFiscalText(constants.DocTypeNFE, ufMatoGrosso, xmlWithAccents)
+	if string(got) != "<NFe><xNome>ACAO Sao Jose</xNome></NFe>" {
+		t.Errorf("normalizeFiscalText(MT) = %q", got)
+	}
+
+	unchanged := normalizeFiscalText(constants.DocTypeNFE, "SP", xmlWithAccents)
+	if string(unchanged) != string(xmlWithAccents) {
+		t.Errorf("normalizeFiscalText(SP) alterou o XML: %q", unchanged)
+	}
+}
 
 func TestSingleRootElement(t *testing.T) {
 	tag, body, err := singleRootElement(map[string]any{"consStatServ": map[string]any{"tpAmb": "2"}})

@@ -344,11 +344,13 @@ go-dfe/nfse/
 - **Serialização:** `nacional/dps.go`'s structs `encoding/xml` têm a ordem de campo normativa —
   ela É a ordem do XSD (`tiposComplexos_v1.01.xsd`); não existe tabela `xsdorder` para NFS-e como
   para os demais doc types. `TestBuildDPS_MatchesGolden` é o guarda contra reordenação acidental.
-  Como workaround temporário de diagnóstico para E1235, DPS e pedidos de evento são enviados sem
-  declaração XML. Quando o POST de emissão é rejeitado, o go-dfe registra `id_dps`,
-  `dpsXmlGZipB64` e o erro no CloudWatch. O payload logado contém dados fiscais, assinatura e
-  certificado público e deve ter acesso/retenção restritos; remova o log e reavalie o prólogo assim
-  que a causa do erro de esquema for confirmada.
+  DPS e pedidos de evento removem diacríticos dos textos com
+  `internal/textutil.RemoveDiacritics` antes da assinatura e recebem a declaração explícita UTF-8
+  depois dela; omitir o prólogo reproduz E1229. NF-e autorizada por MT reutiliza a transformação antes
+  de assinar, enquanto outras UFs preservam os acentos. Quando o POST de emissão NFS-e é rejeitado, o
+  go-dfe registra `id_dps`, `dpsXmlGZipB64` e o erro no CloudWatch. O payload logado contém dados
+  fiscais, assinatura e certificado público e deve ter acesso/retenção restritos; remova o log assim
+  que o diagnóstico terminar.
 - **`Body` de `dfe.Request` para NFS-e** (chaves lidas por `nfse.Dispatch`,
   `go-dfe/nfse/dispatch.go`):
 
@@ -872,6 +874,11 @@ documento — `service` é objeto, não lista.
 | `substitutes_access_key` / `substitutes_reason` | não | preenchidos pelo próprio serviço em `POST /{id}/substitute`  |
 | `additional_info`                     | não         | ≤2000 caracteres                                                     |
 
+Cada emissão também persiste `emit_input`, um snapshot do corpo normalizado que conserva IDs de
+prestador/tomador/intermediário, referência do serviço e overrides. Ele não é reenviado ao worker;
+serve para a ação de duplicar no front sem inferir dados a partir do XML autorizado. Campos de
+substituição não entram no snapshot.
+
 Três validações condicionais rejeitam antes de qualquer escrita ou chamada externa:
 
 1. `tp_emit` 2 ou 3 exige `motivo_emis_ti` **e** `provider_person_id`.
@@ -927,6 +934,12 @@ transactional is a cross-doc-type change, not an NFS-e-only one.
 | `GetDANFSE` | PDF proxied from the ADN | `dfe.Call` with `nfse.ServiceDANFSE`; never stored by us |
 | `MunicipalParameters` | ADN municipal parametrization | `dfe.Call` with `nfse.ServiceParametrosMunicipais`, cached 6h |
 | `ListDistributions` | Documents received through ADN distribution | `NfseDistributionRepository` |
+
+As rotas genéricas `/v1.0/distributions/{doc_type}/history`, `/sync` e `/nsu/{nsu}/xml` aceitam
+`doc_type = nfse`; o recurso RBAC é `nfse_distributions` e pertence à família OAuth `dfe:nfses:*`.
+Para NFS-e, `/sync` enfileira a consulta ao ADN e respeita a janela de uma hora. As consultas
+síncronas pontuais por NSU/chave continuam limitadas a NF-e/CT-e/MDF-e porque são operações SOAP da
+SEFAZ e não têm equivalente no ADN.
 
 Two XML attributes exist because NFS-e is the only doc type where the document we sign (the DPS) and
 the document the fisco returns (the NFS-e) are different XMLs. The authorized one keeps the
@@ -1483,7 +1496,11 @@ CPF/CNPJ completo, consultam o documento automaticamente, sem botão **Buscar** 
 **Catálogo de serviços (`ServiceForm`):** CST PIS/COFINS e retenção PIS/COFINS/CSLL são selects
 (`PIS_COFINS_OPTIONS`, `TP_RET_PIS_COFINS_OPTIONS`), não campos livres. A alíquota de ISSQN só
 aparece — e só é obrigatória — quando `trib_issqn = 1` (operação tributável); imunidade, exportação
-e não incidência enviam `tax_rate = 0`, que o backend exige como `required`.
+e não incidência enviam `tax_rate = 0`, que o backend exige como `required`. Código e descrição são
+normalizados com `trim`; identificação e classificação fiscal ficam em grupos separados para reduzir
+a carga de decisão. Os grupos IBS/CBS e totalização tributária seguem disponíveis no contrato da API,
+mas não são editados pelo formulário enquanto não houver fonte normativa e pickers oficiais para o
+fluxo de cadastro — updates da UI preservam os atributos já armazenados.
 
 **NF-e CFOP suffix grouping:** the emission form groups same-suffix saída CFOPs (e.g. `5920`/`6920`) into a single
 dropdown option and sends the concrete intra (`5xxx`) / inter (`6xxx`) variant resolved automatically from whether the
@@ -1549,6 +1566,8 @@ dedicada já exposta pela API.
 | Cancelamento de NFS-e usa `NfseCancelModal` (código do motivo + descrição), não `CancelDfeModal` | TE101101 exige `cMotivo` (código) **e** `xMotivo` (descrição) — os outros documentos usam só uma justificativa |
 | O seletor de evento genérico em `/nfse/detail` oferece somente `CONTRIBUINTE_EVENTS` (`lib/schemas/nfse.ts`) | Espelha `nfse.ContribuinteEvents` (go-dfe) menos `105102`, que a API rejeita em `POST /events` (gerado pelo fisco na substituição) |
 | Substituição não é evento: o botão "Substituir" leva a `/nfse/emit?substitute={id_dps}`, muda título/modo, carrega a chave da origem e chama `POST /nfses/{id}/substitute` | O fisco gera o `105102` e cancela a original por conta própria — não existe corpo de evento para isso |
+| Duplicação leva a `/nfse/emit?duplicate={id_dps}` somente quando há `emit_input` | O formulário reidrata referências reais, limpa semântica de substituição e avança a competência por um mês civil; documentos legados sem snapshot não são copiados por aproximação |
+| O cancelamento informa que o prazo depende do município, sem contador global | O ADN não fornece uma regra uniforme no contrato atual; o fisco continua sendo a autoridade que aceita ou rejeita o pedido |
 | `useRealtimeUpdates` ganhou `nfses` em `DOC_QUERY_KEYS` | O worker publica `table_name: "nfses"` e `access_key: <id_dps>` (a SK da linha) — o mesmo campo genérico que o hook já usava para invalidar NF-e/NFC-e/MDF-e |
 | Catálogo e emissão usam tabelas geradas para NBS, países e motivos normativos | Códigos fechados não aceitam texto livre; `go-dfe/nfse/tables/gen/generate.py` gera os dados TypeScript a partir dos anexos/XSD oficiais versionados localmente |
 

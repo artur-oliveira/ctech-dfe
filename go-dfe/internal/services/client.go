@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/endpoints"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/soap"
+	"gopkg.aoctech.app/dfe/go-dfe/internal/textutil"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 )
 
@@ -24,6 +25,7 @@ const (
 	defaultTimeoutConnect = 3 * time.Second
 	defaultTimeoutRead    = 15 * time.Second
 	backoffBase           = 1 * time.Second
+	ufMatoGrosso          = "MT"
 )
 
 // retryableHTTPStatus mirrors py-dfe's _RETRYABLE_HTTP: only infrastructure
@@ -101,6 +103,7 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 	if err != nil {
 		return nil, fmt.Errorf("services: build xml: %w", err)
 	}
+	xmlBytes = normalizeFiscalText(c.docType, c.uf, xmlBytes)
 
 	if c.config.RequiresSignature(service) {
 		xpath := ""
@@ -168,6 +171,15 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 	}
 
 	return result, nil
+}
+
+// normalizeFiscalText aplica somente compatibilidades comprovadamente
+// específicas do autorizador. A transformação ocorre antes da assinatura.
+func normalizeFiscalText(docType, uf string, xmlBytes []byte) []byte {
+	if docType != constants.DocTypeNFE || uf != ufMatoGrosso {
+		return xmlBytes
+	}
+	return []byte(textutil.RemoveDiacritics(string(xmlBytes)))
 }
 
 // singleRootElement extracts payload's one top-level key/value pair, which
