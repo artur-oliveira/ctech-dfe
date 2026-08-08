@@ -488,10 +488,16 @@ components:
     NfeProductItem:
       type: object
       description: Item da NF-e. Preço e frete opcionais sobrepõem o cadastro do produto.
-      required: [product_id, cfop, quantity]
+      required: [product_id, quantity]
       properties:
         product_id: { type: string }
-        cfop: { $ref: '#/components/schemas/Cfop' }
+        cfop:
+          allOf:
+            - $ref: '#/components/schemas/Cfop'
+          description: |
+            Opcional quando a emissão informa `operation_id` de uma operação com
+            `cfop_suffix` — nesse caso o CFOP é resolvido pelas UFs de emitente e
+            destinatário. Sem os dois, a emissão é recusada.
         quantity: { $ref: '#/components/schemas/Decimal' }
         unit_value: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$', description: Sobrepõe o valor do cadastro. }
         discount: { type: string, pattern: '^\d+(\.\d{1,4})?$' }
@@ -603,6 +609,13 @@ components:
         self_issuance:
           type: boolean
           description: Emissão para a própria organização (destinatário = emitente).
+        operation_id:
+          type: [string, 'null']
+          description: |
+            Natureza de operação do cadastro. Preenche `nat_op`, `tp_nf`,
+            `fin_nfe`, `ind_final`, `ind_pres`, `mod_frete`, o CFOP dos itens que
+            não o trazem e as mensagens fiscais. **Todo valor explícito no
+            request vence a operação** — ela é default, não prisão.
         products:
           type: array
           minItems: 1
@@ -651,6 +664,11 @@ components:
       required: [products]
       properties:
         consumer_cpf: { $ref: '#/components/schemas/Cpf' }
+        operation_id:
+          type: [string, 'null']
+          description: |
+            Normalmente ausente: a NFC-e usa a operação padrão da organização,
+            sem passo nem campo novo na tela de balcão.
         products:
           type: array
           minItems: 1

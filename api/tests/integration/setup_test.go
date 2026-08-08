@@ -48,6 +48,7 @@ var (
 	productSvc     *services.ProductService
 	serviceSvc     *services.ServiceService
 	taxProfileSvc  *services.TaxProfileService
+	operationSvc   *services.OperationService
 	personSvc      *services.PersonService
 	vehicleSvc     *services.VehicleService
 	certSvc        *services.CertificateService
@@ -60,6 +61,7 @@ var (
 	nfseConfigSvc  *services.NfseConfigService
 	serviceRepo    *repositories.ServiceRepository
 	taxProfileRepo *repositories.TaxProfileRepository
+	operationRepo  *repositories.OperationRepository
 	nfseRepo       *repositories.NfseRepository
 	nfseSvc        *nfses.NfseService
 	memCache       cache.Backend
@@ -126,6 +128,8 @@ func TestMain(m *testing.M) {
 	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
 	taxProfileRepo = repositories.NewTaxProfileRepository(db, cfg)
 	taxProfileSvc = services.NewTaxProfileService(taxProfileRepo, auditRepo, memCache)
+	operationRepo = repositories.NewOperationRepository(db, cfg)
+	operationSvc = services.NewOperationService(operationRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
 	nfeConfigSvc = services.NewNfeConfigService(nfeConfigRepo, auditRepo)

@@ -24,7 +24,11 @@ import (
 // enforce presence/format; cross-field business rules (receiver_id XOR
 // self_issuance, etc.) remain in Emit.
 type NfeEmitBody struct {
-	ReceiverID     *string            `json:"receiver_id" validate:"omitempty"`
+	ReceiverID *string `json:"receiver_id" validate:"omitempty"`
+	// OperationID resolve nat_op, tp_nf, fin_nfe, ind_final, ind_pres, mod_frete,
+	// o CFOP dos itens que não o trazem, e as mensagens fiscais. Todo valor
+	// explícito no request vence a operação.
+	OperationID    *string            `json:"operation_id" validate:"omitempty"`
 	SelfIssuance   bool               `json:"self_issuance"`
 	Products       []NfeProductItem   `json:"products" validate:"required,min=1,dive"`
 	Payments       []NfePaymentItem   `json:"payments" validate:"omitempty,dive"`
@@ -47,8 +51,10 @@ type NfeEmitBody struct {
 
 // NfeProductItem is a line item in an NF-e emission request.
 type NfeProductItem struct {
-	ProductID  string           `json:"product_id" validate:"required"`
-	CFOP       string           `json:"cfop" validate:"required,cfop"`
+	ProductID string `json:"product_id" validate:"required"`
+	// Vazio é aceito quando a emissão informa uma operação com cfop_suffix —
+	// aí o CFOP é resolvido pelas UFs de emitente e destinatário.
+	CFOP       string           `json:"cfop" validate:"omitempty,cfop"`
 	Quantity   string           `json:"quantity" validate:"required,decimalv"`
 	UnitValue  *string          `json:"unit_value" validate:"omitempty,money"`
 	Discount   string           `json:"discount" validate:"omitempty,money"`
@@ -183,7 +189,24 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		receiverSK = *req.ReceiverID
 	}
 
-	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, req.Products)
+	operation, err := loadOperation(ctx, s.operationRepo, orgPK, req.OperationID)
+	if err != nil {
+		return nil, err
+	}
+
+	emitUF := extractEmitUFFromItem(orgItem)
+	destUF := extractEmitUFFromItem(receiverItem)
+	items := make([]NfeProductItem, len(req.Products))
+	for i, item := range req.Products {
+		cfop, err := resolveItemCFOP(item.CFOP, operation, emitUF, destUF)
+		if err != nil {
+			return nil, err
+		}
+		item.CFOP = cfop
+		items[i] = item
+	}
+
+	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, items)
 	if err != nil {
 		return nil, err
 	}
@@ -253,10 +276,24 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		})
 	}
 
-	finNFe := strOrDefault(ptrStr(req.FinNFe), "1")
-	indFinal := strOrDefault(ptrStr(req.IndFinal), "1")
-	indPres := strOrDefault(ptrStr(req.IndPres), "1")
-	tpNF := strOrDefault(ptrStr(req.TpNF), "1")
+	// Escada: valor no request → operação → default do leiaute.
+	finNFe := strOrDefault(ptrStr(firstNonNil(req.FinNFe, operationDefault(operation, opFieldFinNFe))), "1")
+	indFinal := strOrDefault(ptrStr(firstNonNil(req.IndFinal, operationDefault(operation, opFieldIndFinal))), "1")
+	indPres := strOrDefault(ptrStr(firstNonNil(req.IndPres, operationDefault(operation, opFieldIndPres))), "1")
+	tpNF := strOrDefault(ptrStr(firstNonNil(req.TpNF, operationDefault(operation, opFieldTpNF))), "1")
+	natOp := firstNonNil(req.NatOp, operationDefault(operation, opFieldNatOp))
+
+	// Mensagens fiscais da operação, com os placeholders já interpolados.
+	interpVars := map[string]string{
+		services.PlaceholderVNF:     q2(totalProducts.Sub(totalDiscount)),
+		services.PlaceholderCliente: anyStr(receiverAny, "name", ""),
+		services.PlaceholderNatOp:   ptrStr(natOp),
+	}
+	infCpl, err := interpolateOperationText(operation, opFieldInfCpl, interpVars)
+	if err != nil {
+		return nil, err
+	}
+	additionalInfo := firstNonNil(req.AdditionalInfo, infCpl)
 
 	// Build full enviNFe structure
 	enviNFe := BuildEnviNFe(
@@ -264,8 +301,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		productItems, paymentsAny,
 		currentNumber, serie, environment,
 		accessKey, totalProducts, totalDiscount,
-		req.AdditionalInfo, now,
-		req.NatOp, finNFe, indFinal, indPres, tpNF,
+		additionalInfo, now,
+		natOp, finNFe, indFinal, indPres, tpNF,
 		resolvedTransport, cobrFatAny, cobrDupAny, req.VTroco,
 		s.tech, nfModel55, nil,
 		req.Retirada, req.Entrega,
@@ -321,7 +358,6 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, problem.InternalServer("failed to encode NF-e record")
 	}
 
-	emitUF := extractEmitUFFromItem(orgItem)
 	sefazEnv := SefazEnvHom
 	if environment == 1 {
 		sefazEnv = SefazEnvProd

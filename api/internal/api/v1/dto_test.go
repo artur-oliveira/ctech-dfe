@@ -389,3 +389,48 @@ func TestTaxProfile_RequiresIbsCbsBlock(t *testing.T) {
 		t.Errorf("error path = %+v, want ibs_cbs_cst (embedded struct must be inlined)", p.Errors)
 	}
 }
+
+// ── Naturezas de operação ────────────────────────────────────────────────────
+
+func validOperation() OperationBody {
+	natOp := "Venda de mercadoria"
+	suffix := "102"
+	return OperationBody{
+		Name:       "Venda para revenda",
+		DocTypes:   []string{"nfe", "nfce"},
+		NatOp:      &natOp,
+		CfopSuffix: &suffix,
+	}
+}
+
+func TestOperation_Valid(t *testing.T) {
+	if p := validation.Struct(validOperation()); p != nil {
+		t.Fatalf("esperado válido, obtido %v", p)
+	}
+}
+
+func TestOperation_RejectsUnknownDocType(t *testing.T) {
+	dto := validOperation()
+	dto.DocTypes = []string{"nfe", "nfsE"}
+	if p := validation.Struct(dto); p == nil {
+		t.Fatal("esperada recusa de doc_type desconhecido")
+	}
+}
+
+// O sufixo é a natureza fiscal: 3 dígitos, sem o escopo — o escopo é resolvido
+// na emissão a partir das UFs.
+func TestOperation_CfopSuffixIsThreeDigits(t *testing.T) {
+	for _, bad := range []string{"5102", "10", "10a"} {
+		dto := validOperation()
+		dto.CfopSuffix = &bad
+		if p := validation.Struct(dto); p == nil {
+			t.Errorf("esperada recusa de cfop_suffix %q", bad)
+		}
+	}
+}
+
+func TestOperation_MinimalIsValid(t *testing.T) {
+	if p := validation.Struct(OperationBody{Name: "Só o nome"}); p != nil {
+		t.Fatalf("uma operação só com nome tem que ser válida: %v", p)
+	}
+}

@@ -98,6 +98,55 @@ func bindEntityUpdate[T any](c fiber.Ctx) (map[string]any, error) {
 	return structToMap(dto)
 }
 
+// RegisterOperations mounts /operations under a tenant-scoped group.
+func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/operations",
+		param:      "operation_id",
+		resource:   "organization_operations",
+		bindCreate: bindOperationCreate,
+		bindUpdate: bindOperationUpdate,
+	})
+}
+
+// bindOperationCreate/bindOperationUpdate acrescentam ao binding genérico a
+// validação dos placeholders das mensagens fiscais — uma chave desconhecida tem
+// que falhar aqui, no cadastro, e não virar um buraco silencioso no XML.
+func bindOperationCreate(c fiber.Ctx) (map[string]types.AttributeValue, error) {
+	var dto OperationBody
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := validateOperationPlaceholders(dto); err != nil {
+		return nil, err
+	}
+	return structToAV(dto)
+}
+
+func bindOperationUpdate(c fiber.Ctx) (map[string]any, error) {
+	var dto OperationBody
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := validateOperationPlaceholders(dto); err != nil {
+		return nil, err
+	}
+	return structToMap(dto)
+}
+
+func validateOperationPlaceholders(dto OperationBody) error {
+	for _, tpl := range []*string{dto.InfAdFisco, dto.InfCpl} {
+		if tpl == nil {
+			continue
+		}
+		if err := services.ValidatePlaceholders(*tpl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RegisterTaxProfiles mounts /tax-profiles under a tenant-scoped group.
 func RegisterTaxProfiles(router fiber.Router, svc *services.TaxProfileService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

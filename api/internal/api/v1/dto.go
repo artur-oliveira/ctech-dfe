@@ -238,6 +238,48 @@ type CfopConfigBody struct {
 	TaxFieldsBody
 }
 
+// ── Operations (naturezas de operação) ───────────────────────────────────────
+
+// OperationBody is the body for POST/PUT /operations.
+//
+// Uma natureza de operação junta os valores que **sempre andam juntos** por
+// cenário de negócio ("venda para revenda", "remessa para conserto",
+// "devolução de compra"): natOp, tpNF, finNFe, indFinal, indPres, o CFOP de
+// cada item e a mensagem fiscal. Hoje o produto trata cada um como pergunta
+// independente, e o operador responde as mesmas seis perguntas toda vez.
+//
+// Valor explícito no request de emissão sempre vence a operação — a operação é
+// default, não prisão.
+type OperationBody struct {
+	Name     string   `json:"name" validate:"required,min=2,max=120"`
+	DocTypes []string `json:"doc_types" validate:"omitempty,dive,oneof=nfe nfce cte mdfe"`
+
+	NatOp    *string `json:"nat_op" validate:"omitempty,max=60"`
+	TpNF     *string `json:"tp_nf" validate:"omitempty,oneof=0 1"`
+	FinNFe   *string `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4"`
+	IndFinal *string `json:"ind_final" validate:"omitempty,oneof=0 1"`
+	IndPres  *string `json:"ind_pres" validate:"omitempty,oneof=0 1 2 3 4 5 9"`
+
+	// CfopSuffix é a natureza fiscal (3 dígitos). O dígito de escopo (5/6/7) é
+	// resolvido na emissão por services.ResolveCFOPScope, a partir das UFs.
+	CfopSuffix *string `json:"cfop_suffix" validate:"omitempty,len=3,number"`
+
+	TaxProfileID  *string `json:"tax_profile_id" validate:"omitempty"`
+	PaymentTermID *string `json:"payment_term_id" validate:"omitempty"`
+	ModFrete      *string `json:"mod_frete" validate:"omitempty,oneof=0 1 2 3 4 9"`
+
+	// Aceitam placeholders {{chave}} — ver services.AllPlaceholders. Chave
+	// desconhecida é erro aqui, no cadastro, nunca silêncio no XML.
+	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
+	InfCpl     *string `json:"inf_cpl" validate:"omitempty,max=5000"`
+
+	// RequiresReceiver falso habilita emissão sem destinatário (self_issuance).
+	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
+	// IsDefault marca a operação pré-selecionada da organização. Só uma pode
+	// estar marcada; marcar uma desmarca a anterior no mesmo TransactWrite.
+	IsDefault bool `json:"is_default"`
+}
+
 // ProductTaxProfileRef liga um produto a um perfil fiscal, opcionalmente
 // sobrescrevendo campos do perfil só para este produto. Um produto sem
 // `tax_profiles` resolve a tributação exatamente como sempre resolveu.

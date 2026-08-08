@@ -60,6 +60,7 @@ type NfeService struct {
 	configRepo     *repositories.NfeConfigRepository
 	productRepo    *repositories.ProductRepository
 	taxProfileRepo *repositories.TaxProfileRepository
+	operationRepo  *repositories.OperationRepository
 	nfeRepo        *repositories.NfeRepository
 	eventRepo      *repositories.DocumentEventRepository
 	vehicleRepo    *repositories.VehicleRepository
@@ -77,6 +78,7 @@ func NewNfeService(
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
+	operationRepo *repositories.OperationRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -93,6 +95,7 @@ func NewNfeService(
 		configRepo:     configRepo,
 		productRepo:    productRepo,
 		taxProfileRepo: taxProfileRepo,
+		operationRepo:  operationRepo,
 		nfeRepo:        nfeRepo,
 		eventRepo:      eventRepo,
 		vehicleRepo:    vehicleRepo,

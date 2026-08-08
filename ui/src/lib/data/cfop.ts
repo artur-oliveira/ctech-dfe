@@ -3721,6 +3721,34 @@ export const groupCfopConfigBySuffix = (config: CfopConfigItem[]): CfopSuffixGro
   return [...bySuffix.values()]
 }
 
+/** Escopo do destino: '5' dentro da UF, '6' outra UF, '7' exterior. */
+export const CFOP_SCOPE_INTRA_UF = '5'
+export const CFOP_SCOPE_INTER_UF = '6'
+export const CFOP_SCOPE_FOREIGN = '7'
+/** UF que representa destino no exterior. */
+export const UF_FOREIGN = 'EX'
+
+/**
+ * Monta o CFOP concreto a partir da natureza fiscal e das UFs.
+ *
+ * A **fonte da verdade** desta regra é `services.ResolveCFOPScope`
+ * (api/internal/services/cfop.go); esta cópia existe para o dropdown resolver o
+ * escopo sem ida ao servidor. O teste de paridade roda sobre a mesma tabela de
+ * casos (api/internal/services/testdata/cfop_scope_cases.json) — divergir é
+ * falha de build.
+ *
+ * Devolve null quando a entrada é inválida; quem chama bloqueia a emissão.
+ */
+export const resolveCfopScope = (suffix: string, emitUf: string, destUf: string): string | null => {
+  const nature = suffix.trim()
+  if (!/^\d{3}$/.test(nature)) return null
+  const emit = emitUf.trim().toUpperCase()
+  const dest = destUf.trim().toUpperCase()
+  if (!emit || !dest) return null
+  if (dest === UF_FOREIGN) return CFOP_SCOPE_FOREIGN + nature
+  return (emit === dest ? CFOP_SCOPE_INTRA_UF : CFOP_SCOPE_INTER_UF) + nature
+}
+
 /**
  * Resolves the concrete CFOP for a group given whether the recipient is in the
  * issuer's UF. Returns null when the required-scope variant is not configured

@@ -109,6 +109,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Naturezas de operação ──────────────────────────────────────────────────
+
+  /v1.0/operations:
+    get:
+      tags: [Operations]
+      summary: Lista naturezas de operação
+      operationId: listOperations
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de naturezas de operação
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/OperationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Operations]
+      summary: Cria uma natureza de operação
+      operationId: createOperation
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationBody' }
+      responses:
+        '201':
+          description: Natureza de operação criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/operations/{operation_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: operation_id
+        in: path
+        required: true
+        description: Identificador da natureza de operação (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [Operations]
+      summary: Detalha uma natureza de operação
+      operationId: getOperation
+      responses:
+        '200':
+          description: Natureza de operação
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Operations]
+      summary: Atualiza uma natureza de operação
+      operationId: updateOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationBody' }
+      responses:
+        '200':
+          description: Natureza de operação atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Operations]
+      summary: Remove uma natureza de operação
+      operationId: deleteOperation
+      responses:
+        '204':
+          description: Natureza de operação removida
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
 
   parameters:
@@ -154,5 +254,63 @@ components:
         cfops:
           type: array
           items: { $ref: '#/components/schemas/Cfop' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    OperationBody:
+      type: object
+      description: |
+        Natureza de operação — os valores que sempre andam juntos por cenário de
+        negócio ("venda para revenda", "remessa para conserto", "devolução de
+        compra"). Na emissão, **valor explícito no request sempre vence a
+        operação**: ela é default, não prisão.
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        doc_types:
+          type: array
+          items: { type: string, enum: [nfe, nfce, cte, mdfe] }
+        nat_op: { type: [string, 'null'], maxLength: 60 }
+        tp_nf: { type: [string, 'null'], enum: ['0', '1', null] }
+        fin_nfe: { type: [string, 'null'], enum: ['1', '2', '3', '4', null] }
+        ind_final: { type: [string, 'null'], enum: ['0', '1', null] }
+        ind_pres: { type: [string, 'null'], enum: ['0', '1', '2', '3', '4', '5', '9', null] }
+        cfop_suffix:
+          type: [string, 'null']
+          pattern: '^\d{3}$'
+          description: |
+            Natureza fiscal (3 dígitos). O dígito de escopo (`5` intra-UF,
+            `6` inter-UF, `7` exterior) é resolvido na emissão a partir das UFs
+            de emitente e destinatário. Sem variante para o escopo exigido, a
+            emissão é **bloqueada** com mensagem acionável — nada de sintetizar CFOP.
+        tax_profile_id: { type: [string, 'null'] }
+        payment_term_id: { type: [string, 'null'] }
+        mod_frete: { type: [string, 'null'], enum: ['0', '1', '2', '3', '4', '9', null] }
+        inf_ad_fisco:
+          type: [string, 'null']
+          maxLength: 2000
+          description: |
+            Aceita placeholders `{{chave}}`: `{{v_nf}}`, `{{v_icms_st}}`,
+            `{{cliente}}`, `{{nat_op}}`, `{{competencia}}`. Chave desconhecida é
+            erro de validação **no cadastro**, nunca interpolação em branco no XML.
+        inf_cpl: { type: [string, 'null'], maxLength: 5000 }
+        requires_receiver:
+          type: [boolean, 'null']
+          description: '`false` habilita emissão sem destinatário (self_issuance).'
+        is_default:
+          type: boolean
+          description: |
+            Operação pré-selecionada da organização. Só uma pode estar marcada:
+            marcar uma desmarca a anterior no mesmo `TransactWrite`.
+
+    OperationItem:
+      type: object
+      description: Natureza de operação persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador da natureza de operação. }
+        name: { type: string }
+        is_default: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

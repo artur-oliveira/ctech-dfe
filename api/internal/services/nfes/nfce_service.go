@@ -31,6 +31,7 @@ type NfceService struct {
 	configRepo     *repositories.NfceConfigRepository
 	productRepo    *repositories.ProductRepository
 	taxProfileRepo *repositories.TaxProfileRepository
+	operationRepo  *repositories.OperationRepository
 	nfceRepo       *repositories.NfceRepository
 	eventRepo      *repositories.DocumentEventRepository // nfce_events
 	clients        *awsclient.Clients
@@ -46,6 +47,7 @@ func NewNfceService(
 	configRepo *repositories.NfceConfigRepository,
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
+	operationRepo *repositories.OperationRepository,
 	nfceRepo *repositories.NfceRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	clients *awsclient.Clients,
@@ -55,7 +57,7 @@ func NewNfceService(
 ) *NfceService {
 	return &NfceService{
 		orgRepo: orgRepo, certRepo: certRepo, personRepo: personRepo,
-		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, nfceRepo: nfceRepo,
+		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, operationRepo: operationRepo, nfceRepo: nfceRepo,
 		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc,
 		bucketDocs: bucketDocs, tech: tech,
 	}

@@ -166,6 +166,45 @@ func (r *OrgEntityRepository) BuildDeleteTxItem(orgPK, id string) types.Transact
 
 // ── Concrete registries ──────────────────────────────────────────────────────
 
+// OperationRepository — organization_operations. Uma natureza de operação junta
+// os valores que sempre andam juntos por cenário de negócio.
+type OperationRepository struct{ OrgEntityRepository }
+
+func NewOperationRepository(db *dynamodb.Client, cfg *config.Config) *OperationRepository {
+	return &OperationRepository{newOrgEntityRepository(db, cfg, TableOperations, SKPrefixOperation)}
+}
+
+// OperationIsDefaultField é o atributo que marca a operação pré-selecionada.
+const OperationIsDefaultField = "is_default"
+
+// ListDefaults devolve as operações marcadas como padrão. Em regime normal há
+// no máximo uma; devolve lista porque a exclusividade é garantida na escrita, e
+// uma leitura que assumisse "no máximo uma" esconderia o estrago se a garantia
+// falhasse.
+//
+// Filtra em memória de propósito: `is_default` é booleano, e o par de filtro
+// tipado do QueryOpts compara strings. Uma organização tem dezenas de
+// operações, não milhares — a partição inteira cabe numa página.
+func (r *OperationRepository) ListDefaults(ctx context.Context, orgPK string) ([]map[string]types.AttributeValue, error) {
+	res, err := r.Query(ctx, QueryOpts{
+		PK: orgPK, SKPrefix: SKPrefixOperation, Limit: operationListCap,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var defaults []map[string]types.AttributeValue
+	for _, item := range res.Items {
+		if b, ok := item[OperationIsDefaultField].(*types.AttributeValueMemberBOOL); ok && b.Value {
+			defaults = append(defaults, item)
+		}
+	}
+	return defaults, nil
+}
+
+// operationListCap é o teto de operações lidas ao procurar a padrão. Bem acima
+// de qualquer organização real; existe para o loop nunca ser ilimitado.
+const operationListCap = 200
+
 // TaxProfileRepository — organization_tax_profiles. A profile is one tax
 // treatment applied to a set of CFOPs, shared by many products.
 type TaxProfileRepository struct{ OrgEntityRepository }

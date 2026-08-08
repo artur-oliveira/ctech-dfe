@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Tabela de casos compartilhada entre ResolveCFOPScope (Go — fonte da verdade,",
+    "api/internal/services/cfop.go) e a resolução de escopo no TypeScript",
+    "(ui/src/lib/data/cfop.ts). Os dois testes leem este arquivo; divergir entre",
+    "as linguagens é falha de build, não descoberta em produção."
+  ],
+  "cases": [
+    {"name": "mesma UF resolve para escopo 5", "suffix": "102", "emit_uf": "SP", "dest_uf": "SP", "cfop": "5102"},
+    {"name": "UF diferente resolve para escopo 6", "suffix": "102", "emit_uf": "SP", "dest_uf": "MG", "cfop": "6102"},
+    {"name": "exterior resolve para escopo 7", "suffix": "102", "emit_uf": "SP", "dest_uf": "EX", "cfop": "7102"},
+    {"name": "UF em minúsculas é normalizada", "suffix": "920", "emit_uf": "sp", "dest_uf": "sp", "cfop": "5920"},
+    {"name": "espaços em volta são ignorados", "suffix": " 405 ", "emit_uf": " SP ", "dest_uf": "RJ", "cfop": "6405"},
+    {"name": "natureza que começa com zero preserva o zero", "suffix": "051", "emit_uf": "SP", "dest_uf": "SP", "cfop": "5051"},
+    {"name": "exterior vence a igualdade de UF", "suffix": "101", "emit_uf": "EX", "dest_uf": "EX", "cfop": "7101"},
+
+    {"name": "natureza curta é erro", "suffix": "10", "emit_uf": "SP", "dest_uf": "SP", "error": true},
+    {"name": "natureza longa é erro", "suffix": "1020", "emit_uf": "SP", "dest_uf": "SP", "error": true},
+    {"name": "natureza não numérica é erro", "suffix": "10A", "emit_uf": "SP", "dest_uf": "SP", "error": true},
+    {"name": "natureza vazia é erro", "suffix": "", "emit_uf": "SP", "dest_uf": "SP", "error": true},
+    {"name": "UF do emitente vazia é erro", "suffix": "102", "emit_uf": "", "dest_uf": "SP", "error": true},
+    {"name": "UF do destinatário vazia é erro", "suffix": "102", "emit_uf": "SP", "dest_uf": "", "error": true}
+  ]
+}

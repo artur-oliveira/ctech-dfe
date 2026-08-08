@@ -24,6 +24,9 @@ type NfceEmitBody struct {
 	Payments       []NfePaymentItem `json:"payments" validate:"omitempty,dive"`
 	AdditionalInfo *string          `json:"additional_info" validate:"omitempty,max=5000"`
 	NatOp          *string          `json:"nat_op" validate:"omitempty,max=60"`
+	// OperationID é opcional e normalmente ausente: a venda de balcão usa a
+	// operação padrão da organização, sem passo nem campo novo na tela.
+	OperationID *string `json:"operation_id" validate:"omitempty"`
 }
 
 // nfceFinNFe / nfceIndFinal / nfceIndPres are fixed for NFC-e:
@@ -86,21 +89,37 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	cscID := fmt.Sprintf("%d", intAttr(configItem, fmt.Sprintf("%s_csc_id", envPrefix), 0))
 	csc := strAttr(configItem, fmt.Sprintf("%s_csc", envPrefix))
 
-	// CFOP must be an internal outgoing operation (prefix "5"); NFC-e cannot be
-	// issued for interstate / incoming operations.
-	for _, p := range req.Products {
-		if !strings.HasPrefix(p.CFOP, "5") {
-			return nil, problem.BadRequest(
-				fmt.Sprintf("CFOP %s não é permitido em NFC-e (apenas operações internas de saída — CFOP 5xxx)", p.CFOP))
-		}
-	}
-
-	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, req.Products)
+	// A operação da NFC-e é implícita: a informada no request, senão a padrão da
+	// organização. Nenhum passo ou campo novo aparece na tela de balcão.
+	operation, err := s.resolveNfceOperation(ctx, orgPK, req.OperationID)
 	if err != nil {
 		return nil, err
 	}
 
 	emitUF := extractEmitUFFromItem(orgItem)
+
+	// NFC-e é sempre operação interna, então o escopo do CFOP resolvido é
+	// sempre 5 — passar emitUF nas duas pontas é o que expressa isso.
+	items := make([]NfeProductItem, len(req.Products))
+	for i, item := range req.Products {
+		cfop, err := resolveItemCFOP(item.CFOP, operation, emitUF, emitUF)
+		if err != nil {
+			return nil, err
+		}
+		// CFOP tem que ser saída interna (prefixo "5"): NFC-e não vale para
+		// operação interestadual nem de entrada.
+		if !strings.HasPrefix(cfop, services.CFOPScopeIntraUF) {
+			return nil, problem.BadRequest(
+				fmt.Sprintf("CFOP %s não é permitido em NFC-e (apenas operações internas de saída — CFOP 5xxx)", cfop))
+		}
+		item.CFOP = cfop
+		items[i] = item
+	}
+
+	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, items)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now()
 	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel65)
 	if err != nil {
@@ -160,7 +179,8 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		currentNumber, serie, environment,
 		accessKey, totalProducts, totalDiscount,
 		req.AdditionalInfo, now,
-		req.NatOp, nfceFinNFe, nfceIndFinal, nfceIndPres, nfceTpNF,
+		firstNonNil(req.NatOp, operationDefault(operation, opFieldNatOp)),
+		nfceFinNFe, nfceIndFinal, nfceIndPres, nfceTpNF,
 		nil, nil, nil, vTroco,
 		s.tech, nfModel65, supl,
 		nil, nil,
