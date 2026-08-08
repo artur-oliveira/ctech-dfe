@@ -11,6 +11,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -24,6 +25,17 @@ const (
 	signXPathInfDPS    = ".//{" + nfse.Namespace + "}infDPS"
 	signXPathInfPedReg = ".//{" + nfse.Namespace + "}infPedReg"
 	nfseRESTUserAgent  = "Mozilla/5.0 (compatible; CTechDFe/1.0; +https://aoctech.app)"
+)
+
+// Campos do log de resposta crua — toda resposta do fisco é logada sem
+// parsing, porque o envelope conhecido descarta campos que só aparecem em
+// rejeições reais.
+const (
+	logMsgHTTPResponse = "nfse http response"
+	logFieldMethod     = "method"
+	logFieldURL        = "url"
+	logFieldStatus     = "status"
+	logFieldBody       = "body"
 )
 
 // Política de retry idêntica à de internal/services/client.go: só
@@ -148,6 +160,20 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 			continue
 		}
 
+		// Resposta crua, sem parsing: em 2xx só interessa em depuração
+		// (corpo é o XML gzip+base64, enorme); qualquer não-2xx é logado
+		// integralmente, é a única fonte completa da rejeição.
+		level := slog.LevelDebug
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			level = slog.LevelWarn
+		}
+		slog.Log(ctx, level, logMsgHTTPResponse,
+			logFieldMethod, method,
+			logFieldURL, url,
+			logFieldStatus, resp.StatusCode,
+			logFieldBody, string(respBody),
+		)
+
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			if out != nil && len(respBody) > 0 {
 				if err := json.Unmarshal(respBody, out); err != nil {
@@ -176,5 +202,5 @@ func toFiscalError(status int, body []byte) error {
 	if len(msgs) == 0 {
 		msgs = []nfse.Message{{Descricao: string(body)}}
 	}
-	return &nfse.FiscalError{Status: status, Messages: msgs}
+	return &nfse.FiscalError{Status: status, Messages: msgs, Body: string(body)}
 }

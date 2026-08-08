@@ -1691,6 +1691,8 @@ colocou os serviços de NFS-e nesse mapa. O que muda é o tratamento da resposta
 | A SK da linha em `nfses` é o `id_dps` (`msg.AccessKey`); a `access_key` do fisco entra como **atributo** no mesmo update | A chave de acesso só existe na resposta; usá-la como SK criaria um item órfão ao lado do que a API criou |
 | Rejeição (lista `erros` no corpo 200, ou `FiscalError` com HTTP != 200) é terminal — `failTerminal`, nunca retry | O fisco já avaliou a regra de negócio; repetir devolve a mesma recusa. Mesma regra do `cStat` da NF-e |
 | O motivo gravado preserva `codigo - descricao` do fisco | É o que o usuário precisa para corrigir a DPS |
+| `FiscalError.Error()` serializa **todas** as mensagens (`codigo - descricao (complemento)`, separadas por `; `) mais o status HTTP; sem mensagens, cai para `FiscalError.Body` (corpo cru) | O Sefin devolve `descricao` vazia em várias rejeições (`L0017`), e o detalhe real fica em `complemento` ou fora do envelope conhecido. Antes o erro chegava ao log como `nfse: L0017 - ` |
+| `httpDo` (`nfse/nacional/transport.go`) loga toda resposta crua sem parsing — `Warn` em não-2xx, `Debug` em 2xx | O envelope conhecido (`erro`/`erros`) descarta campos que só aparecem em rejeição real; em 2xx o corpo é o XML gzip+base64, ruído demais para nível normal. `DANFSE` não passa por `httpDo` (corpo binário) — seu detalhe vem via `FiscalError.Body` |
 | Cancelamento aceito (evento `101101`) reverte a NFS-e para `cancelled` | `isCancellationEvent` ganhou o ramo de NFS-e: o código é `101101`, não o `110111` da NF-e |
 | A notificação do evento sai de `publishEventResult`, não do status do documento | Igual ao caminho SOAP: o usuário vê o resultado do evento, não o status revertido |
 
