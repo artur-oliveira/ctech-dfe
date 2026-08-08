@@ -320,9 +320,30 @@ func TestPersonRoles_RejectsUnknownRole(t *testing.T) {
 }
 
 func TestPersonUpdateRoles_RejectsUnknownRole(t *testing.T) {
-	dto := PersonUpdateBody{Roles: []string{"shareholder"}}
+	dto := PersonUpdateBody{Roles: &[]string{"shareholder"}}
 	if p := validation.Struct(dto); p == nil {
 		t.Fatal("expected unknown role to be rejected")
+	}
+}
+
+// Corpo sem `roles` não pode virar `"roles": null` no mapa de update: null vira
+// REMOVE, e a pessoa perderia os papéis numa edição que nem falou deles.
+func TestPersonUpdateRoles_AbsentIsNotAnUpdate(t *testing.T) {
+	m, err := structToMap(PersonUpdateBody{Name: new("Fulano")})
+	if err != nil {
+		t.Fatalf("structToMap: %v", err)
+	}
+	if _, ok := m["roles"]; ok {
+		t.Fatalf("roles presente num update que não o enviou: %v", m["roles"])
+	}
+
+	m, err = structToMap(PersonUpdateBody{Roles: &[]string{}})
+	if err != nil {
+		t.Fatalf("structToMap: %v", err)
+	}
+	roles, ok := m["roles"].([]any)
+	if !ok || len(roles) != 0 {
+		t.Fatalf("roles = %v, esperada lista vazia (limpar papéis)", m["roles"])
 	}
 }
 

@@ -28,7 +28,9 @@ function EditPersonContent() {
   
   const updateMutation = useMutation({
     mutationFn: (d: PersonCreate) =>
-      apiClient.updatePerson(id, {name: d.name, person: d.person}),
+      // `roles` sempre vai no PUT: omitir manda `null` no corpo, e o update do
+      // DynamoDB traduz null em REMOVE — a pessoa perderia os papéis a cada edição.
+      apiClient.updatePerson(id, {name: d.name, roles: d.roles, person: d.person}),
     onSuccess: () => {
       void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)})
       void qc.invalidateQueries({queryKey: queryKeys.persons.detail(id)})

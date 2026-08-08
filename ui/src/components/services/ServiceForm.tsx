@@ -7,7 +7,6 @@ import {useQuery} from '@tanstack/react-query'
 import {Form, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {CurrencyInput} from '@/components/ui/currency-input'
-import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
 import {Button} from '@/components/ui/button'
@@ -20,9 +19,9 @@ import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
 import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
 import {NFSE_INDOP} from '@/lib/data/nfse_indop'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
+import {ALL_CNAES} from '@/lib/data/cnae'
 import {generateEntityCode} from '@/lib/utils/code'
-import {ApiError} from '@/lib/api/client'
-import {apiClient} from '@/lib/api/client'
+import {ApiError, apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes'
@@ -85,6 +84,19 @@ const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
   value: country.code,
   label: `${country.code} – ${country.name}`,
   display: country.code,
+}))
+
+const CNAE_CLASS_END = 4
+const CNAE_CHECK_DIGIT_END = 5
+
+function formatCnae(code: string): string {
+  return `${code.slice(0, CNAE_CLASS_END)}-${code.slice(CNAE_CLASS_END, CNAE_CHECK_DIGIT_END)}/${code.slice(CNAE_CHECK_DIGIT_END)}`
+}
+
+const CNAE_OPTIONS: ComboboxOption[] = ALL_CNAES.map((entry) => ({
+  value: entry.code,
+  label: `${formatCnae(entry.code)} – ${entry.description}`,
+  display: formatCnae(entry.code),
 }))
 
 const IND_OP_OPTIONS: ComboboxOption[] = NFSE_INDOP.map((entry) => ({
@@ -216,11 +228,12 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
   const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'})
   const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'})
   const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'})
+  const currentCnae = useWatch({control: form.control, name: 'cnae'})
   const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? []
 
   const {data: nfseConfig, isLoading: isMunicipalityLoading} = useQuery({
     queryKey: queryKeys.nfseConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getNfseConfig(selectedOrg!.pk),
+    queryFn: () => apiClient.getNfseConfig(selectedOrg?.pk ?? ''),
     enabled: !!selectedOrg,
     retry: false,
   })
@@ -240,6 +253,14 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     }
     return options
   }, [currentMunicipalCode, municipalTaxCodes])
+  const cnaeOptions = useMemo<ComboboxOption[]>(() => {
+    if (!currentCnae || CNAE_OPTIONS.some(({value}) => value === currentCnae)) return CNAE_OPTIONS
+    return [{
+      value: currentCnae,
+      label: `${formatCnae(currentCnae)} — código atual (fora do catálogo CNAE)`,
+      display: formatCnae(currentCnae),
+    }, ...CNAE_OPTIONS]
+  }, [currentCnae])
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null)
@@ -341,8 +362,9 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             <FormField control={form.control} name="cnae" render={({field}) => (
               <FormItem>
                 <FormLabel>CNAE</FormLabel>
-                <NumericInput id={field.name} name={field.name} value={field.value} onChange={field.onChange}
-                              integerPlaces={7} placeholder="7 dígitos"/>
+                <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                          options={cnaeOptions} placeholder="Buscar CNAE"
+                          searchPlaceholder="Código ou descrição..." fuzzySearch/>
                 <FormMessage/>
               </FormItem>
             )}/>

@@ -470,7 +470,7 @@ export function EntityForm({
               />
             </div>
 
-            {/* Papéis — multi-seleção. Uma pessoa acumula papéis (transportadora
+            {/* Tipo de cadastro — multi-seleção. Uma pessoa acumula papéis (transportadora
                 que também é cliente é o caso normal), então são checkboxes, nunca
                 radio nem select único. */}
             {!isOrg && (
@@ -484,7 +484,7 @@ export function EntityForm({
                            )
                            return (
                              <FormItem>
-                               <FormLabel>Papéis</FormLabel>
+                               <FormLabel>Tipo de cadastro</FormLabel>
                                <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
                                  {PERSON_ROLE_OPTIONS.map((opt) => (
                                    <label key={opt.value}

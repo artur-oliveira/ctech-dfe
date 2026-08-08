@@ -25,9 +25,9 @@ import {PERSON_ROLE_LABELS, PERSON_ROLE_OPTIONS, type PersonRole} from '@/lib/sc
 import type {PersonItemOut} from '@/lib/types/api'
 import {docLabel, formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
 
-// Valor sentinela do select "todos os papéis" — o Radix Select não aceita "".
+// Valor sentinela do select "todos os tipos" — o Radix Select não aceita "".
 const ROLE_FILTER_ALL = '__all__'
-const ROLE_FILTER_OPTIONS = [{value: ROLE_FILTER_ALL, label: 'Todos os papéis'}, ...PERSON_ROLE_OPTIONS]
+const ROLE_FILTER_OPTIONS = [{value: ROLE_FILTER_ALL, label: 'Todos os tipos'}, ...PERSON_ROLE_OPTIONS]
 
 function PersonsContent() {
   const {selectedOrg} = useAuth()
@@ -84,7 +84,7 @@ function PersonsContent() {
         
         {selectedOrg && (
           <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-xs font-medium text-gray-600">Filtrar por papel</span>
+            <span className="text-xs font-medium text-gray-600">Filtrar por tipo de cadastro</span>
             <div className="w-full sm:w-64">
               <OptionsSelect value={roleFilter} onValueChange={setRoleFilter} options={ROLE_FILTER_OPTIONS}/>
             </div>
@@ -97,9 +97,9 @@ function PersonsContent() {
           <LoadingSkeleton/>
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            title={role ? `Nenhuma pessoa com o papel "${PERSON_ROLE_LABELS[role]}"` : 'Nenhuma pessoa cadastrada'}
+            title={role ? `Nenhuma pessoa cadastrada como "${PERSON_ROLE_LABELS[role]}"` : 'Nenhuma pessoa cadastrada'}
             description={role
-              ? 'Marque esse papel no cadastro das pessoas que devem aparecer aqui.'
+              ? 'Marque esse tipo no cadastro das pessoas que devem aparecer aqui.'
               : 'Cadastre clientes e fornecedores para usar na emissão de documentos fiscais.'}
             action={{label: 'Nova pessoa', onClick: () => router.push('/persons/new')}}
             icon={<UsersIcon width={20} height={20}/>}
@@ -117,7 +117,7 @@ function PersonsContent() {
                   ariaLabel="Selecionar todos"
                 />
               )},
-              'Nome', 'Tipo', 'Papéis', 'Documento', 'Cidade / UF', {label: '', align: 'right'},
+              'Nome', 'PF/PJ', 'Tipo de cadastro', 'Documento', 'Cidade / UF', {label: '', align: 'right'},
             ]}
           >
             {visibleItems.map((p) => (
@@ -130,7 +130,7 @@ function PersonsContent() {
                   />
                 </td>
                 <td data-label="Nome" className={`${TABLE_CELL} font-medium text-gray-900`}>{p.name}</td>
-                <td data-label="Tipo" className={TABLE_CELL}>
+                <td data-label="PF/PJ" className={TABLE_CELL}>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                     docLabel(p.sk) === 'CPF'
                       ? 'bg-blue-50 text-blue-700'
@@ -139,7 +139,7 @@ function PersonsContent() {
                     {docLabel(p.sk)}
                   </span>
                 </td>
-                <td data-label="Papéis" className={TABLE_CELL}>
+                <td data-label="Tipo de cadastro" className={TABLE_CELL}>
                   {/* Uma pessoa multi-papel tem que ser visivelmente multi-papel,
                       senão o filtro parece estar errado. */}
                   {p.roles?.length ? (

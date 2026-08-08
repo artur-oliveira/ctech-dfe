@@ -113,9 +113,13 @@ type PersonCreateBody struct {
 
 // PersonUpdateBody is the body for PUT /persons/:cpf_cnpj (partial; the document
 // is taken from the path, never the body).
+//
+// Roles is a pointer with `omitempty` on purpose: um corpo sem `roles` não pode
+// tocar nos papéis (nulo vira REMOVE no update do DynamoDB), e `"roles": []`
+// continua sendo a forma de limpar todos os papéis.
 type PersonUpdateBody struct {
 	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
-	Roles  []string          `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
+	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 

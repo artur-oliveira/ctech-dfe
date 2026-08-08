@@ -99,6 +99,13 @@ func seedNfseOrg(t *testing.T, withRegTrib bool) (orgPK, serviceID string) {
 			"trib_issqn": &types.AttributeValueMemberN{Value: "1"},
 			"tax_rate":   &types.AttributeValueMemberS{Value: "5.00"},
 		}},
+		"ibs_cbs": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+			"c_ind_op":     &types.AttributeValueMemberS{Value: "100301"},
+			"cst":          &types.AttributeValueMemberS{Value: "000"},
+			"c_class_trib": &types.AttributeValueMemberS{Value: "000001"},
+			"ind_dest":     &types.AttributeValueMemberN{Value: "0"},
+			"fin_nfse":     &types.AttributeValueMemberN{Value: "0"},
+		}},
 	})
 	if err != nil {
 		t.Fatalf("Create service: %v", err)
@@ -206,6 +213,11 @@ func TestNfse(t *testing.T) {
 		}
 		if got := payload["dh_emi"].(*types.AttributeValueMemberS).Value; got != item["dh_emi"].(*types.AttributeValueMemberS).Value {
 			t.Errorf("payload.dh_emi = %q, linha = %q", got, item["dh_emi"].(*types.AttributeValueMemberS).Value)
+		}
+		servico := payload["servico"].(*types.AttributeValueMemberM).Value
+		cServ := servico["c_serv"].(*types.AttributeValueMemberM).Value
+		if got := cServ["c_trib_mun"].(*types.AttributeValueMemberS).Value; got != "0101" {
+			t.Errorf("payload.servico.c_serv.c_trib_mun = %q, esperado 0101", got)
 		}
 		emitInput := item["emit_input"].(*types.AttributeValueMemberM).Value
 		serviceInput := emitInput["service"].(*types.AttributeValueMemberM).Value

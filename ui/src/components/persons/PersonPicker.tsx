@@ -210,7 +210,7 @@ export function PersonPicker({
             ) : suggestions.length === 0 ? (
               <p className="px-4 py-3 text-sm text-gray-500">
                 {role
-                  ? `Nenhuma pessoa com o papel "${PERSON_ROLE_LABELS[role]}" encontrada.`
+                  ? `Nenhuma pessoa cadastrada como "${PERSON_ROLE_LABELS[role]}" encontrada.`
                   : 'Nenhuma pessoa encontrada.'}
               </p>
             ) : (

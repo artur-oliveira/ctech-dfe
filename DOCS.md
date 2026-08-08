@@ -1013,6 +1013,8 @@ described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_tri
 **`roles` (multi-papel).** A person carries a `roles` list (`customer`, `supplier`, `carrier`,
 `driver`, `provider`) — the same CNPJ is often customer *and* carrier, so a single-value field would
 force duplicate records. `?role=` filters the listing via `contains(roles, :v)` on `org-name-index`.
+No `PUT`, `roles` só é tocado quando o corpo traz a chave: ausente = papéis preservados, `[]` = limpa
+todos. Na UI o campo se chama **Tipo de cadastro** (`roles` continua sendo o nome na API).
 
 **Papel é filtro de cadastro, não regra de emissão.** Nenhuma emissão valida o papel: escolher como
 transportador alguém sem `carrier` na lista funciona. O filtro existe para encurtar a busca na UI —
@@ -1589,9 +1591,15 @@ ser confirmada pela assessoria fiscal do contribuinte.
 `trib_municipal_code` é um valor opaco para API/worker: o catálogo do serviço o persiste e a emissão
 o transporta como `service.c_trib_mun` até `<cTribMun>`, sem interpretar regras locais. A UI escolhe
 o catálogo pelo `c_loc_emi` da configuração NFS-e da organização. Teresina (`2211001`) possui os 197
-códigos municipais fornecidos pela SEMF, com busca Fuse por código municipal, subitem da LC 116 e
+códigos municipais catalogados, com busca Fuse por código municipal, subitem da LC 116 e
 descrição; municípios ainda não catalogados mantêm entrada livre para não acoplar o backend a uma
 lista local da UI.
+
+O CNAE também é um combobox Fuse, alimentado pelas 1.357 subclasses de `tmp/subclassecnae.csv`.
+`ui/scripts/generate-cnae.mjs` lê o CSV em ISO-8859-1, converte a saída para UTF-8 e completa com zero
+à esquerda somente os códigos de 6 dígitos; o valor enviado continua sendo o CNAE de 7 dígitos
+exigido pelo contrato. Execute `node scripts/generate-cnae.mjs` a partir de `ui/` para regenerar
+`src/lib/data/cnae.ts` quando a fonte mudar.
 
 **NF-e CFOP suffix grouping:** the emission form groups same-suffix saída CFOPs (e.g. `5920`/`6920`) into a single
 dropdown option and sends the concrete intra (`5xxx`) / inter (`6xxx`) variant resolved automatically from whether the
