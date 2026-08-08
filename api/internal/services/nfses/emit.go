@@ -60,11 +60,11 @@ type NfseEmitBody struct {
 // NfseServiceItem referencia o catálogo e permite sobrescrever valor,
 // alíquota e descrição por emissão — o mesmo padrão de resolveProducts.
 type NfseServiceItem struct {
-	ServiceID   string  `json:"service_id" validate:"required"`
-	Description *string `json:"description" validate:"omitempty,max=2000"`
-	Value       *string `json:"value" validate:"omitempty,money"`
-	TaxRate     *string `json:"tax_rate" validate:"omitempty,money"`
-	CTribMun    *string `json:"c_trib_mun" validate:"omitempty,max=20"`
+	ServiceID   string  `json:"service_id" dynamodbav:"service_id" validate:"required"`
+	Description *string `json:"description" dynamodbav:"description,omitempty" validate:"omitempty,max=2000"`
+	Value       *string `json:"value" dynamodbav:"value,omitempty" validate:"omitempty,money"`
+	TaxRate     *string `json:"tax_rate" dynamodbav:"tax_rate,omitempty" validate:"omitempty,money"`
+	CTribMun    *string `json:"c_trib_mun" dynamodbav:"c_trib_mun,omitempty" validate:"omitempty,max=20"`
 }
 
 // NfseEmitInputSnapshot preserva as referências de catálogo e os overrides
@@ -72,14 +72,14 @@ type NfseServiceItem struct {
 // este snapshot existe somente para reabrir/duplicar a emissão sem tentar
 // inferir entidades a partir de códigos fiscais ou nomes.
 type NfseEmitInputSnapshot struct {
-	TpEmit            int             `json:"tp_emit" dynamodbav:"tp_emit"`
-	MotivoEmisTI      int             `json:"motivo_emis_ti,omitempty" dynamodbav:"motivo_emis_ti,omitempty"`
-	ChNFSeRej         string          `json:"ch_nfse_rej,omitempty" dynamodbav:"ch_nfse_rej,omitempty"`
-	ProviderPersonID  *string         `json:"provider_person_id,omitempty" dynamodbav:"provider_person_id,omitempty"`
-	CustomerID        *string         `json:"customer_id,omitempty" dynamodbav:"customer_id,omitempty"`
-	IntermediaryID    *string         `json:"intermediary_id,omitempty" dynamodbav:"intermediary_id,omitempty"`
-	Service           NfseServiceItem `json:"service" dynamodbav:"service"`
-	AdditionalInfo    *string         `json:"additional_info,omitempty" dynamodbav:"additional_info,omitempty"`
+	TpEmit           int             `json:"tp_emit" dynamodbav:"tp_emit"`
+	MotivoEmisTI     int             `json:"motivo_emis_ti,omitempty" dynamodbav:"motivo_emis_ti,omitempty"`
+	ChNFSeRej        string          `json:"ch_nfse_rej,omitempty" dynamodbav:"ch_nfse_rej,omitempty"`
+	ProviderPersonID *string         `json:"provider_person_id,omitempty" dynamodbav:"provider_person_id,omitempty"`
+	CustomerID       *string         `json:"customer_id,omitempty" dynamodbav:"customer_id,omitempty"`
+	IntermediaryID   *string         `json:"intermediary_id,omitempty" dynamodbav:"intermediary_id,omitempty"`
+	Service          NfseServiceItem `json:"service" dynamodbav:"service"`
+	AdditionalInfo   *string         `json:"additional_info,omitempty" dynamodbav:"additional_info,omitempty"`
 }
 
 func emitInputSnapshot(req NfseEmitBody) NfseEmitInputSnapshot {
@@ -105,8 +105,9 @@ func buildWorkerBody(provider string, doc nfse.Document) (map[string]any, error)
 		return nil, err
 	}
 	return map[string]any{
-		nfse.BodyKeyProvider: provider,
-		nfse.BodyKeyDocument: docMap,
+		nfse.BodyKeyProvider:     provider,
+		nfse.BodyKeyMunicipality: doc.CLocEmi,
+		nfse.BodyKeyDocument:     docMap,
 	}, nil
 }
 

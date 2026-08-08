@@ -28,6 +28,8 @@ func TestScopesGrant(t *testing.T) {
 		{"write grants delete", []string{"dfe:nfes:write"}, "delete.nfes", true},
 		{"read covers events", []string{"dfe:nfes:read"}, "list.nfe_events", true},
 		{"read covers distributions", []string{"dfe:nfes:read"}, "get.nfe_distributions", true},
+		{"nfse read covers ADN distributions", []string{"dfe:nfses:read"}, "list.nfse_distributions", true},
+		{"nfse write covers ADN sync", []string{"dfe:nfses:write"}, "create.nfse_distributions", true},
 		{"write covers fiscal config", []string{"dfe:nfes:write"}, "update.organization_nfe_configs", true},
 		{"read covers config get", []string{"dfe:mdfes:read"}, "get.organization_mdfe_configs", true},
 		{"wrong family not granted", []string{"dfe:mdfes:read"}, "get.nfes", false},

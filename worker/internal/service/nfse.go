@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -26,6 +27,11 @@ const (
 // suffixDPS distingue o XML da DPS que enviamos do XML da NFS-e devolvida pelo
 // fisco: os dois ficam sob o mesmo prefixo do documento.
 const suffixDPS = "_dps"
+
+var (
+	errNfseAuthorizedWithoutXML = errors.New("nfse: autorizador retornou sucesso sem o XML da NFS-e")
+	errNfseAuthorizedWithoutDPS = errors.New("nfse: emissão autorizada sem o XML assinado da DPS")
+)
 
 func isNfse(docType string) bool { return docType == docTypeNfse }
 
@@ -81,6 +87,12 @@ func (s *DfeService) handleNfseResponse(ctx context.Context, msg WorkerMessage, 
 
 	if msg.EventsTableName != nil && msg.EventSK != nil {
 		return s.persistNfseEvent(ctx, msg, out)
+	}
+	if out.NFSeXML == "" {
+		return errNfseAuthorizedWithoutXML
+	}
+	if out.DPSXML == "" {
+		return errNfseAuthorizedWithoutDPS
 	}
 
 	xmlKey, err := s.putXML(ctx, msg, "", out.NFSeXML)

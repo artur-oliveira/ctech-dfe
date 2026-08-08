@@ -65,7 +65,9 @@ const (
 const (
 	DocTypeNFe  = "nfe"
 	DocTypeNFCe = "nfce"
+	DocTypeCTe  = "cte"
 	DocTypeMDFe = "mdfe"
+	DocTypeNfse = "nfse"
 )
 
 // py-dfe render-only service keys (PDF generation; no certificate required).

@@ -17,6 +17,21 @@ const (
 	SystemParametros = "parametros"
 )
 
+const (
+	municipalityTeresina = "2211001"
+	pathMunicipalDPS     = "/dps"
+)
+
+// municipalSefinBases registra autorizadores municipais que recebem o mesmo
+// envelope REST e o mesmo XML DPS do padrão nacional. Só entram aqui URLs
+// publicadas pelo próprio município; ausência de ambiente não pode ser
+// completada por inferência.
+var municipalSefinBases = map[string]map[string]string{
+	municipalityTeresina: {
+		constants.EnvironmentHom: "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn",
+	},
+}
+
 // Paths, com placeholders no formato de fmt.Sprintf.
 const (
 	PathNFSe                  = "/nfse"
@@ -69,4 +84,35 @@ func ResolveBase(system, environment string) (string, error) {
 		return "", fmt.Errorf("nacional: ambiente desconhecido %q para o sistema %q", environment, system)
 	}
 	return base, nil
+}
+
+// ResolveEmissionEndpoint devolve o endpoint de recepção da DPS. Municípios
+// com autorizador próprio prevalecem sobre o Sefin Nacional no ambiente que
+// publicaram oficialmente.
+func ResolveEmissionEndpoint(environment, municipalityCode string) (string, error) {
+	if environments, ok := municipalSefinBases[municipalityCode]; ok {
+		if base, found := environments[environment]; found {
+			return base + pathMunicipalDPS, nil
+		}
+	}
+	base, err := ResolveBase(SystemSefin, environment)
+	if err != nil {
+		return "", err
+	}
+	return base + PathNFSe, nil
+}
+
+// ResolveQueryByKeyEndpoint resolve a consulta pelo autorizador municipal
+// quando ele publica essa operação; caso contrário usa o Sefin Nacional.
+func ResolveQueryByKeyEndpoint(environment, municipalityCode, accessKey string) (string, error) {
+	if environments, ok := municipalSefinBases[municipalityCode]; ok {
+		if base, found := environments[environment]; found {
+			return base + fmt.Sprintf(PathNFSeByKey, accessKey), nil
+		}
+	}
+	base, err := ResolveBase(SystemSefin, environment)
+	if err != nil {
+		return "", err
+	}
+	return base + fmt.Sprintf(PathNFSeByKey, accessKey), nil
 }

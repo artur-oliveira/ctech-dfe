@@ -70,6 +70,13 @@ func minimalInput() documentInput {
 			"tax_rate":     &types.AttributeValueMemberS{Value: "2.00"},
 			"tp_ret_issqn": &types.AttributeValueMemberN{Value: "1"},
 		}},
+		"ibs_cbs": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+			"c_ind_op":     &types.AttributeValueMemberS{Value: "100301"},
+			"cst":          &types.AttributeValueMemberS{Value: "000"},
+			"c_class_trib": &types.AttributeValueMemberS{Value: "000001"},
+			"ind_dest":     &types.AttributeValueMemberN{Value: "0"},
+			"fin_nfse":     &types.AttributeValueMemberN{Value: "0"},
+		}},
 	}
 
 	return documentInput{
@@ -88,6 +95,14 @@ func minimalInput() documentInput {
 				ServiceID: "SERVICE_x",
 			},
 		},
+	}
+}
+
+func TestBuildDocument_RejectsServiceWithoutIBSCBS(t *testing.T) {
+	in := minimalInput()
+	delete(in.Service, "ibs_cbs")
+	if _, err := buildDocument(in); err == nil {
+		t.Fatal("serviço sem IBS/CBS aceito")
 	}
 }
 

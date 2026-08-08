@@ -189,10 +189,10 @@ function NfseDetail({idDps}: { idDps: string }) {
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-gray-900">
             NFS-e {doc.number}
             <span className="ml-2 text-base font-normal text-gray-400">série {doc.serie}</span>
-          </p>
+          </h1>
           {doc.access_key && <p className="text-xs text-gray-400 font-mono mt-1 break-all">Chave: {doc.access_key}</p>}
           <p className="text-xs text-gray-400 font-mono mt-0.5 break-all">id_dps: {doc.sk}</p>
         </div>
@@ -200,38 +200,52 @@ function NfseDetail({idDps}: { idDps: string }) {
         <div className="flex items-center gap-2 flex-wrap">
           <DfeStatusBadge status={doc.status} size="md"/>
 
-          {doc.xml_s3_key && (
-            <Button variant="outline" size="sm" onClick={() => handleDownload('xml')} disabled={xmlLoading === 'xml'}
-                    className="text-brand-600 border-brand-200 hover:bg-brand-50">
-              {xmlLoading === 'xml' ? 'Baixando…' : 'XML'}
+          {doc.status === 'authorized' && (
+            <Button variant="outline" size="sm" render={<Link href={`/nfse/emit?substitute=${encodeURIComponent(idDps)}`}/>}
+                    className="text-brand-700 border-brand-200 hover:bg-brand-50">
+              Substituir
             </Button>
           )}
-          {doc.dps_xml_s3_key && (
-            <Button variant="outline" size="sm" onClick={() => handleDownload('dps')} disabled={xmlLoading === 'dps'}
-                    className="text-brand-600 border-brand-200 hover:bg-brand-50">
-              {xmlLoading === 'dps' ? 'Baixando…' : 'XML da DPS'}
+
+          {doc.emit_input && (
+            <Button variant="outline" size="sm" render={<Link href={`/nfse/emit?duplicate=${encodeURIComponent(idDps)}`}/>}
+                    className="border-brand-200 text-brand-700 hover:bg-brand-50">
+              Duplicar
             </Button>
           )}
-          {doc.status === 'authorized' && doc.provider === 'nacional' && (
-            <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(idDps)} filename={idDps} label="DANFSE"
-                                variant="outline" size="sm"/>
-          )}
 
-          <Button variant="outline" size="sm" render={<Link href={`/nfse/emit?substitute=${encodeURIComponent(idDps)}`}/>}
-                  className="text-brand-700 border-brand-200 hover:bg-brand-50">
-            Substituir
-          </Button>
-
-          <Button variant="outline" size="sm" onClick={() => setShowEventModal(true)}>
-            Registrar evento
-          </Button>
-
-          {canCancel && (
-            <Button variant="outline" size="sm" onClick={() => setShowCancelModal(true)}
-                    className="text-red-600 border-red-200 hover:bg-red-50">
-              Cancelar
-            </Button>
-          )}
+          <details className="relative">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0 sm:h-7">
+              Mais ações
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 flex min-w-44 flex-col rounded-lg border border-gray-200 bg-white p-1 shadow-popover">
+              {doc.xml_s3_key && (
+                <Button variant="ghost" size="sm" onClick={() => handleDownload('xml')} disabled={xmlLoading === 'xml'}
+                        className="justify-start text-brand-700">
+                  {xmlLoading === 'xml' ? 'Baixando…' : 'Baixar XML'}
+                </Button>
+              )}
+              {doc.dps_xml_s3_key && (
+                <Button variant="ghost" size="sm" onClick={() => handleDownload('dps')} disabled={xmlLoading === 'dps'}
+                        className="justify-start text-brand-700">
+                  {xmlLoading === 'dps' ? 'Baixando…' : 'Baixar XML da DPS'}
+                </Button>
+              )}
+              {doc.status === 'authorized' && doc.provider === 'nacional' && (
+                <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(idDps)} filename={idDps} label="Baixar DANFSE"
+                                    variant="ghost" size="sm" className="justify-start text-brand-700"/>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setShowEventModal(true)} className="justify-start">
+                Registrar evento
+              </Button>
+              {canCancel && (
+                <Button variant="ghost" size="sm" onClick={() => setShowCancelModal(true)}
+                        className="justify-start text-danger hover:text-red-700">
+                  Cancelar NFS-e
+                </Button>
+              )}
+            </div>
+          </details>
         </div>
       </div>
 
@@ -254,7 +268,7 @@ function NfseDetail({idDps}: { idDps: string }) {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
           <p className="text-sm font-semibold text-gray-600">Tomador</p>
-          <p className="font-medium text-gray-900">{doc.dest_name || <span className="text-gray-300">—</span>}</p>
+          <p className="font-medium text-gray-900">{doc.dest_name || <span className="text-gray-500">—</span>}</p>
           {doc.dest_cpf_cnpj && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.dest_cpf_cnpj)}</p>}
         </div>
       </div>

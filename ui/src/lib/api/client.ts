@@ -692,12 +692,12 @@ class ApiClient {
     return (await this.http.get<Blob>(`/v1.0/distributions/${docType}/history/${nsu}/xml`, {responseType: 'blob'})).data
   }
 
-  async listDistributions(docType: string, params?: {
+  async listDistributions<T extends NFeDistributionOut | NfseDistributionOut = NFeDistributionOut>(docType: string, params?: {
     limit?: number;
     cursor?: string;
     /** Filter history to NSUs containing this value (server-side). */
     nsu?: string
-  }): Promise<PaginatedResponse<NFeDistributionOut>> {
+  }): Promise<PaginatedResponse<T>> {
     return this.get(`/v1.0/distributions/${docType}/history`, {params})
   }
 

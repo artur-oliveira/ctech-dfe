@@ -115,6 +115,11 @@ Each accent drives the same `--brand-*` / `--primary-*` scale, so components nev
 ### Named Rules
 **The One Accent Per Surface Rule.** The core UI is green. A non-green accent appears only inside a `data-dfe-theme` scope (NFC-e/CT-e/MDF-e/NFS-e) — never as free decoration on a green screen.
 
+**NFS-e operational hierarchy.** The list owns both emitted documents and ADN receipts as adjacent
+tabs; there is no separate distribution page. Issuance is a single-screen form with the five primary
+decisions visible and secondary fiscal fields under **Mais opções**. Detail pages keep the next fiscal
+actions visible and place downloads/events/cancellation in **Mais ações** so the header stays scannable.
+
 **The Calm Baseline Rule.** Page and card backgrounds stay near-white (#ffffff / #f8fafc). Depth comes from hairline borders and state shadows, never from a colored wash.
 
 ## 3. Typography

@@ -17,6 +17,7 @@ import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {Button} from '@/components/ui/button'
+import {PageHeader} from '@/components/ui/page-header'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import type {NfseListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
@@ -133,18 +134,15 @@ function NfsesContent() {
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
-        <div className="flex items-center justify-between mb-4 gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">NFS-e</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal de Serviços Eletrônica</p>
-          </div>
-          {selectedOrg && (
-            <Button variant="brand" render={<Link href="/nfse/emit"/>}>
-              <span className="text-base leading-none">+</span>
-              Emitir NFS-e
-            </Button>
-          )}
-        </div>
+        <PageHeader
+          title="NFS-e"
+          description="Nota Fiscal de Serviços Eletrônica"
+          action={selectedOrg ? {
+            label: 'Emitir NFS-e',
+            icon: <span className="text-base leading-none">+</span>,
+            onClick: () => router.push('/nfse/emit'),
+          } : undefined}
+        />
 
         <HomologationBanner environment={nfseConfig?.environment}/>
 
@@ -278,6 +276,12 @@ function NfsesContent() {
                               className="flex items-center min-h-11 sm:min-h-0 text-xs font-medium text-brand-600 hover:text-brand-700">
                           Detalhes
                         </Link>
+                        {nfse.emit_input && (
+                          <Link href={`/nfse/emit?duplicate=${encodeURIComponent(nfse.sk)}`}
+                                className="flex min-h-11 items-center text-xs font-medium text-brand-600 hover:text-brand-700 sm:min-h-0">
+                            Duplicar
+                          </Link>
+                        )}
                         {nfse.xml_s3_key && (
                           <Button variant="ghost" size="xs" onClick={() => handleDownloadXml(nfse)}
                                   disabled={xmlLoading === nfse.sk} className="text-brand-600 hover:text-brand-700">

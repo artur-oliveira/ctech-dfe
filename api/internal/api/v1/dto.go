@@ -317,17 +317,17 @@ type ServiceFederalBody struct {
 
 // ServiceIbsCbsBody são os defaults de IBS/CBS do serviço (reforma tributária).
 type ServiceIbsCbsBody struct {
-	CIndOp     *string `json:"c_ind_op" validate:"omitempty,indop"`
-	Cst        *string `json:"cst" validate:"omitempty,len=3,number"`
-	CClassTrib *string `json:"c_class_trib" validate:"omitempty,max=6,number"`
+	CIndOp     *string `json:"c_ind_op" validate:"required,indop"`
+	Cst        *string `json:"cst" validate:"required,len=3,number"`
+	CClassTrib *string `json:"c_class_trib" validate:"required,class6"`
 	// 0 destinatário é o próprio tomador | 1 destinatário diferente do tomador
-	IndDest *int `json:"ind_dest" validate:"omitempty,oneof=0 1"`
+	IndDest *int `json:"ind_dest" validate:"required,oneof=0 1"`
 	// 1 fornecimento com pagamento posterior | 2 recebimento com fornecimento já realizado
 	// 3 fornecimento com pagamento já realizado | 4 recebimento com fornecimento posterior
 	// 5 fornecimento e recebimento concomitantes
 	TpOper *int `json:"tp_oper" validate:"omitempty,oneof=1 2 3 4 5"`
 	// Valor fixo — TSRTCFinNFSe só admite 0 (NFS-e regular).
-	FinNFSe *int `json:"fin_nfse" validate:"omitempty,oneof=0"`
+	FinNFSe *int `json:"fin_nfse" validate:"required,oneof=0"`
 }
 
 // ServiceTotTribBody é a Lei da Transparência (grupo totTrib do DPS).
@@ -351,7 +351,7 @@ type ServiceBody struct {
 	Value             string              `json:"value" validate:"required,money"`
 	Iss               ServiceIssBody      `json:"iss" validate:"required"`
 	Federal           *ServiceFederalBody `json:"federal" validate:"omitempty"`
-	IbsCbs            *ServiceIbsCbsBody  `json:"ibs_cbs" validate:"omitempty"`
+	IbsCbs            *ServiceIbsCbsBody  `json:"ibs_cbs" validate:"required"`
 	TotTrib           *ServiceTotTribBody `json:"tot_trib" validate:"omitempty"`
 }
 

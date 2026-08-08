@@ -1,9 +1,9 @@
 'use client'
 
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {useForm, useWatch, type FieldErrors} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
-import {useQuery} from '@tanstack/react-query'
+import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
 import {apiClient, ApiError} from '@/lib/api/client'
@@ -59,7 +59,7 @@ const FORM_FIELD_ORDER: readonly (keyof NfseEmitFormData | `service.${keyof Nfse
 ]
 
 interface NfseEmitFormProps {
-  mode?: 'emit' | 'substitute'
+  mode?: 'emit' | 'substitute' | 'duplicate'
   sourceIdDps?: string
 }
 
@@ -77,6 +77,14 @@ function todayCompetence(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${now.getFullYear()}-${month}-${day}`
+}
+
+function nextMonthCompetence(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return todayCompetence()
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  const next = new Date(year, month, Math.min(day, lastDay))
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
 }
 
 function orgAsPerson(org: OrganizationOut): PersonItemOut {
@@ -114,6 +122,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
+  const appliedSourceRef = useRef<string | null>(null)
 
   const {data: nfseConfig} = useQuery({
     queryKey: queryKeys.nfseConfig(orgPk),
@@ -130,14 +139,46 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
   const sourceQuery = useQuery({
     queryKey: queryKeys.nfses.detail(sourceIdDps ?? ''),
     queryFn: () => apiClient.getNfse(sourceIdDps!),
-    enabled: mode === 'substitute' && !!sourceIdDps,
+    enabled: mode !== 'emit' && !!sourceIdDps,
   })
 
-  const {data: rejectedNfses} = useQuery({
+  const sourceInput = sourceQuery.data?.emit_input
+  const sourceServiceQuery = useQuery({
+    queryKey: queryKeys.services.detail(sourceInput?.service.service_id ?? ''),
+    queryFn: () => apiClient.getService(sourceInput!.service.service_id),
+    enabled: !!sourceInput?.service.service_id,
+  })
+  const sourceProviderQuery = useQuery({
+    queryKey: queryKeys.persons.detail(sourceInput?.provider_person_id ?? ''),
+    queryFn: () => apiClient.getPerson(sourceInput!.provider_person_id!),
+    enabled: !!sourceInput?.provider_person_id && sourceInput.provider_person_id !== orgPk,
+  })
+  const sourceCustomerQuery = useQuery({
+    queryKey: queryKeys.persons.detail(sourceInput?.customer_id ?? ''),
+    queryFn: () => apiClient.getPerson(sourceInput!.customer_id!),
+    enabled: !!sourceInput?.customer_id && sourceInput.customer_id !== orgPk,
+  })
+  const sourceIntermediaryQuery = useQuery({
+    queryKey: queryKeys.persons.detail(sourceInput?.intermediary_id ?? ''),
+    queryFn: () => apiClient.getPerson(sourceInput!.intermediary_id!),
+    enabled: !!sourceInput?.intermediary_id && sourceInput.intermediary_id !== orgPk,
+  })
+
+  const rejectedNfsesQuery = useInfiniteQuery({
     queryKey: queryKeys.nfses.list(orgPk, {status: 'rejected', limit: 100}),
-    queryFn: () => apiClient.getNfses({status: 'rejected', limit: 100, sort: 'desc'}),
+    queryFn: ({pageParam}) => apiClient.getNfses({status: 'rejected', limit: 100, sort: 'desc', cursor: pageParam}),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.has_next ? (lastPage.next_cursor ?? undefined) : undefined,
     enabled: !!orgPk,
   })
+  const {fetchNextPage: fetchNextRejectedPage, hasNextPage: hasNextRejectedPage,
+    isFetchingNextPage: isFetchingNextRejectedPage} = rejectedNfsesQuery
+
+  useEffect(() => {
+    if (hasNextRejectedPage && !isFetchingNextRejectedPage) {
+      void fetchNextRejectedPage()
+    }
+  }, [fetchNextRejectedPage, hasNextRejectedPage, isFetchingNextRejectedPage])
 
   const form = useForm<NfseEmitFormData>({
     resolver: zodResolver(nfseEmitSchema),
@@ -167,6 +208,53 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     }
   }, [form, mode, sourceQuery.data])
 
+  useEffect(() => {
+    if (!sourceIdDps || !sourceQuery.data || !sourceInput || !sourceServiceQuery.data
+      || appliedSourceRef.current === sourceIdDps) return
+
+    const resolvePerson = (id: string | null | undefined, fetched: PersonItemOut | undefined) => {
+      if (!id) return null
+      if (id === orgPk && org) return orgAsPerson(org)
+      return fetched ?? null
+    }
+    const provider = resolvePerson(sourceInput.provider_person_id, sourceProviderQuery.data)
+    const customer = resolvePerson(sourceInput.customer_id, sourceCustomerQuery.data)
+    const intermediary = resolvePerson(sourceInput.intermediary_id, sourceIntermediaryQuery.data)
+    if ((sourceInput.provider_person_id && !provider) || (sourceInput.customer_id && !customer)
+      || (sourceInput.intermediary_id && !intermediary)) return
+
+    const service = sourceServiceQuery.data
+    const timer = window.setTimeout(() => {
+      form.reset({
+        tp_emit: String(sourceInput.tp_emit) as NfseEmitFormData['tp_emit'],
+        competence: mode === 'duplicate' ? nextMonthCompetence(sourceQuery.data.competence) : sourceQuery.data.competence,
+        provider_person_id: sourceInput.provider_person_id ?? '',
+        customer_id: sourceInput.customer_id ?? '',
+        intermediary_id: sourceInput.intermediary_id ?? '',
+        service: {
+          service_id: sourceInput.service.service_id,
+          description: sourceInput.service.description ?? service.description,
+          value: sourceInput.service.value ?? service.value,
+          tax_rate: sourceInput.service.tax_rate ?? service.iss.tax_rate,
+          c_trib_mun: sourceInput.service.c_trib_mun ?? service.trib_municipal_code ?? '',
+        },
+        motivo_emis_ti: sourceInput.motivo_emis_ti
+          ? String(sourceInput.motivo_emis_ti) as NfseEmitFormData['motivo_emis_ti'] : '',
+        ch_nfse_rej: sourceInput.ch_nfse_rej ?? '',
+        substitutes_access_key: mode === 'substitute' ? (sourceQuery.data.access_key ?? '') : '',
+        substitutes_reason: '',
+        additional_info: sourceInput.additional_info ?? '',
+      })
+      setSelectedProvider(provider)
+      setSelectedCustomer(customer)
+      setSelectedIntermediary(intermediary)
+      setSelectedService(service)
+      appliedSourceRef.current = sourceIdDps
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [form, mode, org, orgPk, sourceCustomerQuery.data, sourceIdDps, sourceInput,
+    sourceIntermediaryQuery.data, sourceProviderQuery.data, sourceQuery.data, sourceServiceQuery.data])
+
   const draftState = useMemo<NfseDraftState>(() => ({
     values,
     provider: selectedProvider,
@@ -176,7 +264,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     moreOptionsOpen,
   }), [moreOptionsOpen, selectedCustomer, selectedIntermediary, selectedProvider, selectedService, values])
 
-  const draft = useEmitDraft('nfse', selectedOrg?.pk, draftState,
+  const draft = useEmitDraft(mode === 'emit' ? 'nfse' : `nfse-${mode}`, selectedOrg?.pk, draftState,
     !!values.service?.service_id || selectedCustomer !== null || selectedProvider !== null)
 
   const restoreDraft = () => {
@@ -192,7 +280,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     draft.accept()
   }
 
-  const rejectedOptions: ComboboxOption[] = (rejectedNfses?.items ?? [])
+  const rejectedOptions: ComboboxOption[] = (rejectedNfsesQuery.data?.pages.flatMap((page) => page.items) ?? [])
     .filter((item) => item.access_key)
     .map((item) => ({
       value: item.access_key!,
@@ -269,6 +357,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
       draft.clear()
       toast.success(mode === 'substitute' ? 'Substituição enviada para processamento' : 'NFS-e enviada para processamento', {
         description: 'Acompanhe a autorização e o retorno do fisco na tela de detalhes.',
+        action: {label: 'Emitir outra', onClick: () => router.push('/nfse/emit')},
       })
       router.push(`/nfse/detail?id=${encodeURIComponent(result.sk)}`)
     } catch (error) {
@@ -297,11 +386,17 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     )
   }
 
-  if (mode === 'substitute' && sourceQuery.isLoading) {
+  const sourceDependenciesLoading = sourceServiceQuery.isLoading || sourceProviderQuery.isLoading
+    || sourceCustomerQuery.isLoading || sourceIntermediaryQuery.isLoading
+
+  if (mode !== 'emit' && (sourceQuery.isLoading || sourceDependenciesLoading)) {
     return <LoadingSkeleton count={2} height="h-32" rounded="rounded-xl"/>
   }
 
-  const sourceUnavailable = mode === 'substitute' && (sourceQuery.isError || !sourceQuery.data?.access_key)
+  const sourceDependencyError = sourceServiceQuery.isError || sourceProviderQuery.isError
+    || sourceCustomerQuery.isError || sourceIntermediaryQuery.isError
+  const sourceUnavailable = mode !== 'emit' && (sourceQuery.isError || !sourceInput || sourceDependencyError
+    || (mode === 'substitute' && !sourceQuery.data?.access_key))
 
   return (
     <Form {...form}>
@@ -319,9 +414,17 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
           </div>
         )}
 
+        {mode === 'duplicate' && sourceQuery.data && !sourceUnavailable && (
+          <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+            Cópia da NFS-e nº {sourceQuery.data.number}. Confira os dados; a competência avançou um mês.
+          </div>
+        )}
+
         {sourceUnavailable && (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Não foi possível carregar a chave da NFS-e original. Volte aos detalhes e tente novamente.
+            {mode === 'duplicate'
+              ? 'Esta NFS-e não possui as referências de catálogo necessárias para uma cópia segura.'
+              : 'Não foi possível carregar a NFS-e original e suas referências. Volte aos detalhes e tente novamente.'}
           </div>
         )}
 
@@ -506,7 +609,8 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
           <p className="text-sm text-gray-600">{serviceValue ? `Total ${formatCurrency(serviceValue)}` : 'Selecione um serviço para emitir'}</p>
           <Button type="button" variant="brand" disabled={isSubmitting || sourceUnavailable}
                   onClick={() => setShowEmitConfirm(true)}>
-            {isSubmitting ? 'Enviando…' : mode === 'substitute' ? 'Substituir NFS-e' : 'Emitir NFS-e'}
+            {isSubmitting ? 'Enviando…' : mode === 'substitute' ? 'Substituir NFS-e'
+              : mode === 'duplicate' ? 'Emitir cópia' : 'Emitir NFS-e'}
           </Button>
         </div>
 

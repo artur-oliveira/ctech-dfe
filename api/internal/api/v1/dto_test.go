@@ -194,6 +194,8 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 func ptrInt(v int) *int { return new(v) }
 
 func TestServiceBody_Validation(t *testing.T) {
+	zero := 0
+	cIndOp, cst, cClassTrib := "100301", "000", "000001"
 	valid := ServiceBody{
 		Code:             "SRV001",
 		Description:      "Análise e desenvolvimento de sistemas",
@@ -201,6 +203,10 @@ func TestServiceBody_Validation(t *testing.T) {
 		Unit:             "UN",
 		Value:            "1500.00",
 		Iss:              ServiceIssBody{TribISSQN: 1, TaxRate: "5.00"},
+		IbsCbs: &ServiceIbsCbsBody{
+			CIndOp: &cIndOp, Cst: &cst, CClassTrib: &cClassTrib,
+			IndDest: &zero, FinNFSe: &zero,
+		},
 	}
 	if p := validation.Struct(valid); p != nil {
 		t.Fatalf("ServiceBody válido rejeitado: %+v", p)
@@ -219,6 +225,14 @@ func TestServiceBody_Validation(t *testing.T) {
 		b.Description = strings.Repeat("x", 2001)
 		if p := validation.Struct(b); p == nil {
 			t.Fatal("descrição longa demais aceita")
+		}
+	})
+
+	t.Run("IBS/CBS ausente é rejeitado", func(t *testing.T) {
+		b := valid
+		b.IbsCbs = nil
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("serviço sem IBS/CBS aceito")
 		}
 	})
 }

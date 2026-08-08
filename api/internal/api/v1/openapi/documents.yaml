@@ -121,6 +121,8 @@ components:
           type: object
           additionalProperties: true
           description: Documento neutro enviado ao provider.
+        emit_input:
+          $ref: '#/components/schemas/NfseEmitInputSnapshot'
         year: { type: integer }
         month: { type: integer }
         created_at: { type: string, format: date-time }

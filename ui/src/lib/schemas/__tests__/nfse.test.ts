@@ -75,14 +75,19 @@ describe('nfseCancelSchema', () => {
 })
 
 describe('serviceSchema', () => {
+  const ibsCbs = {
+    c_ind_op: '100301', cst: '000', c_class_trib: '000001',
+    ind_dest: '0', tp_oper: '', fin_nfse: '0',
+  }
+
   it('exige código de tributação nacional de 6 dígitos', () => {
     expect(serviceSchema.safeParse({
       code: 'S1', description: 'Consultoria', trib_nacional_code: '10101',
-      unit: 'UN', value: '100.00', iss: {trib_issqn: '1', tax_rate: '2.00'},
+      unit: 'UN', value: '100.00', iss: {trib_issqn: '1', tax_rate: '2.00'}, ibs_cbs: ibsCbs,
     }).success).toBe(false)
     expect(serviceSchema.safeParse({
       code: 'S1', description: 'Consultoria', trib_nacional_code: '010101',
-      unit: 'UN', value: '100.00', iss: {trib_issqn: '1', tax_rate: '2.00'},
+      unit: 'UN', value: '100.00', iss: {trib_issqn: '1', tax_rate: '2.00'}, ibs_cbs: ibsCbs,
     }).success).toBe(true)
   })
 
@@ -90,6 +95,7 @@ describe('serviceSchema', () => {
     const r = serviceSchema.safeParse({
       code: 'S1', description: 'Consultoria', trib_nacional_code: '010101',
       unit: 'UN', value: '100.00', iss: {trib_issqn: '1', tax_rate: '2.00', tp_imunidade: '1'},
+      ibs_cbs: ibsCbs,
     })
     expect(r.success).toBe(false)
   })

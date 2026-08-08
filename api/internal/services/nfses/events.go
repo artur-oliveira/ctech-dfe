@@ -92,7 +92,7 @@ func buildEventRequest(chave string, body NfseEventBody, inscFederal string, env
 
 // buildEventWorkerBody serializa o pedido no formato que nfse.Dispatch lê
 // (go-dfe/nfse/dispatch.go): as chaves "provider" e "event".
-func buildEventWorkerBody(provider string, ev nfse.EventRequest) (map[string]any, error) {
+func buildEventWorkerBody(provider, municipalityCode string, ev nfse.EventRequest) (map[string]any, error) {
 	raw, err := json.Marshal(ev)
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode nfse event")
@@ -102,24 +102,26 @@ func buildEventWorkerBody(provider string, ev nfse.EventRequest) (map[string]any
 		return nil, problem.InternalServer("failed to decode nfse event")
 	}
 	return map[string]any{
-		nfse.BodyKeyProvider: provider,
-		nfse.BodyKeyEvent:    evMap,
+		nfse.BodyKeyProvider:     provider,
+		nfse.BodyKeyMunicipality: municipalityCode,
+		nfse.BodyKeyEvent:        evMap,
 	}, nil
 }
 
 // eventContext é o contexto resolvido uma vez por evento: a linha da NFS-e, o
 // certificado e o ambiente. Espelha o eventContext de mdfes.
 type eventContext struct {
-	item        map[string]types.AttributeValue
-	pk          string
-	idDPS       string
-	accessKey   string
-	provider    string
-	environment int
-	sefazEnv    string
-	inscFederal string
-	certS3Key   string
-	certPass    string
+	item             map[string]types.AttributeValue
+	pk               string
+	idDPS            string
+	accessKey        string
+	provider         string
+	municipalityCode string
+	environment      int
+	sefazEnv         string
+	inscFederal      string
+	certS3Key        string
+	certPass         string
 }
 
 // resolveEventContext exige NFS-e autorizada COM chave de acesso: o pedido de
@@ -158,7 +160,8 @@ func (s *NfseService) resolveEventContext(ctx context.Context, orgPK, id string)
 
 	return &eventContext{
 		item: item, pk: pk, idDPS: strAttr(item, "sk"), accessKey: accessKey,
-		provider: strAttr(item, "provider"), environment: environment, sefazEnv: sefazEnv,
+		provider: strAttr(item, "provider"), municipalityCode: strAttr(item, "c_loc_emi"),
+		environment: environment, sefazEnv: sefazEnv,
 		inscFederal: services.StripPKPrefix(orgPK),
 		certS3Key:   strAttr(cert, "s3_key"), certPass: strAttr(cert, "password"),
 	}, nil
@@ -176,7 +179,7 @@ func (s *NfseService) SendEvent(ctx context.Context, orgPK, id string, body Nfse
 	if err != nil {
 		return nil, err
 	}
-	workerBody, err := buildEventWorkerBody(ec.provider, ev)
+	workerBody, err := buildEventWorkerBody(ec.provider, ec.municipalityCode, ev)
 	if err != nil {
 		return nil, err
 	}

@@ -244,6 +244,8 @@ do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial P
 
 `competence` é a data civil completa de início da prestação (`dCompet`) em ISO Date `AAAA-MM-DD`.
 O cliente não envia `dh_emi`: a API o gera no instante da emissão usando o `timezone` da configuração NFS-e.
+O serviço referenciado deve estar atualizado com o grupo obrigatório `ibs_cbs`; cadastros legados
+sem a classificação são recusados antes do enfileiramento para evitar uma DPS incompleta.
 
 `tp_emit` 2 (tomador) or 3 (intermediário) additionally require `motivo_emis_ti` and
 `provider_person_id`. Full field table and the conditional rules: `DOCS.md` → *Emissão de NFS-e*.
@@ -258,6 +260,8 @@ a document.
 `status: "pending"`. The final state (`authorized` / `rejected` / `cancelled`) arrives over the same
 WebSocket channel as NF-e, or by polling `GET /v1.0/nfses/{id}`. NFS-e responses have no
 `cStat`/`xMotivo`: a rejection is terminal and its reason arrives as the Problem `detail`.
+`authorized` também garante que a NFS-e retornada e a DPS assinada foram salvas, com `xml_s3_key` e
+`dps_xml_s3_key` preenchidos; uma resposta sem qualquer um dos XMLs não produz autorização local.
 
 **Event types the UI may offer** — only the 10 contributor-emittable ones (`nfse.ContribuinteEvents`):
 `101101` cancelamento, `101103` solicitação de análise fiscal de cancelamento, `202201`/`203202`/`204203`

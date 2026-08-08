@@ -75,6 +75,11 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 	// padrão é o mesmo município de emissão (config.c_loc_emi) — buildServico
 	// não recebe a config, então o valor é aplicado aqui.
 	doc.Servico.LocPrest.CLocPrestacao = cLocEmi
+	if doc.IBSCBS == nil || doc.IBSCBS.CIndOp == "" ||
+		doc.IBSCBS.Valores.Trib.CST == "" || doc.IBSCBS.Valores.Trib.CClassTrib == "" {
+		return nfse.Document{}, problem.BadRequest(
+			"o serviço deve informar IBS/CBS (c_ind_op, cst, c_class_trib, ind_dest e fin_nfse)")
+	}
 
 	if in.Body.AdditionalInfo != nil {
 		doc.Servico.InfoCompl = &nfse.InfoCompl{XInfComp: *in.Body.AdditionalInfo}

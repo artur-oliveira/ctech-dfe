@@ -332,7 +332,13 @@ produziria um item órfão.
   implementação faltando do nosso lado — por isso 501 e não 400/500.
 - **`nfses` tem DOIS ponteiros de XML**: `xml_s3_key` (a NFS-e autorizada, mesmo nome dos demais doc
   types) e `dps_xml_s3_key` (a DPS que assinamos). NFS-e é o único doc type onde o documento
-  assinado e o documento autorizado são XMLs distintos.
+  assinado e o documento autorizado são XMLs distintos. O worker deve gravar o XML retornado no S3
+  antes de marcar `authorized`; sucesso fiscal sem `nfse_xml` ou sem `dps_xml` falha fechado.
+- **Teresina (`cLocEmi=2211001`) usa autorizador municipal em homologação**, embora o XML seja DPS
+  nacional v1.01. O endpoint publicado é registrado por município+ambiente; nunca derivar ou
+  inventar o endpoint de produção a partir do hostname de homologação.
+- **IBS/CBS é obrigatório no catálogo de serviços NFS-e**: `c_ind_op`, `cst`, `c_class_trib`,
+  `ind_dest` e `fin_nfse=0`. Não inferir classificação tributária a partir da descrição do serviço.
 - **`MunicipalParameters` e `GetDANFSE` chamam `dfe.Call` direto do serviço, não pelo worker** — são
   leituras públicas, sem escrita e sem risco de timeout longo. O par certificado/senha vem de
   `ExternalService.CertificateB64`, compartilhado com a consulta de cadastro da NF-e.

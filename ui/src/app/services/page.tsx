@@ -131,7 +131,7 @@ function ServicesContent() {
                 </td>
                 <td data-label="Alíquota ISS" className={`${TABLE_CELL} text-gray-700`}>{s.iss.tax_rate}%</td>
                 <td data-label="Valor" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(s.value)}</td>
-                <td className={`${TABLE_CELL} text-right`}>
+                <td className={`${TABLE_CELL} text-right`} data-label="Ações">
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"

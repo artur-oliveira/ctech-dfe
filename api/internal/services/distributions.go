@@ -21,9 +21,13 @@ import (
 )
 
 var docTypeSefazService = map[string]string{
-	"nfe":  "NFeDistribuicaoDFe",
-	"cte":  "CTeDistribuicaoDFe",
-	"mdfe": "MDFeDistribuicaoDFe",
+	DocTypeNFe:  "NFeDistribuicaoDFe",
+	DocTypeCTe:  "CTeDistribuicaoDFe",
+	DocTypeMDFe: "MDFeDistribuicaoDFe",
+}
+
+var supportedDistributionDocTypes = map[string]struct{}{
+	DocTypeNFe: {}, DocTypeCTe: {}, DocTypeMDFe: {}, DocTypeNfse: {},
 }
 
 var docTypeXMLNS = map[string]string{
@@ -34,16 +38,18 @@ var docTypeXMLNS = map[string]string{
 
 const distConsQuotaMax = 20
 
-// DistributionService manages DFe distribution (NF-e/CT-e/MDF-e received from SEFAZ).
+// DistributionService manages DFe distribution received from SEFAZ or the NFS-e ADN.
 type DistributionService struct {
 	orgRepo           *repositories.OrganizationRepository
 	certRepo          *repositories.CertificateRepository
 	NfeConfig         *repositories.NfeConfigRepository
 	CteConfig         *repositories.CteConfigRepository
 	MdfeConfig        *repositories.MdfeConfigRepository
+	NfseConfig        *repositories.NfseConfigRepository
 	nfeDist           *repositories.NFeDistributionRepository
 	cteDist           *repositories.CTeDistributionRepository
 	mdfeDist          *repositories.MDFeDistributionRepository
+	nfseDist          *repositories.NfseDistributionRepository
 	clients           *awsclient.Clients
 	queueURL          string
 	bucketDocs        string
@@ -57,16 +63,18 @@ func NewDistributionService(
 	NfeConfig *repositories.NfeConfigRepository,
 	CteConfig *repositories.CteConfigRepository,
 	MdfeConfig *repositories.MdfeConfigRepository,
+	NfseConfig *repositories.NfseConfigRepository,
 	nfeDist *repositories.NFeDistributionRepository,
 	cteDist *repositories.CTeDistributionRepository,
 	mdfeDist *repositories.MDFeDistributionRepository,
+	nfseDist *repositories.NfseDistributionRepository,
 	clients *awsclient.Clients,
 	queueURL, bucketDocs, bucketCerts, sefazFunctionName string,
 ) *DistributionService {
 	return &DistributionService{
 		orgRepo: orgRepo, certRepo: certRepo,
-		NfeConfig: NfeConfig, CteConfig: CteConfig, MdfeConfig: MdfeConfig,
-		nfeDist: nfeDist, cteDist: cteDist, mdfeDist: mdfeDist,
+		NfeConfig: NfeConfig, CteConfig: CteConfig, MdfeConfig: MdfeConfig, NfseConfig: NfseConfig,
+		nfeDist: nfeDist, cteDist: cteDist, mdfeDist: mdfeDist, nfseDist: nfseDist,
 		clients:           clients,
 		queueURL:          queueURL,
 		bucketDocs:        bucketDocs,
@@ -77,31 +85,42 @@ func NewDistributionService(
 
 func (s *DistributionService) fiscalCfg(docType string) *repositories.FiscalConfigRepository {
 	switch docType {
-	case "nfe":
+	case DocTypeNFe:
 		return &s.NfeConfig.FiscalConfigRepository
-	case "cte":
+	case DocTypeCTe:
 		return &s.CteConfig.FiscalConfigRepository
-	case "mdfe":
+	case DocTypeMDFe:
 		return &s.MdfeConfig.FiscalConfigRepository
+	case DocTypeNfse:
+		return &s.NfseConfig.FiscalConfigRepository
 	}
 	return nil
 }
 
 func (s *DistributionService) distRepo(docType string) *repositories.DistributionRepository {
 	switch docType {
-	case "nfe":
+	case DocTypeNFe:
 		return &s.nfeDist.DistributionRepository
-	case "cte":
+	case DocTypeCTe:
 		return &s.cteDist.DistributionRepository
-	case "mdfe":
+	case DocTypeMDFe:
 		return &s.mdfeDist.DistributionRepository
+	case DocTypeNfse:
+		return &s.nfseDist.DistributionRepository
 	}
 	return nil
 }
 
 func validateDistDocType(docType string) error {
-	if _, ok := docTypeSefazService[docType]; !ok {
+	if _, ok := supportedDistributionDocTypes[docType]; !ok {
 		return problem.BadRequest("doc_type inválido: " + docType)
+	}
+	return nil
+}
+
+func validateSefazDistDocType(docType string) error {
+	if _, ok := docTypeSefazService[docType]; !ok {
+		return problem.BadRequest("consulta síncrona indisponível para doc_type: " + docType)
 	}
 	return nil
 }
@@ -213,7 +232,7 @@ func (s *DistributionService) GetDistributionXML(ctx context.Context, orgPK, doc
 
 // LookupByNSU performs a synchronous consNSU against SEFAZ via the py-dfe Lambda.
 func (s *DistributionService) LookupByNSU(ctx context.Context, orgPK, docType string, nsu int) (map[string]any, error) {
-	if err := validateDistDocType(docType); err != nil {
+	if err := validateSefazDistDocType(docType); err != nil {
 		return nil, err
 	}
 	if err := s.checkConsQuota(ctx, orgPK, docType); err != nil {
@@ -234,7 +253,7 @@ func (s *DistributionService) LookupByNSU(ctx context.Context, orgPK, docType st
 
 // LookupByKey performs a synchronous consChNFe against SEFAZ via the py-dfe Lambda.
 func (s *DistributionService) LookupByKey(ctx context.Context, orgPK, docType, accessKey string) (map[string]any, error) {
-	if err := validateDistDocType(docType); err != nil {
+	if err := validateSefazDistDocType(docType); err != nil {
 		return nil, err
 	}
 	if err := s.checkConsQuota(ctx, orgPK, docType); err != nil {

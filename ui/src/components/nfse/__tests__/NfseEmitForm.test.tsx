@@ -46,14 +46,32 @@ describe('emissão de NFS-e', () => {
     expect(screen.getByTestId('nfse-form')).toHaveAttribute('data-source', 'DPS_TESTE')
   })
 
+  it('renderiza o modo de duplicação a partir da query string', () => {
+    searchParams = new URLSearchParams('duplicate=DPS_ORIGINAL')
+
+    render(<NfseEmitPage/>)
+
+    expect(screen.getByRole('heading', {name: 'Duplicar NFS-e'})).toBeInTheDocument()
+    expect(screen.getByTestId('nfse-form')).toHaveAttribute('data-mode', 'duplicate')
+    expect(screen.getByTestId('nfse-form')).toHaveAttribute('data-source', 'DPS_ORIGINAL')
+  })
+
   it('isola e pagina o catálogo do picker pela organização ativa', async () => {
-    const getServices = vi.spyOn(apiClient, 'getServices').mockResolvedValue({
-      items: [],
-      next_cursor: null,
-      previous_cursor: null,
-      has_next: false,
-      has_previous: false,
-    })
+    const getServices = vi.spyOn(apiClient, 'getServices')
+      .mockResolvedValueOnce({
+        items: [],
+        next_cursor: 'PAGE_2',
+        previous_cursor: null,
+        has_next: true,
+        has_previous: false,
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        next_cursor: null,
+        previous_cursor: null,
+        has_next: false,
+        has_previous: true,
+      })
     const queryClient = new QueryClient({defaultOptions: {queries: {retry: false}}})
 
     render(
@@ -63,6 +81,7 @@ describe('emissão de NFS-e', () => {
     )
 
     await waitFor(() => expect(getServices).toHaveBeenCalledWith({limit: 100, cursor: undefined}))
+    await waitFor(() => expect(getServices).toHaveBeenCalledWith({limit: 100, cursor: 'PAGE_2'}))
     expect(queryClient.getQueryState(['services', 'CNPJ_TEST'])).toBeDefined()
     expect(queryClient.getQueryState(['services', undefined])).toBeUndefined()
   })

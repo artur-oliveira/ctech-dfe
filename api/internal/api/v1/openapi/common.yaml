@@ -90,7 +90,7 @@ components:
       in: path
       required: true
       description: Tipo de documento da distribuição.
-      schema: { type: string, enum: [nfe, cte, mdfe] }
+      schema: { type: string, enum: [nfe, cte, mdfe, nfse] }
 
     Nsu:
       name: nsu

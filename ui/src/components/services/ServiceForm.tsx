@@ -16,8 +16,11 @@ import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional'
 import {NFSE_NBS} from '@/lib/data/nfse_nbs'
 import {NFSE_COUNTRIES} from '@/lib/data/nfse_countries'
 import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
+import {NFSE_INDOP} from '@/lib/data/nfse_indop'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {generateEntityCode} from '@/lib/utils/code'
+import {ApiError} from '@/lib/api/client'
 
 interface ServiceFormProps {
   initialData?: ServiceOut
@@ -79,6 +82,25 @@ const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
   display: country.code,
 }))
 
+const IND_OP_OPTIONS: ComboboxOption[] = NFSE_INDOP.map((entry) => ({
+  value: entry.code,
+  label: `${entry.code} – ${entry.tipo_operacao} · ${entry.local_fornecimento}`,
+  display: entry.code,
+}))
+
+const IND_DEST_OPTIONS = [
+  {value: '0', label: '0 – O destinatário é o tomador'},
+  {value: '1', label: '1 – O destinatário é diferente do tomador'},
+]
+
+const TP_OPER_OPTIONS = [
+  {value: '1', label: '1 – Fornecimento com pagamento posterior'},
+  {value: '2', label: '2 – Recebimento após o fornecimento'},
+  {value: '3', label: '3 – Fornecimento com pagamento já realizado'},
+  {value: '4', label: '4 – Recebimento antes do fornecimento'},
+  {value: '5', label: '5 – Fornecimento e recebimento concomitantes'},
+]
+
 function toFormData(s: ServiceOut): ServiceFormData {
   return {
     code: s.code,
@@ -105,17 +127,30 @@ function toFormData(s: ServiceOut): ServiceFormData {
       v_ret_irrf: s.federal.v_ret_irrf ?? '',
       v_ret_csll: s.federal.v_ret_csll ?? '',
     } : undefined,
+    ibs_cbs: {
+      c_ind_op: s.ibs_cbs?.c_ind_op ?? '',
+      cst: s.ibs_cbs?.cst ?? '',
+      c_class_trib: s.ibs_cbs?.c_class_trib ?? '',
+      ind_dest: String(s.ibs_cbs?.ind_dest ?? 0) as '0' | '1',
+      tp_oper: s.ibs_cbs?.tp_oper != null ? String(s.ibs_cbs.tp_oper) as '1' | '2' | '3' | '4' | '5' : '',
+      fin_nfse: '0',
+    },
+    tot_trib: s.tot_trib ? {
+      ind_tot_trib: '0',
+      p_tot_trib_sn: s.tot_trib.p_tot_trib_sn ?? '',
+    } : undefined,
   }
 }
 
 function nullify(v: string | undefined): string | null | undefined {
-  return v === '' ? null : v
+  const normalized = v?.trim()
+  return normalized === '' ? null : normalized
 }
 
 function toApiPayload(data: ServiceFormData): ServiceCreate {
   return {
-    code: data.code,
-    description: data.description,
+    code: data.code.trim(),
+    description: data.description.trim(),
     trib_nacional_code: data.trib_nacional_code,
     trib_municipal_code: nullify(data.trib_municipal_code),
     nbs_code: nullify(data.nbs_code),
@@ -140,6 +175,18 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
       v_ret_irrf: nullify(data.federal.v_ret_irrf),
       v_ret_csll: nullify(data.federal.v_ret_csll),
     } : undefined,
+    ibs_cbs: {
+      c_ind_op: data.ibs_cbs.c_ind_op,
+      cst: data.ibs_cbs.cst,
+      c_class_trib: data.ibs_cbs.c_class_trib,
+      ind_dest: Number(data.ibs_cbs.ind_dest),
+      tp_oper: data.ibs_cbs.tp_oper ? Number(data.ibs_cbs.tp_oper) : null,
+      fin_nfse: 0,
+    },
+    tot_trib: data.tot_trib ? {
+      ind_tot_trib: 0,
+      p_tot_trib_sn: nullify(data.tot_trib.p_tot_trib_sn),
+    } : undefined,
   }
 }
 
@@ -156,17 +203,20 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
       code: defaultCode, description: '', trib_nacional_code: '', trib_municipal_code: '',
       nbs_code: '', cnae: '', unit: 'UN', value: '',
       iss: {trib_issqn: '1', tax_rate: '', tp_ret_issqn: '', tp_imunidade: '', c_pais_resultado: ''},
+      ibs_cbs: {c_ind_op: '', cst: '', c_class_trib: '', ind_dest: '0', tp_oper: '', fin_nfse: '0'},
     },
   })
 
   const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'})
+  const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'})
+  const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? []
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null)
     try {
       await onSubmit(toApiPayload(data))
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSubmitError(err instanceof ApiError ? err.detail : 'Não foi possível salvar o serviço. Revise os dados e tente novamente.')
     }
   })
 
@@ -174,13 +224,13 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {submitError}
           </div>
         )}
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Identificação</p>
+          <h2 className="text-sm font-semibold text-gray-900">Identificação do serviço</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField control={form.control} name="code" render={({field}) => (
@@ -209,6 +259,18 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             </FormItem>
           )}/>
 
+          <FormField control={form.control} name="value" render={({field}) => (
+            <FormItem>
+              <FormLabel>Valor unitário *</FormLabel>
+              <CurrencyInput id={field.name} value={field.value} onChange={field.onChange}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-gray-900">Classificação fiscal</h2>
+
           <FormField control={form.control} name="trib_nacional_code" render={({field}) => (
             <FormItem>
               <FormLabel>Código de tributação nacional *</FormLabel>
@@ -218,7 +280,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             </FormItem>
           )}/>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <FormField control={form.control} name="trib_municipal_code" render={({field}) => (
               <FormItem>
                 <FormLabel>Código de tributação municipal</FormLabel>
@@ -244,17 +306,10 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             )}/>
           </div>
 
-          <FormField control={form.control} name="value" render={({field}) => (
-            <FormItem>
-              <FormLabel>Valor unitário *</FormLabel>
-              <CurrencyInput id={field.name} value={field.value} onChange={field.onChange}/>
-              <FormMessage/>
-            </FormItem>
-          )}/>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">ISSQN</p>
+          <h2 className="text-sm font-semibold text-gray-900">ISSQN</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField control={form.control} name="iss.trib_issqn" render={({field}) => (
@@ -313,6 +368,65 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-gray-900">IBS e CBS</h2>
+            <p className="text-sm text-gray-500">
+              Classificação exigida no leiaute nacional. Confirme os códigos com a sua assessoria fiscal.
+            </p>
+          </div>
+
+          <FormField control={form.control} name="ibs_cbs.c_ind_op" render={({field}) => (
+            <FormItem>
+              <FormLabel>Indicador da operação *</FormLabel>
+              <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                        options={IND_OP_OPTIONS} placeholder="Buscar natureza e local da operação"/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField control={form.control} name="ibs_cbs.cst" render={({field}) => (
+              <FormItem>
+                <FormLabel>CST IBS/CBS *</FormLabel>
+                <OptionsSelect id={field.name} value={field.value} onValueChange={(value) => {
+                  field.onChange(value)
+                  form.setValue('ibs_cbs.c_class_trib', '')
+                }} options={IBS_CBS_CST_OPTIONS}/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+            <FormField control={form.control} name="ibs_cbs.c_class_trib" render={({field}) => (
+              <FormItem>
+                <FormLabel>Classificação tributária *</FormLabel>
+                <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                          options={classTribOptions} placeholder={ibsCbsCst ? 'Selecionar classificação' : 'Selecione o CST primeiro'}
+                          disabled={!ibsCbsCst}/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField control={form.control} name="ibs_cbs.ind_dest" render={({field}) => (
+              <FormItem>
+                <FormLabel>Destinatário *</FormLabel>
+                <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange}
+                               options={IND_DEST_OPTIONS}/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+            <FormField control={form.control} name="ibs_cbs.tp_oper" render={({field}) => (
+              <FormItem>
+                <FormLabel>Momento da operação</FormLabel>
+                <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                               options={TP_OPER_OPTIONS} placeholder="Não informado"/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <button
             type="button"
             onClick={() => setShowFederal((v) => !v)}
@@ -361,7 +475,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="submit" disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar'}
+            {loading ? 'Salvando…' : 'Salvar serviço'}
           </Button>
         </div>
       </form>

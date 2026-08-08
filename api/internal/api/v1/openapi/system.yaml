@@ -59,7 +59,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  # ── Distributions (NF-e / CT-e / MDF-e) ────────────────────────────────────
+  # ── Distributions (NF-e / CT-e / MDF-e / NFS-e) ───────────────────────────
 
   /v1.0/distributions/{doc_type}/history:
     parameters:
@@ -94,11 +94,11 @@ paths:
       - $ref: '#/components/parameters/DocType'
     post:
       tags: [Distributions]
-      summary: Dispara a sincronização com a SEFAZ
+      summary: Dispara a sincronização com a SEFAZ ou o ADN
       description: |
-        Enfileira a busca a partir do último NSU conhecido. A SEFAZ limita a
-        frequência de consulta: chamadas seguidas em janela curta são
-        rejeitadas por ela.
+        Enfileira a busca a partir do último NSU conhecido. NF-e, CT-e e MDF-e
+        consultam a SEFAZ; NFS-e consulta o Ambiente de Dados Nacional (ADN).
+        A API aplica a janela de consulta antes de enfileirar.
       operationId: syncDistributions
       responses:
         '202':

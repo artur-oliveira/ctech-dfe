@@ -110,9 +110,12 @@ func TestBuildEventBody_DecodesBackInGoDfe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildEventRequest: %v", err)
 	}
-	body, err := buildEventWorkerBody(nfse.ProviderNacional, ev)
+	body, err := buildEventWorkerBody(nfse.ProviderNacional, "2211001", ev)
 	if err != nil {
 		t.Fatalf("buildEventWorkerBody: %v", err)
+	}
+	if body[nfse.BodyKeyMunicipality] != "2211001" {
+		t.Errorf("municipality_code = %v", body[nfse.BodyKeyMunicipality])
 	}
 	sub, ok := body[nfse.BodyKeyEvent].(map[string]any)
 	if !ok {

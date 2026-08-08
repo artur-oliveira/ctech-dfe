@@ -34,3 +34,36 @@ func TestResolveBase_Unknown(t *testing.T) {
 		t.Error("esperado erro para ambiente desconhecido")
 	}
 }
+
+func TestResolveEmissionEndpoint_TeresinaHomologacao(t *testing.T) {
+	got, err := ResolveEmissionEndpoint("hom", "2211001")
+	if err != nil {
+		t.Fatalf("ResolveEmissionEndpoint: %v", err)
+	}
+	want := "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/dps"
+	if got != want {
+		t.Errorf("endpoint = %q, esperado %q", got, want)
+	}
+}
+
+func TestResolveEmissionEndpoint_OtherMunicipalityUsesNational(t *testing.T) {
+	got, err := ResolveEmissionEndpoint("hom", "3550308")
+	if err != nil {
+		t.Fatalf("ResolveEmissionEndpoint: %v", err)
+	}
+	want := "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse"
+	if got != want {
+		t.Errorf("endpoint = %q, esperado %q", got, want)
+	}
+}
+
+func TestResolveQueryByKeyEndpoint_TeresinaHomologacao(t *testing.T) {
+	got, err := ResolveQueryByKeyEndpoint("hom", "2211001", "123")
+	if err != nil {
+		t.Fatalf("ResolveQueryByKeyEndpoint: %v", err)
+	}
+	want := "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/nfse/123"
+	if got != want {
+		t.Errorf("endpoint = %q, esperado %q", got, want)
+	}
+}

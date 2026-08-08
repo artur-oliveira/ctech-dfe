@@ -10,6 +10,7 @@ import (
 // Chaves aceitas em dfe.Request.Body.
 const (
 	BodyKeyProvider     = "provider"
+	BodyKeyMunicipality = "municipality_code"
 	BodyKeyDocument     = "document"
 	BodyKeyEvent        = "event"
 	BodyKeyAccessKey    = "chave_acesso"

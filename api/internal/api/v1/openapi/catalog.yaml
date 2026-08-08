@@ -670,20 +670,21 @@ components:
     ServiceIbsCbsBody:
       type: object
       description: Defaults de IBS/CBS do serviço (Reforma Tributária).
+      required: [c_ind_op, cst, c_class_trib, ind_dest, fin_nfse]
       properties:
-        c_ind_op: { type: [string, 'null'] }
-        cst: { type: [string, 'null'], pattern: '^\d{3}$' }
-        c_class_trib: { type: [string, 'null'], pattern: '^\d{1,6}$' }
+        c_ind_op: { type: string, pattern: '^\d{6}$' }
+        cst: { type: string, pattern: '^\d{3}$' }
+        c_class_trib: { type: string, pattern: '^\d{6}$' }
         ind_dest:
-          type: [integer, 'null']
-          enum: [0, 1, null]
+          type: integer
+          enum: [0, 1]
           description: '`0` destinatário é o próprio tomador · `1` destinatário diferente.'
         tp_oper:
           type: [integer, 'null']
           enum: [1, 2, 3, 4, 5, null]
         fin_nfse:
-          type: [integer, 'null']
-          enum: [0, null]
+          type: integer
+          enum: [0]
           description: Valor fixo `0` — o leiaute só admite NFS-e regular.
 
     ServiceTotTribBody:
@@ -699,7 +700,7 @@ components:
     ServiceBody:
       type: object
       description: Serviço do catálogo de NFS-e.
-      required: [code, description, trib_nacional_code, unit, value, iss]
+      required: [code, description, trib_nacional_code, unit, value, iss, ibs_cbs]
       properties:
         code: { type: string, maxLength: 60 }
         description: { type: string, minLength: 2, maxLength: 2000 }

@@ -92,7 +92,10 @@ func (s *NfseService) callGoDfe(ctx context.Context, orgPK, service string, body
 		return nfse.Result{}, err
 	}
 
-	full := map[string]any{nfse.BodyKeyProvider: provider}
+	full := map[string]any{
+		nfse.BodyKeyProvider:     provider,
+		nfse.BodyKeyMunicipality: strAttr(configItem, "c_loc_emi"),
+	}
 	for k, v := range body {
 		full[k] = v
 	}

@@ -21,6 +21,9 @@ func TestEmit_BuildsWorkerBodyForDispatch(t *testing.T) {
 	if body[nfse.BodyKeyProvider] != nfse.ProviderNacional {
 		t.Errorf("provider = %v", body[nfse.BodyKeyProvider])
 	}
+	if body[nfse.BodyKeyMunicipality] != doc.CLocEmi {
+		t.Errorf("municipality_code = %v", body[nfse.BodyKeyMunicipality])
+	}
 	sub, ok := body[nfse.BodyKeyDocument].(map[string]any)
 	if !ok {
 		t.Fatalf("document não é um objeto: %T", body[nfse.BodyKeyDocument])

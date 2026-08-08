@@ -490,12 +490,12 @@ export interface ServiceFederalBody {
 }
 
 export interface ServiceIbsCbsBody {
-  c_ind_op?: string | null
-  cst?: string | null
-  c_class_trib?: string | null
-  ind_dest?: number | null
+  c_ind_op: string
+  cst: string
+  c_class_trib: string
+  ind_dest: number
   tp_oper?: number | null
-  fin_nfse?: number | null
+  fin_nfse: 0
 }
 
 export interface ServiceTotTribBody {
@@ -533,7 +533,7 @@ export interface ServiceCreate {
   value: string
   iss: ServiceIssBody
   federal?: ServiceFederalBody | null
-  ibs_cbs?: ServiceIbsCbsBody | null
+  ibs_cbs: ServiceIbsCbsBody
   tot_trib?: ServiceTotTribBody | null
 }
 
@@ -1069,6 +1069,17 @@ export interface NfseEmit {
   additional_info?: string | null
 }
 
+export interface NfseEmitInputSnapshot {
+  tp_emit: 1 | 2 | 3
+  motivo_emis_ti?: 1 | 2 | 3 | 4
+  ch_nfse_rej?: string
+  provider_person_id?: string | null
+  customer_id?: string | null
+  intermediary_id?: string | null
+  service: NfseServiceItem
+  additional_info?: string | null
+}
+
 export interface NfseEventBody {
   event_type: string
   sequence_number?: number
@@ -1098,6 +1109,8 @@ export interface NfseListOut {
   dest_name: string | null
   total: string
   payload: Record<string, unknown>
+  /** Presente em emissões novas; permite duplicação sem inferir IDs fiscais. */
+  emit_input?: NfseEmitInputSnapshot | null
   access_key: string | null
   xml_s3_key: string | null
   dps_xml_s3_key: string | null

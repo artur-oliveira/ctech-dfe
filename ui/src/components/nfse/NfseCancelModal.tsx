@@ -51,6 +51,9 @@ export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onC
           Esta ação é <span className="font-medium text-red-600">irreversível</span>. A NFS-e será cancelada
           junto ao fisco municipal e não poderá ser reativada.
         </p>
+        <p className="text-sm text-gray-600">
+          O prazo é definido pelo município e não é informado pelo ADN. Se ele já tiver encerrado, o fisco recusará o pedido sem alterar a nota.
+        </p>
         <div>
           <label htmlFor="nfse-cancel-code" className="block text-sm font-medium text-gray-700 mb-1.5">Motivo do cancelamento</label>
           <OptionsSelect id="nfse-cancel-code" value={reasonCode} onValueChange={setReasonCode}

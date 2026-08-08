@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -20,6 +21,63 @@ func TestParseNfseResponse_Authorized(t *testing.T) {
 	}
 	if out.AccessKey == "" || out.NFSeXML == "" || out.DPSXML == "" {
 		t.Errorf("campos perdidos: %+v", out)
+	}
+}
+
+// TestHandleNfseResponse_AuthorizedWithoutXMLFailsClosed garante que o status
+// authorized nunca seja persistido sem o documento fiscal válido no S3.
+func TestHandleNfseResponse_AuthorizedWithoutXMLFailsClosed(t *testing.T) {
+	s3m, dynm := &mockS3{}, &mockDynamo{}
+	svc := New(Clients{S3: s3m, Dynamo: dynm}, testCfg)
+
+	err := svc.handleNfseResponse(context.Background(), nfseMsg, map[string]any{
+		fieldChaveAcesso: "99999999999999999999999999999999999999999999999999",
+		fieldDpsXML:      "<DPS/>",
+	})
+	if !errors.Is(err, errNfseAuthorizedWithoutXML) {
+		t.Fatalf("erro = %v, esperado %v", err, errNfseAuthorizedWithoutXML)
+	}
+	if len(s3m.putCalls) != 0 {
+		t.Errorf("não deve gravar artefatos sem NFS-e válida, gravou %v", s3m.putCalls)
+	}
+	if len(dynm.updates) != 0 {
+		t.Errorf("não deve autorizar documento sem XML, updates = %+v", dynm.updates)
+	}
+}
+
+func TestHandleNfseResponse_AuthorizedWithoutDPSFailsClosed(t *testing.T) {
+	s3m, dynm := &mockS3{}, &mockDynamo{}
+	svc := New(Clients{S3: s3m, Dynamo: dynm}, testCfg)
+
+	err := svc.handleNfseResponse(context.Background(), nfseMsg, map[string]any{
+		fieldChaveAcesso: "99999999999999999999999999999999999999999999999999",
+		fieldNfseXML:     "<NFSe/>",
+	})
+	if !errors.Is(err, errNfseAuthorizedWithoutDPS) {
+		t.Fatalf("erro = %v, esperado %v", err, errNfseAuthorizedWithoutDPS)
+	}
+	if len(s3m.putCalls) != 0 {
+		t.Errorf("não deve gravar artefato parcial, gravou %v", s3m.putCalls)
+	}
+	if len(dynm.updates) != 0 {
+		t.Errorf("não deve autorizar documento sem DPS, updates = %+v", dynm.updates)
+	}
+}
+
+func TestHandleNfseResponse_XMLUploadFailureDoesNotAuthorize(t *testing.T) {
+	s3m, dynm := &mockS3{putErr: errors.New("s3 unavailable")}, &mockDynamo{}
+	svc := New(Clients{S3: s3m, Dynamo: dynm}, testCfg)
+
+	err := svc.handleNfseResponse(context.Background(), nfseMsg, map[string]any{
+		fieldChaveAcesso: "99999999999999999999999999999999999999999999999999",
+		fieldNfseXML:     "<NFSe/>",
+		fieldDpsXML:      "<DPS/>",
+	})
+	if err == nil {
+		t.Fatal("falha do S3 foi ignorada")
+	}
+	if len(dynm.updates) != 0 {
+		t.Errorf("não deve autorizar sem persistir XML, updates = %+v", dynm.updates)
 	}
 }
 

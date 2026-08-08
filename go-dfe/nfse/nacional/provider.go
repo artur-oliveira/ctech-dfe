@@ -26,13 +26,14 @@ const (
 // Config configura o provider nacional. Cert/Key podem ser nil apenas em
 // teste — sem eles a DPS segue sem assinatura e o fisco rejeita.
 type Config struct {
-	Environment string
-	HTTPClient  *http.Client
-	Cert        *x509.Certificate
-	Key         *rsa.PrivateKey
-	MaxRetries  int
-	CNPJ        string
-	Now         func() time.Time
+	Environment      string
+	MunicipalityCode string
+	HTTPClient       *http.Client
+	Cert             *x509.Certificate
+	Key              *rsa.PrivateKey
+	MaxRetries       int
+	CNPJ             string
+	Now              func() time.Time
 }
 
 // Nacional implementa nfse.Provider contra o Sistema Nacional NFS-e.
@@ -97,15 +98,18 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 		return nfse.Result{}, err
 	}
 
-	base, err := n.base(SystemSefin)
+	municipalityCode := n.cfg.MunicipalityCode
+	if municipalityCode == "" {
+		municipalityCode = doc.CLocEmi
+	}
+	url, err := n.emissionEndpoint(municipalityCode)
 	if err != nil {
 		return nfse.Result{}, err
 	}
 	var resp emitResponse
-	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodPost, base+PathNFSe,
+	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodPost, url,
 		map[string]string{fieldDpsXMLGZipB64: packed}, &resp, n.cfg.MaxRetries); err != nil {
-		var fiscalErr *nfse.FiscalError
-		if errors.As(err, &fiscalErr) {
+		if _, ok := errors.AsType[*nfse.FiscalError](err); ok {
 			slog.Warn(logMsgRejectedDPSPayload,
 				logFieldIDDPS, idDPS,
 				fieldDpsXMLGZipB64, packed,
@@ -199,16 +203,34 @@ type queryResponse struct {
 
 // QueryByKey consulta a NFS-e pela chave de acesso.
 func (n *Nacional) QueryByKey(ctx context.Context, key string) (nfse.Result, error) {
-	base, err := n.base(SystemSefin)
+	url, err := n.queryByKeyEndpoint(key)
 	if err != nil {
 		return nfse.Result{}, err
 	}
 	var resp queryResponse
 	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodGet,
-		base+fmt.Sprintf(PathNFSeByKey, key), nil, &resp, n.cfg.MaxRetries); err != nil {
+		url, nil, &resp, n.cfg.MaxRetries); err != nil {
 		return nfse.Result{}, err
 	}
 	return n.toResult(resp)
+}
+
+func (n *Nacional) emissionEndpoint(municipalityCode string) (string, error) {
+	if n.baseOverride != nil {
+		if base, ok := n.baseOverride[SystemSefin]; ok {
+			return base + PathNFSe, nil
+		}
+	}
+	return ResolveEmissionEndpoint(n.cfg.Environment, municipalityCode)
+}
+
+func (n *Nacional) queryByKeyEndpoint(key string) (string, error) {
+	if n.baseOverride != nil {
+		if base, ok := n.baseOverride[SystemSefin]; ok {
+			return base + fmt.Sprintf(PathNFSeByKey, key), nil
+		}
+	}
+	return ResolveQueryByKeyEndpoint(n.cfg.Environment, n.cfg.MunicipalityCode, key)
 }
 
 // QueryByDPSID recupera a chave de acesso a partir do identificador da DPS —

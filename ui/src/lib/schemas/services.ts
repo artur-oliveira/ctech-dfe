@@ -39,12 +39,12 @@ const serviceFederalSchema = z.object({
 })
 
 const serviceIbsCbsSchema = z.object({
-  c_ind_op: z.string().optional().or(z.literal('')),
-  cst: z.string().length(3, 'CST tem 3 dígitos').optional().or(z.literal('')),
-  c_class_trib: z.string().max(6).optional().or(z.literal('')),
-  // 0 destinatário é o próprio tomador | 1 destinatário diferente do tomador
-  ind_dest: z.enum(['0', '1']).optional().or(z.literal('')),
+  c_ind_op: z.string().regex(/^\d{6}$/, 'Indicador da operação tem 6 dígitos'),
+  cst: z.string().regex(/^\d{3}$/, 'CST tem 3 dígitos'),
+  c_class_trib: z.string().regex(/^\d{6}$/, 'Classificação tributária tem 6 dígitos'),
+  ind_dest: z.enum(['0', '1']),
   tp_oper: z.enum(['1', '2', '3', '4', '5']).optional().or(z.literal('')),
+  fin_nfse: z.literal('0'),
 })
 
 const serviceTotTribSchema = z.object({
@@ -54,8 +54,8 @@ const serviceTotTribSchema = z.object({
 })
 
 export const serviceSchema = z.object({
-  code: z.string().min(1, 'Código obrigatório').max(60),
-  description: z.string().min(2, 'Descrição obrigatória').max(2000),
+  code: z.string().trim().min(1, 'Código obrigatório').max(60),
+  description: z.string().trim().min(2, 'Descrição obrigatória').max(2000),
   trib_nacional_code: z.string().regex(/^\d{6}$/, 'Código de tributação nacional tem 6 dígitos'),
   trib_municipal_code: z.string().max(20).optional().or(z.literal('')),
   nbs_code: z.string().regex(/^\d{9}$/, 'NBS tem 9 dígitos').optional().or(z.literal('')),
@@ -64,7 +64,7 @@ export const serviceSchema = z.object({
   value: money,
   iss: serviceIssSchema,
   federal: serviceFederalSchema.optional(),
-  ibs_cbs: serviceIbsCbsSchema.optional(),
+  ibs_cbs: serviceIbsCbsSchema,
   tot_trib: serviceTotTribSchema.optional(),
 })
 
