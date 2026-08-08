@@ -19,8 +19,8 @@ describe('nfse api client', () => {
 
   it('emitNfse posts to /v1.0/nfses', async () => {
     const spy = vi.spyOn(priv, 'post').mockResolvedValue({} as never)
-    await apiClient.emitNfse({tp_emit: 1, competence: '01/2026', service: {service_id: 'SERVICE_x'}})
-    expect(spy).toHaveBeenCalledWith('/v1.0/nfses', {tp_emit: 1, competence: '01/2026', service: {service_id: 'SERVICE_x'}})
+    await apiClient.emitNfse({tp_emit: 1, competence: '2026-08-01', service: {service_id: 'SERVICE_x'}})
+    expect(spy).toHaveBeenCalledWith('/v1.0/nfses', {tp_emit: 1, competence: '2026-08-01', service: {service_id: 'SERVICE_x'}})
   })
 
   it('getNfse hits /v1.0/nfses/:id with the id_dps, not the access key', async () => {

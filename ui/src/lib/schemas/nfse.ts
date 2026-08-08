@@ -2,8 +2,7 @@ import {z} from 'zod'
 
 const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Use ponto decimal, ex: 1000.00')
 const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida')
-// api/internal/validation/validators.go: "datebr" = ^\d{2}/\d{2}/\d{4}$
-const dateBr = z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Use DD/MM/AAAA')
+const isoDate = z.iso.date('Use AAAA-MM-DD')
 
 /**
  * Eventos que o contribuinte pode oferecer no seletor da UI. Espelha
@@ -19,12 +18,12 @@ export const EVENT_LABELS: Record<string, string> = {
   '101101': 'Cancelamento',
   '101103': 'Solicitação de análise fiscal de cancelamento',
   '105102': 'Cancelamento por substituição',
-  '202201': 'Rejeição do prestador',
-  '203202': 'Rejeição do tomador',
-  '204203': 'Rejeição do intermediário',
-  '202205': 'Confirmação do prestador',
-  '203206': 'Confirmação do tomador',
-  '204207': 'Confirmação do intermediário',
+  '202201': 'Confirmação do prestador',
+  '203202': 'Confirmação do tomador',
+  '204203': 'Confirmação do intermediário',
+  '202205': 'Rejeição do prestador',
+  '203206': 'Rejeição do tomador',
+  '204207': 'Rejeição do intermediário',
   '205208': 'Anulação de rejeição',
 }
 
@@ -47,7 +46,7 @@ export const nfseEmitSchema = z
     tp_emit: z.enum(['1', '2', '3']),
     motivo_emis_ti: z.enum(['1', '2', '3', '4']).optional().or(z.literal('')),
     ch_nfse_rej: z.string().length(50, 'Chave de acesso tem 50 dígitos').regex(/^\d+$/).optional().or(z.literal('')),
-    competence: dateBr,
+    competence: isoDate,
     provider_person_id: z.string().optional().or(z.literal('')),
     customer_id: z.string().optional().or(z.literal('')),
     intermediary_id: z.string().optional().or(z.literal('')),

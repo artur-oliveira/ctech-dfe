@@ -1,69 +1,84 @@
 'use client'
 
-import {useEffect, useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
+import {useEffect, useMemo, useState} from 'react'
+import {useForm, useWatch, type FieldErrors} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useQuery} from '@tanstack/react-query'
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
+import {apiClient, ApiError} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {Textarea} from '@/components/ui/textarea'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
+import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
 import {Button} from '@/components/ui/button'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
-import {StepIndicator} from '@/components/ui/step-indicator'
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {NfsePersonSearch} from '@/components/nfse/NfsePersonSearch'
 import {NfseServicePicker} from '@/components/nfse/NfseServicePicker'
 import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse'
 import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
+import {NFSE_SUBSTITUTION_MOTIVES, NFSE_THIRD_PARTY_MOTIVES} from '@/lib/data/nfse_motives'
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+import {formatCurrency} from '@/lib/utils/helpers'
+import {formatISODateBR} from '@/lib/utils/dfe'
 
-// ─── Steps ────────────────────────────────────────────────────────────────────
+const THIRD_PARTY_ISSUER_OPTIONS = [
+  {value: '1', label: 'O próprio prestador'},
+  {value: '2', label: 'O tomador'},
+  {value: '3', label: 'O intermediário'},
+]
 
-export const NFSE_STEPS = [
-  {id: 'prestador', label: 'Prestador'},
-  {id: 'tomador', label: 'Tomador'},
-  {id: 'servico', label: 'Serviço'},
-  {id: 'valores', label: 'Valores'},
-  {id: 'revisao', label: 'Revisão'},
-] as const satisfies readonly { id: string; label: string }[]
+const RETENTION_LABELS: Record<number, string> = {
+  1: 'ISS não retido',
+  2: 'ISS retido pelo tomador',
+  3: 'ISS retido pelo intermediário',
+}
 
-export type NfseStep = typeof NFSE_STEPS[number]['id']
-const STEP_IDS = NFSE_STEPS.map((s) => s.id)
+const FORM_FIELD_ORDER: readonly (keyof NfseEmitFormData | `service.${keyof NfseEmitFormData['service']}`)[] = [
+  'customer_id',
+  'service.service_id',
+  'service.value',
+  'service.tax_rate',
+  'competence',
+  'tp_emit',
+  'provider_person_id',
+  'motivo_emis_ti',
+  'ch_nfse_rej',
+  'intermediary_id',
+  'service.c_trib_mun',
+  'additional_info',
+  'substitutes_reason',
+]
 
-// A competência é sempre o 1º dia do mês (DD/MM/AAAA no contrato da API), então
-// o campo são dois selects mês/ano — sem digitação livre de data.
+interface NfseEmitFormProps {
+  mode?: 'emit' | 'substitute'
+  sourceIdDps?: string
+}
+
+interface NfseDraftState {
+  values: NfseEmitFormData
+  provider: PersonItemOut | null
+  customer: PersonItemOut | null
+  intermediary: PersonItemOut | null
+  service: ServiceOut | null
+  moreOptionsOpen: boolean
+}
+
 function todayCompetence(): string {
   const now = new Date()
-  return `01/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
 }
 
-const MONTH_OPTIONS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-].map((label, i) => ({value: String(i + 1).padStart(2, '0'), label}))
-
-// Competência é retroativa ou do mês corrente: o ano seguinte não é ofertado.
-const COMPETENCE_YEARS = 5
-const YEAR_OPTIONS = Array.from({length: COMPETENCE_YEARS}, (_, i) => {
-  const y = String(new Date().getFullYear() - i)
-  return {value: y, label: y}
-})
-
-/** "01/08/2026" → ["08", "2026"]. */
-function splitCompetence(v: string): [string, string] {
-  const [, mm = '', yyyy = ''] = v.split('/')
-  return [mm, yyyy]
-}
-
-/** A organização como pessoa do wizard — o backend resolve o documento da
- *  própria org sem consultar organization_persons (nfses/emit.go). */
 function orgAsPerson(org: OrganizationOut): PersonItemOut {
   return {
     pk: org.pk,
@@ -75,48 +90,53 @@ function orgAsPerson(org: OrganizationOut): PersonItemOut {
   }
 }
 
-const MOTIVO_EMIS_TI_OPTIONS = [
-  {value: '1', label: '1'},
-  {value: '2', label: '2'},
-  {value: '3', label: '3'},
-  {value: '4', label: '4 – DPS rejeitada pelo prestador'},
-]
+function singleLine(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ')
+}
 
-interface NfseEmitFormProps {
-  mode?: 'emit' | 'substitute'
-  sourceIdDps?: string
+function hasFieldError(errors: FieldErrors<NfseEmitFormData>, path: string): boolean {
+  return path.split('.').reduce<unknown>((value, key) => {
+    if (!value || typeof value !== 'object') return undefined
+    return (value as Record<string, unknown>)[key]
+  }, errors) != null
 }
 
 export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
   const {selectedOrg} = useAuth()
   const router = useRouter()
-  const pk = selectedOrg?.pk ?? ''
+  const orgPk = selectedOrg?.pk ?? ''
 
-  const [currentStep, setCurrentStep] = useState<NfseStep>('prestador')
   const [selectedProvider, setSelectedProvider] = useState<PersonItemOut | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<PersonItemOut | null>(null)
   const [selectedIntermediary, setSelectedIntermediary] = useState<PersonItemOut | null>(null)
   const [selectedService, setSelectedService] = useState<ServiceOut | null>(null)
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(mode === 'substitute')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
 
   const {data: nfseConfig} = useQuery({
-    queryKey: queryKeys.nfseConfig(pk),
-    queryFn: () => apiClient.getNfseConfig(pk),
-    enabled: !!pk,
+    queryKey: queryKeys.nfseConfig(orgPk),
+    queryFn: () => apiClient.getNfseConfig(orgPk),
+    enabled: !!orgPk,
   })
 
   const {data: org} = useQuery({
-    queryKey: queryKeys.organizations.detail(pk),
-    queryFn: () => apiClient.getOrganization(pk),
-    enabled: !!pk,
+    queryKey: queryKeys.organizations.detail(orgPk),
+    queryFn: () => apiClient.getOrganization(orgPk),
+    enabled: !!orgPk,
   })
 
-  const {data: sourceNfse} = useQuery({
+  const sourceQuery = useQuery({
     queryKey: queryKeys.nfses.detail(sourceIdDps ?? ''),
     queryFn: () => apiClient.getNfse(sourceIdDps!),
     enabled: mode === 'substitute' && !!sourceIdDps,
+  })
+
+  const {data: rejectedNfses} = useQuery({
+    queryKey: queryKeys.nfses.list(orgPk, {status: 'rejected', limit: 100}),
+    queryFn: () => apiClient.getNfses({status: 'rejected', limit: 100, sort: 'desc'}),
+    enabled: !!orgPk,
   })
 
   const form = useForm<NfseEmitFormData>({
@@ -125,60 +145,98 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     defaultValues: {
       tp_emit: '1',
       competence: todayCompetence(),
-      service: {service_id: ''},
+      provider_person_id: '',
+      customer_id: '',
+      intermediary_id: '',
+      service: {service_id: '', description: '', value: '', tax_rate: '', c_trib_mun: ''},
+      motivo_emis_ti: '',
+      ch_nfse_rej: '',
+      substitutes_access_key: '',
+      substitutes_reason: '',
+      additional_info: '',
     },
   })
 
+  const values = useWatch({control: form.control}) as NfseEmitFormData
+  const tpEmit = values.tp_emit
+  const motivoEmisTi = values.motivo_emis_ti
+
   useEffect(() => {
-    if (mode === 'substitute' && sourceNfse?.access_key) {
-      form.setValue('substitutes_access_key', sourceNfse.access_key)
+    if (mode === 'substitute' && sourceQuery.data?.access_key) {
+      form.setValue('substitutes_access_key', sourceQuery.data.access_key)
     }
-  }, [mode, sourceNfse, form])
+  }, [form, mode, sourceQuery.data])
 
-  const tpEmit = useWatch({control: form.control, name: 'tp_emit'})
-  const motivoEmisTi = useWatch({control: form.control, name: 'motivo_emis_ti'})
-  const serviceIdWatch = useWatch({control: form.control, name: 'service.service_id'})
-  const competenceWatch = useWatch({control: form.control, name: 'competence'})
-  const serviceDescriptionWatch = useWatch({control: form.control, name: 'service.description'})
-  const serviceValueWatch = useWatch({control: form.control, name: 'service.value'})
+  const draftState = useMemo<NfseDraftState>(() => ({
+    values,
+    provider: selectedProvider,
+    customer: selectedCustomer,
+    intermediary: selectedIntermediary,
+    service: selectedService,
+    moreOptionsOpen,
+  }), [moreOptionsOpen, selectedCustomer, selectedIntermediary, selectedProvider, selectedService, values])
 
-  function canGoNext(step: NfseStep): boolean {
-    if (step === 'prestador') {
-      if (tpEmit !== '1' && (!selectedProvider || !form.getValues('motivo_emis_ti'))) return false
-      return !!form.getValues('competence')
+  const draft = useEmitDraft('nfse', selectedOrg?.pk, draftState,
+    !!values.service?.service_id || selectedCustomer !== null || selectedProvider !== null)
+
+  const restoreDraft = () => {
+    const recovered = draft.recovered?.state
+    if (recovered) {
+      form.reset(recovered.values)
+      setSelectedProvider(recovered.provider)
+      setSelectedCustomer(recovered.customer)
+      setSelectedIntermediary(recovered.intermediary)
+      setSelectedService(recovered.service)
+      setMoreOptionsOpen(recovered.moreOptionsOpen)
     }
-    if (step === 'servico') return !!form.getValues('service.service_id')
-    if (step === 'valores') return !!form.getValues('service.value')
-    if (step === 'revisao' && mode === 'substitute') return !!form.getValues('substitutes_reason')
-    return true
+    draft.accept()
   }
 
-  function handleNext() {
-    const i = STEP_IDS.indexOf(currentStep)
-    if (i < STEP_IDS.length - 1) setCurrentStep(STEP_IDS[i + 1])
-  }
-
-  function handleBack() {
-    const i = STEP_IDS.indexOf(currentStep)
-    if (i > 0) setCurrentStep(STEP_IDS[i - 1])
-  }
+  const rejectedOptions: ComboboxOption[] = (rejectedNfses?.items ?? [])
+    .filter((item) => item.access_key)
+    .map((item) => ({
+      value: item.access_key!,
+      label: `NFS-e ${item.number} / ${item.serie} – ${item.dest_name ?? 'Sem tomador'} – ${formatCurrency(item.total)}`,
+      display: `NFS-e ${item.number} / ${item.serie}`,
+    }))
 
   const handleSelectService = (service: ServiceOut) => {
     setSelectedService(service)
-    // ServiceRepository.Get aceita a SK completa (buildServiceSK é idempotente
-    // no prefixo SERVICE_) — mesma convenção de minimalInput() em document_test.go.
-    form.setValue('service.service_id', service.sk)
+    form.setValue('service.service_id', service.sk, {shouldValidate: true})
     form.setValue('service.description', service.description)
     form.setValue('service.value', service.value)
     form.setValue('service.tax_rate', service.iss.tax_rate)
+    form.setValue('service.c_trib_mun', service.trib_municipal_code ?? '')
   }
 
   const handleClearService = () => {
     setSelectedService(null)
-    form.setValue('service.service_id', '')
-    form.setValue('service.description', '')
-    form.setValue('service.value', '')
-    form.setValue('service.tax_rate', '')
+    form.setValue('service.service_id', '', {shouldValidate: true})
+  }
+
+  const handleProviderChange = (person: PersonItemOut | null) => {
+    setSelectedProvider(person)
+    form.setValue('provider_person_id', person?.sk ?? '', {shouldValidate: true})
+  }
+
+  const handleCustomerChange = (person: PersonItemOut | null) => {
+    setSelectedCustomer(person)
+    form.setValue('customer_id', person?.sk ?? '', {shouldValidate: true})
+  }
+
+  const handleIntermediaryChange = (person: PersonItemOut | null) => {
+    setSelectedIntermediary(person)
+    form.setValue('intermediary_id', person?.sk ?? '', {shouldValidate: true})
+  }
+
+  const onInvalid = (errors: FieldErrors<NfseEmitFormData>) => {
+    const firstError = FORM_FIELD_ORDER.find((field) => hasFieldError(errors, field))
+    setSubmitError('Revise o campo destacado antes de emitir a NFS-e.')
+    if (!firstError) return
+    const isAdvancedField = !['customer_id', 'service.service_id', 'service.value', 'service.tax_rate', 'competence']
+      .includes(firstError)
+    if (isAdvancedField) setMoreOptionsOpen(true)
+    window.setTimeout(() => document.getElementById(firstError)?.focus(), 0)
   }
 
   const submit = form.handleSubmit(async (data) => {
@@ -208,252 +266,248 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
       const result = mode === 'substitute' && sourceIdDps
         ? await apiClient.substituteNfse(sourceIdDps, payload)
         : await apiClient.emitNfse(payload)
-      toast.success('NFS-e enviada para processamento', {description: `id_dps ${result.sk}`})
+      draft.clear()
+      toast.success(mode === 'substitute' ? 'Substituição enviada para processamento' : 'NFS-e enviada para processamento', {
+        description: 'Acompanhe a autorização e o retorno do fisco na tela de detalhes.',
+      })
       router.push(`/nfse/detail?id=${encodeURIComponent(result.sk)}`)
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir NFS-e.')
+    } catch (error) {
+      setSubmitError(error instanceof ApiError ? error.detail : 'Não foi possível enviar a NFS-e. Revise os dados e tente novamente.')
       setIsSubmitting(false)
     }
-  })
+  }, onInvalid)
+
+  const serviceValue = values.service?.value ?? ''
+  const taxRate = values.service?.tax_rate ?? ''
+  const issValue = ((Number(serviceValue) || 0) * (Number(taxRate) || 0) / 100).toFixed(2)
+  const retention = selectedService?.iss.tp_ret_issqn
+    ? (RETENTION_LABELS[selectedService.iss.tp_ret_issqn] ?? 'Retenção não informada')
+    : 'Retenção não informada'
 
   if (!selectedOrg) {
-    return <div className="text-center py-12 text-sm text-gray-500">Selecione uma organização para emitir NFS-e.</div>
+    return <div className="py-12 text-center text-sm text-gray-500">Selecione uma organização para emitir NFS-e.</div>
   }
 
   if (nfseConfig?.provider === 'abrasf204') {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 max-w-3xl">
-        Emissão por ABRASF 2.04 ainda não é suportada pelo front. Configure o provedor Nacional (ADN) em
-        Configuração Fiscal para emitir NFS-e.
+      <div role="alert" className="max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        A emissão por ABRASF 2.04 ainda não está disponível aqui. Em Configuração Fiscal, selecione o provedor
+        Nacional (ADN) para emitir NFS-e.
       </div>
     )
   }
 
+  if (mode === 'substitute' && sourceQuery.isLoading) {
+    return <LoadingSkeleton count={2} height="h-32" rounded="rounded-xl"/>
+  }
+
+  const sourceUnavailable = mode === 'substitute' && (sourceQuery.isError || !sourceQuery.data?.access_key)
+
   return (
     <Form {...form}>
-      <div className="max-w-3xl space-y-0 pb-4">
+      <form onSubmit={(event) => event.preventDefault()} className="max-w-4xl space-y-4 pb-4">
         <HomologationBanner environment={nfseConfig?.environment}/>
 
-        {mode === 'substitute' && sourceNfse && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-4 text-sm text-amber-800">
-            Substituindo a NFS-e nº {sourceNfse.number} ({sourceNfse.access_key ?? sourceNfse.sk}). O fisco cancela a
-            nota original automaticamente ao autorizar esta.
+        {draft.recovered && mode === 'emit' && (
+          <DraftRecoveryBanner savedAt={draft.recovered.savedAt} onRestore={restoreDraft} onDiscard={draft.discard}/>
+        )}
+
+        {mode === 'substitute' && sourceQuery.data && (
+          <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+            Você está substituindo a NFS-e nº {sourceQuery.data.number}. A nota original será cancelada pelo fisco
+            somente quando a substituta for autorizada.
           </div>
         )}
 
-        <StepIndicator current={currentStep} steps={NFSE_STEPS}/>
-
-        {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">
-            {submitError}
+        {sourceUnavailable && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Não foi possível carregar a chave da NFS-e original. Volte aos detalhes e tente novamente.
           </div>
         )}
 
-        {currentStep === 'prestador' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
-            <FormField control={form.control} name="tp_emit" render={({field}) => (
+        <section aria-labelledby="nfse-essential-title" className="rounded-xl border border-gray-200 bg-white p-4 md:p-6">
+          <div className="mb-5">
+            <h2 id="nfse-essential-title" className="text-lg font-semibold text-gray-900">Dados da NFS-e</h2>
+            <p className="mt-0.5 text-sm text-gray-500">Escolha o tomador e o serviço; os valores do catálogo podem ser ajustados nesta emissão.</p>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-sm font-medium text-gray-700">Tomador</label>
+                {!selectedCustomer && org && (
+                  <Button type="button" variant="ghost" size="xs" className="text-brand-700"
+                          onClick={() => handleCustomerChange(orgAsPerson(org))}>
+                    Usar a própria empresa
+                  </Button>
+                )}
+              </div>
+              <NfsePersonSearch value={selectedCustomer} onChange={handleCustomerChange} autoFocus/>
+            </div>
+
+            <FormField control={form.control} name="service.service_id" render={() => (
               <FormItem>
-                <FormLabel>Quem emite</FormLabel>
-                <OptionsSelect
-                  id={field.name} value={field.value} onValueChange={field.onChange}
-                  options={[
-                    {value: '1', label: '1 – O próprio prestador'},
-                    {value: '2', label: '2 – O tomador'},
-                    {value: '3', label: '3 – O intermediário'},
-                  ]}
-                />
+                <FormLabel>Serviço</FormLabel>
+                <NfseServicePicker id="service.service_id" value={values.service?.service_id}
+                                   onSelect={handleSelectService} onClear={handleClearService}/>
                 <FormMessage/>
               </FormItem>
             )}/>
 
-            {tpEmit === '1' ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-sm font-medium text-gray-900">{org?.name}</p>
-                <p className="text-xs text-gray-500 font-mono mt-0.5">
-                  {org?.pk ? formatCpfCnpj(org.pk) : ''}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Prestador do serviço</p>
-                  <NfsePersonSearch value={selectedProvider} onChange={setSelectedProvider}/>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <FormField control={form.control} name="service.value" render={({field}) => (
+                <FormItem>
+                  <FormLabel>Valor do serviço</FormLabel>
+                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+              <FormField control={form.control} name="service.tax_rate" render={({field}) => (
+                <FormItem>
+                  <FormLabel>Alíquota ISS (%)</FormLabel>
+                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                                 decimalPlaces={2} maxDecimalPlaces={4}/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+              <FormField control={form.control} name="competence" render={({field}) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Data de competência</FormLabel>
+                  <Input {...field} id={field.name} type="date" className="max-w-64"/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+            </div>
+          </div>
+        </section>
+
+        <details open={moreOptionsOpen} onToggle={(event) => setMoreOptionsOpen(event.currentTarget.open)}
+                 className="rounded-xl border border-gray-200 bg-white">
+          <summary className="flex min-h-11 cursor-pointer items-center px-4 py-3 text-sm font-medium text-brand-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:px-6">
+            Mais opções
+          </summary>
+          <div className="space-y-5 border-t border-gray-100 p-4 md:p-6">
+            <FormField control={form.control} name="tp_emit" render={({field}) => (
+              <FormItem>
+                <FormLabel>Responsável pela emissão</FormLabel>
+                <OptionsSelect id={field.name} value={field.value} onValueChange={(value) => {
+                  field.onChange(value)
+                  if (value === '1') handleProviderChange(null)
+                }} options={THIRD_PARTY_ISSUER_OPTIONS}/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+
+            {tpEmit !== '1' && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField control={form.control} name="provider_person_id" render={() => (
+                  <FormItem>
+                    <FormLabel>Prestador do serviço</FormLabel>
+                    <NfsePersonSearch value={selectedProvider} onChange={handleProviderChange}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
                 <FormField control={form.control} name="motivo_emis_ti" render={({field}) => (
                   <FormItem>
                     <FormLabel>Motivo da emissão por terceiro</FormLabel>
                     <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange}
-                                   options={MOTIVO_EMIS_TI_OPTIONS} placeholder="Consulte o manual do contribuinte"/>
+                                   options={[...NFSE_THIRD_PARTY_MOTIVES]} placeholder="Selecione o motivo"/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
-                {motivoEmisTi === '4' && (
-                  <FormField control={form.control} name="ch_nfse_rej" render={({field}) => (
-                    <FormItem>
-                      <FormLabel>Chave da NFS-e rejeitada</FormLabel>
-                      <Input {...field} id={field.name} maxLength={50} className="font-mono text-xs"/>
-                      <FormMessage/>
-                    </FormItem>
-                  )}/>
-                )}
-              </>
+              </div>
             )}
 
-            <FormField control={form.control} name="competence" render={({field}) => {
-              const [month, year] = splitCompetence(field.value)
-              return (
+            {tpEmit !== '1' && motivoEmisTi === '4' && (
+              <FormField control={form.control} name="ch_nfse_rej" render={({field}) => (
                 <FormItem>
-                  <FormLabel>Competência</FormLabel>
-                  <div className="flex gap-2 max-w-sm">
-                    <OptionsSelect id={field.name} value={month} options={MONTH_OPTIONS}
-                                   onValueChange={(m) => field.onChange(`01/${m}/${year}`)}/>
-                    <OptionsSelect id={`${field.name}-year`} value={year} options={YEAR_OPTIONS}
-                                   onValueChange={(y) => field.onChange(`01/${month}/${y}`)}/>
-                  </div>
+                  <FormLabel>NFS-e rejeitada pelo prestador</FormLabel>
+                  <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                            options={rejectedOptions} placeholder="Selecione uma NFS-e rejeitada desta organização"/>
                   <FormMessage/>
                 </FormItem>
-              )
-            }}/>
-
-            {nfseConfig && (
-              <p className="text-xs text-gray-400">Série {nfseConfig.serie} · {nfseConfig.environment === 1 ? 'Produção' : 'Homologação'}</p>
+              )}/>
             )}
-          </div>
-        )}
 
-        {currentStep === 'tomador' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Tomador (opcional)</p>
-              <NfsePersonSearch value={selectedCustomer} onChange={setSelectedCustomer}/>
-              {/* NFS-e para si mesmo: a própria empresa não existe no cadastro de
-                  pessoas, então o item é montado a partir da organização. */}
-              {!selectedCustomer && org && (
-                <Button type="button" variant="ghost" size="xs" className="mt-2 text-brand-600 hover:text-brand-700"
-                        onClick={() => setSelectedCustomer(orgAsPerson(org))}>
-                  Usar a própria empresa
-                </Button>
-              )}
-            </div>
-            <div className="pt-2 border-t border-gray-100">
-              <p className="text-sm font-medium text-gray-700 mb-2">Intermediário (opcional)</p>
-              <NfsePersonSearch value={selectedIntermediary} onChange={setSelectedIntermediary}/>
-            </div>
-          </div>
-        )}
-
-        {currentStep === 'servico' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Serviço do catálogo</p>
-              <NfseServicePicker
-                value={serviceIdWatch}
-                onSelect={handleSelectService}
-                onClear={handleClearService}
-              />
-              {selectedService && (
-                <p className="text-xs text-gray-400 mt-1">
-                  Cód. tributação nacional {selectedService.trib_nacional_code}
-                </p>
-              )}
-            </div>
+            <FormField control={form.control} name="intermediary_id" render={() => (
+              <FormItem>
+                <FormLabel>Intermediário</FormLabel>
+                <NfsePersonSearch value={selectedIntermediary} onChange={handleIntermediaryChange}/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
 
             <FormField control={form.control} name="service.description" render={({field}) => (
               <FormItem>
                 <FormLabel>Descrição do serviço</FormLabel>
-                <Textarea {...field} id={field.name} maxLength={2000} rows={3}/>
+                <Textarea {...field} id={field.name} maxLength={2000} rows={3}
+                          onChange={(event) => field.onChange(singleLine(event.target.value))}/>
                 <FormMessage/>
               </FormItem>
             )}/>
 
-            <FormField control={form.control} name="service.c_trib_mun" render={({field}) => (
-              <FormItem>
-                <FormLabel>Código de tributação municipal (opcional)</FormLabel>
-                <Input {...field} id={field.name} maxLength={20}/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
-          </div>
-        )}
+            {values.service?.c_trib_mun && (
+              <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                Código de tributação municipal herdado do serviço: <span className="font-mono font-medium">{values.service.c_trib_mun}</span>
+              </div>
+            )}
 
-        {currentStep === 'valores' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
-            <FormField control={form.control} name="service.value" render={({field}) => (
-              <FormItem>
-                <FormLabel>Valor do serviço</FormLabel>
-                <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
-            <FormField control={form.control} name="service.tax_rate" render={({field}) => (
-              <FormItem>
-                <FormLabel>Alíquota ISS (%)</FormLabel>
-                <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
-                               decimalPlaces={2} maxDecimalPlaces={4}/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
             <FormField control={form.control} name="additional_info" render={({field}) => (
               <FormItem>
                 <FormLabel>Informações complementares</FormLabel>
-                <Textarea {...field} id={field.name} maxLength={2000} rows={3}/>
+                <Textarea {...field} id={field.name} maxLength={2000} rows={3}
+                          onChange={(event) => field.onChange(singleLine(event.target.value))}/>
                 <FormMessage/>
               </FormItem>
             )}/>
-          </div>
-        )}
-
-        {currentStep === 'revisao' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
-            <dl className="divide-y divide-gray-100">
-              <div className="flex items-center justify-between py-2 text-sm">
-                <dt className="text-gray-500">Prestador</dt>
-                <dd className="font-medium text-gray-900">{tpEmit === '1' ? org?.name : (selectedProvider?.name ?? '—')}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2 text-sm">
-                <dt className="text-gray-500">Competência</dt>
-                <dd className="font-medium text-gray-900">{competenceWatch}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2 text-sm">
-                <dt className="text-gray-500">Tomador</dt>
-                <dd className="font-medium text-gray-900">{selectedCustomer?.name ?? '—'}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2 text-sm">
-                <dt className="text-gray-500">Serviço</dt>
-                <dd className="font-medium text-gray-900">{selectedService?.description ?? serviceDescriptionWatch ?? '—'}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2 text-sm">
-                <dt className="text-gray-500">Valor</dt>
-                <dd className="font-medium text-gray-900">R$ {serviceValueWatch}</dd>
-              </div>
-            </dl>
 
             {mode === 'substitute' && (
               <FormField control={form.control} name="substitutes_reason" render={({field}) => (
                 <FormItem>
                   <FormLabel>Motivo da substituição</FormLabel>
-                  <Input {...field} id={field.name} maxLength={2}/>
+                  <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange}
+                                 options={[...NFSE_SUBSTITUTION_MOTIVES]} placeholder="Selecione o motivo"/>
                   <FormMessage/>
                 </FormItem>
               )}/>
             )}
           </div>
+        </details>
+
+        <section aria-labelledby="nfse-preview-title" className="rounded-xl border border-gray-200 bg-white p-4 md:p-6">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 id="nfse-preview-title" className="text-lg font-semibold text-gray-900">Prévia da DPS</h2>
+              <p className="mt-0.5 text-sm text-gray-500">Resumo que será enviado para autorização.</p>
+            </div>
+            {nfseConfig?.serie && <span className="text-xs text-gray-500">Série {nfseConfig.serie}</span>}
+          </div>
+          <dl className="divide-y divide-gray-100 text-sm">
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tomador</dt><dd className="font-medium text-gray-900">{selectedCustomer ? `${selectedCustomer.name} · ${formatCpfCnpj(unformatCpfCnpj(selectedCustomer.sk))}` : '—'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Serviço</dt><dd className="font-medium text-gray-900 wrap-break-word">{selectedService?.description ?? values.service?.description ?? '—'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tributação nacional</dt><dd className="font-mono text-gray-900">{selectedService?.trib_nacional_code ?? '—'}</dd></div>
+            <div className="grid grid-cols-2 gap-4 py-2 sm:grid-cols-4">
+              <div><dt className="text-gray-500">Valor</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue ? formatCurrency(serviceValue) : '—'}</dd></div>
+              <div><dt className="text-gray-500">Alíquota</dt><dd className="mt-0.5 font-medium text-gray-900">{taxRate ? `${taxRate}%` : '—'}</dd></div>
+              <div><dt className="text-gray-500">ISS calculado</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue && taxRate ? formatCurrency(issValue) : '—'}</dd></div>
+              <div><dt className="text-gray-500">Competência</dt><dd className="mt-0.5 font-medium text-gray-900">{formatISODateBR(values.competence ?? '')}</dd></div>
+            </div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Retenção</dt><dd className="font-medium text-gray-900">{retention}</dd></div>
+          </dl>
+        </section>
+
+        {submitError && (
+          <div role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
         )}
 
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 -mx-4 md:-mx-8 px-4 md:px-8 py-3 md:py-4 flex items-center justify-end gap-2">
-          {currentStep !== 'prestador' && (
-            <Button type="button" variant="outline" size="sm" onClick={handleBack}>← Voltar</Button>
-          )}
-          {currentStep !== 'revisao' ? (
-            <Button type="button" variant="brand" size="sm" disabled={!canGoNext(currentStep)} onClick={handleNext}>
-              Próximo →
-            </Button>
-          ) : (
-            <Button type="button" variant="brand" size="sm" disabled={isSubmitting || !canGoNext('revisao')}
-                    onClick={() => setShowEmitConfirm(true)}>
-              {isSubmitting ? 'Emitindo...' : mode === 'substitute' ? 'Substituir NFS-e' : 'Emitir NFS-e'}
-            </Button>
-          )}
+        <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
+          <p className="text-sm text-gray-600">{serviceValue ? `Total ${formatCurrency(serviceValue)}` : 'Selecione um serviço para emitir'}</p>
+          <Button type="button" variant="brand" disabled={isSubmitting || sourceUnavailable}
+                  onClick={() => setShowEmitConfirm(true)}>
+            {isSubmitting ? 'Enviando…' : mode === 'substitute' ? 'Substituir NFS-e' : 'Emitir NFS-e'}
+          </Button>
         </div>
 
         <EmitConfirmModal
@@ -464,13 +518,9 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
             void submit()
           }}
           docLabel="NFS-e"
-          summary={[
-            {label: 'Tomador', value: selectedCustomer?.name ?? '—'},
-            {label: 'Serviço', value: selectedService?.description ?? serviceDescriptionWatch ?? '—'},
-            {label: 'Valor', value: `R$ ${serviceValueWatch}`},
-          ]}
+          summary={[]}
         />
-      </div>
+      </form>
     </Form>
   )
 }

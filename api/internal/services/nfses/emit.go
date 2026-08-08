@@ -39,7 +39,7 @@ type NfseEmitBody struct {
 	TpEmit       int    `json:"tp_emit" validate:"required,oneof=1 2 3"`
 	MotivoEmisTI int    `json:"motivo_emis_ti" validate:"omitempty,oneof=1 2 3 4"`
 	ChNFSeRej    string `json:"ch_nfse_rej" validate:"omitempty,len=50,numeric"`
-	Competence   string `json:"competence" validate:"required,datebr"`
+	Competence   string `json:"competence" validate:"required,isodate"`
 
 	// Quando tp_emit != 1 o prestador é uma pessoa do cadastro.
 	ProviderPersonID *string `json:"provider_person_id" validate:"omitempty"`
@@ -97,6 +97,20 @@ func documentAsMap(doc nfse.Document) (map[string]any, error) {
 		return nil, problem.InternalServer("failed to decode nfse document")
 	}
 	return docMap, nil
+}
+
+// nfseEmissionTime fixa o instante da DPS no timezone fiscal configurado.
+// Configurações anteriores ao campo timezone usam o default documentado para
+// continuar emitindo até serem salvas novamente pela UI.
+func nfseEmissionTime(now time.Time, timezone string) (time.Time, error) {
+	if timezone == "" {
+		timezone = defaultTimezone
+	}
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return time.Time{}, problem.InternalServer("invalid NFS-e timezone configuration")
+	}
+	return now.In(location), nil
 }
 
 // Emit espelha NfeService.Emit: carrega o contexto de cadastro, monta o
@@ -159,10 +173,21 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		return nil, problem.NotFound("serviço não encontrado no catálogo: " + req.Service.ServiceID)
 	}
 
+	competence, parseErr := time.Parse(time.DateOnly, req.Competence)
+	if parseErr != nil {
+		return nil, problem.BadRequest("competence deve estar no formato AAAA-MM-DD")
+	}
+	now := time.Now()
+	emissionTime, err := nfseEmissionTime(now, strAttr(configItem, "timezone"))
+	if err != nil {
+		return nil, err
+	}
+
 	doc, err := buildDocument(documentInput{
 		Org: orgItem, Config: configItem, Prestador: prestadorItem,
 		Tomador: tomadorItem, Intermediario: intermItem, Service: serviceItem,
 		Body: req, Serie: serie, Numero: currentNumber, Environment: environment,
+		DhEmi: emissionTime.Format(dfeDateTimeLayout),
 	})
 	if err != nil {
 		return nil, err
@@ -182,7 +207,6 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	// O mesmo mapa serve ao comando do worker e ao atributo payload da linha.
 	docMap := workerBody[nfse.BodyKeyDocument]
 
-	now := time.Now()
 	pk := docPK(envPrefix, orgPK)
 	// access_key NÃO é gravada aqui: só existe na resposta do fisco (spec
 	// §3.4). Gravar vazio poluiria a GSI access-key-index.
@@ -195,9 +219,10 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		"serie":         serie,
 		"number":        currentNumber,
 		"competence":    req.Competence,
+		"dh_emi":        doc.DhEmi,
 		"c_loc_emi":     doc.CLocEmi,
-		"year":          now.Year(),
-		"month":         int(now.Month()),
+		"year":          competence.Year(),
+		"month":         int(competence.Month()),
 		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
 		"emit_name":     strAttr(orgItem, "name"),
 		"dest_name":     strAttr(tomadorItem, "name"),

@@ -19,6 +19,8 @@ const (
 	tpEmitPrestador   = 1
 	opSimpNacApuracao = 3 // exige regApTribSN
 	appVersion        = "ctech-dfe-1.0"
+	defaultTimezone   = "America/Sao_Paulo" // compatibilidade com configs NFS-e anteriores ao campo timezone
+	dfeDateTimeLayout = "2006-01-02T15:04:05-07:00"
 )
 
 // documentInput reúne tudo que a montagem precisa. Os map[string]AttributeValue
@@ -35,6 +37,7 @@ type documentInput struct {
 	Serie         string
 	Numero        int
 	Environment   int
+	DhEmi         string
 }
 
 // buildDocument converte cadastro + catálogo + body no modelo neutro do
@@ -55,6 +58,7 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 
 	doc := nfse.Document{
 		Ambiente: in.Environment, VerAplic: appVersion,
+		DhEmi:  in.DhEmi,
 		TpEmit: in.Body.TpEmit, MotivoEmisTI: in.Body.MotivoEmisTI,
 		ChNFSeRej:   in.Body.ChNFSeRej,
 		Competencia: in.Body.Competence,

@@ -109,7 +109,8 @@ components:
         c_motivo_emis_ti: { type: integer, enum: [1, 2, 3, 4] }
         serie: { type: string }
         number: { type: integer }
-        competence: { type: string, description: Competência no formato `DD/MM/AAAA`. }
+        competence: { type: string, format: date, description: Data de início da prestação (`dCompet`). }
+        dh_emi: { type: string, format: date-time, description: Data/hora da emissão no fuso da configuração NFS-e. }
         c_loc_emi: { $ref: '#/components/schemas/Ibge' }
         emit_cpf_cnpj: { type: string }
         emit_name: { type: string }

@@ -23,6 +23,19 @@ import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {ServiceOut} from '@/lib/types/api'
 import {formatCurrency} from '@/lib/utils/helpers'
 
+const ISS_INCIDENCE_LABELS: Record<number, string> = {
+  1: 'Tributável',
+  2: 'Imunidade',
+  3: 'Exportação',
+  4: 'Não incidência',
+}
+
+const ISS_RETENTION_LABELS: Record<number, string> = {
+  1: 'Não retido',
+  2: 'Retido pelo tomador',
+  3: 'Retido pelo intermediário',
+}
+
 function ServicesContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
@@ -30,7 +43,7 @@ function ServicesContent() {
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ServiceOut>({
-      queryKey: queryKeys.services.list(selectedOrg?.pk),
+      queryKey: queryKeys.services.page(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getServices({cursor}),
       enabled: !!selectedOrg,
     })
@@ -95,7 +108,7 @@ function ServicesContent() {
                   ariaLabel="Selecionar todos"
                 />
               )},
-              'Código', 'Descrição', 'Cód. tributação nacional', 'Alíquota ISS', 'Valor', {label: '', align: 'right'},
+              'Código', 'Descrição', 'Cód. tributação nacional', 'Incidência', 'Retenção', 'Alíquota ISS', 'Valor', {label: '', align: 'right'},
             ]}
           >
             {visibleItems.map((s) => (
@@ -110,6 +123,12 @@ function ServicesContent() {
                 <td data-label="Código" className={`${TABLE_CELL} font-medium text-gray-900`}>{s.code}</td>
                 <td data-label="Descrição" className={`${TABLE_CELL} text-gray-700`}>{s.description}</td>
                 <td data-label="Cód. tributação nacional" className={`${TABLE_CELL} text-gray-700`}>{s.trib_nacional_code}</td>
+                <td data-label="Incidência" className={`${TABLE_CELL} text-gray-700`}>
+                  {ISS_INCIDENCE_LABELS[s.iss.trib_issqn] ?? '—'}
+                </td>
+                <td data-label="Retenção" className={`${TABLE_CELL} text-gray-700`}>
+                  {s.iss.tp_ret_issqn ? (ISS_RETENTION_LABELS[s.iss.tp_ret_issqn] ?? '—') : 'Não informada'}
+                </td>
                 <td data-label="Alíquota ISS" className={`${TABLE_CELL} text-gray-700`}>{s.iss.tax_rate}%</td>
                 <td data-label="Valor" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(s.value)}</td>
                 <td className={`${TABLE_CELL} text-right`}>

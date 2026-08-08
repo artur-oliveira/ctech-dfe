@@ -235,12 +235,15 @@ do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial P
 ```json
 {
   "tp_emit": 1,
-  "competence": "05/08/2026",
+  "competence": "2026-08-05",
   "service": { "service_id": "SERVICE_01HZ...", "value": "1000.00", "tax_rate": "5.00" },
   "customer_id": "CNPJ_12345678000195",
   "additional_info": "..."
 }
 ```
+
+`competence` é a data civil completa de início da prestação (`dCompet`) em ISO Date `AAAA-MM-DD`.
+O cliente não envia `dh_emi`: a API o gera no instante da emissão usando o `timezone` da configuração NFS-e.
 
 `tp_emit` 2 (tomador) or 3 (intermediário) additionally require `motivo_emis_ti` and
 `provider_person_id`. Full field table and the conditional rules: `DOCS.md` → *Emissão de NFS-e*.

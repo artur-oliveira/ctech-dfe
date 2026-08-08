@@ -105,7 +105,7 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
 
 export function FiscalConfigForm({variant, initialData, onSave, loading = false}: FiscalConfigFormProps) {
   // NFS-e não cabe no layout prod/hom-split: série única (não uma por
-  // ambiente), sem timezone próprio, e o provider troca o conjunto de campos
+  // ambiente), com timezone próprio, e o provider troca o conjunto de campos
   // (nacional x abrasf204) em vez de csc x sem-csc. Componente próprio em vez
   // de forçar o formato aqui — ver NfseConfigForm.tsx.
   if (variant === 'nfse') {

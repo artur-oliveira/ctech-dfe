@@ -3,7 +3,7 @@
 import {Suspense, useState} from 'react'
 import Link from 'next/link'
 import {useSearchParams} from 'next/navigation'
-import {useForm} from 'react-hook-form'
+import {useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
@@ -15,17 +15,22 @@ import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import {Modal} from '@/components/ui/modal'
 import {OptionsSelect} from '@/components/ui/options-select'
+import {Textarea} from '@/components/ui/textarea'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
 import {CONTRIBUINTE_EVENTS, EVENT_LABELS, nfseEventSchema, type NfseEventFormData} from '@/lib/schemas/nfse'
 import {CITY_OPTIONS} from '@/lib/data/cities'
+import {
+  NFSE_CANCELLATION_MOTIVES,
+  NFSE_FISCAL_ANALYSIS_MOTIVES,
+  NFSE_REJECTION_MOTIVES,
+} from '@/lib/data/nfse_motives'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatISODateBR, triggerDownload} from '@/lib/utils/dfe'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {toast} from 'sonner'
 
@@ -55,6 +60,14 @@ function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boole
       toast.success('Evento enviado.')
     },
   })
+  const eventType = useWatch({control: form.control, name: 'event_type'})
+  const motiveOptions = eventType === '101101'
+    ? NFSE_CANCELLATION_MOTIVES
+    : eventType === '101103'
+      ? NFSE_FISCAL_ANALYSIS_MOTIVES
+      : ['202205', '203206', '204207'].includes(eventType)
+        ? NFSE_REJECTION_MOTIVES
+        : []
 
   return (
     <Modal
@@ -75,22 +88,26 @@ function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boole
               <FormMessage/>
             </FormItem>
           )}/>
-          <FormField control={form.control} name="reason_code" render={({field}) => (
-            <FormItem>
-              <FormLabel>Código do motivo</FormLabel>
-              <Input {...field} id={field.name} maxLength={2} className="w-20"/>
-              <FormMessage/>
-            </FormItem>
-          )}/>
+          {motiveOptions.length > 0 && (
+            <FormField control={form.control} name="reason_code" render={({field}) => (
+              <FormItem>
+                <FormLabel>Motivo</FormLabel>
+                <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                               options={[...motiveOptions]} placeholder="Selecione o motivo"/>
+                <FormMessage/>
+              </FormItem>
+            )}/>
+          )}
           <FormField control={form.control} name="reason_description" render={({field}) => (
             <FormItem>
               <FormLabel>Descrição do motivo</FormLabel>
-              <Input {...field} id={field.name} maxLength={255}/>
+              <Textarea {...field} id={field.name} maxLength={255} rows={3}
+                        onChange={(event) => field.onChange(event.target.value.replace(/[\r\n]+/g, ' '))}/>
               <FormMessage/>
             </FormItem>
           )}/>
           {mutation.isError && (
-            <p className="text-xs text-red-600">
+            <p role="alert" className="text-xs text-red-600">
               {mutation.error instanceof ApiError ? mutation.error.detail : 'Erro ao enviar evento.'}
             </p>
           )}
@@ -158,7 +175,7 @@ function NfseDetail({idDps}: { idDps: string }) {
 
   if (error || !doc) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
         NFS-e não encontrada.
       </div>
     )
@@ -201,7 +218,7 @@ function NfseDetail({idDps}: { idDps: string }) {
           )}
 
           <Button variant="outline" size="sm" render={<Link href={`/nfse/emit?substitute=${encodeURIComponent(idDps)}`}/>}
-                  className="text-amber-600 border-amber-200 hover:bg-amber-50">
+                  className="text-brand-700 border-brand-200 hover:bg-brand-50">
             Substituir
           </Button>
 
@@ -221,7 +238,7 @@ function NfseDetail({idDps}: { idDps: string }) {
       {/* Motivo da rejeição — em destaque, não escondido */}
       {doc.status === 'rejected' && doc.sefaz_motive && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-red-400 mb-1.5">Motivo da rejeição</p>
+          <p className="mb-1.5 text-sm font-semibold text-red-700">Motivo da rejeição</p>
           <p className="text-red-700 whitespace-pre-wrap wrap-break-word">{doc.sefaz_motive}</p>
         </div>
       )}
@@ -229,14 +246,14 @@ function NfseDetail({idDps}: { idDps: string }) {
       {/* Prestador / Tomador / Intermediário */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <p className="text-sm font-semibold text-gray-600">
             Organização emitente <span className="font-normal">— {TP_EMIT_LABELS[doc.tp_emit] ?? doc.tp_emit} emite</span>
           </p>
           <p className="font-medium text-gray-900">{doc.emit_name}</p>
           <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.emit_cpf_cnpj)}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Tomador</p>
+          <p className="text-sm font-semibold text-gray-600">Tomador</p>
           <p className="font-medium text-gray-900">{doc.dest_name || <span className="text-gray-300">—</span>}</p>
           {doc.dest_cpf_cnpj && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.dest_cpf_cnpj)}</p>}
         </div>
@@ -244,11 +261,11 @@ function NfseDetail({idDps}: { idDps: string }) {
 
       {/* Serviço e valores */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Serviço e valores</p>
+        <p className="text-sm font-semibold text-gray-600">Serviço e valores</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
           <div>
             <p className="text-gray-400 text-xs">Competência</p>
-            <p className="text-gray-900">{doc.competence}</p>
+            <p className="text-gray-900">{formatISODateBR(doc.competence)}</p>
           </div>
           <div>
             <p className="text-gray-400 text-xs">Município de emissão</p>
@@ -284,7 +301,7 @@ function NfseDetail({idDps}: { idDps: string }) {
                 <DfeStatusBadge status={evt.status} gender="m"/>
               </td>
               <td data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
-              <td className={`${TABLE_CELL} text-right`}>
+              <td className={`${TABLE_CELL} text-right`} data-label="Ações">
                 {evt.xml_s3_key && (
                   <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt.sk, evt.event_type)}
                           disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
@@ -324,12 +341,12 @@ function NfseDetailContent() {
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
           <Link href="/nfse" className="hover:text-brand-600">NFS-e</Link>
           <span>/</span>
-          <span className="text-gray-600 font-mono truncate min-w-0 max-w-[200px]">{idDps || 'Detalhe'}</span>
+          <span className="text-gray-600">Detalhes da NFS-e</span>
         </div>
         {idDps ? (
           <NfseDetail idDps={idDps}/>
         ) : (
-          <p className="text-sm text-gray-500">id_dps não informado.</p>
+          <p role="alert" className="text-sm text-gray-500">NFS-e não informada.</p>
         )}
       </div>
     </RootLayout>

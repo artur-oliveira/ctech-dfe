@@ -1,6 +1,6 @@
 ---
 name: ctech-dfe UI
-description: Calm, efficient fiscal-document workspace — one quiet operator, four document accents
+description: Calm, efficient fiscal-document workspace — one quiet operator, five document accents
 colors:
   primary: "#1c6c55"
   primary-strong: "#195644"
@@ -16,6 +16,7 @@ colors:
   accent-nfce: "#3b82f6"
   accent-cte: "#8b5cf6"
   accent-mdfe: "#f59e0b"
+  accent-nfse: "#0f766e"
 typography:
   display:
     fontFamily: "Geist Sans, system-ui, sans-serif"
@@ -79,7 +80,7 @@ components:
 The interface is the competent colleague who has already done the bureaucratic work for you. It is calm, fast, and invisible — it disappears into the task of issuing and tracking a tax document. The voice is *sharp efficiency*: plain-language, no fiscal jargon performance, zero wasted motion. Every screen earns its density; nothing is decorative. This system explicitly rejects the **bureaucratic government portal** (dated, low-contrast, no hierarchy, anxiety-inducing), the **generic SaaS cream/beige monoculture**, **playful / gamified consumer aesthetics**, and **dense enterprise tools with no visual hierarchy**.
 
 **Key Characteristics:**
-- One quiet green brand, four document accents — the surface stays calm; color signals *which document type* you're in.
+- One quiet green brand, five document accents — the surface stays calm; color signals *which document type* you're in.
 - Compact, consistent controls (32px desktop / 44px touch on mobile) that respect expert density without clutter.
 - Real-time status is always legible — you never wonder "did it go through?".
 - Flat surfaces at rest; depth appears only as a response to state (hover, elevation, focus).
@@ -87,7 +88,7 @@ The interface is the competent colleague who has already done the bureaucratic w
 
 ## 2. Colors
 
-A near-white canvas with a single soft-green brand accent, plus four contextual accents that recolor the whole surface per document type. Neutrals are a cool slate ramp; the brand green is the only always-on color.
+A near-white canvas with a single soft-green brand accent, plus five contextual accents that recolor the whole surface per document type. Neutrals are a cool slate ramp; the brand green is the only always-on color.
 
 ### Primary
 - **Soft Green** (#1c6c55): the brand accent and the fill of every primary action (buttons, active nav, key links). Hover deepens to #195644. (Darkened from the original #218768/#1c6c55 pair — the resting shade measured 4.4:1 against white, under the 4.5:1 AA floor for normal text.)
@@ -98,6 +99,7 @@ A near-white canvas with a single soft-green brand accent, plus four contextual 
 - **NFC-e Blue** (#3b82f6): applied via `data-dfe-theme="nfce"`; recolors sidebar, buttons, and badges for NFC-e.
 - **CT-e Violet** (#8b5cf6): applied via `data-dfe-theme="cte"`.
 - **MDF-e Amber** (#f59e0b): applied via `data-dfe-theme="mdfe"`.
+- **NFS-e Teal** (#0f766e): applied via `data-dfe-theme="nfse"`.
 
 Each accent drives the same `--brand-*` / `--primary-*` scale, so components never change — only the hue does.
 
@@ -111,7 +113,7 @@ Each accent drives the same `--brand-*` / `--primary-*` scale, so components nev
 - **Warning** (#b45309, `--color-warning`) and **Success** (#15803d, `--color-success`): non-destructive status *text* — pending balance, "total confere", optional-field notices. Anchored one step darker than Tailwind's defaults, which fail AA at the 12–14px sizes these states use (amber-600 ≈ 3.19:1, green-600 ≈ 3.35:1). Balance states also carry a glyph (`✓` / `⌛` / `↩`) so colour is never the only signal.
 
 ### Named Rules
-**The One Accent Per Surface Rule.** The core UI is green. A non-green accent appears only inside a `data-dfe-theme` scope (NFC-e/CT-e/MDF-e) — never as free decoration on a green screen.
+**The One Accent Per Surface Rule.** The core UI is green. A non-green accent appears only inside a `data-dfe-theme` scope (NFC-e/CT-e/MDF-e/NFS-e) — never as free decoration on a green screen.
 
 **The Calm Baseline Rule.** Page and card backgrounds stay near-white (#ffffff / #f8fafc). Depth comes from hairline borders and state shadows, never from a colored wash.
 
@@ -201,7 +203,7 @@ Flat by default. Surfaces sit on the canvas with hairline borders; shadow appear
 - **Loading:** skeleton loaders (`animate-pulse`, suppressed under reduced-motion) for initial list/table loads — never a center spinner in content. Background refetches dim subtly.
 
 ### Signature Component — Contextual DF-e Theme
-The single distinctive pattern: setting `data-dfe-theme="nfce | cte | mdfe"` on an ancestor recolors every `bg-brand-*` / `text-primary-*` element underneath to that document type's accent (blue / violet / amber). NF-e is the default green and needs no attribute. This lets one component library serve four fiscal products with zero per-type markup.
+The single distinctive pattern: setting `data-dfe-theme="nfce | cte | mdfe | nfse"` on an ancestor recolors every `bg-brand-*` / `text-primary-*` element underneath to that document type's accent (blue / violet / amber / teal). NF-e is the default green and needs no attribute. This lets one component library serve five fiscal products with zero per-type markup.
 
 ### Shared Emission Vocabulary
 NF-e and NFC-e share components, not flows. NF-e is a considered document and keeps its 4-step wizard, ending in a real document preview with per-block **Editar** jumps. NFC-e is a counter sale and lives on one screen: an always-focused scan/search field that adds on Enter, a running item list, a total pinned in the action bar, and "CPF na nota?" asked once, optionally, next to the payment. The pieces both consume — `ProductSearch`, `ProductLineItem`, `EmitError`, `EmitConfirmModal`, `DraftRecoveryBanner`, `useEmitDraft`, `lib/data/payment-options` — are the consistency layer; the flow shape is where the two documents are allowed to differ.
@@ -209,7 +211,7 @@ NF-e and NFC-e share components, not flows. NF-e is a considered document and ke
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep the core UI green; let NFC-e/CT-e/MDF-e accents appear only inside their `data-dfe-theme` scope.
+- **Do** keep the core UI green; let NFC-e/CT-e/MDF-e/NFS-e accents appear only inside their `data-dfe-theme` scope.
 - **Do** hold body text at ≥4.5:1 — bump Muted Slate toward Ink before you reach for lighter gray. Globals anchor `--color-gray-400` to slate-500 (#64748b) so it can't fall back to the failing Tailwind default.
 - **Do** reuse the control vocabulary everywhere (32px / 44px height, 14px radius); consistency is the product's virtue.
 - **Do** route all destructive text through `--color-danger` (#dc2626, red-600) so the AA floor can't drift to red-500.

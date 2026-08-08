@@ -372,14 +372,12 @@ type NfseAbrasfBody struct {
 // docs/specs/2026-08-04-nfse-design.md §3.2 e §3.3.
 //
 // Não embeda fiscalConfigBase (usado por FiscalConfigBody/NfceConfigBody):
-// a NFS-e tem uma única `serie` (não uma por ambiente) e não tem `timezone`
-// próprio — a DPS deriva o fuso de `c_loc_emi` (município do prestador), ao
-// contrário de NF-e/NFC-e/CT-e/MDF-e, que não têm um município de emissão
-// fixo por config. Ver spec §3.3 (a tabela de campos ali não lista nenhum
-// dos dois).
+// a NFS-e tem uma única `serie` (não uma por ambiente), mas compartilha a
+// validação de timezone usada pelos demais documentos fiscais.
 type NfseConfigBody struct {
 	Provider          string          `json:"provider" validate:"required,oneof=nacional abrasf204"`
 	Environment       int             `json:"environment" validate:"required,oneof=1 2"`
+	Timezone          string          `json:"timezone" validate:"required,timezone"`
 	CLocEmi           string          `json:"c_loc_emi" validate:"required,ibge"`
 	Serie             string          `json:"serie" validate:"required,max=5,number"`
 	ProdCurrentNumber int             `json:"prod_current_number" validate:"gte=0"`

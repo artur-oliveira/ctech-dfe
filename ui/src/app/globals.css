@@ -164,6 +164,19 @@
     --brand-900: #1e3a8a;
 }
 
+[data-dfe-theme="nfse"] {
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0f766e;
+    --brand-700: #115e59;
+    --brand-800: #134e4a;
+    --brand-900: #042f2e;
+}
+
 [data-dfe-theme="cte"] {
     --brand-50: #f5f3ff;
     --brand-100: #ede9fe;

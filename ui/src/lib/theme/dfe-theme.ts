@@ -1,7 +1,8 @@
-export type DfeThemeKey = 'nfe' | 'nfce' | 'cte' | 'mdfe'
+export type DfeThemeKey = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe'
 
 const THEME_ROUTE_PREFIXES: Record<Exclude<DfeThemeKey, 'nfe'>, string> = {
   nfce: '/nfce',
+  nfse: '/nfse',
   cte: '/cte',
   mdfe: '/mdfe',
 }

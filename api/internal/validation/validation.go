@@ -53,6 +53,7 @@ func get() *validator.Validate {
 		_ = v.RegisterValidation("cpf", cpfValidator)
 		_ = v.RegisterValidation("cnpj", cnpjValidator)
 		_ = v.RegisterValidation("cpfcnpj", cpfCnpjValidator)
+		_ = v.RegisterValidation("isodate", isoDateValidator)
 
 		// Validadores de tabela oficial NFS-e (Anexos B e C).
 		_ = v.RegisterValidation("tribnac", tribNacionalValidator)
@@ -173,8 +174,8 @@ func message(fe validator.FieldError) string {
 		return "percentual inválido"
 	case "serie":
 		return "série deve ter 1 a 3 dígitos"
-	case "datebr":
-		return "data inválida (formato dd/mm/aaaa)"
+	case "isodate":
+		return "data inválida (formato AAAA-MM-DD)"
 	case "inscmun":
 		return "inscrição municipal deve ter de 1 a 15 dígitos"
 	case "caepf":

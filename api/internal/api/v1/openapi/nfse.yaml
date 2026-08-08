@@ -386,8 +386,8 @@ components:
           description: Chave da NFS-e rejeitada que motivou esta emissão.
         competence:
           type: string
-          pattern: '^\d{2}/\d{2}/\d{4}$'
-          description: Competência no formato `DD/MM/AAAA`.
+          format: date
+          description: Data de início da prestação (`dCompet`), no formato ISO `AAAA-MM-DD`.
         provider_person_id:
           type: [string, 'null']
           description: Prestador do cadastro — exigido quando `tp_emit` não é `1`.

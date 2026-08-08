@@ -3,6 +3,7 @@ package validation
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/tables"
@@ -40,7 +41,6 @@ var regexValidators = map[string]*regexp.Regexp{
 	"decimalv": regexp.MustCompile(`^\d+(\.\d+)?$`),
 	"percent":  regexp.MustCompile(`^\d{1,3}(\.\d{1,4})?$`),
 	"serie":    regexp.MustCompile(`^\d{1,3}$`),
-	"datebr":   regexp.MustCompile(`^\d{2}/\d{2}/\d{4}$`),
 	"money":    regexp.MustCompile(`^\d+(\.\d{1,4})?$`),
 	"money2":   regexp.MustCompile(`^\d+(\.\d{1,2})?$`),
 	"weight3":  regexp.MustCompile(`^\d+(\.\d{1,3})?$`),
@@ -60,6 +60,14 @@ var regexValidators = map[string]*regexp.Regexp{
 	"d12": regexp.MustCompile(`^\d{1,2}$`),
 	"d4":  regexp.MustCompile(`^\d{4}$`),
 	"d16": regexp.MustCompile(`^\d{1,6}$`),
+}
+
+// isoDateValidator valida uma data civil ISO 8601 completa, incluindo os
+// limites reais de mês/dia; regex aceitaria valores como 2026-02-31.
+func isoDateValidator(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	parsed, err := time.Parse(time.DateOnly, value)
+	return err == nil && parsed.Format(time.DateOnly) == value
 }
 
 // TimezoneSet holds the IANA timezones the fiscal configs accept (mirrors the

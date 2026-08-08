@@ -5,7 +5,7 @@ import {nfseConfigSchema} from '@/lib/schemas/fiscal-configs'
 
 const emitBase = {
   tp_emit: '1' as const,
-  competence: '01/08/2026',
+  competence: '2026-08-01',
   service: {service_id: 'SERVICE_x'},
 }
 
@@ -36,8 +36,9 @@ describe('nfseEmitSchema', () => {
     expect(r.success).toBe(true)
   })
 
-  it('rejeita competência fora do formato DD/MM/AAAA', () => {
-    expect(nfseEmitSchema.safeParse({...emitBase, competence: '2026-08-01'}).success).toBe(false)
+  it('aceita apenas competência ISO com uma data civil válida', () => {
+    expect(nfseEmitSchema.safeParse({...emitBase, competence: '01/08/2026'}).success).toBe(false)
+    expect(nfseEmitSchema.safeParse({...emitBase, competence: '2026-02-31'}).success).toBe(false)
   })
 
   it('exige substitutes_reason quando substitutes_access_key é informado', () => {
@@ -97,6 +98,7 @@ describe('serviceSchema', () => {
 describe('nfseConfigSchema', () => {
   const base = {
     provider: 'nacional' as const, environment: '2' as const,
+    timezone: 'America/Fortaleza' as const,
     c_loc_emi: '2211001', serie: '1', prod_current_number: '0', hom_current_number: '0',
   }
 

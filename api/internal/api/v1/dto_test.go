@@ -227,6 +227,7 @@ func TestNfseConfigBody_Validation(t *testing.T) {
 	valid := NfseConfigBody{
 		Provider:    "nacional",
 		Environment: 2,
+		Timezone:    "America/Fortaleza",
 		CLocEmi:     "2211001",
 		Serie:       "00001",
 	}
@@ -247,6 +248,14 @@ func TestNfseConfigBody_Validation(t *testing.T) {
 		b.CLocEmi = "2211"
 		if p := validation.Struct(b); p == nil {
 			t.Fatal("código IBGE curto aceito")
+		}
+	})
+
+	t.Run("timezone desconhecido é rejeitado", func(t *testing.T) {
+		b := valid
+		b.Timezone = "America/Invalid"
+		if p := validation.Struct(b); p == nil {
+			t.Fatal("timezone desconhecido aceito")
 		}
 	})
 }

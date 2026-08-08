@@ -147,7 +147,7 @@ func patchNfse(t *testing.T, pk, sk string, attrs map[string]types.AttributeValu
 func emitBody(serviceID string) nfses.NfseEmitBody {
 	return nfses.NfseEmitBody{
 		TpEmit:     1,
-		Competence: time.Now().Format("02/01/2006"),
+		Competence: time.Now().Format(time.DateOnly),
 		Service:    nfses.NfseServiceItem{ServiceID: serviceID},
 	}
 }
@@ -176,7 +176,8 @@ func TestNfse(t *testing.T) {
 	t.Run("EmitPersisteComSKIDDPS", func(t *testing.T) {
 		orgPK, serviceID := seedNfseOrg(t, true)
 
-		item, err := nfseSvc.Emit(ctx, orgPK, emitBody(serviceID), testUserID, testUserName)
+		body := emitBody(serviceID)
+		item, err := nfseSvc.Emit(ctx, orgPK, body, testUserID, testUserName)
 		if err != nil {
 			t.Fatalf("Emit: %v", err)
 		}
@@ -195,6 +196,16 @@ func TestNfse(t *testing.T) {
 		}
 		if s := item["status"].(*types.AttributeValueMemberS).Value; s != nfses.StatusPending {
 			t.Errorf("status = %s, esperado %s", s, nfses.StatusPending)
+		}
+		if dhEmi := item["dh_emi"].(*types.AttributeValueMemberS).Value; !strings.HasSuffix(dhEmi, "-03:00") {
+			t.Errorf("dh_emi = %q, esperado timezone America/Fortaleza", dhEmi)
+		}
+		payload := item["payload"].(*types.AttributeValueMemberM).Value
+		if got := payload["competencia"].(*types.AttributeValueMemberS).Value; got != body.Competence {
+			t.Errorf("payload.competencia = %q", got)
+		}
+		if got := payload["dh_emi"].(*types.AttributeValueMemberS).Value; got != item["dh_emi"].(*types.AttributeValueMemberS).Value {
+			t.Errorf("payload.dh_emi = %q, linha = %q", got, item["dh_emi"].(*types.AttributeValueMemberS).Value)
 		}
 
 		pk := item["pk"].(*types.AttributeValueMemberS).Value
@@ -341,19 +352,17 @@ func TestNfse(t *testing.T) {
 	t.Run("ListNfsesFiltraPorCompetencia", func(t *testing.T) {
 		orgPK, serviceID := seedNfseOrg(t, true)
 
-		atual, err := nfseSvc.Emit(ctx, orgPK, emitBody(serviceID), testUserID, testUserName)
+		currentBody := emitBody(serviceID)
+		atual, err := nfseSvc.Emit(ctx, orgPK, currentBody, testUserID, testUserName)
 		if err != nil {
 			t.Fatalf("Emit atual: %v", err)
 		}
-		antiga, err := nfseSvc.Emit(ctx, orgPK, emitBody(serviceID), testUserID, testUserName)
+		oldBody := emitBody(serviceID)
+		oldBody.Competence = "1999-01-15"
+		_, err = nfseSvc.Emit(ctx, orgPK, oldBody, testUserID, testUserName)
 		if err != nil {
 			t.Fatalf("Emit antiga: %v", err)
 		}
-		pk := antiga["pk"].(*types.AttributeValueMemberS).Value
-		patchNfse(t, pk, antiga["sk"].(*types.AttributeValueMemberS).Value, map[string]types.AttributeValue{
-			"year":  &types.AttributeValueMemberN{Value: "1999"},
-			"month": &types.AttributeValueMemberN{Value: "1"},
-		})
 
 		now := time.Now()
 		year, month := now.Year(), int(now.Month())

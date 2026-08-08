@@ -13,6 +13,7 @@ func nfseConfigFields() map[string]types.AttributeValue {
 	return map[string]types.AttributeValue{
 		"provider":            &types.AttributeValueMemberS{Value: "nacional"},
 		"environment":         &types.AttributeValueMemberN{Value: "2"},
+		"timezone":            &types.AttributeValueMemberS{Value: "America/Fortaleza"},
 		"c_loc_emi":           &types.AttributeValueMemberS{Value: "2211001"},
 		"serie":               &types.AttributeValueMemberS{Value: "00001"},
 		"prod_current_number": &types.AttributeValueMemberN{Value: "0"},
@@ -37,6 +38,9 @@ func TestNfseConfig_UpsertAndGet(t *testing.T) {
 	}
 	if got["c_loc_emi"].(*types.AttributeValueMemberS).Value != "2211001" {
 		t.Errorf("c_loc_emi = %v", got["c_loc_emi"])
+	}
+	if got["timezone"].(*types.AttributeValueMemberS).Value != "America/Fortaleza" {
+		t.Errorf("timezone = %v", got["timezone"])
 	}
 }
 

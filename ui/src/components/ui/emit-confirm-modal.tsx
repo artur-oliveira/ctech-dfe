@@ -21,14 +21,16 @@ export function EmitConfirmModal({open, onClose, onConfirm, docLabel, summary}: 
           Esta ação envia o documento à SEFAZ e não pode ser desfeita diretamente. Confira os dados antes de
           confirmar.
         </p>
-        <dl className="rounded-lg border border-gray-200 bg-gray-50 divide-y divide-gray-100">
-          {summary.map(({label, value}) => (
-            <div key={label} className="flex items-center justify-between px-4 py-2 text-sm">
-              <dt className="text-gray-500">{label}</dt>
-              <dd className="font-medium text-gray-900 text-right">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {summary.length > 0 && (
+          <dl className="rounded-lg border border-gray-200 bg-gray-50 divide-y divide-gray-100">
+            {summary.map(({label, value}) => (
+              <div key={label} className="flex items-center justify-between px-4 py-2 text-sm">
+                <dt className="text-gray-500">{label}</dt>
+                <dd className="font-medium text-gray-900 text-right">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
     </Modal>
   )

@@ -103,11 +103,11 @@ pelo rótulo e pelo pulso, nunca por um segundo tom de vermelho. Tabela completa
 ## Contextual DF-e Theme
 
 The `primary-*`/`brand-*` Tailwind scale resolves from CSS custom properties (`--brand-50`…`--brand-900`, defined in
-`ui/src/app/globals.css`) rather than fixed hex values. Setting `data-dfe-theme="nfce" | "cte" | "mdfe"` on any ancestor
+`ui/src/app/globals.css`) rather than fixed hex values. Setting `data-dfe-theme="nfce" | "cte" | "mdfe" | "nfse"` on any ancestor
 element overrides that scale for everything underneath it — no component changes needed, since every `bg-primary-600`,
 `text-brand-700`, etc. picks it up automatically via inheritance. `"nfe"` (or no attribute) is the default green scale.
 
-- `ui/src/lib/theme/dfe-theme.ts` — `getDfeThemeFromPath()` maps a route (`/nfce/...`, `/cte/...`, `/mdfe/...`) to its
+- `ui/src/lib/theme/dfe-theme.ts` — `getDfeThemeFromPath()` maps a route (`/nfce/...`, `/cte/...`, `/mdfe/...`, `/nfse/...`) to its
   theme key.
 - `RootLayout` applies it app-wide based on the current route, so the whole authenticated UI (sidebar, buttons, badges)
   recolors to match whichever document type the user is working in.
@@ -116,4 +116,6 @@ element overrides that scale for everything underneath it — no component chang
 
 Accent colors per document type (also used for icon backgrounds in
 `lib/constants/dfe-documents.tsx`): NF-e `#2ea87f` (green/default), NFC-e
-`#3b82f6` (blue), CT-e `#8b5cf6` (violet), MDF-e `#f59e0b` (amber).
+`#3b82f6` (blue), CT-e `#8b5cf6` (violet), MDF-e `#f59e0b` (amber), NFS-e
+`#0f766e` (teal). Contextual document actions such as **Substituir** use the inherited brand token,
+never another document's raw accent.

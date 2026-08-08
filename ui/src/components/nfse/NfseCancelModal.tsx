@@ -2,9 +2,11 @@
 
 import {useState} from 'react'
 import {Modal} from '@/components/ui/modal'
-import {Input} from '@/components/ui/input'
+import {OptionsSelect} from '@/components/ui/options-select'
 import {JustificationField} from '@/components/ui/justification-field'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
+import {ApiError} from '@/lib/api/client'
+import {NFSE_CANCELLATION_MOTIVES} from '@/lib/data/nfse_motives'
 
 interface NfseCancelModalProps {
   isOpen: boolean
@@ -50,9 +52,9 @@ export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onC
           junto ao fisco municipal e não poderá ser reativada.
         </p>
         <div>
-          <label htmlFor="nfse-cancel-code" className="block text-sm font-medium text-gray-700 mb-1.5">Código do motivo</label>
-          <Input id="nfse-cancel-code" value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} maxLength={2} className="w-20"/>
-          <p className="mt-1 text-xs text-gray-400">Consulte o manual do contribuinte do município.</p>
+          <label htmlFor="nfse-cancel-code" className="block text-sm font-medium text-gray-700 mb-1.5">Motivo do cancelamento</label>
+          <OptionsSelect id="nfse-cancel-code" value={reasonCode} onValueChange={setReasonCode}
+                         options={[...NFSE_CANCELLATION_MOTIVES]} placeholder="Selecione o motivo"/>
         </div>
         <JustificationField
           id="nfse-cancel-description"
@@ -62,7 +64,9 @@ export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onC
           placeholder="Descreva o motivo do cancelamento (mínimo 15 caracteres)…"
         />
         {error != null && (
-          <p className="text-xs text-red-600">{(error as Error)?.message ?? 'Erro ao cancelar NFS-e.'}</p>
+          <p role="alert" className="text-xs text-red-600">
+            {error instanceof ApiError ? error.detail : 'Não foi possível cancelar a NFS-e. Tente novamente.'}
+          </p>
         )}
       </div>
     </Modal>

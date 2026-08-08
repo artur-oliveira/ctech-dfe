@@ -10,7 +10,13 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {Button} from '@/components/ui/button'
 import {formatDatetimeBR} from '@/lib/utils/dfe'
-import {type NfseConfigFormData, nfseConfigSchema} from '@/lib/schemas/fiscal-configs'
+import {
+  BRAZIL_TIMEZONES,
+  type BrazilTimezone,
+  type NfseConfigFormData,
+  nfseConfigSchema,
+  TIMEZONE_LABELS,
+} from '@/lib/schemas/fiscal-configs'
 import type {NfseConfigOut} from '@/lib/types/api'
 import {CITY_OPTIONS} from '@/lib/data/cities'
 
@@ -24,6 +30,9 @@ function toFormValues(cfg: NfseConfigOut | null | undefined): NfseConfigFormData
   return {
     provider: cfg?.provider ?? 'nacional',
     environment: String(cfg?.environment ?? 2) as '1' | '2',
+    timezone: (BRAZIL_TIMEZONES.includes(cfg?.timezone as BrazilTimezone)
+      ? cfg?.timezone
+      : 'America/Sao_Paulo') as BrazilTimezone,
     c_loc_emi: cfg?.c_loc_emi ?? '',
     serie: cfg?.serie ?? '1',
     prod_current_number: String(cfg?.prod_current_number ?? 0),
@@ -40,6 +49,7 @@ function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
   return {
     provider: d.provider,
     environment: parseInt(d.environment, 10),
+    timezone: d.timezone,
     c_loc_emi: d.c_loc_emi,
     serie: d.serie,
     prod_current_number: parseInt(d.prod_current_number, 10),
@@ -147,6 +157,23 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
                 {value: '2', label: '2 – Homologação'},
               ]}
               className="max-w-64"
+            />
+            <FormMessage/>
+          </FormItem>
+        )}/>
+
+        <FormField control={form.control} name="timezone" render={({field}) => (
+          <FormItem>
+            <FormLabel>Fuso horário da emissão</FormLabel>
+            <OptionsSelect
+              id={field.name}
+              value={field.value}
+              onValueChange={field.onChange}
+              options={BRAZIL_TIMEZONES.map((timezone) => ({
+                value: timezone,
+                label: TIMEZONE_LABELS[timezone],
+              }))}
+              className="max-w-96"
             />
             <FormMessage/>
           </FormItem>

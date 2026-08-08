@@ -477,6 +477,7 @@ cursor fields (for tracking the last consumed NSU during ADN polling).
 | `pk`                  | S    | `{org_pk}` — partition key                                                                      |
 | `provider`            | S    | `nacional` or `abrasf204`                                                                       |
 | `environment`         | N    | `1` produção / `2` homologação                                                                  |
+| `timezone`            | S    | IANA timezone used by the API to generate the DPS `dhEmi`; legacy absence falls back to `America/Sao_Paulo` |
 | `c_loc_emi`           | S    | 7-digit IBGE code of the local de emissão (município do prestador)                              |
 | `serie`               | S    | Document series, up to 5 digits                                                                 |
 | `prod_current_number` | N    | Next production DPS number; preserved across `Upsert` (never zeroed)                            |
@@ -509,8 +510,8 @@ One item per issued NFS-e. Reuses the same `getDfeTable` shape as `nfes`/`nfces`
 | `number`     | N    | Document number. GSI: `number-index-v2`                    |
 | `status`     | S    | `authorized`, `rejected`, `pending`, `cancelled`, `failed` |
 | `incoming`   | N    | `0` = outgoing, `1` = incoming. Used in `dfe-index`        |
-| `year`       | N    | Issue year. Used in `dfe-index`                            |
-| `month`      | N    | Issue month (1–12). Used in `dfe-index`                    |
+| `year`       | N    | Competence year. Used in `dfe-index`                       |
+| `month`      | N    | Competence month (1–12). Used in `dfe-index`               |
 | `day`        | N    | Issue day (1–31). Used in `dfe-index`                      |
 | `created_at` | S    | ISO-8601 UTC                                               |
 | `updated_at` | S    | ISO-8601 UTC                                               |
@@ -524,6 +525,7 @@ Written by `NfseService.Emit` in the same `TransactWrite` that reserves the DPS 
 | `c_motivo_emis_ti` | N    | Only when `tp_emit != 1` (DPS `cMotivoEmisTI`)                                              |
 | `serie`            | S    | DPS series, from the config                                                                 |
 | `competence`       | S    | `AAAA-MM-DD` competence date (DPS `dCompet`)                                                 |
+| `dh_emi`           | S    | DPS issuance date-time with the offset from the NFS-e config timezone                        |
 | `c_loc_emi`        | S    | 7-digit IBGE code of the local de emissão                                                    |
 | `emit_cpf_cnpj`    | S    | Issuer document, PK prefix stripped                                                          |
 | `emit_name`        | S    | Issuer name                                                                                  |

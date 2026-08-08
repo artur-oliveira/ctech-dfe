@@ -59,7 +59,7 @@ export const serviceSchema = z.object({
   trib_nacional_code: z.string().regex(/^\d{6}$/, 'Código de tributação nacional tem 6 dígitos'),
   trib_municipal_code: z.string().max(20).optional().or(z.literal('')),
   nbs_code: z.string().regex(/^\d{9}$/, 'NBS tem 9 dígitos').optional().or(z.literal('')),
-  cnae: z.string().optional().or(z.literal('')),
+  cnae: z.string().regex(/^\d{7}$/, 'CNAE tem 7 dígitos').optional().or(z.literal('')),
   unit: z.string().min(1, 'Unidade obrigatória'),
   value: money,
   iss: serviceIssSchema,

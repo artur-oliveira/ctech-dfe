@@ -215,8 +215,7 @@ export interface NFCeConfigOut {
 export type CTeConfigOut = NFeConfigOut
 export type MDFeConfigOut = NFeConfigOut
 
-// NFS-e não tem timezone próprio nem serie por ambiente — deriva o fuso de
-// c_loc_emi e usa uma única serie (docs/specs/2026-08-04-nfse-design.md §3.3).
+// NFS-e usa uma única série para os dois ambientes.
 export interface NfseAbrasfBody {
   endpoint_url: string
   wsdl_version: string
@@ -228,6 +227,7 @@ export interface NfseConfigOut {
   pk: string
   provider: 'nacional' | 'abrasf204'
   environment: number
+  timezone: string
   c_loc_emi: string
   serie: string
   prod_current_number: number
@@ -1088,6 +1088,7 @@ export interface NfseListOut {
   serie: string
   number: number
   competence: string
+  dh_emi: string
   c_loc_emi: string
   year: number
   month: number

@@ -3,6 +3,7 @@ package nfses
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -79,12 +80,48 @@ func minimalInput() documentInput {
 		Environment: 2,
 		Serie:       "1",
 		Numero:      1,
+		DhEmi:       "2026-08-08T10:30:00-03:00",
 		Body: NfseEmitBody{
-			TpEmit: 1,
+			TpEmit:     1,
+			Competence: "2026-08-01",
 			Service: NfseServiceItem{
 				ServiceID: "SERVICE_x",
 			},
 		},
+	}
+}
+
+func TestBuildDocument_MapsISOCompetenceAndDhEmi(t *testing.T) {
+	doc, err := buildDocument(minimalInput())
+	if err != nil {
+		t.Fatalf("buildDocument: %v", err)
+	}
+	if doc.Competencia != "2026-08-01" {
+		t.Errorf("Competencia = %q", doc.Competencia)
+	}
+	if doc.DhEmi != "2026-08-08T10:30:00-03:00" {
+		t.Errorf("DhEmi = %q", doc.DhEmi)
+	}
+}
+
+func TestNfseEmissionTime_UsesConfiguredTimezoneAndFallback(t *testing.T) {
+	now := time.Date(2026, 8, 8, 13, 30, 0, 0, time.UTC)
+	fortaleza, err := nfseEmissionTime(now, "America/Fortaleza")
+	if err != nil {
+		t.Fatalf("nfseEmissionTime Fortaleza: %v", err)
+	}
+	if got := fortaleza.Format(dfeDateTimeLayout); got != "2026-08-08T10:30:00-03:00" {
+		t.Errorf("Fortaleza = %q", got)
+	}
+	fallback, err := nfseEmissionTime(now, "")
+	if err != nil {
+		t.Fatalf("nfseEmissionTime fallback: %v", err)
+	}
+	if fallback.Location().String() != defaultTimezone {
+		t.Errorf("fallback timezone = %q", fallback.Location())
+	}
+	if _, err := nfseEmissionTime(now, "America/Invalid"); err == nil {
+		t.Fatal("timezone inválido aceito")
 	}
 }
 

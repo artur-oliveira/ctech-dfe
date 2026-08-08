@@ -85,19 +85,18 @@ func TestTimezoneAndPercent(t *testing.T) {
 	}
 }
 
-// TestDateBrValidator is a regression test: "datebr" was used in
-// NfseEmitBody.Competence (api/internal/services/nfses/emit.go) without ever
-// being registered, so validator.Struct panicked on every NFS-e emission
-// request ("Undefined validation function 'datebr'").
-func TestDateBrValidator(t *testing.T) {
+func TestISODateValidator(t *testing.T) {
 	type body struct {
-		Competence string `json:"competence" validate:"required,datebr"`
+		Competence string `json:"competence" validate:"required,isodate"`
 	}
-	if p := Struct(body{Competence: "01/08/2026"}); p != nil {
+	if p := Struct(body{Competence: "2026-08-01"}); p != nil {
 		t.Fatalf("expected valid competence, got %+v", p.Errors)
 	}
-	if p := Struct(body{Competence: "2026-08-01"}); p == nil {
-		t.Fatal("expected error for ISO-format competence")
+	if p := Struct(body{Competence: "01/08/2026"}); p == nil {
+		t.Fatal("expected error for Brazilian-format competence")
+	}
+	if p := Struct(body{Competence: "2026-02-31"}); p == nil {
+		t.Fatal("expected error for nonexistent calendar date")
 	}
 	if p := Struct(body{Competence: ""}); p == nil {
 		t.Fatal("expected error for empty competence")

@@ -17,6 +17,7 @@ export const queryKeys = {
   },
   services: {
     list: (orgPk: string | undefined) => ['services', orgPk] as const,
+    page: (orgPk: string | undefined) => ['services', orgPk, 'page'] as const,
     detail: (id: string) => ['service', id] as const,
   },
   vehicles: {
@@ -58,7 +59,6 @@ export const queryKeys = {
   distributions: {
     history: (docType: string, orgPk: string | undefined) => [`${docType}-distributions`, orgPk] as const,
   },
-  nfseDistributions: (orgPk: string | undefined) => ['nfse-distributions', orgPk] as const,
   municipalParams: (city: string, kind: string, params?: object) => ['municipal-params', city, kind, params] as const,
   auditLogs: {
     list: (orgPk: string | undefined, params?: object) => ['audit-logs', orgPk, params] as const,

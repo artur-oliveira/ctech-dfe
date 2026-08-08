@@ -158,6 +158,7 @@ NF-e. Tabelas separadas obrigariam o usuário a manter o mesmo cliente cadastrad
 | `pk` | S | `{org_pk}` |
 | `provider` | S | `nacional` \| `abrasf204` |
 | `environment` | N | `1` produção \| `2` homologação (produção restrita) |
+| `timezone` | S | Fuso IANA usado para gerar `dhEmi` na DPS |
 | `c_loc_emi` | S | Código IBGE do município emissor (7 dígitos) |
 | `serie` | S | Série da DPS/RPS (até 5 chars) |
 | `prod_current_number` / `hom_current_number` | N | Último `nDPS`/número de RPS emitido por ambiente — reservado por `IncrementNumber` |
@@ -185,6 +186,8 @@ introduz um campo `next_number` divergente. Mesma forma e mesmo serviço-base do
 | `status` | S | `pending` \| `processing` \| `authorized` \| `rejected` \| `cancelled` \| `error` |
 | `tp_emit` | N | 1 prestador \| 2 tomador \| 3 intermediário |
 | `c_motivo_emis_ti` | N | Obrigatório quando `tp_emit` ∈ {2,3} |
+| `competence` | S | Data completa de início da prestação (`dCompet`), ISO `AAAA-MM-DD` |
+| `dh_emi` | S | Instante de emissão com offset do `timezone` da configuração |
 | `payload` | M | Documento neutro completo (§4.2), como persistido na emissão |
 | `s3_key_dps`, `s3_key_nfse` | S | XMLs no S3 |
 | `verification_code` | S | ABRASF: `CodigoVerificacao` |
@@ -470,7 +473,7 @@ Novo cursor de distribuição no `distribution-dispatcher` para NSU do ADN.
 | `/nfse` | Listagem com filtros (competência, status, número), detalhe, timeline de eventos |
 | `/nfse/emit` | Wizard: Prestador → Tomador/Intermediário → Serviço → Valores → Revisão (segue a convenção `/emit` das outras três telas de emissão — não `/new`). Também usado para substituição via `?substitute={id_dps}` |
 | `/nfse/distributions` | Notas recebidas via ADN, somente leitura (a API ainda não expõe manifestação — F6+) |
-| `/fiscal-config` | Aba NFS-e (provider, ambiente, município, série, regime tributário, ABRASF) |
+| `/fiscal-config` | Aba NFS-e (provider, ambiente, timezone, município, série, regime tributário, ABRASF) |
 
 Princípio de simplicidade: o wizard preenche a maior parte a partir do **serviço selecionado** e da
 **config da org**. Grupos avançados (comércio exterior, obra, evento, IBS/CBS detalhado) ficam

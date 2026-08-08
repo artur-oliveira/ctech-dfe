@@ -28,6 +28,12 @@ func TestEmit_BuildsWorkerBodyForDispatch(t *testing.T) {
 	if sub["c_loc_emi"] != "2211001" {
 		t.Errorf("c_loc_emi perdido na serialização: %v", sub["c_loc_emi"])
 	}
+	if sub["competencia"] != "2026-08-01" {
+		t.Errorf("competencia perdida na serialização: %v", sub["competencia"])
+	}
+	if sub["dh_emi"] != "2026-08-08T10:30:00-03:00" {
+		t.Errorf("dh_emi perdido na serialização: %v", sub["dh_emi"])
+	}
 	// A chave "prestador" tem que existir com o reg_trib dentro — se o
 	// achatamento do embedded Pessoa quebrar, isso pega.
 	prest, ok := sub["prestador"].(map[string]any)

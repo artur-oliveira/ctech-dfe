@@ -250,7 +250,7 @@ produziria um item órfão.
   com o documento da org resolvem para o item de `organizations` — ela não existe em
   `organization_persons`, então `resolvePerson` compara antes de consultar o repositório.
 - **As tabelas de referência da NFS-e** (`go-dfe/nfse/tables/{trib_nacional,nbs,indop}.go`,
-  `ui/src/lib/data/nfse_{trib_nacional,indop}.ts`) **são geradas por
+  `ui/src/lib/data/nfse_{trib_nacional,nbs,indop,countries,motives}.ts`) **são geradas por
   `go-dfe/nfse/tables/gen/generate.py` e versionadas — nunca edite os `.go`/`.ts` gerados à mão.**
   Regenerar quando a Receita publicar um anexo novo (`python3 go-dfe/nfse/tables/gen/generate.py`
   a partir da raiz do repo, com os anexos em `tmp/`). O código de tributação nacional é
@@ -297,6 +297,10 @@ produziria um item órfão.
   `c_trib_mun`, `c_loc_emi`, `trib_issqn`, `cpf_ag_trib`, `id_ev_manif_rej`) — a mesma regra que a
   NF-e aplica em `tp_nf`/`fin_nfe`/`nat_op`. O `nfse.Document` neutro dentro de `payload` é outro
   contrato: espelha os nomes dos elementos do DPS 1.01 de propósito.
+- **Competência de NFS-e é uma data civil completa, não apenas mês/ano.** `competence` entra e sai da
+  API como ISO Date `AAAA-MM-DD` e alimenta `dCompet`, cuja definição é a data de início da prestação.
+  Não converta esse campo por timezone. A API gera `dhEmi` separadamente no timezone da configuração
+  NFS-e; configurações legadas sem o campo usam `America/Sao_Paulo` até serem salvas novamente.
 - **Substituição não é evento.** `POST /nfses/{id}/substitute` entra em `NfseService.Emit` com o
   grupo `subst` preenchido; o fisco gera o evento `105102` e cancela a original por conta própria
   (manual do contribuinte §1.3.2). Pedir `105102` pelo endpoint genérico de eventos devolve 400
@@ -501,6 +505,14 @@ produziria um item órfão.
   `EmitConfirmModal`, `useEmitDraft`, `lib/data/payment-options`). Ver DOCS.md §5.
 - **Nenhum formulário de emissão adiciona dados por conta própria.** Não pré-preencha produto,
   destinatário ou pagamento a partir do catálogo: o documento é fiscal e irreversível.
+- **Domínio fechado ou entidade existente usa picker, nunca texto livre.** Código fiscal, país,
+  CNAE, NBS, motivo normativo e referência a outro documento devem vir de `OptionsSelect`,
+  `Combobox` ou busca de entidade, com opções da tabela oficial versionada e com escopo da
+  organização quando aplicável. Texto livre fica reservado a conteúdo realmente autoral
+  (descrição/observação/nome), sempre com limite explícito e normalização de quebra de linha.
+  A varredura de 2026-08-07 confirmou que CT-e ainda não possui formulário de emissão e que o
+  MDF-e já restringe UF, CEP, veículo e documento; somente nome de motorista permanece livre por
+  ser dado autoral, enquanto CPF usa entrada numérica limitada.
 - Rascunhos de emissão são locais (`useEmitDraft` → localStorage) e nunca aplicados automaticamente:
   o usuário escolhe retomar ou descartar.
 - **Status de DF-e vem de `lib/data/dfe_status.ts`, e só de lá.** Rótulo, tom, pulso e título do

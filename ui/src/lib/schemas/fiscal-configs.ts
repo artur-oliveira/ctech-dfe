@@ -61,13 +61,14 @@ export type NFCeConfigFormData = z.infer<typeof nfceConfigSchema>
 export type CTeConfigFormData  = z.infer<typeof cteConfigSchema>
 export type MDFeConfigFormData = z.infer<typeof mdfeConfigSchema>
 
-// NFS-e não embeda baseFields: uma única serie (não prod/hom), sem timezone
-// próprio (deriva de c_loc_emi), e o formato do provider nacional troca
+// NFS-e não embeda baseFields: uma única serie (não prod/hom), e o formato
+// do provider nacional troca
 // prod_current_serie por um município emissor. Ver api/internal/api/v1/dto.go
 // NfseConfigBody e docs/specs/2026-08-04-nfse-design.md §3.3.
 export const nfseConfigSchema = z.object({
   provider: z.enum(['nacional', 'abrasf204']),
   environment: z.enum(['1', '2']),
+  timezone: z.enum(BRAZIL_TIMEZONES),
   c_loc_emi: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),
   serie: serieField,
   prod_current_number: numberField,

@@ -21,7 +21,7 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import type {NfseListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatISODateBR, triggerDownload} from '@/lib/utils/dfe'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
@@ -30,6 +30,7 @@ import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {dfeStatusOptions, NFSE_STATUSES} from '@/lib/data/dfe_status'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
+import {NfseDistributionTab} from '@/components/nfse/NfseDistributionTab'
 import {useState} from 'react'
 import {toast} from 'sonner'
 
@@ -46,6 +47,13 @@ const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
 const STATUS_OPTIONS = [
   {value: '', label: 'Todos'},
   ...dfeStatusOptions(NFSE_STATUSES),
+]
+
+type NfseTab = 'emitidas' | 'distribuicao'
+
+const NFSE_TABS: readonly { key: NfseTab; label: string }[] = [
+  {key: 'emitidas', label: 'Emitidas'},
+  {key: 'distribuicao', label: 'Recebidas via ADN'},
 ]
 
 function NfsesContent() {
@@ -69,6 +77,13 @@ function NfsesContent() {
   const filterMonth = params.get('month') ?? ''
   const numberSearch = params.get('number') ?? ''
   const filterStatus = params.get('status') ?? ''
+  const activeTab: NfseTab = params.get('tab') === 'distribuicao' ? 'distribuicao' : 'emitidas'
+
+  const setActiveTab = (tab: NfseTab) => {
+    const search = new URLSearchParams(params.toString())
+    search.set('tab', tab)
+    router.replace(`/nfse?${search.toString()}`, {scroll: false})
+  }
 
   const setFilter = (key: string, value: string) => {
     const sp = new URLSearchParams(params.toString())
@@ -91,7 +106,7 @@ function NfsesContent() {
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NfseListOut>({
     queryKey: queryKeys.nfses.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.getNfses({...queryParams, cursor}),
-    enabled: !!orgPk,
+    enabled: !!orgPk && activeTab === 'emitidas',
   })
 
   const cancelMutation = useMutation({
@@ -133,8 +148,29 @@ function NfsesContent() {
 
         <HomologationBanner environment={nfseConfig?.environment}/>
 
+        <div role="tablist" aria-label="Listas de NFS-e" className="mb-6 flex overflow-x-auto border-b border-gray-200">
+          {NFSE_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative min-h-11 shrink-0 px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "text-brand-700 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-brand-600 after:content-['']"
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {!selectedOrg ? (
           <NoOrgBanner/>
+        ) : activeTab === 'distribuicao' ? (
+          <NfseDistributionTab docType="nfse" orgPk={orgPk}/>
         ) : (
           <>
             <form onSubmit={(e) => e.preventDefault()} className="flex items-start gap-3 mb-5 flex-wrap">
@@ -201,6 +237,7 @@ function NfsesContent() {
               <LoadingSkeleton/>
             ) : items.length === 0 ? (
               <EmptyState title="Nenhuma NFS-e emitida" description="Emita a primeira Nota Fiscal de Serviços da organização."
+                          action={{label: 'Emitir NFS-e', onClick: () => router.push('/nfse/emit')}}
                           icon={<ServiceIcon width={20} height={20}/>}/>
             ) : (
               <TableShell
@@ -216,7 +253,7 @@ function NfsesContent() {
                       <span className="text-gray-400 text-xs ml-1">/ {nfse.serie}</span>
                     </td>
                     <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Competência">
-                      {nfse.competence}
+                      {formatISODateBR(nfse.competence)}
                     </td>
                     <td className={TABLE_CELL} data-label="Tomador">
                       {nfse.dest_name ? (
@@ -225,7 +262,7 @@ function NfsesContent() {
                           {nfse.dest_cpf_cnpj && <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfse.dest_cpf_cnpj)}</p>}
                         </>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-500">—</span>
                       )}
                     </td>
                     <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Valor">{formatCurrency(nfse.total)}</td>
@@ -235,7 +272,7 @@ function NfsesContent() {
                     <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emitida em">
                       {formatDatetimeBR(nfse.created_at)}
                     </td>
-                    <td className={`${TABLE_CELL} text-right`}>
+                    <td className={`${TABLE_CELL} text-right`} data-label="Ações">
                       <div className="flex items-center justify-end gap-3">
                         <Link href={`/nfse/detail?id=${encodeURIComponent(nfse.sk)}`}
                               className="flex items-center min-h-11 sm:min-h-0 text-xs font-medium text-brand-600 hover:text-brand-700">

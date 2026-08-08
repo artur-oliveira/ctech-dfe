@@ -6,12 +6,15 @@ import {zodResolver} from '@hookform/resolvers/zod'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {CurrencyInput} from '@/components/ui/currency-input'
+import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
 import {Button} from '@/components/ui/button'
 import {type ServiceFormData, serviceSchema} from '@/lib/schemas/services'
 import type {ServiceCreate, ServiceOut} from '@/lib/types/api'
 import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional'
+import {NFSE_NBS} from '@/lib/data/nfse_nbs'
+import {NFSE_COUNTRIES} from '@/lib/data/nfse_countries'
 import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {generateEntityCode} from '@/lib/utils/code'
@@ -36,12 +39,12 @@ const TP_RET_ISSQN_OPTIONS = [
 ]
 
 const TP_IMUNIDADE_OPTIONS = [
-  {value: '0', label: '0 – Não informado'},
-  {value: '1', label: '1 – Hipótese constitucional 1'},
-  {value: '2', label: '2 – Hipótese constitucional 2'},
-  {value: '3', label: '3 – Hipótese constitucional 3'},
-  {value: '4', label: '4 – Hipótese constitucional 4'},
-  {value: '5', label: '5 – Hipótese constitucional 5'},
+  {value: '0', label: '0 – Tipo não informado na nota de origem'},
+  {value: '1', label: '1 – Imunidade recíproca entre entes públicos'},
+  {value: '2', label: '2 – Templos de qualquer culto'},
+  {value: '3', label: '3 – Partidos, sindicatos, educação e assistência sem fins lucrativos'},
+  {value: '4', label: '4 – Livros, jornais, periódicos e papel de impressão'},
+  {value: '5', label: '5 – Fonogramas e videofonogramas musicais brasileiros'},
 ]
 
 // TSTipoRetPISCofins — rótulos em api/internal/api/v1/dto.go (ServiceFederalBody).
@@ -62,6 +65,18 @@ const TRIB_NACIONAL_OPTIONS: ComboboxOption[] = NFSE_TRIB_NACIONAL.map((t) => ({
   value: t.code,
   label: `${t.code} – ${t.description}`,
   display: t.code,
+}))
+
+const NBS_OPTIONS: ComboboxOption[] = NFSE_NBS.map((entry) => ({
+  value: entry.code,
+  label: `${entry.code} – ${entry.description}`,
+  display: entry.code,
+}))
+
+const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
+  value: country.code,
+  label: `${country.code} – ${country.name}`,
+  display: country.code,
 }))
 
 function toFormData(s: ServiceOut): ServiceFormData {
@@ -214,14 +229,16 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             <FormField control={form.control} name="nbs_code" render={({field}) => (
               <FormItem>
                 <FormLabel>Código NBS</FormLabel>
-                <Input {...field} id={field.name} maxLength={9} placeholder="9 dígitos"/>
+                <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                          options={NBS_OPTIONS} placeholder="Buscar NBS"/>
                 <FormMessage/>
               </FormItem>
             )}/>
             <FormField control={form.control} name="cnae" render={({field}) => (
               <FormItem>
                 <FormLabel>CNAE</FormLabel>
-                <Input {...field} id={field.name}/>
+                <NumericInput id={field.name} name={field.name} value={field.value} onChange={field.onChange}
+                              integerPlaces={7} placeholder="7 dígitos"/>
                 <FormMessage/>
               </FormItem>
             )}/>
@@ -287,8 +304,8 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             <FormField control={form.control} name="iss.c_pais_resultado" render={({field}) => (
               <FormItem>
                 <FormLabel>País do resultado</FormLabel>
-                <Input {...field} id={field.name} maxLength={2} placeholder="Ex: US"
-                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                          options={COUNTRY_OPTIONS} placeholder="Buscar país"/>
                 <FormMessage/>
               </FormItem>
             )}/>
