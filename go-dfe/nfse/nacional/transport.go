@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,18 +39,6 @@ func SignDPS(xmlBytes []byte, cert *x509.Certificate, key *rsa.PrivateKey) ([]by
 // SignPedRegEvento assina infPedReg.
 func SignPedRegEvento(xmlBytes []byte, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error) {
 	return xmlops.Sign(xmlBytes, signXPathInfPedReg, cert, key)
-}
-
-// withUTF8Declaration garante o prólogo exigido pelo Sefin Nacional. Ele é
-// aplicado depois da assinatura porque xmlops.Sign reserializa somente o
-// documento XML, sem preservar a declaração.
-func withUTF8Declaration(raw []byte) []byte {
-	if bytes.HasPrefix(raw, []byte(xml.Header)) {
-		return raw
-	}
-	out := make([]byte, 0, len(xml.Header)+len(raw))
-	out = append(out, xml.Header...)
-	return append(out, raw...)
 }
 
 // GzipB64 comprime e codifica o XML no formato que a API nacional exige

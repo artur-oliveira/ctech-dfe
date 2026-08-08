@@ -3,7 +3,6 @@ package nacional
 import (
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -24,14 +23,6 @@ func TestGzipB64_RoundTrip(t *testing.T) {
 	}
 	if string(got) != string(raw) {
 		t.Errorf("round-trip = %q, esperado %q", got, raw)
-	}
-}
-
-func TestWithUTF8Declaration_DoesNotDuplicateExistingDeclaration(t *testing.T) {
-	raw := []byte(xml.Header + "<DPS/>")
-	got := withUTF8Declaration(raw)
-	if string(got) != string(raw) {
-		t.Errorf("declaração XML foi alterada ou duplicada: %q", got)
 	}
 }
 

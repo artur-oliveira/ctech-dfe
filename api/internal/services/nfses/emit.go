@@ -22,6 +22,8 @@ const (
 	tpInscCNPJ = "2"
 )
 
+const attrEmitInput = "emit_input"
+
 // Comprimento das inscrições federais, usado para decidir CPF vs CNPJ.
 const (
 	lenCPF  = 11
@@ -63,6 +65,29 @@ type NfseServiceItem struct {
 	Value       *string `json:"value" validate:"omitempty,money"`
 	TaxRate     *string `json:"tax_rate" validate:"omitempty,money"`
 	CTribMun    *string `json:"c_trib_mun" validate:"omitempty,max=20"`
+}
+
+// NfseEmitInputSnapshot preserva as referências de catálogo e os overrides
+// escolhidos pelo usuário. O documento fiscal resolvido continua em payload;
+// este snapshot existe somente para reabrir/duplicar a emissão sem tentar
+// inferir entidades a partir de códigos fiscais ou nomes.
+type NfseEmitInputSnapshot struct {
+	TpEmit            int             `json:"tp_emit" dynamodbav:"tp_emit"`
+	MotivoEmisTI      int             `json:"motivo_emis_ti,omitempty" dynamodbav:"motivo_emis_ti,omitempty"`
+	ChNFSeRej         string          `json:"ch_nfse_rej,omitempty" dynamodbav:"ch_nfse_rej,omitempty"`
+	ProviderPersonID  *string         `json:"provider_person_id,omitempty" dynamodbav:"provider_person_id,omitempty"`
+	CustomerID        *string         `json:"customer_id,omitempty" dynamodbav:"customer_id,omitempty"`
+	IntermediaryID    *string         `json:"intermediary_id,omitempty" dynamodbav:"intermediary_id,omitempty"`
+	Service           NfseServiceItem `json:"service" dynamodbav:"service"`
+	AdditionalInfo    *string         `json:"additional_info,omitempty" dynamodbav:"additional_info,omitempty"`
+}
+
+func emitInputSnapshot(req NfseEmitBody) NfseEmitInputSnapshot {
+	return NfseEmitInputSnapshot{
+		TpEmit: req.TpEmit, MotivoEmisTI: req.MotivoEmisTI, ChNFSeRej: req.ChNFSeRej,
+		ProviderPersonID: req.ProviderPersonID, CustomerID: req.CustomerID,
+		IntermediaryID: req.IntermediaryID, Service: req.Service, AdditionalInfo: req.AdditionalInfo,
+	}
 }
 
 // BuildIDDPS delega para a regra normativa que vive no go-dfe. NÃO
@@ -229,6 +254,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		"dest_cpf_cnpj": personDoc(tomadorItem),
 		"total":         doc.Valores.VServPrest.VServ,
 		"payload":       docMap,
+		attrEmitInput:   emitInputSnapshot(req),
 		"created_at":    now.UTC().Format(time.RFC3339),
 		"user_id":       userID,
 		"user_name":     userName,

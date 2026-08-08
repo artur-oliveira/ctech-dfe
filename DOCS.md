@@ -344,9 +344,11 @@ go-dfe/nfse/
 - **Serialização:** `nacional/dps.go`'s structs `encoding/xml` têm a ordem de campo normativa —
   ela É a ordem do XSD (`tiposComplexos_v1.01.xsd`); não existe tabela `xsdorder` para NFS-e como
   para os demais doc types. `TestBuildDPS_MatchesGolden` é o guarda contra reordenação acidental.
-  Antes do gzip+base64, DPS e pedidos de evento recebem `<?xml version="1.0" encoding="UTF-8"?>`
-  depois da assinatura; o Sefin rejeita o documento sem esse prólogo com E1229. A declaração fica
-  fora do elemento assinado e não altera o digest XML-DSig.
+  Como workaround temporário de diagnóstico para E1235, DPS e pedidos de evento são enviados sem
+  declaração XML. Quando o POST de emissão é rejeitado, o go-dfe registra `id_dps`,
+  `dpsXmlGZipB64` e o erro no CloudWatch. O payload logado contém dados fiscais, assinatura e
+  certificado público e deve ter acesso/retenção restritos; remova o log e reavalie o prólogo assim
+  que a causa do erro de esquema for confirmada.
 - **`Body` de `dfe.Request` para NFS-e** (chaves lidas por `nfse.Dispatch`,
   `go-dfe/nfse/dispatch.go`):
 

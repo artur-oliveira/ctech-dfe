@@ -207,6 +207,11 @@ func TestNfse(t *testing.T) {
 		if got := payload["dh_emi"].(*types.AttributeValueMemberS).Value; got != item["dh_emi"].(*types.AttributeValueMemberS).Value {
 			t.Errorf("payload.dh_emi = %q, linha = %q", got, item["dh_emi"].(*types.AttributeValueMemberS).Value)
 		}
+		emitInput := item["emit_input"].(*types.AttributeValueMemberM).Value
+		serviceInput := emitInput["service"].(*types.AttributeValueMemberM).Value
+		if got := serviceInput["service_id"].(*types.AttributeValueMemberS).Value; got != serviceID {
+			t.Errorf("emit_input.service.service_id = %q, esperado %q", got, serviceID)
+		}
 
 		pk := item["pk"].(*types.AttributeValueMemberS).Value
 		stored, err := nfseRepo.Get(ctx, pk, idDPS)

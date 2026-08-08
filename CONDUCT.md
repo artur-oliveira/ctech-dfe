@@ -281,11 +281,12 @@ produziria um item órfão.
   imóvel, obra, informações complementares, benefício municipal) cujo shape divergia do XSD real
   por terem sido modelados a partir de prosa do plano em vez do XSD — o XSD sempre prevalece sobre
   texto de plano/spec quando divergem (mesmo precedente da F1 com `cTribNac`).
-- **DPS e pedidos de evento do Sistema Nacional precisam declarar UTF-8 explicitamente.** O Sefin
-  devolve E1229 quando o XML enviado dentro do gzip+base64 não começa com
-  `<?xml version="1.0" encoding="UTF-8"?>`, mesmo que os bytes já sejam UTF-8. Aplique o prólogo
-  depois de `SignDPS`/`SignPedRegEvento` e antes de `GzipB64`: o assinador reserializa sem declaração,
-  e mudar o assinador genérico afetaria a paridade dos demais documentos fiscais.
+- **Os XMLs do Sistema Nacional são enviados temporariamente sem declaração XML.** Após o Sefin
+  passar de E1229 para E1235 com o prólogo explícito, DPS e pedidos de evento não recebem
+  `xml.Header` antes do gzip+base64, para isolar a falha de esquema. Enquanto esse diagnóstico estiver
+  ativo, uma rejeição de emissão registra `dpsXmlGZipB64` no CloudWatch. Esse valor contém a DPS fiscal
+  completa, a assinatura e o certificado público: mantenha retenção curta, restrinja o acesso ao log
+  e remova essa instrumentação assim que a causa for confirmada.
 - **Campo não suportado falha explicitamente.** `nfse.FieldNotSupportedError` nomeia o campo.
   Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as
   capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros municipais,

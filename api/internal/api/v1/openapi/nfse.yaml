@@ -401,6 +401,23 @@ components:
         substitutes_reason: { type: [string, 'null'], maxLength: 2 }
         additional_info: { type: [string, 'null'], maxLength: 2000 }
 
+    NfseEmitInputSnapshot:
+      type: object
+      description: |
+        Snapshot interno devolvido nas consultas de NFS-e para duplicação segura.
+        Preserva IDs de catálogo e overrides da emissão original; não contém os
+        campos de substituição, que nunca devem ser copiados para uma nova nota.
+      required: [tp_emit, service]
+      properties:
+        tp_emit: { type: integer, enum: [1, 2, 3] }
+        motivo_emis_ti: { type: integer, enum: [1, 2, 3, 4] }
+        ch_nfse_rej: { type: string, pattern: '^\d{50}$' }
+        provider_person_id: { type: [string, 'null'] }
+        customer_id: { type: [string, 'null'] }
+        intermediary_id: { type: [string, 'null'] }
+        service: { $ref: '#/components/schemas/NfseServiceItem' }
+        additional_info: { type: [string, 'null'], maxLength: 2000 }
+
     NfseEventBody:
       type: object
       description: |

@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,6 +17,9 @@ import (
 const (
 	fieldDpsXMLGZipB64       = "dpsXmlGZipB64"
 	fieldPedRegEvtXMLGZipB64 = "pedidoRegistroEventoXmlGZipB64"
+	logFieldIDDPS            = "id_dps"
+	logFieldError            = "error"
+	logMsgRejectedDPSPayload = "nfse rejected DPS payload"
 )
 
 // Config configura o provider nacional. Cert/Key podem ser nil apenas em
@@ -84,7 +89,6 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 			return nfse.Result{}, fmt.Errorf("nacional: assinar DPS: %w", err)
 		}
 	}
-	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err
@@ -97,6 +101,14 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 	var resp emitResponse
 	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodPost, base+PathNFSe,
 		map[string]string{fieldDpsXMLGZipB64: packed}, &resp, n.cfg.MaxRetries); err != nil {
+		var fiscalErr *nfse.FiscalError
+		if errors.As(err, &fiscalErr) {
+			slog.Warn(logMsgRejectedDPSPayload,
+				logFieldIDDPS, idDPS,
+				fieldDpsXMLGZipB64, packed,
+				logFieldError, err,
+			)
+		}
 		return nfse.Result{}, err
 	}
 
@@ -139,7 +151,6 @@ func (n *Nacional) Event(ctx context.Context, ev nfse.EventRequest) (nfse.Result
 			return nfse.Result{}, fmt.Errorf("nacional: assinar pedRegEvento: %w", err)
 		}
 	}
-	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err

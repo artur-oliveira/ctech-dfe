@@ -1,9 +1,10 @@
 package nacional
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,11 +65,11 @@ func TestNacional_Emit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("descompactar DPS enviada: %v", err)
 	}
-	if !strings.HasPrefix(string(sentDPS), xml.Header) {
-		t.Errorf("DPS enviada não começa com declaração UTF-8: %q", sentDPS[:min(len(sentDPS), len(xml.Header))])
+	if strings.HasPrefix(string(sentDPS), "<?xml") {
+		t.Error("DPS enviada não deve conter declaração XML")
 	}
-	if strings.Count(string(sentDPS), xml.Header) != 1 {
-		t.Errorf("DPS enviada deve conter uma declaração XML, veio %d", strings.Count(string(sentDPS), xml.Header))
+	if !strings.HasPrefix(string(sentDPS), "<DPS") {
+		t.Errorf("DPS enviada deve começar pelo elemento raiz: %q", sentDPS[:min(len(sentDPS), len("<DPS"))])
 	}
 	if res.ChaveAcesso != strings.Repeat("9", 50) {
 		t.Errorf("ChaveAcesso = %q", res.ChaveAcesso)
@@ -128,25 +129,38 @@ func TestNacional_Event(t *testing.T) {
 	if err != nil {
 		t.Fatalf("descompactar evento enviado: %v", err)
 	}
-	if !strings.HasPrefix(string(sentEvent), xml.Header) {
-		t.Errorf("evento enviado não começa com declaração UTF-8: %q", sentEvent[:min(len(sentEvent), len(xml.Header))])
+	if strings.HasPrefix(string(sentEvent), "<?xml") {
+		t.Error("evento enviado não deve conter declaração XML")
 	}
-	if strings.Count(string(sentEvent), xml.Header) != 1 {
-		t.Errorf("evento enviado deve conter uma declaração XML, veio %d", strings.Count(string(sentEvent), xml.Header))
+	if !strings.HasPrefix(string(sentEvent), "<pedRegEvento") {
+		t.Errorf("evento enviado deve começar pelo elemento raiz: %q", sentEvent[:min(len(sentEvent), len("<pedRegEvento"))])
 	}
 }
 
 func TestNacional_EmitPropagatesFiscalError(t *testing.T) {
+	var received map[string]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&received)
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"erros": []map[string]string{{"codigo": "E1", "descricao": "rejeitado"}},
 		})
 	}))
 	defer srv.Close()
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	defer slog.SetDefault(previousLogger)
 
 	_, err := newTestProvider(t, srv.URL).Emit(context.Background(), minimalDoc())
 	if err == nil || !strings.Contains(err.Error(), "rejeitado") {
 		t.Fatalf("rejeição do fisco não propagada: %v", err)
+	}
+	packed := received[fieldDpsXMLGZipB64]
+	if packed == "" {
+		t.Fatal("payload gzip+base64 não foi recebido pelo servidor")
+	}
+	if !strings.Contains(logs.String(), packed) {
+		t.Errorf("log da rejeição não contém %s", fieldDpsXMLGZipB64)
 	}
 }
