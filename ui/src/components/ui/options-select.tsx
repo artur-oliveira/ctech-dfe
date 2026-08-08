@@ -6,7 +6,7 @@ import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigg
 interface OptionsSelectProps {
   value?: string | null
   onValueChange?: (value: string) => void
-  options: { value: string; label: string; display?: string; group?: string }[]
+  options: { value: string; label: string; group?: string }[]
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -25,7 +25,7 @@ export function OptionsSelect({
                                 ariaLabel,
                               }: OptionsSelectProps) {
   const selected = value ? options.find((o) => o.value === value) : undefined
-  const selectedLabel = selected?.display ?? selected?.label
+  const selectedLabel = selected?.label
 
   // Group options by their `group` field, preserving first-seen group order.
   // Falls back to one ungrouped list when no option declares a group.

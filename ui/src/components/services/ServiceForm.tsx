@@ -1,6 +1,7 @@
 'use client'
 
-import {useMemo, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
+import {useRouter} from 'next/navigation'
 import {useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useQuery} from '@tanstack/react-query'
@@ -25,6 +26,7 @@ import {ApiError, apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes'
+import {cn} from '@/lib/utils'
 
 interface ServiceFormProps {
   initialData?: ServiceOut
@@ -71,19 +73,16 @@ const TP_RET_PIS_COFINS_OPTIONS = [
 const TRIB_NACIONAL_OPTIONS: ComboboxOption[] = NFSE_TRIB_NACIONAL.map((t) => ({
   value: t.code,
   label: `${t.code} – ${t.description}`,
-  display: t.code,
 }))
 
 const NBS_OPTIONS: ComboboxOption[] = NFSE_NBS.map((entry) => ({
   value: entry.code,
   label: `${entry.code} – ${entry.description}`,
-  display: entry.code,
 }))
 
 const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
   value: country.code,
   label: `${country.code} – ${country.name}`,
-  display: country.code,
 }))
 
 const CNAE_CLASS_END = 4
@@ -96,13 +95,11 @@ function formatCnae(code: string): string {
 const CNAE_OPTIONS: ComboboxOption[] = ALL_CNAES.map((entry) => ({
   value: entry.code,
   label: `${formatCnae(entry.code)} – ${entry.description}`,
-  display: formatCnae(entry.code),
 }))
 
 const IND_OP_OPTIONS: ComboboxOption[] = NFSE_INDOP.map((entry) => ({
   value: entry.code,
   label: `${entry.code} – ${entry.tipo_operacao} · ${entry.local_fornecimento}`,
-  display: entry.code,
 }))
 
 const IND_DEST_OPTIONS = [
@@ -225,6 +222,17 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     },
   })
 
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!form.formState.isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [form.formState.isDirty])
+
   const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'})
   const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'})
   const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'})
@@ -242,13 +250,11 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
       label: `${entry.municipalCode} · ${entry.nationalItem} — ${entry.description} · ${entry.taxRate}%`,
-      display: entry.municipalCode,
     }))
     if (currentMunicipalCode && !options.some(({value}) => value === currentMunicipalCode)) {
       options.unshift({
         value: currentMunicipalCode,
         label: `${currentMunicipalCode} — código atual (fora do catálogo municipal)`,
-        display: currentMunicipalCode,
       })
     }
     return options
@@ -258,7 +264,6 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     return [{
       value: currentCnae,
       label: `${formatCnae(currentCnae)} — código atual (fora do catálogo CNAE)`,
-      display: formatCnae(currentCnae),
     }, ...CNAE_OPTIONS]
   }, [currentCnae])
 
@@ -331,7 +336,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             </FormItem>
           )}/>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
             <FormField control={form.control} name="trib_municipal_code" render={({field}) => (
               <FormItem>
                 <FormLabel>Código de tributação municipal</FormLabel>
@@ -359,23 +364,24 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                 <FormMessage/>
               </FormItem>
             )}/>
-            <FormField control={form.control} name="cnae" render={({field}) => (
-              <FormItem>
-                <FormLabel>CNAE</FormLabel>
-                <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                          options={cnaeOptions} placeholder="Buscar CNAE"
-                          searchPlaceholder="Código ou descrição..." fuzzySearch/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
           </div>
+
+          <FormField control={form.control} name="cnae" render={({field}) => (
+            <FormItem>
+              <FormLabel>CNAE</FormLabel>
+              <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                        options={cnaeOptions} placeholder="Buscar CNAE"
+                        searchPlaceholder="Código ou descrição..." fuzzySearch/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
 
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-900">ISSQN</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className={cn('grid grid-cols-1 items-start gap-3', trIssqn === '1' && 'sm:grid-cols-2')}>
             <FormField control={form.control} name="iss.trib_issqn" render={({field}) => (
               <FormItem>
                 <FormLabel>Tributação *</FormLabel>
@@ -398,7 +404,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className={cn('grid grid-cols-1 items-start gap-3', trIssqn === '2' && 'sm:grid-cols-2')}>
             <FormField control={form.control} name="iss.tp_ret_issqn" render={({field}) => (
               <FormItem>
                 <FormLabel>Retenção</FormLabel>
@@ -494,13 +500,15 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
           <button
             type="button"
             onClick={() => setShowFederal((v) => !v)}
+            aria-expanded={showFederal}
+            aria-controls="federal-taxes-panel"
             className="text-sm font-medium text-brand-600 hover:text-brand-700"
           >
             {showFederal ? '− Ocultar tributos federais (opcional)' : '+ Tributos federais (PIS/COFINS, opcional)'}
           </button>
 
           {showFederal && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
+            <div id="federal-taxes-panel" className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
               <FormField control={form.control} name="federal.cst_pis_cofins" render={({field}) => (
                 <FormItem>
                   <FormLabel>CST PIS/COFINS</FormLabel>
@@ -538,6 +546,9 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" disabled={loading} onClick={() => router.push('/services')}>
+            Cancelar
+          </Button>
           <Button type="submit" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar serviço'}
           </Button>

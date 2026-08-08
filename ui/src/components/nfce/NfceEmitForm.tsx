@@ -441,7 +441,7 @@ export function NfceEmitForm() {
             const cfopOptions = nfceCfopsForProduct(item.product).map((cfop) => {
               const desc = getCfopDescription(cfop)
               const label = desc ? `${cfop} – ${desc}` : cfop
-              return {value: cfop, label, display: label}
+              return {value: cfop, label}
             })
             return (
               <ProductLineItem

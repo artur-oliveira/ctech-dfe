@@ -542,7 +542,22 @@ produziria um item órfão.
 - **Nada de "eyebrow" (`text-xs uppercase tracking-wider`) como título de seção.** Rótulo de seção
   é `text-sm font-medium text-gray-600`. O eyebrow repetido em toda seção é ruído, não hierarquia.
 - **Alvos de toque ≥ 44px em ações primárias.** Não use `size="sm"` (h-7) em botão de barra de
-  ação — o `size` default já é `min-h-11 sm:h-8`.
+  ação — o `size` default já é `min-h-11 sm:h-8`. A partir de 2026-08-08 esse padrão
+  (`min-h-11 sm:min-h-0 sm:h-8`, ou `sm:h-7` no `size="sm"` do `Select`) também é obrigatório em
+  `Input`, `CurrencyInput`, `NumericInput`, `Combobox`, `NcmCombobox` e `Select`/`OptionsSelect` —
+  não só em `Button`. Um controle de formulário novo que herde altura fixa em `h-8` sem o par
+  responsivo `min-h-11 sm:...` reintroduz o mesmo bug (32px em mobile, abaixo do mínimo).
+- **`Combobox`/`OptionsSelect` mostram sempre a descrição completa (`label`) no controle
+  fechado, nunca só o código.** O campo `display` (que permitia truncar para um código curto)
+  foi removido de `ComboboxOption`, `PaymentOption` e do tipo inline do `OptionsSelect` em
+  2026-08-08 — reabrir a combo para lembrar o que foi selecionado é uma falha de usabilidade em
+  formulário fiscal. Não reintroduza um campo de exibição compacta; se um caso realmente precisar
+  de texto curto, isso é uma decisão de produto nova, não um valor de campo por callsite.
+- **`Combobox` tem navegação por teclado e semântica ARIA equivalentes ao `OptionsSelect`.**
+  Desde 2026-08-08 o gatilho expõe `role="combobox"`/`aria-haspopup`/`aria-expanded`/
+  `aria-controls`, a lista tem `role="listbox"` e cada item `role="option"`/`aria-selected`, e
+  Seta-baixo/Seta-cima/Enter navegam e selecionam sem mouse. Um `Combobox` novo herda isso do
+  componente — não reimplemente a lista sem essa navegação.
 - **Uma emissão, um fluxo por documento.** NF-e é wizard; NFC-e é tela única de balcão. Não
   unifique os fluxos — unifique os componentes (`ProductSearch`, `ProductLineItem`, `EmitError`,
   `EmitConfirmModal`, `useEmitDraft`, `lib/data/payment-options`). Ver DOCS.md §5.

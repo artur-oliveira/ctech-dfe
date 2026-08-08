@@ -395,7 +395,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
   const cfopOptions = cfopGroups.map((g) => {
     const codes = cfopGroupCodes(g)
     const label = g.label ? `${codes} – ${g.label}` : codes
-    return {value: g.suffix, label, display: label}
+    return {value: g.suffix, label}
   })
   const selectedGroup = cfopGroups.find(g => g.suffix === item.cfopSuffix) ?? null
   // UF unknown (no recipient UF / issuer UF) — cannot resolve scope yet.

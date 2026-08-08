@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useEffect, useMemo, useRef, useState} from 'react'
+import React, {useEffect, useId, useMemo, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import Fuse from 'fuse.js'
 import {CheckIcon, ChevronDownIcon} from 'lucide-react'
@@ -9,8 +9,7 @@ import {Highlighted} from '@/components/ui/highlight'
 
 export interface ComboboxOption {
   value: string
-  label: string    // full text shown in the dropdown
-  display?: string // compact text shown in the trigger (defaults to value)
+  label: string // full text shown in both the dropdown and the trigger once selected
 }
 
 interface ComboboxProps {
@@ -50,13 +49,16 @@ export function Combobox({
   const [search, setSearch] = useState('')
   const [pos, setPos] = useState<DropdownPos | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [activeIndex, setActiveIndex] = useState(-1)
   const [prevSearch, setPrevSearch] = useState(search)
   const [prevOpen, setPrevOpen] = useState(open)
   if (prevSearch !== search || prevOpen !== open) {
     setPrevSearch(search)
     setPrevOpen(open)
     setVisibleCount(PAGE_SIZE)
+    setActiveIndex(-1)
   }
+  const listboxId = useId()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -156,8 +158,34 @@ export function Combobox({
     if (e.key === 'Escape') {
       setOpen(false)
       setSearch('')
+      return
+    }
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        setOpen(true)
+      }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(i + 1, visibleItems.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const opt = visibleItems[activeIndex]
+      if (opt) handleSelect(opt.value)
     }
   }
+
+  useEffect(() => {
+    if (activeIndex < 0) return
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
+      ?.scrollIntoView?.({block: 'nearest'})
+  }, [activeIndex])
 
   const dropdown = open && pos ? (
     <div
@@ -174,19 +202,24 @@ export function Combobox({
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
-      <div ref={listRef} className="max-h-60 overflow-y-auto p-1">
+      <div ref={listRef} id={listboxId} role="listbox" className="max-h-60 overflow-y-auto p-1">
         {filtered.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">Nenhum resultado</p>
         ) : (
           <>
-            {visibleItems.map((opt) => (
+            {visibleItems.map((opt, i) => (
               <button
                 key={opt.value}
                 type="button"
+                role="option"
+                aria-selected={opt.value === value}
+                data-index={i}
                 onClick={() => handleSelect(opt.value)}
+                onMouseEnter={() => setActiveIndex(i)}
                 className={cn(
                   'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground',
                   opt.value === value && 'bg-accent/50',
+                  i === activeIndex && 'bg-accent text-accent-foreground',
                 )}
               >
                 <span className="flex-1 leading-snug"><Highlighted text={opt.label} query={search}/></span>
@@ -215,15 +248,19 @@ export function Combobox({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
         className={cn(
-          'flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none select-none',
+          'flex min-h-11 sm:min-h-0 sm:h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none select-none',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           'disabled:cursor-not-allowed disabled:opacity-50',
           !selected && 'text-muted-foreground',
         )}
       >
         <span className="block min-w-0 flex-1 truncate text-left text-foreground">
-          {selected ? (selected.display ?? selected.value) : (
+          {selected ? selected.label : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
         </span>

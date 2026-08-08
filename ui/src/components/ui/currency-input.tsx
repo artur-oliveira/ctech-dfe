@@ -86,7 +86,7 @@ export function CurrencyInput({
   return (
     <div
       className={cn(
-        'flex h-8 w-full min-w-0 items-center overflow-hidden rounded-lg border border-input bg-transparent transition-colors',
+        'flex min-h-11 sm:min-h-0 sm:h-8 w-full min-w-0 items-center overflow-hidden rounded-lg border border-input bg-transparent transition-colors',
         'focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50',
         disabled && 'cursor-not-allowed opacity-50',
         className
@@ -105,7 +105,7 @@ export function CurrencyInput({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="h-8 min-w-0 flex-1 bg-transparent text-base md:text-sm outline-none px-2 py-1 placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-full min-w-0 flex-1 bg-transparent text-base md:text-sm outline-none px-2 py-1 placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         {...props}
         id={props.id ?? props.name}
       />

@@ -109316,5 +109316,4 @@ export const ALL_NCMS: NcmEntry[] = [
 export const NCM_OPTIONS = ALL_NCMS.map((it) => ({
   value: it.code.replace(/\D/g, ''),
   label: `${it.code} - ${it.search}`,
-  display: `${it.code} - ${it.search}`,
 }))

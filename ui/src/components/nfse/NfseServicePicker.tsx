@@ -40,7 +40,6 @@ export function NfseServicePicker({id, value, onSelect, onClear}: NfseServicePic
   const options: ComboboxOption[] = services.map((s) => ({
     value: s.sk,
     label: `${s.code} – ${s.description}`,
-    display: s.code,
   }))
 
   const handleSelect = (sk: string) => {

@@ -27866,5 +27866,4 @@ export const CITIES: CityEntry[] = [
 export const CITY_OPTIONS = CITIES.map((c) => ({
   value: c.code,
   label: `${c.description} / ${c.uf}`,
-  display: `${c.description} / ${c.uf}`,
 }))

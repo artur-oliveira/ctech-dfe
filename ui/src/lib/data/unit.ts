@@ -70,5 +70,4 @@ export const UNITS: Unit[] = [
 export const UNIT_OPTIONS = UNITS.map((u) => ({
   value: u.code,
   label: `${u.code} - ${u.description}`,
-  display: u.code,
 }))

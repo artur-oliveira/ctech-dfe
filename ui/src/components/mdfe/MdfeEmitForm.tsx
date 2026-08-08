@@ -396,10 +396,10 @@ export function MdfeEmitForm() {
   })
 
   const tractorOptions = (tractorsData?.items ?? []).map((v: VehicleOut) => ({
-    value: v.sk, label: `${v.plate} · ${v.plate_uf}`, display: v.plate,
+    value: v.sk, label: `${v.plate} · ${v.plate_uf}`,
   }))
   const trailerOptions = (trailersData?.items ?? []).map((v: VehicleOut) => ({
-    value: v.sk, label: `${v.plate} · ${v.plate_uf}`, display: v.plate,
+    value: v.sk, label: `${v.plate} · ${v.plate_uf}`,
   }))
 
   const checkVehicle = async (v: VehicleOut, role: 'tractor' | 'trailer') => {

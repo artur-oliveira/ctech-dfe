@@ -32,7 +32,6 @@ const GROUP_ORDER = [PAYMENT_GROUP_CASH, PAYMENT_GROUP_CARD, PAYMENT_GROUP_PIX, 
 export interface PaymentOption {
   value: string
   label: string
-  display: string
   group: string
 }
 
@@ -41,7 +40,6 @@ export const PAYMENT_OPTIONS: PaymentOption[] = Object.entries(NF_PAYMENT_TYPES)
   .map(([value, label]) => ({
     value,
     label: `${value} – ${label}`,
-    display: label,
     group: paymentGroup(value),
   }))
   .sort((a, b) =>

@@ -18,7 +18,6 @@ interface CfopEntry {
 export interface DisplayCfop {
   value: string;
   label: string;
-  display: string;
 }
 
 /**
@@ -3606,10 +3605,8 @@ const displayCfops = (entries: CfopEntry[]): DisplayCfop[] => {
   return entries.map(it => {
     const value: string = it.code;
     const label = displayName(it);
-    const display = label;
     return {
       value,
-      display,
       label,
     }
   });
