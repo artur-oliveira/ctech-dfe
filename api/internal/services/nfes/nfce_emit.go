@@ -95,7 +95,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		}
 	}
 
-	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, orgPK, req.Products)
+	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, req.Products)
 	if err != nil {
 		return nil, err
 	}

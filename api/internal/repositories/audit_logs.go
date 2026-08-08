@@ -31,6 +31,10 @@ const (
 	AuditResourceCteConfig    = "CTE_CONFIG"
 	AuditResourceMdfeConfig   = "MDFE_CONFIG"
 	AuditResourceNfseConfig   = "NFSE_CONFIG"
+	AuditResourceTaxProfile   = "TAX_PROFILE"
+	AuditResourceOperation    = "OPERATION"
+	AuditResourcePaymentTerm  = "PAYMENT_TERM"
+	AuditResourceVehicleSet   = "VEHICLE_SET"
 	AuditResourceMember       = "MEMBER"
 	AuditResourceInvitation   = "INVITATION"
 )

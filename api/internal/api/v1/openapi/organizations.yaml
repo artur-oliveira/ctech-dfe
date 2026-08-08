@@ -392,6 +392,19 @@ components:
         contacts: { $ref: '#/components/schemas/ContactsBody' }
         nfse: { $ref: '#/components/schemas/NfseInfoBody' }
 
+    PersonRoles:
+      type: array
+      description: |
+        Papéis de cadastro da pessoa. **Papel é filtro de cadastro, não regra
+        fiscal**: a emissão nunca valida papel — `receiver_id` e `transporta_pk`
+        continuam resolvendo a pessoa diretamente. Uma pessoa acumula quantos
+        papéis forem verdade ao mesmo tempo (transportadora que também é cliente
+        é o caso normal) e aparece em todas as listagens dos papéis que possui.
+        Ausente ou vazio: a pessoa aparece só na listagem geral.
+      items:
+        type: string
+        enum: [customer, supplier, carrier, driver, provider]
+
     Person:
       type: object
       description: Pessoa cadastrada na organização.
@@ -400,6 +413,8 @@ components:
         pk: { type: string }
         sk: { type: string, description: 'CPF/CNPJ, que identifica a linha.' }
         name: { type: string }
+        roles:
+          $ref: '#/components/schemas/PersonRoles'
         person: { $ref: '#/components/schemas/PersonObjectBody' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -410,6 +425,8 @@ components:
       properties:
         cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
         name: { type: string, minLength: 2, maxLength: 255 }
+        roles:
+          $ref: '#/components/schemas/PersonRoles'
         person: { $ref: '#/components/schemas/PersonObjectBody' }
 
     PersonUpdateBody:
@@ -417,6 +434,8 @@ components:
       description: Atualização parcial. O documento vem do path.
       properties:
         name: { type: [string, 'null'], minLength: 2, maxLength: 255 }
+        roles:
+          $ref: '#/components/schemas/PersonRoles'
         person: { $ref: '#/components/schemas/PersonObjectBody' }
 
     Organization:

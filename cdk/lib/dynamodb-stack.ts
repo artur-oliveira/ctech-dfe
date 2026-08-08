@@ -22,6 +22,10 @@ export type TableName = (
     'mdfe_configs' |
     'nfse_configs' |
     'services' |
+    'tax_profiles' |
+    'operations' |
+    'payment_terms' |
+    'vehicle_sets' |
     'nfes' |
     'nfces' |
     'ctes' |
@@ -190,6 +194,47 @@ const getEventsTable = (
         maxWriteRequestUnits: 1000,
     });
     return eventsTable;
+}
+
+/**
+ * Cadastro reutilizável de organização: pk = {org_pk}, sk = {PREFIXO}_{uuid},
+ * com um único GSI `name-index` para busca por prefixo de nome. É a forma dos
+ * perfis fiscais, naturezas de operação, condições de pagamento e composições
+ * veiculares — todas listadas e buscadas exatamente igual.
+ *
+ * Custo: on-demand, mesmo teto de 1.000 RRU/WRU das demais tabelas de cadastro.
+ * Volume esperado por organização é de dezenas de itens, não milhares — a
+ * entidade existe justamente para não ser recadastrada a cada emissão.
+ */
+const getOrgEntityTable = (
+    scope: Construct,
+    removalPolicy: RemovalPolicy,
+    pointInTimeRecoverySpecification: dynamodb.PointInTimeRecoverySpecification | undefined,
+    tbPrefix: TablePrefix,
+    tbName: TableName
+) => {
+    const table = new dynamodb.TableV2(scope, `${tbPrefix}_organization_${tbName}`, {
+        tableName: `${tbPrefix}_organization_${tbName}`,
+        partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+        sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+        billing: Billing.onDemand({
+            maxReadRequestUnits: 1000,
+            maxWriteRequestUnits: 1000,
+        }),
+        removalPolicy,
+        pointInTimeRecoverySpecification,
+        encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    table.addGlobalSecondaryIndex({
+        indexName: 'name-index',
+        partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+        sortKey: {name: 'name', type: dynamodb.AttributeType.STRING},
+        projectionType: dynamodb.ProjectionType.ALL,
+        warmThroughput: undefined,
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+    });
+    return table;
 }
 
 const getDfeConfigTable = (
@@ -514,6 +559,19 @@ export class DynamoDBStack extends cdk.Stack {
             maxWriteRequestUnits: 1000,
         });
         this.tables.set('services', servicesTable);
+
+        // ============== REUSABLE REGISTRY TABLES ==============
+        // Decisões que hoje são redigitadas a cada emissão viram entidade nomeada.
+        // Todas compartilham a mesma forma (pk/sk + name-index) — ver getOrgEntityTable.
+
+        this.tables.set('tax_profiles', getOrgEntityTable(
+            this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'tax_profiles'));
+        this.tables.set('operations', getOrgEntityTable(
+            this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'operations'));
+        this.tables.set('payment_terms', getOrgEntityTable(
+            this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'payment_terms'));
+        this.tables.set('vehicle_sets', getOrgEntityTable(
+            this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'vehicle_sets'));
 
         // ============== CONFIGURATION TABLES ==============
 

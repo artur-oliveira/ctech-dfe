@@ -52,6 +52,7 @@ var Module = fx.Options(
 		repositories.NewOrgInvitationRepository,
 		repositories.NewProductRepository,
 		repositories.NewServiceRepository,
+		repositories.NewTaxProfileRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
 		repositories.NewNfeConfigRepository,
@@ -77,6 +78,7 @@ var Module = fx.Options(
 		newCertificateService,
 		newProductService,
 		newServiceService,
+		newTaxProfileService,
 		newPersonService,
 		newVehicleService,
 		services.NewNfeConfigService,
@@ -239,6 +241,10 @@ func newServiceService(repo *repositories.ServiceRepository, auditRepo *reposito
 	return services.NewServiceService(repo, auditRepo, c)
 }
 
+func newTaxProfileService(repo *repositories.TaxProfileRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.TaxProfileService {
+	return services.NewTaxProfileService(repo, auditRepo, c)
+}
+
 func newPersonService(repo *repositories.PersonRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PersonService {
 	return services.NewPersonService(repo, auditRepo, c)
 }
@@ -287,6 +293,7 @@ func newNFeService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
+	taxProfileRepo *repositories.TaxProfileRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -296,7 +303,7 @@ func newNFeService(
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
-		orgRepo, certRepo, personRepo, configRepo, productRepo,
+		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo,
 		nfeRepo, eventRepo, vehicleRepo, clients,
 		workerSvc, extSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
@@ -315,6 +322,7 @@ func newNFCeService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfceConfigRepository,
 	productRepo *repositories.ProductRepository,
+	taxProfileRepo *repositories.TaxProfileRepository,
 	nfceRepo *repositories.NfceRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
@@ -323,7 +331,7 @@ func newNFCeService(
 ) *nfesvc.NfceService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
 	return nfesvc.NewNfceService(
-		orgRepo, certRepo, personRepo, configRepo, productRepo,
+		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo,
 		nfceRepo, eventRepo, clients, workerSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -401,6 +409,7 @@ type Services struct {
 	CertSvc     *services.CertificateService
 	ProductSvc  *services.ProductService
 	ServiceSvc  *services.ServiceService
+	TaxProfSvc  *services.TaxProfileService
 	PersonSvc   *services.PersonService
 	VehicleSvc  *services.VehicleService
 	NfeSvc      *nfesvc.NfeService
@@ -431,6 +440,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Cert:         svcs.CertSvc,
 		Product:      svcs.ProductSvc,
 		Service:      svcs.ServiceSvc,
+		TaxProfile:   svcs.TaxProfSvc,
 		Person:       svcs.PersonSvc,
 		Vehicle:      svcs.VehicleSvc,
 		NFe:          svcs.NfeSvc,

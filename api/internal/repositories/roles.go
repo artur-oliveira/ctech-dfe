@@ -40,6 +40,8 @@ var resources = []string{
 	"organizations",
 	"organization_products", "organization_vehicles", "organization_persons",
 	"organization_services",
+	"organization_tax_profiles", "organization_operations",
+	"organization_payment_terms", "organization_vehicle_sets",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
 	"organization_nfse_configs",

@@ -207,12 +207,44 @@ paths:
     get:
       tags: [Persons]
       summary: Lista pessoas
+      description: |
+        `role` e `q` combinam: `?role=driver&q=jo` lista os condutores cujo nome
+        começa com "jo".
+
+        O filtro por papel é um `FilterExpression`, aplicado **depois** da
+        condição de chave, então `limit` conta itens lidos e não retornados: uma
+        página pode voltar mais curta que `limit` acompanhada de `next_cursor`.
+        **Fim de lista é a ausência do cursor, nunca uma contagem baixa.** O
+        serviço pagina internamente até encher a página, com teto de idas ao
+        banco por requisição.
       operationId: listPersons
       parameters:
         - $ref: '#/components/parameters/OrgHeader'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Sort'
+        - name: role
+          in: query
+          required: false
+          description: |
+            Filtra pelo papel de cadastro. Pessoa sem papéis não aparece em
+            nenhuma listagem filtrada — comportamento correto, não omissão.
+          schema:
+            type: string
+            enum: [customer, supplier, carrier, driver, provider]
+        - name: q
+          in: query
+          required: false
+          description: |
+            Termo de busca. Só dígitos casam prefixo do documento (a SK **é** o
+            documento, então a busca cobre `CNPJ_…` e `CPF_…`); qualquer outro
+            texto casa prefixo do nome.
+          schema: { type: string }
+        - name: name
+          in: query
+          required: false
+          description: 'Prefixo do nome (parâmetro legado; prefira `q`).'
+          schema: { type: string }
       responses:
         '200':
           description: Página de pessoas
@@ -462,15 +494,17 @@ components:
         target_unit: { $ref: '#/components/schemas/Unit' }
         factor: { type: number, exclusiveMinimum: 0 }
 
-    CfopConfigBody:
+    TaxFieldsBody:
       type: object
       description: |
-        Configuração tributária do produto para um CFOP. ICMS aceita CST
-        (Regime Normal) ou CSOSN (Simples Nacional) — qual dos dois vale é
-        decidido pelo CRT da organização na emissão.
-      required: [cfop, pis, cofins, ibs_cbs_cst, ibs_cbs_class_trib, ibs_uf_aliq, ibs_mun_aliq, cbs_aliq]
+        Tratamento tributário, sem CFOP nenhum. É o corpo compartilhado por
+        `CfopConfigBody` (tratamento preso a um CFOP dentro do produto) e por
+        `TaxProfileBody` (o mesmo tratamento nomeado uma vez e reutilizado por
+        vários produtos). ICMS aceita CST (Regime Normal) ou CSOSN (Simples
+        Nacional) — qual dos dois vale é decidido pelo CRT da organização na
+        emissão.
+      required: [pis, cofins, ibs_cbs_cst, ibs_cbs_class_trib, ibs_uf_aliq, ibs_mun_aliq, cbs_aliq]
       properties:
-        cfop: { $ref: '#/components/schemas/Cfop' }
         csosn: { type: [string, 'null'], description: 'CSOSN, para emitentes do Simples Nacional.' }
         icms: { type: [string, 'null'], description: 'CST do ICMS, para Regime Normal.' }
         icms_mod_bc: { type: [string, 'null'] }
@@ -533,6 +567,28 @@ components:
         issqn_v_deducao: { type: [string, 'null'] }
         issqn_v_iss_ret: { type: [string, 'null'] }
 
+
+    ProductTaxProfileRef:
+      type: object
+      required: [tax_profile_id]
+      properties:
+        tax_profile_id: { type: string }
+        overrides:
+          type: [object, 'null']
+          additionalProperties: true
+          description: |
+            Sobrescrita parcial do perfil, só para este produto. Só as chaves
+            presentes vencem o perfil — as demais continuam vindo dele.
+
+    CfopConfigBody:
+      description: Configuração tributária do produto para um CFOP.
+      allOf:
+        - type: object
+          required: [cfop]
+          properties:
+            cfop: { $ref: '#/components/schemas/Cfop' }
+        - $ref: '#/components/schemas/TaxFieldsBody'
+
     ProductBody:
       type: object
       description: |
@@ -573,6 +629,13 @@ components:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/CfopConfigBody' }
+        tax_profiles:
+          type: array
+          description: |
+            Perfis fiscais aplicados a este produto. Um produto sem
+            `tax_profiles` resolve a tributação exatamente como sempre resolveu.
+            Precedência na emissão: `cfop_config[cfop]` → `overrides` → perfil.
+          items: { $ref: '#/components/schemas/ProductTaxProfileRef' }
         conversion_factors:
           type: array
           items: { $ref: '#/components/schemas/ConversionFactorBody' }

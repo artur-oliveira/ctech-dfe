@@ -1,0 +1,158 @@
+# Cadastros reutilizáveis — as decisões que antes eram redigitadas a cada
+# emissão, guardadas uma vez e referenciadas por id.
+#
+# Todos compartilham a mesma forma (pk = organização, sk = {PREFIXO}_{uuid},
+# GSI `name-index`), então compartilham também o mesmo conjunto de rotas.
+
+paths:
+
+  # ── Perfis fiscais ─────────────────────────────────────────────────────────
+
+  /v1.0/tax-profiles:
+    get:
+      tags: [TaxProfiles]
+      summary: Lista perfis fiscais
+      operationId: listTaxProfiles
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de perfis fiscais
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/TaxProfileItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [TaxProfiles]
+      summary: Cria um perfil fiscal
+      operationId: createTaxProfile
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaxProfileBody' }
+      responses:
+        '201':
+          description: Perfil fiscal criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxProfileItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/tax-profiles/{tax_profile_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: tax_profile_id
+        in: path
+        required: true
+        description: Identificador do perfil (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [TaxProfiles]
+      summary: Detalha um perfil fiscal
+      operationId: getTaxProfile
+      responses:
+        '200':
+          description: Perfil fiscal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxProfileItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [TaxProfiles]
+      summary: Atualiza um perfil fiscal
+      operationId: updateTaxProfile
+      description: |
+        Editar um perfil muda a tributação de **toda** emissão futura dos
+        produtos que o referenciam. Documentos já emitidos não são afetados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaxProfileBody' }
+      responses:
+        '200':
+          description: Perfil fiscal atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxProfileItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [TaxProfiles]
+      summary: Remove um perfil fiscal
+      operationId: deleteTaxProfile
+      responses:
+        '204':
+          description: Perfil fiscal removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+
+  parameters:
+    RegistryName:
+      name: name
+      in: query
+      required: false
+      description: Filtra por prefixo do nome (usa o GSI `name-index`).
+      schema: { type: string }
+
+  schemas:
+
+    TaxProfileBody:
+      description: |
+        Um tratamento tributário nomeado, aplicado a um conjunto de CFOPs e
+        reutilizado por vários produtos. `5102` e `6102` normalmente
+        compartilham o mesmo perfil: a alíquota interestadual já é resolvida na
+        emissão, então o que muda entre eles é dado derivado, não configuração.
+        Quando o tratamento realmente difere por CFOP, crie um segundo perfil —
+        não há aninhamento por CFOP dentro do perfil.
+      allOf:
+        - type: object
+          required: [name, cfops]
+          properties:
+            name: { type: string, minLength: 2, maxLength: 120 }
+            description: { type: [string, 'null'], maxLength: 255 }
+            cfops:
+              type: array
+              minItems: 1
+              description: CFOPs cobertos por este perfil.
+              items: { $ref: '#/components/schemas/Cfop' }
+        - $ref: '#/components/schemas/TaxFieldsBody'
+
+    TaxProfileItem:
+      type: object
+      description: Perfil fiscal persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador do perfil. }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        cfops:
+          type: array
+          items: { $ref: '#/components/schemas/Cfop' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }

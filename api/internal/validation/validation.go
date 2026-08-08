@@ -33,6 +33,13 @@ func get() *validator.Validate {
 		// payload the client sent (and the frontend Zod schema).
 		v.RegisterTagNameFunc(func(field reflect.StructField) string {
 			name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
+			if field.Anonymous && name == "" {
+				// An embedded struct with no json tag is inlined in the payload,
+				// so it must be inlined in the error path too — otherwise the
+				// client gets "cfop_config[0].TaxFieldsBody.ibs_cbs_cst" for a
+				// field it sent as "cfop_config[0].ibs_cbs_cst".
+				return embeddedSegment
+			}
 			if name == "-" || name == "" {
 				return field.Name
 			}
@@ -102,13 +109,27 @@ func asInvalid(err error, target **validator.InvalidValidationError) bool {
 	return false
 }
 
+// embeddedSegment marks a namespace segment produced by an anonymous struct
+// field, which fieldPath drops so the reported path matches the JSON payload.
+const embeddedSegment = "\x00embedded"
+
 // fieldPath strips the root struct name from a validator namespace, yielding a
 // client-facing JSON path, e.g. "ProductBody.cfop_config[0].cfop" -> "cfop_config[0].cfop".
 func fieldPath(namespace string) string {
 	if i := strings.IndexByte(namespace, '.'); i >= 0 {
-		return namespace[i+1:]
+		namespace = namespace[i+1:]
 	}
-	return namespace
+	if !strings.Contains(namespace, embeddedSegment) {
+		return namespace
+	}
+	segments := strings.Split(namespace, ".")
+	kept := segments[:0]
+	for _, seg := range segments {
+		if seg != embeddedSegment {
+			kept = append(kept, seg)
+		}
+	}
+	return strings.Join(kept, ".")
 }
 
 // message renders a Portuguese human-readable message for a single failure.

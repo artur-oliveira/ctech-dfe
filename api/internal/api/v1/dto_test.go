@@ -31,7 +31,13 @@ func validPerson() PersonObjectBody {
 
 func validCfopConfig() CfopConfigBody {
 	return CfopConfigBody{
-		Cfop:            "5102",
+		Cfop:          "5102",
+		TaxFieldsBody: validTaxFields(),
+	}
+}
+
+func validTaxFields() TaxFieldsBody {
+	return TaxFieldsBody{
 		Pis:             "01",
 		Cofins:          "01",
 		IbsCbsCst:       "000",
@@ -335,5 +341,51 @@ func TestPersonRolesTagMatchesAllPersonRoles(t *testing.T) {
 		if f != personRolesValidation {
 			t.Errorf("struct tag = %q, want %q", f, personRolesValidation)
 		}
+	}
+}
+
+// ── Tax profiles ─────────────────────────────────────────────────────────────
+
+func validTaxProfile() TaxProfileBody {
+	return TaxProfileBody{
+		Name:          "Venda de mercadoria — Simples Nacional",
+		Cfops:         []string{"5102", "6102"},
+		TaxFieldsBody: validTaxFields(),
+	}
+}
+
+func TestTaxProfile_Valid(t *testing.T) {
+	if p := validation.Struct(validTaxProfile()); p != nil {
+		t.Fatalf("expected valid tax profile, got %v", p)
+	}
+}
+
+func TestTaxProfile_RequiresAtLeastOneCfop(t *testing.T) {
+	dto := validTaxProfile()
+	dto.Cfops = nil
+	if p := validation.Struct(dto); p == nil {
+		t.Fatal("expected a profile with no CFOP to be rejected")
+	}
+}
+
+func TestTaxProfile_RejectsMalformedCfop(t *testing.T) {
+	dto := validTaxProfile()
+	dto.Cfops = []string{"5102", "51"}
+	if p := validation.Struct(dto); p == nil {
+		t.Fatal("expected a malformed CFOP to be rejected")
+	}
+}
+
+// The IBS/CBS block is required on a profile exactly as it is on a product's
+// cfop_config — the profile carries a complete tax treatment, not a partial one.
+func TestTaxProfile_RequiresIbsCbsBlock(t *testing.T) {
+	dto := validTaxProfile()
+	dto.IbsCbsCst = ""
+	p := validation.Struct(dto)
+	if p == nil {
+		t.Fatal("expected missing ibs_cbs_cst to be rejected")
+	}
+	if len(p.Errors) == 0 || p.Errors[0].Field != "ibs_cbs_cst" {
+		t.Errorf("error path = %+v, want ibs_cbs_cst (embedded struct must be inlined)", p.Errors)
 	}
 }

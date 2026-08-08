@@ -152,10 +152,13 @@ type ConversionFactorBody struct {
 	Factor     float64 `json:"factor" validate:"required,gt=0"`
 }
 
-// CfopConfigBody is one per-CFOP tax configuration entry of a product.
-// Optional tax fields are nullable and only format-checked when present.
-type CfopConfigBody struct {
-	Cfop string `json:"cfop" validate:"required,cfop"`
+// TaxFieldsBody is the tax treatment itself — every ICMS/CSOSN, ST, PIS,
+// COFINS, IBS/CBS, IPI, IS and ISSQN field, with no CFOP attached. It is
+// embedded by CfopConfigBody (treatment bound to one CFOP inside a product)
+// and by TaxProfileBody (the same treatment named once and shared by many
+// products). Two copies of ~60 fields is precisely the duplication the tax
+// profiles exist to remove, so there is exactly one definition.
+type TaxFieldsBody struct {
 	// ICMS: CST (Regime Normal) or CSOSN (Simples Nacional) — validated by the
 	// service against the org CRT, so kept loose here.
 	Csosn *string `json:"csosn" validate:"omitempty"`
@@ -228,6 +231,45 @@ type CfopConfigBody struct {
 	IssqnVIssRet   *string `json:"issqn_v_iss_ret" validate:"omitempty"`
 }
 
+// CfopConfigBody is one per-CFOP tax configuration entry of a product.
+// Optional tax fields are nullable and only format-checked when present.
+type CfopConfigBody struct {
+	Cfop string `json:"cfop" validate:"required,cfop"`
+	TaxFieldsBody
+}
+
+// ProductTaxProfileRef liga um produto a um perfil fiscal, opcionalmente
+// sobrescrevendo campos do perfil só para este produto. Um produto sem
+// `tax_profiles` resolve a tributação exatamente como sempre resolveu.
+//
+// Precedência na emissão (spec §3.2), da maior para a menor:
+// cfop_config[cfop] → overrides → perfil.
+type ProductTaxProfileRef struct {
+	TaxProfileID string `json:"tax_profile_id" validate:"required"`
+	// Overrides é parcial de propósito: só as chaves presentes vencem o perfil.
+	// Ele não é validado como um TaxFieldsBody completo justamente porque um
+	// override de uma alíquota só não deveria exigir reenviar os outros 60 campos.
+	Overrides map[string]any `json:"overrides" validate:"omitempty"`
+}
+
+// ── Tax profiles ─────────────────────────────────────────────────────────────
+
+// TaxProfileBody is the body for POST/PUT /tax-profiles.
+//
+// A profile is one tax treatment applied to a set of CFOPs, named once and
+// shared by many products, instead of ~60 fiscal fields copied into every
+// product's cfop_config[]. 5102 and 6102 normally share a profile: the
+// interstate rate is already derived by resolveICMSAliq, so what differs
+// between them is derived data, not configuration. When the treatment genuinely
+// differs per CFOP, create a second profile — there is no per-CFOP nesting
+// inside a profile.
+type TaxProfileBody struct {
+	Name        string   `json:"name" validate:"required,min=2,max=120"`
+	Description *string  `json:"description" validate:"omitempty,max=255"`
+	Cfops       []string `json:"cfops" validate:"required,min=1,dive,cfop"`
+	TaxFieldsBody
+}
+
 // ProductBody is the body for POST /products and PUT /products/:product_id.
 // The frontend sends the full object on both create and update.
 type ProductBody struct {
@@ -256,6 +298,7 @@ type ProductBody struct {
 	InfAdProd         *string                `json:"inf_ad_prod" validate:"omitempty,max=500"`
 	CfopNfce          string                 `json:"cfop_nfce" validate:"required,cfop"`
 	CfopConfig        []CfopConfigBody       `json:"cfop_config" validate:"required,min=1,dive"`
+	TaxProfiles       []ProductTaxProfileRef `json:"tax_profiles" validate:"omitempty,dive"`
 	ConversionFactors []ConversionFactorBody `json:"conversion_factors" validate:"omitempty,dive"`
 	// Tipo específico e campos especiais
 	ProdType          *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`

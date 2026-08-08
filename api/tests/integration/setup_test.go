@@ -47,6 +47,7 @@ var (
 	orgSvc         *services.OrganizationService
 	productSvc     *services.ProductService
 	serviceSvc     *services.ServiceService
+	taxProfileSvc  *services.TaxProfileService
 	personSvc      *services.PersonService
 	vehicleSvc     *services.VehicleService
 	certSvc        *services.CertificateService
@@ -58,6 +59,7 @@ var (
 	mdfeConfigSvc  *services.MdfeConfigService
 	nfseConfigSvc  *services.NfseConfigService
 	serviceRepo    *repositories.ServiceRepository
+	taxProfileRepo *repositories.TaxProfileRepository
 	nfseRepo       *repositories.NfseRepository
 	nfseSvc        *nfses.NfseService
 	memCache       cache.Backend
@@ -122,6 +124,8 @@ func TestMain(m *testing.M) {
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
 	serviceRepo = repositories.NewServiceRepository(db, cfg)
 	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
+	taxProfileRepo = repositories.NewTaxProfileRepository(db, cfg)
+	taxProfileSvc = services.NewTaxProfileService(taxProfileRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
 	nfeConfigSvc = services.NewNfeConfigService(nfeConfigRepo, auditRepo)
@@ -489,6 +493,33 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 		},
 	}
 
+	// Cadastros reutilizáveis: mesma forma (pk/sk + name-index) para os quatro.
+	for _, name := range orgEntityTables {
+		definitions = append(definitions, dynamodb.CreateTableInput{
+			TableName:   aws.String(tablePrefix + "_" + name),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("name"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+				{
+					IndexName: aws.String(repositories.OrgEntityNameIndex),
+					KeySchema: []types.KeySchemaElement{
+						{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+						{AttributeName: aws.String("name"), KeyType: types.KeyTypeRange},
+					},
+					Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				},
+			},
+		})
+	}
+
 	for _, def := range definitions {
 		_, err := db.CreateTable(ctx, &def)
 		if err != nil && !strings.Contains(err.Error(), "ResourceInUseException") {
@@ -498,11 +529,23 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 	return nil
 }
 
+// orgEntityTables são os cadastros reutilizáveis, todos com a mesma forma.
+var orgEntityTables = []string{
+	repositories.TableTaxProfiles,
+	repositories.TableOperations,
+	repositories.TablePaymentTerms,
+	repositories.TableVehicleSets,
+}
+
 func dropTables(ctx context.Context, db *dynamodb.Client) {
 	tables := []string{
 		tablePrefix + "_organizations",
 		tablePrefix + "_organization_products",
 		tablePrefix + "_organization_services",
+		tablePrefix + "_" + repositories.TableTaxProfiles,
+		tablePrefix + "_" + repositories.TableOperations,
+		tablePrefix + "_" + repositories.TablePaymentTerms,
+		tablePrefix + "_" + repositories.TableVehicleSets,
 		tablePrefix + "_organization_persons",
 		tablePrefix + "_organization_vehicles",
 		tablePrefix + "_organization_certificates",

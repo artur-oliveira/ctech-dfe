@@ -25,17 +25,18 @@ const TpEventoCancelamentoSubst = "110112"
 
 // NfceService manages NFC-e lifecycle.
 type NfceService struct {
-	orgRepo     *repositories.OrganizationRepository
-	certRepo    *repositories.CertificateRepository
-	personRepo  *repositories.PersonRepository
-	configRepo  *repositories.NfceConfigRepository
-	productRepo *repositories.ProductRepository
-	nfceRepo    *repositories.NfceRepository
-	eventRepo   *repositories.DocumentEventRepository // nfce_events
-	clients     *awsclient.Clients
-	workerSvc   *services.WorkerService
-	bucketDocs  string
-	tech        TechData
+	orgRepo        *repositories.OrganizationRepository
+	certRepo       *repositories.CertificateRepository
+	personRepo     *repositories.PersonRepository
+	configRepo     *repositories.NfceConfigRepository
+	productRepo    *repositories.ProductRepository
+	taxProfileRepo *repositories.TaxProfileRepository
+	nfceRepo       *repositories.NfceRepository
+	eventRepo      *repositories.DocumentEventRepository // nfce_events
+	clients        *awsclient.Clients
+	workerSvc      *services.WorkerService
+	bucketDocs     string
+	tech           TechData
 }
 
 func NewNfceService(
@@ -44,6 +45,7 @@ func NewNfceService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfceConfigRepository,
 	productRepo *repositories.ProductRepository,
+	taxProfileRepo *repositories.TaxProfileRepository,
 	nfceRepo *repositories.NfceRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	clients *awsclient.Clients,
@@ -53,7 +55,7 @@ func NewNfceService(
 ) *NfceService {
 	return &NfceService{
 		orgRepo: orgRepo, certRepo: certRepo, personRepo: personRepo,
-		configRepo: configRepo, productRepo: productRepo, nfceRepo: nfceRepo,
+		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, nfceRepo: nfceRepo,
 		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc,
 		bucketDocs: bucketDocs, tech: tech,
 	}

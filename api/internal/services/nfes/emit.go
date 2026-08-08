@@ -183,7 +183,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		receiverSK = *req.ReceiverID
 	}
 
-	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, orgPK, req.Products)
+	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, req.Products)
 	if err != nil {
 		return nil, err
 	}
@@ -530,13 +530,18 @@ func extractEmitUFFromItem(org map[string]types.AttributeValue) string {
 // validates each CFOP is configured on the product, and computes totals.
 // Shared by NF-e and NFC-e emission.
 func resolveProducts(
-	ctx context.Context, productRepo *repositories.ProductRepository, orgPK string, items []NfeProductItem,
+	ctx context.Context, productRepo *repositories.ProductRepository,
+	taxProfileRepo *repositories.TaxProfileRepository, orgPK string, items []NfeProductItem,
 ) ([]map[string]any, decimal.Decimal, decimal.Decimal, error) {
 	var productItems []map[string]any
 	totalProducts := decimal.Zero
 	totalDiscount := decimal.Zero
 
-	for _, item := range items {
+	// Uma passada só pelos produtos, e um BatchGetItem só pelos perfis que eles
+	// referenciam — nunca um Get por item dentro do laço.
+	products := make([]map[string]any, len(items))
+	var profileIDs []string
+	for i, item := range items {
 		productAttr, err := productRepo.Get(ctx, orgPK, item.ProductID)
 		if err != nil {
 			return nil, decimal.Zero, decimal.Zero, err
@@ -544,26 +549,29 @@ func resolveProducts(
 		if productAttr == nil {
 			return nil, decimal.Zero, decimal.Zero, problem.NotFound("produto não encontrado: " + item.ProductID)
 		}
-
 		var product map[string]any
 		if err := attributevalue.UnmarshalMap(productAttr, &product); err != nil {
 			return nil, decimal.Zero, decimal.Zero, problem.InternalServer("failed to decode product")
 		}
+		products[i] = product
+		profileIDs = append(profileIDs, profileRefs(product)...)
+	}
 
-		// Validate CFOP configured on product
-		validCFOP := false
-		if cfopConfigs, ok := product["cfop_config"].([]any); ok {
-			for _, c := range cfopConfigs {
-				if cm, ok := c.(map[string]any); ok && cm["cfop"] == item.CFOP {
-					validCFOP = true
-					break
-				}
-			}
-		}
-		if !validCFOP {
+	profiles, err := loadTaxProfiles(ctx, taxProfileRepo, orgPK, profileIDs)
+	if err != nil {
+		return nil, decimal.Zero, decimal.Zero, err
+	}
+
+	for idx, item := range items {
+		product := products[idx]
+
+		// A tributação efetiva do item: cfop_config vence overrides, que vencem
+		// o perfil. Um CFOP sem tributação em lugar nenhum é erro de cadastro.
+		resolvedTax, err := resolveCfopTax(product, profiles, item.CFOP)
+		if err != nil {
 			code, _ := product["code"].(string)
 			return nil, decimal.Zero, decimal.Zero, problem.BadRequest(
-				fmt.Sprintf("CFOP %s não configurado para o produto %s", item.CFOP, code),
+				cfopNotConfiguredError(item.CFOP, code, productCFOPs(product, profiles)),
 			)
 		}
 
@@ -586,17 +594,20 @@ func resolveProducts(
 		}
 
 		pi := map[string]any{
-			"product_id":           item.ProductID,
-			"product_code":         product["code"],
-			"description":          product["description"],
-			"ncm":                  product["ncm"],
-			"cest":                 product["cest"],
-			"cfop":                 item.CFOP,
-			"unit":                 unit,
-			"taxable_unit":         product["taxable_unit"],
-			"cean":                 product["cean"],
-			"origin":               product["origin"],
-			"cfop_config":          product["cfop_config"],
+			"product_id":   item.ProductID,
+			"product_code": product["code"],
+			"description":  product["description"],
+			"ncm":          product["ncm"],
+			"cest":         product["cest"],
+			"cfop":         item.CFOP,
+			"unit":         unit,
+			"taxable_unit": product["taxable_unit"],
+			"cean":         product["cean"],
+			"origin":       product["origin"],
+			// Uma única entrada, já resolvida para o CFOP deste item — os
+			// construtores do XML continuam lendo cfop_config exatamente como
+			// antes (findCFOPEntry), sem saber que perfis existem.
+			"cfop_config":          []any{resolvedTax},
 			"conversion_factors":   product["conversion_factors"],
 			"net_weight":           product["net_weight"],
 			"gross_weight":         product["gross_weight"],
