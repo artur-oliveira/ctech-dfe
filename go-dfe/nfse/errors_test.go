@@ -14,7 +14,7 @@ func TestFiscalErrorIncludesAllDetails(t *testing.T) {
 		},
 		Body: `{"erros":[...]}`,
 	}
-	want := "nfse: HTTP 400: L0017 -  (cLocIncid divergente); L0002 - DPS duplicada"
+	want := "nfse: HTTP 400: L0017 (cLocIncid divergente); L0002 - DPS duplicada"
 	if got := err.Error(); got != want {
 		t.Errorf("Error() = %q, esperado %q", got, want)
 	}

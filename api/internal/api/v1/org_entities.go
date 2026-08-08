@@ -98,6 +98,30 @@ func bindEntityUpdate[T any](c fiber.Ctx) (map[string]any, error) {
 	return structToMap(dto)
 }
 
+// RegisterVehicleSets mounts /vehicle-sets under a tenant-scoped group.
+func RegisterVehicleSets(router fiber.Router, svc *services.VehicleSetService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/vehicle-sets",
+		param:      "vehicle_set_id",
+		resource:   "organization_vehicle_sets",
+		bindCreate: bindEntityCreate[VehicleSetBody],
+		bindUpdate: bindEntityUpdate[VehicleSetBody],
+	})
+}
+
+// RegisterPaymentTerms mounts /payment-terms under a tenant-scoped group.
+func RegisterPaymentTerms(router fiber.Router, svc *services.PaymentTermService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/payment-terms",
+		param:      "payment_term_id",
+		resource:   "organization_payment_terms",
+		bindCreate: bindEntityCreate[PaymentTermBody],
+		bindUpdate: bindEntityUpdate[PaymentTermBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

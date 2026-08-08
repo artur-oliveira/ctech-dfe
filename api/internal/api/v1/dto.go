@@ -238,6 +238,45 @@ type CfopConfigBody struct {
 	TaxFieldsBody
 }
 
+// ── Vehicle sets (composições veiculares) ────────────────────────────────────
+
+// VehicleSetBody is the body for POST/PUT /vehicle-sets.
+//
+// Hoje o MDF-e escolhe veículo, até 3 reboques e condutores um a um, todo dia,
+// para os mesmos conjuntos. Aqui o conjunto é nomeado uma vez ("Carreta 1 —
+// ABC1D23"). Na emissão, **cada campo expandido continua sobrescrevível
+// individualmente** — trocar o motorista de um dia não exige criar outro conjunto.
+type VehicleSetBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// TractorSK é o veículo de tração; validado como role=tractor no serviço.
+	TractorSK string `json:"tractor_sk" validate:"required"`
+	// TrailerSKs são os reboques (máx. 3 pelo leiaute), role=trailer.
+	TrailerSKs []string `json:"trailer_sks" validate:"omitempty,max=3,dive,required"`
+	// DriverDocs são CPFs de pessoas do cadastro, tipicamente com papel driver.
+	DriverDocs []string `json:"driver_docs" validate:"omitempty,dive,cpf"`
+	RNTRC      *string  `json:"rntrc" validate:"omitempty,rntrc"`
+	CIOT       *string  `json:"ciot" validate:"omitempty"`
+}
+
+// ── Payment terms (condições de pagamento) ───────────────────────────────────
+
+// PaymentTermBody is the body for POST/PUT /payment-terms.
+//
+// Hoje as parcelas de uma NF-e são digitadas uma a uma para condições fixas
+// ("30/60/90", "à vista", "boleto 28 dias"). Aqui a condição é nomeada uma vez
+// e expandida na emissão a partir do total do documento.
+type PaymentTermBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// PaymentType usa o mesmo domínio de NfePaymentItem.PaymentType.
+	PaymentType string `json:"payment_type" validate:"required,oneof=01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 90 99"`
+	// IndPag: 0 à vista, 1 a prazo. Ausente, é derivado das parcelas.
+	IndPag       *string        `json:"ind_pag" validate:"omitempty,oneof=0 1"`
+	Installments int            `json:"installments" validate:"required,min=1,max=120"`
+	IntervalDays int            `json:"interval_days" validate:"omitempty,min=0,max=365"`
+	FirstDueDays int            `json:"first_due_days" validate:"omitempty,min=0,max=365"`
+	Card         map[string]any `json:"card" validate:"omitempty"`
+}
+
 // ── Operations (naturezas de operação) ───────────────────────────────────────
 
 // OperationBody is the body for POST/PUT /operations.
@@ -501,9 +540,12 @@ type SubstituteCancelBody struct {
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 
-// VehicleOwnerBody is the owner (proprietário) of a vehicle. Optional static
-// metadata — not used for MDF-e prop building (that's a per-emission input,
-// see mdfes.MdfeOwner); kept only as informational fleet-management data.
+// VehicleOwnerBody is the owner (proprietário) of a vehicle.
+//
+// Serve de default para o grupo veicTracao/prop do MDF-e quando a emissão não
+// traz um proprietário explícito (mdfes.MdfeOwner, que continua vencendo).
+// Proprietário cadastrado igual ao emitente significa frota própria: nesse caso
+// nenhum grupo prop é gerado, e ide/tpTransp fica exatamente como sempre ficou.
 type VehicleOwnerBody struct {
 	CpfCnpj string `json:"cpf_cnpj" validate:"required,cpfcnpj"`
 	Rntrc   string `json:"rntrc" validate:"required,rntrc"`

@@ -236,7 +236,7 @@ do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial P
 {
   "tp_emit": 1,
   "competence": "2026-08-05",
-  "service": { "service_id": "SERVICE_01HZ...", "value": "1000.00", "tax_rate": "5.00" },
+  "service": { "service_id": "SERVICE_01HZ...", "value": "1000.00", "tax_rate": "5.00", "c_trib_mun": "415" },
   "customer_id": "CNPJ_12345678000195",
   "additional_info": "..."
 }
@@ -246,6 +246,9 @@ do not include UI-only fields (e.g. `tipo`) or send `cpf_or_cnpj` in a partial P
 O cliente não envia `dh_emi`: a API o gera no instante da emissão usando o `timezone` da configuração NFS-e.
 O serviço referenciado deve estar atualizado com o grupo obrigatório `ibs_cbs`; cadastros legados
 sem a classificação são recusados antes do enfileiramento para evitar uma DPS incompleta.
+`c_trib_mun` é um override opcional por emissão; quando ausente, a API usa
+`trib_municipal_code` do serviço cadastrado. O valor é municipal e opaco para o backend, que apenas
+o transporta para `<cTribMun>` no DPS.
 
 `tp_emit` 2 (tomador) or 3 (intermediário) additionally require `motivo_emis_ti` and
 `provider_person_id`. Full field table and the conditional rules: `DOCS.md` → *Emissão de NFS-e*.

@@ -33,7 +33,12 @@ func (e *FiscalError) Error() string {
 	}
 	parts := make([]string, 0, len(e.Messages))
 	for _, m := range e.Messages {
-		part := fmt.Sprintf("%s - %s", m.Codigo, m.Descricao)
+		part := m.Descricao
+		if m.Codigo != "" && m.Descricao != "" {
+			part = fmt.Sprintf("%s - %s", m.Codigo, m.Descricao)
+		} else if m.Codigo != "" {
+			part = m.Codigo
+		}
 		if m.Complemento != "" {
 			part += " (" + m.Complemento + ")"
 		}

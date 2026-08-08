@@ -54,6 +54,8 @@ var Module = fx.Options(
 		repositories.NewServiceRepository,
 		repositories.NewTaxProfileRepository,
 		repositories.NewOperationRepository,
+		repositories.NewPaymentTermRepository,
+		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
 		repositories.NewNfeConfigRepository,
@@ -81,6 +83,8 @@ var Module = fx.Options(
 		newServiceService,
 		newTaxProfileService,
 		newOperationService,
+		newPaymentTermService,
+		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
 		services.NewNfeConfigService,
@@ -251,6 +255,17 @@ func newOperationService(repo *repositories.OperationRepository, auditRepo *repo
 	return services.NewOperationService(repo, auditRepo, c)
 }
 
+func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
+	return services.NewPaymentTermService(repo, auditRepo, c)
+}
+
+func newVehicleSetService(
+	repo *repositories.VehicleSetRepository, vehicleRepo *repositories.VehicleRepository,
+	auditRepo *repositories.AuditLogRepository, c cache.Backend,
+) *services.VehicleSetService {
+	return services.NewVehicleSetService(repo, vehicleRepo, auditRepo, c)
+}
+
 func newPersonService(repo *repositories.PersonRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PersonService {
 	return services.NewPersonService(repo, auditRepo, c)
 }
@@ -301,6 +316,7 @@ func newNFeService(
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
+	paymentTermRepo *repositories.PaymentTermRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -310,7 +326,7 @@ func newNFeService(
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
-		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
+		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo, paymentTermRepo,
 		nfeRepo, eventRepo, vehicleRepo, clients,
 		workerSvc, extSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
@@ -359,6 +375,8 @@ func newMDFeService(
 	nfeRepo *repositories.NfeRepository,
 	cteRepo *repositories.CteRepository,
 	vehicleRepo *repositories.VehicleRepository,
+	personRepo *repositories.PersonRepository,
+	vehicleSetRepo *repositories.VehicleSetRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -367,7 +385,7 @@ func newMDFeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
-		eventRepo, vehicleRepo, clients, workerSvc, cfg.S3BucketDocuments,
+		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, clients, workerSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -419,6 +437,8 @@ type Services struct {
 	ServiceSvc   *services.ServiceService
 	TaxProfSvc   *services.TaxProfileService
 	OperationSvc *services.OperationService
+	PayTermSvc   *services.PaymentTermService
+	VehSetSvc    *services.VehicleSetService
 	PersonSvc    *services.PersonService
 	VehicleSvc   *services.VehicleService
 	NfeSvc       *nfesvc.NfeService
@@ -451,6 +471,8 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Service:      svcs.ServiceSvc,
 		TaxProfile:   svcs.TaxProfSvc,
 		Operation:    svcs.OperationSvc,
+		PaymentTerm:  svcs.PayTermSvc,
+		VehicleSet:   svcs.VehSetSvc,
 		Person:       svcs.PersonSvc,
 		Vehicle:      svcs.VehicleSvc,
 		NFe:          svcs.NfeSvc,

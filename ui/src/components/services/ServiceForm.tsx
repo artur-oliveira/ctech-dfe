@@ -1,9 +1,10 @@
 'use client'
 
-import {useState} from 'react'
+import {useMemo, useState} from 'react'
 import {useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
+import {useQuery} from '@tanstack/react-query'
+import {Form, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -21,6 +22,10 @@ import {NFSE_INDOP} from '@/lib/data/nfse_indop'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {generateEntityCode} from '@/lib/utils/code'
 import {ApiError} from '@/lib/api/client'
+import {apiClient} from '@/lib/api/client'
+import {queryKeys} from '@/lib/api/query-keys'
+import {useAuth} from '@/lib/hooks/useAuth'
+import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes'
 
 interface ServiceFormProps {
   initialData?: ServiceOut
@@ -191,6 +196,7 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
 }
 
 export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFormProps) {
+  const {selectedOrg} = useAuth()
   const [showFederal, setShowFederal] = useState(!!initialData?.federal)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [defaultCode] = useState(generateEntityCode)
@@ -209,7 +215,31 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
 
   const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'})
   const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'})
+  const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'})
   const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? []
+
+  const {data: nfseConfig, isLoading: isMunicipalityLoading} = useQuery({
+    queryKey: queryKeys.nfseConfig(selectedOrg?.pk ?? ''),
+    queryFn: () => apiClient.getNfseConfig(selectedOrg!.pk),
+    enabled: !!selectedOrg,
+    retry: false,
+  })
+  const municipalTaxCodes = getMunicipalTaxCodes(nfseConfig?.c_loc_emi)
+  const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
+    const options = municipalTaxCodes.map((entry) => ({
+      value: entry.municipalCode,
+      label: `${entry.municipalCode} · ${entry.nationalItem} — ${entry.description} · ${entry.taxRate}%`,
+      display: entry.municipalCode,
+    }))
+    if (currentMunicipalCode && !options.some(({value}) => value === currentMunicipalCode)) {
+      options.unshift({
+        value: currentMunicipalCode,
+        label: `${currentMunicipalCode} — código atual (fora do catálogo municipal)`,
+        display: currentMunicipalCode,
+      })
+    }
+    return options
+  }, [currentMunicipalCode, municipalTaxCodes])
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null)
@@ -284,7 +314,19 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             <FormField control={form.control} name="trib_municipal_code" render={({field}) => (
               <FormItem>
                 <FormLabel>Código de tributação municipal</FormLabel>
-                <Input {...field} id={field.name} maxLength={20}/>
+                {municipalTaxCodes.length > 0 ? (
+                  <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                            options={municipalTaxOptions} placeholder="Buscar código municipal"
+                            searchPlaceholder="Código, item ou descrição..." fuzzySearch/>
+                ) : (
+                  <Input {...field} id={field.name} maxLength={20} disabled={isMunicipalityLoading}
+                         placeholder={isMunicipalityLoading ? 'Carregando município…' : 'Informe o código'}/>
+                )}
+                <FormDescription>
+                  {municipalTaxCodes.length > 0
+                    ? 'Catálogo do município emissor configurado para a organização.'
+                    : 'Informe o código adotado pelo município emissor.'}
+                </FormDescription>
                 <FormMessage/>
               </FormItem>
             )}/>

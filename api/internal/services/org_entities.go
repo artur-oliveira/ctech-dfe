@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
@@ -83,6 +84,100 @@ func NewTaxProfileService(repo *repositories.TaxProfileRepository, auditRepo *re
 	return &TaxProfileService{newOrgEntityService(
 		&repo.OrgEntityRepository, auditRepo, c,
 		CacheScopeTaxProfiles, repositories.AuditResourceTaxProfile, "tax profile not found",
+	)}
+}
+
+// VehicleSetService owns organization_vehicle_sets. A regra própria: os
+// veículos referenciados têm que existir e ter o papel certo — um reboque no
+// lugar do trator vira rejeição da SEFAZ, não erro de cadastro.
+type VehicleSetService struct {
+	OrgEntityService
+	vehicleRepo *repositories.VehicleRepository
+}
+
+func NewVehicleSetService(
+	repo *repositories.VehicleSetRepository, vehicleRepo *repositories.VehicleRepository,
+	auditRepo *repositories.AuditLogRepository, c cache.Backend,
+) *VehicleSetService {
+	return &VehicleSetService{
+		OrgEntityService: newOrgEntityService(
+			&repo.OrgEntityRepository, auditRepo, c,
+			CacheScopeVehicleSets, repositories.AuditResourceVehicleSet, "vehicle set not found",
+		),
+		vehicleRepo: vehicleRepo,
+	}
+}
+
+func (s *VehicleSetService) Create(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
+	if err := s.validateMembers(ctx, orgPK, fields); err != nil {
+		return nil, err
+	}
+	return s.OrgEntityService.Create(ctx, orgPK, fields, userID, userName)
+}
+
+func (s *VehicleSetService) Update(ctx context.Context, orgPK, id string, updates map[string]any, userID, userName string) (map[string]types.AttributeValue, error) {
+	av, err := repositories.MarshalMapOmitNull(updates)
+	if err != nil {
+		return nil, problem.InternalServer(err.Error())
+	}
+	if err := s.validateMembers(ctx, orgPK, av); err != nil {
+		return nil, err
+	}
+	return s.OrgEntityService.Update(ctx, orgPK, id, updates, userID, userName)
+}
+
+// validateMembers confere que o trator é um tractor e cada reboque é um trailer.
+func (s *VehicleSetService) validateMembers(ctx context.Context, orgPK string, fields map[string]types.AttributeValue) error {
+	if sk, ok := fields[VehicleSetTractorField].(*types.AttributeValueMemberS); ok && sk.Value != "" {
+		if err := s.requireRole(ctx, orgPK, sk.Value, VehicleRoleTractor); err != nil {
+			return err
+		}
+	}
+	trailers, ok := fields[VehicleSetTrailersField].(*types.AttributeValueMemberL)
+	if !ok {
+		return nil
+	}
+	for _, item := range trailers.Value {
+		sk, ok := item.(*types.AttributeValueMemberS)
+		if !ok || sk.Value == "" {
+			continue
+		}
+		if err := s.requireRole(ctx, orgPK, sk.Value, VehicleRoleTrailer); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *VehicleSetService) requireRole(ctx context.Context, orgPK, sk, want string) error {
+	vehicle, err := s.vehicleRepo.Get(ctx, orgPK, sk)
+	if err != nil {
+		return err
+	}
+	if vehicle == nil {
+		return problem.BadRequest("veículo não encontrado: " + sk)
+	}
+	role, _ := vehicle[VehicleRoleField].(*types.AttributeValueMemberS)
+	if role == nil || role.Value != want {
+		return problem.BadRequest(fmt.Sprintf("veículo %s não tem o papel %q exigido pela composição", sk, want))
+	}
+	return nil
+}
+
+// Campos e papéis da composição veicular.
+const (
+	VehicleSetTractorField  = "tractor_sk"
+	VehicleSetTrailersField = "trailer_sks"
+	VehicleRoleField        = "role"
+)
+
+// PaymentTermService owns organization_payment_terms.
+type PaymentTermService struct{ OrgEntityService }
+
+func NewPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *PaymentTermService {
+	return &PaymentTermService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopePaymentTerms, repositories.AuditResourcePaymentTerm, "payment term not found",
 	)}
 }
 

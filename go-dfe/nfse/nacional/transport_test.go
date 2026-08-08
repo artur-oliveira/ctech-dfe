@@ -62,6 +62,23 @@ func TestHTTPDo_FiscalErrorPreservesCode(t *testing.T) {
 	}
 }
 
+func TestHTTPDo_FiscalErrorAcceptsMunicipalMensagem(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"tipoAmbiente":"2","versaoAplicativo":"1.01","idDps":"DPS221100126278744900010700000000000000000001","erros":[{"codigo":"L0017","mensagem":"O código de tributação municipal não foi informado."}]}`))
+	}))
+	defer srv.Close()
+
+	_, err := httpDo(context.Background(), srv.Client(), http.MethodPost, srv.URL, nil, nil, 0)
+	var fe *nfse.FiscalError
+	if !errors.As(err, &fe) {
+		t.Fatalf("esperado *nfse.FiscalError, veio %v", err)
+	}
+	if got, want := fe.Error(), "nfse: HTTP 400: L0017 - O código de tributação municipal não foi informado."; got != want {
+		t.Errorf("Error() = %q, esperado %q", got, want)
+	}
+}
+
 func TestHTTPDo_RetriesOn5xxNotOn4xx(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

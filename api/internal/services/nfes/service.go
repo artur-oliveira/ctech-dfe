@@ -54,21 +54,22 @@ var ErrNFCeNotFound = problem.NotFound("NFC-e não encontrada")
 
 // NfeService manages NF-e lifecycle.
 type NfeService struct {
-	orgRepo        *repositories.OrganizationRepository
-	certRepo       *repositories.CertificateRepository
-	personRepo     *repositories.PersonRepository
-	configRepo     *repositories.NfeConfigRepository
-	productRepo    *repositories.ProductRepository
-	taxProfileRepo *repositories.TaxProfileRepository
-	operationRepo  *repositories.OperationRepository
-	nfeRepo        *repositories.NfeRepository
-	eventRepo      *repositories.DocumentEventRepository
-	vehicleRepo    *repositories.VehicleRepository
-	clients        *awsclient.Clients
-	workerSvc      *services.WorkerService
-	extSvc         *services.ExternalService
-	bucketDocs     string
-	tech           TechData
+	orgRepo         *repositories.OrganizationRepository
+	certRepo        *repositories.CertificateRepository
+	personRepo      *repositories.PersonRepository
+	configRepo      *repositories.NfeConfigRepository
+	productRepo     *repositories.ProductRepository
+	taxProfileRepo  *repositories.TaxProfileRepository
+	operationRepo   *repositories.OperationRepository
+	paymentTermRepo *repositories.PaymentTermRepository
+	nfeRepo         *repositories.NfeRepository
+	eventRepo       *repositories.DocumentEventRepository
+	vehicleRepo     *repositories.VehicleRepository
+	clients         *awsclient.Clients
+	workerSvc       *services.WorkerService
+	extSvc          *services.ExternalService
+	bucketDocs      string
+	tech            TechData
 }
 
 func NewNfeService(
@@ -79,6 +80,7 @@ func NewNfeService(
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
+	paymentTermRepo *repositories.PaymentTermRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -89,21 +91,22 @@ func NewNfeService(
 	tech TechData,
 ) *NfeService {
 	return &NfeService{
-		orgRepo:        orgRepo,
-		certRepo:       certRepo,
-		personRepo:     personRepo,
-		configRepo:     configRepo,
-		productRepo:    productRepo,
-		taxProfileRepo: taxProfileRepo,
-		operationRepo:  operationRepo,
-		nfeRepo:        nfeRepo,
-		eventRepo:      eventRepo,
-		vehicleRepo:    vehicleRepo,
-		clients:        clients,
-		workerSvc:      workerSvc,
-		extSvc:         extSvc,
-		bucketDocs:     bucketDocs,
-		tech:           tech,
+		orgRepo:         orgRepo,
+		certRepo:        certRepo,
+		personRepo:      personRepo,
+		configRepo:      configRepo,
+		productRepo:     productRepo,
+		taxProfileRepo:  taxProfileRepo,
+		operationRepo:   operationRepo,
+		paymentTermRepo: paymentTermRepo,
+		nfeRepo:         nfeRepo,
+		eventRepo:       eventRepo,
+		vehicleRepo:     vehicleRepo,
+		clients:         clients,
+		workerSvc:       workerSvc,
+		extSvc:          extSvc,
+		bucketDocs:      bucketDocs,
+		tech:            tech,
 	}
 }
 

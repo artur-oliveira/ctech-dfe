@@ -109,10 +109,13 @@ type MdfeService struct {
 	cteRepo     *repositories.CteRepository
 	eventRepo   *repositories.DocumentEventRepository
 	vehicleRepo *repositories.VehicleRepository
-	clients     *awsclient.Clients
-	workerSvc   *services.WorkerService
-	bucketDocs  string
-	tech        TechData
+	// personRepo resolve os CPFs dos condutores de uma composição veicular.
+	personRepo     *repositories.PersonRepository
+	vehicleSetRepo *repositories.VehicleSetRepository
+	clients        *awsclient.Clients
+	workerSvc      *services.WorkerService
+	bucketDocs     string
+	tech           TechData
 }
 
 // TechData carries the technical-responsible (infRespTec) information.
@@ -133,24 +136,28 @@ func NewMdfeService(
 	cteRepo *repositories.CteRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
+	personRepo *repositories.PersonRepository,
+	vehicleSetRepo *repositories.VehicleSetRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	bucketDocs string,
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
-		orgRepo:     orgRepo,
-		certRepo:    certRepo,
-		configRepo:  configRepo,
-		mdfeRepo:    mdfeRepo,
-		nfeRepo:     nfeRepo,
-		cteRepo:     cteRepo,
-		eventRepo:   eventRepo,
-		vehicleRepo: vehicleRepo,
-		clients:     clients,
-		workerSvc:   workerSvc,
-		bucketDocs:  bucketDocs,
-		tech:        tech,
+		orgRepo:        orgRepo,
+		certRepo:       certRepo,
+		configRepo:     configRepo,
+		mdfeRepo:       mdfeRepo,
+		nfeRepo:        nfeRepo,
+		cteRepo:        cteRepo,
+		eventRepo:      eventRepo,
+		vehicleRepo:    vehicleRepo,
+		personRepo:     personRepo,
+		vehicleSetRepo: vehicleSetRepo,
+		clients:        clients,
+		workerSvc:      workerSvc,
+		bucketDocs:     bucketDocs,
+		tech:           tech,
 	}
 }
 

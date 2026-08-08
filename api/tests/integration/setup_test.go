@@ -27,44 +27,48 @@ import (
 const tablePrefix = "test"
 
 var (
-	db             *dynamodb.Client
-	cfg            *config.Config
-	orgRepo        *repositories.OrganizationRepository
-	productRepo    *repositories.ProductRepository
-	personRepo     *repositories.PersonRepository
-	vehicleRepo    *repositories.VehicleRepository
-	certRepo       *repositories.CertificateRepository
-	auditRepo      *repositories.AuditLogRepository
-	userRepo       *repositories.UserRepository
-	roleRepo       *repositories.RoleRepository
-	orgUserRepo    *repositories.OrgUserRepository
-	invRepo        *repositories.OrgInvitationRepository
-	nfeConfigRepo  *repositories.NfeConfigRepository
-	nfceConfigRepo *repositories.NfceConfigRepository
-	cteConfigRepo  *repositories.CteConfigRepository
-	mdfeConfigRepo *repositories.MdfeConfigRepository
-	nfseConfigRepo *repositories.NfseConfigRepository
-	orgSvc         *services.OrganizationService
-	productSvc     *services.ProductService
-	serviceSvc     *services.ServiceService
-	taxProfileSvc  *services.TaxProfileService
-	operationSvc   *services.OperationService
-	personSvc      *services.PersonService
-	vehicleSvc     *services.VehicleService
-	certSvc        *services.CertificateService
-	memberSvc      *services.MembershipService
-	invSvc         *services.InvitationService
-	nfeConfigSvc   *services.NfeConfigService
-	nfceConfigSvc  *services.NfceConfigService
-	cteConfigSvc   *services.CteConfigService
-	mdfeConfigSvc  *services.MdfeConfigService
-	nfseConfigSvc  *services.NfseConfigService
-	serviceRepo    *repositories.ServiceRepository
-	taxProfileRepo *repositories.TaxProfileRepository
-	operationRepo  *repositories.OperationRepository
-	nfseRepo       *repositories.NfseRepository
-	nfseSvc        *nfses.NfseService
-	memCache       cache.Backend
+	db              *dynamodb.Client
+	cfg             *config.Config
+	orgRepo         *repositories.OrganizationRepository
+	productRepo     *repositories.ProductRepository
+	personRepo      *repositories.PersonRepository
+	vehicleRepo     *repositories.VehicleRepository
+	certRepo        *repositories.CertificateRepository
+	auditRepo       *repositories.AuditLogRepository
+	userRepo        *repositories.UserRepository
+	roleRepo        *repositories.RoleRepository
+	orgUserRepo     *repositories.OrgUserRepository
+	invRepo         *repositories.OrgInvitationRepository
+	nfeConfigRepo   *repositories.NfeConfigRepository
+	nfceConfigRepo  *repositories.NfceConfigRepository
+	cteConfigRepo   *repositories.CteConfigRepository
+	mdfeConfigRepo  *repositories.MdfeConfigRepository
+	nfseConfigRepo  *repositories.NfseConfigRepository
+	orgSvc          *services.OrganizationService
+	productSvc      *services.ProductService
+	serviceSvc      *services.ServiceService
+	taxProfileSvc   *services.TaxProfileService
+	operationSvc    *services.OperationService
+	paymentTermSvc  *services.PaymentTermService
+	vehicleSetSvc   *services.VehicleSetService
+	personSvc       *services.PersonService
+	vehicleSvc      *services.VehicleService
+	certSvc         *services.CertificateService
+	memberSvc       *services.MembershipService
+	invSvc          *services.InvitationService
+	nfeConfigSvc    *services.NfeConfigService
+	nfceConfigSvc   *services.NfceConfigService
+	cteConfigSvc    *services.CteConfigService
+	mdfeConfigSvc   *services.MdfeConfigService
+	nfseConfigSvc   *services.NfseConfigService
+	serviceRepo     *repositories.ServiceRepository
+	taxProfileRepo  *repositories.TaxProfileRepository
+	operationRepo   *repositories.OperationRepository
+	paymentTermRepo *repositories.PaymentTermRepository
+	vehicleSetRepo  *repositories.VehicleSetRepository
+	nfseRepo        *repositories.NfseRepository
+	nfseSvc         *nfses.NfseService
+	memCache        cache.Backend
 )
 
 func TestMain(m *testing.M) {
@@ -130,6 +134,10 @@ func TestMain(m *testing.M) {
 	taxProfileSvc = services.NewTaxProfileService(taxProfileRepo, auditRepo, memCache)
 	operationRepo = repositories.NewOperationRepository(db, cfg)
 	operationSvc = services.NewOperationService(operationRepo, auditRepo, memCache)
+	paymentTermRepo = repositories.NewPaymentTermRepository(db, cfg)
+	paymentTermSvc = services.NewPaymentTermService(paymentTermRepo, auditRepo, memCache)
+	vehicleSetRepo = repositories.NewVehicleSetRepository(db, cfg)
+	vehicleSetSvc = services.NewVehicleSetService(vehicleSetRepo, vehicleRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
 	vehicleSvc = services.NewVehicleService(vehicleRepo, auditRepo, memCache)
 	nfeConfigSvc = services.NewNfeConfigService(nfeConfigRepo, auditRepo)

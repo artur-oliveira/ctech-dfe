@@ -26,6 +26,8 @@ type Services struct {
 	Service      *services.ServiceService
 	TaxProfile   *services.TaxProfileService
 	Operation    *services.OperationService
+	PaymentTerm  *services.PaymentTermService
+	VehicleSet   *services.VehicleSetService
 	Person       *services.PersonService
 	Vehicle      *services.VehicleService
 	NFe          *nfesvc.NfeService
@@ -72,6 +74,8 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)
 	RegisterTaxProfiles(v1, svcs.TaxProfile, svcs.User, authMw, perm)
 	RegisterOperations(v1, svcs.Operation, svcs.User, authMw, perm)
+	RegisterPaymentTerms(v1, svcs.PaymentTerm, svcs.User, authMw, perm)
+	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)
 	RegisterNFes(v1, svcs.NFe, svcs.External, svcs.User, authMw, perm)

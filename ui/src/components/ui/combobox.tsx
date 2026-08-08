@@ -2,6 +2,7 @@
 
 import React, {useEffect, useMemo, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
+import Fuse from 'fuse.js'
 import {CheckIcon, ChevronDownIcon} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Highlighted} from '@/components/ui/highlight'
@@ -21,6 +22,7 @@ interface ComboboxProps {
   disabled?: boolean
   className?: string
   id?: string
+  fuzzySearch?: boolean
 }
 
 const PAGE_SIZE = 50
@@ -42,6 +44,7 @@ export function Combobox({
                            disabled,
                            className,
                            id,
+                           fuzzySearch = false,
                          }: ComboboxProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -62,12 +65,22 @@ export function Combobox({
   const selected = value ? options.find((o) => o.value === value) : undefined
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim()
     if (!q) return options
+    if (fuzzySearch) {
+      const fuse = new Fuse(options, {
+        keys: ['value', 'label'],
+        threshold: 0.3,
+        ignoreDiacritics: true,
+        ignoreLocation: true,
+      })
+      return fuse.search(q).map(({item}) => item)
+    }
+    const normalizedQuery = q.toLowerCase()
     return options.filter((o) =>
-      o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+      o.label.toLowerCase().includes(normalizedQuery) || o.value.toLowerCase().includes(normalizedQuery),
     )
-  }, [options, search])
+  }, [fuzzySearch, options, search])
 
   const visibleItems = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length

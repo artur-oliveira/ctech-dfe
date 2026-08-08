@@ -209,6 +209,206 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Condições de pagamento ──────────────────────────────────────────────
+
+  /v1.0/payment-terms:
+    get:
+      tags: [PaymentTerms]
+      summary: Lista condições de pagamento
+      operationId: listPaymentTerms
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de condições de pagamento
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/PaymentTermItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [PaymentTerms]
+      summary: Cria uma condição de pagamento
+      operationId: createPaymentTerm
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTermBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTermItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/payment-terms/{payment_term_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: payment_term_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [PaymentTerms]
+      summary: Detalha uma condição de pagamento
+      operationId: getPaymentTerm
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTermItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [PaymentTerms]
+      summary: Atualiza uma condição de pagamento
+      operationId: updatePaymentTerm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTermBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTermItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [PaymentTerms]
+      summary: Remove uma condição de pagamento
+      operationId: deletePaymentTerm
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Composições veiculares ─────────────────────────────────────────────────
+
+  /v1.0/vehicle-sets:
+    get:
+      tags: [VehicleSets]
+      summary: Lista composições veiculares
+      operationId: listVehicleSets
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de composições veiculares
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/VehicleSetItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [VehicleSets]
+      summary: Cria uma composição veicular
+      operationId: createVehicleSet
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleSetBody' }
+      responses:
+        '201':
+          description: Composição criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleSetItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/vehicle-sets/{vehicle_set_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: vehicle_set_id
+        in: path
+        required: true
+        description: Identificador da composição (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [VehicleSets]
+      summary: Detalha uma composição veicular
+      operationId: getVehicleSet
+      responses:
+        '200':
+          description: Composição veicular
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleSetItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [VehicleSets]
+      summary: Atualiza uma composição veicular
+      operationId: updateVehicleSet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleSetBody' }
+      responses:
+        '200':
+          description: Composição atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleSetItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [VehicleSets]
+      summary: Remove uma composição veicular
+      operationId: deleteVehicleSet
+      responses:
+        '204':
+          description: Composição removida
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
 
   parameters:
@@ -312,5 +512,86 @@ components:
         sk: { type: string, description: Identificador da natureza de operação. }
         name: { type: string }
         is_default: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PaymentTermBody:
+      type: object
+      description: |
+        Condição de pagamento nomeada ("30/60/90", "à vista", "boleto 28 dias").
+        Na emissão, `payment_term_id` + o total do documento expandem para
+        `payments`, `cobr_fat` e `cobr_duplicatas`. **A última parcela absorve o
+        resíduo de arredondamento**: a soma das duplicatas fecha com `vNF`
+        centavo a centavo. Valores explícitos no request vencem a expansão.
+      required: [name, payment_type, installments]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        payment_type:
+          type: string
+          description: Mesmo domínio de `NfePaymentItem.payment_type`.
+        ind_pag:
+          type: [string, 'null']
+          enum: ['0', '1', null]
+          description: |
+            `0` à vista, `1` a prazo. Ausente, é derivado: uma parcela com
+            vencimento imediato é à vista, qualquer outra coisa é a prazo.
+        installments: { type: integer, minimum: 1, maximum: 120 }
+        interval_days: { type: integer, minimum: 0, maximum: 365, description: Intervalo entre parcelas. }
+        first_due_days: { type: integer, minimum: 0, maximum: 365, description: Dias até o primeiro vencimento. }
+        card:
+          type: [object, 'null']
+          additionalProperties: true
+          description: Mesmos campos de `NfePaymentItem.card`.
+
+    PaymentTermItem:
+      type: object
+      description: Condição de pagamento persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        payment_type: { type: string }
+        installments: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleSetBody:
+      type: object
+      description: |
+        Composição veicular — trator, até 3 reboques e condutores escolhidos de
+        uma vez ("Carreta 1 — ABC1D23"). Na emissão do MDF-e, `vehicle_set_id`
+        expande para `vehicle`, `trailers`, `drivers`, `rntrc` e `ciot`, e
+        **cada campo continua sobrescrevível individualmente no mesmo request** —
+        trocar o motorista de um dia não exige criar outro conjunto.
+
+        O trator tem que ter `role=tractor` e cada reboque `role=trailer`; a
+        checagem acontece no cadastro, não na emissão.
+      required: [name, tractor_sk]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        tractor_sk: { type: string, description: 'SK do veículo de tração (role=tractor).' }
+        trailer_sks:
+          type: array
+          maxItems: 3
+          items: { type: string }
+          description: 'SKs dos reboques (role=trailer).'
+        driver_docs:
+          type: array
+          items: { $ref: '#/components/schemas/Cpf' }
+          description: CPFs de pessoas do cadastro, tipicamente com o papel `driver`.
+        rntrc: { type: [string, 'null'] }
+        ciot: { type: [string, 'null'] }
+
+    VehicleSetItem:
+      type: object
+      description: Composição veicular persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        tractor_sk: { type: string }
+        trailer_sks: { type: array, items: { type: string } }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

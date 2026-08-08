@@ -61,10 +61,11 @@ func minimalInput() documentInput {
 	})
 
 	service := map[string]types.AttributeValue{
-		"trib_nacional_code": &types.AttributeValueMemberS{Value: "10101"},
-		"description":        &types.AttributeValueMemberS{Value: "Análise de sistemas"},
-		"code":               &types.AttributeValueMemberS{Value: "SVC-001"},
-		"value":              &types.AttributeValueMemberS{Value: "1000.00"},
+		"trib_nacional_code":  &types.AttributeValueMemberS{Value: "10101"},
+		"trib_municipal_code": &types.AttributeValueMemberS{Value: "415"},
+		"description":         &types.AttributeValueMemberS{Value: "Análise de sistemas"},
+		"code":                &types.AttributeValueMemberS{Value: "SVC-001"},
+		"value":               &types.AttributeValueMemberS{Value: "1000.00"},
 		"iss": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
 			"trib_issqn":   &types.AttributeValueMemberN{Value: "1"},
 			"tax_rate":     &types.AttributeValueMemberS{Value: "2.00"},
@@ -198,8 +199,24 @@ func TestBuildDocument_UsesServiceCatalogDefaults(t *testing.T) {
 	if doc.Servico.CServ.CTribNac != "10101" {
 		t.Errorf("cTribNac = %q, esperado vir do catálogo", doc.Servico.CServ.CTribNac)
 	}
+	if doc.Servico.CServ.CTribMun != "415" {
+		t.Errorf("cTribMun = %q, esperado vir do catálogo", doc.Servico.CServ.CTribMun)
+	}
 	if doc.Valores.VServPrest.VServ != "1000.00" {
 		t.Errorf("vServ = %q, esperado vir do catálogo", doc.Valores.VServPrest.VServ)
+	}
+}
+
+func TestBuildDocument_ItemOverridesCatalogMunicipalTaxCode(t *testing.T) {
+	in := minimalInput()
+	override := "416"
+	in.Body.Service.CTribMun = &override
+	doc, err := buildDocument(in)
+	if err != nil {
+		t.Fatalf("buildDocument: %v", err)
+	}
+	if doc.Servico.CServ.CTribMun != override {
+		t.Errorf("cTribMun = %q, esperado o override %q", doc.Servico.CServ.CTribMun, override)
 	}
 }
 

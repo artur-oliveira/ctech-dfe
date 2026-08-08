@@ -166,6 +166,23 @@ func (r *OrgEntityRepository) BuildDeleteTxItem(orgPK, id string) types.Transact
 
 // ── Concrete registries ──────────────────────────────────────────────────────
 
+// PaymentTermRepository — organization_payment_terms. Uma condição de pagamento
+// ("30/60/90", "à vista", "boleto 28 dias") expande para payments, cobr.fat e
+// cobr_duplicatas na emissão.
+type PaymentTermRepository struct{ OrgEntityRepository }
+
+func NewPaymentTermRepository(db *dynamodb.Client, cfg *config.Config) *PaymentTermRepository {
+	return &PaymentTermRepository{newOrgEntityRepository(db, cfg, TablePaymentTerms, SKPrefixPaymentTerm)}
+}
+
+// VehicleSetRepository — organization_vehicle_sets. Uma composição veicular
+// junta trator, reboques e condutores num conjunto escolhido de uma vez.
+type VehicleSetRepository struct{ OrgEntityRepository }
+
+func NewVehicleSetRepository(db *dynamodb.Client, cfg *config.Config) *VehicleSetRepository {
+	return &VehicleSetRepository{newOrgEntityRepository(db, cfg, TableVehicleSets, SKPrefixVehicleSet)}
+}
+
 // OperationRepository — organization_operations. Uma natureza de operação junta
 // os valores que sempre andam juntos por cenário de negócio.
 type OperationRepository struct{ OrgEntityRepository }

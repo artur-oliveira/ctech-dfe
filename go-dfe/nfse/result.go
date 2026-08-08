@@ -1,6 +1,9 @@
 package nfse
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Message é uma mensagem de processamento do fisco (MensagemProcessamento no
 // Swagger do Sefin Nacional, tmp/nfse-sefin.json).
@@ -8,6 +11,31 @@ type Message struct {
 	Codigo      string `json:"codigo"`
 	Descricao   string `json:"descricao"`
 	Complemento string `json:"complemento,omitempty"`
+}
+
+// UnmarshalJSON aceita tanto MensagemProcessamento ("descricao") quanto o
+// envelope NFSePostResponseErro usado por autorizadores municipais
+// ("mensagem"). O modelo neutro mantém Descricao como campo canônico para que
+// o restante da stack não dependa da variante do provider.
+func (m *Message) UnmarshalJSON(data []byte) error {
+	type messageJSON struct {
+		Codigo      string `json:"codigo"`
+		Descricao   string `json:"descricao"`
+		Mensagem    string `json:"mensagem"`
+		Complemento string `json:"complemento"`
+	}
+
+	var raw messageJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	m.Codigo = raw.Codigo
+	m.Descricao = raw.Descricao
+	if m.Descricao == "" {
+		m.Descricao = raw.Mensagem
+	}
+	m.Complemento = raw.Complemento
+	return nil
 }
 
 // Result é o retorno neutro de qualquer operação. Campos não pertinentes à

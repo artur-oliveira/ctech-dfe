@@ -512,6 +512,12 @@ components:
           type: array
           description: Ordem explícita dos municípios de descarregamento.
           items: { $ref: '#/components/schemas/MdfeMun' }
+        vehicle_set_id:
+          type: [string, 'null']
+          description: |
+            Composição veicular do cadastro. Expande para `vehicle`, `trailers`,
+            `drivers`, `rntrc` e `ciot`; cada campo continua sobrescrevível
+            individualmente no mesmo request.
         vehicle: { $ref: '#/components/schemas/MdfeVehicle' }
         trailers:
           type: array

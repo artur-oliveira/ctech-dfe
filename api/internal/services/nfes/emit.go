@@ -28,7 +28,10 @@ type NfeEmitBody struct {
 	// OperationID resolve nat_op, tp_nf, fin_nfe, ind_final, ind_pres, mod_frete,
 	// o CFOP dos itens que não o trazem, e as mensagens fiscais. Todo valor
 	// explícito no request vence a operação.
-	OperationID    *string            `json:"operation_id" validate:"omitempty"`
+	OperationID *string `json:"operation_id" validate:"omitempty"`
+	// PaymentTermID expande para payments, cobr_fat e cobr_duplicatas a partir
+	// do total do documento. Valores explícitos no request vencem a expansão.
+	PaymentTermID  *string            `json:"payment_term_id" validate:"omitempty"`
 	SelfIssuance   bool               `json:"self_issuance"`
 	Products       []NfeProductItem   `json:"products" validate:"required,min=1,dive"`
 	Payments       []NfePaymentItem   `json:"payments" validate:"omitempty,dive"`
@@ -235,6 +238,29 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, problem.InternalServer("failed to decode receiver")
 	}
 	receiverAny["sk"] = receiverSK
+
+	// Condição de pagamento: a do request, senão a que a operação define.
+	// A expansão só entra onde o request não trouxe nada — pagamento explícito
+	// vence sempre.
+	termID := firstNonNil(req.PaymentTermID, operationDefault(operation, "payment_term_id"))
+	term, err := loadPaymentTerm(ctx, s.paymentTermRepo, orgPK, termID)
+	if err != nil {
+		return nil, err
+	}
+	expandedPayments, expandedFat, expandedDups, err := ExpandPaymentTerm(
+		term, totalProducts.Sub(totalDiscount).RoundBank(2), now)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.Payments) == 0 {
+		req.Payments = expandedPayments
+	}
+	if req.CobrFat == nil {
+		req.CobrFat = expandedFat
+	}
+	if len(req.CobrDuplicatas) == 0 {
+		req.CobrDuplicatas = expandedDups
+	}
 
 	// Resolve optional billing nodes
 	var cobrFatAny map[string]any

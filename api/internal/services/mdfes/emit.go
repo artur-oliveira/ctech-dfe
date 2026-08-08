@@ -32,6 +32,10 @@ type MdfeEmitBody struct {
 	Loadings   []MdfeMun `json:"loadings" validate:"omitempty,dive"`
 	Unloadings []MdfeMun `json:"unloadings" validate:"omitempty,dive"`
 
+	// VehicleSetID expande para vehicle, trailers, drivers, rntrc e ciot.
+	// Cada um continua sobrescrevível individualmente no mesmo request.
+	VehicleSetID *string `json:"vehicle_set_id" validate:"omitempty"`
+
 	Vehicle  MdfeVehicle   `json:"vehicle"`
 	Trailers []MdfeTrailer `json:"trailers" validate:"omitempty,max=3,dive"`
 	Drivers  []MdfeDriver  `json:"drivers" validate:"omitempty,dive"`
@@ -178,6 +182,18 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if len(req.Documents) == 1 && req.BulkCargo == nil {
 		return nil, problem.BadRequest("MDF-e com documento único (carga lotação) exige CEP de carregamento e descarregamento")
 	}
+
+	// A composição veicular preenche o que o request não trouxe. Vem antes das
+	// validações de veículo e condutor justamente para que escolher um conjunto
+	// já satisfaça as duas.
+	vehicleSet, err := loadVehicleSet(ctx, s.vehicleSetRepo, orgPK, req.VehicleSetID)
+	if err != nil {
+		return nil, err
+	}
+	if err := applyVehicleSet(ctx, s.personRepo, orgPK, &req, vehicleSet); err != nil {
+		return nil, err
+	}
+
 	if req.Vehicle.SK == nil && (req.Vehicle.Placa == "" || req.Vehicle.Tara == "" || req.Vehicle.UF == "") {
 		return nil, problem.BadRequest("informe um veículo cadastrado (sk) ou placa, tara e UF do veículo")
 	}
@@ -235,7 +251,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
-	owner, err := resolveOwner(req.Vehicle.Owner, orgPK)
+	owner, err := resolveOwner(firstOwner(req.Vehicle.Owner, resolvedVehicle.Owner, orgPK), orgPK)
 	if err != nil {
 		return nil, err
 	}
@@ -515,6 +531,10 @@ type resolvedVehicle struct {
 	TpRod   string
 	TpCar   string
 	RNTRC   string // owner RNTRC, when the vehicle is registered with an owner
+	// Owner é o proprietário cadastrado no veículo (VehicleOwnerBody). Serve de
+	// default para veicTracao/prop quando a emissão não traz um proprietário —
+	// antes este dado era cadastrado e depois redigitado a cada emissão.
+	Owner *MdfeOwner
 }
 
 // resolveVehicle merges a registered vehicle (by SK) with the request
@@ -572,6 +592,7 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 			if r, ok := owner.Value["rntrc"].(*types.AttributeValueMemberS); ok {
 				out.RNTRC = r.Value
 			}
+			out.Owner = ownerFromRegistry(owner.Value)
 		}
 	}
 

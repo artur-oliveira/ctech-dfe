@@ -609,6 +609,12 @@ components:
         self_issuance:
           type: boolean
           description: Emissão para a própria organização (destinatário = emitente).
+        payment_term_id:
+          type: [string, 'null']
+          description: |
+            Condição de pagamento do cadastro. Expande para `payments`,
+            `cobr_fat` e `cobr_duplicatas` a partir do total do documento;
+            valores explícitos no request vencem a expansão.
         operation_id:
           type: [string, 'null']
           description: |
