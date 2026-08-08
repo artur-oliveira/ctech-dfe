@@ -1,4 +1,14 @@
-import {ClipboardList, FileSignature, FileText, Percent, Receipt, Route, Truck} from 'lucide-react'
+import {
+  CalendarClock,
+  ClipboardList,
+  Combine,
+  FileSignature,
+  FileText,
+  Percent,
+  Receipt,
+  Route,
+  Truck,
+} from 'lucide-react'
 
 interface IconProps {
   width?: number
@@ -38,6 +48,16 @@ export const RouteIcon = ({width = 16, height = 16}: IconProps) => (
 /** Perfil fiscal — tributação reutilizável entre produtos */
 export const PercentIcon = ({width = 16, height = 16}: IconProps) => (
   <Percent width={width} height={height}/>
+)
+
+/** Condição de pagamento — parcelas e vencimentos reutilizáveis */
+export const CalendarClockIcon = ({width = 16, height = 16}: IconProps) => (
+  <CalendarClock width={width} height={height}/>
+)
+
+/** Composição veicular — cavalo, reboques e condutores que andam juntos */
+export const VehicleSetIcon = ({width = 16, height = 16}: IconProps) => (
+  <Combine width={width} height={height}/>
 )
 
 /** NFS-e — Nota Fiscal de Serviços Eletrônica */

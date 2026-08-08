@@ -19,6 +19,7 @@ import {Combobox} from '@/components/ui/combobox'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {VehicleForm} from '@/components/vehicles/VehicleForm'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {suggestRoute, ufsBorder} from '@/lib/utils/uf-graph'
 import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
@@ -360,6 +361,7 @@ export function MdfeEmitForm() {
   const [cepDescarrega, setCepDescarrega] = useState('')
 
   // Vehicles (registered only) + register/edit modal.
+  const [vehicleSetId, setVehicleSetId] = useState('')
   const [vehicleSk, setVehicleSk] = useState<string | null>(null)
   const [trailerSks, setTrailerSks] = useState<string[]>([])
   const [gateModal, setGateModal] = useState<{ vehicle: VehicleOut; missing: string[] } | null>(null)
@@ -418,6 +420,38 @@ export function MdfeEmitForm() {
   }
 
   const removeTrailer = (sk: string) => setTrailerSks((prev) => prev.filter((s) => s !== sk))
+
+  const {data: vehicleSetPage} = useQuery({
+    queryKey: queryKeys.vehicleSets.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getVehicleSets({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const vehicleSets = vehicleSetPage?.items ?? []
+
+  // A composição só preenche os campos — todos continuam editáveis abaixo. O
+  // `vehicle_set_id` segue no payload porque RNTRC e CIOT do conjunto não têm
+  // campo neste formulário e são preenchidos pelo backend.
+  const applyVehicleSet = async (id: string) => {
+    setVehicleSetId(id)
+    const set = vehicleSets.find((s) => extractId(s.sk, SK_PREFIX.VEHICLE_SET) === id)
+    if (!set) return
+
+    onSelectTractor(set.tractor_sk)
+    ;(set.trailer_sks ?? []).forEach(onSelectTrailer)
+
+    const docs = (set.driver_docs ?? []).filter((d) => !drivers.some((x) => x.cpf === d))
+    const people = await Promise.all(
+      docs.map((d) => apiClient.getPerson(`${SK_PREFIX.CPF}${d}`).catch(() => null)),
+    )
+    const found = people.filter((p): p is PersonItemOut => p !== null)
+    if (found.length < docs.length) {
+      setDriverError('Alguns condutores da composição não estão mais no cadastro.')
+    }
+    setDrivers((prev) => [
+      ...prev,
+      ...found.map((p) => ({name: p.name, cpf: unformatCpfCnpj(p.sk)})),
+    ])
+  }
 
   // Seguro só aparece com CT-e. O seletor de documentos é NF-e-only no MVP, logo
   // hasCte é sempre falso; mantido explícito para quando o CT-e for habilitado.
@@ -537,6 +571,7 @@ export function MdfeEmitForm() {
       loadings: loadings.length ? loadings : undefined,
       unloadings: unloadings.length ? unloadings : undefined,
       drivers,
+      vehicle_set_id: vehicleSetId || null,
       vehicle: {sk: vehicleSk},
       trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
@@ -712,6 +747,29 @@ export function MdfeEmitForm() {
       {/* Step — veículo / condutor */}
       {step === 'veiculo' && (
         <div className="space-y-4">
+          {vehicleSets.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
+              <Label htmlFor="mdfe-vehicle-set" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Composição veicular
+              </Label>
+              <OptionsSelect
+                id="mdfe-vehicle-set"
+                value={vehicleSetId}
+                onValueChange={(id) => void applyVehicleSet(id)}
+                options={[
+                  {value: '', label: 'Escolher veículo e condutores manualmente'},
+                  ...vehicleSets.map((s) => ({
+                    value: extractId(s.sk, SK_PREFIX.VEHICLE_SET),
+                    label: s.name,
+                  })),
+                ]}
+              />
+              <p className="text-xs text-gray-500">
+                Preenche veículo, reboques e condutores abaixo. Tudo continua editável.
+              </p>
+            </div>
+          )}
+
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Veículo (tração)</p>

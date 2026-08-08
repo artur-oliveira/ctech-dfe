@@ -711,6 +711,44 @@ export interface OperationItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — condições de pagamento e composições veiculares
+export interface PaymentTermCreate extends Record<string, unknown> {
+  name: string
+  payment_type: string
+  installments: number
+}
+
+export interface PaymentTermItemOut {
+  pk: string
+  sk: string
+  name: string
+  payment_type: string
+  ind_pag?: string | null
+  installments: number
+  interval_days?: number
+  first_due_days?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleSetCreate extends Record<string, unknown> {
+  name: string
+  tractor_sk: string
+}
+
+export interface VehicleSetItemOut {
+  pk: string
+  sk: string
+  name: string
+  tractor_sk: string
+  trailer_sks?: string[] | null
+  driver_docs?: string[] | null
+  rntrc?: string | null
+  ciot?: string | null
+  created_at: string
+  updated_at: string
+}
+
 // NF-e — tipos auxiliares
 export interface NfeCardIn {
   tp_integra: '1' | '2'
@@ -848,6 +886,8 @@ export interface NfeEmit {
   self_issuance?: boolean
   /** Natureza de operação do cadastro. Todo valor explícito aqui vence os defaults dela. */
   operation_id?: string | null
+  /** Condição de pagamento do cadastro. `payments`/`cobr_*` explícitos vencem a expansão. */
+  payment_term_id?: string | null
   products: NfeProductIn[]
   payments: NfePaymentIn[]
   additional_info?: string | null
@@ -1008,6 +1048,8 @@ export interface MdfeEmit {
   route?: string[]
   loadings?: MdfeMunIn[]
   unloadings?: MdfeMunIn[]
+  /** Composição veicular do cadastro. Cada campo expandido continua sobrescrevível aqui. */
+  vehicle_set_id?: string | null
   vehicle: MdfeVehicleIn
   trailers?: { sk: string }[]
   drivers: MdfeDriverIn[]

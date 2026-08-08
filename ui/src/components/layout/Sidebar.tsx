@@ -5,8 +5,10 @@ import {usePathname} from 'next/navigation'
 import type {ReactNode} from 'react'
 import {
   BriefcaseIcon,
+  CalendarClockIcon,
   PercentIcon,
   RouteIcon,
+  VehicleSetIcon,
   CteIcon,
   MdfeIcon,
   NfceIcon,
@@ -88,7 +90,9 @@ const navGroups: NavGroup[] = [
       {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
       {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
       {href: '/operations', label: 'Naturezas de operação', icon: <RouteIcon/>},
+      {href: '/payment-terms', label: 'Condições de pagamento', icon: <CalendarClockIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
+      {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
       {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
     ],
   },

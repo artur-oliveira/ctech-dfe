@@ -1,6 +1,10 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   OperationCreate,
+  PaymentTermCreate,
+  PaymentTermItemOut,
+  VehicleSetCreate,
+  VehicleSetItemOut,
   OperationItemOut,
   TaxProfileCreate,
   TaxProfileItemOut,
@@ -376,6 +380,48 @@ class ApiClient {
 
   async deleteOperation(id: string): Promise<void> {
     return this.del(`/v1.0/operations/${id}`)
+  }
+
+  // Payment terms (condições de pagamento)
+  async getPaymentTerms(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<PaymentTermItemOut>> {
+    return this.get('/v1.0/payment-terms', {params})
+  }
+
+  async getPaymentTerm(id: string): Promise<PaymentTermItemOut> {
+    return this.get(`/v1.0/payment-terms/${id}`)
+  }
+
+  async createPaymentTerm(data: PaymentTermCreate): Promise<PaymentTermItemOut> {
+    return this.post('/v1.0/payment-terms', data)
+  }
+
+  async updatePaymentTerm(id: string, data: PaymentTermCreate): Promise<PaymentTermItemOut> {
+    return this.put(`/v1.0/payment-terms/${id}`, data)
+  }
+
+  async deletePaymentTerm(id: string): Promise<void> {
+    return this.del(`/v1.0/payment-terms/${id}`)
+  }
+
+  // Vehicle sets (composições veiculares)
+  async getVehicleSets(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<VehicleSetItemOut>> {
+    return this.get('/v1.0/vehicle-sets', {params})
+  }
+
+  async getVehicleSet(id: string): Promise<VehicleSetItemOut> {
+    return this.get(`/v1.0/vehicle-sets/${id}`)
+  }
+
+  async createVehicleSet(data: VehicleSetCreate): Promise<VehicleSetItemOut> {
+    return this.post('/v1.0/vehicle-sets', data)
+  }
+
+  async updateVehicleSet(id: string, data: VehicleSetCreate): Promise<VehicleSetItemOut> {
+    return this.put(`/v1.0/vehicle-sets/${id}`, data)
+  }
+
+  async deleteVehicleSet(id: string): Promise<void> {
+    return this.del(`/v1.0/vehicle-sets/${id}`)
   }
 
   // Persons (Clientes/Fornecedores)

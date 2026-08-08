@@ -60,6 +60,7 @@ import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from "@/compone
 import {ProductLineItem} from "@/components/ui/product-line-item"
 import {ProductSearch} from "@/components/ui/product-search"
 import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options"
+import {previewInstallments} from "@/lib/schemas/payment-terms"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
 import {LocationPicker} from "@/components/nfe/LocationPicker"
 
@@ -642,6 +643,8 @@ export function NfeEmitForm() {
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null)
+  // '' = pagamento manual (comportamento de sempre).
+  const [paymentTermId, setPaymentTermId] = useState('')
   const [showProductPicker, setShowProductPicker] = useState(false)
   const [newPaymentType, setNewPaymentType] = useState('01')
   const [newPaymentValue, setNewPaymentValue] = useState('')
@@ -730,6 +733,16 @@ export function NfeEmitForm() {
     : operationId
   const selectedOperation = operations.find(
     (op) => extractId(op.sk, SK_PREFIX.OPERATION) === effectiveOperationId,
+  )
+
+  const {data: paymentTermPage} = useQuery({
+    queryKey: queryKeys.paymentTerms.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getPaymentTerms({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const paymentTerms = paymentTermPage?.items ?? []
+  const selectedPaymentTerm = paymentTerms.find(
+    (t) => extractId(t.sk, SK_PREFIX.PAYMENT_TERM) === paymentTermId,
   )
 
   const operationCfopSuffix = typeof selectedOperation?.cfop_suffix === 'string'
@@ -885,6 +898,7 @@ export function NfeEmitForm() {
     if (step === 'destinatario') return selfIssuance || receiver !== null
     if (step === 'produtos') return products.length > 0 && !cfopMixError && !cfopUnresolvedError
     if (step === 'pagamento') {
+      if (paymentTermId) return true
       if (payments.length > 0) return true
       if (newPaymentType === NO_PAYMENT_TYPE) return true
       return !!newPaymentValue && parseFloat(newPaymentValue) > 0
@@ -895,7 +909,7 @@ export function NfeEmitForm() {
   function handleNext() {
     const i = STEP_IDS.indexOf(currentStep)
     if (i < STEP_IDS.length - 1) {
-      if (currentStep === 'pagamento') {
+      if (currentStep === 'pagamento' && !paymentTermId) {
         const isNoPay = newPaymentType === NO_PAYMENT_TYPE
         const hasValidValue = isNoPay || (!!newPaymentValue && parseFloat(newPaymentValue) > 0)
         if (hasValidValue && payments.length === 0) handleAddPayment()
@@ -995,6 +1009,7 @@ export function NfeEmitForm() {
     const payload: NfeEmit = {
       ...(selfIssuance ? {self_issuance: true} : {receiver_id: receiver!.sk}),
       operation_id: effectiveOperationId || null,
+      payment_term_id: paymentTermId || null,
       products: products.map(p => ({
         product_id: p.product.sk, cfop: p.cfop, quantity: p.qty,
         unit_value: p.unitValue || null, discount: p.discount || '0',
@@ -1240,6 +1255,52 @@ export function NfeEmitForm() {
       {/* ──────────────── Step 3: Pagamento ─────────────────────────────── */}
       {currentStep === 'pagamento' && (
         <div className="space-y-4">
+          {paymentTerms.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
+              <label htmlFor="nfe-payment-term" className="text-sm font-medium text-gray-600">
+                Condição de pagamento
+              </label>
+              <OptionsSelect
+                id="nfe-payment-term"
+                value={paymentTermId}
+                onValueChange={setPaymentTermId}
+                options={[
+                  {value: '', label: 'Informar pagamento manualmente'},
+                  ...paymentTerms.map((t) => ({
+                    value: extractId(t.sk, SK_PREFIX.PAYMENT_TERM),
+                    label: `${t.name} — ${t.installments}×`,
+                  })),
+                ]}
+              />
+              {selectedPaymentTerm && (
+                <>
+                  <p className="text-xs text-gray-500">
+                    Parcelas, fatura e duplicatas são geradas na emissão a partir do total da nota.
+                  </p>
+                  <div className="space-y-1 pt-1">
+                    {previewInstallments(
+                      {
+                        installments: selectedPaymentTerm.installments,
+                        interval_days: selectedPaymentTerm.interval_days ?? 0,
+                        first_due_days: selectedPaymentTerm.first_due_days ?? 0,
+                      },
+                      totalNfe,
+                      new Date(),
+                    ).map((inst) => (
+                      <div key={inst.number}
+                           className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                        <span className="font-mono text-xs text-gray-500">{inst.number}</span>
+                        <span className="text-gray-700">{inst.dueDate}</span>
+                        <span className="font-medium text-gray-900">{fmt(parseFloat(inst.value))}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {!paymentTermId && (<>
           {/* Payment list */}
           {payments.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
@@ -1451,6 +1512,7 @@ export function NfeEmitForm() {
               </div>
             </div>
           )}
+          </>)}
         </div>
       )}
 
@@ -1485,6 +1547,14 @@ export function NfeEmitForm() {
           </ReviewRow>
 
           <ReviewRow label="Pagamento" onEdit={() => setCurrentStep('pagamento')}>
+            {selectedPaymentTerm && (
+              <p className="text-gray-900">
+                {selectedPaymentTerm.name}
+                <span className="ml-1.5 text-xs text-gray-500">
+                  {selectedPaymentTerm.installments}× · parcelas geradas na emissão
+                </span>
+              </p>
+            )}
             <ul className="space-y-1">
               {payments.map((p, i) => (
                 <li key={i} className="flex items-baseline justify-between gap-3">

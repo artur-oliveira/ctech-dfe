@@ -142,9 +142,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	if len(req.Products) == 0 {
 		return nil, problem.BadRequest("pelo menos um produto é obrigatório")
 	}
-	if len(req.Payments) == 0 {
-		return nil, problem.BadRequest("pelo menos uma forma de pagamento é obrigatória")
-	}
+	// A checagem de pagamento vive depois da expansão da condição de pagamento:
+	// quem manda payment_term_id não manda payments.
 
 	orgItem, err := s.orgRepo.GetOrganization(ctx, orgPK)
 	if err != nil {
@@ -260,6 +259,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 	if len(req.CobrDuplicatas) == 0 {
 		req.CobrDuplicatas = expandedDups
+	}
+	if len(req.Payments) == 0 {
+		return nil, problem.BadRequest("pelo menos uma forma de pagamento é obrigatória")
 	}
 
 	// Resolve optional billing nodes

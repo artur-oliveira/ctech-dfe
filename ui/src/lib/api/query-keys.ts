@@ -28,6 +28,14 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['operations', orgPk] as const,
     detail: (id: string) => ['operation', id] as const,
   },
+  paymentTerms: {
+    list: (orgPk: string | undefined) => ['payment-terms', orgPk] as const,
+    detail: (id: string) => ['payment-term', id] as const,
+  },
+  vehicleSets: {
+    list: (orgPk: string | undefined) => ['vehicle-sets', orgPk] as const,
+    detail: (id: string) => ['vehicle-set', id] as const,
+  },
   vehicles: {
     list: (orgPk: string | undefined, role?: string) => ['vehicles', orgPk, role] as const,
     detail: (id: string) => ['vehicle', id] as const,
