@@ -30,6 +30,11 @@ export const ServiceIcon = ({width = 16, height = 16}: IconProps) => (
   <ClipboardList width={width} height={height}/>
 )
 
+/** Natureza de operação — o cenário de negócio da emissão */
+export const RouteIcon = ({width = 16, height = 16}: IconProps) => (
+  <Route width={width} height={height}/>
+)
+
 /** Perfil fiscal — tributação reutilizável entre produtos */
 export const PercentIcon = ({width = 16, height = 16}: IconProps) => (
   <Percent width={width} height={height}/>

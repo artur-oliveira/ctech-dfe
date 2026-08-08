@@ -6,6 +6,7 @@ import type {ReactNode} from 'react'
 import {
   BriefcaseIcon,
   PercentIcon,
+  RouteIcon,
   CteIcon,
   MdfeIcon,
   NfceIcon,
@@ -86,6 +87,7 @@ const navGroups: NavGroup[] = [
       {href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>},
       {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
       {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
+      {href: '/operations', label: 'Naturezas de operação', icon: <RouteIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
       {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
     ],

@@ -41,6 +41,9 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
 import {PersonForm} from '@/components/persons/PersonForm'
 import {PersonPicker} from '@/components/persons/PersonPicker'
+import {MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
+import {resolveCfopScope} from '@/lib/data/cfop'
 import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
 import {
   buildNatOpFromCfops,
@@ -114,15 +117,6 @@ function computeTotal(p: EmitProduct): number {
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
 }
-
-const MOD_FRETE_OPTIONS = [
-  {value: '9', label: '9 – Sem frete'},
-  {value: '0', label: '0 – Contratação (remetente)'},
-  {value: '1', label: '1 – Contratação (destinatário)'},
-  {value: '2', label: '2 – Contratação por conta de terceiros'},
-  {value: '3', label: '3 – Transporte próprio do remetente'},
-  {value: '4', label: '4 – Transporte próprio do destinatário'},
-]
 
 // ─── Receiver search ──────────────────────────────────────────────────────────
 
@@ -388,11 +382,14 @@ interface ProductRowProps {
   item: EmitProduct
   index: number
   sameUf: boolean | null
+  /** Natureza fiscal vinda da operação. Quando presente, o CFOP deixa de ser
+   *  uma pergunta por item e vira texto resolvido. */
+  operationCfopSuffix?: string
   onChange: (index: number, updated: Partial<EmitProduct>) => void
   onRemove: (index: number) => void
 }
 
-export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRowProps) {
+export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, onRemove}: ProductRowProps) {
   const cfopGroups = groupCfopConfigBySuffix(item.product.cfop_config)
   const cfopOptions = cfopGroups.map((g) => {
     const codes = cfopGroupCodes(g)
@@ -432,7 +429,15 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
       cfopSlot={
         <>
           <div className="flex items-center gap-1"><Label htmlFor={`nfe-item-${index}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
-          {cfopOptions.length > 0 ? (
+          {operationCfopSuffix ? (
+            /* A operação já respondeu qual é a natureza fiscal: o CFOP vira
+               informação, não pergunta. É o ganho real do passo 2 — o operador
+               deixa de precisar saber a natureza fiscal item a item. */
+            <p id={`nfe-item-${index}-cfop`} className="font-mono text-sm text-gray-700">
+              {item.cfop || '—'}
+              <span className="ml-2 font-sans text-xs text-gray-500">definido pela operação</span>
+            </p>
+          ) : cfopOptions.length > 0 ? (
             <OptionsSelect
               id={`nfe-item-${index}-cfop`}
               value={item.cfopSuffix}
@@ -629,10 +634,14 @@ export function NfeEmitForm() {
   const [retirada, setRetirada] = useState<NfeLocalIn | null>(null)
   const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false)
   const [prevReceiverSk, setPrevReceiverSk] = useState<string | null>(null)
-  const [products, setProducts] = useState<EmitProduct[]>([])
+  // rawProducts é o que o usuário montou; `products` (abaixo) é isso com o
+  // CFOP da operação já aplicado, quando há operação.
+  const [rawProducts, setProducts] = useState<EmitProduct[]>([])
   const [payments, setPayments] = useState<EmitPayment[]>([])
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
+  // null = ainda não escolhido; a operação padrão vale como default.
+  const [operationId, setOperationId] = useState<string | null>(null)
   const [showProductPicker, setShowProductPicker] = useState(false)
   const [newPaymentType, setNewPaymentType] = useState('01')
   const [newPaymentValue, setNewPaymentValue] = useState('')
@@ -703,17 +712,61 @@ export function NfeEmitForm() {
     return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 5)
   }, [recentNfes, selectedOrg])
 
+  const {data: operationPage} = useQuery({
+    queryKey: queryKeys.operations.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getOperations({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const operations = useMemo(
+    () => (operationPage?.items ?? []).filter((op) => (op.doc_types ?? ['nfe']).includes('nfe')),
+    [operationPage],
+  )
+  // A operação padrão da organização vem pré-selecionada, sem escrever estado:
+  // `operationId` guarda só a escolha explícita do usuário — inclusive a
+  // escolha de não usar operação nenhuma (string vazia após tocar no seletor).
+  const defaultOperationId = operations.find((op) => op.is_default)
+  const effectiveOperationId = operationId === null
+    ? (defaultOperationId ? extractId(defaultOperationId.sk, SK_PREFIX.OPERATION) : '')
+    : operationId
+  const selectedOperation = operations.find(
+    (op) => extractId(op.sk, SK_PREFIX.OPERATION) === effectiveOperationId,
+  )
+
+  const operationCfopSuffix = typeof selectedOperation?.cfop_suffix === 'string'
+    ? selectedOperation.cfop_suffix
+    : ''
+
+
+  // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
+  const issuerUf = selectedOrg?.state_federation ?? null
+  const recipientUf = selfIssuance
+    ? issuerUf
+    : (receiver?.person.addresses?.[0]?.state_federation ?? null)
+  const sameUf: boolean | null =
+    issuerUf && recipientUf ? issuerUf === recipientUf : null
+
+  // Com a operação escolhida, o CFOP de cada item é derivado das UFs — o
+  // operador não responde item a item o que a operação já respondeu uma vez.
+  // Derivado, não gravado: o estado dos produtos continua sendo o que o usuário
+  // digitou, e trocar de operação não deixa CFOP velho para trás.
+  const operationCfop = operationCfopSuffix && issuerUf && recipientUf
+    ? resolveCfopScope(operationCfopSuffix, issuerUf, recipientUf)
+    : null
+  const products = operationCfop
+    ? rawProducts.map((p) => ({...p, cfop: operationCfop, cfopSuffix: operationCfopSuffix}))
+    : rawProducts
+
   // ─── Draft recovery ───────────────────────────────────────────────────────
 
   const draftState = useMemo(() => ({
-    currentStep, receiver, selfIssuance, entrega, retirada, products, payments,
+    currentStep, receiver, selfIssuance, entrega, retirada, products: rawProducts, payments,
     additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
     selectedCarrier, selectedVehicle,
-  }), [currentStep, receiver, selfIssuance, entrega, retirada, products, payments,
+  }), [currentStep, receiver, selfIssuance, entrega, retirada, rawProducts, payments,
     additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
     selectedCarrier, selectedVehicle])
   const draft = useEmitDraft('nfe', selectedOrg?.pk, draftState,
-    products.length > 0 || receiver !== null || selfIssuance)
+    rawProducts.length > 0 || receiver !== null || selfIssuance)
 
   const restoreDraft = () => {
     const s = draft.recovered?.state
@@ -755,13 +808,6 @@ export function NfeEmitForm() {
   const computedNatOp = useMemo(() => buildNatOpFromCfops(products.map(p => p.cfop)), [products])
   const natOp = natOpManual ?? computedNatOp
 
-  // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
-  const issuerUf = selectedOrg?.state_federation ?? null
-  const recipientUf = selfIssuance
-    ? issuerUf
-    : (receiver?.person.addresses?.[0]?.state_federation ?? null)
-  const sameUf: boolean | null =
-    issuerUf && recipientUf ? issuerUf === recipientUf : null
 
   // Grouped-CFOP products block emission until the destination UF is known
   // (sameUf === null) AND a same-scope variant is resolved (non-empty cfop).
@@ -948,6 +994,7 @@ export function NfeEmitForm() {
 
     const payload: NfeEmit = {
       ...(selfIssuance ? {self_issuance: true} : {receiver_id: receiver!.sk}),
+      operation_id: effectiveOperationId || null,
       products: products.map(p => ({
         product_id: p.product.sk, cfop: p.cfop, quantity: p.qty,
         unit_value: p.unitValue || null, discount: p.discount || '0',
@@ -1046,6 +1093,31 @@ export function NfeEmitForm() {
             </button>
           </div>
 
+          {operations.length > 0 && (
+            <div className="space-y-1 border-b border-gray-100 pb-4">
+              <label htmlFor="nfe-operation" className="text-sm font-medium text-gray-600">
+                Natureza da operação
+              </label>
+              <OptionsSelect
+                id="nfe-operation"
+                value={effectiveOperationId}
+                onValueChange={setOperationId}
+                options={[
+                  {value: '', label: 'Sem operação — preencher manualmente'},
+                  ...operations.map((op) => ({
+                    value: extractId(op.sk, SK_PREFIX.OPERATION),
+                    label: op.is_default ? `${op.name} (padrão)` : op.name,
+                  })),
+                ]}
+              />
+              {selectedOperation && (
+                <p className="text-xs text-gray-500">
+                  Preenche natureza, finalidade e CFOP dos itens. Qualquer campo alterado aqui vence a operação.
+                </p>
+              )}
+            </div>
+          )}
+
           {selfIssuance ? (
             <div className="rounded-lg border border-brand-200 bg-brand-50/40 px-4 py-3">
               <p className="text-sm font-medium text-brand-800">Emissão própria</p>
@@ -1129,6 +1201,7 @@ export function NfeEmitForm() {
             <div className="space-y-2">
               {products.map((item, i) => (
                 <ProductRow key={`${item.product.sk}-${i}`} item={item} index={i} sameUf={sameUf}
+                            operationCfopSuffix={operationCfopSuffix}
                             onChange={handleProductChange} onRemove={handleProductRemove}/>
               ))}
             </div>

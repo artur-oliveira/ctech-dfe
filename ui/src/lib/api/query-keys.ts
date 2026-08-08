@@ -24,6 +24,10 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['tax-profiles', orgPk] as const,
     detail: (id: string) => ['tax-profile', id] as const,
   },
+  operations: {
+    list: (orgPk: string | undefined) => ['operations', orgPk] as const,
+    detail: (id: string) => ['operation', id] as const,
+  },
   vehicles: {
     list: (orgPk: string | undefined, role?: string) => ['vehicles', orgPk, role] as const,
     detail: (id: string) => ['vehicle', id] as const,

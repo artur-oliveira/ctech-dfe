@@ -1,5 +1,7 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
+  OperationCreate,
+  OperationItemOut,
   TaxProfileCreate,
   TaxProfileItemOut,
   AuditLogOut,
@@ -353,6 +355,27 @@ class ApiClient {
 
   async deleteTaxProfile(id: string): Promise<void> {
     return this.del(`/v1.0/tax-profiles/${id}`)
+  }
+
+  // Operations (naturezas de operação)
+  async getOperations(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<OperationItemOut>> {
+    return this.get('/v1.0/operations', {params})
+  }
+
+  async getOperation(id: string): Promise<OperationItemOut> {
+    return this.get(`/v1.0/operations/${id}`)
+  }
+
+  async createOperation(data: OperationCreate): Promise<OperationItemOut> {
+    return this.post('/v1.0/operations', data)
+  }
+
+  async updateOperation(id: string, data: OperationCreate): Promise<OperationItemOut> {
+    return this.put(`/v1.0/operations/${id}`, data)
+  }
+
+  async deleteOperation(id: string): Promise<void> {
+    return this.del(`/v1.0/operations/${id}`)
   }
 
   // Persons (Clientes/Fornecedores)

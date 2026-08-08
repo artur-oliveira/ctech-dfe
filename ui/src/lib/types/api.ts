@@ -691,6 +691,26 @@ export interface ProductTaxProfileRef {
   overrides?: Record<string, unknown> | null
 }
 
+// Cadastros reutilizáveis — naturezas de operação
+export interface OperationCreate extends Record<string, unknown> {
+  name: string
+  is_default?: boolean
+}
+
+export interface OperationItemOut {
+  pk: string
+  sk: string
+  name: string
+  doc_types?: string[] | null
+  nat_op?: string | null
+  cfop_suffix?: string | null
+  is_default?: boolean
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // NF-e — tipos auxiliares
 export interface NfeCardIn {
   tp_integra: '1' | '2'
@@ -826,6 +846,8 @@ export interface NfePaymentIn {
 export interface NfeEmit {
   receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx — omit when self_issuance=true
   self_issuance?: boolean
+  /** Natureza de operação do cadastro. Todo valor explícito aqui vence os defaults dela. */
+  operation_id?: string | null
   products: NfeProductIn[]
   payments: NfePaymentIn[]
   additional_info?: string | null
