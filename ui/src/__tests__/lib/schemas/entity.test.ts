@@ -7,6 +7,7 @@ const basePF: EntityFormData = {
   cpf_or_cnpj: '05213732399',
   name: 'LARISSA OLIVEIRA CARVALHO',
   description: '',
+  roles: [],
   person: {
     fantasy_name: '',
     crt: '4',

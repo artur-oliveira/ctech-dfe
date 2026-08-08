@@ -1,7 +1,7 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {fireEvent, render, screen, waitFor} from '@testing-library/react'
 import {describe, expect, it, vi} from 'vitest'
-import {NfsePersonSearch} from '@/components/nfse/NfsePersonSearch'
+import {PersonPicker} from '@/components/persons/PersonPicker'
 import {apiClient} from '@/lib/api/client'
 import type {PersonItemOut} from '@/lib/types/api'
 
@@ -16,7 +16,7 @@ const PERSON = {
   updated_at: '2026-08-07T00:00:00Z',
 } as PersonItemOut
 
-describe('NfsePersonSearch', () => {
+describe('PersonPicker', () => {
   it('busca CPF automaticamente após o debounce, sem botão Buscar', async () => {
     const getPerson = vi.spyOn(apiClient, 'getPersonByCpfCnpj').mockResolvedValue(PERSON)
     const onChange = vi.fn()
@@ -24,7 +24,7 @@ describe('NfsePersonSearch', () => {
 
     render(
       <QueryClientProvider client={client}>
-        <NfsePersonSearch value={null} onChange={onChange}/>
+        <PersonPicker value={null} onChange={onChange}/>
       </QueryClientProvider>,
     )
 

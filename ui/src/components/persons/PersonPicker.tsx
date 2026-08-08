@@ -9,23 +9,37 @@ import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
 import {Modal} from '@/components/ui/modal'
 import {PersonForm} from '@/components/persons/PersonForm'
+import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity'
 import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
 
-interface NfsePersonSearchProps {
+/** Mínimo de caracteres antes de consultar a API. Não é preferência de UX: a
+ *  busca por papel usa um FilterExpression aplicado depois da condição de chave,
+ *  então um termo curto faz o DynamoDB ler muito mais do que devolve. */
+export const PERSON_PICKER_MIN_QUERY = 2
+
+interface PersonPickerProps {
   value: PersonItemOut | null
   onChange: (p: PersonItemOut | null) => void
   placeholder?: string
   autoFocus?: boolean
+  /** Restringe a busca a um papel de cadastro. Pessoa multi-papel aparece em todos os seus papéis. */
+  role?: PersonRole
 }
 
 /**
- * Busca de pessoa por nome ou CPF/CNPJ, com criação inline — reusado para
- * prestador (tp_emit 2/3), tomador e intermediário no formulário de emissão de
- * NFS-e. Espelha ReceiverSearch (NfeEmitForm.tsx) mas sem o estado extra da
- * NF-e (sem endereço de entrega/retirada).
+ * Busca de pessoa por nome ou CPF/CNPJ, com criação inline — usada para
+ * destinatário, transportadora, condutor, prestador, tomador e intermediário.
+ * Espelha ReceiverSearch (NfeEmitForm.tsx) mas sem o estado extra da NF-e
+ * (sem endereço de entrega/retirada).
  */
-export function NfsePersonSearch({value, onChange, placeholder = 'Nome, CPF ou CNPJ', autoFocus = false}: NfsePersonSearchProps) {
+export function PersonPicker({
+                               value,
+                               onChange,
+                               placeholder = 'Nome, CPF ou CNPJ',
+                               autoFocus = false,
+                               role,
+                             }: PersonPickerProps) {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
   const [open, setOpen] = useState(false)
@@ -44,10 +58,12 @@ export function NfsePersonSearch({value, onChange, placeholder = 'Nome, CPF ou C
   const isCnpj = digits.length === 14
   const isDoc = isCpf || isCnpj
 
+  const canSearch = !!debouncedQuery && !isDoc && debouncedQuery.length >= PERSON_PICKER_MIN_QUERY
+
   const nameQuery = useQuery({
-    queryKey: queryKeys.persons.search(debouncedQuery),
-    queryFn: () => apiClient.searchPersonsByName(debouncedQuery),
-    enabled: open && !!debouncedQuery && !isDoc && debouncedQuery.length >= 2,
+    queryKey: queryKeys.persons.search(`${role ?? ''}:${debouncedQuery}`),
+    queryFn: () => apiClient.searchPersonsByName(debouncedQuery, role),
+    enabled: open && canSearch,
   })
 
   useEffect(() => {
@@ -145,7 +161,7 @@ export function NfsePersonSearch({value, onChange, placeholder = 'Nome, CPF ou C
             autoFocus={autoFocus}
             role="combobox"
             aria-autocomplete="list"
-            aria-expanded={open && !isDoc && debouncedQuery.length >= 2}
+            aria-expanded={open && canSearch}
             aria-controls={listboxId}
             aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
             aria-busy={docSearchLoading}
@@ -180,13 +196,23 @@ export function NfsePersonSearch({value, onChange, placeholder = 'Nome, CPF ou C
           )}
         </div>
 
-        {open && !isDoc && debouncedQuery.length >= 2 && (
+        {open && !isDoc && !!query && !canSearch && (
+          <p className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-popover">
+            Digite ao menos {PERSON_PICKER_MIN_QUERY} caracteres do nome, ou o CPF/CNPJ completo.
+          </p>
+        )}
+
+        {open && canSearch && (
           <div id={listboxId} role="listbox"
                className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover max-h-64 overflow-auto">
             {nameQuery.isLoading ? (
               <p className="px-4 py-3 text-sm text-gray-400">Buscando…</p>
             ) : suggestions.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-gray-400">Nenhuma pessoa encontrada.</p>
+              <p className="px-4 py-3 text-sm text-gray-500">
+                {role
+                  ? `Nenhuma pessoa com o papel "${PERSON_ROLE_LABELS[role]}" encontrada.`
+                  : 'Nenhuma pessoa encontrada.'}
+              </p>
             ) : (
               suggestions.map((p, index) => (
                 <button
@@ -219,7 +245,8 @@ export function NfsePersonSearch({value, onChange, placeholder = 'Nome, CPF ou C
       </button>
 
       <Modal isOpen={showCreate} title="Cadastrar pessoa" onClose={() => setShowCreate(false)} size="xl">
-        <PersonForm onSubmit={handleCreatePerson} loading={createLoading}/>
+        <PersonForm onSubmit={handleCreatePerson} loading={createLoading}
+                    initialRoles={role ? [role] : undefined}/>
       </Modal>
     </div>
   )

@@ -1,7 +1,14 @@
 'use client'
 
 import {EntityForm} from '@/components/EntityForm'
-import {CRT_NONE_VALUE, type EntityFormData, nfseInfoFromApi, nfseInfoToApi} from '@/lib/schemas/entity'
+import {
+  CRT_NONE_VALUE,
+  type EntityFormData,
+  nfseInfoFromApi,
+  nfseInfoToApi,
+  PERSON_ROLES,
+  type PersonRole,
+} from '@/lib/schemas/entity'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 
@@ -16,6 +23,9 @@ interface PersonFormProps {
   lockTipo?: 'pf' | 'pj'
   /** Prefill the document field (used with lockTipo). */
   initialCpfCnpj?: string
+  /** Papéis pré-marcados num cadastro novo — o picker que abriu o formulário
+   *  já sabe o papel que está procurando. */
+  initialRoles?: PersonRole[]
 }
 
 function fromPersonOut(p: PersonItemOut): EntityFormData {
@@ -27,6 +37,9 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
     cpf_or_cnpj: unformatCpfCnpj(p.sk),
     name: p.name,
     description: '',
+    // Pessoa cadastrada antes dos papéis existirem volta sem `roles` — lista
+    // vazia é o estado correto, não um default de 'customer' aplicado por engano.
+    roles: (p.roles ?? []).filter((r): r is PersonRole => (PERSON_ROLES as readonly string[]).includes(r)),
     person: {
       fantasy_name: p.person.fantasy_name ?? '',
       // PF with no stored CRT shows "Não especificar"; PJ falls back to Simples Nacional.
@@ -46,7 +59,7 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
   }
 }
 
-export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpfCnpj}: PersonFormProps) {
+export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpfCnpj, initialRoles}: PersonFormProps) {
   const handleSubmit = async (data: EntityFormData) => {
     // Payload shape follows the selected type, not just initialData — this lets a
     // brand-new PF be created correctly (e.g. NFC-e consumer).
@@ -80,6 +93,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
       cpf_or_cnpj: data.cpf_or_cnpj,
       // Persist names uppercase so person search stays assertive (see searchPersonsByName).
       name: data.name.toUpperCase(),
+      roles: data.roles,
       person: personPayload,
     })
   }
@@ -90,6 +104,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
       entityPk={initialData?.sk}
       lockTipo={lockTipo}
       initialCpfCnpj={initialCpfCnpj}
+      initialRoles={initialRoles}
       initialData={initialData ? fromPersonOut(initialData) : undefined}
       onSubmit={handleSubmit}
       loading={loading}

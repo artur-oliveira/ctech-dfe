@@ -1,5 +1,6 @@
 'use client'
 
+import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useRouter} from 'next/navigation'
 import {apiClient} from '@/lib/api/client'
@@ -19,18 +20,28 @@ import {Button} from '@/components/ui/button'
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
 import {BulkActionBar} from '@/components/ui/bulk-action-bar'
 import {useRowSelection} from '@/lib/hooks/useRowSelection'
+import {OptionsSelect} from '@/components/ui/options-select'
+import {PERSON_ROLE_LABELS, PERSON_ROLE_OPTIONS, type PersonRole} from '@/lib/schemas/entity'
 import type {PersonItemOut} from '@/lib/types/api'
 import {docLabel, formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+
+// Valor sentinela do select "todos os papéis" — o Radix Select não aceita "".
+const ROLE_FILTER_ALL = '__all__'
+const ROLE_FILTER_OPTIONS = [{value: ROLE_FILTER_ALL, label: 'Todos os papéis'}, ...PERSON_ROLE_OPTIONS]
 
 function PersonsContent() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
-  
+  const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL)
+  const role = roleFilter === ROLE_FILTER_ALL ? undefined : (roleFilter as PersonRole)
+
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<PersonItemOut>({
-      queryKey: queryKeys.persons.list(selectedOrg?.pk),
-      queryFn: (cursor) => apiClient.getPersons({cursor}),
+      // O papel entra na chave: trocar o filtro é uma paginação nova, não a
+      // continuação da anterior.
+      queryKey: [...queryKeys.persons.list(selectedOrg?.pk), role ?? ROLE_FILTER_ALL],
+      queryFn: (cursor) => apiClient.getPersons({cursor, role}),
       enabled: !!selectedOrg,
     })
   
@@ -71,21 +82,32 @@ function PersonsContent() {
           } : undefined}
         />
         
+        {selectedOrg && (
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="text-xs font-medium text-gray-600">Filtrar por papel</span>
+            <div className="w-full sm:w-64">
+              <OptionsSelect value={roleFilter} onValueChange={setRoleFilter} options={ROLE_FILTER_OPTIONS}/>
+            </div>
+          </div>
+        )}
+
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : isLoading ? (
           <LoadingSkeleton/>
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            title="Nenhuma pessoa cadastrada"
-            description="Cadastre clientes e fornecedores para usar na emissão de documentos fiscais."
+            title={role ? `Nenhuma pessoa com o papel "${PERSON_ROLE_LABELS[role]}"` : 'Nenhuma pessoa cadastrada'}
+            description={role
+              ? 'Marque esse papel no cadastro das pessoas que devem aparecer aqui.'
+              : 'Cadastre clientes e fornecedores para usar na emissão de documentos fiscais.'}
             action={{label: 'Nova pessoa', onClick: () => router.push('/persons/new')}}
             icon={<UsersIcon width={20} height={20}/>}
           />
         ) : (
           <TableShell
             ariaLabel="Pessoas cadastradas"
-            minWidth={480}
+            minWidth={560}
             headers={[
               {label: '__select', className: 'w-10', node: (
                 <RowCheckbox
@@ -95,7 +117,7 @@ function PersonsContent() {
                   ariaLabel="Selecionar todos"
                 />
               )},
-              'Nome', 'Tipo', 'Documento', 'Cidade / UF', {label: '', align: 'right'},
+              'Nome', 'Tipo', 'Papéis', 'Documento', 'Cidade / UF', {label: '', align: 'right'},
             ]}
           >
             {visibleItems.map((p) => (
@@ -116,6 +138,22 @@ function PersonsContent() {
                   }`}>
                     {docLabel(p.sk)}
                   </span>
+                </td>
+                <td data-label="Papéis" className={TABLE_CELL}>
+                  {/* Uma pessoa multi-papel tem que ser visivelmente multi-papel,
+                      senão o filtro parece estar errado. */}
+                  {p.roles?.length ? (
+                    <span className="flex flex-wrap gap-1">
+                      {p.roles.map((r) => (
+                        <span key={r}
+                              className="inline-flex items-center rounded bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+                          {PERSON_ROLE_LABELS[r] ?? r}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">—</span>
+                  )}
                 </td>
                 <td data-label="Documento" className={`${TABLE_CELL} font-mono text-xs text-gray-600`}>{formatCpfCnpj(p.sk)}</td>
                 <td data-label="Cidade / UF" className={`${TABLE_CELL} text-gray-600`}>

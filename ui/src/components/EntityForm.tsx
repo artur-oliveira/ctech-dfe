@@ -18,6 +18,9 @@ import {
   type EntityFormData,
   entitySchema,
   OP_SIMP_NAC_OPTIONS,
+  PERSON_ROLE_DEFAULT,
+  PERSON_ROLE_OPTIONS,
+  type PersonRole,
   REG_AP_TRIB_SN_OPTIONS,
   REG_ESP_TRIB_OPTIONS,
   UF_OPTIONS,
@@ -40,6 +43,8 @@ export interface EntityFormProps {
   lockTipo?: Tipo
   /** Prefill the document field (used together with lockTipo). */
   initialCpfCnpj?: string
+  /** Papéis pré-marcados num cadastro novo (variante 'person'). Ignorado na edição. */
+  initialRoles?: PersonRole[]
   onSubmit: (data: EntityFormData) => Promise<void>
   loading?: boolean
   /**
@@ -112,6 +117,7 @@ const DEFAULT_VALUES: EntityFormData = {
   cpf_or_cnpj: '',
   name: '',
   description: '',
+  roles: [],
   person: {
     fantasy_name: '',
     crt: '1',
@@ -148,6 +154,7 @@ export function EntityForm({
                              entityPk,
                              lockTipo,
                              initialCpfCnpj,
+                             initialRoles,
                              onSubmit,
                              loading = false,
                              extraSection,
@@ -171,6 +178,10 @@ export function EntityForm({
     resolver: zodResolver(isOrg ? organizationSchema : entitySchema) as Resolver<EntityFormData>,
     defaultValues: initialData ?? {
       ...DEFAULT_VALUES,
+      // Cadastro novo de pessoa já nasce como cliente — é o papel de longe mais
+      // comum, e desmarcar é mais barato que descobrir depois por que a pessoa
+      // não aparece na busca de destinatário.
+      ...(isOrg ? {} : {roles: initialRoles?.length ? initialRoles : [PERSON_ROLE_DEFAULT]}),
       ...(lockTipo ? {tipo: lockTipo} : {}),
       ...(initialCpfCnpj ? {cpf_or_cnpj: initialCpfCnpj} : {}),
       person: {
@@ -458,6 +469,45 @@ export function EntityForm({
                          )}
               />
             </div>
+
+            {/* Papéis — multi-seleção. Uma pessoa acumula papéis (transportadora
+                que também é cliente é o caso normal), então são checkboxes, nunca
+                radio nem select único. */}
+            {!isOrg && (
+              <FormField control={form.control as never} name="roles"
+                         render={({field}) => {
+                           const selected = (field.value ?? []) as PersonRole[]
+                           const toggle = (role: PersonRole) => field.onChange(
+                             selected.includes(role)
+                               ? selected.filter((r) => r !== role)
+                               : [...selected, role],
+                           )
+                           return (
+                             <FormItem>
+                               <FormLabel>Papéis</FormLabel>
+                               <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
+                                 {PERSON_ROLE_OPTIONS.map((opt) => (
+                                   <label key={opt.value}
+                                          className="flex min-h-11 sm:min-h-0 cursor-pointer items-center gap-2 text-sm text-gray-700">
+                                     <input
+                                       type="checkbox"
+                                       checked={selected.includes(opt.value)}
+                                       onChange={() => toggle(opt.value)}
+                                       className="size-4 cursor-pointer rounded border-gray-300 text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                     />
+                                     {opt.label}
+                                   </label>
+                                 ))}
+                               </div>
+                               <p className="text-xs text-gray-400">
+                                 Define onde a pessoa aparece nas buscas de emissão. Não altera nenhuma regra fiscal.
+                               </p>
+                               <FormMessage/>
+                             </FormItem>
+                           )
+                         }}
+              />
+            )}
 
             {isOrg && (
               <FormField control={form.control as never} name="description"

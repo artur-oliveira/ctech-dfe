@@ -53,6 +53,7 @@ import type {
 import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls'
+import type {PersonRole} from '@/lib/schemas/entity'
 
 // Empty means same-origin: CloudFront forwards /v1.0/* to the ALB in deployed
 // environments, and `next dev` proxies it locally (next.config.ts). Either way
@@ -332,7 +333,14 @@ class ApiClient {
   }
 
   // Persons (Clientes/Fornecedores)
-  async getPersons(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<PersonItemOut>> {
+  async getPersons(params?: {
+    limit?: number
+    cursor?: string
+    /** Filtra por papel de cadastro. Uma pessoa multi-papel aparece em todas as suas listagens. */
+    role?: PersonRole
+    /** Termo de busca: dígitos casam o documento, qualquer outro texto casa o prefixo do nome. */
+    q?: string
+  }): Promise<PaginatedResponse<PersonItemOut>> {
     return this.get('/v1.0/persons', {params})
   }
 
@@ -737,10 +745,11 @@ class ApiClient {
     return this.get<LookupOrganizationOut>('/v1.0/external/lookup-organizations', {params: {cpf_cnpj, uf}})
   }
 
-  async searchPersonsByName(name: string): Promise<PaginatedResponse<PersonItemOut>> {
+  async searchPersonsByName(name: string, role?: PersonRole): Promise<PaginatedResponse<PersonItemOut>> {
     // Person names are stored uppercase (see PersonForm/EntityForm), so the query
     // is uppercased to keep name matching assertive regardless of typed case.
-    return this.get('/v1.0/persons', {params: {name: name.toUpperCase(), limit: 8}})
+    // `q` (not the legacy `name`) is what the backend pairs with `role`.
+    return this.get('/v1.0/persons', {params: {q: name.toUpperCase(), limit: 8, role}})
   }
 
   async getPersonByCpfCnpj(cpfCnpj: string): Promise<PersonItemOut> {

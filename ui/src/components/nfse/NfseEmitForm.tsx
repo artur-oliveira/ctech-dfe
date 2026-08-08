@@ -21,7 +21,7 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {NfsePersonSearch} from '@/components/nfse/NfsePersonSearch'
+import {PersonPicker} from '@/components/persons/PersonPicker'
 import {NfseServicePicker} from '@/components/nfse/NfseServicePicker'
 import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse'
 import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api'
@@ -445,7 +445,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
                   </Button>
                 )}
               </div>
-              <NfsePersonSearch value={selectedCustomer} onChange={handleCustomerChange} autoFocus/>
+              <PersonPicker value={selectedCustomer} onChange={handleCustomerChange} role="customer" autoFocus/>
             </div>
 
             <FormField control={form.control} name="service.service_id" render={() => (
@@ -506,7 +506,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
                 <FormField control={form.control} name="provider_person_id" render={() => (
                   <FormItem>
                     <FormLabel>Prestador do serviço</FormLabel>
-                    <NfsePersonSearch value={selectedProvider} onChange={handleProviderChange}/>
+                    <PersonPicker value={selectedProvider} onChange={handleProviderChange} role="provider"/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -535,7 +535,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
             <FormField control={form.control} name="intermediary_id" render={() => (
               <FormItem>
                 <FormLabel>Intermediário</FormLabel>
-                <NfsePersonSearch value={selectedIntermediary} onChange={handleIntermediaryChange}/>
+                <PersonPicker value={selectedIntermediary} onChange={handleIntermediaryChange}/>
                 <FormMessage/>
               </FormItem>
             )}/>

@@ -2,11 +2,21 @@ package v1
 
 import (
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
+)
+
+// Query parameters of GET /persons.
+const (
+	// queryParamRole narrows the listing to persons holding a given role.
+	queryParamRole = "role"
+	// queryParamQ is the unified search term: digits match the document
+	// prefix, anything else matches the name prefix.
+	queryParamQ = "q"
 )
 
 // RegisterPersons mounts /persons routes.
@@ -20,8 +30,14 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 		param:      "cpf_cnpj",
 
 		list: func(c fiber.Ctx, orgPK string, o crudListOpts) (*repositories.QueryResult, error) {
+			role := c.Query(queryParamRole)
+			if role != "" && !services.IsValidPersonRole(role) {
+				return nil, problem.BadRequest("papel inválido: " + role)
+			}
 			return svc.List(c.Context(), orgPK, repositories.PersonListOpts{
 				NamePrefix: c.Query("name"),
+				Role:       role,
+				Q:          c.Query(queryParamQ),
 				Sort:       o.Sort,
 				Limit:      o.Limit,
 				StartKey:   o.StartKey,

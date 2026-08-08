@@ -28,6 +28,29 @@ export const stateRegistrationSchema = z.object({
   state_registration: z.string().min(1, 'IE obrigatória').max(20),
 })
 
+// Papéis de pessoa (services.AllPersonRoles em api/internal/services/person_roles.go).
+// Papel é filtro de cadastro, não regra fiscal: a emissão nunca valida papel, e
+// uma pessoa acumula quantos papéis forem verdade ao mesmo tempo — transportadora
+// que também é cliente é o caso normal, não a exceção.
+export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider'] as const
+export type PersonRole = typeof PERSON_ROLES[number]
+
+export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
+  customer: 'Cliente',
+  supplier: 'Fornecedor',
+  carrier: 'Transportadora',
+  driver: 'Condutor',
+  provider: 'Prestador',
+}
+
+// Papel pré-marcado num cadastro novo de pessoa.
+export const PERSON_ROLE_DEFAULT: PersonRole = 'customer'
+
+export const PERSON_ROLE_OPTIONS = PERSON_ROLES.map((value) => ({
+  value,
+  label: PERSON_ROLE_LABELS[value],
+}))
+
 // Sentinel select value meaning "no CRT" for pessoa física. Lives in form state so
 // the Radix Select stays controlled; converted to null on submit (CLAUDE: no magic strings).
 export const CRT_NONE_VALUE = '__none__'
@@ -80,6 +103,8 @@ export const entitySchema = z.object({
   cpf_or_cnpj: z.string().min(1, 'CPF/CNPJ obrigatório'),
   name: z.string().min(2, 'Mínimo 2 caracteres').max(255),
   description: z.string().max(120).optional().or(z.literal('')),
+  // Só a variante 'person' renderiza e envia este campo; organização o ignora.
+  roles: z.array(z.enum(PERSON_ROLES)).default([]),
   person: z.object({
     fantasy_name: z.string().max(255).optional().or(z.literal('')),
     crt: z.enum(['1', '2', '3', '4', CRT_NONE_VALUE]).optional(),

@@ -69,10 +69,54 @@ func (s *PersonService) Get(ctx context.Context, orgPK, cpfCNPJ string) (map[str
 	}, "person not found")
 }
 
+// MaxFilteredPageRoundTrips bounds how many DynamoDB calls one filtered listing
+// request may make while trying to fill a page. A FilterExpression is applied
+// after the read, so a rare role in a large organization would otherwise sweep
+// the whole partition just to hand back an empty page.
+//
+// Hitting the cap is a latency degradation, never a correctness bug, because
+// end-of-list is signalled by an absent LastEvaluatedKey — never by an item
+// count below Limit. Callers (route and UI alike) must follow that same rule.
+const MaxFilteredPageRoundTrips = 5
+
 func (s *PersonService) List(ctx context.Context, orgPK string, opts repositories.PersonListOpts) (*repositories.QueryResult, error) {
 	return GetCachedList(ctx, s.cache, orgPK, "persons", opts, func(ctx context.Context) (*repositories.QueryResult, error) {
-		return s.repo.List(ctx, orgPK, opts)
+		if opts.Role == "" {
+			return s.repo.List(ctx, orgPK, opts)
+		}
+		return s.listFilled(ctx, orgPK, opts)
 	})
+}
+
+// listFilled pages through the filtered query until the requested page is full,
+// the cursor is exhausted, or MaxFilteredPageRoundTrips is spent.
+func (s *PersonService) listFilled(ctx context.Context, orgPK string, opts repositories.PersonListOpts) (*repositories.QueryResult, error) {
+	want := opts.Limit
+	acc := &repositories.QueryResult{}
+	page := opts
+
+	for i := 0; i < MaxFilteredPageRoundTrips; i++ {
+		res, err := s.repo.List(ctx, orgPK, page)
+		if err != nil {
+			return nil, err
+		}
+		acc.Items = append(acc.Items, res.Items...)
+		acc.LastEvaluatedKey = res.LastEvaluatedKey
+
+		if res.LastEvaluatedKey == nil {
+			break // end of list — the only end-of-list signal there is
+		}
+		if want > 0 && len(acc.Items) >= want {
+			break
+		}
+		page.StartKey = res.LastEvaluatedKey
+		if want > 0 {
+			// Shrink the ask so a later round trip cannot overshoot the page and
+			// force a truncation the cursor could no longer describe.
+			page.Limit = want - len(acc.Items)
+		}
+	}
+	return acc, nil
 }
 
 // Create writes the person and its CREATE audit row atomically.

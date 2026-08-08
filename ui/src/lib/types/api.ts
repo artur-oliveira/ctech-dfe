@@ -1,4 +1,5 @@
 import type {DfeStatus} from '@/lib/data/dfe_status'
+import type {PersonRole} from '@/lib/schemas/entity'
 
 // Auth
 export interface TokenResponse {
@@ -631,6 +632,9 @@ export interface PersonItemOut {
   pk: string
   sk: string
   name: string
+  /** Papéis de cadastro (cliente/fornecedor/transportadora/condutor/prestador).
+   *  Ausente em pessoas cadastradas antes dos papéis existirem. */
+  roles?: PersonRole[] | null
   person: PersonDetailsOut
   created_at: string
   updated_at: string
@@ -648,11 +652,13 @@ export interface PersonObject {
 export interface PersonCreate {
   cpf_or_cnpj: string
   name: string
+  roles?: PersonRole[]
   person: PersonObject
 }
 
 export interface PersonUpdate {
   name?: string
+  roles?: PersonRole[]
   person?: PersonObject
 }
 

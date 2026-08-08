@@ -21,13 +21,15 @@ import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {VehicleForm} from '@/components/vehicles/VehicleForm'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {suggestRoute, ufsBorder} from '@/lib/utils/uf-graph'
-import {formatCpfCnpj} from '@/lib/utils/document'
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+import {PersonPicker} from '@/components/persons/PersonPicker'
 import {formatCurrency} from '@/lib/utils/helpers'
 import {maskCpf} from '@/lib/utils/masks'
 import {validateCPF} from '@/lib/utils/validators'
 import type {
   MdfeCargoPreview,
   MdfeDriverIn,
+  PersonItemOut,
   MdfeEmit,
   MdfeMunIn,
   NfeListOut,
@@ -367,6 +369,8 @@ export function MdfeEmitForm() {
   const [drivers, setDrivers] = useState<MdfeDriverIn[]>([])
   const [newDriverName, setNewDriverName] = useState('')
   const [newDriverCpf, setNewDriverCpf] = useState('')
+  const [manualDriverOpen, setManualDriverOpen] = useState(false)
+  const [driverError, setDriverError] = useState<string | null>(null)
 
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
@@ -446,6 +450,21 @@ export function MdfeEmitForm() {
   const addRouteUf = () => {
     if (newRouteUf && !route.includes(newRouteUf)) setRouteOverride([...route, newRouteUf])
     setNewRouteUf('')
+  }
+
+  // Condutor vindo do cadastro. O MDF-e exige CPF (condutor é sempre pessoa
+  // física), então uma pessoa jurídica com o papel de condutor é recusada aqui
+  // em vez de virar rejeição da SEFAZ.
+  const addDriverFromPerson = (person: PersonItemOut | null) => {
+    if (!person) return
+    const cpf = unformatCpfCnpj(person.sk)
+    if (!validateCPF(cpf)) {
+      setDriverError('Condutor precisa ser pessoa física com CPF válido.')
+      return
+    }
+    setDriverError(null)
+    if (drivers.some((d) => d.cpf === cpf)) return
+    setDrivers((prev) => [...prev, {name: person.name, cpf}])
   }
 
   const addDriver = () => {
@@ -748,21 +767,34 @@ export function MdfeEmitForm() {
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2 items-end">
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium text-gray-600">Nome</Label>
-                <Input value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)}
-                       placeholder="Nome do condutor" className="w-full"/>
+            {/* Caminho principal: condutor do cadastro (papel "Condutor"). */}
+            <PersonPicker value={null} onChange={addDriverFromPerson} role="driver"
+                          placeholder="Buscar condutor cadastrado"/>
+            {driverError && <p role="alert" className="text-xs text-red-600">{driverError}</p>}
+
+            {/* Caminho secundário: condutor avulso, sem passar pelo cadastro. */}
+            <Button type="button" variant="ghost" size="xs" onClick={() => setManualDriverOpen((v) => !v)}
+                    className="text-brand-600 hover:text-brand-700">
+              {manualDriverOpen ? '− Ocultar condutor não cadastrado' : '+ Adicionar condutor não cadastrado'}
+            </Button>
+
+            {manualDriverOpen && (
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2 items-end">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs font-medium text-gray-600">Nome</Label>
+                  <Input value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)}
+                         placeholder="Nome do condutor" className="w-full"/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs font-medium text-gray-600">CPF</Label>
+                  <Input value={maskCpf(newDriverCpf.replace(/\D/g, ''))}
+                         onChange={(e) => setNewDriverCpf(e.target.value)}
+                         placeholder="000.000.000-00" className="w-full"/>
+                </div>
+                <Button type="button" variant="brand" onClick={addDriver}
+                        disabled={!newDriverName.trim() || !validateCPF(newDriverCpf.replace(/\D/g, ''))}>Adicionar</Button>
               </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium text-gray-600">CPF</Label>
-                <Input value={maskCpf(newDriverCpf.replace(/\D/g, ''))}
-                       onChange={(e) => setNewDriverCpf(e.target.value)}
-                       placeholder="000.000.000-00" className="w-full"/>
-              </div>
-              <Button type="button" variant="brand" onClick={addDriver}
-                      disabled={!newDriverName.trim() || !validateCPF(newDriverCpf.replace(/\D/g, ''))}>Adicionar</Button>
-            </div>
+            )}
           </div>
 
           {submitError && (

@@ -1,9 +1,11 @@
 package v1
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
+	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
@@ -272,4 +274,66 @@ func TestNfseConfigBody_Validation(t *testing.T) {
 			t.Fatal("timezone desconhecido aceito")
 		}
 	})
+}
+
+// ── Person roles ─────────────────────────────────────────────────────────────
+
+func validPersonCreate() PersonCreateBody {
+	return PersonCreateBody{
+		CpfOrCnpj: "11222333000181",
+		Name:      "Transportes Acme",
+		Person:    validPerson(),
+	}
+}
+
+func TestPersonRoles_Accepted(t *testing.T) {
+	cases := map[string][]string{
+		"absent":     nil,
+		"empty":      {},
+		"single":     {services.RoleCarrier},
+		"multi":      {services.RoleCustomer, services.RoleCarrier},
+		"every role": services.AllPersonRoles,
+	}
+	for name, roles := range cases {
+		t.Run(name, func(t *testing.T) {
+			dto := validPersonCreate()
+			dto.Roles = roles
+			if p := validation.Struct(dto); p != nil {
+				t.Fatalf("expected valid, got %v", p)
+			}
+		})
+	}
+}
+
+func TestPersonRoles_RejectsUnknownRole(t *testing.T) {
+	dto := validPersonCreate()
+	dto.Roles = []string{services.RoleCustomer, "shareholder"}
+	if p := validation.Struct(dto); p == nil {
+		t.Fatal("expected unknown role to be rejected")
+	}
+}
+
+func TestPersonUpdateRoles_RejectsUnknownRole(t *testing.T) {
+	dto := PersonUpdateBody{Roles: []string{"shareholder"}}
+	if p := validation.Struct(dto); p == nil {
+		t.Fatal("expected unknown role to be rejected")
+	}
+}
+
+// The `oneof=` list is baked into a struct tag (tags must be literals), so it
+// cannot reference services.AllPersonRoles directly. This asserts the two never
+// drift apart.
+func TestPersonRolesTagMatchesAllPersonRoles(t *testing.T) {
+	want := "omitempty,dive,oneof=" + strings.Join(services.AllPersonRoles, " ")
+	if personRolesValidation != want {
+		t.Fatalf("personRolesValidation = %q, want %q", personRolesValidation, want)
+	}
+	for _, f := range []string{
+		reflect.TypeOf(PersonCreateBody{}).Field(2).Tag.Get("validate"),
+		reflect.TypeOf(PersonUpdateBody{}).Field(1).Tag.Get("validate"),
+	} {
+		if f != personRolesValidation {
+			t.Errorf("struct tag = %q, want %q", f, personRolesValidation)
+		}
+	}
 }

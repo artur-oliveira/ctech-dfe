@@ -12,6 +12,8 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
     cpf_or_cnpj: unformatCpfCnpj(org.pk),
     name: org.name,
     description: org.description ?? '',
+    // Organização não tem papéis; o campo existe só na variante 'person'.
+    roles: [],
     person: {
       ...rest,
       crt: String(crt) as EntityFormData['person']['crt'],

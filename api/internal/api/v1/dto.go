@@ -94,10 +94,20 @@ type PersonObjectBody struct {
 
 // ── Persons ──────────────────────────────────────────────────────────────────
 
+// personRolesValidation is the shared `validate` tag for the person role list.
+// The accepted values mirror services.AllPersonRoles; TestPersonRolesTagMatchesAllPersonRoles
+// fails if the two drift apart.
+const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider"
+
 // PersonCreateBody is the body for POST /persons.
+//
+// Roles is a registry filter (customer/supplier/carrier/driver/provider), not a
+// fiscal rule — a person may hold several at once, and an absent list is valid:
+// that person simply never shows up in a role-filtered listing.
 type PersonCreateBody struct {
 	CpfOrCnpj string           `json:"cpf_or_cnpj" validate:"required,cpfcnpj"`
 	Name      string           `json:"name" validate:"required,min=2,max=255"`
+	Roles     []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
 	Person    PersonObjectBody `json:"person" validate:"required"`
 }
 
@@ -105,6 +115,7 @@ type PersonCreateBody struct {
 // is taken from the path, never the body).
 type PersonUpdateBody struct {
 	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
+	Roles  []string          `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 

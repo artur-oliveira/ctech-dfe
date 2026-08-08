@@ -40,6 +40,7 @@ import {NF_PAYMENT_TYPES} from '@/lib/types/api'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
 import {PersonForm} from '@/components/persons/PersonForm'
+import {PersonPicker} from '@/components/persons/PersonPicker'
 import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
 import {
   buildNatOpFromCfops,
@@ -331,96 +332,6 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
 }
 
 // ─── Carrier search (transportadora) ─────────────────────────────────────────
-
-interface CarrierSearchProps {
-  onSelect: (p: PersonItemOut) => void
-}
-
-function CarrierSearch({onSelect}: CarrierSearchProps) {
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, 300)
-  const [open, setOpen] = useState(false)
-  const [docSearchLoading, setDocSearchLoading] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const digits = query.replace(/\D/g, '')
-  const isDoc = digits.length === 11 || digits.length === 14
-
-  const {data: nameResults} = useQuery({
-    queryKey: queryKeys.persons.search(debouncedQuery),
-    queryFn: () => apiClient.searchPersonsByName(debouncedQuery),
-    enabled: open && !!debouncedQuery && !isDoc && debouncedQuery.length >= 2,
-  })
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const handleSearchByDoc = useCallback(async () => {
-    if (!isDoc) return
-    setDocSearchLoading(true)
-    try {
-      const person = await apiClient.getPersonByCpfCnpj(digits)
-      onSelect(person)
-    } catch {
-      // not found — user should create new
-    } finally {
-      setDocSearchLoading(false)
-    }
-  }, [digits, isDoc, onSelect])
-
-  const suggestions = nameResults?.items ?? []
-
-  return (
-    <div ref={containerRef} className="relative">
-      <div className="flex gap-2">
-        <Input
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value.toUpperCase());
-            setOpen(true)
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="Buscar por nome ou CNPJ/CPF da transportadora"
-          className="flex-1"
-        />
-        {isDoc && (
-          <Button type="button" variant="brand" size="sm" onClick={handleSearchByDoc} disabled={docSearchLoading}>
-            {docSearchLoading ? (
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"/>
-                Buscando…
-              </span>
-            ) : 'Buscar'}
-          </Button>
-        )}
-      </div>
-      {open && !isDoc && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
-          {suggestions.map((p) => (
-            <button key={p.sk} type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onSelect(p);
-                      setQuery('');
-                      setOpen(false)
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors">
-              <p className="text-sm font-medium text-gray-900">{p.name}</p>
-              <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(unformatCpfCnpj(p.pk))}</p>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─── Vehicle select ───────────────────────────────────────────────────────────
 
@@ -745,8 +656,6 @@ export function NfeEmitForm() {
   })
   const [selectedCarrier, setSelectedCarrier] = useState<PersonItemOut | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleOut | null>(null)
-  const [showCarrierModal, setShowCarrierModal] = useState(false)
-  const [createCarrierLoading, setCreateCarrierLoading] = useState(false)
   const [vehicleSearchQuery, setVehicleSearchQuery] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1021,17 +930,6 @@ export function NfeEmitForm() {
   }
 
   // ─── Carrier handler ──────────────────────────────────────────────────────
-
-  const handleCreateCarrier = async (data: PersonCreate) => {
-    setCreateCarrierLoading(true)
-    try {
-      const created = await apiClient.createPerson(data)
-      setSelectedCarrier(created)
-      setShowCarrierModal(false)
-    } finally {
-      setCreateCarrierLoading(false)
-    }
-  }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
@@ -1601,21 +1499,8 @@ export function NfeEmitForm() {
                         </p>
                       )}
                       {(transport.mod_frete === '0' || transport.mod_frete === '1' || transport.mod_frete === '2') && (
-                        selectedCarrier ? (
-                          <div
-                            className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5">
-                            <div className="flex-1"><p
-                              className="font-medium text-gray-900 text-sm">{selectedCarrier.name}</p></div>
-                            <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedCarrier(null)}
-                                    className="text-red-600">Trocar</Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <CarrierSearch onSelect={setSelectedCarrier}/>
-                            <Button type="button" variant="ghost" size="xs" onClick={() => setShowCarrierModal(true)}
-                                    className="text-brand-600 px-0 text-xs">+ Cadastrar nova</Button>
-                          </div>
-                        )
+                        <PersonPicker value={selectedCarrier} onChange={setSelectedCarrier} role="carrier"
+                                      placeholder="Buscar transportadora por nome ou CNPJ/CPF"/>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -1716,10 +1601,6 @@ export function NfeEmitForm() {
       </div>
 
       {/* Modals */}
-      <Modal isOpen={showCarrierModal} title="Cadastrar nova transportadora"
-             onClose={() => setShowCarrierModal(false)} size="xl">
-        <PersonForm onSubmit={handleCreateCarrier} loading={createCarrierLoading}/>
-      </Modal>
       <EmitConfirmModal
         open={showEmitConfirm}
         onClose={() => setShowEmitConfirm(false)}
