@@ -5,6 +5,7 @@ export const SK_PREFIX = {
   CNPJ: 'CNPJ_',
   CERTIFICATE: 'CERT_',
   SERVICE: 'SERVICE_',
+  TAX_PROFILE: 'TAXPROFILE_',
 } as const
 
 export function extractId(sk: string, prefix: string): string {

@@ -1,6 +1,7 @@
 'use client'
 
-import {useQueryClient} from '@tanstack/react-query'
+import {useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useRouter} from 'next/navigation'
 import {apiClient} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -18,6 +19,7 @@ import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
 import {BulkActionBar} from '@/components/ui/bulk-action-bar'
+import {OptionsSelect} from '@/components/ui/options-select'
 import {useRowSelection} from '@/lib/hooks/useRowSelection'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {ProductOut} from '@/lib/types/api'
@@ -50,6 +52,41 @@ function ProductsContent() {
 
   const rowId = (p: ProductOut) => extractId(p.sk, SK_PREFIX.PRODUCT)
   const selection = useRowSelection(visibleItems.map(rowId))
+  // Nomes dos perfis para exibir na coluna: a linha do produto guarda só o id.
+  const {data: taxProfilePage} = useQuery({
+    queryKey: queryKeys.taxProfiles.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getTaxProfiles({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const taxProfiles = taxProfilePage?.items ?? []
+  const profileNames = new Map(
+    taxProfiles.map((tp) => [extractId(tp.sk, SK_PREFIX.TAX_PROFILE), tp.name]),
+  )
+
+  const [isApplyingProfile, setIsApplyingProfile] = useState(false)
+
+  // Aplica um perfil aos produtos selecionados. Substitui o vínculo em vez de
+  // acumular: dois perfis cobrindo o mesmo CFOP é configuração ambígua.
+  const applyProfileToSelected = async (profileId: string) => {
+    if (!profileId) return
+    const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
+    setIsApplyingProfile(true)
+    try {
+      for (const id of selection.selectedIds) {
+        const product = byId.get(id)
+        if (!product) continue
+        await apiClient.updateProduct(id, {
+          ...product,
+          tax_profiles: [{tax_profile_id: profileId}],
+        })
+      }
+      selection.clear()
+      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
+    } finally {
+      setIsApplyingProfile(false)
+    }
+  }
+
   const bulkDelete = () => {
     const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
     selection.selectedIds.forEach((id) => {
@@ -96,7 +133,7 @@ function ProductsContent() {
                   ariaLabel="Selecionar todos"
                 />
               )},
-              'Descrição', 'Valor (Revenda)', 'Valor (Consumidor final)', {label: '', align: 'right'},
+              'Descrição', 'Perfil fiscal', 'Valor (Revenda)', 'Valor (Consumidor final)', {label: '', align: 'right'},
             ]}
           >
             {visibleItems.map((p) => (
@@ -109,6 +146,20 @@ function ProductsContent() {
                   />
                 </td>
                 <td data-label="Descrição" className={`${TABLE_CELL} font-medium text-gray-900`}>{p.description + (p.brand ? ' ' + p.brand : '')}</td>
+                <td data-label="Perfil fiscal" className={TABLE_CELL}>
+                  {p.tax_profiles?.length ? (
+                    <span className="flex flex-wrap gap-1">
+                      {p.tax_profiles.map((r) => (
+                        <span key={r.tax_profile_id}
+                              className="inline-flex items-center rounded bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+                          {profileNames.get(r.tax_profile_id) ?? 'Perfil'}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">Tributação no produto</span>
+                  )}
+                </td>
                 <td data-label="Valor (Revenda)" className={`${TABLE_CELL} text-gray-700`}>{p.value_resale ? formatCurrency(p.value_resale) : '-'}</td>
                 <td data-label="Valor (Consumidor final)" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(p.value)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
@@ -144,6 +195,21 @@ function ProductsContent() {
           isLoading={isFetching}
         />
         <BulkActionBar count={selection.count} onClear={selection.clear}>
+          {/* Sem isto, quem já tem catálogo não migra: aplicar perfil produto a
+              produto em 5.000 itens não é uma opção real. */}
+          {taxProfiles.length > 0 && (
+            <div className="w-48">
+              <OptionsSelect
+                value=""
+                onValueChange={applyProfileToSelected}
+                options={taxProfiles.map((tp) => ({
+                  value: extractId(tp.sk, SK_PREFIX.TAX_PROFILE),
+                  label: tp.name,
+                }))}
+                placeholder={isApplyingProfile ? 'Aplicando…' : 'Aplicar perfil'}
+              />
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"

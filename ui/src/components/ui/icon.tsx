@@ -1,4 +1,4 @@
-import {ClipboardList, FileSignature, FileText, Receipt, Route, Truck} from 'lucide-react'
+import {ClipboardList, FileSignature, FileText, Percent, Receipt, Route, Truck} from 'lucide-react'
 
 interface IconProps {
   width?: number
@@ -28,6 +28,11 @@ export const MdfeIcon = ({width = 16, height = 16}: IconProps) => (
 /** Catálogo de serviços (NFS-e) */
 export const ServiceIcon = ({width = 16, height = 16}: IconProps) => (
   <ClipboardList width={width} height={height}/>
+)
+
+/** Perfil fiscal — tributação reutilizável entre produtos */
+export const PercentIcon = ({width = 16, height = 16}: IconProps) => (
+  <Percent width={width} height={height}/>
 )
 
 /** NFS-e — Nota Fiscal de Serviços Eletrônica */

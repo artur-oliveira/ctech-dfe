@@ -1,5 +1,7 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
+  TaxProfileCreate,
+  TaxProfileItemOut,
   AuditLogOut,
   CertificateOut,
   CTeConfigOut,
@@ -330,6 +332,27 @@ class ApiClient {
 
   async deleteVehicle(id: string): Promise<void> {
     return this.del(`/v1.0/vehicles/${id}`)
+  }
+
+  // Tax profiles (perfis fiscais reutilizáveis)
+  async getTaxProfiles(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<TaxProfileItemOut>> {
+    return this.get('/v1.0/tax-profiles', {params})
+  }
+
+  async getTaxProfile(id: string): Promise<TaxProfileItemOut> {
+    return this.get(`/v1.0/tax-profiles/${id}`)
+  }
+
+  async createTaxProfile(data: TaxProfileCreate): Promise<TaxProfileItemOut> {
+    return this.post('/v1.0/tax-profiles', data)
+  }
+
+  async updateTaxProfile(id: string, data: TaxProfileCreate): Promise<TaxProfileItemOut> {
+    return this.put(`/v1.0/tax-profiles/${id}`, data)
+  }
+
+  async deleteTaxProfile(id: string): Promise<void> {
+    return this.del(`/v1.0/tax-profiles/${id}`)
   }
 
   // Persons (Clientes/Fornecedores)

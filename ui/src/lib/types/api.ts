@@ -349,6 +349,8 @@ export interface ProductOut {
   inf_ad_prod?: string | null
   cfop_nfce: string
   cfop_config: CfopConfigItem[]
+  /** Perfis fiscais aplicados. Produto sem perfil resolve a tributação como sempre resolveu. */
+  tax_profiles?: ProductTaxProfileRef[] | null
   conversion_factors: ConversionFactorItem[]
   // Tipo específico e campos especiais
   prod_type?: string | null
@@ -417,6 +419,7 @@ export interface ProductCreate {
   inf_ad_prod?: string | null
   cfop_nfce: string
   cfop_config?: CfopConfigItem[]
+  tax_profiles?: ProductTaxProfileRef[] | null
   conversion_factors?: ConversionFactorItem[]
   // Tipo específico e campos especiais
   prod_type?: string | null
@@ -466,6 +469,7 @@ export interface ProductUpdate {
   value_resale?: string | null
   cfop_nfce?: string
   cfop_config?: CfopConfigItem[]
+  tax_profiles?: ProductTaxProfileRef[] | null
   conversion_factors?: ConversionFactorItem[]
 }
 
@@ -660,6 +664,31 @@ export interface PersonUpdate {
   name?: string
   roles?: PersonRole[]
   person?: PersonObject
+}
+
+// Cadastros reutilizáveis — perfis fiscais
+export interface TaxProfileCreate extends Record<string, unknown> {
+  name: string
+  description?: string | null
+  cfops: string[]
+}
+
+export interface TaxProfileItemOut {
+  pk: string
+  sk: string
+  name: string
+  description?: string | null
+  cfops: string[]
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+/** Vínculo produto → perfil fiscal, com sobrescrita parcial opcional. */
+export interface ProductTaxProfileRef {
+  tax_profile_id: string
+  overrides?: Record<string, unknown> | null
 }
 
 // NF-e — tipos auxiliares

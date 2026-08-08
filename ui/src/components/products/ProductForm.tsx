@@ -1,8 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import {startTransition, useEffect, useState} from 'react'
 import {generateEntityCode} from '@/lib/utils/code'
 import {useForm, useWatch} from 'react-hook-form'
+import {useQuery} from '@tanstack/react-query'
+import {apiClient} from '@/lib/api/client'
+import {queryKeys} from '@/lib/api/query-keys'
+import {useAuth} from '@/lib/hooks/useAuth'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
@@ -19,18 +24,21 @@ import {
   productSchema
 } from '@/lib/schemas/products'
 import type {ProductCreate, ProductOut} from '@/lib/types/api'
-import {getAllCfopOptions, getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
+import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
+import {
+  CSOSN_ST,
+  ICMS_MONO_CSTS,
+  ICMS_ST_CSTS,
+  icmsConditionalFields,
+  EMPTY_TAX_GROUPS,
+  type TaxGroups,
+  PIS_COFINS_ALIQ_CSTS,
+  TaxFieldsEditor,
+} from '@/components/tax/TaxFieldsEditor'
 import {isRegimeSimples} from '@/lib/constants/tax'
-import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
-import {IPI_CST_OPTIONS} from '@/lib/data/ipi'
-import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {ORIGIN_OPTIONS} from '@/lib/data/origin'
-import {CSOSN_OPTIONS} from '@/lib/data/csosn'
-import {ICMS_CST_OPTIONS} from '@/lib/data/icms'
-import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
-import {MOD_BC_OPTIONS, MOD_BC_ST_OPTIONS} from '@/lib/data/mod_bc'
-import {getCfopHint} from '@/lib/data/cfop_rules'
 import {getIcmsForNcm} from '@/lib/data/icms_ncm_lookup'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,25 +104,6 @@ const VEIC_COR_DENATRAN_OPTIONS = [
   {value: '15', label: '15 – Vermelha'}, {value: '16', label: '16 – Fantasia'},
 ]
 
-// CSTs monofásicos de combustíveis
-const ICMS_MONO_CSTS = new Set(['02', '15', '53', '61'])
-// CSTs com ISSQN (serviços)
-const ISSQN_IND_ISS_OPTIONS = [
-  {value: '1', label: '1 – Exigível'},
-  {value: '2', label: '2 – Não incidente'},
-  {value: '3', label: '3 – Isenção'},
-  {value: '4', label: '4 – Exportação'},
-  {value: '5', label: '5 – Imunidade'},
-  {value: '6', label: '6 – Exig. Susp. Judicial'},
-  {value: '7', label: '7 – Exig. Susp. Administrativa'},
-]
-
-const ICMS_TAXED_CSTS = new Set(['00', '10', '20', '30', '51', '70', '90'])
-const ICMS_ST_CSTS = new Set(['10', '30', '70'])
-const CSOSN_CRED = new Set(['101', '201', '900'])
-const CSOSN_ST = new Set(['201', '202', '203'])
-const PIS_COFINS_ALIQ_CSTS = new Set(['01', '02'])
-const PIS_COFINS_QTDE_CSTS = new Set(['03'])
 
 const EMPTY_CFOP_ROW: CfopConfigFormData = {
   cfop: '',
@@ -445,27 +434,32 @@ function toApiPayload(data: ProductFormData): ProductCreate {
   }
 }
 
-function icmsConditionalFields(cst: string) {
-  return {
-    showPRedBC: ['20', '40', '70'].includes(cst),
-    showMotDeSon: ['40', '41', '50', '51'].includes(cst),
-    showPDif: cst === '51',
-  }
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false}: ProductFormProps) {
+  const {selectedOrg} = useAuth()
   const [activeTab, setActiveTab] = useState<ProductTab>('produto')
   const [cfopRow, setCfopRow] = useState<CfopConfigFormData>(EMPTY_CFOP_ROW)
   const [cfopError, setCfopError] = useState<string | null>(null)
+  // Remonta o TaxFieldsEditor para zerar seus toggles internos quando
+  // uma linha de CFOP é adicionada à lista.
+  const [taxEditorKey, setTaxEditorKey] = useState(0)
+  const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
+  // Perfis fiscais vinculados. Fora do zod de propósito: o productSchema já é
+  // grande o bastante para que mais um array aninhado estoure a inferência do
+  // resolver do react-hook-form. É só uma lista de ids — não há o que validar
+  // aqui que o backend não valide.
+  const [taxProfileIds, setTaxProfileIds] = useState<string[]>(
+    () => (initialData?.tax_profiles ?? []).map((r) => r.tax_profile_id),
+  )
+
+  const {data: taxProfilePage} = useQuery({
+    queryKey: queryKeys.taxProfiles.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getTaxProfiles({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const taxProfiles = taxProfilePage?.items ?? []
   const [icmsAutoFilled, setIcmsAutoFilled] = useState(false)
-  const [showIpi, setShowIpi] = useState(false)
-  const [showIs, setShowIs] = useState(false)
-  const [showIbsCbsRed, setShowIbsCbsRed] = useState(false)
-  const [showIbsCbsDif, setShowIbsCbsDif] = useState(false)
-  const [showIssqn, setShowIssqn] = useState(false)
-  const [showIcmsMono, setShowIcmsMono] = useState(false)
   const [convRow, setConvRow] = useState<ConversionFactorFormData>(EMPTY_CONVERSION_ROW)
   const [convError, setConvError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -555,14 +549,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   }, [watchedNcm, uf])
 
   const nfceCfopOptions = getCfopOptionsForNfce()
-  const cfopOptions = getAllCfopOptions()
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '')
 
-  const cfopHint = getCfopHint(cfopRow.cfop)
 
-  const showSt = (!simples && !!cfopRow.icms && ICMS_ST_CSTS.has(cfopRow.icms)) ||
-    (simples && !!cfopRow.csosn && CSOSN_ST.has(cfopRow.csosn))
 
   // ─── CFOP handlers ──────────────────────────────────────────────────────────
 
@@ -575,7 +565,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       setCfopError('CSOSN obrigatório para Simples Nacional')
       return
     }
-    if (!simples && !cfopRow.icms && !showIssqn) {
+    if (!simples && !cfopRow.icms && !taxGroups.issqn) {
       setCfopError('ICMS CST obrigatório para Regime Normal (ou habilite ISSQN)')
       return
     }
@@ -587,15 +577,15 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       setCfopError('Motivo de desoneração obrigatório para este CST')
       return
     }
-    if (showIpi && !cfopRow.ipi_cst) {
+    if (taxGroups.ipi && !cfopRow.ipi_cst) {
       setCfopError('CST IPI obrigatório quando IPI está habilitado')
       return
     }
-    if (showIs && !cfopRow.is_cst) {
+    if (taxGroups.is && !cfopRow.is_cst) {
       setCfopError('CST IS obrigatório quando IS está habilitado')
       return
     }
-    if (showIssqn && !cfopRow.issqn_ind_iss) {
+    if (taxGroups.issqn && !cfopRow.issqn_ind_iss) {
       setCfopError('Exigibilidade ISS obrigatória quando ISSQN está habilitado')
       return
     }
@@ -611,13 +601,13 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         csosn: simples ? (cfopRow.csosn ?? '') : '',
         icms: simples ? '' : (cfopRow.icms ?? ''),
         // clear optional IPI/IS if not enabled
-        ipi_cst: showIpi ? cfopRow.ipi_cst : '',
-        ipi_aliq: showIpi ? cfopRow.ipi_aliq : '',
-        is_cst: showIs ? cfopRow.is_cst : '',
-        is_aliq: showIs ? cfopRow.is_aliq : '',
-        is_class_trib: showIs ? cfopRow.is_class_trib : '',
-        is_aliq_espec: showIs ? cfopRow.is_aliq_espec : '',
-        is_unid_trib: showIs ? cfopRow.is_unid_trib : '',
+        ipi_cst: taxGroups.ipi ? cfopRow.ipi_cst : '',
+        ipi_aliq: taxGroups.ipi ? cfopRow.ipi_aliq : '',
+        is_cst: taxGroups.is ? cfopRow.is_cst : '',
+        is_aliq: taxGroups.is ? cfopRow.is_aliq : '',
+        is_class_trib: taxGroups.is ? cfopRow.is_class_trib : '',
+        is_aliq_espec: taxGroups.is ? cfopRow.is_aliq_espec : '',
+        is_unid_trib: taxGroups.is ? cfopRow.is_unid_trib : '',
         // clear conditional ICMS fields that don't apply to selected CST
         icms_p_red_bc: showPRedBC ? cfopRow.icms_p_red_bc : '',
         icms_mot_des: showMotDeSon ? cfopRow.icms_mot_des : '',
@@ -629,7 +619,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         icms_st_aliq: hasSt ? cfopRow.icms_st_aliq : '',
         icms_st_fcp_aliq: hasSt ? cfopRow.icms_st_fcp_aliq : '',
         // clear monofásico fields if not applicable
-        icms_ad_rem: isMono || showIcmsMono ? cfopRow.icms_ad_rem : '',
+        icms_ad_rem: isMono || taxGroups.icmsMono ? cfopRow.icms_ad_rem : '',
         icms_ad_rem_reten: (isMono && cfopRow.icms === '15') ? cfopRow.icms_ad_rem_reten : '',
         icms_p_red_ad_rem: (isMono && cfopRow.icms === '15') ? cfopRow.icms_p_red_ad_rem : '',
         icms_mot_red_ad_rem: (isMono && cfopRow.icms === '15') ? cfopRow.icms_mot_red_ad_rem : '',
@@ -640,31 +630,27 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         pis_aliq_unid: cfopRow.pis === '03' ? cfopRow.pis_aliq_unid : '',
         cofins_aliq_unid: cfopRow.cofins === '03' ? cfopRow.cofins_aliq_unid : '',
         // clear IBS/CBS reduction/deferral if not enabled
-        ibs_uf_p_red: showIbsCbsRed ? cfopRow.ibs_uf_p_red : '',
-        ibs_mun_p_red: showIbsCbsRed ? cfopRow.ibs_mun_p_red : '',
-        cbs_p_red: showIbsCbsRed ? cfopRow.cbs_p_red : '',
-        ibs_uf_p_dif: showIbsCbsDif ? cfopRow.ibs_uf_p_dif : '',
-        ibs_mun_p_dif: showIbsCbsDif ? cfopRow.ibs_mun_p_dif : '',
-        cbs_p_dif: showIbsCbsDif ? cfopRow.cbs_p_dif : '',
+        ibs_uf_p_red: taxGroups.ibsRed ? cfopRow.ibs_uf_p_red : '',
+        ibs_mun_p_red: taxGroups.ibsRed ? cfopRow.ibs_mun_p_red : '',
+        cbs_p_red: taxGroups.ibsRed ? cfopRow.cbs_p_red : '',
+        ibs_uf_p_dif: taxGroups.ibsDif ? cfopRow.ibs_uf_p_dif : '',
+        ibs_mun_p_dif: taxGroups.ibsDif ? cfopRow.ibs_mun_p_dif : '',
+        cbs_p_dif: taxGroups.ibsDif ? cfopRow.cbs_p_dif : '',
         // clear ISSQN if not enabled
-        issqn_ind_iss: showIssqn ? cfopRow.issqn_ind_iss : '',
-        issqn_c_list_serv: showIssqn ? cfopRow.issqn_c_list_serv : '',
-        issqn_c_mun_fg: showIssqn ? cfopRow.issqn_c_mun_fg : '',
-        issqn_aliq: showIssqn ? cfopRow.issqn_aliq : '',
-        issqn_v_deducao: showIssqn ? cfopRow.issqn_v_deducao : '',
-        issqn_v_iss_ret: showIssqn ? cfopRow.issqn_v_iss_ret : '',
+        issqn_ind_iss: taxGroups.issqn ? cfopRow.issqn_ind_iss : '',
+        issqn_c_list_serv: taxGroups.issqn ? cfopRow.issqn_c_list_serv : '',
+        issqn_c_mun_fg: taxGroups.issqn ? cfopRow.issqn_c_mun_fg : '',
+        issqn_aliq: taxGroups.issqn ? cfopRow.issqn_aliq : '',
+        issqn_v_deducao: taxGroups.issqn ? cfopRow.issqn_v_deducao : '',
+        issqn_v_iss_ret: taxGroups.issqn ? cfopRow.issqn_v_iss_ret : '',
       }
     })
 
     setCfopError(null)
+    setTaxGroups(EMPTY_TAX_GROUPS)
+    setTaxEditorKey((k) => k + 1)
     form.setValue('cfop_config', [...cfopConfig, ...newCfopConfigs])
     setCfopRow(EMPTY_CFOP_ROW)
-    setShowIpi(false)
-    setShowIs(false)
-    setShowIbsCbsRed(false)
-    setShowIbsCbsDif(false)
-    setShowIssqn(false)
-    setShowIcmsMono(false)
   }
 
   const removeCfop = (i: number) => {
@@ -698,14 +684,17 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    if (data.cfop_config.length === 0) {
+    if (data.cfop_config.length === 0 && taxProfileIds.length === 0) {
       setActiveTab('tributacao')
-      setSubmitError('Adicione ao menos uma configuração de CFOP na aba Tributação.')
+      setSubmitError('Escolha um perfil fiscal ou adicione uma configuração de CFOP na aba Tributação.')
       return
     }
     setSubmitError(null)
     try {
-      await onSubmit(toApiPayload(data))
+      await onSubmit({
+        ...toApiPayload(data),
+        tax_profiles: taxProfileIds.map((id) => ({tax_profile_id: id})),
+      })
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
     }
@@ -1088,544 +1077,51 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               </span>
             </div>
 
-            {/* ── Linha obrigatória ───────────────────────────────────── */}
-            <div className="space-y-3 rounded-lg border border-gray-100 p-3 bg-gray-50/50">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dados da operação</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">CFOP *</label>
-                  <Combobox value={cfopRow.cfop}
-                            onValueChange={(v) => setCfopRow((r) => ({...r, cfop: v}))}
-                            options={cfopOptions} placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    {simples ? 'CSOSN *' : 'ICMS CST *'}
-                  </label>
-                  {simples ? (
-                    <OptionsSelect value={cfopRow.csosn ?? ''}
-                                   onValueChange={(v) => setCfopRow((r) => ({...r, csosn: v}))}
-                                   options={CSOSN_OPTIONS} placeholder="CSOSN"/>
-                  ) : (
-                    <OptionsSelect value={cfopRow.icms ?? ''}
-                                   onValueChange={(v) => setCfopRow((r) => ({
-                                     ...r, icms: v,
-                                     icms_p_red_bc: '', icms_mot_des: '', icms_p_dif: '',
-                                     icms_aliq_override: '', icms_fcp_override: '',
-                                     icms_st_mva: '', icms_st_aliq: '', icms_st_fcp_aliq: '',
-                                   }))}
-                                   options={ICMS_CST_OPTIONS} placeholder="CST"/>
-                  )}
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">PIS *</label>
-                  <OptionsSelect value={cfopRow.pis}
-                                 onValueChange={(v) => setCfopRow((r) => ({
-                                   ...r,
-                                   pis: v,
-                                   pis_aliq: '',
-                                   pis_aliq_unid: ''
-                                 }))}
-                                 options={PIS_COFINS_OPTIONS} placeholder="PIS"/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">COFINS *</label>
-                  <OptionsSelect value={cfopRow.cofins}
-                                 onValueChange={(v) => setCfopRow((r) => ({
-                                   ...r,
-                                   cofins: v,
-                                   cofins_aliq: '',
-                                   cofins_aliq_unid: ''
-                                 }))}
-                                 options={PIS_COFINS_OPTIONS} placeholder="COFINS"/>
-                </div>
-              </div>
-
-              {/* Hint fiscal CFOP */}
-              {cfopHint && (
-                <div
-                  className="col-span-full flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700">
-                  <span className="font-medium">!</span>
-                  <span>{cfopHint.label}</span>
-                </div>
-              )}
-
-              {/* Campos condicionais ICMS Regime Normal */}
-              {!simples && (showPRedBC || showMotDeSon || showPDif) && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
-                  {showPRedBC && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">% Redução BC</label>
-                      <NumericInput value={cfopRow.icms_p_red_bc ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                    placeholder="0.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, icms_p_red_bc: v}))}/>
-                    </div>
-                  )}
-                  {showMotDeSon && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Motivo desoneração *</label>
-                      <OptionsSelect value={cfopRow.icms_mot_des ?? ''}
-                                     onValueChange={(v) => setCfopRow((r) => ({...r, icms_mot_des: v}))}
-                                     options={ICMS_MOT_DESONE_OPTIONS} placeholder="Motivo"/>
-                    </div>
-                  )}
-                  {showPDif && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">% Diferimento</label>
-                      <NumericInput value={cfopRow.icms_p_dif ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                    placeholder="0.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, icms_p_dif: v}))}/>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Alíquota ICMS — para CSTs tributados */}
-              {!simples && cfopRow.icms && ICMS_TAXED_CSTS.has(cfopRow.icms) && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Alíquota ICMS %</label>
-                    <NumericInput value={cfopRow.icms_aliq_override ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                  placeholder="Padrão: tabela da UF"
-                                  onChange={(v) => setCfopRow((r) => ({...r, icms_aliq_override: v}))}/>
-                    <p className="text-xs text-gray-400">Vazio = usa alíquota padrão da UF de destino</p>
-                  </div>
-                  {['00', '10', '20', '51', '70', '90'].includes(cfopRow.icms) && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Modo de cálculo</label>
-                      <OptionsSelect value={cfopRow.icms_mod_bc ?? '3'}
-                                     onValueChange={(v) => setCfopRow((r) => ({...r, icms_mod_bc: v}))}
-                                     options={MOD_BC_OPTIONS} placeholder="Modo de cálculo"/>
-                    </div>
-                  )}
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">FCP %</label>
-                    <NumericInput value={cfopRow.icms_fcp_override ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                  placeholder="Padrão: tabela da UF"
-                                  onChange={(v) => setCfopRow((r) => ({...r, icms_fcp_override: v}))}/>
-                  </div>
-                </div>
-              )}
-
-              {/* pCredSN — Simples Nacional com crédito */}
-              {simples && cfopRow.csosn && CSOSN_CRED.has(cfopRow.csosn) && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Crédito aproveitável</label>
-                    <NumericInput value={cfopRow.icms_sn_cred_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                  placeholder="Ex: 4.0000"
-                                  onChange={(v) => setCfopRow((r) => ({...r, icms_sn_cred_aliq: v}))}/>
-                  </div>
-                </div>
-              )}
-
-              {/* ST — Substituição Tributária */}
-              {showSt && (
-                <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
-                    Substituição Tributária (ST)
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Cálculo da BC ST</label>
-                      <OptionsSelect value={cfopRow.icms_st_mod_bc ?? '4'}
-                                     onValueChange={(v) => setCfopRow((r) => ({...r, icms_st_mod_bc: v}))}
-                                     options={MOD_BC_ST_OPTIONS} placeholder="Modo"/>
-                    </div>
-                    {(!cfopRow.icms_st_mod_bc || cfopRow.icms_st_mod_bc === '4') && (
-                      <div className="grid gap-1">
-                        <label className="text-sm font-medium text-gray-700">MVA %</label>
-                        <NumericInput value={cfopRow.icms_st_mva ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                      placeholder="Ex: 30.0000"
-                                      onChange={(v) => setCfopRow((r) => ({...r, icms_st_mva: v}))}/>
-                      </div>
-                    )}
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Alíquota ST %</label>
-                      <NumericInput value={cfopRow.icms_st_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                    placeholder="Ex: 18.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, icms_st_aliq: v}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">FCP ST %</label>
-                      <NumericInput value={cfopRow.icms_st_fcp_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                    placeholder="0.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, icms_st_fcp_aliq: v}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">% Redução BC ST</label>
-                      <NumericInput value={cfopRow.icms_st_red_bc ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                    placeholder="0.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, icms_st_red_bc: v}))}/>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Alíquotas PIS/COFINS condicionais */}
-              {((cfopRow.pis && (PIS_COFINS_ALIQ_CSTS.has(cfopRow.pis) || PIS_COFINS_QTDE_CSTS.has(cfopRow.pis))) ||
-                (cfopRow.cofins && (PIS_COFINS_ALIQ_CSTS.has(cfopRow.cofins) || PIS_COFINS_QTDE_CSTS.has(cfopRow.cofins)))) && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-gray-200">
-                  {cfopRow.pis && PIS_COFINS_ALIQ_CSTS.has(cfopRow.pis) && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Alíquota PIS %</label>
-                      <NumericInput value={cfopRow.pis_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                    placeholder="Ex: 0.6500"
-                                    onChange={(v) => setCfopRow((r) => ({...r, pis_aliq: v}))}/>
-                    </div>
-                  )}
-                  {cfopRow.pis && PIS_COFINS_QTDE_CSTS.has(cfopRow.pis) && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">PIS R$/unid</label>
-                      <NumericInput value={cfopRow.pis_aliq_unid ?? ''} decimal integerPlaces={4} decimalPlaces={4}
-                                    placeholder="Ex: 0.0065"
-                                    onChange={(v) => setCfopRow((r) => ({...r, pis_aliq_unid: v}))}/>
-                    </div>
-                  )}
-                  {cfopRow.cofins && PIS_COFINS_ALIQ_CSTS.has(cfopRow.cofins) && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Alíquota COFINS %</label>
-                      <NumericInput value={cfopRow.cofins_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                    placeholder="Ex: 3.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, cofins_aliq: v}))}/>
-                    </div>
-                  )}
-                  {cfopRow.cofins && PIS_COFINS_QTDE_CSTS.has(cfopRow.cofins) && (
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">COFINS R$/unid</label>
-                      <NumericInput value={cfopRow.cofins_aliq_unid ?? ''} decimal integerPlaces={4} decimalPlaces={4}
-                                    placeholder="Ex: 0.0300"
-                                    onChange={(v) => setCfopRow((r) => ({...r, cofins_aliq_unid: v}))}/>
-                    </div>
-                  )}
+            {/* ── Perfis fiscais ───────────────────────────────────────── */}
+            <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Perfis fiscais</p>
+              <p className="text-xs text-gray-500">
+                Escolher um perfil dispensa preencher a tributação aqui. Para sobrescrever um CFOP só
+                neste produto, adicione a linha abaixo — ela vence o perfil na emissão.
+              </p>
+              {taxProfiles.length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  Nenhum perfil cadastrado ainda.{' '}
+                  <Link href="/tax-profiles/new" className="font-medium text-brand-600 hover:text-brand-700">
+                    Criar o primeiro
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2 pt-1">
+                  {taxProfiles.map((profile) => {
+                    const id = extractId(profile.sk, SK_PREFIX.TAX_PROFILE)
+                    const checked = taxProfileIds.includes(id)
+                    return (
+                      <label key={profile.sk}
+                             className="flex min-h-11 sm:min-h-0 cursor-pointer items-start gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={checked}
+                               onChange={() => setTaxProfileIds((prev) => checked
+                                 ? prev.filter((p) => p !== id)
+                                 : [...prev, id])}
+                               className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"/>
+                        <span>
+                          <span className="font-medium text-gray-900">{profile.name}</span>
+                          <span className="ml-2 font-mono text-xs text-gray-500">
+                            {(profile.cfops ?? []).join(' · ')}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
                 </div>
               )}
             </div>
 
-            {/* ── IPI ─────────────────────────────────────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="toggle-ipi" checked={showIpi}
-                       onChange={(e) => {
-                         setShowIpi(e.target.checked)
-                         if (!e.target.checked) setCfopRow((r) => ({...r, ipi_cst: '', ipi_aliq: ''}))
-                       }}
-                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                <label htmlFor="toggle-ipi"
-                       className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
-                  IPI — Imposto sobre Produtos Industrializados
-                </label>
-              </div>
-              {showIpi && (
-                <div className="grid grid-cols-2 gap-2 max-w-sm">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">CST IPI *</label>
-                    <OptionsSelect value={cfopRow.ipi_cst ?? ''}
-                                   onValueChange={(v) => setCfopRow((r) => ({...r, ipi_cst: v}))}
-                                   options={IPI_CST_OPTIONS} placeholder="CST"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Alíquota %</label>
-                    <NumericInput value={cfopRow.ipi_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                  placeholder="0.0000"
-                                  onChange={(v) => setCfopRow((r) => ({...r, ipi_aliq: v}))}/>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
+            <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
+                             groups={taxGroups} onGroupsChange={setTaxGroups}/>
 
-            {/* ── IS ──────────────────────────────────────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="toggle-is" checked={showIs}
-                       onChange={(e) => {
-                         setShowIs(e.target.checked)
-                         if (!e.target.checked) setCfopRow((r) => ({
-                           ...r, is_cst: '', is_aliq: '', is_class_trib: '', is_aliq_espec: '', is_unid_trib: ''
-                         }))
-                       }}
-                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                <label htmlFor="toggle-is"
-                       className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
-                  IS — Imposto Seletivo (NT 2024.001)
-                </label>
-              </div>
-              {showIs && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">CST IS *</label>
-                    <OptionsSelect value={cfopRow.is_cst ?? ''}
-                                   onValueChange={(v) => setCfopRow((r) => ({...r, is_cst: v}))}
-                                   options={IS_CST_OPTIONS} placeholder="CST"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Alíquota %</label>
-                    <NumericInput value={cfopRow.is_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                  placeholder="0.0000"
-                                  onChange={(v) => setCfopRow((r) => ({...r, is_aliq: v}))}/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Classificação IS</label>
-                    <NumericInput value={cfopRow.is_class_trib ?? ''}
-                                  placeholder="000000" maxLength={6}
-                                  onChange={(v) => setCfopRow((r) => ({...r, is_class_trib: v}))}/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Alíquota específica</label>
-                    <NumericInput value={cfopRow.is_aliq_espec ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                                  placeholder="0.0000"
-                                  onChange={(v) => setCfopRow((r) => ({...r, is_aliq_espec: v}))}/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">Unid. tributável IS</label>
-                    <Input value={cfopRow.is_unid_trib ?? ''}
-                           placeholder="Ex: UN"
-                           onChange={(e) => setCfopRow((r) => ({...r, is_unid_trib: e.target.value}))}/>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── ICMS Monofásico — Combustíveis (CST 02/15/53/61) ── */}
-            {!simples && (
-              <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="toggle-mono" checked={showIcmsMono}
-                         onChange={(e) => {
-                           setShowIcmsMono(e.target.checked)
-                           if (!e.target.checked) setCfopRow((r) => ({
-                             ...r, icms_ad_rem: '', icms_ad_rem_reten: '',
-                             icms_p_red_ad_rem: '', icms_mot_red_ad_rem: '', icms_p_dif_mono: '',
-                           }))
-                         }}
-                         className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                  <label htmlFor="toggle-mono"
-                         className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
-                    ICMS Monofásico — Combustíveis (CST 02/15/53/61)
-                  </label>
-                </div>
-                {(showIcmsMono || ICMS_MONO_CSTS.has(cfopRow.icms ?? '')) && (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      <div className="grid gap-1">
-                        <label className="text-sm font-medium text-gray-700">Ad rem ICMS (R$/un) *</label>
-                        <NumericInput value={cfopRow.icms_ad_rem ?? ''} decimal integerPlaces={4} decimalPlaces={4}
-                                      placeholder="Ex: 1.5000"
-                                      onChange={(v) => setCfopRow((r) => ({...r, icms_ad_rem: v}))}/>
-                      </div>
-                      {cfopRow.icms === '53' && (
-                        <div className="grid gap-1">
-                          <label className="text-sm font-medium text-gray-700">% Diferimento (53)</label>
-                          <NumericInput value={cfopRow.icms_p_dif_mono ?? ''} decimal integerPlaces={3}
-                                        decimalPlaces={4}
-                                        placeholder="0.0000"
-                                        onChange={(v) => setCfopRow((r) => ({...r, icms_p_dif_mono: v}))}/>
-                        </div>
-                      )}
-                      {cfopRow.icms === '15' && (
-                        <>
-                          <div className="grid gap-1">
-                            <label className="text-sm font-medium text-gray-700">Ad rem retenção (15)</label>
-                            <NumericInput value={cfopRow.icms_ad_rem_reten ?? ''} decimal integerPlaces={4}
-                                          decimalPlaces={4}
-                                          placeholder="0.0000"
-                                          onChange={(v) => setCfopRow((r) => ({...r, icms_ad_rem_reten: v}))}/>
-                          </div>
-                          <div className="grid gap-1">
-                            <label className="text-sm font-medium text-gray-700">% Redução ad rem</label>
-                            <NumericInput value={cfopRow.icms_p_red_ad_rem ?? ''} decimal integerPlaces={3}
-                                          decimalPlaces={4}
-                                          placeholder="0.0000"
-                                          onChange={(v) => setCfopRow((r) => ({...r, icms_p_red_ad_rem: v}))}/>
-                          </div>
-                          <div className="grid gap-1">
-                            <label className="text-sm font-medium text-gray-700">Motivo redução</label>
-                            <OptionsSelect value={cfopRow.icms_mot_red_ad_rem ?? ''}
-                                           onValueChange={(v) => setCfopRow((r) => ({...r, icms_mot_red_ad_rem: v}))}
-                                           options={[{value: '1', label: '1 – Transporte coletivo'}, {
-                                             value: '9',
-                                             label: '9 – Outros'
-                                           }]}
-                                           placeholder="Motivo"/>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ISSQN — Imposto Sobre Serviços ──────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="toggle-issqn" checked={showIssqn}
-                       onChange={(e) => {
-                         setShowIssqn(e.target.checked)
-                         if (!e.target.checked) setCfopRow((r) => ({
-                           ...r, issqn_ind_iss: '', issqn_c_list_serv: '',
-                           issqn_c_mun_fg: '', issqn_aliq: '', issqn_v_deducao: '', issqn_v_iss_ret: '',
-                         }))
-                       }}
-                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                <label htmlFor="toggle-issqn"
-                       className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
-                  ISSQN — Imposto Sobre Serviços (LC 116/2003)
-                </label>
-              </div>
-              {showIssqn && (
-                <div className="space-y-2">
-                  <div className="rounded-sm border border-blue-100 bg-blue-50/20 px-3 py-1.5 text-xs text-blue-700">
-                    Quando habilitado, o item usa ISSQN no lugar de ICMS no XML da NF-e.
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Exigibilidade ISS *</label>
-                      <OptionsSelect value={cfopRow.issqn_ind_iss ?? ''}
-                                     onValueChange={(v) => setCfopRow((r) => ({...r, issqn_ind_iss: v}))}
-                                     options={ISSQN_IND_ISS_OPTIONS} placeholder="Exigibilidade"/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Lista LC 116 (cListServ)</label>
-                      <Input value={cfopRow.issqn_c_list_serv ?? ''}
-                             placeholder="Ex: 01.01"
-                             onChange={(e) => setCfopRow((r) => ({...r, issqn_c_list_serv: e.target.value}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">IBGE Município FG</label>
-                      <NumericInput value={cfopRow.issqn_c_mun_fg ?? ''} maxLength={7}
-                                    placeholder="7 dígitos"
-                                    onChange={(v) => setCfopRow((r) => ({...r, issqn_c_mun_fg: v}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Alíquota ISSQN %</label>
-                      <NumericInput value={cfopRow.issqn_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
-                                    placeholder="5.0000"
-                                    onChange={(v) => setCfopRow((r) => ({...r, issqn_aliq: v}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Dedução R$</label>
-                      <NumericInput value={cfopRow.issqn_v_deducao ?? ''} decimal integerPlaces={9} decimalPlaces={2}
-                                    placeholder="0.00"
-                                    onChange={(v) => setCfopRow((r) => ({...r, issqn_v_deducao: v}))}/>
-                    </div>
-                    <div className="grid gap-1">
-                      <label className="text-sm font-medium text-gray-700">Retenção ISS R$</label>
-                      <NumericInput value={cfopRow.issqn_v_iss_ret ?? ''} decimal integerPlaces={9} decimalPlaces={2}
-                                    placeholder="0.00"
-                                    onChange={(v) => setCfopRow((r) => ({...r, issqn_v_iss_ret: v}))}/>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── IBS / CBS ───────────────────────────────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">IBS / CBS — Reforma
-                Tributária</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">CST</label>
-                  <OptionsSelect value={cfopRow.ibs_cbs_cst}
-                                 onValueChange={(v) => setCfopRow((r) => ({
-                                   ...r,
-                                   ibs_cbs_cst: v,
-                                   ibs_cbs_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? ''
-                                 }))}
-                                 options={IBS_CBS_CST_OPTIONS} placeholder="CST"/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">Classificação</label>
-                  <OptionsSelect value={cfopRow.ibs_cbs_class_trib}
-                                 onValueChange={(v) => setCfopRow((r) => ({...r, ibs_cbs_class_trib: v}))}
-                                 options={IBS_CBS_CLASS_BY_CST[cfopRow.ibs_cbs_cst] ?? []} placeholder="Código"/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">IBS UF %</label>
-                  <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={cfopRow.ibs_uf_aliq}
-                                onChange={(v) => setCfopRow((r) => ({...r, ibs_uf_aliq: v}))} placeholder="0.0000"/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">IBS Mun %</label>
-                  <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={cfopRow.ibs_mun_aliq}
-                                onChange={(v) => setCfopRow((r) => ({...r, ibs_mun_aliq: v}))} placeholder="0.0000"/>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-sm font-medium text-gray-700">CBS %</label>
-                  <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={cfopRow.cbs_aliq}
-                                onChange={(v) => setCfopRow((r) => ({...r, cbs_aliq: v}))} placeholder="0.0000"/>
-                </div>
-              </div>
-
-              {/* Toggle redução */}
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="toggle-ibs-red" checked={showIbsCbsRed}
-                       onChange={(e) => {
-                         setShowIbsCbsRed(e.target.checked)
-                         if (!e.target.checked) setCfopRow((r) => ({
-                           ...r, ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: ''
-                         }))
-                       }}
-                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                <label htmlFor="toggle-ibs-red" className="text-xs font-medium text-gray-500 cursor-pointer">
-                  Redução de alíquota (CST 010/011)
-                </label>
-              </div>
-              {showIbsCbsRed && (
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Redução IBS UF</label>
-                    <NumericInput value={cfopRow.ibs_uf_p_red ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, ibs_uf_p_red: v}))} placeholder="0.0000"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Redução IBS Mun</label>
-                    <NumericInput value={cfopRow.ibs_mun_p_red ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, ibs_mun_p_red: v}))} placeholder="0.0000"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Redução CBS</label>
-                    <NumericInput value={cfopRow.cbs_p_red ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, cbs_p_red: v}))} placeholder="0.0000"/>
-                  </div>
-                </div>
-              )}
-
-              {/* Toggle diferimento */}
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="toggle-ibs-dif" checked={showIbsCbsDif}
-                       onChange={(e) => {
-                         setShowIbsCbsDif(e.target.checked)
-                         if (!e.target.checked) setCfopRow((r) => ({
-                           ...r, ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: ''
-                         }))
-                       }}
-                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                <label htmlFor="toggle-ibs-dif" className="text-xs font-medium text-gray-500 cursor-pointer">
-                  Diferimento (CST 200/220)
-                </label>
-              </div>
-              {showIbsCbsDif && (
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Diferimento IBS UF</label>
-                    <NumericInput value={cfopRow.ibs_uf_p_dif ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, ibs_uf_p_dif: v}))} placeholder="0.0000"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Diferimento IBS Mun</label>
-                    <NumericInput value={cfopRow.ibs_mun_p_dif ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, ibs_mun_p_dif: v}))} placeholder="0.0000"/>
-                  </div>
-                  <div className="grid gap-1">
-                    <label className="text-sm font-medium text-gray-700">% Diferimento CBS</label>
-                    <NumericInput value={cfopRow.cbs_p_dif ?? ''} decimal decimalPlaces={4}
-                                  onChange={(v) => setCfopRow((r) => ({...r, cbs_p_dif: v}))} placeholder="0.0000"/>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* ── Erros + botão ────────────────────────────────────────── */}
             {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}
