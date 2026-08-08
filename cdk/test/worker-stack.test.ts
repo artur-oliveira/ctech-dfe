@@ -53,6 +53,33 @@ test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
   })
 })
 
+// Regression: NFS-e emission silently vanished because no queue was subscribed to
+// its sefaz_service — SNS drops what no filter policy matches, with no DLQ and no log.
+// Every service the API publishes must be claimed by exactly one worker.
+test('every sefaz_service published by the API has an SQS subscription', () => {
+  const template = buildTemplate()
+  const subscribed = WORKERS.flatMap(w => w.sefazServices)
+
+  for (const service of [
+    'NFeAutorizacao', 'RecepcaoEvento', 'NfeInutilizacao',
+    'CTeRecepcaoSinc', 'CTeRecepcaoOS', 'CTeRecepcaoGTVe', 'CTeRecepcaoSimp', 'CTeRecepcaoEvento',
+    'MDFeRecepcaoSinc', 'MDFeRecepcaoEvento',
+    'NFSeRecepcao', 'NFSeEvento',
+  ]) {
+    expect(subscribed).toContain(service)
+  }
+  expect(new Set(subscribed).size).toBe(subscribed.length)
+
+  for (const worker of WORKERS.filter(w => w.sefazServices.length > 0)) {
+    template.hasResourceProperties('AWS::SNS::Subscription', {
+      Protocol: 'sqs',
+      RawMessageDelivery: true,
+      FilterPolicyScope: 'MessageBody',
+      FilterPolicy: {sefaz_service: worker.sefazServices},
+    })
+  }
+})
+
 test('distribution poller schedule is enabled', () => {
   const template = buildTemplate()
   template.hasResourceProperties('AWS::Scheduler::Schedule', {
