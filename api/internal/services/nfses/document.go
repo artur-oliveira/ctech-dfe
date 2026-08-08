@@ -2,11 +2,17 @@ package nfses
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
+
+// docPunct remove a pontuação do CPF/CNPJ gravado no cadastro — o DPS leva só
+// os dígitos (mesma normalização de services.BuildPersonSK).
+var docPunct = strings.NewReplacer(".", "", "-", "", "/", "")
 
 // Códigos do leiaute (tiposSimples_v1.01.xsd) usados nas validações abaixo.
 const (
@@ -89,7 +95,7 @@ func buildPrestador(item map[string]types.AttributeValue) (nfse.Prestador, error
 	if item == nil {
 		return nfse.Prestador{}, problem.BadRequest("prestador não encontrado")
 	}
-	grupo := mapAttr(item, "nfse")
+	grupo := nfseGroup(item)
 	regTribItem := mapAttr(grupo, "reg_trib")
 	if regTribItem == nil {
 		return nfse.Prestador{}, problem.BadRequest(
@@ -114,22 +120,31 @@ func buildPessoa(item map[string]types.AttributeValue) *nfse.Pessoa {
 	if item == nil {
 		return nil
 	}
-	return new(basePessoa(item, mapAttr(item, "nfse")))
+	return new(basePessoa(item, nfseGroup(item)))
+}
+
+// nfseGroup devolve o grupo `nfse` do cadastro. Organizations e
+// organization_persons gravam o DTO como veio da API, então identidade,
+// endereços e o grupo nfse ficam aninhados em `person` (PersonObjectBody em
+// internal/api/v1/dto.go) — nunca na raiz do item.
+func nfseGroup(item map[string]types.AttributeValue) map[string]types.AttributeValue {
+	return mapAttr(mapAttr(item, "person"), "nfse")
 }
 
 // basePessoa mapeia identidade + endereço. Os campos de NFS-e (IM, CAEPF,
 // NIF, cNaoNIF, endereço no exterior) vêm do grupo nfse adicionado na F1;
 // nome, documento e endereço nacional vêm dos campos já existentes.
 func basePessoa(item, grupo map[string]types.AttributeValue) nfse.Pessoa {
-	doc := strAttr(item, "cpf_cnpj")
+	person := mapAttr(item, "person")
+	doc := personDoc(item)
 	p := nfse.Pessoa{
 		XNome:   strAttr(item, "name"),
 		IM:      strAttr(grupo, "im"),
 		CAEPF:   strAttr(grupo, "caepf"),
 		NIF:     strAttr(grupo, "nif"),
 		CNaoNIF: intPtrAttr(grupo, "c_nao_nif"),
-		Fone:    strAttr(item, "phone"),
-		Email:   strAttr(item, "email"),
+		Fone:    firstContact(person, "phones"),
+		Email:   firstContact(person, "emails"),
 	}
 	if len(doc) == lenCNPJ {
 		p.CNPJ = doc
@@ -157,7 +172,7 @@ func buildEndereco(item, grupo map[string]types.AttributeValue) *nfse.Endereco {
 		}
 	}
 
-	addresses := listAttr(item, "addresses")
+	addresses := listAttr(mapAttr(item, "person"), "addresses")
 	if len(addresses) == 0 {
 		return nil
 	}
@@ -323,6 +338,38 @@ func mapAttr(item map[string]types.AttributeValue, key string) map[string]types.
 	v, ok := item[key].(*types.AttributeValueMemberM)
 	if !ok {
 		return nil
+	}
+	return v.Value
+}
+
+// personDoc devolve o CPF/CNPJ só com dígitos do item de cadastro. pk
+// (organizations) e sk (organization_persons) já são "CNPJ_…"/"CPF_…"
+// normalizados; cpf_or_cnpj é o campo do DTO e pode vir formatado.
+func personDoc(item map[string]types.AttributeValue) string {
+	return docPunct.Replace(services.StripPKPrefix(firstNonEmpty(
+		strAttr(item, "sk"), strAttr(item, "pk"), strAttr(item, "cpf_or_cnpj"))))
+}
+
+// firstNonEmpty devolve o primeiro valor não vazio.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// firstContact devolve o primeiro item de person.contacts[key] — o DPS aceita
+// um único telefone/e-mail por pessoa (mesma regra de services.FirstPhone).
+func firstContact(person map[string]types.AttributeValue, key string) string {
+	list := listAttr(mapAttr(person, "contacts"), key)
+	if len(list) == 0 {
+		return ""
+	}
+	v, ok := list[0].(*types.AttributeValueMemberS)
+	if !ok {
+		return ""
 	}
 	return v.Value
 }

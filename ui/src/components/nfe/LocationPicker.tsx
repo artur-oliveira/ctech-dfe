@@ -48,7 +48,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
   return (
     <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+        <p className="text-sm font-medium text-gray-600">{label}</p>
         <Button type="button" variant="ghost" size="xs"
                 onClick={() => {
                   setOpen(false)
@@ -56,7 +56,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
                   onChange(null)
                   onSaveChange(false)
                 }}
-                className="text-gray-400 hover:text-red-500 hover:bg-red-50">
+                className="text-gray-500 hover:text-danger hover:bg-red-50">
           Remover
         </Button>
       </div>

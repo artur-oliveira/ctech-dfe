@@ -1,7 +1,7 @@
 'use client'
 
 import {EntityForm} from '@/components/EntityForm'
-import {CRT_NONE_VALUE, type EntityFormData} from '@/lib/schemas/entity'
+import {CRT_NONE_VALUE, type EntityFormData, nfseInfoFromApi, nfseInfoToApi} from '@/lib/schemas/entity'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 
@@ -41,6 +41,7 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
         state_federation: a.state_federation as EntityFormData['person']['addresses'][number]['state_federation'],
       })),
       contacts: p.person.contacts ?? {emails: [], phones: []},
+      nfse: nfseInfoFromApi(p.person.nfse),
     },
   }
 }
@@ -55,6 +56,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
       postal_code: a.postal_code.replace(/\D/g, ''),
       complement: a.complement || null,
     }))
+    const nfse = nfseInfoToApi(data.person.nfse)
     const personPayload = isPJ
       ? {
         fantasy_name: data.person.fantasy_name ?? '',
@@ -62,6 +64,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
         state_registrations: data.person.state_registrations,
         addresses,
         contacts: data.person.contacts,
+        nfse,
       }
       : {
         fantasy_name: null,
@@ -70,6 +73,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
         state_registrations: [],
         addresses,
         contacts: data.person.contacts,
+        nfse,
       }
 
     await onSubmit({

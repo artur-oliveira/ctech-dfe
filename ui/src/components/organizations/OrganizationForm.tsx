@@ -6,7 +6,7 @@ import {EntityForm} from '@/components/EntityForm'
 import {CertificateFields} from '@/components/organizations/CertificateFields'
 import {apiClient} from '@/lib/api/client'
 import {useDebounce} from '@/lib/hooks/useDebounce'
-import {CRT_NONE_VALUE, type EntityFormData} from '@/lib/schemas/entity'
+import {CRT_NONE_VALUE, type EntityFormData, nfseInfoToApi} from '@/lib/schemas/entity'
 import type {OrganizationFormData} from '@/lib/schemas/organizations'
 import type {OrganizationCreate} from '@/lib/types/api'
 
@@ -52,6 +52,7 @@ export function OrganizationForm({initialData, orgPk, onSubmit, loading}: Organi
         state_registrations: data.person.state_registrations,
         addresses,
         contacts: data.person.contacts,
+        nfse: nfseInfoToApi(data.person.nfse),
       },
     }
   }

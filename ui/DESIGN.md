@@ -11,6 +11,8 @@ colors:
   neutral-muted: "#64748b"
   neutral-ink: "#0f172a"
   destructive: "#dc2626"
+  warning: "#b45309"
+  success: "#15803d"
   accent-nfce: "#3b82f6"
   accent-cte: "#8b5cf6"
   accent-mdfe: "#f59e0b"
@@ -106,6 +108,7 @@ Each accent drives the same `--brand-*` / `--primary-*` scale, so components nev
 - **Surface** (#f8fafc): section headers, sidebar fill, the calm second layer behind white cards.
 - **Canvas** (#ffffff): page background and card surfaces.
 - **Danger** (#dc2626, `--color-danger`): destructive-action *text* ("Cancelar", "Remover", "Excluir", "×"). red-600 ≈ 4.83:1 on white — the AA floor; red-500 (#ef4444 ≈ 3.76:1) fails and must not be used for resting destructive text. All destructive text routes through the `--color-danger` token so contrast can't drift.
+- **Warning** (#b45309, `--color-warning`) and **Success** (#15803d, `--color-success`): non-destructive status *text* — pending balance, "total confere", optional-field notices. Anchored one step darker than Tailwind's defaults, which fail AA at the 12–14px sizes these states use (amber-600 ≈ 3.19:1, green-600 ≈ 3.35:1). Balance states also carry a glyph (`✓` / `⌛` / `↩`) so colour is never the only signal.
 
 ### Named Rules
 **The One Accent Per Surface Rule.** The core UI is green. A non-green accent appears only inside a `data-dfe-theme` scope (NFC-e/CT-e/MDF-e) — never as free decoration on a green screen.
@@ -198,6 +201,9 @@ Flat by default. Surfaces sit on the canvas with hairline borders; shadow appear
 ### Signature Component — Contextual DF-e Theme
 The single distinctive pattern: setting `data-dfe-theme="nfce | cte | mdfe"` on an ancestor recolors every `bg-brand-*` / `text-primary-*` element underneath to that document type's accent (blue / violet / amber). NF-e is the default green and needs no attribute. This lets one component library serve four fiscal products with zero per-type markup.
 
+### Shared Emission Vocabulary
+NF-e and NFC-e share components, not flows. NF-e is a considered document and keeps its 4-step wizard, ending in a real document preview with per-block **Editar** jumps. NFC-e is a counter sale and lives on one screen: an always-focused scan/search field that adds on Enter, a running item list, a total pinned in the action bar, and "CPF na nota?" asked once, optionally, next to the payment. The pieces both consume — `ProductSearch`, `ProductLineItem`, `EmitError`, `EmitConfirmModal`, `DraftRecoveryBanner`, `useEmitDraft`, `lib/data/payment-options` — are the consistency layer; the flow shape is where the two documents are allowed to differ.
+
 ## 6. Do's and Don'ts
 
 ### Do:
@@ -205,6 +211,8 @@ The single distinctive pattern: setting `data-dfe-theme="nfce | cte | mdfe"` on 
 - **Do** hold body text at ≥4.5:1 — bump Muted Slate toward Ink before you reach for lighter gray. Globals anchor `--color-gray-400` to slate-500 (#64748b) so it can't fall back to the failing Tailwind default.
 - **Do** reuse the control vocabulary everywhere (32px / 44px height, 14px radius); consistency is the product's virtue.
 - **Do** route all destructive text through `--color-danger` (#dc2626, red-600) so the AA floor can't drift to red-500.
+- **Do** route status text through `text-warning` / `text-success`, and pair it with a glyph so colour isn't the only signal.
+- **Do** give section labels `text-sm font-medium text-gray-600`.
 - **Do** show skeleton loaders (not center spinners) for initial list/table loads, and a subtle dim for background refetches.
 - **Do** debounce every input that triggers an API call (300ms default).
 - **Do** treat modals as a last resort — exhaust inline and progressive disclosure first. When a modal is right, use the shared `Modal` (sticky chrome, focus-trap, mobile-safe).
@@ -220,11 +228,15 @@ The single distinctive pattern: setting `data-dfe-theme="nfce | cte | mdfe"` on 
 - **Don't** make inactive states full-saturation; reserve the green (and the per-type accents) for primary actions, current selection, and state indicators.
 - **Don't** recolor status badges by `data-dfe-theme` — status is a fixed, universal vocabulary (green/red/amber/gray/blue), not a per-type accent.
 - **Don't** use red-500 (#ef4444) for resting destructive text; it fails AA. Use `text-danger` (red-600).
+- **Don't** use `text-amber-600` / `text-green-600` for resting text; both fail AA at 12–14px. Use `text-warning` / `text-success`.
+- **Don't** label sections with a `text-xs uppercase tracking-wider` eyebrow. Repeated on every section it is scaffolding, not hierarchy.
+- **Don't** put a primary action on `size="sm"` (28px). The default size already handles the 44px mobile floor.
 
 ### Utility tokens (kept in sync with THEME.md)
 
 - `bg-gradient-login` (`linear-gradient(135deg,#f0faf6,#d4f1e6,#a9e3cd)`) and the
   `shadow-card` / `shadow-card-hover` / `shadow-modal` / `shadow-topbar` / `shadow-popover`
   scale are defined in `tailwind.config.ts` and reused as the single source for those effects.
-- `--color-gray-400` anchors to `#64748b` (slate-500); `--color-danger` anchors to `#dc2626`
-  (red-600). Both live in `globals.css` so the AA floor can't drift.
+- `--color-gray-400` anchors to `#64748b` (slate-500); `--color-danger` to `#dc2626` (red-600);
+  `--color-warning` to `#b45309` (amber-700); `--color-success` to `#15803d` (green-700). All live
+  in `globals.css` so the AA floor can't drift.

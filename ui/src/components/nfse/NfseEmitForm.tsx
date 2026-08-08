@@ -21,7 +21,7 @@ import {StepIndicator} from '@/components/ui/step-indicator'
 import {NfsePersonSearch} from '@/components/nfse/NfsePersonSearch'
 import {NfseServicePicker} from '@/components/nfse/NfseServicePicker'
 import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse'
-import type {NfseEmit, PersonItemOut, ServiceOut} from '@/lib/types/api'
+import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -37,9 +37,42 @@ export const NFSE_STEPS = [
 export type NfseStep = typeof NFSE_STEPS[number]['id']
 const STEP_IDS = NFSE_STEPS.map((s) => s.id)
 
+// A competência é sempre o 1º dia do mês (DD/MM/AAAA no contrato da API), então
+// o campo são dois selects mês/ano — sem digitação livre de data.
 function todayCompetence(): string {
   const now = new Date()
   return `01/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+}
+
+const MONTH_OPTIONS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+].map((label, i) => ({value: String(i + 1).padStart(2, '0'), label}))
+
+// Competência é retroativa ou do mês corrente: o ano seguinte não é ofertado.
+const COMPETENCE_YEARS = 5
+const YEAR_OPTIONS = Array.from({length: COMPETENCE_YEARS}, (_, i) => {
+  const y = String(new Date().getFullYear() - i)
+  return {value: y, label: y}
+})
+
+/** "01/08/2026" → ["08", "2026"]. */
+function splitCompetence(v: string): [string, string] {
+  const [, mm = '', yyyy = ''] = v.split('/')
+  return [mm, yyyy]
+}
+
+/** A organização como pessoa do wizard — o backend resolve o documento da
+ *  própria org sem consultar organization_persons (nfses/emit.go). */
+function orgAsPerson(org: OrganizationOut): PersonItemOut {
+  return {
+    pk: org.pk,
+    sk: org.pk,
+    name: org.name,
+    person: org.person as unknown as PersonItemOut['person'],
+    created_at: org.created_at,
+    updated_at: org.updated_at,
+  }
 }
 
 const MOTIVO_EMIS_TI_OPTIONS = [
@@ -266,13 +299,21 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
               </>
             )}
 
-            <FormField control={form.control} name="competence" render={({field}) => (
-              <FormItem>
-                <FormLabel>Competência</FormLabel>
-                <Input {...field} id={field.name} placeholder="DD/MM/AAAA" className="max-w-40"/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
+            <FormField control={form.control} name="competence" render={({field}) => {
+              const [month, year] = splitCompetence(field.value)
+              return (
+                <FormItem>
+                  <FormLabel>Competência</FormLabel>
+                  <div className="flex gap-2 max-w-sm">
+                    <OptionsSelect id={field.name} value={month} options={MONTH_OPTIONS}
+                                   onValueChange={(m) => field.onChange(`01/${m}/${year}`)}/>
+                    <OptionsSelect id={`${field.name}-year`} value={year} options={YEAR_OPTIONS}
+                                   onValueChange={(y) => field.onChange(`01/${month}/${y}`)}/>
+                  </div>
+                  <FormMessage/>
+                </FormItem>
+              )
+            }}/>
 
             {nfseConfig && (
               <p className="text-xs text-gray-400">Série {nfseConfig.serie} · {nfseConfig.environment === 1 ? 'Produção' : 'Homologação'}</p>
@@ -285,6 +326,14 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Tomador (opcional)</p>
               <NfsePersonSearch value={selectedCustomer} onChange={setSelectedCustomer}/>
+              {/* NFS-e para si mesmo: a própria empresa não existe no cadastro de
+                  pessoas, então o item é montado a partir da organização. */}
+              {!selectedCustomer && org && (
+                <Button type="button" variant="ghost" size="xs" className="mt-2 text-brand-600 hover:text-brand-700"
+                        onClick={() => setSelectedCustomer(orgAsPerson(org))}>
+                  Usar a própria empresa
+                </Button>
+              )}
             </div>
             <div className="pt-2 border-t border-gray-100">
               <p className="text-sm font-medium text-gray-700 mb-2">Intermediário (opcional)</p>

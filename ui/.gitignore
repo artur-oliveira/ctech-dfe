@@ -14,6 +14,7 @@
 .impeccable/live/deferred-svelte-component-accepts.json
 .impeccable-live.json
 .impeccable-live/
+.impeccable/critique/*.md
 node_modules/.impeccable-live/
 src/lib/impeccable/ImpeccableLiveRoot.svelte
 src/lib/impeccable/__runtime.js

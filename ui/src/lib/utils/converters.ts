@@ -1,11 +1,11 @@
 import type {OrganizationOut} from '@/lib/types/api'
-import type {EntityFormData} from '@/lib/schemas/entity'
+import {type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 
 export type {EntityFormData as OrganizationFormData}
 
 export function organizationOutToFormData(org: OrganizationOut): EntityFormData {
-  const {crt, addresses, state_registrations, contacts, ...rest} = org.person
+  const {crt, addresses, state_registrations, contacts, nfse, ...rest} = org.person
   const isPJ = org.pk.startsWith('CNPJ_')
   return {
     tipo: isPJ ? 'pj' : 'pf',
@@ -25,6 +25,7 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
         state_registration: r.state_registration,
       })),
       contacts: contacts ?? {emails: [], phones: []},
+      nfse: nfseInfoFromApi(nfse),
     },
   }
 }

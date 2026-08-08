@@ -86,6 +86,14 @@
        destructive *text* through text-danger so contrast can't drift again. */
     --color-danger: #dc2626;
 
+    /* Status text that isn't destructive. The Tailwind defaults fail AA at the
+       12–14px sizes these states are used at: amber-600 (#d97706 ≈ 3.19:1) and
+       green-600 (#16a34a ≈ 3.35:1). Anchored one step darker — amber-700
+       (≈4.68:1) and green-700 (≈4.54:1) — so payment-balance and warning copy
+       stays legible. Never use amber-600/green-600 for resting text. */
+    --color-warning: #b45309;
+    --color-success: #15803d;
+
     /* Primary as alias */
     --color-primary-50: var(--brand-50);
     --color-primary-100: var(--brand-100);

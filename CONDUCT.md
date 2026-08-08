@@ -239,6 +239,16 @@ produziria um item órfão.
   `api/internal/api/v1/dto.go`). `reg_trib` mora ali, e não na config da organização, porque
   quando `tpEmit` é 2 (tomador) ou 3 (intermediário) o prestador é uma pessoa do cadastro, não a
   própria organização — ver `docs/specs/2026-08-04-nfse-design.md` §3.2 e §3.3.
+- **Cadastro é lido em `person`, nunca na raiz do item.** `organizations` e `organization_persons`
+  gravam o DTO como veio da API: `name`/`cpf_or_cnpj` na raiz, mas `addresses`, `contacts` e `nfse`
+  aninhados em `person`. `nfseGroup`, `personDoc` e `firstContact`
+  (`api/internal/services/nfses/document.go`) existem por isso — a versão anterior lia
+  `item["cpf_cnpj"]`/`item["addresses"]` e montava DPS sem CNPJ e sem endereço, com os testes
+  passando porque as fixtures repetiam a forma errada. Fixture de cadastro em teste tem que
+  espelhar o que a API grava.
+- **A própria organização pode ser tomadora ou intermediária.** `customer_id`/`intermediary_id`
+  com o documento da org resolvem para o item de `organizations` — ela não existe em
+  `organization_persons`, então `resolvePerson` compara antes de consultar o repositório.
 - **As tabelas de referência da NFS-e** (`go-dfe/nfse/tables/{trib_nacional,nbs,indop}.go`,
   `ui/src/lib/data/nfse_{trib_nacional,indop}.ts`) **são geradas por
   `go-dfe/nfse/tables/gen/generate.py` e versionadas — nunca edite os `.go`/`.ts` gerados à mão.**
@@ -472,6 +482,22 @@ produziria um item órfão.
 
 - Prefer static rendering over server-side rendering when possible.
 - Avoid duplicate fetches for the same data in a single render cycle.
+- **Texto de status usa `text-warning` / `text-success`, nunca `amber-600` / `green-600`.** Os
+  defaults do Tailwind falham AA nos tamanhos usados (amber-600 ≈ 3.19:1, green-600 ≈ 3.35:1 sobre
+  branco). `globals.css` ancora `--color-warning` em amber-700 e `--color-success` em green-700,
+  como já fazia com `--color-danger` (red-600) e `--color-gray-400` (slate-500). Estados de saldo
+  também carregam um glifo (`✓` / `⌛` / `↩`) para não depender só de cor.
+- **Nada de "eyebrow" (`text-xs uppercase tracking-wider`) como título de seção.** Rótulo de seção
+  é `text-sm font-medium text-gray-600`. O eyebrow repetido em toda seção é ruído, não hierarquia.
+- **Alvos de toque ≥ 44px em ações primárias.** Não use `size="sm"` (h-7) em botão de barra de
+  ação — o `size` default já é `min-h-11 sm:h-8`.
+- **Uma emissão, um fluxo por documento.** NF-e é wizard; NFC-e é tela única de balcão. Não
+  unifique os fluxos — unifique os componentes (`ProductSearch`, `ProductLineItem`, `EmitError`,
+  `EmitConfirmModal`, `useEmitDraft`, `lib/data/payment-options`). Ver DOCS.md §5.
+- **Nenhum formulário de emissão adiciona dados por conta própria.** Não pré-preencha produto,
+  destinatário ou pagamento a partir do catálogo: o documento é fiscal e irreversível.
+- Rascunhos de emissão são locais (`useEmitDraft` → localStorage) e nunca aplicados automaticamente:
+  o usuário escolhe retomar ou descartar.
 - **`useWebSocket` lives in the shared `@aoctech/ws-client` package (repo `ctech-ws-client`), not
   locally** — it's also consumed by `ctech-wallet/ui`. Do not fork or re-add a local copy; extend
   the shared package instead. WS heartbeat contract: the server (`api/internal/api/v1/ws.go`)
@@ -726,6 +752,12 @@ breaks rate limiting — the zone still exists, it just keys on the wrong thing.
   release the lease. SEFAZ business rejection is terminal.
 - API issuance must transact document/counter state with an immutable `worker_outbox` command. The DynamoDB Stream
   `outbox-publisher` publishes it to command SNS and conditionally acknowledges the row.
+- **Um `sefaz_service` novo não existe até ter `WorkerDefinition`.** SNS→SQS roteia por filter policy sobre
+  `sefaz_service`; mensagem que nenhuma policy casa é **descartada em silêncio** — sem DLQ, sem log, o documento fica
+  `pending` para sempre (foi assim que a emissão de NFS-e ficou inerte até 2026-08-07). Ao adicionar um serviço na
+  API, no mesmo change: (1) `cdk/lib/worker-definitions.ts` com o serviço e as tabelas do role, (2) o nome da função
+  e do DLQ processor nas quatro listas de `.github/workflows/worker.yml` (o deploy atualiza por nome, não pela lista
+  do CDK), (3) o serviço no teste de cobertura em `cdk/test/worker-stack.test.ts`.
 - The worker invokes go-dfe in-process when supported and the Python Lambda as fallback.
 - After SEFAZ response: update DynamoDB, upload XML to S3, publish terminal results to SNS.
 - DLQ receives messages after max retries — monitor and alert.

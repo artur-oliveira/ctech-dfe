@@ -107,12 +107,29 @@ export interface StateRegistrationOut {
   state_registration: string
 }
 
+/** Grupo `nfse` do cadastro (NfseInfoBody em api/internal/api/v1/dto.go) —
+ *  inscrição municipal e regime tributário exigidos pela emissão de NFS-e. */
+export interface NfseRegTrib {
+  op_simp_nac: number
+  reg_ap_trib_sn?: number | null
+  reg_esp_trib: number
+}
+
+export interface NfseInfo {
+  im?: string | null
+  caepf?: string | null
+  nif?: string | null
+  c_nao_nif?: number | null
+  reg_trib?: NfseRegTrib | null
+}
+
 export interface PersonOut {
   fantasy_name: string
   crt: string | number;
   state_registrations: StateRegistrationOut[]
   addresses: AddressOut[]
   contacts: ContactsOut
+  nfse?: NfseInfo | null
 }
 
 export interface ContactsOut {
@@ -603,6 +620,7 @@ export interface PersonDetailsOut {
   state_registrations: StateRegistrationOut[]
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
+  nfse?: NfseInfo | null
   /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
   delivery_locations?: NfeLocalOut[]
 }
@@ -622,6 +640,7 @@ export interface PersonObject {
   state_registrations: StateRegistrationOut[]
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
+  nfse?: NfseInfo | null
 }
 
 export interface PersonCreate {

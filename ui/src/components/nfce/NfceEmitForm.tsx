@@ -10,22 +10,26 @@ import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Textarea} from '@/components/ui/textarea'
 import {Modal} from '@/components/ui/modal'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
+import {EmitError} from '@/components/ui/emit-error'
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {CurrencyInput} from '@/components/ui/currency-input'
-import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ProductLineItem} from '@/components/ui/product-line-item'
+import {ProductSearch} from '@/components/ui/product-search'
 import {PersonForm} from '@/components/persons/PersonForm'
 import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from '@/components/nfe/PaymentCardFields'
 import {NatOpInlineEdit} from '@/components/nfe/NatOpInlineEdit'
 import type {CfopConfigItem, NfceEmit, NfeCardIn, PersonCreate, ProductOut} from '@/lib/types/api'
 import {NF_PAYMENT_TYPES} from '@/lib/types/api'
+import {PAYMENT_OPTIONS, QUICK_PAYMENT_TYPES} from '@/lib/data/payment-options'
 import {buildNatOpFromCfops, getCfopDescription} from '@/lib/data/cfop'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {maskCpf} from '@/lib/utils/masks'
@@ -52,31 +56,8 @@ interface EmitPayment {
   card: NfeCardIn | null
 }
 
-type Step = 'consumidor' | 'produtos' | 'pagamento'
-
-const STEPS: { id: Step; label: string }[] = [
-  {id: 'consumidor', label: 'Consumidor'},
-  {id: 'produtos', label: 'Produtos'},
-  {id: 'pagamento', label: 'Pagamento'},
-]
-
-const CASH_CODES = new Set(['01'])
-const CARD_CODES = new Set(['03', '04', '05', '21'])
-const PIX_CODES = new Set(['17', '20'])
-
-function paymentGroup(code: string): string {
-  if (CASH_CODES.has(code)) return 'Dinheiro'
-  if (CARD_CODES.has(code)) return 'Cartão'
-  if (PIX_CODES.has(code)) return 'PIX'
-  return 'Outros'
-}
-
-const PAYMENT_GROUP_ORDER = ['Dinheiro', 'Cartão', 'PIX', 'Outros']
-
-const PAYMENT_OPTIONS = Object.entries(NF_PAYMENT_TYPES)
-  .map(([value, label]) => ({value, label: `${value} – ${label}`, display: label, group: paymentGroup(value)}))
-  .sort((a, b) => PAYMENT_GROUP_ORDER.indexOf(a.group) - PAYMENT_GROUP_ORDER.indexOf(b.group)
-    || parseInt(a.value) - parseInt(b.value))
+/** NFC-e is always an internal consumer sale — only 5xxx saída CFOPs apply. */
+const NFCE_CFOP_PREFIX = '5'
 
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
@@ -93,15 +74,19 @@ function computeTotal(p: EmitProduct): number {
 function nfceCfopsForProduct(product: ProductOut): string[] {
   const configured = (product.cfop_config as CfopConfigItem[] | undefined ?? [])
     .map((c) => c.cfop)
-    .filter((c) => c.startsWith('5'))
+    .filter((c) => c.startsWith(NFCE_CFOP_PREFIX))
   if (configured.length > 0) return configured
-  if (product.cfop_nfce && product.cfop_nfce.startsWith('5')) return [product.cfop_nfce]
+  if (product.cfop_nfce?.startsWith(NFCE_CFOP_PREFIX)) return [product.cfop_nfce]
   return []
 }
 
-// ─── consumer search (CPF) ──────────────────────────────────────────────────────
+// ─── consumer (CPF na nota) ───────────────────────────────────────────────────
 
-function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (c: Consumer | null) => void }) {
+/**
+ * "CPF na nota?" — the question a cashier asks at payment, not before the sale.
+ * Identification is optional for NFC-e, so this never blocks the flow.
+ */
+function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c: Consumer | null) => void }) {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
   const [open, setOpen] = useState(false)
@@ -164,7 +149,7 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
   if (value) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
           <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-900 text-sm">{value.name ?? 'Consumidor não identificado'}</p>
             <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(value.cpf)}</p>
@@ -172,13 +157,13 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
           <Button type="button" variant="ghost" size="xs" onClick={() => {
             onChange(null)
             setNotFound(false)
-          }} className="text-danger hover:text-red-700 shrink-0">Trocar</Button>
+          }} className="text-danger hover:text-red-700 shrink-0">Remover</Button>
         </div>
         {!value.name && (
-          <p className="text-xs text-amber-600">
+          <p className="text-xs text-warning">
             CPF não cadastrado — a NFC-e pode ser emitida assim mesmo.{' '}
-            <button type="button" className="text-brand-600 hover:text-brand-700 underline"
-                    onClick={() => setShowCreate(true)}>Deseja cadastrar? (opcional)
+            <button type="button" className="text-brand-700 hover:text-brand-800 underline"
+                    onClick={() => setShowCreate(true)}>Cadastrar (opcional)
             </button>
           </p>
         )}
@@ -191,7 +176,7 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
   }
 
   return (
-    <div ref={containerRef} className="space-y-3">
+    <div ref={containerRef} className="space-y-2">
       <div className="relative">
         <div className="flex gap-2">
           <Input
@@ -206,20 +191,28 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
               if (validateCPF(newDigits)) handleSearchByDoc(newDigits)
             }}
             onFocus={() => setOpen(true)}
-            placeholder="Nome ou CPF do consumidor (opcional)"
-            aria-label="Nome ou CPF do consumidor"
+            placeholder="CPF ou nome (opcional)"
+            aria-label="CPF ou nome do consumidor"
+            role="combobox"
+            aria-expanded={open && !isCpf && suggestions.length > 0}
+            aria-controls="nfce-consumer-suggestions"
+            aria-autocomplete="list"
             className="flex-1"
           />
           {docLoading && (
-            <span className="flex items-center px-3 text-xs text-gray-400 shrink-0">Buscando…</span>
+            <span className="flex items-center px-3 text-xs text-gray-500 shrink-0">Buscando…</span>
           )}
         </div>
 
         {open && !isCpf && suggestions.length > 0 && (
           <div
+            id="nfce-consumer-suggestions"
+            role="listbox"
+            aria-label="Consumidores encontrados"
             className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
             {suggestions.map((p) => (
-              <button key={p.sk} type="button" onMouseDown={(e) => e.preventDefault()}
+              <button key={p.sk} type="button" role="option" aria-selected={false}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         onChange({cpf: p.sk.replace(/\D/g, ''), name: p.name})
                         setQuery('')
@@ -227,7 +220,7 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
                       }}
                       className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors">
                 <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(p.sk.replace(/\D/g, ''))}</p>
+                <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(p.sk.replace(/\D/g, ''))}</p>
               </button>
             ))}
           </div>
@@ -235,17 +228,13 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
       </div>
 
       {notFound && (
-        <p className="text-xs text-amber-600">
+        <p className="text-xs text-warning">
           CPF não encontrado.{' '}
-          <button type="button" className="text-brand-600 hover:text-brand-700 underline"
+          <button type="button" className="text-brand-700 hover:text-brand-800 underline"
                   onClick={() => setShowCreate(true)}>Cadastrar pessoa (opcional)
           </button>
         </p>
       )}
-
-      <p className="text-xs text-gray-400">
-        A NFC-e pode ser emitida sem identificar o consumidor. Somente pessoa física.
-      </p>
 
       <Modal isOpen={showCreate} title="Cadastrar consumidor (pessoa física)"
              onClose={() => setShowCreate(false)} size="xl">
@@ -255,181 +244,25 @@ function ConsumerSearch({value, onChange}: { value: Consumer | null; onChange: (
   )
 }
 
-// ─── product picker ─────────────────────────────────────────────────────────────
+// ─── main form ────────────────────────────────────────────────────────────────
 
-function ProductPicker({onSelect, onClose}: { onSelect: (p: ProductOut) => void; onClose: () => void }) {
-  const {selectedOrg} = useAuth()
-  const [query, setQuery] = useState('')
-  const debounced = useDebounce(query, 300)
-
-  const {data, isLoading} = useQuery({
-    queryKey: queryKeys.products.list(selectedOrg?.pk),
-    queryFn: () => apiClient.getProducts({limit: 50}),
-    enabled: !!selectedOrg,
-  })
-
-  const all = data?.items ?? []
-  const filtered = debounced
-    ? all.filter((p) =>
-      p.description.toLowerCase().includes(debounced.toLowerCase()) ||
-      p.code.toLowerCase().includes(debounced.toLowerCase()))
-    : all
-
-  return (
-    <div className="rounded-lg border border-brand-200 bg-brand-50/30 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Buscar produto</p>
-        <Button type="button" variant="ghost" size="xs" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          Fechar
-        </Button>
-      </div>
-      <Input type="text" autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
-             placeholder="Código ou descrição..." className="w-full"/>
-      <div className="max-h-48 overflow-y-auto space-y-0.5">
-        {isLoading ? (
-          <div className="py-1">
-            <LoadingSkeleton count={3} height="h-8" rounded="rounded-md"/>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-gray-500 py-2">Nenhum produto encontrado.</p>
-        ) : (
-          filtered.map((p) => {
-            const valid = nfceCfopsForProduct(p).length > 0
-            return (
-              <button key={p.sk} type="button" disabled={!valid} onClick={() => onSelect(p)}
-                      className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between gap-2 ${valid ? 'hover:bg-white' : 'opacity-40 cursor-not-allowed'}`}>
-              <span className="text-sm text-gray-900 min-w-0 truncate">
-                {p.description}
-                {p.brand && <span className="ml-1.5 text-xs text-gray-400">{p.brand}</span>}
-                {!valid && <span className="ml-1.5 text-xs text-red-600">sem CFOP de NFC-e</span>}
-              </span>
-                <span className="text-xs text-gray-400 shrink-0">
-                  {parseFloat(p.value).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                </span>
-              </button>
-            )
-          })
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── product row ────────────────────────────────────────────────────────────────
-
-function ProductRow({item, index, onChange, onRemove}: {
-  item: EmitProduct
-  index: number
-  onChange: (i: number, u: Partial<EmitProduct>) => void
-  onRemove: (i: number) => void
-}) {
-  const cfopOptions = nfceCfopsForProduct(item.product).map((cfop) => {
-    const desc = getCfopDescription(cfop)
-    const label = desc ? `${cfop} – ${desc}` : cfop
-    return {value: cfop, label, display: label}
-  })
-  const total = computeTotal(item)
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 md:p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-medium text-gray-900 text-sm min-w-0 truncate">
-          {item.product.description}
-          {item.product.brand && (
-            <span className="ml-1.5 text-xs text-gray-400 font-normal">{item.product.brand}</span>
-          )}
-        </p>
-        <Button type="button" variant="ghost" size="xs" onClick={() => onRemove(index)}
-                className="shrink-0 text-danger hover:text-red-700">Remover</Button>
-      </div>
-      <div className="grid grid-cols-3 md:grid-cols-12 gap-2 items-end">
-        <div className="col-span-3 md:col-span-6 flex flex-col gap-1">
-          <div className="flex items-center gap-1"><Label htmlFor={`nfce-item-${index}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
-          {cfopOptions.length > 0 ? (
-            <OptionsSelect id={`nfce-item-${index}-cfop`} value={item.cfop} onValueChange={(v) => onChange(index, {cfop: v})}
-                           options={cfopOptions} placeholder="CFOP"/>
-          ) : (
-            <Input id={`nfce-item-${index}-cfop`} type="text" value={item.cfop} maxLength={4} placeholder="5102"
-                   aria-invalid={!item.cfop.startsWith('5')}
-                   onChange={(e) => onChange(index, {cfop: e.target.value})}/>
-          )}
-        </div>
-        <div className="col-span-1 md:col-span-2 flex-col gap-1">
-          <Label htmlFor={`nfce-item-${index}-qty`} className="text-xs font-medium text-gray-600">Qtd ({item.product.unit ?? 'UN'})</Label>
-          <div className="flex items-center">
-            <button type="button" aria-label="Diminuir quantidade"
-                    onClick={() => onChange(index, {qty: String(Math.max(0, (parseFloat(item.qty) || 0) - 1))})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
-            </button>
-            <NumericInput id={`nfce-item-${index}-qty`} decimal integerPlaces={7} decimalPlaces={4} value={item.qty}
-                          onChange={(v) => onChange(index, {qty: v})} placeholder="1"
-                          className="rounded-none border-x-0 text-center"/>
-            <button type="button" aria-label="Aumentar quantidade"
-                    onClick={() => onChange(index, {qty: String((parseFloat(item.qty) || 0) + 1)})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
-            </button>
-          </div>
-        </div>
-        <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label htmlFor={`nfce-item-${index}-unit-value`} className="text-xs font-medium text-gray-600">Valor unitário</Label>
-          <CurrencyInput id={`nfce-item-${index}-unit-value`} decimalPlaces={2} maxDecimalPlaces={10} value={item.unitValue}
-                         onChange={(v) => onChange(index, {unitValue: v})} placeholder="0,00"/>
-        </div>
-        <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label htmlFor={`nfce-item-${index}-discount`} className="text-xs font-medium text-gray-600">Desconto</Label>
-          <CurrencyInput id={`nfce-item-${index}-discount`} decimalPlaces={2} value={item.discount}
-                         onChange={(v) => onChange(index, {discount: v})} placeholder="0,00"/>
-        </div>
-      </div>
-      <div className="text-right text-sm font-medium text-gray-700">
-        Total: <span className="font-semibold">{fmt(total)}</span>
-      </div>
-    </div>
-  )
-}
-
-// ─── step indicator ─────────────────────────────────────────────────────────────
-
-function StepIndicator({current}: { current: Step }) {
-  const idx = STEPS.findIndex((s) => s.id === current)
-  return (
-    <div className="flex items-center gap-0 mb-6">
-      {STEPS.map((step, i) => {
-        const done = i < idx
-        const active = i === idx
-        return (
-          <div key={step.id} className="flex items-center flex-1 last:flex-none"
-               aria-current={active ? 'step' : undefined}>
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                done || active ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                {done ? '✓' : i + 1}
-              </div>
-              <span
-                className={`text-xs sr-only sm:not-sr-only sm:block ${active ? 'text-brand-600 font-medium' : 'text-gray-400'}`}>
-                {step.label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-2 ${i < idx ? 'bg-brand-500' : 'bg-gray-200'}`}/>}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── main form ──────────────────────────────────────────────────────────────────
-
+/**
+ * NFC-e issuance — a counter sale, not a wizard.
+ *
+ * NF-e is a considered document (recipient, transport, duplicatas) and earns a
+ * stepped flow. NFC-e is issued dozens of times an hour with a queue waiting,
+ * so everything lives on one screen: the scan field keeps focus and adds on
+ * Enter, the running total is always visible, and identification is asked once,
+ * optionally, next to the payment — where a cashier actually asks it.
+ */
 export function NfceEmitForm() {
   const {selectedOrg} = useAuth()
   const router = useRouter()
 
-  const [step, setStep] = useState<Step>('consumidor')
   const [consumer, setConsumer] = useState<Consumer | null>(null)
   const [products, setProducts] = useState<EmitProduct[]>([])
-  const [showPicker, setShowPicker] = useState(false)
   const [payments, setPayments] = useState<EmitPayment[]>([])
-  const [newPaymentType, setNewPaymentType] = useState('01')
+  const [newPaymentType, setNewPaymentType] = useState(QUICK_PAYMENT_TYPES[0] as string)
   const [newPaymentValue, setNewPaymentValue] = useState('')
   const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
   const [showCardToggle, setShowCardToggle] = useState(false)
@@ -457,20 +290,53 @@ export function NfceEmitForm() {
   const isPix = isPixPaymentType(newPaymentType)
   const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
 
+  // ─── draft recovery ───────────────────────────────────────────────────────
+
+  const draftState = useMemo(
+    () => ({products, payments, consumer, additionalInfo, natOpManual}),
+    [products, payments, consumer, additionalInfo, natOpManual])
+  const draft = useEmitDraft('nfce', selectedOrg?.pk, draftState, products.length > 0)
+
+  const restoreDraft = () => {
+    const s = draft.recovered?.state
+    if (s) {
+      setProducts(s.products)
+      setPayments(s.payments)
+      setConsumer(s.consumer)
+      setAdditionalInfo(s.additionalInfo)
+      setNatOpManual(s.natOpManual)
+    }
+    draft.accept()
+  }
+
   useEffect(() => {
     if (!paymentLocked.current) setNewPaymentValue(remaining > 0.005 ? remaining.toFixed(2) : '')
   }, [remaining])
 
+  // ─── products ─────────────────────────────────────────────────────────────
+
   const addProduct = (product: ProductOut) => {
     const cfop = nfceCfopsForProduct(product)[0] ?? ''
-    setProducts((prev) => [...prev, {product, cfop, qty: '1', unitValue: product.value, discount: '0'}])
-    setShowPicker(false)
+    setProducts((prev) => {
+      // Scanning the same item twice bumps the quantity instead of stacking rows.
+      const existing = prev.findIndex((p) => p.product.sk === product.sk && p.cfop === cfop)
+      if (existing >= 0) {
+        return prev.map((p, i) =>
+          i === existing ? {...p, qty: String((parseFloat(p.qty) || 0) + 1)} : p)
+      }
+      return [...prev, {product, cfop, qty: '1', unitValue: product.value, discount: '0'}]
+    })
   }
   const changeProduct = (i: number, u: Partial<EmitProduct>) =>
     setProducts((prev) => prev.map((it, idx) => (idx === i ? {...it, ...u} : it)))
   const removeProduct = (i: number) => setProducts((prev) => prev.filter((_, idx) => idx !== i))
 
-  // A pending (not yet "added") payment input that is still valid for emission.
+  const productDisabledReason = (p: ProductOut) =>
+    nfceCfopsForProduct(p).length > 0 ? null : 'sem CFOP de NFC-e'
+
+  // ─── payments ─────────────────────────────────────────────────────────────
+
+  /** A typed-but-not-yet-added payment still counts towards emission. */
   const pendingPayment = (): EmitPayment | null => {
     if (!newPaymentValue || parseFloat(newPaymentValue) <= 0) return null
     return {payment_type: newPaymentType, value: newPaymentValue, card: showCardToggle ? newPaymentCard : null}
@@ -494,19 +360,16 @@ export function NfceEmitForm() {
     return pending ? [...payments, pending] : payments
   }
 
-  const canNext = (s: Step): boolean => {
-    if (s === 'consumidor') return true
-    if (s === 'produtos') return products.length > 0 && products.every((p) => p.cfop.startsWith('5'))
-    return true
-  }
+  const emitBlockedReason = products.length === 0
+    ? 'Adicione pelo menos um produto.'
+    : products.some((p) => !p.cfop.startsWith(NFCE_CFOP_PREFIX))
+      ? 'Há produtos sem CFOP de saída (5xxx).'
+      : effectivePayments().length === 0
+        ? 'Informe pelo menos uma forma de pagamento.'
+        : null
+  const canEmit = !emitBlockedReason
 
-  const stepIdx = STEPS.findIndex((s) => s.id === step)
-
-  const goNext = () => {
-    if (stepIdx >= STEPS.length - 1 || !canNext(step)) return
-    setStep(STEPS[stepIdx + 1].id)
-  }
-  const goBack = () => stepIdx > 0 && setStep(STEPS[stepIdx - 1].id)
+  // ─── submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     setSubmitError(null)
@@ -535,6 +398,7 @@ export function NfceEmitForm() {
     setIsSubmitting(true)
     try {
       await apiClient.emitNfce(payload)
+      draft.clear()
       toast.success('NFC-e enviada, aguardando autorização da SEFAZ.')
       router.push('/nfce')
     } catch (err) {
@@ -544,57 +408,94 @@ export function NfceEmitForm() {
     }
   }
 
-  const emitBlockedReason = products.length === 0
-    ? 'Adicione pelo menos um produto.'
-    : effectivePayments().length === 0
-      ? 'Informe pelo menos uma forma de pagamento.'
-      : null
-  const canEmit = !emitBlockedReason
+  // ─── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl pb-4">
       <HomologationBanner environment={nfceConfig?.environment}/>
-      <StepIndicator current={step}/>
 
-      {step === 'consumidor' && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-5">
-          <ConsumerSearch value={consumer} onChange={setConsumer}/>
-        </div>
+      {draft.recovered && (
+        <DraftRecoveryBanner savedAt={draft.recovered.savedAt} onRestore={restoreDraft} onDiscard={draft.discard}/>
       )}
 
-      {step === 'produtos' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-            <span className="text-sm text-gray-500">Total da NFC-e</span>
-            <span className="text-sm font-semibold text-gray-900">{fmt(totalNfce)}</span>
+      {/* Scan / search — always available, always focused */}
+      <ProductSearch
+        onSelect={addProduct}
+        disabledReason={productDisabledReason}
+        placeholder="Escaneie o código de barras ou busque o produto…"
+        autoFocus
+        className="rounded-xl border border-gray-200 bg-white p-4"
+      />
+
+      {/* Venda */}
+      <div className="mt-4 space-y-2">
+        {products.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center">
+            <p className="text-sm font-medium text-gray-900">Nenhum item na venda</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Escaneie um código de barras ou busque o produto acima. Enter adiciona o item destacado.
+            </p>
           </div>
-          {products.map((item, i) => (
-            <ProductRow key={`${item.product.sk}-${i}`} item={item} index={i}
-                        onChange={changeProduct} onRemove={removeProduct}/>
-          ))}
-          {products.length > 0 && natOp && (
-            <NatOpInlineEdit value={natOp} onChange={setNatOpManual}
-                             onReset={() => setNatOpManual(null)} canReset={natOpManual !== null}/>
-          )}
-          {showPicker ? (
-            <ProductPicker onSelect={addProduct} onClose={() => setShowPicker(false)}/>
-          ) : (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowPicker(true)}
-                    className="text-brand-600 hover:text-brand-700 px-0">+ Adicionar produto</Button>
-          )}
-        </div>
-      )}
+        ) : (
+          products.map((item, i) => {
+            const cfopOptions = nfceCfopsForProduct(item.product).map((cfop) => {
+              const desc = getCfopDescription(cfop)
+              const label = desc ? `${cfop} – ${desc}` : cfop
+              return {value: cfop, label, display: label}
+            })
+            return (
+              <ProductLineItem
+                key={`${item.product.sk}-${i}`}
+                idPrefix={`nfce-item-${i}`}
+                description={item.product.description}
+                brand={item.product.brand}
+                unit={item.product.unit}
+                qty={item.qty}
+                unitValue={item.unitValue}
+                discount={item.discount}
+                total={computeTotal(item)}
+                onChange={(patch) => changeProduct(i, patch)}
+                onRemove={() => removeProduct(i)}
+                cfopSlot={
+                  <>
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor={`nfce-item-${i}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label>
+                      <GlossaryTerm term="cfop"/>
+                    </div>
+                    {cfopOptions.length > 0 ? (
+                      <OptionsSelect id={`nfce-item-${i}-cfop`} value={item.cfop}
+                                     onValueChange={(v) => changeProduct(i, {cfop: v})}
+                                     options={cfopOptions} placeholder="CFOP"/>
+                    ) : (
+                      <Input id={`nfce-item-${i}-cfop`} type="text" value={item.cfop} maxLength={4} placeholder="5102"
+                             aria-invalid={!item.cfop.startsWith(NFCE_CFOP_PREFIX)}
+                             onChange={(e) => changeProduct(i, {cfop: e.target.value})}/>
+                    )}
+                  </>
+                }
+              />
+            )
+          })
+        )}
 
-      {step === 'pagamento' && (
-        <div className="space-y-4">
+        {products.length > 0 && natOp && (
+          <NatOpInlineEdit value={natOp} onChange={setNatOpManual}
+                           onReset={() => setNatOpManual(null)} canReset={natOpManual !== null}/>
+        )}
+      </div>
+
+      {/* Pagamento */}
+      {products.length > 0 && (
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+          <p className="text-sm font-medium text-gray-600">Pagamento</p>
+
           {payments.length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pagamentos</p>
+            <div className="space-y-2">
               {payments.map((p, i) => (
                 <div key={i} className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2.5 text-sm">
                   <span className="text-gray-700">
                     {NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type}
-                    {p.card && <span className="ml-1.5 text-xs text-blue-600">· transação</span>}
+                    {p.card && <span className="ml-1.5 text-xs text-blue-700">· transação</span>}
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
@@ -603,86 +504,132 @@ export function NfceEmitForm() {
                   </div>
                 </div>
               ))}
-              <p
-                className={`text-sm pt-1 ${Math.abs(remaining) < 0.01 ? 'text-green-600' : remaining < 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                {Math.abs(remaining) < 0.01 ? '✓ Total confere.' : remaining > 0 ? `Restam ${fmt(remaining)}.` : `Troco: ${fmt(-remaining)}`}
-              </p>
             </div>
           )}
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pagamento</p>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1"><Label htmlFor="nfce-payment-type" className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
-                <OptionsSelect id="nfce-payment-type" value={newPaymentType} onValueChange={(v) => {
-                  setNewPaymentType(v)
-                  setShowCardToggle(false)
-                  setNewPaymentCard(null)
-                }} options={PAYMENT_OPTIONS}/>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="nfce-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
-                <CurrencyInput id="nfce-payment-value" decimalPlaces={2} value={newPaymentValue}
-                               onChange={(v) => {
-                                 paymentLocked.current = true
-                                 setNewPaymentValue(v)
-                               }} placeholder="0,00"/>
-              </div>
-              <Button type="button" variant="brand" onClick={addPayment} className="self-end"
-                      disabled={!newPaymentValue || parseFloat(newPaymentValue) <= 0}>Adicionar</Button>
-            </div>
-
-            {(isCardPayment || isPix) && (
-              <div className="pt-1 border-t border-gray-100 space-y-2">
-                <label htmlFor="nfce-toggle-card" className="flex items-center gap-2 min-h-11 sm:min-h-0 cursor-pointer">
-                  <input type="checkbox" id="nfce-toggle-card" checked={showCardToggle}
-                         onChange={(e) => {
-                           setShowCardToggle(e.target.checked)
-                           if (!e.target.checked) setNewPaymentCard(null)
-                         }}
-                         className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-                  <span className="text-xs font-medium text-gray-500">
-                    {isPix ? 'Informar NSU/autorização (opcional)' : 'Informar dados do cartão'}
-                  </span>
-                </label>
-                {showCardToggle && (
-                  <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
-                )}
-              </div>
-            )}
+          {/* Quick picks — the three an operator reaches for */}
+          <div className="flex flex-wrap gap-2">
+            {QUICK_PAYMENT_TYPES.map((code) => {
+              const active = newPaymentType === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setNewPaymentType(code)
+                    setShowCardToggle(false)
+                    setNewPaymentCard(null)
+                  }}
+                  className={`min-h-11 sm:min-h-9 flex-1 sm:flex-none rounded-lg border px-4 text-sm font-medium transition-colors ${
+                    active
+                      ? 'border-brand-600 bg-brand-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-700'
+                  }`}
+                >
+                  {NF_PAYMENT_TYPES[code] ?? code}
+                </button>
+              )
+            })}
           </div>
 
-          <CollapsibleSection title="Configurações avançadas" description="Informações adicionais (opcional)">
-            <Label className="text-xs font-medium text-gray-600">Informações adicionais (opcional)</Label>
-            <Textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} rows={3}
-                      maxLength={2000} placeholder="Observações…" className="w-full mt-1"/>
-          </CollapsibleSection>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <Label htmlFor="nfce-payment-type" className="text-xs font-medium text-gray-600">
+                  Outra forma de pagamento
+                </Label>
+                <GlossaryTerm term="ind_pag"/>
+              </div>
+              <OptionsSelect id="nfce-payment-type" value={newPaymentType} onValueChange={(v) => {
+                setNewPaymentType(v)
+                setShowCardToggle(false)
+                setNewPaymentCard(null)
+              }} options={PAYMENT_OPTIONS}/>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="nfce-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
+              <CurrencyInput id="nfce-payment-value" decimalPlaces={2} value={newPaymentValue}
+                             onChange={(v) => {
+                               paymentLocked.current = true
+                               setNewPaymentValue(v)
+                             }} placeholder="0,00"/>
+            </div>
+            <Button type="button" variant="outline" onClick={addPayment} className="self-end"
+                    disabled={!newPaymentValue || parseFloat(newPaymentValue) <= 0}>
+              Dividir pagamento
+            </Button>
+          </div>
 
-          {submitError && (
-            <div role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</div>
+          {(isCardPayment || isPix) && (
+            <div className="pt-1 border-t border-gray-100 space-y-2">
+              <label htmlFor="nfce-toggle-card" className="flex items-center gap-2 min-h-11 sm:min-h-0 cursor-pointer">
+                <input type="checkbox" id="nfce-toggle-card" checked={showCardToggle}
+                       onChange={(e) => {
+                         setShowCardToggle(e.target.checked)
+                         if (!e.target.checked) setNewPaymentCard(null)
+                       }}
+                       className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                <span className="text-xs font-medium text-gray-600">
+                  {isPix ? 'Informar NSU/autorização (opcional)' : 'Informar dados do cartão'}
+                </span>
+              </label>
+              {showCardToggle && (
+                <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
+              )}
+            </div>
           )}
+
+          {payments.length > 0 && (
+            <p className={`text-sm ${
+              Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-blue-700' : 'text-warning'
+            }`}>
+              {Math.abs(remaining) < 0.01
+                ? '✓ Total confere.'
+                : remaining > 0 ? `⌛ Restam ${fmt(remaining)}.` : `↩ Troco: ${fmt(-remaining)}`}
+            </p>
+          )}
+
+          {/* CPF na nota — asked where a cashier asks it */}
+          <div className="pt-3 border-t border-gray-100 space-y-2">
+            <Label className="text-xs font-medium text-gray-600">CPF na nota? (opcional)</Label>
+            <ConsumerField value={consumer} onChange={setConsumer}/>
+          </div>
         </div>
       )}
 
-      {step === 'pagamento' && emitBlockedReason && (
-        <p className="mt-3 text-xs text-amber-600">{emitBlockedReason}</p>
+      {products.length > 0 && (
+        <CollapsibleSection title="Configurações avançadas" description="Informações adicionais (opcional)"
+                            className="mt-4">
+          <Label htmlFor="nfce-additional-info" className="text-xs font-medium text-gray-600">
+            Informações adicionais
+          </Label>
+          <Textarea id="nfce-additional-info" value={additionalInfo}
+                    onChange={(e) => setAdditionalInfo(e.target.value)} rows={3}
+                    maxLength={2000} placeholder="Observações…" className="w-full mt-1"/>
+        </CollapsibleSection>
       )}
 
-      {/* Action bar */}
+      <div className="mt-4 empty:mt-0">
+        <EmitError message={submitError}/>
+      </div>
+
+      {/* Action bar — the total never leaves the screen */}
       <div
-        className="sticky bottom-0 -mx-4 px-4 md:-mx-8 md:px-8 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
-        <Button type="button" variant="outline" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
-        {step !== 'pagamento' ? (
-          <Button type="button" variant="brand" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>
-        ) : (
+        className="sticky bottom-0 -mx-4 px-4 md:mx-0 md:px-0 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs text-gray-500">Total{products.length > 0 && ` · ${products.length} item(s)`}</p>
+          <p className="text-lg font-semibold text-gray-900 leading-tight">{fmt(totalNfce)}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
           <Button type="button" variant="brand" onClick={() => setShowEmitConfirm(true)}
                   disabled={isSubmitting || !canEmit}>
             {isSubmitting ? 'Emitindo…' : 'Emitir NFC-e'}
           </Button>
-        )}
+          {emitBlockedReason && <span className="text-xs text-warning">{emitBlockedReason}</span>}
+        </div>
       </div>
+
       <EmitConfirmModal
         open={showEmitConfirm}
         onClose={() => setShowEmitConfirm(false)}
@@ -693,8 +640,14 @@ export function NfceEmitForm() {
         docLabel="NFC-e"
         summary={[
           {label: 'Consumidor', value: consumer ? formatCpfCnpj(consumer.cpf) : 'Não identificado'},
+          {label: 'Itens', value: `${products.length} item(s)`},
+          {
+            label: 'Pagamento',
+            value: effectivePayments()
+              .map((p) => `${NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type} ${fmt(parseFloat(p.value) || 0)}`)
+              .join(' + ') || '—',
+          },
           {label: 'Total', value: fmt(totalNfce)},
-          {label: 'Produtos', value: `${products.length} item(s)`},
         ]}
       />
     </div>

@@ -12,7 +12,9 @@ import {Button} from '@/components/ui/button'
 import {type ServiceFormData, serviceSchema} from '@/lib/schemas/services'
 import type {ServiceCreate, ServiceOut} from '@/lib/types/api'
 import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional'
+import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
+import {generateEntityCode} from '@/lib/utils/code'
 
 interface ServiceFormProps {
   initialData?: ServiceOut
@@ -40,6 +42,20 @@ const TP_IMUNIDADE_OPTIONS = [
   {value: '3', label: '3 – Hipótese constitucional 3'},
   {value: '4', label: '4 – Hipótese constitucional 4'},
   {value: '5', label: '5 – Hipótese constitucional 5'},
+]
+
+// TSTipoRetPISCofins — rótulos em api/internal/api/v1/dto.go (ServiceFederalBody).
+const TP_RET_PIS_COFINS_OPTIONS = [
+  {value: '0', label: '0 – Nenhum retido'},
+  {value: '1', label: '1 – PIS/COFINS retidos'},
+  {value: '2', label: '2 – PIS/COFINS não retidos'},
+  {value: '3', label: '3 – PIS/COFINS/CSLL retidos'},
+  {value: '4', label: '4 – PIS/COFINS retidos, CSLL não'},
+  {value: '5', label: '5 – PIS retido, COFINS/CSLL não'},
+  {value: '6', label: '6 – COFINS retido, PIS/CSLL não'},
+  {value: '7', label: '7 – PIS não retido, COFINS/CSLL retidos'},
+  {value: '8', label: '8 – PIS/COFINS não retidos, CSLL retido'},
+  {value: '9', label: '9 – COFINS não retido, PIS/CSLL retidos'},
 ]
 
 const TRIB_NACIONAL_OPTIONS: ComboboxOption[] = NFSE_TRIB_NACIONAL.map((t) => ({
@@ -93,12 +109,14 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
     value: data.value,
     iss: {
       trib_issqn: Number(data.iss.trib_issqn),
-      tax_rate: data.iss.tax_rate,
+      // tax_rate é required no backend: sem tributação de ISSQN vai zerada.
+      tax_rate: (data.iss.trib_issqn === '1' && data.iss.tax_rate) || '0',
       tp_ret_issqn: data.iss.tp_ret_issqn ? Number(data.iss.tp_ret_issqn) : null,
       tp_imunidade: data.iss.tp_imunidade ? Number(data.iss.tp_imunidade) : null,
       c_pais_resultado: nullify(data.iss.c_pais_resultado),
     },
-    federal: data.federal && (data.federal.aliq_pis || data.federal.aliq_cofins || data.federal.cst_pis_cofins) ? {
+    federal: data.federal && (data.federal.aliq_pis || data.federal.aliq_cofins || data.federal.cst_pis_cofins
+      || data.federal.tp_ret_pis_cofins) ? {
       cst_pis_cofins: nullify(data.federal.cst_pis_cofins),
       aliq_pis: nullify(data.federal.aliq_pis),
       aliq_cofins: nullify(data.federal.aliq_cofins),
@@ -113,11 +131,14 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
 export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFormProps) {
   const [showFederal, setShowFederal] = useState(!!initialData?.federal)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [defaultCode] = useState(generateEntityCode)
 
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
     defaultValues: initialData ? toFormData(initialData) : {
-      code: '', description: '', trib_nacional_code: '', trib_municipal_code: '',
+      // Código é identificação interna: gerado por padrão, editável se o usuário
+      // quiser o próprio (ver lib/utils/code.ts).
+      code: defaultCode, description: '', trib_nacional_code: '', trib_municipal_code: '',
       nbs_code: '', cnae: '', unit: 'UN', value: '',
       iss: {trib_issqn: '1', tax_rate: '', tp_ret_issqn: '', tp_imunidade: '', c_pais_resultado: ''},
     },
@@ -227,14 +248,18 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                 <FormMessage/>
               </FormItem>
             )}/>
-            <FormField control={form.control} name="iss.tax_rate" render={({field}) => (
-              <FormItem>
-                <FormLabel>Alíquota (%) *</FormLabel>
-                <CurrencyInput id={field.name} value={field.value} onChange={field.onChange}
-                               decimalPlaces={2} maxDecimalPlaces={4}/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
+            {/* Imunidade, exportação e não incidência não têm alíquota — o DPS
+                vai com 0 e o campo some. */}
+            {trIssqn === '1' && (
+              <FormField control={form.control} name="iss.tax_rate" render={({field}) => (
+                <FormItem>
+                  <FormLabel>Alíquota (%) *</FormLabel>
+                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                                 decimalPlaces={2} maxDecimalPlaces={4}/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -280,11 +305,20 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
           </button>
 
           {showFederal && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
               <FormField control={form.control} name="federal.cst_pis_cofins" render={({field}) => (
                 <FormItem>
                   <FormLabel>CST PIS/COFINS</FormLabel>
-                  <Input {...field} id={field.name} maxLength={2}/>
+                  <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                 options={PIS_COFINS_OPTIONS} placeholder="Não informado"/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+              <FormField control={form.control} name="federal.tp_ret_pis_cofins" render={({field}) => (
+                <FormItem>
+                  <FormLabel>Retenção PIS/COFINS/CSLL</FormLabel>
+                  <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                 options={TP_RET_PIS_COFINS_OPTIONS} placeholder="Não informado"/>
                   <FormMessage/>
                 </FormItem>
               )}/>

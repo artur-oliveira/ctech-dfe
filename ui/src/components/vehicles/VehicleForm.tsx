@@ -159,11 +159,11 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
           </div>
         </section>
 
-        {/* Configurações avançadas */}
+        {/* Configurações adicionais */}
         <section className="space-y-3">
           <Button type="button" variant="ghost" size="xs" onClick={() => setAdvancedOpen(!advancedOpen)}
                   className="text-brand-600 hover:text-brand-700">
-            {advancedOpen ? '− Ocultar configurações avançadas' : '+ Configurações avançadas'}
+            {advancedOpen ? '− Ocultar configurações adicionais' : '+ Configurações adicionais'}
           </Button>
 
           {advancedOpen && (

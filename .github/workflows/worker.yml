@@ -97,6 +97,8 @@ jobs:
             "${ENV}-cte-event-worker"
             "${ENV}-mdfe-emission-worker"
             "${ENV}-mdfe-event-worker"
+            "${ENV}-nfse-emission-worker"
+            "${ENV}-nfse-event-worker"
           )
           for fn in "${FUNCTIONS[@]}"; do
             aws lambda update-function-code \
@@ -127,6 +129,8 @@ jobs:
             "${ENV}-cte-event-worker-dlq-processor"
             "${ENV}-mdfe-emission-worker-dlq-processor"
             "${ENV}-mdfe-event-worker-dlq-processor"
+            "${ENV}-nfse-emission-worker-dlq-processor"
+            "${ENV}-nfse-event-worker-dlq-processor"
             "${ENV}-distribution-worker-dlq-processor"
           )
           for fn in "${FUNCTIONS[@]}"; do
@@ -158,6 +162,8 @@ jobs:
             "${ENV}-cte-event-worker"
             "${ENV}-mdfe-emission-worker"
             "${ENV}-mdfe-event-worker"
+            "${ENV}-nfse-emission-worker"
+            "${ENV}-nfse-event-worker"
             "${ENV}-distribution-worker"
             "${ENV}-nfe-emission-worker-dlq-processor"
             "${ENV}-nfe-event-worker-dlq-processor"
@@ -166,6 +172,8 @@ jobs:
             "${ENV}-cte-event-worker-dlq-processor"
             "${ENV}-mdfe-emission-worker-dlq-processor"
             "${ENV}-mdfe-event-worker-dlq-processor"
+            "${ENV}-nfse-emission-worker-dlq-processor"
+            "${ENV}-nfse-event-worker-dlq-processor"
             "${ENV}-distribution-worker-dlq-processor"
             "${ENV}-distribution-dispatcher"
           )

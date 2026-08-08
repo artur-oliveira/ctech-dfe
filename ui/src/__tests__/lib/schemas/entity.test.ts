@@ -22,6 +22,7 @@ const basePF: EntityFormData = {
       complement: '',
     }],
     contacts: {emails: ['carvalholarissa_@hotmail.com'], phones: ['86995373408']},
+    nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
   },
 }
 
@@ -92,5 +93,17 @@ describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected',
 
   it('organizationSchema aceita PF sem inscrição estadual (regra é só para CNPJ)', () => {
     expect(organizationSchema.safeParse(basePF).success).toBe(true)
+  })
+})
+
+describe('entitySchema — grupo NFS-e', () => {
+  it('exige regime de apuração quando optante ME/EPP (op_simp_nac = 3)', () => {
+    const data = {...basePF, person: {...basePF.person, nfse: {im: '123456', op_simp_nac: '3' as const, reg_ap_trib_sn: '' as const, reg_esp_trib: ''  as const}}}
+    expect(entitySchema.safeParse(data).success).toBe(false)
+  })
+
+  it('aceita inscrição municipal com regime simples informado', () => {
+    const data = {...basePF, person: {...basePF.person, nfse: {im: '123456', op_simp_nac: '1' as const, reg_ap_trib_sn: '' as const, reg_esp_trib: '0' as const}}}
+    expect(entitySchema.safeParse(data).success).toBe(true)
   })
 })

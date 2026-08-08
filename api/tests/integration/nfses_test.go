@@ -50,19 +50,31 @@ func seedNfseOrg(t *testing.T, withRegTrib bool) (orgPK, serviceID string) {
 	ctx := context.Background()
 	orgPK = "CNPJ_" + randomCNPJ()
 
-	org := map[string]types.AttributeValue{
-		"pk":       &types.AttributeValueMemberS{Value: orgPK},
-		"name":     &types.AttributeValueMemberS{Value: "Prestador Teste LTDA"},
-		"cpf_cnpj": &types.AttributeValueMemberS{Value: services.StripPKPrefix(orgPK)},
+	person := map[string]types.AttributeValue{
+		"addresses": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+			&types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+				"street":         &types.AttributeValueMemberS{Value: "Rua Um"},
+				"number":         &types.AttributeValueMemberS{Value: "100"},
+				"neighborhood":   &types.AttributeValueMemberS{Value: "Centro"},
+				"city_ibge_code": &types.AttributeValueMemberS{Value: "2211001"},
+				"postal_code":    &types.AttributeValueMemberS{Value: "65000000"},
+			}},
+		}},
 	}
 	if withRegTrib {
-		org["nfse"] = &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+		person["nfse"] = &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
 			"im": &types.AttributeValueMemberS{Value: "123456"},
 			"reg_trib": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
 				"op_simp_nac":  &types.AttributeValueMemberN{Value: "1"},
 				"reg_esp_trib": &types.AttributeValueMemberN{Value: "0"},
 			}},
 		}}
+	}
+	org := map[string]types.AttributeValue{
+		"pk":          &types.AttributeValueMemberS{Value: orgPK},
+		"name":        &types.AttributeValueMemberS{Value: "Prestador Teste LTDA"},
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: services.StripPKPrefix(orgPK)},
+		"person":      &types.AttributeValueMemberM{Value: person},
 	}
 	putItem(t, tablePrefix+"_organizations", org)
 
@@ -189,6 +201,23 @@ func TestNfse(t *testing.T) {
 		stored, err := nfseRepo.Get(ctx, pk, idDPS)
 		if err != nil || stored == nil {
 			t.Fatalf("linha não persistida: %v", err)
+		}
+	})
+
+	// A empresa pode tomar o próprio serviço: o customer_id é o documento dela,
+	// que não existe em organization_persons — Emit precisa cair no item da org.
+	t.Run("EmitAceitaPropriaEmpresaComoTomadora", func(t *testing.T) {
+		orgPK, serviceID := seedNfseOrg(t, true)
+
+		body := emitBody(serviceID)
+		body.CustomerID = &orgPK
+
+		item, err := nfseSvc.Emit(ctx, orgPK, body, testUserID, testUserName)
+		if err != nil {
+			t.Fatalf("Emit: %v", err)
+		}
+		if got := item["dest_cpf_cnpj"].(*types.AttributeValueMemberS).Value; got != services.StripPKPrefix(orgPK) {
+			t.Errorf("dest_cpf_cnpj = %s, esperado %s", got, services.StripPKPrefix(orgPK))
 		}
 	})
 

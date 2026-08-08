@@ -13,11 +13,13 @@ import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
 import {Modal} from '@/components/ui/modal'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
+import {EmitError} from '@/components/ui/emit-error'
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {StepIndicator} from '@/components/ui/step-indicator'
 import type {
@@ -50,7 +52,10 @@ import {
   resolveCfopForUf
 } from "@/lib/data/cfop"
 import {resolveUnitPrice} from "@/lib/data/product-price"
-import {PaymentCardFields} from "@/components/nfe/PaymentCardFields"
+import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from "@/components/nfe/PaymentCardFields"
+import {ProductLineItem} from "@/components/ui/product-line-item"
+import {ProductSearch} from "@/components/ui/product-search"
+import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
 import {LocationPicker} from "@/components/nfe/LocationPicker"
 
@@ -109,12 +114,6 @@ function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
 }
 
-const PAYMENT_OPTIONS = Object.entries(NF_PAYMENT_TYPES).map(([value, label]) => ({
-  value,
-  label: `${value} – ${label}`,
-  display: label,
-})).sort((a, b) => parseInt(a.value) - parseInt(b.value))
-
 const MOD_FRETE_OPTIONS = [
   {value: '9', label: '9 – Sem frete'},
   {value: '0', label: '0 – Contratação (remetente)'},
@@ -123,9 +122,6 @@ const MOD_FRETE_OPTIONS = [
   {value: '3', label: '3 – Transporte próprio do remetente'},
   {value: '4', label: '4 – Transporte próprio do destinatário'},
 ]
-
-// Types that typically carry card data
-const CARD_PAYMENT_TYPES = new Set(['03', '04', '10', '11', '12', '13'])
 
 // ─── Receiver search ──────────────────────────────────────────────────────────
 
@@ -229,6 +225,11 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
             }}
             onFocus={() => setOpen(true)}
             placeholder="Nome, CPF ou CNPJ (com ou sem formatação)"
+            aria-label="Buscar destinatário por nome, CPF ou CNPJ"
+            role="combobox"
+            aria-expanded={open && !isDoc && suggestions.length > 0}
+            aria-controls="nfe-receiver-suggestions"
+            aria-autocomplete="list"
             className="flex-1"
           />
           {isDoc && (
@@ -252,11 +253,14 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
         </div>
 
         {directError && (
-          <p className="text-xs text-amber-600 mt-1">{directError}</p>
+          <p className="text-xs text-warning mt-1">{directError}</p>
         )}
 
         {open && !isDoc && suggestions.length > 0 && (
           <div
+            id="nfe-receiver-suggestions"
+            role="listbox"
+            aria-label="Destinatários encontrados"
             className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
             {suggestions.map((p) => {
               const cpfCnpj = unformatCpfCnpj(p.pk)
@@ -264,6 +268,8 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
                 <button
                   key={p.sk}
                   type="button"
+                  role="option"
+                  aria-selected={false}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange(p)
@@ -465,78 +471,6 @@ function VehicleSelect({vehicles, onSelect, query, onQueryChange}: VehicleSelect
   )
 }
 
-// ─── Inline product picker ────────────────────────────────────────────────────
-
-interface ProductPickerProps {
-  onSelect: (product: ProductOut) => void
-  onClose: () => void
-}
-
-function ProductPicker({onSelect, onClose}: ProductPickerProps) {
-  const {selectedOrg} = useAuth()
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, 300)
-
-  const {data, isLoading} = useQuery({
-    queryKey: queryKeys.products.list(selectedOrg?.pk),
-    queryFn: () => apiClient.getProducts({limit: 50}),
-    enabled: !!selectedOrg,
-  })
-
-  const allProducts = data?.items ?? []
-  const filtered = debouncedQuery
-    ? allProducts.filter(
-      (p) =>
-        p.description.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-        p.code.toLowerCase().includes(debouncedQuery.toLowerCase()),
-    )
-    : allProducts
-
-  return (
-    <div className="rounded-lg border border-brand-200 bg-brand-50/30 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Buscar produto</p>
-        <Button type="button" variant="ghost" size="xs" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          Fechar
-        </Button>
-      </div>
-      <Input
-        type="text"
-        autoFocus
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Código ou descrição..."
-      />
-      <div className="max-h-48 overflow-y-auto space-y-0.5">
-        {isLoading ? (
-          <div className="py-1">
-            <LoadingSkeleton count={3} height="h-8" rounded="rounded-md"/>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-gray-500 py-2">Nenhum produto encontrado.</p>
-        ) : (
-          filtered.map((p) => (
-            <button
-              key={p.sk}
-              type="button"
-              onClick={() => onSelect(p)}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-white transition-colors flex items-center justify-between gap-2"
-            >
-              <span className="text-sm text-gray-900 min-w-0 truncate">
-                {p.description}
-                {p.brand && <span className="ml-1.5 text-xs text-gray-400">{p.brand}</span>}
-              </span>
-              <span className="text-xs text-gray-400 shrink-0">
-                {parseFloat(p.value).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── Product row ──────────────────────────────────────────────────────────────
 
 interface ProductRowProps {
@@ -567,27 +501,25 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
   const [newArma, setNewArma] = useState<NfeArmaIn>({n_serie: '', n_cano: '', descr: ''})
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 md:p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-medium text-gray-900 text-sm">
-            {item.product.description}
-            {item.product.brand && (
-              <span className="ml-1.5 text-xs text-gray-400 font-normal">{item.product.brand}</span>
-            )}
-          </p>
-          <div className="flex flex-wrap items-center gap-1 mt-0.5">
-            {isVeiculo && <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">Veículo</span>}
-            {isArma && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">Armamento</span>}
-          </div>
-        </div>
-        <Button type="button" variant="ghost" size="xs" onClick={() => onRemove(index)}
-                className="shrink-0 text-danger hover:text-red-700">
-          Remover
-        </Button>
-      </div>
-      <div className="grid grid-cols-3 md:grid-cols-12 gap-2 items-end">
-        <div className="col-span-3 md:col-span-6 flex flex-col gap-1">
+    <ProductLineItem
+      idPrefix={`nfe-item-${index}`}
+      description={item.product.description}
+      brand={item.product.brand}
+      unit={item.product.unit}
+      qty={item.qty}
+      unitValue={item.unitValue}
+      discount={item.discount}
+      total={total}
+      onChange={(patch) => onChange(index, patch)}
+      onRemove={() => onRemove(index)}
+      badges={
+        <>
+          {isVeiculo && <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">Veículo</span>}
+          {isArma && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">Armamento</span>}
+        </>
+      }
+      cfopSlot={
+        <>
           <div className="flex items-center gap-1"><Label htmlFor={`nfe-item-${index}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
           {cfopOptions.length > 0 ? (
             <OptionsSelect
@@ -609,43 +541,18 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
             </span>
           )}
           {cfopMissingVariant && (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-danger">
               Configure o CFOP {sameUf ? '5' : '6'}xxx neste produto para esta UF de destino.
             </span>
           )}
-        </div>
-        <div className="col-span-1 md:col-span-2 flex-col gap-1">
-          <Label htmlFor={`nfe-item-${index}-qty`} className="text-xs font-medium text-gray-600">Qtd ({item.product.unit ?? 'UN'})</Label>
-          <div className="flex items-center">
-            <button type="button" aria-label="Diminuir quantidade"
-                    onClick={() => onChange(index, {qty: String(Math.max(0, (parseFloat(item.qty) || 0) - 1))})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-l-lg border border-r-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">−
-            </button>
-            <NumericInput id={`nfe-item-${index}-qty`} decimal integerPlaces={7} decimalPlaces={4} value={item.qty}
-                          onChange={(v) => onChange(index, {qty: v})} placeholder="1"
-                          className="rounded-none border-x-0 text-center"/>
-            <button type="button" aria-label="Aumentar quantidade"
-                    onClick={() => onChange(index, {qty: String((parseFloat(item.qty) || 0) + 1)})}
-                    className="h-8 w-7 shrink-0 flex items-center justify-center rounded-r-lg border border-l-0 border-input bg-muted/30 text-gray-600 hover:bg-muted/60 font-medium select-none text-sm">+
-            </button>
-          </div>
-        </div>
-        <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label htmlFor={`nfe-item-${index}-unit-value`} className="text-xs font-medium text-gray-600">Valor unitário</Label>
-          <CurrencyInput id={`nfe-item-${index}-unit-value`} decimalPlaces={2} maxDecimalPlaces={10} value={item.unitValue}
-                         onChange={(v) => onChange(index, {unitValue: v})} placeholder="0,00"/>
-        </div>
-        <div className="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <Label htmlFor={`nfe-item-${index}-discount`} className="text-xs font-medium text-gray-600">Desconto</Label>
-          <CurrencyInput id={`nfe-item-${index}-discount`} decimalPlaces={2} value={item.discount}
-                         onChange={(v) => onChange(index, {discount: v})} placeholder="0,00"/>
-        </div>
-      </div>
+        </>
+      }
+    >
 
       {/* ── Veículo — dados por unidade ───────────────────────────── */}
       {isVeiculo && (
         <div className="rounded-md border border-indigo-100 bg-indigo-50/30 p-3 space-y-2">
-          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Dados da unidade</p>
+          <p className="text-sm font-medium text-indigo-800">Dados da unidade</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <div className="flex flex-col gap-1">
               <Label className="text-xs font-medium text-gray-600">Chassi (VIN, 17 chars) *</Label>
@@ -684,7 +591,7 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
       {/* ── Armamento — dados por unidade ─────────────────────────── */}
       {isArma && (
         <div className="rounded-md border border-red-100 bg-red-50/20 p-3 space-y-2">
-          <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
+          <p className="text-sm font-medium text-danger">
             Armas desta NF-e ({(item.armas ?? []).length})
           </p>
           {(item.armas ?? []).length > 0 && (
@@ -730,10 +637,7 @@ export function ProductRow({item, index, sameUf, onChange, onRemove}: ProductRow
         </div>
       )}
 
-      <div className="text-right text-sm font-medium text-gray-700">
-        Total: <span className="font-semibold">{fmt(total)}</span>
-      </div>
-    </div>
+    </ProductLineItem>
   )
 }
 
@@ -765,6 +669,28 @@ function generateDuplicatas(total: number, count: number, firstDate: string): Em
     result.push({n_dup: String(i + 1).padStart(3, '0'), d_venc: date, v_dup: amount.toFixed(2)})
   }
   return result
+}
+
+// ─── Review row ───────────────────────────────────────────────────────────────
+
+/** One block of the pre-emission document preview, with a jump back to its step. */
+function ReviewRow({label, onEdit, children}: {
+  label: string
+  onEdit: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="px-5 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        <Button type="button" variant="ghost" size="xs" onClick={onEdit}
+                className="text-brand-700 hover:text-brand-800 shrink-0">
+          Editar
+        </Button>
+      </div>
+      <div className="mt-1.5 text-sm">{children}</div>
+    </div>
+  )
 }
 
 // ─── Step types ───────────────────────────────────────────────────────────────
@@ -847,12 +773,6 @@ export function NfeEmitForm() {
     enabled: !!selectedOrg && showTransport,
   })
 
-  const {data: productsData} = useQuery({
-    queryKey: queryKeys.products.list(selectedOrg?.pk),
-    queryFn: () => apiClient.getProducts({limit: 50}),
-    enabled: !!selectedOrg,
-  })
-
   const {data: recentNfes, isLoading: recentNfesLoading} = useQuery({
     queryKey: queryKeys.nfes.list(selectedOrg?.pk, {limit: 50}),
     queryFn: () => apiClient.getNfes({limit: 50}),
@@ -874,12 +794,46 @@ export function NfeEmitForm() {
     return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 5)
   }, [recentNfes, selectedOrg])
 
+  // ─── Draft recovery ───────────────────────────────────────────────────────
+
+  const draftState = useMemo(() => ({
+    currentStep, receiver, selfIssuance, entrega, retirada, products, payments,
+    additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
+    selectedCarrier, selectedVehicle,
+  }), [currentStep, receiver, selfIssuance, entrega, retirada, products, payments,
+    additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
+    selectedCarrier, selectedVehicle])
+  const draft = useEmitDraft('nfe', selectedOrg?.pk, draftState,
+    products.length > 0 || receiver !== null || selfIssuance)
+
+  const restoreDraft = () => {
+    const s = draft.recovered?.state
+    if (s) {
+      setCurrentStep(s.currentStep)
+      setReceiver(s.receiver)
+      setSelfIssuance(s.selfIssuance)
+      setEntrega(s.entrega)
+      setRetirada(s.retirada)
+      setProducts(s.products)
+      setPayments(s.payments)
+      setAdditionalInfo(s.additionalInfo)
+      setNatOpManual(s.natOpManual)
+      setCobrFat(s.cobrFat)
+      setDuplicatas(s.duplicatas)
+      setShowTransport(s.showTransport)
+      setTransport(s.transport)
+      setSelectedCarrier(s.selectedCarrier)
+      setSelectedVehicle(s.selectedVehicle)
+    }
+    draft.accept()
+  }
+
   // ─── Totals ───────────────────────────────────────────────────────────────
 
   const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0)
   const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0)
   const totalNfe = Math.max(0, totalProducts - totalDiscount)
-  const totalPaid = payments.some(it => it.payment_type === '90') ? totalNfe : payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
+  const totalPaid = payments.some(it => it.payment_type === NO_PAYMENT_TYPE) ? totalNfe : payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
   const remaining = totalNfe - totalPaid
 
   // ─── CFOP direction (tp_nf) + nat_op ───────────────────────────────────────
@@ -925,15 +879,15 @@ export function NfeEmitForm() {
   if (hasNoPaymentCfop !== prevHasNoPaymentCfop) {
     setPrevHasNoPaymentCfop(hasNoPaymentCfop)
     if (hasNoPaymentCfop) {
-      setNewPaymentType('90')
-      setPayments([{payment_type: '90', value: '0.00', ind_pag: '0', card: null}])
+      setNewPaymentType(NO_PAYMENT_TYPE)
+      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null}])
     }
   }
 
   // Derived — cobrança only shown when there's an "a prazo" payment
   const hasPrazoPayment = payments.some(p => p.ind_pag === '1')
-  const isPix = newPaymentType === '17'
-  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType) || isPix
+  const isPix = isPixPaymentType(newPaymentType)
+  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
 
   // ─── Auto-fill new payment value from remaining ───────────────────────────
 
@@ -977,7 +931,7 @@ export function NfeEmitForm() {
     if (step === 'produtos') return products.length > 0 && !cfopMixError && !cfopUnresolvedError
     if (step === 'pagamento') {
       if (payments.length > 0) return true
-      if (newPaymentType === '90') return true
+      if (newPaymentType === NO_PAYMENT_TYPE) return true
       return !!newPaymentValue && parseFloat(newPaymentValue) > 0
     }
     return true
@@ -986,12 +940,8 @@ export function NfeEmitForm() {
   function handleNext() {
     const i = STEP_IDS.indexOf(currentStep)
     if (i < STEP_IDS.length - 1) {
-      if (currentStep === 'destinatario' && products.length === 0) {
-        const firstProduct = productsData?.items?.[0]
-        if (firstProduct) handleSelectProduct(firstProduct)
-      }
       if (currentStep === 'pagamento') {
-        const isNoPay = newPaymentType === '90'
+        const isNoPay = newPaymentType === NO_PAYMENT_TYPE
         const hasValidValue = isNoPay || (!!newPaymentValue && parseFloat(newPaymentValue) > 0)
         if (hasValidValue && payments.length === 0) handleAddPayment()
       }
@@ -1034,7 +984,7 @@ export function NfeEmitForm() {
   // ─── Payment handlers ─────────────────────────────────────────────────────
 
   const handleAddPayment = () => {
-    const isNoPay = newPaymentType === '90'
+    const isNoPay = newPaymentType === NO_PAYMENT_TYPE
     if (!isNoPay && (!newPaymentValue || parseFloat(newPaymentValue) <= 0)) return
     const value = isNoPay ? '0.00' : newPaymentValue
     setPayments(prev => [...prev, {
@@ -1144,6 +1094,7 @@ export function NfeEmitForm() {
     setIsSubmitting(true)
     try {
       const result = await apiClient.emitNfe(payload)
+      draft.clear()
       toast.success('NF-e enviada para a SEFAZ', {
         description: result.sefaz_protocol
           ? `Protocolo ${result.sefaz_protocol} · chave ${result.sk}`
@@ -1166,23 +1117,21 @@ export function NfeEmitForm() {
     <div className="max-w-3xl space-y-0 pb-4">
       <HomologationBanner environment={nfeConfig?.environment}/>
 
+      {draft.recovered && (
+        <DraftRecoveryBanner savedAt={draft.recovered.savedAt} onRestore={restoreDraft} onDiscard={draft.discard}/>
+      )}
+
       {/* Step progress */}
       <StepIndicator current={currentStep} steps={STEPS}/>
-
-      {/* Error */}
-      {submitError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">
-          {submitError}
-        </div>
-      )}
 
       {/* ──────────────── Step 1: Destinatário ──────────────────────────── */}
       {currentStep === 'destinatario' && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Para quem?</p>
+            <p className="text-sm font-medium text-gray-600">Para quem?</p>
             <button
               type="button"
+              aria-pressed={selfIssuance}
               onClick={() => {
                 setSelfIssuance(v => {
                   if (!v) setReceiver(null)
@@ -1273,7 +1222,7 @@ export function NfeEmitForm() {
       {currentStep === 'produtos' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <p className="text-sm font-medium text-gray-600">
               Produtos ({products.length})
             </p>
             <span className="text-sm font-semibold text-gray-900">{fmt(totalNfe)}</span>
@@ -1303,7 +1252,11 @@ export function NfeEmitForm() {
             />
           )}
           {showProductPicker ? (
-            <ProductPicker onSelect={handleSelectProduct} onClose={() => setShowProductPicker(false)}/>
+            <ProductSearch
+              onSelect={handleSelectProduct}
+              onClose={() => setShowProductPicker(false)}
+              className="rounded-lg border border-brand-200 bg-brand-50/30 p-4"
+            />
           ) : (
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowProductPicker(true)}
                     className="text-brand-600 hover:text-brand-700 px-0">
@@ -1319,13 +1272,13 @@ export function NfeEmitForm() {
           {/* Payment list */}
           {payments.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Pagamentos</p>
+              <p className="text-sm font-medium text-gray-600">Pagamentos</p>
               {payments.map((p, i) => (
                 <div key={i} className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2.5 text-sm">
                   <span className="text-gray-700">
                     {NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type}
-                    {p.ind_pag === '1' && <span className="ml-1.5 text-xs text-amber-600">(prazo)</span>}
-                    {p.card && <span className="ml-1.5 text-xs text-blue-600">· transação</span>}
+                    {p.ind_pag === '1' && <span className="ml-1.5 text-xs text-warning">(prazo)</span>}
+                    {p.card && <span className="ml-1.5 text-xs text-blue-700">· transação</span>}
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
@@ -1335,15 +1288,17 @@ export function NfeEmitForm() {
                 </div>
               ))}
               <p
-                className={`text-sm pt-1 ${Math.abs(remaining) < 0.01 ? 'text-green-600' : remaining < 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                {Math.abs(remaining) < 0.01 ? '✓ Total confere.' : remaining > 0 ? `Restam ${fmt(remaining)}.` : `Troco: ${fmt(-remaining)}`}
+                className={`text-sm pt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-blue-700' : 'text-warning'}`}>
+                {Math.abs(remaining) < 0.01
+                  ? '✓ Total confere.'
+                  : remaining > 0 ? `⌛ Restam ${fmt(remaining)}.` : `↩ Troco: ${fmt(-remaining)}`}
               </p>
             </div>
           )}
 
           {/* Add payment */}
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Adicionar pagamento</p>
+            <p className="text-sm font-medium text-gray-600">Adicionar pagamento</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1"><Label htmlFor="nfe-payment-type" className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
@@ -1355,14 +1310,14 @@ export function NfeEmitForm() {
                                }}
                                options={PAYMENT_OPTIONS}/>
               </div>
-              {newPaymentType !== '90' && (
+              {newPaymentType !== NO_PAYMENT_TYPE && (
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="nfe-payment-ind-pag" className="text-xs font-medium text-gray-600 whitespace-nowrap">À vista / Parcelado</Label>
                   <OptionsSelect id="nfe-payment-ind-pag" value={newPaymentIndPag} onValueChange={v => setNewPaymentIndPag(v as '0' | '1')}
                                  options={[{value: '0', label: '0 – À vista'}, {value: '1', label: '1 – Parcelado'}]}/>
                 </div>
               )}
-              {newPaymentType !== '90' && (
+              {newPaymentType !== NO_PAYMENT_TYPE && (
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="nfe-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
                   <CurrencyInput id="nfe-payment-value" decimalPlaces={2} value={newPaymentValue}
@@ -1375,11 +1330,11 @@ export function NfeEmitForm() {
               )}
               <Button type="button" variant="brand" onClick={handleAddPayment}
                       className="self-end"
-                      disabled={newPaymentType !== '90' && (!newPaymentValue || parseFloat(newPaymentValue) <= 0)}>
+                      disabled={newPaymentType !== NO_PAYMENT_TYPE && (!newPaymentValue || parseFloat(newPaymentValue) <= 0)}>
                 Adicionar
               </Button>
             </div>
-            {newPaymentType === '90' && (
+            {newPaymentType === NO_PAYMENT_TYPE && (
               <p className="text-xs text-gray-400">Sem pagamento: valor zero será registrado na NF-e.</p>
             )}
 
@@ -1408,9 +1363,9 @@ export function NfeEmitForm() {
           {hasPrazoPayment && (
             <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Cobrança (duplicatas)</p>
+                <p className="text-sm font-medium text-warning">Cobrança (duplicatas)</p>
                 <Button type="button" variant="ghost" size="xs"
-                        className="text-amber-600 hover:text-amber-800 text-xs"
+                        className="text-warning hover:text-amber-900 text-xs"
                         onClick={() => setCobrFat({
                           n_fat: cobrFat.n_fat,
                           v_orig: totalProducts.toFixed(2),
@@ -1423,7 +1378,7 @@ export function NfeEmitForm() {
 
               {/* Fatura */}
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Fatura</p>
+                <p className="text-sm font-medium text-gray-600 mb-2">Fatura</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs font-medium text-gray-600">Número</Label>
@@ -1451,7 +1406,7 @@ export function NfeEmitForm() {
               {/* Duplicatas */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  <p className="text-sm font-medium text-gray-600">
                     Parcelas {duplicatas.length > 0 && `(${duplicatas.length})`}
                   </p>
                   {duplicatas.length > 0 && (() => {
@@ -1459,7 +1414,7 @@ export function NfeEmitForm() {
                     const expected = parseFloat(cobrFat.v_liq || cobrFat.v_orig || totalNfe.toFixed(2)) || totalNfe
                     const diff = Math.abs(allocated - expected)
                     return (
-                      <span className={`text-xs font-medium ${diff < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                      <span className={`text-xs font-medium ${diff < 0.01 ? 'text-success' : 'text-warning'}`}>
                         {diff < 0.01 ? '✓ Total conferido' : `${fmt(allocated)} de ${fmt(expected)}`}
                       </span>
                     )
@@ -1530,38 +1485,90 @@ export function NfeEmitForm() {
 
       {/* ──────────────── Step 4: Revisão ───────────────────────────────── */}
       {currentStep === 'revisao' && (
-        <div className="space-y-4">
-          {/* Summary */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Resumo</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <div>
-                <span className="text-gray-500">Destinatário</span>
-                <p className="font-medium text-gray-900">
-                  {selfIssuance ? <span className="text-brand-700">Emissão própria</span> : receiver?.name}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-500">Total</span>
-                <p className="font-semibold text-gray-900 text-base">{fmt(totalNfe)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Produtos</span>
-                <p className="font-medium text-gray-900">{products.length} item(s)</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Pagamento</span>
-                <p className="font-medium text-gray-900">
-                  {payments.map(p => `${NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type} ${fmt(parseFloat(p.value) || 0)}`).join(' + ')}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
+          <ReviewRow label="Destinatário" onEdit={() => setCurrentStep('destinatario')}>
+            {selfIssuance
+              ? <span className="text-brand-700 font-medium">Emissão própria</span>
+              : <span className="font-medium text-gray-900">{receiver?.name}</span>}
+            <span className="block text-xs text-gray-500 mt-0.5">
+              {natOp}{noteDirection && ` · ${noteDirection === 'in' ? 'Entrada' : 'Saída'}`}
+            </span>
+          </ReviewRow>
 
-          {/* Advanced / expert-mode group (collapsed by default) */}
-          <CollapsibleSection title="Configurações avançadas" description="Transporte e informações adicionais (opcional)">
-          {/* Transport */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+          <ReviewRow label={`Produtos (${products.length})`} onEdit={() => setCurrentStep('produtos')}>
+            <ul className="space-y-1">
+              {products.map((p, i) => (
+                <li key={`${p.product.sk}-${i}`} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-gray-900">
+                    <span className="font-mono text-xs text-gray-500 mr-1.5">{p.qty}×</span>
+                    {p.product.description}
+                    <span className="ml-1.5 font-mono text-xs text-gray-500">CFOP {p.cfop || '—'}</span>
+                  </span>
+                  <span className="shrink-0 font-medium text-gray-900">{fmt(computeTotal(p))}</span>
+                </li>
+              ))}
+            </ul>
+            {totalDiscount > 0 && (
+              <p className="mt-2 text-xs text-gray-500">Desconto total: −{fmt(totalDiscount)}</p>
+            )}
+          </ReviewRow>
+
+          <ReviewRow label="Pagamento" onEdit={() => setCurrentStep('pagamento')}>
+            <ul className="space-y-1">
+              {payments.map((p, i) => (
+                <li key={i} className="flex items-baseline justify-between gap-3">
+                  <span className="text-gray-900">
+                    {NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type}
+                    {p.ind_pag === '1' && <span className="ml-1.5 text-xs text-warning">a prazo</span>}
+                  </span>
+                  <span className="shrink-0 font-medium text-gray-900">{fmt(parseFloat(p.value) || 0)}</span>
+                </li>
+              ))}
+            </ul>
+            {duplicatas.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-xs text-gray-500">
+                {duplicatas.map((d, i) => (
+                  <li key={i}>
+                    Parcela {d.n_dup} · vence {d.d_venc || '—'} · {fmt(parseFloat(d.v_dup) || 0)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReviewRow>
+
+          {showTransport && (
+            <ReviewRow label="Transporte" onEdit={() => setCurrentStep('pagamento')}>
+              <span className="text-gray-900">
+                {MOD_FRETE_OPTIONS.find(o => o.value === transport.mod_frete)?.label ?? transport.mod_frete}
+              </span>
+              {(selectedCarrier || selectedVehicle || transport.veiculo_placa) && (
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  {selectedCarrier?.name}
+                  {selectedCarrier && (selectedVehicle || transport.veiculo_placa) && ' · '}
+                  {selectedVehicle?.plate ?? transport.veiculo_placa}
+                </span>
+              )}
+            </ReviewRow>
+          )}
+
+          {additionalInfo.trim() && (
+            <ReviewRow label="Informações adicionais" onEdit={() => setCurrentStep('pagamento')}>
+              <span className="text-gray-700 whitespace-pre-wrap">{additionalInfo}</span>
+            </ReviewRow>
+          )}
+
+          <div className="flex items-baseline justify-between gap-3 px-5 py-4">
+            <span className="text-sm font-medium text-gray-700">Total da NF-e</span>
+            <span className="text-lg font-semibold text-gray-900">{fmt(totalNfe)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Optional groups — collected before the review that shows them */}
+      {currentStep === 'pagamento' && (
+        <CollapsibleSection title="Configurações avançadas" description="Transporte e informações adicionais (opcional)"
+                            className="mt-4">
+          <div className="space-y-3">
             <div className="flex items-center gap-2">
               <input type="checkbox" id="toggle-transport" checked={showTransport}
                      onChange={e => {
@@ -1572,8 +1579,7 @@ export function NfeEmitForm() {
                        }
                      }}
                      className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
-              <label htmlFor="toggle-transport"
-                     className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer">
+              <label htmlFor="toggle-transport" className="text-sm font-medium text-gray-700 cursor-pointer">
                 Transporte
               </label>
             </div>
@@ -1588,7 +1594,7 @@ export function NfeEmitForm() {
                 {transport.mod_frete !== '9' && (
                   <>
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Transportadora</p>
+                      <p className="text-sm font-medium text-gray-600">Transportadora</p>
                       {(transport.mod_frete === '3' || transport.mod_frete === '4') && (
                         <p className="text-sm text-gray-500 rounded-lg bg-gray-50 border border-gray-100 px-4 py-2.5">
                           Transporte próprio — sem transportadora externa.
@@ -1613,7 +1619,7 @@ export function NfeEmitForm() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Veículo</p>
+                      <p className="text-sm font-medium text-gray-600">Veículo</p>
                       {selectedVehicle ? (
                         <div
                           className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5">
@@ -1657,18 +1663,25 @@ export function NfeEmitForm() {
           </div>
 
           {/* Additional info */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Informações adicionais</p>
-            <Textarea value={additionalInfo} onChange={e => setAdditionalInfo(e.target.value)}
+          <div className="space-y-2 pt-3 border-t border-gray-100">
+            <Label htmlFor="nfe-additional-info" className="text-sm font-medium text-gray-700">
+              Informações adicionais
+            </Label>
+            <Textarea id="nfe-additional-info" value={additionalInfo}
+                      onChange={e => setAdditionalInfo(e.target.value)}
                       placeholder="Observações, dados ao fisco, pedido, etc. (opcional)" rows={3}/>
           </div>
-          </CollapsibleSection>
-        </div>
+        </CollapsibleSection>
       )}
+
+      {/* Emission failure — rendered next to the action bar that triggers it */}
+      <div className="mt-4 empty:mt-0">
+        <EmitError message={submitError}/>
+      </div>
 
       {/* ── Navigation bar ────────────────────────────────────────────────── */}
       <div
-        className="sticky bottom-0 bg-gray-50 border-t border-gray-200 -mx-4 md:-mx-8 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-2">
+        className="sticky bottom-0 bg-gray-50 border-t border-gray-200 -mx-4 px-4 md:mx-0 md:px-0 py-3 md:py-4 flex items-center justify-between gap-2">
         {/* Left: totals (steps 2+) */}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm min-w-0">
           {currentStep !== 'destinatario' && totalProducts > 0 && (
@@ -1686,17 +1699,17 @@ export function NfeEmitForm() {
         {/* Right: navigation / submit */}
         <div className="flex items-center gap-2 shrink-0">
           {currentStep !== 'destinatario' && (
-            <Button type="button" variant="outline" size="sm" onClick={handleBack}>← Voltar</Button>
+            <Button type="button" variant="outline" onClick={handleBack}>Voltar</Button>
           )}
 
           {currentStep !== 'revisao' ? (
-            <Button type="button" variant="brand" size="sm" disabled={!canGoNext(currentStep)} onClick={handleNext}>
-              Próximo →
+            <Button type="button" variant="brand" disabled={!canGoNext(currentStep)} onClick={handleNext}>
+              Próximo
             </Button>
           ) : (
-            <Button type="button" variant="brand" size="sm" disabled={isSubmitting}
+            <Button type="button" variant="brand" disabled={isSubmitting}
                     onClick={() => setShowEmitConfirm(true)}>
-              {isSubmitting ? 'Emitindo...' : 'Emitir NF-e'}
+              {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
             </Button>
           )}
         </div>

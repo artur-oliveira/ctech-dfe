@@ -554,6 +554,14 @@ profissionais`}`), and `foreign_address` for a prestador/tomador without a natio
 optional at cadastro; required only when this person/org is used as prestador in a DPS emission
 (F2+), enforced at emission time, not here.
 
+`im` e `reg_trib` são editáveis na UI (bloco **NFS-e** do formulário de pessoa/organização,
+`EntityForm.tsx`); `caepf`, `nif`, `c_nao_nif` e `foreign_address` continuam só na API.
+
+**Forma do item de cadastro.** `organizations` e `organization_persons` gravam o DTO como veio da
+API: identidade (`name`, `cpf_or_cnpj`) na raiz e `addresses`, `contacts` e `nfse` **dentro de
+`person`**. Todo builder de DFe lê nesse formato (`getPersonMap` na NF-e, `nfseGroup`/`personDoc`
+em `services/nfses/document.go`) — nunca na raiz do item.
+
 #### Members & invitations
 
 Org-scoped (tenant via `Dfe-Organization-Pk` header). Visibility is role-gated.
@@ -806,7 +814,7 @@ documento — `service` é objeto, não lista.
 | `service.{description,value,tax_rate,c_trib_mun}`  | não | sobrescrevem o catálogo nesta emissão              |
 | `motivo_emis_ti`                      | condicional | exigido quando `tp_emit != 1`                                        |
 | `provider_person_id`                  | condicional | exigido quando `tp_emit != 1` — o prestador vira pessoa do cadastro  |
-| `customer_id` / `intermediary_id`     | não         | pessoas do cadastro; 404 se o id não existir                         |
+| `customer_id` / `intermediary_id`     | não         | pessoas do cadastro; 404 se o id não existir. O documento da própria organização é aceito (NFS-e para si mesma) e resolve para o item dela, que não existe em `organization_persons` |
 | `ch_nfse_rej`                         | não         | chave da NFS-e rejeitada que esta emissão substitui                  |
 | `substitutes_access_key` / `substitutes_reason` | não | preenchidos pelo próprio serviço em `POST /{id}/substitute`  |
 | `additional_info`                     | não         | ≤2000 caracteres                                                     |
@@ -1377,6 +1385,49 @@ Type-safe Axios wrapper. Holds `access_token` in module-level memory (never loca
 `_refreshFn` to silently refresh via ctech-account before retrying once. The request interceptor also strips null
 fields from POST (create) payloads (`stripNulls`/`isStrippableBody`) — see "DynamoDB storage policy — null omission".
 
+**Código de produto/serviço:** `code` é identificação interna, não fiscal. `ProductForm` e
+`ServiceForm` pré-preenchem o campo com `generateEntityCode()` (`lib/utils/code.ts`) — 16
+caracteres do alfabeto Crockford Base32, dentro do regex aceito pelo cadastro (A–Z, 0–9). O usuário
+pode sobrescrever; na edição o código existente é preservado.
+
+**Emissão de NF-e e NFC-e — duas formas, um vocabulário.** Os dois documentos compartilham
+componentes, não o fluxo, porque a economia de cada um é oposta:
+
+- **NF-e (`NfeEmitForm`)** — documento considerado. Wizard de 4 passos (Destinatário → Produtos →
+  Pagamento → Revisão). O passo *Revisão* é uma pré-visualização real do documento (linhas de item
+  com CFOP e total, pagamentos, parcelas de cobrança, transporte, informações adicionais), cada
+  bloco com um **Editar** que volta ao passo de origem. Transporte e informações adicionais são
+  coletados no passo *Pagamento*, dentro de `CollapsibleSection` — antes da revisão que os mostra.
+  O formulário **não** adiciona nenhum produto automaticamente; a nota começa vazia.
+- **NFC-e (`NfceEmitForm`)** — venda de balcão. **Tela única**, sem wizard: campo de busca/scanner
+  sempre visível e focado (Enter adiciona o item destacado, ↑/↓ movem, leitor de código de barras
+  funciona sem integração extra), lista de itens, pagamento com atalhos (Dinheiro / Cartão / PIX)
+  e o total sempre visível na barra de ação. **O CPF é perguntado uma vez, opcionalmente, junto ao
+  pagamento** — onde o operador realmente pergunta. Escanear o mesmo item duas vezes soma
+  quantidade em vez de criar outra linha.
+
+Componentes compartilhados pelas duas emissões (todos em `components/ui/`):
+
+| Componente / hook            | Papel                                                                            |
+|------------------------------|----------------------------------------------------------------------------------|
+| `ProductSearch`              | Busca de produto teclado-primeiro (↑/↓/Enter/Esc). `disabledReason` bloqueia produto inválido para o documento (ex.: NFC-e exige CFOP 5xxx) |
+| `ProductLineItem`            | Linha de produto (qtd/valor/desconto/total). O que difere por documento entra por `cfopSlot`, `badges` e `children` |
+| `EmitError`                  | Falha de emissão com `role="alert"` + `aria-live`, renderizada ao lado da barra de ação e com scroll automático |
+| `EmitConfirmModal`           | Confirmação da ação irreversível, com o resumo restated                          |
+| `DraftRecoveryBanner`        | Oferta de retomada de rascunho (nunca aplica sozinho)                            |
+| `lib/hooks/useEmitDraft`     | Autosave em localStorage por tipo de documento + organização (chave `pydfe_emit_draft_{docType}_{orgPk}`, debounce 500 ms, expira em 7 dias, limpo após emissão bem-sucedida). Recuperação local apenas — nada é enviado à API |
+| `lib/data/payment-options`   | Tabela tPag única, agrupada em Dinheiro / Cartão / PIX / Outros (`PAYMENT_OPTIONS`), + `QUICK_PAYMENT_TYPES` e `NO_PAYMENT_TYPE` |
+
+**Wizard de NFS-e (`NfseEmitForm`):** a competência são dois selects mês/ano (o valor enviado é
+sempre `01/mm/aaaa`; os anos ofertados são o corrente e os 4 anteriores). No passo *Tomador*, o
+botão **Usar a própria empresa** monta a organização como pessoa (`orgAsPerson`) e envia o
+documento dela em `customer_id` — a API resolve para o item da própria org.
+
+**Catálogo de serviços (`ServiceForm`):** CST PIS/COFINS e retenção PIS/COFINS/CSLL são selects
+(`PIS_COFINS_OPTIONS`, `TP_RET_PIS_COFINS_OPTIONS`), não campos livres. A alíquota de ISSQN só
+aparece — e só é obrigatória — quando `trib_issqn = 1` (operação tributável); imunidade, exportação
+e não incidência enviam `tax_rate = 0`, que o backend exige como `required`.
+
 **NF-e CFOP suffix grouping:** the emission form groups same-suffix saída CFOPs (e.g. `5920`/`6920`) into a single
 dropdown option and sends the concrete intra (`5xxx`) / inter (`6xxx`) variant resolved automatically from whether the
 destinatário is in the issuer's UF (re-resolved when the recipient changes). Emission is blocked when the
@@ -1485,7 +1536,7 @@ GitHub push → worker.yml
      a. build  CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build → dist/bootstrap
      b. zip    bootstrap → worker-{version}.zip
      c. upload s3://{env}-py-dfe-deployments/worker/{version}.zip
-     d. update aws lambda update-function-code (6 functions, parallel)
+     d. update aws lambda update-function-code (9 emission/event workers, parallel)
      e. wait   aws lambda wait function-updated
 ```
 
@@ -1496,7 +1547,17 @@ separate operations; the worker claim is the downstream duplicate guard.
 
 ### NFS-e no worker (F3)
 
-O roteamento não mudou: `Process` já escolhe go-dfe por `godfeImplements(msg.DocType, msg.SefazService)`, e a F2
+**Infra (2026-08-07):** o roteamento SNS→SQS é por `sefaz_service`, e sem uma `WorkerDefinition` que reivindique o
+serviço a mensagem some — SNS descarta o que nenhuma filter policy casa, sem DLQ e sem log (só a métrica
+`NumberOfNotificationsFilteredOut` do tópico). Foi o que aconteceu com a NFS-e até aqui: a linha ficava `pending`
+para sempre. `cdk/lib/worker-definitions.ts` agora declara `nfse-emission` (`NFSeRecepcao`, tabela `nfses`) e
+`nfse-event` (`NFSeEvento`, tabelas `nfses` + `nfse_events`), e o `distribution` ganhou
+`organization_nfse_configs`, `nfse_distributions`, `nfses` e `nfse_events` no role. Os dois Lambdas novos e seus
+DLQ processors também entraram nas listas de `.github/workflows/worker.yml` — o workflow atualiza função por nome,
+não pela lista do CDK. `test/worker-stack.test.ts` guarda a regressão: todo `sefaz_service` publicado pela API tem
+assinatura e nenhum é reivindicado por dois workers.
+
+O roteamento no código não mudou: `Process` já escolhe go-dfe por `godfeImplements(msg.DocType, msg.SefazService)`, e a F2
 colocou os serviços de NFS-e nesse mapa. O que muda é o tratamento da resposta — `handleSefazResponse` procura
 `cStat`/`xMotivo`/`nProt`, que não existem no layout nacional. `Process` desvia para `handleNfseResponse`
 (`worker/internal/service/nfse.go`) quando `isNfse(msg.DocType)`.
@@ -1571,7 +1632,7 @@ para `nfse_distributions` (`pk = {env}#{org_pk}`, `sk = nsu`), que é o que `GET
 | `IAMStack`      | `iam-stack.ts`       | Lambda roles, EC2 (V1 EB + V2 custom), instance profiles  |
 | `LayersStack`   | `layers-stack.ts`    | Lambda Layers scaffold                                    |
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda (SEFAZ) + inline layer                      |
-| `WorkerStack`   | `worker-stack.ts`    | 8 fiscal workers + outbox publisher + SQS/DLQ             |
+| `WorkerStack`   | `worker-stack.ts`    | 10 fiscal workers + outbox publisher + SQS/DLQ            |
 | `AlbStack`      | `alb-stack.ts`       | Dual-stack ALB without public IPv4, HTTPS listener        |
 | `ApiStack`      | `api-stack.ts`       | **Legacy** — Elastic Beanstalk (migration in progress)    |
 | `ApiStackV2`    | `api-v2-stack.ts`    | EC2 + ASG + Launch Template + Target Group + CW Logs      |

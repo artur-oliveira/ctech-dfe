@@ -20,22 +20,35 @@ func attrs(m map[string]string) map[string]types.AttributeValue {
 // catálogo (trib_nacional_code=10101, value=1000.00, iss.tax_rate=2.00) e um
 // body de emissão do prestador (tp_emit=1) referenciando o catálogo.
 func minimalInput() documentInput {
+	// Mesma forma que organizations/organization_persons gravam: identidade na
+	// raiz, endereços/contatos/grupo nfse dentro de `person`.
 	org := map[string]types.AttributeValue{
-		"cpf_cnpj": &types.AttributeValueMemberS{Value: "11222333000181"},
-		"name":     &types.AttributeValueMemberS{Value: "Prestador LTDA"},
-		"nfse": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
-			"reg_trib": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
-				"op_simp_nac":  &types.AttributeValueMemberN{Value: "1"},
-				"reg_esp_trib": &types.AttributeValueMemberN{Value: "0"},
+		"pk":          &types.AttributeValueMemberS{Value: "CNPJ_11222333000181"},
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: "11222333000181"},
+		"name":        &types.AttributeValueMemberS{Value: "Prestador LTDA"},
+		"person": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+			"nfse": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+				"reg_trib": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+					"op_simp_nac":  &types.AttributeValueMemberN{Value: "1"},
+					"reg_esp_trib": &types.AttributeValueMemberN{Value: "0"},
+				}},
 			}},
-		}},
-		"addresses": &types.AttributeValueMemberL{Value: []types.AttributeValue{
-			&types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
-				"street":         &types.AttributeValueMemberS{Value: "Rua Um"},
-				"number":         &types.AttributeValueMemberS{Value: "100"},
-				"neighborhood":   &types.AttributeValueMemberS{Value: "Centro"},
-				"city_ibge_code": &types.AttributeValueMemberS{Value: "2211001"},
-				"postal_code":    &types.AttributeValueMemberS{Value: "65000000"},
+			"contacts": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+				"emails": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+					&types.AttributeValueMemberS{Value: "fiscal@prestador.com.br"},
+				}},
+				"phones": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+					&types.AttributeValueMemberS{Value: "9832001000"},
+				}},
+			}},
+			"addresses": &types.AttributeValueMemberL{Value: []types.AttributeValue{
+				&types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
+					"street":         &types.AttributeValueMemberS{Value: "Rua Um"},
+					"number":         &types.AttributeValueMemberS{Value: "100"},
+					"neighborhood":   &types.AttributeValueMemberS{Value: "Centro"},
+					"city_ibge_code": &types.AttributeValueMemberS{Value: "2211001"},
+					"postal_code":    &types.AttributeValueMemberS{Value: "65000000"},
+				}},
 			}},
 		}},
 	}
@@ -103,6 +116,25 @@ func TestBuildDocument_RequiresRegTribOnPrestador(t *testing.T) {
 	in.Prestador = attrs(map[string]string{"name": "Prestador Terceiro"}) // sem grupo nfse
 	if _, err := buildDocument(in); err == nil {
 		t.Fatal("esperado erro: prestador sem reg_trib no cadastro")
+	}
+}
+
+// Regressão: identidade, endereço e contatos vivem em `person` no item de
+// cadastro. Ler a raiz do item produzia um DPS sem CNPJ e sem endereço.
+func TestBuildDocument_ReadsIdentityFromPersonGroup(t *testing.T) {
+	doc, err := buildDocument(minimalInput())
+	if err != nil {
+		t.Fatalf("buildDocument: %v", err)
+	}
+	p := doc.Prestador.Pessoa
+	if p.CNPJ != "11222333000181" {
+		t.Errorf("CNPJ = %q, esperado 11222333000181", p.CNPJ)
+	}
+	if p.Email != "fiscal@prestador.com.br" || p.Fone != "9832001000" {
+		t.Errorf("contatos = %q/%q, esperado vir de person.contacts", p.Email, p.Fone)
+	}
+	if p.End == nil || p.End.CMun != "2211001" || p.End.XLgr != "Rua Um" {
+		t.Fatalf("endereço = %+v, esperado vir de person.addresses[0]", p.End)
 	}
 }
 

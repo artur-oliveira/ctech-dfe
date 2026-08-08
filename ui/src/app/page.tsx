@@ -309,7 +309,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <a href={DFE_TERMS_URL} className="hover:text-gray-800" target="_blank"
                rel="noreferrer">
-              Termos do DF-e
+              Termos de uso
             </a>
             <a href={PRIVACY_POLICY_URL} className="hover:text-gray-800" target="_blank"
                rel="noreferrer">

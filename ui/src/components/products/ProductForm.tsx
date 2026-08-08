@@ -1,6 +1,7 @@
 'use client'
 
 import {startTransition, useEffect, useState} from 'react'
+import {generateEntityCode} from '@/lib/utils/code'
 import {useForm, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form'
@@ -468,6 +469,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const [convRow, setConvRow] = useState<ConversionFactorFormData>(EMPTY_CONVERSION_ROW)
   const [convError, setConvError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // Código é identificação interna: gerado por padrão, editável (lib/utils/code.ts).
+  const [defaultCode] = useState(generateEntityCode)
 
 
   const simples = IS_SIMPLES(crt)
@@ -475,7 +478,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: initialData ? toFormData(initialData) : {
-      code: '',
+      code: defaultCode,
       description: '',
       brand: '',
       ncm: '',

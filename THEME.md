@@ -19,6 +19,22 @@ primary-800: #256354  (text, dark elements)
 primary-900: #1a463e  (very dark, backgrounds)
 ```
 
+### Cores de status (texto)
+
+Ancoradas em `src/app/globals.css` para que o piso AA não volte a escorregar. Os defaults do
+Tailwind falham nos tamanhos em que estes estados são usados (12–14 px), então cada token fica um
+passo mais escuro:
+
+```
+--color-danger:  #dc2626  (red-600,   ≈4.83:1)  text-danger  — ações destrutivas
+--color-warning: #b45309  (amber-700, ≈4.68:1)  text-warning — pendências, saldo faltante
+--color-success: #15803d  (green-700, ≈4.54:1)  text-success — saldo conferido
+--color-gray-400: #64748b (slate-500, ≈4.76:1)  texto secundário
+```
+
+Nunca use `text-amber-600` (≈3.19:1) ou `text-green-600` (≈3.35:1) em texto em repouso. Estados de
+saldo também carregam glifo (`✓` / `⌛` / `↩`) — cor nunca é o único sinal.
+
 ## Componentes
 
 ### Login Page

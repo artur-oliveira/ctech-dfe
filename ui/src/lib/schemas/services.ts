@@ -8,12 +8,17 @@ const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida')
 const serviceIssSchema = z.object({
   // 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
   trib_issqn: z.enum(['1', '2', '3', '4']),
-  tax_rate: percent,
+  // Só a operação tributável (1) tem alíquota; nos demais casos o formulário
+  // esconde o campo e envia 0 (ServiceForm.toApiPayload).
+  tax_rate: percent.optional().or(z.literal('')),
   // 1 não retido | 2 retido pelo tomador | 3 retido pelo intermediário
   tp_ret_issqn: z.enum(['1', '2', '3']).optional().or(z.literal('')),
   tp_imunidade: z.enum(['0', '1', '2', '3', '4', '5']).optional().or(z.literal('')),
   c_pais_resultado: z.string().length(2, 'Código de país tem 2 letras').optional().or(z.literal('')),
 }).superRefine((v, ctx) => {
+  if (v.trib_issqn === '1' && !v.tax_rate) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['tax_rate'], message: 'Alíquota obrigatória'})
+  }
   if (v.trib_issqn !== '2' && v.tp_imunidade) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

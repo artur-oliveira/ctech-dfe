@@ -136,17 +136,17 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		if req.ProviderPersonID == nil {
 			return nil, problem.BadRequest("provider_person_id é obrigatório quando tp_emit != 1")
 		}
-		prestadorItem, err = s.resolvePerson(ctx, orgPK, req.ProviderPersonID)
+		prestadorItem, err = s.resolvePerson(ctx, orgPK, req.ProviderPersonID, orgItem)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	tomadorItem, err := s.resolvePerson(ctx, orgPK, req.CustomerID)
+	tomadorItem, err := s.resolvePerson(ctx, orgPK, req.CustomerID, orgItem)
 	if err != nil {
 		return nil, err
 	}
-	intermItem, err := s.resolvePerson(ctx, orgPK, req.IntermediaryID)
+	intermItem, err := s.resolvePerson(ctx, orgPK, req.IntermediaryID, orgItem)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
 		"emit_name":     strAttr(orgItem, "name"),
 		"dest_name":     strAttr(tomadorItem, "name"),
-		"dest_cpf_cnpj": strAttr(tomadorItem, "cpf_cnpj"),
+		"dest_cpf_cnpj": personDoc(tomadorItem),
 		"total":         doc.Valores.VServPrest.VServ,
 		"payload":       docMap,
 		"created_at":    now.UTC().Format(time.RFC3339),
@@ -253,10 +253,15 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 }
 
 // resolvePerson devolve nil quando o id é nil (pessoa opcional) e 404 quando o
-// id foi informado mas não existe no cadastro.
-func (s *NfseService) resolvePerson(ctx context.Context, orgPK string, id *string) (map[string]types.AttributeValue, error) {
+// id foi informado mas não existe no cadastro. Quando o id é o documento da
+// própria organização devolve o item dela: a empresa pode ser tomadora (ou
+// intermediária) da própria NFS-e e não existe como pessoa do cadastro.
+func (s *NfseService) resolvePerson(ctx context.Context, orgPK string, id *string, orgItem map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	if id == nil {
 		return nil, nil
+	}
+	if services.StripPKPrefix(*id) == services.StripPKPrefix(orgPK) {
+		return orgItem, nil
 	}
 	item, err := s.personRepo.Get(ctx, orgPK, *id)
 	if err != nil {

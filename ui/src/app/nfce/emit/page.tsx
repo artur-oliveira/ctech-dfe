@@ -16,7 +16,9 @@ function NfceEmitContent() {
             <span className="text-gray-600">Nova NFC-e</span>
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Emitir NFC-e</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal de Consumidor Eletrônica</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Escaneie os itens, receba o pagamento e emita — o CPF é opcional
+          </p>
         </div>
         
         <NfceEmitForm/>

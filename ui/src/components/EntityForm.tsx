@@ -17,6 +17,9 @@ import {
   CRT_OPTIONS_PJ,
   type EntityFormData,
   entitySchema,
+  OP_SIMP_NAC_OPTIONS,
+  REG_AP_TRIB_SN_OPTIONS,
+  REG_ESP_TRIB_OPTIONS,
   UF_OPTIONS,
 } from '@/lib/schemas/entity'
 import {organizationSchema} from '@/lib/schemas/organizations'
@@ -115,6 +118,7 @@ const DEFAULT_VALUES: EntityFormData = {
     state_registrations: [],
     addresses: [EMPTY_ADDRESS],
     contacts: {emails: [], phones: []},
+    nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
   },
 }
 
@@ -132,6 +136,7 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.addresses.length > 1) return true
   if (data.person.contacts.emails.length > 0) return true
   if (data.person.contacts.phones.length > 0) return true
+  if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
   return false
 }
@@ -187,6 +192,7 @@ export function EntityForm({
   const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? []
   const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? []
   const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? ''
+  const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'})
 
   // Autofill from SEFAZ lookup
   useEffect(() => {
@@ -323,6 +329,63 @@ export function EntityForm({
     </div>
   )
 
+  // NFS-e: inscrição municipal + regime tributário do prestador. Ficam no
+  // cadastro (e não na config da organização) porque quem presta pode ser uma
+  // pessoa quando a org emite como tomadora/intermediária — ver dto.go.
+  const nfseSection = (
+    <div className="pt-1 border-t border-gray-100">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">NFS-e</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <FormField control={form.control as never} name="person.nfse.im"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Inscrição municipal</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={15}
+                              inputMode="numeric" placeholder="Somente números"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        <FormField control={form.control as never} name="person.nfse.op_simp_nac"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Simples Nacional</FormLabel>
+                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                      options={OP_SIMP_NAC_OPTIONS} placeholder="Não informado"/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        {opSimpNac === '3' && (
+          <FormField control={form.control as never} name="person.nfse.reg_ap_trib_sn"
+                     render={({field}) => (
+                       <FormItem>
+                         <FormLabel>Apuração no Simples *</FormLabel>
+                         <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                        options={REG_AP_TRIB_SN_OPTIONS} placeholder="Selecione"/>
+                         <FormMessage/>
+                       </FormItem>
+                     )}
+          />
+        )}
+        <FormField control={form.control as never} name="person.nfse.reg_esp_trib"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Regime especial</FormLabel>
+                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                      options={REG_ESP_TRIB_OPTIONS} placeholder="Nenhum"/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+      </div>
+      <p className="text-xs text-gray-400 mt-2">
+        Obrigatório para emitir NFS-e como prestador.
+      </p>
+    </div>
+  )
+
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -430,6 +493,8 @@ export function EntityForm({
 
             {/* Inscrições Estaduais — sempre visível pra organização PJ (obrigatória) */}
             {isOrg && ieSection}
+
+            {nfseSection}
           </SectionCard>
 
           {/* Endereço principal */}
