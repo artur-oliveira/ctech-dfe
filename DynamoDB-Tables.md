@@ -42,6 +42,10 @@ PITR: enabled in production only.
 | 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
 | 30 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
 | 31 | `nfse_events`               | `{id_dps}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
+| 32 | `organization_tax_profiles` | `{org_pk}`                   | `TAXPROFILE_{uuid}`                      | `name-index`                                       |
+| 33 | `organization_operations`   | `{org_pk}`                   | `OPERATION_{uuid}`                       | `name-index`                                       |
+| 34 | `organization_payment_terms`| `{org_pk}`                   | `PAYMENTTERM_{uuid}`                     | `name-index`                                       |
+| 35 | `organization_vehicle_sets` | `{org_pk}`                   | `VEHICLESET_{uuid}`                      | `name-index`                                       |
 
 ---
 
@@ -185,6 +189,7 @@ cadastro requirement.
 | `pk`                         | S    | `{org_pk}` — partition key                                                                                                                                                                                                                       |
 | `sk`                         | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}` — sort key                                                                                                                                                                                               |
 | `name`                       | S    | Full name / razão social. GSI: `org-name-index`                                                                                                                                                                                                  |
+| `roles`                      | L    | Lista de papéis: `customer`, `supplier`, `carrier`, `driver`, `provider`. A mesma pessoa costuma ter mais de um. Filtrada por `contains(roles, :v)` sobre `org-name-index` (projeção ALL). É filtro de cadastro — **nenhuma emissão valida papel** |
 | `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                                                                                                                         |
 | `person.crt`                 | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE                                                                                                                                                                  |
 | `person.state_registrations` | L    | List of `{uf, state_registration}` (optional)                                                                                                                                                                                                    |
@@ -556,6 +561,36 @@ populated once the response arrives and is looked up via
 
 ---
 
+## 32–35. `organization_{tax_profiles,operations,payment_terms,vehicle_sets}`
+
+Cadastros reutilizáveis na emissão. As quatro tabelas compartilham forma, repositório
+(`OrgEntityRepository`) e serviço (`OrgEntityService`) — só mudam o prefixo do `sk` e os campos
+próprios de cada uma.
+
+| Attribute    | Type | Notes                                                            |
+|--------------|------|------------------------------------------------------------------|
+| `pk`         | S    | `{org_pk}` — partition key                                       |
+| `sk`         | S    | `TAXPROFILE_` / `OPERATION_` / `PAYMENTTERM_` / `VEHICLESET_` + uuid |
+| `name`       | S    | Nome exibido. GSI: `name-index`                                  |
+| `created_at` | S    | ISO-8601 UTC                                                     |
+| `updated_at` | S    | ISO-8601 UTC                                                     |
+
+Campos próprios (schemas completos em `DOCS.md § Cadastros reutilizáveis`):
+
+- **`organization_tax_profiles`** — `description`, `cfops` (L), e o bloco tributário
+  (ICMS/IPI/PIS/COFINS/IBS/CBS) idêntico ao de `organization_products.cfop_config`.
+- **`organization_operations`** — `doc_types` (L), `is_default` (BOOL, **no máximo uma por org**,
+  garantida por `TransactWrite` que desmarca a anterior), `nat_op`, `cfop_suffix` (3 dígitos),
+  `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `payment_term_id`, `additional_info`.
+- **`organization_payment_terms`** — `payment_type`, `ind_pag`, `installments` (N),
+  `interval_days` (N), `first_due_days` (N), `card` (M).
+- **`organization_vehicle_sets`** — `tractor_sk`, `trailer_sks` (L, máx. 3), `driver_docs` (L de
+  CPFs), `rntrc`, `ciot`.
+
+**GSI (as quatro):** `name-index` (PK: `pk`, SK: `name`), projeção ALL.
+
+---
+
 ## 31. `nfse_events`
 
 SEFAZ/municipal communication events for an NFS-e. Reuses `getEventsTable`, but is keyed by the document's `id_dps`
@@ -592,3 +627,6 @@ rather than `org_pk`, since events can arrive before the access key exists.
 | Everything a user did               | `query_gsi`      | `audit_logs` / `user-id-index`         |
 | Audit resource + its log atomically | `transact_write` | resource table + `audit_logs`          |
 | Persist document command atomically | `transact_write` | document/config + `worker_outbox`      |
+| List persons by role                | `query_gsi`      | `organization_persons` / `org-name-index` + `contains(roles, :v)` |
+| Marcar operação padrão              | `transact_write` | `organization_operations` (desmarca a anterior) |
+| Carregar perfis fiscais de um item  | `batch_get`      | `organization_tax_profiles`            |

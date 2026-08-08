@@ -996,7 +996,7 @@ tractor.
 
 | Method | Endpoint                   | Description                        |
 |--------|----------------------------|------------------------------------|
-| GET    | `/v1.0/persons`            | List (searchable by name/CPF/CNPJ) |
+| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider`, `?cursor=`, `?limit=` |
 | POST   | `/v1.0/persons`            | Register — 400 if `person.crt` missing for CNPJ; 409 if CPF/CNPJ already registered in this org |
 | PUT    | `/v1.0/persons/{cpf_cnpj}` | Update                             |
 | DELETE | `/v1.0/persons/{cpf_cnpj}` | Remove                             |
@@ -1009,6 +1009,64 @@ requirement. See `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastr
 `POST /persons` and `PUT /persons/{cpf_cnpj}` accept the same optional `person.nfse` object
 described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_trib`,
 `foreign_address`) — used when this person is the prestador/tomador of a DPS.
+
+**`roles` (multi-papel).** A person carries a `roles` list (`customer`, `supplier`, `carrier`,
+`driver`, `provider`) — the same CNPJ is often customer *and* carrier, so a single-value field would
+force duplicate records. `?role=` filters the listing via `contains(roles, :v)` on `org-name-index`.
+
+**Papel é filtro de cadastro, não regra de emissão.** Nenhuma emissão valida o papel: escolher como
+transportador alguém sem `carrier` na lista funciona. O filtro existe para encurtar a busca na UI —
+transformá-lo em validação quebraria emissões legítimas de quem nunca preencheu o campo.
+
+#### Cadastros reutilizáveis (perfis, operações, condições, composições)
+
+Quatro entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
+a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-index`):
+
+| Entidade                | Rota base                 | Prefixo do `sk` | Tabela                        |
+|-------------------------|---------------------------|-----------------|-------------------------------|
+| Perfil fiscal           | `/v1.0/tax-profiles`      | `TAXPROFILE_`   | `organization_tax_profiles`   |
+| Natureza de operação    | `/v1.0/operations`        | `OPERATION_`    | `organization_operations`     |
+| Condição de pagamento   | `/v1.0/payment-terms`     | `PAYMENTTERM_`  | `organization_payment_terms`  |
+| Composição veicular     | `/v1.0/vehicle-sets`      | `VEHICLESET_`   | `organization_vehicle_sets`   |
+
+Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
+`DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
+
+**Perfil fiscal** (`TaxProfileBody`): `name`, `description`, `cfops` (lista de CFOPs que o perfil
+cobre) e o mesmo bloco de campos tributários de `cfop_config` do produto (ICMS/IPI/PIS/COFINS/IBS/CBS).
+
+**Natureza de operação** (`OperationBody`): `name`, `doc_types` (`nfe`/`nfce`), `is_default`
+(no máximo uma por organização, garantida por `TransactWrite`), `nat_op`, `cfop_suffix` (3 dígitos —
+o escopo 5/6/7 é derivado na emissão), `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`,
+`payment_term_id`, `additional_info`. Os campos de texto aceitam os placeholders
+`{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um placeholder
+desconhecido é 400 no cadastro, não erro na emissão.
+
+**Condição de pagamento** (`PaymentTermBody`): `name`, `payment_type` (tPag), `ind_pag`
+(vazio = derivado), `installments`, `interval_days`, `first_due_days`, `card`. Na emissão expande
+para `payments` + `cobr_fat` + `cobr_duplicatas`; **a última parcela absorve o resíduo de
+arredondamento** para a soma fechar com `vNF` centavo a centavo.
+
+**Composição veicular** (`VehicleSetBody`): `name`, `tractor_sk`, `trailer_sks` (máx. 3),
+`driver_docs` (CPFs), `rntrc`, `ciot`. O serviço valida `role=tractor` no trator e `role=trailer` em
+cada reboque no momento do cadastro.
+
+#### Ordem de resolução na emissão
+
+**Tributação de um item** (`nfes.resolveCfopTax`) — perfil → override do produto → `cfop_config`:
+
+1. Campos dos perfis referenciados em `product.tax_profiles` que cobrem o CFOP do item.
+2. Campos do próprio produto (raiz) sobrescrevem o perfil.
+3. `cfop_config[cfop]` do produto vence tudo.
+
+Um CFOP que nenhuma das três camadas cobre é 400, com a lista de CFOPs válidos daquele produto.
+Produto sem `tax_profiles` segue exatamente como antes.
+
+**Campos da operação** (`nfes.resolveItemCFOP` / `interpolateOperationText`) — request → operação →
+padrão da organização. Valor explícito no request vence sempre; string vazia conta como ausente.
+O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.ResolveCFOPScope`
+(5 = intra-UF, 6 = interestadual, 7 = exterior).
 
 #### NF-e
 
@@ -1040,6 +1098,8 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 
 | Field             | Type        | Description                                                |
 |-------------------|-------------|------------------------------------------------------------|
+| `operation_id`    | string      | Natureza de operação do cadastro. Preenche `nat_op`, `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `additional_info` e o CFOP dos itens; **todo campo explícito no request vence**. Ausente, vale a operação marcada como padrão. |
+| `payment_term_id` | string      | Condição de pagamento do cadastro. Expande para `payments`, `cobr_fat` e `cobr_duplicatas` — cada um só quando o request não trouxe o seu. |
 | `nat_op`          | string      | Transaction nature — frontend sends a summarized CFOP description (≤60 chars; backend truncates with `…`). The UI also derives `tp_nf` from the first product's CFOP (1/2/3→0 inbound, 5/6/7→1 outbound) and blocks mixing inbound/outbound CFOPs. |
 | `fin_nfe`         | "1"–"4"     | Purpose: 1=Normal, 2=Complementary, 3=Adjustment, 4=Return |
 | `ind_final`       | "0"/"1"     | End consumer (default "1")                                 |
@@ -1142,6 +1202,9 @@ Modal is **rodoviário only** in the MVP; other modais are reserved.
 - `route[]?` — intermediate UFs between origin and destination (exclusive).
 - `loadings[]?` / `unloadings[]?` — loading/unloading municipalities `{ibge_code, city}` (ordering override;
   reorders the derived list to the supplied `ibge_code` order, unknown municipalities kept at the end).
+- `vehicle_set_id?` — composição veicular do cadastro. Preenche `vehicle`, `trailers`, `drivers`,
+  `rntrc` e `ciot`, **cada um só quando o request não trouxe o seu** — trocar o motorista de um dia
+  não exige criar outra composição. Um CPF da composição que saiu do cadastro de pessoas é 400.
 - `vehicle` — `{sk}` (registered vehicle; the UI always uses this path) **or** manual
   `{placa, tara, uf, renavam?, cap_kg?, tp_rod?, tp_car?}`. When `sk` is given, the registered
   vehicle must already have `weight`/`wheelset`/`bodywork` set — an incomplete vehicle returns
@@ -1150,8 +1213,10 @@ Modal is **rodoviário only** in the MVP; other modais are reserved.
   `owner` `{cpf|cnpj, name, rntrc, ie?, uf?, tp_prop?, tp_transp?}` for a **third-party** traction
   vehicle — its presence emits `veicTracao/prop` and drives `ide/tpTransp` (CPF⇒TAC, CNPJ⇒ETC/CTC);
   omit it for carga própria (own vehicle: no `prop`, no `tpTransp` — SEFAZ rule F25/745). Owner
-  must differ from the emitter (F21). This `owner` is a per-emission input, not read from the
-  vehicle's own (optional, informational-only) `owner` cadastro field.
+  must differ from the emitter (F21). Omitido no request, o `owner` cadastrado no veículo vale como
+  default (`cpf_cnpj` + `rntrc` + `name` obrigatórios; um cadastro pela metade é ignorado, porque um
+  `prop` incompleto seria rejeitado). Proprietário cadastrado **igual ao emitente** significa frota
+  própria: não vira `prop` e `ide/tpTransp` fica como está (F18/F19/F25).
 - `trailers[]?` — up to 3 `{sk}` (registered vehicles with `role=trailer`), emitted as
   `veicReboque`. Same completeness gating as `vehicle.sk` (`weight`/`cap_kg`/`bodywork` required).
 - `drivers[]` — `{name, cpf}` (≥ 1 required).
@@ -1452,7 +1517,11 @@ app/
 ├── products/       # Product catalog
 ├── services/       # Service catalog (NFS-e) (F4)
 ├── vehicles/       # Fleet
+├── vehicle-sets/   # Composições veiculares (cavalo + reboques + condutores)
 ├── persons/        # Customers/suppliers
+├── tax-profiles/   # Perfis fiscais reutilizáveis entre produtos
+├── operations/     # Naturezas de operação
+├── payment-terms/  # Condições de pagamento
 ├── certificates/   # A1 certificates
 └── fiscal-config/  # Issuance configuration (includes an NFS-e tab, F4)
 ```

@@ -492,11 +492,30 @@ produziria um item órfão.
   `organization_vehicles` row with `role=trailer` (GSI `role-index`), independently selectable
   by any tractor — not an array nested under a parent vehicle. `MdfeEmitBody.trailers[]`
   (`{sk}`, up to 3) resolves each into `veicReboque`.
-- **Vehicle `owner` (cpf_cnpj/rntrc/name/type) on `organization_vehicles` is optional fleet
-  metadata only** — it is NOT the source of MDF-e's third-party `veicTracao/prop` group. `prop`
-  stays a per-emission input (`MdfeEmitBody.vehicle.owner` / `MdfeOwner`) because who
-  leases/operates a given truck can vary trip-to-trip even for the same plate — the same
-  "varies per emission" reasoning that already excludes `condutor` from the vehicle record.
+- **Vehicle `owner` (cpf_cnpj/rntrc/name/type) on `organization_vehicles` é o *default* do
+  `veicTracao/prop`, nunca a palavra final.** `MdfeEmitBody.vehicle.owner` continua vencendo,
+  porque quem opera um caminhão pode mudar de viagem para viagem. Duas regras não negociáveis: um
+  cadastro incompleto (falta `cpf_cnpj`, `rntrc` ou `name`) é ignorado — `prop` pela metade é
+  rejeição da SEFAZ; e proprietário cadastrado **igual ao emitente** é frota própria, não vira
+  `prop` e deixa `ide/tpTransp` intacto (F18/F19/F25).
+
+## Cadastros reutilizáveis na emissão
+
+- **A ordem de resolução da tributação é única e vive em `nfes.resolveCfopTax`.** Perfil fiscal →
+  override na raiz do produto → `cfop_config[cfop]`, que vence. Nenhum outro ponto do código pode
+  mesclar campos tributários: duas ordens de precedência produzem notas diferentes para o mesmo
+  cadastro, e a divergência só aparece na auditoria.
+- **`services.ResolveCFOPScope` é a fonte da verdade do escopo do CFOP (5/6/7); o TypeScript é só
+  exibição.** A tabela de casos vive em `api/internal/services/testdata/cfop_scope_cases.json` e é
+  lida pelos testes das duas linguagens — mudou a regra, muda o JSON, e o teste de paridade do
+  front quebra junto.
+- **Query com `FilterExpression` pagina até encher a página.** O `Limit` do DynamoDB conta itens
+  *lidos*, não devolvidos, e o filtro roda depois da condição de chave: uma página curta não
+  significa fim da lista — só a ausência de `LastEvaluatedKey` significa. Ver
+  `services.MaxFilteredPageRoundTrips` (teto de idas ao banco por página).
+- **Papel de pessoa (`roles`) é filtro de cadastro, não validação de emissão.** Nenhum caminho de
+  emissão checa papel: exigir `carrier` para ser transportador quebraria toda emissão de quem nunca
+  preencheu o campo.
 
 ## Lambda
 
