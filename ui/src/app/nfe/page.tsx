@@ -28,7 +28,7 @@ import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 import {DownloadPdfButton} from "@/components/dfe/DownloadPdfButton";
 
@@ -456,7 +456,7 @@ function NfeListTab({
               <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
                   data-label="Total">{formatCurrency(nfe.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
-                <NfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
+                <DfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
               </td>
               <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
                   data-label="Emissão">

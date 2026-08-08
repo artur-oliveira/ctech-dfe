@@ -9,31 +9,11 @@ import {displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type Pagin
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
-import {isTransitionalStatus, NFE_STATUS_CLASSES, NFE_STATUS_LABELS} from '@/components/nfe/NfeStatusBadge'
-import {StatusBadge} from '@/components/ui/status-badge'
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-
-
-const EVENT_STATUS_CLASSES: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  processing: 'bg-blue-50 text-blue-700',
-  success: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  failed: 'bg-red-200 text-red-800',
-  retry: 'bg-orange-100 text-orange-700',
-}
-
-const EVENT_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendente',
-  processing: 'Processando',
-  success: 'Registrado',
-  rejected: 'Rejeitado',
-  failed: 'Falha',
-  retry: 'Tentando novamente',
-}
 
 const CANCEL_EVENT_TYPES = ['110111', '110112']
 
@@ -155,12 +135,7 @@ export function DfeDetail({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge
-            size="md"
-            label={NFE_STATUS_LABELS[doc.status] ?? doc.status}
-            className={NFE_STATUS_CLASSES[doc.status] ?? 'bg-gray-100 text-gray-600'}
-            isTransitional={isTransitionalStatus(doc.status)}
-          />
+          <DfeStatusBadge status={doc.status} size="md"/>
 
           {hasXml && (
             <>
@@ -225,10 +200,7 @@ export function DfeDetail({
             {cancelEvent.sefaz_protocol &&
                 <p className="font-mono text-xs text-gray-400">Protocolo do evento: {cancelEvent.sefaz_protocol}</p>}
             <div className="pt-0.5">
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[cancelEvent.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                {EVENT_STATUS_LABELS[cancelEvent.status] ?? cancelEvent.status}
-              </span>
+              <DfeStatusBadge status={cancelEvent.status} gender="m"/>
             </div>
           </div>
         </div>
@@ -345,10 +317,7 @@ export function DfeDetail({
               <td
                 data-label="Seq." className={`${TABLE_CELL} text-gray-500 font-mono text-xs`}>{String(evt.sequence_number).padStart(3, '0')}</td>
               <td data-label="Status" className={TABLE_CELL}>
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
-                </span>
+                <DfeStatusBadge status={evt.status} gender="m"/>
               </td>
               <td
                 data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>

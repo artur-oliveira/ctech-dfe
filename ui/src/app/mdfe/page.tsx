@@ -22,7 +22,7 @@ import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
 import {mdfeSchemaLabel} from '@/lib/constants/distributions'
-import {MdfeStatusCell} from '@/components/mdfe/MdfeStatusBadge'
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
@@ -81,7 +81,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
             </td>
             <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Carga">{formatCurrency(mdfe.cargo_value)}</td>
             <td className={TABLE_CELL} data-label="Status">
-              <MdfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive}/>
+              <DfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive} gender="m"/>
             </td>
             <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
               {mdfe.dh_emi ? new Date(mdfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(mdfe.year, mdfe.month, mdfe.day)}

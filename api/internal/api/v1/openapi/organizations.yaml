@@ -1,0 +1,474 @@
+paths:
+
+  # ── Organizations ──────────────────────────────────────────────────────────
+
+  /v1.0/organizations:
+    get:
+      tags: [Organizations]
+      summary: Lista as organizações do usuário
+      description: |
+        Array puro (sem envelope de paginação): um usuário pertence a poucas
+        organizações e o frontend precisa de todas para montar o seletor.
+      operationId: listOrganizations
+      responses:
+        '200':
+          description: Organizações a que o usuário pertence
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Organization' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Organizations]
+      summary: Cria uma organização
+      description: |
+        `multipart/form-data`, porque o certificado digital sobe junto: o campo
+        `data` traz o JSON da organização e `file`/`password` o PFX. Quando o
+        emitente é CNPJ o certificado é obrigatório; para CPF depende do tipo de
+        documento pretendido — consulte `GET /organizations/certificate-requirement`.
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  description: JSON serializado de `OrganizationCreateBody`.
+                  $ref: '#/components/schemas/OrganizationCreateBody'
+                file:
+                  type: string
+                  format: binary
+                  description: Certificado digital A1 no formato PFX/PKCS#12.
+                password:
+                  type: string
+                  description: Senha do PFX.
+      responses:
+        '201':
+          description: Organização criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1.0/organizations/certificate-requirement:
+    get:
+      tags: [Organizations]
+      summary: Informa se o certificado digital é obrigatório
+      description: |
+        Consultado antes de montar o formulário de criação: para CNPJ o
+        certificado é sempre exigido; para CPF a exigência depende do documento
+        que a organização pretende emitir.
+      operationId: getCertificateRequirement
+      parameters:
+        - name: cpf_or_cnpj
+          in: query
+          required: true
+          description: CPF ou CNPJ apenas com dígitos.
+          schema: { $ref: '#/components/schemas/CpfCnpj' }
+      responses:
+        '200':
+          description: Exigência resolvida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  required: { type: boolean }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1.0/organizations/{org_pk}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [Organizations]
+      summary: Detalha uma organização
+      operationId: getOrganization
+      responses:
+        '200':
+          description: Organização
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Organizations]
+      summary: Atualiza uma organização
+      description: Atualização parcial — campos ausentes preservam o valor atual.
+      operationId: updateOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationUpdateBody' }
+      responses:
+        '200':
+          description: Organização atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1.0/organizations/{org_pk}/authorized-viewers:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    post:
+      tags: [Organizations]
+      summary: Autoriza um CPF/CNPJ a baixar os XMLs da organização
+      description: |
+        Alimenta o grupo `autXML` da NF-e: quem estiver nesta lista consegue
+        baixar o XML dos documentos emitidos, direto na SEFAZ.
+      operationId: addAuthorizedViewer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorizedViewerBody' }
+      responses:
+        '200':
+          description: Organização atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1.0/organizations/{org_pk}/authorized-viewers/{cpf_cnpj}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+      - name: cpf_cnpj
+        in: path
+        required: true
+        description: CPF ou CNPJ do autorizado, apenas dígitos.
+        schema: { $ref: '#/components/schemas/CpfCnpj' }
+    delete:
+      tags: [Organizations]
+      summary: Remove um autorizado a baixar XML
+      operationId: removeAuthorizedViewer
+      responses:
+        '200':
+          description: Organização atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Certificates ───────────────────────────────────────────────────────────
+
+  /v1.0/organizations/{org_pk}/certificates:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [Certificates]
+      summary: Lista os certificados da organização
+      description: Somente metadados. A senha e o conteúdo do PFX nunca são devolvidos.
+      operationId: listCertificates
+      responses:
+        '200':
+          description: Certificados cadastrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Certificate' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Certificates]
+      summary: Envia um certificado digital A1
+      description: |
+        O PFX é validado (senha, validade, titularidade) e guardado
+        criptografado no S3. O MD5 do arquivo vira o identificador do
+        certificado.
+      operationId: uploadCertificate
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, password]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Certificado A1 no formato PFX/PKCS#12.
+                password:
+                  type: string
+                  description: Senha do PFX.
+      responses:
+        '200':
+          description: Certificado registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Certificate' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/certificates/{md5}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+      - name: md5
+        in: path
+        required: true
+        description: MD5 do arquivo PFX, devolvido no upload.
+        schema: { type: string, pattern: '^[0-9a-f]{32}$' }
+    delete:
+      tags: [Certificates]
+      summary: Remove um certificado
+      description: |
+        Remover o certificado em uso impede novas emissões até que outro seja
+        enviado. Documentos já autorizados não são afetados.
+      operationId: deleteCertificate
+      responses:
+        '204':
+          description: Certificado removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+
+  schemas:
+
+    # -- Entidades compartilhadas (pessoa/organização) ---------------------
+
+    AddressBody:
+      type: object
+      required: [city_ibge_code, street, neighborhood, number, city, state_federation, postal_code]
+      properties:
+        city_ibge_code: { $ref: '#/components/schemas/Ibge' }
+        street: { type: string, maxLength: 255 }
+        neighborhood: { type: string, maxLength: 120 }
+        number: { type: string, maxLength: 20 }
+        city: { type: string, maxLength: 120 }
+        state_federation: { $ref: '#/components/schemas/Uf' }
+        postal_code: { $ref: '#/components/schemas/Cep' }
+        complement: { type: [string, 'null'], maxLength: 120 }
+
+    StateRegistrationBody:
+      type: object
+      description: Inscrição estadual por UF.
+      required: [uf, state_registration]
+      properties:
+        uf: { $ref: '#/components/schemas/Uf' }
+        state_registration: { type: string, maxLength: 20 }
+
+    ContactsBody:
+      type: object
+      properties:
+        emails:
+          type: array
+          maxItems: 5
+          items: { type: string, format: email }
+        phones:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/PhoneBr' }
+
+    NfseRegTribBody:
+      type: object
+      description: Regime tributário do prestador (grupo TCRegTrib da DPS).
+      required: [op_simp_nac]
+      properties:
+        op_simp_nac:
+          type: integer
+          enum: [1, 2, 3]
+          description: '`1` não optante · `2` optante MEI · `3` optante ME/EPP.'
+        reg_ap_trib_sn:
+          type: [integer, 'null']
+          enum: [1, 2, 3, null]
+          description: |
+            Exigido apenas quando `op_simp_nac = 3`. `1` federais e municipal
+            pelo SN · `2` federais pelo SN, ISSQN por fora · `3` ambos por fora.
+        reg_esp_trib:
+          type: integer
+          enum: [0, 1, 2, 3, 4, 5, 6, 9]
+          description: |
+            `0` nenhum · `1` ato cooperado · `2` estimativa · `3` microempresa
+            municipal · `4` notário/registrador · `5` profissional autônomo ·
+            `6` sociedade de profissionais · `9` outros.
+
+    NfseForeignAddressBody:
+      type: object
+      description: Endereço no exterior (TCEnderExt), usado quando não há endereço nacional.
+      required: [c_pais, c_end_post, x_cidade, x_estado_prov, x_lgr, nro, x_bairro]
+      properties:
+        c_pais: { type: string, minLength: 2, maxLength: 2, description: Código do país (2 letras). }
+        c_end_post: { type: string, maxLength: 11 }
+        x_cidade: { type: string, maxLength: 60 }
+        x_estado_prov: { type: string, maxLength: 60 }
+        x_lgr: { type: string, maxLength: 255 }
+        nro: { type: string, maxLength: 60 }
+        x_cpl: { type: [string, 'null'], maxLength: 156 }
+        x_bairro: { type: string, maxLength: 60 }
+
+    NfseInfoBody:
+      type: object
+      description: |
+        Campos exigidos pela NFS-e que não existem no cadastro de NF-e. Fica no
+        objeto `person` porque prestador e tomador têm os mesmos campos de
+        identidade.
+      properties:
+        im:
+          type: [string, 'null']
+          pattern: '^\d{1,15}$'
+          description: Inscrição municipal.
+        caepf:
+          type: [string, 'null']
+          pattern: '^\d{14}$'
+        nif:
+          type: [string, 'null']
+          pattern: '^[A-Za-z0-9]{1,40}$'
+          description: Número de identificação fiscal no exterior.
+        c_nao_nif:
+          type: [integer, 'null']
+          enum: [0, 1, 2, null]
+          description: '`0` não informado · `1` dispensado · `2` não exigência.'
+        reg_trib: { $ref: '#/components/schemas/NfseRegTribBody' }
+        foreign_address: { $ref: '#/components/schemas/NfseForeignAddressBody' }
+
+    PersonObjectBody:
+      type: object
+      description: Objeto `person` compartilhado por pessoas e organizações.
+      required: [addresses]
+      properties:
+        fantasy_name: { type: [string, 'null'], maxLength: 255 }
+        crt:
+          type: [integer, 'null']
+          enum: [1, 2, 3, 4, null]
+          description: |
+            Código do Regime Tributário. `1` Simples Nacional · `2` Simples
+            Nacional excesso de sublimite · `3` Regime Normal · `4` MEI.
+        state_registrations:
+          type: array
+          items: { $ref: '#/components/schemas/StateRegistrationBody' }
+        addresses:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/AddressBody' }
+        contacts: { $ref: '#/components/schemas/ContactsBody' }
+        nfse: { $ref: '#/components/schemas/NfseInfoBody' }
+
+    Person:
+      type: object
+      description: Pessoa cadastrada na organização.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: 'CPF/CNPJ, que identifica a linha.' }
+        name: { type: string }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PersonCreateBody:
+      type: object
+      required: [cpf_or_cnpj, name, person]
+      properties:
+        cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
+        name: { type: string, minLength: 2, maxLength: 255 }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+
+    PersonUpdateBody:
+      type: object
+      description: Atualização parcial. O documento vem do path.
+      properties:
+        name: { type: [string, 'null'], minLength: 2, maxLength: 255 }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+
+    Organization:
+      type: object
+      description: Organização emitente.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+        authorized_viewers:
+          type: array
+          items: { $ref: '#/components/schemas/AuthorizedViewerBody' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    OrganizationCreateBody:
+      type: object
+      required: [cpf_or_cnpj, name, person]
+      properties:
+        cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
+        name: { type: string, minLength: 2, maxLength: 255 }
+        description: { type: [string, 'null'], maxLength: 120 }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+
+    OrganizationUpdateBody:
+      type: object
+      description: Atualização parcial.
+      properties:
+        name: { type: [string, 'null'], minLength: 2, maxLength: 255 }
+        description: { type: [string, 'null'], maxLength: 120 }
+        person: { $ref: '#/components/schemas/PersonObjectBody' }
+
+    AuthorizedViewerBody:
+      type: object
+      description: Entrada da lista `autXML` da NF-e.
+      required: [cpf_or_cnpj, name]
+      properties:
+        cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
+        name: { type: string, minLength: 2, maxLength: 60 }
+
+    Certificate:
+      type: object
+      description: Metadados do certificado A1. Senha e conteúdo nunca são expostos.
+      additionalProperties: true
+      properties:
+        md5: { type: string, description: Identificador do certificado. }
+        subject: { type: string }
+        issuer: { type: string }
+        not_before: { type: string, format: date-time }
+        not_after: { type: string, format: date-time }
+        cpf_cnpj: { type: string }
+        created_at: { type: string, format: date-time }

@@ -26,7 +26,8 @@ import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {NfseStatusCell, NFSE_STATUS_LABELS} from '@/components/nfse/NfseStatusBadge'
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
+import {dfeStatusOptions, NFSE_STATUSES} from '@/lib/data/dfe_status'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
 import {useState} from 'react'
@@ -44,7 +45,7 @@ const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
 
 const STATUS_OPTIONS = [
   {value: '', label: 'Todos'},
-  ...Object.entries(NFSE_STATUS_LABELS).map(([value, label]) => ({value, label})),
+  ...dfeStatusOptions(NFSE_STATUSES),
 ]
 
 function NfsesContent() {
@@ -229,7 +230,7 @@ function NfsesContent() {
                     </td>
                     <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Valor">{formatCurrency(nfse.total)}</td>
                     <td className={TABLE_CELL} data-label="Status">
-                      <NfseStatusCell status={nfse.status} sefazMotive={nfse.sefaz_motive}/>
+                      <DfeStatusCell status={nfse.status} sefazMotive={nfse.sefaz_motive}/>
                     </td>
                     <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emitida em">
                       {formatDatetimeBR(nfse.created_at)}

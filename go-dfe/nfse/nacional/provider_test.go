@@ -3,6 +3,7 @@ package nacional
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -59,6 +60,16 @@ func TestNacional_Emit(t *testing.T) {
 	if received["dpsXmlGZipB64"] == "" {
 		t.Error("dpsXmlGZipB64 não foi enviado")
 	}
+	sentDPS, err := UngzipB64(received["dpsXmlGZipB64"])
+	if err != nil {
+		t.Fatalf("descompactar DPS enviada: %v", err)
+	}
+	if !strings.HasPrefix(string(sentDPS), xml.Header) {
+		t.Errorf("DPS enviada não começa com declaração UTF-8: %q", sentDPS[:min(len(sentDPS), len(xml.Header))])
+	}
+	if strings.Count(string(sentDPS), xml.Header) != 1 {
+		t.Errorf("DPS enviada deve conter uma declaração XML, veio %d", strings.Count(string(sentDPS), xml.Header))
+	}
 	if res.ChaveAcesso != strings.Repeat("9", 50) {
 		t.Errorf("ChaveAcesso = %q", res.ChaveAcesso)
 	}
@@ -93,10 +104,12 @@ func TestNacional_QueryByDPSID(t *testing.T) {
 func TestNacional_Event(t *testing.T) {
 	eventoXML := "<evento><infEvento/></evento>"
 	encoded, _ := GzipB64([]byte(eventoXML))
+	var received map[string]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/eventos") || r.Method != http.MethodPost {
 			t.Errorf("rota inesperada: %s %s", r.Method, r.URL.Path)
 		}
+		_ = json.NewDecoder(r.Body).Decode(&received)
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]any{"eventoXmlGZipB64": encoded})
 	}))
@@ -110,6 +123,16 @@ func TestNacional_Event(t *testing.T) {
 	}
 	if res.EventoXML != eventoXML {
 		t.Errorf("EventoXML = %q", res.EventoXML)
+	}
+	sentEvent, err := UngzipB64(received["pedidoRegistroEventoXmlGZipB64"])
+	if err != nil {
+		t.Fatalf("descompactar evento enviado: %v", err)
+	}
+	if !strings.HasPrefix(string(sentEvent), xml.Header) {
+		t.Errorf("evento enviado não começa com declaração UTF-8: %q", sentEvent[:min(len(sentEvent), len(xml.Header))])
+	}
+	if strings.Count(string(sentEvent), xml.Header) != 1 {
+		t.Errorf("evento enviado deve conter uma declaração XML, veio %d", strings.Count(string(sentEvent), xml.Header))
 	}
 }
 

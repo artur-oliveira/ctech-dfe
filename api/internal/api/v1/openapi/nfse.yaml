@@ -1,0 +1,420 @@
+paths:
+
+  # ── NFS-e ──────────────────────────────────────────────────────────────────
+
+  /v1.0/nfses:
+    post:
+      tags: [NFS-e]
+      summary: Emite uma NFS-e
+      description: |
+        Diferente da NF-e, a NFS-e tem **um** serviço por documento. A linha é
+        identificada pelo `id_dps` (não pela chave de acesso), que só existe
+        depois da autorização.
+
+        `tp_emit` define quem emite: `1` prestador, `2` tomador, `3`
+        intermediário. Em `2` e `3` o prestador é uma pessoa do cadastro
+        (`provider_person_id`) e precisa do próprio regime tributário
+        (`person.nfse.reg_trib`).
+      operationId: emitNfse
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfseEmitBody' }
+      responses:
+        '201':
+          description: NFS-e registrada e enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfseDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [NFS-e]
+      summary: Lista NFS-e
+      operationId: listNfses
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - name: status
+          in: query
+          description: Filtra pelo status do documento.
+          schema: { $ref: '#/components/schemas/DocumentStatus' }
+        - $ref: '#/components/parameters/FilterNumber'
+        - $ref: '#/components/parameters/FilterYear'
+        - $ref: '#/components/parameters/FilterMonth'
+      responses:
+        '200':
+          description: Página de NFS-e
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/NfseDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/nfses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    get:
+      tags: [NFS-e]
+      summary: Detalha uma NFS-e
+      operationId: getNfse
+      responses:
+        '200':
+          description: NFS-e
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfseDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfses/{id}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    get:
+      tags: [NFS-e]
+      summary: Baixa o XML da NFS-e autorizada
+      description: XML devolvido pelo fisco. Antes da autorização use `/dps-xml`.
+      operationId: getNfseXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfses/{id}/dps-xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    get:
+      tags: [NFS-e]
+      summary: Baixa o XML da DPS assinada
+      description: A declaração enviada pelo contribuinte, disponível antes da autorização.
+      operationId: getNfseDpsXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfses/{id}/danfse:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    get:
+      tags: [NFS-e]
+      summary: Baixa o DANFSe em PDF
+      description: O PDF é obtido no Ambiente de Dados Nacional e repassado ao cliente.
+      operationId: getNfseDanfse
+      responses:
+        '200': { $ref: '#/components/responses/PdfDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfses/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    post:
+      tags: [NFS-e]
+      summary: Cancela uma NFS-e (evento 101101)
+      description: Só depois da autorização. O prazo é definido pelo município.
+      operationId: cancelNfse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code, reason_description]
+              properties:
+                reason_code:
+                  type: string
+                  maxLength: 2
+                  description: Código do motivo, conforme tabela do leiaute.
+                reason_description:
+                  type: string
+                  maxLength: 255
+                sequence_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 999
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfseDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfses/{id}/substitute:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    post:
+      tags: [NFS-e]
+      summary: Substitui uma NFS-e por uma nova emissão
+      description: |
+        Não é registro de evento: é uma nova DPS com o grupo `subst`. O fisco
+        gera o evento `105102` e cancela a substituída. O corpo é o mesmo da
+        emissão.
+      operationId: substituteNfse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfseEmitBody' }
+      responses:
+        '201':
+          description: NFS-e substituta registrada e enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfseDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfses/{id}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+    post:
+      tags: [NFS-e]
+      summary: Registra um evento na NFS-e
+      description: |
+        Só eventos privativos do contribuinte. Os do fisco (`105104`, `105105`,
+        `205204`, `305101`–`305103`) chegam pela distribuição do ADN e são
+        recusados aqui. Para cancelamento por substituição use
+        `POST /nfses/{id}/substitute`.
+      operationId: createNfseEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfseEventBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfseDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [NFS-e]
+      summary: Lista os eventos de uma NFS-e
+      operationId: listNfseEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DocumentEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfses/{id}/events/{event_sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/NfseId'
+      - $ref: '#/components/parameters/EventSk'
+    get:
+      tags: [NFS-e]
+      summary: Baixa o XML de um evento
+      operationId: getNfseEventXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfse/municipal-parameters/{city}/{kind}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: city
+        in: path
+        required: true
+        description: Código IBGE do município.
+        schema: { $ref: '#/components/schemas/Ibge' }
+      - name: kind
+        in: path
+        required: true
+        description: Consulta desejada no ADN.
+        schema: { type: string }
+    get:
+      tags: [NFS-e]
+      summary: Consulta parâmetros municipais no ADN
+      description: |
+        Proxy das consultas de parâmetros do Ambiente de Dados Nacional
+        (alíquotas, convênio, regimes especiais, benefícios). Os filtros
+        aplicáveis variam com `kind`; os não usados são ignorados.
+      operationId: getNfseMunicipalParameters
+      parameters:
+        - name: service
+          in: query
+          description: Código do serviço da tabela nacional.
+          schema: { type: string }
+        - name: competence
+          in: query
+          description: Competência no formato aceito pelo ADN.
+          schema: { type: string }
+        - name: benefit_number
+          in: query
+          description: Número do benefício municipal.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Resposta do ADN
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfse/distributions:
+    get:
+      tags: [NFS-e]
+      summary: Lista as NFS-e recebidas do ADN
+      description: |
+        Documentos em que a organização figura como tomador ou intermediário,
+        obtidos pela distribuição por cursor de NSU.
+      operationId: listNfseDistributions
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de documentos distribuídos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Distribution' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+
+  schemas:
+
+    # -- Emissão e eventos de NFS-e -----------------------------------------
+
+    NfseServiceItem:
+      type: object
+      description: |
+        Serviço da NFS-e. Referencia o catálogo e permite sobrepor descrição,
+        valor e alíquota nesta emissão.
+      required: [service_id]
+      properties:
+        service_id: { type: string }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        value: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
+        tax_rate: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
+        c_trib_mun: { type: [string, 'null'], maxLength: 20, description: Código de tributação municipal. }
+
+    NfseEmitBody:
+      type: object
+      description: |
+        Emissão de NFS-e. Um serviço por documento. As chaves são em inglês,
+        exceto os códigos do leiaute da DPS (`tp_emit`, `motivo_emis_ti`,
+        `ch_nfse_rej`, `c_trib_mun`), que mantêm o nome normativo.
+      required: [tp_emit, competence, service]
+      properties:
+        tp_emit:
+          type: integer
+          enum: [1, 2, 3]
+          description: '`1` prestador · `2` tomador · `3` intermediário.'
+        motivo_emis_ti:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: Motivo da emissão por tomador/intermediário.
+        ch_nfse_rej:
+          type: string
+          minLength: 50
+          maxLength: 50
+          pattern: '^\d{50}$'
+          description: Chave da NFS-e rejeitada que motivou esta emissão.
+        competence:
+          type: string
+          pattern: '^\d{2}/\d{2}/\d{4}$'
+          description: Competência no formato `DD/MM/AAAA`.
+        provider_person_id:
+          type: [string, 'null']
+          description: Prestador do cadastro — exigido quando `tp_emit` não é `1`.
+        customer_id: { type: [string, 'null'], description: Tomador do cadastro. }
+        intermediary_id: { type: [string, 'null'], description: Intermediário do cadastro. }
+        service: { $ref: '#/components/schemas/NfseServiceItem' }
+        substitutes_access_key:
+          type: [string, 'null']
+          pattern: '^\d{50}$'
+          description: Chave da NFS-e substituída — gera o evento `105102` no fisco.
+        substitutes_reason: { type: [string, 'null'], maxLength: 2 }
+        additional_info: { type: [string, 'null'], maxLength: 2000 }
+
+    NfseEventBody:
+      type: object
+      description: |
+        Evento de NFS-e emitido pelo contribuinte. `id_ev_manif_rej` e
+        `cpf_ag_trib` mantêm o nome normativo do leiaute.
+      required: [event_type]
+      properties:
+        event_type:
+          type: string
+          pattern: '^\d{6}$'
+          description: Código do evento. Eventos privativos do fisco são recusados.
+        sequence_number: { type: integer, minimum: 1, maximum: 999 }
+        reason_code: { type: string, maxLength: 2 }
+        reason_description: { type: string, maxLength: 255 }
+        substitute_access_key: { type: string, pattern: '^\d{50}$' }
+        cpf_ag_trib: { $ref: '#/components/schemas/Cpf' }
+        id_ev_manif_rej: { type: string, maxLength: 60 }

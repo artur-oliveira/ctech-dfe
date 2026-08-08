@@ -110,8 +110,9 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
 ## 6. CloudFront / Frontend (`lib/frontend-stack.ts`)
 
 Private S3 `${env}-ctech-dfe-frontend` + OAC; CloudFront Function URL-rewrite (clean URLs →
-`.html`, unknown → `/404.html`); API origin behavior for `/v1.0/*` (CACHING_DISABLED);
-security headers (HSTS 2y, frame DENY, CSP `default-src 'self'`); `priceClass PRICE_CLASS_100`;
+`.html`, unknown → `/404.html`); API origin behavior for `/v1.0/*` (CACHING_DISABLED) and for
+`/docs`, `/openapi.json`, `/openapi.yaml` (same behavior, own CSP allowing unpkg for Stoplight
+Elements); security headers (HSTS 2y, frame DENY, CSP `default-src 'self'`); `priceClass PRICE_CLASS_100`;
 HTTP2+3; TLS 1.2_2021. **No `geoRestriction`** in this stack (if any Brazil geo-restriction
 exists it is applied elsewhere).
 

@@ -22,6 +22,13 @@ const nextConfig: NextConfig = {
       async rewrites() {
         return [
           {source: '/v1.0/:path*', destination: `${DEV_API_ORIGIN}/v1.0/:path*`},
+          // OpenAPI spec + Stoplight page. Served by the API outside /v1.0, and
+          // forwarded here for the same reason: CloudFront does it in deployed
+          // environments (DOCS_PATH_PATTERNS in cdk/lib/frontend-stack.ts).
+          ...['/docs', '/openapi.json', '/openapi.yaml'].map((source) => ({
+            source,
+            destination: `${DEV_API_ORIGIN}${source}`,
+          })),
         ];
       },
     }),

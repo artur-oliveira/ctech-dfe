@@ -31,31 +31,33 @@ export function StatusBadge({label, className, isTransitional, size = 'sm'}: {
 }
 
 /**
- * Wraps a badge so that, when a SEFAZ rejection/failure motive exists, the
- * badge becomes a button opening a portal Modal with the motive. The Modal
- * (not a hover tooltip) works on mobile and never gets clipped by the table's
- * overflow container.
+ * Wraps a badge so that, when a motive exists for the status, the badge becomes
+ * a button opening a portal Modal with the motive. The Modal (not a hover
+ * tooltip) works on mobile and never gets clipped by the table's overflow
+ * container. `motiveTitle` names the cause (rejection / failure / retry) —
+ * passing it as null means this status has no motive to show.
  */
-export function StatusCell({badge, sefazMotive, showMotive}: {
+export function StatusCell({badge, sefazMotive, motiveTitle, iconClassName = 'text-red-600'}: {
   badge: ReactNode
   sefazMotive: string | null
-  showMotive: boolean
+  motiveTitle: string | null
+  iconClassName?: string
 }) {
   const [open, setOpen] = useState(false)
-  if (!(showMotive && sefazMotive)) return <>{badge}</>
+  if (!(motiveTitle && sefazMotive)) return <>{badge}</>
   return (
     <>
       <button type="button" onClick={() => setOpen(true)}
-              className="inline-flex items-center gap-1 cursor-pointer" title="Ver motivo da rejeição">
+              className="inline-flex items-center gap-1 cursor-pointer" title={`Ver ${motiveTitle.toLowerCase()}`}>
         {badge}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-             strokeLinecap="round" strokeLinejoin="round" className="text-red-600 shrink-0" aria-hidden="true">
+             strokeLinecap="round" strokeLinejoin="round" className={`${iconClassName} shrink-0`} aria-hidden="true">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="16" x2="12" y2="12"/>
           <line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
       </button>
-      <Modal isOpen={open} title="Motivo da rejeição" onClose={() => setOpen(false)} cancelLabel="Fechar">
+      <Modal isOpen={open} title={motiveTitle} onClose={() => setOpen(false)} cancelLabel="Fechar">
         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{sefazMotive}</p>
       </Modal>
     </>

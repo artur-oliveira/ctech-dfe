@@ -16,10 +16,25 @@ describe('resolveDfeResultToast — document results', () => {
     })
   })
 
-  it('falls back to an info toast for unknown statuses', () => {
+  it('concorda o gênero com o documento', () => {
+    expect(resolveDfeResultToast({table_name: 'mdfes', status: 'authorized'})).toEqual({
+      variant: 'success',
+      message: 'MDF-e autorizado pela SEFAZ',
+    })
+  })
+
+  // retryable_failed não é terminal: o worker reprocessa sozinho, então o toast
+  // informa sem mandar o usuário agir.
+  it('trata retryable_failed como aviso, não como erro', () => {
+    const r = resolveDfeResultToast({table_name: 'nfes', status: 'retryable_failed', sefaz_motive: 'timeout SEFAZ'})
+    expect(r.variant).toBe('info')
+    expect(r.message).toBe('NF-e não pôde ser enviada agora — tentando novamente — timeout SEFAZ')
+  })
+
+  it('rotula o status no fallback em vez de vazar o valor cru', () => {
     expect(resolveDfeResultToast({table_name: 'mdfes', status: 'processing'})).toEqual({
       variant: 'info',
-      message: 'MDF-e atualizada — status: processing',
+      message: 'MDF-e atualizado — status: Processando',
     })
   })
 })
@@ -54,7 +69,15 @@ describe('resolveDfeResultToast — event results', () => {
   it('reports a successful cancellation', () => {
     expect(
       resolveDfeResultToast({result_kind: 'event', table_name: 'mdfes', event_type: '110111', status: 'success'}),
-    ).toEqual({variant: 'success', message: 'MDF-e cancelada com sucesso'})
+    ).toEqual({variant: 'success', message: 'MDF-e cancelado com sucesso'})
+  })
+
+  it('avisa retentativa de evento sem chamar de falha', () => {
+    const r = resolveDfeResultToast({
+      result_kind: 'event', table_name: 'mdfes', event_type: '110112', status: 'retryable_failed',
+    })
+    expect(r.variant).toBe('info')
+    expect(r.message).toBe('Encerramento de MDF-e não concluído — tentando novamente')
   })
 
   it('reports a rejected cancellation with the motive', () => {
@@ -72,7 +95,7 @@ describe('resolveDfeResultToast — event results', () => {
   it('uses encerramento wording for MDF-e event 110112', () => {
     expect(
       resolveDfeResultToast({result_kind: 'event', table_name: 'mdfes', event_type: '110112', status: 'success'}),
-    ).toEqual({variant: 'success', message: 'MDF-e encerrada com sucesso'})
+    ).toEqual({variant: 'success', message: 'MDF-e encerrado com sucesso'})
   })
 
   it('treats 110112 as cancellation (substituição) for NF-e', () => {

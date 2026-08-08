@@ -344,6 +344,9 @@ go-dfe/nfse/
 - **Serialização:** `nacional/dps.go`'s structs `encoding/xml` têm a ordem de campo normativa —
   ela É a ordem do XSD (`tiposComplexos_v1.01.xsd`); não existe tabela `xsdorder` para NFS-e como
   para os demais doc types. `TestBuildDPS_MatchesGolden` é o guarda contra reordenação acidental.
+  Antes do gzip+base64, DPS e pedidos de evento recebem `<?xml version="1.0" encoding="UTF-8"?>`
+  depois da assinatura; o Sefin rejeita o documento sem esse prólogo com E1229. A declaração fica
+  fora do elemento assinado e não altera o digest XML-DSig.
 - **`Body` de `dfe.Request` para NFS-e** (chaves lidas por `nfse.Dispatch`,
   `go-dfe/nfse/dispatch.go`):
 
@@ -497,6 +500,53 @@ sqs_request(payload)
 
 1. Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 2. IMDSv2 (EC2/ECS instance) with 2s timeout
+
+### OpenAPI documentation
+
+The API publishes an OpenAPI 3.1 description and a rendered reference page. Both are **public** —
+documentation behind authentication is not documentation — and are mounted on the app root, outside
+the `/v1.0` group:
+
+| Route           | Content                                                            |
+|-----------------|--------------------------------------------------------------------|
+| `/openapi.json` | Merged spec as JSON (what Stoplight Elements and codegen consume)   |
+| `/openapi.yaml` | Merged spec as YAML                                                 |
+| `/docs`         | Stoplight Elements reference page (pinned version + SRI, from unpkg) |
+
+**Source of truth:** `api/internal/api/v1/openapi/*.yaml`, written by hand. There is no generator
+and no build step — the fragments are `go:embed`ed and merged in memory on first request
+(`internal/api/v1/openapi.go`). Each file is a partial document contributing `paths` and/or
+`components`; after the merge there is a single document, so every `$ref` stays internal
+(`#/components/schemas/X`). A key defined twice across files is an **error**, not a silent
+overwrite.
+
+| File                 | Contents                                                       |
+|----------------------|----------------------------------------------------------------|
+| `root.yaml`          | `openapi`, `info`, `servers`, `security`, `tags`               |
+| `common.yaml`        | `securitySchemes`, shared parameters/responses, scalar schemas |
+| `system.yaml`        | health-check, WebSocket, distributions, audit logs, external   |
+| `auth.yaml`          | auth, members, invitations                                     |
+| `organizations.yaml` | organizations, certificates, shared person/address schemas     |
+| `configs.yaml`       | fiscal configs (NF-e/NFC-e/CT-e/MDF-e/NFS-e)                   |
+| `catalog.yaml`       | products, services, persons, vehicles                          |
+| `documents.yaml`     | persisted fiscal document and event schemas                    |
+| `nfe.yaml`           | NF-e and NFC-e paths + emission schemas                        |
+| `mdfe.yaml`          | MDF-e paths + emission schemas                                 |
+| `nfse.yaml`          | NFS-e paths + emission/event schemas                           |
+
+**Drift protection:** `internal/api/v1/openapi_test.go` builds the production router and compares
+`app.GetRoutes(true)` against the spec in both directions — an undocumented route and a documented
+route that no longer exists both fail the build. Adding a route therefore requires editing the spec
+in the same change.
+
+Spec validity is checked with `make openapi-lint` (requires Node; not part of `go test`).
+
+**Reachability:** the three routes are served by the API host (`dfe-api.aoctech.app`) and also
+forwarded by CloudFront from the app domain (`DOCS_PATH_PATTERNS` in `cdk/lib/frontend-stack.ts`),
+so `dfe.aoctech.app/docs` works. That behavior carries its own `ResponseHeadersPolicy`: Elements
+loads from unpkg, and the app-wide CSP (`script-src 'self'`) would block it — the CDN exception is
+scoped to the docs paths and is not granted to any application page. `next dev` mirrors the same
+forwarding through `ui/next.config.ts` rewrites.
 
 ### API Reference
 
@@ -1497,6 +1547,38 @@ Cinco rotas novas (`/services`, `/nfse`, `/nfse/emit`, `/nfse/detail`, `/nfse/di
 leitura — a API ainda não expõe a ação); IBS/CBS na emissão (o contrato real de `NfseServiceItem`
 (`api/internal/services/nfses/emit.go`) não tem campos de reforma tributária); desconto/dedução na emissão (mesmo
 motivo — `NfseServiceItem` só tem `service_id/description/value/tax_rate/c_trib_mun`).
+
+### Status de DF-e no front — vocabulário único
+
+`ui/src/lib/data/dfe_status.ts` é a única tabela de status da UI e espelha
+`worker/internal/service/helpers.go`. Vale para **documento e evento**, em todos os tipos: o worker grava os mesmos
+valores nos dois (`DfeService` é compartilhado). `components/dfe/DfeStatusBadge.tsx` (`DfeStatusBadge` /
+`DfeStatusCell`) é o único renderizador — não existem mais `NfeStatusBadge` / `MdfeStatusBadge` / `NfseStatusBadge`
+nem mapas locais de status de evento em telas de detalhe.
+
+| Status | Rótulo | Tom | Em voo | Motivo |
+|---|---|---|---|---|
+| `pending` | Pendente | warning | sim | — |
+| `processing` | Processando | info | sim | — |
+| `retryable_failed` | Tentando novamente | warning | sim | Motivo da retentativa |
+| `cancel_pending` | Cancelando | warning | sim | — |
+| `close_pending` | Encerrando | info | sim | — |
+| `authorized` | Autorizad{a,o} | success | não | — |
+| `rejected` | Rejeitad{a,o} | danger | não | Motivo da rejeição |
+| `failed` | Falha | danger | não | Motivo da falha |
+| `error` (NFS-e) | Erro | danger | não | Motivo da falha |
+| `cancelled` | Cancelad{a,o} | neutral | não | — |
+| `closed` (MDF-e) | Encerrad{a,o} | info | não | — |
+| `success` (evento) | Registrad{a,o} | success | não | — |
+
+| Regra | Por quê |
+|---|---|
+| `retryable_failed` aparece em âmbar, pulsando, como "Tentando novamente" | É falha de transporte que o worker reprocessa sozinho na próxima entrega SQS (`markRetryable`); vermelho + "Falha" mandaria o usuário caçar um problema que não é dele |
+| Status desconhecido renderiza o valor cru, em cinza | Um status novo no backend fica visível em vez de virar "Desconhecido" — o front nunca esconde o que o worker gravou |
+| Rótulos guardam `@` (`Autorizad@`), expandido pela prop `gender` | Nota é feminina, manifesto/conhecimento/evento masculinos; os toasts resolvem por `DOC_GENDER[table_name]` |
+| `NfeStatus`/`MdfeStatus`/`NfseStatus` são aliases de `DfeStatus` | Uniões por documento saíam de sincronia com o backend (o alias já nasceu com `processing` faltando no mapa da NF-e, quebrando o `tsc`) |
+| `NfeEventOut.status` deixou de aceitar `retry` | Valor que o backend nunca produziu; o valor real é `retryable_failed` |
+| O modal de motivo é intitulado pela causa (rejeição / falha / retentativa) | O título fixo "Motivo da rejeição" mentia sobre falhas de transporte |
 
 ### Main Dependencies
 

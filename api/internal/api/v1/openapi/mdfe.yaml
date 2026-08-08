@@ -1,0 +1,557 @@
+paths:
+
+  # ── MDF-e ──────────────────────────────────────────────────────────────────
+
+  /v1.0/mdfes:
+    post:
+      tags: [MDF-e]
+      summary: Emite um MDF-e
+      description: |
+        A carga é derivada dos documentos referenciados (NF-e **ou** CT-e, sem
+        mistura): municípios de carregamento/descarregamento, peso, valor e
+        produto predominante saem dos XMLs. Use `POST /mdfes/cargo-preview`
+        para conferir antes de emitir.
+
+        Com um único documento (carga lotação), `bulk_cargo` é obrigatório.
+        Autorização é síncrona (`MDFeRecepcaoSinc`).
+      operationId: emitMdfe
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MdfeEmitBody' }
+      responses:
+        '201':
+          description: MDF-e registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [MDF-e]
+      summary: Lista MDF-e
+      operationId: listMdfes
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/FilterNumber'
+        - $ref: '#/components/parameters/FilterYear'
+        - $ref: '#/components/parameters/FilterMonth'
+        - $ref: '#/components/parameters/FilterDay'
+      responses:
+        '200':
+          description: Página de MDF-e
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/MdfeDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/mdfes/cargo-preview:
+    post:
+      tags: [MDF-e]
+      summary: Prevê a carga a partir dos documentos referenciados
+      description: |
+        Lê os XMLs das chaves informadas e devolve o que seria montado no
+        manifesto — municípios, peso, valor e produto predominante — sem gravar
+        nada nem consumir número fiscal.
+      operationId: previewMdfeCargo
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  minItems: 1
+                  items: { $ref: '#/components/schemas/MdfeDocRef' }
+      responses:
+        '200':
+          description: Prévia da carga
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeCargoPreview' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/{access_key}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [MDF-e]
+      summary: Detalha um MDF-e
+      operationId: getMdfe
+      responses:
+        '200':
+          description: MDF-e
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/mdfes/{access_key}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [MDF-e]
+      summary: Baixa o XML autorizado
+      operationId: getMdfeXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/mdfes/{access_key}/damdfe:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [MDF-e]
+      summary: Baixa o DAMDFE em PDF
+      operationId: getMdfeDamdfe
+      responses:
+        '200': { $ref: '#/components/responses/PdfDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/mdfes/{access_key}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [MDF-e]
+      summary: Cancela um MDF-e (evento 110111)
+      description: Não é aceito depois do encerramento.
+      operationId: cancelMdfe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelEventBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/{access_key}/close:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [MDF-e]
+      summary: Encerra um MDF-e (evento 110112)
+      description: |
+        Obrigatório ao fim do transporte, no município e UF de descarregamento.
+        Sem encerrar, novos manifestos para o mesmo veículo são rejeitados.
+      operationId: closeMdfe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ibge_code, uf]
+              properties:
+                ibge_code:
+                  allOf: [{ $ref: '#/components/schemas/Ibge' }]
+                  description: Código IBGE do município de encerramento.
+                uf:
+                  allOf: [{ $ref: '#/components/schemas/Uf' }]
+                  description: UF de encerramento.
+                sequence_number:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/{access_key}/include-condutor:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [MDF-e]
+      summary: Inclui condutor (evento 110114)
+      description: Troca de motorista com o manifesto já autorizado e ainda aberto.
+      operationId: includeMdfeCondutor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, cpf]
+              properties:
+                name: { type: string, maxLength: 60 }
+                cpf: { $ref: '#/components/schemas/Cpf' }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/{access_key}/include-dfe:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [MDF-e]
+      summary: Inclui DF-e (evento 110115)
+      description: |
+        Acrescenta NF-e à carga de um manifesto já autorizado, informando o
+        município de carregamento das novas notas.
+      operationId: includeMdfeDfe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [loading_ibge_code, loading_city, documents]
+              properties:
+                loading_ibge_code: { $ref: '#/components/schemas/Ibge' }
+                loading_city: { type: string, maxLength: 120 }
+                documents:
+                  type: array
+                  minItems: 1
+                  items: { $ref: '#/components/schemas/IncludeDFeDoc' }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/{access_key}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [MDF-e]
+      summary: Lista os eventos de um MDF-e
+      operationId: listMdfeEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DocumentEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/mdfes/{access_key}/events/{event_sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+      - $ref: '#/components/parameters/EventSk'
+    get:
+      tags: [MDF-e]
+      summary: Baixa o XML de um evento
+      operationId: getMdfeEventXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+
+  schemas:
+
+    # -- Emissão de MDF-e ---------------------------------------------------
+
+    MdfeDocRef:
+      type: object
+      description: Referência a uma NF-e ou CT-e transportada.
+      required: [type, access_key]
+      properties:
+        type: { type: string, enum: [nfe, cte] }
+        access_key: { $ref: '#/components/schemas/AccessKey' }
+        weight:
+          type: string
+          pattern: '^\d+(\.\d+)?$'
+          description: Peso bruto em kg, para quando o XML não o traz.
+
+    MdfeMun:
+      type: object
+      required: [ibge_code, city]
+      properties:
+        ibge_code: { $ref: '#/components/schemas/Ibge' }
+        city: { type: string, maxLength: 120 }
+
+    MdfeOwner:
+      type: object
+      description: |
+        Proprietário do veículo de tração quando ele não é do emitente
+        (grupo `veicTracao/prop`). Informe CPF **ou** CNPJ. Sua presença define
+        o `tpTransp` do manifesto.
+      properties:
+        cpf: { $ref: '#/components/schemas/Cpf' }
+        cnpj: { $ref: '#/components/schemas/Cnpj' }
+        name: { type: string, maxLength: 60 }
+        ie: { type: string, maxLength: 20 }
+        uf: { $ref: '#/components/schemas/Uf' }
+        rntrc: { $ref: '#/components/schemas/Rntrc' }
+        tp_prop:
+          type: string
+          enum: ['0', '1', '2']
+          description: '`0` TAC Agregado · `1` TAC Independente · `2` Outros.'
+        tp_transp: { type: string, description: Sobrepõe o CTC(3) para proprietário CNPJ. }
+
+    MdfeVehicle:
+      type: object
+      description: |
+        Veículo de tração. Informe `sk` (veículo cadastrado) **ou** placa, tara
+        e UF.
+      properties:
+        sk: { type: [string, 'null'] }
+        placa: { $ref: '#/components/schemas/Placa' }
+        tara: { type: string, pattern: '^\d+(\.\d+)?$' }
+        uf: { $ref: '#/components/schemas/Uf' }
+        renavam: { type: [string, 'null'] }
+        cap_kg: { type: [string, 'null'], pattern: '^\d+(\.\d+)?$' }
+        tp_rod: { type: string, description: Tipo de rodado (`01`–`06`). }
+        tp_car: { type: string, description: Tipo de carroceria (`00`–`05`). }
+        owner: { $ref: '#/components/schemas/MdfeOwner' }
+
+    MdfeTrailer:
+      type: object
+      description: Reboque — veículo cadastrado com `role = trailer`.
+      required: [sk]
+      properties:
+        sk: { type: string }
+
+    MdfeDriver:
+      type: object
+      required: [name, cpf]
+      properties:
+        name: { type: string, maxLength: 60 }
+        cpf: { $ref: '#/components/schemas/Cpf' }
+
+    MdfeProdPred:
+      type: object
+      description: Sobrepõe o produto predominante derivado dos documentos.
+      properties:
+        tp_carga: { type: string }
+        x_prod: { type: string, maxLength: 120 }
+        ncm: { $ref: '#/components/schemas/Ncm' }
+
+    MdfeBulkCargo:
+      type: object
+      description: CEPs de carga lotação — obrigatório quando há um único documento.
+      properties:
+        cep_loading: { $ref: '#/components/schemas/Cep' }
+        cep_unloading: { $ref: '#/components/schemas/Cep' }
+        lat_loading: { type: [string, 'null'] }
+        lon_loading: { type: [string, 'null'] }
+        lat_unloading: { type: [string, 'null'] }
+        lon_unloading: { type: [string, 'null'] }
+
+    MdfeAirModal:
+      type: object
+      description: Grupo `aereo`.
+      properties:
+        nationality: { type: string, description: Nacionalidade da aeronave. }
+        registration: { type: string, description: Marca/matrícula. }
+        flight_number: { type: string }
+        origin_airport: { type: string, description: Aeródromo de embarque (IATA). }
+        dest_airport: { type: string, description: Aeródromo de destino (IATA). }
+        flight_date: { type: string, description: Data do voo (AAAA-MM-DD). }
+
+    MdfeWaterTerminal:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+
+    MdfeWaterModal:
+      type: object
+      description: Grupo `aquav`.
+      properties:
+        irin: { type: string }
+        vessel_type: { type: string }
+        vessel_code: { type: string }
+        vessel_name: { type: string }
+        voyage_number: { type: string }
+        origin_port: { type: string }
+        dest_port: { type: string }
+        transit_port: { type: string }
+        navigation_type: { type: string }
+        loading_terminals:
+          type: array
+          items: { $ref: '#/components/schemas/MdfeWaterTerminal' }
+        unloading_terminals:
+          type: array
+          items: { $ref: '#/components/schemas/MdfeWaterTerminal' }
+
+    MdfeRailWagon:
+      type: object
+      properties:
+        weight_bc: { type: string }
+        weight_real: { type: string }
+        wagon_type: { type: string }
+        series: { type: string }
+        number: { type: string }
+        sequence: { type: string }
+        tu: { type: string, description: Tonelada útil. }
+
+    MdfeRailModal:
+      type: object
+      description: Grupo `ferrov`.
+      properties:
+        train_prefix: { type: string }
+        train_datetime: { type: string }
+        origin_station: { type: string }
+        dest_station: { type: string }
+        wagons:
+          type: array
+          items: { $ref: '#/components/schemas/MdfeRailWagon' }
+
+    MdfeEmitBody:
+      type: object
+      description: |
+        Emissão de MDF-e. Os documentos referenciados têm que ser todos do mesmo
+        tipo. Município de carga/descarga, peso, valor e produto predominante
+        são derivados dos XMLs, salvo sobreposição explícita.
+      required: [modal, documents]
+      properties:
+        modal:
+          type: string
+          enum: [rodoviario, aereo, aquaviario, ferroviario]
+        documents:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/MdfeDocRef' }
+        uf_start:
+          allOf: [{ $ref: '#/components/schemas/Uf' }]
+          description: Sobrepõe a UF de início derivada dos documentos.
+        uf_end:
+          allOf: [{ $ref: '#/components/schemas/Uf' }]
+          description: Sobrepõe a UF de fim derivada dos documentos.
+        route:
+          type: array
+          description: UFs de percurso entre início e fim (exclusive).
+          items: { $ref: '#/components/schemas/Uf' }
+        loadings:
+          type: array
+          description: Ordem explícita dos municípios de carregamento.
+          items: { $ref: '#/components/schemas/MdfeMun' }
+        unloadings:
+          type: array
+          description: Ordem explícita dos municípios de descarregamento.
+          items: { $ref: '#/components/schemas/MdfeMun' }
+        vehicle: { $ref: '#/components/schemas/MdfeVehicle' }
+        trailers:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/MdfeTrailer' }
+        drivers:
+          type: array
+          items: { $ref: '#/components/schemas/MdfeDriver' }
+        predominant: { $ref: '#/components/schemas/MdfeProdPred' }
+        bulk_cargo: { $ref: '#/components/schemas/MdfeBulkCargo' }
+        trip_start: { type: [string, 'null'], description: '`dhIniViagem`, em RFC 3339.' }
+        rntrc: { $ref: '#/components/schemas/Rntrc' }
+        ciot: { type: [string, 'null'] }
+        additional_info: { type: [string, 'null'], maxLength: 5000 }
+        air: { $ref: '#/components/schemas/MdfeAirModal' }
+        water: { $ref: '#/components/schemas/MdfeWaterModal' }
+        rail: { $ref: '#/components/schemas/MdfeRailModal' }
+
+    MdfeCargoPreview:
+      type: object
+      description: Carga derivada dos documentos, antes de emitir.
+      additionalProperties: true
+      properties:
+        uf_start: { $ref: '#/components/schemas/Uf' }
+        uf_end: { $ref: '#/components/schemas/Uf' }
+        loadings:
+          type: array
+          items: { $ref: '#/components/schemas/MdfeMun' }
+        unloadings:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total_weight: { $ref: '#/components/schemas/Decimal' }
+        total_value: { $ref: '#/components/schemas/Money' }
+        predominant: { $ref: '#/components/schemas/MdfeProdPred' }
+
+    IncludeDFeDoc:
+      type: object
+      description: NF-e acrescentada à carga pelo evento de inclusão de DF-e.
+      required: [unloading_ibge_code, unloading_city, nfe_key]
+      properties:
+        unloading_ibge_code: { $ref: '#/components/schemas/Ibge' }
+        unloading_city: { type: string, maxLength: 120 }
+        nfe_key: { $ref: '#/components/schemas/AccessKey' }

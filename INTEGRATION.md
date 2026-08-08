@@ -21,6 +21,9 @@ This document covers how ui (Next.js) authenticates against ctech-account and co
 > `next dev` reproduces that with a rewrite (`ui/next.config.ts`). `dfe-api.aoctech.app` stays
 > public for the API's own clients.
 >
+> `/docs`, `/openapi.json` and `/openapi.yaml` are forwarded the same way, so the API reference is
+> reachable at `dfe.aoctech.app/docs` (and at `localhost:3000/docs` under `next dev`).
+>
 > The same holds for `NEXT_PUBLIC_CTECH_URL`: `accounts.aoctech.app` serves the ctech-account UI
 > *and* forwards `/v1.0/*` + `/.well-known/*` to its ALB. Locally, point it at
 > `http://localhost:8080`.

@@ -10,7 +10,7 @@ import {queryKeys} from '@/lib/api/query-keys'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {Button} from '@/components/ui/button'
-import {MdfeStatusBadge} from '@/components/mdfe/MdfeStatusBadge'
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
@@ -18,7 +18,7 @@ import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
 import type {NfeEventOut} from '@/lib/types/api'
-import {EVENT_STATUS_CLASSES, EVENT_STATUS_LABELS, EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
+import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
 
 function InfoCard({label, children}: { label: string; children: React.ReactNode }) {
@@ -94,7 +94,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           <p className="text-xs text-gray-400 font-mono mt-1 break-all">{accessKey}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <MdfeStatusBadge status={doc.status}/>
+          <DfeStatusBadge status={doc.status} gender="m" size="md"/>
           {doc.xml_s3_key && (
             <Button variant="outline" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
                     className="text-brand-600 border-brand-200 hover:bg-brand-50">
@@ -240,10 +240,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
               <td
                 data-label="Seq." className={`${TABLE_CELL} text-gray-500 font-mono text-xs`}>{String(evt.sequence_number).padStart(3, '0')}</td>
               <td data-label="Status" className={TABLE_CELL}>
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
-                </span>
+                <DfeStatusBadge status={evt.status} gender="m"/>
               </td>
               <td
                 data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>

@@ -35,6 +35,13 @@ passo mais escuro:
 Nunca use `text-amber-600` (≈3.19:1) ou `text-green-600` (≈3.35:1) em texto em repouso. Estados de
 saldo também carregam glifo (`✓` / `⌛` / `↩`) — cor nunca é o único sinal.
 
+### Badges de status de documento
+
+Paleta própria, fixa, **não** recolorida por `data-dfe-theme` — "Autorizada" precisa ser reconhecível
+igual em qualquer documento. Um tom por significado (`success` / `danger` / `warning` / `info` /
+`neutral`), definido uma vez em `ui/src/lib/data/dfe_status.ts`; status do mesmo tom se distinguem
+pelo rótulo e pelo pulso, nunca por um segundo tom de vermelho. Tabela completa em DOCS.md §5.
+
 ## Componentes
 
 ### Login Page

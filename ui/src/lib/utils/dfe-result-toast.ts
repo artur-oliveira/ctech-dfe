@@ -6,12 +6,16 @@
 // document to "authorized" after a failed/rejected event, and reporting that
 // document status would mask the real event failure.
 
+import {DOC_GENDER, dfeStatusLabel} from '@/lib/data/dfe_status'
+
 // result_kind values (mirror worker constants).
 export const RESULT_KIND_EVENT = 'event'
 
 // SEFAZ event status values (mirror worker EventStatus* constants).
 export const EVENT_STATUS_SUCCESS = 'success'
 export const EVENT_STATUS_REJECTED = 'rejected'
+// Falha de transporte — o worker reprocessa; não é desfecho do evento.
+const STATUS_RETRYABLE_FAILED = 'retryable_failed'
 
 // SEFAZ event type codes. 110112 is "encerramento" for MDF-e but
 // "cancelamento por substituição" for NF-e/NFC-e — disambiguated by table_name.
@@ -51,18 +55,27 @@ function motiveSuffix(motive?: string): string {
 function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
   const doc = docLabel(msg.table_name)
   const motive = motiveSuffix(msg.sefaz_motive)
+  // Concorda com o substantivo: nota autorizada, manifesto autorizado.
+  const a = DOC_GENDER[msg.table_name ?? ''] === 'm' ? 'o' : 'a'
 
   switch (msg.status) {
     case 'authorized':
-      return {variant: 'success', message: `${doc} autorizada pela SEFAZ`}
+      return {variant: 'success', message: `${doc} autorizad${a} pela SEFAZ`}
     case 'cancelled':
-      return {variant: 'success', message: `${doc} cancelada com sucesso`}
+      return {variant: 'success', message: `${doc} cancelad${a} com sucesso`}
+    case 'closed':
+      return {variant: 'success', message: `${doc} encerrad${a} com sucesso`}
     case 'rejected':
-      return {variant: 'error', message: `${doc} rejeitada pela SEFAZ${motive}`}
+      return {variant: 'error', message: `${doc} rejeitad${a} pela SEFAZ${motive}`}
     case 'failed':
+    case 'error':
       return {variant: 'error', message: `Falha ao processar ${doc}${motive}`}
+    // Não terminal: o worker reprocessa sozinho na próxima entrega SQS, então o
+    // usuário é informado sem ser mandado agir.
+    case 'retryable_failed':
+      return {variant: 'info', message: `${doc} não pôde ser enviad${a} agora — tentando novamente${motive}`}
     default:
-      return {variant: 'info', message: `${doc} atualizada — status: ${msg.status}`}
+      return {variant: 'info', message: `${doc} atualizad${a} — status: ${dfeStatusLabel(msg.status ?? '', a === 'o' ? 'm' : 'f')}`}
   }
 }
 
@@ -70,16 +83,22 @@ function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
   const doc = docLabel(msg.table_name)
   const motive = motiveSuffix(msg.sefaz_motive)
   const isEncerramento = msg.event_type === EVENT_TYPE_ENCERRAMENTO && msg.table_name === TABLE_MDFE
+  const a = DOC_GENDER[msg.table_name ?? ''] === 'm' ? 'o' : 'a'
 
   const wording = isEncerramento
-    ? {success: `${doc} encerrada com sucesso`, fail: `Falha ao encerrar ${doc}`, reject: `Encerramento de ${doc} rejeitado pela SEFAZ`}
-    : {success: `${doc} cancelada com sucesso`, fail: `Falha ao cancelar ${doc}`, reject: `Cancelamento de ${doc} rejeitado pela SEFAZ`}
+    ? {success: `${doc} encerrad${a} com sucesso`, fail: `Falha ao encerrar ${doc}`, reject: `Encerramento de ${doc} rejeitado pela SEFAZ`}
+    : {success: `${doc} cancelad${a} com sucesso`, fail: `Falha ao cancelar ${doc}`, reject: `Cancelamento de ${doc} rejeitado pela SEFAZ`}
 
   switch (msg.status) {
     case EVENT_STATUS_SUCCESS:
       return {variant: 'success', message: wording.success}
     case EVENT_STATUS_REJECTED:
       return {variant: 'error', message: `${wording.reject}${motive}`}
+    case STATUS_RETRYABLE_FAILED:
+      return {
+        variant: 'info',
+        message: `${isEncerramento ? 'Encerramento' : 'Cancelamento'} de ${doc} não concluído — tentando novamente${motive}`,
+      }
     default:
       // 'error' or any unexpected status — treat as a processing failure.
       return {variant: 'error', message: `${wording.fail}${motive}`}

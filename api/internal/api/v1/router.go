@@ -48,6 +48,8 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 
+	RegisterDocs(app)
+
 	v1 := app.Group("/v1.0")
 	RegisterHealth(v1, cacheBackend, awsClients, cfg)
 	RegisterAuth(v1, svcs.User, svcs.Org, svcs.RoleRepo, authMw)

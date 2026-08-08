@@ -11,6 +11,17 @@ import {Environment} from './types';
 // Paths forwarded to the API origin. Everything else falls through to S3.
 const API_PATH_PATTERNS = ['/v1.0/*'];
 
+// OpenAPI spec + Stoplight Elements page, served by the API outside /v1.0
+// because they describe the whole API, not one version of it. They get their
+// own behavior only so they can carry a looser CSP (see DOCS_CSP).
+const DOCS_PATH_PATTERNS = ['/docs', '/openapi.json', '/openapi.yaml'];
+
+// Stoplight Elements loads from unpkg with a pinned version + SRI (see
+// api/internal/api/v1/openapi.go). Allowing unpkg in the app-wide CSP would
+// widen the attack surface of every page for one page, so the exception is
+// scoped to the docs behavior.
+const ELEMENTS_CDN = 'https://unpkg.com';
+
 // nginx on the API instances uses proxy_read_timeout 60s — match it so
 // CloudFront does not give up before the origin does.
 const API_ORIGIN_READ_TIMEOUT = cdk.Duration.seconds(60);
@@ -112,38 +123,56 @@ async function handler(event) {
     // `securityExtraConnectSrc` CDK context — required so cross-origin fetches
     // are not blocked in prod.
     const extraConnectSrc = (this.node.tryGetContext('securityExtraConnectSrc') as string | undefined) ?? '';
-    const securityHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
-      responseHeadersPolicyName: `${environment}-CtechDfe-security-headers`,
-      securityHeadersBehavior: {
-        contentTypeOptions: {override: true},
-        frameOptions: {frameOption: cloudfront.HeadersFrameOption.DENY, override: true},
-        strictTransportSecurity: {
-          accessControlMaxAge: Duration.seconds(63072000),
-          includeSubdomains: true,
-          preload: true,
-          override: true,
+
+    // Same hardening everywhere; only the CSP differs between the app and the
+    // docs page, so it is the single parameter.
+    const headersPolicy = (id: string, suffix: string, csp: string[]) =>
+      new cloudfront.ResponseHeadersPolicy(this, id, {
+        responseHeadersPolicyName: `${environment}-CtechDfe-${suffix}`,
+        securityHeadersBehavior: {
+          contentTypeOptions: {override: true},
+          frameOptions: {frameOption: cloudfront.HeadersFrameOption.DENY, override: true},
+          strictTransportSecurity: {
+            accessControlMaxAge: Duration.seconds(63072000),
+            includeSubdomains: true,
+            preload: true,
+            override: true,
+          },
+          referrerPolicy: {
+            referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+            override: true,
+          },
+          contentSecurityPolicy: {contentSecurityPolicy: csp.join('; '), override: true},
         },
-        referrerPolicy: {
-          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
-          override: true,
-        },
-        contentSecurityPolicy: {
-          // 'unsafe-inline' for script/style is temporary compatibility debt: the
-          // Next.js static export has no nonce/hash pipeline yet. Never 'unsafe-eval'.
-          contentSecurityPolicy: [
-            "default-src 'self'",
-            "base-uri 'self'",
-            "object-src 'none'",
-            "frame-ancestors 'none'",
-            "img-src 'self' data:",
-            "style-src 'self' 'unsafe-inline'",
-            "script-src 'self' 'unsafe-inline'",
-            `connect-src 'self' https://${authDomainName}${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
-          ].join('; '),
-          override: true,
-        },
-      },
-    });
+      });
+
+    const securityHeadersPolicy = headersPolicy('SecurityHeaders', 'security-headers', [
+      // 'unsafe-inline' for script/style is temporary compatibility debt: the
+      // Next.js static export has no nonce/hash pipeline yet. Never 'unsafe-eval'.
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "img-src 'self' data:",
+      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline'",
+      `connect-src 'self' https://${authDomainName}${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
+    ]);
+
+    // Elements ships as a web component: script and stylesheet come from the
+    // CDN, fonts/icons are inlined as data URIs, and the only fetch it makes is
+    // same-origin (/openapi.json). Nothing here is allowed for the app itself.
+    const docsHeadersPolicy = headersPolicy('DocsSecurityHeaders', 'docs-security-headers', [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      `img-src 'self' data: ${ELEMENTS_CDN}`,
+      `font-src 'self' data: ${ELEMENTS_CDN}`,
+      `style-src 'self' 'unsafe-inline' ${ELEMENTS_CDN}`,
+      `script-src 'self' 'unsafe-inline' ${ELEMENTS_CDN}`,
+      "connect-src 'self'",
+    ]);
     
     // No caching and no URL rewrite: the API behavior forwards everything the
     // viewer sent (Authorization, query string, body, WebSocket upgrade) except
@@ -174,9 +203,13 @@ async function handler(event) {
           eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
         }],
       },
-      additionalBehaviors: Object.fromEntries(
-        API_PATH_PATTERNS.map((pattern) => [pattern, apiBehavior]),
-      ),
+      additionalBehaviors: Object.fromEntries([
+        ...API_PATH_PATTERNS.map((pattern) => [pattern, apiBehavior]),
+        ...DOCS_PATH_PATTERNS.map((pattern) => [
+          pattern,
+          {...apiBehavior, responseHeadersPolicy: docsHeadersPolicy},
+        ]),
+      ]),
       httpVersion: HttpVersion.HTTP2_AND_3,
       defaultRootObject: 'index.html',
       certificate: domainName

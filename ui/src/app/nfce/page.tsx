@@ -25,7 +25,7 @@ import type {NfeListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
@@ -159,7 +159,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
               <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
                   data-label="Total">{formatCurrency(nfce.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
-                <NfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
+                <DfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
               </td>
               <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
                   data-label="Emissão">

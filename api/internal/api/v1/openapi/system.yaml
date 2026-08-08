@@ -1,0 +1,246 @@
+paths:
+
+  # ── Health / WebSocket ─────────────────────────────────────────────────────
+
+  /v1.0/health-check:
+    get:
+      tags: [Health]
+      summary: Verifica a saúde da API e das dependências
+      description: |
+        Única rota pública (sem JWT). Verifica cache, DynamoDB e S3.
+        Retorna `200` quando tudo está `pass`, `207` em degradação parcial e
+        `503` quando alguma dependência crítica falhou.
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Todas as dependências saudáveis
+          content:
+            application/health+json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '207':
+          description: Degradação parcial
+          content:
+            application/health+json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: Dependência crítica indisponível
+          content:
+            application/health+json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /v1.0/ws:
+    get:
+      tags: [Health]
+      summary: Canal WebSocket de eventos do documento
+      description: |
+        Upgrade para WebSocket. O resultado da emissão (autorização/rejeição da
+        SEFAZ) é empurrado por aqui, evitando polling.
+
+        O JWT **não** vai na query string (ficaria em log de proxy): após o
+        upgrade, o cliente envia o token como primeiro frame de texto. O
+        servidor valida, confirma a associação do usuário à organização e só
+        então passa a entregar eventos.
+      operationId: connectWebSocket
+      security: []
+      parameters:
+        - name: org_pk
+          in: query
+          required: true
+          description: PK da organização cujos eventos serão recebidos.
+          schema: { type: string }
+      responses:
+        '101':
+          description: Conexão promovida a WebSocket
+        '400':
+          description: '`org_pk` ausente ou origem não permitida'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Distributions (NF-e / CT-e / MDF-e) ────────────────────────────────────
+
+  /v1.0/distributions/{doc_type}/history:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+    get:
+      tags: [Distributions]
+      summary: Lista os documentos distribuídos
+      operationId: listDistributions
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de documentos distribuídos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Distribution' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/distributions/{doc_type}/sync:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+    post:
+      tags: [Distributions]
+      summary: Dispara a sincronização com a SEFAZ
+      description: |
+        Enfileira a busca a partir do último NSU conhecido. A SEFAZ limita a
+        frequência de consulta: chamadas seguidas em janela curta são
+        rejeitadas por ela.
+      operationId: syncDistributions
+      responses:
+        '202':
+          description: Sincronização enfileirada
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1.0/distributions/{doc_type}/history/{nsu}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+      - $ref: '#/components/parameters/Nsu'
+    get:
+      tags: [Distributions]
+      summary: Baixa o XML de um NSU
+      operationId: getDistributionXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/distributions/{doc_type}/nsu/{nsu}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+      - $ref: '#/components/parameters/Nsu'
+    get:
+      tags: [Distributions]
+      summary: Detalha um documento distribuído pelo NSU
+      operationId: getDistributionByNsu
+      responses:
+        '200':
+          description: Documento distribuído
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Distribution' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/distributions/{doc_type}/key/{access_key}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [Distributions]
+      summary: Detalha um documento distribuído pela chave de acesso
+      operationId: getDistributionByKey
+      responses:
+        '200':
+          description: Documento distribuído
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Distribution' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Audit logs ─────────────────────────────────────────────────────────────
+
+  /v1.0/audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: Lista a trilha de auditoria da organização
+      description: Restrito a OWNER e ADMIN.
+      operationId: listAuditLogs
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: resource_type
+          in: query
+          description: 'Filtra por tipo de recurso (ex.: `products`, `organizations`).'
+          schema: { type: string }
+        - name: resource_id
+          in: query
+          description: Filtra por identificador do recurso.
+          schema: { type: string }
+        - name: user_id
+          in: query
+          description: Filtra pelo autor da mutação.
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de registros de auditoria
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AuditLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── External ───────────────────────────────────────────────────────────────
+
+  /v1.0/external/lookup-organizations:
+    get:
+      tags: [External]
+      summary: Consulta cadastro de contribuinte na SEFAZ
+      description: |
+        Consulta o cadastro (situação, inscrição estadual, endereço) na SEFAZ da
+        UF informada, usando o certificado da organização ativa. Serve para
+        preencher o cadastro de pessoas sem digitação.
+      operationId: lookupOrganization
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: cpf_cnpj
+          in: query
+          required: true
+          description: CPF ou CNPJ a consultar, apenas dígitos.
+          schema: { $ref: '#/components/schemas/CpfCnpj' }
+        - name: uf
+          in: query
+          required: true
+          description: UF cuja SEFAZ será consultada.
+          schema: { $ref: '#/components/schemas/Uf' }
+      responses:
+        '200':
+          description: Dados cadastrais retornados pela SEFAZ
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }

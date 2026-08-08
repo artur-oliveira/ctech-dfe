@@ -281,6 +281,11 @@ produziria um item órfão.
   imóvel, obra, informações complementares, benefício municipal) cujo shape divergia do XSD real
   por terem sido modelados a partir de prosa do plano em vez do XSD — o XSD sempre prevalece sobre
   texto de plano/spec quando divergem (mesmo precedente da F1 com `cTribNac`).
+- **DPS e pedidos de evento do Sistema Nacional precisam declarar UTF-8 explicitamente.** O Sefin
+  devolve E1229 quando o XML enviado dentro do gzip+base64 não começa com
+  `<?xml version="1.0" encoding="UTF-8"?>`, mesmo que os bytes já sejam UTF-8. Aplique o prólogo
+  depois de `SignDPS`/`SignPedRegEvento` e antes de `GzipB64`: o assinador reserializa sem declaração,
+  e mudar o assinador genérico afetaria a paridade dos demais documentos fiscais.
 - **Campo não suportado falha explicitamente.** `nfse.FieldNotSupportedError` nomeia o campo.
   Nenhum adapter de NFS-e pode descartar dado em silêncio — vale para o ABRASF da F5 e para as
   capacidades opcionais do dispatch (distribuição, DANFSE, parâmetros municipais,
@@ -498,6 +503,12 @@ produziria um item órfão.
   destinatário ou pagamento a partir do catálogo: o documento é fiscal e irreversível.
 - Rascunhos de emissão são locais (`useEmitDraft` → localStorage) e nunca aplicados automaticamente:
   o usuário escolhe retomar ou descartar.
+- **Status de DF-e vem de `lib/data/dfe_status.ts`, e só de lá.** Rótulo, tom, pulso e título do
+  modal de motivo — documento e evento, todos os tipos — via `DfeStatusBadge` / `DfeStatusCell`.
+  Nada de mapa local de status em página de detalhe nem de badge por documento: foi assim que a UI
+  ficou sem `processing` e com um `retry` que o backend nunca produziu. Status desconhecido renderiza
+  o valor cru, nunca "Desconhecido". `retryable_failed` é aviso (âmbar, pulsando), não falha
+  terminal — o worker reprocessa sozinho. Ver DOCS.md §5 e `ui/DESIGN.md`.
 - **`useWebSocket` lives in the shared `@aoctech/ws-client` package (repo `ctech-ws-client`), not
   locally** — it's also consumed by `ctech-wallet/ui`. Do not fork or re-add a local copy; extend
   the shared package instead. WS heartbeat contract: the server (`api/internal/api/v1/ws.go`)
@@ -563,6 +574,18 @@ Work is not complete until required documentation is updated.
 | Database changes        | DOCS.md (Data Model)           |
 | Architectural decisions | DOCS.md (Architecture)         |
 | Workarounds             | CONDUCT.md (Known Constraints) |
+
+## Rotas novas entram na spec OpenAPI na mesma mudança
+
+A spec em `api/internal/api/v1/openapi/*.yaml` é escrita à mão — não há gerador que a atualize
+sozinha. `api/internal/api/v1/openapi_test.go` compara `app.GetRoutes(true)` com a spec **nos dois
+sentidos**: rota sem documentação e operação documentada que não existe mais quebram o build.
+
+Consequência prática: adicionar, renomear ou remover rota exige editar o arquivo YAML correspondente
+no mesmo commit. Não existe "documento depois" — o teste não deixa.
+
+Ao mexer na spec, rode `make openapi-lint` (requer Node): o teste de Go só garante cobertura de
+rotas e YAML válido, não que o documento seja um OpenAPI válido.
 
 ---
 

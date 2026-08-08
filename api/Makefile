@@ -4,7 +4,7 @@ GOOS        ?= linux
 GOARCH      ?= arm64
 CGO_ENABLED := 0
 
-.PHONY: build build-worker lint test test-integration vet clean deploy
+.PHONY: build build-worker lint openapi-lint test test-integration vet clean deploy
 
 build:
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
@@ -12,6 +12,13 @@ build:
 
 lint:
 	golangci-lint run ./...
+
+# Valida a spec OpenAPI unida. Requer Node — fora do `go test` de propósito:
+# a spec já é coberta pelo teste de rotas, que roda sem dependência externa.
+openapi-lint:
+	go test ./internal/api/v1/ -run TestOpenAPI -count=1
+	go run ./cmd/openapi-dump > /tmp/ctech-dfe-openapi.json
+	npx -y @redocly/cli@latest lint /tmp/ctech-dfe-openapi.json
 
 test:
 	go test ./... -race -coverprofile=coverage.out

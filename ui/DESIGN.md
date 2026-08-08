@@ -168,16 +168,18 @@ Flat by default. Surfaces sit on the canvas with hairline borders; shadow appear
 - **Variants:** `secondary` = neutral fill, `outline` = hairline border, `destructive` = tinted red, `ghost` = hover Surface.
 
 ### Status Badges (doc-neutral, intentional)
-- **Fixed semantic palette — never recolored by `data-dfe-theme`.** Status is a *universal state vocabulary*; a user must recognize "Autorizada" instantly across every document type. The per-type accents stay scoped to *structural* surfaces (sidebar, primary CTAs) and never touch status indicators. Exact per-status classes:
-  - `Pendente` → `bg-amber-50 text-amber-700`
-  - `Autorizada` / `Autorizado` → `bg-green-100 text-green-700`
-  - `Rejeitada` / `Rejeitado` → `bg-red-100 text-red-700`
-  - `Falha` → `bg-red-200 text-red-800`
-  - `Cancelando` / `Encerrando` → `bg-orange-100 text-orange-700`
-  - `Cancelada` / `Cancelado` → `bg-gray-100 text-gray-500`
-  - `Encerrado` (MDF-e) → `bg-blue-100 text-blue-700`
-- **Transitional (in-flight) states** (`Pendente`, `Cancelando`, `Encerrando`) get a subtle `animate-pulse` dot + pulse, suppressed under `prefers-reduced-motion`.
-- **Rejection motive:** a failed/rejected badge becomes a button that opens a portal `Modal` with the SEFAZ motive — the modal (not a tooltip) keeps it working on mobile and unclipped inside scrollable tables.
+- **One vocabulary, one module.** Every status label, tone, pulse and motive title lives in `lib/data/dfe_status.ts`, mirroring `worker/internal/service/helpers.go`. `DfeStatusBadge` / `DfeStatusCell` (`components/dfe/`) are the only renderers — documents *and* SEFAZ events, every doc type. Per-doc badge modules are a drift trap: they went out of sync with the backend and shipped an untyped status.
+- **Fixed semantic palette — never recolored by `data-dfe-theme`.** Status is a *universal state vocabulary*; a user must recognize "Autorizada" instantly across every document type. The per-type accents stay scoped to *structural* surfaces (sidebar, primary CTAs) and never touch status indicators. **One tone per meaning** — statuses sharing a tone are told apart by their label and pulse, never by a second shade of the same colour:
+  - `success` → `bg-green-100 text-green-700` — Autorizada, Registrado (evento)
+  - `danger` → `bg-red-100 text-red-700` — Rejeitada, Falha, Erro
+  - `warning` → `bg-amber-50 text-amber-700` — Pendente, Tentando novamente, Cancelando
+  - `info` → `bg-blue-50 text-blue-700` — Processando, Encerrando, Encerrado
+  - `neutral` → `bg-gray-100 text-gray-500` — Cancelada
+  - unknown status → `bg-gray-100 text-gray-600` with the **raw value** as label; never "Desconhecido", which hides what a debugger needs.
+- **Gender agrees with the noun.** Labels carry an `@` placeholder (`Autorizad@`) expanded by the `gender` prop: nota is feminine (default), manifesto / conhecimento / evento masculine. Toasts resolve it from `DOC_GENDER[table_name]`.
+- **Transitional (in-flight) states** — everything the worker still owes an answer for (`Pendente`, `Processando`, `Tentando novamente`, `Cancelando`, `Encerrando`) — get a subtle `animate-pulse` dot + pulse, suppressed under `prefers-reduced-motion`.
+- **`retryable_failed` warns, it does not alarm.** It is a transport failure the worker retries by itself; red + "Falha" would send the user chasing a problem they cannot fix. It reads amber, pulsing, "Tentando novamente".
+- **Motive:** a status whose cause is explained by a motive becomes a button opening a portal `Modal` — the modal (not a tooltip) keeps it working on mobile and unclipped inside scrollable tables. The title names the actual cause (`Motivo da rejeição` / `Motivo da falha` / `Motivo da retentativa`), and the icon follows the badge's tone.
 
 ### Cards / Containers
 - **Corner Style:** 14px radius (`rounded-xl`).

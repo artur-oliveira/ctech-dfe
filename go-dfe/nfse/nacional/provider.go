@@ -84,6 +84,7 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 			return nfse.Result{}, fmt.Errorf("nacional: assinar DPS: %w", err)
 		}
 	}
+	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err
@@ -138,6 +139,7 @@ func (n *Nacional) Event(ctx context.Context, ev nfse.EventRequest) (nfse.Result
 			return nfse.Result{}, fmt.Errorf("nacional: assinar pedRegEvento: %w", err)
 		}
 	}
+	raw = withUTF8Declaration(raw)
 	packed, err := GzipB64(raw)
 	if err != nil {
 		return nfse.Result{}, err

@@ -1,0 +1,195 @@
+components:
+
+  schemas:
+
+    # -- Documentos fiscais persistidos ------------------------------------
+
+    FiscalDocument:
+      type: object
+      description: Campos comuns às linhas de documento fiscal.
+      additionalProperties: true
+      properties:
+        pk: { type: string, description: 'Partição: `<ambiente>#<org_pk>`.' }
+        sk: { type: string, description: Chave de acesso do documento. }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        sefaz_status: { type: [string, 'null'], description: Código de retorno da SEFAZ. }
+        sefaz_motive: { type: [string, 'null'], description: Motivo textual do retorno. }
+        number: { type: integer }
+        serie: { type: integer }
+        total: { $ref: '#/components/schemas/Money' }
+        emit_cpf_cnpj: { type: string }
+        emit_name: { type: string }
+        dest_cpf_cnpj: { type: [string, 'null'] }
+        dest_name: { type: [string, 'null'] }
+        dh_emi: { type: string, description: Data/hora de emissão no formato do leiaute. }
+        year: { type: integer }
+        month: { type: integer }
+        day: { type: integer }
+        xml_s3_key: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        user_id: { type: string }
+        user_name: { type: string }
+
+    DocumentLineItem:
+      type: object
+      description: Resumo de um item do documento.
+      additionalProperties: true
+      properties:
+        product_id: { type: string }
+        product_code: { type: string }
+        description: { type: string }
+        ncm: { $ref: '#/components/schemas/Ncm' }
+        cfop: { $ref: '#/components/schemas/Cfop' }
+        unit: { type: string }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        unit_value: { $ref: '#/components/schemas/Money' }
+        discount: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+
+    DocumentPayment:
+      type: object
+      description: Resumo de uma forma de pagamento.
+      additionalProperties: true
+      properties:
+        payment_type: { type: string }
+        value: { $ref: '#/components/schemas/Money' }
+
+    NfeDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            incoming:
+              type: integer
+              enum: [0, 1]
+              description: '`1` quando a nota foi recebida por distribuição.'
+            products:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentLineItem' }
+            payments:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentPayment' }
+
+    NfceDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            products:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentLineItem' }
+            payments:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentPayment' }
+
+    MdfeDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            modal: { type: string, enum: [rodoviario, aereo, aquaviario, ferroviario] }
+            uf_start: { $ref: '#/components/schemas/Uf' }
+            uf_end: { $ref: '#/components/schemas/Uf' }
+            closed:
+              type: boolean
+              description: Indica se o manifesto já foi encerrado.
+
+    NfseDocument:
+      type: object
+      description: |
+        Linha de NFS-e. A SK é o `id_dps`, não a chave de acesso — esta só
+        existe após a autorização.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: '`id_dps` da declaração.' }
+        provider: { type: string, enum: [nacional, abrasf204] }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        tp_emit: { type: integer, enum: [1, 2, 3] }
+        c_motivo_emis_ti: { type: integer, enum: [1, 2, 3, 4] }
+        serie: { type: string }
+        number: { type: integer }
+        competence: { type: string, description: Competência no formato `DD/MM/AAAA`. }
+        c_loc_emi: { $ref: '#/components/schemas/Ibge' }
+        emit_cpf_cnpj: { type: string }
+        emit_name: { type: string }
+        dest_cpf_cnpj: { type: [string, 'null'] }
+        dest_name: { type: [string, 'null'] }
+        total: { $ref: '#/components/schemas/Money' }
+        payload:
+          type: object
+          additionalProperties: true
+          description: Documento neutro enviado ao provider.
+        year: { type: integer }
+        month: { type: integer }
+        created_at: { type: string, format: date-time }
+        user_id: { type: string }
+        user_name: { type: string }
+
+    DocumentEvent:
+      type: object
+      description: Evento fiscal vinculado a um documento.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: 'SK do evento, usada na rota de XML.' }
+        event_type: { type: string, description: Código do evento no leiaute. }
+        sequence_number: { type: integer }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        sefaz_status: { type: [string, 'null'] }
+        sefaz_motive: { type: [string, 'null'] }
+        xml_s3_key: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+
+    Distribution:
+      type: object
+      description: Documento destinado à organização, obtido da SEFAZ ou do ADN.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        nsu: { type: integer, description: Número sequencial único da SEFAZ/ADN. }
+        access_key: { type: [string, 'null'] }
+        schema: { type: [string, 'null'], description: Esquema do documento distribuído. }
+        xml_s3_key: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+
+    AuditLog:
+      type: object
+      description: Registro de mutação na organização.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        resource_type: { type: string }
+        resource_id: { type: string }
+        action: { type: string, examples: [create, update, delete] }
+        user_id: { type: string }
+        user_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    # -- Eventos compartilhados NF-e/NFC-e/MDF-e ---------------------------
+
+    CancelEventBody:
+      type: object
+      required: [justification]
+      properties:
+        justification:
+          type: string
+          minLength: 15
+          maxLength: 255
+          description: Justificativa do cancelamento; mínimo de 15 caracteres exigido pela SEFAZ.
+        sequence_number:
+          type: integer
+          minimum: 1
+          description: Sequência do evento; o serviço aplica o padrão quando ausente.
+
+    SubstituteCancelBody:
+      allOf:
+        - $ref: '#/components/schemas/CancelEventBody'
+        - type: object
+          required: [substitute_key]
+          properties:
+            substitute_key:
+              allOf: [{ $ref: '#/components/schemas/AccessKey' }]
+              description: Chave do documento que substitui o cancelado.

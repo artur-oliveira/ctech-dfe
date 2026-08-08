@@ -1,0 +1,373 @@
+components:
+
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT RS256 emitido pelo ctech-account. O `aud` precisa conter o
+        `SERVICE_AUDIENCE` desta API e o `iss` precisa ser o ctech-account.
+
+  # ── Parâmetros reutilizados ────────────────────────────────────────────────
+
+  parameters:
+
+    OrgHeader:
+      name: Dfe-Organization-Pk
+      in: header
+      required: true
+      description: |
+        PK da organização ativa. Define o tenant de toda a operação — sem ele a
+        requisição é recusada.
+      schema: { type: string }
+
+    OrgPk:
+      name: org_pk
+      in: path
+      required: true
+      description: PK da organização.
+      schema: { type: string }
+
+    Limit:
+      name: limit
+      in: query
+      description: Tamanho da página.
+      schema: { type: integer, default: 50, minimum: 1 }
+
+    Cursor:
+      name: cursor
+      in: query
+      description: Cursor opaco devolvido na página anterior. Não construa à mão.
+      schema: { type: string }
+
+    Sort:
+      name: sort
+      in: query
+      description: Ordem do resultado.
+      schema: { type: string, enum: [asc, desc], default: asc }
+
+    AccessKey:
+      name: access_key
+      in: path
+      required: true
+      description: Chave de acesso do documento (44 dígitos).
+      schema: { $ref: '#/components/schemas/AccessKey' }
+
+    EventSk:
+      name: event_sk
+      in: path
+      required: true
+      description: SK do evento, obtida na listagem de eventos do documento.
+      schema: { type: string }
+
+    NfseId:
+      name: id
+      in: path
+      required: true
+      description: |
+        `id_dps` da NFS-e (SK da linha) ou, depois da autorização, a chave de
+        acesso de 50 dígitos.
+      schema: { type: string }
+
+    VehicleSk:
+      name: sk
+      in: path
+      required: true
+      description: SK do veículo.
+      schema: { type: string }
+
+    InvitationToken:
+      name: token
+      in: path
+      required: true
+      description: Token bruto do convite, entregue ao convidado.
+      schema: { type: string }
+
+    DocType:
+      name: doc_type
+      in: path
+      required: true
+      description: Tipo de documento da distribuição.
+      schema: { type: string, enum: [nfe, cte, mdfe] }
+
+    Nsu:
+      name: nsu
+      in: path
+      required: true
+      description: Número sequencial único atribuído pela SEFAZ.
+      schema: { type: integer }
+
+    FilterNumber:
+      name: number
+      in: query
+      description: Filtra pelo número fiscal do documento.
+      schema: { type: integer }
+
+    FilterYear:
+      name: year
+      in: query
+      description: Filtra pelo ano de emissão.
+      schema: { type: integer }
+
+    FilterMonth:
+      name: month
+      in: query
+      description: Filtra pelo mês de emissão (1–12).
+      schema: { type: integer, minimum: 1, maximum: 12 }
+
+    FilterDay:
+      name: day
+      in: query
+      description: Filtra pelo dia de emissão.
+      schema: { type: integer, minimum: 1, maximum: 31 }
+
+  # ── Respostas reutilizadas ─────────────────────────────────────────────────
+
+  responses:
+
+    BadRequest:
+      description: Requisição inválida ou regra de negócio violada
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    Unauthorized:
+      description: Token ausente, expirado ou inválido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    Forbidden:
+      description: Sem permissão para o recurso nesta organização
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    Conflict:
+      description: Conflito com o estado atual do recurso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    ValidationError:
+      description: Corpo reprovado na validação; `errors[]` traz um item por campo
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    TooManyRequests:
+      description: Limite de requisições excedido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+    FiscalConfig:
+      description: Configuração fiscal
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/FiscalConfig' }
+
+    XmlDownload:
+      description: XML do documento, como anexo
+      headers:
+        Content-Disposition:
+          description: '`attachment; filename="<nome>.xml"`'
+          schema: { type: string }
+      content:
+        application/xml:
+          schema: { type: string, format: binary }
+
+    PdfDownload:
+      description: PDF do documento auxiliar, como anexo
+      headers:
+        Content-Disposition:
+          description: '`attachment; filename="<nome>.pdf"`'
+          schema: { type: string }
+      content:
+        application/pdf:
+          schema: { type: string, format: binary }
+
+  schemas:
+
+    # -- Tipos escalares com formato fiscal --------------------------------
+
+    Uf:
+      type: string
+      description: Sigla da unidade federativa.
+      enum: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO]
+
+    Ibge:
+      type: string
+      description: Código IBGE do município (7 dígitos).
+      pattern: '^\d{7}$'
+
+    Cep:
+      type: string
+      description: CEP, apenas dígitos.
+      pattern: '^\d{8}$'
+
+    Cpf:
+      type: string
+      description: CPF com dígitos verificadores válidos.
+      pattern: '^\d{11}$'
+
+    Cnpj:
+      type: string
+      description: CNPJ com dígitos verificadores válidos (aceita o formato alfanumérico da IN RFB 2229/2024).
+
+    CpfCnpj:
+      type: string
+      description: CPF (11) ou CNPJ (14), apenas dígitos, com verificadores válidos.
+
+    PhoneBr:
+      type: string
+      description: Telefone brasileiro com DDD, apenas dígitos.
+      pattern: '^\d{10,11}$'
+
+    Money:
+      type: string
+      description: Valor decimal com até 4 casas, em string, para não perder precisão.
+      pattern: '^\d+(\.\d{1,4})?$'
+
+    Percent:
+      type: string
+      description: Alíquota em string, até 3 inteiros e 4 decimais.
+      pattern: '^\d{1,3}(\.\d{1,4})?$'
+
+    Decimal:
+      type: string
+      description: Número decimal em string.
+      pattern: '^\d+(\.\d+)?$'
+
+    Ncm:
+      type: string
+      pattern: '^\d{8}$'
+
+    Cfop:
+      type: string
+      pattern: '^\d{4}$'
+
+    Unit:
+      type: string
+      description: Unidade comercial, maiúsculas.
+      pattern: '^[A-Z]{1,6}$'
+
+    Placa:
+      type: string
+      description: Placa no padrão brasileiro ou Mercosul.
+      pattern: '^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$'
+
+    Rntrc:
+      type: string
+      pattern: '^\d{8,12}$'
+
+    AccessKey:
+      type: string
+      description: Chave de acesso de 44 dígitos.
+      pattern: '^\d{44}$'
+
+    Timezone:
+      type: string
+      description: Fuso IANA aceito pelas configurações fiscais.
+      enum:
+        - America/Sao_Paulo
+        - America/Belem
+        - America/Fortaleza
+        - America/Recife
+        - America/Maceio
+        - America/Bahia
+        - America/Manaus
+        - America/Cuiaba
+        - America/Porto_Velho
+        - America/Boa_Vista
+        - America/Rio_Branco
+        - America/Noronha
+
+    RoleName:
+      type: string
+      description: Papel do membro na organização.
+      enum: [OWNER, ADMIN, USER, VIEWER]
+
+    DocumentStatus:
+      type: string
+      description: |
+        Estado do documento no ciclo de emissão. `pending` significa que a
+        SEFAZ ainda não respondeu.
+      examples: [pending, authorized, rejected, cancelled]
+
+    # -- Infra: erro, paginação, saúde -------------------------------------
+
+    Problem:
+      type: object
+      description: RFC 7807 Problem Details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: URI que identifica o tipo do problema.
+          examples: ['/problems/validation-error']
+        title:
+          type: string
+          examples: ['Validation Error']
+        status:
+          type: integer
+          examples: [422]
+        detail:
+          type: string
+          description: Explicação legível do caso concreto.
+        errors:
+          type: array
+          description: Falhas por campo — presente apenas em erros de validação.
+          items: { $ref: '#/components/schemas/FieldError' }
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Caminho JSON do campo reprovado.
+          examples: ['person.addresses[0].postal_code']
+        message: { type: string }
+        tag:
+          type: string
+          description: Regra de validação que falhou.
+          examples: [required, cnpj, ibge]
+
+    Page:
+      type: object
+      description: Envelope padrão das listagens.
+      required: [items, has_next, has_previous]
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        next_cursor:
+          type: [string, 'null']
+          description: Cursor da próxima página; `null` na última.
+        has_next: { type: boolean }
+        previous_cursor:
+          type: [string, 'null']
+          description: Cursor da página anterior; `null` na primeira.
+        has_previous: { type: boolean }
+
+    Health:
+      type: object
+      description: Resposta no formato RFC Health Check Response.
+      properties:
+        status:
+          type: string
+          enum: [pass, warn, fail]
+        version: { type: string }
+        checks:
+          type: object
+          additionalProperties: true
+          description: Resultado por dependência (cache, DynamoDB, S3).

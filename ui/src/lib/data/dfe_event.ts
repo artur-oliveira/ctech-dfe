@@ -37,21 +37,3 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   '110115': 'Inclusão de DF-e',
   '110116': 'Pagamento da Operação',
 }
-
-export const EVENT_STATUS_CLASSES: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  processing: 'bg-blue-50 text-blue-700',
-  success: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  failed: 'bg-red-200 text-red-800',
-  retry: 'bg-orange-100 text-orange-700',
-}
-
-export const EVENT_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendente',
-  processing: 'Processando',
-  success: 'Registrado',
-  rejected: 'Rejeitado',
-  failed: 'Falha',
-  retry: 'Tentando novamente',
-}

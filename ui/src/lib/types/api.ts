@@ -1,3 +1,5 @@
+import type {DfeStatus} from '@/lib/data/dfe_status'
+
 // Auth
 export interface TokenResponse {
   access_token: string
@@ -835,9 +837,9 @@ export interface NfePaymentOut {
   value: string
 }
 
-export type NfeStatus =
-  | 'pending' | 'authorized' | 'rejected' | 'failed'
-  | 'cancel_pending' | 'cancelled'
+// Todos os documentos passam pelo mesmo worker (DfeService), então compartilham
+// o ciclo de vida; `DfeStatus` (lib/data/dfe_status) é a lista canônica.
+export type NfeStatus = DfeStatus
 
 export interface NfeListOut {
   pk: string    // {env}#{org_pk}
@@ -874,7 +876,7 @@ export interface NfeEventOut {
   access_key: string
   event_type: string   // tpEvento code or "emission"
   sequence_number: number
-  status: 'pending' | 'processing' | 'success' | 'rejected' | 'failed' | 'retry'
+  status: DfeStatus
   sefaz_status: string | null
   sefaz_motive: string | null
   sefaz_protocol: string | null
@@ -885,10 +887,7 @@ export interface NfeEventOut {
 
 // ─── MDF-e (modelo 58) ──────────────────────────────────────────────────────
 
-export type MdfeStatus =
-  | 'pending' | 'authorized' | 'rejected' | 'failed'
-  | 'cancel_pending' | 'cancelled'
-  | 'close_pending' | 'closed'
+export type MdfeStatus = DfeStatus
 
 export interface MdfeMunIn {
   ibge_code: string
@@ -1046,7 +1045,7 @@ export interface MdfeIncludeDFeDoc {
 
 // ─── NFS-e ───────────────────────────────────────────────────────────────
 
-export type NfseStatus = 'pending' | 'processing' | 'authorized' | 'rejected' | 'cancelled' | 'error'
+export type NfseStatus = DfeStatus
 
 export interface NfseServiceItem {
   service_id: string
@@ -1119,7 +1118,7 @@ export interface NfseEventOut {
   access_key: string   // aqui carrega o id_dps, não a chave de acesso
   event_type: string
   sequence_number: number
-  status: 'pending' | 'processing' | 'success' | 'rejected' | 'failed' | 'retry'
+  status: DfeStatus
   sefaz_status: string | null
   sefaz_motive: string | null
   sefaz_protocol: string | null

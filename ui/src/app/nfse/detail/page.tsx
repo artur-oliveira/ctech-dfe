@@ -17,11 +17,10 @@ import {Modal} from '@/components/ui/modal'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
-import {StatusBadge} from '@/components/ui/status-badge'
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
-import {NFSE_STATUS_CLASSES, isTransitionalNfseStatus, nfseStatusLabel} from '@/components/nfse/NfseStatusBadge'
 import {CONTRIBUINTE_EVENTS, EVENT_LABELS, nfseEventSchema, type NfseEventFormData} from '@/lib/schemas/nfse'
 import {CITY_OPTIONS} from '@/lib/data/cities'
 import {formatCpfCnpj} from '@/lib/utils/document'
@@ -29,24 +28,6 @@ import {formatCurrency} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {toast} from 'sonner'
-
-const EVENT_STATUS_CLASSES: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  processing: 'bg-blue-50 text-blue-700',
-  success: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  failed: 'bg-red-200 text-red-800',
-  retry: 'bg-orange-100 text-orange-700',
-}
-
-const EVENT_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendente',
-  processing: 'Processando',
-  success: 'Registrado',
-  rejected: 'Rejeitado',
-  failed: 'Falha',
-  retry: 'Tentando novamente',
-}
 
 const TP_EMIT_LABELS: Record<number, string> = {1: 'Prestador', 2: 'Tomador', 3: 'Intermediário'}
 
@@ -200,12 +181,7 @@ function NfseDetail({idDps}: { idDps: string }) {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge
-            size="md"
-            label={nfseStatusLabel(doc.status)}
-            className={NFSE_STATUS_CLASSES[doc.status] ?? 'bg-gray-100 text-gray-600'}
-            isTransitional={isTransitionalNfseStatus(doc.status)}
-          />
+          <DfeStatusBadge status={doc.status} size="md"/>
 
           {doc.xml_s3_key && (
             <Button variant="outline" size="sm" onClick={() => handleDownload('xml')} disabled={xmlLoading === 'xml'}
@@ -305,9 +281,7 @@ function NfseDetail({idDps}: { idDps: string }) {
                 {evt.sefaz_motive && <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>}
               </td>
               <td data-label="Status" className={TABLE_CELL}>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STATUS_CLASSES[evt.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {EVENT_STATUS_LABELS[evt.status] ?? evt.status}
-                </span>
+                <DfeStatusBadge status={evt.status} gender="m"/>
               </td>
               <td data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
               <td className={`${TABLE_CELL} text-right`}>

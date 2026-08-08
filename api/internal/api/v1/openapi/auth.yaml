@@ -1,0 +1,299 @@
+paths:
+
+  # ── Auth ───────────────────────────────────────────────────────────────────
+
+  /v1.0/auth/me:
+    get:
+      tags: [Auth]
+      summary: Dados do usuário autenticado
+      description: |
+        Devolve o perfil do portador do token junto das organizações a que ele
+        pertence e do papel em cada uma. É a chamada de bootstrap do frontend.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Usuário autenticado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1.0/auth/terms-addendum/accept:
+    post:
+      tags: [Auth]
+      summary: Registra o aceite do aditivo de termos de uso
+      operationId: acceptTermsAddendum
+      responses:
+        '204':
+          description: Aceite registrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1.0/auth/roles:
+    get:
+      tags: [Auth]
+      summary: Lista os papéis atribuíveis
+      description: Catálogo dos papéis do RBAC (OWNER, ADMIN, USER, VIEWER) com sua descrição.
+      operationId: listRoles
+      responses:
+        '200':
+          description: Papéis disponíveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Role' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Members & invitations (gestão pela organização) ────────────────────────
+
+  /v1.0/organizations/{org_pk}/members:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [Members]
+      summary: Lista os membros da organização
+      description: Visível apenas para OWNER e ADMIN.
+      operationId: listMembers
+      responses:
+        '200':
+          description: Membros
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Member' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/organizations/{org_pk}/members/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+      - name: user_id
+        in: path
+        required: true
+        description: ID do usuário no ctech-account.
+        schema: { type: string }
+    delete:
+      tags: [Members]
+      summary: Remove um membro
+      description: |
+        Somente OWNER. O OWNER não pode remover a si mesmo — a organização
+        ficaria sem dono.
+      operationId: removeMember
+      responses:
+        '204':
+          description: Membro removido
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/organizations/{org_pk}/members/{user_id}/role:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+      - name: user_id
+        in: path
+        required: true
+        description: ID do usuário no ctech-account.
+        schema: { type: string }
+    put:
+      tags: [Members]
+      summary: Altera o papel de um membro
+      description: Somente OWNER. O papel OWNER não é atribuível por esta rota.
+      operationId: changeMemberRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberRoleBody' }
+      responses:
+        '204':
+          description: Papel alterado
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [Members]
+      summary: Lista os convites pendentes
+      description: OWNER e ADMIN. O token bruto não é exposto aqui.
+      operationId: listInvitations
+      responses:
+        '200':
+          description: Convites
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Invitation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Members]
+      summary: Cria um convite
+      description: |
+        **O `token` bruto só é devolvido nesta resposta** — apenas seu hash é
+        persistido. Guarde-o ao receber; não há como recuperá-lo depois.
+      operationId: createInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberRoleBody' }
+      responses:
+        '201':
+          description: Convite criado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Invitation'
+                  - type: object
+                    properties:
+                      token:
+                        type: string
+                        description: Token bruto do convite, devolvido uma única vez.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/invitations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+      - name: id
+        in: path
+        required: true
+        description: Identificador do convite.
+        schema: { type: string }
+    delete:
+      tags: [Members]
+      summary: Revoga um convite
+      operationId: revokeInvitation
+      responses:
+        '204':
+          description: Convite revogado
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Invitations (destinatário) ─────────────────────────────────────────────
+
+  /v1.0/invitations/{token}:
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    get:
+      tags: [Invitations]
+      summary: Consulta um convite pelo token
+      description: |
+        Endereçada por token: exige autenticação, mas não exige pertencer à
+        organização — é o que o convidado usa antes de aceitar.
+      operationId: getInvitationByToken
+      responses:
+        '200':
+          description: Convite
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invitation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/invitations/{token}/accept:
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      tags: [Invitations]
+      summary: Aceita um convite
+      description: Cria o vínculo do usuário autenticado com a organização.
+      operationId: acceptInvitation
+      responses:
+        '200':
+          description: Convite aceito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  org_pk: { type: string }
+                  role: { $ref: '#/components/schemas/RoleName' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/invitations/{token}/decline:
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      tags: [Invitations]
+      summary: Recusa um convite
+      operationId: declineInvitation
+      responses:
+        '204':
+          description: Convite recusado
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+
+  schemas:
+
+    # -- Auth --------------------------------------------------------------
+
+    CurrentUser:
+      type: object
+      description: Perfil do portador do token e seus vínculos.
+      additionalProperties: true
+      properties:
+        user_id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        organizations:
+          type: array
+          items: { $ref: '#/components/schemas/Member' }
+
+    Role:
+      type: object
+      properties:
+        name: { $ref: '#/components/schemas/RoleName' }
+        description: { type: string }
+
+    Member:
+      type: object
+      description: Vínculo de um usuário com uma organização.
+      additionalProperties: true
+      properties:
+        org_pk: { type: string }
+        user_id: { type: string }
+        user_name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/RoleName' }
+        created_at: { type: string, format: date-time }
+
+    Invitation:
+      type: object
+      description: Convite para ingressar numa organização. O token bruto só aparece na criação.
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        org_pk: { type: string }
+        role: { $ref: '#/components/schemas/RoleName' }
+        status: { type: string, examples: [pending, accepted, declined] }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+
+    MemberRoleBody:
+      type: object
+      description: Papel a conceder — OWNER não é atribuível por API.
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [ADMIN, USER, VIEWER]

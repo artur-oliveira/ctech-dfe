@@ -1,0 +1,99 @@
+openapi: 3.1.0
+
+# Fonte única da documentação da API. É mantida à mão e vigiada pelo teste de
+# cobertura em openapi_test.go: toda rota registrada no Fiber tem que aparecer
+# aqui, senão o teste quebra. Ao adicionar/remover rota, edite este arquivo na
+# mesma mudança.
+
+info:
+  title: CTech DFe API
+  version: '1.0'
+  summary: Emissão e consulta de documentos fiscais eletrônicos (NF-e, NFC-e, MDF-e, NFS-e).
+  description: |
+    API REST multi-tenant para emissão, consulta e gestão de documentos fiscais
+    eletrônicos brasileiros, com comunicação direta com a SEFAZ (SOAP + mTLS) e
+    com o Ambiente de Dados Nacional da NFS-e.
+
+    ## Autenticação
+
+    Todas as rotas — exceto `GET /v1.0/health-check` — exigem um JWT RS256
+    emitido pelo ctech-account no header `Authorization: Bearer <token>`.
+
+    ## Contexto de organização (multi-tenancy)
+
+    Quase toda rota opera dentro de uma organização. A organização ativa é
+    enviada no header `Dfe-Organization-Pk`, **nunca** como parâmetro de path.
+    As exceções são as rotas sob `/organizations/{org_pk}`, cuja organização
+    vem do path, `POST /organizations` e `GET /organizations`.
+
+    ## Erros
+
+    Todo erro é um RFC 7807 Problem Details (`application/problem+json`). Erros
+    de validação de corpo (422) trazem `errors[]` com um item por campo
+    reprovado, usando o caminho JSON do campo (`person.addresses[0].postal_code`).
+
+    ## Emissão assíncrona
+
+    `POST /nfes`, `/nfces`, `/mdfes` e `/nfses` gravam o documento com
+    `status: pending` e despacham o processamento para o worker. O resultado da
+    SEFAZ chega depois, por WebSocket (`GET /v1.0/ws`) ou por polling da rota de
+    detalhe do documento.
+
+    ## Paginação
+
+    Listagens usam cursor opaco em base64. A resposta traz `next_cursor` /
+    `previous_cursor`; repasse o valor em `?cursor=` para navegar. Nunca
+    construa um cursor à mão.
+  contact:
+    name: CTech
+    url: https://aoctech.app
+  license:
+    name: Proprietary
+    identifier: LicenseRef-CTech-Proprietary
+
+servers:
+  - url: https://dfe-api.aoctech.app
+    description: Produção
+  - url: http://localhost:8000
+    description: Local
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Health
+    description: Verificação de saúde e canal de eventos em tempo real.
+  - name: Auth
+    description: Identidade do usuário autenticado e catálogo de papéis.
+  - name: Organizations
+    description: Cadastro das organizações emitentes e autorizados a baixar XML.
+  - name: Fiscal Configs
+    description: Configuração de série, numeração e ambiente por tipo de documento.
+  - name: Certificates
+    description: Certificados digitais A1 (PFX) usados na assinatura e no mTLS.
+  - name: Members
+    description: Membros da organização e convites.
+  - name: Invitations
+    description: Aceite/recusa de convites pelo destinatário (endereçado por token).
+  - name: Products
+    description: Catálogo de produtos e sua configuração fiscal por CFOP.
+  - name: Services
+    description: Catálogo de serviços (NFS-e) e seus defaults tributários.
+  - name: Persons
+    description: Cadastro de pessoas (destinatários, tomadores, transportadores).
+  - name: Vehicles
+    description: Frota usada em NF-e (transporte), MDF-e e CT-e OS.
+  - name: NF-e
+    description: Nota Fiscal Eletrônica (modelo 55).
+  - name: NFC-e
+    description: Nota Fiscal de Consumidor Eletrônica (modelo 65).
+  - name: MDF-e
+    description: Manifesto Eletrônico de Documentos Fiscais.
+  - name: NFS-e
+    description: Nota Fiscal de Serviço Eletrônica (padrão nacional e ABRASF).
+  - name: Distributions
+    description: Documentos destinados à organização, obtidos da SEFAZ/ADN.
+  - name: Audit Logs
+    description: Trilha de auditoria das mutações da organização.
+  - name: External
+    description: Consultas em sistemas externos (cadastro de contribuintes).

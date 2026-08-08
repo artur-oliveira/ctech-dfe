@@ -8,7 +8,7 @@ import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import type {NfeListOut} from '@/lib/types/api'
 import {formatCurrency} from '@/lib/utils/helpers'
-import {NfeStatusCell} from '@/components/nfe/NfeStatusBadge'
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 
 const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
 const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
@@ -102,7 +102,7 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
             <div className="flex justify-between"><span className="text-gray-500">Total</span>
               <span className="font-medium">{formatCurrency(substitute.total)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Status</span>
-              <NfeStatusCell status={substitute.status} sefazMotive={substitute.sefaz_motive}/></div>
+              <DfeStatusCell status={substitute.status} sefazMotive={substitute.sefaz_motive}/></div>
             {notAuthorized && <p className="text-xs text-red-600 pt-1">A NFC-e substituta precisa estar autorizada.</p>}
             {totalDiverges && !notAuthorized && (
               <p className="text-xs text-amber-600 pt-1">
