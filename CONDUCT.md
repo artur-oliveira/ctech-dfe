@@ -336,7 +336,9 @@ produziria um item órfão.
   antes de marcar `authorized`; sucesso fiscal sem `nfse_xml` ou sem `dps_xml` falha fechado.
 - **Teresina (`cLocEmi=2211001`) usa autorizador municipal em homologação**, embora o XML seja DPS
   nacional v1.01. O endpoint publicado é registrado por município+ambiente; nunca derivar ou
-  inventar o endpoint de produção a partir do hostname de homologação.
+  inventar o endpoint de produção a partir do hostname de homologação. O host municipal fica atrás
+  de Cloudflare e desafia o `User-Agent` padrão do Go em origens AWS; o transporte REST NFS-e deve
+  enviar o identificador compatível `nfseRESTUserAgent`, validado a partir do mesmo egress de produção.
 - **IBS/CBS é obrigatório no catálogo de serviços NFS-e**: `c_ind_op`, `cst`, `c_class_trib`,
   `ind_dest` e `fin_nfse=0`. Não inferir classificação tributária a partir da descrição do serviço.
 - **`MunicipalParameters` e `GetDANFSE` chamam `dfe.Call` direto do serviço, não pelo worker** — são

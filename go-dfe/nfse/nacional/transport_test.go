@@ -36,6 +36,9 @@ func TestWithUTF8DeclarationDoesNotDuplicateHeader(t *testing.T) {
 
 func TestHTTPDo_FiscalErrorPreservesCode(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("User-Agent"); got != nfseRESTUserAgent {
+			t.Errorf("User-Agent = %q, esperado %q", got, nfseRESTUserAgent)
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"erros": []map[string]string{

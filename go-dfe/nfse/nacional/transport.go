@@ -23,6 +23,7 @@ import (
 const (
 	signXPathInfDPS    = ".//{" + nfse.Namespace + "}infDPS"
 	signXPathInfPedReg = ".//{" + nfse.Namespace + "}infPedReg"
+	nfseRESTUserAgent  = "Mozilla/5.0 (compatible; CTechDFe/1.0; +https://aoctech.app)"
 )
 
 // Política de retry idêntica à de internal/services/client.go: só
@@ -130,6 +131,7 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 			return 0, fmt.Errorf("nacional: build request: %w", err)
 		}
 		req.Header.Set("Accept", "application/json")
+		req.Header.Set("User-Agent", nfseRESTUserAgent)
 		if payload != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}

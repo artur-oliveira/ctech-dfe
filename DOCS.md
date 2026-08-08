@@ -892,7 +892,9 @@ Quatro validações rejeitam antes de qualquer escrita ou chamada externa:
 envelope `dpsXmlGZipB64`, mas o go-dfe envia para o autorizador municipal publicado pela SEMF
 (`https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/dps`), não para o Sefin Nacional.
 Consultas por chave usam o mesmo host municipal. Nenhum endpoint de produção é inferido enquanto
-não houver publicação oficial para esse ambiente.
+não houver publicação oficial para esse ambiente. O transporte REST define um `User-Agent`
+compatível e identificável porque o Cloudflare desse host devolve um desafio HTML para o agente
+padrão do Go quando a chamada parte do egress AWS, impedindo integrações sem navegador.
 
 **Ciclo de vida da linha em `nfses`:**
 
