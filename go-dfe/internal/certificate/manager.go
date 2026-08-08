@@ -85,6 +85,7 @@ func Load(certificateB64, password string) (*http.Client, *x509.Certificate, *rs
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				Certificates:       []tls.Certificate{tlsCert},
+				Renegotiation:      tls.RenegotiateOnceAsClient,
 				InsecureSkipVerify: true, // SEFAZ server chain deliberately not validated — see doc comment above.
 			},
 		},
