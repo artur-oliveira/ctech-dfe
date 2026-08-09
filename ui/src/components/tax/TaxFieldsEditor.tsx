@@ -1,6 +1,5 @@
 'use client'
 
-import {useEffect, useState} from 'react'
 import {Combobox} from '@/components/ui/combobox'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -15,8 +14,7 @@ import {CSOSN_OPTIONS} from '@/lib/data/csosn'
 import {ICMS_CST_OPTIONS} from '@/lib/data/icms'
 import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
 import {MOD_BC_OPTIONS, MOD_BC_ST_OPTIONS} from '@/lib/data/mod_bc'
-import {apiClient} from '@/lib/api/client'
-import {useDebounce} from '@/lib/hooks/useDebounce'
+import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
 
 // Conjuntos de CST/CSOSN que decidem quais grupos de campos ficam visíveis.
 // Ficam aqui, junto do editor que os usa, e são reexportados para o ProductForm
@@ -116,25 +114,7 @@ export function TaxFieldsEditor({
   const setShowIcmsMono = setGroup('icmsMono')
   const setShowPisCofinsSt = setGroup('pisCofinsSt')
 
-  const [systemAliq, setSystemAliq] = useState<{icms_aliq: string; fcp_aliq: string} | null>(null)
-  const debouncedAliqQuery = useDebounce(
-    emitUf && destUf ? {emitUf, destUf, ncm} : null, 300,
-  )
-  useEffect(() => {
-    let cancelled = false
-    if (!debouncedAliqQuery) {
-      Promise.resolve().then(() => { if (!cancelled) setSystemAliq(null) })
-      return () => { cancelled = true }
-    }
-    apiClient.getIcmsAliqPreview(debouncedAliqQuery).then((res) => {
-      if (!cancelled) setSystemAliq(res)
-    }).catch(() => {
-      if (!cancelled) setSystemAliq(null)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [debouncedAliqQuery])
+  const systemAliq = useIcmsAliqPreview(emitUf, destUf, ncm)
   const aliqDiverges = !!systemAliq && !!value.icms_aliq_override &&
     value.icms_aliq_override !== systemAliq.icms_aliq
 
