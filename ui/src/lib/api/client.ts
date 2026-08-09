@@ -361,6 +361,14 @@ class ApiClient {
     return this.del(`/v1.0/tax-profiles/${id}`)
   }
 
+  // Alíquota ICMS/FCP que o backend resolveria (sem override) — usada pelo
+  // warning de alíquota customizada no TaxFieldsEditor.
+  async getIcmsAliqPreview(params: {emitUf: string; destUf: string; ncm?: string}): Promise<{icms_aliq: string; fcp_aliq: string}> {
+    return this.get('/v1.0/tax-tables/icms-aliq', {
+      params: {emit_uf: params.emitUf, dest_uf: params.destUf, ncm: params.ncm},
+    })
+  }
+
   // Operations (naturezas de operação)
   async getOperations(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<OperationItemOut>> {
     return this.get('/v1.0/operations', {params})

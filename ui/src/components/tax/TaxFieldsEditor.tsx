@@ -1,5 +1,6 @@
 'use client'
 
+import {useEffect, useState} from 'react'
 import {Combobox} from '@/components/ui/combobox'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -14,6 +15,8 @@ import {CSOSN_OPTIONS} from '@/lib/data/csosn'
 import {ICMS_CST_OPTIONS} from '@/lib/data/icms'
 import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
 import {MOD_BC_OPTIONS, MOD_BC_ST_OPTIONS} from '@/lib/data/mod_bc'
+import {apiClient} from '@/lib/api/client'
+import {useDebounce} from '@/lib/hooks/useDebounce'
 
 // Conjuntos de CST/CSOSN que decidem quais grupos de campos ficam visíveis.
 // Ficam aqui, junto do editor que os usa, e são reexportados para o ProductForm
@@ -58,21 +61,33 @@ export interface TaxFieldsEditorProps {
    *  porque a validação de "habilitado mas incompleto" é dele. */
   groups: TaxGroups
   onGroupsChange: (next: TaxGroups) => void
+  /** UF emitente/destino e NCM — usados só para o warning de alíquota
+   *  (consulta GET /v1.0/tax-tables/icms-aliq). Sem eles, o warning não
+   *  aparece, mas o campo de override continua funcionando normalmente. */
+  emitUf?: string
+  destUf?: string
+  ncm?: string
 }
 
 /** Grupos tributários opcionais que o editor revela sob demanda. */
 export interface TaxGroups {
   ipi: boolean
   is: boolean
+  ibsCbs: boolean
   ibsRed: boolean
   ibsDif: boolean
   issqn: boolean
   icmsMono: boolean
+  pisCofinsSt: boolean
 }
 
 export const EMPTY_TAX_GROUPS: TaxGroups = {
-  ipi: false, is: false, ibsRed: false, ibsDif: false, issqn: false, icmsMono: false,
+  ipi: false, is: false, ibsCbs: false, ibsRed: false, ibsDif: false, issqn: false,
+  icmsMono: false, pisCofinsSt: false,
 }
+
+/** icms_mod_bc cujo cálculo usa um valor fixo em vez do valor de venda. */
+const ICMS_MOD_BC_PAUTA = new Set(['1', '2'])
 
 /**
  * Editor de tributação — ICMS/CSOSN, ST, PIS, COFINS, IBS/CBS, IPI, IS e ISSQN.
@@ -85,16 +100,43 @@ export const EMPTY_TAX_GROUPS: TaxGroups = {
  * Os toggles de grupos opcionais são estado interno: quem usa reseta remontando
  * o componente (`key`), como o ProductForm faz ao adicionar um CFOP à lista.
  */
-export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, groups, onGroupsChange}: TaxFieldsEditorProps) {
-  const {ipi: showIpi, is: showIs, ibsRed: showIbsCbsRed,
-    ibsDif: showIbsCbsDif, issqn: showIssqn, icmsMono: showIcmsMono} = groups
+export function TaxFieldsEditor({
+  value, onChange, simples, hideCfop = false, groups, onGroupsChange, emitUf, destUf, ncm,
+}: TaxFieldsEditorProps) {
+  const {ipi: showIpi, is: showIs, ibsCbs: showIbsCbs, ibsRed: showIbsCbsRed,
+    ibsDif: showIbsCbsDif, issqn: showIssqn, icmsMono: showIcmsMono,
+    pisCofinsSt: showPisCofinsSt} = groups
   const setGroup = (key: keyof TaxGroups) => (on: boolean) => onGroupsChange({...groups, [key]: on})
   const setShowIpi = setGroup('ipi')
   const setShowIs = setGroup('is')
+  const setShowIbsCbs = setGroup('ibsCbs')
   const setShowIbsCbsRed = setGroup('ibsRed')
   const setShowIbsCbsDif = setGroup('ibsDif')
   const setShowIssqn = setGroup('issqn')
   const setShowIcmsMono = setGroup('icmsMono')
+  const setShowPisCofinsSt = setGroup('pisCofinsSt')
+
+  const [systemAliq, setSystemAliq] = useState<{icms_aliq: string; fcp_aliq: string} | null>(null)
+  const debouncedAliqQuery = useDebounce(
+    emitUf && destUf ? {emitUf, destUf, ncm} : null, 300,
+  )
+  useEffect(() => {
+    let cancelled = false
+    if (!debouncedAliqQuery) {
+      Promise.resolve().then(() => { if (!cancelled) setSystemAliq(null) })
+      return () => { cancelled = true }
+    }
+    apiClient.getIcmsAliqPreview(debouncedAliqQuery).then((res) => {
+      if (!cancelled) setSystemAliq(res)
+    }).catch(() => {
+      if (!cancelled) setSystemAliq(null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedAliqQuery])
+  const aliqDiverges = !!systemAliq && !!value.icms_aliq_override &&
+    value.icms_aliq_override !== systemAliq.icms_aliq
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(value.icms ?? '')
   const cfopOptions = getAllCfopOptions()
@@ -206,7 +248,10 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
               <NumericInput value={value.icms_aliq_override ?? ''} decimal integerPlaces={3} decimalPlaces={4}
                             placeholder="Padrão: tabela da UF"
                             onChange={(v) => onChange((r) => ({...r, icms_aliq_override: v}))}/>
-              <p className="text-xs text-gray-400">Vazio = usa alíquota padrão da UF de destino</p>
+              <p className="text-xs text-gray-400">
+                {systemAliq ? `Vazio ou igual = usa a alíquota do sistema (${systemAliq.icms_aliq}%)`
+                  : 'Vazio = usa alíquota padrão da UF de destino'}
+              </p>
             </div>
             {['00', '10', '20', '51', '70', '90'].includes(value.icms) && (
               <div className="grid gap-1">
@@ -222,6 +267,21 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
                             placeholder="Padrão: tabela da UF"
                             onChange={(v) => onChange((r) => ({...r, icms_fcp_override: v}))}/>
             </div>
+            {ICMS_MOD_BC_PAUTA.has(value.icms_mod_bc ?? '') && (
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Valor da pauta fiscal (R$)</label>
+                <NumericInput value={value.icms_pauta_valor ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, icms_pauta_valor: v}))}/>
+              </div>
+            )}
+            {aliqDiverges && (
+              <div role="alert"
+                   className="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Alíquota ICMS digitada ({value.icms_aliq_override}%) diverge da tabela do sistema
+                para esta UF/NCM ({systemAliq?.icms_aliq}%).
+              </div>
+            )}
           </div>
         )}
 
@@ -316,6 +376,52 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
                               onChange={(v) => onChange((r) => ({...r, cofins_aliq_unid: v}))}/>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ── PIS/COFINS-ST ───────────────────────────────────────── */}
+      <div className="rounded-lg border border-gray-100 p-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="toggle-pis-cofins-st" checked={showPisCofinsSt}
+                 onChange={(e) => {
+                   setShowPisCofinsSt(e.target.checked)
+                   if (!e.target.checked) onChange((r) => ({
+                     ...r, pis_st_aliq: '', cofins_st_aliq: '', pis_st_v_bc: '', cofins_st_v_bc: '',
+                   }))
+                 }}
+                 className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+          <label htmlFor="toggle-pis-cofins-st"
+                 className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+            PIS/COFINS-ST — Substituição Tributária
+          </label>
+        </div>
+        {showPisCofinsSt && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-gray-700">Alíquota PIS-ST %</label>
+              <NumericInput value={value.pis_st_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
+                            placeholder="0.0000"
+                            onChange={(v) => onChange((r) => ({...r, pis_st_aliq: v}))}/>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-gray-700">Alíquota COFINS-ST %</label>
+              <NumericInput value={value.cofins_st_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
+                            placeholder="0.0000"
+                            onChange={(v) => onChange((r) => ({...r, cofins_st_aliq: v}))}/>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-gray-700">BC PIS-ST (R$)</label>
+              <NumericInput value={value.pis_st_v_bc ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                            placeholder="0.00"
+                            onChange={(v) => onChange((r) => ({...r, pis_st_v_bc: v}))}/>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-gray-700">BC COFINS-ST (R$)</label>
+              <NumericInput value={value.cofins_st_v_bc ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                            placeholder="0.00"
+                            onChange={(v) => onChange((r) => ({...r, cofins_st_v_bc: v}))}/>
+            </div>
           </div>
         )}
       </div>
@@ -540,8 +646,24 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
 
       {/* ── IBS / CBS ───────────────────────────────────────────── */}
       <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">IBS / CBS — Reforma
-          Tributária</p>
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="toggle-ibs-cbs" checked={showIbsCbs}
+                 onChange={(e) => {
+                   setShowIbsCbs(e.target.checked)
+                   if (!e.target.checked) onChange((r) => ({
+                     ...r, ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
+                     ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: '',
+                     ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: '',
+                   }))
+                 }}
+                 className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+          <label htmlFor="toggle-ibs-cbs"
+                 className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+            IBS / CBS — Reforma Tributária
+          </label>
+        </div>
+        {showIbsCbs && (
+        <>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">CST</label>
@@ -642,6 +764,8 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
                             onChange={(v) => onChange((r) => ({...r, cbs_p_dif: v}))} placeholder="0.0000"/>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
