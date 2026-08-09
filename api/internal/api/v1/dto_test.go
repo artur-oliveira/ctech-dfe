@@ -40,11 +40,11 @@ func validTaxFields() TaxFieldsBody {
 	return TaxFieldsBody{
 		Pis:             "01",
 		Cofins:          "01",
-		IbsCbsCst:       "000",
-		IbsCbsClassTrib: "000001",
-		IbsUfAliq:       "8.0000",
-		IbsMunAliq:      "1.0000",
-		CbsAliq:         "9.0000",
+		IbsCbsCst:       new("000"),
+		IbsCbsClassTrib: new("000001"),
+		IbsUfAliq:       new("8.0000"),
+		IbsMunAliq:      new("1.0000"),
+		CbsAliq:         new("9.0000"),
 	}
 }
 
@@ -136,7 +136,7 @@ func TestInvalidDTOsFail(t *testing.T) {
 func TestProductNestedFieldPath(t *testing.T) {
 	prod := validProduct()
 	prod.CfopConfig[0].Cfop = "51"      // invalid CFOP
-	prod.CfopConfig[0].IbsCbsCst = "99" // invalid CST
+	prod.CfopConfig[0].IbsCbsCst = new("99") // invalid CST
 	p := validation.Struct(prod)
 	if p == nil {
 		t.Fatal("expected errors")
@@ -151,6 +151,83 @@ func TestProductNestedFieldPath(t *testing.T) {
 		if !found {
 			t.Errorf("expected error at %q, got %+v", field, p.Errors)
 		}
+	}
+}
+
+// TestProductCfopConfig_OptionalWhenTaxProfileLinked reproduces a bug where a
+// product covered entirely by tax_profiles could not be saved with an empty
+// cfop_config: the DTO required min=1 unconditionally.
+func TestProductCfopConfig_OptionalWhenTaxProfileLinked(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig = nil
+	prod.TaxProfiles = []ProductTaxProfileRef{{TaxProfileID: "profile-1"}}
+	if p := validation.Struct(prod); p != nil {
+		t.Errorf("expected valid (cfop_config covered by tax_profiles), got errors %+v", p.Errors)
+	}
+}
+
+// TestProductRequiresCfopConfigOrTaxProfile ensures a product can't end up
+// with neither tax source configured.
+func TestProductRequiresCfopConfigOrTaxProfile(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig = nil
+	p := validation.Struct(prod)
+	if p == nil {
+		t.Fatal("expected error when both cfop_config and tax_profiles are empty")
+	}
+	fields := map[string]bool{}
+	for _, fe := range p.Errors {
+		fields[fe.Field] = true
+	}
+	if !fields["cfop_config"] || !fields["tax_profiles"] {
+		t.Errorf("expected cfop_config and tax_profiles errors, got %+v", fields)
+	}
+}
+
+// TestCfopConfig_UfOverrides_RequiresUfsWhenPresent ensures a uf_overrides
+// entry that applies to no UF at all is rejected — an override that never
+// matches any destination is dead configuration, not a "general override" in
+// disguise.
+func TestCfopConfig_UfOverrides_RequiresUfsWhenPresent(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig[0].UfOverrides = []UfTaxOverride{{Ufs: nil, Overrides: map[string]any{"icms_aliq_override": "12.00"}}}
+	p := validation.Struct(prod)
+	if p == nil {
+		t.Fatal("expected error when uf_overrides[].ufs is empty")
+	}
+}
+
+func TestCfopConfig_UfOverrides_ValidUf(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig[0].UfOverrides = []UfTaxOverride{{Ufs: []string{"SP", "RJ"}, Overrides: map[string]any{"icms_aliq_override": "12.00"}}}
+	if p := validation.Struct(prod); p != nil {
+		t.Errorf("expected valid, got %+v", p.Errors)
+	}
+}
+
+// TestTaxFieldsBody_IbsCbs_OptionalWhenAllEmpty: a product with none of the
+// IBS/CBS fields is valid now — the group is simply omitted at emission.
+func TestTaxFieldsBody_IbsCbs_OptionalWhenAllEmpty(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig[0].IbsCbsCst = nil
+	prod.CfopConfig[0].IbsCbsClassTrib = nil
+	prod.CfopConfig[0].IbsUfAliq = nil
+	prod.CfopConfig[0].IbsMunAliq = nil
+	prod.CfopConfig[0].CbsAliq = nil
+	if p := validation.Struct(prod); p != nil {
+		t.Errorf("expected valid with IBS/CBS group fully absent, got %+v", p.Errors)
+	}
+}
+
+func TestTaxFieldsBody_IbsCbs_PartialIsError(t *testing.T) {
+	prod := validProduct()
+	prod.CfopConfig[0].IbsCbsClassTrib = nil
+	prod.CfopConfig[0].IbsUfAliq = nil
+	prod.CfopConfig[0].IbsMunAliq = nil
+	prod.CfopConfig[0].CbsAliq = nil
+	p := validation.Struct(prod)
+	if p == nil {
+		t.Fatal("expected error: ibs_cbs group is all-or-nothing")
 	}
 }
 
@@ -397,14 +474,15 @@ func TestTaxProfile_RejectsMalformedCfop(t *testing.T) {
 	}
 }
 
-// The IBS/CBS block is required on a profile exactly as it is on a product's
-// cfop_config — the profile carries a complete tax treatment, not a partial one.
-func TestTaxProfile_RequiresIbsCbsBlock(t *testing.T) {
+// The IBS/CBS block on a profile follows the same all-or-nothing rule as a
+// product's cfop_config (validateIbsCbsGroup) — filling only some of the 5
+// key fields is rejected, but leaving the whole group empty is valid.
+func TestTaxProfile_IbsCbsBlock_PartialIsRejected(t *testing.T) {
 	dto := validTaxProfile()
-	dto.IbsCbsCst = ""
+	dto.IbsCbsCst = nil
 	p := validation.Struct(dto)
 	if p == nil {
-		t.Fatal("expected missing ibs_cbs_cst to be rejected")
+		t.Fatal("expected partial ibs_cbs group to be rejected")
 	}
 	if len(p.Errors) == 0 || p.Errors[0].Field != "ibs_cbs_cst" {
 		t.Errorf("error path = %+v, want ibs_cbs_cst (embedded struct must be inlined)", p.Errors)

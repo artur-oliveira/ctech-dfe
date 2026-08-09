@@ -1,5 +1,11 @@
 package v1
 
+import (
+	"github.com/go-playground/validator/v10"
+
+	"gopkg.aoctech.app/dfe/api/internal/validation"
+)
+
 // Request DTOs for all mutating endpoints. Each struct mirrors the payload the
 // frontend sends (see ui/src/lib/types/api.ts and ui/src/lib/schemas/*) and
 // carries go-playground/validator tags so the request body is validated
@@ -180,9 +186,10 @@ type TaxFieldsBody struct {
 	IcmsStAliq    *string `json:"icms_st_aliq" validate:"omitempty,percent"`
 	IcmsStFcpAliq *string `json:"icms_st_fcp_aliq" validate:"omitempty,percent"`
 	// Conditional ICMS (Regime Normal)
-	IcmsPRedBc *string `json:"icms_p_red_bc" validate:"omitempty,percent"`
-	IcmsMotDes *string `json:"icms_mot_des" validate:"omitempty"`
-	IcmsPDif   *string `json:"icms_p_dif" validate:"omitempty,percent"`
+	IcmsPRedBc     *string `json:"icms_p_red_bc" validate:"omitempty,percent"`
+	IcmsMotDes     *string `json:"icms_mot_des" validate:"omitempty"`
+	IcmsPDif       *string `json:"icms_p_dif" validate:"omitempty,percent"`
+	IcmsPautaValor *string `json:"icms_pauta_valor" validate:"omitempty,money2"`
 	// ICMS monofásico combustíveis
 	IcmsAdRem       *string `json:"icms_ad_rem" validate:"omitempty,percent"`
 	IcmsAdRemReten  *string `json:"icms_ad_rem_reten" validate:"omitempty,percent"`
@@ -202,12 +209,19 @@ type TaxFieldsBody struct {
 	CofinsAliq     *string `json:"cofins_aliq" validate:"omitempty,percent"`
 	PisAliqUnid    *string `json:"pis_aliq_unid" validate:"omitempty,percent"`
 	CofinsAliqUnid *string `json:"cofins_aliq_unid" validate:"omitempty,percent"`
-	// IBS / CBS (Reforma Tributária) — required
-	IbsCbsCst       string  `json:"ibs_cbs_cst" validate:"required,ibscst"`
-	IbsCbsClassTrib string  `json:"ibs_cbs_class_trib" validate:"required,class6"`
-	IbsUfAliq       string  `json:"ibs_uf_aliq" validate:"required,percent"`
-	IbsMunAliq      string  `json:"ibs_mun_aliq" validate:"required,percent"`
-	CbsAliq         string  `json:"cbs_aliq" validate:"required,percent"`
+	// PIS / COFINS-ST — substituição tributária (grupo opcional)
+	PisStAliq    *string `json:"pis_st_aliq" validate:"omitempty,percent"`
+	CofinsStAliq *string `json:"cofins_st_aliq" validate:"omitempty,percent"`
+	PisStVBc     *string `json:"pis_st_v_bc" validate:"omitempty,money2"`
+	CofinsStVBc  *string `json:"cofins_st_v_bc" validate:"omitempty,money2"`
+	// IBS / CBS (Reforma Tributária) — opcional, tudo-ou-nada (ver validateIbsCbsGroup).
+	// Vigência obrigatória: 2026-08-03 (não-Simples) / 2027-01-04 (Simples/MEI) —
+	// até lá, e mesmo depois para quem ainda não migrou, o grupo pode ficar ausente.
+	IbsCbsCst       *string `json:"ibs_cbs_cst" validate:"omitempty,ibscst"`
+	IbsCbsClassTrib *string `json:"ibs_cbs_class_trib" validate:"omitempty,class6"`
+	IbsUfAliq       *string `json:"ibs_uf_aliq" validate:"omitempty,percent"`
+	IbsMunAliq      *string `json:"ibs_mun_aliq" validate:"omitempty,percent"`
+	CbsAliq         *string `json:"cbs_aliq" validate:"omitempty,percent"`
 	IbsUfPRed       *string `json:"ibs_uf_p_red" validate:"omitempty,percent"`
 	IbsMunPRed      *string `json:"ibs_mun_p_red" validate:"omitempty,percent"`
 	CbsPRed         *string `json:"cbs_p_red" validate:"omitempty,percent"`
@@ -217,6 +231,7 @@ type TaxFieldsBody struct {
 	IbsIndDoacao    *string `json:"ibs_ind_doacao" validate:"omitempty"`
 	IbsAdRem        *string `json:"ibs_ad_rem" validate:"omitempty,percent"`
 	CbsAdRem        *string `json:"cbs_ad_rem" validate:"omitempty,percent"`
+	IbsCbsPDevTrib  *string `json:"ibs_cbs_p_dev_trib" validate:"omitempty,percent"`
 	// IPI
 	IpiCst  *string `json:"ipi_cst" validate:"omitempty"`
 	IpiAliq *string `json:"ipi_aliq" validate:"omitempty,percent"`
@@ -235,10 +250,20 @@ type TaxFieldsBody struct {
 	IssqnVIssRet   *string `json:"issqn_v_iss_ret" validate:"omitempty"`
 }
 
+// UfTaxOverride is a partial TaxFieldsBody override applied only when the
+// operation's destination UF is in Ufs. It does not duplicate all ~60 tax
+// fields — only the ones that diverge for that set of UFs (design spec
+// 2026-08-09-tax-config-redesign §Modelo de dados 1).
+type UfTaxOverride struct {
+	Ufs       []string       `json:"ufs" validate:"required,min=1,dive,uf"`
+	Overrides map[string]any `json:"overrides" validate:"omitempty"`
+}
+
 // CfopConfigBody is one per-CFOP tax configuration entry of a product.
 // Optional tax fields are nullable and only format-checked when present.
 type CfopConfigBody struct {
-	Cfop string `json:"cfop" validate:"required,cfop"`
+	Cfop        string          `json:"cfop" validate:"required,cfop"`
+	UfOverrides []UfTaxOverride `json:"uf_overrides" validate:"omitempty,dive"`
 	TaxFieldsBody
 }
 
@@ -349,9 +374,10 @@ type ProductTaxProfileRef struct {
 // differs per CFOP, create a second profile — there is no per-CFOP nesting
 // inside a profile.
 type TaxProfileBody struct {
-	Name        string   `json:"name" validate:"required,min=2,max=120"`
-	Description *string  `json:"description" validate:"omitempty,max=255"`
-	Cfops       []string `json:"cfops" validate:"required,min=1,dive,cfop"`
+	Name        string          `json:"name" validate:"required,min=2,max=120"`
+	Description *string         `json:"description" validate:"omitempty,max=255"`
+	Cfops       []string        `json:"cfops" validate:"required,min=1,dive,cfop"`
+	UfOverrides []UfTaxOverride `json:"uf_overrides" validate:"omitempty,dive"`
 	TaxFieldsBody
 }
 
@@ -382,8 +408,8 @@ type ProductBody struct {
 	FcpAliqOverride   *string                `json:"fcp_aliq_override" validate:"omitempty,percent"`
 	InfAdProd         *string                `json:"inf_ad_prod" validate:"omitempty,max=500"`
 	CfopNfce          string                 `json:"cfop_nfce" validate:"required,cfop"`
-	CfopConfig        []CfopConfigBody       `json:"cfop_config" validate:"required,min=1,dive"`
-	TaxProfiles       []ProductTaxProfileRef `json:"tax_profiles" validate:"omitempty,dive"`
+	CfopConfig        []CfopConfigBody       `json:"cfop_config" validate:"required_without=TaxProfiles,omitempty,dive"`
+	TaxProfiles       []ProductTaxProfileRef `json:"tax_profiles" validate:"required_without=CfopConfig,omitempty,dive"`
 	ConversionFactors []ConversionFactorBody `json:"conversion_factors" validate:"omitempty,dive"`
 	// Tipo específico e campos especiais
 	ProdType          *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`
@@ -613,4 +639,33 @@ type NfceConfigBody struct {
 	ProdCscID int    `json:"prod_csc_id" validate:"required,gt=0"`
 	HomCsc    string `json:"hom_csc" validate:"required,max=36"`
 	HomCscID  int    `json:"hom_csc_id" validate:"required,gt=0"`
+}
+
+func init() {
+	validation.RegisterStructRule(validateIbsCbsGroup, TaxFieldsBody{})
+}
+
+// validateIbsCbsGroup enforces the IBS/CBS group as all-or-nothing: if any of
+// the 5 key fields is filled, the other 4 are required too. A product with
+// NONE of them is valid — the group is simply omitted at emission time
+// (design spec 2026-08-09-tax-config-redesign §Modelo de dados 4).
+func validateIbsCbsGroup(sl validator.StructLevel) {
+	f := sl.Current().Interface().(TaxFieldsBody)
+	vals := []*string{f.IbsCbsCst, f.IbsCbsClassTrib, f.IbsUfAliq, f.IbsMunAliq, f.CbsAliq}
+	present := 0
+	for _, v := range vals {
+		if v != nil && *v != "" {
+			present++
+		}
+	}
+	if present == 0 || present == len(vals) {
+		return
+	}
+	jsonNames := []string{"ibs_cbs_cst", "ibs_cbs_class_trib", "ibs_uf_aliq", "ibs_mun_aliq", "cbs_aliq"}
+	structNames := []string{"IbsCbsCst", "IbsCbsClassTrib", "IbsUfAliq", "IbsMunAliq", "CbsAliq"}
+	for i, v := range vals {
+		if v == nil || *v == "" {
+			sl.ReportError(v, jsonNames[i], structNames[i], "required_with_group", "ibs_cbs")
+		}
+	}
 }

@@ -72,6 +72,14 @@ func get() *validator.Validate {
 	return instance
 }
 
+// RegisterStructRule registers a struct-level validation on the shared
+// instance. Callers are the packages that define the DTOs (internal/api/v1) —
+// this package cannot import them back (import cycle), so DTO packages call
+// this from their own init() instead.
+func RegisterStructRule(fn validator.StructLevelFunc, types ...any) {
+	get().RegisterStructValidation(fn, types...)
+}
+
 // Struct validates v. It returns nil when valid, or an RFC 7807 *problem.Problem
 // (HTTP 422) carrying one FieldError per failed rule.
 func Struct(v any) *problem.Problem {
@@ -139,6 +147,8 @@ func message(fe validator.FieldError) string {
 		return "campo obrigatório"
 	case "required_if", "required_with", "required_without":
 		return "campo obrigatório neste contexto"
+	case "required_with_group":
+		return "obrigatório quando outro campo do grupo IBS/CBS está preenchido"
 	case "min":
 		return fmt.Sprintf("mínimo de %s", fe.Param())
 	case "max":
