@@ -147,49 +147,49 @@ func TestUFCode_KnownCodes(t *testing.T) {
 // ─── resolveICMSAliq ─────────────────────────────────────────────────────────
 
 func TestResolveICMSAliq_IntrastateSP(t *testing.T) {
-	got := resolveICMSAliq("SP", "SP", nil)
+	got := resolveICMSAliq("SP", "SP", "", nil)
 	if got != "18.00" {
 		t.Errorf("SP→SP = %q, want 18.00", got)
 	}
 }
 
 func TestResolveICMSAliq_UnknownUFFallback(t *testing.T) {
-	got := resolveICMSAliq("ZZ", "ZZ", nil)
+	got := resolveICMSAliq("ZZ", "ZZ", "", nil)
 	if got != "17.00" {
 		t.Errorf("ZZ→ZZ fallback = %q, want 17.00", got)
 	}
 }
 
 func TestResolveICMSAliq_OverrideTakesPrecedence(t *testing.T) {
-	got := resolveICMSAliq("SP", "SP", new("25.00"))
+	got := resolveICMSAliq("SP", "SP", "", new("25.00"))
 	if got != "25.00" {
 		t.Errorf("override = %q, want 25.00", got)
 	}
 }
 
 func TestResolveICMSAliq_InterstateSulToNorte(t *testing.T) {
-	got := resolveICMSAliq("SP", "AM", nil)
+	got := resolveICMSAliq("SP", "AM", "", nil)
 	if got != "7.00" {
 		t.Errorf("SP→AM = %q, want 7.00", got)
 	}
 }
 
 func TestResolveICMSAliq_InterstateSulToSul(t *testing.T) {
-	got := resolveICMSAliq("SP", "PR", nil)
+	got := resolveICMSAliq("SP", "PR", "", nil)
 	if got != "12.00" {
 		t.Errorf("SP→PR = %q, want 12.00", got)
 	}
 }
 
 func TestResolveICMSAliq_InterestateNorteToNorte(t *testing.T) {
-	got := resolveICMSAliq("AM", "PA", nil)
+	got := resolveICMSAliq("AM", "PA", "", nil)
 	if got != "12.00" {
 		t.Errorf("AM→PA = %q, want 12.00", got)
 	}
 }
 
 func TestResolveICMSAliq_EmptyOverrideUsesTable(t *testing.T) {
-	got := resolveICMSAliq("SP", "SP", new(""))
+	got := resolveICMSAliq("SP", "SP", "", new(""))
 	if got != "18.00" {
 		t.Errorf("empty override SP→SP = %q, want 18.00", got)
 	}
@@ -198,42 +198,42 @@ func TestResolveICMSAliq_EmptyOverrideUsesTable(t *testing.T) {
 // ─── resolveFCPAliq ──────────────────────────────────────────────────────────
 
 func TestResolveFCPAliq_RJHasFCP(t *testing.T) {
-	got := resolveFCPAliq("RJ", nil)
+	got := resolveFCPAliq("RJ", "", nil)
 	if got != "2.00" {
 		t.Errorf("RJ FCP = %q, want 2.00", got)
 	}
 }
 
 func TestResolveFCPAliq_SPHasFCP(t *testing.T) {
-	got := resolveFCPAliq("SP", nil)
+	got := resolveFCPAliq("SP", "", nil)
 	if got != "2.00" {
 		t.Errorf("SP FCP = %q, want 2.00", got)
 	}
 }
 
 func TestResolveFCPAliq_UnknownUFReturnsZero(t *testing.T) {
-	got := resolveFCPAliq("ZZ", nil)
+	got := resolveFCPAliq("ZZ", "", nil)
 	if got != "0.00" {
 		t.Errorf("ZZ FCP = %q, want 0.00", got)
 	}
 }
 
 func TestResolveFCPAliq_OverrideTakesPrecedence(t *testing.T) {
-	got := resolveFCPAliq("SP", new("1.00"))
+	got := resolveFCPAliq("SP", "", new("1.00"))
 	if got != "1.00" {
 		t.Errorf("SP FCP override = %q, want 1.00", got)
 	}
 }
 
 func TestResolveFCPAliq_OverrideZeroForRJ(t *testing.T) {
-	got := resolveFCPAliq("RJ", new("0.00"))
+	got := resolveFCPAliq("RJ", "", new("0.00"))
 	if got != "0.00" {
 		t.Errorf("RJ FCP override 0.00 = %q, want 0.00", got)
 	}
 }
 
 func TestResolveFCPAliq_SCHasZero(t *testing.T) {
-	got := resolveFCPAliq("SC", nil)
+	got := resolveFCPAliq("SC", "", nil)
 	if got != "0.00" {
 		t.Errorf("SC FCP = %q, want 0.00", got)
 	}
@@ -356,5 +356,56 @@ func TestResolveICMSInterAliq_NilOriginUsesTable(t *testing.T) {
 	got := resolveICMSInterAliq("SP", "AM", nil)
 	if !xsdInterEnum[got] {
 		t.Errorf("nil origin SP→AM = %q: not valid", got)
+	}
+}
+
+// ─── icmsNcmTable — NCM+UF specific rate (migrated from the frontend) ─────────
+
+func TestResolveICMSAliq_NcmSpecificBeatsGenericTable(t *testing.T) {
+	fcp := "1.0000"
+	icmsNcmTable["SP"] = []icmsNcmEntry{{ncm: "8517", aliq: "7.00", fcp: &fcp}}
+	defer delete(icmsNcmTable, "SP")
+
+	got := resolveICMSAliq("SP", "SP", "85171231", nil)
+	if got != "7.00" {
+		t.Errorf("expected NCM-specific rate 7.00, got %s", got)
+	}
+}
+
+func TestResolveICMSAliq_OverrideBeatsNcmTable(t *testing.T) {
+	icmsNcmTable["SP"] = []icmsNcmEntry{{ncm: "8517", aliq: "7.00", fcp: nil}}
+	defer delete(icmsNcmTable, "SP")
+
+	got := resolveICMSAliq("SP", "SP", "85171231", new("1.5000"))
+	if got != "1.5000" {
+		t.Errorf("expected override to win, got %s", got)
+	}
+}
+
+func TestResolveICMSAliq_NoNcmMatchFallsBackToGenericTable(t *testing.T) {
+	got := resolveICMSAliq("SP", "SP", "99999999", nil)
+	if got != resolveICMSIntraAliq("SP") {
+		t.Errorf("expected generic-table fallback, got %s", got)
+	}
+}
+
+func TestResolveFCPAliq_NcmSpecificFcpBeatsGenericTable(t *testing.T) {
+	fcp := "3.5000"
+	icmsNcmTable["SP"] = []icmsNcmEntry{{ncm: "8517", aliq: "7.00", fcp: &fcp}}
+	defer delete(icmsNcmTable, "SP")
+
+	got := resolveFCPAliq("SP", "85171231", nil)
+	if got != "3.5000" {
+		t.Errorf("expected NCM-specific FCP 3.5000, got %s", got)
+	}
+}
+
+func TestResolveFCPAliq_NcmEntryWithoutFcp_FallsBackToGeneric(t *testing.T) {
+	icmsNcmTable["SP"] = []icmsNcmEntry{{ncm: "8517", aliq: "7.00", fcp: nil}}
+	defer delete(icmsNcmTable, "SP")
+
+	got := resolveFCPAliq("SP", "85171231", nil)
+	if got != fcpAliq["SP"] {
+		t.Errorf("expected generic FCP fallback %s, got %s", fcpAliq["SP"], got)
 	}
 }

@@ -486,8 +486,9 @@ func BuildEnviNFe(
 		origin := anyStr(item, "origin", "0")
 
 		originPtr := &origin
-		pICMSResolved := resolveICMSAliq(emitUF, destUF, anyStrPtr(item, "icms_aliq_override"))
-		pFCPResolved := resolveFCPAliq(destUF, anyStrPtr(item, "fcp_aliq_override"))
+		itemNCM := anyStr(item, "ncm", "")
+		pICMSResolved := resolveICMSAliq(emitUF, destUF, itemNCM, anyStrPtr(item, "icms_aliq_override"))
+		pFCPResolved := resolveFCPAliq(destUF, itemNCM, anyStrPtr(item, "fcp_aliq_override"))
 
 		qty := d(anyStr(item, "quantity", "0"))
 		unitVal := d(anyStr(item, "unit_value", "0"))
@@ -543,7 +544,7 @@ func BuildEnviNFe(
 			if isDifalEligible && icmsCSTDifalEligible[cstForItem] {
 				pICMSUFDest := resolveICMSIntraAliq(destUF)
 				pICMSInter := resolveICMSInterAliq(emitUF, destUF, originPtr)
-				pFCPUFDest := resolveFCPAliq(destUF, nil)
+				pFCPUFDest := resolveFCPAliq(destUF, "", nil)
 				icmsUFDestNode = buildICMSUFDest(vBCIBSCBS, pICMSUFDest, pICMSInter, pFCPUFDest)
 				totalVICMSUFDest = totalVICMSUFDest.Add(d(anyStr(icmsUFDestNode, "vICMSUFDest", "0")))
 				totalVFCPUFDest = totalVFCPUFDest.Add(d(anyStr(icmsUFDestNode, "vFCPUFDest", "0")))

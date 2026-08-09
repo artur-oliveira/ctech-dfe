@@ -1,5 +1,7 @@
 package nfes
 
+import "strings"
+
 // aliqICMSTable[emit_uf][dest_uf] = alíquota ICMS interestadual.
 // Mirrors app/constants/tax_tables.py ALIQ_ICMS_TABLE.
 var aliqICMSTable = buildICMSTable()
@@ -78,9 +80,38 @@ var fcpAliq = map[string]string{
 	"AC": "0.00", "AP": "0.00", "CE": "0.00", "PA": "0.00", "SC": "0.00",
 }
 
-func resolveICMSAliq(emitUF, destUF string, override *string) string {
+// icmsNcmEntry is an ICMS rate specific to one NCM prefix, within a UF.
+// Mirrors ui/src/lib/data/icms_ncm_lookup.ts IcmsNcmEntry — migrated here so
+// the backend is the single source of truth (design spec
+// 2026-08-09-tax-config-redesign §Modelo de dados 5).
+type icmsNcmEntry struct {
+	ncm  string
+	aliq string
+	fcp  *string
+}
+
+// icmsNcmTable[dest_uf] = entries sorted from most to least specific NCM
+// prefix. Populated by scripts/generate-icms-lookup (moved from the frontend
+// lookup table, which is removed once this is the only copy).
+var icmsNcmTable = map[string][]icmsNcmEntry{}
+
+// resolveIcmsNcm returns the most specific icmsNcmTable entry for destUF+ncm,
+// or nil if none matches.
+func resolveIcmsNcm(destUF, ncm string) *icmsNcmEntry {
+	for _, e := range icmsNcmTable[destUF] {
+		if strings.HasPrefix(ncm, e.ncm) {
+			return &e
+		}
+	}
+	return nil
+}
+
+func resolveICMSAliq(emitUF, destUF, ncm string, override *string) string {
 	if override != nil && *override != "" {
 		return *override
+	}
+	if e := resolveIcmsNcm(destUF, ncm); e != nil {
+		return e.aliq
 	}
 	if row, ok := aliqICMSTable[emitUF]; ok {
 		if aliq, ok := row[destUF]; ok {
@@ -90,9 +121,12 @@ func resolveICMSAliq(emitUF, destUF string, override *string) string {
 	return "17.00"
 }
 
-func resolveFCPAliq(destUF string, override *string) string {
+func resolveFCPAliq(destUF, ncm string, override *string) string {
 	if override != nil {
 		return *override
+	}
+	if e := resolveIcmsNcm(destUF, ncm); e != nil && e.fcp != nil {
+		return *e.fcp
 	}
 	if v, ok := fcpAliq[destUF]; ok {
 		return v
