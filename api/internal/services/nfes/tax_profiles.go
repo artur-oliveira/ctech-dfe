@@ -119,24 +119,27 @@ func profileCFOPs(profile map[string]any) []string {
 	return out
 }
 
-// resolveCfopTax devolve o tratamento tributário efetivo de um produto para um
-// CFOP, na ordem de precedência da spec §3.2 — da menor para a maior:
-//
-//	perfil  →  overrides do produto sobre o perfil  →  cfop_config[cfop]
-//
-// Overrides de nível de produto (icms_aliq_override, fcp_aliq_override) e a
-// tabela da UF ficam fora daqui: são campos do próprio item, aplicados adiante
-// por resolveICMSAliq/resolveFCPAliq.
-//
-// Produto legado, sem perfil nenhum: o resultado é exatamente a entrada de
-// cfop_config que já era usada hoje. É essa propriedade que garante que nenhuma
-// emissão existente muda de comportamento.
-func resolveCfopTax(product map[string]any, profiles map[string]map[string]any, cfop string) (map[string]any, error) {
-	resolved := map[string]any{}
+// ufOverridesField é a lista de overrides por UF dentro de um cfop_config/perfil.
+const ufOverridesField = "uf_overrides"
 
-	// 1. Perfil cujo conjunto de CFOPs cobre este CFOP. O primeiro declarado
-	//    vence — dois perfis cobrindo o mesmo CFOP é configuração ambígua, e a
-	//    ordem de declaração é o desempate previsível.
+// resolveCfopTax devolve o tratamento tributário efetivo de um produto para um
+// CFOP e UF de destino, na ordem de precedência da spec (maior para menor):
+//
+//  1. cfop_config[cfop] do produto + uf_overrides da UF de destino
+//  2. cfop_config[cfop] do produto (sem UF)
+//  3. vínculo produto→perfil (overrides) + uf_overrides da UF de destino
+//  4. vínculo produto→perfil (overrides), sem UF
+//  5. tax_profile.cfops[cfop] + uf_overrides da UF de destino
+//  6. tax_profile.cfops[cfop] (sem UF)
+//  7. erro: nenhuma camada cobre o CFOP
+//
+// A primeira camada que cobrir o CFOP resolve — não há mistura entre níveis.
+// Produto legado, sem perfil e sem uf_overrides: resultado idêntico ao que
+// sempre foi (garante zero regressão em emissões existentes).
+func resolveCfopTax(product map[string]any, profiles map[string]map[string]any, cfop, destUF string) (map[string]any, error) {
+	// Níveis 5-6: perfil cujo conjunto de CFOPs cobre este CFOP. O primeiro
+	// declarado vence — dois perfis cobrindo o mesmo CFOP é configuração
+	// ambígua, e a ordem de declaração é o desempate previsível.
 	for _, id := range profileRefs(product) {
 		profile, ok := profiles[id]
 		if !ok {
@@ -145,29 +148,84 @@ func resolveCfopTax(product map[string]any, profiles map[string]map[string]any, 
 		if !containsCFOP(profileCFOPs(profile), cfop) {
 			continue
 		}
+		resolved := map[string]any{}
 		mergeTaxFields(resolved, profile)
-		// 2. Override do produto sobre esse perfil.
-		mergeTaxFields(resolved, profileOverrides(product, id))
-		break
-	}
-
-	// 3. cfop_config explícito no produto — vence tudo.
-	if entries, ok := product[cfopConfigField].([]any); ok {
-		for _, e := range entries {
-			m, ok := e.(map[string]any)
-			if !ok || m[cfopField] != cfop {
-				continue
-			}
-			mergeTaxFields(resolved, m)
-			break
+		mergeUfOverride(resolved, profile, destUF)
+		// Níveis 3-4: vínculo produto→perfil por cima do perfil.
+		if ov := profileOverrides(product, id); ov != nil {
+			mergeTaxFields(resolved, ov)
+			mergeUfOverride(resolved, ov, destUF)
 		}
+		// Níveis 1-2: cfop_config do produto vence tudo, se existir para este CFOP.
+		applyCfopConfig(resolved, product, cfop, destUF)
+		if len(resolved) == 0 {
+			continue
+		}
+		resolved[cfopField] = cfop
+		return resolved, nil
 	}
 
+	// Sem perfil cobrindo o CFOP: só cfop_config (níveis 1-2) — comportamento
+	// legado de um produto sem perfil nenhum.
+	resolved := map[string]any{}
+	applyCfopConfig(resolved, product, cfop, destUF)
 	if len(resolved) == 0 {
 		return nil, fmt.Errorf("CFOP %s sem tributação configurada", cfop)
 	}
 	resolved[cfopField] = cfop
 	return resolved, nil
+}
+
+// applyCfopConfig mescla sobre dst a entrada de cfop_config do produto para
+// este CFOP (níveis 1-2) — vence tudo que já estava em dst.
+func applyCfopConfig(dst, product map[string]any, cfop, destUF string) {
+	entries, ok := product[cfopConfigField].([]any)
+	if !ok {
+		return
+	}
+	for _, e := range entries {
+		m, ok := e.(map[string]any)
+		if !ok || m[cfopField] != cfop {
+			continue
+		}
+		mergeTaxFields(dst, m)
+		mergeUfOverride(dst, m, destUF)
+		return
+	}
+}
+
+// mergeUfOverride aplica sobre dst o primeiro bloco de uf_overrides de src
+// cuja lista ufs contenha destUF. src é o map (cfop_config, perfil, ou
+// overrides do vínculo produto→perfil) que carrega o campo uf_overrides.
+func mergeUfOverride(dst, src map[string]any, destUF string) {
+	raw, ok := src[ufOverridesField].([]any)
+	if !ok {
+		return
+	}
+	for _, o := range raw {
+		entry, ok := o.(map[string]any)
+		if !ok {
+			continue
+		}
+		ufs, ok := entry["ufs"].([]any)
+		if !ok {
+			continue
+		}
+		matched := false
+		for _, u := range ufs {
+			if s, ok := u.(string); ok && s == destUF {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		if ov, ok := entry["overrides"].(map[string]any); ok {
+			mergeTaxFields(dst, ov)
+		}
+		return
+	}
 }
 
 // profileOverrides devolve o bloco `overrides` que o produto declarou para um
@@ -212,7 +270,7 @@ func mergeTaxFields(dst, src map[string]any) {
 // podem vazar do perfil para o item da emissão.
 var nonTaxFields = map[string]struct{}{
 	"pk": {}, "sk": {}, "name": {}, "description": {},
-	profileCfopsField: {}, cfopField: {},
+	profileCfopsField: {}, cfopField: {}, ufOverridesField: {},
 	"created_at": {}, "updated_at": {},
 }
 

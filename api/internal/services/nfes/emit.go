@@ -208,7 +208,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		items[i] = item
 	}
 
-	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, items)
+	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, destUF, items)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func extractEmitUFFromItem(org map[string]types.AttributeValue) string {
 // Shared by NF-e and NFC-e emission.
 func resolveProducts(
 	ctx context.Context, productRepo *repositories.ProductRepository,
-	taxProfileRepo *repositories.TaxProfileRepository, orgPK string, items []NfeProductItem,
+	taxProfileRepo *repositories.TaxProfileRepository, orgPK, destUF string, items []NfeProductItem,
 ) ([]map[string]any, decimal.Decimal, decimal.Decimal, error) {
 	var productItems []map[string]any
 	totalProducts := decimal.Zero
@@ -631,7 +631,7 @@ func resolveProducts(
 
 		// A tributação efetiva do item: cfop_config vence overrides, que vencem
 		// o perfil. Um CFOP sem tributação em lugar nenhum é erro de cadastro.
-		resolvedTax, err := resolveCfopTax(product, profiles, item.CFOP)
+		resolvedTax, err := resolveCfopTax(product, profiles, item.CFOP, destUF)
 		if err != nil {
 			code, _ := product["code"].(string)
 			return nil, decimal.Zero, decimal.Zero, problem.BadRequest(

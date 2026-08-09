@@ -43,7 +43,7 @@ func profile(id string, cfops []string, fields map[string]any) map[string]any {
 // de cfop_config que já era usada — é o que garante zero regressão.
 func TestResolveCfopTax_LegacyProductUnchanged(t *testing.T) {
 	product := legacyProduct()
-	got, err := resolveCfopTax(product, nil, "5102")
+	got, err := resolveCfopTax(product, nil, "5102", "SP")
 	if err != nil {
 		t.Fatalf("resolveCfopTax: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestResolveCfopTax_ProfileOnly(t *testing.T) {
 		}),
 	}
 
-	got, err := resolveCfopTax(product, profiles, "6102")
+	got, err := resolveCfopTax(product, profiles, "6102", "SP")
 	if err != nil {
 		t.Fatalf("resolveCfopTax: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestResolveCfopTax_ProductOverrideBeatsProfile(t *testing.T) {
 		}),
 	}
 
-	got, err := resolveCfopTax(product, profiles, "5102")
+	got, err := resolveCfopTax(product, profiles, "5102", "SP")
 	if err != nil {
 		t.Fatalf("resolveCfopTax: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestResolveCfopTax_CfopConfigBeatsEverything(t *testing.T) {
 		}),
 	}
 
-	got, err := resolveCfopTax(product, profiles, "5102")
+	got, err := resolveCfopTax(product, profiles, "5102", "SP")
 	if err != nil {
 		t.Fatalf("resolveCfopTax: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestResolveCfopTax_PicksTheProfileCoveringTheCFOP(t *testing.T) {
 		"TAXPROFILE_DEVOLUCAO": profile("TAXPROFILE_DEVOLUCAO", []string{"1202"}, map[string]any{"pis": "49"}),
 	}
 
-	got, err := resolveCfopTax(product, profiles, "1202")
+	got, err := resolveCfopTax(product, profiles, "1202", "SP")
 	if err != nil {
 		t.Fatalf("resolveCfopTax: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestResolveCfopTax_PicksTheProfileCoveringTheCFOP(t *testing.T) {
 }
 
 func TestResolveCfopTax_UnconfiguredCFOPIsAnError(t *testing.T) {
-	if _, err := resolveCfopTax(legacyProduct(), nil, "5405"); err == nil {
+	if _, err := resolveCfopTax(legacyProduct(), nil, "5405", "SP"); err == nil {
 		t.Fatal("esperado erro para CFOP sem tributação em lugar nenhum")
 	}
 }
@@ -191,6 +191,101 @@ func TestProductCFOPs_UnionOfConfigAndProfiles(t *testing.T) {
 	want := []string{"1202", "5102", "6102"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("productCFOPs = %v, want %v", got, want)
+	}
+}
+
+func productWithUfOverride() map[string]any {
+	return map[string]any{
+		"cfop_config": []any{
+			map[string]any{
+				"cfop": "5102", "icms": "00",
+				"icms_aliq_override": "18.00",
+				"uf_overrides": []any{
+					map[string]any{"ufs": []any{"RJ"}, "overrides": map[string]any{"icms_aliq_override": "20.00"}},
+				},
+			},
+		},
+	}
+}
+
+func TestResolveCfopTax_ProductUfOverride_BeatsProductBase(t *testing.T) {
+	resolved, err := resolveCfopTax(productWithUfOverride(), nil, "5102", "RJ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved["icms_aliq_override"] != "20.00" {
+		t.Errorf("expected RJ override to win, got %v", resolved["icms_aliq_override"])
+	}
+}
+
+func TestResolveCfopTax_ProductUfOverride_FallsBackForOtherUf(t *testing.T) {
+	resolved, err := resolveCfopTax(productWithUfOverride(), nil, "5102", "SP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved["icms_aliq_override"] != "18.00" {
+		t.Errorf("expected product base (no UF match), got %v", resolved["icms_aliq_override"])
+	}
+	if _, ok := resolved["uf_overrides"]; ok {
+		t.Errorf("uf_overrides metadata must not leak into the resolved tax map, got %v", resolved)
+	}
+}
+
+func TestResolveCfopTax_ProfileUfOverride_LowerThanProductLevel(t *testing.T) {
+	product := map[string]any{
+		"tax_profiles": []any{map[string]any{"tax_profile_id": "p1"}},
+	}
+	profiles := map[string]map[string]any{
+		"p1": {
+			"cfops": []any{"5102"}, "icms_aliq_override": "12.00",
+			"uf_overrides": []any{
+				map[string]any{"ufs": []any{"RJ"}, "overrides": map[string]any{"icms_aliq_override": "22.00"}},
+			},
+		},
+	}
+	resolved, err := resolveCfopTax(product, profiles, "5102", "RJ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved["icms_aliq_override"] != "22.00" {
+		t.Errorf("expected profile+UF override, got %v", resolved["icms_aliq_override"])
+	}
+}
+
+func TestResolveCfopTax_LinkOverride_UfBeatsLinkOverrideBase(t *testing.T) {
+	product := map[string]any{
+		"tax_profiles": []any{map[string]any{
+			"tax_profile_id": "p1",
+			"overrides": map[string]any{
+				"icms_aliq_override": "30.00",
+				"uf_overrides": []any{
+					map[string]any{"ufs": []any{"RJ"}, "overrides": map[string]any{"icms_aliq_override": "50.00"}},
+				},
+			},
+		}},
+	}
+	profiles := map[string]map[string]any{
+		"p1": {"cfops": []any{"5102"}, "icms_aliq_override": "1.00"},
+	}
+	resolved, err := resolveCfopTax(product, profiles, "5102", "RJ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved["icms_aliq_override"] != "50.00" {
+		t.Errorf("expected link-override+UF to win, got %v", resolved["icms_aliq_override"])
+	}
+	resolvedSP, err := resolveCfopTax(product, profiles, "5102", "SP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolvedSP["icms_aliq_override"] != "30.00" {
+		t.Errorf("expected link-override base (no UF match), got %v", resolvedSP["icms_aliq_override"])
+	}
+}
+
+func TestResolveCfopTax_NoLayerCovers_ReturnsError(t *testing.T) {
+	if _, err := resolveCfopTax(map[string]any{}, nil, "5102", "SP"); err == nil {
+		t.Fatal("expected error when no layer covers the CFOP")
 	}
 }
 
