@@ -33,9 +33,13 @@ describe('perfil fiscal', () => {
   })
 
   // O perfil carrega tratamento completo, exatamente como uma linha de
-  // cfop_config — o que muda é só não ter CFOP preso a ele.
-  it('exige o bloco IBS/CBS, como no produto', () => {
-    expect(taxProfileSchema.safeParse({...base, ibs_cbs_cst: ''}).success).toBe(false)
+  // cfop_config — o que muda é só não ter CFOP preso a ele. IBS/CBS é
+  // opcional (grupo tudo-ou-nada validado pelo backend) desde que a vigência
+  // obrigatória ainda não cobre todo mundo.
+  it('aceita o bloco IBS/CBS totalmente ausente', () => {
+    const {ibs_cbs_cst, ibs_cbs_class_trib, ibs_uf_aliq, ibs_mun_aliq, cbs_aliq, ...rest} = base
+    void ibs_cbs_cst; void ibs_cbs_class_trib; void ibs_uf_aliq; void ibs_mun_aliq; void cbs_aliq
+    expect(taxProfileSchema.safeParse(rest).success).toBe(true)
   })
 
   it('não tem campo cfop — os CFOPs são uma lista à parte', () => {

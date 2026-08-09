@@ -25,6 +25,11 @@ const _percentRegex = /^\d{1,3}(\.\d{1,4})?$/
 const optionalStr = z.string().optional().or(z.literal(''))
 const optionalPercent = z.string().regex(_percentRegex, '% inválido').optional().or(z.literal(''))
 
+export const ufTaxOverrideSchema = z.object({
+  ufs: z.array(z.string().regex(/^[A-Z]{2}$/, 'UF inválida')).min(1, 'Escolha ao menos uma UF'),
+  overrides: z.record(z.string(), z.unknown()).default({}),
+})
+
 export const cfopConfigSchema = z.object({
   cfop: z.string().regex(/^\d{4}$/, 'CFOP deve ter 4 dígitos'),
   // csosn/icms são validados manualmente em addCfop de acordo com o CRT da org
@@ -46,6 +51,7 @@ export const cfopConfigSchema = z.object({
   icms_p_red_bc: optionalPercent,
   icms_mot_des: optionalStr,
   icms_p_dif: optionalPercent,
+  icms_pauta_valor: optionalStr,
   // ICMS monofásico combustíveis (CST 02/15/53/61)
   icms_ad_rem: optionalPercent,
   icms_ad_rem_reten: optionalPercent,
@@ -65,6 +71,11 @@ export const cfopConfigSchema = z.object({
   cofins_aliq: optionalPercent,
   pis_aliq_unid: optionalPercent,
   cofins_aliq_unid: optionalPercent,
+  // PIS/COFINS-ST — substituição tributária (grupo opcional)
+  pis_st_aliq: optionalPercent,
+  cofins_st_aliq: optionalPercent,
+  pis_st_v_bc: optionalStr,
+  cofins_st_v_bc: optionalStr,
   // IPI
   ipi_cst: optionalStr,
   ipi_aliq: optionalPercent,
@@ -74,12 +85,13 @@ export const cfopConfigSchema = z.object({
   is_class_trib: z.string().regex(/^\d{6}$/, 'Classificação deve ter 6 dígitos').optional().or(z.literal('')),
   is_aliq_espec: optionalPercent,
   is_unid_trib: optionalStr,
-  // IBS/CBS
-  ibs_cbs_cst: z.string().regex(_ibsCbsCstRegex, 'CST IBS/CBS inválido'),
-  ibs_cbs_class_trib: z.string().regex(_ibsCbsClassRegex, 'Código de classificação deve ter 6 dígitos'),
-  ibs_uf_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota IBS Estadual inválida (ex: 8.0000)'),
-  ibs_mun_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota IBS Municipal inválida (ex: 1.0000)'),
-  cbs_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota CBS inválida (ex: 9.0000)'),
+  // IBS/CBS — opcional, tudo-ou-nada (o backend valida a regra; aqui cada
+  // campo só precisa ter formato válido quando preenchido)
+  ibs_cbs_cst: z.string().regex(_ibsCbsCstRegex, 'CST IBS/CBS inválido').optional().or(z.literal('')),
+  ibs_cbs_class_trib: z.string().regex(_ibsCbsClassRegex, 'Código de classificação deve ter 6 dígitos').optional().or(z.literal('')),
+  ibs_uf_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota IBS Estadual inválida (ex: 8.0000)').optional().or(z.literal('')),
+  ibs_mun_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota IBS Municipal inválida (ex: 1.0000)').optional().or(z.literal('')),
+  cbs_aliq: z.string().regex(_ibsCbsAliqRegex, 'Alíquota CBS inválida (ex: 9.0000)').optional().or(z.literal('')),
   // IBS/CBS redução e diferimento (Reforma Tributária)
   ibs_uf_p_red: optionalPercent,
   ibs_mun_p_red: optionalPercent,
@@ -90,6 +102,7 @@ export const cfopConfigSchema = z.object({
   ibs_ind_doacao: optionalStr,
   ibs_ad_rem: optionalPercent,
   cbs_ad_rem: optionalPercent,
+  ibs_cbs_p_dev_trib: optionalPercent,
   // ISSQN — Imposto Sobre Serviços (LC 116/2003)
   issqn_ind_iss: optionalStr,
   issqn_c_list_serv: optionalStr,
@@ -97,6 +110,8 @@ export const cfopConfigSchema = z.object({
   issqn_aliq: optionalPercent,
   issqn_v_deducao: optionalStr,
   issqn_v_iss_ret: optionalStr,
+  // Overrides por UF de destino — só preenche o que diverge para aquelas UFs
+  uf_overrides: z.array(ufTaxOverrideSchema).default([]),
 })
 
 const nullableStr = (schema: z.ZodString) =>
