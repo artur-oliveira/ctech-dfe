@@ -8,6 +8,7 @@ import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
 import {Combobox} from '@/components/ui/combobox'
 import {EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor'
+import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor'
 import {type TaxProfileFormData, taxProfileSchema} from '@/lib/schemas/tax-profiles'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 import type {TaxProfileCreate, TaxProfileItemOut} from '@/lib/types/api'
@@ -126,7 +127,8 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
             <p className="text-xs text-gray-500">
               Um perfil normalmente cobre a operação interna e a interestadual (5102 e 6102): a alíquota
               interestadual é resolvida na emissão, então o que muda entre elas é dado derivado, não configuração.
-              Quando o tratamento realmente difere por CFOP, crie um segundo perfil.
+              Quando o tratamento difere só pela UF de destino, use os overrides por UF abaixo — quando difere
+              de verdade por CFOP, crie um segundo perfil.
             </p>
             <div className="w-full sm:max-w-md">
               <Combobox value="" onValueChange={addCfop} options={cfopOptions}
@@ -162,6 +164,17 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
 
           <TaxFieldsEditor value={taxValue} onChange={setTaxValue} simples={simples} hideCfop
                            groups={taxGroups} onGroupsChange={setTaxGroups}/>
+
+          <div className="space-y-2 pt-2 border-t border-gray-200">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Overrides por UF de destino (opcional)
+            </p>
+            <UfOverridesEditor
+              value={taxValue.uf_overrides ?? []}
+              onChange={(next) => setTaxValue((r) => ({...r, uf_overrides: next}))}
+              simples={simples}
+            />
+          </div>
         </div>
 
         {submitError && (
