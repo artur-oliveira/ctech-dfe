@@ -27,7 +27,7 @@ const optionalPercent = z.string().regex(_percentRegex, '% inválido').optional(
 
 export const ufTaxOverrideSchema = z.object({
   ufs: z.array(z.string().regex(/^[A-Z]{2}$/, 'UF inválida')).min(1, 'Escolha ao menos uma UF'),
-  overrides: z.record(z.string(), z.unknown()).default({}),
+  overrides: z.record(z.string(), z.unknown()),
 })
 
 export const cfopConfigSchema = z.object({
@@ -111,7 +111,7 @@ export const cfopConfigSchema = z.object({
   issqn_v_deducao: optionalStr,
   issqn_v_iss_ret: optionalStr,
   // Overrides por UF de destino — só preenche o que diverge para aquelas UFs
-  uf_overrides: z.array(ufTaxOverrideSchema).default([]),
+  uf_overrides: z.array(ufTaxOverrideSchema).optional(),
 })
 
 const nullableStr = (schema: z.ZodString) =>

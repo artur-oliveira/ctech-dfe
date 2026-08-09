@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {startTransition, useEffect, useState} from 'react'
+import {useState} from 'react'
 import {generateEntityCode} from '@/lib/utils/code'
 import {useForm, useWatch} from 'react-hook-form'
 import {useQuery} from '@tanstack/react-query'
@@ -39,7 +39,8 @@ import {isRegimeSimples} from '@/lib/constants/tax'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {ORIGIN_OPTIONS} from '@/lib/data/origin'
-import {getIcmsForNcm} from '@/lib/data/icms_ncm_lookup'
+import {UfOverridesEditor, type UfOverrideFormData} from '@/components/tax/UfOverridesEditor'
+import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   icms_p_red_bc: '',
   icms_mot_des: '',
   icms_p_dif: '',
+  icms_pauta_valor: '',
   // ICMS monofásico combustíveis
   icms_ad_rem: '',
   icms_ad_rem_reten: '',
@@ -140,6 +142,10 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   cofins_aliq: '',
   pis_aliq_unid: '',
   cofins_aliq_unid: '',
+  pis_st_aliq: '',
+  cofins_st_aliq: '',
+  pis_st_v_bc: '',
+  cofins_st_v_bc: '',
   ipi_cst: '',
   ipi_aliq: '',
   is_cst: '',
@@ -161,6 +167,7 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   ibs_ind_doacao: '',
   ibs_ad_rem: '',
   cbs_ad_rem: '',
+  ibs_cbs_p_dev_trib: '',
   // ISSQN
   issqn_ind_iss: '',
   issqn_c_list_serv: '',
@@ -168,6 +175,7 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   issqn_aliq: '',
   issqn_v_deducao: '',
   issqn_v_iss_ret: '',
+  uf_overrides: [],
 }
 
 const EMPTY_CONVERSION_ROW: ConversionFactorFormData = {
@@ -221,6 +229,7 @@ function toFormData(p: ProductOut): ProductFormData {
       icms_p_red_bc: c.icms_p_red_bc ?? '',
       icms_mot_des: c.icms_mot_des ?? '',
       icms_p_dif: c.icms_p_dif ?? '',
+      icms_pauta_valor: c.icms_pauta_valor ?? '',
       icms_ad_rem: c.icms_ad_rem ?? '',
       icms_ad_rem_reten: c.icms_ad_rem_reten ?? '',
       icms_p_red_ad_rem: c.icms_p_red_ad_rem ?? '',
@@ -235,6 +244,10 @@ function toFormData(p: ProductOut): ProductFormData {
       cofins_aliq: c.cofins_aliq ?? '',
       pis_aliq_unid: c.pis_aliq_unid ?? '',
       cofins_aliq_unid: c.cofins_aliq_unid ?? '',
+      pis_st_aliq: c.pis_st_aliq ?? '',
+      cofins_st_aliq: c.cofins_st_aliq ?? '',
+      pis_st_v_bc: c.pis_st_v_bc ?? '',
+      cofins_st_v_bc: c.cofins_st_v_bc ?? '',
       ipi_cst: c.ipi_cst ?? '',
       ipi_aliq: c.ipi_aliq ?? '',
       is_cst: c.is_cst ?? '',
@@ -242,6 +255,11 @@ function toFormData(p: ProductOut): ProductFormData {
       is_class_trib: c.is_class_trib ?? '',
       is_aliq_espec: c.is_aliq_espec ?? '',
       is_unid_trib: c.is_unid_trib ?? '',
+      ibs_cbs_cst: c.ibs_cbs_cst ?? '',
+      ibs_cbs_class_trib: c.ibs_cbs_class_trib ?? '',
+      ibs_uf_aliq: c.ibs_uf_aliq ?? '',
+      ibs_mun_aliq: c.ibs_mun_aliq ?? '',
+      cbs_aliq: c.cbs_aliq ?? '',
       ibs_uf_p_red: c.ibs_uf_p_red ?? '',
       ibs_mun_p_red: c.ibs_mun_p_red ?? '',
       cbs_p_red: c.cbs_p_red ?? '',
@@ -251,12 +269,14 @@ function toFormData(p: ProductOut): ProductFormData {
       ibs_ind_doacao: c.ibs_ind_doacao ?? '',
       ibs_ad_rem: c.ibs_ad_rem ?? '',
       cbs_ad_rem: c.cbs_ad_rem ?? '',
+      ibs_cbs_p_dev_trib: c.ibs_cbs_p_dev_trib ?? '',
       issqn_ind_iss: c.issqn_ind_iss ?? '',
       issqn_c_list_serv: c.issqn_c_list_serv ?? '',
       issqn_c_mun_fg: c.issqn_c_mun_fg ?? '',
       issqn_aliq: c.issqn_aliq ?? '',
       issqn_v_deducao: c.issqn_v_deducao ?? '',
       issqn_v_iss_ret: c.issqn_v_iss_ret ?? '',
+      uf_overrides: c.uf_overrides ?? [],
     })),
     conversion_factors: (p.conversion_factors ?? []).map((f) => ({
       origin_unit: f.origin_unit,
@@ -344,17 +364,22 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       icms_p_red_bc: nullify(c.icms_p_red_bc),
       icms_mot_des: nullify(c.icms_mot_des),
       icms_p_dif: nullify(c.icms_p_dif),
+      icms_pauta_valor: nullify(c.icms_pauta_valor),
       pis: c.pis,
       cofins: c.cofins,
       pis_aliq: nullify(c.pis_aliq),
       cofins_aliq: nullify(c.cofins_aliq),
       pis_aliq_unid: nullify(c.pis_aliq_unid),
       cofins_aliq_unid: nullify(c.cofins_aliq_unid),
-      ibs_cbs_cst: c.ibs_cbs_cst,
-      ibs_cbs_class_trib: c.ibs_cbs_class_trib,
-      ibs_uf_aliq: c.ibs_uf_aliq,
-      ibs_mun_aliq: c.ibs_mun_aliq,
-      cbs_aliq: c.cbs_aliq,
+      pis_st_aliq: nullify(c.pis_st_aliq),
+      cofins_st_aliq: nullify(c.cofins_st_aliq),
+      pis_st_v_bc: nullify(c.pis_st_v_bc),
+      cofins_st_v_bc: nullify(c.cofins_st_v_bc),
+      ibs_cbs_cst: nullify(c.ibs_cbs_cst),
+      ibs_cbs_class_trib: nullify(c.ibs_cbs_class_trib),
+      ibs_uf_aliq: nullify(c.ibs_uf_aliq),
+      ibs_mun_aliq: nullify(c.ibs_mun_aliq),
+      cbs_aliq: nullify(c.cbs_aliq),
       ibs_uf_p_red: nullify(c.ibs_uf_p_red),
       ibs_mun_p_red: nullify(c.ibs_mun_p_red),
       cbs_p_red: nullify(c.cbs_p_red),
@@ -364,6 +389,8 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       ibs_ind_doacao: nullify(c.ibs_ind_doacao),
       ibs_ad_rem: nullify(c.ibs_ad_rem),
       cbs_ad_rem: nullify(c.cbs_ad_rem),
+      ibs_cbs_p_dev_trib: nullify(c.ibs_cbs_p_dev_trib),
+      uf_overrides: c.uf_overrides,
       ipi_cst: nullify(c.ipi_cst),
       ipi_aliq: nullify(c.ipi_aliq),
       is_cst: nullify(c.is_cst),
@@ -459,7 +486,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     enabled: !!selectedOrg,
   })
   const taxProfiles = taxProfilePage?.items ?? []
-  const [icmsAutoFilled, setIcmsAutoFilled] = useState(false)
+  const [ufOverrideRows, setUfOverrideRows] = useState<UfOverrideFormData[]>([])
   const [convRow, setConvRow] = useState<ConversionFactorFormData>(EMPTY_CONVERSION_ROW)
   const [convError, setConvError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -529,24 +556,15 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     }
   }
 
-  useEffect(() => {
-    if (!uf || !watchedNcm) return
-    const match = getIcmsForNcm(uf, watchedNcm)
-    if (!match) return
-    const currentAliq = form.getValues('icms_aliq_override')
-    const currentFcp = form.getValues('fcp_aliq_override')
-    let filled = false
-    if (!currentAliq) {
-      form.setValue('icms_aliq_override', match.aliq, {shouldDirty: true})
-      filled = true
-    }
-    if (!currentFcp && match.fcp) {
-      form.setValue('fcp_aliq_override', match.fcp, {shouldDirty: true})
-      filled = true
-    }
-    if (filled) startTransition(() => setIcmsAutoFilled(true))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedNcm, uf])
+  // Referência do sistema para o override de ICMS/FCP a nível de produto —
+  // mostra o valor que o backend resolveria e avisa quando o override
+  // digitado diverge dele. Sem autopreenchimento: o campo fica vazio até o
+  // usuário digitar algo (design spec 2026-08-09-tax-config-redesign
+  // §Modelo de dados 6).
+  const productSystemAliq = useIcmsAliqPreview(uf, uf, watchedNcm)
+  const watchedIcmsOverride = useWatch({control: form.control, name: 'icms_aliq_override'})
+  const productAliqDiverges = !!productSystemAliq && !!watchedIcmsOverride &&
+    watchedIcmsOverride !== productSystemAliq.icms_aliq
 
   const nfceCfopOptions = getCfopOptionsForNfce()
 
@@ -628,13 +646,28 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         cofins_aliq: PIS_COFINS_ALIQ_CSTS.has(cfopRow.cofins) ? cfopRow.cofins_aliq : '',
         pis_aliq_unid: cfopRow.pis === '03' ? cfopRow.pis_aliq_unid : '',
         cofins_aliq_unid: cfopRow.cofins === '03' ? cfopRow.cofins_aliq_unid : '',
+        // clear IBS/CBS entirely if the group is off (opcional — Task 8)
+        ibs_cbs_cst: taxGroups.ibsCbs ? cfopRow.ibs_cbs_cst : '',
+        ibs_cbs_class_trib: taxGroups.ibsCbs ? cfopRow.ibs_cbs_class_trib : '',
+        ibs_uf_aliq: taxGroups.ibsCbs ? cfopRow.ibs_uf_aliq : '',
+        ibs_mun_aliq: taxGroups.ibsCbs ? cfopRow.ibs_mun_aliq : '',
+        cbs_aliq: taxGroups.ibsCbs ? cfopRow.cbs_aliq : '',
+        ibs_cbs_p_dev_trib: taxGroups.ibsCbs ? cfopRow.ibs_cbs_p_dev_trib : '',
+        ibs_ind_doacao: taxGroups.ibsCbs ? cfopRow.ibs_ind_doacao : '',
+        ibs_ad_rem: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem : '',
+        cbs_ad_rem: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem : '',
         // clear IBS/CBS reduction/deferral if not enabled
-        ibs_uf_p_red: taxGroups.ibsRed ? cfopRow.ibs_uf_p_red : '',
-        ibs_mun_p_red: taxGroups.ibsRed ? cfopRow.ibs_mun_p_red : '',
-        cbs_p_red: taxGroups.ibsRed ? cfopRow.cbs_p_red : '',
-        ibs_uf_p_dif: taxGroups.ibsDif ? cfopRow.ibs_uf_p_dif : '',
-        ibs_mun_p_dif: taxGroups.ibsDif ? cfopRow.ibs_mun_p_dif : '',
-        cbs_p_dif: taxGroups.ibsDif ? cfopRow.cbs_p_dif : '',
+        ibs_uf_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_uf_p_red : '',
+        ibs_mun_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_mun_p_red : '',
+        cbs_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.cbs_p_red : '',
+        ibs_uf_p_dif: taxGroups.ibsCbs && taxGroups.ibsDif ? cfopRow.ibs_uf_p_dif : '',
+        ibs_mun_p_dif: taxGroups.ibsCbs && taxGroups.ibsDif ? cfopRow.ibs_mun_p_dif : '',
+        cbs_p_dif: taxGroups.ibsCbs && taxGroups.ibsDif ? cfopRow.cbs_p_dif : '',
+        // clear PIS/COFINS-ST if not enabled
+        pis_st_aliq: taxGroups.pisCofinsSt ? cfopRow.pis_st_aliq : '',
+        cofins_st_aliq: taxGroups.pisCofinsSt ? cfopRow.cofins_st_aliq : '',
+        pis_st_v_bc: taxGroups.pisCofinsSt ? cfopRow.pis_st_v_bc : '',
+        cofins_st_v_bc: taxGroups.pisCofinsSt ? cfopRow.cofins_st_v_bc : '',
         // clear ISSQN if not enabled
         issqn_ind_iss: taxGroups.issqn ? cfopRow.issqn_ind_iss : '',
         issqn_c_list_serv: taxGroups.issqn ? cfopRow.issqn_c_list_serv : '',
@@ -642,6 +675,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         issqn_aliq: taxGroups.issqn ? cfopRow.issqn_aliq : '',
         issqn_v_deducao: taxGroups.issqn ? cfopRow.issqn_v_deducao : '',
         issqn_v_iss_ret: taxGroups.issqn ? cfopRow.issqn_v_iss_ret : '',
+        uf_overrides: ufOverrideRows,
       }
     })
 
@@ -650,6 +684,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     setTaxEditorKey((k) => k + 1)
     form.setValue('cfop_config', [...cfopConfig, ...newCfopConfigs])
     setCfopRow(EMPTY_CFOP_ROW)
+    setUfOverrideRows([])
   }
 
   const removeCfop = (i: number) => {
@@ -819,37 +854,23 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
                 Alíquota específica de ICMS (opcional)
               </p>
-              {icmsAutoFilled ? (
-                <div
-                  className="flex items-center justify-between gap-2 rounded bg-amber-100 px-2.5 py-1.5 text-xs text-amber-800">
-                  <span>Preenchido automaticamente pela tabela ICMS {uf} para este NCM.</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      form.setValue('icms_aliq_override', '', {shouldDirty: true})
-                      form.setValue('fcp_aliq_override', '', {shouldDirty: true})
-                      setIcmsAutoFilled(false)
-                    }}
-                    className="shrink-0 underline underline-offset-2 hover:text-amber-900"
-                  >
-                    Limpar
-                  </button>
+              <p className="text-xs text-gray-500">
+                {productSystemAliq
+                  ? `Vazio ou igual = usa a alíquota do sistema (${productSystemAliq.icms_aliq}%). Preencha apenas se este produto tem tributação diferenciada.`
+                  : 'Deixe em branco para usar a alíquota padrão do sistema. Preencha apenas se este produto tem tributação diferenciada.'}
+              </p>
+              {productAliqDiverges && (
+                <div role="alert"
+                     className="rounded bg-amber-100 px-2.5 py-1.5 text-xs text-amber-800">
+                  Alíquota digitada ({watchedIcmsOverride}%) diverge da tabela do sistema para {uf} ({productSystemAliq?.icms_aliq}%).
                 </div>
-              ) : (
-                <p className="text-xs text-gray-500">
-                  Deixe em branco para usar a alíquota padrão do sistema.
-                  Preencha apenas se este produto tem tributação diferenciada.
-                </p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="icms_aliq_override" render={({field}) => (
                   <FormItem>
                     <FormLabel>% ICMS específico</FormLabel>
                     <NumericInput {...field} id={field.name} decimal integerPlaces={3} decimalPlaces={4}
-                                  value={field.value ?? ''} placeholder="Ex: 12.0000" onChange={(v) => {
-                      field.onChange(v)
-                      setIcmsAutoFilled(false)
-                    }}/>
+                                  value={field.value ?? ''} placeholder="Ex: 12.0000" onChange={field.onChange}/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -857,10 +878,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormItem>
                     <FormLabel>% FCP específico</FormLabel>
                     <NumericInput {...field} id={field.name} decimal integerPlaces={2} decimalPlaces={4}
-                                  value={field.value ?? ''} placeholder="Ex: 2.0000" onChange={(v) => {
-                      field.onChange(v)
-                      setIcmsAutoFilled(false)
-                    }}/>
+                                  value={field.value ?? ''} placeholder="Ex: 2.0000" onChange={field.onChange}/>
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -1119,8 +1137,17 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
             <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
-                             groups={taxGroups} onGroupsChange={setTaxGroups}/>
+                             groups={taxGroups} onGroupsChange={setTaxGroups}
+                             emitUf={uf} destUf={uf} ncm={watchedNcm}/>
 
+            {/* Overrides por UF de destino — só preenche o que diverge */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Overrides por UF de destino (opcional)
+              </p>
+              <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
+                                 simples={simples}/>
+            </div>
 
             {/* ── Erros + botão ────────────────────────────────────────── */}
             {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}

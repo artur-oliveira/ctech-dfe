@@ -243,8 +243,16 @@ export interface NfseConfigOut {
 }
 
 // Products
+/** Override parcial de tributação aplicado só quando a UF de destino da
+ *  operação está em `ufs` (design spec 2026-08-09-tax-config-redesign). */
+export interface UfTaxOverride {
+  ufs: string[]
+  overrides: Record<string, unknown>
+}
+
 export interface CfopConfigItem {
   cfop: string
+  uf_overrides?: UfTaxOverride[] | null
   // Regime Normal (CRT 3): CST ICMS. Simples Nacional (CRT 1/2/4): CSOSN.
   icms: string | null;
   csosn: string | null;
@@ -264,6 +272,7 @@ export interface CfopConfigItem {
   icms_p_red_bc?: string | null   // % redução BC — CST 20, 70
   icms_mot_des?: string | null    // motivo desoneração — CST 40, 41, 50, 51
   icms_p_dif?: string | null      // % diferimento — CST 51
+  icms_pauta_valor?: string | null // valor da pauta fiscal — icms_mod_bc Pauta/PMPF
   // ICMS monofásico combustíveis (CST 02, 15, 53, 61)
   icms_ad_rem?: string | null
   icms_ad_rem_reten?: string | null
@@ -282,11 +291,18 @@ export interface CfopConfigItem {
   cofins_aliq?: string | null
   pis_aliq_unid?: string | null
   cofins_aliq_unid?: string | null
-  ibs_cbs_cst: string
-  ibs_cbs_class_trib: string
-  ibs_uf_aliq: string
-  ibs_mun_aliq: string
-  cbs_aliq: string
+  // PIS/COFINS-ST — substituição tributária (grupo opcional)
+  pis_st_aliq?: string | null
+  cofins_st_aliq?: string | null
+  pis_st_v_bc?: string | null
+  cofins_st_v_bc?: string | null
+  // IBS/CBS — opcional, tudo-ou-nada (vigência obrigatória ainda não cobre
+  // todos os regimes; ver design spec 2026-08-09-tax-config-redesign)
+  ibs_cbs_cst?: string | null
+  ibs_cbs_class_trib?: string | null
+  ibs_uf_aliq?: string | null
+  ibs_mun_aliq?: string | null
+  cbs_aliq?: string | null
   // IBS/CBS redução e diferimento
   ibs_uf_p_red?: string | null
   ibs_mun_p_red?: string | null
@@ -297,6 +313,7 @@ export interface CfopConfigItem {
   ibs_ind_doacao?: string | null
   ibs_ad_rem?: string | null
   cbs_ad_rem?: string | null
+  ibs_cbs_p_dev_trib?: string | null
   // IPI
   ipi_cst?: string | null
   ipi_aliq?: string | null
