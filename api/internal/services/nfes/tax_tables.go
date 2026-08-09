@@ -2,6 +2,14 @@ package nfes
 
 import "strings"
 
+// PreviewICMSAliq devolve a alíquota ICMS/FCP que o sistema resolveria hoje
+// para emit_uf/dest_uf/ncm, sem nenhum override — usada pela rota de consulta
+// que alimenta o warning de alíquota do frontend (design spec
+// 2026-08-09-tax-config-redesign §Modelo de dados 6).
+func PreviewICMSAliq(emitUF, destUF, ncm string) (icms, fcp string) {
+	return resolveICMSAliq(emitUF, destUF, ncm, nil), resolveFCPAliq(destUF, ncm, nil)
+}
+
 // aliqICMSTable[emit_uf][dest_uf] = alíquota ICMS interestadual.
 // Mirrors app/constants/tax_tables.py ALIQ_ICMS_TABLE.
 var aliqICMSTable = buildICMSTable()

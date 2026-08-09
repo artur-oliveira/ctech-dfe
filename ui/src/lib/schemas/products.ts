@@ -153,8 +153,7 @@ export const productSchema = z.object({
   inf_ad_prod: nullableStr(z.string().max(500, 'Máximo 500 caracteres')),
   cfop_nfce: z.string().regex(/^\d{4}$/, 'CFOP NFC-e deve ter 4 dígitos'),
   cfop_config: z
-    .array(cfopConfigSchema)
-    .min(1, 'Adicione ao menos 1 configuração de CFOP'),
+    .array(cfopConfigSchema),
   conversion_factors: z.array(conversionFactorSchema),
   // Tipo específico e campos especiais
   prod_type: z.enum(['generic', 'comb', 'med', 'veiculo', 'arma']).optional().or(z.literal('')),

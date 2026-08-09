@@ -1065,6 +1065,10 @@ cada reboque no momento do cadastro.
 Um CFOP que nenhuma das três camadas cobre é 400, com a lista de CFOPs válidos daquele produto.
 Produto sem `tax_profiles` segue exatamente como antes.
 
+`cfop_config` e `tax_profiles` são mutuamente opcionais na validação do DTO (`required_without` em
+cada um, `internal/api/v1/dto.go`) — só é erro (422) se **ambos** vierem vazios. Um produto cuja
+tributação é 100% coberta por perfis pode salvar `cfop_config: []`.
+
 **Campos da operação** (`nfes.resolveItemCFOP` / `interpolateOperationText`) — request → operação →
 padrão da organização. Valor explícito no request vence sempre; string vazia conta como ausente.
 O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.ResolveCFOPScope`

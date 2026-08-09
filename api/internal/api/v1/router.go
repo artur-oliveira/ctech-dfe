@@ -73,6 +73,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
 	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)
 	RegisterTaxProfiles(v1, svcs.TaxProfile, svcs.User, authMw, perm)
+	RegisterTaxTables(v1, authMw)
 	RegisterOperations(v1, svcs.Operation, svcs.User, authMw, perm)
 	RegisterPaymentTerms(v1, svcs.PaymentTerm, svcs.User, authMw, perm)
 	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)

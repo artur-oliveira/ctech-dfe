@@ -109,6 +109,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Tabela de alíquotas ─────────────────────────────────────────────────────
+
+  /v1.0/tax-tables/icms-aliq:
+    get:
+      tags: [TaxProfiles]
+      summary: Consulta a alíquota ICMS/FCP que o sistema resolveria
+      operationId: previewIcmsAliq
+      description: |
+        Devolve a alíquota ICMS/FCP que a emissão resolveria para
+        emit_uf/dest_uf/ncm, sem nenhum override — usada pelo frontend para
+        avisar quando um override customizado diverge da tabela padrão.
+      parameters:
+        - name: emit_uf
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 2 }
+        - name: dest_uf
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 2 }
+        - name: ncm
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Alíquotas resolvidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  icms_aliq: { type: string, example: "18.00" }
+                  fcp_aliq: { type: string, example: "2.00" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   # ── Naturezas de operação ──────────────────────────────────────────────────
 
   /v1.0/operations:
