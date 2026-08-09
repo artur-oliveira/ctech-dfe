@@ -501,10 +501,14 @@ produziria um item órfão.
 
 ## Cadastros reutilizáveis na emissão
 
-- **A ordem de resolução da tributação é única e vive em `nfes.resolveCfopTax`.** Perfil fiscal →
-  override na raiz do produto → `cfop_config[cfop]`, que vence. Nenhum outro ponto do código pode
-  mesclar campos tributários: duas ordens de precedência produzem notas diferentes para o mesmo
-  cadastro, e a divergência só aparece na auditoria.
+- **A ordem de resolução da tributação é única e vive em `nfes.resolveCfopTax`.** 6 níveis (+ erro):
+  `cfop_config`+UF → `cfop_config` → vínculo produto→perfil (`overrides`)+UF → vínculo+UF-menos →
+  perfil+UF → perfil. Nenhum outro ponto do código pode mesclar campos tributários: duas ordens de
+  precedência produzem notas diferentes para o mesmo cadastro, e a divergência só aparece na
+  auditoria. Ver DOCS.md "Ordem de resolução na emissão" para o detalhamento dos 7 níveis.
+- **A tabela de alíquota ICMS por NCM (`icmsNcmTable`, `nfes/tax_tables.go`) é a única fonte de
+  verdade.** Vivia só no frontend (`icms_ncm_lookup.ts`, removido) — não reintroduzir uma cópia lá;
+  o frontend consulta `GET /v1.0/tax-tables/icms-aliq` quando precisa do valor resolvido.
 - **`services.ResolveCFOPScope` é a fonte da verdade do escopo do CFOP (5/6/7); o TypeScript é só
   exibição.** A tabela de casos vive em `api/internal/services/testdata/cfop_scope_cases.json` e é
   lida pelos testes das duas linguagens — mudou a regra, muda o JSON, e o teste de paridade do

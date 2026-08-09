@@ -743,12 +743,17 @@ without server-side price validation.
 Rates are resolved dynamically at issuance with the following precedence:
 
 1. `icms_aliq_override` / `fcp_aliq_override` on the product (product-specific taxation)
-2. `icms_aliq_override` / `icms_fcp_override` on the `cfop_config` item (CFOP-specific rule)
-3. Static table `app/constants/tax_tables.py`:
+2. `icms_aliq_override` / `icms_fcp_override` on the `cfop_config` item (CFOP-specific rule) — see
+   "Ordem de resolução na emissão" above for the full 6-tier + UF resolution
+3. NCM+UF specific rate table (`nfes.icmsNcmTable`, `tax_tables.go`) — matched by NCM prefix
+4. Static table (`aliqICMSTable`/`fcpAliq`, `tax_tables.go`):
     - **Intrastate** operation: `ICMS_INTRA[dest_uf]`
     - **Interstate** with imported product (origin 1/2/6/7): `4.00%` (Resolution SF 13/2012)
     - Interstate South/Southeast → North/NE/CO: `7.00%`
     - All other interstate: `12.00%`
+
+`GET /v1.0/tax-tables/icms-aliq?emit_uf=&dest_uf=&ncm=` exposes step 3-4 without any override, for
+the frontend's divergence warning.
 
 **Conditional rates by CST:**
 
@@ -756,7 +761,9 @@ Rates are resolved dynamically at issuance with the following precedence:
 |------------------------------------------------|------------------------------------------------------------------------------------------------------------|
 | Taxed ICMS (CST 00/10/20/70/90)                | `icms_aliq_override` or UF table + `icms_mod_bc`                                                           |
 | ICMS with FCP                                  | `icms_fcp_override` or UF table                                                                            |
+| ICMS BC by pauta/PMPF (`icms_mod_bc` 1/2)      | `icms_pauta_valor` — fixed reference value replaces sale value as tax base                                 |
 | ICMS with ST (CST 10/30/70)                    | `icms_st_mod_bc`, `icms_st_mva`, `icms_st_aliq`, `icms_st_fcp_aliq`                                        |
+| PIS/COFINS-ST (optional group)                 | `pis_st_aliq`, `cofins_st_aliq`, `pis_st_v_bc`, `cofins_st_v_bc`                                            |
 | Simples with credit (CSOSN 101/201/900)        | `icms_sn_cred_aliq` (pCredSN)                                                                              |
 | Simples with ST (CSOSN 201/202/203)            | `icms_st_*` same as Regular Regime                                                                         |
 | Taxed PIS/COFINS (CST 01/02)                   | `pis_aliq`, `cofins_aliq`                                                                                  |
@@ -765,6 +772,7 @@ Rates are resolved dynamically at issuance with the following precedence:
 | IBS/CBS with reduction (CST 010/011)           | `ibs_uf_p_red`, `ibs_mun_p_red`, `cbs_p_red`                                                               |
 | IBS/CBS with deferral (CST 200/220)            | `ibs_uf_p_dif`, `ibs_mun_p_dif`, `cbs_p_dif`                                                               |
 | IBS/CBS monophase (CST 620)                    | `ibs_ad_rem`, `cbs_ad_rem`                                                                                 |
+| IBS/CBS cashback fiscal (NT 2025.002)          | `ibs_cbs_p_dev_trib`                                                                                       |
 | Monophase ICMS fuel (CST 02)                   | `icms_ad_rem` (ad rem, R$/unit)                                                                            |
 | Monophase ICMS with retention (CST 15)         | `icms_ad_rem`, `icms_ad_rem_reten`, `icms_p_red_ad_rem`, `icms_mot_red_ad_rem`                             |
 | Monophase ICMS with deferral (CST 53)          | `icms_ad_rem`, `icms_p_dif_mono`                                                                           |
@@ -1056,18 +1064,49 @@ cada reboque no momento do cadastro.
 
 #### Ordem de resolução na emissão
 
-**Tributação de um item** (`nfes.resolveCfopTax`) — perfil → override do produto → `cfop_config`:
+**Tributação de um item** (`nfes.resolveCfopTax`) — 6 níveis + UF de destino, da maior para a menor
+precedência. A primeira camada que cobrir o CFOP resolve; não há mistura entre níveis:
 
-1. Campos dos perfis referenciados em `product.tax_profiles` que cobrem o CFOP do item.
-2. Campos do próprio produto (raiz) sobrescrevem o perfil.
-3. `cfop_config[cfop]` do produto vence tudo.
+1. `cfop_config[cfop]` do produto + `uf_overrides` da UF de destino.
+2. `cfop_config[cfop]` do produto (sem UF).
+3. Vínculo produto→perfil (`ProductTaxProfileRef.Overrides`) + `uf_overrides` da UF de destino.
+4. Vínculo produto→perfil (`Overrides`), sem UF.
+5. `tax_profile.cfops[cfop]` + `uf_overrides` da UF de destino.
+6. `tax_profile.cfops[cfop]` (sem UF).
+7. Erro: nenhuma camada cobre o CFOP — 400, com a lista de CFOPs válidos daquele produto.
 
-Um CFOP que nenhuma das três camadas cobre é 400, com a lista de CFOPs válidos daquele produto.
-Produto sem `tax_profiles` segue exatamente como antes.
+Dentro de cada nível "+UF", a config base do nível é mesclada com o primeiro bloco de
+`uf_overrides` cuja lista `ufs` contém a UF de destino da operação (`mergeUfOverride`), usando o
+mesmo merge raso de `mergeTaxFields` (chave ausente/nula/`""` não sobrescreve — um override parcial
+altera só o que nomeia). Produto sem `tax_profiles` e sem `uf_overrides` segue exatamente como
+antes — é essa propriedade que garante zero regressão em emissões existentes.
 
 `cfop_config` e `tax_profiles` são mutuamente opcionais na validação do DTO (`required_without` em
 cada um, `internal/api/v1/dto.go`) — só é erro (422) se **ambos** vierem vazios. Um produto cuja
 tributação é 100% coberta por perfis pode salvar `cfop_config: []`.
+
+**IBS/CBS é um grupo opcional, tudo-ou-nada** (`TaxFieldsBody.IbsCbsCst`/`IbsCbsClassTrib`/
+`IbsUfAliq`/`IbsMunAliq`/`CbsAliq`, todos `*string omitempty`): se nenhum dos 5 campos estiver
+preenchido, o grupo é omitido na emissão; se algum estiver, os outros 4 são exigidos
+(`validateIbsCbsGroup`, registrada via `validation.RegisterStructRule`). Justificativa: a vigência
+obrigatória da Reforma Tributária não cobre todos os regimes ainda (não-Simples desde 2026-08-03,
+Simples/MEI só a partir de 2027-01-04).
+
+**Alíquota ICMS/FCP por NCM+UF** (`nfes.resolveICMSAliq`/`resolveFCPAliq`, `tax_tables.go`): antes
+de cair na tabela genérica por UF, checam `icmsNcmTable[dest_uf]` por prefixo de NCM — a mesma
+tabela que antes só existia no frontend (`icms_ncm_lookup.ts`, removida). Um override explícito
+(`icms_aliq_override`/`fcp_aliq_override`) continua vencendo tudo.
+
+**`GET /v1.0/tax-tables/icms-aliq?emit_uf=&dest_uf=&ncm=`** devolve `{icms_aliq, fcp_aliq}` — a
+alíquota que o backend resolveria sem nenhum override, chamando `nfesvc.PreviewICMSAliq`
+diretamente (sem service layer: `internal/services` já importa `internal/services/nfes`, então um
+wrapper ali criaria um ciclo de import). Usada pelo frontend para mostrar a alíquota do sistema
+como referência e avisar quando um override diverge dela — sem bloquear o salvamento.
+
+**DIFAL** (partilha do ICMS interestadual para consumidor final não contribuinte,
+`isDifalEligible`/`icmsCSTDifalEligible`/`buildICMSUFDest` em `builders_doc.go`/`builders_tax.go`)
+não foi alterado por esta seção — usa `resolveICMSIntraAliq`/`resolveICMSInterAliq`/`resolveFCPAliq`
+diretamente por UF, alheio a `uf_overrides`.
 
 **Campos da operação** (`nfes.resolveItemCFOP` / `interpolateOperationText`) — request → operação →
 padrão da organização. Valor explícito no request vence sempre; string vazia conta como ausente.
