@@ -26,6 +26,10 @@ vi.mock('@/components/nfse/NfseEmitForm', () => ({
   ),
 }))
 
+vi.mock('@/components/dfe/RequireFiscalConfig', () => ({
+  RequireFiscalConfig: ({children}: { children: ReactNode }) => <>{children}</>,
+}))
+
 vi.mock('@/lib/hooks/useAuth', () => ({
   useAuth: () => ({selectedOrg: {pk: 'CNPJ_TEST'}}),
 }))

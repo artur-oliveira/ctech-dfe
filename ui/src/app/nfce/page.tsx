@@ -1,7 +1,7 @@
 'use client'
 
 import {Suspense, useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {useRouter, useSearchParams} from 'next/navigation'
 import Link from 'next/link'
 import {toast} from 'sonner'
@@ -25,6 +25,8 @@ import type {NfeListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
@@ -202,11 +204,7 @@ function NfceContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
 
-  const {data: nfceConfig} = useQuery({
-    queryKey: queryKeys.nfceConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getNFCeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: nfceConfig, isMissing: nfceConfigMissing} = useFiscalConfig('nfce', selectedOrg?.pk)
 
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
@@ -266,6 +264,7 @@ function NfceContent() {
         </div>
 
         <HomologationBanner environment={nfceConfig?.environment}/>
+        <ConfigRequiredBanner show={nfceConfigMissing} variant="nfce" docLabel="NFC-e"/>
 
         {!selectedOrg ? (
           <NoOrgBanner/>

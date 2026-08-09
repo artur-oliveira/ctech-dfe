@@ -786,6 +786,16 @@ Must follow Conventional Commits:
   `DebouncedInput` (`@/components/ui/debounced-input`) for text inputs or the `debounceMs` prop
   on `NumericInput` (`@/components/ui/numeric-input`). Default debounce: **300 ms**. This
   prevents a request on every keystroke (e.g., number-search filters, free-text search fields).
+- **Fiscal config gating (NF-e/NFC-e/CT-e/MDF-e/NFS-e).** Every doc type's config (`GET
+  .../{doc}-config`) can 404 when the org hasn't set it up yet. `useFiscalConfig(variant, pk)`
+  (`@/lib/hooks/useFiscalConfig.ts`) is the single place that maps a 404 to `config: null` ("not
+  configured") instead of a query error — always use it instead of calling `apiClient.get*Config`
+  directly, so every page agrees on what "not configured" means. Emit pages wrap their form in
+  `<RequireFiscalConfig variant="...">` (`@/components/dfe/RequireFiscalConfig.tsx`), which
+  redirects to `/fiscal-config?tab={variant}` the first time config is missing (emission cannot
+  succeed without it). List/browse pages instead render `<ConfigRequiredBanner>`
+  (`@/components/ui/config-required-banner.tsx`) alongside `HomologationBanner`, since viewing
+  existing documents doesn't require config.
 
 ## cdk (Infrastructure)
 

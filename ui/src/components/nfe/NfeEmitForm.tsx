@@ -21,6 +21,7 @@ import {EmitError} from '@/components/ui/emit-error'
 import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
 import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {StepIndicator} from '@/components/ui/step-indicator'
 import type {
   NfeArmaIn,
@@ -676,11 +677,7 @@ export function NfeEmitForm() {
 
   // ─── Queries ──────────────────────────────────────────────────────────────
 
-  const {data: nfeConfig} = useQuery({
-    queryKey: queryKeys.nfeConfig(selectedOrg!.pk),
-    queryFn: () => apiClient.getNFeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: nfeConfig} = useFiscalConfig('nfe', selectedOrg?.pk)
 
   const {data: orgData} = useQuery({
     queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),

@@ -1,10 +1,12 @@
 'use client'
 
-import {useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
+import {Suspense, useState} from 'react'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
+import {useSearchParams} from 'next/navigation'
+import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
@@ -19,39 +21,25 @@ const TABS: { id: DocVariant; label: string; description: string }[] = [
   {id: 'nfse', label: 'NFS-e', description: 'Nota Fiscal de Serviços Eletrônica'},
 ]
 
+function isDocVariant(v: string | null): v is DocVariant {
+  return TABS.some((t) => t.id === v)
+}
+
 function FiscalConfigContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
-  const [activeTab, setActiveTab] = useState<DocVariant>('nfe')
-  
+  const params = useSearchParams()
+  const tabParam = params.get('tab')
+  const [activeTab, setActiveTab] = useState<DocVariant>(isDocVariant(tabParam) ? tabParam : 'nfe')
+
   const pk = selectedOrg?.pk ?? ''
-  
-  // Fetch all configs in parallel; treat 404 as null
-  const nfeQuery = useQuery({
-    queryKey: queryKeys.nfeConfig(pk),
-    queryFn: () => apiClient.getNFeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
-    enabled: !!pk,
-  })
-  const nfceQuery = useQuery({
-    queryKey: queryKeys.nfceConfig(pk),
-    queryFn: () => apiClient.getNFCeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
-    enabled: !!pk,
-  })
-  const cteQuery = useQuery({
-    queryKey: queryKeys.cteConfig(pk),
-    queryFn: () => apiClient.getCTeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
-    enabled: !!pk,
-  })
-  const mdfeQuery = useQuery({
-    queryKey: queryKeys.mdfeConfig(pk),
-    queryFn: () => apiClient.getMDFeConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
-    enabled: !!pk,
-  })
-  const nfseQuery = useQuery({
-    queryKey: queryKeys.nfseConfig(pk),
-    queryFn: () => apiClient.getNfseConfig(pk).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
-    enabled: !!pk,
-  })
+
+  // Fetch all configs in parallel; the hook treats 404 as null (not configured yet)
+  const nfeQuery = useFiscalConfig('nfe', pk)
+  const nfceQuery = useFiscalConfig('nfce', pk)
+  const cteQuery = useFiscalConfig('cte', pk)
+  const mdfeQuery = useFiscalConfig('mdfe', pk)
+  const nfseQuery = useFiscalConfig('nfse', pk)
 
   const nfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFeConfig(pk, d),
@@ -105,7 +93,7 @@ function FiscalConfigContent() {
               {TABS.map((tab) => {
                 const isActive = tab.id === activeTab
                 const {query} = configByTab[tab.id]
-                const hasConfig = !!query.data
+                const hasConfig = !!query.config
                 return (
                   <button
                     key={tab.id}
@@ -157,7 +145,7 @@ function FiscalConfigContent() {
                 <FiscalConfigForm
                   key={activeTab}
                   variant={activeTab}
-                  initialData={active.query.data ?? null}
+                  initialData={active.query.config ?? null}
                   onSave={async (data) => {
                     await active.mutation.mutateAsync(data)
                   }}
@@ -175,7 +163,9 @@ function FiscalConfigContent() {
 export default function FiscalConfigPage() {
   return (
     <ProtectedRoute>
-      <FiscalConfigContent/>
+      <Suspense>
+        <FiscalConfigContent/>
+      </Suspense>
     </ProtectedRoute>
   )
 }

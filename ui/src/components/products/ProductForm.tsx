@@ -27,13 +27,13 @@ import type {ProductCreate, ProductOut} from '@/lib/types/api'
 import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
 import {
   CSOSN_ST,
+  EMPTY_TAX_GROUPS,
   ICMS_MONO_CSTS,
   ICMS_ST_CSTS,
   icmsConditionalFields,
-  EMPTY_TAX_GROUPS,
-  type TaxGroups,
   PIS_COFINS_ALIQ_CSTS,
   TaxFieldsEditor,
+  type TaxGroups,
 } from '@/components/tax/TaxFieldsEditor'
 import {isRegimeSimples} from '@/lib/constants/tax'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
@@ -551,7 +551,6 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const nfceCfopOptions = getCfopOptionsForNfce()
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '')
-
 
 
   // ─── CFOP handlers ──────────────────────────────────────────────────────────
@@ -1082,7 +1081,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Perfis fiscais</p>
               <p className="text-xs text-gray-500">
                 Escolher um perfil dispensa preencher a tributação aqui. Para sobrescrever um CFOP só
-                neste produto, adicione a linha abaixo — ela vence o perfil na emissão.
+                neste produto, adicione a linha abaixo — ele tem prioridade sobre o perfil fiscal.
               </p>
               {taxProfiles.length === 0 ? (
                 <p className="text-xs text-gray-500">

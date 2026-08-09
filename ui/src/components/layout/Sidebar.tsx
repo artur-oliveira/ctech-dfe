@@ -6,19 +6,19 @@ import type {ReactNode} from 'react'
 import {
   BriefcaseIcon,
   CalendarClockIcon,
-  PercentIcon,
-  RouteIcon,
-  VehicleSetIcon,
   CteIcon,
   MdfeIcon,
   NfceIcon,
   NfeIcon,
   NfseIcon,
+  PercentIcon,
+  RouteIcon,
+  SettingsIcon,
   ShieldIcon,
   ShoppingBagIcon,
   TruckIcon,
   UsersIcon,
-  SettingsIcon,
+  VehicleSetIcon,
 } from "@/components/ui/icon"
 import {Button} from '@/components/ui/button'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -86,6 +86,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Cadastros',
     items: [
+      {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
       {href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>},
       {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
       {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
@@ -93,7 +94,6 @@ const navGroups: NavGroup[] = [
       {href: '/payment-terms', label: 'Condições de pagamento', icon: <CalendarClockIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
       {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
-      {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
     ],
   },
   {
@@ -178,26 +178,26 @@ export function Sidebar({open, onClose}: SidebarProps) {
           const items = group.items.filter((item) => !item.roles || (role != null && item.roles.includes(role)))
           if (items.length === 0) return null
           return (
-          <div key={group.label} className="mb-5">
-            <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              {group.label}
-            </p>
-            <ul className="space-y-0.5">
-              {items.map((item) => {
-                const active = isItemActive(item.href, pathname)
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onClose}
-                      className={[
-                        'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors',
-                        item.sub ? 'ml-4' : '',
-                        active
-                          ? 'bg-brand-50 text-brand-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                      ].join(' ')}
-                    >
+            <div key={group.label} className="mb-5">
+              <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                {group.label}
+              </p>
+              <ul className="space-y-0.5">
+                {items.map((item) => {
+                  const active = isItemActive(item.href, pathname)
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onClose}
+                        className={[
+                          'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors',
+                          item.sub ? 'ml-4' : '',
+                          active
+                            ? 'bg-brand-50 text-brand-700 font-medium'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                        ].join(' ')}
+                      >
                       <span className={[
                         'shrink-0',
                         active ? 'text-brand-600' : 'text-gray-400',
@@ -205,15 +205,15 @@ export function Sidebar({open, onClose}: SidebarProps) {
                       ].join(' ')}>
                         {item.icon}
                       </span>
-                      <span className={item.sub ? 'text-sm' : ''}>
+                        <span className={item.sub ? 'text-sm' : ''}>
                         {item.label}
                       </span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           )
         })}
       </nav>

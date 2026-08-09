@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import {useState, useEffect} from 'react'
-import {useMutation, useQuery} from '@tanstack/react-query'
+import {useMutation} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -26,6 +26,8 @@ import {formatCurrency} from '@/lib/utils/helpers'
 import {formatDatetimeBR, formatNsu} from '@/lib/utils/dfe'
 import {cteSchemaLabel} from '@/lib/constants/distributions'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 
 function DistributionRow({item}: { item: NFeDistributionOut }) {
   return (
@@ -84,11 +86,7 @@ function CTeDistributionsContent() {
   const {selectedOrg} = useAuth()
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
   
-  const {data: config} = useQuery({
-    queryKey: queryKeys.cteConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getCTeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config, isMissing: configMissing} = useFiscalConfig('cte', selectedOrg?.pk)
   
   const [nsuFilter, setNsuFilter] = useState('')
   const nsuQuery = nsuFilter.trim() || undefined
@@ -139,6 +137,7 @@ function CTeDistributionsContent() {
     <RootLayout>
       <div className="p-4 md:p-8 space-y-6">
         <HomologationBanner environment={config?.environment}/>
+        <ConfigRequiredBanner show={configMissing} variant="cte" docLabel="CT-e"/>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Distribuição CT-e</h1>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {useSearchParams} from 'next/navigation'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
+import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig'
 import {NfseEmitForm} from '@/components/nfse/NfseEmitForm'
 
 function NfseEmitContent() {
@@ -34,7 +35,9 @@ function NfseEmitContent() {
           </p>
         </div>
 
-        <NfseEmitForm mode={mode} sourceIdDps={source}/>
+        <RequireFiscalConfig variant="nfse">
+          <NfseEmitForm mode={mode} sourceIdDps={source}/>
+        </RequireFiscalConfig>
       </div>
     </RootLayout>
   )

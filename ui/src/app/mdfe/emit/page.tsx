@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
+import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig'
 import {MdfeEmitForm} from '@/components/mdfe/MdfeEmitForm'
 
 function MdfeEmitContent() {
@@ -19,7 +20,9 @@ function MdfeEmitContent() {
           <p className="text-gray-500 text-sm mt-0.5">Manifesto Eletrônico de Documentos Fiscais</p>
         </div>
         
-        <MdfeEmitForm/>
+        <RequireFiscalConfig variant="mdfe">
+          <MdfeEmitForm/>
+        </RequireFiscalConfig>
       </div>
     </RootLayout>
   )

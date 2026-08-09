@@ -25,6 +25,7 @@ interface TaxProfileFormProps {
 
 const EMPTY_TAX_FIELDS: CfopConfigFormData = {
   cfop: '', csosn: '', icms: '', pis: '', cofins: '',
+  ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
 } as CfopConfigFormData
 
 function toFormData(p: TaxProfileItemOut): TaxProfileFormData {
@@ -81,10 +82,11 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
   const handleSubmit = async (data: TaxProfileFormData) => {
     setSubmitError(null)
     try {
-      await onSubmit({
-        ...data,
-        description: data.description || null,
-      } as unknown as TaxProfileCreate)
+      const payload: Record<string, unknown> = {...data, description: data.description || null}
+      for (const key of Object.keys(payload)) {
+        if (payload[key] === '') payload[key] = undefined
+      }
+      await onSubmit(payload as unknown as TaxProfileCreate)
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o perfil.')
     }

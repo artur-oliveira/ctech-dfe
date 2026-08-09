@@ -1,7 +1,7 @@
 'use client'
 
 import {Suspense} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {useRouter, useSearchParams} from 'next/navigation'
 import Link from 'next/link'
 import {apiClient} from '@/lib/api/client'
@@ -25,6 +25,8 @@ import {formatCurrency} from '@/lib/utils/helpers'
 import {formatDatetimeBR, formatISODateBR, triggerDownload} from '@/lib/utils/dfe'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
@@ -68,11 +70,7 @@ function NfsesContent() {
 
   const orgPk = selectedOrg?.pk ?? ''
 
-  const {data: nfseConfig} = useQuery({
-    queryKey: queryKeys.nfseConfig(orgPk),
-    queryFn: () => apiClient.getNfseConfig(orgPk),
-    enabled: !!orgPk,
-  })
+  const {config: nfseConfig, isMissing: nfseConfigMissing} = useFiscalConfig('nfse', orgPk)
 
   const filterYear = params.get('year') ?? ''
   const filterMonth = params.get('month') ?? ''
@@ -145,6 +143,7 @@ function NfsesContent() {
         />
 
         <HomologationBanner environment={nfseConfig?.environment}/>
+        <ConfigRequiredBanner show={nfseConfigMissing} variant="nfse" docLabel="NFS-e"/>
 
         <div role="tablist" aria-label="Listas de NFS-e" className="mb-6 flex overflow-x-auto border-b border-gray-200">
           {NFSE_TABS.map((tab) => (

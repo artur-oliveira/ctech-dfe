@@ -22,6 +22,7 @@ import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {ProductLineItem} from '@/components/ui/product-line-item'
 import {ProductSearch} from '@/components/ui/product-search'
 import {PersonForm} from '@/components/persons/PersonForm'
@@ -273,11 +274,7 @@ export function NfceEmitForm() {
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const {data: nfceConfig} = useQuery({
-    queryKey: queryKeys.nfceConfig(selectedOrg!.pk),
-    queryFn: () => apiClient.getNFCeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: nfceConfig} = useFiscalConfig('nfce', selectedOrg?.pk)
 
   const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0)
   const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0)

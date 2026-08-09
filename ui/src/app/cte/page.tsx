@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import {useState} from 'react'
-import {useMutation, useQuery} from '@tanstack/react-query'
+import {useMutation} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -20,6 +20,8 @@ import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
 import type {NFeDistributionOut} from '@/lib/types/api'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
 import {cteSchemaLabel} from '@/lib/constants/distributions'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
@@ -79,11 +81,7 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
 function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
   
-  const {data: config} = useQuery({
-    queryKey: queryKeys.cteConfig(orgPk),
-    queryFn: () => apiClient.getCTeConfig(orgPk),
-    enabled: !!orgPk,
-  })
+  const {config} = useFiscalConfig('cte', orgPk)
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('cte', orgPk),
@@ -173,11 +171,7 @@ function CTeContent() {
   const {selectedOrg} = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('recebidos')
   
-  const {data: cteConfig} = useQuery({
-    queryKey: queryKeys.cteConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getCTeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: cteConfig, isMissing: cteConfigMissing} = useFiscalConfig('cte', selectedOrg?.pk)
   
   const tabs: { key: Tab; label: string }[] = [
     {key: 'emitidos', label: 'Emitidos'},
@@ -196,6 +190,7 @@ function CTeContent() {
         </div>
         
         <HomologationBanner environment={cteConfig?.environment}/>
+        <ConfigRequiredBanner show={cteConfigMissing} variant="cte" docLabel="CT-e"/>
         
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {tabs.map(tab => (

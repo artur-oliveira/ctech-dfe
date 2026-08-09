@@ -17,6 +17,7 @@ import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {VehicleForm} from '@/components/vehicles/VehicleForm'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
@@ -378,11 +379,7 @@ export function MdfeEmitForm() {
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const {data: mdfeConfig} = useQuery({
-    queryKey: queryKeys.mdfeConfig(selectedOrg!.pk),
-    queryFn: () => apiClient.getMDFeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: mdfeConfig} = useFiscalConfig('mdfe', selectedOrg?.pk)
 
   const {data: tractorsData} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'tractor'),

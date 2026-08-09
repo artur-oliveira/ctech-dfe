@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.1.2
 
 # Fonte única da documentação da API. É mantida à mão e vigiada pelo teste de
 # cobertura em openapi_test.go: toda rota registrada no Fiber tem que aparecer
@@ -46,19 +46,20 @@ info:
     construa um cursor à mão.
   contact:
     name: CTech
-    url: https://aoctech.app
+    url: https://accounts.aoctech.app/support
+    email: support@aoctech.app
   license:
     name: Proprietary
-    identifier: LicenseRef-CTech-Proprietary
+    url: 'https://accounts.aoctech.app/terms'
 
 servers:
-  - url: https://dfe-api.aoctech.app
+  - url: https://dfe.aoctech.app
     description: Produção
-  - url: http://localhost:8000
+  - url: http://localhost:3000
     description: Local
 
 security:
-  - bearerAuth: []
+  - bearerAuth: [ ]
 
 tags:
   - name: Health

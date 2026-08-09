@@ -18,6 +18,7 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
 import {Button} from '@/components/ui/button'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
@@ -124,11 +125,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const appliedSourceRef = useRef<string | null>(null)
 
-  const {data: nfseConfig} = useQuery({
-    queryKey: queryKeys.nfseConfig(orgPk),
-    queryFn: () => apiClient.getNfseConfig(orgPk),
-    enabled: !!orgPk,
-  })
+  const {config: nfseConfig} = useFiscalConfig('nfse', orgPk)
 
   const {data: org} = useQuery({
     queryKey: queryKeys.organizations.detail(orgPk),

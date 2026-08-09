@@ -1,7 +1,7 @@
 'use client'
 
 import {Suspense, useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {useRouter, useSearchParams} from 'next/navigation'
 import Link from 'next/link'
 import {toast} from 'sonner'
@@ -25,6 +25,8 @@ import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, formatNsu, parseAccessKey, triggerDownload} from '@/lib/utils/dfe'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
@@ -156,11 +158,7 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
 function NfeDistributionTab({orgPk}: { orgPk: string }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
 
-  const {data: config} = useQuery({
-    queryKey: queryKeys.nfeConfig(orgPk),
-    queryFn: () => apiClient.getNFeConfig(orgPk),
-    enabled: !!orgPk,
-  })
+  const {config} = useFiscalConfig('nfe', orgPk)
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('nfe', orgPk),
@@ -497,11 +495,7 @@ function NfesContent() {
   const params = useSearchParams()
   const qc = useQueryClient()
 
-  const {data: nfeConfig} = useQuery({
-    queryKey: queryKeys.nfeConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getNFeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: nfeConfig, isMissing: nfeConfigMissing} = useFiscalConfig('nfe', selectedOrg?.pk)
 
   const activeTab = (params.get('tab') as Tab) || 'emitidas'
 
@@ -556,6 +550,7 @@ function NfesContent() {
         </div>
 
         <HomologationBanner environment={nfeConfig?.environment}/>
+        <ConfigRequiredBanner show={nfeConfigMissing} variant="nfe" docLabel="NF-e"/>
 
         {/* Submenu tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">

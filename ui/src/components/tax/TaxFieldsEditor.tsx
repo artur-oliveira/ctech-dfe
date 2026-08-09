@@ -561,17 +561,17 @@ export function TaxFieldsEditor({value, onChange, simples, hideCfop = false, gro
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">IBS UF %</label>
-            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.ibs_uf_aliq}
+            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.ibs_uf_aliq ?? ''}
                           onChange={(v) => onChange((r) => ({...r, ibs_uf_aliq: v}))} placeholder="0.0000"/>
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">IBS Mun %</label>
-            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.ibs_mun_aliq}
+            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.ibs_mun_aliq ?? ''}
                           onChange={(v) => onChange((r) => ({...r, ibs_mun_aliq: v}))} placeholder="0.0000"/>
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">CBS %</label>
-            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.cbs_aliq}
+            <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.cbs_aliq ?? ''}
                           onChange={(v) => onChange((r) => ({...r, cbs_aliq: v}))} placeholder="0.0000"/>
           </div>
         </div>

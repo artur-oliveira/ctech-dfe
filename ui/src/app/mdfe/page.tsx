@@ -1,7 +1,7 @@
 'use client'
 
 import {Suspense, useState} from 'react'
-import {useMutation, useQuery} from '@tanstack/react-query'
+import {useMutation} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import Link from 'next/link'
 import {apiClient, ApiError} from '@/lib/api/client'
@@ -20,6 +20,8 @@ import {Button} from '@/components/ui/button'
 import type {MdfeListOut, NFeDistributionOut} from '@/lib/types/api'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
 import {mdfeSchemaLabel} from '@/lib/constants/distributions'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
@@ -158,11 +160,7 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
 function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
   
-  const {data: config} = useQuery({
-    queryKey: queryKeys.mdfeConfig(orgPk),
-    queryFn: () => apiClient.getMDFeConfig(orgPk),
-    enabled: !!orgPk,
-  })
+  const {config} = useFiscalConfig('mdfe', orgPk)
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('mdfe', orgPk),
@@ -247,11 +245,7 @@ function MDFeContent() {
   const {selectedOrg} = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('emitidos')
   
-  const {data: mdfeConfig} = useQuery({
-    queryKey: queryKeys.mdfeConfig(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getMDFeConfig(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  })
+  const {config: mdfeConfig, isMissing: mdfeConfigMissing} = useFiscalConfig('mdfe', selectedOrg?.pk)
   
   const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk)
   
@@ -278,6 +272,7 @@ function MDFeContent() {
         </div>
         
         <HomologationBanner environment={mdfeConfig?.environment}/>
+        <ConfigRequiredBanner show={mdfeConfigMissing} variant="mdfe" docLabel="MDF-e"/>
         
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {tabs.map(tab => (

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
+import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig'
 import {NfeEmitForm} from '@/components/nfe/NfeEmitForm'
 
 function NfeEmitContent() {
@@ -20,7 +21,9 @@ function NfeEmitContent() {
             Eletrônica</p>
         </div>
         
-        <NfeEmitForm/>
+        <RequireFiscalConfig variant="nfe">
+          <NfeEmitForm/>
+        </RequireFiscalConfig>
       </div>
     </RootLayout>
   )
