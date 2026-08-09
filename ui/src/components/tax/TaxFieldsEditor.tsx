@@ -647,7 +647,7 @@ export function TaxFieldsEditor({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">CST</label>
-            <OptionsSelect value={value.ibs_cbs_cst}
+            <OptionsSelect value={value.ibs_cbs_cst ?? ''}
                            onValueChange={(v) => onChange((r) => ({
                              ...r,
                              ibs_cbs_cst: v,
@@ -657,9 +657,9 @@ export function TaxFieldsEditor({
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">Classificação</label>
-            <OptionsSelect value={value.ibs_cbs_class_trib}
+            <OptionsSelect value={value.ibs_cbs_class_trib ?? ''}
                            onValueChange={(v) => onChange((r) => ({...r, ibs_cbs_class_trib: v}))}
-                           options={IBS_CBS_CLASS_BY_CST[value.ibs_cbs_cst] ?? []} placeholder="Código"/>
+                           options={IBS_CBS_CLASS_BY_CST[value.ibs_cbs_cst ?? ''] ?? []} placeholder="Código"/>
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium text-gray-700">IBS UF %</label>
