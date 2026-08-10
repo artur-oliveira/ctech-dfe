@@ -113,6 +113,9 @@ export class WorkerStack extends cdk.Stack {
       const dlq = new sqs.Queue(this, `${worker.id}-dlq`, {
         queueName: `${environment}-${worker.queueName}-dlq`,
         retentionPeriod: Duration.days(14),
+        // Long polling: without this the Lambda poller short-polls continuously,
+        // burning SQS free-tier requests even on an idle queue.
+        receiveMessageWaitTime: Duration.seconds(20),
       })
 
       new cloudwatch.Alarm(this, `${worker.id}-dlq-alarm`, {
@@ -129,6 +132,7 @@ export class WorkerStack extends cdk.Stack {
         queueName: `${environment}-${worker.queueName}`,
         // AWS recommends six times the Lambda timeout, plus the batch window.
         visibilityTimeout: Duration.seconds((worker.timeoutSeconds ?? 300) * 6 + 300),
+        receiveMessageWaitTime: Duration.seconds(20),
         deadLetterQueue: {
           queue: dlq,
           maxReceiveCount: 3,
@@ -312,6 +316,7 @@ export class WorkerStack extends cdk.Stack {
     const outboxDlq = new sqs.Queue(this, 'outbox-publisher-dlq', {
       queueName: `${environment}-dfe-outbox-publisher-dlq`,
       retentionPeriod: Duration.days(14),
+      receiveMessageWaitTime: Duration.seconds(20),
     })
     new cloudwatch.Alarm(this, 'outbox-publisher-dlq-alarm', {
       alarmName: `${environment}-dfe-outbox-publisher-dlq-alarm`,

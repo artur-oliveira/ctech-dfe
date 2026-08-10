@@ -155,6 +155,10 @@ produziria um item órfão.
 - AWS usage must always consider cost impact.
 - Prefer pay-per-request models when workloads are variable.
 - Optimize for both performance and cost efficiency.
+- Every stack's resources are tagged `Project=ctech-dfe` and `Environment=<env>` via
+  `cdk.Tags.of(app)` in `cdk/bin/ctech-dfe-cdk.ts`, for Cost Explorer breakdown by service/component.
+  New stacks need no extra tagging code — the app-level tag applies automatically. (Tags must be
+  activated once as cost allocation tags in the Billing console before Cost Explorer can group by them.)
 
 ## DynamoDB
 
@@ -527,6 +531,16 @@ produziria um item órfão.
 - Avoid synchronous chaining of Lambdas.
 - Prefer asynchronous workflows (SQS + worker) when possible.
 - Ensure timeout alignment between caller and Lambda.
+
+## SQS
+
+- **Every queue MUST set `receiveMessageWaitTime` (long polling), 20s by default.** A queue with the
+  CDK default (`0` = short polling) makes the Lambda event-source poller call `ReceiveMessage`
+  continuously even when the queue is empty, burning the 1M/month free-tier request quota in days on
+  an otherwise idle system (observed: ~172k requests/day/idle, exhausting the free tier by day 6). Long
+  polling makes each empty `ReceiveMessage` block up to the wait time instead of returning immediately,
+  cutting request volume by up to 20x with no functional change. Applies to both the main queue and its
+  DLQ in `cdk/lib/worker-stack.ts` and `cdk/lib/event-bus-stack.ts`.
 
 ## S3
 

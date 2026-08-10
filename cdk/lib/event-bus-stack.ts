@@ -42,6 +42,7 @@ export class EventBusStack extends cdk.Stack {
     const resultsDlq = new sqs.Queue(this, 'ResultsQueue-dlq', {
       queueName: `${environment}-ctech-dfe-results-dlq`,
       retentionPeriod: cdk.Duration.days(14),
+      receiveMessageWaitTime: cdk.Duration.seconds(20),
     })
 
     new cloudwatch.Alarm(this, 'ResultsQueue-dlq-alarm', {
@@ -58,6 +59,7 @@ export class EventBusStack extends cdk.Stack {
       queueName: `${environment}-ctech-dfe-results`,
       visibilityTimeout: cdk.Duration.seconds(30),
       retentionPeriod: cdk.Duration.hours(1),
+      receiveMessageWaitTime: cdk.Duration.seconds(20),
       deadLetterQueue: {
         queue: resultsDlq,
         maxReceiveCount: 3,

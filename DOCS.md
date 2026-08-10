@@ -1925,6 +1925,19 @@ both instance failures and application failures detected by the ALB.
 | `{env}-py-dfe-deployments`  | Expires after 30 days         | API deployment artifacts        |
 | `{env}-py-dfe-logs`         | — (RETAIN in prod)            | Rotated EC2 instance logs       |
 
+### SQS long polling
+
+All queues (main + DLQ) in `worker-stack.ts` and `event-bus-stack.ts` set
+`receiveMessageWaitTime: Duration.seconds(20)`. Without it, the Lambda event-source poller
+short-polls (`ReceiveMessage` returns immediately on an empty queue), which can exhaust the
+1M-request/month SQS free tier in under a week on an idle system. See `CONDUCT.md §7 — SQS`.
+
+### Cost allocation tags
+
+`cdk/bin/ctech-dfe-cdk.ts` applies `Project=ctech-dfe` and `Environment=<env>` to every resource
+in every stack via `cdk.Tags.of(app)`. Activate both as cost allocation tags in the Billing console
+(Billing → Cost Allocation Tags) to group Cost Explorer by them.
+
 ### Deploy
 
 ```bash

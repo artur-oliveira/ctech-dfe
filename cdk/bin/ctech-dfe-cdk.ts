@@ -27,6 +27,12 @@ const CERT_ARN =
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'dev') as Environment;
 const GITHUB_REPO = process.env.GITHUB_REPO || 'artur-oliveira/ctech-dfe';
 
+// Cost allocation tags — applied to every resource in every stack.
+// Requires manual activation as a cost allocation tag in the Billing console
+// (Billing > Cost Allocation Tags) before it appears as a Cost Explorer group-by key.
+cdk.Tags.of(app).add('Project', 'ctech-dfe');
+cdk.Tags.of(app).add('Environment', ENVIRONMENT);
+
 // VPC is managed by ctech-cdk. The ID must be a concrete string (not a token)
 // because ec2.Vpc.fromLookup resolves subnet/AZ metadata at synthesis time.
 // The CI workflow reads /ctech/{env}/network/vpc-id from SSM and exports it.
