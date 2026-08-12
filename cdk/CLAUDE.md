@@ -25,7 +25,7 @@ cdk/
 │   ├── iam-stack.ts            # Lambda + EC2 IAM roles
 │   ├── dfe-stack.ts            # py-dfe Lambda
 │   ├── worker-stack.ts         # Worker Lambdas + SQS (standard) + DLQ + CloudWatch alarms
-│   ├── api-v2-stack.ts         # EC2 ASG + ALB target group
+│   ├── api-stack.ts         # EC2 ASG + ALB target group
 │   ├── frontend-stack.ts       # S3 + CloudFront
 │   └── ...                     # Other stacks (see DOCS.md §8)
 └── test/
@@ -128,8 +128,8 @@ See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 
 ## Known Constraints
 
-- `ApiStackV2` (EC2 ASG) is the only API stack; the migration from the legacy `ApiStack` (Elastic Beanstalk) is complete.
-- `ApiStackV2` ASG uses combined EC2 + ELB health checks with `gracePeriod: 120s`.
+- `ApiStack` (EC2 ASG) is the only API stack; the migration from the legacy `ApiStack` (Elastic Beanstalk) is complete.
+- `ApiStack` ASG uses combined EC2 + ELB health checks with `gracePeriod: 120s`.
 - Worker Lambda binary must be named `bootstrap` (runtime: `provided.al2023`).
 - API binary must be named `app` (EC2 userdata expects `/opt/app/current/app`).
 - CloudFront has Brazil geo-restriction on the `FrontendStack`.
@@ -140,7 +140,7 @@ See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 
 - DynamoDB table definitions (schema changes are destructive without migration)
 - IAM roles (least privilege — over-permissioning is a security risk)
-- `ApiStackV2` ASG and ALB configuration (rolling deploy, health check)
+- `ApiStack` ASG and ALB configuration (rolling deploy, health check)
 - `RemovalPolicy` on any resource
 - SQS + DLQ configuration (at-least-once delivery; ordering is not guaranteed — idempotency is enforced at the application layer)
 

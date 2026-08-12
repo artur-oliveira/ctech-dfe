@@ -1,5 +1,9 @@
 # ctech-dfe CDK Infrastructure
 
+> HAProxy migration: the API ASG no longer creates an ALB target group or listener
+> rule. `ctech-lbalancer` discovers it through its `dfe` route; the retained
+> `/ctech/{env}/network/alb-sg-id` identifies the shared edge trusted by the API SG.
+
 AWS CDK (TypeScript) for the ctech-dfe platform. Anchored to `lib/*.ts` and `bin/*.ts`
 (prefer `.ts` over the compiled `.js`/`.d.ts`; ignore `cdk.out/`).
 
@@ -27,7 +31,7 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 | `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (`bin:97-101`) |
 | `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher + outbox publisher (§2/§3) (`bin:105-116`) |
 | `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies (`bin:118-130`) |
-| `ApiStackV2` | `CtechDfe-{Env}-API-V2` | EC2 ASG + ALB (§5) (`bin:139-156`) |
+| `ApiStack` | `CtechDfe-{Env}-API-V2` | EC2 ASG + ALB (§5) (`bin:139-156`) |
 | `FrontendStack` | `CtechDfe-{Env}-Frontend` | S3 + CloudFront (§6) (`bin:168-176`) |
 
 ## 2. Lambdas
@@ -92,7 +96,7 @@ otherwise; **PITR prod only** (`:221-222`). 26 tables; notable GSIs:
 The `TableName` union (`:8-34`) is a **logical-name enum**, not the physical name — map via
 the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` builders.
 
-## 5. IAM & EC2 (`lib/iam-stack.ts`, `lib/api-v2-stack.ts`, `lib/oidc-stack.ts`)
+## 5. IAM & EC2 (`lib/iam-stack.ts`, `lib/api-stack.ts`, `lib/oidc-stack.ts`)
 
 - Roles: `${env}-py-dfe-lambda-role`, `${env}-ctech-dfe-api-v2-role`, per-worker roles,
   dispatcher role, DLQ-processor roles. `DynamoPolicy` grants CRUD + Query/**Scan** on all

@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
+import * as autoscaling from 'aws-cdk-lib/aws-autoscaling';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
@@ -9,11 +10,10 @@ import {
   addDualStackSsmAgentCommands,
   addRealipRefreshCommands,
   addSwapCommands,
-  PrivateIpv4Ec2Service,
 } from '@aoctech/cdk';
 import {Environment} from './types';
 
-interface ApiStackV2Props extends cdk.StackProps {
+interface ApiStackProps extends cdk.StackProps {
   environment: Environment;
   // VPC ID must be provided as a concrete string (not a token) so CDK can
   // resolve subnet/AZ information via Vpc.fromLookup at synthesis time.
@@ -35,10 +35,10 @@ interface ApiStackV2Props extends cdk.StackProps {
   valkeyUrlSsmPath: string;
 }
 
-export class ApiStackV2 extends cdk.Stack {
+export class ApiStack extends cdk.Stack {
   public readonly asgName: string;
 
-  constructor(scope: Construct, id: string, props: ApiStackV2Props) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
     const {
@@ -63,15 +63,7 @@ export class ApiStackV2 extends cdk.Stack {
     const albSgId = ssm.StringParameter.valueForStringParameter(
       this, `/ctech/${environment}/network/alb-sg-id`,
     );
-    const albSg = ec2.SecurityGroup.fromSecurityGroupId(this, 'AlbSg', albSgId);
-
-    const httpsListenerArn = ssm.StringParameter.valueForStringParameter(
-      this, `/ctech/${environment}/alb/https-listener-arn`,
-    );
-    const httpsListener = elbv2.ApplicationListener.fromApplicationListenerAttributes(
-      this, 'HttpsListener',
-      {listenerArn: httpsListenerArn, securityGroup: albSg},
-    );
+    const edgeSg = ec2.SecurityGroup.fromSecurityGroupId(this, 'EdgeSg', albSgId);
 
     const isProd = environment === 'prod';
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
@@ -79,8 +71,8 @@ export class ApiStackV2 extends cdk.Stack {
     // CloudFormation treats as delete-old/create-new. Explicit physical names
     // must differ from the old ones or the create side of that swap collides
     // with the still-live old resource.
-    const svcName = 'ctech-dfe-v2';
-    this.asgName = `${environment}-${svcName}-api`;
+    const svcName = 'ctech-dfe';
+    this.asgName = `${environment}-${svcName}`;
     const logRetention: logs.RetentionDays = isProd ? logs.RetentionDays.ONE_MONTH : logs.RetentionDays.ONE_WEEK;
     const logGroupApp = `/${svcName}/${environment}/app`;
     const logGroupNginx = `/${svcName}/${environment}/nginx`;
@@ -440,42 +432,41 @@ export class ApiStackV2 extends cdk.Stack {
       `aws s3api head-object --bucket "${deploymentsBucketName}" --key "ctech-dfe/api/current.zip" 2>/dev/null && /opt/app/deploy.sh ctech-dfe/api/current.zip || echo "No bootstrap artifact, waiting for first deploy"`,
     );
 
-    // ── Shared no-NAT-Gateway EC2/ASG pattern (@aoctech/cdk) ───────────────────
-    // Priority bumped 10 → 15: the old ListenerRule (still live under the old
-    // logical ID until this deploy completes) already holds priority 10, and
-    // ALB rejects two rules on the same listener sharing a priority.
-    const service = new PrivateIpv4Ec2Service(this, 'ApiService', {
+    // HAProxy discovers this ASG through its ctech-lbalancer bootstrap route.
+    const serviceSg = new ec2.SecurityGroup(this, 'ApiServiceSg', {
       vpc,
-      albSg,
-      httpsListener,
       securityGroupName: `${environment}-${svcName}-api-sg`,
-      securityGroupDescription: 'ctech-dfe API instances',
-      appPort: 8080,
-      instanceProfileName,
-      userData,
-      logGroupAppName: logGroupApp,
-      logGroupNginxName: logGroupNginx,
-      logRetention,
-      logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-      metricNamespace: `CtechDfe/${environment}`,
-      targetGroupName: `${this.asgName}-tg`,
-      healthCheckPath: '/v1.0/health-check',
-      healthyHttpCodes: '200,207',
-      asgName: this.asgName,
+      description: 'ctech-dfe API instances',
+      allowAllOutbound: true, allowAllIpv6Outbound: true,
+    });
+    serviceSg.addIngressRule(edgeSg, ec2.Port.tcp(8080), 'HAProxy edge to app');
+    const appLogGroup = new logs.LogGroup(this, 'ApiServiceAppLogGroup', {logGroupName: logGroupApp, retention: logRetention, removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY});
+    const nginxLogGroup = new logs.LogGroup(this, 'ApiServiceNginxLogGroup', {logGroupName: logGroupNginx, retention: logRetention, removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY});
+    const launchTemplate = new ec2.LaunchTemplate(this, 'ApiServiceLaunchTemplate', {
+      launchTemplateName: `${this.asgName}-lt`, instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
+      machineImage: ec2.MachineImage.latestAmazonLinux2023({cpuType: ec2.AmazonLinuxCpuType.ARM_64, edition: ec2.AmazonLinuxEdition.MINIMAL}),
+      blockDevices: [{deviceName: '/dev/xvda', volume: ec2.BlockDeviceVolume.ebs(3, {volumeType: ec2.EbsDeviceVolumeType.GP3, deleteOnTermination: true})}], userData,
+      instanceProfile: iam.InstanceProfile.fromInstanceProfileName(this, 'ApiServiceInstanceProfile', instanceProfileName), requireImdsv2: true, securityGroup: serviceSg,
+    });
+    const cfnLaunchTemplate = launchTemplate.node.defaultChild as ec2.CfnLaunchTemplate;
+    cfnLaunchTemplate.addPropertyDeletionOverride('LaunchTemplateData.SecurityGroupIds');
+    cfnLaunchTemplate.addPropertyOverride('LaunchTemplateData.NetworkInterfaces', [{DeviceIndex: 0, Groups: [serviceSg.securityGroupId], AssociatePublicIpAddress: false, Ipv6AddressCount: 1}]);
+    const asg = new autoscaling.AutoScalingGroup(this, 'ApiServiceASG', {
+      autoScalingGroupName: this.asgName, vpc, vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC}, launchTemplate,
       minCapacity: 1,
       maxCapacity: isProd ? 3 : 1,
-      domainName,
-      listenerRulePriority: 15,
+      cooldown: cdk.Duration.seconds(120), healthChecks: autoscaling.HealthChecks.ec2({gracePeriod: cdk.Duration.seconds(120)}),
     });
+    if (isProd) asg.scaleOnCpuUtilization('ApiServiceCpuTargetTracking', {targetUtilizationPercent: 60, cooldown: cdk.Duration.minutes(3)});
 
     // ── Outputs ───────────────────────────────────────────────────────────────
-    new cdk.CfnOutput(this, 'AsgName', {value: service.asgName, exportName: `${id}-asg-name`});
+    new cdk.CfnOutput(this, 'AsgName', {value: asg.autoScalingGroupName, exportName: `${id}-asg-name`});
     new cdk.CfnOutput(this, 'AppLogGroupName', {
-      value: service.appLogGroup.logGroupName,
+      value: appLogGroup.logGroupName,
       exportName: `${id}-app-log-group`,
     });
     new cdk.CfnOutput(this, 'NginxLogGroupName', {
-      value: service.nginxLogGroup.logGroupName,
+      value: nginxLogGroup.logGroupName,
       exportName: `${id}-nginx-log-group`,
     });
   }

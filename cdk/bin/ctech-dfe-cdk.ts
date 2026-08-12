@@ -9,7 +9,7 @@ import {OidcStack} from '../lib/oidc-stack';
 import {WorkerStack} from '../lib/worker-stack';
 import {DfeStack} from '../lib/dfe-stack';
 import {EventBusStack} from '../lib/event-bus-stack';
-import {ApiStackV2} from '../lib/api-v2-stack';
+import {ApiStack} from '../lib/api-stack';
 import {WORKERS} from '../lib/worker-definitions';
 import {Environment} from '../lib/types';
 
@@ -146,7 +146,7 @@ iamStack.addDependency(workerStack);
 // =====================
 // API (EC2 + ASG, shared ALB from ctech-cdk)
 // =====================
-const apiV2Stack = new ApiStackV2(app, id('API-V2'), {
+const apiV2Stack = new ApiStack(app, id('API-V2'), {
   env,
   environment: ENVIRONMENT,
   vpcId: CTECH_VPC_ID,
