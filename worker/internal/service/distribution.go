@@ -193,13 +193,13 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 
 	cfg, err := s.loadConfig(ctx, orgPK, configTable)
 	if err != nil || cfg == nil {
-		slog.Warn("no cfg found", "org_pk", orgPK, "doc_type", docType)
+		slog.Warn("no cfg found", "org_pk", orgPK, "doc_type", docType, "err", err)
 		return nil
 	}
 
 	cert, err := s.loadCert(ctx, orgPK, dtcfg.configTableSuffix)
 	if err != nil || cert == nil {
-		slog.Warn("no certificate found", "org_pk", orgPK)
+		slog.Warn("no certificate found", "org_pk", orgPK, "err", err)
 		return nil
 	}
 
@@ -254,13 +254,15 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 
 		statusCode := int(getFloat(resp, "statusCode"))
 		var respBody map[string]any
+		var rawBody string
 		if b, ok := resp["body"].(string); ok {
+			rawBody = b
 			_ = json.Unmarshal([]byte(b), &respBody)
 		}
 
 		if statusCode != 200 {
 			detail := mapStr(respBody, "detail", mapStr(respBody, "title", "Erro SEFAZ"))
-			slog.Error("py-dfe error", "org_pk", orgPK, "detail", detail)
+			slog.Error("py-dfe error", "org_pk", orgPK, "status", statusCode, "detail", detail, "response_body", rawBody)
 			if strings.Contains(strings.ToLower(detail), "consumo indevido") {
 				_ = s.setImproperUsage(ctx, orgPK, configTable, envPrefix, now)
 			}
@@ -358,7 +360,7 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 		map[string]any{"NSU": fmt.Sprintf("%015d", nsu)})
 	resp, err := s.invokePyDfe(ctx, body)
 	if err != nil || int(getFloat(resp, "statusCode")) != 200 {
-		slog.Error("consNSU failed", "org_pk", orgPK, "nsu", nsu)
+		slog.Error("consNSU failed", "org_pk", orgPK, "nsu", nsu, "err", err)
 		return nil
 	}
 
@@ -421,7 +423,7 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 		map[string]any{chTag: accessKey})
 	resp, err := s.invokePyDfe(ctx, body)
 	if err != nil || int(getFloat(resp, "statusCode")) != 200 {
-		slog.Error("consAccessKey failed", "org_pk", orgPK, "access_key", accessKey)
+		slog.Error("consAccessKey failed", "org_pk", orgPK, "access_key", accessKey, "err", err)
 		return nil
 	}
 
@@ -476,7 +478,7 @@ func (s *DistributionService) processDocZip(
 			ConditionExpression: aws.String("attribute_not_exists(pk) AND attribute_not_exists(nsu)"),
 		})
 		if err != nil {
-			slog.Warn("NSU already exists or PutItem failed", "nsu", nsu, "table", distTable)
+			slog.Warn("NSU already exists or PutItem failed", "nsu", nsu, "table", distTable, "err", err)
 		}
 	}()
 
@@ -926,7 +928,7 @@ func (s *DistributionService) claimDistNSUSlot(
 		ConditionExpression: aws.String("attribute_not_exists(" + lastField + ") OR " + lastField + " < :threshold"),
 	})
 	if err != nil {
-		slog.Info("slot claim failed (race condition)", "org_pk", orgPK)
+		slog.Info("slot claim failed (race condition)", "org_pk", orgPK, "err", err)
 		return false, nil
 	}
 	return true, nil

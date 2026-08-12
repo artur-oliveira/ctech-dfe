@@ -296,7 +296,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 				detail = d
 			}
 		}
-		slog.Warn("py-dfe returned error", "access_key", msg.AccessKey, "detail", detail)
+		slog.Warn("py-dfe returned error", "access_key", msg.AccessKey, "detail", detail, "response_body", lambdaResp.Body)
 		if isRetryableEngineStatus(lambdaResp.StatusCode) {
 			cause := fmt.Errorf("SEFAZ engine returned retryable status %d: %s", lambdaResp.StatusCode, detail)
 			return s.markRetryable(ctx, msg, detail, cause)

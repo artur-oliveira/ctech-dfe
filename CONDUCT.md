@@ -17,6 +17,16 @@
 - Failures must be observable, traceable, and debuggable.
 - Systems should be designed for long-term maintainability, not short-term convenience.
 
+## Error logging
+
+- Every `slog.Error`/`slog.Warn` (Go) or equivalent inside an `if err != nil` block MUST include the
+  error itself as a field (`"err", err`). A log line that names a failure without the error that
+  caused it forces a second production incident just to find out why the first one happened.
+- Any HTTP/SOAP call to an external system (SEFAZ, py-dfe Lambda, ADN, NFS-e nacional) MUST log the
+  raw response body on a non-2xx/failure response, not just a parsed subset (`detail`/`title`).
+  Parsed fields can omit the one attribute that explains the rejection — the raw body is the only
+  complete source of truth for what the other side actually said.
+
 ---
 
 # 2. Scalability and Reliability

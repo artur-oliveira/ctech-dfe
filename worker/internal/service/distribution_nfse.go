@@ -118,7 +118,7 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 
 	cfg, err := s.loadConfig(ctx, orgPK, configTable)
 	if err != nil || cfg == nil {
-		slog.Warn("no nfse cfg found", "org_pk", orgPK)
+		slog.Warn("no nfse cfg found", "org_pk", orgPK, "err", err)
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 
 	cert, err := s.loadCert(ctx, orgPK, dtcfg.configTableSuffix)
 	if err != nil || cert == nil {
-		slog.Warn("no certificate found", "org_pk", orgPK)
+		slog.Warn("no certificate found", "org_pk", orgPK, "err", err)
 		return nil
 	}
 	certB64, err := s.getCertB64(ctx, attrS(cert, "s3_key"))
@@ -167,7 +167,9 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 		}
 
 		var respBody map[string]any
+		var rawBody string
 		if b, ok := resp["body"].(string); ok {
+			rawBody = b
 			if err := json.Unmarshal([]byte(b), &respBody); err != nil {
 				return fmt.Errorf("unmarshal ADN response: %w", err)
 			}
@@ -175,7 +177,7 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 		if statusCode := int(getFloat(resp, "statusCode")); statusCode != 200 {
 			// Erro do ADN é terminal: repetir a chamada devolve a mesma recusa.
 			slog.Error("ADN error", "org_pk", orgPK, "status", statusCode,
-				"detail", mapStr(respBody, "detail", mapStr(respBody, "title", "Erro ADN")))
+				"detail", mapStr(respBody, "detail", mapStr(respBody, "title", "Erro ADN")), "response_body", rawBody)
 			return nil
 		}
 
@@ -254,7 +256,7 @@ func (s *DistributionService) persistNfseIncoming(
 		Item:                item,
 		ConditionExpression: aws.String("attribute_not_exists(pk) AND attribute_not_exists(nsu)"),
 	}); err != nil {
-		slog.Warn("NSU already exists or PutItem failed", "nsu", it.NSU, "table", table)
+		slog.Warn("NSU already exists or PutItem failed", "nsu", it.NSU, "table", table, "err", err)
 	}
 	return nil
 }
