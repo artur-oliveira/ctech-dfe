@@ -2,9 +2,11 @@ package v1
 
 import (
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
+	"gopkg.aoctech.app/dfe/api/internal/validation"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -142,8 +144,12 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.Ext
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
+		accessKey := c.Params("access_key")
+		if !validation.ValidAccessKey(accessKey) {
+			return sendProblem(c, problem.BadRequest("chave de acesso inválida"))
+		}
 		userID, userName := resolveActor(c, userSvc)
-		nfe, err := svc.Manifestation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.EventType, body.SequenceNumber, body.Justification, userID, userName)
+		nfe, err := svc.Manifestation(c.Context(), middleware.GetOrgPK(c), accessKey, body.EventType, body.SequenceNumber, body.Justification, userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}
