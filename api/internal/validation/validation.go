@@ -61,6 +61,7 @@ func get() *validator.Validate {
 		_ = v.RegisterValidation("cnpj", cnpjValidator)
 		_ = v.RegisterValidation("cpfcnpj", cpfCnpjValidator)
 		_ = v.RegisterValidation("isodate", isoDateValidator)
+		_ = v.RegisterValidation("dfe_access_key", accessKeyValidator)
 
 		// Validadores de tabela oficial NFS-e (Anexos B e C).
 		_ = v.RegisterValidation("tribnac", tribNacionalValidator)
@@ -179,6 +180,8 @@ func message(fe validator.FieldError) string {
 		return "CNPJ inválido"
 	case "cpfcnpj":
 		return "CPF/CNPJ inválido"
+	case "dfe_access_key":
+		return "chave de acesso inválida"
 	case "cfop":
 		return "CFOP deve ter 4 dígitos"
 	case "ncm":
