@@ -14,6 +14,7 @@ recebe a NF-e completa (produtos/pagamentos) de forma automática — só o
 resumo (`resNFe`) fica disponível.
 
 Hoje não existe nenhuma forma manual de:
+
 - disparar um evento de manifestação diferente do automático;
 - forçar uma nova consulta por chave de acesso para obter a nota completa;
 - importar manualmente uma nota pela tela de Distribuição usando uma chave de
@@ -31,21 +32,45 @@ conceito de `resNFe`/Ciência da Operação e ficam fora do escopo.
 1. **Endpoint de manifestação manual** já existe:
    `POST /nfes/:access_key/manifestation` (`api/internal/api/v1/nfes.go:135-151`,
    serviço `Manifestation` em `api/internal/services/nfes/service.go:253-291`).
-   Nenhuma mudança de backend — só passa a ser chamado pelo frontend.
+   Sem mudança de rota/serviço — passa a ser chamado pelo frontend e ganha a
+   validação de chave descrita no item 2a.
 
 2. **Consulta por chave assíncrona**: `LookupByKey`
    (`api/internal/services/distributions.go:254-273`) hoje é síncrono
    (invoca py-dfe/go-dfe diretamente e devolve o resultado no corpo da
    resposta). Passa a enfileirar, no mesmo padrão de `EnqueueSync`
    (`api/internal/services/distributions.go:128-186`):
-   - mantém `checkConsQuota` antes de enfileirar;
-   - publica mensagem SQS `{"job_type":"cons_ch_nfe","org_pk":...,"doc_type":"nfe","access_key":...,"trigger":"user","triggered_at":...}`
-     na fila `distribution` já existente (reaproveita
-     `DistributionMessage.AccessKey`, `worker/internal/service/distribution.go:144-151`);
-   - retorna 202 `{"status":"enqueued"}`.
-   - Rota: `GET /distributions/{doc_type}/key/{access_key}` é **substituída**
-     por `POST /distributions/nfe/key` com body `{"access_key": "..."}`
-     (não há consumidor hoje da rota GET, sem necessidade de manter as duas).
+    - mantém `checkConsQuota` antes de enfileirar;
+    - publica mensagem SQS
+      `{"job_type":"cons_ch_nfe","org_pk":...,"doc_type":"nfe","access_key":...,"trigger":"user","triggered_at":...}`
+      na fila `distribution` já existente (reaproveita
+      `DistributionMessage.AccessKey`, `worker/internal/service/distribution.go:144-151`);
+    - retorna 202 `{"status":"enqueued"}`.
+    - Rota: `GET /distributions/{doc_type}/key/{access_key}` é **substituída**
+      por `POST /distributions/nfe/key` com body `{"access_key": "..."}`
+      (não há consumidor hoje da rota GET, sem necessidade de manter as duas).
+
+2a. **Validação de chave de acesso no backend** (nova). Backend nunca confia
+   em input do frontend, então a mesma validação criteriosa da seção E é
+   replicada em Go, em `api/internal/validation` (pacote já existe, com
+   `ValidCPF`/`ValidCNPJ`/tags customizadas como `uf` —
+   `api/internal/validation/validators.go`). Novo validator (`dfe_access_key`
+   ou função exportada `ValidAccessKey(s string) bool`) checa: `cUF` (UF
+   válida), `AAMM` (mês 01-12), CNPJ alfanumérico xor CPF com DV, `mod=="55"`,
+   `tpEmis` em `{1..7}`, `cDV` recalculado — mesmas regras da tabela da seção
+   E, sem duplicar a regra em dois lugares com semânticas diferentes (mesmo
+   algoritmo mod-11 alfanumérico usado no frontend, só que em Go).
+   Aplicado em:
+     - path param `access_key` de `POST /nfes/:access_key/manifestation`
+       (único endpoint desta feature que recebe chave por path);
+     - campo `access_key` do body de `POST /distributions/nfe/key`.
+   Falha retorna 400 Problem JSON (`problem.*`, campo `access_key` na
+   violação), antes de chamar o service — SEFAZ nunca chega a ser acionada
+   com chave malformada. Os demais endpoints existentes com `:access_key`
+   no path (`GET/POST /nfes,/nfces,/mdfes/:access_key/...`) ficam fora do
+   escopo desta mudança — hoje só fazem lookup por PK e uma chave malformada
+   já resulta em 404 natural; padronizar todos eles é um refactor separado,
+   não pedido aqui.
 
 3. **Fix do bug de notificação WS**: `ResultsConsumer.dispatch`
    (`api/internal/consumer/results.go:119-157`) hoje descarta qualquer
@@ -72,6 +97,7 @@ Nenhuma mudança de CDK — fila e Lambda `distribution-worker` já cobrem o job
 
 **A. Botão "Manifestação"** em `ui/src/components/dfe/DfeDetail.tsx`, visível
 sempre que a nota for NF-e destinada (`incoming === 1`). Abre modal com:
+
 - select do tipo de evento: Ciência (210210), Confirmação (210200),
   Desconhecimento (210220), Não Realizada (210240) — usa os labels já
   existentes em `ui/src/lib/data/dfe_event.ts:19-22`. Oculta da lista os
@@ -107,17 +133,17 @@ desformatado (mesmo padrão de `unformatCpfCnpj`) antes de enviar ao backend.
 `ui/src/lib/utils/` reaproveitando a decomposição já feita por
 `parseAccessKey` (`ui/src/lib/utils/dfe.ts:42-65`). Regras:
 
-| Campo    | Regra |
-|----------|-------|
-| `cUF`    | 2 dígitos, deve estar entre os códigos IBGE de UF válidos |
-| `AAMM`   | 4 dígitos; `MM` entre 01 e 12 |
+| Campo        | Regra                                                                                                                                                                                                                                                              |
+|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `cUF`        | 2 dígitos, deve estar entre os códigos IBGE de UF válidos                                                                                                                                                                                                          |
+| `AAMM`       | 4 dígitos; `MM` entre 01 e 12                                                                                                                                                                                                                                      |
 | `CNPJ`/`CPF` | Exatamente um dos dois: CNPJ alfanumérico (14 caracteres, dígitos+letras maiúsculas) com DV validado pelo algoritmo mod-11 alfanumérico (NT 2023.002 — valor de letra = código ASCII − 48); ou CPF numérico de 11 dígitos com prefixo `"000"` e DV de CPF validado |
-| `mod`    | Exatamente `"55"` |
-| `serie`  | 3 dígitos, sem validação de faixa |
-| `nNF`    | 9 dígitos, sem validação de faixa |
-| `tpEmis` | Um de `1,2,3,4,5,6,7` (rejeita `9`, exclusivo de NFC-e, e qualquer outro valor) |
-| `cNF`    | 8 dígitos, sem validação adicional |
-| `cDV`    | 1 dígito; recalculado via mod-11 sobre os 43 caracteres anteriores (alphanumeric-aware) e comparado ao dígito informado |
+| `mod`        | Exatamente `"55"`                                                                                                                                                                                                                                                  |
+| `serie`      | 3 dígitos, sem validação de faixa                                                                                                                                                                                                                                  |
+| `nNF`        | 9 dígitos, sem validação de faixa                                                                                                                                                                                                                                  |
+| `tpEmis`     | Um de `1,2,3,4,5,6,7` (rejeita `9`, exclusivo de NFC-e, e qualquer outro valor)                                                                                                                                                                                    |
+| `cNF`        | 8 dígitos, sem validação adicional                                                                                                                                                                                                                                 |
+| `cDV`        | 1 dígito; recalculado via mod-11 sobre os 43 caracteres anteriores (alphanumeric-aware) e comparado ao dígito informado                                                                                                                                            |
 
 Cada falha reporta o campo específico que não passou (não apenas "chave
 inválida"), para o modal mostrar a mensagem certa. Integrado ao formulário
@@ -126,10 +152,12 @@ segue a skill `impeccable` (shape/craft), conforme pedido do usuário.
 
 ## Fora de escopo (decisões explícitas)
 
-- **Validação de DV/composição só no frontend.** SEFAZ já rejeita chave
-  inválida na consulta (`consChNFe`); o backend mantém apenas a checagem de
-  tamanho que já existe hoje. Se essa rota vier a ter outro consumidor além
-  desta UI, a validação completa deve ser portada para Go.
+- **Validação criteriosa replicada no backend só para os dois endpoints
+  desta feature** (manifestação e importação por chave — item 2a). Os
+  demais endpoints `:access_key` já existentes (`nfes`, `nfces`, `mdfes` —
+  cancelamento, XML, DANFE, eventos, etc.) não são tocados; hoje já
+  respondem 404 a uma chave malformada via lookup normal e padronizar todos
+  eles é um refactor maior, fora do pedido original.
 - **"Importar NF-e" só na aba de Distribuição de NF-e.** CT-e/MDF-e não têm
   `resNFe`/Ciência da Operação — fora do escopo pedido.
 - **Nenhuma infraestrutura CDK nova** — fila `distribution` e worker
@@ -154,14 +182,21 @@ Usuário clica botão (B ou C)
 ## Testes
 
 **Go**
+
 - `EnqueueLookupByKey` (mock SQS): valida quota check, formato da mensagem
   publicada, resposta 202.
+- `ValidAccessKey` (`api/internal/validation`): tabela de casos válidos e
+  inválidos por campo (mesma matriz do teste TS abaixo, agora em Go);
+  regressão de 400 Problem JSON em `POST /nfes/:access_key/manifestation`
+  e `POST /distributions/nfe/key` para chave malformada, sem chamar o
+  service/SEFAZ.
 - Fix do `ResultsConsumer.dispatch`: mensagem com `org_pk` e sem `doc_pk`
   deve ser broadcastada (regressão do bug atual).
 - Quota duplicada no worker: nova unidade de teste seguindo o padrão de
   `claimDistNSUSlot`.
 
 **TypeScript**
+
 - Validador de chave de acesso: casos válidos e inválidos por campo
   (cUF inválido, mês 13, tpEmis 9, mod diferente de 55, CNPJ alfanumérico
   com DV errado, CPF com DV errado, cDV incorreto, CNPJ e CPF ambos
