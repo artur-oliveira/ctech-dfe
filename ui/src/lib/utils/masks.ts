@@ -34,6 +34,15 @@ export function maskCep(value: string): string {
   return digits
 }
 
+/**
+ * Access-key mask — 44 alphanumeric characters (digits + uppercase CNPJ
+ * letters, IN RFB 2229/2024) grouped in blocks of 4, space-separated.
+ */
+export function maskAccessKey(value: string): string {
+  const clean = value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 44)
+  return clean.match(/.{1,4}/g)?.join(' ') ?? clean
+}
+
 export function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11)
   if (digits.length <= 10) {

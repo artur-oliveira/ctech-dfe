@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { maskCpf, maskCnpj, maskCpfCnpj, maskCep, maskPhone } from '@/lib/utils/masks'
+import { maskCpf, maskCnpj, maskCpfCnpj, maskCep, maskPhone, maskAccessKey } from '@/lib/utils/masks'
 
 describe('maskCpf', () => {
   it('formata CPF completo', () => {
@@ -95,5 +95,26 @@ describe('maskPhone', () => {
     expect(maskPhone('11')).toBe('11')
     expect(maskPhone('119')).toBe('(11) 9')
     expect(maskPhone('119876')).toBe('(11) 9876')
+  })
+})
+
+describe('maskAccessKey', () => {
+  it('agrupa em blocos de 4 caracteres', () => {
+    expect(maskAccessKey('35250512345678000195550010000000011000000011'))
+      .toBe('3525 0512 3456 7800 0195 5500 1000 0000 0110 0000 0011')
+  })
+
+  it('formata parcialmente durante digitação', () => {
+    expect(maskAccessKey('352505')).toBe('3525 05')
+  })
+
+  it('aceita CNPJ alfanumérico em maiúsculas, ignora minúsculas convertendo', () => {
+    expect(maskAccessKey('3525051234ab5678000195550010000000011000000011'))
+      .toBe('3525 0512 34AB 5678 0001 9555 0010 0000 0001 1000 0000')
+  })
+
+  it('ignora caracteres não alfanuméricos e limita a 44', () => {
+    expect(maskAccessKey('3525-0512.3456/7800 0195550010000000011000000011XXXX'))
+      .toBe('3525 0512 3456 7800 0195 5500 1000 0000 0110 0000 0011')
   })
 })
