@@ -12,6 +12,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// LookupByKeyBody is the payload for POST /distributions/nfe/key.
+type LookupByKeyBody struct {
+	AccessKey string `json:"access_key" validate:"required,dfe_access_key"`
+}
+
 func RegisterDistributions(router fiber.Router, svc *services.DistributionService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/distributions", authMw)
 
@@ -65,12 +70,16 @@ func RegisterDistributions(router fiber.Router, svc *services.DistributionServic
 		return c.JSON(result)
 	})
 
-	// GET /distributions/{doc_type}/key/{access_key}
-	g.Get("/:doc_type/key/:access_key", perm.RequireDynamic("get.%s_distributions", "doc_type"), func(c fiber.Ctx) error {
-		result, err := svc.LookupByKey(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), c.Params("access_key"))
+	// POST /distributions/nfe/key — async consChNFe (NF-e only; see spec §E "Fora de escopo")
+	g.Post("/nfe/key", perm.Require("create.nfe_distributions"), func(c fiber.Ctx) error {
+		var body LookupByKeyBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		result, err := svc.EnqueueLookupByKey(c.Context(), middleware.GetOrgPK(c), body.AccessKey)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return c.JSON(result)
+		return c.Status(fiber.StatusAccepted).JSON(result)
 	})
 }

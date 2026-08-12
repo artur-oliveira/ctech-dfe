@@ -251,25 +251,35 @@ func (s *DistributionService) LookupByNSU(ctx context.Context, orgPK, docType st
 	}))
 }
 
-// LookupByKey performs a synchronous consChNFe against SEFAZ via the py-dfe Lambda.
-func (s *DistributionService) LookupByKey(ctx context.Context, orgPK, docType, accessKey string) (map[string]any, error) {
-	if err := validateSefazDistDocType(docType); err != nil {
+// EnqueueLookupByKey validates the rate limit then enqueues a background
+// consChNFe call for the given access key — the async counterpart of the
+// deleted synchronous LookupByKey. Mirrors EnqueueSync's shape but publishes
+// job_type "cons_ch_nfe" (worker/internal/service/distribution.go
+// runConsAccessKey) instead of "dist_nsu".
+func (s *DistributionService) EnqueueLookupByKey(ctx context.Context, orgPK, accessKey string) (map[string]any, error) {
+	if s.queueURL == "" {
+		return nil, problem.BadRequest("fila de distribuição não configurada")
+	}
+	if err := s.checkConsQuota(ctx, orgPK, DocTypeNFe); err != nil {
 		return nil, err
 	}
-	if err := s.checkConsQuota(ctx, orgPK, docType); err != nil {
-		return nil, err
+
+	msg := map[string]any{
+		"job_type":     "cons_ch_nfe",
+		"org_pk":       orgPK,
+		"doc_type":     DocTypeNFe,
+		"access_key":   accessKey,
+		"trigger":      "user",
+		"triggered_at": time.Now().UTC().Format(time.RFC3339),
 	}
-	oc, err := s.orgContext(ctx, orgPK, docType)
-	if err != nil {
-		return nil, err
+	body, _ := json.Marshal(msg)
+	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
+		QueueUrl:    aws.String(s.queueURL),
+		MessageBody: aws.String(string(body)),
+	}); err != nil {
+		return nil, problem.InternalServer("failed to enqueue lookup: " + err.Error())
 	}
-	certB64, err := s.certToBase64(ctx, oc.certS3Key)
-	if err != nil {
-		return nil, err
-	}
-	return s.invokeAndParse(ctx, s.distPayload(oc, certB64, docType, map[string]any{
-		"consChNFe": map[string]any{"chNFe": accessKey},
-	}))
+	return map[string]any{"status": "enqueued"}, nil
 }
 
 // --- internal helpers ---

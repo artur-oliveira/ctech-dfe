@@ -151,24 +151,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /v1.0/distributions/{doc_type}/key/{access_key}:
+  /v1.0/distributions/nfe/key:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
-      - $ref: '#/components/parameters/DocType'
-      - $ref: '#/components/parameters/AccessKey'
-    get:
+    post:
       tags: [Distributions]
-      summary: Detalha um documento distribuído pela chave de acesso
-      operationId: getDistributionByKey
+      summary: Enfileira uma consChNFe manual por chave de acesso (NF-e)
+      description: |
+        Força uma nova consulta de distribuição por chave de acesso — usada
+        quando um Ciência automático (resNFe) nunca evoluiu para o documento
+        completo. Assíncrono: consome a mesma janela de 20 consultas/hora do
+        consNSU/consChNFe. NF-e apenas — CT-e/MDF-e não têm o conceito de
+        resNFe/Ciência do destinatário que motiva uma reconsulta manual.
+      operationId: importNfeByKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [access_key]
+              properties:
+                access_key:
+                  type: string
+                  description: Chave de acesso de 44 dígitos da NF-e.
       responses:
-        '200':
-          description: Documento distribuído
+        '202':
+          description: Consulta enfileirada
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Distribution' }
+              schema: { type: object, additionalProperties: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   # ── Audit logs ─────────────────────────────────────────────────────────────
 
