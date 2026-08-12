@@ -90,10 +90,14 @@ export class ApiStackV2 extends cdk.Stack {
 
     userData.addCommands(
       // ── Packages + directories ───────────────────────────────────────────────
-      'dnf install -y nginx amazon-cloudwatch-agent amazon-ssm-agent unzip jq',
+      'dnf install -y nginx amazon-cloudwatch-agent amazon-ssm-agent cronie unzip jq',
       'useradd --system --no-create-home --shell /sbin/nologin webapp',
       'mkdir -p /opt/app/releases /var/log/app /etc/nginx/conf.d',
       'chown -R webapp:webapp /opt/app /var/log/app',
+      // AL2023 does not enable crond by default (unlike AL2) — without it
+      // /etc/cron.daily/logrotate never fires and rotated logs never reach S3.
+      'systemctl enable crond',
+      'systemctl start crond',
     );
 
     addSwapCommands(userData);
