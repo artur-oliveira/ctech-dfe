@@ -388,19 +388,26 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 	if err != nil || cfg == nil {
 		return nil
 	}
+	environment := attrN(cfg, "environment", 2)
+	envPrefix := envHom
+	if environment == 1 {
+		envPrefix = envProd
+	}
+	if !s.checkConsQuota(ctx, orgPK, configTable, cfg, envPrefix, time.Now().UTC()) {
+		slog.Warn("consChNFe quota exceeded — dropping duplicate job", "org_pk", orgPK, "access_key", accessKey)
+		return nil
+	}
+
 	cert, err := s.loadCert(ctx, orgPK, dtcfg.configTableSuffix)
 	if err != nil || cert == nil {
 		return nil
 	}
 	org, _ := s.loadOrg(ctx, orgPK)
 	cnpj := extractCNPJ(orgPK)
-	environment := attrN(cfg, "environment", 2)
 	uf := extractUF(org)
 	sefazEnv := sefazEnvHom
-	envPrefix := envHom
 	if environment == 1 {
 		sefazEnv = sefazEnvProd
-		envPrefix = envProd
 	}
 	certB64, err := s.getCertB64(ctx, attrS(cert, "s3_key"))
 	if err != nil {
@@ -932,6 +939,70 @@ func (s *DistributionService) claimDistNSUSlot(
 		return false, nil
 	}
 	return true, nil
+}
+
+// distWorkerConsQuotaMax mirrors api's distConsQuotaMax
+// (api/internal/services/distributions.go:39) — the same 20-calls/hour limit
+// re-checked here because the api's enqueue-time check can't see other
+// in-flight jobs (SQS at-least-once redelivery, or two user clicks racing
+// before the first request's quota increment is visible).
+const distWorkerConsQuotaMax = 20
+
+// checkConsQuota duplicates api's DistributionService.checkConsQuota
+// (distributions.go:350) against the same DynamoDB fields
+// ({env}_cons_quota_calls / {env}_cons_quota_window_start,
+// api/internal/repositories/fiscal_config.go:142-143) so a cons_ch_nfe/
+// cons_nsu job processed twice cannot bypass the hourly limit. Returns true
+// when the call is allowed to proceed.
+func (s *DistributionService) checkConsQuota(
+	ctx context.Context,
+	orgPK, configTable string,
+	cfg map[string]types.AttributeValue,
+	envPrefix string,
+	now time.Time,
+) bool {
+	windowField := envPrefix + "_cons_quota_window_start"
+	callsField := envPrefix + "_cons_quota_calls"
+
+	if windowStr := dynAttrS(cfg, windowField); windowStr != "" {
+		if ws, err := time.Parse(time.RFC3339, windowStr); err == nil && now.Sub(ws) >= time.Hour {
+			_, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+				TableName:        aws.String(configTable),
+				Key:              map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
+				UpdateExpression: aws.String("SET " + callsField + " = :zero, " + windowField + " = :now"),
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":zero": &types.AttributeValueMemberN{Value: "0"},
+					":now":  &types.AttributeValueMemberS{Value: now.Format(time.RFC3339)},
+				},
+			})
+			if err != nil {
+				slog.Warn("consQuota reset failed", "org_pk", orgPK, "err", err)
+			}
+		}
+	}
+
+	out, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(configTable),
+		Key:       map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
+		UpdateExpression: aws.String("SET " + windowField + " = if_not_exists(" + windowField + ", :now), " +
+			callsField + " = if_not_exists(" + callsField + ", :zero) + :one"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":now":  &types.AttributeValueMemberS{Value: now.Format(time.RFC3339)},
+			":zero": &types.AttributeValueMemberN{Value: "0"},
+			":one":  &types.AttributeValueMemberN{Value: "1"},
+		},
+		ReturnValues: types.ReturnValueAllNew,
+	})
+	if err != nil {
+		slog.Warn("consQuota UpdateItem failed — allowing call", "org_pk", orgPK, "err", err)
+		return true
+	}
+	if av, ok := out.Attributes[callsField].(*types.AttributeValueMemberN); ok {
+		if n, convErr := strconv.Atoi(av.Value); convErr == nil {
+			return n <= distWorkerConsQuotaMax
+		}
+	}
+	return true
 }
 
 func (s *DistributionService) setImproperUsage(ctx context.Context, orgPK, configTable, envPrefix string, now time.Time) error {

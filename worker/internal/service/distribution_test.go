@@ -49,6 +49,9 @@ type mockDistDynamo struct {
 	// per-call update errors — nil entry means success. Rolls over to nil after exhausted.
 	updateErrs []error
 	updateIdx  int
+	// optional Attributes to echo back per call (ReturnValueAllNew), indexed by
+	// call number (0-based); out-of-range or nil entry means no Attributes.
+	updateAttrs []map[string]types.AttributeValue
 
 	putCalls      []*dynamodb.PutItemInput
 	updateCalls   []*dynamodb.UpdateItemInput
@@ -89,6 +92,7 @@ func (m *mockDistDynamo) PutItem(_ context.Context, in *dynamodb.PutItemInput, _
 }
 
 func (m *mockDistDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	callIdx := len(m.updateCalls)
 	m.updateCalls = append(m.updateCalls, in)
 	var err error
 	if m.updateIdx < len(m.updateErrs) {
@@ -98,7 +102,11 @@ func (m *mockDistDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemIn
 	if err != nil {
 		return nil, err
 	}
-	return &dynamodb.UpdateItemOutput{}, nil
+	out := &dynamodb.UpdateItemOutput{}
+	if callIdx < len(m.updateAttrs) {
+		out.Attributes = m.updateAttrs[callIdx]
+	}
+	return out, nil
 }
 
 func (m *mockDistDynamo) TransactWriteItems(_ context.Context, in *dynamodb.TransactWriteItemsInput, _ ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
@@ -1016,5 +1024,77 @@ func TestIntVal_String(t *testing.T) {
 func TestIntVal_Default(t *testing.T) {
 	if got := intVal(map[string]any{}, "n", 7); got != 7 {
 		t.Errorf("intVal default = %d, want 7", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// checkConsQuota — duplicates api's hourly consNSU/consChNFe quota check.
+// ---------------------------------------------------------------------------
+
+func mustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	tm, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatalf("time.Parse(%q): %v", s, err)
+	}
+	return tm
+}
+
+func TestCheckConsQuota_AllowsUnderLimit(t *testing.T) {
+	t.Parallel()
+	dyn := &mockDistDynamo{
+		updateAttrs: []map[string]types.AttributeValue{
+			{envHom + "_cons_quota_calls": &types.AttributeValueMemberN{Value: "1"}},
+		},
+	}
+	svc := newDistSvc(dyn, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+	cfg := configItem(2, envHom, "", "")
+	now := mustParseTime(t, "2026-08-12T10:00:00Z")
+
+	if !svc.checkConsQuota(context.Background(), testOrgPK, "dev_organization_nfe_configs", cfg, envHom, now) {
+		t.Fatal("expected true (first call, well under 20/hr)")
+	}
+	if len(dyn.updateCalls) != 1 {
+		t.Fatalf("UpdateItem calls = %d, want 1", len(dyn.updateCalls))
+	}
+}
+
+func TestCheckConsQuota_BlocksOverLimit(t *testing.T) {
+	t.Parallel()
+	dyn := &mockDistDynamo{
+		updateAttrs: []map[string]types.AttributeValue{
+			{envHom + "_cons_quota_calls": &types.AttributeValueMemberN{Value: "21"}},
+		},
+	}
+	svc := newDistSvc(dyn, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+	cfg := configItem(2, envHom, "", "")
+	cfg[envHom+"_cons_quota_calls"] = &types.AttributeValueMemberN{Value: "20"}
+	cfg[envHom+"_cons_quota_window_start"] = &types.AttributeValueMemberS{Value: "2026-08-12T09:59:00Z"}
+	now := mustParseTime(t, "2026-08-12T10:00:00Z")
+
+	if svc.checkConsQuota(context.Background(), testOrgPK, "dev_organization_nfe_configs", cfg, envHom, now) {
+		t.Fatal("expected false (21st call within the hour, limit is 20)")
+	}
+}
+
+func TestCheckConsQuota_ResetsExpiredWindow(t *testing.T) {
+	t.Parallel()
+	dyn := &mockDistDynamo{
+		updateAttrs: []map[string]types.AttributeValue{
+			nil, // reset call — no Attributes needed
+			{envHom + "_cons_quota_calls": &types.AttributeValueMemberN{Value: "1"}},
+		},
+	}
+	svc := newDistSvc(dyn, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+	cfg := configItem(2, envHom, "", "")
+	cfg[envHom+"_cons_quota_calls"] = &types.AttributeValueMemberN{Value: "20"}
+	cfg[envHom+"_cons_quota_window_start"] = &types.AttributeValueMemberS{Value: "2026-08-12T08:00:00Z"} // >1h ago
+	now := mustParseTime(t, "2026-08-12T10:00:00Z")
+
+	if !svc.checkConsQuota(context.Background(), testOrgPK, "dev_organization_nfe_configs", cfg, envHom, now) {
+		t.Fatal("expected true — window is stale, must reset before counting")
+	}
+	if len(dyn.updateCalls) != 2 { // one reset UpdateItem, one increment UpdateItem
+		t.Fatalf("UpdateItem calls = %d, want 2 (reset + increment)", len(dyn.updateCalls))
 	}
 }
