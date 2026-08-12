@@ -130,13 +130,23 @@ func (r *ResultsConsumer) dispatch(ctx context.Context, msg sqstypes.Message) {
 
 	accessKey, _ := event["access_key"].(string)
 	docPK, _ := event["doc_pk"].(string)
+	rawOrgPK, _ := event["org_pk"].(string)
 
-	// doc_pk format: "{env}#{org_pk}" e.g. "prod#CNPJ_12345678000195"
-	if docPK == "" || !strings.Contains(docPK, "#") {
-		slog.Warn("results consumer: missing or invalid doc_pk", "doc_pk", docPK)
+	// Two message shapes reach this consumer: doc-result messages carry
+	// doc_pk ("{env}#{org_pk}", e.g. "prod#CNPJ_12345678000195"); the
+	// distribution worker's new_distribution_nfe/new_distribution_cte/
+	// new_distribution_mdfe messages (worker/internal/service/distribution.go
+	// notifyResult) carry org_pk directly and never set doc_pk. Accept either.
+	var orgPK string
+	switch {
+	case docPK != "" && strings.Contains(docPK, "#"):
+		orgPK = strings.SplitN(docPK, "#", 2)[1]
+	case rawOrgPK != "":
+		orgPK = rawOrgPK
+	default:
+		slog.Warn("results consumer: missing doc_pk and org_pk", "doc_pk", docPK)
 		return
 	}
-	orgPK := strings.SplitN(docPK, "#", 2)[1]
 
 	// Invalidate NF-e cache entries for this document.
 	if accessKey != "" {
@@ -145,7 +155,13 @@ func (r *ResultsConsumer) dispatch(ctx context.Context, msg sqstypes.Message) {
 	_ = r.cache.DeletePrefix(ctx, "res:"+orgPK+":nfes:list:")
 	slog.Info("results consumer: cache invalidated", "org", orgPK, "key", accessKey)
 
-	event["type"] = "dfe_result"
+	// Doc-result messages never set "type" themselves — default them to
+	// "dfe_result". Distribution-notification messages (new_distribution_nfe/
+	// _cte/_mdfe) already set their own "type"; preserve it, or the frontend's
+	// type-specific handling (useRealtimeUpdates.ts) never matches.
+	if _, hasType := event["type"]; !hasType {
+		event["type"] = "dfe_result"
+	}
 	payload, err := json.Marshal(event)
 	if err != nil {
 		slog.Error("results consumer: marshal failed", "err", err)
