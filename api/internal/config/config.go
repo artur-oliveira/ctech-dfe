@@ -35,6 +35,7 @@ type Config struct {
 
 	// Auth
 	CtechURL        string `env:"CTECH_URL"`
+	CtechIssuerURL  string `env:"CTECH_ISSUER_URL"`
 	CtechJWKSURL    string `env:"CTECH_JWKS_URL"`
 	ServiceAudience string `env:"SERVICE_AUDIENCE" envDefault:"https://dfe.aoctech.app"` // expected aud claim; empty = no audience check (transition only)
 
@@ -62,8 +63,8 @@ func (c *Config) prodValidation() error {
 	if c.WorkerTopicARN == "" {
 		return fmt.Errorf("config: WORKER_TOPIC_ARN must be set in prod so the requests to sefaz will be sent")
 	}
-	if c.CtechURL == "" {
-		return fmt.Errorf("config: CTECH_URL must be set in prod so the iss claim is verified")
+	if c.CtechIssuerURL == "" {
+		return fmt.Errorf("config: CTECH_ISSUER_URL must be set in prod so the iss claim is verified")
 	}
 	if len(c.CorsAllowedOrigins) == 0 {
 		return fmt.Errorf("config: CORS_ALLOWED_ORIGINS must be set in prod")

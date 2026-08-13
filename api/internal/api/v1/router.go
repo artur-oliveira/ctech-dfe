@@ -48,7 +48,7 @@ type Services struct {
 // Register mounts all /v1.0 routes onto the Fiber app.
 func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, wsReg ws.Registry, awsClients *awsclient.Clients, svcs Services) {
 	// The issuer is ctech-account's public base URL — the iss claim it signs into tokens.
-	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechURL, cacheBackend)
+	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechIssuerURL, cacheBackend)
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 
