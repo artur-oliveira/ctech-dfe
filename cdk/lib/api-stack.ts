@@ -313,7 +313,7 @@ export class ApiStack extends cdk.Stack {
       `CTECH_JWKS_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/jwks-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CTECH_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/base-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CTECH_ISSUER_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/app-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
-      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL`,
+      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL`,
       `exec /opt/app/current/app`,
       `START`,
       `chmod +x /opt/app/start.sh`,
