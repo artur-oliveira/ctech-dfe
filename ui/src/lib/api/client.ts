@@ -817,8 +817,9 @@ class ApiClient {
     return this.get(`/v1.0/distributions/${docType}/nsu/${nsu}`)
   }
 
-  async lookupDistributionByKey(docType: string, accessKey: string): Promise<DistributionLookupOut> {
-    return this.get(`/v1.0/distributions/${docType}/key/${accessKey}`)
+  /** Enqueues an async consChNFe for the given NF-e access key (202). NF-e only — see DOCS.md. */
+  async importNfeByKey(accessKey: string): Promise<SyncEnqueuedOut> {
+    return this.post('/v1.0/distributions/nfe/key', {access_key: accessKey})
   }
 
   // Audit log — org context auto-injected via Dfe-Organization-Pk header
