@@ -181,7 +181,8 @@ new FrontendStack(app, id('Frontend'), {
   certificateArn: CERT_ARN,
   domainName: domainForEnv(ENVIRONMENT, 'dfe'),
   apiDomainName: domainForEnv(ENVIRONMENT, 'dfe-api'),
-  authDomainName: domainForEnv(ENVIRONMENT, 'accounts-api'),
+  authDomainName: domainForEnv(ENVIRONMENT, 'accounts'),
+  authApiDomainName: domainForEnv(ENVIRONMENT, 'accounts-api'),
   extraConnectSrc: ['viacep.com.br'],
   description: `CTech DFe Frontend (S3 + CloudFront) - ${ENVIRONMENT}`,
 });

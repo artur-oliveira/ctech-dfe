@@ -40,6 +40,7 @@ interface FrontendStackProps extends cdk.StackProps {
   // connect-src so the browser can fetch /v1.0/token (CSP blocks cross-origin
   // fetches by default). Derived from BASE_DOMAIN, not hardcoded.
   authDomainName: string;
+  authApiDomainName: string;
   extraConnectSrc: string[];
 }
 
@@ -57,7 +58,15 @@ export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
 
-    const {environment, certificateArn, domainName, apiDomainName, authDomainName, extraConnectSrc} = props;
+    const {
+      environment,
+      certificateArn,
+      domainName,
+      apiDomainName,
+      authDomainName,
+      authApiDomainName,
+      extraConnectSrc
+    } = props;
     const isProduction = environment === 'prod';
 
     this.bucket = new s3.Bucket(this, 'Bucket', {
@@ -147,6 +156,7 @@ async function handler(event) {
     const extraConnectSrcStr: string = [
       apiDomainName,
       authDomainName,
+      authApiDomainName,
       ...extraConnectSrc
     ].map(it => `https://${it}`).join(' ')
 
