@@ -818,7 +818,7 @@ class ApiClient {
   }
 
   /** Enqueues an async consChNFe for the given NF-e access key (202). NF-e only — see DOCS.md. */
-  async importNfeByKey(accessKey: string): Promise<SyncEnqueuedOut> {
+  async importNfeByKey(accessKey: string): Promise<{status: string}> {
     return this.post('/v1.0/distributions/nfe/key', {access_key: accessKey})
   }
 
