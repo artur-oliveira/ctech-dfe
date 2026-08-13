@@ -26,6 +26,9 @@
   raw response body on a non-2xx/failure response, not just a parsed subset (`detail`/`title`).
   Parsed fields can omit the one attribute that explains the rejection — the raw body is the only
   complete source of truth for what the other side actually said.
+- Background DynamoDB writes MUST return non-idempotent failures to their queue handler. A failed
+  conditional create may be treated as success only after a consistent read confirms the target
+  item already exists; IAM, throttling and validation failures must reach the SQS retry/DLQ path.
 
 ---
 

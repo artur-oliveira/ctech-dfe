@@ -202,6 +202,16 @@ export class WorkerStack extends cdk.Stack {
         }))
       }
 
+      if (worker.dynamoTransactionTables?.length) {
+        const transactionTableArns = worker.dynamoTransactionTables.map(t =>
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`
+        )
+        role.addToPrincipalPolicy(new iam.PolicyStatement({
+          actions: ['dynamodb:TransactWriteItems'],
+          resources: transactionTableArns,
+        }))
+      }
+
       // Distribution worker uses a dedicated binary with its own SQS message format.
       const workerCmd = worker.id === 'distribution' ? 'distribution-worker' : 'worker'
 

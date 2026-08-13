@@ -1386,7 +1386,10 @@ A party whose CPF/CNPJ equals the org's own is skipped. Records are written crea
 (`persistCounterparties` / `persistPerson`) and `distribution_parser.go` (`buildPersonDetails`).
 Each auto-created person also gets an `audit_logs` row (see below), attributed to `user_id=SYSTEM`
 since there's no authenticated user in this background path — the person record and its audit row
-are written atomically in one `TransactWriteItems` call.
+are written atomically in one `TransactWriteItems` call. The distribution worker role grants that
+action only for `organization_persons` and `audit_logs`. A repeated delivery is successful when a
+consistent read confirms that the person already exists; every other transaction failure is returned
+to SQS so the normal retry/DLQ path remains observable instead of advancing the NSU silently.
 
 #### Audit Log
 

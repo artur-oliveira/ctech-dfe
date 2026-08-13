@@ -578,7 +578,9 @@ func (s *DistributionService) processDocZip(
 		// Persist counterparties for NF-e/CT-e processed docs only — MDF-e is a
 		// transport manifest without a fiscal supplier/customer relationship.
 		if schemaType != SchemaProcMDFe {
-			s.persistCounterparties(ctx, orgPK, cnpj, fields)
+			if err := s.persistCounterparties(ctx, orgPK, cnpj, fields); err != nil {
+				return err
+			}
 		}
 		s.notifyResult(ctx, orgPK, fields, nsu, dtcfg)
 
@@ -773,9 +775,11 @@ func (s *DistributionService) persistIncoming(ctx context.Context, docPK string,
 // persistCounterparties upserts a received document's emitter and recipient as
 // organization_persons records (suppliers/customers) so future issuances can
 // reuse the data. Parties whose CPF/CNPJ equals the org's own are skipped.
-func (s *DistributionService) persistCounterparties(ctx context.Context, orgPK, orgCNPJ string, fields DocFields) {
-	s.persistPerson(ctx, orgPK, orgCNPJ, fields.EmitCPFCNPJ, fields.EmitName, fields.EmitDetails)
-	s.persistPerson(ctx, orgPK, orgCNPJ, fields.DestCPFCNPJ, fields.DestName, fields.DestDetails)
+func (s *DistributionService) persistCounterparties(ctx context.Context, orgPK, orgCNPJ string, fields DocFields) error {
+	if err := s.persistPerson(ctx, orgPK, orgCNPJ, fields.EmitCPFCNPJ, fields.EmitName, fields.EmitDetails); err != nil {
+		return err
+	}
+	return s.persistPerson(ctx, orgPK, orgCNPJ, fields.DestCPFCNPJ, fields.DestName, fields.DestDetails)
 }
 
 // persistPerson creates an organization_persons record for a counterparty when
@@ -783,15 +787,15 @@ func (s *DistributionService) persistCounterparties(ctx context.Context, orgPK, 
 // (addresses, contacts, state_registrations, ...) is stored under `person` when
 // the document carries it. Create-if-absent: a manually curated person is never
 // overwritten.
-func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ, cpfCNPJ, name string, details map[string]any) {
+func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ, cpfCNPJ, name string, details map[string]any) error {
 	digits := onlyDigits(cpfCNPJ)
 	if digits == "" || digits == onlyDigits(orgCNPJ) {
-		return
+		return nil
 	}
 	sk, ok := buildPersonSK(digits)
 	if !ok {
 		slog.Warn("skipping person with invalid CPF/CNPJ", "cpf_cnpj", digits, "org_pk", orgPK)
-		return
+		return nil
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	table := s.cfg.TablePrefix + "_" + personsTableSuffix
@@ -820,11 +824,28 @@ func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ,
 	_, err := s.dynamo.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
 		TransactItems: []types.TransactWriteItem{personTx, auditTx},
 	})
-	if err != nil {
-		// Most commonly the conditional check failed because the person already
-		// exists — expected and harmless.
-		slog.Debug("person not persisted (already exists or put failed)", "sk", sk, "org_pk", orgPK, "err", err)
+	if err == nil {
+		return nil
 	}
+
+	// A duplicate delivery is successful when the person already exists. Read
+	// the target instead of treating every transaction error as a condition
+	// failure: IAM, throttling and validation failures must reach SQS for retry.
+	existing, getErr := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(table),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: orgPK},
+			"sk": &types.AttributeValueMemberS{Value: sk},
+		},
+		ConsistentRead: aws.Bool(true),
+	})
+	if getErr == nil && existing != nil && len(existing.Item) > 0 {
+		return nil
+	}
+	if getErr != nil {
+		return fmt.Errorf("persist distributed person %s for %s: %w (existence check failed: %v)", sk, orgPK, err, getErr)
+	}
+	return fmt.Errorf("persist distributed person %s for %s: %w", sk, orgPK, err)
 }
 
 // personToModifications turns a freshly-built person item into a CREATE

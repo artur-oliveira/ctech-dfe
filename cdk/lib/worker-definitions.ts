@@ -6,6 +6,8 @@ export type WorkerDefinition = {
   memory: number
   environment: Record<string, string>
   dynamoTables: string[]
+  /** Tables this worker can mutate atomically with TransactWriteItems. */
+  dynamoTransactionTables?: string[]
   /** sefaz_service values this worker handles — used as SNS subscription filter */
   sefazServices: string[]
 }
@@ -133,6 +135,7 @@ export const WORKERS: WorkerDefinition[] = [
       'mdfe_events',
       'nfse_events',
     ],
+    dynamoTransactionTables: ['organization_persons', 'audit_logs'],
     environment: {},
   },
 ]

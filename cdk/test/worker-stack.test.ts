@@ -40,6 +40,26 @@ test('every DLQ processor role can UpdateItem on its worker tables', () => {
   expect(updateItemPolicies.length).toBeGreaterThanOrEqual(workersWithTables.length)
 })
 
+test('only the distribution worker can transact on persons and audit logs', () => {
+  const template = buildTemplate()
+  const json = template.toJSON()
+  const policies = Object.values(json.Resources).filter(
+    (r: any) => r.Type === 'AWS::IAM::Policy'
+  ) as any[]
+  const transactionStatements = policies.flatMap(policy =>
+    policy.Properties.PolicyDocument.Statement.filter((statement: any) =>
+      (Array.isArray(statement.Action) ? statement.Action : [statement.Action])
+        .includes('dynamodb:TransactWriteItems')
+    )
+  )
+
+  expect(transactionStatements).toHaveLength(1)
+  const resources = JSON.stringify(transactionStatements[0].Resource)
+  expect(resources).toContain('dev_dfe_organization_persons')
+  expect(resources).toContain('dev_dfe_audit_logs')
+  expect(resources).not.toContain('/index/*')
+})
+
 test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
   const template = buildTemplate()
 

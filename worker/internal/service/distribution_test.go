@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -615,6 +616,38 @@ func TestDistNSU_WithProcNFe_PersistsDocAndNotifiesResult(t *testing.T) {
 	}
 }
 
+func TestDistNSU_WithProcNFe_PersonWriteFailureReturnsForRetry(t *testing.T) {
+	docZips := []map[string]any{
+		makeDocZip(1001, "procNFe_v4.00.xsd", procNFeXML),
+	}
+	dynm := &mockDistDynamo{
+		gets:        []getResult{{item: configItem(2, "hom", "", "")}, {item: orgItemWithUF("SP")}},
+		queries:     []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+		transactErr: errors.New("AccessDeniedException"),
+	}
+	snsm := &mockSNS{}
+	svc := newDistSvc(
+		dynm,
+		certS3(),
+		&mockLambda{payload: distNSUResp(cStatDocFound, 1001, 1001, docZips)},
+		snsm,
+		distCfg,
+	)
+
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
+	})
+	if err == nil || !strings.Contains(err.Error(), "AccessDeniedException") {
+		t.Fatalf("Process error = %v, want person write failure", err)
+	}
+	if len(dynm.updateCalls) != 1 {
+		t.Errorf("UpdateItem calls = %d, want only the initial slot claim and no NSU advance", len(dynm.updateCalls))
+	}
+	if len(snsm.calls) != 0 {
+		t.Errorf("SNS calls = %d, want no success notification", len(snsm.calls))
+	}
+}
+
 func TestDistNSU_WithProcEventoNFe_PersistsEvent(t *testing.T) {
 	docZips := []map[string]any{
 		makeDocZip(1002, "procEventoNFe_v1.00.xsd", resEventoNFeXML),
@@ -912,7 +945,9 @@ func TestPersistPerson_WritesCounterpartyItem(t *testing.T) {
 	dynm := &mockDistDynamo{}
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
-	svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil)
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil); err != nil {
+		t.Fatalf("persistPerson: %v", err)
+	}
 
 	if len(dynm.transactCalls) != 1 {
 		t.Fatalf("expected 1 TransactWriteItems call, got %d", len(dynm.transactCalls))
@@ -963,7 +998,9 @@ func TestPersistPerson_WritesNestedPersonDetails(t *testing.T) {
 			"uf": "SP", "state_registration": "123456789",
 		}},
 	}
-	svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor SA", details)
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor SA", details); err != nil {
+		t.Fatalf("persistPerson: %v", err)
+	}
 
 	if len(dynm.transactCalls) != 1 {
 		t.Fatalf("expected 1 TransactWriteItems call, got %d", len(dynm.transactCalls))
@@ -1002,17 +1039,48 @@ func TestPersistPerson_SkipsOrgSelfAndBlank(t *testing.T) {
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
 	// Same CPF/CNPJ as the org → skipped.
-	svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "12345678000195", "Self", nil)
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "12345678000195", "Self", nil); err != nil {
+		t.Fatalf("persist self: %v", err)
+	}
 	// Blank counterparty → skipped.
-	svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "", "Blank", nil)
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "", "Blank", nil); err != nil {
+		t.Fatalf("persist blank: %v", err)
+	}
 	// Invalid digit count → skipped.
-	svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "123", "Invalid", nil)
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "123", "Invalid", nil); err != nil {
+		t.Fatalf("persist invalid: %v", err)
+	}
 
 	if len(dynm.putCalls) != 0 {
 		t.Errorf("expected 0 PutItem for skipped cases, got %d", len(dynm.putCalls))
 	}
 	if len(dynm.transactCalls) != 0 {
 		t.Errorf("expected 0 TransactWriteItems for skipped cases, got %d", len(dynm.transactCalls))
+	}
+}
+
+func TestPersistPerson_ExistingPersonIsIdempotent(t *testing.T) {
+	dynm := &mockDistDynamo{
+		transactErr: errors.New("transaction cancelled"),
+		gets: []getResult{{item: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: testOrgPK},
+			"sk": &types.AttributeValueMemberS{Value: "CNPJ_98765432000188"},
+		}}},
+	}
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil); err != nil {
+		t.Fatalf("existing person must be idempotent: %v", err)
+	}
+}
+
+func TestPersistPerson_PropagatesTransactionFailureWhenPersonIsAbsent(t *testing.T) {
+	dynm := &mockDistDynamo{transactErr: errors.New("AccessDeniedException")}
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil)
+	if err == nil || !strings.Contains(err.Error(), "AccessDeniedException") {
+		t.Fatalf("persistPerson error = %v, want propagated AccessDeniedException", err)
 	}
 }
 
