@@ -134,6 +134,7 @@ export const WORKERS: WorkerDefinition[] = [
       'cte_events',
       'mdfe_events',
       'nfse_events',
+      'audit_logs',
     ],
     dynamoTransactionTables: ['organization_persons', 'audit_logs'],
     environment: {},
