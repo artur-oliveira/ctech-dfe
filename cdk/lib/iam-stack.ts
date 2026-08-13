@@ -1,21 +1,21 @@
 import * as cdk from 'aws-cdk-lib';
+import {aws_dynamodb} from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import {Construct} from 'constructs';
 import {Environment} from './types';
-import {aws_dynamodb} from "aws-cdk-lib";
 
 interface IAMStackProps extends cdk.StackProps {
   environment: Environment;
-  
+
   // ARNs em vez de constructs (remove acoplamento)
   certificatesBucketArn: string;
   documentsBucketArn: string;
   deploymentsBucketArn: string;
   logsBucketArn: string;
   topicArn: string;
-  
+
   dynamoDBTables: Map<string, aws_dynamodb.TableV2>;
-  
+
   resultsQueueArn: string;
   distributionQueueArn: string;
 }
@@ -24,12 +24,12 @@ export class IAMStack extends cdk.Stack {
   public readonly lambdaRole: iam.Role;
   public readonly apiV2Role: iam.Role;
   public readonly instanceProfileNameV2: string;
-  
+
   constructor(scope: Construct, id: string, props: IAMStackProps) {
     super(scope, id, props);
-    
+
     const {environment} = props;
-    
+
     /**
      * =========================
      * Lambda Role
@@ -44,13 +44,13 @@ export class IAMStack extends cdk.Stack {
         ),
       ],
     });
-    
+
     /**
      * =========================
      * API Role (EC2 / EB)
      * =========================
      */
-    
+
     this.apiV2Role = new iam.Role(this, 'APIV2ExecutionRole', {
       roleName: `${environment}-ctech-dfe-api-v2-role`,
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
@@ -59,19 +59,19 @@ export class IAMStack extends cdk.Stack {
         iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchAgentServerPolicy'),
       ],
     });
-    
+
     /**
      * =========================
      * Instance Profile
      * =========================
      */
     this.instanceProfileNameV2 = `${environment}-ctech-dfe-api-v2-instance-profile`;
-    
+
     new iam.CfnInstanceProfile(this, 'ApiV2InstanceProfile', {
       instanceProfileName: this.instanceProfileNameV2,
       roles: [this.apiV2Role.roleName],
     });
-    
+
     /**
      * =========================
      * DynamoDB Permissions
@@ -91,7 +91,7 @@ export class IAMStack extends cdk.Stack {
             'dynamodb:Scan',
             'dynamodb:BatchGetItem',
             'dynamodb:BatchWriteItem',
-			'dynamodb:TransactWriteItems',
+            'dynamodb:TransactWriteItems',
           ],
           resources: [...props.dynamoDBTables.values()].flatMap(it => [
             it.tableArn, `${it.tableArn}/index/*`
@@ -104,10 +104,10 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     this.lambdaRole.addManagedPolicy(dynamoPolicy);
     this.apiV2Role.addManagedPolicy(dynamoPolicy);
-    
+
     /**
      * =========================
      * S3 Permissions
@@ -125,9 +125,9 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     this.lambdaRole.addManagedPolicy(s3Policy);
-    
+
     const apiS3Policy = new iam.ManagedPolicy(this, 'ApiS3Policy', {
       managedPolicyName: `${environment}-ctech-dfe-api-s3-policy`,
       statements: [
@@ -152,7 +152,7 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     const apiSNSPolicy = new iam.ManagedPolicy(this, 'ApiSnsPolicy', {
       managedPolicyName: `${environment}-ctech-dfe-api-sns-policy`,
       statements: [
@@ -167,7 +167,7 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     this.apiV2Role.addManagedPolicy(apiS3Policy);
     this.apiV2Role.addManagedPolicy(apiSNSPolicy);
     this.apiV2Role.addManagedPolicy(
@@ -181,7 +181,7 @@ export class IAMStack extends cdk.Stack {
         ],
       }),
     );
-    
+
     /**
      * =========================
      * SSM Permissions
@@ -200,9 +200,9 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     this.apiV2Role.addManagedPolicy(ssmPolicy);
-    
+
     const lambdaInvokePolicy = new iam.ManagedPolicy(this, 'LambdaInvokePolicy', {
       managedPolicyName: `${environment}-py-dfe-lambda-invoke-policy`,
       statements: [
@@ -215,16 +215,16 @@ export class IAMStack extends cdk.Stack {
         }),
       ],
     });
-    
+
     this.apiV2Role.addManagedPolicy(lambdaInvokePolicy);
-    
+
     const apiSqsPolicy = new iam.PolicyStatement({
       actions: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes'],
       resources: [props.resultsQueueArn],
     });
-    
+
     this.apiV2Role.addToPrincipalPolicy(apiSqsPolicy);
-    
+
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['sqs:SendMessage', 'sqs:GetQueueAttributes'],
       resources: [props.distributionQueueArn],

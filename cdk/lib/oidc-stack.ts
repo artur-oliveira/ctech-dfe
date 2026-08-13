@@ -16,24 +16,24 @@ interface OidcStackProps extends cdk.StackProps {
 export class OidcStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: OidcStackProps) {
     super(scope, id, props);
-    
+
     const {githubRepo, deploymentsBucket} = props;
-    
+
     // GitHub OIDC provider ownership transferred to ctech-cdk (Ctech-Global stack).
     // Import by well-known ARN — do not create here.
     const providerArn = `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`;
     const provider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
       this, 'GitHubOidc', providerArn,
     );
-    
+
     const subject = `repo:${githubRepo}:*`;
-    
+
     const trust = new iam.FederatedPrincipal(
       provider.openIdConnectProviderArn,
       {StringLike: {'token.actions.githubusercontent.com:sub': subject}},
       'sts:AssumeRoleWithWebIdentity',
     );
-    
+
     // ── Frontend deploy role ────────────────────────────────────────────────
     const frontendRole = new iam.Role(this, 'FrontendDeployRole', {
       roleName: 'ctech-dfe-gha-frontend',
@@ -64,7 +64,7 @@ export class OidcStack extends cdk.Stack {
       actions: ['cloudformation:describeStacks'],
       resources: ['*'],
     }));
-    
+
     // ── API deploy role ─────────────────────────────────────────────────────
     const apiRole = new iam.Role(this, 'ApiDeployRole', {
       roleName: 'ctech-dfe-gha-api',
@@ -92,7 +92,7 @@ export class OidcStack extends cdk.Stack {
         `arn:aws:s3:::${deploymentsBucket}/ctech-dfe/*`,
       ],
     }));
-    
+
     // Trigger deploy on running instances via SSM RunCommand
     apiRole.addToPolicy(new iam.PolicyStatement({
       actions: [
@@ -120,7 +120,7 @@ export class OidcStack extends cdk.Stack {
       ],
       resources: ['*'],
     }));
-    
+
     // ── Infra deploy role ───────────────────────────────────────────────────
     const infraRole = new iam.Role(this, 'InfraDeployRole', {
       roleName: 'ctech-dfe-gha-infra',
@@ -130,7 +130,7 @@ export class OidcStack extends cdk.Stack {
     infraRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess'),
     );
-    
+
     // ── ctech-dfe Lambda deploy role ───────────────────────────────────────────
     const pyDfeRole = new iam.Role(this, 'PyDfeLambdaDeployRole', {
       roleName: 'ctech-dfe-gha-pydfe',
@@ -147,7 +147,7 @@ export class OidcStack extends cdk.Stack {
       actions: ['lambda:UpdateFunctionCode', 'lambda:GetFunction', 'lambda:GetFunctionConfiguration'],
       resources: ['arn:aws:lambda:*:*:function:*-py-dfe'],
     }));
-    
+
     // ── Worker Lambda deploy role ───────────────────────────────────────────
     const workerRole = new iam.Role(this, 'WorkerLambdaDeployRole', {
       roleName: 'ctech-dfe-gha-worker',
@@ -168,7 +168,7 @@ export class OidcStack extends cdk.Stack {
         'arn:aws:lambda:*:*:function:*-*-dispatcher',
       ],
     }));
-    
+
     new cdk.CfnOutput(this, 'FrontendRoleArn', {value: frontendRole.roleArn});
     new cdk.CfnOutput(this, 'ApiRoleArn', {value: apiRole.roleArn});
     new cdk.CfnOutput(this, 'InfraRoleArn', {value: infraRole.roleArn});

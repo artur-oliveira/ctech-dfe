@@ -440,24 +440,54 @@ export class ApiStack extends cdk.Stack {
       allowAllOutbound: true, allowAllIpv6Outbound: true,
     });
     serviceSg.addIngressRule(edgeSg, ec2.Port.tcp(8080), 'HAProxy edge to app');
-    const appLogGroup = new logs.LogGroup(this, 'ApiServiceAppLogGroup', {logGroupName: logGroupApp, retention: logRetention, removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY});
-    const nginxLogGroup = new logs.LogGroup(this, 'ApiServiceNginxLogGroup', {logGroupName: logGroupNginx, retention: logRetention, removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY});
+    const appLogGroup = new logs.LogGroup(this, 'ApiServiceAppLogGroup', {
+      logGroupName: logGroupApp,
+      retention: logRetention,
+      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
+    });
+    const nginxLogGroup = new logs.LogGroup(this, 'ApiServiceNginxLogGroup', {
+      logGroupName: logGroupNginx,
+      retention: logRetention,
+      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
+    });
     const launchTemplate = new ec2.LaunchTemplate(this, 'ApiServiceLaunchTemplate', {
-      launchTemplateName: `${this.asgName}-lt`, instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({cpuType: ec2.AmazonLinuxCpuType.ARM_64, edition: ec2.AmazonLinuxEdition.MINIMAL}),
-      blockDevices: [{deviceName: '/dev/xvda', volume: ec2.BlockDeviceVolume.ebs(3, {volumeType: ec2.EbsDeviceVolumeType.GP3, deleteOnTermination: true})}], userData,
-      instanceProfile: iam.InstanceProfile.fromInstanceProfileName(this, 'ApiServiceInstanceProfile', instanceProfileName), requireImdsv2: true, securityGroup: serviceSg,
+      launchTemplateName: `${this.asgName}-lt`,
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
+      machineImage: ec2.MachineImage.latestAmazonLinux2023({
+        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+        edition: ec2.AmazonLinuxEdition.MINIMAL
+      }),
+      blockDevices: [{
+        deviceName: '/dev/xvda',
+        volume: ec2.BlockDeviceVolume.ebs(3, {volumeType: ec2.EbsDeviceVolumeType.GP3, deleteOnTermination: true})
+      }],
+      userData,
+      instanceProfile: iam.InstanceProfile.fromInstanceProfileName(this, 'ApiServiceInstanceProfile', instanceProfileName),
+      requireImdsv2: true,
+      securityGroup: serviceSg,
     });
     const cfnLaunchTemplate = launchTemplate.node.defaultChild as ec2.CfnLaunchTemplate;
     cfnLaunchTemplate.addPropertyDeletionOverride('LaunchTemplateData.SecurityGroupIds');
-    cfnLaunchTemplate.addPropertyOverride('LaunchTemplateData.NetworkInterfaces', [{DeviceIndex: 0, Groups: [serviceSg.securityGroupId], AssociatePublicIpAddress: false, Ipv6AddressCount: 1}]);
+    cfnLaunchTemplate.addPropertyOverride('LaunchTemplateData.NetworkInterfaces', [{
+      DeviceIndex: 0,
+      Groups: [serviceSg.securityGroupId],
+      AssociatePublicIpAddress: false,
+      Ipv6AddressCount: 1
+    }]);
     const asg = new autoscaling.AutoScalingGroup(this, 'ApiServiceASG', {
-      autoScalingGroupName: this.asgName, vpc, vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC}, launchTemplate,
+      autoScalingGroupName: this.asgName,
+      vpc,
+      vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC},
+      launchTemplate,
       minCapacity: 1,
       maxCapacity: isProd ? 3 : 1,
-      cooldown: cdk.Duration.seconds(120), healthChecks: autoscaling.HealthChecks.ec2({gracePeriod: cdk.Duration.seconds(120)}),
+      cooldown: cdk.Duration.seconds(120),
+      healthChecks: autoscaling.HealthChecks.ec2({gracePeriod: cdk.Duration.seconds(120)}),
     });
-    if (isProd) asg.scaleOnCpuUtilization('ApiServiceCpuTargetTracking', {targetUtilizationPercent: 60, cooldown: cdk.Duration.minutes(3)});
+    if (isProd) asg.scaleOnCpuUtilization('ApiServiceCpuTargetTracking', {
+      targetUtilizationPercent: 60,
+      cooldown: cdk.Duration.minutes(3)
+    });
 
     // ── Outputs ───────────────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'AsgName', {value: asg.autoScalingGroupName, exportName: `${id}-asg-name`});

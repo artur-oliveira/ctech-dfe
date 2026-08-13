@@ -40,6 +40,7 @@ interface FrontendStackProps extends cdk.StackProps {
   // connect-src so the browser can fetch /v1.0/token (CSP blocks cross-origin
   // fetches by default). Derived from BASE_DOMAIN, not hardcoded.
   authDomainName: string;
+  extraConnectSrc: string[];
 }
 
 /**
@@ -52,13 +53,13 @@ export class FrontendStack extends cdk.Stack {
   public readonly bucket: s3.Bucket;
   public readonly distribution: cloudfront.Distribution;
   public readonly routeStore: cloudfront.KeyValueStore;
-  
+
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
-    
-    const {environment, certificateArn, domainName, apiDomainName, authDomainName} = props;
+
+    const {environment, certificateArn, domainName, apiDomainName, authDomainName, extraConnectSrc} = props;
     const isProduction = environment === 'prod';
-    
+
     this.bucket = new s3.Bucket(this, 'Bucket', {
       bucketName: `${environment}-ctech-dfe-frontend`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -67,18 +68,18 @@ export class FrontendStack extends cdk.Stack {
       removalPolicy: isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !isProduction,
     });
-    
+
     const oac = new cloudfront.S3OriginAccessControl(this, 'OAC', {
       originAccessControlName: `${environment}-ctech-dfe-oac`,
     });
-    
+
     // One key per route emitted by the static export, written by the frontend
     // workflow right after it syncs out/ to S3 — so the route list can never
     // drift from the objects actually in the bucket.
     this.routeStore = new cloudfront.KeyValueStore(this, 'RouteStore', {
       keyValueStoreName: `${environment}-ctech-dfe-routes`,
     });
-    
+
     // Rewrites clean URLs to .html files for Next.js static export:
     //   /products      to /products.html
     //   /products/     to /products.html
@@ -107,22 +108,19 @@ async function handler(event) {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       keyValueStore: this.routeStore,
     });
-    
+
     const apiOrigin = new origins.HttpOrigin(apiDomainName, {
       protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
       readTimeout: API_ORIGIN_READ_TIMEOUT,
       keepaliveTimeout: API_ORIGIN_KEEPALIVE_TIMEOUT,
     });
-    
+
     // Security response headers (HSTS, X-Frame-Options, X-Content-Type-Options,
     // Referrer-Policy, CSP) for the statically generated frontend. These MUST live
     // at CloudFront: next.config.ts headers() only run on server-rendered
     // responses, and the SSG assets are served straight from the edge. CSP
     // connect-src allows the app's own origin plus the ctech-account OAuth host
-    // (authDomainName) and any extra trusted origins (e.g. viacep) passed via the
-    // `securityExtraConnectSrc` CDK context — required so cross-origin fetches
-    // are not blocked in prod.
-    const extraConnectSrc = (this.node.tryGetContext('securityExtraConnectSrc') as string | undefined) ?? '';
+    // (authDomainName) and any extra trusted origins (e.g. viacep)
 
     // Same hardening everywhere; only the CSP differs between the app and the
     // docs page, so it is the single parameter.
@@ -146,6 +144,12 @@ async function handler(event) {
         },
       });
 
+    const extraConnectSrcStr: string = [
+      apiDomainName,
+      authDomainName,
+      ...extraConnectSrc
+    ].map(it => `https://${it}`).join(' ')
+
     const securityHeadersPolicy = headersPolicy('SecurityHeaders', 'security-headers', [
       // 'unsafe-inline' for script/style is temporary compatibility debt: the
       // Next.js static export has no nonce/hash pipeline yet. Never 'unsafe-eval'.
@@ -156,7 +160,7 @@ async function handler(event) {
       "img-src 'self' data:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline'",
-      `connect-src 'self' https://${authDomainName}${extraConnectSrc ? ' ' + extraConnectSrc : ''}`,
+      `connect-src 'self' ${extraConnectSrcStr}`,
     ]);
 
     // Elements ships as a web component: script and stylesheet come from the
@@ -173,7 +177,7 @@ async function handler(event) {
       `script-src 'self' 'unsafe-inline' ${ELEMENTS_CDN}`,
       "connect-src 'self'",
     ]);
-    
+
     // No caching and no URL rewrite: the API behavior forwards everything the
     // viewer sent (Authorization, query string, body, WebSocket upgrade) except
     // the Host header, which CloudFront replaces with apiDomainName.
@@ -186,7 +190,7 @@ async function handler(event) {
       compress: true,
       responseHeadersPolicy: securityHeadersPolicy,
     };
-    
+
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       comment: `PyDFe Frontend - ${environment}`,
       defaultBehavior: {
@@ -219,7 +223,7 @@ async function handler(event) {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
     });
-    
+
     new cdk.CfnOutput(this, 'BucketName', {value: this.bucket.bucketName, exportName: `${id}-bucket-name`});
     new cdk.CfnOutput(this, 'DistributionId', {value: this.distribution.distributionId, exportName: `${id}-dist-id`});
     new cdk.CfnOutput(this, 'DistributionDomain', {

@@ -65,9 +65,9 @@ function goCode(cmd: string): lambda.AssetCode {
 interface WorkerStackProps extends cdk.StackProps {
   environment: Environment
   tablePrefix: string
-	outboxTableName: string
-	outboxTableArn: string
-	outboxStreamArn: string
+  outboxTableName: string
+  outboxTableArn: string
+  outboxStreamArn: string
   eventBus: sns.Topic
   workers: WorkerDefinition[]
   certificatesBucketName: string
@@ -92,9 +92,9 @@ export class WorkerStack extends cdk.Stack {
       documentsBucketName,
       dfeLambdaName,
       resultsTopicArn,
-	  outboxTableName,
-	  outboxTableArn,
-	  outboxStreamArn,
+      outboxTableName,
+      outboxTableArn,
+      outboxStreamArn,
     } = props
 
     const dfeLambdaArn = `arn:aws:lambda:${this.region}:${this.account}:function:${dfeLambdaName}`
