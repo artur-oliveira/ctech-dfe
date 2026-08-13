@@ -552,6 +552,19 @@ produziria um item órfão.
   cutting request volume by up to 20x with no functional change. Applies to both the main queue and its
   DLQ in `cdk/lib/worker-stack.ts` and `cdk/lib/event-bus-stack.ts`.
 
+## Results consumer (api)
+
+- `ResultsConsumer.dispatch` (api/internal/consumer/results.go) accepts a bare `org_pk` when
+  `doc_pk` is absent — the distribution worker's `new_distribution_*` messages
+  (`worker/internal/service/distribution.go` `notifyResult`) never set `doc_pk`, only `org_pk`.
+  Before 2026-08, this silently dropped every one of those messages and the "Nova NF-e recebida"
+  toast never fired. Any future message type reaching this consumer must carry at least one of
+  the two — `dispatch` treats both as valid client identifiers.
+- `dispatch` only defaults `event["type"]` to `"dfe_result"` when the message doesn't already set
+  its own `type` — a message that arrives with a `type` already set (e.g. `new_distribution_nfe`)
+  keeps it. A future message type must set its own `type` if it needs the frontend
+  (`useRealtimeUpdates.ts`) to route it differently from the generic `dfe_result` handling.
+
 ## S3
 
 - Use S3 Standard unless lifecycle or cost analysis justifies another tier.

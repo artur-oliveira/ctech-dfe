@@ -1121,6 +1121,7 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | POST   | `/v1.0/nfes`                              | Issue NF-e                                  |
 | GET    | `/v1.0/nfes/{access_key}`                 | Detail                                      |
 | POST   | `/v1.0/nfes/{access_key}/cancel`          | Cancel                                      |
+| POST   | `/v1.0/nfes/{access_key}/manifestation`   | Manifestação do destinatário (210200/210210/210220/210240) |
 | GET    | `/v1.0/nfes/{access_key}/xml`             | Download XML                                |
 | GET    | `/v1.0/nfes/{access_key}/danfe`           | Download DANFE (future)                     |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
@@ -1347,11 +1348,16 @@ preenche `substitutes_access_key` a partir da NFS-e original e exige `substitute
 |--------|--------------------------------------------|---------------------------------------------------------------------|
 | POST   | `/v1.0/distributions/{doc_type}/sync`      | Enqueue background distNSU (202). 429 if penalty/rate limit active. |
 | GET    | `/v1.0/distributions/{doc_type}/nsu/{nsu}` | consNSU — lookup specific NSU (consumes 20/hr quota).               |
-| GET    | `/v1.0/distributions/{doc_type}/key/{key}` | consChNFe — lookup by access key (consumes 20/hr quota).            |
+| POST   | `/v1.0/distributions/nfe/key`               | Enqueue consChNFe by access key (202, NF-e only, consumes 20/hr quota). |
 | GET    | `/v1.0/distributions/nfe`                  | Legacy: synchronous distNSU poll (deprecated — use POST /sync).     |
 | GET    | `/v1.0/distributions/nfe/history`          | List persisted distribution records (paginated, no SEFAZ call).     |
 
 `doc_type` ∈ `{nfe, cte, mdfe}`.
+
+`POST /distributions/nfe/key` is NF-e-only (no `doc_type` path param) — CT-e/MDF-e have no
+resNFe/Ciência-do-destinatário concept that motivates a manual re-consult. Body: `{"access_key": "..."}`,
+validated structurally at the API boundary (`api/internal/validation.ValidAccessKey`) before enqueueing —
+see `docs/specs/2026-08-12-manifestacao-importacao-nfe.md`.
 
 **Rate limits (enforced per org/doc_type):**
 
