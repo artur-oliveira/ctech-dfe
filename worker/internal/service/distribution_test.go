@@ -640,9 +640,57 @@ func TestDistNSU_WithProcEventoNFe_PersistsEvent(t *testing.T) {
 		t.Errorf("expected 2 PutItem calls (nfe_events + nfe_distributions), got %d", len(dynm.putCalls))
 	}
 
+	// A cancellation received through distribution must also transition the
+	// corresponding main document to cancelled.
+	var statusUpdate *dynamodb.UpdateItemInput
+	for _, call := range dynm.updateCalls {
+		if call.TableName != nil && *call.TableName == "dev_nfes" {
+			statusUpdate = call
+			break
+		}
+	}
+	if statusUpdate == nil {
+		t.Fatal("expected cancellation to update the main document status")
+	}
+	if got := dynAttrS(statusUpdate.Key, "pk"); got != "hom#"+testOrgPK {
+		t.Errorf("document pk = %q, want %q", got, "hom#"+testOrgPK)
+	}
+	if got := dynAttrS(statusUpdate.Key, "sk"); got != testAK {
+		t.Errorf("document sk = %q, want %q", got, testAK)
+	}
+	if got := dynAttrS(statusUpdate.ExpressionAttributeValues, ":status"); got != StatusCancelled {
+		t.Errorf("document status = %q, want %q", got, StatusCancelled)
+	}
+
 	// No SNS for events.
 	if len(snsm.calls) != 0 {
 		t.Errorf("expected no SNS publish for event schema, got %d", len(snsm.calls))
+	}
+}
+
+func TestDistNSU_CancellationStatusUpdateFailure_DoesNotAdvanceCursor(t *testing.T) {
+	docZips := []map[string]any{
+		makeDocZip(1002, "procEventoNFe_v1.00.xsd", resEventoNFeXML),
+	}
+	dynm := &mockDistDynamo{
+		gets:       []getResult{{item: configItem(2, "hom", "", "")}, {item: orgItemWithUF("SP")}},
+		queries:    []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+		updateErrs: []error{nil, errors.New("dynamodb unavailable")},
+	}
+	lam := &mockLambda{payload: distNSUResp(cStatDocFound, 1002, 1002, docZips)}
+	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)
+
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
+	})
+	if err == nil {
+		t.Fatal("expected document status update failure to be returned")
+	}
+	if len(dynm.updateCalls) != 2 {
+		t.Fatalf("expected slot claim and failed status update only, got %d updates", len(dynm.updateCalls))
+	}
+	if len(dynm.putCalls) != 1 {
+		t.Fatalf("expected only the deferred distribution record, got %d puts", len(dynm.putCalls))
 	}
 }
 

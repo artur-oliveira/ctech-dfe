@@ -1870,6 +1870,11 @@ sem cópia.
 | Não passa por `processDocZip` | Aquele descompacta gzip+base64 e faz parsing de `procNFe`/`resNFe`; o ADN já entrega o XML pronto em `xml` |
 | `mapToDfeRequest` aceita UF vazia quando `doc_type = nfse` | NFS-e é competência municipal e viaja sem UF; o guard antigo jogaria a chamada no py-dfe, que não implementa NFS-e |
 
+Na distribuição SOAP de NF-e/CT-e/MDF-e, um evento de cancelamento recebido também atualiza o documento principal para
+`cancelled` antes de persistir o evento. `DfeService` e `DistributionService` usam o mesmo helper de atualização de
+status (`updateDocumentStatus`), preservando uma única montagem de `UpdateItem`; se essa atualização falhar, o ciclo
+retorna erro e não avança o cursor NSU.
+
 XML recebido: `nfse-distribution/{env}/{org_pk}/NSU_{015d}.xml` — mesma convenção dos outros tipos. O registro vai
 para `nfse_distributions` (`pk = {env}#{org_pk}`, `sk = nsu`), que é o que `GET /nfse/distributions` lista.
 

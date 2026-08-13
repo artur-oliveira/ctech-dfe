@@ -3,6 +3,9 @@
 > HAProxy migration: the API ASG no longer creates an ALB target group or listener
 > rule. `ctech-lbalancer` discovers it through its `dfe` route; the retained
 > `/ctech/{env}/network/alb-sg-id` identifies the shared edge trusted by the API SG.
+> `PrivateIpv4Ec2Service` cannot be used for this stack because its current contract
+> always creates the retired ALB target group and listener rule. CI permits the
+> private-IPv4 launch-template override only in `lib/api-stack.ts`.
 
 AWS CDK (TypeScript) for the ctech-dfe platform. Anchored to `lib/*.ts` and `bin/*.ts`
 (prefer `.ts` over the compiled `.js`/`.d.ts`; ignore `cdk.out/`).
@@ -31,7 +34,7 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 | `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (`bin:97-101`) |
 | `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher + outbox publisher (§2/§3) (`bin:105-116`) |
 | `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies (`bin:118-130`) |
-| `ApiStack` | `CtechDfe-{Env}-API-V2` | EC2 ASG + ALB (§5) (`bin:139-156`) |
+| `ApiStack` | `CtechDfe-{Env}-API-V2` | EC2 ASG + HAProxy route (§5) (`bin:139-156`) |
 | `FrontendStack` | `CtechDfe-{Env}-Frontend` | S3 + CloudFront (§6) (`bin:168-176`) |
 
 ## 2. Lambdas
@@ -103,11 +106,11 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
   tables + `/index/*` (`iam-stack.ts:81-105`); S3 on cert/doc buckets; SNS publish on the
   event bus; SQS receive on results + send on distribution; SSM `GetParameter` on
   `/ctech-dfe|ctech-account|ctech/${env}/*`.
-- **API on EC2 ASG + ALB** via shared `PrivateIpv4Ec2Service` (`@aoctech/cdk`,
-  `api-v2-stack.ts:13,443-465`): `minCapacity: 1`, `maxCapacity: prod ? 3 : 1`,
-  `healthCheckPath: /v1.0/health-check`, `healthyHttpCodes: 200,207`; binary `app` run from
-  `/opt/app/current/app` via systemd; nginx `:8080 → :8000` with per-IP/per-tenant rate
-  limits (`api-v2-stack.ts:89-437`).
+- **API on a private-IPv4 EC2 ASG routed by `ctech-lbalancer` HAProxy**
+  (`api-stack.ts`): `minCapacity: 1`, `maxCapacity: prod ? 3 : 1`; HAProxy probes
+  `/v1.0/health-check` and accepts `200,207`. The binary `app` runs from
+  `/opt/app/current/app` via systemd; nginx `:8080 → :8000` keeps the per-IP/per-tenant
+  rate limits. No ALB target group or listener rule is synthesized.
 - OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for frontend/api/infra/
   pydfe/worker (`oidc-stack.ts`).
 

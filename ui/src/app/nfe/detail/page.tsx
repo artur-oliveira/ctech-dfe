@@ -88,7 +88,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
       void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)})
     },
   })
-  
+
   return (
     <DfeDetail
       accessKey={accessKey}
@@ -124,7 +124,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
                       setManifestJustification('')
                       setShowManifestModal(true)
                     }}
-                    disabled={availableManifestTypes.length === 0}
+                    disabled={availableManifestTypes.length === 0 || doc.status === 'cancelled'}
                     className="text-brand-600 border-brand-200 hover:bg-brand-50">
               Manifestar
             </Button>
@@ -132,7 +132,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
           {doc.incoming === 1 && (
             <Button variant="outline" size="sm"
                     onClick={() => importMutation.mutate()}
-                    disabled={!!doc.products?.length || importMutation.isPending}
+                    disabled={!!doc.products?.length || importMutation.isPending || doc.status ===   'cancelled'}
                     className="text-brand-600 border-brand-200 hover:bg-brand-50">
               {importMutation.isPending ? 'Importando…' : 'Importar via distribuição'}
             </Button>
@@ -183,7 +183,8 @@ function NfeDetail({accessKey}: { accessKey: string }) {
                 <p className="mt-1 text-xs text-gray-400">1–20 (incremente se já enviou uma CC-e anterior)</p>
               </div>
               {cceMutation.isError && (
-                <p className="text-xs text-red-600">{(cceMutation.error as Error)?.message ?? 'Erro ao enviar CC-e.'}</p>
+                <p
+                  className="text-xs text-red-600">{(cceMutation.error as Error)?.message ?? 'Erro ao enviar CC-e.'}</p>
               )}
             </div>
           </Modal>
@@ -232,7 +233,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
 function NfeDetailContent() {
   const params = useSearchParams()
   const accessKey = params.get('key') ?? ''
-  
+
   const backParams = new URLSearchParams()
   const tab = params.get('tab')
   if (tab) backParams.set('tab', tab)
@@ -245,7 +246,7 @@ function NfeDetailContent() {
   const number = params.get('number')
   if (number) backParams.set('number', number)
   const backHref = `/nfe${backParams.toString() ? `?${backParams.toString()}` : ''}`
-  
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">

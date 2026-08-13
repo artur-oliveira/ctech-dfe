@@ -309,7 +309,9 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 			if docMap == nil {
 				continue
 			}
-			s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix)
+			if err := s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix); err != nil {
+				return err
+			}
 		}
 
 		_ = s.updateNSU(ctx, orgPK, configTable, envPrefix, ultNSU)
@@ -372,7 +374,9 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 	for _, doc := range asSlice(lote, "docZip") {
 		docMap, _ := doc.(map[string]any)
 		if docMap != nil {
-			s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix)
+			if err := s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -442,7 +446,9 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 	for _, doc := range asSlice(lote, "docZip") {
 		docMap, _ := doc.(map[string]any)
 		if docMap != nil {
-			s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix)
+			if err := s.processDocZip(ctx, docMap, orgPK, docType, dtcfg, cnpj, orgName, cert, environment, sefazEnv, envPrefix); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -461,7 +467,7 @@ func (s *DistributionService) processDocZip(
 	cert map[string]types.AttributeValue,
 	environment int,
 	sefazEnv, envPrefix string,
-) {
+) error {
 	nsuStr, _ := doc["@NSU"].(string)
 	nsu, _ := strconv.Atoi(nsuStr)
 	schema, _ := doc["@schema"].(string)
@@ -493,14 +499,14 @@ func (s *DistributionService) processDocZip(
 	if err != nil {
 		slog.Error("failed to decompress docZip", "nsu", nsu, "err", err)
 		distRecord["parse_error"] = &types.AttributeValueMemberBOOL{Value: true}
-		return
+		return nil
 	}
 
 	root, err := parseXMLBytes([]byte(xmlStr))
 	if err != nil {
 		slog.Error("failed to parse XML", "nsu", nsu, "err", err)
 		distRecord["parse_error"] = &types.AttributeValueMemberBOOL{Value: true}
-		return
+		return nil
 	}
 
 	fields := extractDoc(schemaType, root, docType, cnpj)
@@ -580,8 +586,14 @@ func (s *DistributionService) processDocZip(
 		// Summary only — no auto-Ciência for CT-e/MDF-e.
 
 	case SchemaProcEventoNFe, SchemaProcEventoCTe, SchemaProcEventoMDFe, SchemaResEvento:
+		if isCancellationEvent(docType, &fields.EventType) {
+			if err := updateDocumentStatus(ctx, s.dynamo, s.cfg.TablePrefix, docPK, fields.AccessKey, dtcfg.docTable, StatusCancelled, updateAttrs{}, ""); err != nil {
+				return fmt.Errorf("cancel distributed document %s: %w", fields.AccessKey, err)
+			}
+		}
 		s.persistEvent(ctx, fields, dtcfg)
 	}
+	return nil
 }
 
 func isEventSchema(s string) bool {
@@ -852,6 +864,7 @@ func (s *DistributionService) persistEvent(ctx context.Context, fields DocFields
 			"access_key":      &types.AttributeValueMemberS{Value: fields.AccessKey},
 			"event_type":      &types.AttributeValueMemberS{Value: fields.EventType},
 			"sequence_number": &types.AttributeValueMemberN{Value: strconv.Itoa(seqNum)},
+			"xml_s3_key":      &types.AttributeValueMemberS{Value: fields.XMLS3Key},
 			"status":          &types.AttributeValueMemberS{Value: "success"},
 			"sefaz_status":    &types.AttributeValueMemberS{Value: fields.SefazStatus},
 			"sefaz_motive":    &types.AttributeValueMemberS{Value: fields.SefazMotive},

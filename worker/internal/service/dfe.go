@@ -593,28 +593,9 @@ func (s *DfeService) updateClaimedDocument(ctx context.Context, msg WorkerMessag
 }
 
 func (s *DfeService) updateStatusOwned(ctx context.Context, docPK, accessKey, tableName, status string, attrs updateAttrs, notify bool, owner string) error {
-	table := s.cfg.TablePrefix + "_" + tableName
-	parts := buildUpdateExpression(status, attrs)
-
-	input := &dynamodb.UpdateItemInput{
-		TableName: aws.String(table),
-		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: docPK},
-			"sk": &types.AttributeValueMemberS{Value: accessKey},
-		},
-		UpdateExpression:          aws.String(parts.expression),
-		ExpressionAttributeNames:  parts.attrNames,
-		ExpressionAttributeValues: parts.attrValues,
+	if err := updateDocumentStatus(ctx, s.dynamo, s.cfg.TablePrefix, docPK, accessKey, tableName, status, attrs, owner); err != nil {
+		return err
 	}
-	if owner != "" {
-		input.UpdateExpression = aws.String(parts.expression + " REMOVE processing_owner, processing_lease_until")
-		input.ConditionExpression = aws.String("processing_owner = :owner")
-		input.ExpressionAttributeValues[":owner"] = &types.AttributeValueMemberS{Value: owner}
-	}
-	if _, err := s.dynamo.UpdateItem(ctx, input); err != nil {
-		return fmt.Errorf("updateStatus %s %s: %w", table, accessKey, err)
-	}
-	slog.Info("updated document status", "table", table, "access_key", accessKey, "status", status)
 
 	if notify {
 		s.publishResult(ctx, map[string]any{
@@ -629,6 +610,7 @@ func (s *DfeService) updateStatusOwned(ctx context.Context, docPK, accessKey, ta
 			notifyKeyXMLS3Key:      strVal(attrs.XMLS3Key),
 		})
 	}
+
 	return nil
 }
 
