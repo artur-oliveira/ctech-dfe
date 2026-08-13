@@ -19,10 +19,13 @@ import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {Button} from '@/components/ui/button'
+import {Modal} from '@/components/ui/modal'
 import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, formatNsu, parseAccessKey, triggerDownload} from '@/lib/utils/dfe'
+import {maskAccessKey} from '@/lib/utils/masks'
+import {validateAccessKey, type AccessKeyField} from '@/lib/utils/access-key'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
@@ -64,6 +67,16 @@ const ALL_TAB_LABELS: { key: Tab; label: string }[] = [
   ...LIST_TABS,
   {key: 'distribuicao', label: 'Importação/Distribuição'},
 ]
+
+const ACCESS_KEY_FIELD_LABELS: Record<AccessKeyField, string> = {
+  length: 'A chave deve ter 44 caracteres',
+  cUF: 'Código da UF (cUF) inválido',
+  AAMM: 'Ano/mês de emissão inválido',
+  doc: 'CNPJ/CPF do emitente inválido (dígito verificador incorreto)',
+  mod: 'Modelo do documento inválido (esperado 55 — NF-e)',
+  tpEmis: 'Tipo de emissão inválido',
+  cDV: 'Dígito verificador da chave inválido',
+}
 
 const DIST_SCHEMA_LABELS: Record<string, string> = {
   resNFe: 'Resumo NF-e',
@@ -157,8 +170,25 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
 
 function NfeDistributionTab({orgPk}: { orgPk: string }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importKeyInput, setImportKeyInput] = useState('')
 
   const {config} = useFiscalConfig('nfe', orgPk)
+
+  const cleanImportKey = importKeyInput.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const importValidation = cleanImportKey.length === 44 ? validateAccessKey(cleanImportKey) : {valid: false as const}
+
+  const importMutation = useMutation({
+    mutationFn: () => apiClient.importNfeByKey(cleanImportKey),
+    onSuccess: () => {
+      setShowImportModal(false)
+      setImportKeyInput('')
+      toast.info('Importação enfileirada. A NF-e aparecerá automaticamente quando processada.')
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar NF-e.')
+    },
+  })
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('nfe', orgPk),
@@ -201,15 +231,28 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
             </div>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-          className="text-brand-600 border-brand-200 hover:bg-brand-50"
-        >
-          {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="text-brand-600 border-brand-200 hover:bg-brand-50"
+          >
+            {syncMutation.isPending ? 'Enfileirando…' : 'Consultar SEFAZ'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setImportKeyInput('')
+              setShowImportModal(true)
+            }}
+            className="text-brand-600 border-brand-200 hover:bg-brand-50"
+          >
+            Importar NF-e
+          </Button>
+        </div>
       </div>
 
       {penaltyMessage && (
@@ -243,6 +286,33 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
         <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                     isLoading={isFetching}/>
       )}
+
+      <Modal
+        isOpen={showImportModal}
+        title="Importar NF-e por chave de acesso"
+        onClose={() => setShowImportModal(false)}
+        onSubmit={() => importMutation.mutate()}
+        submitLabel="Importar"
+        cancelLabel="Cancelar"
+        loading={importMutation.isPending}
+        submitDisabled={!importValidation.valid}
+      >
+        <div className="space-y-2">
+          <label htmlFor="import-access-key" className="block text-sm font-medium text-gray-700">
+            Chave de acesso
+          </label>
+          <input
+            id="import-access-key"
+            value={maskAccessKey(importKeyInput)}
+            onChange={(e) => setImportKeyInput(e.target.value)}
+            placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+          {cleanImportKey.length > 0 && !importValidation.valid && 'error' in importValidation && (
+            <p className="text-xs text-red-600">{ACCESS_KEY_FIELD_LABELS[importValidation.error!]}</p>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }
