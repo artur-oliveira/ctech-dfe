@@ -49,19 +49,19 @@ jobs:
           if [ "$BRANCH" = "main" ]; then
             echo "ENVIRONMENT=prod" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_URL=https://dfe.aoctech.app" >> $GITHUB_ENV
-            echo "NEXT_PUBLIC_CTECH_URL=https://accounts.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-api.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
           elif [ "$BRANCH" = "staging" ]; then
             echo "ENVIRONMENT=stage" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_URL=https://dfe-stage.aoctech.app" >> $GITHUB_ENV
-            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-stage-api.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-stage.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
           else
             echo "ENVIRONMENT=dev" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_URL=https://dfe-dev.aoctech.app" >> $GITHUB_ENV
-            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-dev-api.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-dev.aoctech.app" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
           fi

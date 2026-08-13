@@ -36,7 +36,7 @@ type Config struct {
 	// Auth
 	CtechURL        string `env:"CTECH_URL"`
 	CtechJWKSURL    string `env:"CTECH_JWKS_URL"`
-	ServiceAudience string `env:"SERVICE_AUDIENCE" envDefault:"https://dfe-api.aoctech.app"` // expected aud claim; empty = no audience check (transition only)
+	ServiceAudience string `env:"SERVICE_AUDIENCE" envDefault:"https://dfe.aoctech.app"` // expected aud claim; empty = no audience check (transition only)
 
 	// Cache / WebSocket
 	RedisURL string `env:"VALKEY_URL"` // Redis/Valkey URL — optional; falls back to in-memory
