@@ -722,7 +722,7 @@ func (s *DistributionService) persistIncoming(ctx context.Context, docPK string,
 	now := time.Now().UTC()
 
 	incoming := fields.Incoming
-	if incoming == 0 {
+	if incoming == 0 && !fields.IncomingSet {
 		incoming = 1
 	}
 	year, month, day := fields.Year, fields.Month, fields.Day

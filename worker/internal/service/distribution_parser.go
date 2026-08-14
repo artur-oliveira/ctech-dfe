@@ -71,7 +71,8 @@ type DocFields struct {
 	DHEmi          string
 	DigestValue    string
 	Status         string
-	Incoming       int // 0 means unset; callers treat 0 as 1
+	Incoming       int  // 0 means unset; callers treat 0 as 1, unless IncomingSet
+	IncomingSet    bool // true when Incoming was explicitly computed (e.g. import-by-XML emitida=0)
 	Year           int
 	Month          int
 	Day            int

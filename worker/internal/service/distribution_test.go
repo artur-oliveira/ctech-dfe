@@ -118,6 +118,27 @@ func (m *mockDistDynamo) TransactWriteItems(_ context.Context, in *dynamodb.Tran
 	return &dynamodb.TransactWriteItemsOutput{}, nil
 }
 
+// lastPutItem returns the most recent PutItem call against table, or nil if none.
+func (m *mockDistDynamo) lastPutItem(table string) *dynamodb.PutItemInput {
+	for i := len(m.putCalls) - 1; i >= 0; i-- {
+		if m.putCalls[i].TableName != nil && *m.putCalls[i].TableName == table {
+			return m.putCalls[i]
+		}
+	}
+	return nil
+}
+
+// putCount returns how many PutItem calls were made against table.
+func (m *mockDistDynamo) putCount(table string) int {
+	n := 0
+	for _, c := range m.putCalls {
+		if c.TableName != nil && *c.TableName == table {
+			n++
+		}
+	}
+	return n
+}
+
 // ---------------------------------------------------------------------------
 // Test fixtures and builders
 // ---------------------------------------------------------------------------
@@ -233,6 +254,46 @@ func newDistSvc(dynm *mockDistDynamo, s3m *mockS3, lamm *mockLambda, snsm *mockS
 // ---------------------------------------------------------------------------
 // Process routing
 // ---------------------------------------------------------------------------
+
+func TestPersistIncoming_ExplicitZero_IsNotCoercedToOne(t *testing.T) {
+	dynm := &mockDistDynamo{}
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	fields := DocFields{
+		AccessKey:   testAK,
+		Incoming:    0,
+		IncomingSet: true,
+	}
+	svc.persistIncoming(context.Background(), "hom#"+testOrgPK, fields, docTypeConfigs["nfe"])
+
+	put := dynm.lastPutItem(distCfg.TablePrefix + "_nfes")
+	if put == nil {
+		t.Fatal("expected a PutItem call")
+	}
+	got := put.Item["incoming"].(*types.AttributeValueMemberN).Value
+	if got != "0" {
+		t.Fatalf("expected incoming=0, got %s", got)
+	}
+}
+
+func TestPersistIncoming_UnsetZero_StillDefaultsToOne(t *testing.T) {
+	// Regressão: comportamento existente para todo caller que NÃO seta
+	// IncomingSet continua tratando Incoming==0 como "não informado" -> 1.
+	dynm := &mockDistDynamo{}
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	fields := DocFields{AccessKey: testAK}
+	svc.persistIncoming(context.Background(), "hom#"+testOrgPK, fields, docTypeConfigs["nfe"])
+
+	put := dynm.lastPutItem(distCfg.TablePrefix + "_nfes")
+	if put == nil {
+		t.Fatal("expected a PutItem call")
+	}
+	got := put.Item["incoming"].(*types.AttributeValueMemberN).Value
+	if got != "1" {
+		t.Fatalf("expected incoming=1 (default), got %s", got)
+	}
+}
 
 func TestDistProcess_UnknownDocType_ReturnsNilWithoutError(t *testing.T) {
 	svc := newDistSvc(&mockDistDynamo{}, certS3(), &mockLambda{}, &mockSNS{}, distCfg)

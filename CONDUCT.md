@@ -159,6 +159,13 @@ Nenhum campo novo foi acrescentado ao `WorkerMessage`, porque o campo já signif
 todos os tipos. Em NFS-e essa SK é o `id_dps`. `updateClaimedDocument` depende disso; trocar por `out.AccessKey`
 produziria um item órfão.
 
+## `DocFields.Incoming == 0` é ambíguo — sempre setar `IncomingSet` junto
+
+`Incoming == 0` significa tanto "não informado" (todo caller pré-existente, tratado como `1`/destinada por
+`persistIncoming`) quanto "emitida de verdade" (import-by-XML, ver `docs/specs/2026-08-13-importacao-nfe-xml.md`).
+Sempre que `Incoming = 0` for um valor real e não um default, setar `fields.IncomingSet = true` junto — caso
+contrário `persistIncoming` reescreve silenciosamente para `1`.
+
 ---
 
 # 7. Infrastructure and Cost Management
