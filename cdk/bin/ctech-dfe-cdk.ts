@@ -138,10 +138,10 @@ const iamStack = new IAMStack(app, id('IAM'), {
   distributionQueueArn: workerStack.distributionQueueArn,
   description: `CTech DFe IAM Roles - ${ENVIRONMENT}`,
 });
-iamStack.addDependency(dynamodbStack);
-iamStack.addDependency(s3Stack);
-iamStack.addDependency(eventBusStack);
-iamStack.addDependency(workerStack);
+iamStack.addStackDependency(dynamodbStack);
+iamStack.addStackDependency(s3Stack);
+iamStack.addStackDependency(eventBusStack);
+iamStack.addStackDependency(workerStack);
 
 // =====================
 // API (EC2 + ASG, shared ALB from ctech-cdk)
@@ -150,8 +150,6 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
   env,
   environment: ENVIRONMENT,
   vpcId: CTECH_VPC_ID,
-  domainName: domainForEnv(ENVIRONMENT, 'dfe-api'),
-  appDomainName: domainForEnv(ENVIRONMENT, 'dfe'),
   instanceProfileName: iamStack.instanceProfileNameV2,
   deploymentsBucketName: CTECH_DEPLOYMENTS_BUCKET,
   logsBucketName: CTECH_LOGS_BUCKET,
@@ -167,10 +165,10 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
 // instanceProfileNameV2 is a plain string, not a CFN token — CDK cannot
 // infer the dependency automatically. Force it so the instance profile
 // exists before the ASG validates the launch template.
-apiV2Stack.addDependency(iamStack);
+apiV2Stack.addStackDependency(iamStack);
 // distributionQueueUrl is a CFN cross-stack reference — CDK infers this automatically,
 // but we make it explicit for clarity.
-apiV2Stack.addDependency(workerStack);
+apiV2Stack.addStackDependency(workerStack);
 
 // =====================
 // Frontend (S3 + CloudFront)

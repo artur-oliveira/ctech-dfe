@@ -41,6 +41,17 @@ Install dependencies:
 cd cdk && npm install
 ```
 
+Create or refresh the URL parameters before deploying the API. Run this from the
+adjacent `ctech-cdk` repository; it is idempotent and uses the private hosted-zone
+names for EC2-to-EC2 traffic:
+
+```bash
+CTECH_AWS_PROFILE=ctech ./scripts/configure-service-url-parameters.sh prod
+```
+
+The public account application URL remains the OIDC issuer/browser URL. Only
+service transport and JWKS retrieval use `*.internal.aoctech.app`.
+
 ## AWS Credentials
 
 Configure one of the following methods:
@@ -104,13 +115,13 @@ cdk deploy --all --require-approval never
 ## Production
 
 ```bash
-ENVIRONMENT=production TABLE_PREFIX=prod cdk deploy --all
+ENVIRONMENT=prod npx cdk deploy --all
 ```
 
 ## Staging
 
 ```bash
-ENVIRONMENT=staging TABLE_PREFIX=staging cdk deploy --all
+ENVIRONMENT=stage npx cdk deploy --all
 ```
 
 ---

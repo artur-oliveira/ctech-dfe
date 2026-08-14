@@ -3,9 +3,9 @@
 > HAProxy migration: the API ASG no longer creates an ALB target group or listener
 > rule. `ctech-lbalancer` discovers it through its `dfe` route; the retained
 > `/ctech/{env}/network/alb-sg-id` identifies the shared edge trusted by the API SG.
-> `PrivateIpv4Ec2Service` cannot be used for this stack because its current contract
-> always creates the retired ALB target group and listener rule. CI permits the
-> private-IPv4 launch-template override only in `lib/api-stack.ts`.
+> The stack now uses `HaproxyEc2Service` from `@aoctech/cdk`; route creation stays
+> disabled because the existing `dfe` route parameter is owned by
+> `ctech-lbalancer`.
 
 AWS CDK (TypeScript) for the ctech-dfe platform. Anchored to `lib/*.ts` and `bin/*.ts`
 (prefer `.ts` over the compiled `.js`/`.d.ts`; ignore `cdk.out/`).
@@ -107,11 +107,16 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
   event bus; SQS receive on results + send on distribution; SSM `GetParameter` on
   `/ctech-dfe|ctech-account|ctech/${env}/*`.
 - **API on a private-IPv4 EC2 ASG routed by `ctech-lbalancer` HAProxy**
-  (`api-stack.ts`): `minCapacity: 1`, `maxCapacity: prod ? 3 : 1`; HAProxy probes
+  (`api-stack.ts`): the shared `HaproxyEc2Service` creates the encrypted launch
+  template, ASG, SG, log groups and CPU target tracking. Capacity remains
+  `minCapacity: 1`, `maxCapacity: prod ? 3 : 1`; HAProxy probes
   `/v1.0/health-check` and accepts `200,207`. The binary `app` runs from
   `/opt/app/current/app` via systemd; nginx `:8080 → :8000` keeps the per-IP/per-tenant
   rate limits. No ALB target group or listener rule is synthesized.
-- CloudWatch Agent publishes four bounded 60-second host series under
+- User data downloads only the official Cloudflare Origin CA RSA root, verifies
+  its pinned SHA-256 and installs it so private `*.internal.aoctech.app` TLS
+  endpoints validate without disabling verification.
+- `buildCloudWatchAgentConfig` publishes four bounded 60-second host series under
   `CtechDfe/<env>/Host`: memory %, swap %, root-disk %, and application RSS.
   EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
 - OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for frontend/api/infra/
@@ -119,8 +124,9 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
 
 ## 6. CloudFront / Frontend (`lib/frontend-stack.ts`)
 
-Private S3 `${env}-ctech-dfe-frontend` + OAC; CloudFront Function URL-rewrite (clean URLs →
-`.html`, unknown → `/404.html`); API origin behavior for `/v1.0/*` (CACHING_DISABLED) and for
+`createNextjsStaticFrontend` from `@aoctech/cdk` creates the private S3 bucket, OAC,
+route KVS, rewrite function, headers and distribution. The stack adds the API
+origin behavior for `/v1.0/*` (CACHING_DISABLED) and for
 `/docs`, `/openapi.json`, `/openapi.yaml` (same behavior, own CSP allowing unpkg for Stoplight
 Elements); security headers (HSTS 2y, frame DENY, CSP `default-src 'self'`); `priceClass PRICE_CLASS_100`;
 HTTP2+3; TLS 1.2_2021. **No `geoRestriction`** in this stack (if any Brazil geo-restriction
@@ -132,6 +138,10 @@ exists it is applied elsewhere).
   `deploy:prod = ENVIRONMENT=prod cdk deploy --all --require-approval never --profile ctech`.
   Env config via env vars (`ENVIRONMENT`, `CTECH_VPC_ID`, `CTECH_DEPLOYMENTS_BUCKET`,
   `CTECH_LOGS_BUCKET`, `GITHUB_REPO`); shared infra (VPC, edge SG, Valkey, buckets) from SSM.
+- Before deploying the API, run from `ctech-cdk`:
+  `CTECH_AWS_PROFILE=ctech ./scripts/configure-service-url-parameters.sh {env}`.
+  The API resolves account transport/JWKS and its own audience/CORS URLs from SSM
+  on every service start; changing them no longer changes the CloudFormation template.
 - **Keep-warm (~B21 cost driver)**: for each of the 8 workers a `scheduler.Schedule`
   `${env}-{name}-ping-schedule` invokes the worker with `{ping:true}` at
   **`Duration.minutes(1)`** (`worker-stack.ts:228-236`) — i.e. 8 Lambdas pinged 1440×/day
@@ -145,8 +155,7 @@ exists it is applied elsewhere).
   distribution-dispatcher's org enumeration (`worker/README.md` §6).
 - Keep-warm rate is 1 min (code) vs 5 min (comment) — B21 cost note.
 - No separate go-dfe Lambda; go-dfe is in-process in the Go workers.
-- ASG `gracePeriod: 120s` is defined locally in `lib/api-stack.ts`; migration to
-  the new `@aoctech/cdk` 0.2.0 HAProxy construct must preserve it.
+- ASG `gracePeriod: 120s` is supplied to the shared `HaproxyEc2Service` construct.
 
 See root [`DEPLOYMENT.md`](../DEPLOYMENT.md), [`CONDUCT.md`](../CONDUCT.md),
 [`DOCS.md`](../DOCS.md).

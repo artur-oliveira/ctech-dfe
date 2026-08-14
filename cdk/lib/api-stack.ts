@@ -1,15 +1,16 @@
 import * as cdk from 'aws-cdk-lib';
-import * as autoscaling from 'aws-cdk-lib/aws-autoscaling';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
 import {
+  addCloudflareOriginCaCommands,
   addCloudWatchAgentDualStackOverride,
   addDualStackSsmAgentCommands,
   addRealipRefreshCommands,
   addSwapCommands,
+  buildCloudWatchAgentConfig,
+  HaproxyEc2Service,
 } from '@aoctech/cdk';
 import {Environment} from './types';
 
@@ -20,8 +21,6 @@ interface ApiStackProps extends cdk.StackProps {
   // Read it from the CTECH_VPC_ID env var, which the CI workflow populates
   // from the /ctech/{env}/network/vpc-id SSM parameter before running cdk deploy.
   vpcId: string;
-  domainName: string;
-  appDomainName: string;
   instanceProfileName: string;
   deploymentsBucketName: string;
   logsBucketName: string;
@@ -44,8 +43,6 @@ export class ApiStack extends cdk.Stack {
     const {
       environment,
       vpcId,
-      domainName,
-      appDomainName,
       instanceProfileName,
       deploymentsBucketName,
       logsBucketName,
@@ -66,8 +63,12 @@ export class ApiStack extends cdk.Stack {
     const edgeSg = ec2.SecurityGroup.fromSecurityGroupId(this, 'EdgeSg', albSgId);
 
     const isProd = environment === 'prod';
+    const accountInternalBaseUrlParameter = `/ctech-account/${environment}/internal-base-url`;
+    const accountInternalJwksUrlParameter = `/ctech-account/${environment}/internal-jwks-url`;
+    const accountIssuerUrlParameter = `/ctech-account/${environment}/app-url`;
+    const appUrlParameter = `/ctech-dfe/${environment}/app-url`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
-    // PrivateIpv4Ec2Service changes their CloudFormation logical IDs, which
+    // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
     // must differ from the old ones or the create side of that swap collides
     // with the still-live old resource.
@@ -94,6 +95,7 @@ export class ApiStack extends cdk.Stack {
 
     addSwapCommands(userData);
     addDualStackSsmAgentCommands(userData);
+    addCloudflareOriginCaCommands(userData);
 
     userData.addCommands(
       // ── nginx: listens :8080, proxies to app :8000 ───────────────────────────
@@ -266,30 +268,15 @@ export class ApiStack extends cdk.Stack {
     userData.addCommands(
       // {instance_id} is resolved by the CW agent at runtime, not by bash.
       `cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWA'`,
-      `{`,
-      `  "agent": {"metrics_collection_interval": 60},`,
-      `  "metrics": {`,
-      `    "namespace": "CtechDfe/${environment}/Host",`,
-      '    "append_dimensions": {"InstanceId": "${aws:InstanceId}"},',
-      `    "metrics_collected": {`,
-      `      "mem": {"measurement":["used_percent"],"metrics_collection_interval":60},`,
-      `      "swap": {"measurement":["used_percent"],"metrics_collection_interval":60},`,
-      `      "disk": {"measurement":["used_percent"],"resources":["/"],"drop_device":true,"metrics_collection_interval":60},`,
-      `      "procstat": [{"pattern":"/opt/app/current/(app|bootstrap)","measurement":["memory_rss"],"metrics_collection_interval":60}]`,
-      `    }`,
-      `  },`,
-      `  "logs": {`,
-      `    "logs_collected": {`,
-      `      "files": {`,
-      `        "collect_list": [`,
-      `          {"file_path":"/var/log/app/app.log","log_group_name":"${logGroupApp}","log_stream_name":"{instance_id}"},`,
-      `          {"file_path":"/var/log/nginx/access.log","log_group_name":"${logGroupNginx}","log_stream_name":"{instance_id}/access"},`,
-      `          {"file_path":"/var/log/nginx/error.log","log_group_name":"${logGroupNginx}","log_stream_name":"{instance_id}/error"}`,
-      `        ]`,
-      `      }`,
-      `    }`,
-      `  }`,
-      `}`,
+      buildCloudWatchAgentConfig({
+        metricNamespace: `CtechDfe/${environment}/Host`,
+        appProcessPattern: '/opt/app/current/(app|bootstrap)',
+        logFiles: [
+          {filePath: '/var/log/app/app.log', logGroupName: logGroupApp, logStreamName: '{instance_id}'},
+          {filePath: '/var/log/nginx/access.log', logGroupName: logGroupNginx, logStreamName: '{instance_id}/access'},
+          {filePath: '/var/log/nginx/error.log', logGroupName: logGroupNginx, logStreamName: '{instance_id}/error'},
+        ],
+      }),
       `CWA`,
       `/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s`,
 
@@ -307,7 +294,6 @@ export class ApiStack extends cdk.Stack {
       `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`,
       `SEFAZ_FUNCTION_NAME=${environment}-py-dfe`,
       `TRUSTED_PROXIES=127.0.0.1`,
-      `CORS_ALLOWED_ORIGINS=https://${appDomainName}`,
       `ENV`,
 
       // ── start.sh: fetches secrets from SSM then exec-replaces into the Go binary
@@ -321,10 +307,12 @@ export class ApiStack extends cdk.Stack {
       // scaled to 0 or not deployed, the parameter may not exist — fall back to empty
       // so the app uses NoCacheBackend instead of crashing.
       `VALKEY_URL=$(aws ssm get-parameter --name "${valkeyUrlSsmPath}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
-      `CTECH_JWKS_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/jwks-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
-      `CTECH_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/base-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
-      `CTECH_ISSUER_URL=$(aws ssm get-parameter --name "/ctech-account/$ENVIRONMENT/app-url" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
-      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL`,
+      `CTECH_JWKS_URL=$(aws ssm get-parameter --name "${accountInternalJwksUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `CTECH_URL=$(aws ssm get-parameter --name "${accountInternalBaseUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `CTECH_ISSUER_URL=$(aws ssm get-parameter --name "${accountIssuerUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `SERVICE_AUDIENCE=$(aws ssm get-parameter --name "${appUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `CORS_ALLOWED_ORIGINS="$SERVICE_AUDIENCE"`,
+      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL SERVICE_AUDIENCE CORS_ALLOWED_ORIGINS`,
       `exec /opt/app/current/app`,
       `START`,
       `chmod +x /opt/app/start.sh`,
@@ -444,71 +432,32 @@ export class ApiStack extends cdk.Stack {
       `aws s3api head-object --bucket "${deploymentsBucketName}" --key "ctech-dfe/api/current.zip" 2>/dev/null && /opt/app/deploy.sh ctech-dfe/api/current.zip || echo "No bootstrap artifact, waiting for first deploy"`,
     );
 
-    // HAProxy discovers this ASG through its ctech-lbalancer bootstrap route.
-    const serviceSg = new ec2.SecurityGroup(this, 'ApiServiceSg', {
+    // ctech-lbalancer still owns the bootstrap route and private CNAME.
+    const service = new HaproxyEc2Service(this, 'ApiService', {
       vpc,
-      securityGroupName: `${environment}-${svcName}-api-sg`,
-      description: 'ctech-dfe API instances',
-      allowAllOutbound: true, allowAllIpv6Outbound: true,
-    });
-    serviceSg.addIngressRule(edgeSg, ec2.Port.tcp(8080), 'HAProxy edge to app');
-    const appLogGroup = new logs.LogGroup(this, 'ApiServiceAppLogGroup', {
-      logGroupName: logGroupApp,
-      retention: logRetention,
-      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
-    });
-    const nginxLogGroup = new logs.LogGroup(this, 'ApiServiceNginxLogGroup', {
-      logGroupName: logGroupNginx,
-      retention: logRetention,
-      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
-    });
-    const launchTemplate = new ec2.LaunchTemplate(this, 'ApiServiceLaunchTemplate', {
-      launchTemplateName: `${this.asgName}-lt`,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({
-        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
-        edition: ec2.AmazonLinuxEdition.MINIMAL
-      }),
-      blockDevices: [{
-        deviceName: '/dev/xvda',
-        volume: ec2.BlockDeviceVolume.ebs(3, {volumeType: ec2.EbsDeviceVolumeType.GP3, deleteOnTermination: true})
-      }],
+      edgeSecurityGroup: edgeSg,
+      appPort: 8080,
       userData,
-      instanceProfile: iam.InstanceProfile.fromInstanceProfileName(this, 'ApiServiceInstanceProfile', instanceProfileName),
-      requireImdsv2: true,
-      securityGroup: serviceSg,
-    });
-    const cfnLaunchTemplate = launchTemplate.node.defaultChild as ec2.CfnLaunchTemplate;
-    cfnLaunchTemplate.addPropertyDeletionOverride('LaunchTemplateData.SecurityGroupIds');
-    cfnLaunchTemplate.addPropertyOverride('LaunchTemplateData.NetworkInterfaces', [{
-      DeviceIndex: 0,
-      Groups: [serviceSg.securityGroupId],
-      AssociatePublicIpAddress: false,
-      Ipv6AddressCount: 1
-    }]);
-    const asg = new autoscaling.AutoScalingGroup(this, 'ApiServiceASG', {
-      autoScalingGroupName: this.asgName,
-      vpc,
-      vpcSubnets: {subnetType: ec2.SubnetType.PUBLIC},
-      launchTemplate,
+      instanceProfileName,
+      securityGroupName: `${environment}-${svcName}-api-sg`,
+      securityGroupDescription: 'ctech-dfe API instances',
+      appLogGroupName: logGroupApp,
+      nginxLogGroupName: logGroupNginx,
+      logRetention,
+      logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      asgName: this.asgName,
       minCapacity: 1,
       maxCapacity: isProd ? 3 : 1,
-      cooldown: cdk.Duration.seconds(120),
-      healthChecks: autoscaling.HealthChecks.ec2({gracePeriod: cdk.Duration.seconds(120)}),
-    });
-    if (isProd) asg.scaleOnCpuUtilization('ApiServiceCpuTargetTracking', {
-      targetUtilizationPercent: 60,
-      cooldown: cdk.Duration.minutes(3)
     });
 
     // ── Outputs ───────────────────────────────────────────────────────────────
-    new cdk.CfnOutput(this, 'AsgName', {value: asg.autoScalingGroupName, exportName: `${id}-asg-name`});
+    new cdk.CfnOutput(this, 'AsgName', {value: service.autoScalingGroup.autoScalingGroupName, exportName: `${id}-asg-name`});
     new cdk.CfnOutput(this, 'AppLogGroupName', {
-      value: appLogGroup.logGroupName,
+      value: service.appLogGroup.logGroupName,
       exportName: `${id}-app-log-group`,
     });
     new cdk.CfnOutput(this, 'NginxLogGroupName', {
-      value: nginxLogGroup.logGroupName,
+      value: service.nginxLogGroup!.logGroupName,
       exportName: `${id}-nginx-log-group`,
     });
   }

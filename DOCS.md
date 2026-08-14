@@ -1990,7 +1990,9 @@ in every stack via `cdk.Tags.of(app)`. Activate both as cost allocation tags in 
 ### Deploy
 
 ```bash
-cd cdk
+cd ../ctech-cdk
+CTECH_AWS_PROFILE=ctech ./scripts/configure-service-url-parameters.sh prod
+cd ../ctech-dfe/cdk
 npm install
 cdk synth                    # Generate CloudFormation
 cdk deploy --all             # Deploy all stacks
