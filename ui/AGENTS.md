@@ -74,7 +74,7 @@ unless the rule genuinely does not apply and the reason is commented.
 
 - `ORG_HEADER` (`'Dfe-Organization-Pk'`) is defined **once** in `lib/api/client.ts`.
   Never hardcode this string in any other file.
-- localStorage/sessionStorage keys (`pydfe_rt`, `pydfe_user`, `pydfe_org`) must be defined as
+- localStorage/sessionStorage keys (`pydfe_user`, `pydfe_org`, OAuth state/verifier keys) must be defined as
   named constants — not inline string literals scattered across files.
 - API base URL, OAuth client ID, and CTECH URL come from env vars — never hardcoded.
 
@@ -82,7 +82,7 @@ unless the rule genuinely does not apply and the reason is commented.
 
 - `access_token` is stored in **module-level memory only** — NEVER write it to localStorage
   or sessionStorage.
-- `refresh_token` lives in sessionStorage key `pydfe_rt` — cleared on logout/tab close.
+- `refresh_token` lives only in ctech-account's HttpOnly `ctech_rt` cookie; the UI must never read or persist it.
 - User data and active org are in localStorage (`pydfe_user`, `pydfe_org`).
 - Silent refresh happens via `doRefresh()` on any 401 — implemented once in `ApiClient`.
 - Do NOT add a second refresh mechanism anywhere else.
@@ -159,7 +159,7 @@ Tailwind CSS 4 — do not add custom CSS frameworks. Responsive design (mobile/t
 ## Critical Areas (require analysis before touching)
 
 - OAuth PKCE flow (`lib/auth/oauth.ts`, `lib/providers/AuthContext`)
-- Token storage rules (access_token memory, refresh_token sessionStorage)
+- Token storage rules (access token in memory, refresh token in HttpOnly IdP cookie)
 - ApiClient silent refresh and org header injection
 - NF-e issuance form (fiscal rules validation)
 

@@ -818,7 +818,8 @@ Must follow Conventional Commits:
 
 - Auth is OAuth 2.0 PKCE via ctech-account. `login()` redirects to accounts.aoctech.app; `/callback` exchanges the code for tokens.
 - `access_token` is in module-level memory only — **never write it to localStorage or sessionStorage**.
-- `refresh_token` is in sessionStorage (`pydfe_rt`); it is rotated on every use and cleared on logout/tab close.
+- `refresh_token` is held by ctech-account in the HttpOnly `ctech_rt` cookie and is never exposed to JavaScript;
+  `@aoctech/auth-client` sends it with `credentials: 'include'` and coordinates refresh across tabs.
 - User data (`pydfe_user`) and selected org (`pydfe_org`) are in localStorage for persistence across reloads.
 - Organization selection is in-memory state (AuthContext) restored from localStorage on mount.
 - **User name comes from the OIDC id_token, not `/auth/me`.** The DFe access token's `aud` is the DFe
@@ -861,10 +862,10 @@ Must follow Conventional Commits:
 - IAM permissions must follow least privilege principle.
 - PITR (Point-in-Time Recovery) is enabled only in staging/production.
 
-### Edge routing (CloudFront in front of the ALB)
+### Edge routing (CloudFront in front of the HAProxy API origin)
 
 Every app domain (`dfe`, `wallet`, `accounts`) serves the UI from S3 *and* forwards the API paths
-to the shared ALB, so the browser is always same-origin and CORS never applies. The `*-api` hosts
+to the corresponding proxied `*-api` hostname, which reaches the shared HAProxy edge. The `*-api` hosts
 stay public for API clients and service-to-service calls.
 
 - **Never set `errorResponses` on a distribution that also has an API behavior.** They are
@@ -874,9 +875,9 @@ stay public for API clients and service-to-service calls.
 - The route manifest is published by the **frontend workflow, right after the S3 sync**
   (`ui/scripts/publish-routes.sh`) — never at synth time, or the key set would drift from the
   objects actually in the bucket.
-- **The API origin is the `*-api` domain, not the ALB DNS name.** Listener rules match on the Host
-  header, and `ALL_VIEWER_EXCEPT_HOST_HEADER` makes CloudFront send the origin's domain as Host. An
-  ALB-DNS origin falls through to the listener's `fixedResponse(503)`.
+- **The API origin is the `*-api` domain, not `origin.aoctech.app`.**
+  `ALL_VIEWER_EXCEPT_HOST_HEADER` makes CloudFront send the API hostname as Host, which HAProxy uses
+  to select the registered route. The DNS-only origin hostname is not a service route.
 - API behaviors use `CACHING_DISABLED` + `ALL_VIEWER_EXCEPT_HOST_HEADER` + `ALLOW_ALL` methods.
   Origin read timeout is 60s to match nginx's `proxy_read_timeout`.
 - **Service-to-service calls use the `*-api` host directly** (e.g. `CTECH_JWKS_URL`). CloudFront is
@@ -884,19 +885,19 @@ stay public for API clients and service-to-service calls.
 
 ### Client IP behind the proxies
 
-nginx sits behind the ALB, which may sit behind CloudFront. Getting the client's IP wrong silently
+nginx sits behind HAProxy, which may receive a request that crossed CloudFront and Cloudflare. Getting the client's IP wrong silently
 breaks rate limiting — the zone still exists, it just keys on the wrong thing.
 
 - **Any rate-limit zone keyed on `$binary_remote_addr` requires the realip module.** Without
-  `set_real_ip_from`, `$remote_addr` is the ALB's private IP, so every client shares one bucket and
+  `set_real_ip_from`, `$remote_addr` is the HAProxy instance's private IP, so every client shares one bucket and
   the limit protects nobody. `/opt/app/update-realip.sh` (in the ASG userdata) writes
   `/etc/nginx/conf.d/realip.conf` with the VPC CIDR plus CloudFront's origin-facing ranges,
   read from the AWS-managed prefix list `com.amazonaws.global.cloudfront.origin-facing` via the
   EC2 dual-stack endpoint (the instances are IPv6-only and `ip-ranges.amazonaws.com` has no AAAA
   record) and refreshed by a daily systemd timer.
-- **Never key on the leftmost `X-Forwarded-For` entry.** CloudFront and the ALB *append* to the
-  header, so a client can prepend anything it likes. `real_ip_recursive on` walks the chain
-  right-to-left and discards only trusted hops, which is what makes the result unforgeable.
+- **Never trust a client-supplied leftmost `X-Forwarded-For` entry.** HAProxy authenticates Cloudflare,
+  resolves the viewer address through known CloudFront/Cloudflare hops, and overwrites forwarding headers.
+  `real_ip_recursive on` then walks the remaining trusted chain right-to-left.
 - nginx **overwrites** `X-Forwarded-For` with the resolved IP (`proxy_set_header X-Forwarded-For
   $remote_addr`) rather than appending, so the Go app's `TRUSTED_PROXIES` / Fiber `c.IP()` — which
   reads the leftmost entry — cannot be fed a forged value.

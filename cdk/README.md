@@ -111,6 +111,9 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
   `/v1.0/health-check` and accepts `200,207`. The binary `app` runs from
   `/opt/app/current/app` via systemd; nginx `:8080 → :8000` keeps the per-IP/per-tenant
   rate limits. No ALB target group or listener rule is synthesized.
+- CloudWatch Agent publishes four bounded 60-second host series under
+  `CtechDfe/<env>/Host`: memory %, swap %, root-disk %, and application RSS.
+  EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
 - OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for frontend/api/infra/
   pydfe/worker (`oidc-stack.ts`).
 
@@ -128,7 +131,7 @@ exists it is applied elsewhere).
 - `cdk.json:2` → `npx ts-node bin/ctech-dfe-cdk.ts`. `package.json`
   `deploy:prod = ENVIRONMENT=prod cdk deploy --all --require-approval never --profile ctech`.
   Env config via env vars (`ENVIRONMENT`, `CTECH_VPC_ID`, `CTECH_DEPLOYMENTS_BUCKET`,
-  `CTECH_LOGS_BUCKET`, `GITHUB_REPO`); shared infra (VPC, ALB, Valkey, buckets) from SSM.
+  `CTECH_LOGS_BUCKET`, `GITHUB_REPO`); shared infra (VPC, edge SG, Valkey, buckets) from SSM.
 - **Keep-warm (~B21 cost driver)**: for each of the 8 workers a `scheduler.Schedule`
   `${env}-{name}-ping-schedule` invokes the worker with `{ping:true}` at
   **`Duration.minutes(1)`** (`worker-stack.ts:228-236`) — i.e. 8 Lambdas pinged 1440×/day
@@ -142,8 +145,8 @@ exists it is applied elsewhere).
   distribution-dispatcher's org enumeration (`worker/README.md` §6).
 - Keep-warm rate is 1 min (code) vs 5 min (comment) — B21 cost note.
 - No separate go-dfe Lambda; go-dfe is in-process in the Go workers.
-- ASG `gracePeriod: 120s` lives in the shared `@aoctech/cdk` construct, not in this repo's
-  `.ts`.
+- ASG `gracePeriod: 120s` is defined locally in `lib/api-stack.ts`; migration to
+  the new `@aoctech/cdk` 0.2.0 HAProxy construct must preserve it.
 
 See root [`DEPLOYMENT.md`](../DEPLOYMENT.md), [`CONDUCT.md`](../CONDUCT.md),
 [`DOCS.md`](../DOCS.md).

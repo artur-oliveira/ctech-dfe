@@ -10,6 +10,8 @@ function synth() {
     domainName: 'app.example.com',
     apiDomainName: 'api.example.com',
     authDomainName: 'accounts.example.com',
+    authApiDomainName: 'accounts-api.example.com',
+    extraConnectSrc: ['viacep.com.br'],
   })
   return Template.fromStack(stack)
 }

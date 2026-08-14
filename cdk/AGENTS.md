@@ -8,9 +8,9 @@ AWS CDK infrastructure — TypeScript, CDK v2.257.
 
 ## Role
 
-Defines and deploys all AWS infrastructure: DynamoDB tables, S3 buckets, Lambda functions,
-EC2 ASG (API), ALB, CloudFront, SQS (standard — **not** FIFO), SNS, IAM roles, VPC, and
-CloudWatch.
+Defines and deploys DFE-owned infrastructure: DynamoDB tables, S3 buckets, Lambda functions,
+the API EC2 ASG, CloudFront, standard SQS, SNS, IAM roles, and CloudWatch. The VPC and shared
+edge SG come from `ctech-cdk`; HAProxy ingress comes from `ctech-lbalancer`.
 
 > SQS is **standard** everywhere (no `.fifo` suffix, no FIFO queues). See [`README.md`](README.md)
 > for the Lambda/SQS/SNS inventory and the on-demand DynamoDB billing model.
@@ -25,11 +25,11 @@ cdk/
 ├── lib/
 │   ├── dynamodb-stack.ts       # 23 DynamoDB tables + GSIs
 │   ├── s3-stack.ts             # 4 S3 buckets
-│   ├── network-stack.ts        # VPC, subnets, security groups
 │   ├── iam-stack.ts            # Lambda + EC2 IAM roles
 │   ├── dfe-stack.ts            # py-dfe Lambda
-│   ├── worker-stack.ts         # Worker Lambdas + SQS FIFO + DLQ
-│   ├── api-stack.ts         # EC2 ASG + ALB target group
+│   ├── worker-stack.ts         # Worker Lambdas + standard SQS + DLQ
+│   ├── event-bus-stack.ts      # Command/results SNS and results queue
+│   ├── api-stack.ts            # EC2 ASG + HAProxy route manifest
 │   ├── frontend-stack.ts       # S3 + CloudFront
 │   └── ...                     # Other stacks (see DOCS.md §8)
 └── test/
@@ -144,9 +144,9 @@ See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 
 - DynamoDB table definitions (schema changes are destructive without migration)
 - IAM roles (least privilege — over-permissioning is a security risk)
-- `ApiStack` ASG and ALB configuration (rolling deploy, health check)
+- `ApiStack` ASG and HAProxy route registration (rolling deploy, health check)
 - `RemovalPolicy` on any resource
-- SQS FIFO + DLQ configuration (at-least-once delivery, ordering)
+- Standard SQS + DLQ configuration (at-least-once delivery; no ordering guarantee)
 
 Before touching: identify blast radius, verify environment, confirm with user for production.
 

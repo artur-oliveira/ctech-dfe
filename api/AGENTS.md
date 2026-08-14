@@ -133,8 +133,8 @@ Run: `go test ./... -race` from `api/`.
 ## Known Constraints
 
 - `InMemoryCache` TTL=300s — not shared across replicas. Redis/Valkey is authoritative for JWKS and WebSocket pub/sub.
-- Lambda invocation for doc issuance is async: API enqueues to SQS FIFO, returns 202, worker processes and pushes
-  WebSocket update.
+- Document issuance is asynchronous: a transactional outbox is published through SNS to standard SQS, the worker
+  processes it, and terminal results flow through SNS to the API's WebSocket fan-out.
 - Organization context is always via `Dfe-Organization-Pk` header — never path parameters (except org creation
   endpoints).
 - Profile/password management endpoints do not exist here — those belong to ctech-account.

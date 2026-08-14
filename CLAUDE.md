@@ -11,7 +11,7 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via
 | Project   | Role                                                   | Full guidelines    |
 |-----------|--------------------------------------------------------|--------------------|
 | `api/`    | Go REST API — Fiber v3, multi-tenant, DynamoDB         | `api/CLAUDE.md`    |
-| `worker/` | Go Lambda — SQS FIFO consumer, DFe pipeline            | `worker/CLAUDE.md` |
+| `worker/` | Go Lambda — standard SQS consumer, DFe pipeline        | `worker/CLAUDE.md` |
 | `ui/`     | Next.js 16 frontend — TypeScript, ShadCN               | `ui/CLAUDE.md`     |
 | `cdk/`    | AWS CDK infrastructure — TypeScript                    | `cdk/CLAUDE.md`    |
 | `py-dfe/` | Python Lambda — XML-DSig + SEFAZ SOAP + mTLS           | `py-dfe/CLAUDE.md` |

@@ -216,8 +216,9 @@ EventBridge scheduler
   tokens (15m) and opaque refresh tokens (30d).
 - **JWT verification:** api validates RS256 tokens by fetching JWKS from `CTECH_JWKS_URL`; keys are cached in Valkey
   (TTL 1h). No HS256, no local `SECRET_KEY`.
-- **Token storage (client):** `access_token` in memory only. `refresh_token` in sessionStorage (`pydfe_rt`). Silent
-  refresh on 401 via `doRefresh()`.
+- **Token storage (client):** `access_token` in memory only. The refresh token is an HttpOnly `ctech_rt` cookie owned
+  by ctech-account and is never exposed to JavaScript. Silent refresh uses `credentials: 'include'` via
+  `@aoctech/auth-client`.
 - **Certificates:** Stored in S3 with AWS Managed Keys; never returned by the API
 - **Multi-tenancy:** Every route verifies org membership. Membership lives in `organization_users`
   (the source of truth); RBAC reads it per request (short-TTL cache, invalidated on member changes).

@@ -75,9 +75,10 @@ worker/
 
 ### Idempotency (critical)
 
-- SQS FIFO provides at-least-once delivery — every handler **MUST be idempotent**.
+- Standard SQS provides at-least-once delivery and no ordering guarantee — every handler **MUST be idempotent**.
 - Before writing to DynamoDB, check existing state to avoid double-processing.
-- `MessageGroupId = org_pk` ensures ordering per organization.
+- Do not rely on `MessageGroupId`, FIFO deduplication, or delivery order; conditional claims and state transitions are
+  the concurrency boundary.
 
 ### Layer Separation
 
@@ -92,7 +93,7 @@ worker/
 - Runtime: `provided.al2023`. Binary MUST be named `bootstrap`.
 - Use `aws-sdk-go-v2` only.
 - No goroutines that outlive the Lambda invocation.
-- Do not rewrite or bypass the py-dfe Lambda invocation path for XML signing + SEFAZ SOAP.
+- Invoke `go-dfe` in-process for promoted operations and use the py-dfe Lambda only as the compatibility fallback.
 
 ### DynamoDB
 
@@ -125,9 +126,10 @@ Run: `go test ./... -race` from `worker/`.
 ## Known Constraints
 
 - DLQ receives messages after max retries — monitor via CloudWatch alarms (configured in CDK).
-- `MessageGroupId = org_pk` — messages for the same org are strictly ordered.
-- py-dfe Lambda is the only path for XML signing + SEFAZ SOAP; do not duplicate this logic.
-- After SEFAZ response: always update DynamoDB status, upload XML to S3, publish to Redis — in that order.
+- Command queues are standard SQS; duplicate and out-of-order deliveries are expected.
+- `go-dfe` is the primary in-process path for promoted services; py-dfe remains the fallback and PDF renderer.
+- After a terminal SEFAZ response: persist state, upload XML to S3, and publish the result to SNS; the API results
+  consumer performs Valkey/WebSocket fan-out.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
 
 ---
@@ -137,7 +139,7 @@ Run: `go test ./... -race` from `worker/`.
 - DFe issuance handlers (NF-e, NFC-e, CT-e, MDF-e)
 - py-dfe Lambda invocation and response parsing
 - DynamoDB status persistence and idempotency checks
-- Redis pub/sub publish (WebSocket delivery)
+- Results SNS publication and API-side Valkey/WebSocket delivery
 - DLQ handling and retry logic
 
 Before touching: identify risks + side effects, verify backward compatibility + regulatory impact.

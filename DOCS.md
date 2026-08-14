@@ -435,7 +435,7 @@ ctech-dfe-api/
 
 ```bash
 # Auth (required)
-# Service-to-service goes straight to the -api host (ALB), not the CloudFront app
+# Service-to-service goes straight to the -api host (HAProxy), not the CloudFront app
 # domain: an edge round trip buys a server in the same region nothing.
 # The handler mounts /.well-known at the root, not under /v1.0.
 CTECH_JWKS_URL=https://accounts-api.aoctech.app/.well-known/jwks.json
@@ -1679,7 +1679,7 @@ const {user, loading, selectedOrg, login, logout, setSelectedOrg, handleCallback
 // 1. login() → startOAuthFlow() → redirects to accounts.aoctech.app/v1.0/authorize
 // 2. User authenticates at ctech-account → redirected to /callback?code=...&state=...
 // 3. handleCallback(code, state) → exchangeCode() → POST /v1.0/token at ctech-account
-// 4. access_token stored in memory; refresh_token stored in sessionStorage (pydfe_rt)
+// 4. access_token stored in memory; refresh_token remains in the IdP's HttpOnly ctech_rt cookie
 // 5. GET /auth/me → loads orgs + email; name comes from the id_token (see below)
 // 6. setSelectedOrg(org) → stored in localStorage (pydfe_org); injects ORG_HEADER
 // 7. 401 → tryRefresh() → doRefresh() → new tokens; retries original request
@@ -1694,18 +1694,18 @@ const {user, loading, selectedOrg, login, logout, setSelectedOrg, handleCallback
 the id_token is absent or undecodable. Rationale: the DFe access token's `aud` is the DFe API, so
 ctech-account's `/userinfo` rejects it — the id_token (whose `aud` is the OAuth client) is the only
 profile source the UI can read. ctech-account issues a fresh id_token only on login, not on refresh;
-since `refresh_token` lives in `sessionStorage` (cleared on tab close), each new session re-logs in
-and picks up name changes. `AuthContext.refreshUser` preserves the id_token-derived name across
+The refresh token is never exposed to JavaScript; ctech-account owns it in the HttpOnly `ctech_rt` cookie.
+`AuthContext.refreshUser` preserves the id_token-derived name across
 background revalidations rather than overwriting it with the backend fallback.
 
 **Token storage:**
 
-| Token         | Storage        | Key          |
-|---------------|----------------|--------------|
-| access_token  | Module memory  | —            |
-| refresh_token | sessionStorage | `pydfe_rt`   |
-| User data     | localStorage   | `pydfe_user` |
-| Active org    | localStorage   | `pydfe_org`  |
+| Token/data    | Storage                     | Key          |
+|---------------|-----------------------------|--------------|
+| access_token  | Module memory               | —            |
+| refresh_token | IdP HttpOnly cookie         | `ctech_rt`   |
+| User data     | localStorage                | `pydfe_user` |
+| Active org    | localStorage                | `pydfe_org`  |
 
 ### Form Validation
 
@@ -1931,43 +1931,39 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 
 | Stack           | File                 | Responsibility                                            |
 |-----------------|----------------------|-----------------------------------------------------------|
-| `OidcStack`     | `oidc-stack.ts`      | GitHub Actions OIDC provider + deploy roles (global)      |
-| `DynamoDBStack` | `dynamodb-stack.ts`  | 26 tables + GSIs, including streamed worker outbox        |
-| `S3Stack`       | `s3-stack.ts`        | 4 buckets: certificates, documents, deployments, logs     |
-| `NetworkStack`  | `network-stack.ts`   | Dual-stack VPC, public subnets, security groups           |
-| `EventBusStack` | `event-bus-stack.ts` | SNS command topic + SNS results topic + SQS results queue |
-| `IAMStack`      | `iam-stack.ts`       | Lambda roles, EC2 (V1 EB + V2 custom), instance profiles  |
-| `LayersStack`   | `layers-stack.ts`    | Lambda Layers scaffold                                    |
-| `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda (SEFAZ) + inline layer                      |
-| `WorkerStack`   | `worker-stack.ts`    | 10 fiscal workers + outbox publisher + SQS/DLQ            |
-| `AlbStack`      | `alb-stack.ts`       | Dual-stack ALB without public IPv4, HTTPS listener        |
-| `ApiStack`      | `api-stack.ts`       | **Legacy** — Elastic Beanstalk (migration in progress)    |
-| `ApiStackV2`    | `api-v2-stack.ts`    | EC2 + ASG + Launch Template + Target Group + CW Logs      |
-| `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + Brazil geo-restriction                  |
+| `OidcStack`     | `oidc-stack.ts`      | GitHub OIDC deploy roles; imports the shared provider     |
+| `DynamoDBStack` | `dynamodb-stack.ts`  | DFE tables, GSIs, and streamed worker outbox              |
+| `S3Stack`       | `s3-stack.ts`        | DFE certificates and documents buckets                   |
+| `EventBusStack` | `event-bus-stack.ts` | SNS command/results topics and SQS results queue          |
+| `IAMStack`      | `iam-stack.ts`       | Lambda and EC2 roles/instance profiles                    |
+| `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility/PDF Lambda                           |
+| `WorkerStack`   | `worker-stack.ts`    | Fiscal workers, outbox publisher, standard SQS/DLQs       |
+| `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG, logs, scaling, and HAProxy route manifest |
+| `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + URL-rewrite KVS                         |
 
 ### Network Architecture
 
-The VPC is dual-stack IPv4 + IPv6 without a NAT Gateway. EC2 instances receive a **public IPv6 address** (free) and
-**no public IPv4** (avoids $0.005/hour per IP). Outbound connectivity uses IPv6.
+The VPC is owned by `ctech-cdk` and is dual-stack IPv4 + IPv6 without a NAT Gateway. API instances receive a public
+IPv6 address and no public IPv4. Outbound internet connectivity uses IPv6.
 
 Free Gateway VPC Endpoints keep S3 and DynamoDB traffic inside AWS without going through the internet.
 
-### ApiStackV2 — Custom EC2
+### ApiStack — Go API on EC2
 
-Replaces Elastic Beanstalk. Each instance is provisioned via Launch Template with user data that:
+Each instance is provisioned via Launch Template with user data that:
 
-1. Installs Python 3.14, nginx, SSM agent, CW agent
-2. Creates `webapp` user (no login, no home)
-3. Configures nginx on port 8080 (proxy → gunicorn :8000)
+1. Installs nginx, SSM agent, and CloudWatch agent
+2. Creates the application user and systemd service
+3. Configures nginx on port 8080 in front of the Go/Fiber binary
 4. Creates 256 MB swap
 5. Configures SSM agent with `UseDualStackEndpoint: true`
-6. Creates `/opt/app/deploy.sh` and `/opt/app/upload-logs.sh`
+6. Creates deploy and log-upload scripts
 7. Configures daily logrotate with S3 upload
 8. Attempts automatic bootstrap via `s3://*/api/current.zip`
 
-The ASG uses combined health checks: **EC2 + ELB** (`HealthChecks.withAdditionalChecks`), with `gracePeriod: 120s` to
-allow bootstrap time before the ALB starts evaluating. This ensures that `AutoRollback` on Instance Refresh reacts to
-both instance failures and application failures detected by the ALB.
+The ASG itself uses EC2 health. HAProxy performs the application health check and, when `autoHeal` is enabled, marks an
+instance unhealthy after repeated failed reconciliations so the ASG replaces it. Instance Refresh still requires
+explicit monitoring because application health is not a native ASG health-check type.
 
 ### S3 Buckets
 
@@ -2202,8 +2198,8 @@ GitHub push → api.yml
 New instances auto-bootstrap via `api/current.zip` on boot (user data) — installs binary to
 `/opt/ctech-dfe-api/ctech-dfe-api` and registers the systemd service.
 
-> The ASG uses combined EC2 + ELB health checks with `gracePeriod: 120s`. `AutoRollback` reverts the refresh if the
-> instance fails either check — EC2 or ALB — within the 300s `InstanceWarmup`.
+> The ASG uses EC2 health checks. HAProxy's route reconciliation supplies application-level removal and auto-heal;
+> verify the health endpoint and HAProxy backend state during an Instance Refresh rather than assuming native ELB rollback.
 
 See `DEPLOYMENT.md §EC2` for diagnostic commands and log analysis.
 
@@ -2286,8 +2282,8 @@ MFA, passkeys, profile management, and password changes are all handled there. c
 consumer — it has no login, registration, or profile-update endpoints.
 
 The `access_token` is held in module-level memory in the client (never localStorage) to prevent XSS exfiltration.
-The `refresh_token` lives in sessionStorage (`pydfe_rt`) — cleared when the browser tab closes — and is rotated
-on every use with reuse detection on the server side.
+The refresh token remains in ctech-account's HttpOnly `ctech_rt` cookie and is never visible to application
+JavaScript. The IdP rotates it on use and performs reuse detection server-side.
 
 ### NF-e Access Key (44 digits)
 

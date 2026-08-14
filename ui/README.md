@@ -5,6 +5,19 @@ Next.js 16 SPA — TypeScript, ShadCN, multi-tenant. Talks to the API over `/v1.
 
 Sibling docs: [`../api/README.md`](../api/README.md) · root [`INTEGRATION.md`](../INTEGRATION.md).
 
+Quality gates for dependency and application changes:
+
+```bash
+npm ci
+npm test
+npm run lint
+npm run build
+npm audit --omit=dev
+```
+
+The current baseline is Next.js 16.3.1 / React 19.2.8. The production
+dependency audit must remain at zero known vulnerabilities.
+
 ---
 
 ## 1. Routes (`src/app/`)

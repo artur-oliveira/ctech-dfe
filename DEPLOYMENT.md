@@ -9,9 +9,14 @@ For infrastructure architecture, stacks, and environment details, see:
 
 # Infrastructure Overview
 
-The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group behind an Application Load Balancer — see
-`cdk/lib/api-v2-stack.ts`. Fiscal issuance runs asynchronously via SQS + Lambda workers (`cdk/lib/worker-stack.ts`) and
-the py-dfe Lambda (`cdk/lib/dfe-stack.ts`).
+The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group reached through the shared CTech HAProxy edge —
+see `cdk/lib/api-stack.ts`. The bootstrap route parameter
+`/ctech/{env}/lbalancer/routes/dfe` is currently owned by `ctech-lbalancer`, not
+the DFE stack; ownership must be transferred explicitly before a future shared
+service construct creates it here.
+Fiscal issuance runs asynchronously through an outbox, SNS, standard SQS, Lambda workers
+(`cdk/lib/worker-stack.ts`), in-process go-dfe operations, and the py-dfe fallback Lambda
+(`cdk/lib/dfe-stack.ts`).
 
 ```text
 AWS Account
@@ -21,7 +26,7 @@ AWS Account
 ├── Lambda
 ├── API Infrastructure
 ├── EC2 Auto Scaling Group
-├── Application Load Balancer
+├── HAProxy route registration (shared ctech-lbalancer)
 ├── CloudWatch
 └── Systems Manager (SSM)
 ```

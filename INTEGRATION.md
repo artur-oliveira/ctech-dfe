@@ -16,8 +16,8 @@ This document covers how ui (Next.js) authenticates against ctech-account and co
 | `NEXT_PUBLIC_CTECH_URL`       | `https://accounts.aoctech.app` | ctech-account base URL (serves both its UI and `/v1.0/*`) |
 | `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                          | OAuth client_id registered in ctech                       |
 
-> Browsers never call `dfe-api.aoctech.app` directly. CloudFront forwards
-> `dfe.aoctech.app/v1.0/*` to the ALB, so the app is same-origin and CORS never applies;
+> Browsers normally use same-origin API paths. CloudFront forwards
+> `dfe.aoctech.app/v1.0/*` to the proxied `dfe-api.aoctech.app` origin, which reaches HAProxy;
 > `next dev` reproduces that with a rewrite (`ui/next.config.ts`). `dfe-api.aoctech.app` stays
 > public for the API's own clients.
 >
@@ -25,7 +25,7 @@ This document covers how ui (Next.js) authenticates against ctech-account and co
 > reachable at `dfe.aoctech.app/docs` (and at `localhost:3000/docs` under `next dev`).
 >
 > The same holds for `NEXT_PUBLIC_CTECH_URL`: `accounts.aoctech.app` serves the ctech-account UI
-> *and* forwards `/v1.0/*` + `/.well-known/*` to its ALB. Locally, point it at
+> *and* forwards `/v1.0/*` + `/.well-known/*` to its HAProxy API origin. Locally, point it at
 > `http://localhost:8080`.
 
 ### api
@@ -54,7 +54,7 @@ ui                   ctech-account                   api
      │     code_verifier=...         │                               │
      │──────────────────────────────>│                               │
      │  access_token (RS256, 15m)    │                               │
-     │  refresh_token (opaque, 30d)  │                               │
+     │  Set-Cookie: ctech_rt         │  HttpOnly refresh cookie      │
      │<──────────────────────────────│                               │
      │                               │                               │
      │  4. GET /v1.0/auth/me         │                               │
@@ -73,18 +73,18 @@ ui                   ctech-account                   api
 
 ## Token Storage
 
-| Token           | Storage        | Key          | Cleared on           |
-|-----------------|----------------|--------------|----------------------|
-| `access_token`  | Module memory  | —            | Logout / page reload |
-| `refresh_token` | sessionStorage | `pydfe_rt`   | Logout / tab close   |
-| User data       | localStorage   | `pydfe_user` | Logout               |
-| Selected org    | localStorage   | `pydfe_org`  | Logout               |
+| Data            | Storage                         | Key          | Cleared on           |
+|-----------------|---------------------------------|--------------|----------------------|
+| `access_token`  | Module memory                   | —            | Logout / page reload |
+| `refresh_token` | HttpOnly cookie owned by IdP    | `ctech_rt`   | Revoke/logout        |
+| User data       | localStorage                    | `pydfe_user` | Logout               |
+| Selected org    | localStorage                    | `pydfe_org`  | Logout               |
 
 **Rules:**
 
 - `access_token` is **never** written to localStorage or sessionStorage — in-memory only.
-- `refresh_token` is rotated on every use (server-side reuse detection). A stale refresh token results in a 401 that
-  logs the user out.
+- JavaScript never receives or persists the refresh token. `@aoctech/auth-client` sends the HttpOnly cookie with
+  `credentials: 'include'`; ctech-account rotates the token and detects reuse server-side.
 
 ---
 
@@ -94,18 +94,12 @@ ui                   ctech-account                   api
 `tryRefresh()` which does:
 
 ```typescript
-// lib/auth/oauth.ts
-doRefresh(refreshToken) → POST / v1
-.0 / token(grant_type = refresh_token)
-@ ctech
--account
-  → new access_token + refresh_token
-  → store
-new refresh_token in sessionStorage
+// src/lib/auth/oauth.ts
+doRefresh() → @aoctech/auth-client.refresh()
+  → POST /v1.0/token (grant_type=refresh_token, credentials='include')
+  → ctech-account rotates the HttpOnly ctech_rt cookie
   → apiClient.setToken(new access_token)
-  → retry
-original
-request
+  → retry original request
 ```
 
 If `doRefresh` fails (revoked token, expired), the user is logged out and redirected to login.
@@ -148,7 +142,7 @@ import {exchangeCode} from '@/lib/auth/oauth'
 // Reads ?code= and ?state= from URL
 // Validates state against sessionStorage.oauth_state
 // Exchanges code via POST /v1.0/token at ctech-account
-// Stores tokens; calls handleCallback(accessToken, refreshToken, idToken) from AuthContext
+// Keeps the access token in memory; ctech-account sets the refresh cookie itself
 ```
 
 **PKCE:** `code_verifier` (64 random hex chars) stored in sessionStorage during the redirect and used in the exchange.
@@ -159,8 +153,8 @@ Never expose the `code_verifier` to the server.
 `preferred_username`→`username`) and uses those as the user's name. `GET /auth/me` supplies **organizations and email**
 only; its name fields are a fallback. The DFe access token's `aud` is the DFe API, so ctech-account's
 `/userinfo` rejects it — the id_token (aud = the OAuth client) is the only profile source the UI can read. A fresh
-id_token arrives only on login (not on refresh); `refresh_token` lives in `sessionStorage`, so each new browser session
-re-logs in and reflects a name changed in ctech-account.
+The UI consumes the `id_token` returned by the authorization-code exchange for profile claims. Refresh is cookie-based
+and does not expose the refresh token to the application.
 
 ---
 
