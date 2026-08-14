@@ -1898,7 +1898,9 @@ para `nfse_distributions` (`pk = {env}#{org_pk}`, `sk = nsu`), que é o que `GET
 `job_type` válido para `nfce`, que nunca tem distribuição SEFAZ). A api (`POST /distributions/{doc_type}/import-xml`,
 seção 4) faz staging do XML no S3 e enfileira; o worker classifica, confirma junto à SEFAZ e persiste.
 
-Fluxo: `parseXMLBytes` → `validImportRoot` (raiz `nfeProc` ou `NFe`, senão rejeição terminal) → `classifyImportXML`
+Fluxo: `parseXMLBytes` → `validImportRoot` (raiz `nfeProc` ou `NFe`, senão rejeição terminal) → `extractImportTpAmb`
+compara `<ide><tpAmb>` do XML contra o `environment` configurado da organização (rejeição terminal se divergir —
+evita gastar a consulta protocolo SEFAZ com uma chave do ambiente errado) → `classifyImportXML`
 (prioridade `emit` > `dest` > `transp`, contra o CNPJ/CPF da organização — `emit` bate primeiro vira `Incoming=0`
 emitida, `dest` vira `1` destinada, `transp.transporta` vira `2` transportada; nenhum bate é rejeição) → checagem de
 documento já completo (`products` presente) → **primeira chamada real de `NfeConsultaProtocolo` via `go-dfe`** (a

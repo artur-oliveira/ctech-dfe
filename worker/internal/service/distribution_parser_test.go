@@ -1046,6 +1046,20 @@ func TestValidImportRoot_AcceptsNfeProcAndBareNFe(t *testing.T) {
 	}
 }
 
+func TestExtractImportTpAmb_ReadsIdeTpAmb(t *testing.T) {
+	root, _ := parseXMLBytes(loadSampleNfeProc(t))
+	if got := extractImportTpAmb(root); got != "2" {
+		t.Fatalf("expected tpAmb=2 (fixture is homologação), got %q", got)
+	}
+}
+
+func TestExtractImportTpAmb_MissingIde_ReturnsEmpty(t *testing.T) {
+	root, _ := parseXMLBytes([]byte(`<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe1"></infNFe></NFe>`))
+	if got := extractImportTpAmb(root); got != "" {
+		t.Fatalf("expected empty tpAmb when <ide> is absent, got %q", got)
+	}
+}
+
 func TestCompareImportDigests_NfeProc_AllThreeMustMatch(t *testing.T) {
 	root, _ := parseXMLBytes(loadSampleNfeProc(t))
 	const matchingDigest = "cKFyNtF4cg+d63/SRv0ezXGoef8="

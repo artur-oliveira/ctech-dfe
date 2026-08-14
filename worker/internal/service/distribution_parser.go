@@ -152,6 +152,13 @@ func validImportRoot(root *xmlEl) bool {
 	return root.Local == "nfeProc" || root.Local == "NFe"
 }
 
+// extractImportTpAmb reads <ide><tpAmb> from an import-XML root ("1"
+// produção, "2" homologação). Empty when absent — treat as a mismatch,
+// not as a wildcard.
+func extractImportTpAmb(root *xmlEl) string {
+	return findText(findEl(root, nsNFe, "ide"), nsNFe, "tpAmb")
+}
+
 // compareImportDigests validates the SEFAZ-returned digVal (from a
 // consulta protocolo response) against the uploaded XML's own digest(s):
 // for nfeProc, BOTH the uploaded protNFe/infProt/digVal and the uploaded

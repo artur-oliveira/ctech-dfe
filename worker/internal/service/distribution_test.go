@@ -373,6 +373,33 @@ func TestRunImportXML_InvalidRoot_RejectsWithoutRetry(t *testing.T) {
 	}
 }
 
+func TestRunImportXML_EnvironmentMismatch_RejectsWithoutRetry(t *testing.T) {
+	// Org configurada em produção (environment=1), mas o fixture é tpAmb=2
+	// (homologação) — deve rejeitar antes de gastar a consulta protocolo.
+	dynm := &mockDistDynamo{gets: []getResult{{item: configItem(1, "prod", "", "")}}}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	lamm := &mockLambda{}
+	snsm := &mockSNS{}
+	svc := newDistSvc(dynm, s3m, lamm, snsm, distCfg)
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("business rejection must return nil, not error: %v", err)
+	}
+	if lamm.calls != 0 {
+		t.Fatalf("expected no SEFAZ call (py-dfe) when environment mismatches, got %d calls", lamm.calls)
+	}
+	if len(snsm.calls) == 0 {
+		t.Fatal("expected a failure notification to be published")
+	}
+	if !s3m.deleted["nfe-import-staging/"+importOrgPK+"/abc.xml"] {
+		t.Fatal("expected staging object to be deleted after rejection")
+	}
+}
+
 func TestRunImportXML_NoOrgMatch_RejectsWithoutRetry(t *testing.T) {
 	const otherOrgPK = "CNPJ_99999999000100"
 	dynm := &mockDistDynamo{gets: []getResult{{item: configItem(2, "hom", "", "")}}}

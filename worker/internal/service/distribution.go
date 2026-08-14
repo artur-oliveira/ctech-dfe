@@ -234,6 +234,16 @@ func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, 
 		return nil
 	}
 
+	expectedTpAmb := "2"
+	if environment == 1 {
+		expectedTpAmb = "1"
+	}
+	if extractImportTpAmb(root) != expectedTpAmb {
+		s.notifyImportFailure(ctx, orgPK, docType, "", "ambiente do XML (tpAmb) não corresponde ao ambiente configurado da organização")
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
 	cnpj := extractCNPJ(orgPK)
 	class, ok := classifyImportXML(root, cnpj)
 	if !ok {
