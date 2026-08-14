@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
 )
 
 // Schema type constants — mirror distribution_parser.py.
@@ -44,9 +46,10 @@ var ufCodes = map[string]string{
 }
 
 const (
-	nsNFe  = "http://www.portalfiscal.inf.br/nfe"
-	nsCTe  = "http://www.portalfiscal.inf.br/cte"
-	nsMDFe = "http://www.portalfiscal.inf.br/mdfe"
+	nsNFe     = "http://www.portalfiscal.inf.br/nfe"
+	nsCTe     = "http://www.portalfiscal.inf.br/cte"
+	nsMDFe    = "http://www.portalfiscal.inf.br/mdfe"
+	nsXMLDSig = "http://www.w3.org/2000/09/xmldsig#"
 )
 
 func ufCode(uf string) string {
@@ -138,6 +141,67 @@ func classifyImportXML(root *xmlEl, cnpj string) (importClassification, bool) {
 	default:
 		return importClassification{AccessKey: accessKey}, false
 	}
+}
+
+// validImportRoot reports whether root's tag is an accepted XML-import root
+// (nfeProc — with protocol — or bare NFe — signed but not yet queried).
+func validImportRoot(root *xmlEl) bool {
+	if root == nil {
+		return false
+	}
+	return root.Local == "nfeProc" || root.Local == "NFe"
+}
+
+// compareImportDigests validates the SEFAZ-returned digVal (from a
+// consulta protocolo response) against the uploaded XML's own digest(s):
+// for nfeProc, BOTH the uploaded protNFe/infProt/digVal and the uploaded
+// Signature/SignedInfo/Reference/DigestValue must match; for a bare NFe
+// (no protocol yet), only the Signature DigestValue is compared. See
+// docs/specs/2026-08-13-importacao-nfe-xml.md.
+func compareImportDigests(root *xmlEl, sefazDigVal string) bool {
+	if sefazDigVal == "" {
+		return false
+	}
+	sigDigVal := ""
+	if sig := findEl(root, nsXMLDSig, "Signature"); sig != nil {
+		sigDigVal = findText(sig, nsXMLDSig, "DigestValue")
+	}
+	if sigDigVal == "" || sigDigVal != sefazDigVal {
+		return false
+	}
+	if root.Local == "nfeProc" {
+		uploadedProtDigVal := findText(root, nsNFe, "digVal")
+		return uploadedProtDigVal != "" && uploadedProtDigVal == sefazDigVal
+	}
+	return true
+}
+
+// buildFinalNfeProc returns the canonical nfeProc document to persist. When
+// the uploaded root is already nfeProc, originalXML is returned unchanged.
+// When the uploaded root is a bare NFe (no protocol), it wraps the original
+// NFe bytes verbatim (the signature depends on exact byte content — it is
+// never re-serialized) together with the protNFe fragment built from
+// protNFeDict (the dict a consulta protocolo response carries) via
+// godfe.BuildXMLFragment, adding the nfe namespace, mirroring the reference
+// file used to design this feature.
+func buildFinalNfeProc(originalXML []byte, root *xmlEl, protNFeDict map[string]any) ([]byte, error) {
+	if root.Local == "nfeProc" {
+		return originalXML, nil
+	}
+	nfeBytes := bytes.TrimSpace(originalXML)
+	if idx := bytes.Index(nfeBytes, []byte("?>")); bytes.HasPrefix(nfeBytes, []byte("<?xml")) && idx >= 0 {
+		nfeBytes = bytes.TrimSpace(nfeBytes[idx+2:])
+	}
+	protFragment, err := godfe.BuildXMLFragment(protNFeDict, "protNFe", nsNFe)
+	if err != nil {
+		return nil, fmt.Errorf("build protNFe fragment: %w", err)
+	}
+	var buf bytes.Buffer
+	buf.WriteString(`<?xml version="1.0" encoding="UTF-8"?><nfeProc versao="4.00" xmlns="` + nsNFe + `">`)
+	buf.Write(nfeBytes)
+	buf.Write(protFragment)
+	buf.WriteString(`</nfeProc>`)
+	return buf.Bytes(), nil
 }
 
 // buildPersonDetails extracts the nested person object (addresses, contacts,

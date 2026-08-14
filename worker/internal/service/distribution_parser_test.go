@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1014,6 +1015,116 @@ func TestClassifyImportXML_EmitTakesPriorityOverDestAndTransp(t *testing.T) {
 	got, ok := classifyImportXML(root, "22222222000122")
 	if !ok || got.Incoming != 1 {
 		t.Fatalf("expected dest (Incoming=1) to win over transp, got %+v ok=%v", got, ok)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// validImportRoot / compareImportDigests / buildFinalNfeProc
+// ---------------------------------------------------------------------------
+
+func loadSampleNfeProc(t *testing.T) []byte {
+	t.Helper()
+	b, err := os.ReadFile("testdata/nfeproc_sample.xml")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	return b
+}
+
+func TestValidImportRoot_AcceptsNfeProcAndBareNFe(t *testing.T) {
+	nfeProcRoot, _ := parseXMLBytes(loadSampleNfeProc(t))
+	if !validImportRoot(nfeProcRoot) {
+		t.Fatal("expected nfeProc root to be valid")
+	}
+	bareRoot, _ := parseXMLBytes([]byte(`<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe1"></infNFe></NFe>`))
+	if !validImportRoot(bareRoot) {
+		t.Fatal("expected bare NFe root to be valid")
+	}
+	otherRoot, _ := parseXMLBytes([]byte(`<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"></resNFe>`))
+	if validImportRoot(otherRoot) {
+		t.Fatal("expected resNFe root to be rejected")
+	}
+}
+
+func TestCompareImportDigests_NfeProc_AllThreeMustMatch(t *testing.T) {
+	root, _ := parseXMLBytes(loadSampleNfeProc(t))
+	const matchingDigest = "cKFyNtF4cg+d63/SRv0ezXGoef8="
+	if !compareImportDigests(root, matchingDigest) {
+		t.Fatal("expected match: fixture's protNFe/digVal and Signature/DigestValue are both this value")
+	}
+	if compareImportDigests(root, "different-digest") {
+		t.Fatal("expected mismatch to be rejected")
+	}
+}
+
+func TestCompareImportDigests_BareNFe_ComparesOnlySignatureDigest(t *testing.T) {
+	full := string(loadSampleNfeProc(t))
+	// Extrai só o <NFe>...</NFe> (sem protNFe) para simular upload sem protocolo.
+	start := strings.Index(full, "<NFe>")
+	end := strings.Index(full, "</NFe>") + len("</NFe>")
+	bareXML := full[start:end]
+	root, err := parseXMLBytes([]byte(bareXML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const sigDigest = "cKFyNtF4cg+d63/SRv0ezXGoef8=" // mesmo valor no fixture (Signature/DigestValue)
+	if !compareImportDigests(root, sigDigest) {
+		t.Fatal("expected match against Signature/DigestValue")
+	}
+	if compareImportDigests(root, "different-digest") {
+		t.Fatal("expected mismatch to be rejected")
+	}
+}
+
+func TestBuildFinalNfeProc_NfeProcRoot_ReturnsUnchanged(t *testing.T) {
+	original := loadSampleNfeProc(t)
+	root, _ := parseXMLBytes(original)
+	out, err := buildFinalNfeProc(original, root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != string(original) {
+		t.Fatal("expected nfeProc input to pass through unchanged")
+	}
+}
+
+func TestBuildFinalNfeProc_BareNFe_JoinsProtNFe(t *testing.T) {
+	full := string(loadSampleNfeProc(t))
+	start := strings.Index(full, "<NFe>")
+	end := strings.Index(full, "</NFe>") + len("</NFe>")
+	bareXML := []byte(full[start:end])
+	root, err := parseXMLBytes(bareXML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protNFeDict := map[string]any{
+		"@versao": "4.00",
+		"infProt": map[string]any{
+			"tpAmb":    "2",
+			"chNFe":    "22260811647612000197550000000000501454670090",
+			"dhRecbto": "2026-08-08T17:05:06-03:00",
+			"nProt":    "322260000016670",
+			"digVal":   "cKFyNtF4cg+d63/SRv0ezXGoef8=",
+			"cStat":    "100",
+			"xMotivo":  "Autorizado o uso da NF-e",
+		},
+	}
+	out, err := buildFinalNfeProc(bareXML, root, protNFeDict)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joinedRoot, err := parseXMLBytes(out)
+	if err != nil {
+		t.Fatalf("joined output is not valid xml: %v\n%s", err, out)
+	}
+	if joinedRoot.Local != "nfeProc" {
+		t.Fatalf("expected joined root to be nfeProc, got %s", joinedRoot.Local)
+	}
+	if findText(joinedRoot, nsNFe, "digVal") != "cKFyNtF4cg+d63/SRv0ezXGoef8=" {
+		t.Fatalf("joined protNFe digVal missing/wrong: %s", out)
+	}
+	if findText(joinedRoot, nsNFe, "chNFe") == "" {
+		t.Fatal("expected joined protNFe chNFe preserved")
 	}
 }
 
