@@ -2,8 +2,9 @@
 
 import {useState} from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal'
-import {Check, CheckCircle2, FileText, Puzzle, ShieldCheck, Zap} from 'lucide-react'
+import {Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {Button} from '@/components/ui/button'
 import {AuthorizationCard} from '@/components/landing/authorization-card'
@@ -106,9 +107,7 @@ function LoadingScreen() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-login">
       <div className="text-center">
-        <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-card">
-          <FileText className="text-white" size={28}/>
-        </div>
+        <Image src="/app.svg" alt="" aria-hidden="true" width={64} height={64} className="mx-auto mb-4" priority/>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CTech DF-e</h1>
         <p className="text-gray-600 text-sm">Carregando...</p>
       </div>
@@ -131,9 +130,7 @@ export default function Home() {
     <div className="min-h-screen bg-white" data-dfe-theme={carouselTheme}>
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary-600 text-white">
-            <FileText size={16}/>
-          </div>
+          <Image src="/app.svg" alt="" aria-hidden="true" width={32} height={32} priority/>
           <span className="font-semibold text-gray-900">CTech DFe</span>
         </div>
         <Button variant="brand" render={<Link href={primaryHref}/>}>

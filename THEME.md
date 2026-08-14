@@ -44,6 +44,11 @@ pelo rótulo e pelo pulso, nunca por um segundo tom de vermelho. Tabela completa
 
 ## Componentes
 
+### Marca do produto
+
+- `ui/public/app.svg` é a fonte canônica da marca DF-e: o nó central ligado aos quatro pontos sobre o quadrado verde.
+- A landing page, seu estado inicial de carregamento e o cabeçalho da sidebar usam esse mesmo ativo. Ícones de arquivo/documento continuam disponíveis para ações e tipos de conteúdo, mas não representam a identidade do produto.
+
 ### Login Page
 
 - **Background**: Gradient soft green (`#f0faf8` → `#d5f1eb` → `#a8e3d8`)
