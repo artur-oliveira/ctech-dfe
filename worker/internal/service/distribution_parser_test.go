@@ -963,3 +963,74 @@ func TestExtractDoc_UnknownSchema_ReturnsEmpty(t *testing.T) {
 		t.Errorf("expected empty DocFields for unknown schema, got %+v", f)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// classifyImportXML
+// ---------------------------------------------------------------------------
+
+const sampleNfeProcXML = `<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><NFe><infNFe Id="NFe22260811647612000197550000000000501454670090"><emit><CNPJ>11647612000197</CNPJ></emit><dest><CNPJ>22222222000122</CNPJ></dest></infNFe></NFe></nfeProc>`
+
+func TestClassifyImportXML_EmitMatch_IsEmitida(t *testing.T) {
+	root, err := parseXMLBytes([]byte(sampleNfeProcXML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := classifyImportXML(root, "11647612000197")
+	if !ok || got.Incoming != 0 {
+		t.Fatalf("expected Incoming=0 (emitida), got %+v ok=%v", got, ok)
+	}
+}
+
+func TestClassifyImportXML_DestMatch_WhenEmitDiffers_IsDestinada(t *testing.T) {
+	root, _ := parseXMLBytes([]byte(sampleNfeProcXML))
+	got, ok := classifyImportXML(root, "22222222000122")
+	if !ok || got.Incoming != 1 {
+		t.Fatalf("expected Incoming=1 (destinada), got %+v ok=%v", got, ok)
+	}
+}
+
+func TestClassifyImportXML_TranspMatch_WhenEmitAndDestDiffer_IsTransportada(t *testing.T) {
+	xml := `<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe1"><emit><CNPJ>11647612000197</CNPJ></emit><dest><CNPJ>22222222000122</CNPJ></dest><transp><transporta><CNPJ>33333333000199</CNPJ></transporta></transp></infNFe></NFe></nfeProc>`
+	root, _ := parseXMLBytes([]byte(xml))
+	got, ok := classifyImportXML(root, "33333333000199")
+	if !ok || got.Incoming != 2 {
+		t.Fatalf("expected Incoming=2 (transportada), got %+v ok=%v", got, ok)
+	}
+}
+
+func TestClassifyImportXML_NoMatch_IsRejected(t *testing.T) {
+	root, _ := parseXMLBytes([]byte(sampleNfeProcXML))
+	_, ok := classifyImportXML(root, "99999999000100")
+	if ok {
+		t.Fatal("expected ok=false when no party matches org CNPJ")
+	}
+}
+
+func TestClassifyImportXML_EmitTakesPriorityOverDestAndTransp(t *testing.T) {
+	// Mesmo CNPJ aparecendo como dest E transp — dest deve vencer, nunca transp
+	// (emit não bate aqui, então dest é o primeiro na prioridade que bate).
+	xml := `<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe1"><emit><CNPJ>11647612000197</CNPJ></emit><dest><CNPJ>22222222000122</CNPJ></dest><transp><transporta><CNPJ>22222222000122</CNPJ></transporta></transp></infNFe></NFe></nfeProc>`
+	root, _ := parseXMLBytes([]byte(xml))
+	got, ok := classifyImportXML(root, "22222222000122")
+	if !ok || got.Incoming != 1 {
+		t.Fatalf("expected dest (Incoming=1) to win over transp, got %+v ok=%v", got, ok)
+	}
+}
+
+func TestClassifyImportXML_BareNFe_ExtractsAccessKeyFromIdAttribute(t *testing.T) {
+	// Um NFe sem protocolo não tem elemento <chNFe> em lugar nenhum — só o
+	// atributo Id de infNFe carrega o access key (confirmado no arquivo de
+	// referência real). Sem isso, a consulta protocolo (Task 6) não teria
+	// como saber qual chNFe consultar.
+	root, err := parseXMLBytes([]byte(sampleNfeProcXML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := classifyImportXML(root, "11647612000197")
+	if !ok {
+		t.Fatal("expected match")
+	}
+	if got.AccessKey != "22260811647612000197550000000000501454670090" {
+		t.Fatalf("expected access key from infNFe/@Id (NFe prefix stripped), got %q", got.AccessKey)
+	}
+}

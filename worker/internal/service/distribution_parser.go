@@ -92,6 +92,54 @@ type DocFields struct {
 	DestDetails map[string]any
 }
 
+// importClassification is the result of classifyImportXML: which relation
+// (emit/dest/transp) the org has to the uploaded document, and its access key.
+type importClassification struct {
+	Incoming  int
+	AccessKey string
+}
+
+// classifyImportXML checks org membership in emit > dest > transp priority
+// order against cnpj (org's own CPF/CNPJ), exactly this sequence — see
+// docs/specs/2026-08-13-importacao-nfe-xml.md. ok=false means no relation
+// to the org was found and the import must be rejected. This is import-XML
+// specific: extractProcNFe (used by the normal distribution flow) never
+// produces Incoming=0, since SEFAZ distribution never hands an org back a
+// document it emitted itself.
+func classifyImportXML(root *xmlEl, cnpj string) (importClassification, bool) {
+	accessKey := findText(root, nsNFe, "chNFe")
+	if accessKey == "" {
+		// A bare NFe (no protNFe protocol wrapper yet) never carries a chNFe
+		// element — the access key only exists as infNFe's Id attribute.
+		if infNFe := findEl(root, nsNFe, "infNFe"); infNFe != nil {
+			accessKey = infNFe.Attrs["Id"]
+		}
+	}
+	if strings.HasPrefix(accessKey, "NFe") {
+		accessKey = accessKey[3:]
+	}
+
+	emit := findEl(root, nsNFe, "emit")
+	dest := findEl(root, nsNFe, "dest")
+	transp := findEl(root, nsNFe, "transporta")
+
+	orgDoc := onlyDigits(cnpj)
+	emitDoc := onlyDigits(findText(emit, nsNFe, "CNPJ", "CPF"))
+	destDoc := onlyDigits(findText(dest, nsNFe, "CNPJ", "CPF"))
+	transpDoc := onlyDigits(findText(transp, nsNFe, "CNPJ", "CPF"))
+
+	switch {
+	case emitDoc != "" && emitDoc == orgDoc:
+		return importClassification{Incoming: 0, AccessKey: accessKey}, true
+	case destDoc != "" && destDoc == orgDoc:
+		return importClassification{Incoming: 1, AccessKey: accessKey}, true
+	case transpDoc != "" && transpDoc == orgDoc:
+		return importClassification{Incoming: 2, AccessKey: accessKey}, true
+	default:
+		return importClassification{AccessKey: accessKey}, false
+	}
+}
+
 // buildPersonDetails extracts the nested person object (addresses, contacts,
 // state_registrations, fantasy_name, crt) from an emit/dest party element,
 // mirroring the api person model. Only present fields are included; returns nil
@@ -183,6 +231,7 @@ type xmlEl struct {
 	Space    string
 	Local    string
 	Text     string
+	Attrs    map[string]string // unprefixed attribute local name -> value
 	Children []*xmlEl
 }
 
@@ -203,6 +252,12 @@ func parseXMLBytes(data []byte) (*xmlEl, error) {
 		switch t := tok.(type) {
 		case xml.StartElement:
 			el := &xmlEl{Space: t.Name.Space, Local: t.Name.Local}
+			if len(t.Attr) > 0 {
+				el.Attrs = make(map[string]string, len(t.Attr))
+				for _, a := range t.Attr {
+					el.Attrs[a.Name.Local] = a.Value
+				}
+			}
 			if len(stack) > 0 {
 				parent := stack[len(stack)-1]
 				parent.Children = append(parent.Children, el)
