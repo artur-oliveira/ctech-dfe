@@ -69,7 +69,14 @@ describe('nfse api client', () => {
     const spy = vi.spyOn(priv, 'post').mockResolvedValue({} as never)
     await apiClient.createService({
       code: 'SVC-001', description: 'Consultoria', trib_nacional_code: '10101',
-      unit: 'UN', value: '1000.00', iss: {trib_issqn: 1, tax_rate: '2.00'},
+      unit: 'UN', value: '1000.00', iss: {trib_issqn: 1, tax_rate: '2.00'}, ibs_cbs:{
+        c_ind_op: '',
+        cst: '',
+        c_class_trib: '',
+        ind_dest: 0,
+        tp_oper: null,
+        fin_nfse: 0,
+      }
     })
     expect(spy).toHaveBeenCalledWith('/v1.0/services', {
       code: 'SVC-001', description: 'Consultoria', trib_nacional_code: '10101',

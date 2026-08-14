@@ -34,6 +34,7 @@ const backendMe = (overrides: Partial<MeResponse> = {}): MeResponse => ({
   last_name: 'Old',
   email_verified: true,
   is_enabled: true,
+  terms_addendum_accepted: true,
   last_login_at: null,
   organizations: [],
   ...overrides,
@@ -113,7 +114,7 @@ describe('AuthContext name merge from id_token', () => {
       me = await result.current.refreshUser()
     })
 
-    expect(me?.organizations.find((o) => o.pk === 'org-new')).toBeTruthy()
+    expect((me as unknown as MeResponse)?.organizations.find((o) => o.pk === 'org-new')).toBeTruthy()
 
     act(() => result.current.setSelectedOrg(newOrg))
     expect(result.current.selectedOrg?.pk).toBe('org-new')
