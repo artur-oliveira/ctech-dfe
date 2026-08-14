@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/google/uuid"
 )
 
 var docTypeSefazService = map[string]string{
@@ -462,6 +463,62 @@ func distStrAttr(item map[string]types.AttributeValue, key string) string {
 		return v.Value
 	}
 	return ""
+}
+
+// ImportXML validates an uploaded NF-e/NFC-e XML, stages it in S3, and
+// enqueues an "import_xml" distribution job — the worker (runImportXML,
+// worker/internal/service/distribution.go) does the actual classification/
+// digest-check/persistence. See docs/specs/2026-08-13-importacao-nfe-xml.md.
+func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType string, xmlBytes []byte) (map[string]any, error) {
+	if !validImportDocType(docType) {
+		return nil, problem.BadRequest("doc_type inválido para importação por XML: " + docType)
+	}
+	if len(xmlBytes) == 0 {
+		return nil, problem.BadRequest("arquivo XML vazio")
+	}
+	if len(xmlBytes) > maxImportXMLSize {
+		return nil, problem.PayloadTooLarge("arquivo XML excede o limite de 1 MiB")
+	}
+	root, err := peekXMLRoot(xmlBytes)
+	if err != nil || (root != "nfeProc" && root != "NFe") {
+		return nil, problem.BadRequest("XML inválido: raiz deve ser nfeProc ou NFe")
+	}
+	if s.queueURL == "" {
+		return nil, problem.BadRequest("fila de distribuição não configurada")
+	}
+	if err := s.checkConsQuota(ctx, orgPK, docType); err != nil {
+		return nil, err
+	}
+
+	// staging não precisa de env (hom/prod) no path — é uma área de espera
+	// efêmera; o worker (runImportXML) já resolve o ambiente de novo a
+	// partir do fiscal config ao processar o job.
+	stagingKey := fmt.Sprintf("%s-import-staging/%s/%s.xml", docType, orgPK, uuid.NewString())
+	if _, err := s.clients.S3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucketDocs),
+		Key:         aws.String(stagingKey),
+		Body:        bytes.NewReader(xmlBytes),
+		ContentType: aws.String("application/xml"),
+	}); err != nil {
+		return nil, problem.InternalServer("falha ao enviar XML: " + err.Error())
+	}
+
+	msg := map[string]any{
+		"job_type":     "import_xml",
+		"org_pk":       orgPK,
+		"doc_type":     docType,
+		"staging_key":  stagingKey,
+		"trigger":      "user",
+		"triggered_at": time.Now().UTC().Format(time.RFC3339),
+	}
+	body, _ := json.Marshal(msg)
+	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
+		QueueUrl:    aws.String(s.queueURL),
+		MessageBody: aws.String(string(body)),
+	}); err != nil {
+		return nil, problem.InternalServer("failed to enqueue import: " + err.Error())
+	}
+	return map[string]any{"status": "enqueued"}, nil
 }
 
 func distIntAttr(item map[string]types.AttributeValue, key string, def int) int {

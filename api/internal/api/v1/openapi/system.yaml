@@ -189,6 +189,53 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
+  /v1.0/distributions/{doc_type}/import-xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/DocType'
+    post:
+      tags: [Distributions]
+      summary: Importa uma NF-e/NFC-e a partir de um arquivo XML
+      description: |
+        Aceita `nfeProc` (com protocolo) ou `NFe` (sem protocolo, apenas
+        assinado). Assíncrono: valida tamanho/raiz, faz staging em S3 e
+        enfileira o job `import_xml`. O worker classifica o vínculo com a
+        organização (emit > dest > transp), confirma junto à SEFAZ
+        (consulta protocolo) e persiste como se o documento tivesse chegado
+        pela distribuição — resultado via WebSocket
+        (`new_distribution_nfe` ou `import_xml_failed`). `doc_type` restrito
+        a `nfe`/`nfce`.
+      operationId: importXml
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo XML da NF-e/NFC-e (`nfeProc` ou `NFe`), até 1 MiB.
+      responses:
+        '202':
+          description: Importação enfileirada
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413':
+          description: Arquivo XML excede o limite de tamanho permitido
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
   # ── Audit logs ─────────────────────────────────────────────────────────────
 
   /v1.0/audit-logs:

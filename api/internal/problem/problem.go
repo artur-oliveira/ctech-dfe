@@ -27,6 +27,7 @@ const (
 	TypeTooManyRequests = "/problems/too-many-requests"
 	TypeInternalServer  = "/problems/internal-server-error"
 	TypeNotImplemented  = "/problems/not-implemented"
+	TypePayloadTooLarge = "/problems/payload-too-large"
 )
 
 // FieldError is a single field-level validation failure. It mirrors the shape
@@ -113,6 +114,10 @@ func Conflict(detail string) *Problem {
 
 func TooManyRequests(detail string) *Problem {
 	return wrap(commonproblem.TooManyRequests(detail))
+}
+
+func PayloadTooLarge(detail string) *Problem {
+	return wrap(commonproblem.New(http.StatusRequestEntityTooLarge, TypePayloadTooLarge, "Payload Too Large", detail))
 }
 
 // NotImplemented reports a capability the requested provider/backend genuinely

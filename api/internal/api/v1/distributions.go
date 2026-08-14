@@ -82,4 +82,20 @@ func RegisterDistributions(router fiber.Router, svc *services.DistributionServic
 		}
 		return c.Status(fiber.StatusAccepted).JSON(result)
 	})
+
+	// POST /distributions/{doc_type}/import-xml
+	g.Post("/:doc_type/import-xml", perm.RequireDynamic("create.%s_distributions", "doc_type"), func(c fiber.Ctx) error {
+		xmlBytes, err := readOptionalUpload(c, "file")
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		if xmlBytes == nil {
+			return sendProblem(c, problem.BadRequest(`arquivo XML obrigatório (campo "file")`))
+		}
+		result, err := svc.ImportXML(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), xmlBytes)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.Status(fiber.StatusAccepted).JSON(result)
+	})
 }

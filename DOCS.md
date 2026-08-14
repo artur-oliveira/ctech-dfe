@@ -1351,8 +1351,18 @@ preenche `substitutes_access_key` a partir da NFS-e original e exige `substitute
 | POST   | `/v1.0/distributions/nfe/key`               | Enqueue consChNFe by access key (202, NF-e only, consumes 20/hr quota). |
 | GET    | `/v1.0/distributions/nfe`                  | Legacy: synchronous distNSU poll (deprecated — use POST /sync).     |
 | GET    | `/v1.0/distributions/nfe/history`          | List persisted distribution records (paginated, no SEFAZ call).     |
+| POST   | `/v1.0/distributions/{doc_type}/import-xml` | Import NF-e/NFC-e by XML upload (202, `doc_type` ∈ `{nfe, nfce}`, multipart `file`). |
 
-`doc_type` ∈ `{nfe, cte, mdfe}`.
+`doc_type` ∈ `{nfe, cte, mdfe}` for the endpoints above `import-xml`.
+
+`POST /distributions/{doc_type}/import-xml` accepts `nfeProc` (with protocol) or bare `NFe` (signed, no
+protocol), multipart field `file`, max 1 MiB. Validates `doc_type`/size/root synchronously
+(`DistributionService.ImportXML`, `import_xml_validation.go`), stages the XML in S3
+(`{doc_type}-import-staging/{org_pk}/{uuid}.xml`), and enqueues an `import_xml` job on the same distribution
+SQS queue. The worker (`runImportXML`, see §6) classifies the org's relation to the document
+(emit > dest > transp), confirms against SEFAZ via `NfeConsultaProtocolo`, and persists. Result arrives via
+WebSocket (`new_distribution_nfe` on success, `import_xml_failed` on rejection) — see
+`docs/specs/2026-08-13-importacao-nfe-xml.md`.
 
 `POST /distributions/nfe/key` is NF-e-only (no `doc_type` path param) — CT-e/MDF-e have no
 resNFe/Ciência-do-destinatário concept that motivates a manual re-consult. Body: `{"access_key": "..."}`,
