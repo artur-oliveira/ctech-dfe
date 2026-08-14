@@ -43,6 +43,7 @@ type DistributionService struct {
 	orgRepo           *repositories.OrganizationRepository
 	certRepo          *repositories.CertificateRepository
 	NfeConfig         *repositories.NfeConfigRepository
+	NfceConfig        *repositories.NfceConfigRepository
 	CteConfig         *repositories.CteConfigRepository
 	MdfeConfig        *repositories.MdfeConfigRepository
 	NfseConfig        *repositories.NfseConfigRepository
@@ -61,6 +62,7 @@ func NewDistributionService(
 	orgRepo *repositories.OrganizationRepository,
 	certRepo *repositories.CertificateRepository,
 	NfeConfig *repositories.NfeConfigRepository,
+	NfceConfig *repositories.NfceConfigRepository,
 	CteConfig *repositories.CteConfigRepository,
 	MdfeConfig *repositories.MdfeConfigRepository,
 	NfseConfig *repositories.NfseConfigRepository,
@@ -73,7 +75,7 @@ func NewDistributionService(
 ) *DistributionService {
 	return &DistributionService{
 		orgRepo: orgRepo, certRepo: certRepo,
-		NfeConfig: NfeConfig, CteConfig: CteConfig, MdfeConfig: MdfeConfig, NfseConfig: NfseConfig,
+		NfeConfig: NfeConfig, NfceConfig: NfceConfig, CteConfig: CteConfig, MdfeConfig: MdfeConfig, NfseConfig: NfseConfig,
 		nfeDist: nfeDist, cteDist: cteDist, mdfeDist: mdfeDist, nfseDist: nfseDist,
 		clients:           clients,
 		queueURL:          queueURL,
@@ -87,6 +89,8 @@ func (s *DistributionService) fiscalCfg(docType string) *repositories.FiscalConf
 	switch docType {
 	case DocTypeNFe:
 		return &s.NfeConfig.FiscalConfigRepository
+	case DocTypeNFCe:
+		return &s.NfceConfig.FiscalConfigRepository
 	case DocTypeCTe:
 		return &s.CteConfig.FiscalConfigRepository
 	case DocTypeMDFe:

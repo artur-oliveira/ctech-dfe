@@ -278,6 +278,7 @@ func newDistributionService(
 	orgRepo *repositories.OrganizationRepository,
 	certRepo *repositories.CertificateRepository,
 	NfeConfig *repositories.NfeConfigRepository,
+	NfceConfig *repositories.NfceConfigRepository,
 	CteConfig *repositories.CteConfigRepository,
 	MdfeConfig *repositories.MdfeConfigRepository,
 	NfseConfig *repositories.NfseConfigRepository,
@@ -290,7 +291,7 @@ func newDistributionService(
 ) *services.DistributionService {
 	return services.NewDistributionService(
 		orgRepo, certRepo,
-		NfeConfig, CteConfig, MdfeConfig, NfseConfig,
+		NfeConfig, NfceConfig, CteConfig, MdfeConfig, NfseConfig,
 		nfeDist, cteDist, mdfeDist, nfseDist,
 		clients,
 		cfg.DistributionQueueURL,
