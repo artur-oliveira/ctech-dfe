@@ -295,6 +295,24 @@ func TestPersistIncoming_UnsetZero_StillDefaultsToOne(t *testing.T) {
 	}
 }
 
+func TestDistProcess_ImportXML_DispatchesToRunImportXML(t *testing.T) {
+	if _, ok := docTypeConfigs["nfce"]; !ok {
+		t.Fatal("nfce doc type config missing")
+	}
+	dynm := &mockDistDynamo{}
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	err := svc.Process(context.Background(), DistributionMessage{
+		JobType:    "import_xml",
+		OrgPK:      testOrgPK,
+		DocType:    "nfce",
+		StagingKey: "nfce-import-staging/" + testOrgPK + "/abc.xml",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestDistProcess_UnknownDocType_ReturnsNilWithoutError(t *testing.T) {
 	svc := newDistSvc(&mockDistDynamo{}, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 	err := svc.Process(context.Background(), DistributionMessage{

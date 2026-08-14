@@ -92,6 +92,17 @@ var docTypeConfigs = map[string]docTypeConfig{
 		docTable:          "mdfes",
 		eventsTable:       "mdfe_events",
 	},
+	// nfce não tem distribuição SEFAZ (NFC-e nunca chega por dist_nsu/cons_nsu/
+	// cons_ch_nfe) — import_xml é o único job_type válido para este doc_type,
+	// e a API nunca enfileira os demais job_types com doc_type=nfce.
+	"nfce": {
+		uf:                "AN",
+		xmlns:             nsNFe,
+		version:           "1.01",
+		configTableSuffix: "nfce_configs",
+		docTable:          "nfces",
+		eventsTable:       "nfce_events",
+	},
 	// NFS-e não usa SOAP: sefazService/xmlns/version ficam vazios de propósito —
 	// a distribuição é REST via ADN e o payload é montado por
 	// buildNfseDistPayload, não por buildPayload.
@@ -142,12 +153,13 @@ func NewDistribution(clients DistributionClients, cfg *config.Config) *Distribut
 
 // DistributionMessage is the SQS message body for distribution jobs.
 type DistributionMessage struct {
-	JobType   string `json:"job_type"`
-	OrgPK     string `json:"org_pk"`
-	DocType   string `json:"doc_type"`
-	Trigger   string `json:"trigger"`
-	NSU       *int   `json:"nsu,omitempty"`
-	AccessKey string `json:"access_key,omitempty"`
+	JobType    string `json:"job_type"`
+	OrgPK      string `json:"org_pk"`
+	DocType    string `json:"doc_type"`
+	Trigger    string `json:"trigger"`
+	NSU        *int   `json:"nsu,omitempty"`
+	AccessKey  string `json:"access_key,omitempty"`
+	StagingKey string `json:"staging_key,omitempty"`
 }
 
 // Process routes a distribution job to the correct handler.
@@ -178,10 +190,18 @@ func (s *DistributionService) Process(ctx context.Context, msg DistributionMessa
 		return s.runConsNSU(ctx, msg.OrgPK, msg.DocType, *msg.NSU, dtcfg)
 	case "cons_ch_nfe":
 		return s.runConsAccessKey(ctx, msg.OrgPK, msg.DocType, msg.AccessKey, dtcfg)
+	case "import_xml":
+		return s.runImportXML(ctx, msg.OrgPK, msg.DocType, msg.StagingKey, dtcfg)
 	default:
 		slog.Warn("unknown distribution job_type", "job_type", msg.JobType)
 		return nil
 	}
+}
+
+// runImportXML processes an "import_xml" job: classify emit/dest/transp,
+// call NfeConsultaProtocolo via go-dfe, compare digest, persist.
+func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, stagingKey string, dtcfg docTypeConfig) error {
+	return nil
 }
 
 // ------------------------------------------------------------------
