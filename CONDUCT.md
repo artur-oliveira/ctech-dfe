@@ -580,6 +580,11 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 - Use S3 Standard unless lifecycle or cost analysis justifies another tier.
 - Avoid repeated downloads of immutable objects (e.g., certificates).
 - Use lifecycle policies for long-term retention (fiscal compliance requirements).
+- **Staging keys carry no env prefix.** Convergence for a persisted document is
+  `{doc_type}/{env}/{org_pk}/{access_key}.xml`, but XML-import staging (`DistributionService.ImportXML`) uses
+  `{doc_type}-import-staging/{org_pk}/{uuid}.xml` — no `hom`/`prod` segment. The staging object is an ephemeral
+  waiting area deleted right after the worker (`runImportXML`) processes it; the worker re-derives the env from
+  the fiscal config at that point, so the staging path doesn't need to encode it.
 
 ## Frontend
 
