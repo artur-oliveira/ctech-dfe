@@ -14,6 +14,7 @@ import {RootLayout} from '@/components/layout/RootLayout'
 import {EmptyState} from '@/components/ui/empty-state'
 import {NfeIcon} from '@/components/ui/icon'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal'
+import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -172,6 +173,7 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importKeyInput, setImportKeyInput] = useState('')
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
 
   const {config} = useFiscalConfig('nfe', orgPk)
 
@@ -252,6 +254,14 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
           >
             Importar NF-e
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowImportXmlModal(true)}
+            className="text-brand-600 border-brand-200 hover:bg-brand-50"
+          >
+            Importar XML
+          </Button>
         </div>
       </div>
 
@@ -313,6 +323,8 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
           )}
         </div>
       </Modal>
+
+      <ImportXmlModal docType="nfe" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </div>
   )
 }

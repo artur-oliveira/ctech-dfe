@@ -29,6 +29,7 @@ import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
+import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
@@ -209,6 +210,7 @@ function NfceContent() {
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
   const [substituteTarget, setSubstituteTarget] = useState<NfeListOut | null>(null)
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
 
   // Optimistically show the transitional "Cancelando" state (GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
@@ -256,10 +258,20 @@ function NfceContent() {
             <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal de Consumidor Eletrônica</p>
           </div>
           {selectedOrg && (
-            <Button variant="brand" render={<Link href="/nfce/emit"/>}>
-              <span className="text-base leading-none">+</span>
-              Emitir NFC-e
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowImportXmlModal(true)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Importar XML
+              </Button>
+              <Button variant="brand" render={<Link href="/nfce/emit"/>}>
+                <span className="text-base leading-none">+</span>
+                Emitir NFC-e
+              </Button>
+            </div>
           )}
         </div>
 
@@ -315,6 +327,8 @@ function NfceContent() {
             substituteMutation.mutate({accessKey: substituteTarget.sk, substituteKey, justification: just})}
         />
       )}
+
+      <ImportXmlModal docType="nfce" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </RootLayout>
   )
 }
