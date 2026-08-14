@@ -1881,6 +1881,33 @@ retorna erro e não avança o cursor NSU.
 XML recebido: `nfse-distribution/{env}/{org_pk}/NSU_{015d}.xml` — mesma convenção dos outros tipos. O registro vai
 para `nfse_distributions` (`pk = {env}#{org_pk}`, `sk = nsu`), que é o que `GET /nfse/distributions` lista.
 
+### Importação de NF-e/NFC-e por XML (job `import_xml`)
+
+`DistributionService.Process` desvia `job_type = import_xml` para `runImportXML`
+(`worker/internal/service/distribution.go`) — o mesmo tratamento vale para `doc_type` `nfe` e `nfce` (o único
+`job_type` válido para `nfce`, que nunca tem distribuição SEFAZ). A api (`POST /distributions/{doc_type}/import-xml`,
+seção 4) faz staging do XML no S3 e enfileira; o worker classifica, confirma junto à SEFAZ e persiste.
+
+Fluxo: `parseXMLBytes` → `validImportRoot` (raiz `nfeProc` ou `NFe`, senão rejeição terminal) → `classifyImportXML`
+(prioridade `emit` > `dest` > `transp`, contra o CNPJ/CPF da organização — `emit` bate primeiro vira `Incoming=0`
+emitida, `dest` vira `1` destinada, `transp.transporta` vira `2` transportada; nenhum bate é rejeição) → checagem de
+documento já completo (`products` presente) → **primeira chamada real de `NfeConsultaProtocolo` via `go-dfe`** (a
+operação já estava em `dfe.Implements` para `nfe`/`nfce`, nunca invocada por nenhum caller até este job) →
+`compareImportDigests` confere o `digVal` da SEFAZ contra o(s) digest(s) do XML enviado (`nfeProc`: compara com
+`protNFe/infProt/digVal` E `Signature/SignedInfo/Reference/DigestValue`; `NFe` solto: só o `Signature` digest) →
+`buildFinalNfeProc` (passa o XML adiante sem mudanças se já era `nfeProc`; para `NFe` solto, junta os bytes originais
+com o `protNFe` construído via `dfe.BuildXMLFragment` a partir do dict que a consulta protocolo devolveu) →
+persistência (`persistIncoming` com `Incoming`/`IncomingSet` explícitos, `persistCounterparties`, `persistEvent` por
+evento em `procEventoNFe`) → upload do XML final ao S3 (`{doc_type}/{env}/{org_pk}/{access_key}.xml`, mesma
+convenção dos outros fluxos) → `notifyResult` (sucesso) ou `notifyImportFailure` (`type: "import_xml_failed"`, WS) →
+remoção do objeto de staging.
+
+Rejeições de negócio (raiz inválida, sem vínculo com a organização, digest divergente, documento já completo,
+`cStat` de rejeição da SEFAZ) retornam `nil` — nunca retry. Só erro de rede/timeout na consulta protocolo retorna
+`error`, deixando o SQS reprocessar. `xmlEl` (parser XML genérico do parser de distribuição) ganhou um campo `Attrs`
+para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em lugar nenhum, só o atributo `Id` de
+`infNFe` carrega a chave de acesso.
+
 ---
 
 ## 8. cdk — Infrastructure

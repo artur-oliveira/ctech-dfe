@@ -24,14 +24,24 @@ import (
 
 type mockS3 struct {
 	certData []byte
+	// objects lets a test seed content for specific S3 keys (e.g. the
+	// import-xml staging object) — GetObject falls back to certData when the
+	// requested key has no entry, matching the pre-existing cert-download tests.
+	objects  map[string][]byte
+	deleted  map[string]bool
 	getErr   error
 	putErr   error
 	putCalls []string // captured S3 keys
 }
 
-func (m *mockS3) GetObject(_ context.Context, _ *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+func (m *mockS3) GetObject(_ context.Context, in *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
+	}
+	if in.Key != nil {
+		if data, ok := m.objects[*in.Key]; ok {
+			return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(data))}, nil
+		}
 	}
 	return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(m.certData))}, nil
 }
@@ -44,6 +54,16 @@ func (m *mockS3) PutObject(_ context.Context, in *s3.PutObjectInput, _ ...func(*
 		m.putCalls = append(m.putCalls, *in.Key)
 	}
 	return &s3.PutObjectOutput{}, nil
+}
+
+func (m *mockS3) DeleteObject(_ context.Context, in *s3.DeleteObjectInput, _ ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+	if in.Key != nil {
+		if m.deleted == nil {
+			m.deleted = map[string]bool{}
+		}
+		m.deleted[*in.Key] = true
+	}
+	return &s3.DeleteObjectOutput{}, nil
 }
 
 type mockLambda struct {

@@ -199,9 +199,225 @@ func (s *DistributionService) Process(ctx context.Context, msg DistributionMessa
 }
 
 // runImportXML processes an "import_xml" job: classify emit/dest/transp,
-// call NfeConsultaProtocolo via go-dfe, compare digest, persist.
+// call NfeConsultaProtocolo via go-dfe, compare digest, persist. Business
+// rejections (invalid root, no org relation, digest mismatch, already
+// complete, SEFAZ business rejection) return nil — never retried. Only
+// network/timeout errors return non-nil, letting SQS retry/DLQ handle them.
 func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, stagingKey string, dtcfg docTypeConfig) error {
+	configTable := fmt.Sprintf("%s_organization_%s", s.cfg.TablePrefix, dtcfg.configTableSuffix)
+	cfg, err := s.loadConfig(ctx, orgPK, configTable)
+	if err != nil || cfg == nil {
+		slog.Warn("import_xml: no config found", "org_pk", orgPK, "doc_type", docType)
+		return nil
+	}
+	environment := attrN(cfg, "environment", 2)
+	envPrefix := envHom
+	sefazEnv := sefazEnvHom
+	if environment == 1 {
+		envPrefix = envProd
+		sefazEnv = sefazEnvProd
+	}
+	if !s.checkConsQuota(ctx, orgPK, configTable, cfg, envPrefix, time.Now().UTC()) {
+		slog.Warn("import_xml quota exceeded — dropping duplicate job", "org_pk", orgPK)
+		return nil
+	}
+
+	xmlBytes, err := s.downloadStaging(ctx, stagingKey)
+	if err != nil {
+		return fmt.Errorf("download staging xml: %w", err)
+	}
+
+	root, parseErr := parseXMLBytes(xmlBytes)
+	if parseErr != nil || !validImportRoot(root) {
+		s.notifyImportFailure(ctx, orgPK, docType, "", "XML inválido: raiz deve ser nfeProc ou NFe")
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
+	cnpj := extractCNPJ(orgPK)
+	class, ok := classifyImportXML(root, cnpj)
+	if !ok {
+		s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey, "XML não pertence à organização")
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
+	docPK := envPrefix + "#" + orgPK
+	docTable := s.cfg.TablePrefix + "_" + dtcfg.docTable
+	existing, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(docTable),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: docPK},
+			"sk": &types.AttributeValueMemberS{Value: class.AccessKey},
+		},
+	})
+	if err == nil && existing != nil && existing.Item != nil {
+		if _, hasProducts := existing.Item["products"]; hasProducts {
+			s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey, "NF-e já existe completa")
+			s.deleteStaging(ctx, stagingKey)
+			return nil
+		}
+	}
+
+	cert, err := s.loadCert(ctx, orgPK, dtcfg.configTableSuffix)
+	if err != nil || cert == nil {
+		return nil
+	}
+	certB64, err := s.getCertB64(ctx, attrS(cert, "s3_key"))
+	if err != nil {
+		return err
+	}
+	certPassword := attrS(cert, "password")
+	uf := dtcfg.uf
+
+	payload := s.buildConsultaProtocoloPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, class.AccessKey)
+	resp, err := s.invokePyDfe(ctx, payload)
+	if err != nil {
+		return fmt.Errorf("consulta protocolo: %w", err)
+	}
+	if int(getFloat(resp, "statusCode")) != 200 {
+		s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey, "falha na consulta protocolo SEFAZ")
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
+	var respBody map[string]any
+	if b, ok := resp["body"].(string); ok {
+		_ = json.Unmarshal([]byte(b), &respBody)
+	}
+	ret := asMap(respBody, "retConsSitNFe")
+	cStat := mapStr(ret, "cStat", "")
+	if cStat != "100" && cStat != "150" {
+		s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey,
+			fmt.Sprintf("SEFAZ rejeitou a consulta: %s", mapStr(ret, "xMotivo", cStat)))
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
+	protNFeDict := asMap(ret, "protNFe")
+	sefazDigVal := mapStr(asMap(protNFeDict, "infProt"), "digVal", "")
+	if !compareImportDigests(root, sefazDigVal) {
+		s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey, "divergência de assinatura entre o XML enviado e a SEFAZ")
+		s.deleteStaging(ctx, stagingKey)
+		return nil
+	}
+
+	finalXML, err := buildFinalNfeProc(xmlBytes, root, protNFeDict)
+	if err != nil {
+		return fmt.Errorf("build final nfeProc: %w", err)
+	}
+	finalRoot, err := parseXMLBytes(finalXML)
+	if err != nil {
+		return fmt.Errorf("parse final nfeProc: %w", err)
+	}
+
+	fields := extractProcNFe(finalRoot, cnpj)
+	fields.Incoming = class.Incoming
+	fields.IncomingSet = true
+
+	docS3Key := fmt.Sprintf("%s/%s/%s/%s.xml", docType, envPrefix, orgPK, class.AccessKey)
+	if _, err := s.s3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.cfg.DocumentsBucket),
+		Key:         aws.String(docS3Key),
+		Body:        bytes.NewReader(finalXML),
+		ContentType: aws.String("application/xml"),
+	}); err != nil {
+		return fmt.Errorf("upload final xml: %w", err)
+	}
+	fields.XMLS3Key = docS3Key
+
+	s.persistIncoming(ctx, docPK, fields, dtcfg)
+	if err := s.persistCounterparties(ctx, orgPK, cnpj, fields); err != nil {
+		return err
+	}
+	for _, ev := range asSlice(ret, "procEventoNFe") {
+		evMap, _ := ev.(map[string]any)
+		if evMap == nil {
+			continue
+		}
+		infEvento := asMap(evMap, "infEvento")
+		s.persistEvent(ctx, DocFields{
+			AccessKey:      class.AccessKey,
+			EventType:      mapStr(infEvento, "tpEvento", ""),
+			SequenceNumber: mapStr(infEvento, "nSeqEvento", "1"),
+			SefazStatus:    mapStr(infEvento, "cStat", ""),
+			SefazMotive:    mapStr(infEvento, "xMotivo", ""),
+			SefazProtocol:  mapStr(infEvento, "nProt", ""),
+			DHEvento:       mapStr(infEvento, "dhEvento", ""),
+			XMLS3Key:       docS3Key,
+		}, dtcfg)
+	}
+
+	s.notifyResult(ctx, orgPK, fields, 0, dtcfg)
+	s.deleteStaging(ctx, stagingKey)
 	return nil
+}
+
+// buildConsultaProtocoloPayload builds the generic Request payload shape
+// (see mapToDfeRequest/invokePyDfe) for a one-off NfeConsultaProtocolo call —
+// distinct from buildPayload, whose "service" is fixed to dtcfg.sefazService
+// (the doc type's *distribution* service, not consulta protocolo).
+func (s *DistributionService) buildConsultaProtocoloPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, accessKey string) map[string]any {
+	environmentStr := "2"
+	if sefazEnv == sefazEnvProd {
+		environmentStr = "1"
+	}
+	return map[string]any{
+		"cnpj":                 cnpj,
+		"certificate_b64":      certB64,
+		"certificate_password": certPassword,
+		"uf":                   uf,
+		"environment":          sefazEnv,
+		"doc_type":             docType,
+		"service":              "NfeConsultaProtocolo",
+		"validate_schema":      false,
+		"max_retries":          2,
+		"body": map[string]any{
+			"consSitNFe": map[string]any{
+				"@versao": "4.00",
+				"@xmlns":  nsNFe,
+				"tpAmb":   environmentStr,
+				"xServ":   "CONSULTAR",
+				"chNFe":   accessKey,
+			},
+		},
+	}
+}
+
+// notifyImportFailure publishes a business-rejection notification for the
+// XML-import flow — the failure counterpart to notifyResult (success only).
+// The frontend's useRealtimeUpdates.ts shows an error toast for this type.
+func (s *DistributionService) notifyImportFailure(ctx context.Context, orgPK, docType, accessKey, reason string) {
+	if s.cfg.ResultsTopicARN == "" || s.sns == nil {
+		return
+	}
+	msg, _ := json.Marshal(map[string]any{
+		"type":       "import_xml_failed",
+		"org_pk":     orgPK,
+		"doc_type":   docType,
+		"access_key": accessKey,
+		"reason":     reason,
+	})
+	if _, err := s.sns.Publish(ctx, snsInput(s.cfg.ResultsTopicARN, string(msg))); err != nil {
+		slog.Warn("failed to notify import failure", "access_key", accessKey, "err", err)
+	}
+}
+
+// downloadStaging/deleteStaging wrap the S3 staging object created by the
+// api layer (DistributionService.ImportXML) before enqueueing.
+func (s *DistributionService) downloadStaging(ctx context.Context, key string) ([]byte, error) {
+	out, err := s.s3.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(s.cfg.DocumentsBucket), Key: aws.String(key)})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = out.Body.Close() }()
+	return io.ReadAll(out.Body)
+}
+
+func (s *DistributionService) deleteStaging(ctx context.Context, key string) {
+	if _, err := s.s3.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(s.cfg.DocumentsBucket), Key: aws.String(key)}); err != nil {
+		slog.Warn("failed to delete staging object", "key", key, "err", err)
+	}
 }
 
 // ------------------------------------------------------------------

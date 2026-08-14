@@ -295,6 +295,247 @@ func TestPersistIncoming_UnsetZero_StillDefaultsToOne(t *testing.T) {
 	}
 }
 
+// consultaProtocoloResp builds a mock go-dfe Response body shaped like the
+// unwrapped NfeConsultaProtocolo result ({"retConsSitNFe": {...}}, per
+// unwrapResponseNode's default node path — see go-dfe/internal/services/response.go).
+func consultaProtocoloResp(cStat, digVal string, hasProtocol bool) []byte {
+	protNFe := ""
+	if hasProtocol {
+		protNFe = fmt.Sprintf(`,"protNFe":{"@versao":"4.00","infProt":{"tpAmb":"2","chNFe":"22260811647612000197550000000000501454670090","dhRecbto":"2026-08-08T17:05:06-03:00","nProt":"322260000016670","digVal":"%s","cStat":"%s","xMotivo":"Autorizado o uso da NF-e"}}`, digVal, cStat)
+	}
+	body := fmt.Sprintf(`{"retConsSitNFe":{"tpAmb":"2","cStat":"%s","xMotivo":"ok"%s}}`, cStat, protNFe)
+	return []byte(body)
+}
+
+const importOrgPK = "CNPJ_11647612000197"
+
+func TestRunImportXML_Happy_NfeProc_PersistsAsEmitida(t *testing.T) {
+	dynm := &mockDistDynamo{
+		gets: []getResult{{item: configItem(2, "hom", "", "")}}, // loadConfig; existing-doc check falls through to default (not found)
+		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+	}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	lamm := &mockLambda{} // não deve ser chamado — stubs abaixo forçam o caminho go-dfe
+	snsm := &mockSNS{}
+	svc := newDistSvc(dynm, s3m, lamm, snsm, distCfg)
+
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
+	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "cKFyNtF4cg+d63/SRv0ezXGoef8=", true))}, nil
+	}
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	put := dynm.lastPutItem(distCfg.TablePrefix + "_nfes")
+	if put == nil {
+		t.Fatal("expected nfes PutItem")
+	}
+	if got := put.Item["incoming"].(*types.AttributeValueMemberN).Value; got != "0" {
+		t.Fatalf("expected incoming=0 (emitida — CNPJ do org bate com emit no fixture), got %s", got)
+	}
+	if lamm.calls != 0 {
+		t.Fatalf("expected py-dfe Lambda to never be invoked, go-dfe path should handle it, got %d calls", lamm.calls)
+	}
+	if len(snsm.calls) == 0 {
+		t.Fatal("expected notifyResult SNS publish on success")
+	}
+	if !s3m.deleted["nfe-import-staging/"+importOrgPK+"/abc.xml"] {
+		t.Fatal("expected staging object to be deleted after success")
+	}
+}
+
+func TestRunImportXML_InvalidRoot_RejectsWithoutRetry(t *testing.T) {
+	dynm := &mockDistDynamo{gets: []getResult{{item: configItem(2, "hom", "", "")}}}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/bad.xml": []byte(`<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"></resNFe>`),
+	}}
+	snsm := &mockSNS{}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, snsm, distCfg)
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/bad.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("business rejection must return nil, not error: %v", err)
+	}
+	if len(snsm.calls) == 0 {
+		t.Fatal("expected a failure notification to be published")
+	}
+	if !s3m.deleted["nfe-import-staging/"+importOrgPK+"/bad.xml"] {
+		t.Fatal("expected staging object to be deleted after rejection")
+	}
+}
+
+func TestRunImportXML_NoOrgMatch_RejectsWithoutRetry(t *testing.T) {
+	const otherOrgPK = "CNPJ_99999999000100"
+	dynm := &mockDistDynamo{gets: []getResult{{item: configItem(2, "hom", "", "")}}}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + otherOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	err := svc.runImportXML(context.Background(), otherOrgPK, "nfe",
+		"nfe-import-staging/"+otherOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("business rejection must return nil, not error: %v", err)
+	}
+	if dynm.lastPutItem(distCfg.TablePrefix + "_nfes") != nil {
+		t.Fatal("no document should be persisted when no party matches the org")
+	}
+}
+
+func TestRunImportXML_DigestMismatch_RejectsWithoutRetry(t *testing.T) {
+	dynm := &mockDistDynamo{
+		gets:    []getResult{{item: configItem(2, "hom", "", "")}},
+		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+	}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
+	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "digest-que-nao-bate", true))}, nil
+	}
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("business rejection must return nil, not error: %v", err)
+	}
+	if dynm.lastPutItem(distCfg.TablePrefix + "_nfes") != nil {
+		t.Fatal("no document should be persisted on digest mismatch")
+	}
+}
+
+func TestRunImportXML_AlreadyCompleteDocument_RejectsWithoutRetry(t *testing.T) {
+	existingDoc := map[string]types.AttributeValue{
+		"pk":       &types.AttributeValueMemberS{Value: "hom#" + importOrgPK},
+		"sk":       &types.AttributeValueMemberS{Value: "22260811647612000197550000000000501454670090"},
+		"products": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
+	}
+	dynm := &mockDistDynamo{gets: []getResult{
+		{item: configItem(2, "hom", "", "")},
+		{item: existingDoc},
+	}}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("business rejection must return nil, not error: %v", err)
+	}
+}
+
+func TestRunImportXML_SefazBusinessRejection_NotRetried(t *testing.T) {
+	dynm := &mockDistDynamo{
+		gets:    []getResult{{item: configItem(2, "hom", "", "")}},
+		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+	}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
+	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("217", "", false))}, nil // 217: NF-e não consta na SEFAZ
+	}
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err != nil {
+		t.Fatalf("SEFAZ business rejection must return nil (no retry): %v", err)
+	}
+}
+
+func TestRunImportXML_NetworkError_ReturnsErrorForRetry(t *testing.T) {
+	dynm := &mockDistDynamo{
+		gets:    []getResult{{item: configItem(2, "hom", "", "")}},
+		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
+	}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
+	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+		return godfe.Response{}, errors.New("connection reset")
+	}
+
+	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
+	if err == nil {
+		t.Fatal("network/timeout error must be returned so SQS retries")
+	}
+}
+
+func TestRunImportXML_DuplicateMessage_IsIdempotent(t *testing.T) {
+	// Mesma mensagem processada duas vezes não deve duplicar o documento — a
+	// segunda chamada encontra o documento já persistido (com produtos) e
+	// rejeita como "já completa" em vez de tentar persistir de novo.
+	existingDoc := map[string]types.AttributeValue{
+		"pk":       &types.AttributeValueMemberS{Value: "hom#" + importOrgPK},
+		"sk":       &types.AttributeValueMemberS{Value: "22260811647612000197550000000000501454670090"},
+		"products": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
+	}
+	dynm := &mockDistDynamo{gets: []getResult{
+		{item: configItem(2, "hom", "", "")}, // 1st call: loadConfig
+		{item: nil},                          // 1st call: existing-doc check -> not found
+		{item: configItem(2, "hom", "", "")}, // 2nd call: loadConfig
+		{item: existingDoc},                  // 2nd call: existing-doc check -> found
+	}}
+	s3m := &mockS3{objects: map[string][]byte{
+		"nfe-import-staging/" + importOrgPK + "/abc.xml": loadSampleNfeProc(t),
+	}}
+	queries := []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
+	dynm.queries = queries
+	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
+
+	origImplements, origCall := godfeImplements, godfeCall
+	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
+	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
+	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "cKFyNtF4cg+d63/SRv0ezXGoef8=", true))}, nil
+	}
+
+	if err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"]); err != nil {
+		t.Fatalf("first call: unexpected error: %v", err)
+	}
+	firstPutCount := dynm.putCount(distCfg.TablePrefix + "_nfes")
+
+	// re-adiciona o objeto de staging (a primeira chamada o deletou) para
+	// simular a mesma mensagem SQS entregue de novo.
+	s3m.objects["nfe-import-staging/"+importOrgPK+"/abc.xml"] = loadSampleNfeProc(t)
+
+	if err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
+		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"]); err != nil {
+		t.Fatalf("second call: unexpected error: %v", err)
+	}
+	if dynm.putCount(distCfg.TablePrefix+"_nfes") != firstPutCount {
+		t.Fatal("duplicate message must not persist the document a second time")
+	}
+}
+
 func TestDistProcess_ImportXML_DispatchesToRunImportXML(t *testing.T) {
 	if _, ok := docTypeConfigs["nfce"]; !ok {
 		t.Fatal("nfce doc type config missing")
