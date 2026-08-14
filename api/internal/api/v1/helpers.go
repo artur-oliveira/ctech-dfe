@@ -34,11 +34,13 @@ type PaginatedResponse struct {
 // cursorPayload is the JSON structure embedded in every base64 cursor.
 // k holds the DynamoDB ExclusiveStartKey serialized as a plain Go map (via
 // attributevalue.UnmarshalMap) so that standard JSON round-trips preserve N/S types.
-// p holds the cursor string that was used to fetch the current page,
-// enabling backward navigation without client-side cursor stacks.
+// p holds only the single previous page's key (not the previous cursor
+// string) — embedding the whole prior cursor would nest it inside every
+// subsequent one, recompounding through base64+JSON on every page and
+// eventually exceeding request header size limits (431).
 type cursorPayload struct {
 	Key  map[string]any `json:"k"`
-	Prev *string        `json:"p,omitempty"`
+	Prev map[string]any `json:"p,omitempty"`
 }
 
 // sendProblem writes a RFC 7807 Problem response. Detects *problem.Problem for
@@ -140,15 +142,29 @@ func buildNextCursor(key map[string]types.AttributeValue, incomingCursor string)
 	if err := attributevalue.UnmarshalMap(key, &plainKey); err != nil {
 		return nil
 	}
-	var prev *string
-	if incomingCursor != "" {
-		prev = &incomingCursor
-	}
-	raw, err := json.Marshal(cursorPayload{Key: plainKey, Prev: prev})
+	raw, err := json.Marshal(cursorPayload{Key: plainKey, Prev: decodeCursorKey(incomingCursor)})
 	if err != nil {
 		return nil
 	}
 	return new(base64.StdEncoding.EncodeToString(raw))
+}
+
+// decodeCursorKey extracts a cursor's own plain-map key (the "k" field, not
+// converted to DynamoDB attribute values) — used to seed the next cursor's
+// "p" pointer with a single bounded key instead of the whole cursor string.
+func decodeCursorKey(cursor string) map[string]any {
+	if cursor == "" {
+		return nil
+	}
+	raw, err := base64.StdEncoding.DecodeString(cursor)
+	if err != nil {
+		return nil
+	}
+	var payload cursorPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil
+	}
+	return payload.Key
 }
 
 // decodeCursor extracts the DynamoDB ExclusiveStartKey from a cursor string.
@@ -173,8 +189,10 @@ func decodeCursor(cursor string) map[string]types.AttributeValue {
 	return avKey
 }
 
-// prevCursorOf extracts the embedded previous-cursor pointer from a cursor string.
-// Returns nil when the cursor is empty or was encoded in the legacy format.
+// prevCursorOf builds the cursor for the page before the one incomingCursor
+// fetched, from the single previous key embedded in incomingCursor's "p"
+// field. Returns nil when the cursor is empty, malformed, or carries no
+// previous key (e.g. it points at the first page).
 func prevCursorOf(cursor string) *string {
 	if cursor == "" {
 		return nil
@@ -184,10 +202,14 @@ func prevCursorOf(cursor string) *string {
 		return nil
 	}
 	var payload cursorPayload
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	if err := json.Unmarshal(raw, &payload); err != nil || len(payload.Prev) == 0 {
 		return nil
 	}
-	return payload.Prev
+	out, err := json.Marshal(cursorPayload{Key: payload.Prev})
+	if err != nil {
+		return nil
+	}
+	return new(base64.StdEncoding.EncodeToString(out))
 }
 
 // intQuery reads a query param as int; returns def on missing/invalid.
