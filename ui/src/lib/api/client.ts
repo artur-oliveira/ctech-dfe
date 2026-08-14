@@ -822,6 +822,19 @@ class ApiClient {
     return this.post('/v1.0/distributions/nfe/key', {access_key: accessKey})
   }
 
+  // importXML uploads a NF-e/NFC-e XML file for async import (see
+  // POST /distributions/{doc_type}/import-xml). Result arrives via WebSocket
+  // (new_distribution_nfe on success, import_xml_failed on rejection).
+  async importXML(docType: 'nfe' | 'nfce', file: File): Promise<{ status: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return (await this.http.post<{ status: string }>(
+      `/v1.0/distributions/${docType}/import-xml`,
+      formData,
+      {headers: {'Content-Type': undefined}},
+    )).data
+  }
+
   // Audit log — org context auto-injected via Dfe-Organization-Pk header
   async getAuditLogs(params?: {
     resourceType?: string

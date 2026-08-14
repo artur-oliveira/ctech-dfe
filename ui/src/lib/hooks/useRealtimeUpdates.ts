@@ -35,6 +35,8 @@ interface RealtimeMessage {
   emit_name?: string
   total?: string
   nsu?: number
+  // reason carries the rejection detail on import_xml_failed.
+  reason?: string
 }
 
 // Query-key namespaces that own list/detail/events caches, keyed by the
@@ -91,6 +93,10 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     if (msg.type === 'new_distribution_mdfe') {
       void qc.invalidateQueries({queryKey: queryKeys.distributions.history('mdfe', selectedOrg?.pk)})
       toast.info('Novo MDF-e recebido')
+    }
+
+    if (msg.type === 'import_xml_failed') {
+      toast.error(msg.reason ? `Falha ao importar XML: ${msg.reason}` : 'Falha ao importar XML.')
     }
   }, [qc, selectedOrg?.pk])
 
