@@ -30,7 +30,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	if body.Resource != "https://api.example.test" || len(body.AuthorizationServers) != 1 || body.AuthorizationServers[0] != "https://accounts.example.test" {
 		t.Fatalf("unexpected metadata: %#v", body)
 	}
-	if len(body.Scopes) != 22 {
-		t.Fatalf("scopes_supported = %d, want 22", len(body.Scopes))
+	if len(body.Scopes) != 30 {
+		t.Fatalf("scopes_supported = %d, want 30", len(body.Scopes))
 	}
 }
