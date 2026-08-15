@@ -22,11 +22,13 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/valyala/fasthttp v1.73.0
 	go.uber.org/fx v1.24.0
-	gopkg.aoctech.app/api-commons v1.5.0
+	gopkg.aoctech.app/api-commons v1.6.0
 	software.sslmate.com/src/go-pkcs12 v0.7.3
 )
 
 require gopkg.in/yaml.v3 v3.0.1
+
+require github.com/kr/pretty v0.3.1 // indirect
 
 require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
