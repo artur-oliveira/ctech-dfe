@@ -12,7 +12,7 @@ import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor'
 import {type TaxProfileFormData, taxProfileSchema} from '@/lib/schemas/tax-profiles'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 import type {TaxProfileCreate, TaxProfileItemOut} from '@/lib/types/api'
-import {getAllCfopOptions, getCfopCanonical, getCfopVariants} from '@/lib/data/cfop'
+import {getAllCfopOptionsFlat, getCfopCanonical} from '@/lib/data/cfop'
 import {isRegimeSimples} from '@/lib/constants/tax'
 import {ApiError} from '@/lib/api/client'
 
@@ -48,7 +48,7 @@ function toFormData(p: TaxProfileItemOut): TaxProfileFormData {
  */
 export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}: TaxProfileFormProps) {
   const simples = isRegimeSimples(crt)
-  const cfopOptions = getAllCfopOptions()
+  const cfopOptions = getAllCfopOptionsFlat()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
 
@@ -61,19 +61,15 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
 
   const cfops = useWatch({control: form.control, name: 'cfops'}) ?? []
 
-  // Escolher um CFOP no combobox cobre o grupo inteiro (interna/interestadual/
-  // exterior — 5xxx/6xxx/7xxx), não só o código canônico: a alíquota interestadual
-  // é dado derivado na emissão, mas o match de perfil no backend é exato por CFOP.
+  // O combobox lista cada variante (5xxx/6xxx/7xxx) como opção própria — o perfil
+  // pode cobrir só um CFOP específico (ex.: só o 6102) ou vários, um de cada vez.
   const addCfop = (cfop: string) => {
-    const variants = getCfopVariants(cfop as never)
-    const next = [...cfops, ...variants.filter((v) => !cfops.includes(v))]
-    if (next.length === cfops.length) return
-    form.setValue('cfops', next, {shouldValidate: true})
+    if (cfops.includes(cfop)) return
+    form.setValue('cfops', [...cfops, cfop], {shouldValidate: true})
   }
 
-  const removeCfop = (canonical: string) => {
-    const variants = getCfopVariants(canonical as never)
-    form.setValue('cfops', cfops.filter((c) => !variants.includes(c)), {shouldValidate: true})
+  const removeCfops = (codes: string[]) => {
+    form.setValue('cfops', cfops.filter((c) => !codes.includes(c)), {shouldValidate: true})
   }
 
   // Agrupa a lista achatada de volta pelos grupos que o combobox oferece, pra
@@ -140,10 +136,10 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
           <div className="space-y-2">
             <FormLabel>CFOPs cobertos *</FormLabel>
             <p className="text-xs text-gray-500">
-              Escolher um CFOP cobre o grupo inteiro (interna/interestadual/exterior — ex.: 5102/6102): a
-              alíquota interestadual é resolvida na emissão, então o que muda entre elas é dado derivado, não
-              configuração. Quando o tratamento difere só pela UF de destino, use os overrides por UF abaixo —
-              quando difere de verdade por CFOP, crie um segundo perfil.
+              Escolha os CFOPs cobertos por este perfil — cada variante (interna/interestadual/exterior, ex.:
+              5102/6102/7102) é uma opção própria. Se o tratamento é o mesmo nas três, adicione as três aqui;
+              se difere por CFOP (ex.: um perfil só pro 5102, outro só pro 6102), crie perfis separados. Quando o
+              tratamento difere só pela UF de destino dentro do mesmo CFOP, use os overrides por UF abaixo.
             </p>
             <div className="w-full sm:max-w-md">
               <Combobox value="" onValueChange={addCfop} options={cfopOptions}
@@ -155,7 +151,7 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
                   <span key={canonical}
                         className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                     {codes.join('/')}
-                    <button type="button" onClick={() => removeCfop(canonical)}
+                    <button type="button" onClick={() => removeCfops(codes)}
                             aria-label={`Remover CFOP ${codes.join('/')}`}
                             className="text-brand-600 hover:text-red-600">×</button>
                   </span>

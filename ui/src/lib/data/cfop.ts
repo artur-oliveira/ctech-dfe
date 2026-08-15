@@ -3615,6 +3615,24 @@ export const getCfopCanonical = (cfop: string): CfopCode | null => {
   return VARIANT_TO_CODE[cfop] ?? null
 }
 
+const CFOP_SCOPE_LABEL: Record<string, string> = {
+  '1': 'interna', '2': 'interestadual', '3': 'exterior',
+  '5': 'interna', '6': 'interestadual', '7': 'exterior',
+}
+
+/**
+ * Uma opção por variante (5xxx/6xxx/7xxx), não por grupo — permite escolher um CFOP
+ * específico (ex.: só o 6102) em vez de sempre pegar o grupo inteiro.
+ */
+export const getAllCfopOptionsFlat = (): DisplayCfop[] => {
+  return ALL_CFOPS.flatMap(it => it.variants.map(v => ({
+    value: v,
+    label: it.variants.length > 1
+      ? `${v} (${CFOP_SCOPE_LABEL[v.charAt(0)] ?? v.charAt(0)}) - ${it.description}`
+      : `${v} - ${it.description}`,
+  })))
+}
+
 const displayCfops = (entries: CfopEntry[]): DisplayCfop[] => {
   return entries.map(it => {
     const value: string = it.code;
