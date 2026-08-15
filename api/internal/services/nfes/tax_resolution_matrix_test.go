@@ -27,7 +27,7 @@ func TestResolveCfopTax_ResolutionTierMatrix(t *testing.T) {
 				}},
 			},
 			profiles: map[string]map[string]any{"p1": {"cfops": []any{"5102"}, "icms_aliq_override": "1.00"}},
-			cfop: "5102", destUF: "RJ", wantAliq: "99.00",
+			cfop:     "5102", destUF: "RJ", wantAliq: "99.00",
 		},
 		{
 			name: "tier2_product_cfop_no_uf_match",
@@ -42,7 +42,7 @@ func TestResolveCfopTax_ResolutionTierMatrix(t *testing.T) {
 				}},
 			},
 			profiles: map[string]map[string]any{"p1": {"cfops": []any{"5102"}, "icms_aliq_override": "1.00"}},
-			cfop: "5102", destUF: "SP", wantAliq: "10.00",
+			cfop:     "5102", destUF: "SP", wantAliq: "10.00",
 		},
 		{
 			name: "tier3_link_override_plus_uf",
@@ -56,7 +56,7 @@ func TestResolveCfopTax_ResolutionTierMatrix(t *testing.T) {
 				}},
 			},
 			profiles: map[string]map[string]any{"p1": {"cfops": []any{"5102"}, "icms_aliq_override": "1.00"}},
-			cfop: "5102", destUF: "RJ", wantAliq: "50.00",
+			cfop:     "5102", destUF: "RJ", wantAliq: "50.00",
 		},
 		{
 			name: "tier4_link_override_no_uf",
@@ -70,7 +70,7 @@ func TestResolveCfopTax_ResolutionTierMatrix(t *testing.T) {
 				}},
 			},
 			profiles: map[string]map[string]any{"p1": {"cfops": []any{"5102"}, "icms_aliq_override": "1.00"}},
-			cfop: "5102", destUF: "SP", wantAliq: "30.00",
+			cfop:     "5102", destUF: "SP", wantAliq: "30.00",
 		},
 		{
 			name: "tier5_profile_plus_uf",

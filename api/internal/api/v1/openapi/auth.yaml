@@ -4,7 +4,7 @@ paths:
 
   /v1.0/auth/me:
     get:
-      tags: [Auth]
+      tags: [ Auth ]
       summary: Dados do usuário autenticado
       description: |
         Devolve o perfil do portador do token junto das organizações a que ele
@@ -21,7 +21,7 @@ paths:
 
   /v1.0/auth/terms-addendum/accept:
     post:
-      tags: [Auth]
+      tags: [ Auth ]
       summary: Registra o aceite do aditivo de termos de uso
       operationId: acceptTermsAddendum
       responses:
@@ -32,7 +32,7 @@ paths:
 
   /v1.0/auth/roles:
     get:
-      tags: [Auth]
+      tags: [ Auth ]
       summary: Lista os papéis atribuíveis
       description: Catálogo dos papéis do RBAC (OWNER, ADMIN, USER, VIEWER) com sua descrição.
       operationId: listRoles
@@ -53,7 +53,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Members]
+      tags: [ Members ]
       summary: Lista os membros da organização
       description: Visível apenas para OWNER e ADMIN.
       operationId: listMembers
@@ -77,7 +77,7 @@ paths:
         description: ID do usuário no ctech-account.
         schema: { type: string }
     delete:
-      tags: [Members]
+      tags: [ Members ]
       summary: Remove um membro
       description: |
         Somente OWNER. O OWNER não pode remover a si mesmo — a organização
@@ -101,7 +101,7 @@ paths:
         description: ID do usuário no ctech-account.
         schema: { type: string }
     put:
-      tags: [Members]
+      tags: [ Members ]
       summary: Altera o papel de um membro
       description: Somente OWNER. O papel OWNER não é atribuível por esta rota.
       operationId: changeMemberRole
@@ -122,7 +122,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Members]
+      tags: [ Members ]
       summary: Lista os convites pendentes
       description: OWNER e ADMIN. O token bruto não é exposto aqui.
       operationId: listInvitations
@@ -137,7 +137,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Members]
+      tags: [ Members ]
       summary: Cria um convite
       description: |
         **O `token` bruto só é devolvido nesta resposta** — apenas seu hash é
@@ -174,7 +174,7 @@ paths:
         description: Identificador do convite.
         schema: { type: string }
     delete:
-      tags: [Members]
+      tags: [ Members ]
       summary: Revoga um convite
       operationId: revokeInvitation
       responses:
@@ -190,7 +190,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/InvitationToken'
     get:
-      tags: [Invitations]
+      tags: [ Invitations ]
       summary: Consulta um convite pelo token
       description: |
         Endereçada por token: exige autenticação, mas não exige pertencer à
@@ -209,7 +209,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/InvitationToken'
     post:
-      tags: [Invitations]
+      tags: [ Invitations ]
       summary: Aceita um convite
       description: Cria o vínculo do usuário autenticado com a organização.
       operationId: acceptInvitation
@@ -232,7 +232,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/InvitationToken'
     post:
-      tags: [Invitations]
+      tags: [ Invitations ]
       summary: Recusa um convite
       operationId: declineInvitation
       responses:
@@ -285,15 +285,15 @@ components:
         id: { type: string }
         org_pk: { type: string }
         role: { $ref: '#/components/schemas/RoleName' }
-        status: { type: string, examples: [pending, accepted, declined] }
+        status: { type: string, examples: [ pending, accepted, declined ] }
         created_at: { type: string, format: date-time }
         expires_at: { type: string, format: date-time }
 
     MemberRoleBody:
       type: object
       description: Papel a conceder — OWNER não é atribuível por API.
-      required: [role]
+      required: [ role ]
       properties:
         role:
           type: string
-          enum: [ADMIN, USER, VIEWER]
+          enum: [ ADMIN, USER, VIEWER ]

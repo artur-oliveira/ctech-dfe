@@ -4,11 +4,38 @@ import type { UnverifiedIdTokenClaims } from '@aoctech/auth-client'
 const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!
 const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!
 
+export const DFE_USER_SCOPES = [
+  'dfe:nfes:read',
+  'dfe:nfes:write',
+  'dfe:nfces:read',
+  'dfe:nfces:write',
+  'dfe:ctes:read',
+  'dfe:ctes:write',
+  'dfe:mdfes:read',
+  'dfe:mdfes:write',
+  'dfe:nfses:read',
+  'dfe:nfses:write',
+  'dfe:organization_services:read',
+  'dfe:organization_services:write',
+  'dfe:organization_products:read',
+  'dfe:organization_products:write',
+  'dfe:organization_vehicles:read',
+  'dfe:organization_vehicles:write',
+  'dfe:organization_persons:read',
+  'dfe:organization_persons:write',
+  'dfe:organizations:read',
+  'dfe:organizations:write',
+  'dfe:organization_certificates:read',
+  'dfe:organization_certificates:write',
+] as const
+
+export const DFE_OAUTH_SCOPE = ['openid', 'profile', ...DFE_USER_SCOPES].join(' ')
+
 const client = new OAuthClient({
   baseUrl: CTECH_URL,
   clientId: CLIENT_ID,
   redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : '',
-  scope: 'openid profile',
+  scope: DFE_OAUTH_SCOPE,
 })
 
 export type { UnverifiedIdTokenClaims }

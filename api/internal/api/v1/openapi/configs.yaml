@@ -6,7 +6,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Lê a configuração de NF-e
       operationId: getNfeConfig
       responses:
@@ -15,7 +15,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Grava a configuração de NF-e
       description: |
         Série e numeração são mantidas por ambiente (`prod_*` / `hom_*`).
@@ -37,7 +37,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Lê a configuração de NFC-e
       operationId: getNfceConfig
       responses:
@@ -46,7 +46,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Grava a configuração de NFC-e
       description: |
         Além da série/numeração, exige o CSC (Código de Segurança do
@@ -68,7 +68,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Lê a configuração de CT-e
       operationId: getCteConfig
       responses:
@@ -77,7 +77,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Grava a configuração de CT-e
       operationId: putCteConfig
       requestBody:
@@ -95,7 +95,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Lê a configuração de MDF-e
       operationId: getMdfeConfig
       responses:
@@ -104,7 +104,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Grava a configuração de MDF-e
       operationId: putMdfeConfig
       requestBody:
@@ -122,7 +122,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     get:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Lê a configuração de NFS-e
       operationId: getNfseConfig
       responses:
@@ -131,7 +131,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Fiscal Configs]
+      tags: [ Fiscal Configs ]
       summary: Grava a configuração de NFS-e
       description: |
         Diferente dos demais: a NFS-e tem uma única `serie` (não uma por
@@ -167,19 +167,19 @@ components:
         sk: { type: string }
         environment:
           type: integer
-          enum: [1, 2]
+          enum: [ 1, 2 ]
           description: '`1` produção · `2` homologação.'
         updated_at: { type: string, format: date-time }
 
     FiscalConfigBody:
       type: object
       description: Configuração de NF-e, CT-e e MDF-e.
-      required: [timezone, environment]
+      required: [ timezone, environment ]
       properties:
         timezone: { $ref: '#/components/schemas/Timezone' }
         environment:
           type: integer
-          enum: [1, 2]
+          enum: [ 1, 2 ]
           description: '`1` produção · `2` homologação.'
         prod_current_serie: { type: integer, minimum: 0 }
         prod_current_number:
@@ -192,10 +192,10 @@ components:
     NfceConfigBody:
       type: object
       description: Configuração de NFC-e — acrescenta o CSC ao formato comum.
-      required: [timezone, environment, prod_csc, prod_csc_id, hom_csc, hom_csc_id]
+      required: [ timezone, environment, prod_csc, prod_csc_id, hom_csc, hom_csc_id ]
       properties:
         timezone: { $ref: '#/components/schemas/Timezone' }
-        environment: { type: integer, enum: [1, 2] }
+        environment: { type: integer, enum: [ 1, 2 ] }
         prod_current_serie: { type: integer, minimum: 0 }
         prod_current_number: { type: integer, minimum: 0 }
         hom_current_serie: { type: integer, minimum: 0 }
@@ -211,7 +211,7 @@ components:
     NfseAbrasfBody:
       type: object
       description: Configuração específica do provider `abrasf204`.
-      required: [endpoint_url, wsdl_version, municipality_code]
+      required: [ endpoint_url, wsdl_version, municipality_code ]
       properties:
         endpoint_url: { type: string, format: uri }
         wsdl_version: { type: string, maxLength: 10 }
@@ -225,19 +225,19 @@ components:
       description: |
         Configuração de NFS-e. Série única (não por ambiente); o `timezone`
         define o offset usado em `dhEmi`.
-      required: [provider, environment, timezone, c_loc_emi, serie]
+      required: [ provider, environment, timezone, c_loc_emi, serie ]
       properties:
         provider:
           type: string
-          enum: [nacional, abrasf204]
+          enum: [ nacional, abrasf204 ]
           description: '`nacional` fala com o ADN; `abrasf204` com o webservice do município.'
-        environment: { type: integer, enum: [1, 2] }
+        environment: { type: integer, enum: [ 1, 2 ] }
         timezone: { $ref: '#/components/schemas/Timezone' }
         c_loc_emi:
-          allOf: [{ $ref: '#/components/schemas/Ibge' }]
+          allOf: [ { $ref: '#/components/schemas/Ibge' } ]
           description: Município de emissão (do prestador).
         serie: { type: string, maxLength: 5, pattern: '^\d+$' }
         prod_current_number: { type: integer, minimum: 0 }
         hom_current_number: { type: integer, minimum: 0 }
-        certificate_sk: { type: [string, 'null'], maxLength: 60 }
+        certificate_sk: { type: [ string, 'null' ], maxLength: 60 }
         abrasf: { $ref: '#/components/schemas/NfseAbrasfBody' }

@@ -10,7 +10,7 @@ paths:
 
   /v1.0/tax-profiles:
     get:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Lista perfis fiscais
       operationId: listTaxProfiles
       parameters:
@@ -35,7 +35,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Cria um perfil fiscal
       operationId: createTaxProfile
       parameters:
@@ -64,7 +64,7 @@ paths:
         description: Identificador do perfil (SK da linha).
         schema: { type: string }
     get:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Detalha um perfil fiscal
       operationId: getTaxProfile
       responses:
@@ -77,7 +77,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Atualiza um perfil fiscal
       operationId: updateTaxProfile
       description: |
@@ -99,7 +99,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Remove um perfil fiscal
       operationId: deleteTaxProfile
       responses:
@@ -113,7 +113,7 @@ paths:
 
   /v1.0/tax-tables/icms-aliq:
     get:
-      tags: [TaxProfiles]
+      tags: [ TaxProfiles ]
       summary: Consulta a alíquota ICMS/FCP que o sistema resolveria
       operationId: previewIcmsAliq
       description: |
@@ -150,7 +150,7 @@ paths:
 
   /v1.0/operations:
     get:
-      tags: [Operations]
+      tags: [ Operations ]
       summary: Lista naturezas de operação
       operationId: listOperations
       parameters:
@@ -175,7 +175,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Operations]
+      tags: [ Operations ]
       summary: Cria uma natureza de operação
       operationId: createOperation
       parameters:
@@ -204,7 +204,7 @@ paths:
         description: Identificador da natureza de operação (SK da linha).
         schema: { type: string }
     get:
-      tags: [Operations]
+      tags: [ Operations ]
       summary: Detalha uma natureza de operação
       operationId: getOperation
       responses:
@@ -217,7 +217,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Operations]
+      tags: [ Operations ]
       summary: Atualiza uma natureza de operação
       operationId: updateOperation
       requestBody:
@@ -236,7 +236,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [Operations]
+      tags: [ Operations ]
       summary: Remove uma natureza de operação
       operationId: deleteOperation
       responses:
@@ -250,7 +250,7 @@ paths:
 
   /v1.0/payment-terms:
     get:
-      tags: [PaymentTerms]
+      tags: [ PaymentTerms ]
       summary: Lista condições de pagamento
       operationId: listPaymentTerms
       parameters:
@@ -275,7 +275,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [PaymentTerms]
+      tags: [ PaymentTerms ]
       summary: Cria uma condição de pagamento
       operationId: createPaymentTerm
       parameters:
@@ -304,7 +304,7 @@ paths:
         description: Identificador (SK da linha).
         schema: { type: string }
     get:
-      tags: [PaymentTerms]
+      tags: [ PaymentTerms ]
       summary: Detalha uma condição de pagamento
       operationId: getPaymentTerm
       responses:
@@ -317,7 +317,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [PaymentTerms]
+      tags: [ PaymentTerms ]
       summary: Atualiza uma condição de pagamento
       operationId: updatePaymentTerm
       requestBody:
@@ -336,7 +336,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [PaymentTerms]
+      tags: [ PaymentTerms ]
       summary: Remove uma condição de pagamento
       operationId: deletePaymentTerm
       responses:
@@ -350,7 +350,7 @@ paths:
 
   /v1.0/vehicle-sets:
     get:
-      tags: [VehicleSets]
+      tags: [ VehicleSets ]
       summary: Lista composições veiculares
       operationId: listVehicleSets
       parameters:
@@ -375,7 +375,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [VehicleSets]
+      tags: [ VehicleSets ]
       summary: Cria uma composição veicular
       operationId: createVehicleSet
       parameters:
@@ -404,7 +404,7 @@ paths:
         description: Identificador da composição (SK da linha).
         schema: { type: string }
     get:
-      tags: [VehicleSets]
+      tags: [ VehicleSets ]
       summary: Detalha uma composição veicular
       operationId: getVehicleSet
       responses:
@@ -417,7 +417,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [VehicleSets]
+      tags: [ VehicleSets ]
       summary: Atualiza uma composição veicular
       operationId: updateVehicleSet
       requestBody:
@@ -436,7 +436,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [VehicleSets]
+      tags: [ VehicleSets ]
       summary: Remove uma composição veicular
       operationId: deleteVehicleSet
       responses:
@@ -468,10 +468,10 @@ components:
         não há aninhamento por CFOP dentro do perfil.
       allOf:
         - type: object
-          required: [name, cfops]
+          required: [ name, cfops ]
           properties:
             name: { type: string, minLength: 2, maxLength: 120 }
-            description: { type: [string, 'null'], maxLength: 255 }
+            description: { type: [ string, 'null' ], maxLength: 255 }
             cfops:
               type: array
               minItems: 1
@@ -487,7 +487,7 @@ components:
         pk: { type: string }
         sk: { type: string, description: Identificador do perfil. }
         name: { type: string }
-        description: { type: [string, 'null'] }
+        description: { type: [ string, 'null' ] }
         cfops:
           type: array
           items: { $ref: '#/components/schemas/Cfop' }
@@ -501,38 +501,38 @@ components:
         negócio ("venda para revenda", "remessa para conserto", "devolução de
         compra"). Na emissão, **valor explícito no request sempre vence a
         operação**: ela é default, não prisão.
-      required: [name]
+      required: [ name ]
       properties:
         name: { type: string, minLength: 2, maxLength: 120 }
         doc_types:
           type: array
-          items: { type: string, enum: [nfe, nfce, cte, mdfe] }
-        nat_op: { type: [string, 'null'], maxLength: 60 }
-        tp_nf: { type: [string, 'null'], enum: ['0', '1', null] }
-        fin_nfe: { type: [string, 'null'], enum: ['1', '2', '3', '4', null] }
-        ind_final: { type: [string, 'null'], enum: ['0', '1', null] }
-        ind_pres: { type: [string, 'null'], enum: ['0', '1', '2', '3', '4', '5', '9', null] }
+          items: { type: string, enum: [ nfe, nfce, cte, mdfe ] }
+        nat_op: { type: [ string, 'null' ], maxLength: 60 }
+        tp_nf: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
+        fin_nfe: { type: [ string, 'null' ], enum: [ '1', '2', '3', '4', null ] }
+        ind_final: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
+        ind_pres: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', '4', '5', '9', null ] }
         cfop_suffix:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           pattern: '^\d{3}$'
           description: |
             Natureza fiscal (3 dígitos). O dígito de escopo (`5` intra-UF,
             `6` inter-UF, `7` exterior) é resolvido na emissão a partir das UFs
             de emitente e destinatário. Sem variante para o escopo exigido, a
             emissão é **bloqueada** com mensagem acionável — nada de sintetizar CFOP.
-        tax_profile_id: { type: [string, 'null'] }
-        payment_term_id: { type: [string, 'null'] }
-        mod_frete: { type: [string, 'null'], enum: ['0', '1', '2', '3', '4', '9', null] }
+        tax_profile_id: { type: [ string, 'null' ] }
+        payment_term_id: { type: [ string, 'null' ] }
+        mod_frete: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', '4', '9', null ] }
         inf_ad_fisco:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           maxLength: 2000
           description: |
             Aceita placeholders `{{chave}}`: `{{v_nf}}`, `{{v_icms_st}}`,
             `{{cliente}}`, `{{nat_op}}`, `{{competencia}}`. Chave desconhecida é
             erro de validação **no cadastro**, nunca interpolação em branco no XML.
-        inf_cpl: { type: [string, 'null'], maxLength: 5000 }
+        inf_cpl: { type: [ string, 'null' ], maxLength: 5000 }
         requires_receiver:
-          type: [boolean, 'null']
+          type: [ boolean, 'null' ]
           description: '`false` habilita emissão sem destinatário (self_issuance).'
         is_default:
           type: boolean
@@ -560,15 +560,15 @@ components:
         `payments`, `cobr_fat` e `cobr_duplicatas`. **A última parcela absorve o
         resíduo de arredondamento**: a soma das duplicatas fecha com `vNF`
         centavo a centavo. Valores explícitos no request vencem a expansão.
-      required: [name, payment_type, installments]
+      required: [ name, payment_type, installments ]
       properties:
         name: { type: string, minLength: 2, maxLength: 120 }
         payment_type:
           type: string
           description: Mesmo domínio de `NfePaymentItem.payment_type`.
         ind_pag:
-          type: [string, 'null']
-          enum: ['0', '1', null]
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
           description: |
             `0` à vista, `1` a prazo. Ausente, é derivado: uma parcela com
             vencimento imediato é à vista, qualquer outra coisa é a prazo.
@@ -576,7 +576,7 @@ components:
         interval_days: { type: integer, minimum: 0, maximum: 365, description: Intervalo entre parcelas. }
         first_due_days: { type: integer, minimum: 0, maximum: 365, description: Dias até o primeiro vencimento. }
         card:
-          type: [object, 'null']
+          type: [ object, 'null' ]
           additionalProperties: true
           description: Mesmos campos de `NfePaymentItem.card`.
 
@@ -604,7 +604,7 @@ components:
 
         O trator tem que ter `role=tractor` e cada reboque `role=trailer`; a
         checagem acontece no cadastro, não na emissão.
-      required: [name, tractor_sk]
+      required: [ name, tractor_sk ]
       properties:
         name: { type: string, minLength: 2, maxLength: 120 }
         tractor_sk: { type: string, description: 'SK do veículo de tração (role=tractor).' }
@@ -617,8 +617,8 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Cpf' }
           description: CPFs de pessoas do cadastro, tipicamente com o papel `driver`.
-        rntrc: { type: [string, 'null'] }
-        ciot: { type: [string, 'null'] }
+        rntrc: { type: [ string, 'null' ] }
+        ciot: { type: [ string, 'null' ] }
 
     VehicleSetItem:
       type: object

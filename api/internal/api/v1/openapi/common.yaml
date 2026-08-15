@@ -46,7 +46,7 @@ components:
       name: sort
       in: query
       description: Ordem do resultado.
-      schema: { type: string, enum: [asc, desc], default: asc }
+      schema: { type: string, enum: [ asc, desc ], default: asc }
 
     AccessKey:
       name: access_key
@@ -90,7 +90,7 @@ components:
       in: path
       required: true
       description: Tipo de documento da distribuição.
-      schema: { type: string, enum: [nfe, cte, mdfe, nfse] }
+      schema: { type: string, enum: [ nfe, cte, mdfe, nfse ] }
 
     Nsu:
       name: nsu
@@ -202,7 +202,7 @@ components:
     Uf:
       type: string
       description: Sigla da unidade federativa.
-      enum: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO]
+      enum: [ AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO ]
 
     Ibge:
       type: string
@@ -294,32 +294,32 @@ components:
     RoleName:
       type: string
       description: Papel do membro na organização.
-      enum: [OWNER, ADMIN, USER, VIEWER]
+      enum: [ OWNER, ADMIN, USER, VIEWER ]
 
     DocumentStatus:
       type: string
       description: |
         Estado do documento no ciclo de emissão. `pending` significa que a
         SEFAZ ainda não respondeu.
-      examples: [pending, authorized, rejected, cancelled]
+      examples: [ pending, authorized, rejected, cancelled ]
 
     # -- Infra: erro, paginação, saúde -------------------------------------
 
     Problem:
       type: object
       description: RFC 7807 Problem Details.
-      required: [type, title, status]
+      required: [ type, title, status ]
       properties:
         type:
           type: string
           description: URI que identifica o tipo do problema.
-          examples: ['/problems/validation-error']
+          examples: [ '/problems/validation-error' ]
         title:
           type: string
-          examples: ['Validation Error']
+          examples: [ 'Validation Error' ]
         status:
           type: integer
-          examples: [422]
+          examples: [ 422 ]
         detail:
           type: string
           description: Explicação legível do caso concreto.
@@ -330,32 +330,32 @@ components:
 
     FieldError:
       type: object
-      required: [field, message]
+      required: [ field, message ]
       properties:
         field:
           type: string
           description: Caminho JSON do campo reprovado.
-          examples: ['person.addresses[0].postal_code']
+          examples: [ 'person.addresses[0].postal_code' ]
         message: { type: string }
         tag:
           type: string
           description: Regra de validação que falhou.
-          examples: [required, cnpj, ibge]
+          examples: [ required, cnpj, ibge ]
 
     Page:
       type: object
       description: Envelope padrão das listagens.
-      required: [items, has_next, has_previous]
+      required: [ items, has_next, has_previous ]
       properties:
         items:
           type: array
           items: { type: object, additionalProperties: true }
         next_cursor:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: Cursor da próxima página; `null` na última.
         has_next: { type: boolean }
         previous_cursor:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: Cursor da página anterior; `null` na primeira.
         has_previous: { type: boolean }
 
@@ -365,7 +365,7 @@ components:
       properties:
         status:
           type: string
-          enum: [pass, warn, fail]
+          enum: [ pass, warn, fail ]
         version: { type: string }
         checks:
           type: object

@@ -4,7 +4,7 @@ paths:
 
   /v1.0/products:
     get:
-      tags: [Products]
+      tags: [ Products ]
       summary: Lista produtos
       operationId: listProducts
       parameters:
@@ -28,7 +28,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Products]
+      tags: [ Products ]
       summary: Cria um produto
       operationId: createProduct
       parameters:
@@ -58,7 +58,7 @@ paths:
         description: Identificador do produto (SK da linha).
         schema: { type: string }
     get:
-      tags: [Products]
+      tags: [ Products ]
       summary: Detalha um produto
       operationId: getProduct
       responses:
@@ -71,7 +71,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Products]
+      tags: [ Products ]
       summary: Atualiza um produto
       description: O corpo é o objeto completo — o frontend envia tudo em create e update.
       operationId: updateProduct
@@ -91,7 +91,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [Products]
+      tags: [ Products ]
       summary: Remove um produto
       operationId: deleteProduct
       responses:
@@ -105,7 +105,7 @@ paths:
 
   /v1.0/services:
     get:
-      tags: [Services]
+      tags: [ Services ]
       summary: Lista serviços
       operationId: listServices
       parameters:
@@ -129,7 +129,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Services]
+      tags: [ Services ]
       summary: Cria um serviço
       operationId: createService
       parameters:
@@ -159,7 +159,7 @@ paths:
         description: Identificador do serviço (SK da linha).
         schema: { type: string }
     get:
-      tags: [Services]
+      tags: [ Services ]
       summary: Detalha um serviço
       operationId: getService
       responses:
@@ -172,7 +172,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Services]
+      tags: [ Services ]
       summary: Atualiza um serviço
       operationId: updateService
       requestBody:
@@ -191,7 +191,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [Services]
+      tags: [ Services ]
       summary: Remove um serviço
       operationId: deleteService
       responses:
@@ -205,7 +205,7 @@ paths:
 
   /v1.0/persons:
     get:
-      tags: [Persons]
+      tags: [ Persons ]
       summary: Lista pessoas
       description: |
         `role` e `q` combinam: `?role=driver&q=jo` lista os condutores cujo nome
@@ -231,7 +231,7 @@ paths:
             nenhuma listagem filtrada — comportamento correto, não omissão.
           schema:
             type: string
-            enum: [customer, supplier, carrier, driver, provider]
+            enum: [ customer, supplier, carrier, driver, provider ]
         - name: q
           in: query
           required: false
@@ -261,7 +261,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Persons]
+      tags: [ Persons ]
       summary: Cria uma pessoa
       description: |
         O grupo `person.nfse` só é obrigatório quando a pessoa for usada como
@@ -295,7 +295,7 @@ paths:
         description: CPF ou CNPJ da pessoa, apenas dígitos.
         schema: { $ref: '#/components/schemas/CpfCnpj' }
     get:
-      tags: [Persons]
+      tags: [ Persons ]
       summary: Detalha uma pessoa
       operationId: getPerson
       responses:
@@ -308,7 +308,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Persons]
+      tags: [ Persons ]
       summary: Atualiza uma pessoa
       description: Parcial. O documento vem sempre do path, nunca do corpo.
       operationId: updatePerson
@@ -328,7 +328,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [Persons]
+      tags: [ Persons ]
       summary: Remove uma pessoa
       operationId: deletePerson
       responses:
@@ -342,7 +342,7 @@ paths:
 
   /v1.0/vehicles:
     get:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Lista veículos
       operationId: listVehicles
       parameters:
@@ -366,7 +366,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Cadastra um veículo
       description: |
         Só placa, UF e papel são exigidos no cadastro. Os demais campos são
@@ -396,7 +396,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/VehicleSk'
     get:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Detalha um veículo
       operationId: getVehicle
       responses:
@@ -409,7 +409,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Atualiza um veículo
       operationId: updateVehicle
       requestBody:
@@ -428,7 +428,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Remove um veículo
       operationId: deleteVehicle
       responses:
@@ -443,7 +443,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/VehicleSk'
     get:
-      tags: [Vehicles]
+      tags: [ Vehicles ]
       summary: Lista os campos que faltam para usar o veículo
       description: |
         O cadastro é propositalmente frouxo; a exigência é por documento e por
@@ -455,12 +455,12 @@ paths:
           in: query
           required: true
           description: Documento que usará o veículo.
-          schema: { type: string, enum: [mdfe, nfe, cteos] }
+          schema: { type: string, enum: [ mdfe, nfe, cteos ] }
         - name: role
           in: query
           required: true
           description: Papel do veículo na composição.
-          schema: { type: string, enum: [tractor, trailer] }
+          schema: { type: string, enum: [ tractor, trailer ] }
       responses:
         '200':
           description: Campos pendentes
@@ -488,7 +488,7 @@ components:
     ConversionFactorBody:
       type: object
       description: Fator de conversão entre unidades do produto.
-      required: [origin_unit, target_unit, factor]
+      required: [ origin_unit, target_unit, factor ]
       properties:
         origin_unit: { $ref: '#/components/schemas/Unit' }
         target_unit: { $ref: '#/components/schemas/Unit' }
@@ -503,78 +503,78 @@ components:
         vários produtos). ICMS aceita CST (Regime Normal) ou CSOSN (Simples
         Nacional) — qual dos dois vale é decidido pelo CRT da organização na
         emissão.
-      required: [pis, cofins, ibs_cbs_cst, ibs_cbs_class_trib, ibs_uf_aliq, ibs_mun_aliq, cbs_aliq]
+      required: [ pis, cofins, ibs_cbs_cst, ibs_cbs_class_trib, ibs_uf_aliq, ibs_mun_aliq, cbs_aliq ]
       properties:
-        csosn: { type: [string, 'null'], description: 'CSOSN, para emitentes do Simples Nacional.' }
-        icms: { type: [string, 'null'], description: 'CST do ICMS, para Regime Normal.' }
-        icms_mod_bc: { type: [string, 'null'] }
-        icms_aliq_override: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_fcp_override: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_sn_cred_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_ind_deduz_deson: { type: [string, 'null'] }
-        icms_st_mod_bc: { type: [string, 'null'] }
-        icms_st_mva: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_st_red_bc: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_st_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_st_fcp_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_p_red_bc: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_mot_des: { type: [string, 'null'] }
-        icms_p_dif: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_ad_rem: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_ad_rem_reten: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_p_red_ad_rem: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_mot_red_ad_rem: { type: [string, 'null'] }
-        icms_p_dif_mono: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_v_bc_st_ret: { type: [string, 'null'] }
-        icms_v_icms_st_ret: { type: [string, 'null'] }
-        icms_p_st: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        icms_fcp_v_bc_st_ret: { type: [string, 'null'] }
-        icms_fcp_st_ret_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        csosn: { type: [ string, 'null' ], description: 'CSOSN, para emitentes do Simples Nacional.' }
+        icms: { type: [ string, 'null' ], description: 'CST do ICMS, para Regime Normal.' }
+        icms_mod_bc: { type: [ string, 'null' ] }
+        icms_aliq_override: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_fcp_override: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_sn_cred_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_ind_deduz_deson: { type: [ string, 'null' ] }
+        icms_st_mod_bc: { type: [ string, 'null' ] }
+        icms_st_mva: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_st_red_bc: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_st_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_st_fcp_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_p_red_bc: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_mot_des: { type: [ string, 'null' ] }
+        icms_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_ad_rem_reten: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_p_red_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_mot_red_ad_rem: { type: [ string, 'null' ] }
+        icms_p_dif_mono: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_v_bc_st_ret: { type: [ string, 'null' ] }
+        icms_v_icms_st_ret: { type: [ string, 'null' ] }
+        icms_p_st: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_fcp_v_bc_st_ret: { type: [ string, 'null' ] }
+        icms_fcp_st_ret_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         pis: { type: string, pattern: '^\d{2}$', description: CST do PIS. }
         cofins: { type: string, pattern: '^\d{2}$', description: CST da COFINS. }
-        pis_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        cofins_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        pis_aliq_unid: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        cofins_aliq_unid: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        pis_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cofins_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        pis_aliq_unid: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cofins_aliq_unid: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         ibs_cbs_cst:
           type: string
-          enum: ['000', '010', '011', '200', '220', '221', '222', '400', '410', '510', '515', '550', '620', '800', '810', '811', '820', '830']
+          enum: [ '000', '010', '011', '200', '220', '221', '222', '400', '410', '510', '515', '550', '620', '800', '810', '811', '820', '830' ]
           description: CST do IBS/CBS (Reforma Tributária).
         ibs_cbs_class_trib: { type: string, pattern: '^\d{6}$' }
         ibs_uf_aliq: { $ref: '#/components/schemas/Percent' }
         ibs_mun_aliq: { $ref: '#/components/schemas/Percent' }
         cbs_aliq: { $ref: '#/components/schemas/Percent' }
-        ibs_uf_p_red: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ibs_mun_p_red: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        cbs_p_red: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ibs_uf_p_dif: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ibs_mun_p_dif: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        cbs_p_dif: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ibs_ind_doacao: { type: [string, 'null'] }
-        ibs_ad_rem: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        cbs_ad_rem: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ipi_cst: { type: [string, 'null'] }
-        ipi_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        is_cst: { type: [string, 'null'], description: CST do Imposto Seletivo. }
-        is_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        is_class_trib: { type: [string, 'null'], pattern: '^\d{6}$' }
-        is_aliq_espec: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        is_unid_trib: { type: [string, 'null'] }
-        issqn_ind_iss: { type: [string, 'null'] }
-        issqn_c_list_serv: { type: [string, 'null'] }
-        issqn_c_mun_fg: { type: [string, 'null'], pattern: '^\d{7}$' }
-        issqn_aliq: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        issqn_v_deducao: { type: [string, 'null'] }
-        issqn_v_iss_ret: { type: [string, 'null'] }
+        ibs_uf_p_red: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_mun_p_red: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_p_red: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_uf_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_mun_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_ind_doacao: { type: [ string, 'null' ] }
+        ibs_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ipi_cst: { type: [ string, 'null' ] }
+        ipi_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        is_cst: { type: [ string, 'null' ], description: CST do Imposto Seletivo. }
+        is_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        is_class_trib: { type: [ string, 'null' ], pattern: '^\d{6}$' }
+        is_aliq_espec: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        is_unid_trib: { type: [ string, 'null' ] }
+        issqn_ind_iss: { type: [ string, 'null' ] }
+        issqn_c_list_serv: { type: [ string, 'null' ] }
+        issqn_c_mun_fg: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        issqn_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        issqn_v_deducao: { type: [ string, 'null' ] }
+        issqn_v_iss_ret: { type: [ string, 'null' ] }
 
 
     ProductTaxProfileRef:
       type: object
-      required: [tax_profile_id]
+      required: [ tax_profile_id ]
       properties:
         tax_profile_id: { type: string }
         overrides:
-          type: [object, 'null']
+          type: [ object, 'null' ]
           additionalProperties: true
           description: |
             Sobrescrita parcial do perfil, só para este produto. Só as chaves
@@ -584,7 +584,7 @@ components:
       description: Configuração tributária do produto para um CFOP.
       allOf:
         - type: object
-          required: [cfop]
+          required: [ cfop ]
           properties:
             cfop: { $ref: '#/components/schemas/Cfop' }
         - $ref: '#/components/schemas/TaxFieldsBody'
@@ -595,35 +595,35 @@ components:
         Produto do catálogo. O corpo é enviado completo tanto na criação quanto
         na atualização. Os grupos `comb_*`, `med_*`, `veic_*` e `arma_*` só são
         usados quando `prod_type` corresponde.
-      required: [code, description, ncm, origin, unit, value, ind_tot, cfop_nfce, cfop_config]
+      required: [ code, description, ncm, origin, unit, value, ind_tot, cfop_nfce, cfop_config ]
       properties:
         code: { type: string, maxLength: 60, pattern: '^[A-Z0-9._\-]+$' }
         description: { type: string, minLength: 2, maxLength: 255 }
-        brand: { type: [string, 'null'], maxLength: 60 }
+        brand: { type: [ string, 'null' ], maxLength: 60 }
         ncm: { $ref: '#/components/schemas/Ncm' }
-        cest: { type: [string, 'null'], pattern: '^\d{7}$' }
+        cest: { type: [ string, 'null' ], pattern: '^\d{7}$' }
         origin: { type: string, description: Origem da mercadoria (tabela da NF-e). }
         unit: { type: string, maxLength: 6 }
-        taxable_unit: { type: [string, 'null'], maxLength: 6 }
-        cean: { type: [string, 'null'], pattern: '^(\d{8,14}|SEM GTIN)$' }
-        taxable_cean: { type: [string, 'null'], pattern: '^(\d{8,14}|SEM GTIN)$' }
+        taxable_unit: { type: [ string, 'null' ], maxLength: 6 }
+        cean: { type: [ string, 'null' ], pattern: '^(\d{8,14}|SEM GTIN)$' }
+        taxable_cean: { type: [ string, 'null' ], pattern: '^(\d{8,14}|SEM GTIN)$' }
         value: { $ref: '#/components/schemas/Money' }
-        value_resale: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        net_weight: { type: [string, 'null'], pattern: '^\d+(\.\d{1,3})?$' }
-        gross_weight: { type: [string, 'null'], pattern: '^\d+(\.\d{1,3})?$' }
-        c_benef: { type: [string, 'null'], description: 'Código de benefício fiscal, ou `SEM CBENEF`.' }
-        ext_ipi: { type: [string, 'null'], pattern: '^\d{2,3}$' }
-        ind_escala: { type: [string, 'null'], enum: [S, N, null] }
-        cnpj_fab: { type: [string, 'null'], pattern: '^\d{14}$' }
+        value_resale: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        net_weight: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,3})?$' }
+        gross_weight: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,3})?$' }
+        c_benef: { type: [ string, 'null' ], description: 'Código de benefício fiscal, ou `SEM CBENEF`.' }
+        ext_ipi: { type: [ string, 'null' ], pattern: '^\d{2,3}$' }
+        ind_escala: { type: [ string, 'null' ], enum: [ S, N, null ] }
+        cnpj_fab: { type: [ string, 'null' ], pattern: '^\d{14}$' }
         ind_tot:
           type: string
-          enum: ['0', '1']
+          enum: [ '0', '1' ]
           description: Indica se o item compõe o total da nota.
-        icms_aliq_override: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        fcp_aliq_override: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        inf_ad_prod: { type: [string, 'null'], maxLength: 500 }
+        icms_aliq_override: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        fcp_aliq_override: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        inf_ad_prod: { type: [ string, 'null' ], maxLength: 500 }
         cfop_nfce:
-          allOf: [{ $ref: '#/components/schemas/Cfop' }]
+          allOf: [ { $ref: '#/components/schemas/Cfop' } ]
           description: CFOP padrão usado nas emissões de NFC-e.
         cfop_config:
           type: array
@@ -640,42 +640,42 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ConversionFactorBody' }
         prod_type:
-          type: [string, 'null']
-          enum: [generic, comb, med, veiculo, arma, null]
+          type: [ string, 'null' ]
+          enum: [ generic, comb, med, veiculo, arma, null ]
           description: Define quais grupos específicos são exigidos na emissão.
-        comb_c_prod_anp: { type: [string, 'null'], pattern: '^\d{9}$' }
-        comb_desc_anp: { type: [string, 'null'], maxLength: 95 }
-        comb_uf_cons: { type: [string, 'null'], pattern: '^[A-Z]{2}$' }
-        comb_codif: { type: [string, 'null'], maxLength: 21 }
-        comb_p_glp: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        comb_p_gnn: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        comb_p_gni: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        comb_v_part: { type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$' }
-        comb_p_bio: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        med_c_prod_anvisa: { type: [string, 'null'], minLength: 5 }
-        med_x_motivo_isencao: { type: [string, 'null'], maxLength: 255 }
-        med_v_pmc: { type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$' }
-        veic_tp_op: { type: [string, 'null'], enum: ['0', '1', '2', '3', null] }
-        veic_tp_comb: { type: [string, 'null'], maxLength: 2 }
-        veic_tp_pint: { type: [string, 'null'], maxLength: 1 }
-        veic_tp_veic: { type: [string, 'null'], pattern: '^\d{1,2}$' }
-        veic_esp_veic: { type: [string, 'null'], pattern: '^\d$' }
-        veic_vin: { type: [string, 'null'], enum: [R, N, null] }
-        veic_cond_veic: { type: [string, 'null'], enum: ['1', '2', '3', null] }
-        veic_c_mod: { type: [string, 'null'], pattern: '^\d{1,6}$' }
-        veic_c_cor_denatran: { type: [string, 'null'], pattern: '^\d{1,2}$' }
-        veic_lota: { type: [string, 'null'], maxLength: 3 }
-        veic_tp_rest: { type: [string, 'null'], enum: ['0', '1', '2', '3', '4', '9', null] }
-        veic_ano_mod: { type: [string, 'null'], pattern: '^\d{4}$' }
-        veic_ano_fab: { type: [string, 'null'], pattern: '^\d{4}$' }
-        veic_pot: { type: [string, 'null'], maxLength: 4 }
-        veic_cilin: { type: [string, 'null'], maxLength: 4 }
-        veic_cmt: { type: [string, 'null'], maxLength: 9 }
-        veic_dist: { type: [string, 'null'], maxLength: 4 }
-        veic_c_cor: { type: [string, 'null'], maxLength: 4 }
-        veic_x_cor: { type: [string, 'null'], maxLength: 40 }
-        arma_tp_arma: { type: [string, 'null'], enum: ['0', '1', null] }
-        arma_descr: { type: [string, 'null'], maxLength: 256 }
+        comb_c_prod_anp: { type: [ string, 'null' ], pattern: '^\d{9}$' }
+        comb_desc_anp: { type: [ string, 'null' ], maxLength: 95 }
+        comb_uf_cons: { type: [ string, 'null' ], pattern: '^[A-Z]{2}$' }
+        comb_codif: { type: [ string, 'null' ], maxLength: 21 }
+        comb_p_glp: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        comb_p_gnn: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        comb_p_gni: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        comb_v_part: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        comb_p_bio: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
+        med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
+        med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        veic_tp_op: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', null ] }
+        veic_tp_comb: { type: [ string, 'null' ], maxLength: 2 }
+        veic_tp_pint: { type: [ string, 'null' ], maxLength: 1 }
+        veic_tp_veic: { type: [ string, 'null' ], pattern: '^\d{1,2}$' }
+        veic_esp_veic: { type: [ string, 'null' ], pattern: '^\d$' }
+        veic_vin: { type: [ string, 'null' ], enum: [ R, N, null ] }
+        veic_cond_veic: { type: [ string, 'null' ], enum: [ '1', '2', '3', null ] }
+        veic_c_mod: { type: [ string, 'null' ], pattern: '^\d{1,6}$' }
+        veic_c_cor_denatran: { type: [ string, 'null' ], pattern: '^\d{1,2}$' }
+        veic_lota: { type: [ string, 'null' ], maxLength: 3 }
+        veic_tp_rest: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', '4', '9', null ] }
+        veic_ano_mod: { type: [ string, 'null' ], pattern: '^\d{4}$' }
+        veic_ano_fab: { type: [ string, 'null' ], pattern: '^\d{4}$' }
+        veic_pot: { type: [ string, 'null' ], maxLength: 4 }
+        veic_cilin: { type: [ string, 'null' ], maxLength: 4 }
+        veic_cmt: { type: [ string, 'null' ], maxLength: 9 }
+        veic_dist: { type: [ string, 'null' ], maxLength: 4 }
+        veic_c_cor: { type: [ string, 'null' ], maxLength: 4 }
+        veic_x_cor: { type: [ string, 'null' ], maxLength: 40 }
+        arma_tp_arma: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
+        arma_descr: { type: [ string, 'null' ], maxLength: 256 }
 
     Product:
       type: object
@@ -697,57 +697,57 @@ components:
     ServiceIssBody:
       type: object
       description: Defaults de ISSQN do serviço (grupo `tribMun` da DPS).
-      required: [trib_issqn, tax_rate]
+      required: [ trib_issqn, tax_rate ]
       properties:
         trib_issqn:
           type: integer
-          enum: [1, 2, 3, 4]
+          enum: [ 1, 2, 3, 4 ]
           description: '`1` tributável · `2` imunidade · `3` exportação · `4` não incidência.'
         tax_rate: { $ref: '#/components/schemas/Percent' }
         tp_ret_issqn:
-          type: [integer, 'null']
-          enum: [1, 2, 3, null]
+          type: [ integer, 'null' ]
+          enum: [ 1, 2, 3, null ]
           description: '`1` não retido · `2` retido pelo tomador · `3` retido pelo intermediário.'
         tp_imunidade:
-          type: [integer, 'null']
+          type: [ integer, 'null' ]
           minimum: 0
           maximum: 5
           description: Só para `trib_issqn = 2`. `0` não informado; `1`–`5` hipóteses do art. 150, VI da CF.
-        c_pais_resultado: { type: [string, 'null'], minLength: 2, maxLength: 2 }
+        c_pais_resultado: { type: [ string, 'null' ], minLength: 2, maxLength: 2 }
 
     ServiceFederalBody:
       type: object
       description: Defaults de tributos federais do serviço.
       properties:
-        cst_pis_cofins: { type: [string, 'null'], pattern: '^\d{2}$' }
-        aliq_pis: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        aliq_cofins: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cst_pis_cofins: { type: [ string, 'null' ], pattern: '^\d{2}$' }
+        aliq_pis: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        aliq_cofins: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         tp_ret_pis_cofins:
-          type: [integer, 'null']
-          enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, null]
+          type: [ integer, 'null' ]
+          enum: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, null ]
           description: Combinação de retenções de PIS, COFINS e CSLL conforme a tabela do leiaute.
-        v_ret_cp: { type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$' }
-        v_ret_irrf: { type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$' }
-        v_ret_csll: { type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$' }
+        v_ret_cp: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        v_ret_irrf: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        v_ret_csll: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
 
     ServiceIbsCbsBody:
       type: object
       description: Defaults de IBS/CBS do serviço (Reforma Tributária).
-      required: [c_ind_op, cst, c_class_trib, ind_dest, fin_nfse]
+      required: [ c_ind_op, cst, c_class_trib, ind_dest, fin_nfse ]
       properties:
         c_ind_op: { type: string, pattern: '^\d{6}$' }
         cst: { type: string, pattern: '^\d{3}$' }
         c_class_trib: { type: string, pattern: '^\d{6}$' }
         ind_dest:
           type: integer
-          enum: [0, 1]
+          enum: [ 0, 1 ]
           description: '`0` destinatário é o próprio tomador · `1` destinatário diferente.'
         tp_oper:
-          type: [integer, 'null']
-          enum: [1, 2, 3, 4, 5, null]
+          type: [ integer, 'null' ]
+          enum: [ 1, 2, 3, 4, 5, null ]
         fin_nfse:
           type: integer
-          enum: [0]
+          enum: [ 0 ]
           description: Valor fixo `0` — o leiaute só admite NFS-e regular.
 
     ServiceTotTribBody:
@@ -756,23 +756,23 @@ components:
       properties:
         ind_tot_trib:
           type: integer
-          enum: [0]
+          enum: [ 0 ]
           description: Valor fixo `0` — o Decreto 8.264/2014 veda estimar tributos na NFS-e.
-        p_tot_trib_sn: { type: [string, 'null'], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        p_tot_trib_sn: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
 
     ServiceBody:
       type: object
       description: Serviço do catálogo de NFS-e.
-      required: [code, description, trib_nacional_code, unit, value, iss, ibs_cbs]
+      required: [ code, description, trib_nacional_code, unit, value, iss, ibs_cbs ]
       properties:
         code: { type: string, maxLength: 60 }
         description: { type: string, minLength: 2, maxLength: 2000 }
         trib_nacional_code:
           type: string
           description: Código da tabela nacional de tributação de serviços (Anexo B).
-        trib_municipal_code: { type: [string, 'null'], maxLength: 20 }
-        nbs_code: { type: [string, 'null'], description: Código NBS (Anexo C). }
-        cnae: { type: [string, 'null'], pattern: '^\d{7}$' }
+        trib_municipal_code: { type: [ string, 'null' ], maxLength: 20 }
+        nbs_code: { type: [ string, 'null' ], description: Código NBS (Anexo C). }
+        cnae: { type: [ string, 'null' ], pattern: '^\d{7}$' }
         unit: { $ref: '#/components/schemas/Unit' }
         value: { $ref: '#/components/schemas/Money' }
         iss: { $ref: '#/components/schemas/ServiceIssBody' }
@@ -800,25 +800,25 @@ components:
       description: |
         Proprietário do veículo — metadado informativo da frota. Não alimenta o
         grupo `prop` do MDF-e, que é entrada por emissão.
-      required: [cpf_cnpj, rntrc, name, type]
+      required: [ cpf_cnpj, rntrc, name, type ]
       properties:
         cpf_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
         rntrc: { $ref: '#/components/schemas/Rntrc' }
         name: { type: string, minLength: 2, maxLength: 255 }
         type:
           type: string
-          enum: [TAC, ETC, CTC]
+          enum: [ TAC, ETC, CTC ]
           description: '`TAC` transportador autônomo · `ETC` empresa · `CTC` cooperativa.'
 
     VehicleCreateBody:
       type: object
-      required: [plate, plate_uf, role]
+      required: [ plate, plate_uf, role ]
       properties:
         plate: { $ref: '#/components/schemas/Placa' }
         plate_uf: { $ref: '#/components/schemas/Uf' }
         role:
           type: string
-          enum: [tractor, trailer]
+          enum: [ tractor, trailer ]
           description: '`tractor` veículo de tração · `trailer` reboque.'
         wheelset: { type: string, description: Tipo de rodado. }
         bodywork: { type: string, description: Tipo de carroceria. }
@@ -835,14 +835,14 @@ components:
       properties:
         plate: { $ref: '#/components/schemas/Placa' }
         plate_uf: { $ref: '#/components/schemas/Uf' }
-        role: { type: [string, 'null'], enum: [tractor, trailer, null] }
-        wheelset: { type: [string, 'null'] }
-        bodywork: { type: [string, 'null'] }
-        renavam: { type: [string, 'null'], pattern: '^\d{9,11}$' }
-        weight: { type: [integer, 'null'], minimum: 0 }
-        cap_kg: { type: [integer, 'null'], minimum: 0 }
-        cap_m3: { type: [integer, 'null'], minimum: 0 }
-        cint: { type: [string, 'null'], maxLength: 10 }
+        role: { type: [ string, 'null' ], enum: [ tractor, trailer, null ] }
+        wheelset: { type: [ string, 'null' ] }
+        bodywork: { type: [ string, 'null' ] }
+        renavam: { type: [ string, 'null' ], pattern: '^\d{9,11}$' }
+        weight: { type: [ integer, 'null' ], minimum: 0 }
+        cap_kg: { type: [ integer, 'null' ], minimum: 0 }
+        cap_m3: { type: [ integer, 'null' ], minimum: 0 }
+        cint: { type: [ string, 'null' ], maxLength: 10 }
         owner: { $ref: '#/components/schemas/VehicleOwnerBody' }
 
     Vehicle:
@@ -854,6 +854,6 @@ components:
         sk: { type: string }
         plate: { $ref: '#/components/schemas/Placa' }
         plate_uf: { $ref: '#/components/schemas/Uf' }
-        role: { type: string, enum: [tractor, trailer] }
+        role: { type: string, enum: [ tractor, trailer ] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

@@ -135,7 +135,7 @@ func TestInvalidDTOsFail(t *testing.T) {
 // TestProductNestedFieldPath verifies array index paths in nested cfop_config.
 func TestProductNestedFieldPath(t *testing.T) {
 	prod := validProduct()
-	prod.CfopConfig[0].Cfop = "51"      // invalid CFOP
+	prod.CfopConfig[0].Cfop = "51"           // invalid CFOP
 	prod.CfopConfig[0].IbsCbsCst = new("99") // invalid CST
 	p := validation.Struct(prod)
 	if p == nil {

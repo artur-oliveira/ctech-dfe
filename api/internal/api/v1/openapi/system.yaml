@@ -2,11 +2,11 @@ paths:
 
   /.well-known/oauth-protected-resource:
     get:
-      tags: [Auth]
+      tags: [ Auth ]
       summary: Publica os metadados OAuth do Resource Server
       description: Metadados públicos de Protected Resource conforme RFC 9728.
       operationId: oauthProtectedResourceMetadata
-      security: []
+      security: [ ]
       responses:
         '200':
           description: Resource, Authorization Server e scopes públicos suportados.
@@ -14,7 +14,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [resource, authorization_servers]
+                required: [ resource, authorization_servers ]
                 properties:
                   resource: { type: string, format: uri }
                   authorization_servers:
@@ -28,14 +28,14 @@ paths:
 
   /v1.0/health-check:
     get:
-      tags: [Health]
+      tags: [ Health ]
       summary: Verifica a saúde da API e das dependências
       description: |
         Única rota pública (sem JWT). Verifica cache, DynamoDB e S3.
         Retorna `200` quando tudo está `pass`, `207` em degradação parcial e
         `503` quando alguma dependência crítica falhou.
       operationId: healthCheck
-      security: []
+      security: [ ]
       responses:
         '200':
           description: Todas as dependências saudáveis
@@ -55,7 +55,7 @@ paths:
 
   /v1.0/ws:
     get:
-      tags: [Health]
+      tags: [ Health ]
       summary: Canal WebSocket de eventos do documento
       description: |
         Upgrade para WebSocket. O resultado da emissão (autorização/rejeição da
@@ -66,7 +66,7 @@ paths:
         servidor valida, confirma a associação do usuário à organização e só
         então passa a entregar eventos.
       operationId: connectWebSocket
-      security: []
+      security: [ ]
       parameters:
         - name: org_pk
           in: query
@@ -90,7 +90,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/DocType'
     get:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Lista os documentos distribuídos
       operationId: listDistributions
       parameters:
@@ -117,7 +117,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/DocType'
     post:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Dispara a sincronização com a SEFAZ ou o ADN
       description: |
         Enfileira a busca a partir do último NSU conhecido. NF-e, CT-e e MDF-e
@@ -143,7 +143,7 @@ paths:
       - $ref: '#/components/parameters/DocType'
       - $ref: '#/components/parameters/Nsu'
     get:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Baixa o XML de um NSU
       operationId: getDistributionXml
       responses:
@@ -160,7 +160,7 @@ paths:
       - $ref: '#/components/parameters/DocType'
       - $ref: '#/components/parameters/Nsu'
     get:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Detalha um documento distribuído pelo NSU
       operationId: getDistributionByNsu
       responses:
@@ -179,7 +179,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
     post:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Enfileira uma consChNFe manual por chave de acesso (NF-e)
       description: |
         Força uma nova consulta de distribuição por chave de acesso — usada
@@ -194,7 +194,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [access_key]
+              required: [ access_key ]
               properties:
                 access_key:
                   type: string
@@ -218,7 +218,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/DocType'
     post:
-      tags: [Distributions]
+      tags: [ Distributions ]
       summary: Importa uma NF-e/NFC-e a partir de um arquivo XML
       description: |
         Aceita `nfeProc` (com protocolo) ou `NFe` (sem protocolo, apenas
@@ -236,7 +236,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file]
+              required: [ file ]
               properties:
                 file:
                   type: string
@@ -264,7 +264,7 @@ paths:
 
   /v1.0/audit-logs:
     get:
-      tags: [Audit Logs]
+      tags: [ Audit Logs ]
       summary: Lista a trilha de auditoria da organização
       description: Restrito a OWNER e ADMIN.
       operationId: listAuditLogs
@@ -304,7 +304,7 @@ paths:
 
   /v1.0/external/lookup-organizations:
     get:
-      tags: [External]
+      tags: [ External ]
       summary: Consulta cadastro de contribuinte na SEFAZ
       description: |
         Consulta o cadastro (situação, inscrição estadual, endereço) na SEFAZ da

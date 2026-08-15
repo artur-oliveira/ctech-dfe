@@ -4,7 +4,7 @@ paths:
 
   /v1.0/nfes:
     post:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Emite uma NF-e (modelo 55)
       description: |
         Resolve emitente, destinatário, produtos e tributos, reserva o número
@@ -35,7 +35,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Lista NF-e
       operationId: listNfes
       parameters:
@@ -46,7 +46,7 @@ paths:
         - name: incoming
           in: query
           description: '`1` lista as notas recebidas (distribuição); `0` as emitidas.'
-          schema: { type: integer, enum: [0, 1] }
+          schema: { type: integer, enum: [ 0, 1 ] }
         - $ref: '#/components/parameters/FilterNumber'
         - $ref: '#/components/parameters/FilterYear'
         - $ref: '#/components/parameters/FilterMonth'
@@ -72,7 +72,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Detalha uma NF-e
       operationId: getNfe
       responses:
@@ -90,7 +90,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Baixa o DANFE em PDF
       description: Disponível apenas depois da autorização.
       operationId: getNfeDanfe
@@ -105,7 +105,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Baixa o XML autorizado
       operationId: getNfeXml
       responses:
@@ -119,7 +119,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     post:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Cancela uma NF-e (evento 110111)
       description: |
         Só é aceito dentro do prazo legal e enquanto não houver circulação da
@@ -149,7 +149,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     post:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Emite carta de correção (evento 110110)
       description: |
         A CC-e não corrige valores, dados cadastrais que alterem o
@@ -161,7 +161,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [correction_text]
+              required: [ correction_text ]
               properties:
                 correction_text:
                   type: string
@@ -190,7 +190,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     post:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Manifesta o destinatário sobre uma NF-e recebida
       description: |
         Usada nas notas obtidas por distribuição. `210240` (Operação não
@@ -202,11 +202,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [event_type]
+              required: [ event_type ]
               properties:
                 event_type:
                   type: string
-                  enum: ['210200', '210210', '210220', '210240']
+                  enum: [ '210200', '210210', '210220', '210240' ]
                   description: |
                     `210200` Confirmação da Operação · `210210` Ciência da Emissão ·
                     `210220` Desconhecimento da Operação · `210240` Operação não Realizada.
@@ -214,7 +214,7 @@ paths:
                   type: integer
                   minimum: 1
                 justification:
-                  type: [string, 'null']
+                  type: [ string, 'null' ]
                   minLength: 15
                   maxLength: 255
       responses:
@@ -235,7 +235,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Lista os eventos de uma NF-e
       operationId: listNfeEvents
       parameters:
@@ -264,7 +264,7 @@ paths:
       - $ref: '#/components/parameters/AccessKey'
       - $ref: '#/components/parameters/EventSk'
     get:
-      tags: [NF-e]
+      tags: [ NF-e ]
       summary: Baixa o XML de um evento
       operationId: getNfeEventXml
       responses:
@@ -277,7 +277,7 @@ paths:
 
   /v1.0/nfces:
     post:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Emite uma NFC-e (modelo 65)
       description: |
         Venda presencial ao consumidor final. Não tem endereço de destinatário,
@@ -303,7 +303,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Lista NFC-e
       operationId: listNfces
       parameters:
@@ -314,7 +314,7 @@ paths:
         - name: incoming
           in: query
           description: '`1` lista as recebidas; `0` as emitidas.'
-          schema: { type: integer, enum: [0, 1] }
+          schema: { type: integer, enum: [ 0, 1 ] }
         - $ref: '#/components/parameters/FilterNumber'
         - $ref: '#/components/parameters/FilterYear'
         - $ref: '#/components/parameters/FilterMonth'
@@ -340,7 +340,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Detalha uma NFC-e
       operationId: getNfce
       responses:
@@ -358,7 +358,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Baixa o XML autorizado
       operationId: getNfceXml
       responses:
@@ -372,7 +372,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Baixa o DANFE NFC-e em PDF
       operationId: getNfceDanfce
       responses:
@@ -386,7 +386,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     post:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Cancela uma NFC-e (evento 110111)
       operationId: cancelNfce
       requestBody:
@@ -412,7 +412,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     post:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Cancela por substituição (evento 110112)
       description: |
         Cancelamento vinculado à chave da NF-e/NFC-e que substitui a cancelada.
@@ -441,7 +441,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/AccessKey'
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Lista os eventos de uma NFC-e
       operationId: listNfceEvents
       parameters:
@@ -470,7 +470,7 @@ paths:
       - $ref: '#/components/parameters/AccessKey'
       - $ref: '#/components/parameters/EventSk'
     get:
-      tags: [NFC-e]
+      tags: [ NFC-e ]
       summary: Baixa o XML de um evento
       operationId: getNfceEventXml
       responses:
@@ -488,7 +488,7 @@ components:
     NfeProductItem:
       type: object
       description: Item da NF-e. Preço e frete opcionais sobrepõem o cadastro do produto.
-      required: [product_id, quantity]
+      required: [ product_id, quantity ]
       properties:
         product_id: { type: string }
         cfop:
@@ -499,16 +499,16 @@ components:
             `cfop_suffix` — nesse caso o CFOP é resolvido pelas UFs de emitente e
             destinatário. Sem os dois, a emissão é recusada.
         quantity: { $ref: '#/components/schemas/Decimal' }
-        unit_value: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$', description: Sobrepõe o valor do cadastro. }
+        unit_value: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$', description: Sobrepõe o valor do cadastro. }
         discount: { type: string, pattern: '^\d+(\.\d{1,4})?$' }
-        v_frete: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        v_seg: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        v_outro: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        veic_chassi: { type: [string, 'null'], description: Obrigatório quando o produto é veículo. }
-        veic_n_serie: { type: [string, 'null'] }
-        veic_n_motor: { type: [string, 'null'] }
-        veic_c_cor: { type: [string, 'null'] }
-        veic_x_cor: { type: [string, 'null'] }
+        v_frete: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        v_seg: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        v_outro: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        veic_chassi: { type: [ string, 'null' ], description: Obrigatório quando o produto é veículo. }
+        veic_n_serie: { type: [ string, 'null' ] }
+        veic_n_motor: { type: [ string, 'null' ] }
+        veic_c_cor: { type: [ string, 'null' ] }
+        veic_x_cor: { type: [ string, 'null' ] }
         armas:
           type: array
           description: Dados de armas, quando o produto é dessa natureza.
@@ -516,18 +516,18 @@ components:
 
     NfePaymentItem:
       type: object
-      required: [payment_type, value]
+      required: [ payment_type, value ]
       properties:
         payment_type:
           type: string
-          enum: ['01', '02', '03', '04', '05', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '90', '99']
+          enum: [ '01', '02', '03', '04', '05', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '90', '99' ]
           description: Meio de pagamento conforme a tabela da NF-e (`01` dinheiro, `03` crédito, `17` PIX…).
         value: { $ref: '#/components/schemas/Money' }
         ind_pag:
-          type: [string, 'null']
-          enum: ['0', '1', null]
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
           description: '`0` à vista · `1` a prazo.'
-        d_pag: { type: [string, 'null'], description: Data do pagamento. }
+        d_pag: { type: [ string, 'null' ], description: Data do pagamento. }
         card:
           type: object
           additionalProperties: true
@@ -539,21 +539,21 @@ components:
         Transporte da NF-e. O transportador pode vir do cadastro
         (`transporta_pk`) ou avulso; o veículo, do cadastro (`veiculo_sk`) ou
         pela placa.
-      required: [mod_frete]
+      required: [ mod_frete ]
       properties:
         mod_frete:
           type: string
-          enum: ['0', '1', '2', '3', '4', '9']
+          enum: [ '0', '1', '2', '3', '4', '9' ]
           description: '`0` por conta do emitente · `1` do destinatário · `2` de terceiros · `3`/`4` próprio · `9` sem frete.'
-        transporta_pk: { type: [string, 'null'] }
-        transporta_cnpj: { type: [string, 'null'] }
-        transporta_cpf: { type: [string, 'null'] }
-        transporta_nome: { type: [string, 'null'], maxLength: 60 }
-        transporta_ie: { type: [string, 'null'], maxLength: 20 }
-        transporta_ender: { type: [string, 'null'], maxLength: 255 }
-        transporta_mun: { type: [string, 'null'], maxLength: 120 }
+        transporta_pk: { type: [ string, 'null' ] }
+        transporta_cnpj: { type: [ string, 'null' ] }
+        transporta_cpf: { type: [ string, 'null' ] }
+        transporta_nome: { type: [ string, 'null' ], maxLength: 60 }
+        transporta_ie: { type: [ string, 'null' ], maxLength: 20 }
+        transporta_ender: { type: [ string, 'null' ], maxLength: 255 }
+        transporta_mun: { type: [ string, 'null' ], maxLength: 120 }
         transporta_uf: { $ref: '#/components/schemas/Uf' }
-        veiculo_sk: { type: [string, 'null'] }
+        veiculo_sk: { type: [ string, 'null' ] }
         veiculo_placa: { $ref: '#/components/schemas/Placa' }
         veiculo_uf: { $ref: '#/components/schemas/Uf' }
         veiculo_rntrc: { $ref: '#/components/schemas/Rntrc' }
@@ -562,18 +562,18 @@ components:
       type: object
       description: Fatura (grupo `cobr.fat`).
       properties:
-        n_fat: { type: [string, 'null'], maxLength: 60 }
-        v_orig: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        v_desc: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        v_liq: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
+        n_fat: { type: [ string, 'null' ], maxLength: 60 }
+        v_orig: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        v_desc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        v_liq: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
 
     NfeDuplicataItem:
       type: object
       description: Parcela da cobrança (grupo `cobr.dup`).
-      required: [v_dup]
+      required: [ v_dup ]
       properties:
-        n_dup: { type: [string, 'null'], maxLength: 60 }
-        d_venc: { type: [string, 'null'], description: Data de vencimento. }
+        n_dup: { type: [ string, 'null' ], maxLength: 60 }
+        d_venc: { type: [ string, 'null' ], description: Data de vencimento. }
         v_dup: { $ref: '#/components/schemas/Money' }
 
     NfeLocalBody:
@@ -581,42 +581,42 @@ components:
       description: |
         Local de retirada/entrega (`TLocal`). Formato mais enxuto que o endereço
         cadastral: o XSD não tem CEP aqui.
-      required: [x_lgr, nro, x_bairro, c_mun, x_mun, uf]
+      required: [ x_lgr, nro, x_bairro, c_mun, x_mun, uf ]
       properties:
-        cnpj: { type: [string, 'null'] }
-        cpf: { type: [string, 'null'] }
-        x_nome: { type: [string, 'null'], maxLength: 60 }
+        cnpj: { type: [ string, 'null' ] }
+        cpf: { type: [ string, 'null' ] }
+        x_nome: { type: [ string, 'null' ], maxLength: 60 }
         x_lgr: { type: string, maxLength: 255 }
         nro: { type: string, maxLength: 60 }
-        x_cpl: { type: [string, 'null'], maxLength: 60 }
+        x_cpl: { type: [ string, 'null' ], maxLength: 60 }
         x_bairro: { type: string, maxLength: 60 }
         c_mun: { $ref: '#/components/schemas/Ibge' }
         x_mun: { type: string, maxLength: 60 }
         uf: { $ref: '#/components/schemas/Uf' }
         fone: { $ref: '#/components/schemas/PhoneBr' }
-        email: { type: [string, 'null'], format: email }
+        email: { type: [ string, 'null' ], format: email }
 
     NfeEmitBody:
       type: object
       description: |
         Emissão de NF-e. Informe `receiver_id` **ou** `self_issuance: true`.
         Pelo menos um produto e uma forma de pagamento são obrigatórios.
-      required: [products]
+      required: [ products ]
       properties:
         receiver_id:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: CPF/CNPJ da pessoa destinatária no cadastro.
         self_issuance:
           type: boolean
           description: Emissão para a própria organização (destinatário = emitente).
         payment_term_id:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: |
             Condição de pagamento do cadastro. Expande para `payments`,
             `cobr_fat` e `cobr_duplicatas` a partir do total do documento;
             valores explícitos no request vencem a expansão.
         operation_id:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: |
             Natureza de operação do cadastro. Preenche `nat_op`, `tp_nf`,
             `fin_nfe`, `ind_final`, `ind_pres`, `mod_frete`, o CFOP dos itens que
@@ -629,30 +629,30 @@ components:
         payments:
           type: array
           items: { $ref: '#/components/schemas/NfePaymentItem' }
-        additional_info: { type: [string, 'null'], maxLength: 5000 }
-        nat_op: { type: [string, 'null'], maxLength: 60, description: Natureza da operação. }
+        additional_info: { type: [ string, 'null' ], maxLength: 5000 }
+        nat_op: { type: [ string, 'null' ], maxLength: 60, description: Natureza da operação. }
         fin_nfe:
-          type: [string, 'null']
-          enum: ['1', '2', '3', '4', null]
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', '4', null ]
           description: '`1` normal · `2` complementar · `3` ajuste · `4` devolução. Padrão `1`.'
         ind_final:
-          type: [string, 'null']
-          enum: ['0', '1', null]
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
           description: '`1` consumidor final. Padrão `1`.'
         ind_pres:
-          type: [string, 'null']
-          enum: ['0', '1', '2', '3', '4', '5', '9', null]
+          type: [ string, 'null' ]
+          enum: [ '0', '1', '2', '3', '4', '5', '9', null ]
           description: Indicador de presença do comprador. Padrão `1`.
         tp_nf:
-          type: [string, 'null']
-          enum: ['0', '1', null]
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
           description: '`0` entrada · `1` saída. Padrão `1`.'
         transport: { $ref: '#/components/schemas/NfeTransportItem' }
         cobr_fat: { $ref: '#/components/schemas/NfeFatItem' }
         cobr_duplicatas:
           type: array
           items: { $ref: '#/components/schemas/NfeDuplicataItem' }
-        v_troco: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
+        v_troco: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
         retirada: { $ref: '#/components/schemas/NfeLocalBody' }
         entrega: { $ref: '#/components/schemas/NfeLocalBody' }
         save_retirada_location:
@@ -667,11 +667,11 @@ components:
       description: |
         Emissão de NFC-e. Sem destinatário, transporte ou cobrança: o consumidor
         é opcional e só aceita CPF.
-      required: [products]
+      required: [ products ]
       properties:
         consumer_cpf: { $ref: '#/components/schemas/Cpf' }
         operation_id:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: |
             Normalmente ausente: a NFC-e usa a operação padrão da organização,
             sem passo nem campo novo na tela de balcão.
@@ -682,5 +682,5 @@ components:
         payments:
           type: array
           items: { $ref: '#/components/schemas/NfePaymentItem' }
-        additional_info: { type: [string, 'null'], maxLength: 5000 }
-        nat_op: { type: [string, 'null'], maxLength: 60 }
+        additional_info: { type: [ string, 'null' ], maxLength: 5000 }
+        nat_op: { type: [ string, 'null' ], maxLength: 60 }

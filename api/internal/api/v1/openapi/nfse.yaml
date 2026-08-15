@@ -4,7 +4,7 @@ paths:
 
   /v1.0/nfses:
     post:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Emite uma NFS-e
       description: |
         Diferente da NF-e, a NFS-e tem **um** serviço por documento. A linha é
@@ -35,7 +35,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Lista NFS-e
       operationId: listNfses
       parameters:
@@ -71,7 +71,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Detalha uma NFS-e
       operationId: getNfse
       responses:
@@ -89,7 +89,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Baixa o XML da NFS-e autorizada
       description: XML devolvido pelo fisco. Antes da autorização use `/dps-xml`.
       operationId: getNfseXml
@@ -104,7 +104,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Baixa o XML da DPS assinada
       description: A declaração enviada pelo contribuinte, disponível antes da autorização.
       operationId: getNfseDpsXml
@@ -119,7 +119,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Baixa o DANFSe em PDF
       description: O PDF é obtido no Ambiente de Dados Nacional e repassado ao cliente.
       operationId: getNfseDanfse
@@ -134,7 +134,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     post:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Cancela uma NFS-e (evento 101101)
       description: Só depois da autorização. O prazo é definido pelo município.
       operationId: cancelNfse
@@ -144,7 +144,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [reason_code, reason_description]
+              required: [ reason_code, reason_description ]
               properties:
                 reason_code:
                   type: string
@@ -175,7 +175,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     post:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Substitui uma NFS-e por uma nova emissão
       description: |
         Não é registro de evento: é uma nova DPS com o grupo `subst`. O fisco
@@ -205,7 +205,7 @@ paths:
       - $ref: '#/components/parameters/OrgHeader'
       - $ref: '#/components/parameters/NfseId'
     post:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Registra um evento na NFS-e
       description: |
         Só eventos privativos do contribuinte. Os do fisco (`105104`, `105105`,
@@ -231,7 +231,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Lista os eventos de uma NFS-e
       operationId: listNfseEvents
       parameters:
@@ -260,7 +260,7 @@ paths:
       - $ref: '#/components/parameters/NfseId'
       - $ref: '#/components/parameters/EventSk'
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Baixa o XML de um evento
       operationId: getNfseEventXml
       responses:
@@ -283,7 +283,7 @@ paths:
         description: Consulta desejada no ADN.
         schema: { type: string }
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Consulta parâmetros municipais no ADN
       description: |
         Proxy das consultas de parâmetros do Ambiente de Dados Nacional
@@ -317,7 +317,7 @@ paths:
 
   /v1.0/nfse/distributions:
     get:
-      tags: [NFS-e]
+      tags: [ NFS-e ]
       summary: Lista as NFS-e recebidas do ADN
       description: |
         Documentos em que a organização figura como tomador ou intermediário,
@@ -354,13 +354,13 @@ components:
       description: |
         Serviço da NFS-e. Referencia o catálogo e permite sobrepor descrição,
         valor e alíquota nesta emissão.
-      required: [service_id]
+      required: [ service_id ]
       properties:
         service_id: { type: string }
-        description: { type: [string, 'null'], maxLength: 2000 }
-        value: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        tax_rate: { type: [string, 'null'], pattern: '^\d+(\.\d{1,4})?$' }
-        c_trib_mun: { type: [string, 'null'], maxLength: 20, description: Código de tributação municipal. }
+        description: { type: [ string, 'null' ], maxLength: 2000 }
+        value: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        tax_rate: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,4})?$' }
+        c_trib_mun: { type: [ string, 'null' ], maxLength: 20, description: Código de tributação municipal. }
 
     NfseEmitBody:
       type: object
@@ -368,15 +368,15 @@ components:
         Emissão de NFS-e. Um serviço por documento. As chaves são em inglês,
         exceto os códigos do leiaute da DPS (`tp_emit`, `motivo_emis_ti`,
         `ch_nfse_rej`, `c_trib_mun`), que mantêm o nome normativo.
-      required: [tp_emit, competence, service]
+      required: [ tp_emit, competence, service ]
       properties:
         tp_emit:
           type: integer
-          enum: [1, 2, 3]
+          enum: [ 1, 2, 3 ]
           description: '`1` prestador · `2` tomador · `3` intermediário.'
         motivo_emis_ti:
           type: integer
-          enum: [1, 2, 3, 4]
+          enum: [ 1, 2, 3, 4 ]
           description: Motivo da emissão por tomador/intermediário.
         ch_nfse_rej:
           type: string
@@ -389,17 +389,17 @@ components:
           format: date
           description: Data de início da prestação (`dCompet`), no formato ISO `AAAA-MM-DD`.
         provider_person_id:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           description: Prestador do cadastro — exigido quando `tp_emit` não é `1`.
-        customer_id: { type: [string, 'null'], description: Tomador do cadastro. }
-        intermediary_id: { type: [string, 'null'], description: Intermediário do cadastro. }
+        customer_id: { type: [ string, 'null' ], description: Tomador do cadastro. }
+        intermediary_id: { type: [ string, 'null' ], description: Intermediário do cadastro. }
         service: { $ref: '#/components/schemas/NfseServiceItem' }
         substitutes_access_key:
-          type: [string, 'null']
+          type: [ string, 'null' ]
           pattern: '^\d{50}$'
           description: Chave da NFS-e substituída — gera o evento `105102` no fisco.
-        substitutes_reason: { type: [string, 'null'], maxLength: 2 }
-        additional_info: { type: [string, 'null'], maxLength: 2000 }
+        substitutes_reason: { type: [ string, 'null' ], maxLength: 2 }
+        additional_info: { type: [ string, 'null' ], maxLength: 2000 }
 
     NfseEmitInputSnapshot:
       type: object
@@ -407,23 +407,23 @@ components:
         Snapshot interno devolvido nas consultas de NFS-e para duplicação segura.
         Preserva IDs de catálogo e overrides da emissão original; não contém os
         campos de substituição, que nunca devem ser copiados para uma nova nota.
-      required: [tp_emit, service]
+      required: [ tp_emit, service ]
       properties:
-        tp_emit: { type: integer, enum: [1, 2, 3] }
-        motivo_emis_ti: { type: integer, enum: [1, 2, 3, 4] }
+        tp_emit: { type: integer, enum: [ 1, 2, 3 ] }
+        motivo_emis_ti: { type: integer, enum: [ 1, 2, 3, 4 ] }
         ch_nfse_rej: { type: string, pattern: '^\d{50}$' }
-        provider_person_id: { type: [string, 'null'] }
-        customer_id: { type: [string, 'null'] }
-        intermediary_id: { type: [string, 'null'] }
+        provider_person_id: { type: [ string, 'null' ] }
+        customer_id: { type: [ string, 'null' ] }
+        intermediary_id: { type: [ string, 'null' ] }
         service: { $ref: '#/components/schemas/NfseServiceItem' }
-        additional_info: { type: [string, 'null'], maxLength: 2000 }
+        additional_info: { type: [ string, 'null' ], maxLength: 2000 }
 
     NfseEventBody:
       type: object
       description: |
         Evento de NFS-e emitido pelo contribuinte. `id_ev_manif_rej` e
         `cpf_ag_trib` mantêm o nome normativo do leiaute.
-      required: [event_type]
+      required: [ event_type ]
       properties:
         event_type:
           type: string

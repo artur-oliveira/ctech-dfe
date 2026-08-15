@@ -12,20 +12,20 @@ components:
         pk: { type: string, description: 'Partição: `<ambiente>#<org_pk>`.' }
         sk: { type: string, description: Chave de acesso do documento. }
         status: { $ref: '#/components/schemas/DocumentStatus' }
-        sefaz_status: { type: [string, 'null'], description: Código de retorno da SEFAZ. }
-        sefaz_motive: { type: [string, 'null'], description: Motivo textual do retorno. }
+        sefaz_status: { type: [ string, 'null' ], description: Código de retorno da SEFAZ. }
+        sefaz_motive: { type: [ string, 'null' ], description: Motivo textual do retorno. }
         number: { type: integer }
         serie: { type: integer }
         total: { $ref: '#/components/schemas/Money' }
         emit_cpf_cnpj: { type: string }
         emit_name: { type: string }
-        dest_cpf_cnpj: { type: [string, 'null'] }
-        dest_name: { type: [string, 'null'] }
+        dest_cpf_cnpj: { type: [ string, 'null' ] }
+        dest_name: { type: [ string, 'null' ] }
         dh_emi: { type: string, description: Data/hora de emissão no formato do leiaute. }
         year: { type: integer }
         month: { type: integer }
         day: { type: integer }
-        xml_s3_key: { type: [string, 'null'] }
+        xml_s3_key: { type: [ string, 'null' ] }
         created_at: { type: string, format: date-time }
         user_id: { type: string }
         user_name: { type: string }
@@ -61,7 +61,7 @@ components:
           properties:
             incoming:
               type: integer
-              enum: [0, 1]
+              enum: [ 0, 1 ]
               description: '`1` quando a nota foi recebida por distribuição.'
             products:
               type: array
@@ -87,7 +87,7 @@ components:
         - $ref: '#/components/schemas/FiscalDocument'
         - type: object
           properties:
-            modal: { type: string, enum: [rodoviario, aereo, aquaviario, ferroviario] }
+            modal: { type: string, enum: [ rodoviario, aereo, aquaviario, ferroviario ] }
             uf_start: { $ref: '#/components/schemas/Uf' }
             uf_end: { $ref: '#/components/schemas/Uf' }
             closed:
@@ -103,10 +103,10 @@ components:
       properties:
         pk: { type: string }
         sk: { type: string, description: '`id_dps` da declaração.' }
-        provider: { type: string, enum: [nacional, abrasf204] }
+        provider: { type: string, enum: [ nacional, abrasf204 ] }
         status: { $ref: '#/components/schemas/DocumentStatus' }
-        tp_emit: { type: integer, enum: [1, 2, 3] }
-        c_motivo_emis_ti: { type: integer, enum: [1, 2, 3, 4] }
+        tp_emit: { type: integer, enum: [ 1, 2, 3 ] }
+        c_motivo_emis_ti: { type: integer, enum: [ 1, 2, 3, 4 ] }
         serie: { type: string }
         number: { type: integer }
         competence: { type: string, format: date, description: Data de início da prestação (`dCompet`). }
@@ -114,8 +114,8 @@ components:
         c_loc_emi: { $ref: '#/components/schemas/Ibge' }
         emit_cpf_cnpj: { type: string }
         emit_name: { type: string }
-        dest_cpf_cnpj: { type: [string, 'null'] }
-        dest_name: { type: [string, 'null'] }
+        dest_cpf_cnpj: { type: [ string, 'null' ] }
+        dest_name: { type: [ string, 'null' ] }
         total: { $ref: '#/components/schemas/Money' }
         payload:
           type: object
@@ -139,9 +139,9 @@ components:
         event_type: { type: string, description: Código do evento no leiaute. }
         sequence_number: { type: integer }
         status: { $ref: '#/components/schemas/DocumentStatus' }
-        sefaz_status: { type: [string, 'null'] }
-        sefaz_motive: { type: [string, 'null'] }
-        xml_s3_key: { type: [string, 'null'] }
+        sefaz_status: { type: [ string, 'null' ] }
+        sefaz_motive: { type: [ string, 'null' ] }
+        xml_s3_key: { type: [ string, 'null' ] }
         created_at: { type: string, format: date-time }
 
     Distribution:
@@ -152,9 +152,9 @@ components:
         pk: { type: string }
         sk: { type: string }
         nsu: { type: integer, description: Número sequencial único da SEFAZ/ADN. }
-        access_key: { type: [string, 'null'] }
-        schema: { type: [string, 'null'], description: Esquema do documento distribuído. }
-        xml_s3_key: { type: [string, 'null'] }
+        access_key: { type: [ string, 'null' ] }
+        schema: { type: [ string, 'null' ], description: Esquema do documento distribuído. }
+        xml_s3_key: { type: [ string, 'null' ] }
         created_at: { type: string, format: date-time }
 
     AuditLog:
@@ -166,7 +166,7 @@ components:
         sk: { type: string }
         resource_type: { type: string }
         resource_id: { type: string }
-        action: { type: string, examples: [create, update, delete] }
+        action: { type: string, examples: [ create, update, delete ] }
         user_id: { type: string }
         user_name: { type: string }
         created_at: { type: string, format: date-time }
@@ -175,7 +175,7 @@ components:
 
     CancelEventBody:
       type: object
-      required: [justification]
+      required: [ justification ]
       properties:
         justification:
           type: string
@@ -191,8 +191,8 @@ components:
       allOf:
         - $ref: '#/components/schemas/CancelEventBody'
         - type: object
-          required: [substitute_key]
+          required: [ substitute_key ]
           properties:
             substitute_key:
-              allOf: [{ $ref: '#/components/schemas/AccessKey' }]
+              allOf: [ { $ref: '#/components/schemas/AccessKey' } ]
               description: Chave do documento que substitui o cancelado.
