@@ -7,12 +7,12 @@ import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui
 import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
 import {Combobox} from '@/components/ui/combobox'
-import {EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor'
+import {deriveTaxGroups, EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor'
 import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor'
 import {type TaxProfileFormData, taxProfileSchema} from '@/lib/schemas/tax-profiles'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 import type {TaxProfileCreate, TaxProfileItemOut} from '@/lib/types/api'
-import {getAllCfopOptionsFlat, getCfopCanonical} from '@/lib/data/cfop'
+import {getAllCfopOptionsFlat} from '@/lib/data/cfop'
 import {isRegimeSimples} from '@/lib/constants/tax'
 import {ApiError} from '@/lib/api/client'
 
@@ -50,7 +50,9 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
   const simples = isRegimeSimples(crt)
   const cfopOptions = getAllCfopOptionsFlat()
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
+  const [taxGroups, setTaxGroups] = useState<TaxGroups>(
+    () => initialData ? deriveTaxGroups(toFormData(initialData)) : EMPTY_TAX_GROUPS,
+  )
 
   const form = useForm<TaxProfileFormData>({
     resolver: zodResolver(taxProfileSchema),
@@ -63,23 +65,16 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
 
   // O combobox lista cada variante (5xxx/6xxx/7xxx) como opção própria — o perfil
   // pode cobrir só um CFOP específico (ex.: só o 6102) ou vários, um de cada vez.
+  // Cada CFOP adicionado é um chip independente: remover um não afeta os outros,
+  // mesmo que pertençam ao mesmo grupo (ex.: 5920 e 6920 adicionados separadamente).
   const addCfop = (cfop: string) => {
     if (cfops.includes(cfop)) return
     form.setValue('cfops', [...cfops, cfop], {shouldValidate: true})
   }
 
-  const removeCfops = (codes: string[]) => {
-    form.setValue('cfops', cfops.filter((c) => !codes.includes(c)), {shouldValidate: true})
+  const removeCfop = (cfop: string) => {
+    form.setValue('cfops', cfops.filter((c) => c !== cfop), {shouldValidate: true})
   }
-
-  // Agrupa a lista achatada de volta pelos grupos que o combobox oferece, pra
-  // exibir um chip por grupo (ex.: "5101/6101/7101") em vez de um por variante.
-  const cfopGroupsByCanonical = new Map<string, string[]>()
-  for (const c of cfops) {
-    const canonical = getCfopCanonical(c) ?? c
-    cfopGroupsByCanonical.set(canonical, [...(cfopGroupsByCanonical.get(canonical) ?? []), c])
-  }
-  const cfopGroups = [...cfopGroupsByCanonical.entries()]
 
   // O TaxFieldsEditor edita a linha inteira; aqui a "linha" é o próprio
   // formulário menos nome/descrição/cfops.
@@ -145,14 +140,14 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
               <Combobox value="" onValueChange={addCfop} options={cfopOptions}
                         placeholder="Adicionar CFOP" searchPlaceholder="Código ou descrição..."/>
             </div>
-            {cfopGroups.length > 0 && (
+            {cfops.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-1">
-                {cfopGroups.map(([canonical, codes]) => (
-                  <span key={canonical}
+                {cfops.map((cfop) => (
+                  <span key={cfop}
                         className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
-                    {codes.join('/')}
-                    <button type="button" onClick={() => removeCfops(codes)}
-                            aria-label={`Remover CFOP ${codes.join('/')}`}
+                    {cfop}
+                    <button type="button" onClick={() => removeCfop(cfop)}
+                            aria-label={`Remover CFOP ${cfop}`}
                             className="text-brand-600 hover:text-red-600">×</button>
                   </span>
                 ))}

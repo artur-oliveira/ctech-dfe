@@ -1048,7 +1048,11 @@ cobre) e o mesmo bloco de campos tributários de `cfop_config` do produto (ICMS/
 O match de `nfes.resolveCfopTax` contra `cfops[]` é exato (nível 5-6, sem expansão de variante) — a UI
 (`TaxProfileForm`) por isso deixa escolher cada variante (5xxx/6xxx/7xxx) individualmente no combobox
 (`getAllCfopOptionsFlat`), não só o código canônico: um perfil pode cobrir uma única variante (ex.: só
-6102, quando o tratamento difere por CFOP) ou várias, adicionadas uma a uma.
+6102, quando o tratamento difere por CFOP) ou várias, adicionadas uma a uma — cada CFOP vira um chip
+independente, removível sem afetar outra variante do mesmo grupo que tenha sido adicionada à parte
+(ex.: 5920 e 6920 no mesmo perfil). Ao editar um perfil existente, `TaxProfileForm` também deriva o
+estado inicial dos toggles opcionais do `TaxFieldsEditor` (IPI/IS/ISSQN/IBS-CBS/PIS-COFINS-ST) a partir
+dos campos já preenchidos (`deriveTaxGroups`), senão o toggle nasce desligado escondendo dado salvo.
 
 **Natureza de operação** (`OperationBody`): `name`, `doc_types` (`nfe`/`nfce`), `is_default`
 (no máximo uma por organização, garantida por `TransactWrite`), `nat_op`, `cfop_suffix` (3 dígitos —

@@ -84,6 +84,21 @@ export const EMPTY_TAX_GROUPS: TaxGroups = {
   icmsMono: false, pisCofinsSt: false,
 }
 
+/**
+ * Deriva quais grupos opcionais já têm dado preenchido — usado ao abrir o editor com
+ * uma linha existente, senão o toggle nasce desligado escondendo valores já salvos.
+ */
+export const deriveTaxGroups = (data: Partial<CfopConfigFormData>): TaxGroups => ({
+  ipi: !!data.ipi_cst,
+  is: !!data.is_cst,
+  ibsCbs: !!data.ibs_cbs_cst,
+  ibsRed: !!(data.ibs_uf_p_red || data.ibs_mun_p_red || data.cbs_p_red),
+  ibsDif: !!(data.ibs_uf_p_dif || data.ibs_mun_p_dif || data.cbs_p_dif),
+  issqn: !!data.issqn_ind_iss,
+  icmsMono: !!data.icms_ad_rem,
+  pisCofinsSt: !!(data.pis_st_aliq || data.cofins_st_aliq || data.pis_st_v_bc || data.cofins_st_v_bc),
+})
+
 /** icms_mod_bc cujo cálculo usa um valor fixo em vez do valor de venda. */
 const ICMS_MOD_BC_PAUTA = new Set(['1', '2'])
 

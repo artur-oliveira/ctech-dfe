@@ -37,21 +37,32 @@ describe('TaxProfileForm', () => {
     expect(screen.getByText('5102')).toBeInTheDocument()
   })
 
-  it('agrupa em um chip só quando as variantes de um mesmo CFOP são todas adicionadas', async () => {
+  it('remover um CFOP não afeta outro CFOP do mesmo grupo adicionado separadamente', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<TaxProfileForm initialData={initialData} onSubmit={onSubmit}/>)
 
-    for (const variant of ['5101', '6101', '7101']) {
+    for (const variant of ['5920', '6920']) {
       fireEvent.click(screen.getAllByRole('combobox')[0])
       fireEvent.change(screen.getByPlaceholderText('Código ou descrição...'), {target: {value: variant}})
       fireEvent.click(screen.getByRole('option', {name: new RegExp(`^${variant}`)}))
     }
 
-    expect(screen.getByText('5101/6101/7101')).toBeInTheDocument()
+    expect(screen.getByText('5920')).toBeInTheDocument()
+    expect(screen.getByText('6920')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', {name: 'Remover CFOP 5920'}))
+    expect(screen.queryByText('5920')).not.toBeInTheDocument()
+    expect(screen.getByText('6920')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', {name: 'Salvar perfil'}))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
-    expect(onSubmit.mock.calls[0][0].cfops).toEqual(['5102', '5101', '6101', '7101'])
+    expect(onSubmit.mock.calls[0][0].cfops).toEqual(['5102', '6920'])
+  })
+
+  it('reabre o toggle IBS/CBS ao editar um perfil que já tem ibs_cbs_cst preenchido', () => {
+    render(<TaxProfileForm initialData={{...initialData, ibs_cbs_cst: '410'} as unknown as TaxProfileItemOut}
+                           onSubmit={vi.fn()}/>)
+    expect(screen.getByRole('checkbox', {name: /IBS \/ CBS/})).toBeChecked()
   })
 
   it('inclui uf_overrides no submit ao marcar uma UF no editor de overrides', async () => {
