@@ -1045,6 +1045,10 @@ Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}
 
 **Perfil fiscal** (`TaxProfileBody`): `name`, `description`, `cfops` (lista de CFOPs que o perfil
 cobre) e o mesmo bloco de campos tributários de `cfop_config` do produto (ICMS/IPI/PIS/COFINS/IBS/CBS).
+O match de `nfes.resolveCfopTax` contra `cfops[]` é exato (nível 5-6, sem expansão de variante) — a UI
+(`TaxProfileForm`) por isso adiciona o grupo inteiro de um CFOP escolhido (5xxx/6xxx/7xxx, via
+`getCfopVariants`) em vez de só o código canônico, senão o perfil não cobriria a variante
+interestadual/exterior da mesma operação.
 
 **Natureza de operação** (`OperationBody`): `name`, `doc_types` (`nfe`/`nfce`), `is_default`
 (no máximo uma por organização, garantida por `TransactWrite`), `nat_op`, `cfop_suffix` (3 dígitos —

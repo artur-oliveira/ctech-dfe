@@ -3585,6 +3585,15 @@ ALL_CFOPS.forEach(it => {
   ALL_CFOPS_GROUP[it.code] = it
 })
 
+// variant (5xxx/6xxx/7xxx) → código canônico do grupo, pra agrupar de volta uma
+// lista achatada de CFOPs (ex.: perfil fiscal) nos grupos que o combobox oferece.
+const VARIANT_TO_CODE: Record<string, CfopCode> = {}
+ALL_CFOPS.forEach(it => {
+  it.variants.forEach(v => {
+    VARIANT_TO_CODE[v] = it.code
+  })
+})
+
 const displayVariants = (it: CfopEntry): string => {
   return (it.variants ?? [it.code]).join('/');
 }
@@ -3599,6 +3608,11 @@ export const getCfopVariants = (code: CfopCode): string[] => {
 
 export const getCfopDescription = (code: string): string | null => {
   return ALL_CFOPS_GROUP[code as CfopCode]?.description ?? null
+}
+
+/** Código canônico do grupo (5xxx) a que um CFOP concreto pertence, incluindo variantes 6xxx/7xxx. */
+export const getCfopCanonical = (cfop: string): CfopCode | null => {
+  return VARIANT_TO_CODE[cfop] ?? null
 }
 
 const displayCfops = (entries: CfopEntry[]): DisplayCfop[] => {
