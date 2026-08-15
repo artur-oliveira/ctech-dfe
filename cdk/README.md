@@ -120,13 +120,14 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
   `CtechDfe/<env>/Host`: memory %, swap %, root-disk %, and application RSS.
   EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
 - OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for frontend/api/infra/
-  pydfe/worker (`oidc-stack.ts`).
+  pydfe/worker (`oidc-stack.ts`), plus `ctech-dfe-gha-scopes`. The scope role can
+  read only Account's app URL and DFe publisher client ID/secret parameters.
 
 ## 6. CloudFront / Frontend (`lib/frontend-stack.ts`)
 
 `createNextjsStaticFrontend` from `@aoctech/cdk` creates the private S3 bucket, OAC,
 route KVS, rewrite function, headers and distribution. The stack adds the API
-origin behavior for `/v1.0/*` (CACHING_DISABLED) and for
+origin behavior for `/v1.0/*` and `/.well-known/*` (CACHING_DISABLED) and for
 `/docs`, `/openapi.json`, `/openapi.yaml` (same behavior, own CSP allowing unpkg for Stoplight
 Elements); security headers (HSTS 2y, frame DENY, CSP `default-src 'self'`); `priceClass PRICE_CLASS_100`;
 HTTP2+3; TLS 1.2_2021. **No `geoRestriction`** in this stack (if any Brazil geo-restriction

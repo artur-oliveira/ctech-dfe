@@ -1,6 +1,11 @@
 package middleware
 
-import "testing"
+import (
+	"sort"
+	"testing"
+
+	"gopkg.aoctech.app/dfe/api/internal/oauthresource"
+)
 
 func TestTokenIsScoped(t *testing.T) {
 	if tokenIsScoped([]string{"openid", "profile"}) {
@@ -11,6 +16,40 @@ func TestTokenIsScoped(t *testing.T) {
 	}
 	if tokenIsScoped(nil) {
 		t.Error("no scopes → not scoped")
+	}
+}
+
+func TestScopeManifestMatchesEnforcementFamilies(t *testing.T) {
+	m, err := oauthresource.ManifestDocument()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.ResourceServerID != "dfe" || m.SchemaVersion != 1 {
+		t.Fatalf("unexpected manifest identity: %#v", m)
+	}
+	var got []string
+	for _, scope := range m.Scopes {
+		if scope.Visibility != "public" || scope.Status != "active" {
+			t.Fatalf("DFe scope %q must be public and active", scope.Name)
+		}
+		if scope.Descriptions["pt-BR"] == "" || scope.Descriptions["en"] == "" {
+			t.Fatalf("DFe scope %q must have pt-BR and en descriptions", scope.Name)
+		}
+		got = append(got, scope.Name)
+	}
+	var want []string
+	for family := range scopeFamilies {
+		want = append(want, scopePrefix+family+":"+scopeRead, scopePrefix+family+":"+scopeWrite)
+	}
+	sort.Strings(got)
+	sort.Strings(want)
+	if len(got) != len(want) {
+		t.Fatalf("manifest contains %d scopes, enforcement defines %d: got=%v want=%v", len(got), len(want), got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("manifest/enforcement drift: got=%v want=%v", got, want)
+		}
 	}
 }
 

@@ -5,7 +5,7 @@ name: Deploy
 # push trigger of their own, so a push that touches several of them still deploys
 # strictly in order:
 #
-#   CDK → py-dfe → worker → API → Frontend
+#   CDK → OAuth scopes → py-dfe → worker → API → Frontend
 #
 # The Lambdas go before the API because a new py-dfe/worker feature must already
 # be live when the API that calls it ships. A stage whose paths did not change is
@@ -30,6 +30,10 @@ on:
         default: false
       worker:
         description: 'Deploy Worker Lambda'
+        type: boolean
+        default: false
+      scopes:
+        description: 'Publish OAuth scope manifest'
         type: boolean
         default: false
       api:
@@ -60,6 +64,7 @@ jobs:
       pydfe: ${{ steps.decide.outputs.pydfe }}
       godfe: ${{ steps.decide.outputs.godfe }}
       worker: ${{ steps.decide.outputs.worker }}
+      scopes: ${{ steps.decide.outputs.scopes }}
       api: ${{ steps.decide.outputs.api }}
       frontend: ${{ steps.decide.outputs.frontend }}
 
@@ -100,6 +105,9 @@ jobs:
               - 'go.work'
               - 'go.work.sum'
               - '.github/workflows/api.yml'
+            scopes:
+              - 'api/internal/oauthresource/scope-manifest.json'
+              - '.github/workflows/deploy.yml'
             frontend:
               - 'ui/**'
               - '.github/workflows/frontend.yml'
@@ -113,6 +121,7 @@ jobs:
             echo "pydfe=${{ inputs.pydfe }}"       >> "$GITHUB_OUTPUT"
             echo "godfe=${{ inputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ inputs.worker }}"     >> "$GITHUB_OUTPUT"
+            echo "scopes=${{ inputs.scopes }}"     >> "$GITHUB_OUTPUT"
             echo "api=${{ inputs.api }}"           >> "$GITHUB_OUTPUT"
             echo "frontend=${{ inputs.frontend }}" >> "$GITHUB_OUTPUT"
           else
@@ -120,6 +129,7 @@ jobs:
             echo "pydfe=${{ steps.filter.outputs.pydfe }}"       >> "$GITHUB_OUTPUT"
             echo "godfe=${{ steps.filter.outputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}"     >> "$GITHUB_OUTPUT"
+            echo "scopes=${{ steps.filter.outputs.scopes }}"     >> "$GITHUB_OUTPUT"
             echo "api=${{ steps.filter.outputs.api }}"           >> "$GITHUB_OUTPUT"
             echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
           fi
@@ -151,6 +161,19 @@ jobs:
     permissions:
       contents: read
 
+  scopes:
+    name: OAuth scopes
+    needs: [ changes, infra ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.scopes == 'true' }}
+    uses: artur-oliveira/ctech-account/.github/workflows/publish-resource-scopes.yml@main
+    with:
+      resource_server_id: dfe
+      manifest_path: api/internal/oauthresource/scope-manifest.json
+      aws_role_arn: arn:aws:iam::868899309401:role/ctech-dfe-gha-scopes
+    permissions:
+      id-token: write
+      contents: read
+
   worker:
     name: Worker
     needs: [ changes, infra, pydfe, godfe ]
@@ -162,7 +185,7 @@ jobs:
 
   api:
     name: API
-    needs: [ changes, infra, pydfe, godfe, worker ]
+    needs: [ changes, infra, scopes, pydfe, godfe, worker ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.api == 'true' }}
     uses: ./.github/workflows/api.yml
     permissions:

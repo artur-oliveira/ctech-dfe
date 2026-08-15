@@ -34,6 +34,21 @@ export class OidcStack extends cdk.Stack {
       'sts:AssumeRoleWithWebIdentity',
     );
 
+    // Dedicated least-privilege role for the reusable scope publisher. It can
+    // read only Account's base URL and this resource's OAuth credentials.
+    const scopesRole = new iam.Role(this, 'ScopePublisherRole', {
+      roleName: 'ctech-dfe-gha-scopes',
+      assumedBy: trust,
+    });
+    scopesRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [
+        'arn:aws:ssm:*:*:parameter/ctech-account/*/app-url',
+        'arn:aws:ssm:*:*:parameter/ctech-account/*/scope-publishers/dfe/client-id',
+        'arn:aws:ssm:*:*:parameter/ctech-account/*/scope-publishers/dfe/client-secret',
+      ],
+    }));
+
     // ── Frontend deploy role ────────────────────────────────────────────────
     const frontendRole = new iam.Role(this, 'FrontendDeployRole', {
       roleName: 'ctech-dfe-gha-frontend',
@@ -174,5 +189,6 @@ export class OidcStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'InfraRoleArn', {value: infraRole.roleArn});
     new cdk.CfnOutput(this, 'PyDfeLambdaRoleArn', {value: pyDfeRole.roleArn});
     new cdk.CfnOutput(this, 'WorkerLambdaRoleArn', {value: workerRole.roleArn});
+    new cdk.CfnOutput(this, 'ScopePublisherRoleArn', {value: scopesRole.roleArn});
   }
 }

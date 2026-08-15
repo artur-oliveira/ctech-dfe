@@ -6,6 +6,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/oauthresource"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
@@ -53,6 +54,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 
 	RegisterDocs(app)
+	oauthresource.Register(app, cfg.ServiceAudience, cfg.CtechIssuerURL)
 
 	v1 := app.Group("/v1.0")
 	RegisterHealth(v1, cacheBackend, awsClients, cfg)

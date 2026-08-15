@@ -372,7 +372,14 @@ and fiscal config. Certificate access is a dedicated scope (it grants the PFX + 
 
 ### Scope catalog
 
-The list of grantable scopes lives in **ctech-account** (`internal/scopes/catalog.go`)
-and is served by `GET /v1.0/scopes`. When the dfe API gains a new resource or permission, add the corresponding
-`dfe:{resource}:{read|write}` entry to that catalog in the ctech-account repo — otherwise users cannot select it for API
-keys or OAuth clients. Keep the RBAC ↔ scope mapping above in sync.
+The grantable list is owned here in
+`api/internal/oauthresource/scope-manifest.json`. Its contract test compares all
+22 entries with `middleware/scopeFamilies`, so a new RBAC family cannot silently
+drift from OAuth discovery. The deploy publishes the manifest to CTech Account
+after CDK and before the API with a DFe-bound confidential publisher; Account
+validates and revisions it, then serves it through `GET /v1.0/scopes`.
+
+`GET /.well-known/oauth-protected-resource` publishes the configured resource,
+Account authorization server, and active public scopes according to RFC 9728.
+To retire a scope, publish it as `deprecated` before removing it in a later
+release. Publishing a scope does not grant it to existing clients or API keys.

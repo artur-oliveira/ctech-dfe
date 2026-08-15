@@ -1,5 +1,29 @@
 paths:
 
+  /.well-known/oauth-protected-resource:
+    get:
+      tags: [Auth]
+      summary: Publica os metadados OAuth do Resource Server
+      description: Metadados públicos de Protected Resource conforme RFC 9728.
+      operationId: oauthProtectedResourceMetadata
+      security: []
+      responses:
+        '200':
+          description: Resource, Authorization Server e scopes públicos suportados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resource, authorization_servers]
+                properties:
+                  resource: { type: string, format: uri }
+                  authorization_servers:
+                    type: array
+                    items: { type: string, format: uri }
+                  scopes_supported:
+                    type: array
+                    items: { type: string }
+
   # ── Health / WebSocket ─────────────────────────────────────────────────────
 
   /v1.0/health-check:

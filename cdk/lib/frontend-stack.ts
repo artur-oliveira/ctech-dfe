@@ -5,7 +5,7 @@ import {createNextjsStaticFrontend} from '@aoctech/cdk';
 import {Construct} from 'constructs';
 import {Environment} from './types';
 
-const API_PATH_PATTERNS = ['/v1.0/*'];
+const API_PATH_PATTERNS = ['/v1.0/*', '/.well-known/*'];
 const DOCS_PATH_PATTERNS = ['/docs', '/openapi.json', '/openapi.yaml'];
 const ELEMENTS_CDN = 'https://unpkg.com';
 

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "resource_server_id": "dfe",
+  "display_name": "CTech DF-e",
+  "scopes": [
+    { "name": "dfe:nfes:read", "descriptions": { "pt-BR": "Consultar NF-e, eventos, distribuicoes e configuracoes.", "en": "Read NF-e documents, events, distributions, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:nfes:write", "descriptions": { "pt-BR": "Criar e alterar NF-e, eventos e configuracoes.", "en": "Create and change NF-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:nfces:read", "descriptions": { "pt-BR": "Consultar NFC-e, eventos e configuracoes.", "en": "Read NFC-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:nfces:write", "descriptions": { "pt-BR": "Criar e alterar NFC-e, eventos e configuracoes.", "en": "Create and change NFC-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:ctes:read", "descriptions": { "pt-BR": "Consultar CT-e, eventos, distribuicoes e configuracoes.", "en": "Read CT-e documents, events, distributions, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:ctes:write", "descriptions": { "pt-BR": "Criar e alterar CT-e, eventos e configuracoes.", "en": "Create and change CT-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:mdfes:read", "descriptions": { "pt-BR": "Consultar MDF-e, eventos, distribuicoes e configuracoes.", "en": "Read MDF-e documents, events, distributions, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:mdfes:write", "descriptions": { "pt-BR": "Criar e alterar MDF-e, eventos e configuracoes.", "en": "Create and change MDF-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:nfses:read", "descriptions": { "pt-BR": "Consultar NFS-e, eventos, distribuicoes e configuracoes.", "en": "Read NFS-e documents, events, distributions, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:nfses:write", "descriptions": { "pt-BR": "Criar e alterar NFS-e, eventos e configuracoes.", "en": "Create and change NFS-e documents, events, and settings." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_services:read", "descriptions": { "pt-BR": "Consultar servicos cadastrados pela organizacao.", "en": "Read services registered by the organization." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_services:write", "descriptions": { "pt-BR": "Criar e alterar servicos da organizacao.", "en": "Create and change organization services." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_products:read", "descriptions": { "pt-BR": "Consultar produtos cadastrados pela organizacao.", "en": "Read products registered by the organization." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_products:write", "descriptions": { "pt-BR": "Criar e alterar produtos da organizacao.", "en": "Create and change organization products." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_vehicles:read", "descriptions": { "pt-BR": "Consultar veiculos da organizacao.", "en": "Read organization vehicles." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_vehicles:write", "descriptions": { "pt-BR": "Criar e alterar veiculos da organizacao.", "en": "Create and change organization vehicles." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_persons:read", "descriptions": { "pt-BR": "Consultar pessoas da organizacao.", "en": "Read organization people." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_persons:write", "descriptions": { "pt-BR": "Criar e alterar pessoas da organizacao.", "en": "Create and change organization people." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organizations:read", "descriptions": { "pt-BR": "Consultar organizacoes e seus dados fiscais.", "en": "Read organizations and their fiscal data." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organizations:write", "descriptions": { "pt-BR": "Criar e alterar organizacoes e seus dados fiscais.", "en": "Create and change organizations and their fiscal data." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_certificates:read", "descriptions": { "pt-BR": "Consultar certificados digitais da organizacao.", "en": "Read organization digital certificates." }, "visibility": "public", "status": "active" },
+    { "name": "dfe:organization_certificates:write", "descriptions": { "pt-BR": "Cadastrar e remover certificados digitais da organizacao.", "en": "Register and remove organization digital certificates." }, "visibility": "public", "status": "active" }
+  ]
+}
