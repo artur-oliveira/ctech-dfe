@@ -3,7 +3,6 @@
 package middleware
 
 import (
-	"context"
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/cache"
@@ -14,10 +13,14 @@ import (
 )
 
 const (
-	UserIDKey = "user_id"
+	firstPartyDfeClientID = "dfe"
+
+	UserIDKey    = "user_id"
+	SessionIDKey = "session_id"
 	// ScopesKey stores the token's OAuth scopes (from the space-delimited `scope`
 	// claim) in Fiber locals, for the RBAC layer to intersect with the role.
 	ScopesKey = "token_scopes"
+	AzpKey    = "auth_azp"
 )
 
 // Verifier validates RS256 access tokens issued by ctech-account against its
@@ -41,13 +44,15 @@ func (v *Verifier) Middleware() fiber.Handler {
 		}
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-		sub, scopes, err := v.Verify(c.Context(), tokenStr)
-		if err != nil || sub == "" {
+		claims, err := v.VerifyClaims(c.Context(), tokenStr)
+		if err != nil || claims.Sub == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(problem.Unauthorized("invalid credentials"))
 		}
 
-		c.Locals(UserIDKey, sub)
-		c.Locals(ScopesKey, scopes)
+		c.Locals(UserIDKey, claims.Sub)
+		c.Locals(SessionIDKey, claims.SID)
+		c.Locals(ScopesKey, claims.Scopes())
+		c.Locals(AzpKey, claims.AZP)
 		return c.Next()
 	}
 }
@@ -64,13 +69,18 @@ func GetScopes(c fiber.Ctx) []string {
 	return v
 }
 
-// Verify validates a raw JWT string and returns the subject claim plus the
-// token's OAuth scopes. Used directly by the WebSocket handler, where auth
-// arrives as a query param rather than a header.
-func (v *Verifier) Verify(ctx context.Context, tokenStr string) (string, []string, error) {
-	claims, err := v.VerifyClaims(ctx, tokenStr)
-	if err != nil {
-		return "", nil, err
-	}
-	return claims.Sub, claims.Scopes(), nil
+// GetAZP returns Authorized Party of the current token
+func GetAZP(c fiber.Ctx) string {
+	v, _ := c.Locals(AzpKey).(string)
+	return v
+}
+
+// GetSessionID returns the current logged user session
+func GetSessionID(c fiber.Ctx) string {
+	v, _ := c.Locals(SessionIDKey).(string)
+	return v
+}
+
+func IsFirstPartyDfeSession(ctx fiber.Ctx) bool {
+	return GetSessionID(ctx) != "" && GetAZP(ctx) == firstPartyDfeClientID
 }

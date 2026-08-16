@@ -72,15 +72,15 @@ func TestVerify_DelegatesToSharedVerifier(t *testing.T) {
 		"exp":       now + 900,
 	})
 
-	sub, scopes, err := v.Verify(context.Background(), token)
+	claims, err := v.VerifyClaims(context.Background(), token)
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if sub != "user-1" {
-		t.Errorf("expected sub user-1, got %q", sub)
+	if claims.Sub != "user-1" {
+		t.Errorf("expected sub user-1, got %q", claims.Sub)
 	}
-	if len(scopes) != 2 || scopes[0] != "dfe:nfes:read" {
-		t.Errorf("expected parsed scopes, got %v", scopes)
+	if len(claims.Scopes()) != 2 || claims.Scopes()[0] != "dfe:nfes:read" {
+		t.Errorf("expected parsed scopes, got %v", claims.Scopes())
 	}
 }
 
@@ -88,7 +88,7 @@ func TestVerify_RejectsInvalidToken(t *testing.T) {
 	_, srv := newJWKSServer(t)
 	v := middleware.NewVerifier(srv.URL, testAudience, testIssuer, cache.NewMemoryBackend(16))
 
-	if _, _, err := v.Verify(context.Background(), "not-a-jwt"); err == nil {
+	if _, err := v.VerifyClaims(context.Background(), "not-a-jwt"); err == nil {
 		t.Fatal("expected malformed token to be rejected")
 	}
 }

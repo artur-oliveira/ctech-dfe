@@ -115,8 +115,8 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 			}
 
 			// Validate JWT (scopes don't gate the realtime channel — membership does)
-			sub, _, err := verifier.Verify(ctx, token)
-			if err != nil || sub == "" {
+			claims, err := verifier.VerifyClaims(ctx, token)
+			if err != nil || claims.Sub == "" {
 				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Token inválido ou expirado"})
 				_ = conn.Close()
 				return
@@ -130,7 +130,7 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 			}
 
 			// Verify user belongs to org
-			m, err := memberSvc.Get(ctx, orgPK, sub)
+			m, err := memberSvc.Get(ctx, orgPK, claims.Sub)
 			if err != nil {
 				send(map[string]any{"type": "error", "code": "unauthorized", "message": "Usuário não encontrado"})
 				return
@@ -154,7 +154,7 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 			// subscribed forever.
 			done := make(chan struct{})
 			checkAlive := func() bool {
-				still, e := memberSvc.Get(ctx, orgPK, sub)
+				still, e := memberSvc.Get(ctx, orgPK, claims.Sub)
 				if e == nil && still == nil {
 					send(map[string]any{"type": "error", "code": "forbidden", "message": "Acesso revogado"})
 					return false

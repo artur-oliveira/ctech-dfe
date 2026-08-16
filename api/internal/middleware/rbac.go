@@ -104,7 +104,7 @@ func (p *PermChecker) requireRoles(msg string, allowed ...string) fiber.Handler 
 		// These role-gated actions (member/invitation management, audit trail)
 		// are not grantable via any OAuth scope, so a scoped API-key token can
 		// never perform them — only a full first-party session.
-		if tokenIsScoped(GetScopes(c)) {
+		if tokenIsScoped(GetScopes(c)) && !IsFirstPartyDfeSession(c) {
 			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("esta ação não é permitida para chaves de API"))
 		}
 		c.Locals(OrgPKKey, orgPK)
