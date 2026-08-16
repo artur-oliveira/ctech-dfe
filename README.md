@@ -5,6 +5,11 @@ comunicação direta à SEFAZ.
 
 ## Documentação
 
+**Documentação jurídica vigente:** o aditivo DF-e publicado pela Central Jurídica
+do CTech está na versão **2.1**. A API reexige o aceite quando
+`CurrentTermsAddendumVersion` muda; a fonte pública de verdade é
+`https://accounts.aoctech.app/products/dfe`.
+
 | Documento                        | Descrição                              |
 |----------------------------------|----------------------------------------|
 | [`OVERVIEW.md`](OVERVIEW.md)     | Visão geral do sistema — leia primeiro |
