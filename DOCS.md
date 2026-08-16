@@ -624,7 +624,7 @@ Org-scoped (tenant via `Dfe-Organization-Pk` header). Visibility is role-gated.
 |--------|------------------------------------------------------|----------------|-------------|
 | GET    | `/v1.0/organizations/{pk}/members`                   | OWNER or ADMIN | List members |
 | DELETE | `/v1.0/organizations/{pk}/members/{user_id}`         | OWNER          | Remove member (never self, never the last OWNER) |
-| PUT    | `/v1.0/organizations/{pk}/members/{user_id}/role`    | OWNER          | Change role (`{role}`, ADMIN/USER/VIEWER) |
+| PUT    | `/v1.0/organizations/{pk}/members/{user_id}/role`    | OWNER          | Change role (`{role}`, ADMIN/USER/VIEWER). `OWNER` is refused with 409 — an org has exactly one, set at creation |
 | GET    | `/v1.0/organizations/{pk}/invitations`               | OWNER or ADMIN | List pending invitations |
 | POST   | `/v1.0/organizations/{pk}/invitations`               | OWNER or ADMIN | Create invitation (`{role}`); response includes the one-time `token` |
 | DELETE | `/v1.0/organizations/{pk}/invitations/{id}`          | OWNER or ADMIN | Revoke a pending invitation |
@@ -640,6 +640,113 @@ Token-addressed (auth only — the invitee is not yet a member):
 Invitations expire after 7 days, grant only ADMIN/USER/VIEWER (never OWNER), and are single-use
 (enforced by a conditional TransactWrite on accept). The raw token appears only in the create
 response / link; DynamoDB stores only its SHA-256.
+
+**Exactly one OWNER per organization**, and it is whoever created it. The role is written once, by
+`OrganizationService`, in the same `TransactWrite` as the organization; member management cannot
+assign it through any route — invitation, role change or direct membership write all check
+`repositories.GrantableRoles` and answer `409` with a pointer to ADMIN, which carries the identical
+permission set. Ownership transfer is not implemented; when it is, it moves the single OWNER rather
+than adding one. This matters beyond permissions: `owner_user_id` is what will say whose
+subscription pays for the organization, and that question needs one answer.
+
+### Assinatura da conta — `/v1.0/billing/*`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET    | `/v1.0/billing/plans`                | qualquer sessão | Catálogo vindo do ctech-billing, com as cotas em `metadata` de cada preço |
+| GET    | `/v1.0/billing/subscription`         | a própria conta | Situação da assinatura desta conta |
+| POST   | `/v1.0/billing/subscription`         | a própria conta | Escolhe um plano; 409 se já houver assinatura viva |
+| POST   | `/v1.0/billing/subscription/change`  | a própria conta | Troca de plano com pró-rata |
+| POST   | `/v1.0/billing/subscription/cancel`  | a própria conta | `{at_period_end}` |
+| GET    | `/v1.0/billing/invoices`             | a própria conta | Faturas do mês, filtradas pela assinatura da conta |
+| GET    | `/v1.0/organizations/{pk}/plan`      | OWNER ou ADMIN  | Plano que governa a organização — **somente leitura** |
+
+**Nenhuma rota de `/v1.0/billing/*` aceita o header de organização.** Todas agem sobre a conta do portador do token, e é
+isso que torna "só o proprietário cria ou altera a assinatura" uma propriedade do roteamento em vez de uma checagem que
+alguém pode esquecer: não existe parâmetro dizendo de quem é a assinatura. A única rota org-scoped é de leitura, para que
+um ADMIN entenda por que uma emissão foi recusada sem poder gastar o dinheiro do proprietário.
+
+`grants_service` é a resposta para "posso emitir agora". Use-a; não reimplemente a lista de status no cliente. Ela é mais
+restrita que o `entitled` do billing por decisão: `INCOMPLETE` (assinou o plano pago e nunca pagou) e `PAST_DUE` não
+liberam emissão no DF-e, embora o billing considere o segundo como entitled enquanto o dunning não desiste. Os dois
+valores são guardados lado a lado para que a divergência fique visível.
+
+O campo `invoice` só aparece quando a operação gerou cobrança. Free, sob demanda no primeiro período e downgrade não
+geram — três casos comuns, não falhas. Ramifique na presença do campo.
+
+### Webhook do billing — `POST /v1/internal/webhooks/billing`
+
+Fora do grupo `/v1.0`, sem token: o billing autentica com HMAC-SHA256 sobre `timestamp + "." + body` no header
+`X-Billing-Signature: v1=<hex>`, com `X-Billing-Timestamp` dentro do material assinado. Timestamps fora de ±5 min são
+recusados — é o que limita replay, já que a assinatura sozinha valeria para sempre.
+
+**Sem `BILLING_WEBHOOK_SECRET` a rota não é montada.** Uma verificação de assinatura que não pode rodar não é uma
+verificação, e a rota aceita mudanças de estado de assinatura vindas de fora; a ausência tem que virar um 404 que alguém
+percebe.
+
+O corpo é lido para uma coisa só: qual assinatura ir consultar no billing. Nada nele é tratado como verdade — o snapshot
+é sempre reconstruído a partir de uma leitura nova. Deduplicação por `X-Billing-Event-Id`, com escrita condicional
+**antes** do trabalho (entregas são at-least-once, então duas cópias do mesmo evento podem estar em voo juntas).
+
+### Bloqueio por assinatura e cotas
+
+O gate é um middleware montado **uma vez** no grupo `/v1.0`, não uma checagem por rota. É
+**default-deny por forma**: toda requisição mutante (`POST`/`PUT`/`PATCH`/`DELETE`) é recusada com
+`402` quando a conta dona da organização não tem assinatura viva, a menos que o caminho esteja na
+lista de isenções em `middleware/subscription.go`. Uma rota criada amanhã já nasce protegida, e
+isentá-la exige uma edição naquele arquivo, onde o conjunto inteiro está à vista.
+
+**Leituras nunca são bloqueadas.** O cliente pagou pelos documentos que já tem, a guarda fiscal é
+obrigação legal de cinco anos, e reter o XML de alguém por causa de fatura em aberto não é uma
+alavanca que este produto puxa.
+
+Isento (mutações sobre documentos que **já existem**, mais o caminho de saída do bloqueio):
+
+| Caminho | Por quê |
+|---|---|
+| `/v1.0/billing/*`, `/v1.0/auth/*` | é como se paga; bloquear seria uma armadilha sem saída |
+| `/v1.0/invitations/*` | age sobre a conta do convidado, que pode nem ser membro ainda |
+| `.../cancel`, `.../correction-letter` | cancelamento de NF-e tem prazo legal de 24 h |
+| `.../close`, `.../include-condutor`, `.../include-dfe`, `.../events` | encerram algo já emitido |
+| `.../manifestation`, `/distributions/*/sync`, `/import-xml`, `/nfe/key` | responder a documentos que **terceiros** emitiram contra o seu CNPJ |
+| `.../cargo-preview` | calcula e devolve; não escreve nem emite |
+
+`substitute` está deliberadamente **fora** da lista: substituir emite um documento novo, e seria o
+caminho para contornar o gate inteiro.
+
+Estados que liberam: `ACTIVE`, `TRIALING`. Estados que bloqueiam: `INCOMPLETE`, `PAST_DUE`,
+`PAUSED`, `CANCELED`, e ausência de assinatura. O corpo do 402 traz `reason`
+(`subscription_missing` \| `subscription_past_due` \| `subscription_incomplete` \|
+`subscription_paused` \| `subscription_canceled` \| `quota_exceeded`) — ramifique nele, nunca no
+texto em português.
+
+#### Cotas
+
+A cota é reservada **quando o documento é pedido**, antes da escrita e antes de qualquer coisa
+chegar à SEFAZ, com `ADD` condicional numa única operação. Contar documentos autorizados tornaria o
+limite assíncrono e furável: duas requisições simultâneas leriam "3 de 3 usados" e ambas emitiriam a
+quarta. O preço é que um documento rejeitado pela SEFAZ gastou uma vaga — o worker devolve na
+rejeição terminal (Fase 4.2).
+
+Um medidor que o plano **não menciona** é recusado, não liberado. É o que faz o silêncio do plano
+Free sobre CT-e significar "sem CT-e" em vez de "CT-e ilimitado", e é a direção segura: uma emissão
+recusada por engano é uma mensagem de suporte, uma liberada por engano é receita entregue.
+
+`companies` e `users` não são contadores: são estado atual, contados ao vivo. Apagar uma organização
+devolve a vaga, e um contador teria que ser decrementado por todo caminho que remove uma. Usuários
+são contados **distintos por conta**, não por organização (D5) — quem ajuda em duas empresas do mesmo
+cliente é uma pessoa. O corpo do 402 de cota traz `meter`, `plan`, `quota_limit` e `quota_used`, para
+a tela de upgrade não precisar de uma segunda chamada.
+
+Rebaixar de plano com mais membros do que o novo limite **não expulsa ninguém**: a checagem acontece
+no convite e no aceite, então os membros existentes continuam.
+
+### Modo sem cobrança
+
+Sem `BILLING_API_URL` / `BILLING_CLIENT_ID` / `BILLING_CLIENT_SECRET` o produto roda em **modo sem cobrança**: toda conta
+é ilimitada e `no_charge: true` diz o motivo. É o que um ambiente de desenvolvimento precisa, e é anunciado no boot em
+nível WARN para que uma instalação de produção sem as credenciais não passe por funcionando.
+
 
 #### Products
 

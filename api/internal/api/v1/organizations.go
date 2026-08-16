@@ -23,6 +23,7 @@ type OrgHandlers struct {
 	UserSvc    *services.UserService
 	MemberSvc  *services.MembershipService
 	InvSvc     *services.InvitationService
+	BillingSvc *services.BillingService
 }
 
 // RegisterOrganizations mounts all /organizations routes.
@@ -97,6 +98,13 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		password := c.FormValue("password")
 
 		userID, userName := resolveActor(c, h.UserSvc)
+		// The company quota is checked here rather than in the subscription
+		// middleware: there is no organization yet, so the gate has nothing to
+		// resolve, and the limit belongs to the **caller's** account — the one
+		// that is about to own this organization and pay for it.
+		if err := h.BillingSvc.CheckCompanyQuota(c.Context(), userID); err != nil {
+			return sendProblem(c, err)
+		}
 		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password)
 		if err != nil {
 			return sendProblem(c, err)
@@ -112,6 +120,8 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 
 	// All routes below require org membership and per-route permission.
 	scoped := orgs.Group("/:org_pk")
+
+	RegisterOrganizationPlan(scoped, h.BillingSvc, perm)
 
 	// GET /organizations/:org_pk
 	scoped.Get("", perm.Require("get.organizations"), func(c fiber.Ctx) error {

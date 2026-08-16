@@ -293,6 +293,15 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	}
 	encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
 
+	// The quota is claimed **before** the write, and before anything reaches
+	// SEFAZ. Counting authorised documents instead would make the limit
+	// asynchronous and passable by two concurrent requests, each reading the same
+	// count and each issuing one more. The cost is that a document SEFAZ rejects
+	// has spent a slot; the worker gives it back on a terminal rejection.
+	if err := s.billingSvc.Reserve(ctx, orgPK, services.MeterNFSe); err != nil {
+		return nil, err
+	}
+
 	if err := s.nfseRepo.TransactReserveAndCreate(
 		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, outboxTx,
 	); err != nil {

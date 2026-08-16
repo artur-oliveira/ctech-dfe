@@ -134,7 +134,15 @@ func (s *MembershipService) ListByUser(ctx context.Context, userID string) ([]Me
 }
 
 // Create writes a membership and invalidates its caches. Idempotent.
+//
+// It cannot write an OWNER. Ownership is established by creating the
+// organization — OrganizationService writes that row in the same transaction as
+// the organization itself — and there is no second way in, because a second way
+// in is a second OWNER.
 func (s *MembershipService) Create(ctx context.Context, orgPK, userID, role, invitedBy, name string, permissions []string) error {
+	if err := guardGrantableRole(role); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, orgPK, userID, role, invitedBy, name, permissions); err != nil {
 		return err
 	}
@@ -155,10 +163,19 @@ func (s *MembershipService) ListByOrg(ctx context.Context, orgPK string) ([]Memb
 	return out, nil
 }
 
-// ChangeRole updates a member's role, refusing to leave the org without an
-// OWNER. Invalidates the affected caches.
+// ChangeRole updates a member's role, refusing both to create a second OWNER
+// and to leave the organization without one. Invalidates the affected caches.
+//
+// The two guards are the same invariant read from its two ends: exactly one
+// OWNER, the one who created the organization. Promoting somebody is the end
+// that used to be open — the route's payload happened to reject it, but a
+// validation tag on one DTO is not an invariant, and the ownership-transfer
+// feature will arrive as a second caller of this method.
 func (s *MembershipService) ChangeRole(ctx context.Context, orgPK, userID, role string) error {
-	if err := s.guardLastOwner(ctx, orgPK, userID, role); err != nil {
+	if err := guardGrantableRole(role); err != nil {
+		return err
+	}
+	if err := s.guardLastOwner(ctx, orgPK, userID); err != nil {
 		return err
 	}
 	ok, err := s.repo.UpdateRole(ctx, orgPK, userID, role, nil)
@@ -176,7 +193,7 @@ func (s *MembershipService) ChangeRole(ctx context.Context, orgPK, userID, role 
 // cache tombstone (rather than a plain delete) so a concurrent in-flight read
 // cannot repopulate a positive entry.
 func (s *MembershipService) Remove(ctx context.Context, orgPK, userID, deletedById, deletedByName string) error {
-	if err := s.guardLastOwner(ctx, orgPK, userID, ""); err != nil {
+	if err := s.guardLastOwner(ctx, orgPK, userID); err != nil {
 		return err
 	}
 
@@ -219,12 +236,28 @@ func (s *MembershipService) tombstone(ctx context.Context, orgPK, userID string)
 		Membership{OrgPK: orgPK, UserID: repositories.RawUserID(userID), Revoked: true}, membershipCacheTTL)
 }
 
-// guardLastOwner blocks any change that would drop the last OWNER: removing
-// (newRole == "") or demoting (newRole != OWNER) the sole owner.
-func (s *MembershipService) guardLastOwner(ctx context.Context, orgPK, userID, newRole string) error {
-	if newRole == repositories.RoleOwner {
+// guardGrantableRole refuses a role member management may not hand out, which
+// today means OWNER — see repositories.GrantableRoles for why there is exactly
+// one and where it comes from.
+func guardGrantableRole(role string) error {
+	if repositories.IsGrantableRole(role) {
 		return nil
 	}
+	if role == repositories.RoleOwner {
+		return problem.Conflict(
+			"a organização já tem um proprietário e não pode ter outro; use ADMIN, que tem os mesmos acessos")
+	}
+	return problem.BadRequest("função inválida")
+}
+
+// guardLastOwner blocks any change that would drop the last OWNER: removing
+// (newRole == "") or demoting the sole owner.
+//
+// It still counts rather than refusing outright, and that is deliberate: an
+// organization that already carries two OWNERs from before this rule existed can
+// be repaired by demoting one, and a flat refusal would leave it stuck at two
+// forever.
+func (s *MembershipService) guardLastOwner(ctx context.Context, orgPK, userID string) error {
 	current, err := s.repo.Get(ctx, orgPK, userID)
 	if err != nil {
 		return err

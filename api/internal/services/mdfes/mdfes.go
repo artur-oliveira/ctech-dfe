@@ -114,6 +114,7 @@ type MdfeService struct {
 	vehicleSetRepo *repositories.VehicleSetRepository
 	clients        *awsclient.Clients
 	workerSvc      *services.WorkerService
+	billingSvc     *services.BillingService
 	bucketDocs     string
 	tech           TechData
 }
@@ -140,11 +141,13 @@ func NewMdfeService(
 	vehicleSetRepo *repositories.VehicleSetRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
+	billingSvc *services.BillingService,
 	bucketDocs string,
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
 		orgRepo:        orgRepo,
+		billingSvc:     billingSvc,
 		certRepo:       certRepo,
 		configRepo:     configRepo,
 		mdfeRepo:       mdfeRepo,

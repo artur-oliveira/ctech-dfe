@@ -60,6 +60,24 @@ func (s *OrganizationService) Get(ctx context.Context, orgPK string) (map[string
 	return item, nil
 }
 
+// SetOwnerUserID stamps the paying account on an organization.
+//
+// It exists only for the read-fallback repair of organizations created before
+// the field did (BillingService.OwnerOf), which is why it takes no actor and
+// writes no audit row: it records something that was already true rather than
+// deciding it. **Ownership transfer, when it exists, must not use this** — that
+// is a decision with an actor, and it moves the OWNER membership in the same
+// transaction.
+func (s *OrganizationService) SetOwnerUserID(ctx context.Context, orgPK, userID string) error {
+	if err := s.repo.UpdateOrganization(ctx, orgPK, map[string]any{
+		repositories.AttrOwnerUserID: repositories.RawUserID(userID),
+	}); err != nil {
+		return err
+	}
+	_ = s.cache.Delete(ctx, "org:"+orgPK)
+	return nil
+}
+
 func (s *OrganizationService) Create(ctx context.Context, cpfOrCNPJ string, fields map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	existing, err := s.Get(ctx, cpfOrCNPJ)
 	if err != nil {
@@ -194,6 +212,21 @@ func (s *OrganizationService) CreateWithOwner(
 			attrStrAV(branchCert, "password"), attrStrAV(branchCert, "s3_key"),
 			attrStrAV(branchCert, "expires_at"))
 	}
+
+	// owner_user_id is written here and nowhere else, in the same transaction as
+	// the OWNER membership it mirrors.
+	//
+	// It is a field rather than a lookup because it answers a question asked on
+	// the billing path — whose subscription governs this organization — and
+	// deriving it would mean listing every member to find the one OWNER, on a
+	// request that is already deciding whether to let a document be issued. It
+	// stays honest because ownership is fixed at creation: an organization has
+	// exactly one OWNER, and only an explicit transfer of ownership (which does
+	// not exist yet) may rewrite either of them, together.
+	if fields == nil {
+		fields = map[string]types.AttributeValue{}
+	}
+	fields[repositories.AttrOwnerUserID] = &types.AttributeValueMemberS{Value: repositories.RawUserID(userID)}
 
 	orgTx, orgItem, err := s.repo.BuildCreateTxItem(cpfOrCNPJ, fields)
 	if err != nil {

@@ -195,6 +195,7 @@ export class IAMStack extends cdk.Stack {
           resources: [
             `arn:aws:ssm:*:*:parameter/ctech-dfe/${environment}/*`,
             `arn:aws:ssm:*:*:parameter/ctech-account/${environment}/*`,
+            `arn:aws:ssm:*:*:parameter/ctech-billing/${environment}/*`,
             `arn:aws:ssm:*:*:parameter/ctech/${environment}/*`,
           ],
         }),

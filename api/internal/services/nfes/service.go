@@ -68,6 +68,7 @@ type NfeService struct {
 	clients         *awsclient.Clients
 	workerSvc       *services.WorkerService
 	extSvc          *services.ExternalService
+	billingSvc      *services.BillingService
 	bucketDocs      string
 	tech            TechData
 }
@@ -87,6 +88,7 @@ func NewNfeService(
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	extSvc *services.ExternalService,
+	billingSvc *services.BillingService,
 	bucketDocs string,
 	tech TechData,
 ) *NfeService {
@@ -104,6 +106,7 @@ func NewNfeService(
 		vehicleRepo:     vehicleRepo,
 		clients:         clients,
 		workerSvc:       workerSvc,
+		billingSvc:      billingSvc,
 		extSvc:          extSvc,
 		bucketDocs:      bucketDocs,
 		tech:            tech,

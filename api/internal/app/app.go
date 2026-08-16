@@ -15,6 +15,7 @@ import (
 	"gopkg.aoctech.app/api-commons/ws"
 	apiv1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
+	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
@@ -50,6 +51,7 @@ var Module = fx.Options(
 		repositories.NewRoleRepository,
 		repositories.NewOrgUserRepository,
 		repositories.NewOrgInvitationRepository,
+		repositories.NewAccountBillingRepository,
 		repositories.NewProductRepository,
 		repositories.NewServiceRepository,
 		repositories.NewTaxProfileRepository,
@@ -78,6 +80,8 @@ var Module = fx.Options(
 		newUserService,
 		services.NewMembershipService,
 		services.NewInvitationService,
+		newBillingClient,
+		services.NewBillingService,
 		newCertificateService,
 		newProductService,
 		newServiceService,
@@ -324,12 +328,13 @@ func newNFeService(
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	extSvc *services.ExternalService,
+	billingSvc *services.BillingService,
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo, paymentTermRepo,
 		nfeRepo, eventRepo, vehicleRepo, clients,
-		workerSvc, extSvc, cfg.S3BucketDocuments,
+		workerSvc, extSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -353,11 +358,12 @@ func newNFCeService(
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
 	cfg *config.Config,
+	billingSvc *services.BillingService,
 ) *nfesvc.NfceService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
 	return nfesvc.NewNfceService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
-		nfceRepo, eventRepo, clients, workerSvc, cfg.S3BucketDocuments,
+		nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -382,11 +388,12 @@ func newMDFeService(
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
 	cfg *config.Config,
+	billingSvc *services.BillingService,
 ) *mdfesvc.MdfeService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
-		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, clients, workerSvc, cfg.S3BucketDocuments,
+		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -414,11 +421,12 @@ func newNfseService(
 	cacheBackend cache.Backend,
 	db *dynamodb.Client,
 	cfg *config.Config,
+	billingSvc *services.BillingService,
 ) *nfsesvc.NfseService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfse")
 	return nfsesvc.NewNfseService(
 		orgRepo, certRepo, personRepo, configRepo, serviceRepo,
-		nfseRepo, eventRepo, distRepo, workerSvc, extSvc,
+		nfseRepo, eventRepo, distRepo, workerSvc, extSvc, billingSvc,
 		clients, cacheBackend, cfg.S3BucketDocuments,
 	)
 }
@@ -454,6 +462,7 @@ type Services struct {
 	DistSvc      *services.DistributionService
 	ExternalSvc  *services.ExternalService
 	AuditLogSvc  *services.AuditLogService
+	BillingSvc   *services.BillingService
 	RoleRepo     *repositories.RoleRepository
 	Cache        cache.Backend
 	WSReg        ws.Registry
@@ -488,6 +497,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Distribution: svcs.DistSvc,
 		External:     svcs.ExternalSvc,
 		AuditLog:     svcs.AuditLogSvc,
+		Billing:      svcs.BillingSvc,
 		RoleRepo:     svcs.RoleRepo,
 	})
 }
@@ -535,4 +545,40 @@ func errorHandler(c fiber.Ctx, err error) error {
 		return p.Send(c)
 	}
 	return problem.InternalServer(err.Error()).Send(c)
+}
+
+// newBillingClient builds the ctech-billing client, or nil when this deployment
+// does not charge.
+//
+// Nil is returned rather than an error, and the warning is loud rather than
+// fatal: a dev environment with no billing credentials must still start, and a
+// production one that lost them must be obvious in the first lines of the log
+// rather than at the first subscription attempt.
+//
+// The token endpoint is derived from CTECH_URL rather than configured
+// separately. It is ctech-account's, this service already holds that base URL
+// for userinfo, and a second env var naming the same host is a second thing that
+// can point somewhere else.
+func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client {
+	client := billingclient.New(billingclient.Config{
+		BaseURL:      cfg.BillingAPIURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.BillingClientID,
+		ClientSecret: cfg.BillingClientSecret,
+		Cache:        c,
+	})
+	if client == nil {
+		slog.Warn("billing is not configured — running in NO-CHARGE mode, every account is unlimited",
+			"billing_api_url_set", cfg.BillingAPIURL != "",
+			"client_id_set", cfg.BillingClientID != "",
+			"client_secret_set", cfg.BillingClientSecret != "")
+		return nil
+	}
+	if cfg.BillingWebhookSecret == "" {
+		// The client works without it — it signs nothing — but billing's
+		// notify-back cannot be verified, so that route is not mounted and every
+		// subscription change waits on the 60s snapshot TTL instead of arriving.
+		slog.Warn("BILLING_WEBHOOK_SECRET is unset — billing's webhook route will not be mounted")
+	}
+	return client
 }

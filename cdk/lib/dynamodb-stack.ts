@@ -11,6 +11,7 @@ export type TableName = (
   'organizations' |
   'organization_users' |
   'organization_invitations' |
+  'account_billing' |
   'audit_logs' |
   'products' |
   'vehicles' |
@@ -390,6 +391,38 @@ export class DynamoDBStack extends cdk.Stack {
       maxWriteRequestUnits: 1000,
     });
     this.tables.set('organization_invitations', organizationInvitationsTable);
+
+    // What ctech-billing says about each account, plus the ids of the webhooks
+    // already processed.
+    //
+    // Two row shapes in one table because they share a subject and a lifetime:
+    // `USER_{sub}` is the subscription snapshot, `EVENT_{id}` is a delivery
+    // already handled, and a second table for a set of ids with a TTL would be a
+    // second thing to create, grant and remember.
+    //
+    // The snapshot is a cache with a durable floor: billing owns the
+    // subscription, and this row is what the last read said, so a quota check on
+    // the issuance path is a GetItem rather than a call across the network — and
+    // so an emission stays decidable while billing is unreachable.
+    //
+    // No GSI. Every access is by primary key: the snapshot by account, the
+    // marker by event id.
+    const accountBillingTable = new dynamodb.TableV2(this, `${tablePrefix}_account_billing`, {
+      tableName: `${tablePrefix}_account_billing`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      // Only the EVENT_ rows carry `ttl`. A snapshot has none and must never get
+      // one: an account whose row expired would read as "never subscribed" and
+      // be refused service it is paying for.
+      timeToLiveAttribute: 'ttl',
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    this.tables.set('account_billing', accountBillingTable);
 
     // ============== AUDIT ==============
 

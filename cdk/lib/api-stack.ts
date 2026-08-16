@@ -73,6 +73,15 @@ export class ApiStack extends cdk.Stack {
     // seed was given for the `whe_dfe` endpoint (`WEBHOOK_SECRET_DFE`); see
     // DEPLOYMENT.md § Out-of-band parameters.
     const billingWebhookSecretParameter = `/ctech-dfe/${environment}/billing/webhook-secret`;
+    // The other direction: DF-e calling billing as an OAuth client-credentials
+    // client (`dfe-billing`, issued by ctech-account). The credentials live under
+    // this service's own prefix because they belong to the caller, not the
+    // callee — billing knows nothing about them. The base URL is published by
+    // ctech-cdk alongside every other private service endpoint, so a hostname
+    // change is one edit rather than one per caller.
+    const billingBaseUrlParameter = `/ctech-billing/${environment}/internal-base-url`;
+    const billingClientIdParameter = `/ctech-dfe/${environment}/billing/client-id`;
+    const billingClientSecretParameter = `/ctech-dfe/${environment}/billing/client-secret`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
     // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
@@ -322,8 +331,12 @@ export class ApiStack extends cdk.Stack {
       // a signature check that cannot run is not a signature check, and the
       // route it guards accepts subscription state changes from the outside.
       `BILLING_WEBHOOK_SECRET=$(aws ssm get-parameter --name "${billingWebhookSecretParameter}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `BILLING_API_URL=$(aws ssm get-parameter --name "${billingBaseUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `BILLING_CLIENT_ID=$(aws ssm get-parameter --name "${billingClientIdParameter}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      `BILLING_CLIENT_SECRET=$(aws ssm get-parameter --name "${billingClientSecretParameter}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CORS_ALLOWED_ORIGINS="$SERVICE_AUDIENCE"`,
-      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL SERVICE_AUDIENCE CORS_ALLOWED_ORIGINS BILLING_WEBHOOK_SECRET`,
+      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL SERVICE_AUDIENCE CORS_ALLOWED_ORIGINS`,
+      `export BILLING_WEBHOOK_SECRET BILLING_API_URL BILLING_CLIENT_ID BILLING_CLIENT_SECRET`,
       `exec /opt/app/current/app`,
       `START`,
       `chmod +x /opt/app/start.sh`,

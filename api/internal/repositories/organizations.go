@@ -21,6 +21,17 @@ type Organization struct {
 	UpdatedAt string `dynamodbav:"updated_at"`
 }
 
+// AttrOwnerUserID names the attribute holding the bare ctech-account subject of
+// the account that owns the organization — the one whose subscription pays for
+// it.
+//
+// A constant because two layers read it (the billing service, to find whose plan
+// governs an org; the organization service, to write it) and a third will when
+// ownership transfer arrives. It mirrors the single OWNER membership rather than
+// replacing it: the membership is what grants access, this is what gets billed,
+// and they are written in the same transaction so they cannot disagree.
+const AttrOwnerUserID = "owner_user_id"
+
 // OrganizationRepository manages organization persistence.
 type OrganizationRepository struct {
 	Base

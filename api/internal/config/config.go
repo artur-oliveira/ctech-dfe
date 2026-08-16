@@ -39,6 +39,28 @@ type Config struct {
 	CtechJWKSURL    string `env:"CTECH_JWKS_URL"`
 	ServiceAudience string `env:"SERVICE_AUDIENCE" envDefault:"https://dfe.aoctech.app"` // expected aud claim; empty = no audience check (transition only)
 
+	// Billing (ctech-billing). All four are optional, and their absence is a
+	// supported deployment rather than a misconfiguration: without them the
+	// product runs in **no-charge mode**, where every account is unlimited. That
+	// is what a dev environment needs, and it is announced loudly at boot so a
+	// production instance missing them cannot be mistaken for a working one.
+	//
+	// The values are SSM SecureStrings under /ctech-dfe/{env}/billing/*, read by
+	// the userdata in cdk/lib/api-stack.ts — see DEPLOYMENT.md § Out-of-band
+	// parameters. BillingAPIURL is not a secret and comes from
+	// /ctech-billing/{env}/internal-base-url, published by ctech-cdk.
+	BillingAPIURL string `env:"BILLING_API_URL"`
+	// BillingClientID is `dfe-billing`, the client-credentials client
+	// ctech-account issued. It becomes the `azp` of every token minted for
+	// billing, and billing resolves the tenant from exactly that claim — point it
+	// at another client and every call is a 403, not a wrong tenant.
+	BillingClientID     string `env:"BILLING_CLIENT_ID"`
+	BillingClientSecret string `env:"BILLING_CLIENT_SECRET"`
+	// BillingWebhookSecret verifies billing's outbound deliveries. It is separate
+	// from the client credentials because it authenticates the opposite
+	// direction, and holding one says nothing about holding the other.
+	BillingWebhookSecret string `env:"BILLING_WEBHOOK_SECRET"`
+
 	// Cache / WebSocket
 	RedisURL string `env:"VALKEY_URL"` // Redis/Valkey URL — optional; falls back to in-memory
 

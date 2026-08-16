@@ -98,6 +98,7 @@ these aren't optional the way they can be for a `organization_persons` record.
 | `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — NFS-e identity fields, optional, shared verbatim with `organization_persons.person.nfse` (see below) |
 | `pickup_locations`           | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation`                                                                          |
 | `authorized_xml_viewers`     | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer`                                                                                    |
+| `owner_user_id`              | S    | Bare `sub` of the account whose subscription pays for this organization. Written at creation in the same `TransactWrite` as the single OWNER membership it mirrors — the membership grants access, this gets billed, and they cannot disagree. A **field, not a lookup**: it is read on the issuance path, and deriving it would mean listing every member. Rewritten only by an explicit ownership transfer (not implemented). Rows created before the field existed are repaired on first read (`BillingService.OwnerOf`) |
 | `created_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
 | `updated_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
 
@@ -416,6 +417,94 @@ Single-use invitation links. Partition key is the SHA-256 of the opaque token, s
 
 Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND ttl > now`) inside the accept
 `TransactWriteItems`, not by the TTL sweep.
+
+---
+
+## 36. `account_billing`
+
+What ctech-billing says about each account, plus the ids of webhooks already processed. Two row shapes in one table
+because they share a subject and a lifetime; a second table for a set of ids with a TTL would be a second thing to
+create, grant and remember.
+
+**The snapshot is a cache with a durable floor, not a source of truth.** Billing owns the subscription; this row is what
+the last read said, so a quota check on the issuance path is a `get_item` rather than a call across the network — and an
+emission stays decidable while billing is unreachable. Every write comes from re-reading billing (`BillingService.Sync`),
+never from a webhook body.
+
+### Snapshot row — `pk = USER_{sub}`
+
+| Attribute              | Type | Notes                                                                                        |
+|------------------------|------|----------------------------------------------------------------------------------------------|
+| `pk`                   | S    | `USER_{sub}` — the same string sent to billing as `external_ref`                             |
+| `user_id`              | S    | Bare ctech-account subject                                                                   |
+| `customer_id`          | S    | Billing's customer id                                                                        |
+| `subscription_id`      | S    | Empty for an account that never chose a plan — an ordinary state, not an error               |
+| `status`               | S    | Billing's status verbatim: `ACTIVE` \| `TRIALING` \| `INCOMPLETE` \| `PAST_DUE` \| `PAUSED` \| `CANCELED` |
+| `plan`                 | S    | `free` \| `pro` \| `unlimited` \| `ondemand`, from the price metadata                        |
+| `entitled`             | BOOL | **Billing's own answer, kept as given — not the gate.** Billing counts `PAST_DUE` as entitled; the DF-e blocks it (D2). Both are stored so the disagreement stays visible |
+| `cancel_at_period_end` | BOOL | Ends at the boundary; still grants service today                                             |
+| `period_start` / `period_end` | S | Civil dates, America/São_Paulo                                                          |
+| `quotas`               | M    | Meter → monthly limit. `-1` unlimited; **absent means not granted**, which is why Free's `quota_cte: 0` is written explicitly |
+| `meters`               | M    | Meter → billing price id. Present only on usage-based plans; its presence is what tells the worker to report an emission |
+| `open_invoice`         | M    | `{id, total_cents, due_date, checkout_url}` when there is a bill waiting                     |
+| `no_charge`            | BOOL | Billing not configured — everything granted, and the flag says why                           |
+| `synced_at`            | S    | ISO-8601 UTC                                                                                 |
+
+Written whole with `PutItem`, never merged field-wise: the snapshot is one consistent picture of a moment, and merging a
+new subscription's fields over an old one's would produce a row describing neither.
+
+**No `ttl` on this row, ever.** An account whose snapshot expired would read as "never subscribed" and be refused service
+it is paying for.
+
+### Webhook marker row — `pk = EVENT_{event_id}`
+
+| Attribute    | Type | Notes                                                        |
+|--------------|------|--------------------------------------------------------------|
+| `pk`         | S    | `EVENT_{X-Billing-Event-Id}`                                 |
+| `event_id`   | S    | The id as billing sent it                                    |
+| `created_at` | S    | ISO-8601 UTC                                                 |
+| `ttl`        | N    | Epoch seconds (now + 7d)                                     |
+
+Written create-only (`attribute_not_exists`) **before** the work, which is what makes the webhook idempotent: billing
+delivers at least once, so two copies of one event can be in flight together and a read-then-write would let both
+through. Seven days outlasts billing's own retry policy (~2 days), so deduplication is complete rather than probabilistic.
+
+### Usage counter row — `pk = USAGE_{sub}#{period}`
+
+One row per account per billing period; one numeric attribute per meter (`nfe`, `nfce`, `cte`,
+`mdfe`, `nfse`).
+
+| Attribute | Type | Notes                                                                     |
+|-----------|------|---------------------------------------------------------------------------|
+| `pk`      | S    | `USAGE_{sub}#{period_start}`                                              |
+| `{meter}` | N    | Documents reserved this period                                            |
+| `ttl`     | N    | Epoch seconds (now + 13 months), set once with `if_not_exists`            |
+
+`period` is the **subscription's** period start, not the calendar month: a plan anchored on the 10th
+resets on the 10th, and counting by calendar month would give that customer a short first month and a
+free stretch on every plan change. A new period starts from zero because it is a different key —
+nothing has to reset anything.
+
+The reservation is `ADD #m :one` with `ConditionExpression` in one operation, which is what makes the
+limit hold under concurrency: a read-then-write lets two simultaneous requests both read "3 of 3
+used" and both issue the fourth. Two branches, and the second is not an optimisation:
+
+- `limit > 0` → `attribute_not_exists(#m) OR #m < :limit`, so the first document of a period is not
+  refused for having no counter yet.
+- `limit == 0` → `#m < :limit`. The absent-attribute branch would grant exactly one, which is how the
+  Free plan's `quota_cte: 0` would have become one free CT-e. (The test caught this.)
+- `limit < 0` (unlimited) → no condition; the counter still moves, because the usage screen needs the
+  number and a usage-based plan bills from it.
+
+Refunds are `ADD #m :minusOne` conditional on `#m > 0`. The floor matters: a refund is replayed
+whenever the worker's message is redelivered, and a counter that could go negative would hand out
+free headroom every time.
+
+`companies` and `users` are **not** stored here. They are current state rather than a running total —
+deleting an organization gives the slot back — so they are counted live from the membership index.
+
+**No GSIs.** Every access is by primary key: the snapshot by account, the marker by event id, the
+counters by account and period.
 
 ---
 

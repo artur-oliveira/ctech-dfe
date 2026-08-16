@@ -10,7 +10,7 @@ For infrastructure architecture, stacks, and environment details, see:
 # Infrastructure Overview
 
 The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group reached through the shared CTech HAProxy edge —
-see `cdk/lib/api-stack.ts`. The bootstrap route parameter
+see `cdk/lib/api-stack.ts`. The \bootstrap route parameter
 `/ctech/{env}/lbalancer/routes/dfe` is currently owned by `ctech-lbalancer`, not
 the DFE stack; ownership must be transferred explicitly before a future shared
 service construct creates it here.
@@ -59,9 +59,16 @@ Secrets are never created by CDK. CloudFormation cannot create an SSM
 later `deploy` quietly reverts to the value it was rotated away from. The stacks
 grant read access; the values are written once by hand.
 
-| Parameter                               | Type         | Read by       | Value                                                       |
-|-----------------------------------------|--------------|---------------|-------------------------------------------------------------|
-| `/ctech-dfe/{env}/billing/webhook-secret` | SecureString | API `start.sh` | The same secret ctech-billing's seed was given as `WEBHOOK_SECRET_DFE` for the `whe_dfe` endpoint |
+| Parameter                                 | Type         | Env var                  | Value                                                                                             |
+|-------------------------------------------|--------------|--------------------------|---------------------------------------------------------------------------------------------------|
+| `/ctech-dfe/{env}/billing/webhook-secret` | SecureString | `BILLING_WEBHOOK_SECRET` | The same secret ctech-billing's seed was given as `WEBHOOK_SECRET_DFE` for the `whe_dfe` endpoint |
+| `/ctech-dfe/{env}/billing/client-id`      | SecureString | `BILLING_CLIENT_ID`      | `dfe-billing` — the client-credentials client ctech-account issued for calling billing            |
+| `/ctech-dfe/{env}/billing/client-secret`  | SecureString | `BILLING_CLIENT_SECRET`  | Its secret, shown once at issue                                                                   |
+
+`BILLING_API_URL` is *not* on this list: it is a hostname, not a secret, and it
+comes from `/ctech-billing/{env}/internal-base-url`, written by ctech-cdk's
+`configure-service-url-parameters.sh` along with every other private service
+endpoint. In prod it resolves to `https://billing.internal.aoctech.app`.
 
 ```bash
 read -rs -p 'webhook secret: ' SECRET   # typed, not echoed, and not in history
@@ -71,10 +78,21 @@ aws ssm put-parameter --profile ctech --region us-east-1 \
 unset SECRET
 ```
 
-Both sides must hold the identical string: billing signs
+Both sides must hold the identical webhook secret: billing signs
 `timestamp + "." + body` with it, the API recomputes the HMAC and compares. A
 mismatch is indistinguishable from a forged request, so every delivery is
 rejected and billing disables the endpoint after 12 consecutive failures.
+
+Absent, the API runs in **no-charge mode**: every account is unlimited and the
+boot log says so at WARN. That is a supported deployment — it is what a dev
+environment needs — so a production instance missing these parameters starts
+successfully and must be caught by reading the log, not by a crash.
+
+The webhook secret is separate: without it the client still works, but
+`POST /v1/internal/webhooks/billing` is **not mounted at all**. A signature check
+that cannot run is not a signature check, so the route 404s rather than trusting
+what arrives, and subscription changes then wait on the 60-second snapshot TTL
+instead of arriving.
 
 ## AWS Credentials
 

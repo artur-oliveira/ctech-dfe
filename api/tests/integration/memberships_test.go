@@ -10,6 +10,22 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
+// seedOwner establishes an organization's owner the way the product does: by
+// writing the membership row directly, which is what OrganizationService does
+// inside the transaction that creates the organization.
+//
+// It cannot go through MembershipService, and that is the point rather than an
+// inconvenience — member management refuses to write an OWNER, because an
+// organization has exactly one and it is whoever created it. A fixture that
+// could hand out ownership would be a fixture testing a path the product does
+// not have.
+func seedOwner(t *testing.T, orgPK, userID, name string) {
+	t.Helper()
+	if err := orgUserRepo.Create(context.Background(), orgPK, userID, repositories.RoleOwner, "", name, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // seedCertForOrg writes a non-expired certificate row directly (no S3), so
 // branch-certificate inheritance can be exercised without a real bucket.
 func seedCertForOrg(t *testing.T, orgPK string) {
@@ -24,9 +40,7 @@ func TestMembershipLifecycle(t *testing.T) {
 	orgPK := "CNPJ_" + randomCNPJ()
 	const owner, member = "owner-sub", "member-sub"
 
-	if err := memberSvc.Create(ctx, orgPK, owner, repositories.RoleOwner, "", "Owner Name", nil); err != nil {
-		t.Fatal(err)
-	}
+	seedOwner(t, orgPK, owner, "Owner Name")
 	if err := memberSvc.Create(ctx, orgPK, member, repositories.RoleViewer, owner, "Member Name", nil); err != nil {
 		t.Fatal(err)
 	}
@@ -74,9 +88,7 @@ func TestMembershipLifecycle(t *testing.T) {
 func TestCannotRemoveLastOwner(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
-	if err := memberSvc.Create(ctx, orgPK, "solo-owner", repositories.RoleOwner, "", "Solo", nil); err != nil {
-		t.Fatal(err)
-	}
+	seedOwner(t, orgPK, "solo-owner", "Solo")
 	err := memberSvc.Remove(ctx, orgPK, "solo-owner", "test-actor", "Test Actor")
 	if err == nil {
 		t.Fatal("expected error removing the last owner")
@@ -107,9 +119,7 @@ func TestCreateWithOwner_BranchInheritsCertificate(t *testing.T) {
 	filial := root + "000261" // same root, different order
 
 	// Matriz already exists with a cert and the user is its OWNER.
-	if err := memberSvc.Create(ctx, matriz, "grp-user", repositories.RoleOwner, "", "Group User", nil); err != nil {
-		t.Fatal(err)
-	}
+	seedOwner(t, matriz, "grp-user", "Group User")
 	seedCertForOrg(t, matriz)
 
 	// Creating the filial without a certificate should succeed (inherits matriz).
@@ -134,9 +144,7 @@ func TestCreateWithOwner_BranchInheritsCertificate(t *testing.T) {
 func TestInvitationLifecycle(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
-	if err := memberSvc.Create(ctx, orgPK, "inv-owner", repositories.RoleOwner, "", "Inv Owner", nil); err != nil {
-		t.Fatal(err)
-	}
+	seedOwner(t, orgPK, "inv-owner", "Inv Owner")
 
 	token, _, err := invSvc.Create(ctx, orgPK, repositories.RoleUser, "inv-owner", "Owner")
 	if err != nil {
@@ -175,10 +183,62 @@ func TestInvitation_RejectsOwnerRole(t *testing.T) {
 	}
 }
 
+// TestAnOrganizationHasExactlyOneOwner walks the three ways a second OWNER could
+// appear and closes all of them.
+//
+// The promotion case is the one that was open: the route's payload happened to
+// reject OWNER, but the service accepted it, so the invariant held only for
+// callers that went through that one DTO — and ownership transfer will arrive as
+// a second caller.
+func TestAnOrganizationHasExactlyOneOwner(t *testing.T) {
+	ctx := context.Background()
+	orgPK := "CNPJ_" + randomCNPJ()
+	seedOwner(t, orgPK, "the-owner", "The Owner")
+	if err := memberSvc.Create(ctx, orgPK, "second", repositories.RoleAdmin, "the-owner", "Second", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Promotion.
+	err := memberSvc.ChangeRole(ctx, orgPK, "second", repositories.RoleOwner)
+	if err == nil {
+		t.Fatal("promoting a member to OWNER must be refused")
+	}
+	if p, ok := err.(*problem.Problem); !ok || p.Status != 409 {
+		t.Errorf("want 409 Conflict, got %v", err)
+	}
+
+	// 2. A direct membership write.
+	if err := memberSvc.Create(ctx, orgPK, "third", repositories.RoleOwner, "the-owner", "Third", nil); err == nil {
+		t.Error("member management must not write an OWNER")
+	}
+
+	// 3. An invitation — covered above, and asserted here too because these are
+	// three doors into one room and a test per door is what keeps them shut.
+	if _, _, err := invSvc.Create(ctx, orgPK, repositories.RoleOwner, "the-owner", "The Owner"); err == nil {
+		t.Error("invitations must not grant OWNER")
+	}
+
+	// The org still has exactly one owner, and it is the one who created it.
+	owners, err := orgUserRepo.CountOwners(ctx, orgPK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if owners != 1 {
+		t.Fatalf("owners = %d, want exactly 1", owners)
+	}
+	if m, _ := memberSvc.Get(ctx, orgPK, "the-owner"); m == nil || m.Role != repositories.RoleOwner {
+		t.Errorf("the creator must still be the owner, got %+v", m)
+	}
+	// And the refused promotion left no trace: "second" is still ADMIN.
+	if m, _ := memberSvc.Get(ctx, orgPK, "second"); m == nil || m.Role != repositories.RoleAdmin {
+		t.Errorf("the refused promotion must not have changed anything, got %+v", m)
+	}
+}
+
 func TestInvitation_AlreadyMember(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
-	_ = memberSvc.Create(ctx, orgPK, "owner2", repositories.RoleOwner, "", "Owner2", nil)
+	seedOwner(t, orgPK, "owner2", "Owner2")
 	_ = memberSvc.Create(ctx, orgPK, "existing", repositories.RoleViewer, "owner2", "Existing", nil)
 
 	token, _, err := invSvc.Create(ctx, orgPK, repositories.RoleUser, "owner2", "Owner")

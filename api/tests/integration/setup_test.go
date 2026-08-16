@@ -56,6 +56,7 @@ var (
 	certSvc         *services.CertificateService
 	memberSvc       *services.MembershipService
 	invSvc          *services.InvitationService
+	billingSvc      *services.BillingService
 	nfeConfigSvc    *services.NfeConfigService
 	nfceConfigSvc   *services.NfceConfigService
 	cteConfigSvc    *services.CteConfigService
@@ -126,7 +127,12 @@ func TestMain(m *testing.M) {
 	certSvc = services.NewCertificateService(certRepo, auditRepo, &awsclient.Clients{}, "unused-test-bucket")
 	memberSvc = services.NewMembershipService(orgUserRepo, auditRepo, roleRepo, memCache)
 	orgSvc = services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, memCache)
-	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc)
+	// A nil billing client is no-charge mode, which is what these tests want:
+	// every quota check passes, so a membership test is testing memberships
+	// rather than a subscription it never set up.
+	billingSvc = services.NewBillingService(
+		repositories.NewAccountBillingRepository(db, cfg), nil, nil, memberSvc, orgSvc, memCache)
+	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc, billingSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
 	serviceRepo = repositories.NewServiceRepository(db, cfg)
 	serviceSvc = services.NewServiceService(serviceRepo, auditRepo, memCache)
@@ -157,6 +163,7 @@ func TestMain(m *testing.M) {
 		repositories.NewNfseDistributionRepository(db, cfg),
 		services.NewWorkerService(&awsclient.Clients{}, "", tablePrefix),
 		services.NewExternalService(certRepo, &awsclient.Clients{}, "", "unused-test-bucket"),
+		billingSvc,
 		&awsclient.Clients{}, memCache, "unused-test-bucket",
 	)
 
@@ -482,6 +489,18 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			},
 		},
 		{
+			// One partition key and no index: the snapshot is read by account and
+			// the webhook marker by event id, and nothing else asks anything else.
+			TableName:   aws.String(tablePrefix + "_account_billing"),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+			},
+		},
+		{
 			TableName:   aws.String(tablePrefix + "_organization_invitations"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
@@ -574,6 +593,7 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_roles",
 		tablePrefix + "_organization_users",
 		tablePrefix + "_organization_invitations",
+		tablePrefix + "_account_billing",
 	}
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})

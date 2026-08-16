@@ -8,9 +8,17 @@ import (
 )
 
 // MemberRoleBody is the payload for changing a member's role or creating an
-// invitation. Role must be one the caller may grant (ADMIN/USER/VIEWER).
+// invitation.
+//
+// Which roles are allowed is **not** listed here. It used to be, as
+// `oneof=ADMIN USER VIEWER`, and that made this tag a third copy of a list that
+// also lives in the invitation service and in member management — three places
+// to keep in agreement, and the day one of them gained OWNER the other two would
+// have kept quiet. The single answer is repositories.GrantableRoles, checked by
+// the services, which also produce a far better message than a `oneof` failure:
+// asking for OWNER is answered with "use ADMIN, que tem os mesmos acessos".
 type MemberRoleBody struct {
-	Role string `json:"role" validate:"required,oneof=ADMIN USER VIEWER"`
+	Role string `json:"role" validate:"required"`
 }
 
 // registerMemberRoutes mounts member-management and invitation endpoints under
@@ -69,6 +77,16 @@ func registerMemberRoutes(scoped fiber.Router, h OrgHandlers, perm *middleware.P
 			return sendProblem(c, p)
 		}
 		userID, userName := resolveActor(c, h.UserSvc)
+		// Checked at the invitation rather than at acceptance. Both would work,
+		// but refusing when the link is created tells the person who can fix it
+		// — the owner, who is standing right there — instead of the invitee, who
+		// cannot do anything about somebody else's plan.
+		//
+		// It is not the whole guard: acceptance re-checks, because a plan can
+		// shrink between issuing a link and using it.
+		if err := h.BillingSvc.CheckUserQuota(c.Context(), middleware.GetOrgPK(c), ""); err != nil {
+			return sendProblem(c, err)
+		}
 		token, item, err := h.InvSvc.Create(c.Context(), middleware.GetOrgPK(c), body.Role, userID, userName)
 		if err != nil {
 			return sendProblem(c, err)

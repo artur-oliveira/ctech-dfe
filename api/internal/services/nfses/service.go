@@ -66,6 +66,7 @@ type NfseService struct {
 	distRepo     *repositories.NfseDistributionRepository
 	workerSvc    *services.WorkerService
 	extSvc       *services.ExternalService
+	billingSvc   *services.BillingService
 	clients      *awsclient.Clients
 	cacheBackend cache.Backend
 	bucketDocs   string
@@ -82,12 +83,14 @@ func NewNfseService(
 	distRepo *repositories.NfseDistributionRepository,
 	workerSvc *services.WorkerService,
 	extSvc *services.ExternalService,
+	billingSvc *services.BillingService,
 	clients *awsclient.Clients,
 	cacheBackend cache.Backend,
 	bucketDocs string,
 ) *NfseService {
 	return &NfseService{
 		orgRepo:      orgRepo,
+		billingSvc:   billingSvc,
 		certRepo:     certRepo,
 		personRepo:   personRepo,
 		configRepo:   configRepo,

@@ -43,6 +43,7 @@ type Services struct {
 	Distribution *services.DistributionService
 	External     *services.ExternalService
 	AuditLog     *services.AuditLogService
+	Billing      *services.BillingService
 	RoleRepo     *repositories.RoleRepository
 }
 
@@ -57,6 +58,11 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	oauthresource.Register(app, cfg.ServiceAudience, cfg.CtechIssuerURL)
 
 	v1 := app.Group("/v1.0")
+	// The subscription gate, mounted once on the whole group rather than added to
+	// each write route. It is default-deny by shape: a route added tomorrow is
+	// gated without anybody remembering, and the exemptions live in one named list
+	// in middleware/subscription.go instead of being scattered per handler.
+	v1.Use(middleware.RequireActiveSubscription(svcs.Billing))
 	RegisterHealth(v1, cacheBackend, awsClients, cfg)
 	RegisterAuth(v1, svcs.User, svcs.Org, svcs.RoleRepo, authMw)
 	RegisterOrganizations(v1, OrgHandlers{
@@ -70,7 +76,9 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		UserSvc:    svcs.User,
 		MemberSvc:  svcs.Member,
 		InvSvc:     svcs.Invitation,
+		BillingSvc: svcs.Billing,
 	}, authMw, perm)
+	RegisterBilling(v1, app, svcs.Billing, cfg.BillingWebhookSecret, authMw)
 	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)
 	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
 	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)

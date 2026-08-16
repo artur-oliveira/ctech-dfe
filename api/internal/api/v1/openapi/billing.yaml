@@ -1,0 +1,330 @@
+paths:
+
+  # ── Assinatura da conta ────────────────────────────────────────────────────
+  #
+  # Nenhuma rota deste bloco aceita o header de organização: todas agem sobre a
+  # conta do portador do token. É isso que torna "só o proprietário cria ou
+  # altera a assinatura" uma propriedade do roteamento, e não uma checagem que
+  # alguém pode esquecer — não existe parâmetro dizendo de quem é a assinatura.
+
+  /v1.0/billing/plans:
+    get:
+      tags: [ Billing ]
+      summary: Catálogo de planos
+      description: |
+        Planos e preços vindos do ctech-billing, com as cotas em `metadata` de
+        cada preço. Sempre monte a tela a partir daqui: uma lista local oferece
+        um preço que o billing recusa.
+
+        `billing_enabled: false` é o modo sem cobrança — a instalação não cobra
+        de ninguém e `data` vem vazio.
+      operationId: listBillingPlans
+      responses:
+        '200':
+          description: Catálogo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  billing_enabled: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/BillingProduct' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1.0/billing/subscription:
+    get:
+      tags: [ Billing ]
+      summary: Assinatura da conta
+      description: |
+        O que o DF-e sabe sobre a assinatura desta conta, mais o consumo do
+        período. É um retrato do que o billing respondeu por último (atualizado
+        por webhook), não uma consulta síncrona — por isso serve para decidir
+        emissão sem depender da rede.
+
+        `usage` traz `{used, limit}` por medidor. `companies` e `users` são
+        contados ao vivo (estado atual, não acumulado do período); os documentos
+        vêm dos contadores. Um medidor que o plano não concede **não aparece** —
+        "não incluído no seu plano" e "você já usou tudo" são coisas diferentes.
+      operationId: getAccountSubscription
+      responses:
+        '200':
+          description: Situação da assinatura
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSubscription' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [ Billing ]
+      summary: Escolhe um plano
+      description: |
+        Cria cliente e assinatura no billing. Recusa com 409 se a conta já tem
+        assinatura viva — para trocar de plano use `/subscription/change`.
+
+        A resposta traz `invoice` **apenas quando há o que pagar**. Free e sob
+        demanda não geram fatura na adesão, então trate a ausência do campo como
+        sucesso e siga direto para o onboarding.
+      operationId: chooseBillingPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanChoice' }
+      responses:
+        '201':
+          description: Assinatura criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSubscriptionWithInvoice' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1.0/billing/subscription/change:
+    post:
+      tags: [ Billing ]
+      summary: Troca de plano
+      description: |
+        Move a assinatura para outro conjunto de preços, valendo agora, cobrando
+        a diferença proporcional ao que resta do período. O dia do vencimento não
+        muda.
+
+        Um downgrade **não gera fatura**: o crédito do período já pago seria uma
+        nota de crédito, que ainda não existe, então o plano troca e nada é
+        cobrado.
+      operationId: changeBillingPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanChoice' }
+      responses:
+        '200':
+          description: Plano trocado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSubscriptionWithInvoice' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1.0/billing/subscription/cancel:
+    post:
+      tags: [ Billing ]
+      summary: Cancela a assinatura
+      description: |
+        `at_period_end: true` mantém o serviço até o fim do período já pago;
+        `false` encerra na hora. São operações diferentes, não um detalhe da
+        mesma — a segunda desliga a emissão imediatamente.
+      operationId: cancelBillingSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                at_period_end: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Cancelamento registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSubscription' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1.0/billing/invoices:
+    get:
+      tags: [ Billing ]
+      summary: Faturas da conta
+      description: |
+        Faturas de um mês, filtradas para a assinatura desta conta.
+        `checkout_url` aparece só quando a fatura é pagável agora — ramifique na
+        presença do campo, nunca monte a URL.
+      operationId: listBillingInvoices
+      parameters:
+        - name: year
+          in: query
+          schema: { type: integer }
+          description: Ano; padrão é o corrente.
+        - name: month
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 12 }
+          description: Mês; padrão é o corrente.
+      responses:
+        '200':
+          description: Faturas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/BillingInvoice' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1.0/organizations/{org_pk}/plan:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [ Billing ]
+      summary: Plano que governa a organização
+      description: |
+        A assinatura da conta dona da organização (`owner_user_id`) — quem paga
+        por ela. Os membros não assinam nada: é este plano que decide emissão e
+        cotas para todos, qualquer que seja o papel.
+
+        Somente OWNER e ADMIN. Sempre `manageable: false`: alterar o plano gasta
+        o dinheiro do proprietário e só acontece nas rotas `/v1.0/billing/*`,
+        que agem sobre a conta do próprio chamador.
+      operationId: getOrganizationPlan
+      responses:
+        '200':
+          description: Plano vigente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSubscription' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+
+    PlanChoice:
+      type: object
+      required: [ price_ids ]
+      properties:
+        price_ids:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: |
+            Os preços que compõem o plano. É uma lista porque o sob demanda mede
+            cada tipo de documento com seu próprio preço — uma assinatura, vários
+            itens.
+          example: [ price_dfe_pro_monthly ]
+
+    BillingPrice:
+      type: object
+      properties:
+        id: { type: string }
+        product_id: { type: string }
+        type: { type: string, enum: [ fixed, metered ] }
+        unit_amount: { type: integer, description: Em centavos. }
+        billing_timing: { type: string, enum: [ advance, arrears ] }
+        archived: { type: boolean }
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Onde vivem as cotas (`quota_nfe`, `quota_users`, …) e o medidor
+            (`meter`). O billing carrega esses campos sem lê-los; quem os
+            interpreta é o DF-e.
+
+    BillingProduct:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        active: { type: boolean }
+        prices:
+          type: array
+          items: { $ref: '#/components/schemas/BillingPrice' }
+
+    BillingOpenInvoice:
+      type: object
+      properties:
+        id: { type: string }
+        total_cents: { type: integer }
+        due_date: { type: string, format: date }
+        checkout_url:
+          type: string
+          description: Presente só quando a fatura é pagável agora.
+
+    BillingInvoice:
+      type: object
+      properties:
+        id: { type: string }
+        number: { type: integer }
+        status: { type: string, enum: [ DRAFT, OPEN, PAID, VOID, UNCOLLECTIBLE ] }
+        overdue: { type: boolean }
+        due_date: { type: string, format: date }
+        total: { type: integer }
+        amount_due: { type: integer }
+        checkout_url: { type: string }
+
+    AccountSubscription:
+      type: object
+      properties:
+        has_subscription: { type: boolean }
+        status:
+          type: string
+          description: |
+            Status do billing, sem tradução: ACTIVE, TRIALING, INCOMPLETE,
+            PAST_DUE, PAUSED, CANCELED. Vazio quando a conta nunca assinou.
+        plan:
+          type: string
+          description: 'free, pro, unlimited ou ondemand.'
+        grants_service:
+          type: boolean
+          description: |
+            Se a conta pode emitir agora. **Use este campo**, não uma lista de
+            status reimplementada no cliente: ele é mais restrito que o
+            `entitled` do billing (INCOMPLETE e PAST_DUE não liberam emissão no
+            DF-e) e a lista muda aqui, não lá.
+        cancel_at_period_end:
+          type: boolean
+          description: |
+            Assinatura que termina no fim do período. `grants_service` ainda é
+            true hoje — uma tela que mostre só isso não avisa nada até acabar.
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        quotas:
+          type: object
+          additionalProperties: { type: integer }
+          description: 'Limite por medidor; -1 é ilimitado, ausente é não concedido.'
+        no_charge:
+          type: boolean
+          description: |
+            Instalação sem cobrança configurada: tudo liberado. Diga isso na
+            tela em vez de alegar um plano ilimitado que ninguém contratou.
+        usage:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              used: { type: integer }
+              limit: { type: integer, description: '-1 é ilimitado.' }
+          description: |
+            Consumo do período por medidor. Presente só em
+            `GET /v1.0/billing/subscription`.
+        open_invoice:
+          $ref: '#/components/schemas/BillingOpenInvoice'
+
+    AccountSubscriptionWithInvoice:
+      allOf:
+        - $ref: '#/components/schemas/AccountSubscription'
+        - type: object
+          properties:
+            invoice:
+              $ref: '#/components/schemas/BillingInvoice'

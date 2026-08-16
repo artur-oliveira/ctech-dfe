@@ -13,15 +13,6 @@ import (
 // maxPendingInvitations caps outstanding invitations per org (anti-spam).
 const maxPendingInvitations = 50
 
-// invitableRoles are the roles an invitation may grant — never OWNER (which is
-// reserved for the org creator / ownership transfer), to prevent privilege
-// escalation via a leaked link.
-var invitableRoles = map[string]bool{
-	repositories.RoleAdmin:  true,
-	repositories.RoleUser:   true,
-	repositories.RoleViewer: true,
-}
-
 // InvitationPreview is the non-consuming view of an invitation shown to the
 // invitee before they accept or decline.
 type InvitationPreview struct {
@@ -41,6 +32,7 @@ type InvitationService struct {
 	orgRepo     *repositories.OrganizationRepository
 	auditRepo   *repositories.AuditLogRepository
 	memberSvc   *MembershipService
+	billingSvc  *BillingService
 }
 
 func NewInvitationService(
@@ -49,14 +41,21 @@ func NewInvitationService(
 	orgRepo *repositories.OrganizationRepository,
 	auditRepo *repositories.AuditLogRepository,
 	memberSvc *MembershipService,
+	billingSvc *BillingService,
 ) *InvitationService {
-	return &InvitationService{invRepo: invRepo, orgUserRepo: orgUserRepo, orgRepo: orgRepo, auditRepo: auditRepo, memberSvc: memberSvc}
+	return &InvitationService{
+		invRepo: invRepo, orgUserRepo: orgUserRepo, orgRepo: orgRepo,
+		auditRepo: auditRepo, memberSvc: memberSvc, billingSvc: billingSvc,
+	}
 }
 
 // Create issues a new invitation and returns the raw token (shown only once, in
 // the link) plus the stored item.
 func (s *InvitationService) Create(ctx context.Context, orgPK, role, invitedBy, invitedByName string) (string, map[string]any, error) {
-	if !invitableRoles[role] {
+	// OWNER is not on this list, which is what stops a leaked link from being a
+	// privilege escalation — and, since an organization has exactly one OWNER,
+	// from being a second one.
+	if !repositories.IsGrantableRole(role) {
 		return "", nil, problem.BadRequest("função inválida para convite")
 	}
 	pending, err := s.invRepo.CountPendingByOrg(ctx, orgPK)
@@ -160,6 +159,14 @@ func (s *InvitationService) Accept(ctx context.Context, rawToken, userID, userNa
 	}
 	if m, mErr := s.memberSvc.Get(ctx, orgPK, userID); mErr == nil && m != nil {
 		return nil, problem.Conflict("Você já faz parte desta organização")
+	}
+	// Re-checked here and not only when the link was issued: a plan can shrink
+	// between the two, and an invitation is a promise the owner made that the
+	// owner may no longer be able to keep. The candidate is passed so somebody
+	// who already belongs to another of this account's organizations does not
+	// count twice — one person is one person (D5).
+	if err := s.billingSvc.CheckUserQuota(ctx, orgPK, userID); err != nil {
+		return nil, err
 	}
 
 	auditTx, err := s.auditRepo.BuildLogTxItem(

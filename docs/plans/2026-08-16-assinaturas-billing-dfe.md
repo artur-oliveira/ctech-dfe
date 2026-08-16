@@ -60,10 +60,13 @@ catálogo semeado, em constante `PLANS` hardcoded.
 
 | #  | Decisão                                                                     | Consequência                                                                                                                                                                                                                     |
 |----|-----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| D1 | **Assinatura pertence à conta (usuário ctech-account), não à organização.** | `Customer.UserID` = subject do ctech-account; `Customer.ExternalRef` = `USER_{sub}`. `quota_companies` limita quantas organizações DF-e aquele usuário pode criar. Uma organização é governada pela assinatura do seu **OWNER**. |
+| D1 | **Assinatura pertence à conta (usuário ctech-account), não à organização.** | `Customer.UserID` = subject do ctech-account; `Customer.ExternalRef` = `USER_{sub}`. `quota_companies` limita quantas organizações DF-e aquele usuário pode criar. Uma organização é governada pela assinatura da conta apontada pelo seu `owner_user_id` (Fase 2.3) — ver D1a. |
+| D1a | **A organização aponta para a assinatura; a assinatura não pertence à organização** (esclarecido 2026-08-16). | Os membros não assinam nada: a organização carrega `owner_user_id`, e é a assinatura **daquela conta** que governa emissão, cotas e bloqueio para **todos** os membros, qualquer que seja o papel. Não inverter e pôr a assinatura na organização, porque `quota_companies` só significa alguma coisa se uma assinatura abrange várias organizações — assinatura por organização faria o Pro (10 empresas) ser cobrado dez vezes. `owner_user_id` é um **campo gravado**, nunca derivado do papel: é a mesma informação que o OWNER carrega, mas lida numa consulta e não numa varredura de membros, e sobrevive a qualquer mudança futura de papéis. Ver D1b — a unicidade do OWNER, de que isto depende, era uma suposição e virou uma invariante. |
+| D1b | **Uma organização tem exatamente um OWNER, e é quem a criou** (implementado 2026-08-16, antes do resto). | A revisão da D1a apontou que o DF-e deixava criar um segundo OWNER: `MembershipService.ChangeRole` aceitava `OWNER`, e o que barrava era um `validate:"oneof=ADMIN USER VIEWER"` no DTO de uma rota — invariante que valia só para quem passasse por aquele DTO, e a futura transferência de propriedade seria um segundo chamador. Com dois OWNERs, "o plano do dono" teria duas respostas e o billing pegaria a linha que voltasse primeiro. Fechado com `repositories.GrantableRoles` — uma lista, checada por `MembershipService.Create`, `ChangeRole` e `InvitationService.Create` — e o `oneof` do DTO removido, porque era a terceira cópia da mesma lista. Ownership passa a ser fato de criação, não papel concedido; quem precisa de acesso total recebe ADMIN, que tem o conjunto idêntico de permissões. `guardLastOwner` continua **contando** em vez de recusar de saída, para que uma organização com dois OWNERs legados possa ser consertada rebaixando um. Transferência de propriedade continua fora de escopo; quando existir, **move** o OWNER único. |
 | D2 | **`PAST_DUE`/`CANCELED` bloqueia emissão E todos os cadastros.**            | Gate em toda escrita org-scoped. Carve-outs abaixo.                                                                                                                                                                              |
 | D3 | **Upgrade via nova rota em billing, com pró-rata.**                         | `POST /v1.0/subscriptions/:id/change` em ctech-billing, reusando `proration.go`. Duas linhas separadas na fatura (crédito do antigo, cobrança do novo), nunca uma linha líquida.                                                 |
 | D4 | **NFS-e ganha cota e medidor agora.**                                       | `quota_nfse` nos preços fixos, `price_dfe_ondemand_nfse` no sob demanda.                                                                                                                                                         |
+| D5 | **Cota de usuários** (2026-08-16). Free = 1, Pro = 25, Ilimitado = sem limite. | `quota_users` nos quatro preços fixos. Contada **por conta**, não por organização — é a mesma unidade que `quota_companies`, e 25 usuários por organização vezes 10 organizações seriam 250, que não é o que o plano vende. Usuários distintos: quem participa de duas organizações da mesma conta conta uma vez. Aplicada no convite (Fase 3.3). |
 
 ### Carve-outs do D2 (bloqueio) — deliberados, não esquecimento
 
@@ -181,7 +184,12 @@ assumir é descobrir na Fase 2 com um 401 sem explicação.
   organização `ctech`, a credencial `ctech-dfe`, os 5 produtos, os 9 preços e o endpoint
   `whe_dfe`. `cmd/seed` é create-or-skip, então reaplicar é seguro e é a forma mais barata de - Aplicado
   verificar. Confirmar também `PORTAL_ORGANIZATION_ID` apontando para `ctech`.
-- [ ] **0.4** No ctech-account: cliente M2M `ctech-dfe` com os escopos
+- [x] **0.4** No ctech-account: cliente M2M `dfe-billing` (feito em 2026-08-16). Credenciais em
+  `/ctech-dfe/{env}/billing/client-id` e `/client-secret`, sob o prefixo do **chamador** e não do
+  chamado — o billing não sabe nada sobre elas. `BILLING_API_URL` vem de
+  `/ctech-billing/{env}/internal-base-url`, publicado pelo
+  `configure-service-url-parameters.sh` do ctech-cdk junto com os outros endpoints privados; o
+  `IamStack` ganhou leitura em `/ctech-billing/{env}/*`. Escopos:
   `billing:customers:read`, `billing:customers:write`, `billing:subscriptions:read`,
   `billing:subscriptions:write`, `billing:invoices:read`, `billing:usage:write`,
   `billing:entitlements:read`, `billing:products:read`.
@@ -211,20 +219,25 @@ assumir é descobrir na Fase 2 com um 401 sem explicação.
 Todo o trabalho desta fase é em `ctech-billing`, e nenhum item aqui é específico do DF-e — poker e
 qualquer produto futuro herdam.
 
-- [ ] **1.1 — Catálogo legível por M2M.**
-  Montar em `internal/api/v1/router.go`, no grupo `m2m`:
-  `GET /v1.0/products` e `GET /v1.0/products/:id` sob `billing:products:read`.
-  Reusar `consoleHandlers.listProducts`/`getProduct` — a diferença é só o resolvedor de tenant,
-  então extrair os dois corpos para `handlers` e deixar console e M2M chamando o mesmo código.
-  Resposta inclui os `prices` com `metadata` (é de onde saem as cotas).
-  *Teste:* contrato — um token M2M lista o catálogo; um token de sessão é recusado.
+- [x] **1.1 — Catálogo legível por M2M.** *(feito 2026-08-16)*
+  `GET /v1.0/products` e `GET /v1.0/products/:id` no grupo `m2m`, sob `billing:products:read`.
+  Os dois corpos saíram de `consoleHandlers` para `handlers`, e console e M2M chamam o mesmo
+  código: uma cota que a integração lê no `metadata` do preço e a cota que o operador vê na tela
+  são o mesmo número, ou são um chamado de suporte. `consoleLimit` virou `pageLimit` pela mesma
+  razão — deixou de ser do console.
+  *Teste:* `TestCatalogIsReadableByAnIntegration` — token M2M lista; token de sessão com o
+  **mesmo** escopo recebe 403; token M2M sem `billing:products:read` recebe 403.
 
-- [ ] **1.2 — `GET /v1.0/entitlements` enriquecido.**
-  Acrescentar por assinatura: `plan` (de `Price.Metadata["plan"]` do primeiro item),
-  `items: [{price_id, product_id, type, unit_amount, metadata}]`, `cancel_at_period_end`,
-  e `open_invoice: {id, total_cents, due_date, checkout_url}` quando houver fatura `OPEN`.
-  Campos aditivos apenas — nada removido, nada renomeado.
-  *Teste:* integração — assinatura Pro com fatura aberta devolve `checkout_url` assinado e válido.
+- [x] **1.2 — `GET /v1.0/entitlements` enriquecido.** *(feito 2026-08-16)*
+  Acrescentados por assinatura: `plan`, `items[]` com `metadata` (as cotas), `cancel_at_period_end`
+  e `open_invoice: {id, total_cents, due_date, checkout_url}`. Aditivo — nada removido nem
+  renomeado; `price_id`, que existia e nunca era preenchido, passou a trazer o primeiro item.
+  O `checkout_url` sai de `newInvoiceResponse`, não de uma segunda cópia da regra
+  `Payable`+`links` — é assim que uma superfície acaba publicando um link que a outra não tem.
+  Custo: uma leitura por item mais uma consulta de faturas por assinatura. Aceitável **por causa
+  de quem chama** — um produto consulta um cliente por vez e cacheia; num endpoint de lista não
+  seria, e deliberadamente não existe um.
+  *Teste:* `TestEntitlementsCarryThePlanAndTheOpenInvoice`.
 
 - [x] **1.3 — `INCOMPLETE` de verdade.** *(feito 2026-08-16)*
   `Subscribe` cria `SubscriptionIncomplete` quando `cycle.Timing == BillAdvance` **e**
@@ -267,31 +280,51 @@ qualquer produto futuro herdam.
   política de dunning, o que não custa nada: `INCOMPLETE` não concede serviço nenhum enquanto
   isso, e a fatura segue pagável o tempo todo.
 
-- [ ] **1.6 — Troca de plano com pró-rata (D3).**
-  `POST /v1.0/subscriptions/:id/change` (M2M, `billing:subscriptions:write`, idempotente) e o
-  espelho no console. Corpo: `{items: [{price_id, quantity}], effective: "now"}`.
-  Serviço novo `services.Subscriber.ChangePlan`:
-  1. Valida o conjunto novo pelas mesmas três regras de `resolveItemPrices` (uma recorrência,
-  um timing, um `owner_key`) — reusar a função, não copiar.
-  2. Calcula, com `proration.go`, o crédito do não consumido do preço antigo e a cobrança
-  pró-rata do novo, para o restante do período corrente.
-  3. Emite **uma** fatura com **duas linhas separadas** (crédito e cobrança), nunca uma linha
-  líquida ambígua. Total zero ou negativo cai na regra de ADR 0019 (liquidada na emissão).
-  4. Substitui os `SubscriptionItem`s, mantém `Anchor` e `PeriodIndex` — trocar de plano não
-  muda o dia do vencimento.
-  5. Transição `ACTIVE → ACTIVE` por `CauseManual`/`CauseCustomer` (aresta já existe),
-  emitindo `EventSubscriptionUpdated`.
-  Preços metered nunca são pró-rateados (uso é uso). Trocar de um plano fixo para sob demanda
-  credita o fixo e não cobra nada adiantado; o inverso cobra o fixo pró-rata e a fatura de uso
-  do período fechado chega normalmente pelo sweep.
-  *Teste:* Free→Pro no dia 10 de um mês de 30 dias cobra 20/30 de R$ 350; Pro→Ilimitado credita
-  o restante do Pro; a soma crédito+cobrança bate com a propriedade já testada em `proration_test.go`.
+- [x] **1.6 — Troca de plano com pró-rata (D3).** *(feito 2026-08-16)*
+  `POST /v1.0/subscriptions/:id/change` (M2M) e `POST /v1.0/console/subscriptions/:id/change`.
+  `services.Subscriber.ChangePlan` reusa `resolveItemPrices` (uma recorrência, um timing, um
+  `owner_key`), calcula com `proration.go`, e `repositories.ChangeItems` troca os itens na mesma
+  transação da auditoria e do `subscription.updated`. `Anchor` e `PeriodIndex` não se movem.
+  A guarda de status é do **domínio**, não uma checagem no serviço: a troca é uma self-edge, e
+  só `ACTIVE` tem uma — `INCOMPLETE`, `PAST_DUE`, `PAUSED` e `CANCELED` são recusados sem código
+  novo. `owner_key` é recomputado aqui, que é exatamente o lugar que o comentário de
+  `Subscription.OwnerKey` nomeava.
 
-- [ ] **1.7 — NFS-e no catálogo (D4).**
-  Em `api/tenants/ctech.json`: `quota_nfse` nos quatro preços fixos
-  (`free: 3`, `pro: 1200`, `unlimited: -1`, `unlimited_internal: -1`) e um preço novo
-  `price_dfe_ondemand_nfse` (metered, arrears, `unit_amount: 5` — mesma faixa da NF-e).
-  Preço é imutável em billing: os preços fixos existentes **não podem ser editados**. Duas saídas,
+  **Duas divergências do plano original, ambas deliberadas:**
+    - **Downgrade não emite fatura.** O plano dizia "total zero ou negativo cai na regra de
+      ADR 0019". Mas negativo não é zero: é dinheiro a devolver, e isso é um `CreditNote` — outro
+      documento, que este serviço ainda não emite. Limitar o crédito para o total fechar em zero
+      poria na fatura uma linha cuja fração declarada não é o valor cobrado, que é a única coisa
+      que a regra das duas linhas existe para impedir. Então o plano troca, nada é cobrado, e o
+      restante do período já pago é perdido. **É este o ramo que concede um crédito quando as
+      notas de crédito existirem.**
+    - **A linha de crédito de valor zero é omitida.** Sair do Free não imprime
+      "Crédito proporcional — DF-e Free: R$ 0,00", que não explica nada e convida à pergunta que
+      parece estar respondendo.
+
+  Sem chave de geração na fatura da troca — aquela chave reivindica um *período*, e duas trocas
+  no mesmo mês são dois documentos reais. Contra repetição vale o `Idempotency-Key` do HTTP, e a
+  rota está atrás dele.
+  *Testes:* `plan_change_test.go` — Pro→Ilimitado (duas linhas, valores conferidos contra
+  `ProrateSwap`, período intacto), Free→Pro (uma linha), Pro→Free (nenhuma fatura, plano trocado),
+  fixo→metered (nada cobrado, `Timing` acompanha), `INCOMPLETE` recusado.
+
+- [x] **1.7 — NFS-e e usuários no catálogo (D4, D5).** *(feito 2026-08-16)*
+  Em `api/tenants/ctech.json`: `quota_nfse` (`free: 3`, `pro: 1200`, `unlimited: -1`,
+  `unlimited_internal: -1`), `quota_users` (`1`, `25`, `-1`, `-1`) e o preço novo
+  `price_dfe_ondemand_nfse` (metered, arrears, `unit_amount: 5`). `PLANS` na landing atualizado,
+  com NFS-e marcada **"(em breve)"** — o DF-e ainda não emite NFS-e (está no roadmap da própria
+  página), e anunciar uma cota de um documento que o produto não emite é vender o que não existe.
+  A cota entra agora mesmo assim porque preço é imutável: este é o último momento barato.
+
+  **Corrigido junto, e é um bloqueio da Fase 2:** o `client_id` semeado era `ctech-dfe`, e o
+  cliente M2M que o ctech-account de fato emitiu (item 0.4) é **`dfe-billing`**. O
+  `ResolveTenant` procura a credencial por esse id exato, então toda chamada M2M do DF-e
+  receberia 403 — "credencial não habilitada para o billing" — até a semente ser corrigida.
+
+  O restante deste item **não é código, é operação**. Preço é imutável em billing: os preços
+  fixos existentes **não podem ser editados**, e reaplicar a semente sozinha não muda nenhuma
+  linha viva (`Apply` é criar-ou-pular, nunca atualizar). Duas saídas,
   e a escolha depende de um fato a verificar em produção (0.3) — se já existe alguma assinatura
   viva sobre os preços `dfe`:
   - **Nenhuma assinatura viva** (esperado, já que o DF-e ainda não integrou): apagar os 4 preços
@@ -300,7 +333,8 @@ qualquer produto futuro herdam.
   e arquivar os antigos. Quem já assinou fica no antigo, que é o comportamento correto.
 
       **Fazer isto antes do primeiro cliente pagante**, que é o último momento barato.
-      Atualizar `ui/src/app/page.tsx` (`PLANS`) para incluir NFS-e nas cotas anunciadas.
+      A credencial tem o mesmo problema pelo mesmo motivo: `Apply` pula a que já existe, então
+      `dfe-billing` precisa ser criada — e `ctech-dfe`, desativada — fora da semente.
 
 > **Verificação da fase:** `make test-integration` verde, e um roteiro manual em ambiente de teste:
 > criar cliente → assinar Pro (`INCOMPLETE`) → pagar via checkout → assinatura `ACTIVE` → deixar
@@ -310,10 +344,10 @@ qualquer produto futuro herdam.
 
 ### Fase 2 — ctech-dfe/api: cliente de billing, modelo de conta, webhook
 
-- [ ] **2.1 — Cliente M2M.**
-  `api/internal/billingclient/client.go`, sobre
-  **`gopkg.aoctech.app/go-common/oauth2client`** (`ctech-go-common/oauth2client/client.go` —
-  já faz cache do token). Não escrever um segundo gerenciador de token.
+- [x] **2.1 — Cliente M2M.** *(feito 2026-08-16)*
+  `api/internal/billingclient/client.go`, sobre **`gopkg.aoctech.app/api-commons/oauth2client`**
+  — o plano dizia `go-common`, mas o módulo publicado (e o que o ctech-billing importa) é
+  `api-commons`; o pacote é o mesmo. Nenhum segundo gerenciador de token.
   Métodos: `ListProducts`, `GetEntitlements`, `CreateCustomer`, `CreateSubscription`,
   `ChangeSubscription`, `CancelSubscription`, `ListInvoices`, `ReportUsage`.
   Erros do billing chegam como RFC 7807 e são remapeados para `problem.*` do DF-e — nunca
@@ -323,7 +357,7 @@ qualquer produto futuro herdam.
   Ausência de configuração → o produto roda em **modo sem cobrança** (todo mundo ilimitado),
   que é o que os ambientes de dev precisam, e é logado no boot de forma barulhenta.
 
-- [ ] **2.2 — Repositório e serviço de conta.**
+- [x] **2.2 — Repositório e serviço de conta.** *(feito 2026-08-16)*
   `repositories/account_billing.go` + `services/billing.go`.
   `GetOrCreateCustomer(userID)`: lê `account_billing`; se não existe, chama
   `POST /v1.0/customers` com `external_ref = USER_{sub}`, `user_id = sub`, `name`/`email`
@@ -331,12 +365,19 @@ qualquer produto futuro herdam.
   `Sync(userID)`: chama `GET /v1.0/entitlements?customer_ref=USER_{sub}` e reescreve o snapshot.
   Cache curto em Valkey (mesmo padrão de `middleware/rbac.go`, TTL 60 s), invalidado por webhook.
 
-- [ ] **2.3 — `owner_user_id` em `organizations`.**
+- [x] **2.3 — `owner_user_id` em `organizations`.** *(feito 2026-08-16)*
   Escrito na mesma `TransactWrite` que já cria o OWNER (`services/organizations.go:205`).
   Atualizado na transferência de propriedade (`services/memberships.go:225`).
-  Backfill: as organizações existentes são duas; um `cmd/` de uso único ou um script direto.
+  Backfill: **não foi escrito script.** A leitura repara sozinha — `BillingService.OwnerOf` cai
+  para o membro OWNER quando o campo falta e grava o valor. É o mesmo *read-fallback self-heal*
+  que a tabela de membros usou na própria migração, e evita um `cmd/` que alguém precisa lembrar
+  de rodar em cada ambiente.
+  **É um campo, não uma consulta** (D1a). A unicidade do OWNER já é invariante (D1b), então o valor
+  não é ambíguo — mas continua sendo campo, porque derivá-lo custaria varrer os membros a cada
+  decisão de cobrança, e um `GetItem` responde a mesma pergunta. Quem paga só muda na transferência
+  explícita de propriedade, que é onde este campo é reescrito.
 
-- [ ] **2.4 — Endpoint de webhook.**
+- [x] **2.4 — Endpoint de webhook.** *(feito 2026-08-16)*
   `POST /v1/internal/webhooks/billing`, sem auth de token, fora do resolvedor de org.
   - Verifica `X-Billing-Signature: v1=<hmac>` como **HMAC-SHA256 sobre `timestamp + "." + body`
   nos bytes crus**, com `X-Billing-Timestamp` dentro do material assinado (é o formato de
@@ -348,9 +389,23 @@ qualquer produto futuro herdam.
   - Eventos tratados: `subscription.*` → `Sync`; `invoice.paid`/`invoice.finalized`/
   `invoice.payment_failed` → `Sync` (a fatura aberta e a `checkout_url` fazem parte do snapshot).
   - Invalida o cache Valkey da conta.
-  *Teste:* integração — assinatura forjada é 401; replay do mesmo `event_id` é 200 sem segunda escrita.
 
-- [ ] **2.5 — Rotas de conta.**
+      Duas decisões tomadas na implementação:
+      - **Sem `BILLING_WEBHOOK_SECRET` a rota não é montada.** 404, não endpoint que confia no que
+        chega — uma verificação de assinatura que não pode rodar não é uma verificação.
+      - **A resolução assinatura → conta passa pelo billing**, não por um índice local
+        (`GET /v1.0/subscriptions/:id` → `customer_id` → `GET /v1.0/customers/:id` →
+        `external_ref`). Um índice seria mais uma coisa a manter em dia, e estaria faltando
+        exatamente na corrida que o webhook mais perde: o `subscription.created` que ultrapassa a
+        escrita deste serviço. Duas leituras num evento raro.
+
+  *Teste:* `billing_webhook_test.go` (rota não montada sem segredo; corpo adulterado, segredo
+  errado, sem assinatura, sem timestamp e replay de uma hora atrás, todos 401 — com o serviço
+  `nil`, o que prova que a recusa acontece antes de qualquer trabalho); `webhook_test.go` confere
+  a implementação contra o `Sign` do billing escrito à mão; `TestEventIsProcessedExactlyOnce`
+  cobre a deduplicação sob concorrência real.
+
+- [x] **2.5 — Rotas de conta.** *(feito 2026-08-16)*
   Todas sob `/v1.0/billing/*`, **sem** header de organização, agindo sempre sobre a conta do
   chamador — que é o que torna "só o proprietário cria/altera" uma propriedade estrutural e não
   uma checagem que alguém pode esquecer.
@@ -376,28 +431,63 @@ qualquer produto futuro herdam.
 
 ### Fase 3 — ctech-dfe/api: cotas e bloqueio
 
-- [ ] **3.1 — Contador atômico de cota.**
-  `repositories/usage_counters.go`. `Reserve(userID, period, meter, limit)`:
-  `UpdateItem` com `ADD #meter :one` e `ConditionExpression: attribute_not_exists(#meter) OR #meter < :limit`.
-  Condição falha → `problem.PaymentRequired` (402) com o medidor, o limite e o plano sugerido no
-  corpo, para a UI conseguir montar o convite ao upgrade sem uma segunda chamada.
-  `limit == -1` (ilimitado) pula a condição e só incrementa — o número ainda importa para a tela de uso.
-  `Refund(userID, period, meter)`: `ADD #meter :minus_one`, condicional a `#meter > 0`.
+- [x] **3.1 — Contador atômico de cota.** *(feito 2026-08-16)*
+  **Sem tabela nova:** os contadores foram para a `account_billing`, como
+  `pk = USAGE_{sub}#{period}`. O padrão de acesso é idêntico ao do snapshot — uma linha, por chave
+  primária, nunca consultada nem varrida —, e uma segunda tabela seria mais uma coisa a criar,
+  permissionar, prefixar e lembrar, sem propriedade ganha. Chaves diferentes ficam em partições
+  diferentes, então não disputam.
 
-- [ ] **3.2 — Reserva na emissão.**
+  `ReserveUsage(userID, period, meter, limit)`:
+  `UpdateItem` com `ADD #meter :one` e `ConditionExpression: attribute_not_exists(#meter) OR #meter < :limit`.
+  Condição falha → `problem.QuotaExceeded` (402) com `meter`, `plan`, `quota_limit` e `quota_used`.
+  `limit == -1` (ilimitado) pula a condição e só incrementa. `RefundUsage`: `ADD #meter :minusOne`,
+  condicional a `#meter > 0`.
+
+  **Bug encontrado pelo teste, não pela leitura:** `attribute_not_exists(#m) OR #m < :limit` libera
+  a primeira emissão mesmo com `limit == 0` — o `quota_cte: 0` do Free teria virado um CT-e grátis.
+  Limite zero usa `#m < :limit` sozinho, que é falso para atributo ausente. O ramo está em Go e não
+  na expressão porque o DynamoDB não compara dois literais (`:zero < :limit` exige que um operando
+  seja um caminho do documento).
+
+  *Testes:* `TestQuotaIsClaimedAtomically` (10 requisições disputando 3 vagas — uma implementação
+  read-then-write passa na versão sequencial e falha aqui), `TestQuotaOfZeroGrantsNothing`,
+  `TestUnlimitedStillCounts`, `TestRefundGivesTheSlotBackButNeverGoesNegative`,
+  `TestPeriodsAreCountedSeparately`.
+
+- [x] **3.2 — Reserva na emissão.** *(feito 2026-08-16)*
   Em `services/nfes`, `nfces`, `mdfes`, `nfses` (e CT-e quando existir), reservar a cota **antes**
   de `TransactReserveAndCreate`.
   Reserva no pedido, não na autorização, porque é a reserva que **é** o controle: contar só
   autorizados torna o limite assíncrono e furável por concorrência.
   O preço disso é um documento rejeitado pela SEFAZ que consumiu cota — resolvido em 4.2.
 
-- [ ] **3.3 — Cota de empresas.**
-  Em `services/organizations.go`, antes de criar: contar organizações onde
+- [x] **3.3 — Cotas de empresas e de usuários.** *(feito 2026-08-16)*
+  Empresas: em `services/organizations.go`, antes de criar, contar organizações onde
   `owner_user_id == userID` e recusar acima de `quotas.companies`. Ilimitado (`-1`) passa direto.
+  Usuários (D5): checado **nas duas pontas** — ao criar o convite (avisa o proprietário, que está
+  ali e pode resolver) e ao aceitar (o plano pode ter encolhido entre uma coisa e outra). Contar os
+  `user_id`
+  **distintos** de todas as organizações daquela conta e recusar acima de `quotas.users`.
+  Distintos, e por conta e não por organização: alguém que ajuda em duas empresas do mesmo
+  cliente é uma pessoa, e cobrar duas vezes por ela é o tipo de conta que o cliente confere.
+  O OWNER conta. Rebaixar de plano com mais membros do que o novo limite **não** expulsa
+  ninguém — recusa o downgrade, nomeando quantos precisam sair antes.
 
-- [ ] **3.4 — Middleware de bloqueio (D2).**
-  `middleware/subscription.go`, montado **depois** de `auth` e do resolvedor de org, **antes** do
-  RBAC. Lê o snapshot da conta dona da org (cache Valkey 60 s).
+- [x] **3.4 — Middleware de bloqueio (D2).** *(feito 2026-08-16)*
+  `middleware/subscription.go`, montado **uma vez no grupo `/v1.0`** — não por rota, e não depois de
+  um "resolvedor de org" que não existe: quem resolve a organização neste código é o próprio RBAC
+  (`perm.check`). O gate resolve sozinho a partir do header/param, o que é barato, e roda antes do
+  RBAC como o plano pedia.
+
+  O ganho real é a **forma default-deny**: toda mutação é bloqueada a menos que o caminho esteja na
+  lista de isenções, então uma rota criada amanhã já nasce protegida. A alternativa — adicionar o
+  gate a cada rota de escrita — é uma lista que alguém eventualmente esquece de estender, e o
+  esquecimento é silencioso.
+
+  Custo de ter o gate antes do RBAC: um VIEWER numa conta inadimplente recebe 402 em vez de 403,
+  ou seja, descobre que a assinatura da organização venceu. Aceitável — é o que a tela vai lhe
+  dizer em seguida.
   Recusa com 402 e um `problem` que nomeia o motivo (`subscription_past_due`,
   `subscription_canceled`, `subscription_missing`) quando o status não é
   `ACTIVE`/`TRIALING`/`INCOMPLETE`... — não: **`INCOMPLETE` também bloqueia emissão**, porque é
@@ -408,9 +498,18 @@ qualquer produto futuro herdam.
   **Não** aplicado em: leituras, download de XML/DANFE, cancelamento e eventos de documentos já
   emitidos, manifestação, distribuição, e tudo sob `/v1.0/billing/*` e `/v1.0/auth/*`.
   A lista de exceções vive em **um** slice nomeado no pacote, não espalhada por handler.
-  Modo sem cobrança (2.1) faz o middleware virar no-op.
+  Modo sem cobrança (2.1) faz o middleware virar no-op — nem sequer lê o snapshot, então um
+  ambiente de desenvolvimento não paga uma leitura de DynamoDB por requisição.
 
-- [ ] **3.5 — Endpoint de uso.**
+  Um erro ao ler o snapshot **libera** em vez de bloquear: o snapshot é durável e vem do DynamoDB,
+  então um erro aqui é o DynamoDB indisponível — a requisição vai falhar em seguida de qualquer
+  jeito, e falhá-la aqui rotularia a causa errada.
+
+  *Testes:* `subscription_test.go` percorre as duas metades — o que passa (as isenções, cada uma com
+  o motivo) e o que não passa, incluindo `substitute`, que **emite documento novo** e seria o caminho
+  para contornar o gate inteiro.
+
+- [x] **3.5 — Endpoint de uso.** *(feito 2026-08-16)*
   `GET /v1.0/billing/subscription` (2.5) passa a devolver
   `usage: {nfe: {used, limit}, nfce: {...}, ..., companies: {used, limit}}`.
   Fonte: contadores + `len(orgs do owner)` + cotas do snapshot.

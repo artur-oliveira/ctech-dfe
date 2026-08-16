@@ -787,8 +787,23 @@ Must follow Conventional Commits:
   `/auth/me`, `GET /organizations`, and the WebSocket all resolve access through
   `MembershipService.Get`. The legacy embedded `users.organizations` list is dead — no longer read
   or written (dual-write/fallback removed post-migration); do not reintroduce authorization from it.
+- **An organization has exactly one OWNER, and it is whoever created it.** Ownership is not a role
+  that gets handed out: it is written once by `OrganizationService`, in the same `TransactWrite` as
+  the organization row, and by nothing else. `repositories.GrantableRoles` (ADMIN/USER/VIEWER) is
+  the single list of what member management may assign, checked by `MembershipService.Create`,
+  `ChangeRole` and `InvitationService.Create` — three doors into one room. Do not re-list those
+  roles anywhere else, and specifically not in a `validate:"oneof=…"` tag: a request DTO that
+  carries its own copy makes the invariant hold only for callers that happen to use that DTO.
+  Anyone needing full access gets ADMIN, which has the identical permission set. Ownership transfer
+  is a real feature that deliberately does not exist yet; when it does, it **moves** the single
+  OWNER and does not add a second.
+  Why it has to stay singular: ownership decides which account's subscription pays for the
+  organization (`owner_user_id`, billing integration), and "the OWNER's plan" is only an answer
+  while there is one OWNER.
 - Removing/demoting a member must not leave an org without an OWNER, and mutating a membership must
   invalidate its cache (a tombstone on removal) — do this through `MembershipService`, not the repo.
+  `guardLastOwner` still *counts* owners rather than refusing outright, so an organization carrying
+  two OWNERs from before this rule can be repaired by demoting one.
 - Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
   one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
   inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.

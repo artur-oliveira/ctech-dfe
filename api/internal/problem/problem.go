@@ -28,6 +28,25 @@ const (
 	TypeInternalServer  = "/problems/internal-server-error"
 	TypeNotImplemented  = "/problems/not-implemented"
 	TypePayloadTooLarge = "/problems/payload-too-large"
+	// TypePaymentRequired covers every refusal that money fixes: no subscription,
+	// one that lapsed, and a quota that ran out. One type with a `reason` rather
+	// than three types, because the client's response to all of them is the same
+	// screen with different words.
+	TypePaymentRequired = "/problems/payment-required"
+)
+
+// Reasons a request was refused for billing. Machine keys, stable across
+// wording changes — the UI branches on these, never on the detail text.
+const (
+	ReasonSubscriptionMissing = "subscription_missing"
+	ReasonSubscriptionPastDue = "subscription_past_due"
+	// ReasonSubscriptionIncomplete is "chose the paid plan and never paid". It is
+	// separate from past_due because the screens differ: one offers the first
+	// checkout, the other offers to settle an overdue bill.
+	ReasonSubscriptionIncomplete = "subscription_incomplete"
+	ReasonSubscriptionCanceled   = "subscription_canceled"
+	ReasonSubscriptionPaused     = "subscription_paused"
+	ReasonQuotaExceeded          = "quota_exceeded"
 )
 
 // FieldError is a single field-level validation failure. It mirrors the shape
@@ -36,8 +55,26 @@ type FieldError = commonproblem.FieldError
 
 // Problem is the RFC 7807 response body. Errors carries field-level validation
 // failures (only populated for validation problems; omitted otherwise).
+//
+// The billing fields below are dfe-specific extensions, embedded here rather
+// than pushed into api-commons because only this product has quotas. They exist
+// so a 402 is **actionable in one round trip**: the UI can say "seu plano Free
+// permite 3 NF-e por mês e você já emitiu 3" and offer the upgrade without a
+// second call to find out which limit was hit.
 type Problem struct {
 	commonproblem.Problem
+
+	// Reason names why service was refused, as a stable machine key —
+	// `subscription_missing`, `subscription_past_due`, `quota_exceeded`. The UI
+	// branches on this, never on the Portuguese detail text.
+	Reason string `json:"reason,omitempty"`
+	// Meter, QuotaLimit and QuotaUsed describe an exhausted quota.
+	Meter      string `json:"meter,omitempty"`
+	QuotaLimit int64  `json:"quota_limit,omitempty"`
+	QuotaUsed  int64  `json:"quota_used,omitempty"`
+	// Plan is the plan in force when the refusal happened, so the upgrade screen
+	// knows what it is upgrading from.
+	Plan string `json:"plan,omitempty"`
 }
 
 // Error implements the error interface so problems can be returned as errors.
@@ -118,6 +155,24 @@ func TooManyRequests(detail string) *Problem {
 
 func PayloadTooLarge(detail string) *Problem {
 	return wrap(commonproblem.New(http.StatusRequestEntityTooLarge, TypePayloadTooLarge, "Payload Too Large", detail))
+}
+
+// PaymentRequired refuses an action until the account pays for it.
+//
+// 402 rather than 403: the caller is who they say they are and is allowed to do
+// this — what is missing is a live subscription or headroom in it. A 403 would
+// send them to check their permissions, which are fine.
+func PaymentRequired(reason, detail string) *Problem {
+	p := New(http.StatusPaymentRequired, TypePaymentRequired, "Payment Required", detail)
+	p.Reason = reason
+	return p
+}
+
+// QuotaExceeded is PaymentRequired with the numbers the upgrade screen needs.
+func QuotaExceeded(meter, plan string, limit, used int64, detail string) *Problem {
+	p := PaymentRequired(ReasonQuotaExceeded, detail)
+	p.Meter, p.Plan, p.QuotaLimit, p.QuotaUsed = meter, plan, limit, used
+	return p
 }
 
 // NotImplemented reports a capability the requested provider/backend genuinely
