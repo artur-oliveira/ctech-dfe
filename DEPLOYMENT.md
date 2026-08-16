@@ -52,6 +52,30 @@ CTECH_AWS_PROFILE=ctech ./scripts/configure-service-url-parameters.sh prod
 The public account application URL remains the OIDC issuer/browser URL. Only
 service transport and JWKS retrieval use `*.internal.aoctech.app`.
 
+## Out-of-band parameters
+
+Secrets are never created by CDK. CloudFormation cannot create an SSM
+`SecureString` at all, and a secret Terraform or CDK owns is a secret that a
+later `deploy` quietly reverts to the value it was rotated away from. The stacks
+grant read access; the values are written once by hand.
+
+| Parameter                               | Type         | Read by       | Value                                                       |
+|-----------------------------------------|--------------|---------------|-------------------------------------------------------------|
+| `/ctech-dfe/{env}/billing/webhook-secret` | SecureString | API `start.sh` | The same secret ctech-billing's seed was given as `WEBHOOK_SECRET_DFE` for the `whe_dfe` endpoint |
+
+```bash
+read -rs -p 'webhook secret: ' SECRET   # typed, not echoed, and not in history
+aws ssm put-parameter --profile ctech --region us-east-1 \
+  --name /ctech-dfe/prod/billing/webhook-secret \
+  --type SecureString --overwrite --value "$SECRET"
+unset SECRET
+```
+
+Both sides must hold the identical string: billing signs
+`timestamp + "." + body` with it, the API recomputes the HMAC and compares. A
+mismatch is indistinguishable from a forged request, so every delivery is
+rejected and billing disables the endpoint after 12 consecutive failures.
+
 ## AWS Credentials
 
 Configure one of the following methods:

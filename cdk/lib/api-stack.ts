@@ -67,6 +67,12 @@ export class ApiStack extends cdk.Stack {
     const accountInternalJwksUrlParameter = `/ctech-account/${environment}/internal-jwks-url`;
     const accountIssuerUrlParameter = `/ctech-account/${environment}/app-url`;
     const appUrlParameter = `/ctech-dfe/${environment}/app-url`;
+    // HMAC key that authenticates ctech-billing's outbound webhooks. A
+    // SecureString, and one CloudFormation cannot create — so this stack only
+    // reads it. It is written once, out of band, with the same value the billing
+    // seed was given for the `whe_dfe` endpoint (`WEBHOOK_SECRET_DFE`); see
+    // DEPLOYMENT.md § Out-of-band parameters.
+    const billingWebhookSecretParameter = `/ctech-dfe/${environment}/billing/webhook-secret`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
     // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
@@ -311,8 +317,13 @@ export class ApiStack extends cdk.Stack {
       `CTECH_URL=$(aws ssm get-parameter --name "${accountInternalBaseUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CTECH_ISSUER_URL=$(aws ssm get-parameter --name "${accountIssuerUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `SERVICE_AUDIENCE=$(aws ssm get-parameter --name "${appUrlParameter}" --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
+      // Empty when the parameter is absent, exactly like the reads above. The
+      // webhook route must treat an empty secret as fatal and refuse to mount:
+      // a signature check that cannot run is not a signature check, and the
+      // route it guards accepts subscription state changes from the outside.
+      `BILLING_WEBHOOK_SECRET=$(aws ssm get-parameter --name "${billingWebhookSecretParameter}" --with-decryption --query Parameter.Value --output text --region us-east-1 2>/dev/null || echo "")`,
       `CORS_ALLOWED_ORIGINS="$SERVICE_AUDIENCE"`,
-      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL SERVICE_AUDIENCE CORS_ALLOWED_ORIGINS`,
+      `export CTECH_JWKS_URL CTECH_URL VALKEY_URL CTECH_ISSUER_URL SERVICE_AUDIENCE CORS_ALLOWED_ORIGINS BILLING_WEBHOOK_SECRET`,
       `exec /opt/app/current/app`,
       `START`,
       `chmod +x /opt/app/start.sh`,

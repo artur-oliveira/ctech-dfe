@@ -198,6 +198,17 @@ export class IAMStack extends cdk.Stack {
             `arn:aws:ssm:*:*:parameter/ctech/${environment}/*`,
           ],
         }),
+        // SecureString values are KMS-encrypted, so reading one needs Decrypt as
+        // well as GetParameter. Scoped to SSM's own key by a condition rather
+        // than granted against every key in the account: this role decrypts its
+        // configuration, not anybody else's data.
+        new iam.PolicyStatement({
+          actions: ['kms:Decrypt'],
+          resources: ['arn:aws:kms:*:*:key/*'],
+          conditions: {
+            StringEquals: {'kms:ViaService': `ssm.${this.region}.amazonaws.com`},
+          },
+        }),
       ],
     });
 
