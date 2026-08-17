@@ -498,6 +498,22 @@ const (
 // and a counter would have to be decremented by every path that removes one.
 var DocumentMeters = []string{MeterNFe, MeterNFCe, MeterCTe, MeterMDFe, MeterNFSe}
 
+// MeterForTable maps a document table to the meter its issuance consumes.
+//
+// The results consumer knows the table the worker wrote to and nothing else
+// about the document, and the mapping is spelled out rather than derived from
+// the plural so that a table added later has to be declared here to be billed.
+// Silence is the safe direction: an undeclared table reports no usage, which
+// costs a sale; a guessed one would charge a customer for a meter their plan
+// never mentioned.
+var MeterForTable = map[string]string{
+	"nfes":                  MeterNFe,
+	"nfces":                 MeterNFCe,
+	"ctes":                  MeterCTe,
+	"mdfes":                 MeterMDFe,
+	repositories.TableNfses: MeterNFSe,
+}
+
 // UsageMeter reports the usage of one meter against its limit.
 type UsageMeter struct {
 	Used int64 `json:"used"`
@@ -580,6 +596,60 @@ func (s *BillingService) Refund(ctx context.Context, orgPK, meter string) {
 	if err := s.repo.RefundUsage(ctx, snap.UserID, usagePeriod(snap), meter); err != nil {
 		slog.WarnContext(ctx, "billing: refund failed", "org_pk", orgPK, "meter", meter, "error", err)
 	}
+}
+
+// refundMarker names the once-only claim for a document's refund. The meter is
+// part of it because the same access key can never appear under two meters, and
+// spelling that out costs nothing while a shared key would silently swallow the
+// second refund if it ever did.
+func refundMarker(meter, docKey string) string { return "refund:" + meter + ":" + docKey }
+
+// RefundOnce gives a quota unit back exactly once per document.
+//
+// The results queue redelivers, and a refund is not idempotent the way a usage
+// report is: billing dedupes a report by its event key, but this counter would
+// simply go down twice. The marker is claimed *before* the refund, so a failure
+// in between loses the refund rather than repeating it — one slot the customer
+// has to ask for back is recoverable, a slot handed out on every redelivery is
+// free issuance.
+func (s *BillingService) RefundOnce(ctx context.Context, orgPK, meter, docKey string) {
+	if !s.Enabled() {
+		return
+	}
+	fresh, err := s.repo.MarkEventProcessed(ctx, refundMarker(meter, docKey))
+	if err != nil {
+		slog.WarnContext(ctx, "billing: could not claim a refund", "org_pk", orgPK, "meter", meter, "error", err)
+		return
+	}
+	if !fresh {
+		return
+	}
+	s.Refund(ctx, orgPK, meter)
+}
+
+// ReportUsage records one authorised document against the account's metered
+// price, so a usage-based plan is invoiced for what it actually issued.
+//
+// A fixed plan reports nothing, and that is not an omission: its price carries
+// no meter, the quota counter already recorded the emission for the usage
+// screen, and billing would have no per-unit price to charge it against.
+//
+// docKey is the document's access key (the id_dps for NFS-e), which is what
+// makes a redelivered result report the same emission instead of a second one —
+// billing answers `duplicate: true`, which the client treats as success.
+func (s *BillingService) ReportUsage(ctx context.Context, orgPK, meter, docKey string) error {
+	if !s.Enabled() {
+		return nil
+	}
+	snap, err := s.SnapshotForOrg(ctx, orgPK)
+	if err != nil {
+		return err
+	}
+	priceID := snap.Meters[meter]
+	if priceID == "" || snap.SubscriptionID == "" {
+		return nil
+	}
+	return s.client.ReportUsage(ctx, snap.SubscriptionID, priceID, 1, docKey)
 }
 
 // Usage reports what the account has consumed this period against what it may.

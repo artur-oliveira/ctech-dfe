@@ -2,8 +2,18 @@
 
 import {useQueryClient} from '@tanstack/react-query'
 import {getMockState, setMockState} from './state'
+import type {BillingScenario} from './fixtures'
 
 const STATUS_OPTIONS = [500, 422, 403]
+
+const BILLING_SCENARIOS: { value: BillingScenario; label: string }[] = [
+  {value: 'pro_active', label: 'Pro ativa'},
+  {value: 'none', label: 'Sem assinatura'},
+  {value: 'free_at_limit', label: 'Free no limite'},
+  {value: 'pro_past_due', label: 'Pro em atraso'},
+  {value: 'ondemand', label: 'Sob demanda'},
+  {value: 'checkout_pending', label: 'Checkout pendente'},
+]
 
 /**
  * Dev-only control to flip the mock between success and simulated-error flows
@@ -12,7 +22,7 @@ const STATUS_OPTIONS = [500, 422, 403]
  */
 export function MockDevPanel() {
   const qc = useQueryClient()
-  const {mode, status} = getMockState()
+  const {mode, status, billing} = getMockState()
 
   const apply = (next: Partial<Parameters<typeof setMockState>[0]>) => {
     setMockState(next)
@@ -47,6 +57,16 @@ export function MockDevPanel() {
       >
         {STATUS_OPTIONS.map((s) => (
           <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      <select
+        aria-label="Cenário de assinatura"
+        value={billing}
+        onChange={(e) => apply({billing: e.target.value as BillingScenario})}
+        className="rounded bg-white px-1 py-1 ring-1 ring-amber-300"
+      >
+        {BILLING_SCENARIOS.map((s) => (
+          <option key={s.value} value={s.value}>{s.label}</option>
         ))}
       </select>
     </div>

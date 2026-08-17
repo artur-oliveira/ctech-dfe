@@ -1,5 +1,8 @@
 export type RoleName = 'OWNER' | 'ADMIN' | 'USER' | 'VIEWER';
 
+export const ROLE_OWNER: RoleName = 'OWNER'
+export const ROLE_ADMIN: RoleName = 'ADMIN'
+
 export const ROLE_LABEL: Record<RoleName, string> = {
     OWNER: 'Proprietário',
     ADMIN: 'Administrador',

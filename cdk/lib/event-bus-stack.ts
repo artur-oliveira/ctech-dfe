@@ -47,7 +47,7 @@ export class EventBusStack extends cdk.Stack {
 
     new cloudwatch.Alarm(this, 'ResultsQueue-dlq-alarm', {
       alarmName: `${environment}-ctech-dfe-results-dlq-alarm`,
-      alarmDescription: 'One or more messages landed in the results DLQ — a worker→api WebSocket notification failed after all retries.',
+      alarmDescription: 'One or more messages landed in the results DLQ — a worker→api result failed after all retries. Two things ride on this message: the WebSocket notification, and the billing settlement (usage report for a metered plan, quota refund for a rejection). Redrive it: both are idempotent.',
       metric: resultsDlq.metricApproximateNumberOfMessagesVisible({period: cdk.Duration.minutes(1)}),
       threshold: 1,
       evaluationPeriods: 1,

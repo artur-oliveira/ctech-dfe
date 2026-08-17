@@ -5,6 +5,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents'
+import {SetupChecklist} from '@/components/onboarding/SetupChecklist'
 
 const quickActions = DFE_DOCUMENTS
 
@@ -56,26 +57,8 @@ function DashboardContent() {
           </div>
         </div>
         
-        {/* Getting started checklist */}
-        {!selectedOrg && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Primeiros passos</h2>
-            <ul className="space-y-3">
-              {[
-                {text: 'Criar uma organização', href: '/organizations'},
-                {text: 'Configurar NF-e', href: '/organizations'},
-                {text: 'Cadastrar produtos', href: '/products'},
-              ].map((step) => (
-                <li key={step.text} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0"/>
-                  <Link href={step.href} className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
-                    {step.text}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* Whatever is left of first-run setup — hides itself once finished. */}
+        <SetupChecklist/>
       </div>
     </RootLayout>
   )

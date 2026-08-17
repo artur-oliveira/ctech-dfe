@@ -4,7 +4,8 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
+import {apiClient} from '@/lib/api/client'
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -270,7 +271,7 @@ export function NfceEmitForm() {
   const paymentLocked = useRef(false)
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   const [additionalInfo, setAdditionalInfo] = useState('')
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -371,13 +372,13 @@ export function NfceEmitForm() {
   const handleSubmit = async () => {
     setSubmitError(null)
     if (emitBlockedReason) {
-      setSubmitError(emitBlockedReason)
+      setSubmitError({message: emitBlockedReason})
       return
     }
     const allPayments = effectivePayments()
     const paid = allPayments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
     if (paid + 0.005 < totalNfce) {
-      setSubmitError('O total dos pagamentos é menor que o total da NFC-e.')
+      setSubmitError({message: 'O total dos pagamentos é menor que o total da NFC-e.'})
       return
     }
     const payload: NfceEmit = {
@@ -399,7 +400,7 @@ export function NfceEmitForm() {
       toast.success('NFC-e enviada, aguardando autorização da SEFAZ.')
       router.push('/nfce')
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.detail : 'Erro ao emitir NFC-e.')
+      setSubmitError(emitFailure(err, 'Erro ao emitir NFC-e.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -608,7 +609,7 @@ export function NfceEmitForm() {
       )}
 
       <div className="mt-4 empty:mt-0">
-        <EmitError message={submitError}/>
+        <EmitError failure={submitError}/>
       </div>
 
       {/* Action bar — the total never leaves the screen */}

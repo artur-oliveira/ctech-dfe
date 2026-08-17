@@ -725,8 +725,8 @@ texto em português.
 A cota é reservada **quando o documento é pedido**, antes da escrita e antes de qualquer coisa
 chegar à SEFAZ, com `ADD` condicional numa única operação. Contar documentos autorizados tornaria o
 limite assíncrono e furável: duas requisições simultâneas leriam "3 de 3 usados" e ambas emitiriam a
-quarta. O preço é que um documento rejeitado pela SEFAZ gastou uma vaga — o worker devolve na
-rejeição terminal (Fase 4.2).
+quarta. O preço é que um documento rejeitado pela SEFAZ gastou uma vaga — devolvida quando o
+resultado terminal chega (ver *Acerto de uso e devolução de cota*).
 
 Um medidor que o plano **não menciona** é recusado, não liberado. É o que faz o silêncio do plano
 Free sobre CT-e significar "sem CT-e" em vez de "CT-e ilimitado", e é a direção segura: uma emissão
@@ -740,6 +740,43 @@ a tela de upgrade não precisar de uma segunda chamada.
 
 Rebaixar de plano com mais membros do que o novo limite **não expulsa ninguém**: a checagem acontece
 no convite e no aceite, então os membros existentes continuam.
+
+#### Acerto de uso e devolução de cota
+
+Quando um documento chega a status terminal, o worker publica o resultado no `DfeResultsBus` e o
+`ResultsConsumer` da API (`internal/consumer/results.go`) faz o acerto com o billing:
+
+| Status terminal        | O que acontece                                                             |
+|------------------------|----------------------------------------------------------------------------|
+| `authorized`           | `POST /v1.0/usage` no billing, `quantity: 1`, **só se o plano tem medidor** |
+| `rejected` \| `failed` | devolve a vaga da cota, uma única vez                                       |
+| `retryable_failed`     | nada — ainda está em voo, a vaga continua reservada                         |
+
+Só mensagens com `result_kind: document` contam. Um cancelamento ou uma CC-e é evento sobre um
+documento **já cobrado**, e distribuição é documento de terceiro que esta conta nunca emitiu.
+
+O acerto roda na API, não no worker como o plano previa: o cliente do billing, o snapshot da conta e
+os contadores já estão aqui, e o worker é outro módulo Go que precisaria de uma segunda cópia dos
+três — incluindo o gerenciador de token — para alcançar as mesmas linhas.
+
+Três propriedades sustentam o desenho:
+
+- **Plano fixo não reporta nada.** O preço fixo não carrega `meter`; reportar cada NF-e de um Pro
+  cobraria por unidade uma emissão que a mensalidade já pagou.
+- **Reporte é idempotente por chave de acesso.** A `idempotency_key` do `POST /v1.0/usage` é a chave
+  de acesso do documento (o `id_dps` na NFS-e), então redelivery reporta a mesma emissão e o billing
+  responde `duplicate: true`, que é sucesso.
+- **Devolução é idempotente por marcador.** Diferente do reporte, decrementar é destrutivo: o
+  marcador `refund:{meter}:{chave}` é reivindicado **antes** da devolução, na tabela `account_billing`
+  (TTL 7 dias). Falha entre os dois perde a devolução em vez de repeti-la — uma vaga a pedir de volta
+  é recuperável, uma vaga entregue a cada redelivery é emissão de graça.
+
+**A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então dispara o
+alarme da DLQ de resultados — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
+Redirecionar (redrive) a DLQ é seguro: os dois lados são idempotentes.
+
+Ainda **não existe** varredura diária de uso não reportado (Fase 4.3). O caminho que ela cobriria e a
+DLQ não é o `publishResult` do worker falhar — SNS fora do ar — e nenhuma conta medida existe hoje.
 
 ### Modo sem cobrança
 
@@ -1702,8 +1739,122 @@ app/
 ├── operations/     # Naturezas de operação
 ├── payment-terms/  # Condições de pagamento
 ├── certificates/   # A1 certificates
-└── fiscal-config/  # Issuance configuration (includes an NFS-e tab, F4)
+├── assinatura/     # Plano, uso por medidor, faturas (Fase 5)
+├── fiscal-config/  # Issuance configuration (includes an NFS-e tab, F4)
+└── onboarding/     # Primeira configuração, em camadas (Fase 5)
+    ├── plano/       # 1 — escolha do plano, montada de GET /v1.0/billing/plans
+    ├── retorno/     # (fora da trilha) espera a liquidação do checkout Pro
+    ├── empresa/     # 2 — empresa + certificado A1, reusa OrganizationForm
+    ├── documentos/  # 3 — quais documentos emite + numeração de cada um
+    ├── produtos/    # 4 — só se NF-e/NFC-e; opcional
+    ├── servicos/    # 6 — só se NFS-e; opcional
+    └── pronto/      # fim, com o atalho para a primeira emissão
 ```
+
+### Onboarding em camadas
+
+A primeira configuração é uma sequência porque a montagem realmente é: não há
+empresa para configurar antes de um plano que conceda uma, nem numeração antes da
+empresa, nem catálogo de produtos antes de um documento que o consuma.
+
+**O progresso é derivado, nunca armazenado.** Cada camada obrigatória é respondida
+por algo que o produto já sabe:
+
+| Camada         | Como se sabe que está pronta                          |
+|----------------|-------------------------------------------------------|
+| 1 Assinatura   | `GET /v1.0/billing/subscription` → `has_subscription`  |
+| 2 Empresa      | `GET /auth/me` → `organizations` não vazio             |
+| 3 Documentos   | existe ao menos um `*_configs` da organização          |
+| 4 Produtos     | existe ao menos um produto — **ou** foi pulada         |
+| 6 Serviços     | existe ao menos um serviço — **ou** foi pulada         |
+
+Não há tabela de progresso: o fluxo é retomável de qualquer dispositivo e não
+pode discordar da realidade. Uma linha dizendo "empresa: feita" numa conta sem
+empresa é exatamente a falha que isso evita. Pular uma camada opcional é
+preferência, não estado fiscal, e mora no `localStorage`
+(`STORAGE_KEY_ONBOARDING_SKIPPED_PREFIX`).
+
+**Camadas condicionais.** Produtos aparece só quando NF-e ou NFC-e está
+configurada; serviços, só com NFS-e. Uma transportadora que só move carga nunca
+vê nenhuma das duas.
+
+**NF-e em modo recebimento.** Ao marcar CT-e ou MDF-e sem marcar NF-e, o fluxo
+cria uma configuração de NF-e com numeração zerada. Não é um extra: o CT-e é
+escrito contra a NF-e da carga e o MDF-e as lista, e essas notas chegam pela
+distribuição de NF-e, que só roda para organização com `nfe_config`
+(`worker/internal/service/distribution.go`). A tela diz isso em uma linha — a
+configuração é automática, não secreta.
+
+**O portão (`OnboardingGate`).** Montado dentro de `ProtectedRoute`, depois do
+aditivo de termos (precondição legal antes de qualquer venda). Duas regras
+impedem que ele pegue a pessoa errada:
+
+- **Membro nunca é barrado.** Quem foi convidado opera sob o plano do
+  proprietário e não tem assinatura própria; pedir que escolha uma venderia um
+  segundo plano para a mesma empresa. A regra é `role === 'OWNER'` em alguma
+  organização.
+- **Falha de leitura libera.** A assinatura é um retrato de conveniência; uma
+  falha de rede não é motivo para trancar quem já paga. Quem bloqueia emissão é
+  a API.
+
+`INCOMPLETE` — "escolheu o plano pago e nunca pagou" — leva para `/onboarding/retorno`,
+que faz poll de 3 s por até 60 s e então oferece uma saída honesta em vez de prender
+a pessoa numa tela de espera.
+
+### Assinatura (`/assinatura`)
+
+A tela da assinatura da **conta**, não da organização. Todas as rotas
+`/v1.0/billing/*` agem sobre a conta do chamador e não aceitam o header de
+organização — é isso que faz "só o proprietário cria ou altera assinatura" ser
+propriedade do roteamento e não um `if` que alguém esquece.
+
+| Papel        | O que vê                                                            |
+|--------------|---------------------------------------------------------------------|
+| OWNER        | plano, status, período, uso por medidor, fatura em aberto, histórico, e os botões de mudar/cancelar |
+| ADMIN        | plano e limites da organização, via `GET /v1.0/organizations/{pk}/plan`, sem nenhum botão |
+| USER, VIEWER | nada — o item nem aparece no menu                                    |
+
+**Uso.** `UsageList` desenha `used/limit` por medidor. Medidor ilimitado (`-1`)
+não ganha barra: uma barra cheia ao lado de "ilimitado" se lê como "você chegou
+no teto", que é o contrário do que significa. Medidor com cota `0` não é listado
+— "não incluído" não é "acabou".
+
+**Mudança de plano (`ChangePlanDialog`).** O valor pró-rata exato **não** é
+mostrado antes de confirmar, e isso é uma lacuna e não uma decisão: o
+ctech-billing calcula o rateio na própria mudança e não publica endpoint de
+prévia, então qualquer número aqui seria a aritmética desta tela e não a da
+fatura. A tela diz a regra e a nova mensalidade, e manda para a cobrança, onde o
+valor é o do billing.
+
+**Cancelamento (`CancelSubscriptionDialog`).** Duas operações distintas, não uma
+com grau: no fim do período a pessoa mantém o que já pagou; agora, abre mão. O
+imediato exige uma confirmação própria dizendo o que se perde e quando.
+
+### Bloqueio por pagamento
+
+Um 402 da API carrega `reason`, `meter`, `quota_limit`, `quota_used` e `plan`
+(`api/internal/problem`). `lib/billing/notice.ts` é o único lugar que traduz isso
+em frase e botão — o mesmo vocabulário serve para o retrato da assinatura, então
+uma tela pode avisar **antes** do formulário em vez de depois do envio.
+
+| Origem                              | Onde aparece                                              |
+|-------------------------------------|------------------------------------------------------------|
+| `grants_service === false`          | `SubscriptionBanner`, faixa persistente no `RootLayout` com valor e vencimento da fatura |
+| idem, numa tela de emissão          | `SubscriptionBlocked` no lugar do formulário, via `RequireFiscalConfig` |
+| 402 no envio (cota estourada)       | `EmitError` com a frase específica e o link que resolve     |
+
+`RequireFiscalConfig` passou a checar assinatura junto com configuração fiscal:
+descobrir depois de cinquenta campos que a conta não pode emitir é o pior momento
+possível para dizer isso. A faixa e o bloqueio só valem para o proprietário —
+`GET /v1.0/billing/subscription` responde sobre a conta de quem chama, e ler isso
+para um convidado produziria "escolha um plano" numa tela governada pelo plano de
+outra pessoa, que está funcionando.
+
+**Cenários de mock** (`lib/mock`, seletor no `MockDevPanel`): sem assinatura, Free
+no limite, Pro ativa, Pro em atraso, sob demanda e checkout pendente. Metade
+destes é impossível de produzir contra um backend real em tempo hábil — uma
+fatura vencida precisa de uma data que passe.
+
 
 ### ApiClient (`lib/api/client.ts`)
 
@@ -2068,13 +2219,50 @@ Free Gateway VPC Endpoints keep S3 and DynamoDB traffic inside AWS without going
 Each instance is provisioned via Launch Template with user data that:
 
 1. Installs nginx, SSM agent, and CloudWatch agent
-2. Creates the application user and systemd service
-3. Configures nginx on port 8080 in front of the Go/Fiber binary
-4. Creates 256 MB swap
-5. Configures SSM agent with `UseDualStackEndpoint: true`
-6. Creates deploy and log-upload scripts
-7. Configures daily logrotate with S3 upload
-8. Attempts automatic bootstrap via `s3://*/api/current.zip`
+2. Creates the application user, 256 MB swap, and the Cloudflare origin CA trust
+3. Configures SSM agent with `UseDualStackEndpoint: true`
+4. Writes the two environment files (below)
+5. Downloads and unpacks the bootstrap asset, then runs `setup.sh`
+6. Refreshes the nginx realip ranges and configures the CloudWatch agent
+7. Attempts automatic bootstrap via `s3://*/api/current.zip`
+
+#### The 16 KB split — static files ride in an S3 asset
+
+EC2 caps user data at 16384 bytes, and the deploy is where you find out: inlining
+`nginx.conf`, the systemd unit and three shell scripts blew past it. Everything
+byte-identical across environments now lives in `cdk/scripts/api/` and travels as an
+`aws-s3-assets` Asset:
+
+| File                | Installed to                    |
+|---------------------|---------------------------------|
+| `setup.sh`          | runs from `/opt/bootstrap`      |
+| `nginx.conf`        | `/etc/nginx/nginx.conf`         |
+| `app.service`       | `/etc/systemd/system/app.service` |
+| `start.sh`          | `/opt/app/start.sh`             |
+| `deploy.sh`         | `/opt/app/deploy.sh`            |
+| `upload-logs.sh`    | `/opt/app/upload-logs.sh`       |
+| `logrotate.conf`    | `/etc/logrotate.d/ctech-dfe`    |
+
+**Why an Asset and not a bucket of our own with fixed keys:** the Asset's S3 key is
+the hash of the directory, so editing a script changes the user data, which versions
+the launch template and triggers an instance refresh. With a fixed key the file would
+change under running instances while the template stayed byte-identical, and the next
+scale-out would boot a different machine than the one already serving.
+
+The instance reads the asset with the same instance profile it uses for everything
+else; the grant lives in `iam-stack.ts` (`ApiS3Policy`) rather than via
+`asset.grantRead()`, because `ApiStack` receives the profile as a **name**, not a Role.
+
+#### The two environment files
+
+| File                 | Written by | Holds                                                                 |
+|----------------------|------------|-----------------------------------------------------------------------|
+| `/etc/bootstrap.env` | user data  | bucket names and **SSM parameter names** — read by every shipped script |
+| `/etc/app-static.env`| user data  | the app's non-secret configuration, loaded by systemd `EnvironmentFile=` |
+
+No secret value is ever resolved at synthesis time. `start.sh` reads the parameters
+by name at service start, using the instance role — a value in the launch template
+would be readable by anyone holding `ec2:DescribeLaunchTemplateVersions`.
 
 The ASG itself uses EC2 health. HAProxy performs the application health check and, when `autoHeal` is enabled, marks an
 instance unhealthy after repeated failed reconciliations so the ASG replaces it. Instance Refresh still requires

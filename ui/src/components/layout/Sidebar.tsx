@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/icon"
 import {Button} from '@/components/ui/button'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {ROLE_ADMIN, ROLE_OWNER} from '@/lib/data/roles'
+import {SUBSCRIPTION_PATH} from '@/lib/billing/notice'
 
 interface NavItem {
   href: string
@@ -54,6 +56,14 @@ const BuildingIcon = () => (
     <rect x="3" y="9" width="18" height="13"/>
     <path d="M9 22V12h6v10"/>
     <path d="M3 9l9-7 9 7"/>
+  </svg>
+)
+
+const CardIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2"/>
+    <line x1="2" y1="10" x2="22" y2="10"/>
   </svg>
 )
 
@@ -101,7 +111,10 @@ const navGroups: NavGroup[] = [
     label: 'Configurações',
     items: [
       {href: '/organizations', label: 'Organizações', icon: <BuildingIcon/>},
-      {href: '/members', label: 'Usuários', icon: <UsersIcon/>, roles: ['OWNER', 'ADMIN']},
+      {href: '/members', label: 'Usuários', icon: <UsersIcon/>, roles: [ROLE_OWNER, ROLE_ADMIN]},
+      // USER and VIEWER never see it: they cannot act on the plan and cannot read
+      // it either — `GET /organizations/{pk}/plan` is OWNER/ADMIN only.
+      {href: SUBSCRIPTION_PATH, label: 'Assinatura', icon: <CardIcon/>, roles: [ROLE_OWNER, ROLE_ADMIN]},
       {href: '/fiscal-config', label: 'Configuração Fiscal', icon: <SettingsIcon/>},
       {href: '/certificates', label: 'Certificados', icon: <ShieldIcon/>},
       {href: '/audit-logs', label: 'Log de Auditoria', icon: <ClipboardIcon/>},

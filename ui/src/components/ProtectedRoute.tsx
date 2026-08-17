@@ -4,6 +4,7 @@ import {ReactNode, startTransition, useEffect, useState} from 'react'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {startOAuthFlow} from '@/lib/auth/oauth'
 import {TermsAddendumGate} from '@/components/terms-addendum-gate'
+import {OnboardingGate} from '@/components/onboarding/OnboardingGate'
 
 const OAUTH_ATTEMPT_KEY = 'oauth_last_attempt_ms'
 const OAUTH_DEBOUNCE_MS = 15_000
@@ -62,5 +63,7 @@ export function ProtectedRoute({children}: { children: ReactNode }) {
     return <TermsAddendumGate/>
   }
 
-  return <>{children}</>
+  // Order matters: the addendum is a legal precondition to using the product at
+  // all, so it is answered before anyone is asked to choose a plan.
+  return <OnboardingGate>{children}</OnboardingGate>
 }

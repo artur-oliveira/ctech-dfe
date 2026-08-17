@@ -6,7 +6,9 @@ import {zodResolver} from '@hookform/resolvers/zod'
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
+import {apiClient} from '@/lib/api/client'
+import {EmitError} from '@/components/ui/emit-error'
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -120,7 +122,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
   const [selectedIntermediary, setSelectedIntermediary] = useState<PersonItemOut | null>(null)
   const [selectedService, setSelectedService] = useState<ServiceOut | null>(null)
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(mode === 'substitute')
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const appliedSourceRef = useRef<string | null>(null)
@@ -315,7 +317,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
 
   const onInvalid = (errors: FieldErrors<NfseEmitFormData>) => {
     const firstError = FORM_FIELD_ORDER.find((field) => hasFieldError(errors, field))
-    setSubmitError('Revise o campo destacado antes de emitir a NFS-e.')
+    setSubmitError({message: 'Revise o campo destacado antes de emitir a NFS-e.'})
     if (!firstError) return
     const isAdvancedField = !['customer_id', 'service.service_id', 'service.value', 'service.tax_rate', 'competence']
       .includes(firstError)
@@ -357,7 +359,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
       })
       router.push(`/nfse/detail?id=${encodeURIComponent(result.sk)}`)
     } catch (error) {
-      setSubmitError(error instanceof ApiError ? error.detail : 'Não foi possível enviar a NFS-e. Revise os dados e tente novamente.')
+      setSubmitError(emitFailure(error, 'Não foi possível enviar a NFS-e. Revise os dados e tente novamente.'))
       setIsSubmitting(false)
     }
   }, onInvalid)
@@ -595,11 +597,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
           </dl>
         </section>
 
-        {submitError && (
-          <div role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {submitError}
-          </div>
-        )}
+        <EmitError failure={submitError}/>
 
         <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
           <p className="text-sm text-gray-600">{serviceValue ? `Total ${formatCurrency(serviceValue)}` : 'Selecione um serviço para emitir'}</p>

@@ -13,10 +13,14 @@ export const queryKeys = {
   certificates: (pk: string) => ['certificates', pk] as const,
   products: {
     list: (orgPk: string | undefined) => ['products', orgPk] as const,
+    /** "Is there at least one?" — a separate key so the onboarding probe never
+     *  serves its 1-item page to the catalogue screen, or the other way round. */
+    probe: (orgPk: string | undefined) => ['products', orgPk, 'probe'] as const,
     detail: (id: string) => ['product', id] as const,
   },
   services: {
     list: (orgPk: string | undefined) => ['services', orgPk] as const,
+    probe: (orgPk: string | undefined) => ['services', orgPk, 'probe'] as const,
     page: (orgPk: string | undefined) => ['services', orgPk, 'page'] as const,
     detail: (id: string) => ['service', id] as const,
   },
@@ -78,6 +82,14 @@ export const queryKeys = {
   municipalParams: (city: string, kind: string, params?: object) => ['municipal-params', city, kind, params] as const,
   auditLogs: {
     list: (orgPk: string | undefined, params?: object) => ['audit-logs', orgPk, params] as const,
+  },
+  billing: {
+    plans: () => ['billing', 'plans'] as const,
+    // Keyed on the account, not the active org: the subscription belongs to the
+    // token holder, and switching orgs must not refetch or invalidate it.
+    subscription: () => ['billing', 'subscription'] as const,
+    invoices: (year?: number, month?: number) => ['billing', 'invoices', year, month] as const,
+    orgPlan: (orgPk: string | undefined) => ['billing', 'org-plan', orgPk] as const,
   },
   members: (orgPk: string | undefined) => ['members', orgPk] as const,
   invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,

@@ -4,6 +4,8 @@
  * excluded from forced errors so the session still establishes.
  */
 
+import type {BillingScenario} from './fixtures'
+
 export type MockMode = 'ok' | 'error'
 
 export interface MockState {
@@ -12,6 +14,12 @@ export interface MockState {
   message: string
   /** If set, only paths containing one of these substrings error. null = all. */
   endpoints: string[] | null
+  /**
+   * Which subscription the account has. Separate from `mode` because these are
+   * not failures — a past-due account is a working backend answering honestly,
+   * and every one of these screens has to be reviewable without one.
+   */
+  billing: BillingScenario
 }
 
 const SAFE_PATHS = [
@@ -25,6 +33,7 @@ const DEFAULT: MockState = {
   status: 500,
   message: 'Erro simulado pelo mock API.',
   endpoints: null,
+  billing: 'pro_active',
 }
 
 let state: MockState = {...DEFAULT}

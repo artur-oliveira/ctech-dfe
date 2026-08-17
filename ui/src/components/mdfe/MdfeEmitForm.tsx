@@ -5,7 +5,9 @@ import {useRouter} from 'next/navigation'
 import {createPortal} from 'react-dom'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
+import {apiClient} from '@/lib/api/client'
+import {EmitError} from '@/components/ui/emit-error'
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -375,7 +377,7 @@ export function MdfeEmitForm() {
   const [manualDriverOpen, setManualDriverOpen] = useState(false)
   const [driverError, setDriverError] = useState<string | null>(null)
 
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -553,7 +555,7 @@ export function MdfeEmitForm() {
   const handleSubmit = async () => {
     setSubmitError(null)
     if (emitBlockedReason) {
-      setSubmitError(emitBlockedReason)
+      setSubmitError({message: emitBlockedReason})
       return
     }
     const payload: MdfeEmit = {
@@ -582,7 +584,7 @@ export function MdfeEmitForm() {
       toast.success('MDF-e enviado, aguardando autorização da SEFAZ.')
       router.push('/mdfe')
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.detail : 'Erro ao emitir MDF-e.')
+      setSubmitError(emitFailure(err, 'Erro ao emitir MDF-e.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -852,10 +854,7 @@ export function MdfeEmitForm() {
             )}
           </div>
 
-          {submitError && (
-            <div role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</div>
-          )}
+          <EmitError failure={submitError}/>
         </div>
       )}
 

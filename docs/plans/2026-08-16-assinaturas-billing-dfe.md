@@ -520,38 +520,68 @@ qualquer produto futuro herdam.
 
 ---
 
-### Fase 4 — worker: uso medido
+### Fase 4 — uso medido *(feita 2026-08-16, exceto 4.3)*
 
-- [ ] **4.1 — Reportar uso na autorização.**
-  Em `worker/internal/service/dfe.go`, `handleSefazResponse`, no ramo terminal autorizado (e o
-  equivalente em `nfse.go`): se o snapshot da conta tem `meters[docType]`, chamar
-  `POST /v1.0/usage` com `subscription_id`, `price_id` do medidor, `quantity: 1` e
-  **`idempotency_key` = a chave de acesso** (ou `id_dps` para NFS-e). Retentativa do SQS não
-  duplica: billing devolve `{recorded: true, duplicate: true}` e o worker trata isso como sucesso.
-  Falha no report **não** falha a emissão — o documento está autorizado na SEFAZ e desfazer isso
-  é impossível. Loga, alarma, e a reconciliação do 4.3 recolhe.
+> **Desvio de lugar, não de comportamento.** Nada disto foi para o worker. O acerto acontece no
+> `ResultsConsumer` da API (`api/internal/consumer/results.go`), que já consome todo resultado
+> terminal para invalidar cache e avisar o WebSocket. O worker é outro módulo Go: levaria uma
+> segunda cópia do cliente de billing, do gerenciador de token OAuth2, da resolução
+> organização→dono e dos contadores para alcançar exatamente as mesmas linhas — a duplicação que a
+> regra DRY do repositório existe para impedir. `services.MeterForTable` traduz a tabela do
+> documento no medidor; `billingActionFor` decide, só a partir da mensagem, o que ela deve.
 
-- [ ] **4.2 — Devolver cota em rejeição terminal.**
-  No ramo de rejeição terminal, `Refund` no contador (3.1). Uma NF-e rejeitada por erro de
-  cadastro não pode consumir 1 das 3 do plano Free.
+- [x] **4.1 — Reportar uso na autorização.**
+  `BillingService.ReportUsage` chama `POST /v1.0/usage` com `subscription_id`, o `price_id` do
+  medidor, `quantity: 1` e **`idempotency_key` = a chave de acesso** (o `id_dps` na NFS-e). Plano
+  fixo não reporta nada — o preço não carrega `meter` e a mensalidade já pagou a emissão.
 
-- [ ] **4.3 — Varredura de uso não reportado.**
-  Job diário que varre documentos autorizados sem marca `usage_reported` e reenvia.
-  Mesmo princípio da reconciliação de billing: webhook e chamada síncrona nunca são o único sinal.
-  Atributo `usage_reported_at` no documento é a marca.
+- [x] **4.2 — Devolver cota em rejeição terminal.**
+  `rejected` e `failed` devolvem a vaga; `retryable_failed` não, porque ainda está em voo.
+  `RefundOnce` reivindica o marcador `refund:{meter}:{chave}` **antes** de decrementar: falhar entre
+  os dois perde a devolução em vez de repeti-la.
 
-> **Verificação da fase:** conta sob demanda emite 5 NF-e; o sweep de billing no fim do período gera
-> uma fatura com 5 unidades a R$ 0,05. Reenfileirar a mesma mensagem SQS não muda o total.
+- [x] **Confiabilidade sem varredura.** A mensagem não é apagada quando o acerto falha: a fila
+  redelivera 3 vezes e dispara o alarme da DLQ de resultados, que já existia. Redrive é seguro
+  porque os dois lados são idempotentes.
+
+- [ ] **4.3 — Varredura de uso não reportado.** *Adiada, deliberadamente.*
+  O que a DLQ **não** cobre é o `publishResult` do worker falhar — aí não existe mensagem nenhuma.
+  Fechar isso pede marca `usage_reported_at` no documento (uma escrita a mais por emissão), um job
+  agendado que a API ainda não tem, e uma varredura que não pode ser `Scan`. Hoje não há **nenhuma
+  conta medida**: os dois clientes existentes vão para o unlimited. **Gatilho para construir:** o
+  primeiro cliente sob demanda.
+
+> **Verificação da fase:** `TestAuthorisedIssuanceIsReportedToBilling` (chave de acesso como
+> `idempotency_key`, estável na redelivery), `TestAFixedPlanReportsNothing`,
+> `TestARejectedDocumentGivesItsSlotBackExactlyOnce`, e `billingActionFor` cobrindo evento,
+> distribuição, `retryable_failed` e tabela não declarada.
+
+> **Ponta solta conhecida:** o marcador de devolução tem TTL de 7 dias e a DLQ de resultados retém
+> 14. Um redrive depois do sétimo dia devolveria a vaga duas vezes — e num período que já virou,
+> decrementando o contador do mês errado. Irrelevante hoje (o alarme dispara em um minuto), mas é
+> onde olhar se um dia alguém redirecionar uma DLQ antiga.
 
 ---
 
-### Fase 5 — ui: fluxo completo (usar a skill `/impeccable`)
+### Fase 5 — ui: fluxo completo (usar a skill `/impeccable`) *(5.1–5.4 feitas 2026-08-16)*
 
 Toda tela desta fase é desenhada com **`/impeccable`**, sob as regras já vigentes em
 `ui/CLAUDE.md`: mobile-first a 375 px, alvos de toque ≥ 44 px, skeletons em carregamento,
 ESLint zero erros e zero warnings, e **seletores em vez de texto livre** onde houver conjunto
 fechado (preferência registrada do produto).
 Tema: verde `#50ba95` (`THEME.md`) — o DF-e continua verde; o sienna é do portal de billing.
+
+> **O onboarding virou camadas (decisão do dono do produto, 2026-08-16).**
+> A 5.4 não é o fim: escolher o plano, cadastrar a empresa e configurar a
+> numeração são só as três camadas obrigatórias. Depois delas o fluxo pergunta
+> **quais documentos a empresa emite** e, conforme a resposta, oferece o catálogo
+> de produtos (NF-e/NFC-e) ou o de serviços (NFS-e). CT-e/MDF-e ativam uma NF-e
+> em modo recebimento, com numeração zerada, porque é por ela que chegam as notas
+> da carga. O progresso é **derivado** do que a API já sabe — não existe tabela de
+> onboarding. Detalhe completo em `DOCS.md § 5 · Onboarding em camadas`.
+>
+> A camada 7 (guia de todas as features) fica fora: é um projeto próprio e o
+> escopo desta fase já é o caminho até a primeira emissão.
 
 Fluxo alvo, na ordem que o usuário vive:
 
@@ -562,12 +592,12 @@ login (ctech-account) → termos DF-e → [SEM ASSINATURA] → /onboarding/plano
                                             (webhook já ativou)
 ```
 
-- [ ] **5.1 — Gate de assinatura.**
+- [x] **5.1 — Gate de assinatura.**
   Componente irmão de `terms-addendum-gate.tsx`, montado depois dele em `ProtectedRoute`.
   Sem assinatura → redireciona para `/onboarding/plano`. Não é um modal: escolher plano é uma
   decisão com comparação, não uma confirmação.
 
-- [ ] **5.2 — `/onboarding/plano`.**
+- [x] **5.2 — `/onboarding/plano`.**
   Cards de plano montados a partir de `GET /v1.0/billing/plans` — **não** da constante `PLANS`
   hardcoded. A landing pública (`app/page.tsx`) continua estática por ser pública e pré-auth,
   mas passa a ser gerada do mesmo catálogo em tempo de build, ou ganha um comentário apontando
@@ -576,18 +606,40 @@ login (ctech-account) → termos DF-e → [SEM ASSINATURA] → /onboarding/plano
   Free e Sob demanda: `POST /v1.0/billing/subscription` e segue direto.
   Pro: `POST`, depois `window.location = checkout_url` da fatura.
 
-- [ ] **5.3 — Retorno do checkout.**
+- [x] **5.3 — Retorno do checkout.**
   `/onboarding/retorno`. A página de checkout de billing já tem SSE de liquidação; aqui basta
   um poll curto de `GET /v1.0/billing/subscription` até `status === "ACTIVE"`, com um teto de
   ~60 s e um caminho de saída honesto ("o PIX pode levar alguns minutos; avisamos por e-mail")
   — nunca uma tela que prende o usuário, que foi exatamente o bug encontrado no checkout de
   billing (`PLAN.md`, X1).
 
-- [ ] **5.4 — `/onboarding/empresa`.**
+- [x] **5.4 — `/onboarding/empresa`.**
   Reusa o formulário de `app/organizations/new` (certificado A1 + KYC) dentro do casco de
   onboarding, com barra de passos. Não duplicar o formulário.
 
-- [ ] **5.5 — `/assinatura`.**
+- [x] **5.4b — `/onboarding/documentos`, `/produtos`, `/servicos`, `/pronto`.**
+  As camadas 3 a 6. A tela de documentos reusa `FiscalConfigForm` numa fila, um tipo por vez,
+  em vez de um formulário novo — o formulário existente já sabe CSC, provedor NFS-e e código
+  IBGE. `SetupChecklist` substituiu os três passos mortos do dashboard e some quando acaba.
+
+> **Duas falhas do seed encontradas ao ligar o catálogo** (corrigidas em
+> `ctech-billing/api/tenants/ctech.json`, ainda não aplicadas em produção):
+> 1. **O plano sob demanda não concedia cota nenhuma.** Nenhum preço tinha
+>    `quota_*`, e `Quota()` responde "não concedido" para chave ausente — toda
+>    emissão seria recusada com "seu plano não inclui a emissão de NFE". Cada
+>    preço medido agora declara `quota_<meter>: "-1"`.
+> 2. **`meter: "company"` no singular**, enquanto a cota e `services.MeterCompanies`
+>    dizem `companies`. Dormente hoje (ninguém reporta uso de empresas), mas é um
+>    preço que nunca seria encontrado. Corrigido para `companies`.
+>
+> Também marcado `visibility: "internal"` no preço ilimitado de valor zero: sem
+> isso o seletor ofereceria um plano ilimitado grátis a qualquer visitante.
+>
+> **Falta no billing:** `SuccessURL` existe em `domain/billing/payment.go` e não é
+> usado em lugar nenhum — não há retorno do checkout. O contorno é o portão tratar
+> `INCOMPLETE`; o conserto de verdade é o checkout redirecionar ao liquidar.
+
+- [x] **5.5 — `/assinatura`.**
   Plano atual, status, período, `cancel_at_period_end`, e as barras de uso por medidor
   (`used/limit`, "ilimitado" quando `-1`). Fatura em aberto com botão de pagamento.
   Histórico de faturas.
@@ -595,29 +647,44 @@ login (ctech-account) → termos DF-e → [SEM ASSINATURA] → /onboarding/plano
   o uso que governam aquela org, sem nenhum botão de ação (`GET /v1.0/organizations/{pk}/plan`);
   USER e VIEWER não veem o item no menu.
 
-- [ ] **5.6 — Upgrade.**
+- [x] **5.6 — Upgrade.**
   A partir de `/assinatura` e a partir do erro 402 de cota. O 402 já carrega medidor, limite e
   plano sugerido (3.1), então o diálogo mostra o custo pró-rata real antes de confirmar —
   pedir confirmação de uma cobrança sem dizer o valor é como se descobre o valor na fatura.
 
-- [ ] **5.7 — Cancelamento.**
+- [x] **5.7 — Cancelamento.**
   Em `/assinatura`, no fim do período por padrão. Cancelamento imediato só com confirmação
   explícita que diz o que se perde e quando.
 
-- [ ] **5.8 — Banners de bloqueio.**
+- [x] **5.8 — Banners de bloqueio.**
   `PAST_DUE`: faixa persistente com o valor, o vencimento e o botão de pagar.
   `CANCELED`/`INCOMPLETE`: estado vazio nas telas de emissão explicando o que fazer, nunca um
   erro genérico.
   Os 402 da API precisam de mensagem específica por `problem.type` — um "erro interno" aqui é
   um cliente que liga para o suporte por uma fatura de R$ 350.
 
-- [ ] **5.9 — Modo mock.**
+- [x] **5.9 — Modo mock.**
   Cenários no `lib/mock` (padrão já existente): sem assinatura, Free no limite, Pro `PAST_DUE`,
   sob demanda com uso, checkout pendente. Metade destes é impossível de produzir contra um
   backend real em tempo hábil.
 
 > **Verificação da fase:** conta nova, do zero até emitir a primeira NF-e, sem tocar em nenhum
 > console — nos planos Free e Pro. Testado a 375 px.
+
+> **5.5–5.9 feitas 2026-08-16.** `/assinatura` com uso por medidor, fatura em aberto e histórico
+> por mês; `ChangePlanDialog` e `CancelSubscriptionDialog`; `SubscriptionBanner` no `RootLayout` e
+> `SubscriptionBlocked` dentro do `RequireFiscalConfig`; `lib/billing/notice.ts` como único tradutor
+> de 402 em frase e botão; seis cenários de assinatura no `lib/mock` com seletor no `MockDevPanel`.
+>
+> **Desvio em 5.6:** o custo pró-rata exato não é exibido antes de confirmar. O ctech-billing
+> calcula o rateio na própria mudança e não publica endpoint de prévia — qualquer valor renderizado
+> aqui seria a aritmética da UI, não a da fatura. O diálogo diz a regra e a nova mensalidade, e o
+> valor real aparece na tela de pagamento antes de qualquer cobrança. Fechar isso de verdade exige
+> um `POST /subscriptions/{id}/change/preview` no billing.
+>
+> **Defeito de mock corrigido de passagem:** `meFixture.organizations[0].role` era `'owner'`
+> minúsculo, contra o `RoleName` `'OWNER'` — todo item de menu com `roles` ficava invisível no
+> modo mock, inclusive o novo.
 
 ---
 
@@ -626,15 +693,70 @@ login (ctech-account) → termos DF-e → [SEM ASSINATURA] → /onboarding/plano
 Dois clientes: a conta do tio e a conta de teste. Ambos vão para
 `price_dfe_unlimited_internal_monthly` (R$ 0, cotas `-1`), que já existe no seed exatamente para isso.
 
-- [ ] **6.1** Backfill de `owner_user_id` nas organizações existentes (2.3).
-- [ ] **6.2** Criar os dois `Customer` em billing e assinar o preço interno, via chamada M2M
-  autenticada — não editando linha no DynamoDB. Toda assinatura tem que ter passado pela mesma
-  máquina de estados, ou a auditoria mente.
-- [ ] **6.3** Verificar: os dois recebem `entitled=true`, `plan=unlimited`, nenhuma fatura gerada
-  (total zero liquida na emissão, ADR 0019), nenhum lembrete de dunning (fatura de total zero
-  não entra na fila).
-- [ ] **6.4** Só então ligar o middleware de bloqueio (3.4) em produção. Ligar antes é derrubar os
-  dois únicos clientes que existem.
+> **Pré-requisitos concluídos (2026-08-16, confirmados pelo Artur):** reseed do `ctech.json`
+> corrigido aplicado, `/ctech-dfe/prod/billing/webhook-secret` gravado, credencial `dfe-billing`
+> criada.
+
+- [x] **6.1** Backfill de `owner_user_id` — **não se aplica**: `BillingService.OwnerOf` cai para o
+  membro OWNER quando o campo falta e grava o valor (2.3). A primeira leitura de cada organização
+  faz a migração; não há script para lembrar de rodar.
+
+- [ ] **6.2** Assinar o preço interno nas duas contas.
+  **Pelo próprio endpoint do DF-e, com o token do dono** — não por escrita M2M direta no billing e
+  muito menos por linha no DynamoDB. `BillingService.Choose` não valida `visibility`, então o preço
+  interno é aceito normalmente, e o caminho é o mesmo de qualquer cliente pagante:
+  `GetOrCreateCustomer` (cria o `Customer` com `external_ref = USER_{sub}`, nome e e-mail lidos do
+  ctech-account) → `CreateSubscription` → `Sync`. Criar o `Customer` por fora replicaria nome e
+  e-mail à mão, e **um customer não é editável depois** por nenhuma rota que este serviço tenha.
+
+  Para cada uma das duas contas, logado como ela, com o `Authorization` copiado de qualquer
+  requisição da UI (o token vive só em memória, por isso vem do devtools):
+
+  ```bash
+  curl -sS -X POST https://dfe-api.aoctech.app/v1.0/billing/subscription \
+    -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d '{"price_ids":["price_dfe_unlimited_internal_monthly"]}' | jq
+  ```
+
+  Antes disso, confirmar que o reseed pegou — o sob demanda precisa ter `quota_*` em cada preço
+  medido, senão toda emissão é recusada:
+
+  ```bash
+  curl -sS https://dfe-api.aoctech.app/v1.0/billing/plans -H "Authorization: Bearer $TOKEN" \
+    | jq '.data[] | {name, prices: [.prices[] | {id, metadata}]}'
+  ```
+
+- [ ] **6.3** Verificar: `GET /v1.0/billing/subscription` responde `grants_service: true`,
+  `plan: "unlimited"`, `quotas` com `-1`. Nenhuma fatura gerada (total zero liquida na emissão,
+  ADR 0019) e nenhum lembrete de dunning (fatura de total zero não entra na fila).
+  Na UI: `/assinatura` mostra "Ilimitado" e nenhuma faixa de bloqueio.
+  *Nota:* o preço interno é `visibility: internal`, então o plano atual **não** aparece no
+  `ChangePlanDialog` — a conta interna vê o plano no topo da tela, mas não marcado como "Plano
+  atual" na lista. É consequência de esconder o preço, não defeito.
+
+- [ ] **6.4** **Não existe chave para "ligar depois"** (corrigido 2026-08-16, ao reler o código).
+  `RequireActiveSubscription` já está montado no grupo `/v1.0` inteiro e se desliga sozinho por
+  `billing == nil || !billing.Enabled()`, e `Enabled()` é só "o cliente foi construído"
+  (`billingclient/client.go:110`). Ou seja: o portão liga no instante em que o deploy de produção
+  levar a configuração de billing — que é exatamente o que o 6.2 precisa para existir. A ordem
+  pedida aqui ("subir o bloqueio só depois de migrar") não é executável como escrita.
+
+  O que fica, então, é **encurtar a janela**, não evitá-la:
+
+  1. Deploy da API com billing configurado.
+  2. Rodar o 6.2 nas duas contas **em seguida** — as rotas `/v1.0/billing/*` são isentas do portão
+     (`exemptPrefixes`), então dá para assinar mesmo estando bloqueado. É essa isenção que impede o
+     impasse "não posso pagar porque não paguei".
+  3. Rodar o 6.2 e o 6.3 antes de qualquer emissão.
+
+  Durante a janela as duas contas recebem 402 em emissão e em cadastro. Leitura, download de
+  XML/DANFE, cancelamento e eventos de documento já emitido, manifestação e distribuição continuam
+  liberados pelos carve-outs — ou seja, nada com prazo legal quebra na janela.
+
+  A alternativa que fecharia a janela — criar `Customer` e assinatura por M2M **antes** do deploy —
+  foi descartada: replicaria nome e e-mail à mão num `Customer` que não é editável depois, para
+  poupar alguns minutos de bloqueio em duas contas internas de baixo volume.
 
 ---
 

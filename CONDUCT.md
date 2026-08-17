@@ -782,6 +782,15 @@ Must follow Conventional Commits:
   field-level `errors` array (`problem.Validation`); keep cross-field business rules in services.
 - No goroutines inside request handlers — Fiber handles concurrency.
 - Binary name in deployment zip must be `app` (CDK userdata expects `/opt/app/current/app`).
+- **EC2 user data is capped at 16384 bytes, and CloudFormation only says so at deploy time.**
+  `ApiStack` therefore keeps in user data only what CloudFormation has to resolve — bucket names,
+  SSM parameter names, log group names, the VPC CIDR — and ships every static file (`nginx.conf`,
+  `app.service`, `start.sh`, `deploy.sh`, `upload-logs.sh`, `logrotate.conf`) as an `aws-s3-assets`
+  Asset from `cdk/scripts/api/`. Adding a new file to user data is the wrong reflex: put it in that
+  directory. `test/api-stack.test.ts` fails if the rendered user data crosses the limit again.
+  Use an Asset rather than a bucket with fixed keys: the Asset's key is a content hash, so editing a
+  script versions the launch template and triggers an instance refresh, while a fixed key would
+  change the file under instances already running.
 - Profile and password management endpoints do not exist — those belong to ctech-account.
 - **Membership is owned by the `organization_users` table** (via `MembershipService`). RBAC,
   `/auth/me`, `GET /organizations`, and the WebSocket all resolve access through
@@ -807,6 +816,21 @@ Must follow Conventional Commits:
 - Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
   one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
   inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.
+- **The subscription gate has no runtime switch — configuring billing *is* turning it on.**
+  `RequireActiveSubscription` is mounted on the whole `/v1.0` group and disables itself only via
+  `billing == nil || !billing.Enabled()`, and `Enabled()` is just "the client was constructed"
+  (`billingclient/client.go`). So a deploy that carries billing configuration blocks issuance and
+  registry writes for every account that has no live subscription, from the first request. There is
+  no "deploy now, enforce later" — plan the migration of existing accounts around that, and rely on
+  the `/v1.0/billing/*` exemption (the way out of the block) rather than on an ordering the code
+  does not offer.
+- **The `ResultsConsumer` must not delete a message it could not settle with billing.** Two things
+  ride on a terminal result: the WebSocket notification, and the money (usage report on
+  `authorized`, quota refund on `rejected`/`failed`). Deleting on failure would drop a usage report
+  with nothing but a log line behind it; leaving the message costs three redeliveries and then the
+  results DLQ alarm, which is the signal an operator can act on. Both sides are idempotent, so a
+  redrive is safe — the usage report by its access key, the refund by its `refund:{meter}:{key}`
+  marker. Anything added to the settlement path has to keep that property.
 - `CRUDRepository[T]`'s `Create`/`BuildCreateTxItem`/`BuildCreateTxItemIfAbsent` marshal `entity T`
   via `marshalEntity` (`internal/repositories/base.go`), never `MarshalMapOmitNull` directly — when
   `T = map[string]types.AttributeValue` (`ProductRepository`, `ServiceRepository`), the values are

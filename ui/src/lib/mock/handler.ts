@@ -9,6 +9,9 @@
 import {AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig} from 'axios'
 import {
   auditLogsFixture,
+  billingInvoicesFixture,
+  billingPlansFixture,
+  billingSubscriptionFixtures,
   certificatesFixture,
   cteConfigFixture,
   distributionsFixture,
@@ -113,6 +116,27 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (/^get \/v1\.0\/distributions\/\w+\/history/.test(key)) return {data: paginated(distributionsFixture)}
   if (m === 'post' && /^post \/v1\.0\/distributions\/\w+\/sync$/.test(key)) return {data: {enqueued: true, job_id: 'mock-job'}}
   if (/^get \/v1\.0\/distributions\/\w+\/(nsu|key)\//.test(key)) return {data: distributionsFixture[0]}
+
+  // Billing — the scenario decides what the account's standing is.
+  if (key === 'get /v1.0/billing/plans') return {data: billingPlansFixture}
+  if (key === 'get /v1.0/billing/subscription') {
+    return {data: billingSubscriptionFixtures[getMockState().billing]}
+  }
+  if (key === 'get /v1.0/billing/invoices') return {data: {data: billingInvoicesFixture}}
+  if (m === 'post' && path === '/v1.0/billing/subscription') {
+    // Choosing a paid plan lands on INCOMPLETE with an invoice, which is what
+    // production does — the checkout is a redirect away, not a state jump.
+    return {data: {...billingSubscriptionFixtures.checkout_pending, invoice: billingInvoicesFixture[1]}, status: 201}
+  }
+  if (m === 'post' && path === '/v1.0/billing/subscription/change') {
+    return {data: {...billingSubscriptionFixtures.pro_active, invoice: billingInvoicesFixture[1]}}
+  }
+  if (m === 'post' && path === '/v1.0/billing/subscription/cancel') {
+    return {data: {...billingSubscriptionFixtures.pro_active, cancel_at_period_end: true}}
+  }
+  if (/^get \/v1\.0\/organizations\/[^/]+\/plan$/.test(key)) {
+    return {data: {...billingSubscriptionFixtures[getMockState().billing], manageable: false}}
+  }
 
   // Audit logs
   if (key === 'get /v1.0/audit-logs') return {data: paginated(auditLogsFixture)}

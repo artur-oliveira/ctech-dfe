@@ -6,6 +6,7 @@ import {Sidebar} from './Sidebar'
 import {Topbar} from './Topbar'
 import {KeyboardShortcuts} from './KeyboardShortcuts'
 import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme'
+import {SubscriptionBanner} from '@/components/billing/SubscriptionNotice'
 
 export function RootLayout({children}: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -31,6 +32,8 @@ export function RootLayout({children}: { children: React.ReactNode }) {
       <main
         className="pt-(--topbar-height) md:ml-(--sidebar-width)"
       >
+        {/* Renders nothing while the account is in good standing. */}
+        <SubscriptionBanner/>
         {children}
       </main>
     </div>

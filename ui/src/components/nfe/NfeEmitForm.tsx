@@ -6,6 +6,7 @@ import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {Textarea} from '@/components/ui/textarea'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -670,7 +671,7 @@ export function NfeEmitForm() {
   const [selectedCarrier, setSelectedCarrier] = useState<PersonItemOut | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleOut | null>(null)
   const [vehicleSearchQuery, setVehicleSearchQuery] = useState('')
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEmitConfirm, setShowEmitConfirm] = useState(false)
   const [loadingFavCpfCnpj, setLoadingFavCpfCnpj] = useState<string | null>(null)
@@ -993,11 +994,11 @@ export function NfeEmitForm() {
   const handleSubmit = async () => {
     setSubmitError(null)
     if (cfopMixError) {
-      setSubmitError('Não é possível misturar CFOPs de entrada e saída na mesma NF-e.')
+      setSubmitError({message: 'Não é possível misturar CFOPs de entrada e saída na mesma NF-e.'})
       return
     }
     if (cfopUnresolvedError) {
-      setSubmitError('Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.')
+      setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'})
       return
     }
     const vTroco = totalPaid > totalNfe + 0.005 ? (totalPaid - totalNfe).toFixed(2) : null
@@ -1059,7 +1060,7 @@ export function NfeEmitForm() {
       })
       router.push(`/nfe/detail?key=${result.sk}`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao emitir NF-e.')
+      setSubmitError(emitFailure(err, 'Erro ao emitir NF-e.'))
       setIsSubmitting(false)
     }
   }
@@ -1701,7 +1702,7 @@ export function NfeEmitForm() {
 
       {/* Emission failure — rendered next to the action bar that triggers it */}
       <div className="mt-4 empty:mt-0">
-        <EmitError message={submitError}/>
+        <EmitError failure={submitError}/>
       </div>
 
       {/* ── Navigation bar ────────────────────────────────────────────────── */}

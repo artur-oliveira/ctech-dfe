@@ -1,0 +1,21 @@
+[Unit]
+Description=CTech DFe API
+After=network.target nginx.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=webapp
+Group=webapp
+WorkingDirectory=/opt/app/current
+Environment=HOME=/opt/app
+EnvironmentFile=/etc/app-static.env
+ExecStartPre=/bin/test -x /opt/app/current/app
+ExecStart=/opt/app/start.sh
+StandardOutput=append:/var/log/app/app.log
+StandardError=append:/var/log/app/app.log
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

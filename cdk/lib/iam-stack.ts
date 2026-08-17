@@ -128,6 +128,12 @@ export class IAMStack extends cdk.Stack {
 
     this.lambdaRole.addManagedPolicy(s3Policy);
 
+    // Name of the bucket `cdk bootstrap` created for this account and region.
+    // The constant beats a literal, but it is still the *default* qualifier: this
+    // app does not set `@aws-cdk/core:bootstrapQualifier` in cdk.json, and if it
+    // ever does, this line has to follow — the asset download would 403 otherwise.
+    const cdkAssetsBucket = `cdk-${cdk.DefaultStackSynthesizer.DEFAULT_QUALIFIER}-assets-${this.account}-${this.region}`;
+
     const apiS3Policy = new iam.ManagedPolicy(this, 'ApiS3Policy', {
       managedPolicyName: `${environment}-ctech-dfe-api-s3-policy`,
       statements: [
@@ -149,6 +155,18 @@ export class IAMStack extends cdk.Stack {
         new iam.PolicyStatement({
           actions: ['s3:GetObject'],
           resources: [`${props.deploymentsBucketArn}/ctech-dfe/*`],
+        }),
+        // The CDK assets bucket, read once at boot: ApiStack ships nginx.conf, the
+        // systemd unit and the operational scripts as an s3-assets Asset instead of
+        // inlining them in user data, which EC2 caps at 16 KB.
+        //
+        // Granted here rather than with `asset.grantRead()` because the instance
+        // profile is passed to ApiStack as a name, not as a Role — and a name is
+        // not something `grantRead` can attach a policy to. The bucket name is
+        // deterministic from the bootstrap qualifier, so this is not a guess.
+        new iam.PolicyStatement({
+          actions: ['s3:GetObject'],
+          resources: [`arn:aws:s3:::${cdkAssetsBucket}/*`],
         }),
       ],
     });

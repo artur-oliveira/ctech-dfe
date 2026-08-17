@@ -521,8 +521,8 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 	})
 }
 
-func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend) *consumer.ResultsConsumer {
-	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c)
+func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService) *consumer.ResultsConsumer {
+	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing)
 }
 
 func startResultsConsumer(lc fx.Lifecycle, rc *consumer.ResultsConsumer) {

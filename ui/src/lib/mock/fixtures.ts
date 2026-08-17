@@ -20,7 +20,7 @@ export const meFixture = {
       pk: ORG_PK,
       name: 'Empresa Mock LTDA',
       description: 'Organização de demonstração',
-      role: 'owner',
+      role: 'OWNER',
       permissions: ['*'],
       state_federation: 'SP',
     },
@@ -378,3 +378,197 @@ export const auditLogsFixture = [
 ]
 
 export const ORG_PK_VALUE = ORG_PK
+
+/**
+ * Billing fixtures.
+ *
+ * Half of the states below cannot be produced against a real backend in any
+ * reasonable time — a past-due invoice needs a due date to pass, an incomplete
+ * checkout needs a payment that never lands. They are scenarios rather than one
+ * fixture for exactly that reason; the dev panel switches between them.
+ */
+
+export const billingPlansFixture = {
+  billing_enabled: true,
+  data: [
+    {
+      id: 'prod_dfe_free',
+      name: 'DF-e Free',
+      active: true,
+      prices: [
+        {
+          id: 'price_dfe_free_monthly',
+          product_id: 'prod_dfe_free',
+          type: 'fixed' as const,
+          unit_amount: 0,
+          billing_timing: 'advance' as const,
+          archived: false,
+          metadata: {plan: 'free', quota_nfe: '3', quota_nfce: '3', quota_companies: '1', quota_users: '1'},
+        },
+      ],
+    },
+    {
+      id: 'prod_dfe_ondemand',
+      name: 'DF-e Sob Demanda',
+      active: true,
+      prices: [
+        {
+          id: 'price_dfe_ondemand_nfe',
+          product_id: 'prod_dfe_ondemand',
+          type: 'metered' as const,
+          unit_amount: 39,
+          billing_timing: 'arrears' as const,
+          archived: false,
+          metadata: {plan: 'ondemand', meter: 'nfe', quota_nfe: '-1'},
+        },
+        {
+          id: 'price_dfe_ondemand_nfce',
+          product_id: 'prod_dfe_ondemand',
+          type: 'metered' as const,
+          unit_amount: 19,
+          billing_timing: 'arrears' as const,
+          archived: false,
+          metadata: {plan: 'ondemand', meter: 'nfce', quota_nfce: '-1'},
+        },
+      ],
+    },
+    {
+      id: 'prod_dfe_pro',
+      name: 'DF-e Pro',
+      active: true,
+      prices: [
+        {
+          id: 'price_dfe_pro_monthly',
+          product_id: 'prod_dfe_pro',
+          type: 'fixed' as const,
+          unit_amount: 14900,
+          billing_timing: 'advance' as const,
+          archived: false,
+          metadata: {
+            plan: 'pro',
+            quota_nfe: '1000', quota_nfce: '1000', quota_cte: '500',
+            quota_mdfe: '500', quota_nfse: '500', quota_companies: '3', quota_users: '10',
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const PRO_QUOTAS = {nfe: 1000, nfce: 1000, cte: 500, mdfe: 500, nfse: 500, companies: 3, users: 10}
+const FREE_QUOTAS = {nfe: 3, nfce: 3, companies: 1, users: 1}
+
+export const billingSubscriptionFixtures = {
+  /** Fresh account: the plan layer of onboarding has not been answered. */
+  none: {
+    has_subscription: false,
+    status: '',
+    plan: '',
+    grants_service: false,
+    cancel_at_period_end: false,
+    period_start: '',
+    period_end: '',
+    quotas: {},
+    no_charge: false,
+  },
+  /** Free plan with every document already spent — the 402 the upgrade screen answers. */
+  free_at_limit: {
+    has_subscription: true,
+    status: 'ACTIVE',
+    plan: 'free',
+    grants_service: true,
+    cancel_at_period_end: false,
+    period_start: '2026-08-01',
+    period_end: '2026-09-01',
+    quotas: FREE_QUOTAS,
+    no_charge: false,
+    usage: {nfe: {used: 3, limit: 3}, nfce: {used: 1, limit: 3}, companies: {used: 1, limit: 1}, users: {used: 1, limit: 1}},
+  },
+  /** Pro, paid, healthy. */
+  pro_active: {
+    has_subscription: true,
+    status: 'ACTIVE',
+    plan: 'pro',
+    grants_service: true,
+    cancel_at_period_end: false,
+    period_start: '2026-08-01',
+    period_end: '2026-09-01',
+    quotas: PRO_QUOTAS,
+    no_charge: false,
+    usage: {nfe: {used: 812, limit: 1000}, nfce: {used: 40, limit: 1000}, cte: {used: 0, limit: 500}, mdfe: {used: 0, limit: 500}, nfse: {used: 0, limit: 500}, companies: {used: 2, limit: 3}, users: {used: 4, limit: 10}},
+  },
+  /** Pro with a bill nobody paid: issuance blocked, banner with the amount. */
+  pro_past_due: {
+    has_subscription: true,
+    status: 'PAST_DUE',
+    plan: 'pro',
+    grants_service: false,
+    cancel_at_period_end: false,
+    period_start: '2026-08-01',
+    period_end: '2026-09-01',
+    quotas: PRO_QUOTAS,
+    no_charge: false,
+    usage: {nfe: {used: 120, limit: 1000}, companies: {used: 1, limit: 3}, users: {used: 2, limit: 10}},
+    open_invoice: {
+      id: 'inv_mock_overdue',
+      total_cents: 14900,
+      due_date: '2026-08-05',
+      checkout_url: 'https://billing.example.test/pay/inv_mock_overdue',
+    },
+  },
+  /** On-demand, metered, nothing capped. */
+  ondemand: {
+    has_subscription: true,
+    status: 'ACTIVE',
+    plan: 'ondemand',
+    grants_service: true,
+    cancel_at_period_end: false,
+    period_start: '2026-08-01',
+    period_end: '2026-09-01',
+    quotas: {nfe: -1, nfce: -1, companies: -1, users: -1},
+    no_charge: false,
+    usage: {nfe: {used: 214, limit: -1}, nfce: {used: 57, limit: -1}, companies: {used: 1, limit: -1}, users: {used: 1, limit: -1}},
+  },
+  /** Chose the paid plan and never paid — what `/onboarding/retorno` polls on. */
+  checkout_pending: {
+    has_subscription: true,
+    status: 'INCOMPLETE',
+    plan: 'pro',
+    grants_service: false,
+    cancel_at_period_end: false,
+    period_start: '2026-08-16',
+    period_end: '2026-09-16',
+    quotas: PRO_QUOTAS,
+    no_charge: false,
+    open_invoice: {
+      id: 'inv_mock_first',
+      total_cents: 14900,
+      due_date: '2026-08-21',
+      checkout_url: 'https://billing.example.test/pay/inv_mock_first',
+    },
+  },
+}
+
+export type BillingScenario = keyof typeof billingSubscriptionFixtures
+
+export const billingInvoicesFixture = [
+  {
+    id: 'inv_mock_1',
+    number: 1042,
+    status: 'PAID' as const,
+    overdue: false,
+    due_date: '2026-07-05',
+    total: 14900,
+    amount_due: 0,
+  },
+  {
+    id: 'inv_mock_2',
+    number: 1043,
+    status: 'OPEN' as const,
+    overdue: true,
+    due_date: '2026-08-05',
+    total: 14900,
+    amount_due: 14900,
+    checkout_url: 'https://billing.example.test/pay/inv_mock_overdue',
+  },
+]

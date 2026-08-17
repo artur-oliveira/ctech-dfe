@@ -62,6 +62,13 @@ import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls'
 import type {PersonRole} from '@/lib/schemas/entity'
+import type {
+  AccountSubscription,
+  AccountSubscriptionWithInvoice,
+  BillingInvoice,
+  BillingPlansResponse,
+  PlanChoice,
+} from '@/lib/types/billing'
 
 // Empty means same-origin: CloudFront forwards /v1.0/* to the ALB in deployed
 // environments, and `next dev` proxies it locally (next.config.ts). Either way
@@ -833,6 +840,42 @@ class ApiClient {
       formData,
       {headers: {'Content-Type': undefined}},
     )).data
+  }
+
+  // Billing — the account's own subscription.
+  //
+  // None of these routes accept the organization header: they act on the token
+  // holder's account. That is what makes "only the owner creates or changes the
+  // subscription" a property of the routing rather than a check someone can
+  // forget. `getOrganizationPlan` is the read-only exception, for an ADMIN who
+  // needs to see the plan governing the org they help run.
+
+  async listBillingPlans(): Promise<BillingPlansResponse> {
+    return this.get('/v1.0/billing/plans')
+  }
+
+  async getSubscription(): Promise<AccountSubscription> {
+    return this.get('/v1.0/billing/subscription')
+  }
+
+  async chooseBillingPlan(body: PlanChoice): Promise<AccountSubscriptionWithInvoice> {
+    return this.post('/v1.0/billing/subscription', body)
+  }
+
+  async changeBillingPlan(body: PlanChoice): Promise<AccountSubscriptionWithInvoice> {
+    return this.post('/v1.0/billing/subscription/change', body)
+  }
+
+  async cancelBillingSubscription(atPeriodEnd: boolean): Promise<AccountSubscription> {
+    return this.post('/v1.0/billing/subscription/cancel', {at_period_end: atPeriodEnd})
+  }
+
+  async listBillingInvoices(year?: number, month?: number): Promise<{ data: BillingInvoice[] }> {
+    return this.get('/v1.0/billing/invoices', {params: {year, month}})
+  }
+
+  async getOrganizationPlan(orgPk: string): Promise<AccountSubscription> {
+    return this.get(`/v1.0/organizations/${orgPk}/plan`)
   }
 
   // Audit log — org context auto-injected via Dfe-Organization-Pk header
