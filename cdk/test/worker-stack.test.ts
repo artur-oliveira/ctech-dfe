@@ -60,11 +60,16 @@ test('only the distribution worker can transact on persons and audit logs', () =
   expect(resources).not.toContain('/index/*')
 })
 
-test('every DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
+// Per-worker DLQ alarms were removed (2026-08-17): most billed CloudWatch alarm-months
+// beyond the free tier with no one subscribed to receive them. Only the outbox-publisher
+// DLQ alarm remains — it is upstream of every worker queue, so a stuck outbox message
+// implies every downstream DLQ is also stuck.
+test('only the outbox-publisher DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
   const template = buildTemplate()
 
-  template.resourceCountIs('AWS::CloudWatch::Alarm', WORKERS.length + 1)
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 1)
   template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+    AlarmName: 'dev-dfe-outbox-publisher-dlq-alarm',
     ComparisonOperator: 'GreaterThanOrEqualToThreshold',
     EvaluationPeriods: 1,
     Threshold: 1,

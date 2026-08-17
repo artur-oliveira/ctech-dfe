@@ -2314,6 +2314,16 @@ All queues (main + DLQ) in `worker-stack.ts` and `event-bus-stack.ts` set
 short-polls (`ReceiveMessage` returns immediately on an empty queue), which can exhaust the
 1M-request/month SQS free tier in under a week on an idle system. See `CONDUCT.md §7 — SQS`.
 
+### CloudWatch alarms — outbox-only, not per-worker DLQ
+
+`WorkerStack` no longer creates a `dlq-alarm` per worker (2026-08-17). With 34 alarms live
+across the account, standard-resolution alarm billing (10 free/month, $0.10/alarm-month after)
+had pushed CloudWatch cost from $0 to ~$0.11/day. The 10 per-worker DLQ alarms were unmonitored
+(`prod-dfe-ops-alerts` / the results topic had zero SNS subscriptions) and redundant: every
+worker queue is fed from the transactional outbox, so a stuck outbox message
+(`outbox-publisher-dlq-alarm`, kept) implies every downstream worker DLQ is also stuck. Only
+`outbox-publisher-dlq-alarm` and `ResultsQueue-dlq-alarm` (`event-bus-stack.ts`) remain.
+
 ### Cost allocation tags
 
 `cdk/bin/ctech-dfe-cdk.ts` applies `Project=ctech-dfe` and `Environment=<env>` to every resource

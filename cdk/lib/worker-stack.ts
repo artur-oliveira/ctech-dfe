@@ -118,16 +118,6 @@ export class WorkerStack extends cdk.Stack {
         receiveMessageWaitTime: Duration.seconds(20),
       })
 
-      new cloudwatch.Alarm(this, `${worker.id}-dlq-alarm`, {
-        alarmName: `${environment}-${worker.queueName}-dlq-alarm`,
-        alarmDescription: `One or more messages landed in the ${worker.queueName} DLQ — a fiscal document/event failed after all retries.`,
-        metric: dlq.metricApproximateNumberOfMessagesVisible({period: Duration.minutes(1)}),
-        threshold: 1,
-        evaluationPeriods: 1,
-        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
-
       const queue = new sqs.Queue(this, `${worker.id}-queue`, {
         queueName: `${environment}-${worker.queueName}`,
         // AWS recommends six times the Lambda timeout, plus the batch window.
