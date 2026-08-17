@@ -1830,6 +1830,36 @@ valor é o do billing.
 com grau: no fim do período a pessoa mantém o que já pagou; agora, abre mão. O
 imediato exige uma confirmação própria dizendo o que se perde e quando.
 
+#### O preço interno não é vendável pela API
+
+`price_dfe_unlimited_internal_monthly` (R$ 0, cotas `-1`) existe para ser **concedido**, nunca
+comprado. Duas defesas, e as duas são necessárias:
+
+| Onde | O quê |
+|---|---|
+| `BillingService.Plans` → `sellable()` | não publica preço `visibility: internal`, preço arquivado, nem produto inativo |
+| `Choose` e `Change` → `validatePrices` | recusam qualquer id fora dessa mesma lista |
+
+Esconder sozinho seria lista de preços como controle de acesso — o mesmo erro de uma URL não
+divulgada, e o id está escrito no documento de plano deste repositório. Por isso o guard valida
+contra exatamente o catálogo filtrado: o que não pode ser mostrado não pode ser comprado.
+
+`validatePrices` também recusa **preços de planos diferentes na mesma assinatura**. O plano sob
+demanda são seis preços que compartilham `plan: ondemand`; qualquer outra combinação produz uma
+assinatura cujas cotas são o que a união rendeu, e o snapshot reporta o plano do primeiro item.
+
+Conceder o preço interno passou a ser operação que ninguém faz pelo navegador: vai direto no
+ctech-billing, com a credencial M2M. As duas assinaturas internas já existentes não são afetadas —
+o snapshot vem de `GetEntitlements`, não do catálogo.
+
+**Por que `plan` responde `unlimited` e não `unlimited_internal`:** `plan` é a **faixa**, lida de
+`metadata.plan` do preço, e o preço interno declara `plan: unlimited` de propósito — concede
+exatamente a mesma coisa que o Ilimitado público. O que difere é `visibility`, que é ortogonal:
+uma diz *o que a assinatura dá*, a outra *quem pode contratá-la*. Inventar uma faixa
+`unlimited_internal` obrigaria rótulo, ordenação e cada comparação de `plan` na UI a conhecê-la, e
+a primeira que esquecesse renderizaria "o plano unlimited_internal" para o cliente. O produto é que
+se chama `prod_dfe_unlimited_internal`.
+
 ### Bloqueio por pagamento
 
 Um 402 da API carrega `reason`, `meter`, `quota_limit`, `quota_used` e `plan`

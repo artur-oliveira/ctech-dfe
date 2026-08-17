@@ -816,6 +816,13 @@ Must follow Conventional Commits:
 - Creating an organization is KYC-gated and atomic: org + certificate + OWNER membership + audit in
   one `TransactWrite`. A certificate is required unless a matriz certificate (same CNPJ root) is
   inherited. Invitations grant only ADMIN/USER/VIEWER and are single-use — never weaken these.
+- **A price the catalogue hides must also be a price `Choose`/`Change` refuse.** `Plans` filters
+  through `sellable()` (no `visibility: internal`, no archived price, no inactive product) and
+  `validatePrices` validates against that same filtered list. Never add a filter on one side only:
+  filtering just the response makes the price list an access control, and
+  `price_dfe_unlimited_internal_monthly` — R$ 0, every quota `-1` — is written down in
+  `docs/plans/`. Granting it is an M2M operation against ctech-billing, never a request a browser
+  can make.
 - **The subscription gate has no runtime switch — configuring billing *is* turning it on.**
   `RequireActiveSubscription` is mounted on the whole `/v1.0` group and disables itself only via
   `billing == nil || !billing.Enabled()`, and `Enabled()` is just "the client was constructed"

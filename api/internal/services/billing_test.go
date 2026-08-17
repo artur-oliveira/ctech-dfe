@@ -227,3 +227,108 @@ func TestGrantsServiceOnNothing(t *testing.T) {
 		t.Fatalf("snapshot = %+v", snap)
 	}
 }
+
+// The catalogue is both the list a customer sees and the list they may buy from.
+// These two are the same rule read from opposite ends.
+
+func catalogue() []billingclient.Product {
+	return []billingclient.Product{
+		{
+			ID: "prod_dfe_unlimited_internal", Name: "DF-e Ilimitado - Interno", Active: true,
+			Prices: []billingclient.Price{{
+				ID:       "price_dfe_unlimited_internal_monthly",
+				Metadata: map[string]string{"plan": "unlimited", "visibility": "internal"},
+			}},
+		},
+		{
+			ID: "prod_dfe_pro", Name: "DF-e Pro", Active: true,
+			Prices: []billingclient.Price{
+				{ID: "price_dfe_pro_monthly", Metadata: map[string]string{"plan": "pro"}},
+				{ID: "price_dfe_pro_old", Archived: true, Metadata: map[string]string{"plan": "pro"}},
+			},
+		},
+		{
+			ID: "prod_dfe_ondemand", Name: "DF-e Sob Demanda", Active: true,
+			Prices: []billingclient.Price{
+				{ID: "price_dfe_ondemand_nfe", Metadata: map[string]string{"plan": "ondemand", "meter": "nfe"}},
+				{ID: "price_dfe_ondemand_nfce", Metadata: map[string]string{"plan": "ondemand", "meter": "nfce"}},
+			},
+		},
+		{
+			ID: "prod_dfe_retired", Name: "Descontinuado", Active: false,
+			Prices: []billingclient.Price{{ID: "price_retired", Metadata: map[string]string{"plan": "free"}}},
+		},
+	}
+}
+
+func priceIDsOf(products []billingclient.Product) map[string]bool {
+	out := map[string]bool{}
+	for _, p := range products {
+		for _, price := range p.Prices {
+			out[price.ID] = true
+		}
+	}
+	return out
+}
+
+func TestSellableHidesTheInternalPrice(t *testing.T) {
+	ids := priceIDsOf(sellable(catalogue()))
+	if ids["price_dfe_unlimited_internal_monthly"] {
+		t.Fatal("the internal price is published; anyone calling /plans is offered a free unlimited plan")
+	}
+	if !ids["price_dfe_pro_monthly"] {
+		t.Fatal("the Pro price was dropped")
+	}
+}
+
+func TestSellableDropsArchivedPricesAndInactiveProducts(t *testing.T) {
+	ids := priceIDsOf(sellable(catalogue()))
+	if ids["price_dfe_pro_old"] {
+		t.Fatal("an archived price is still offered")
+	}
+	if ids["price_retired"] {
+		t.Fatal("a deactivated product is still offered")
+	}
+}
+
+func TestSellableDropsAProductLeftWithNoPrices(t *testing.T) {
+	// Otherwise the chooser renders a plan with no price and no way to pick it.
+	for _, p := range sellable(catalogue()) {
+		if p.ID == "prod_dfe_unlimited_internal" {
+			t.Fatal("the internal product survived with an empty price list")
+		}
+	}
+}
+
+func TestSubscribingToTheInternalPriceIsRefused(t *testing.T) {
+	// Regression: the two founding accounts were migrated with this id, which is
+	// written down in the plan document. Hiding it was never the control.
+	err := ValidatePriceSelection(sellable(catalogue()), []string{"price_dfe_unlimited_internal_monthly"})
+	if err == nil {
+		t.Fatal("the internal price was accepted; knowing the id is enough to get an unlimited plan for free")
+	}
+}
+
+func TestAnUnknownPriceIsRefused(t *testing.T) {
+	if err := ValidatePriceSelection(sellable(catalogue()), []string{"price_from_another_tenant"}); err == nil {
+		t.Fatal("a price outside the catalogue was accepted")
+	}
+}
+
+func TestTheMeteredPlanIsAcceptedAsASetOfPrices(t *testing.T) {
+	err := ValidatePriceSelection(sellable(catalogue()),
+		[]string{"price_dfe_ondemand_nfe", "price_dfe_ondemand_nfce"})
+	if err != nil {
+		t.Fatalf("the usage-based plan was refused: %v", err)
+	}
+}
+
+func TestPricesFromDifferentPlansAreRefused(t *testing.T) {
+	// The merged subscription's quotas would be whatever the union happened to
+	// yield, and the snapshot would report only the first item's plan for it.
+	err := ValidatePriceSelection(sellable(catalogue()),
+		[]string{"price_dfe_pro_monthly", "price_dfe_ondemand_nfe"})
+	if err == nil {
+		t.Fatal("a subscription mixing two plans was accepted")
+	}
+}

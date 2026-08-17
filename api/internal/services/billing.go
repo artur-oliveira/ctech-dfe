@@ -46,7 +46,23 @@ const (
 	metadataKeyPlan   = "plan"
 	metadataKeyMeter  = "meter"
 	metadataQuotaPref = "quota_"
+	// metadataKeyVisibility marks a price nobody may subscribe to through this
+	// API. See visibilityInternal.
+	metadataKeyVisibility = "visibility"
 )
+
+// visibilityInternal names a price that exists to be granted, never sold: the
+// R$ 0 unlimited the CTech team and the first two customers run on.
+//
+// It is honoured in two places here, and both are needed. Plans hides it, so no
+// client can discover it; Choose and Change refuse it, so knowing the id is not
+// enough. Hiding alone would be a price list as an access control, which is the
+// same mistake as an unlisted URL — `price_dfe_unlimited_internal_monthly` is
+// written in this repository's plan document.
+//
+// Granting it is deliberately an operation nobody can perform from a browser:
+// it goes through billing directly, with the M2M credential.
+const visibilityInternal = "internal"
 
 // QuotaUnlimited is the limit value meaning "no ceiling". It is -1 rather than
 // a missing key because absent and unlimited are opposite answers: the Free
@@ -356,8 +372,92 @@ func (s *BillingService) Plans(ctx context.Context) ([]billingclient.Product, er
 	if err != nil {
 		return nil, err
 	}
+	products = sellable(products)
 	CacheSet(ctx, s.cache, catalogCacheKey, products, catalogCacheTTL)
 	return products, nil
+}
+
+// sellable drops what no customer may subscribe to: archived prices, products
+// billing deactivated, and anything marked internal.
+//
+// Filtered here rather than in each client, because "the catalogue" and "what
+// may be subscribed to" have to be the same list — validatePrices below checks
+// against exactly this, so a price that cannot be shown cannot be bought either.
+// The previous arrangement filtered in the browser, which meant the API happily
+// published the R$ 0 internal price to anyone who called /plans.
+func sellable(products []billingclient.Product) []billingclient.Product {
+	out := make([]billingclient.Product, 0, len(products))
+	for _, p := range products {
+		if !p.Active {
+			continue
+		}
+		prices := make([]billingclient.Price, 0, len(p.Prices))
+		for _, price := range p.Prices {
+			if price.Archived || price.Metadata[metadataKeyVisibility] == visibilityInternal {
+				continue
+			}
+			prices = append(prices, price)
+		}
+		if len(prices) == 0 {
+			continue
+		}
+		p.Prices = prices
+		out = append(out, p)
+	}
+	return out
+}
+
+// validatePrices refuses a set of price ids that must not become a subscription.
+//
+// Three rules, and each one is a way a subscription goes wrong that billing
+// itself would accept:
+//
+//   - **Unknown price.** Not in the catalogue means archived, internal, or
+//     another tenant's. Billing validates ownership; it does not know that this
+//     product hides prices.
+//   - **Mixed plans.** The usage-based plan is six prices that share
+//     `plan: ondemand`; any other combination — Free plus Pro, one plan's
+//     document meter beside another's — produces a subscription whose quotas are
+//     whatever the merge happened to yield, and SnapshotFrom would report the
+//     first item's plan for it.
+//   - **Empty.** Handled by the callers, which say so in their own words.
+func (s *BillingService) validatePrices(ctx context.Context, priceIDs []string) error {
+	products, err := s.Plans(ctx)
+	if err != nil {
+		return err
+	}
+	return ValidatePriceSelection(products, priceIDs)
+}
+
+// ValidatePriceSelection is validatePrices without the catalogue fetch — pure,
+// and separated for the same reason SnapshotFrom is: the rules are worth testing
+// without a network.
+func ValidatePriceSelection(products []billingclient.Product, priceIDs []string) error {
+	known := map[string]billingclient.Price{}
+	for _, product := range products {
+		for _, price := range product.Prices {
+			known[price.ID] = price
+		}
+	}
+
+	plan := ""
+	for _, id := range priceIDs {
+		price, ok := known[id]
+		if !ok {
+			// Deliberately the same message for "does not exist" and "exists but
+			// is not for sale": a caller probing ids learns nothing from it.
+			return problem.BadRequest(fmt.Sprintf("preço indisponível: %s", id))
+		}
+		itemPlan := price.Metadata[metadataKeyPlan]
+		if plan == "" {
+			plan = itemPlan
+			continue
+		}
+		if itemPlan != plan {
+			return problem.BadRequest("todos os preços devem ser do mesmo plano")
+		}
+	}
+	return nil
 }
 
 // Choose puts the account on a plan for the first time.
@@ -381,6 +481,9 @@ func (s *BillingService) Choose(ctx context.Context, userID, accessToken string,
 	}
 	if snap.SubscriptionID != "" && snap.Status != "" && snap.Status != "CANCELED" {
 		return nil, nil, problem.Conflict("esta conta já tem uma assinatura; use a troca de plano")
+	}
+	if err := s.validatePrices(ctx, priceIDs); err != nil {
+		return nil, nil, err
 	}
 
 	customerID, err := s.GetOrCreateCustomer(ctx, raw, accessToken)
@@ -416,6 +519,12 @@ func (s *BillingService) Change(ctx context.Context, userID string, priceIDs []s
 	}
 	if snap.SubscriptionID == "" {
 		return nil, nil, problem.Conflict("esta conta ainda não tem assinatura; escolha um plano primeiro")
+	}
+	// Same guard as Choose: an account already on the internal plan must not be
+	// able to move a second account onto it, and a downgrade must not smuggle in
+	// an archived price.
+	if err := s.validatePrices(ctx, priceIDs); err != nil {
+		return nil, nil, err
 	}
 	res, err := s.client.ChangeSubscription(ctx, snap.SubscriptionID, itemsOf(priceIDs), changeIdempotencyKey(snap.SubscriptionID, priceIDs))
 	if err != nil {

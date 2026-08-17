@@ -701,7 +701,7 @@ Dois clientes: a conta do tio e a conta de teste. Ambos vão para
   membro OWNER quando o campo falta e grava o valor (2.3). A primeira leitura de cada organização
   faz a migração; não há script para lembrar de rodar.
 
-- [ ] **6.2** Assinar o preço interno nas duas contas.
+- [x] **6.2** Assinar o preço interno nas duas contas. *(feito 2026-08-16)*
   **Pelo próprio endpoint do DF-e, com o token do dono** — não por escrita M2M direta no billing e
   muito menos por linha no DynamoDB. `BillingService.Choose` não valida `visibility`, então o preço
   interno é aceito normalmente, e o caminho é o mesmo de qualquer cliente pagante:
@@ -727,7 +727,7 @@ Dois clientes: a conta do tio e a conta de teste. Ambos vão para
     | jq '.data[] | {name, prices: [.prices[] | {id, metadata}]}'
   ```
 
-- [ ] **6.3** Verificar: `GET /v1.0/billing/subscription` responde `grants_service: true`,
+- [x] **6.3** Verificar: `GET /v1.0/billing/subscription` responde `grants_service: true`,
   `plan: "unlimited"`, `quotas` com `-1`. Nenhuma fatura gerada (total zero liquida na emissão,
   ADR 0019) e nenhum lembrete de dunning (fatura de total zero não entra na fila).
   Na UI: `/assinatura` mostra "Ilimitado" e nenhuma faixa de bloqueio.
@@ -735,7 +735,7 @@ Dois clientes: a conta do tio e a conta de teste. Ambos vão para
   `ChangePlanDialog` — a conta interna vê o plano no topo da tela, mas não marcado como "Plano
   atual" na lista. É consequência de esconder o preço, não defeito.
 
-- [ ] **6.4** **Não existe chave para "ligar depois"** (corrigido 2026-08-16, ao reler o código).
+- [x] **6.4** **Não existe chave para "ligar depois"** (corrigido 2026-08-16, ao reler o código).
   `RequireActiveSubscription` já está montado no grupo `/v1.0` inteiro e se desliga sozinho por
   `billing == nil || !billing.Enabled()`, e `Enabled()` é só "o cliente foi construído"
   (`billingclient/client.go:110`). Ou seja: o portão liga no instante em que o deploy de produção
@@ -757,6 +757,30 @@ Dois clientes: a conta do tio e a conta de teste. Ambos vão para
   A alternativa que fecharia a janela — criar `Customer` e assinatura por M2M **antes** do deploy —
   foi descartada: replicaria nome e e-mail à mão num `Customer` que não é editável depois, para
   poupar alguns minutos de bloqueio em duas contas internas de baixo volume.
+
+> **Resultado (2026-08-16).** Executado contra produção, pelo endpoint do DF-e com o token de cada
+> dono, logo após o deploy de `IAM` + `API-V2`.
+>
+> | Conta       | Subscription                   | Fatura                          |
+> |-------------|--------------------------------|---------------------------------|
+> | Nossa Água  | `sub_01M06N14TGKZR0R4984XYQ3SH0` | nº 1, total 0, **PAID** na hora |
+> | CTech       | `sub_01M06N2ERV115W291VH39FZN36` | nº 2, total 0, **PAID** na hora |
+>
+> Ambas: `plan: unlimited`, `status: ACTIVE`, `grants_service: true`, todas as cotas `-1`. Fatura de
+> total zero liquida na emissão (ADR 0019), então não há cobrança nem fila de dunning — confirmado
+> em `GET /v1.0/billing/invoices`.
+>
+> Verificado também o caminho que o **middleware** usa, e não só o da conta: `GET
+> /v1.0/organizations/{pk}/plan` (mesmo `SnapshotForOrg` → `OwnerOf`) responde `unlimited` /
+> `grants_service: true` para as três organizações — `11647612000197`, `62787449000107` e a
+> primeira vista pela segunda conta. Ou seja o backfill de `owner_user_id` por *self-heal* (6.1)
+> funcionou na prática: nenhuma organização caiu no bloqueio por dono não resolvido.
+>
+> **Pendência achada na verificação:** `period_start` e `period_end` voltam **vazios** nas duas
+> assinaturas, e o `period` da fatura também. Não bloqueia nada — a UI já esconde o período quando
+> ausente e o diálogo de cancelamento cai no texto sem data —, mas `/assinatura` fica sem "Período
+> atual" e o cancelamento no fim do período não consegue dizer *quando*. É comportamento do
+> ctech-billing para assinatura de preço zero; investigar lá, não no DF-e.
 
 ---
 
