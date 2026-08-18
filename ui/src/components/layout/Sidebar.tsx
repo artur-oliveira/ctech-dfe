@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import {usePathname} from 'next/navigation'
+import {BookOpen} from 'lucide-react'
 import type {ReactNode} from 'react'
 import {
   BriefcaseIcon,
@@ -82,6 +83,7 @@ const navGroups: NavGroup[] = [
     label: 'Visão Geral',
     items: [
       {href: '/dashboard', label: 'Painel', icon: <GridIcon/>},
+      {href: '/guide', label: 'Guia', icon: <BookOpen size={16}/>},
     ],
   },
   {

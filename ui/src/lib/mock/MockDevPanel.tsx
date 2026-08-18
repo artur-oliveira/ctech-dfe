@@ -1,8 +1,18 @@
 'use client'
 
 import {useQueryClient} from '@tanstack/react-query'
-import {getMockState, setMockState} from './state'
+import {apiClient} from '@/lib/api/client'
+import {MOCK_ENABLED} from './env'
+import {mockAdapter} from './handler'
+import {getMockState, initMockStateFromUrl, setMockState} from './state'
 import type {BillingScenario} from './fixtures'
+
+// Anexa o adapter no browser. Fica neste módulo (e não em index.ts) porque só
+// um módulo cliente é avaliado no navegador — ver o comentário em index.ts.
+if (MOCK_ENABLED && typeof window !== 'undefined') {
+  initMockStateFromUrl(window.location.search)
+  apiClient.setAdapter(mockAdapter)
+}
 
 const STATUS_OPTIONS = [500, 422, 403]
 
@@ -32,6 +42,9 @@ export function MockDevPanel() {
 
   return (
     <div
+      // Âncora estável para o script de captura removê-lo antes do screenshot
+      // (scripts/capture-screens.mjs). Sem isso a barra aparece em toda imagem.
+      data-mock-panel=""
       className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:left-3 md:right-auto md:bottom-3 md:rounded-lg md:border">
       <span className="font-semibold uppercase tracking-wide">Mock API</span>
       <span className="rounded bg-amber-200 px-1.5 py-0.5 font-mono">{mode}</span>

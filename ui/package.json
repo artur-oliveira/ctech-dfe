@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "screens:capture": "node scripts/capture-screens.mjs"
   },
   "dependencies": {
     "@aoctech/auth-client": "^1.1.0",

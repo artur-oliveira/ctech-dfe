@@ -108,6 +108,21 @@ unless the rule genuinely does not apply and the reason is commented.
   or `POST /v1.0/distributions/{doc_type}/sync`.
 - Always check `../DOCS.md` for current endpoint list before adding any new API call.
 
+### Guia do produto (obrigatório em toda feature nova)
+
+Feature nova só está pronta quando aparece no guia (`/guide`) com captura de tela real:
+
+1. Entrada em `CAPTURES` (`scripts/capture-screens.mjs`) + `NEXT_PUBLIC_MOCK_API=true npm run dev`
+   em um terminal e `npm run screens:capture` em outro.
+2. Seção no tópico correspondente de `src/app/guide/<slug>/page.tsx` — ou tópico novo em
+   `src/lib/constants/guide.tsx` com o diretório de rota junto.
+3. Se a feature toca uma tela que o mock ainda não modela, adicione a rota em
+   `src/lib/mock/handler.ts` — rota faltando cai em lista vazia e a captura sai vazia, sem erro.
+
+Toda captura precisa de espera explícita (`waitText` ou `steps`). Slugs em inglês
+(`nfe-emit-review`, `subscription`); siglas de documento fiscal ficam como são. Texto do guia em pt-BR.
+Detalhes em `../DOCS.md §5`.
+
 ### Layer Rules
 
 - All API calls go through `ApiClient` — never use `fetch` or raw axios directly.
@@ -229,6 +244,7 @@ Before touching: identify risks + side effects, verify backward compatibility.
 - [ ] No deprecated endpoints called
 - [ ] `access_token` never written to localStorage/sessionStorage
 - [ ] Docs updated (`../DOCS.md`, `../INTEGRATION.md`, or `../CONDUCT.md`)
+- [ ] Guia atualizado: captura em `public/guide/` + seção em `src/app/guide/`
 - [ ] Cross-project impact reviewed (ui ↔ api)
 
 ## Mandatory Documentation Policy

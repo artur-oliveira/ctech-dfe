@@ -4,7 +4,7 @@ import {useState} from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal'
-import {Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react'
+import {ArrowRight, Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {Button} from '@/components/ui/button'
 import {AuthorizationCard} from '@/components/landing/authorization-card'
@@ -23,6 +23,38 @@ const FLOW_STEPS = [
   {
     label: 'Autorizar',
     body: 'Em segundos, o documento volta autorizado — pronto para imprimir, baixar ou cancelar se precisar.',
+  },
+]
+
+// Capturas reais do sistema, geradas por `npm run screens:capture` a partir do
+// mock — nenhum dado de cliente entra aqui. Alternam de lado na composição.
+const SCREENS = [
+  {
+    slug: 'nfe-emit-review',
+    kicker: 'Emissão',
+    title: 'Quatro passos e a nota é autorizada',
+    body: 'Destinatário, produtos, pagamento e revisão. O CFOP vem do perfil fiscal, a condição de pagamento monta as parcelas e a revisão mostra a nota inteira antes do envio.',
+    alt: 'Revisão de uma NF-e antes da emissão, com destinatário, produtos, pagamento e total',
+    href: '/guide/nfe',
+    linkLabel: 'Ver a emissão passo a passo',
+  },
+  {
+    slug: 'nfe-distribution',
+    kicker: 'Distribuição',
+    title: 'Notas emitidas para você',
+    body: 'A SEFAZ entrega tudo que foi emitido para a sua empresa. O sistema consulta sozinho, e você importa por chave ou XML o que faltar.',
+    alt: 'Documentos recebidos da SEFAZ por distribuição, com NSU, chave de acesso e data',
+    href: '/guide/distributions',
+    linkLabel: 'Como funciona a distribuição',
+  },
+  {
+    slug: 'nfe-events',
+    kicker: 'Eventos',
+    title: 'Cancelamento e correção com histórico',
+    body: 'Documento autorizado não se edita — se corrige por evento. Cada cancelamento, carta de correção ou encerramento fica no histórico.',
+    alt: 'Linha do tempo de eventos de uma NF-e, com emissão e carta de correção registradas',
+    href: '/guide/events',
+    linkLabel: 'Entender os eventos',
   },
 ]
 
@@ -45,7 +77,7 @@ const BENEFITS = [
   {
     icon: ShieldCheck,
     title: 'Segurança',
-    body: 'Seu certificado fica guardado com criptografia, cada documento é assinado digitalmente e enviado direto para a SEFAZ. Dá pra testar à vontade em ambiente separado antes de emitir valendo.',
+    body: 'Seu certificado fica guardado com criptografia, cada documento é assinado digitalmente e enviado direto para a SEFAZ.',
   },
 ]
 
@@ -107,7 +139,7 @@ const ROADMAP = [
   },
   {
     title: 'Outros documentos fiscais',
-    body: 'BP-e, NF Gás, NFAg, NF3e, NFCom e NFS-e.',
+    body: 'BP-e, NF Gás, NFAg, NF3e e NFCom',
   },
 ]
 
@@ -126,14 +158,14 @@ function LoadingScreen() {
 export default function Home() {
   const {user, loading} = useAuth()
   const [carouselTheme, setCarouselTheme] = useState<DfeThemeKey>('nfe')
-  
+
   if (loading) {
     return <LoadingScreen/>
   }
-  
+
   const primaryHref = user ? '/dashboard' : '/login'
   const primaryLabel = user ? 'Ir para o painel' : 'Entrar'
-  
+
   return (
     <div className="min-h-screen bg-white" data-dfe-theme={carouselTheme}>
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
@@ -141,11 +173,19 @@ export default function Home() {
           <Image src="/app.svg" alt="" aria-hidden="true" width={32} height={32} priority/>
           <span className="font-semibold text-gray-900">CTech DFe</span>
         </div>
-        <Button variant="brand" render={<Link href={primaryHref}/>}>
-          {primaryLabel}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/guide"
+            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-gray-600 hover:text-gray-900 sm:min-h-0 sm:py-2"
+          >
+            Guia
+          </Link>
+          <Button variant="brand" render={<Link href={primaryHref}/>}>
+            {primaryLabel}
+          </Button>
+        </div>
       </header>
-      
+
       <section className="bg-gradient-login">
         <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:py-24">
           <div className="space-y-6">
@@ -165,13 +205,13 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          
+
           <div className="flex justify-center md:justify-end">
             <AuthorizationCard onDocChange={setCarouselTheme}/>
           </div>
         </div>
       </section>
-      
+
       <section className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="mb-6 text-2xl font-bold text-gray-900 md:text-3xl">Documentos suportados</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
@@ -196,7 +236,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-      
+
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <h2 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">Como funciona</h2>
@@ -213,7 +253,59 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
+      <section className="mx-auto max-w-6xl space-y-20 px-6 py-20" aria-labelledby="screens-title">
+        <div className="max-w-xl">
+          <h2 id="screens-title" className="text-2xl font-bold text-gray-900 md:text-3xl">
+            As telas que você vai usar
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-gray-600">
+            Sem tour guiado nem simulação: é o sistema rodando, com dados de demonstração.
+          </p>
+        </div>
+
+        {SCREENS.map((screen, i) => (
+          <div
+            key={screen.slug}
+            // A troca de lado é por `order`, então a proporção das colunas também
+            // inverte — sem isso a captura cai na coluna estreita nas linhas ímpares.
+            className={`grid items-center gap-8 md:gap-12 ${
+              i % 2 === 1
+                ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,380px)]'
+                : 'md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]'
+            }`}
+          >
+            <div className={i % 2 === 1 ? 'md:order-2' : undefined}>
+              <p className="text-sm font-semibold text-primary-700">{screen.kicker}</p>
+              <h3 className="mt-1.5 text-xl font-bold leading-snug text-gray-900 md:text-2xl">
+                {screen.title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">{screen.body}</p>
+              <Link
+                href={screen.href}
+                className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary-700 hover:text-primary-800 sm:min-h-0"
+              >
+                {screen.linkLabel} <ArrowRight size={16} aria-hidden="true"/>
+              </Link>
+            </div>
+            <figure
+              className={`overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card ${
+                i % 2 === 1 ? 'md:order-1' : ''
+              }`}
+            >
+              <Image
+                src={`/guide/${screen.slug}.webp`}
+                alt={screen.alt}
+                width={1280}
+                height={800}
+                sizes="(max-width: 768px) 100vw, 700px"
+                className="w-full"
+              />
+            </figure>
+          </div>
+        ))}
+      </section>
+
       <section className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="mb-8 text-2xl font-bold text-gray-900 md:text-3xl">Por que escolher a CTech DFe</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -228,7 +320,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-      
+
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <div className="mb-8">
@@ -273,7 +365,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Em desenvolvimento</h2>
@@ -292,16 +384,19 @@ export default function Home() {
           ))}
         </div>
       </section>
-      
+
       <section className="bg-gradient-login">
         <div className="mx-auto max-w-6xl px-6 py-16 text-center">
           <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Comece a emitir grátis</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
             Emita seus primeiros documentos fiscais em minutos, sem burocracia.
           </p>
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button variant="brand" size="lg" render={<Link href={primaryHref}/>}>
               {primaryLabel}
+            </Button>
+            <Button variant="outline" size="lg" render={<Link href="/guide"/>}>
+              Ler o guia
             </Button>
           </div>
         </div>

@@ -1,4 +1,8 @@
 export const EVENT_TYPE_LABELS: Record<string, string> = {
+  // O worker grava a própria emissão na timeline com este tipo — não é um
+  // tpEvento da SEFAZ, mas aparece em toda linha do tempo de documento.
+  emission: 'Emissão',
+
   '610610': 'MDF-e autorizado',
   '610600': 'Registro de Autorização CT-e NF-e',
   '610500': 'Registro de Passagem Autorização',

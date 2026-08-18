@@ -40,8 +40,8 @@ function NewProductContent() {
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Novo produto</h1>
         <ProductForm
-          crt={org?.person.crt}
-          uf={org?.person.state_registrations[0]?.uf}
+          crt={org?.person?.crt}
+          uf={org?.person?.state_registrations?.[0]?.uf}
           onSubmit={async (d) => {
             await createMutation.mutateAsync(d)
           }}

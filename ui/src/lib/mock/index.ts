@@ -1,20 +1,13 @@
 /**
- * Dev mock API entry point. Imported for its side effect from the root layout
- * (and only when `NEXT_PUBLIC_MOCK_API=true`) so the axios adapter is attached
- * before any provider effect runs. Exports the dev panel for layout use.
+ * Dev mock API entry point, importado pelo root layout.
+ *
+ * O adapter axios NÃO é anexado aqui: o layout é server component, então este
+ * módulo só é avaliado no servidor e o `setAdapter` nunca chegaria ao browser.
+ * Quem anexa é `MockDevPanel` — módulo cliente, avaliado na hidratação, antes
+ * de qualquer efeito de provider rodar.
  */
 
-import {apiClient} from '@/lib/api/client'
-import {mockAdapter} from './handler'
 import {MOCK_ENABLED} from './env'
-import {initMockStateFromUrl} from './state'
 import {MockDevPanel} from './MockDevPanel'
-
-if (MOCK_ENABLED) {
-  if (typeof window !== 'undefined') {
-    initMockStateFromUrl(window.location.search)
-  }
-  apiClient.setAdapter(mockAdapter)
-}
 
 export {MockDevPanel, MOCK_ENABLED}

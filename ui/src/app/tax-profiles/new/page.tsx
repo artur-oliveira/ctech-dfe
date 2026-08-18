@@ -42,7 +42,7 @@ function NewTaxProfileContent() {
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Novo perfil fiscal</h1>
         <TaxProfileForm
-          crt={org?.person.crt}
+          crt={org?.person?.crt}
           onSubmit={async (d) => {
             await createMutation.mutateAsync(d)
           }}

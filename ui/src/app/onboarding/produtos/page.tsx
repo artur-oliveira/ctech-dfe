@@ -60,8 +60,8 @@ function ProductsStepContent() {
     >
       <ProductForm
         key={added.length}
-        crt={org?.person.crt}
-        uf={org?.person.state_registrations[0]?.uf}
+        crt={org?.person?.crt}
+        uf={org?.person?.state_registrations?.[0]?.uf}
         onSubmit={async (d) => {
           await create.mutateAsync(d)
         }}

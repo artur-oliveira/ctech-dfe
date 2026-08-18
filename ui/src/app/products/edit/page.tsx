@@ -63,8 +63,8 @@ function EditProductContent() {
         ) : (
           <ProductForm
             initialData={product}
-            crt={org?.person.crt}
-            uf={org?.person.state_registrations[0]?.uf}
+            crt={org?.person?.crt}
+            uf={org?.person?.state_registrations?.[0]?.uf}
             onSubmit={async (d) => {
               await updateMutation.mutateAsync(d)
             }}

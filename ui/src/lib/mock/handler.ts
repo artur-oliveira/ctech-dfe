@@ -16,22 +16,48 @@ import {
   cteConfigFixture,
   distributionsFixture,
   mdfeConfigFixture,
+  mdfeDetailFixture,
+  mdfeEventsFixture,
   mdfesFixture,
   meFixture,
   membersFixture,
   nfceConfigFixture,
+  nfceDetailFixture,
+  nfceEventsFixture,
   nfcesFixture,
   nfeConfigFixture,
+  nfeDetailFixture,
+  nfeEventsFixture,
   nfesFixture,
+  nfseConfigFixture,
+  nfseDistributionsFixture,
+  nfseEventsFixture,
+  nfsesFixture,
+  operationsFixture,
   organizationsFixture,
+  paymentTermsFixture,
   personsFixture,
   productsFixture,
   rolesFixture,
+  servicesFixture,
+  taxProfilesFixture,
   vehiclesFixture,
+  vehicleSetsFixture,
 } from './fixtures'
 import {getMockState, shouldError} from './state'
 
 const MOCK_LATENCY_MS = 250
+
+/**
+ * Cadastros reutilizáveis: mesmo CRUD, mesma paginação, só muda a coleção.
+ * `[segmento de rota, fixture, sufixo da chave sintética]`.
+ */
+const REUSABLE_REGISTRIES: [string, unknown[], string][] = [
+  ['tax-profiles', taxProfilesFixture, 'tax-profile'],
+  ['operations', operationsFixture, 'operation'],
+  ['payment-terms', paymentTermsFixture, 'payment-term'],
+  ['vehicle-sets', vehicleSetsFixture, 'vehicle-set'],
+]
 
 function paginated<T>(items: T[]): { items: T[]; next_cursor: string | null; has_next: boolean; previous_cursor: string | null; has_previous: boolean } {
   return {
@@ -64,12 +90,15 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (m === 'post' && path === '/v1.0/organizations') return {data: organizationsFixture[0]}
   if (m === 'put' && path.startsWith('/v1.0/organizations/') && !path.includes('-config')) return {data: organizationsFixture[0]}
   if (m === 'delete' && path.startsWith('/v1.0/organizations/')) return {data: undefined}
+  // Detalhe da organização — traz `person`, que a listagem de /auth/me não tem.
+  if (m === 'get' && /^\/v1\.0\/organizations\/[^/]+$/.test(path)) return {data: organizationsFixture[0]}
 
   // Configs (path-based org in URL)
   if (path.endsWith('/nfe-config')) return {data: nfeConfigFixture}
   if (path.endsWith('/nfce-config')) return {data: nfceConfigFixture}
   if (path.endsWith('/cte-config')) return {data: cteConfigFixture}
   if (path.endsWith('/mdfe-config')) return {data: mdfeConfigFixture}
+  if (path.endsWith('/nfse-config')) return {data: nfseConfigFixture}
 
   // Certificates / members
   if (path.endsWith('/certificates')) return {data: certificatesFixture}
@@ -93,6 +122,22 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (m === 'post' && path === '/v1.0/persons') return {data: echo(body, 'person')}
   if (m === 'put' && path.startsWith('/v1.0/persons/')) return {data: echo(body, 'person')}
   if (m === 'delete' && path.startsWith('/v1.0/persons/')) return {data: undefined}
+  // Busca por CPF/CNPJ — usada pelos atalhos "Recentes" da emissão.
+  if (m === 'get' && path.startsWith('/v1.0/persons/')) return {data: personsFixture[0]}
+
+  if (key === 'get /v1.0/services') return {data: paginated(servicesFixture)}
+  if (m === 'post' && path === '/v1.0/services') return {data: echo(body, 'service')}
+  if (m === 'put' && path.startsWith('/v1.0/services/')) return {data: echo(body, 'service')}
+  if (m === 'delete' && path.startsWith('/v1.0/services/')) return {data: undefined}
+
+  // Cadastros reutilizáveis — mesma forma para os quatro, só muda a fixture.
+  for (const [segment, fixture, suffix] of REUSABLE_REGISTRIES) {
+    if (key === `get /v1.0/${segment}`) return {data: paginated(fixture)}
+    if (m === 'post' && path === `/v1.0/${segment}`) return {data: echo(body, suffix)}
+    if (m === 'put' && path.startsWith(`/v1.0/${segment}/`)) return {data: echo(body, suffix)}
+    if (m === 'delete' && path.startsWith(`/v1.0/${segment}/`)) return {data: undefined}
+    if (m === 'get' && path.startsWith(`/v1.0/${segment}/`)) return {data: fixture[0]}
+  }
 
   // Documents
   if (key === 'get /v1.0/nfes') return {data: paginated(nfesFixture)}
@@ -101,19 +146,32 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (m === 'post' && path === '/v1.0/nfces') return {data: echo(body, 'nfce')}
   if (key === 'get /v1.0/mdfes') return {data: paginated(mdfesFixture)}
   if (m === 'post' && path === '/v1.0/mdfes') return {data: echo(body, 'mdfe')}
-  if (m === 'post' && path === '/v1.0/mdfes/cargo-preview') return {data: {items: [], total_weight: '0.00', total_value: '0.00'}}
+  if (m === 'post' && path === '/v1.0/mdfes/cargo-preview') {
+    return {data: {items: mdfeDetailFixture.documents, total_weight: '2450.000', total_value: '3589.80'}}
+  }
+  if (key === 'get /v1.0/nfses') return {data: paginated(nfsesFixture)}
+  if (m === 'post' && path === '/v1.0/nfses') return {data: echo(body, 'nfse')}
+
+  // Event timelines. Antes das rotas de detalhe: `/nfes/{key}/events` também
+  // casa com o padrão de detalhe.
+  if (/^get \/v1\.0\/nfes\/[^/]+\/events$/.test(key)) return {data: paginated(nfeEventsFixture)}
+  if (/^get \/v1\.0\/nfces\/[^/]+\/events$/.test(key)) return {data: paginated(nfceEventsFixture)}
+  if (/^get \/v1\.0\/mdfes\/[^/]+\/events$/.test(key)) return {data: paginated(mdfeEventsFixture)}
+  if (/^get \/v1\.0\/nfses\/[^/]+\/events$/.test(key)) return {data: paginated(nfseEventsFixture)}
 
   // Detail routes (any access key)
-  if (/^get \/v1\.0\/nfes\/.+/.test(key)) return {data: nfesFixture[0]}
-  if (/^get \/v1\.0\/nfces\/.+/.test(key)) return {data: nfesFixture[0]}
-  if (/^get \/v1\.0\/mdfes\/.+/.test(key)) return {data: mdfesFixture[0]}
-  if (/^post \/v1\.0\/nfes\/.+\/(cancel|correction-letter|manifestation)$/.test(key)) return {data: nfesFixture[0]}
-  if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfesFixture[0]}
-  if (/^post \/v1\.0\/mdfes\/.+\/(cancel|close|include-condutor|include-dfe)$/.test(key)) return {data: mdfesFixture[0]}
-  if (/^get \/v1\.0\/nfes\/.+\/(events|xml|danfe)$/.test(key)) return {data: []}
+  if (/^get \/v1\.0\/nfes\/[^/]+$/.test(key)) return {data: nfeDetailFixture}
+  if (/^get \/v1\.0\/nfces\/[^/]+$/.test(key)) return {data: nfceDetailFixture}
+  if (/^get \/v1\.0\/mdfes\/[^/]+$/.test(key)) return {data: mdfeDetailFixture}
+  if (/^get \/v1\.0\/nfses\/[^/]+$/.test(key)) return {data: nfsesFixture[0]}
+  if (/^post \/v1\.0\/nfes\/.+\/(cancel|correction-letter|manifestation)$/.test(key)) return {data: nfeDetailFixture}
+  if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfceDetailFixture}
+  if (/^post \/v1\.0\/mdfes\/.+\/(cancel|close|include-condutor|include-dfe)$/.test(key)) return {data: mdfeDetailFixture}
+  if (/^post \/v1\.0\/nfses\/.+\/(cancel|substitute|events)$/.test(key)) return {data: nfsesFixture[0]}
 
   // Distributions
-  if (/^get \/v1\.0\/distributions\/\w+\/history/.test(key)) return {data: paginated(distributionsFixture)}
+  if (key === 'get /v1.0/nfse/distributions') return {data: paginated(nfseDistributionsFixture)}
+  if (/^get \/v1\.0\/distributions\/\w+\/history$/.test(key)) return {data: paginated(distributionsFixture)}
   if (m === 'post' && /^post \/v1\.0\/distributions\/\w+\/sync$/.test(key)) return {data: {enqueued: true, job_id: 'mock-job'}}
   if (/^get \/v1\.0\/distributions\/\w+\/(nsu|key)\//.test(key)) return {data: distributionsFixture[0]}
 

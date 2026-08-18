@@ -713,6 +713,20 @@ no mesmo commit. Não existe "documento depois" — o teste não deixa.
 Ao mexer na spec, rode `make openapi-lint` (requer Node): o teste de Go só garante cobertura de
 rotas e YAML válido, não que o documento seja um OpenAPI válido.
 
+## Feature de UI nova entra no guia na mesma mudança
+
+O guia público (`ui/src/app/guide/`) é a documentação de produto, e ele mostra captura de tela real
+— não desenho nem descrição. Como as capturas vêm do mock (`ui/src/lib/mock/`), tela que o mock não
+modela sai vazia na imagem, sem erro nenhum.
+
+`ui/src/__tests__/lib/guide-assets.test.ts` fecha os três buracos: imagem referenciada que não
+existe, captura gerada que nenhuma página usa e tópico listado sem rota. Como no caso da spec
+OpenAPI, não existe "documento depois" — o teste não deixa.
+
+Fluxo: entrada em `CAPTURES` (`ui/scripts/capture-screens.mjs`) → `npm run screens:capture` com
+`NEXT_PUBLIC_MOCK_API=true npm run dev` rodando → seção no tópico do guia. Detalhes em `DOCS.md §5`.
+
+
 ---
 
 # 10. Git Workflow

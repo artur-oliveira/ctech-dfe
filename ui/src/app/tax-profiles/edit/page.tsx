@@ -69,7 +69,7 @@ function EditTaxProfileContent() {
         ) : (
           <TaxProfileForm
             initialData={profile}
-            crt={org?.person.crt}
+            crt={org?.person?.crt}
             onSubmit={async (d) => {
               await updateMutation.mutateAsync(d)
             }}

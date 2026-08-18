@@ -1741,6 +1741,7 @@ app/
 ├── certificates/   # A1 certificates
 ├── assinatura/     # Plano, uso por medidor, faturas (Fase 5)
 ├── fiscal-config/  # Issuance configuration (includes an NFS-e tab, F4)
+├── guide/          # Guia público do produto — um diretório por tópico
 └── onboarding/     # Primeira configuração, em camadas (Fase 5)
     ├── plano/       # 1 — escolha do plano, montada de GET /v1.0/billing/plans
     ├── retorno/     # (fora da trilha) espera a liquidação do checkout Pro
@@ -1750,6 +1751,63 @@ app/
     ├── servicos/    # 6 — só se NFS-e; opcional
     └── pronto/      # fim, com o atalho para a primeira emissão
 ```
+
+### Guia do produto (`/guide`) e capturas de tela
+
+O guia é público (não passa por `ProtectedRoute`) e é servido pelo mesmo export
+estático do resto do app. Três peças:
+
+| Peça | Arquivo | Papel |
+|------|---------|-------|
+| Índice dos tópicos | `lib/constants/guide.tsx` | Fonte única: alimenta a home do guia, a navegação entre tópicos e os testes |
+| Renderizador | `components/guide/GuidePage.tsx` | Chrome público, índice da página, seções com captura, e as primitivas (`GuideSteps`, `GuideCallout`, `GuideTerms`) |
+| Páginas de tópico | `app/guide/<slug>/page.tsx` | Só conteúdo: um array de seções `{id, title, summary, image, body}` |
+
+**As imagens são capturas reais do app**, geradas contra o mock API — nenhum dado
+de cliente entra no repositório. Ficam em `public/guide/<slug>.webp`.
+
+```bash
+NEXT_PUBLIC_MOCK_API=true npm run dev      # em um terminal
+npm run screens:capture                    # em outro; aceita filtro por prefixo de slug
+npm run screens:capture -- nfe-            # só as telas de NF-e
+```
+
+`scripts/capture-screens.mjs` sobe um Chrome headless, navega por cada rota da
+lista `CAPTURES`, executa os passos de preparação declarados (`click`, `waitText`,
+`waitAt`, `scrollAt`) e salva WebP. As chaves de acesso vêm das próprias fixtures,
+importadas do TypeScript — renomear uma fixture não deixa a captura órfã.
+
+Toda captura precisa de uma espera explícita (`waitText` ou `steps`): sem ela o
+script fotografa a tela antes de os dados chegarem. Uma guarda de sanidade falha
+a captura quando a página não renderizou (página de erro ou texto quase vazio),
+para que tela quebrada não vire imagem publicada.
+
+**Ao entregar uma feature nova, na mesma mudança:**
+
+1. Adicione a entrada em `CAPTURES` (`scripts/capture-screens.mjs`) e rode a captura.
+2. Adicione a seção ao tópico do guia que cobre aquela área — ou um tópico novo em
+   `GUIDE_TOPICS`, com o diretório correspondente em `app/guide/`.
+3. Rode `npm test`: `src/__tests__/lib/guide-assets.test.ts` reprova imagem
+   referenciada que não existe, captura gerada que ninguém usa e tópico sem rota.
+
+Slugs de captura e de rota seguem convenção em inglês (`nfe-emit-review`,
+`fiscal-config`, `subscription`); nomes próprios de documento fiscal ficam como
+são (`nfe`, `nfce`, `cte`, `mdfe`, `nfse`). O texto do guia é pt-BR.
+
+A landing page (`app/page.tsx`) consome as mesmas imagens na seção "As telas que
+você vai usar" — atualizar a captura atualiza os dois lugares.
+
+### Mock API de desenvolvimento
+
+`NEXT_PUBLIC_MOCK_API=true` troca o adapter do axios por `lib/mock/handler.ts`,
+que serve as fixtures de `lib/mock/fixtures.ts` e dispensa backend e OAuth. O
+adapter é anexado por `MockDevPanel` — módulo cliente — porque `lib/mock/index.ts`
+é importado pelo root layout, que é server component: o side effect lá nunca
+chegaria ao browser.
+
+Rota não modelada cai no fallback de lista vazia, sem erro. Por isso a tela sai
+vazia em vez de quebrar — e por isso `src/__tests__/lib/mock-handler.test.ts`
+cobre as rotas cuja ausência já produziu captura errada.
 
 ### Onboarding em camadas
 
