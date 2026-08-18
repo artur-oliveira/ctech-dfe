@@ -35,7 +35,7 @@ export function OnboardingShell({current, title, description, children, action}:
       <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <Image src="/app.svg" alt="" aria-hidden="true" width={26} height={26} className="shrink-0"/>
+            <Image src="/app.svg" alt="" aria-hidden="true" width={26} height={26} className="shrink-0" unoptimized/>
             <span className="text-base font-semibold tracking-tight text-gray-900">CTech DF-e</span>
           </div>
           <Button variant="ghost" onClick={() => void logout('/')}>

@@ -17,7 +17,9 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: ['127.0.0.1'],
   ...(isProduction
-    ? {output: 'export' as const}
+    ? {
+      output: 'export', images: {unoptimized: true,}
+    }
     : {
       async rewrites() {
         return [

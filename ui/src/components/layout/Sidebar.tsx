@@ -163,7 +163,7 @@ export function Sidebar({open, onClose}: SidebarProps) {
       <div
         className="flex items-center justify-between px-5 h-(--topbar-height) border-b border-gray-200 shrink-0">
         <div className="flex items-center gap-2.5">
-          <Image src="/app.svg" alt="" aria-hidden="true" width={28} height={28} className="shrink-0"/>
+          <Image src="/app.svg" alt="" aria-hidden="true" width={28} height={28} className="shrink-0" unoptimized/>
           <span className="font-semibold text-gray-900 text-base tracking-tight">CTech DF-e</span>
         </div>
         {/* Close button — only shown on mobile */}
