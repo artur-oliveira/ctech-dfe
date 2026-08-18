@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -269,9 +270,17 @@ func (c *Client) postWithRetry(ctx context.Context, url string, body []byte, con
 	return nil, fmt.Errorf("services: all %d retries exhausted for %s: %w", c.maxRetries, url, lastErr)
 }
 
+func BackoffDuration(attempt int) time.Duration {
+	baseDelay := backoffBase * time.Duration(1<<uint(attempt))
+	// Add jitter: random delay between 50% and 150% of baseDelay
+	// This prevents thundering herd while keeping retry bounds reasonable
+	jitterDelay := time.Duration(float64(baseDelay) * (0.5 + rand.Float64()))
+	return jitterDelay
+}
+
 // sleepFn is a package var (not a plain function) so tests can stub out the
 // exponential backoff and run retry scenarios in milliseconds instead of
 // seconds — see client_test.go.
 var sleepFn = func(attempt int) {
-	time.Sleep(backoffBase * time.Duration(1<<uint(attempt)))
+	time.Sleep(BackoffDuration(attempt))
 }
