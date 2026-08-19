@@ -206,7 +206,7 @@ export class ApiStack extends cdk.Stack {
       logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       asgName: this.asgName,
       minCapacity: 1,
-      maxCapacity: isProd ? 3 : 1,
+      maxCapacity: 1,
       // Nightly stop/start with the shared defaults: down 22:00, back 10:00
       // America/Sao_Paulo (01:00 and 13:00 UTC). Applies to production too — the
       // service is unavailable in that window, and inbound webhooks fail.
