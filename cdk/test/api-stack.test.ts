@@ -42,12 +42,18 @@ test('user data stays under the EC2 limit', () => {
   expect(Buffer.byteLength(userDataText(synth()), 'utf8')).toBeLessThan(USER_DATA_LIMIT_BYTES)
 })
 
-test('user data fetches the bootstrap asset and runs it', () => {
+test('user data only fetches and runs the shared scripts', () => {
   const text = userDataText(synth())
-  expect(text).toContain('/tmp/api-bootstrap.zip')
-  expect(text).toContain('/opt/bootstrap/setup.sh')
-  // The per-environment half has to be on disk before any script reads it.
-  expect(text.indexOf('/etc/bootstrap.env')).toBeLessThan(text.indexOf('/opt/bootstrap/setup.sh'))
+  expect(text).toContain('ctech_run')
+  expect(text).toContain('setup-base.sh')
+  expect(text).toContain('setup-nginx.sh')
+  // Downloaded to a file and then executed: a pipe truncated mid-transfer runs a
+  // partial script and reports success.
+  expect(text).not.toMatch(/aws s3 cp [^\n]*\| *bash/)
+  // Nothing is written inline any more except app-static.env, service-env.sh,
+  // the three nginx fragments and the CloudWatch agent config.
+  const heredocs = text.match(/cat > /g) ?? []
+  expect(heredocs.length).toBeLessThanOrEqual(6)
 })
 
 test('no secret value is written into the launch template', () => {
@@ -55,6 +61,6 @@ test('no secret value is written into the launch template', () => {
   // Anything resolved at synthesis time would sit in the launch template, which
   // is readable by anyone holding ec2:DescribeLaunchTemplateVersions.
   const text = userDataText(synth())
-  expect(text).toContain('BILLING_CLIENT_SECRET_PARAM=/ctech-dfe/prod/billing/client-secret')
-  expect(text).not.toMatch(/BILLING_CLIENT_SECRET=(?!\$)/)
+  expect(text).toContain("'BILLING_CLIENT_SECRET=/ctech-dfe/prod/billing/client-secret'")
+  expect(text).not.toMatch(/BILLING_CLIENT_SECRET=(?!\/|\$)/)
 })

@@ -267,5 +267,13 @@ export class IAMStack extends cdk.Stack {
       actions: ['ec2:DescribeManagedPrefixLists', 'ec2:GetManagedPrefixListEntries'],
       resources: ['*'],
     }));
+
+    // The shared bootstrap scripts published by ctech-cdk's Ec2ScriptsStack.
+    // Scoped to that bucket; the instance downloads them on every boot.
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      sid: 'ReadSharedEc2BootstrapScripts',
+      actions: ['s3:GetObject'],
+      resources: [`arn:aws:s3:::${environment}-ctech-ec2-scripts/*`],
+    }));
   }
 }

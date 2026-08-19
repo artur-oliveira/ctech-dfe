@@ -1,20 +1,22 @@
+import {readFileSync} from 'node:fs';
 import * as path from 'node:path';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
-import {
-  addCloudflareOriginCaCommands,
-  addCloudWatchAgentDualStackOverride,
-  addDualStackSsmAgentCommands,
-  addRealipRefreshCommands,
-  addSwapCommands,
-  buildCloudWatchAgentConfig,
-  HaproxyEc2Service,
-} from '@aoctech/cdk';
+import {buildCloudWatchAgentConfig, Ec2ScriptRunner, HaproxyEc2Service} from '@aoctech/cdk';
 import {Environment} from './types';
+
+/** Emits `cat > /etc/nginx/conf.d/<name> << 'DELIM' … DELIM` for a checked-in file. */
+function nginxFragment(name: string, delimiter: string): string[] {
+  const body = readFileSync(path.join(__dirname, '..', 'scripts', 'api', name), 'utf8');
+  return [
+    `cat > /etc/nginx/conf.d/${name} << '${delimiter}'`,
+    ...body.replace(/\n$/, '').split('\n'),
+    delimiter,
+  ];
+}
 
 interface ApiStackProps extends cdk.StackProps {
   environment: Environment;
@@ -96,62 +98,26 @@ export class ApiStack extends cdk.Stack {
     const logGroupNginx = `/${svcName}/${environment}/nginx`;
 
     // ── User Data ─────────────────────────────────────────────────────────────
-    // Everything static — nginx.conf, the systemd unit, start/deploy/upload-logs —
-    // lives in `scripts/api` and rides to the instance as an S3 asset. EC2 caps
-    // user data at 16 KB and those files alone were most of it; what stays inline
-    // is only what CloudFormation has to resolve: bucket names, SSM paths, log
-    // group names, the VPC CIDR.
+    // Every shared bootstrap step lives in ctech-cdk's assets/ec2 and is fetched
+    // from S3 at boot. What stays inline is only what CloudFormation has to
+    // resolve: bucket names, SSM paths, log group names, the CloudWatch agent
+    // config, and this service's nginx additions.
     //
-    // The asset's S3 key is the hash of the directory, so editing a script changes
-    // the user data, which versions the launch template and triggers an instance
-    // refresh. A fixed key in a bucket of our own would not: the file would change
-    // under running instances while the template stayed byte-identical, and new
-    // instances would quietly boot a different machine than the old ones.
-    const bootstrap = new s3assets.Asset(this, 'ApiBootstrap', {
-      path: path.join(__dirname, '..', 'scripts', 'api'),
-    });
-
+    // The S3 key prefix is the content hash of assets/ec2, read from SSM at
+    // deploy time, so editing a shared script changes this user data, versions
+    // the launch template and triggers an instance refresh.
+    const scripts = new Ec2ScriptRunner(this, 'Scripts', {environment});
     const userData = ec2.UserData.forLinux();
+    scripts.install(userData);
 
+    scripts.run(userData, 'setup-base.sh', svcName, 'nginx');
+    scripts.run(userData, 'setup-swap.sh', '256');
+    scripts.run(userData, 'setup-dualstack.sh');
+    scripts.run(userData, 'setup-cloudflare-ca.sh');
+
+    // /etc/app-static.env: non-secret values systemd loads via EnvironmentFile.
+    // CDK tokens are substituted at synthesis; bash does not expand them.
     userData.addCommands(
-      // ── Packages + directories ───────────────────────────────────────────────
-      'dnf install -y nginx amazon-cloudwatch-agent amazon-ssm-agent cronie unzip jq',
-      'useradd --system --no-create-home --shell /sbin/nologin webapp',
-      'mkdir -p /opt/app/releases /var/log/app /etc/nginx/conf.d',
-      'chown -R webapp:webapp /opt/app /var/log/app',
-      // AL2023 does not enable crond by default (unlike AL2) — without it
-      // /etc/cron.daily/logrotate never fires and rotated logs never reach S3.
-      'systemctl enable crond',
-      'systemctl start crond',
-    );
-
-    addSwapCommands(userData);
-    addDualStackSsmAgentCommands(userData);
-    addCloudflareOriginCaCommands(userData);
-
-    userData.addCommands(
-      // ── /etc/bootstrap.env: the per-environment half ─────────────────────────
-      // Read by setup.sh, start.sh, deploy.sh and upload-logs.sh. It carries SSM
-      // parameter *names*, never their values — the secrets are read at service
-      // start by the instance role, so they never touch the launch template, which
-      // is world-readable to anyone with ec2:DescribeLaunchTemplateVersions.
-      `cat > /etc/bootstrap.env << 'BOOTSTRAP'`,
-      `AWS_REGION=${this.region}`,
-      `DEPLOYMENTS_BUCKET=${deploymentsBucketName}`,
-      `LOGS_BUCKET=${logsBucketName}`,
-      `VALKEY_URL_PARAM=${valkeyUrlSsmPath}`,
-      `CTECH_JWKS_URL_PARAM=${accountInternalJwksUrlParameter}`,
-      `CTECH_URL_PARAM=${accountInternalBaseUrlParameter}`,
-      `CTECH_ISSUER_URL_PARAM=${accountIssuerUrlParameter}`,
-      `APP_URL_PARAM=${appUrlParameter}`,
-      `BILLING_WEBHOOK_SECRET_PARAM=${billingWebhookSecretParameter}`,
-      `BILLING_API_URL_PARAM=${billingBaseUrlParameter}`,
-      `BILLING_CLIENT_ID_PARAM=${billingClientIdParameter}`,
-      `BILLING_CLIENT_SECRET_PARAM=${billingClientSecretParameter}`,
-      `BOOTSTRAP`,
-
-      // ── Static env file (loaded by systemd EnvironmentFile=) ─────────────────
-      // CDK tokens are substituted at synthesis time; bash does not expand them.
       `cat > /etc/app-static.env << 'ENV'`,
       `ENVIRONMENT=${environment}`,
       `TABLE_PREFIX=${environment}_dfe`,
@@ -167,35 +133,50 @@ export class ApiStack extends cdk.Stack {
       `ENV`,
     );
 
-    // ── The static half, from S3 ──────────────────────────────────────────────
-    userData.addS3DownloadCommand({
-      bucket: bootstrap.bucket,
-      bucketKey: bootstrap.s3ObjectKey,
-      localFile: '/tmp/api-bootstrap.zip',
-    });
-    userData.addCommands(
-      'rm -rf /opt/bootstrap',
-      'mkdir -p /opt/bootstrap',
-      'unzip -o /tmp/api-bootstrap.zip -d /opt/bootstrap',
-      // Zip does not carry the exec bit through CDK's asset staging.
-      'chmod +x /opt/bootstrap/*.sh',
+    // Secrets are read by name at service start, never embedded: the launch
+    // template is readable by anyone holding ec2:DescribeLaunchTemplateVersions.
+    scripts.run(userData, 'setup-ssm-env.sh',
+      `VALKEY_URL=${valkeyUrlSsmPath}`,
+      `CTECH_JWKS_URL=${accountInternalJwksUrlParameter}`,
+      `CTECH_URL=${accountInternalBaseUrlParameter}`,
+      `CTECH_ISSUER_URL=${accountIssuerUrlParameter}`,
+      `SERVICE_AUDIENCE=${appUrlParameter}`,
+      `BILLING_WEBHOOK_SECRET=${billingWebhookSecretParameter}`,
+      `BILLING_API_URL=${billingBaseUrlParameter}`,
+      `BILLING_CLIENT_ID=${billingClientIdParameter}`,
+      `BILLING_CLIENT_SECRET=${billingClientSecretParameter}`,
     );
 
-    // Before setup.sh, which is what first starts nginx: the fragment generates
-    // realip.conf, and nginx must never serve a request with the ALB as the
-    // rate-limit key.
-    addRealipRefreshCommands(userData, vpc.vpcCidrBlock);
+    // CORS_ALLOWED_ORIGINS is derived, not fetched — the escape hatch start.sh
+    // sources after load-ssm-env.sh.
+    userData.addCommands(
+      `cat > /opt/app/service-env.sh << 'SERVICEENV'`,
+      `CORS_ALLOWED_ORIGINS="$SERVICE_AUDIENCE"`,
+      `export CORS_ALLOWED_ORIGINS`,
+      `SERVICEENV`,
+      `chmod 0755 /opt/app/service-env.sh`,
+    );
 
-    userData.addCommands('/opt/bootstrap/setup.sh');
+    // Per-service nginx additions, installed before setup-nginx.sh runs `nginx -t`.
+    userData.addCommands(
+      ...nginxFragment('http-dfe.conf', 'HTTPDFE'),
+      ...nginxFragment('location-dfe.conf', 'LOCDFE'),
+      ...nginxFragment('proxy-dfe.conf', 'PROXYDFE'),
+    );
 
-    addCloudWatchAgentDualStackOverride(userData);
+    scripts.run(userData, 'setup-realip.sh', vpc.vpcCidrBlock);
+    scripts.run(userData, 'setup-nginx.sh', '8080', '8000', '/v1.0/health-check', '100', '20m');
+    scripts.run(userData, 'setup-app-service.sh', 'CTech DFe API', 'app', 'network.target nginx.service');
+    scripts.run(userData, 'setup-deploy.sh', deploymentsBucketName, 'app',
+      'http://127.0.0.1:8080/v1.0/health-check');
+    scripts.run(userData, 'setup-logs.sh', logsBucketName, svcName, svcName,
+      '/var/log/app', '/var/log/nginx');
 
     userData.addCommands(
-      // Generated rather than shipped in the asset: the log group names and the
-      // metric namespace are CloudFormation values, and `buildCloudWatchAgentConfig`
-      // is shared with every other CTech service. ~1.5 KB, which the budget affords.
-      // {instance_id} is resolved by the CW agent at runtime, not by bash.
-      `cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWA'`,
+      // Generated rather than shipped: the log group names and metric namespace
+      // are CloudFormation values. {instance_id} is resolved by the CW agent at
+      // runtime, not by bash.
+      `cat > /tmp/cwagent.json << 'CWA'`,
       buildCloudWatchAgentConfig({
         metricNamespace: `CtechDfe/${environment}/Host`,
         appProcessPattern: '/opt/app/current/(app|bootstrap)',
@@ -206,11 +187,9 @@ export class ApiStack extends cdk.Stack {
         ],
       }),
       `CWA`,
-      `/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s`,
-
-      // ── Bootstrap: deploy current.zip if it already exists in S3 ────────────
-      `aws s3api head-object --bucket "${deploymentsBucketName}" --key "ctech-dfe/api/current.zip" 2>/dev/null && /opt/app/deploy.sh ctech-dfe/api/current.zip || echo "No bootstrap artifact, waiting for first deploy"`,
     );
+    scripts.run(userData, 'setup-cloudwatch-agent.sh', '/tmp/cwagent.json');
+    scripts.run(userData, 'bootstrap-deploy.sh', deploymentsBucketName, 'ctech-dfe/api/current.zip');
 
     // ctech-lbalancer still owns the bootstrap route and private CNAME.
     const service = new HaproxyEc2Service(this, 'ApiService', {
