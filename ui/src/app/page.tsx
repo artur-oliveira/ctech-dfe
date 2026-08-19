@@ -147,7 +147,7 @@ function LoadingScreen() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-login">
       <div className="text-center">
-        <Image src="/app.svg" alt="" aria-hidden="true" width={64} height={64} className="mx-auto mb-4" priority/>
+        <Image src="/app.svg" alt="" aria-hidden="true" width={64} height={64} className="mx-auto mb-4" priority unoptimized/>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CTech DF-e</h1>
         <p className="text-gray-600 text-sm">Carregando...</p>
       </div>
@@ -170,7 +170,7 @@ export default function Home() {
     <div className="min-h-screen bg-white" data-dfe-theme={carouselTheme}>
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2.5">
-          <Image src="/app.svg" alt="" aria-hidden="true" width={32} height={32} priority/>
+          <Image src="/app.svg" alt="" aria-hidden="true" width={32} height={32} priority unoptimized/>
           <span className="font-semibold text-gray-900">CTech DFe</span>
         </div>
         <div className="flex items-center gap-2">
@@ -300,6 +300,7 @@ export default function Home() {
                 height={800}
                 sizes="(max-width: 768px) 100vw, 700px"
                 className="w-full"
+                unoptimized
               />
             </figure>
           </div>

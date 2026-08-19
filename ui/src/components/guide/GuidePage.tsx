@@ -16,7 +16,7 @@ export function GuideChrome({children}: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/app.svg" alt="" aria-hidden="true" width={28} height={28}/>
+            <Image src="/app.svg" alt="" aria-hidden="true" width={28} height={28} unoptimized/>
             <span className="font-semibold text-gray-900">CTech DF-e</span>
             <span className="hidden text-sm text-gray-400 sm:inline">Guia</span>
           </Link>
@@ -137,6 +137,7 @@ export function GuidePage({
                       height={800}
                       sizes="(max-width: 1024px) 100vw, 760px"
                       className="w-full"
+                      unoptimized
                     />
                   </figure>
                 )}

@@ -63,6 +63,7 @@ export default function GuideHome() {
               sizes="(max-width: 768px) 100vw, 360px"
               className="w-full"
               priority
+              unoptimized
             />
           </figure>
         </section>

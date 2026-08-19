@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
@@ -37,10 +38,6 @@ const (
 	logFieldStatus     = "status"
 	logFieldBody       = "body"
 )
-
-// Política de retry idêntica à de internal/services/client.go: só
-// infraestrutura, nunca rejeição de negócio.
-const backoffBase = 1 * time.Second
 
 var retryableHTTPStatus = map[int]bool{500: true, 502: true, 503: true, 504: true}
 
@@ -130,7 +127,7 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 			select {
 			case <-ctx.Done():
 				return 0, ctx.Err()
-			case <-time.After(time.Duration(attempt) * backoffBase):
+			case <-time.After(services.BackoffDuration(attempt)):
 			}
 		}
 
