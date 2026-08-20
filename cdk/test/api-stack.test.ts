@@ -82,8 +82,9 @@ test('the CloudWatch agent ships logs only, and the ASG stays at one instance', 
   })
 })
 
-test('the SSM agent stays on unless it is explicitly disabled', () => {
-  // CI deploys through SSM RunCommand (.github/workflows/api.yml) and the box has
-  // no other ingress, so the default must not silently drop Session Manager.
-  expect(userDataText(synth())).not.toContain('disable --now amazon-ssm-agent')
+test('the SSM agent is disabled by default', () => {
+  // Deploys replace the instances through an ASG instance refresh, so nothing
+  // runs over RunCommand any more and the agent's ~70 MiB is pure overhead on a
+  // t4g.nano. enableSsmAgent: true is the escape hatch for a debugging shell.
+  expect(userDataText(synth())).toContain('disable --now amazon-ssm-agent')
 })

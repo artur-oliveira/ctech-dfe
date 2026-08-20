@@ -97,49 +97,54 @@ jobs:
           # Overwrite current.zip so new ASG instances bootstrap this version
           aws s3 cp "$ARCHIVE_FILE" "s3://${DEPLOYMENTS_BUCKET}/ctech-dfe/api/current.zip"
 
-      - name: Rolling deploy via SSM
+      - name: Deploy via ASG instance refresh
         run: |
-          INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
+          # The SSM agent is disabled on these instances, so a deploy replaces
+          # them instead of running /opt/app/deploy.sh over RunCommand. New
+          # instances bootstrap current.zip from S3, which the previous step
+          # just overwrote.
+          #
+          # MinHealthyPercentage=0 launches no replacement before the old
+          # instance is gone: the service is DOWN for the length of the refresh.
+          # Deliberate while this is a development environment on one t4g.nano.
+          # SkipMatching must stay false — the launch template is unchanged by a
+          # deploy, so a matching check would skip every instance.
+          DESIRED=$(aws autoscaling describe-auto-scaling-groups \
             --auto-scaling-group-names "$ASG_NAME" \
-            --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService`].InstanceId' \
-            --output text | tr '\t' ',')
-
-          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-            echo "No running instances found in ASG $ASG_NAME"
+            --query 'AutoScalingGroups[0].DesiredCapacity' --output text)
+          if [ "$DESIRED" = "0" ] || [ "$DESIRED" = "None" ]; then
+            echo "ASG $ASG_NAME is scaled to zero (outside the schedule window); the next instance boots this artifact."
             exit 0
           fi
 
-          echo "Deploying to instances: $INSTANCE_IDS"
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --preferences '{"MinHealthyPercentage":0,"SkipMatching":false}' \
+            --query InstanceRefreshId --output text)
+          echo "Instance refresh $REFRESH_ID started"
 
-          COMMAND_ID=$(aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --targets "Key=instanceids,Values=$INSTANCE_IDS" \
-            --parameters "commands=['/opt/app/deploy.sh ctech-dfe/api/current.zip']" \
-            --timeout-seconds 300 \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM Command ID: $COMMAND_ID"
-
-          # Wait for all instances to complete
-          for INSTANCE_ID in $(echo $INSTANCE_IDS | tr ',' ' '); do
-            echo "Waiting for $INSTANCE_ID..."
-            aws ssm wait command-executed \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID"
-
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID" \
-              --query "Status" --output text)
-
-            if [ "$STATUS" != "Success" ]; then
-              echo "Deploy failed on $INSTANCE_ID (status: $STATUS)"
-              aws ssm get-command-invocation \
-                --command-id "$COMMAND_ID" \
-                --instance-id "$INSTANCE_ID" \
-                --query "StandardErrorContent" --output text
-              exit 1
-            fi
-            echo "✓ $INSTANCE_ID deployed successfully"
+          # There is no `aws autoscaling wait` for instance refreshes.
+          for _ in $(seq 1 60); do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --instance-refresh-ids "$REFRESH_ID" \
+              --query 'InstanceRefreshes[0].Status' --output text)
+            case "$STATUS" in
+              Successful)
+                echo "Instance refresh completed"
+                exit 0
+                ;;
+              Failed|Cancelled|RollbackSuccessful|RollbackFailed)
+                echo "::error::Instance refresh ended as $STATUS"
+                aws autoscaling describe-instance-refreshes \
+                  --auto-scaling-group-name "$ASG_NAME" \
+                  --instance-refresh-ids "$REFRESH_ID" \
+                  --query 'InstanceRefreshes[0].StatusReason' --output text
+                exit 1
+                ;;
+            esac
+            echo "Status: $STATUS"
+            sleep 15
           done
+          echo "::error::Instance refresh did not finish within 15 minutes"
+          exit 1

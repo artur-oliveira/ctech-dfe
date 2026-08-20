@@ -2391,12 +2391,21 @@ subscription added outside CloudFormation.
 namespace (2026-08-19). EC2 already publishes CPUUtilization and CPUCreditBalance for free, and
 the host/process series the agent published (mem, swap, disk, app RSS) were never alarmed on.
 
-### SSM agent — a knob, default on
+### SSM agent — off by default
 
-`ENABLE_SSM_AGENT=false cdk deploy` stops the agent in user data, reclaiming ~70 MiB of RSS on a
-t4g.nano. It is **on by default** because `.github/workflows/api.yml` deploys through SSM
-RunCommand and the instances have no other ingress (no public IPv4, no SSH). Same knob as
-`ctech-lbalancer`, `ctech-billing` and `ctech-account`. Changing it replaces the instances.
+The agent is **disabled in user data**. Deploys replace the instances through an ASG instance
+refresh, so nothing runs over RunCommand any more, and the agent costs ~70 MiB of RSS on a
+t4g.nano. `ENABLE_SSM_AGENT=true cdk deploy` puts it back when you need a Session Manager shell —
+the instances have no other ingress (no public IPv4, no SSH). Same knob as `ctech-lbalancer`,
+`ctech-billing`, `ctech-wallet`, `ctech-poker` and `ctech-account`. Changing it replaces the
+instances.
+
+### ASG schedule — 11:55 to 13:15
+
+Scheduled actions bring the ASG up at **11:55** and take it down at **13:15**
+America/Sao_Paulo. Outside that window the API is unreachable and inbound webhooks fail —
+deliberate for a development environment on a single t4g.nano. A deploy that lands outside the
+window exits early; the next scheduled instance boots the artifact from S3.
 
 ### Cost allocation tags
 
@@ -2607,11 +2616,11 @@ GitHub push → api.yml
      c. upload S3 api/{version}.zip  (expires 30 days via lifecycle)
                   api/current.zip   (always points to latest version)
      d. refresh   aws autoscaling start-instance-refresh
-                    MinHealthyPercentage: 100   ← never reduces capacity
-                    MaxHealthyPercentage: 200   ← brings up new instances before terminating old ones
-                    InstanceWarmup: 300s
-                    AutoRollback: true          ← reverts if health check fails
-     e. wait      polling every 30s until Successful | Failed | Cancelled
+                    MinHealthyPercentage: 0     ← no replacement before the old instance goes
+                                                  away: the service is DOWN during the refresh
+                    SkipMatching: false         ← a deploy does not change the launch template,
+                                                  so matching would skip every instance
+     e. wait      polling every 15s until Successful | Failed | Cancelled
 ```
 
 New instances auto-bootstrap via `api/current.zip` on boot (user data) — installs binary to
