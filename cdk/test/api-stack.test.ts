@@ -64,3 +64,26 @@ test('no secret value is written into the launch template', () => {
   expect(text).toContain("'BILLING_CLIENT_SECRET=/ctech-dfe/prod/billing/client-secret'")
   expect(text).not.toMatch(/BILLING_CLIENT_SECRET=(?!\/|\$)/)
 })
+
+test('the CloudWatch agent ships logs only, and the ASG stays at one instance', () => {
+  const template = synth()
+
+  // No `metrics` block and no custom namespace: EC2 already publishes
+  // CPUUtilization and CPUCreditBalance for free.
+  const userData = userDataText(template)
+  expect(userData).toContain('"logs_collected"')
+  expect(userData).not.toContain('CtechDfe/prod/Host')
+  expect(userData).not.toContain('"metrics"')
+
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
+  template.hasResourceProperties('AWS::AutoScaling::AutoScalingGroup', {
+    MinSize: '1',
+    MaxSize: '1',
+  })
+})
+
+test('the SSM agent stays on unless it is explicitly disabled', () => {
+  // CI deploys through SSM RunCommand (.github/workflows/api.yml) and the box has
+  // no other ingress, so the default must not silently drop Session Manager.
+  expect(userDataText(synth())).not.toContain('disable --now amazon-ssm-agent')
+})

@@ -5,7 +5,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
-import {buildCloudWatchAgentConfig, Ec2ScriptRunner, HaproxyEc2Service} from '@aoctech/cdk';
+import {Ec2ScriptRunner, HaproxyEc2Service} from '@aoctech/cdk';
 import {Environment} from './types';
 
 /** Emits `cat > /etc/nginx/conf.d/<name> << 'DELIM' … DELIM` for a checked-in file. */
@@ -36,6 +36,11 @@ interface ApiStackProps extends cdk.StackProps {
   // SSM path written by ValkeyStack at boot. If omitted, VALKEY_URL is not set
   // and the app falls back to NoCacheBackend.
   valkeyUrlSsmPath: string;
+  // Session Manager. Same knob as ctech-lbalancer and ctech-billing: the agent
+  // costs ~70 MiB of RSS on a t4g.nano, so it is a switch rather than a given.
+  // Off means no shell onto the box and no SSM RunCommand target — which is how
+  // .github/workflows/api.yml deploys, so turning it off breaks CI deploys.
+  enableSsmAgent?: boolean;
 }
 
 export class ApiStack extends cdk.Stack {
@@ -56,6 +61,7 @@ export class ApiStack extends cdk.Stack {
       nfeEmissionTopicArn,
       distributionQueueUrl,
       valkeyUrlSsmPath,
+      enableSsmAgent = true,
     } = props;
 
     // ── Shared infrastructure from ctech-cdk (resolved at deploy time via SSM) ─
@@ -115,6 +121,12 @@ export class ApiStack extends cdk.Stack {
     scripts.run(userData, 'setup-dualstack.sh');
     scripts.run(userData, 'setup-cloudflare-ca.sh');
 
+    // setup-base.sh installs the SSM agent and setup-dualstack.sh starts it, so
+    // this is what stops it again.
+    if (!enableSsmAgent) {
+      userData.addCommands('systemctl disable --now amazon-ssm-agent 2>/dev/null || true');
+    }
+
     // /etc/app-static.env: non-secret values systemd loads via EnvironmentFile.
     // CDK tokens are substituted at synthesis; bash does not expand them.
     userData.addCommands(
@@ -172,19 +184,25 @@ export class ApiStack extends cdk.Stack {
     scripts.run(userData, 'setup-logs.sh', logsBucketName, svcName, svcName,
       '/var/log/app', '/var/log/nginx');
 
+    // Logs only. No `metrics` block: EC2 already publishes CPUUtilization and
+    // CPUCreditBalance for free, and every custom series this service used to
+    // publish was either that again or a number nobody alarmed on.
+    // {instance_id} is resolved by the CW agent at runtime, not by bash.
     userData.addCommands(
-      // Generated rather than shipped: the log group names and metric namespace
-      // are CloudFormation values. {instance_id} is resolved by the CW agent at
-      // runtime, not by bash.
       `cat > /tmp/cwagent.json << 'CWA'`,
-      buildCloudWatchAgentConfig({
-        metricNamespace: `CtechDfe/${environment}/Host`,
-        appProcessPattern: '/opt/app/current/(app|bootstrap)',
-        logFiles: [
-          {filePath: '/var/log/app/app.log', logGroupName: logGroupApp, logStreamName: '{instance_id}'},
-          {filePath: '/var/log/nginx/access.log', logGroupName: logGroupNginx, logStreamName: '{instance_id}/access'},
-          {filePath: '/var/log/nginx/error.log', logGroupName: logGroupNginx, logStreamName: '{instance_id}/error'},
-        ],
+      JSON.stringify({
+        agent: {metrics_collection_interval: 60},
+        logs: {
+          logs_collected: {
+            files: {
+              collect_list: [
+                {file_path: '/var/log/app/app.log', log_group_name: logGroupApp, log_stream_name: '{instance_id}'},
+                {file_path: '/var/log/nginx/access.log', log_group_name: logGroupNginx, log_stream_name: '{instance_id}/access'},
+                {file_path: '/var/log/nginx/error.log', log_group_name: logGroupNginx, log_stream_name: '{instance_id}/error'},
+              ],
+            },
+          },
+        },
       }),
       `CWA`,
     );

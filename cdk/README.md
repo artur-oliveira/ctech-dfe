@@ -30,7 +30,7 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 | `OidcStack` | `CtechDfe-Global-OIDC` | GitHub Actions OIDC deploy roles (`bin:60-65`) |
 | `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 26 tables, including streamed worker outbox (§4) (`bin:70-75`) |
 | `S3Stack` | `CtechDfe-{Env}-S3` | Certificates + Documents buckets (`bin:79-84`) |
-| `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results SQS (`bin:86-90`) |
+| `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results SQS, no alarms (`bin:86-90`) |
 | `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (`bin:97-101`) |
 | `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher + outbox publisher (§2/§3) (`bin:105-116`) |
 | `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies (`bin:118-130`) |
@@ -57,7 +57,7 @@ Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
 - **DLQ processor** per worker: `${env}-{name}-dlq-processor`, timeout 30 / mem 128
   (`worker-stack.ts:273-290`).
 - **outbox-publisher**: `${env}-dfe-outbox-publisher`, consumes `${p}_worker_outbox` `NEW_IMAGE` stream records,
-  publishes command SNS, and conditionally acknowledges the row; its own DLQ has a CloudWatch alarm.
+  publishes command SNS, and conditionally acknowledges the row; its own DLQ has no alarm (2026-08-19).
 - **distribution-dispatcher**: `${env}-distribution-dispatcher`, timeout 60 / mem 128,
   EventBridge schedule every **30 min** (`worker-stack.ts:346-368`).
 - **py-dfe**: `${env}-py-dfe`, Python 3.14, arm64, timeout 30 / mem 512, handler
@@ -69,7 +69,8 @@ Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
 
 All **standard** (no FIFO anywhere).
 - SNS: `${env}-ctech-dfe` (event/command bus), `${env}-ctech-dfe-results` (results),
-  `${env}-ctech-dfe-results-ops-alerts`, `${env}-dfe-ops-alerts` (per-worker DLQ alarms).
+  `${env}-ctech-dfe-results-ops-alerts`, `${env}-dfe-ops-alerts` — both kept for out-of-band
+  subscriptions, but no alarm publishes to either any more (2026-08-19).
 - SQS: per-worker main queue `${env}-{queue}` → DLQ, `maxReceiveCount: 3`; DLQ retention
   **14 days** (`worker-stack.ts:107-129`). Results queue retention **1h**, DLQ 14d
   (`event-bus-stack.ts:42-65`). Event source `batchSize: 1`, `reportBatchItemFailures: true`

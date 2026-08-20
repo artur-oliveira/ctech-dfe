@@ -8,8 +8,6 @@ import * as lambdaEvents from 'aws-cdk-lib/aws-lambda-event-sources'
 import * as scheduler from 'aws-cdk-lib/aws-scheduler'
 import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
-import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions'
 import {Construct} from 'constructs'
 import {WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
@@ -104,7 +102,10 @@ export class WorkerStack extends cdk.Stack {
     // =========================
     const queueById = new Map<string, sqs.Queue>()
 
-    const opsAlertsTopic = new sns.Topic(this, 'ops-alerts-topic', {
+    // Kept without an alarm attached: the topic may carry email/chat
+    // subscriptions added outside CloudFormation, and destroying it would drop
+    // them. Publish to it from an alarm again if DLQ paging comes back.
+    new sns.Topic(this, 'ops-alerts-topic', {
       topicName: `${environment}-dfe-ops-alerts`,
     })
 
@@ -318,16 +319,6 @@ export class WorkerStack extends cdk.Stack {
       retentionPeriod: Duration.days(14),
       receiveMessageWaitTime: Duration.seconds(20),
     })
-    new cloudwatch.Alarm(this, 'outbox-publisher-dlq-alarm', {
-      alarmName: `${environment}-dfe-outbox-publisher-dlq-alarm`,
-      alarmDescription: 'A durable DFe command could not be published from the transactional outbox.',
-      metric: outboxDlq.metricApproximateNumberOfMessagesVisible({period: Duration.minutes(1)}),
-      threshold: 1,
-      evaluationPeriods: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
-
     const outboxRole = new iam.Role(this, 'outbox-publisher-role', {
       roleName: `${environment}-dfe-outbox-publisher-role`,
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),

@@ -849,7 +849,8 @@ Must follow Conventional Commits:
   ride on a terminal result: the WebSocket notification, and the money (usage report on
   `authorized`, quota refund on `rejected`/`failed`). Deleting on failure would drop a usage report
   with nothing but a log line behind it; leaving the message costs three redeliveries and then the
-  results DLQ alarm, which is the signal an operator can act on. Both sides are idempotent, so a
+  results DLQ, which an operator redrives (there is no alarm on it since 2026-08-19 — depth is a
+  console check). Both sides are idempotent, so a
   redrive is safe — the usage report by its access key, the refund by its `refund:{meter}:{key}`
   marker. Anything added to the settlement path has to keep that property.
 - `CRUDRepository[T]`'s `Create`/`BuildCreateTxItem`/`BuildCreateTxItemIfAbsent` marshal `entity T`

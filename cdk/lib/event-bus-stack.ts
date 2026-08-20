@@ -3,8 +3,6 @@ import * as sns from 'aws-cdk-lib/aws-sns'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions'
 import * as iam from 'aws-cdk-lib/aws-iam'
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
-import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions'
 import {Construct} from 'constructs'
 import {Environment} from './types'
 
@@ -35,7 +33,10 @@ export class EventBusStack extends cdk.Stack {
       displayName: `CTech DF-e Results Bus - ${environment}`,
     })
 
-    const opsAlertsTopic = new sns.Topic(this, 'results-ops-alerts-topic', {
+    // Kept without an alarm attached: the topic may carry email/chat
+    // subscriptions added outside CloudFormation, and destroying it would drop
+    // them. Publish to it from an alarm again if DLQ paging comes back.
+    new sns.Topic(this, 'results-ops-alerts-topic', {
       topicName: `${environment}-ctech-dfe-results-ops-alerts`,
     })
 
@@ -44,16 +45,6 @@ export class EventBusStack extends cdk.Stack {
       retentionPeriod: cdk.Duration.days(14),
       receiveMessageWaitTime: cdk.Duration.seconds(20),
     })
-
-    new cloudwatch.Alarm(this, 'ResultsQueue-dlq-alarm', {
-      alarmName: `${environment}-ctech-dfe-results-dlq-alarm`,
-      alarmDescription: 'One or more messages landed in the results DLQ — a worker→api result failed after all retries. Two things ride on this message: the WebSocket notification, and the billing settlement (usage report for a metered plan, quota refund for a rejection). Redrive it: both are idempotent.',
-      metric: resultsDlq.metricApproximateNumberOfMessagesVisible({period: cdk.Duration.minutes(1)}),
-      threshold: 1,
-      evaluationPeriods: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    }).addAlarmAction(new cwActions.SnsAction(opsAlertsTopic))
 
     const resultsQueue = new sqs.Queue(this, 'ResultsQueue', {
       queueName: `${environment}-ctech-dfe-results`,

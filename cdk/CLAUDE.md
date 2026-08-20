@@ -24,7 +24,7 @@ cdk/
 │   ├── network-stack.ts        # VPC, subnets, security groups
 │   ├── iam-stack.ts            # Lambda + EC2 IAM roles
 │   ├── dfe-stack.ts            # py-dfe Lambda
-│   ├── worker-stack.ts         # Worker Lambdas + SQS (standard) + DLQ + CloudWatch alarms
+│   ├── worker-stack.ts         # Worker Lambdas + SQS (standard) + DLQ (no alarms)
 │   ├── api-stack.ts         # EC2 ASG + ALB target group
 │   ├── frontend-stack.ts       # S3 + CloudFront
 │   └── ...                     # Other stacks (see DOCS.md §8)

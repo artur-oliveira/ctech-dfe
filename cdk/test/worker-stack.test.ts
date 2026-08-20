@@ -60,22 +60,14 @@ test('only the distribution worker can transact on persons and audit logs', () =
   expect(resources).not.toContain('/index/*')
 })
 
-// Per-worker DLQ alarms were removed (2026-08-17): most billed CloudWatch alarm-months
-// beyond the free tier with no one subscribed to receive them. Only the outbox-publisher
-// DLQ alarm remains — it is upstream of every worker queue, so a stuck outbox message
-// implies every downstream DLQ is also stuck.
-test('only the outbox-publisher DLQ has a CloudWatch alarm wired to the ops-alerts topic', () => {
+// No CloudWatch alarms at all (2026-08-19): the last one, on the outbox-publisher
+// DLQ, went the way of the per-worker alarms — billed alarm-months with nobody
+// subscribed to receive them. The ops-alerts topic is kept for out-of-band
+// subscriptions; DLQ depth is checked from the console or a redrive runbook.
+test('the worker stack creates no CloudWatch alarms', () => {
   const template = buildTemplate()
 
-  template.resourceCountIs('AWS::CloudWatch::Alarm', 1)
-  template.hasResourceProperties('AWS::CloudWatch::Alarm', {
-    AlarmName: 'dev-dfe-outbox-publisher-dlq-alarm',
-    ComparisonOperator: 'GreaterThanOrEqualToThreshold',
-    EvaluationPeriods: 1,
-    Threshold: 1,
-    Namespace: 'AWS/SQS',
-    MetricName: 'ApproximateNumberOfMessagesVisible',
-  })
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
 })
 
 // Regression: NFS-e emission silently vanished because no queue was subscribed to

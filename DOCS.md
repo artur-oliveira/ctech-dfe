@@ -2372,15 +2372,31 @@ All queues (main + DLQ) in `worker-stack.ts` and `event-bus-stack.ts` set
 short-polls (`ReceiveMessage` returns immediately on an empty queue), which can exhaust the
 1M-request/month SQS free tier in under a week on an idle system. See `CONDUCT.md §7 — SQS`.
 
-### CloudWatch alarms — outbox-only, not per-worker DLQ
+### CloudWatch alarms — none
 
-`WorkerStack` no longer creates a `dlq-alarm` per worker (2026-08-17). With 34 alarms live
-across the account, standard-resolution alarm billing (10 free/month, $0.10/alarm-month after)
-had pushed CloudWatch cost from $0 to ~$0.11/day. The 10 per-worker DLQ alarms were unmonitored
-(`prod-dfe-ops-alerts` / the results topic had zero SNS subscriptions) and redundant: every
-worker queue is fed from the transactional outbox, so a stuck outbox message
-(`outbox-publisher-dlq-alarm`, kept) implies every downstream worker DLQ is also stuck. Only
-`outbox-publisher-dlq-alarm` and `ResultsQueue-dlq-alarm` (`event-bus-stack.ts`) remain.
+The CDK creates no CloudWatch alarms at all (2026-08-19). The per-worker DLQ alarms went first
+(2026-08-17): with 34 alarms live across the account, standard-resolution alarm billing (10
+free/month, $0.10/alarm-month after) had pushed CloudWatch cost from $0 to ~$0.11/day, and the
+10 per-worker alarms were unmonitored — `prod-dfe-ops-alerts` and the results topic had zero SNS
+subscriptions. The last two, `outbox-publisher-dlq-alarm` and `ResultsQueue-dlq-alarm`, were
+removed for the same reason: nobody was subscribed, so they billed without ever reaching a human.
+
+**What replaces them:** nothing automatic. DLQ depth is a console check or a redrive runbook.
+Both SNS topics are still created so an alarm can be pointed back at them without breaking any
+subscription added outside CloudFormation.
+
+### Custom CloudWatch metrics — none
+
+`ApiStack`'s CloudWatch agent config is logs-only: no `metrics` block, no `CtechDfe/{env}/Host`
+namespace (2026-08-19). EC2 already publishes CPUUtilization and CPUCreditBalance for free, and
+the host/process series the agent published (mem, swap, disk, app RSS) were never alarmed on.
+
+### SSM agent — a knob, default on
+
+`ENABLE_SSM_AGENT=false cdk deploy` stops the agent in user data, reclaiming ~70 MiB of RSS on a
+t4g.nano. It is **on by default** because `.github/workflows/api.yml` deploys through SSM
+RunCommand and the instances have no other ingress (no public IPv4, no SSH). Same knob as
+`ctech-lbalancer`, `ctech-billing` and `ctech-account`. Changing it replaces the instances.
 
 ### Cost allocation tags
 
