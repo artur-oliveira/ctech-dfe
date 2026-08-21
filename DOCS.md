@@ -545,12 +545,12 @@ in the same change.
 
 Spec validity is checked with `make openapi-lint` (requires Node; not part of `go test`).
 
-**Reachability:** the three routes are served by the API host (`dfe-api.aoctech.app`) and also
-forwarded by CloudFront from the app domain (`DOCS_PATH_PATTERNS` in `cdk/lib/frontend-stack.ts`),
-so `dfe.aoctech.app/docs` works. That behavior carries its own `ResponseHeadersPolicy`: Elements
-loads from unpkg, and the app-wide CSP (`script-src 'self'`) would block it — the CDN exception is
-scoped to the docs paths and is not granted to any application page. `next dev` mirrors the same
-forwarding through `ui/next.config.ts` rewrites.
+**Reachability:** the three routes are served by the API host only — `dfe-api.aoctech.app/docs`,
+`/openapi.json`, `/openapi.yaml`. The app domain no longer forwards them: the frontend is served by
+Cloudflare, which proxies nothing (see `ctech-cdk/docs/plans/2026-08-20-frontend-cloudflare-migration.md`,
+D1 and D5). This also retires the separate docs `ResponseHeadersPolicy` that widened `script-src` to
+unpkg for those paths — the app-wide CSP is now the only one, and no application page ever needed the
+exception. `next dev` still forwards `/docs` locally through `ui/next.config.ts` rewrites.
 
 ### API Reference
 
@@ -2293,7 +2293,7 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility/PDF Lambda                           |
 | `WorkerStack`   | `worker-stack.ts`    | Fiscal workers, outbox publisher, standard SQS/DLQs       |
 | `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG, logs, scaling, and HAProxy route manifest |
-| `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + URL-rewrite KVS                         |
+| `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + URL-rewrite KVS — retired, see below     |
 
 ### Network Architecture
 
@@ -2636,7 +2636,10 @@ See `DEPLOYMENT.md §EC2` for diagnostic commands and log analysis.
 ```bash
 cd ui
 npm install && npm run build
-# Production: S3 + CloudFront (CDK FrontendStack)
+# Production: Cloudflare Worker with static assets, deployed by
+# .github/workflows/frontend.yml calling ctech-cdk's reusable workflow.
+# FrontendStack (S3 + CloudFront) is kept deployed only as the rollback target
+# during the soak window and is torn down in Phase 4 of the migration plan.
 # Dev: npm run dev → http://localhost:3000
 ```
 

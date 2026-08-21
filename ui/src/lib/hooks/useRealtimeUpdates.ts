@@ -10,8 +10,9 @@ import {getAccessToken, subscribeAccessToken} from '@/lib/api/client'
 import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
 
 // `next dev` rewrites do not proxy the WebSocket upgrade, so local development
-// points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments leave it
-// unset and fall back to the app origin, which CloudFront forwards to the ALB.
+// points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments now set it
+// explicitly too: nothing is proxied at the edge, and the CSP connect-src is
+// built from these literals, so the wss:// origin has to appear as one.
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || ''
 
 function buildWsUrl(orgPk: string): string {

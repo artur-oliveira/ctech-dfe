@@ -3,9 +3,10 @@ import path from "path";
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Where `next dev` forwards /v1.0/* to. Mirrors what CloudFront does in front of
-// the ALB in deployed environments, so the browser is same-origin in dev too and
-// CORS never applies.
+// Where `next dev` forwards /v1.0/* to. Deployed environments do NOT do this any
+// more — the frontend is static on Cloudflare and the browser calls the API host
+// directly, with CORS. The dev rewrite stays only so local work needs no CORS
+// configuration; it is the one place where dev and prod differ on purpose.
 const DEV_API_ORIGIN = process.env.DEV_API_ORIGIN || 'http://localhost:8000';
 
 // rewrites() is unsupported by `output: 'export'` and only ever runs under
@@ -24,9 +25,9 @@ const nextConfig: NextConfig = {
       async rewrites() {
         return [
           {source: '/v1.0/:path*', destination: `${DEV_API_ORIGIN}/v1.0/:path*`},
-          // OpenAPI spec + Stoplight page. Served by the API outside /v1.0, and
-          // forwarded here for the same reason: CloudFront does it in deployed
-          // environments (DOCS_PATH_PATTERNS in cdk/lib/frontend-stack.ts).
+          // OpenAPI spec + Stoplight page. Served by the API outside /v1.0.
+          // Deployed environments reach them at dfe-api[-env].aoctech.app/docs;
+          // this rewrite is a local convenience only.
           ...['/docs', '/openapi.json', '/openapi.yaml'].map((source) => ({
             source,
             destination: `${DEV_API_ORIGIN}${source}`,

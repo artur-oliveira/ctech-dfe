@@ -1,0 +1,114 @@
+name: Frontend
+
+# Called by deploy.yml, which owns the trigger, the path filter and the
+# CDK → py-dfe → worker → API → Frontend ordering. Never triggered on push.
+on:
+  workflow_call:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            main)    echo "name=prod"  >> "$GITHUB_OUTPUT" ;;
+            staging) echo "name=stage" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "name=dev"   >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm run test
+
+      # NEXT_PUBLIC_API_URL points at the app domain, not dfe-api: CloudFront
+      # forwards /v1.0/* to the ALB, so the browser talks same-origin and never
+      # needs CORS. dfe-api stays reachable directly for the public API.
+      - name: Set environment
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-api.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          elif [ "$BRANCH" = "staging" ]; then
+            echo "ENVIRONMENT=stage" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-stage-api.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-stage.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_API_URL=https://dfe-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_URL=https://accounts-dev-api.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts-dev.aoctech.app" >> $GITHUB_ENV
+            echo "NEXT_PUBLIC_CTECH_CLIENT_ID=dfe" >> $GITHUB_ENV
+          fi
+
+      - name: Build (static export)
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::868899309401:role/ctech-dfe-gha-frontend
+          aws-region: us-east-1
+
+      - name: Read stack outputs
+        run: |
+          BUCKET="${ENVIRONMENT}-ctech-dfe-frontend"
+          STACK="CtechDfe-$(echo $ENVIRONMENT | sed 's/./\u&/')-Frontend"
+          OUTPUTS=$(aws cloudformation describe-stacks --stack-name "$STACK" \
+            --query "Stacks[0].Outputs" --output json 2>/dev/null || echo "[]")
+          echo "S3_BUCKET=$BUCKET" >> $GITHUB_ENV
+          echo "DISTRIBUTION_ID=$(echo "$OUTPUTS" | jq -r '.[]|select(.OutputKey=="DistributionId").OutputValue // empty')" >> $GITHUB_ENV
+          echo "ROUTE_STORE_ARN=$(echo "$OUTPUTS" | jq -r '.[]|select(.OutputKey=="RouteStoreArn").OutputValue // empty')" >> $GITHUB_ENV
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync out/ \
+            s3://${S3_BUCKET}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # HTML and JSON files: no-cache so updates are reflected immediately
+          aws s3 sync out/ \
+            s3://${S3_BUCKET}/ \
+            --delete \
+            --cache-control "no-cache" \
+            --include "*.html" \
+            --include "*.json"
+
+      # After the sync, so the route store can never advertise a page the bucket
+      # does not have. The url-rewrite function reads it to decide .html vs 404.
+      - name: Publish route manifest
+        run: ./scripts/publish-routes.sh "$ROUTE_STORE_ARN" out
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/*"

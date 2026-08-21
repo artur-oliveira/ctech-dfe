@@ -8,25 +8,31 @@ This document covers how ui (Next.js) authenticates against ctech-account and co
 
 ### ui
 
-| Variable                      | Example                        | Description                                               |
-|-------------------------------|--------------------------------|-----------------------------------------------------------|
-| `NEXT_PUBLIC_API_URL`         | `https://dfe.aoctech.app`      | api base URL — the **app** domain, empty locally          |
-| `DEV_API_ORIGIN`              | `http://localhost:8000`        | dev only: where `next dev` proxies `/v1.0/*`              |
-| `NEXT_PUBLIC_WS_URL`          | `http://localhost:8000`        | dev only: `next dev` does not proxy the WebSocket upgrade |
-| `NEXT_PUBLIC_CTECH_URL`       | `https://accounts.aoctech.app` | ctech-account base URL (serves both its UI and `/v1.0/*`) |
-| `NEXT_PUBLIC_CTECH_CLIENT_ID` | `dfe`                          | OAuth client_id registered in ctech                       |
+| Variable                       | Example                            | Description                                              |
+|--------------------------------|------------------------------------|----------------------------------------------------------|
+| `NEXT_PUBLIC_API_URL`          | `https://dfe-api.aoctech.app`      | api base URL — the **API** host, empty locally           |
+| `DEV_API_ORIGIN`               | `http://localhost:8000`            | dev only: where `next dev` proxies `/v1.0/*`             |
+| `NEXT_PUBLIC_WS_URL`           | `wss://dfe-api.aoctech.app`        | WebSocket base; `http://localhost:8000` locally          |
+| `NEXT_PUBLIC_CTECH_URL`        | `https://accounts-api.aoctech.app` | ctech-account **API** base URL (OAuth token exchange)    |
+| `NEXT_PUBLIC_CTECH_CLIENT_URL` | `https://accounts.aoctech.app`     | ctech-account **app** URL (where `login()` redirects to) |
+| `NEXT_PUBLIC_CTECH_CLIENT_ID`  | `dfe`                              | OAuth client_id registered in ctech                      |
 
-> Browsers normally use same-origin API paths. CloudFront forwards
-> `dfe.aoctech.app/v1.0/*` to the proxied `dfe-api.aoctech.app` origin, which reaches HAProxy;
-> `next dev` reproduces that with a rewrite (`ui/next.config.ts`). `dfe-api.aoctech.app` stays
-> public for the API's own clients.
+> **Nothing is proxied at the edge.** The frontend is a static export served by a Cloudflare Worker,
+> so the browser calls `dfe-api.aoctech.app` directly and CORS applies. The API already allows it:
+> `CORS_ALLOWED_ORIGINS="$SERVICE_AUDIENCE"` (the app URL) with `AllowCredentials`. `next dev` still
+> rewrites `/v1.0/*` to `DEV_API_ORIGIN` so local work needs no CORS setup — that is the one place
+> dev and deployed environments differ on purpose.
 >
-> `/docs`, `/openapi.json` and `/openapi.yaml` are forwarded the same way, so the API reference is
-> reachable at `dfe.aoctech.app/docs` (and at `localhost:3000/docs` under `next dev`).
+> The WebSocket goes to the same API host (`wss://dfe-api.aoctech.app/v1.0/ws`). The upgrade carries
+> the page's `Origin`, which `wsAllowedOrigin` (`api/internal/api/v1/ws.go:62`) checks against the
+> same allow-list, so it matches without any change.
 >
-> The same holds for `NEXT_PUBLIC_CTECH_URL`: `accounts.aoctech.app` serves the ctech-account UI
-> *and* forwards `/v1.0/*` + `/.well-known/*` to its HAProxy API origin. Locally, point it at
-> `http://localhost:8080`.
+> `/docs`, `/openapi.json` and `/openapi.yaml` are reachable only on the API host —
+> `dfe-api.aoctech.app/docs` — plus `localhost:3000/docs` under `next dev`.
+>
+> Non-prod hosts insert the environment: `dfe-api-dev`, `dfe-api-stage`. `ctech-account`'s API host
+> is spelled the other way round in the workflows (`accounts-dev-api`, `accounts-stage-api`); see the
+> open question in `ctech-cdk/docs/plans/2026-08-20-frontend-cloudflare-migration.md`.
 
 ### api
 
