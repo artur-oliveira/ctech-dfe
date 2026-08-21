@@ -923,31 +923,38 @@ Must follow Conventional Commits:
 - IAM permissions must follow least privilege principle.
 - PITR (Point-in-Time Recovery) is enabled only in staging/production.
 
-### Edge routing (CloudFront in front of the HAProxy API origin)
+### Edge routing (Cloudflare in front of everything)
 
-Every app domain (`dfe`, `wallet`, `accounts`) serves the UI from S3 *and* forwards the API paths
-to the corresponding proxied `*-api` hostname, which reaches the shared HAProxy edge. The `*-api` hosts
-stay public for API clients and service-to-service calls.
+Every app domain (`dfe`, `wallet`, `accounts`, `poker`, `billing`) serves its UI as static assets on
+**Cloudflare Workers**, and serves nothing else. The API is *not* behind the app domain any more: the
+browser calls the `*-api` hostname directly, which reaches the shared HAProxy edge, and **CORS
+applies**. DNS was already on Cloudflare, so the CloudFront hop in between was cost and latency for a
+request whose two ends were already talking. See
+`ctech-cdk/docs/plans/2026-08-20-frontend-cloudflare-migration.md`.
 
-- **Never set `errorResponses` on a distribution that also has an API behavior.** They are
-  distribution-wide, not per-behavior, and would replace the API's RFC 7807 Problem JSON on every
-  403/404. Unknown UI routes are resolved instead by the `url-rewrite` CloudFront Function, which
-  looks the path up in a KeyValueStore and rewrites a miss to `/404.html`.
-- The route manifest is published by the **frontend workflow, right after the S3 sync**
-  (`ui/scripts/publish-routes.sh`) — never at synth time, or the key set would drift from the
-  objects actually in the bucket.
-- **The API origin is the `*-api` domain, not `origin.aoctech.app`.**
-  `ALL_VIEWER_EXCEPT_HOST_HEADER` makes CloudFront send the API hostname as Host, which HAProxy uses
-  to select the registered route. The DNS-only origin hostname is not a service route.
-- API behaviors use `CACHING_DISABLED` + `ALL_VIEWER_EXCEPT_HOST_HEADER` + `ALLOW_ALL` methods.
-  Origin read timeout is 60s to match nginx's `proxy_read_timeout`.
-- **Service-to-service calls use the `*-api` host directly** (e.g. `CTECH_JWKS_URL`). CloudFront is
-  for browsers; an edge round trip buys a server in the same region nothing.
+- **The app host serves only files.** There is no API behaviour, no `errorResponses` decision to get
+  wrong, and no edge redirect. Workers Static Assets resolves `/documents` to `documents.html`
+  itself, so the `url-rewrite` function, its KeyValueStore and `ui/scripts/publish-routes.sh` are all
+  gone — a route manifest that could drift from what shipped no longer exists to drift.
+- **Security headers ship as a generated `_headers` file**, written by `ctech-cdk`'s reusable
+  workflow `frontend-cloudflare.yml`, not by a per-service response-headers policy.
+- **The CSP's `connect-src` is derived from the build environment**, so it is the workflow — not the
+  code — that decides which origins the browser may reach. It is scheme-exact: `https://host` does
+  not permit `wss://host`, which is why every service with a WebSocket sets `NEXT_PUBLIC_WS_URL`
+  explicitly instead of deriving it from `NEXT_PUBLIC_API_URL` at run time.
+- **Service-to-service calls use the `*-api` host directly** (e.g. `CTECH_JWKS_URL`), unchanged — and
+  now so do browsers. The `*-api` hosts stay public for both.
+- **Cross-origin does not break the auth cookies.** `ctech_rt` is `SameSite=Lax` and every app host
+  shares the registrable domain `aoctech.app` with its API host, so the request is cross-origin but
+  same-site. It still needs credentials on both ends: `credentials: 'include'` in the client and
+  `AllowCredentials` plus an exact origin list in the API.
 
 ### Client IP behind the proxies
 
-nginx sits behind HAProxy, which may receive a request that crossed CloudFront and Cloudflare. Getting the client's IP wrong silently
-breaks rate limiting — the zone still exists, it just keys on the wrong thing.
+nginx sits behind HAProxy, which receives requests that crossed Cloudflare. Getting the client's IP
+wrong silently breaks rate limiting — the zone still exists, it just keys on the wrong thing. The
+CloudFront hop is being removed, but the ranges below stay trusted until the teardown lands, and
+trusting a hop nothing routes through is inert rather than wrong.
 
 - **Any rate-limit zone keyed on `$binary_remote_addr` requires the realip module.** Without
   `set_real_ip_from`, `$remote_addr` is the HAProxy instance's private IP, so every client shares one bucket and

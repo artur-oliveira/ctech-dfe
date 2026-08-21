@@ -108,7 +108,9 @@ Certificates · Fiscal Configuration
 14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
 
 **Main resources:** DynamoDB (35 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe, worker) · API
-Gateway · IAM (least privilege) · SQS (standard) · SNS · CloudFront
+Gateway · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
+export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; `FrontendStack`
+(S3 + CloudFront) is retired and awaiting teardown.
 
 ---
 

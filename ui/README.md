@@ -3,6 +3,13 @@
 Next.js 16 SPA — TypeScript, ShadCN, multi-tenant. Talks to the API over `/v1.0/*` with the
 `Dfe-Organization-Pk` header and OAuth PKCE. This doc is anchored to `src/...`.
 
+A production build is `output: 'export'`, deployed to **Cloudflare Workers Static Assets**. Nothing
+proxies `/v1.0/*` at the edge, so the browser calls `NEXT_PUBLIC_API_URL`
+(`https://dfe-api.aoctech.app`) **cross-origin** and CORS applies; `next dev`'s `rewrites()` is the
+only same-origin path left. The CSP's `connect-src` is generated from the `https://`/`wss://`
+literals in `.github/workflows/frontend.yml` and is scheme-exact — an origin the app talks to but the
+workflow does not name is an origin the browser refuses.
+
 Sibling docs: [`../api/README.md`](../api/README.md) · root [`INTEGRATION.md`](../INTEGRATION.md).
 
 Quality gates for dependency and application changes:
@@ -82,7 +89,10 @@ Shared chrome: `components/layout/RootLayout.tsx` (sidebar + topbar + `<main>`, 
 
 ### WebSocket (`src/lib/hooks/useRealtimeUpdates.ts`)
 - URL `${base}/v1.0/ws?org_pk=${orgPk}` (`useRealtimeUpdates.ts:15-21`); `base` =
-  `NEXT_PUBLIC_WS_URL || NEXT_PUBLIC_API_URL`.
+  `NEXT_PUBLIC_WS_URL || NEXT_PUBLIC_API_URL`. `NEXT_PUBLIC_WS_URL` is set explicitly per
+  environment and is not optional in a deployed build: `connect-src` is scheme-exact, so without a
+  `wss://` literal in `build-env-*` the socket is blocked on every page. The `API_URL` fallback is
+  for local development only.
 - Enabled only when token + `selectedOrg.pk` present (`:54-56`). Uses `@aoctech/ws-client`
   with `authToken` (Bearer) + `subscribeToken` (`:96-102`). Reconnects on every new access
   token (`_refreshFn` listener, `client.ts:71-78`).

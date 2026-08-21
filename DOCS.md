@@ -435,8 +435,8 @@ ctech-dfe-api/
 
 ```bash
 # Auth (required)
-# Service-to-service goes straight to the -api host (HAProxy), not the CloudFront app
-# domain: an edge round trip buys a server in the same region nothing.
+# Service-to-service goes straight to the -api host (HAProxy), not the app domain,
+# which now serves static files on Cloudflare and nothing else.
 # The handler mounts /.well-known at the root, not under /v1.0.
 CTECH_JWKS_URL=https://accounts-api.aoctech.app/.well-known/jwks.json
 
