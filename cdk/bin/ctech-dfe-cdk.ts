@@ -4,7 +4,6 @@ import * as cdk from 'aws-cdk-lib';
 import {DynamoDBStack} from '../lib/dynamodb-stack';
 import {S3Stack} from '../lib/s3-stack';
 import {IAMStack} from '../lib/iam-stack';
-import {FrontendStack} from '../lib/frontend-stack';
 import {OidcStack} from '../lib/oidc-stack';
 import {WorkerStack} from '../lib/worker-stack';
 import {DfeStack} from '../lib/dfe-stack';
@@ -20,9 +19,6 @@ const app = new cdk.App();
 // =====================
 const AWS_ACCOUNT = '868899309401';
 const AWS_REGION = 'us-east-1';
-// Wildcard ACM cert — owned by ctech-cdk but referenced here for CloudFront.
-const CERT_ARN =
-  'arn:aws:acm:us-east-1:868899309401:certificate/29678869-bfc3-4688-b81b-55aa5b1d7443';
 
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'dev') as Environment;
 const GITHUB_REPO = process.env.GITHUB_REPO || 'artur-oliveira/ctech-dfe';
@@ -175,18 +171,3 @@ apiV2Stack.addStackDependency(iamStack);
 // distributionQueueUrl is a CFN cross-stack reference — CDK infers this automatically,
 // but we make it explicit for clarity.
 apiV2Stack.addStackDependency(workerStack);
-
-// =====================
-// Frontend (S3 + CloudFront)
-// =====================
-new FrontendStack(app, id('Frontend'), {
-  env,
-  environment: ENVIRONMENT,
-  certificateArn: CERT_ARN,
-  domainName: domainForEnv(ENVIRONMENT, 'dfe'),
-  apiDomainName: domainForEnv(ENVIRONMENT, 'dfe-api'),
-  authDomainName: domainForEnv(ENVIRONMENT, 'accounts'),
-  authApiDomainName: domainForEnv(ENVIRONMENT, 'accounts-api'),
-  extraConnectSrc: ['viacep.com.br'],
-  description: `CTech DFe Frontend (S3 + CloudFront) - ${ENVIRONMENT}`,
-});

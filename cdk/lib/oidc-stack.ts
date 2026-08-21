@@ -49,37 +49,6 @@ export class OidcStack extends cdk.Stack {
       ],
     }));
 
-    // ── Frontend deploy role ────────────────────────────────────────────────
-    const frontendRole = new iam.Role(this, 'FrontendDeployRole', {
-      roleName: 'ctech-dfe-gha-frontend',
-      assumedBy: trust,
-    });
-    frontendRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['s3:PutObject', 's3:DeleteObject', 's3:GetObject', 's3:ListBucket'],
-      resources: [
-        'arn:aws:s3:::*-ctech-dfe-frontend',
-        'arn:aws:s3:::*-ctech-dfe-frontend/*',
-      ],
-    }));
-    frontendRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['cloudfront:CreateInvalidation'],
-      resources: ['*'],
-    }));
-    // Route manifest for the URL-rewrite CloudFront Function. Published after
-    // the S3 sync so the key set matches the objects in the bucket.
-    frontendRole.addToPolicy(new iam.PolicyStatement({
-      actions: [
-        'cloudfront-keyvaluestore:DescribeKeyValueStore',
-        'cloudfront-keyvaluestore:ListKeys',
-        'cloudfront-keyvaluestore:UpdateKeys',
-      ],
-      resources: [`arn:aws:cloudfront::${this.account}:key-value-store/*`],
-    }));
-    frontendRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['cloudformation:describeStacks'],
-      resources: ['*'],
-    }));
-
     // ── API deploy role ─────────────────────────────────────────────────────
     const apiRole = new iam.Role(this, 'ApiDeployRole', {
       roleName: 'ctech-dfe-gha-api',
@@ -184,7 +153,6 @@ export class OidcStack extends cdk.Stack {
       ],
     }));
 
-    new cdk.CfnOutput(this, 'FrontendRoleArn', {value: frontendRole.roleArn});
     new cdk.CfnOutput(this, 'ApiRoleArn', {value: apiRole.roleArn});
     new cdk.CfnOutput(this, 'InfraRoleArn', {value: infraRole.roleArn});
     new cdk.CfnOutput(this, 'PyDfeLambdaRoleArn', {value: pyDfeRole.roleArn});
