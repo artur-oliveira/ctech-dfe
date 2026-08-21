@@ -6,20 +6,26 @@
     "availabilityZones": [],
     "subnetGroups": [
       {
-        "name": "Public",
+        "name": "PublicSubnet",
         "type": "Public",
         "subnets": [
           {
-            "subnetId": "subnet-0793b5ad68befcadb",
-            "cidr": "10.0.0.0/24",
-            "availabilityZone": "us-east-1a",
-            "routeTableId": "rtb-0a7d35644e85c2a11"
+            "subnetId": "subnet-0410e8b73c187f334",
+            "cidr": "10.0.0.0/20",
+            "availabilityZone": "us-east-1b",
+            "routeTableId": "rtb-0cdfd2f7f6427d8fd"
           },
           {
-            "subnetId": "subnet-051a5d1474c2f7486",
-            "cidr": "10.0.1.0/24",
-            "availabilityZone": "us-east-1b",
-            "routeTableId": "rtb-0ee28a08959e2f9b4"
+            "subnetId": "subnet-02630dbcaa966b1fc",
+            "cidr": "10.0.16.0/20",
+            "availabilityZone": "us-east-1c",
+            "routeTableId": "rtb-052c8892afa3873f8"
+          },
+          {
+            "subnetId": "subnet-0a98ace8eee212314",
+            "cidr": "10.0.32.0/20",
+            "availabilityZone": "us-east-1d",
+            "routeTableId": "rtb-07f77a34d4ff7b2b2"
           }
         ]
       }
