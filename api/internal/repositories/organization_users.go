@@ -46,7 +46,8 @@ func (r *OrgUserRepository) membershipItem(orgPK, userID, role, invitedBy, name 
 	if permissions == nil {
 		permissions = []string{}
 	}
-	permAV, _ := attributevalue.MarshalList(permissions)
+	permAV, err := attributevalue.MarshalList(permissions)
+	logUnexpectedError("marshal organization user permissions", err)
 	now := NowStr()
 	item := map[string]types.AttributeValue{
 		"pk":          &types.AttributeValueMemberS{Value: orgPK},

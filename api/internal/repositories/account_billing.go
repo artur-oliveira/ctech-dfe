@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -352,6 +353,9 @@ func counterValue(attrs map[string]types.AttributeValue, meter string) int64 {
 	if !ok {
 		return 0
 	}
-	v, _ := strconv.ParseInt(n.Value, 10, 64)
+	v, err := strconv.ParseInt(n.Value, 10, 64)
+	if err != nil {
+		slog.Warn("account billing numeric attribute parse failed", "err", err)
+	}
 	return v
 }

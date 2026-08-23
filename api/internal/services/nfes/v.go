@@ -1,13 +1,17 @@
 package nfes
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
 func d(s string) decimal.Decimal {
-	v, _ := decimal.NewFromString(s)
+	v, err := decimal.NewFromString(s)
+	if err != nil {
+		slog.Warn("NF-e decimal parse failed", "err", err)
+	}
 	return v
 }
 
@@ -20,6 +24,9 @@ func dn(s string, n int32) decimal.Decimal {
 	if len(parts) == 2 && len(parts[1]) <= int(n) {
 		return d(s)
 	}
-	dec, _ := decimal.NewFromString(s)
+	dec, err := decimal.NewFromString(s)
+	if err != nil {
+		slog.Warn("NF-e rounded decimal parse failed", "err", err)
+	}
 	return dec.Round(n)
 }

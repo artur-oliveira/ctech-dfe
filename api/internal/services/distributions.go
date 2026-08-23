@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -175,7 +176,10 @@ func (s *DistributionService) EnqueueSync(ctx context.Context, orgPK, docType st
 		"trigger":      "user",
 		"triggered_at": time.Now().UTC().Format(time.RFC3339),
 	}
-	body, _ := json.Marshal(msg)
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return nil, problem.InternalServer("failed to encode sync message").WithCause(err)
+	}
 	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
 		QueueUrl:    aws.String(s.queueURL),
 		MessageBody: aws.String(string(body)),
@@ -277,7 +281,10 @@ func (s *DistributionService) EnqueueLookupByKey(ctx context.Context, orgPK, acc
 		"trigger":      "user",
 		"triggered_at": time.Now().UTC().Format(time.RFC3339),
 	}
-	body, _ := json.Marshal(msg)
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return nil, problem.InternalServer("failed to encode lookup message").WithCause(err)
+	}
 	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
 		QueueUrl:    aws.String(s.queueURL),
 		MessageBody: aws.String(string(body)),
@@ -449,7 +456,9 @@ func (s *DistributionService) invokeAndParse(ctx context.Context, payload map[st
 		if dm, ok := d.(map[string]any); ok {
 			nsu := 0
 			if n, ok := dm["@NSU"].(string); ok {
-				_, _ = fmt.Sscanf(n, "%d", &nsu)
+				if _, err := fmt.Sscanf(n, "%d", &nsu); err != nil {
+					slog.Warn("distribution NSU parse failed", "err", err)
+				}
 			}
 			docs = append(docs, map[string]any{"nsu": nsu, "schema": dm["@schema"]})
 		}
@@ -518,7 +527,10 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 		"trigger":      "user",
 		"triggered_at": time.Now().UTC().Format(time.RFC3339),
 	}
-	body, _ := json.Marshal(msg)
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return nil, problem.InternalServer("failed to encode import message").WithCause(err)
+	}
 	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
 		QueueUrl:    aws.String(s.queueURL),
 		MessageBody: aws.String(string(body)),
@@ -531,7 +543,9 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 func distIntAttr(item map[string]types.AttributeValue, key string, def int) int {
 	if v, ok := item[key].(*types.AttributeValueMemberN); ok {
 		var n int
-		_, _ = fmt.Sscanf(v.Value, "%d", &n)
+		if _, err := fmt.Sscanf(v.Value, "%d", &n); err != nil {
+			slog.Warn("distribution numeric attribute parse failed", "err", err)
+		}
 		return n
 	}
 	return def

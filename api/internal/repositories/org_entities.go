@@ -152,7 +152,8 @@ func (r *OrgEntityRepository) Delete(ctx context.Context, orgPK, id string) (boo
 // BuildCreateTxItem mirrors Create's key/timestamp construction without writing.
 func (r *OrgEntityRepository) BuildCreateTxItem(orgPK string, fields map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue) {
 	// marshalEntity never errors for T = map[string]types.AttributeValue (base.go).
-	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, r.SK(GenerateID()), fields)
+	tx, item, err := r.CRUDRepository.BuildCreateTxItem(orgPK, r.SK(GenerateID()), fields)
+	logUnexpectedError("build organization entity create transaction", err)
 	return tx, item
 }
 

@@ -60,7 +60,8 @@ func (r *CertificateRepository) Delete(ctx context.Context, orgPK, md5 string) (
 // BuildCreateTxItem returns a TransactWriteItem for a new certificate,
 // mirroring Create's field construction, without writing.
 func (r *CertificateRepository) BuildCreateTxItem(orgPK, alias, md5, password, s3Key, expiresAt string) (types.TransactWriteItem, map[string]types.AttributeValue) {
-	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, certSK(md5), certFields(alias, md5, password, s3Key, expiresAt))
+	tx, item, err := r.CRUDRepository.BuildCreateTxItem(orgPK, certSK(md5), certFields(alias, md5, password, s3Key, expiresAt))
+	logUnexpectedError("build certificate create transaction", err)
 	return tx, item
 }
 

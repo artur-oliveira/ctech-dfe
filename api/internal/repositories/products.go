@@ -80,7 +80,8 @@ func (r *ProductRepository) Delete(ctx context.Context, orgPK, sk string) (bool,
 // Create's key/timestamp construction, without writing.
 func (r *ProductRepository) BuildCreateTxItem(orgPK string, fields map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue) {
 	id := GenerateID()
-	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, buildProductSK(id), fields)
+	tx, item, err := r.CRUDRepository.BuildCreateTxItem(orgPK, buildProductSK(id), fields)
+	logUnexpectedError("build product create transaction", err)
 	return tx, item
 }
 

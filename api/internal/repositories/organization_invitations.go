@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -74,7 +75,10 @@ func (r *OrgInvitationRepository) Create(ctx context.Context, tokenHash, orgPK, 
 	if permissions == nil {
 		permissions = []string{}
 	}
-	permAV, _ := attributevalue.MarshalList(permissions)
+	permAV, err := attributevalue.MarshalList(permissions)
+	if err != nil {
+		return nil, fmt.Errorf("marshal invitation permissions: %w", err)
+	}
 	now := time.Now().UTC()
 	expiresAt := now.Add(InvitationTTLDays * 24 * time.Hour)
 	ttl := expiresAt.Add(invitationTTLSlack).Unix()

@@ -70,6 +70,10 @@ func (r *UserRepository) Update(ctx context.Context, userID string, updates map[
 
 // GenerateID returns a new UUID v7 string.
 func GenerateID() string {
-	id, _ := uuid.NewV7()
+	id, err := uuid.NewV7()
+	if err != nil {
+		logUnexpectedError("generate UUID v7", err)
+		return uuid.NewString()
+	}
 	return id.String()
 }

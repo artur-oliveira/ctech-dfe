@@ -7,6 +7,7 @@ package nfes
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"strings"
 	"time"
@@ -415,7 +416,9 @@ func intAttr(item map[string]types.AttributeValue, key string, def int) int {
 		return def
 	}
 	var n int
-	_, _ = fmt.Sscanf(v.Value, "%d", &n)
+	if _, err := fmt.Sscanf(v.Value, "%d", &n); err != nil {
+		slog.Warn("NF-e numeric attribute parse failed", "err", err)
+	}
 	return n
 }
 

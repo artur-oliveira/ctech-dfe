@@ -91,7 +91,8 @@ func (r *VehicleRepository) Delete(ctx context.Context, orgPK, sk string) (bool,
 
 func (r *VehicleRepository) BuildCreateTxItem(orgPK string, f VehicleFields) (types.TransactWriteItem, map[string]types.AttributeValue) {
 	id := GenerateID()
-	tx, item, _ := r.CRUDRepository.BuildCreateTxItem(orgPK, buildVehicleSK(id), f)
+	tx, item, err := r.CRUDRepository.BuildCreateTxItem(orgPK, buildVehicleSK(id), f)
+	logUnexpectedError("build vehicle create transaction", err)
 	return tx, item
 }
 

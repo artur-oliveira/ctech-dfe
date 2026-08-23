@@ -339,7 +339,10 @@ func (s *ExternalService) invokeAndParse(ctx context.Context, payload map[string
 // invokeSefazLambda invokes a py-dfe Lambda, parses the response envelope,
 // and returns the inner body map. Returns a *problem.Problem on non-200 responses.
 func invokeSefazLambda(ctx context.Context, lam *lambda.Client, funcName string, payload map[string]any) (map[string]any, error) {
-	body, _ := json.Marshal(payload)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, problem.InternalServer("failed to encode SEFAZ Lambda payload").WithCause(err)
+	}
 	out, err := lam.Invoke(ctx, &lambda.InvokeInput{
 		FunctionName: aws.String(funcName),
 		Payload:      body,

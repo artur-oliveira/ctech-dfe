@@ -151,7 +151,8 @@ func (r *PersonRepository) Delete(ctx context.Context, orgPK, sk string) (bool, 
 }
 
 func (r *PersonRepository) BuildCreateTxItem(orgPK, sk string, fields map[string]any) (types.TransactWriteItem, map[string]types.AttributeValue) {
-	tx, item, _ := r.CRUDRepository.BuildCreateTxItemIfAbsent(orgPK, sk, fields)
+	tx, item, err := r.CRUDRepository.BuildCreateTxItemIfAbsent(orgPK, sk, fields)
+	logUnexpectedError("build person create transaction", err)
 	return tx, item
 }
 

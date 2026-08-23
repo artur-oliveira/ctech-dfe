@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -79,7 +80,10 @@ func (r *FiscalConfigRepository) BuildUpsertTxItem(orgPK string, fields map[stri
 			if defVal == nil {
 				continue // omit null defaults
 			}
-			av, _ := attributevalue.Marshal(defVal)
+			av, err := attributevalue.Marshal(defVal)
+			if err != nil {
+				return types.TransactWriteItem{}, nil, fmt.Errorf("marshal fiscal config default %s: %w", field, err)
+			}
 			fields[field] = av
 		}
 	}
@@ -162,7 +166,10 @@ func (r *FiscalConfigRepository) IncrementConsQuota(ctx context.Context, orgPK, 
 	}
 	if av, ok := out.Attributes[callsField]; ok {
 		if nv, ok := av.(*types.AttributeValueMemberN); ok {
-			n, _ := strconv.Atoi(nv.Value)
+			n, err := strconv.Atoi(nv.Value)
+			if err != nil {
+				slog.Warn("fiscal config numeric attribute parse failed", "field", callsField, "err", err)
+			}
 			return n
 		}
 	}

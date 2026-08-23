@@ -175,9 +175,15 @@ func (r *RoleRepository) Upsert(ctx context.Context, name, description string, p
 	now := NowStr()
 	pk := fmt.Sprintf("ROLE_%s", strings.ToUpper(name))
 
-	existing, _ := r.GetItem(ctx, pk)
+	existing, err := r.GetItem(ctx, pk)
+	if err != nil {
+		return nil, err
+	}
 
-	permAV, _ := attributevalue.MarshalList(permissions)
+	permAV, err := attributevalue.MarshalList(permissions)
+	if err != nil {
+		return nil, fmt.Errorf("marshal role permissions: %w", err)
+	}
 	item := map[string]types.AttributeValue{
 		"pk":          &types.AttributeValueMemberS{Value: pk},
 		"name":        &types.AttributeValueMemberS{Value: strings.ToUpper(name)},

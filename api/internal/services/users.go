@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
@@ -268,14 +269,13 @@ func (s *UserService) GetUserInfo(ctx context.Context, accessToken string) (*Cte
 	if err != nil {
 		return nil, problem.InternalServer("userinfo request failed")
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+	defer closeReadCloser(ctx, resp.Body, "account userinfo response")
 
-		}
-	}(resp.Body)
-
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		observability.Error(ctx, "userinfo response body read failed", err)
+		return nil, problem.InternalServer("failed to read userinfo response").WithCause(err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, problem.Unauthorized("ctech userinfo error: " + string(body))
 	}

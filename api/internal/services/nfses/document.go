@@ -2,6 +2,7 @@ package nfses
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -325,7 +326,9 @@ func intAttr(item map[string]types.AttributeValue, key string, def int) int {
 		return def
 	}
 	var n int
-	_, _ = fmt.Sscanf(v.Value, "%d", &n)
+	if _, err := fmt.Sscanf(v.Value, "%d", &n); err != nil {
+		slog.Warn("NFS-e integer attribute parse failed", "err", err)
+	}
 	return n
 }
 
@@ -338,7 +341,9 @@ func intPtrAttr(item map[string]types.AttributeValue, key string) *int {
 		return nil
 	}
 	var n int
-	_, _ = fmt.Sscanf(v.Value, "%d", &n)
+	if _, err := fmt.Sscanf(v.Value, "%d", &n); err != nil {
+		slog.Warn("NFS-e int64 attribute parse failed", "err", err)
+	}
 	return &n
 }
 

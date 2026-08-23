@@ -6,6 +6,7 @@ package nfes
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -585,7 +586,12 @@ func BuildEnviNFe(
 								factor = decimal.NewFromInt(v)
 
 							case json.Number:
-								factor, _ = decimal.NewFromString(v.String())
+								var err error
+								factor, err = decimal.NewFromString(v.String())
+								if err != nil {
+									slog.Warn("NF-e conversion factor parse failed", "err", err)
+									continue
+								}
 
 							default:
 								// tipo não suportado
