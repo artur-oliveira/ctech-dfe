@@ -1,6 +1,8 @@
 package services
 
 import (
+	"log/slog"
+
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -34,7 +36,9 @@ type vehicleRequirementFields struct {
 // matrix is ready when CT-e OS emission is built.
 func Missing(item map[string]types.AttributeValue, docType, role string) []string {
 	var v vehicleRequirementFields
-	_ = attributevalue.UnmarshalMap(item, &v)
+	if err := attributevalue.UnmarshalMap(item, &v); err != nil {
+		slog.Warn("vehicle requirement fields decode failed", "err", err)
+	}
 
 	var missing []string
 	if docType != DocTypeMdfe {

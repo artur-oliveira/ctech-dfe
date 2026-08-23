@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -166,7 +167,11 @@ func (p *PermChecker) hasPermission(ctx context.Context, roleName, permission st
 
 	perms := RolePermissions(role)
 	if data, err := json.Marshal(perms); err == nil {
-		_ = p.c.Set(ctx, cacheKey, data, roleCacheTTL)
+		if err := p.c.Set(ctx, cacheKey, data, roleCacheTTL); err != nil {
+			observability.Warn(ctx, "role permission cache write failed", err, "role", roleName)
+		}
+	} else {
+		observability.Warn(ctx, "role permission serialization failed", err, "role", roleName)
 	}
 
 	return containsStr(perms, permission)

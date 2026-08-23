@@ -2530,6 +2530,15 @@ Permissions: "action.resource"
 
 ## 11. Observability
 
+The Go API uses `api-commons/observability` and `api-commons/observability/fiber`. The shared middleware preserves or
+generates `X-Request-ID`, propagates it through `context.Context`, returns it to the caller and exposes it through
+CORS. Every RFC 7807 response is logged once at the HTTP boundary (`WARN` for 4xx, `ERROR` for 5xx), including method,
+path, problem type and the internal cause when available. Public response details remain safe and internal causes are
+never serialized. This is structured logging only: no OpenTelemetry exporter or custom metric is enabled.
+
+Logs must not contain bearer tokens, request bodies, certificates, CPF/CNPJ or fiscal payloads except for an explicitly
+documented, time-bounded diagnostic required by the fiscal integration policy.
+
 ### Logs
 
 | Source           | Log Group                  | Retention         | Format |

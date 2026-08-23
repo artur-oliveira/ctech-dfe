@@ -19,6 +19,9 @@
 
 ## Error logging
 
+- HTTP correlation and boundary logging use `gopkg.aoctech.app/api-commons/observability` and its Fiber integration.
+  Every RFC 7807 response is recorded once; internal causes are attached to the problem but never serialized.
+
 - Every `slog.Error`/`slog.Warn` (Go) or equivalent inside an `if err != nil` block MUST include the
   error itself as a field (`"err", err`). A log line that names a failure without the error that
   caused it forces a second production incident just to find out why the first one happened.

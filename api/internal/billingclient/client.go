@@ -33,6 +33,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/oauth2client"
+	"gopkg.aoctech.app/api-commons/observability"
 
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
@@ -492,8 +493,16 @@ func (c *Client) do(ctx context.Context, method, path, idempotencyKey string, bo
 		slog.ErrorContext(ctx, "billing: request failed", "method", method, "path", path, "error", err)
 		return problem.InternalServer("o serviço de cobrança está indisponível")
 	}
-	defer func() { _ = resp.Body.Close() }()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			observability.Warn(ctx, "billing response body close failed", closeErr, "method", method, "path", path)
+		}
+	}()
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if readErr != nil {
+		observability.Error(ctx, "billing response body read failed", readErr, "method", method, "path", path)
+		return problem.InternalServer("resposta inesperada do serviço de cobrança")
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return mapUpstreamError(ctx, method, path, resp.StatusCode, raw)
@@ -525,7 +534,9 @@ func mapUpstreamError(ctx context.Context, method, path string, status int, raw 
 		Title  string `json:"title"`
 		Detail string `json:"detail"`
 	}
-	_ = json.Unmarshal(raw, &p)
+	if err := json.Unmarshal(raw, &p); err != nil {
+		observability.Warn(ctx, "billing problem response decode failed", err, "method", method, "path", path, "status", status)
+	}
 	logAt := slog.LevelError
 	if status == http.StatusNotFound {
 		logAt = slog.LevelInfo

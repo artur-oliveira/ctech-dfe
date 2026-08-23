@@ -10,6 +10,7 @@ package validation
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strings"
 	"sync"
@@ -28,6 +29,12 @@ var (
 func get() *validator.Validate {
 	once.Do(func() {
 		v := validator.New(validator.WithRequiredStructEnabled())
+		register := func(tag string, fn validator.Func) {
+			if err := v.RegisterValidation(tag, fn); err != nil {
+				slog.Error("validator rule registration failed", "tag", tag, "err", err)
+				panic(err)
+			}
+		}
 
 		// Report field paths using JSON tag names so error paths match the
 		// payload the client sent (and the frontend Zod schema).
@@ -49,24 +56,24 @@ func get() *validator.Validate {
 		// Regex-backed format validators (mirror the frontend Zod regexes).
 		for tag, re := range regexValidators {
 			re := re
-			_ = v.RegisterValidation(tag, func(fl validator.FieldLevel) bool {
+			register(tag, func(fl validator.FieldLevel) bool {
 				return re.MatchString(fl.Field().String())
 			})
 		}
 
 		// Brazilian document / UF / timezone validators.
-		_ = v.RegisterValidation("uf", ufValidator)
-		_ = v.RegisterValidation("timezone", timezoneValidator)
-		_ = v.RegisterValidation("cpf", cpfValidator)
-		_ = v.RegisterValidation("cnpj", cnpjValidator)
-		_ = v.RegisterValidation("cpfcnpj", cpfCnpjValidator)
-		_ = v.RegisterValidation("isodate", isoDateValidator)
-		_ = v.RegisterValidation("dfe_access_key", accessKeyValidator)
+		register("uf", ufValidator)
+		register("timezone", timezoneValidator)
+		register("cpf", cpfValidator)
+		register("cnpj", cnpjValidator)
+		register("cpfcnpj", cpfCnpjValidator)
+		register("isodate", isoDateValidator)
+		register("dfe_access_key", accessKeyValidator)
 
 		// Validadores de tabela oficial NFS-e (Anexos B e C).
-		_ = v.RegisterValidation("tribnac", tribNacionalValidator)
-		_ = v.RegisterValidation("nbs", nbsValidator)
-		_ = v.RegisterValidation("indop", indOpValidator)
+		register("tribnac", tribNacionalValidator)
+		register("nbs", nbsValidator)
+		register("indop", indOpValidator)
 
 		instance = v
 	})

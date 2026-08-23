@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
@@ -86,6 +87,7 @@ func CacheSetQueryResult(ctx context.Context, c cache.Backend, key string, qr *r
 	for i, itemAV := range qr.Items {
 		var m map[string]any
 		if err := attributevalue.UnmarshalMap(itemAV, &m); err != nil {
+			observability.Warn(ctx, "query result item conversion failed", err, "cache_key", key)
 			return
 		}
 		items[i] = m
@@ -93,6 +95,7 @@ func CacheSetQueryResult(ctx context.Context, c cache.Backend, key string, qr *r
 	var lastEvaluatedKey map[string]any
 	if qr.LastEvaluatedKey != nil {
 		if err := attributevalue.UnmarshalMap(qr.LastEvaluatedKey, &lastEvaluatedKey); err != nil {
+			observability.Warn(ctx, "query cursor conversion failed", err, "cache_key", key)
 			return
 		}
 	}
@@ -102,9 +105,12 @@ func CacheSetQueryResult(ctx context.Context, c cache.Backend, key string, qr *r
 	}
 	data, err := json.Marshal(qrJSON)
 	if err != nil {
+		observability.Warn(ctx, "query result serialization failed", err, "cache_key", key)
 		return
 	}
-	_ = c.Set(ctx, key, data, ttl)
+	if err := c.Set(ctx, key, data, ttl); err != nil {
+		observability.Warn(ctx, "query result cache write failed", err, "cache_key", key)
+	}
 }
 
 // GetCachedItem encapsulates the item detail caching pattern.
@@ -186,7 +192,9 @@ func (h *CRUDMutationHelper) Create(
 	if err := transactWrite(ctx, []types.TransactWriteItem{txItem, auditTx}); err != nil {
 		return nil, err
 	}
-	_ = h.cache.DeletePrefix(ctx, BuildContextCachePrefix(orgPK, strings.ToLower(resourceType)+"s"))
+	if err := h.cache.DeletePrefix(ctx, BuildContextCachePrefix(orgPK, strings.ToLower(resourceType)+"s")); err != nil {
+		observability.Warn(ctx, "resource list cache invalidation failed", err, "resource_type", resourceType)
+	}
 	return finalItem, nil
 }
 
@@ -233,7 +241,9 @@ func (h *CRUDMutationHelper) Update(
 		return nil, err
 	}
 	prefix := BuildContextCachePrefix(orgPK, strings.ToLower(resourceType)+"s")
-	_ = h.cache.DeletePrefix(ctx, prefix)
+	if err := h.cache.DeletePrefix(ctx, prefix); err != nil {
+		observability.Warn(ctx, "resource cache invalidation failed", err, "resource_type", resourceType)
+	}
 	return getFn(ctx, orgPK, sk)
 }
 
@@ -272,6 +282,8 @@ func (h *CRUDMutationHelper) Delete(
 		return err
 	}
 	prefix := BuildContextCachePrefix(orgPK, strings.ToLower(resourceType)+"s")
-	_ = h.cache.DeletePrefix(ctx, prefix)
+	if err := h.cache.DeletePrefix(ctx, prefix); err != nil {
+		observability.Warn(ctx, "resource cache invalidation failed", err, "resource_type", resourceType)
+	}
 	return nil
 }

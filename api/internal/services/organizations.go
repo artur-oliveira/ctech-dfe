@@ -74,7 +74,7 @@ func (s *OrganizationService) SetOwnerUserID(ctx context.Context, orgPK, userID 
 	}); err != nil {
 		return err
 	}
-	_ = s.cache.Delete(ctx, "org:"+orgPK)
+	cacheDelete(ctx, s.cache, "org:"+orgPK)
 	return nil
 }
 
@@ -308,7 +308,7 @@ func (s *OrganizationService) Update(ctx context.Context, orgPK string, updates 
 	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{orgTx, auditTx}); err != nil {
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, "org:"+orgPK)
+	cacheDelete(ctx, s.cache, "org:"+orgPK)
 	return s.repo.GetOrganization(ctx, orgPK)
 }
 

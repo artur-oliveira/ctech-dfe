@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -432,10 +433,14 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	// Best-effort — a failure here must never fail an already-committed
 	// emission. Saved locations are a UX convenience for next time.
 	if req.SaveEntregaLocation && req.Entrega != nil && req.ReceiverID != nil {
-		_ = s.appendDeliveryLocation(ctx, orgPK, *req.ReceiverID, req.Entrega)
+		if err := s.appendDeliveryLocation(ctx, orgPK, *req.ReceiverID, req.Entrega); err != nil {
+			observability.Warn(ctx, "delivery location save failed", err)
+		}
 	}
 	if req.SaveRetiradaLocation && req.Retirada != nil {
-		_ = s.appendPickupLocation(ctx, orgPK, req.Retirada)
+		if err := s.appendPickupLocation(ctx, orgPK, req.Retirada); err != nil {
+			observability.Warn(ctx, "pickup location save failed", err)
+		}
 	}
 
 	return nfeEncoded, nil

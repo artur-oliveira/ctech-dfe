@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -36,7 +37,7 @@ func TestStartHeartbeat_MissingPongClosesReadLoop(t *testing.T) {
 		}
 		defer conn.Close()
 		heartbeatDone := make(chan struct{})
-		go startHeartbeat(conn, heartbeatDone, pingInterval, pongWait, nil)
+		go startHeartbeat(context.Background(), conn, heartbeatDone, pingInterval, pongWait, nil)
 		_, _, _ = conn.ReadMessage() // blocks until the read deadline trips
 		close(heartbeatDone)
 		close(serverDone)

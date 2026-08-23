@@ -183,9 +183,13 @@ func (r *ResultsConsumer) dispatch(ctx context.Context, msg sqstypes.Message) er
 
 	// Invalidate NF-e cache entries for this document.
 	if accessKey != "" {
-		_ = r.cache.Delete(ctx, "res:"+orgPK+":nfes:"+accessKey)
+		if err := r.cache.Delete(ctx, "res:"+orgPK+":nfes:"+accessKey); err != nil {
+			slog.Warn("results consumer: document cache invalidation failed", "org", orgPK, "err", err)
+		}
 	}
-	_ = r.cache.DeletePrefix(ctx, "res:"+orgPK+":nfes:list:")
+	if err := r.cache.DeletePrefix(ctx, "res:"+orgPK+":nfes:list:"); err != nil {
+		slog.Warn("results consumer: list cache invalidation failed", "org", orgPK, "err", err)
+	}
 	slog.Info("results consumer: cache invalidated", "org", orgPK, "key", accessKey)
 
 	// Doc-result messages never set "type" themselves — default them to

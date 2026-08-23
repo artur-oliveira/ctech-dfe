@@ -259,7 +259,7 @@ func (s *ExternalService) downloadPFX(ctx context.Context, s3Key string) ([]byte
 	if err != nil {
 		return nil, problem.NoCertificate("falha ao obter certificado digital")
 	}
-	defer func() { _ = out.Body.Close() }()
+	defer closeReadCloser(ctx, out.Body, "certificate S3 download")
 	buf := new(bytes.Buffer)
 	if _, err := io.Copy(buf, out.Body); err != nil {
 		return nil, problem.InternalServer("failed to read certificate from S3")
@@ -358,7 +358,9 @@ func invokeSefazLambda(ctx context.Context, lam *lambda.Client, funcName string,
 	var respBody map[string]any
 	bodyStr, _ := resp["body"].(string)
 	if bodyStr != "" {
-		_ = json.Unmarshal([]byte(bodyStr), &respBody)
+		if err := json.Unmarshal([]byte(bodyStr), &respBody); err != nil {
+			return nil, problem.InternalServer("invalid Lambda response body").WithCause(err)
+		}
 	}
 
 	shadowCallGoDfeFromMap(ctx, payload, statusCode, bodyStr)

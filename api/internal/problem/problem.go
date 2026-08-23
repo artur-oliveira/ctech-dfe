@@ -8,6 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"gopkg.aoctech.app/api-commons/observability"
+	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
 	commonproblem "gopkg.aoctech.app/api-commons/problem"
 )
 
@@ -90,14 +92,21 @@ func (p *Problem) Error() string {
 func (p *Problem) Send(c fiber.Ctx) error {
 	b, err := json.Marshal(p)
 	if err != nil {
+		observability.Error(c.Context(), "problem response marshal failed", err,
+			"status", p.Status, "problem_type", p.Type, "method", c.Method(), "path", c.Path())
 		return err
 	}
+	fiberobs.LogHTTPError(c, p.Status, p.Type, p.Cause())
 	c.Status(p.Status)
 	c.Set(fiber.HeaderContentType, ContentType)
 	return c.Send(b)
 }
 
 func wrap(p *commonproblem.Problem) *Problem { return &Problem{Problem: *p} }
+func (p *Problem) WithCause(err error) *Problem {
+	p.Problem.WithCause(err)
+	return p
+}
 
 func New(status int, typ, title, detail string) *Problem {
 	return wrap(commonproblem.New(status, typ, title, detail))
@@ -139,9 +148,9 @@ func Validation(errs []FieldError) *Problem {
 func FromFiber(err *fiber.Error) *Problem {
 	switch err.Code {
 	case http.StatusNotFound:
-		return NotFound(err.Error())
+		return NotFound(err.Error()).WithCause(err)
 	default:
-		return InternalServer(err.Error())
+		return InternalServer("erro interno").WithCause(err)
 	}
 }
 

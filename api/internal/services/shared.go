@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"gopkg.aoctech.app/api-commons/observability"
 
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
@@ -48,12 +49,18 @@ func DownloadS3(ctx context.Context, clients *awsclient.Clients, bucket, s3Key s
 	if err != nil {
 		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
 	}
-	defer func(body io.ReadCloser) { _ = body.Close() }(out.Body)
+	defer closeReadCloser(ctx, out.Body, "shared S3 download")
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(out.Body); err != nil {
 		return nil, problem.InternalServer("failed to read S3 object")
 	}
 	return buf.Bytes(), nil
+}
+
+func closeReadCloser(ctx context.Context, body io.ReadCloser, operation string) {
+	if err := body.Close(); err != nil {
+		observability.Warn(ctx, "response body close failed", err, "operation", operation)
+	}
 }
 
 // Fiscal document model codes (campo "mod" da chave de acesso).

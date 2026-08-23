@@ -216,17 +216,17 @@ func (s *MembershipService) Remove(ctx context.Context, orgPK, userID, deletedBy
 		return err
 	}
 	s.tombstone(ctx, orgPK, userID)
-	_ = s.cache.Delete(ctx, userOrgsCacheKey(userID))
-	_ = s.cache.Delete(ctx, userMeCacheKey(userID))
+	cacheDelete(ctx, s.cache, userOrgsCacheKey(userID))
+	cacheDelete(ctx, s.cache, userMeCacheKey(userID))
 	return nil
 }
 
 // Invalidate clears the membership and user-orgs cache for one (org, user).
 func (s *MembershipService) Invalidate(ctx context.Context, orgPK, userID string) {
-	_ = s.cache.Delete(ctx, memberCacheKey(orgPK, userID))
-	_ = s.cache.Delete(ctx, userOrgsCacheKey(userID))
+	cacheDelete(ctx, s.cache, memberCacheKey(orgPK, userID))
+	cacheDelete(ctx, s.cache, userOrgsCacheKey(userID))
 	// GET /auth/me caches the orgs list under "me:{userID}".
-	_ = s.cache.Delete(ctx, userMeCacheKey(userID))
+	cacheDelete(ctx, s.cache, userMeCacheKey(userID))
 }
 
 // tombstone caches a "no access" marker for the invalidation window, closing

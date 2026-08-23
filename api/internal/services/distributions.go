@@ -364,7 +364,10 @@ func (s *DistributionService) distPayload(oc *distOrgCtx, certB64, docType strin
 
 func (s *DistributionService) checkConsQuota(ctx context.Context, orgPK, docType string) error {
 	cfgRepo := s.fiscalCfg(docType)
-	config, _ := cfgRepo.Get(ctx, orgPK)
+	config, err := cfgRepo.Get(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	envPrefix := EnvHom
 	if config != nil && distIntAttr(config, "environment", 2) == 1 {
 		envPrefix = EnvProd
@@ -372,8 +375,12 @@ func (s *DistributionService) checkConsQuota(ctx context.Context, orgPK, docType
 	if config != nil {
 		windowStart := distStrAttr(config, envPrefix+"_cons_quota_window_start")
 		if windowStart != "" {
-			if ws, err := time.Parse(time.RFC3339, windowStart); err == nil && time.Since(ws) >= time.Hour {
-				_ = cfgRepo.ResetConsQuota(ctx, orgPK, envPrefix)
+			if ws, err := time.Parse(time.RFC3339, windowStart); err != nil {
+				return fmt.Errorf("invalid distribution quota window: %w", err)
+			} else if time.Since(ws) >= time.Hour {
+				if err := cfgRepo.ResetConsQuota(ctx, orgPK, envPrefix); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -391,7 +398,7 @@ func (s *DistributionService) certToBase64(ctx context.Context, s3Key string) (s
 	if err != nil {
 		return "", problem.NoCertificate("certificado não encontrado no armazenamento")
 	}
-	defer func() { _ = out.Body.Close() }()
+	defer closeReadCloser(ctx, out.Body, "distribution certificate S3 download")
 	buf := new(bytes.Buffer)
 	if _, err := io.Copy(buf, out.Body); err != nil {
 		return "", problem.InternalServer("failed to read certificate")
@@ -407,7 +414,7 @@ func (s *DistributionService) downloadDocs(ctx context.Context, s3Key string) ([
 	if err != nil {
 		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
 	}
-	defer func() { _ = out.Body.Close() }()
+	defer closeReadCloser(ctx, out.Body, "distribution document S3 download")
 	buf := new(bytes.Buffer)
 	if _, err := io.Copy(buf, out.Body); err != nil {
 		return nil, problem.InternalServer("failed to read S3 object")

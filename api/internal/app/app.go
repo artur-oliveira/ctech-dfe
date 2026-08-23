@@ -6,19 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-
 	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
 	"gopkg.aoctech.app/api-commons/ws"
 	apiv1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
-	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -29,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/logger"
-	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/gofiber/fiber/v3/middleware/recover"
 	"go.uber.org/fx"
 )
 
@@ -200,17 +199,23 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 		ErrorHandler: errorHandler,
 	}
 	app := fiber.New(fibercfg)
+	app.Use(fiberobs.RequestID())
+	app.Use(recover.New(recover.Config{EnableStackTrace: true}))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CorsAllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "Dfe-Organization-Pk"},
+		ExposeHeaders:    []string{fiberobs.RequestIDHeader},
 		AllowCredentials: true,
 		MaxAge:           3600,
 	}))
-	app.Use(middleware.Recover())
-	app.Use(requestid.New())
 	app.Use(logger.New(logger.Config{
-		Format: `{"time":"${time}","status":${status},"latency":"${latency}","method":"${method}","path":"${path}","request-id":"${request-id}"}` + "\n",
+		Format: `{"time":"${time}","status":${status},"latency":"${latency}","method":"${method}",` +
+			`"path":"${path}","request_id":"${respHeader:X-Request-Id}"}` + "\n",
+		DisableColors: true,
+		Skip: func(c fiber.Ctx) bool {
+			return c.Path() == "/v1.0/health" || c.Path() == "/v1.0/health-check"
+		},
 	}))
 	return app
 }
@@ -544,7 +549,7 @@ func errorHandler(c fiber.Ctx, err error) error {
 		p := problem.FromFiber(f)
 		return p.Send(c)
 	}
-	return problem.InternalServer(err.Error()).Send(c)
+	return problem.InternalServer("erro interno").WithCause(err).Send(c)
 }
 
 // newBillingClient builds the ctech-billing client, or nil when this deployment

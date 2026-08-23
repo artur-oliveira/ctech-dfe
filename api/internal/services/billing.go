@@ -184,7 +184,7 @@ func (s *BillingService) Sync(ctx context.Context, userID string) (*repositories
 // Invalidate drops the cached snapshot. Called by the webhook and by every
 // mutation here.
 func (s *BillingService) Invalidate(ctx context.Context, userID string) {
-	_ = s.cache.Delete(ctx, accountBillingCacheKey(repositories.RawUserID(userID)))
+	cacheDelete(ctx, s.cache, accountBillingCacheKey(repositories.RawUserID(userID)))
 }
 
 // SnapshotFrom derives the snapshot from billing's entitlements answer.

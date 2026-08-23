@@ -289,6 +289,6 @@ func (s *UserService) GetUserInfo(ctx context.Context, accessToken string) (*Cte
 
 // InvalidateCache drops cached user and me entries.
 func (s *UserService) InvalidateCache(ctx context.Context, userID string) {
-	_ = s.cache.Delete(ctx, userItemCacheKey(userID))
-	_ = s.cache.Delete(ctx, userMeCacheKey(userID))
+	cacheDelete(ctx, s.cache, userItemCacheKey(userID))
+	cacheDelete(ctx, s.cache, userMeCacheKey(userID))
 }

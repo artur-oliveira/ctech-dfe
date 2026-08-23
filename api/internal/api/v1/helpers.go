@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
 
+	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
@@ -49,8 +49,7 @@ func sendProblem(c fiber.Ctx, err error) error {
 	if p, ok := errors.AsType[*problem.Problem](err); ok {
 		return p.Send(c)
 	}
-	slog.ErrorContext(c.Context(), "unhandled error", "path", c.Path(), "err", err)
-	return problem.InternalServer(err.Error()).Send(c)
+	return problem.InternalServer("erro interno").WithCause(err).Send(c)
 }
 
 // currentAccessToken extracts the raw Bearer token from the Authorization header.
@@ -79,7 +78,11 @@ func readOptionalUpload(c fiber.Ctx, field string) ([]byte, error) {
 	if err != nil {
 		return nil, problem.BadRequest("não foi possível abrir o arquivo enviado")
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			observability.Warn(c.Context(), "uploaded file close failed", closeErr, "field", field)
+		}
+	}()
 	buf, err := io.ReadAll(f)
 	if err != nil {
 		return nil, problem.BadRequest("não foi possível ler o arquivo enviado")
