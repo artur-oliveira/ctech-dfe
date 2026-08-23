@@ -36,9 +36,8 @@ interface ApiStackProps extends cdk.StackProps {
   // SSM path written by ValkeyStack at boot. If omitted, VALKEY_URL is not set
   // and the app falls back to NoCacheBackend.
   valkeyUrlSsmPath: string;
-  // Session Manager. **Off by default**: deploys replace the instances through an
-  // ASG instance refresh, so nothing needs SSM RunCommand any more, and the
-  // agent costs ~70 MiB of RSS on a t4g.nano. On means a shell back onto the box.
+  // Session Manager. CI deploys over SSM RunCommand (/opt/app/deploy.sh), which
+  // needs the agent running. On also means a shell back onto the box.
   enableSsmAgent?: boolean;
 }
 
@@ -176,8 +175,12 @@ export class ApiStack extends cdk.Stack {
     );
 
     scripts.run(userData, 'setup-realip.sh', vpc.vpcCidrBlock);
-    scripts.run(userData, 'setup-nginx.sh', '8080', '8000', '/v1.0/health-check', '100', '20m');
-    scripts.run(userData, 'setup-app-service.sh', 'CTech DFe API', 'app', 'network.target nginx.service');
+    // app-port-alt/alt-port (8001) turn on the zero-downtime rolling deploy: a
+    // second app process nginx round-robins into, so deploy.sh can restart one
+    // unit at a time instead of dropping the health check during `systemctl
+    // restart`.
+    scripts.run(userData, 'setup-nginx.sh', '8080', '8000', '/v1.0/health-check', '100', '20m', '8001');
+    scripts.run(userData, 'setup-app-service.sh', 'CTech DFe API', 'app', 'network.target nginx.service', '8001');
     scripts.run(userData, 'setup-deploy.sh', deploymentsBucketName, 'app',
       'http://127.0.0.1:8080/v1.0/health-check');
     scripts.run(userData, 'setup-logs.sh', logsBucketName, svcName, svcName,
@@ -196,6 +199,7 @@ export class ApiStack extends cdk.Stack {
             files: {
               collect_list: [
                 {file_path: '/var/log/app/app.log', log_group_name: logGroupApp, log_stream_name: '{instance_id}'},
+                {file_path: '/var/log/app/app2.log', log_group_name: logGroupApp, log_stream_name: '{instance_id}/app2'},
                 {file_path: '/var/log/nginx/access.log', log_group_name: logGroupNginx, log_stream_name: '{instance_id}/access'},
                 {file_path: '/var/log/nginx/error.log', log_group_name: logGroupNginx, log_stream_name: '{instance_id}/error'},
               ],
