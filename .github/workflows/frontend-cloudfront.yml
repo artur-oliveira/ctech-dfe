@@ -12,7 +12,7 @@ permissions:
 jobs:
   deploy:
     name: Build & Deploy
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     defaults:
       run:
         working-directory: ui

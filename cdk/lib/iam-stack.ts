@@ -269,11 +269,17 @@ export class IAMStack extends cdk.Stack {
     }));
 
     // The shared bootstrap scripts published by ctech-cdk's Ec2ScriptsStack.
-    // Scoped to that bucket; the instance downloads them on every boot.
+    // Scoped to that bucket; the instance downloads them on every boot. Both
+    // buckets granted unconditionally: which one userData actually pulls from
+    // is an instance-launch-time decision (osFamily), not a deploy-time IAM
+    // decision, and granting both costs nothing.
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       sid: 'ReadSharedEc2BootstrapScripts',
       actions: ['s3:GetObject'],
-      resources: [`arn:aws:s3:::${environment}-ctech-ec2-scripts/*`],
+      resources: [
+        `arn:aws:s3:::${environment}-ctech-ec2-scripts/*`,
+        `arn:aws:s3:::${environment}-ctech-ec2-scripts-alpine/*`,
+      ],
     }));
   }
 }

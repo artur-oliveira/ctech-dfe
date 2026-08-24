@@ -161,6 +161,9 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
   // Shared Valkey instance owned by ctech-cdk — same SSM path convention.
   valkeyUrlSsmPath: `/ctech/${ENVIRONMENT}/valkey/url`,
   enableSsmAgent: ENABLE_SSM_AGENT,
+  // Alpine/ARM is the default (same rollout as the other CTech EC2 services);
+  // OS_FAMILY=al2023 is the one-line rollback if this ever needs to revert.
+  osFamily: (process.env.OS_FAMILY as 'al2023' | 'alpine' | undefined) ?? 'alpine',
   description: `CTech DFe API (EC2 + ASG + ALB) - ${ENVIRONMENT}`,
 });
 // instanceProfileNameV2 is a plain string, not a CFN token — CDK cannot
