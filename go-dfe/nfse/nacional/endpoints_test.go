@@ -40,7 +40,7 @@ func TestResolveEmissionEndpoint_TeresinaHomologacao(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveEmissionEndpoint: %v", err)
 	}
-	want := "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/dps"
+	want := "https://nfse2-the.dsfweb.com.br/notafiscal-ws/dps"
 	if got != want {
 		t.Errorf("endpoint = %q, esperado %q", got, want)
 	}
@@ -62,7 +62,7 @@ func TestResolveQueryByKeyEndpoint_TeresinaHomologacao(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveQueryByKeyEndpoint: %v", err)
 	}
-	want := "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/nfse/123"
+	want := "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse/123"
 	if got != want {
 		t.Errorf("endpoint = %q, esperado %q", got, want)
 	}

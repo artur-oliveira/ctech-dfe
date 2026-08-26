@@ -29,7 +29,7 @@ const (
 var municipalSefinBases = map[string]map[string]string{
 	municipalityTeresina: {
 		constants.EnvironmentHom:  "https://nfse2-the.dsfweb.com.br/notafiscal-ws",
-		constants.EnvironmentProd: "https://nfseapi.teresina.pi.gov.br//notafiscal-ws",
+		constants.EnvironmentProd: "https://nfseapi.teresina.pi.gov.br/notafiscal-ws",
 	},
 }
 
