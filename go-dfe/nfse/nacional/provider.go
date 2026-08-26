@@ -208,8 +208,7 @@ func (n *Nacional) QueryByKey(ctx context.Context, key string) (nfse.Result, err
 		return nfse.Result{}, err
 	}
 	var resp queryResponse
-	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodGet,
-		url, nil, &resp, n.cfg.MaxRetries); err != nil {
+	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodGet, url, nil, &resp, n.cfg.MaxRetries); err != nil {
 		return nfse.Result{}, err
 	}
 	return n.toResult(resp)

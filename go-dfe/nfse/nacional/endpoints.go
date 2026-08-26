@@ -28,7 +28,8 @@ const (
 // completada por inferência.
 var municipalSefinBases = map[string]map[string]string{
 	municipalityTeresina: {
-		constants.EnvironmentHom: "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn",
+		constants.EnvironmentHom:  "https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn",
+		constants.EnvironmentProd: "https://nfseapi.teresina.pi.gov.br/notafiscal-adn-ws/api/adn",
 	},
 }
 
