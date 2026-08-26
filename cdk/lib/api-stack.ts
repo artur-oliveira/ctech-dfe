@@ -311,7 +311,10 @@ export class ApiStack extends cdk.Stack {
       logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       asgName: this.asgName,
       minCapacity: 1,
-      maxCapacity: 1,
+      // +1 over min: gives CapacityRebalance headroom to launch the
+      // replacement before terminating the spot-interrupted instance instead
+      // of waiting for it to go down first.
+      maxCapacity: 2,
       // The ASG runs only inside a narrow daytime window: up at 11:55 and down
       // at 13:15 America/Sao_Paulo. Outside it the service is off — inbound
       // webhooks fail and nothing is reachable. Deliberate for a development

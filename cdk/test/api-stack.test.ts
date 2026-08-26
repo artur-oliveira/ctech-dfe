@@ -78,7 +78,7 @@ test('the CloudWatch agent ships logs only, and the ASG stays at one instance', 
   template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
   template.hasResourceProperties('AWS::AutoScaling::AutoScalingGroup', {
     MinSize: '1',
-    MaxSize: '1',
+    MaxSize: '2',
   })
 })
 
