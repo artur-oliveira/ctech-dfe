@@ -1041,11 +1041,26 @@ Quatro validações rejeitam antes de qualquer escrita ou chamada externa:
 4. O serviço do catálogo exige `ibs_cbs` com `c_ind_op`, `cst`, `c_class_trib`, `ind_dest` e
    `fin_nfse=0`; desde 03/08/2026 o ambiente de produção restrita aplica as regras de IBS/CBS.
 
-**Autorizador de Teresina.** Em homologação, `c_loc_emi=2211001` mantém o XML DPS v1.01 e o
+**Autorizador de Teresina — fallback por operação.** `c_loc_emi=2211001` mantém o XML DPS v1.01 e o
 envelope `dpsXmlGZipB64`, mas o go-dfe envia para o autorizador municipal publicado pela SEMF
-(`https://nfse2-the.dsfweb.com.br/notafiscal-adn-ws/api/adn/dps`), não para o Sefin Nacional.
-Consultas por chave usam o mesmo host municipal. Nenhum endpoint de produção é inferido enquanto
-não houver publicação oficial para esse ambiente. O transporte REST define um `User-Agent`
+(`https://nfse2-the.dsfweb.com.br/notafiscal-ws` em homologação,
+`https://nfseapi.teresina.pi.gov.br/notafiscal-ws` em produção), não para o Sefin Nacional.
+
+O padrão nacional é um guia: cada prefeitura escolhe quais operações implementa e com que path, então
+`nacional.ResolveOperation` decide o destino **operação a operação** (`nacional.Operation`), não pela
+base do município. Teresina publica quatro (`tmp/nfse-teresina.txt` §3) e os paths não coincidem com
+os nacionais:
+
+| Operação (`nacional.Op*`) | Path Teresina | Path Sefin Nacional |
+|---------------------------|---------------|---------------------|
+| `OpEmit` | `POST /nfse` | `POST /nfse` |
+| `OpEvent` | `POST /nfse/{chave}/eventos` | `POST /nfse/{chave}/eventos` |
+| `OpQueryByKey` | `GET /nfse/{chave}` | `GET /nfse/{chave}` |
+| `OpQueryByDPSID` | `GET /nfse/dps/{id}` | `GET /dps/{id}` |
+
+Tudo o que Teresina não publica — distribuição (ADN), DANFSE, parâmetros municipais e consulta de
+evento específico — continua no ambiente nacional, mesmo com a base municipal registrada. Ambiente ou
+operação ausente no registro nunca é completado por inferência. O transporte REST define um `User-Agent`
 compatível e identificável porque o Cloudflare desse host devolve um desafio HTML para o agente
 padrão do Go quando a chamada parte do egress AWS, impedindo integrações sem navegador.
 

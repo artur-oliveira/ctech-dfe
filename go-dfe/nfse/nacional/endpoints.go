@@ -17,27 +17,14 @@ const (
 	SystemParametros = "parametros"
 )
 
-const (
-	municipalityTeresina = "2211001"
-	pathMunicipalDPS     = "/dps"
-)
-
-// municipalSefinBases registra autorizadores municipais que recebem o mesmo
-// envelope REST e o mesmo XML DPS do padrão nacional. Só entram aqui URLs
-// publicadas pelo próprio município; ausência de ambiente não pode ser
-// completada por inferência.
-var municipalSefinBases = map[string]map[string]string{
-	municipalityTeresina: {
-		constants.EnvironmentHom:  "https://nfse2-the.dsfweb.com.br/notafiscal-ws",
-		constants.EnvironmentProd: "https://nfseapi.teresina.pi.gov.br/notafiscal-ws",
-	},
-}
+const municipalityTeresina = "2211001"
 
 // Paths, com placeholders no formato de fmt.Sprintf.
 const (
 	PathNFSe                  = "/nfse"
 	PathNFSeByKey             = "/nfse/%s"
 	PathDPS                   = "/dps/%s"
+	PathNFSeDPS               = "/nfse/dps/%s"
 	PathEventos               = "/nfse/%s/eventos"
 	PathEventoEspecifico      = "/nfse/%s/eventos/%s/%d"
 	PathDistribuicaoNSU       = "/DFe/%d"
@@ -87,33 +74,81 @@ func ResolveBase(system, environment string) (string, error) {
 	return base, nil
 }
 
-// ResolveEmissionEndpoint devolve o endpoint de recepção da DPS. Municípios
-// com autorizador próprio prevalecem sobre o Sefin Nacional no ambiente que
-// publicaram oficialmente.
-func ResolveEmissionEndpoint(environment, municipalityCode string) (string, error) {
-	if environments, ok := municipalSefinBases[municipalityCode]; ok {
-		if base, found := environments[environment]; found {
-			return base + pathMunicipalDPS, nil
-		}
-	}
-	base, err := ResolveBase(SystemSefin, environment)
-	if err != nil {
-		return "", err
-	}
-	return base + PathNFSe, nil
+// Operation é uma operação NFS-e do contribuinte. O padrão nacional é um guia:
+// cada prefeitura decide quais operações implementa e com que path, então o
+// fallback para o Sefin Nacional é decidido por operação — não pela base do
+// município.
+type Operation string
+
+const (
+	OpEmit         Operation = "emit"
+	OpEvent        Operation = "evento"
+	OpQueryByKey   Operation = "consulta"
+	OpQueryByDPSID Operation = "consulta_dps"
+)
+
+// nationalPaths é o destino de cada operação no Sefin Nacional — usado quando
+// o município não publicou a operação.
+var nationalPaths = map[Operation]string{
+	OpEmit:         PathNFSe,
+	OpEvent:        PathEventos,
+	OpQueryByKey:   PathNFSeByKey,
+	OpQueryByDPSID: PathDPS,
 }
 
-// ResolveQueryByKeyEndpoint resolve a consulta pelo autorizador municipal
-// quando ele publica essa operação; caso contrário usa o Sefin Nacional.
-func ResolveQueryByKeyEndpoint(environment, municipalityCode, accessKey string) (string, error) {
-	if environments, ok := municipalSefinBases[municipalityCode]; ok {
-		if base, found := environments[environment]; found {
-			return base + fmt.Sprintf(PathNFSeByKey, accessKey), nil
+// municipalAuthorizer é um autorizador municipal que recebe o mesmo envelope
+// REST e o mesmo XML DPS do padrão nacional. paths lista SÓ as operações que o
+// município publicou oficialmente; ambiente ou operação ausente nunca é
+// completado por inferência — cai no Sefin Nacional.
+type municipalAuthorizer struct {
+	bases map[string]string
+	paths map[Operation]string
+}
+
+// Teresina publica quatro operações (tmp/nfse-teresina.txt §3) e os paths não
+// coincidem com os nacionais: a consulta pelo identificador da DPS fica sob
+// /nfse. As demais operações (distribuição, DANFSE, parâmetros, consulta de
+// evento específico) continuam no ambiente nacional.
+var municipalAuthorizers = map[string]municipalAuthorizer{
+	municipalityTeresina: {
+		bases: map[string]string{
+			constants.EnvironmentHom:  "https://nfse2-the.dsfweb.com.br/notafiscal-ws",
+			constants.EnvironmentProd: "https://nfseapi.teresina.pi.gov.br/notafiscal-ws",
+		},
+		paths: map[Operation]string{
+			OpEmit:         PathNFSe,
+			OpEvent:        PathEventos,
+			OpQueryByKey:   PathNFSeByKey,
+			OpQueryByDPSID: PathNFSeDPS,
+		},
+	},
+}
+
+// ResolveOperation devolve a URL da operação. O autorizador municipal prevalece
+// quando publicou essa operação naquele ambiente; caso contrário a chamada vai
+// para o Sefin Nacional. args preenche os placeholders do path.
+func ResolveOperation(op Operation, environment, municipalityCode string, args ...any) (string, error) {
+	nationalPath, ok := nationalPaths[op]
+	if !ok {
+		return "", fmt.Errorf("nacional: operação desconhecida %q", op)
+	}
+	if mun, found := municipalAuthorizers[municipalityCode]; found {
+		if base, hasEnv := mun.bases[environment]; hasEnv {
+			if path, hasOp := mun.paths[op]; hasOp {
+				return base + formatPath(path, args...), nil
+			}
 		}
 	}
 	base, err := ResolveBase(SystemSefin, environment)
 	if err != nil {
 		return "", err
 	}
-	return base + fmt.Sprintf(PathNFSeByKey, accessKey), nil
+	return base + formatPath(nationalPath, args...), nil
+}
+
+func formatPath(path string, args ...any) string {
+	if len(args) == 0 {
+		return path
+	}
+	return fmt.Sprintf(path, args...)
 }

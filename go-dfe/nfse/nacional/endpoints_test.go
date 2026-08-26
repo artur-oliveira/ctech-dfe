@@ -35,35 +35,83 @@ func TestResolveBase_Unknown(t *testing.T) {
 	}
 }
 
-func TestResolveEmissionEndpoint_TeresinaHomologacao(t *testing.T) {
-	got, err := ResolveEmissionEndpoint("hom", "2211001")
-	if err != nil {
-		t.Fatalf("ResolveEmissionEndpoint: %v", err)
+func TestResolveOperation_Teresina(t *testing.T) {
+	const (
+		hom  = "https://nfse2-the.dsfweb.com.br/notafiscal-ws"
+		prod = "https://nfseapi.teresina.pi.gov.br/notafiscal-ws"
+	)
+	cases := []struct {
+		name string
+		op   Operation
+		env  string
+		args []any
+		want string
+	}{
+		{"emissao hom", OpEmit, "hom", nil, hom + "/nfse"},
+		{"emissao prod", OpEmit, "prod", nil, prod + "/nfse"},
+		{"evento hom", OpEvent, "hom", []any{"123"}, hom + "/nfse/123/eventos"},
+		{"consulta hom", OpQueryByKey, "hom", []any{"123"}, hom + "/nfse/123"},
+		{"consulta dps hom", OpQueryByDPSID, "hom", []any{"DPS1"}, hom + "/nfse/dps/DPS1"},
 	}
-	want := "https://nfse2-the.dsfweb.com.br/notafiscal-ws/dps"
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := ResolveOperation(c.op, c.env, "2211001", c.args...)
+			if err != nil {
+				t.Fatalf("ResolveOperation: %v", err)
+			}
+			if got != c.want {
+				t.Errorf("endpoint = %q, esperado %q", got, c.want)
+			}
+		})
+	}
+}
+
+// Município sem autorizador próprio usa o Sefin Nacional em todas as operações.
+func TestResolveOperation_OtherMunicipalityUsesNational(t *testing.T) {
+	const sefin = "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional"
+	cases := []struct {
+		op   Operation
+		args []any
+		want string
+	}{
+		{OpEmit, nil, sefin + "/nfse"},
+		{OpEvent, []any{"123"}, sefin + "/nfse/123/eventos"},
+		{OpQueryByKey, []any{"123"}, sefin + "/nfse/123"},
+		{OpQueryByDPSID, []any{"DPS1"}, sefin + "/dps/DPS1"},
+	}
+	for _, c := range cases {
+		got, err := ResolveOperation(c.op, "hom", "3550308", c.args...)
+		if err != nil {
+			t.Fatalf("ResolveOperation(%q): %v", c.op, err)
+		}
+		if got != c.want {
+			t.Errorf("endpoint(%q) = %q, esperado %q", c.op, got, c.want)
+		}
+	}
+}
+
+// Operação que o município não publica cai no nacional mesmo com base municipal
+// registrada — o fallback é por operação, não pela base.
+func TestResolveOperation_UnpublishedOperationFallsBack(t *testing.T) {
+	saved := municipalAuthorizers[municipalityTeresina]
+	municipalAuthorizers[municipalityTeresina] = municipalAuthorizer{
+		bases: saved.bases,
+		paths: map[Operation]string{OpEmit: PathNFSe},
+	}
+	t.Cleanup(func() { municipalAuthorizers[municipalityTeresina] = saved })
+
+	got, err := ResolveOperation(OpQueryByKey, "hom", municipalityTeresina, "123")
+	if err != nil {
+		t.Fatalf("ResolveOperation: %v", err)
+	}
+	want := "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse/123"
 	if got != want {
 		t.Errorf("endpoint = %q, esperado %q", got, want)
 	}
 }
 
-func TestResolveEmissionEndpoint_OtherMunicipalityUsesNational(t *testing.T) {
-	got, err := ResolveEmissionEndpoint("hom", "3550308")
-	if err != nil {
-		t.Fatalf("ResolveEmissionEndpoint: %v", err)
-	}
-	want := "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse"
-	if got != want {
-		t.Errorf("endpoint = %q, esperado %q", got, want)
-	}
-}
-
-func TestResolveQueryByKeyEndpoint_TeresinaHomologacao(t *testing.T) {
-	got, err := ResolveQueryByKeyEndpoint("hom", "2211001", "123")
-	if err != nil {
-		t.Fatalf("ResolveQueryByKeyEndpoint: %v", err)
-	}
-	want := "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse/123"
-	if got != want {
-		t.Errorf("endpoint = %q, esperado %q", got, want)
+func TestResolveOperation_Unknown(t *testing.T) {
+	if _, err := ResolveOperation("inexistente", "hom", "2211001"); err == nil {
+		t.Error("esperado erro para operação desconhecida")
 	}
 }

@@ -102,7 +102,7 @@ func (n *Nacional) Emit(ctx context.Context, doc nfse.Document) (nfse.Result, er
 	if municipalityCode == "" {
 		municipalityCode = doc.CLocEmi
 	}
-	url, err := n.emissionEndpoint(municipalityCode)
+	url, err := n.endpoint(OpEmit, municipalityCode)
 	if err != nil {
 		return nfse.Result{}, err
 	}
@@ -164,13 +164,12 @@ func (n *Nacional) Event(ctx context.Context, ev nfse.EventRequest) (nfse.Result
 	if err != nil {
 		return nfse.Result{}, err
 	}
-	base, err := n.base(SystemSefin)
+	url, err := n.endpoint(OpEvent, n.cfg.MunicipalityCode, ev.ChaveAcesso)
 	if err != nil {
 		return nfse.Result{}, err
 	}
 
 	var resp eventResponse
-	url := base + fmt.Sprintf(PathEventos, ev.ChaveAcesso)
 	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodPost, url,
 		map[string]string{fieldPedRegEvtXMLGZipB64: packed}, &resp, n.cfg.MaxRetries); err != nil {
 		return nfse.Result{}, err
@@ -203,7 +202,7 @@ type queryResponse struct {
 
 // QueryByKey consulta a NFS-e pela chave de acesso.
 func (n *Nacional) QueryByKey(ctx context.Context, key string) (nfse.Result, error) {
-	url, err := n.queryByKeyEndpoint(key)
+	url, err := n.endpoint(OpQueryByKey, n.cfg.MunicipalityCode, key)
 	if err != nil {
 		return nfse.Result{}, err
 	}
@@ -214,34 +213,27 @@ func (n *Nacional) QueryByKey(ctx context.Context, key string) (nfse.Result, err
 	return n.toResult(resp)
 }
 
-func (n *Nacional) emissionEndpoint(municipalityCode string) (string, error) {
+// endpoint resolve a URL de uma operação do contribuinte. O município decide
+// operação a operação: o que ele não publica cai no Sefin Nacional.
+func (n *Nacional) endpoint(op Operation, municipalityCode string, args ...any) (string, error) {
 	if n.baseOverride != nil {
 		if base, ok := n.baseOverride[SystemSefin]; ok {
-			return base + PathNFSe, nil
+			return base + formatPath(nationalPaths[op], args...), nil
 		}
 	}
-	return ResolveEmissionEndpoint(n.cfg.Environment, municipalityCode)
-}
-
-func (n *Nacional) queryByKeyEndpoint(key string) (string, error) {
-	if n.baseOverride != nil {
-		if base, ok := n.baseOverride[SystemSefin]; ok {
-			return base + fmt.Sprintf(PathNFSeByKey, key), nil
-		}
-	}
-	return ResolveQueryByKeyEndpoint(n.cfg.Environment, n.cfg.MunicipalityCode, key)
+	return ResolveOperation(op, n.cfg.Environment, municipalityCode, args...)
 }
 
 // QueryByDPSID recupera a chave de acesso a partir do identificador da DPS —
 // é o caminho de recuperação em retry (spec §3.4).
 func (n *Nacional) QueryByDPSID(ctx context.Context, idDPS string) (nfse.Result, error) {
-	base, err := n.base(SystemSefin)
+	url, err := n.endpoint(OpQueryByDPSID, n.cfg.MunicipalityCode, idDPS)
 	if err != nil {
 		return nfse.Result{}, err
 	}
 	var resp queryResponse
 	if _, err := httpDo(ctx, n.cfg.HTTPClient, http.MethodGet,
-		base+fmt.Sprintf(PathDPS, idDPS), nil, &resp, n.cfg.MaxRetries); err != nil {
+		url, nil, &resp, n.cfg.MaxRetries); err != nil {
 		return nfse.Result{}, err
 	}
 	return n.toResult(resp)
