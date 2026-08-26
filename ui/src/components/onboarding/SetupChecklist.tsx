@@ -15,10 +15,13 @@ import {STEP_DONE} from '@/lib/constants/onboarding'
  * reminder of a task already done.
  */
 export function SetupChecklist() {
-  const {steps, nextStep, isPending} = useOnboarding()
+  const {steps, nextStep, isPending, isUnknown} = useOnboarding()
 
   const remaining = steps.filter((s) => !s.done && s.id !== STEP_DONE)
-  if (isPending || remaining.length === 0 || !nextStep) return null
+  // Nothing is rendered until setup is known: an account that finished months
+  // ago must never see this card blink back into the dashboard while five
+  // queries land, and an unreachable API is not evidence of an empty account.
+  if (isPending || isUnknown || remaining.length === 0 || !nextStep) return null
 
   const total = steps.filter((s) => s.id !== STEP_DONE).length
   const done = total - remaining.length

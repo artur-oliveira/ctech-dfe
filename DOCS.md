@@ -1847,6 +1847,15 @@ empresa é exatamente a falha que isso evita. Pular uma camada opcional é
 preferência, não estado fiscal, e mora no `localStorage`
 (`STORAGE_KEY_ONBOARDING_SKIPPED_PREFIX`).
 
+**Derivado significa esperar a derivação terminar.** O checklist do dashboard
+(`SetupChecklist`) sai de cinco consultas; uma derivação pela metade lê como
+"nada está configurado". Por isso `useOnboarding` só responde depois que as
+configurações **e** as sondas de produto/serviço respondem (`isPending`), e
+devolve `isUnknown` quando alguma leitura falha — API inalcançável não é prova de
+conta vazia. Enquanto qualquer um dos dois for verdadeiro o cartão não é
+renderizado; era assim que uma conta configurada via o cartão de primeira
+configuração piscar e sumir.
+
 **Camadas condicionais.** Produtos aparece só quando NF-e ou NFC-e está
 configurada; serviços, só com NFS-e. Uma transportadora que só move carga nunca
 vê nenhuma das duas.
@@ -2037,6 +2046,57 @@ dropdown option and sends the concrete intra (`5xxx`) / inter (`6xxx`) variant r
 destinatário is in the issuer's UF (re-resolved when the recipient changes). Emission is blocked when the
 required-scope variant is not configured on the product. Helpers live in `lib/data/cfop.ts`
 (`groupCfopConfigBySuffix`, `resolveCfopForUf`, `cfopGroupCodes`).
+
+### Resiliência de rede (`lib/network/`)
+
+Toda tela deste produto é uma consulta contra a mesma API. Uma queda que cada
+consulta descobre por conta própria vira N requisições falhando, N avisos e N
+laços de retentativa para uma única causa. Por isso a disponibilidade é
+respondida **uma vez**, em `lib/network/liveness.ts`, e todo o resto pergunta a
+ela.
+
+| Peça                            | Papel                                                                    |
+|---------------------------------|--------------------------------------------------------------------------|
+| `liveness.ts`                   | Retrato compartilhado (`checking` / `available` / `unavailable` + motivo `offline`/`server`), sonda de saúde e backoff com jitter |
+| `NetworkProvider.tsx`           | Monta a sonda, avisa o usuário e refaz as consultas ativas na volta       |
+| `ApiClient` (`lib/api/client.ts`) | Espera o primeiro resultado da sonda, falha rápido enquanto a API está fora, e dá **um** orçamento de retentativa aos métodos seguros |
+
+**Sonda.** `GET /v1.0/health-check` — pública (sem auth, e o portão de assinatura
+só olha métodos mutantes). É a única requisição permitida enquanto a API está
+fora. `200` e `207` contam como disponível: *warn* é dependência não
+crítica lenta, e tirar o produto inteiro do ar por isso é uma queda pior que a
+reportada. `503` e qualquer rejeição de transporte contam como fora — um load
+balancer morto responde sem cabeçalho CORS, e o browser expõe isso como
+`TypeError`, não como status.
+
+**Timeout: 5 s (`HTTP_TIMEOUT_MS`)**, na sonda e em toda chamada do `ApiClient`.
+A API responde rápido ou não responde; esperar mais só faz a tela parecer
+quebrada.
+
+**Retentativas ficam no `ApiClient`, não no TanStack Query.** Um orçamento só
+para o app inteiro: no máximo `MAX_HTTP_RETRIES = 2` tentativas extras, apenas
+para `GET`/`HEAD`/`OPTIONS` (documento fiscal nunca vale uma duplicata
+acidental) e apenas para `408, 425, 429, 500, 502, 503, 504` ou ausência de
+status. O atraso é jitter total com teto de 3 s (`httpRetryDelay`), e
+`Retry-After` vence quando o servidor nomeia o prazo. `QueryProvider` fica com
+`retry: false` — retentar nas duas camadas transforma três tentativas em nove
+requisições contra um servidor que já está sofrendo.
+
+**Poll e recuperação.** Saudável: 30 s. Fora: jitter equilibrado com teto de 30 s
+(`livenessPollDelay`) — nem laço ocupado perto de zero, nem frota de clientes
+retentando em uníssono. `online`/`offline` e a volta da aba disparam verificação
+imediata. Quando a API volta, o provider chama `refetchQueries({type: 'active'})`:
+a recuperação não custa nada ao usuário — sem recarregar, sem "tente novamente"
+em cada card.
+
+**Aviso.** Faixa fixa no rodapé (`role="status"`, `aria-live="polite"`), com texto
+diferente para "sem internet" e "servidor indisponível" e um botão *Verificar
+agora*. Fica embaixo de propósito: navegação é como a pessoa chega a uma tela que
+ainda funciona por cache, e cobri-la é a única coisa que uma faixa de queda não
+pode fazer.
+
+**Com `NEXT_PUBLIC_MOCK_API=true` nada disso roda** — a sonda e o portão são
+ignorados, e o retrato fica em `checking`.
 
 ### Authentication Context
 

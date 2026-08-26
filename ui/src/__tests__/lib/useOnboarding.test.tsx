@@ -114,6 +114,40 @@ describe('useOnboarding', () => {
     await waitFor(() => expect(result.current.nextStep?.id).not.toBe(STEP_PRODUCTS))
   })
 
+  it('stays pending until the product probe answers', async () => {
+    // The regression: with the probe still in flight the account looks like it
+    // has no products, so the dashboard flashed the setup card at somebody who
+    // finished setup months ago and then took it away again.
+    let releaseProducts: (v: unknown) => void = () => undefined
+    vi.spyOn(apiClient, 'getProducts').mockReturnValue(
+      new Promise((resolve) => {
+        releaseProducts = resolve
+      }) as never,
+    )
+    mockConfigs(['nfe'])
+    const {result} = renderHook(() => useOnboarding(), {wrapper})
+
+    await waitFor(() => expect(result.current.configured.nfe).toBe(true))
+    expect(result.current.isPending).toBe(true)
+
+    releaseProducts({items: [{pk: 'p1'}], next_cursor: null, has_next: false, previous_cursor: null, has_previous: false})
+    await waitFor(() => expect(result.current.isPending).toBe(false))
+    expect(result.current.nextStep?.id).not.toBe(STEP_PRODUCTS)
+  })
+
+  it('reports setup as unknown when a lookup fails', async () => {
+    // An unreachable API is not evidence of an empty account: deriving "nothing
+    // configured" from a 500 is how an outage becomes a first-run flow.
+    vi.spyOn(apiClient, 'getNFeConfig').mockRejectedValue(new ApiError(500, 'boom'))
+    vi.spyOn(apiClient, 'getNFCeConfig').mockRejectedValue(new ApiError(404, 'not found'))
+    vi.spyOn(apiClient, 'getCTeConfig').mockRejectedValue(new ApiError(404, 'not found'))
+    vi.spyOn(apiClient, 'getMDFeConfig').mockRejectedValue(new ApiError(404, 'not found'))
+    vi.spyOn(apiClient, 'getNfseConfig').mockRejectedValue(new ApiError(404, 'not found'))
+
+    const {result} = renderHook(() => useOnboarding(), {wrapper})
+    await waitFor(() => expect(result.current.isUnknown).toBe(true))
+  })
+
   it('counts a no-charge installation as having answered the plan layer', async () => {
     vi.spyOn(apiClient, 'getSubscription').mockResolvedValue({
       ...SUBSCRIBED,

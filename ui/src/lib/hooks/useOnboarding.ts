@@ -77,7 +77,7 @@ function subscribeSkips(onChange: () => void) {
  */
 export function useOnboarding() {
   const {user, selectedOrg} = useAuth()
-  const {subscription, isPending: subPending} = useSubscription()
+  const {subscription, isPending: subPending, error: subError} = useSubscription()
 
   const orgPk = selectedOrg?.pk
   const storageKey = skipStorageKey(orgPk)
@@ -119,6 +119,11 @@ export function useOnboarding() {
   const configsPending =
     nfe.isPending || nfce.isPending || cte.isPending || mdfe.isPending || nfse.isPending
 
+  // A failed lookup is not an answer. Treating an unreachable API as "nothing
+  // configured" is what puts a finished account back in front of the setup
+  // checklist, so an error suppresses the flow instead of contradicting it.
+  const configsFailed = !!(nfe.error || nfce.error || cte.error || mdfe.error || nfse.error)
+
   const needsProducts = PRODUCT_DOC_VARIANTS.some((v) => configured[v])
   const needsServices = SERVICE_DOC_VARIANTS.some((v) => configured[v])
 
@@ -132,6 +137,13 @@ export function useOnboarding() {
     queryFn: () => apiClient.getServices({limit: EXISTENCE_PROBE_LIMIT}),
     enabled: !!orgPk && needsServices,
   })
+
+  // `isLoading` — not `isPending` — because a disabled query stays pending
+  // forever, and gating the checklist on that would hide it permanently for
+  // anyone whose documents do not need a catalogue.
+  const probesPending =
+    (needsProducts && productsQuery.isLoading) || (needsServices && servicesQuery.isLoading)
+  const probesFailed = !!productsQuery.error || !!servicesQuery.error
 
   const hasSubscription = !!subscription?.has_subscription || !!subscription?.no_charge
   const hasCompany = (user?.organizations.length ?? 0) > 0
@@ -184,7 +196,15 @@ export function useOnboarding() {
     configured,
     hasSubscription,
     hasCompany,
-    isPending: subPending || (!!orgPk && configsPending),
+    /**
+     * True until every layer has a real answer. The checklist is derived from
+     * five queries, and a half-loaded derivation reads as "nothing is set up" —
+     * which is how a configured account gets shown a first-run card for the
+     * half second before its products probe lands.
+     */
+    isPending: subPending || (!!orgPk && (configsPending || probesPending)),
+    /** No answer at all — the caller should say nothing rather than guess. */
+    isUnknown: !!subError || configsFailed || probesFailed,
     skip,
   }
 }

@@ -61,6 +61,13 @@ import type {
 import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls'
+import {MOCK_ENABLED} from '@/lib/mock/env'
+import {
+  HTTP_TIMEOUT_MS,
+  checkApiLiveness,
+  requireApiLiveness,
+  type ApiUnavailableError,
+} from '@/lib/network/liveness'
 import type {PersonRole} from '@/lib/schemas/entity'
 import type {
   AccountSubscription,
@@ -75,6 +82,43 @@ import type {
 // the browser never makes a cross-origin request, so CORS never applies.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 const ORG_HEADER = 'Dfe-Organization-Pk'
+
+// Retries live here rather than in TanStack: one bounded, jittered budget for
+// the whole app. Retrying in both layers turns three transport attempts into
+// nine requests against a server that is already struggling.
+const MAX_HTTP_RETRIES = 2
+const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
+// Only requests that can be repeated without issuing something twice. A fiscal
+// document is never worth an accidental duplicate.
+const SAFE_HTTP_METHODS = new Set(['get', 'head', 'options'])
+const RETRY_BASE_DELAY_MS = 250
+const MAX_RETRY_DELAY_MS = 3_000
+
+interface RetryConfig extends AxiosRequestConfig {
+  _retry?: boolean
+  _networkRetryCount?: number
+}
+
+/** Full jitter, and `Retry-After` wins when the server names a delay. */
+export function httpRetryDelay(attempt: number, retryAfter?: string, random: () => number = Math.random): number {
+  const retryAfterMs = retryAfter == null ? Number.NaN : Number(retryAfter) * 1_000
+  if (Number.isFinite(retryAfterMs)) return Math.max(0, retryAfterMs) + Math.floor(random() * 250)
+  const ceiling = Math.min(MAX_RETRY_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1))
+  return Math.floor(random() * ceiling)
+}
+
+function isRetryable(error: AxiosError): boolean {
+  const config = error.config as RetryConfig | undefined
+  if (!config || (config._networkRetryCount ?? 0) >= MAX_HTTP_RETRIES) return false
+  if (!SAFE_HTTP_METHODS.has((config.method ?? 'get').toLowerCase())) return false
+  const status = error.response?.status
+  // No status means timeout or transport failure — ambiguous, so retryable.
+  return status === undefined || RETRYABLE_HTTP_STATUSES.has(status)
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 // Access token held in memory only — never written to localStorage.
 let _accessToken: string | null = null
@@ -133,10 +177,18 @@ export class ApiError extends Error {
 function createAxiosInstance(): AxiosInstance {
   const instance = axios.create({
     baseURL: API_BASE_URL,
+    // The API answers fast or not at all; a request still open after this is an
+    // outage, and waiting longer only makes the screen feel broken.
+    timeout: HTTP_TIMEOUT_MS,
     headers: {'Content-Type': 'application/json'},
   })
 
-  instance.interceptors.request.use((config) => {
+  instance.interceptors.request.use(async (config) => {
+    // The public health probe owns recovery while the API is down. Without this
+    // every mounted query becomes its own availability probe against a server
+    // that cannot answer.
+    if (!MOCK_ENABLED) await requireApiLiveness()
+
     if (_accessToken) config.headers.Authorization = `Bearer ${_accessToken}`
 
     if (typeof window !== 'undefined') {
@@ -163,7 +215,7 @@ function createAxiosInstance(): AxiosInstance {
   instance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-      const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
+      const original = error.config as RetryConfig | undefined
       if (error.response?.status === 401 && original && !original._retry && _refreshFn) {
         original._retry = true
         const newToken = await _refreshFn()
@@ -185,6 +237,24 @@ function createAxiosInstance(): AxiosInstance {
         }
         return
       }
+      // A timeout or a transport failure is ambiguous in a browser: a dead load
+      // balancer answers without CORS headers and surfaces as a TypeError, not
+      // as a status. Confirm against the health probe before spending retries.
+      let livenessAllowsRetry = error.name !== 'ApiUnavailableError'
+      if (!MOCK_ENABLED && !error.response && livenessAllowsRetry) livenessAllowsRetry = await checkApiLiveness()
+      if (livenessAllowsRetry && isRetryable(error) && original) {
+        const attempt = (original._networkRetryCount ?? 0) + 1
+        original._networkRetryCount = attempt
+        const retryAfter = error.response?.headers?.['retry-after'] as string | undefined
+        await wait(httpRetryDelay(attempt, retryAfter))
+        return instance(original)
+      }
+
+      if (error.name === 'ApiUnavailableError') {
+        const unavailable = error as unknown as ApiUnavailableError
+        throw new ApiError(0, unavailable.message, {reason: unavailable.reason})
+      }
+
       const data = error.response ? await parseResponseErrToJson(error.response) : undefined
       const detail = data?.detail ?? data?.title ?? error.message ?? `HTTP ${error.response?.status}`
       throw new ApiError(error.response?.status ?? 0, detail, data)

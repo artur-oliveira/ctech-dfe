@@ -917,6 +917,22 @@ Must follow Conventional Commits:
   succeed without it). List/browse pages instead render `<ConfigRequiredBanner>`
   (`@/components/ui/config-required-banner.tsx`) alongside `HomologationBanner`, since viewing
   existing documents doesn't require config.
+- **Disponibilidade da API é respondida uma vez, em `lib/network/liveness.ts`.** Nenhuma tela,
+  hook ou consulta pode virar sua própria sonda de disponibilidade. `ApiClient` espera o primeiro
+  resultado da sonda (`requireApiLiveness`) e falha rápido enquanto a API está fora; a sonda
+  (`GET /v1.0/health-check`, pública) é a única requisição permitida nesse estado e é quem descobre
+  a volta. `NEXT_PUBLIC_MOCK_API=true` desliga o mecanismo inteiro.
+- **Retentativa mora no `ApiClient`, nunca no TanStack Query** (`retry: false` em
+  `QueryProvider`). Retentar nas duas camadas multiplica a mesma queda por três. Só métodos
+  seguros (`GET`/`HEAD`/`OPTIONS`) retentam — um documento fiscal não vale uma duplicata
+  acidental — no máximo 2 vezes, com jitter total e teto de 3 s, e `Retry-After` vence.
+- **Timeout de toda chamada: 5 s (`HTTP_TIMEOUT_MS`).** A API responde rápido ou não responde.
+- **Estado derivado só é exibido quando a derivação termina.** Um valor montado a partir de N
+  consultas lê como "vazio" enquanto qualquer uma estiver em voo, e uma leitura que falhou não é
+  prova de ausência. Hooks derivados expõem `isPending` cobrindo **todas** as consultas de que
+  dependem (`isLoading`, não `isPending`, para consultas condicionais — uma consulta desabilitada
+  fica pendente para sempre) e `isUnknown` quando alguma falha; a UI não renderiza em nenhum dos
+  dois casos. Ver `useOnboarding` / `SetupChecklist`.
 
 ## cdk (Infrastructure)
 
