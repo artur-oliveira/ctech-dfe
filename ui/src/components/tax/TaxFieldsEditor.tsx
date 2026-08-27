@@ -234,6 +234,14 @@ export function TaxFieldsEditor({
             )}
             {showPDif && (
               <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Diferimento do FCP</label>
+                <NumericInput value={value.icms_p_fcp_dif ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                              placeholder="0.0000"
+                              onChange={(v) => onChange((r) => ({...r, icms_p_fcp_dif: v}))}/>
+              </div>
+            )}
+            {showPDif && (
+              <div className="grid gap-1">
                 <label className="text-sm font-medium text-gray-700">% Diferimento</label>
                 <NumericInput value={value.icms_p_dif ?? ''} decimal integerPlaces={3} decimalPlaces={4}
                               placeholder="0.0000"
@@ -332,6 +340,12 @@ export function TaxFieldsEditor({
                 <NumericInput value={value.icms_st_fcp_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
                               placeholder="0.0000"
                               onChange={(v) => onChange((r) => ({...r, icms_st_fcp_aliq: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Motivo desoneração da ST</label>
+                <OptionsSelect value={value.icms_mot_des_st ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, icms_mot_des_st: v}))}
+                               options={ICMS_MOT_DESONE_OPTIONS} placeholder="Não desonerada"/>
               </div>
               <div className="grid gap-1">
                 <label className="text-sm font-medium text-gray-700">% Redução BC ST</label>

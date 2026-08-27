@@ -240,6 +240,9 @@ type TaxFieldsBody struct {
 	// CST próprio: é o par abaixo que troca ICMS10/ICMS90 por ICMSPart.
 	IcmsPartPBCOp *string `json:"icms_part_p_bc_op" validate:"omitempty,percent"`
 	IcmsPartUFST  *string `json:"icms_part_uf_st" validate:"omitempty,uf"`
+	// ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90).
+	IcmsMotDesSt *string `json:"icms_mot_des_st" validate:"omitempty"`
+	IcmsPFcpDif  *string `json:"icms_p_fcp_dif" validate:"omitempty,percent"`
 	// PIS / COFINS
 	Pis            string  `json:"pis" validate:"required,digits2"`
 	Cofins         string  `json:"cofins" validate:"required,digits2"`

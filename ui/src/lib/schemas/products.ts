@@ -73,6 +73,9 @@ export const cfopConfigSchema = z.object({
   // ICMSPart — partilha entre UF de origem e destino (não tem CST próprio)
   icms_part_p_bc_op: optionalPercent,
   icms_part_uf_st: optionalStr,
+  // ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90)
+  icms_mot_des_st: optionalStr,
+  icms_p_fcp_dif: optionalPercent,
   // PIS/COFINS
   pis: z.string().regex(/^\d{2}$/, 'PIS deve ter 2 dígitos'),
   cofins: z.string().regex(/^\d{2}$/, 'COFINS deve ter 2 dígitos'),

@@ -333,3 +333,34 @@ func TestICMS60ECSOSN500TrazemSTRetidaEEfetivo(t *testing.T) {
 		}
 	}
 }
+
+func TestICMS70ComSTDesonerada(t *testing.T) {
+	cfg := map[string]any{"icms_st_aliq": "18.00", "icms_mot_des_st": "9"}
+	got := buildICMSNormal("0", "70", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS70"].(map[string]any)
+	if n["motDesICMSST"] != "9" || n["vICMSSTDeson"] == nil {
+		t.Fatalf("ST desonerada ausente: %v", n)
+	}
+}
+
+func TestICMS51ComFCPDiferido(t *testing.T) {
+	cfg := map[string]any{"icms_p_dif": "50.00", "icms_fcp_override": "2.00", "icms_p_fcp_dif": "100.00"}
+	got := buildICMSNormal("0", "51", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS51"].(map[string]any)
+	if n["pFCPDif"] != "100.00" || n["vFCPDif"] != "2.00" || n["vFCPEfet"] != "0.00" {
+		t.Fatalf("FCP diferido errado: %v", n)
+	}
+}
+
+// O leiaute não tem vBCFCP em ICMS00: a base do FCP ali é o próprio vBC.
+func TestICMS00FCPSemVBCFCP(t *testing.T) {
+	got := buildICMSNormal("0", "00", decimal.RequireFromString("100.00"),
+		map[string]any{"icms_fcp_override": "2.00"}, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS00"].(map[string]any)
+	if n["pFCP"] != "2.00" || n["vFCP"] != "2.00" {
+		t.Fatalf("FCP ausente: %v", n)
+	}
+	if _, ok := n["vBCFCP"]; ok {
+		t.Fatalf("vBCFCP não existe em ICMS00: %v", n)
+	}
+}

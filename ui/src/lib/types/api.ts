@@ -296,6 +296,9 @@ export interface CfopConfigItem {
   /** ICMSPart — partilha do ICMS entre UF de origem e destino. */
   icms_part_p_bc_op?: string | null
   icms_part_uf_st?: string | null
+  /** ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90). */
+  icms_mot_des_st?: string | null
+  icms_p_fcp_dif?: string | null
   pis: string
   cofins: string
   pis_aliq?: string | null

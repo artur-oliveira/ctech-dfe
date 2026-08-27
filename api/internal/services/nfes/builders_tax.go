@@ -194,6 +194,28 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		}
 		return nd
 	}
+	// addSTDeson: ST desonerada. vICMSSTDeson é o ICMS-ST que deixou de ser
+	// cobrado — o próprio vICMSST calculado —, e motDesICMSST diz por quê.
+	addSTDeson := func(nd map[string]any) map[string]any {
+		if mot := cfgStrPtr(cfg, "icms_mot_des_st"); mot != nil && *mot != "" {
+			nd["vICMSSTDeson"] = vICMSST
+			nd["motDesICMSST"] = *mot
+		}
+		return nd
+	}
+	// addFCPDif: FCP diferido. vFCPDif é a parcela diferida e vFCPEfet o que
+	// sobra a recolher.
+	addFCPDif := func(nd map[string]any) map[string]any {
+		pFCPDif := cfgStrPtr(cfg, "icms_p_fcp_dif")
+		if pFCPDif == nil || *pFCPDif == "" || !hasFCP {
+			return nd
+		}
+		vDif := vFCPd.Mul(d(*pFCPDif)).Div(decimal.NewFromInt(100)).RoundBank(2)
+		nd["pFCPDif"] = *pFCPDif
+		nd["vFCPDif"] = q2(vDif)
+		nd["vFCPEfet"] = q2(vFCPd.Sub(vDif).RoundBank(2))
+		return nd
+	}
 	addFCPST := func(nd map[string]any) map[string]any {
 		if hasFCPST {
 			nd["vBCFCPST"] = vBCST
@@ -223,7 +245,13 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 	switch cst {
 	case "00":
 		node := map[string]any{"orig": origin, "CST": cst, "modBC": modBC, "vBC": vBC, "pICMS": pICMS, "vICMS": vICMS}
-		return map[string]any{"ICMS00": addFCP(node)}
+		// ICMS00 é o único grupo de FCP sem vBCFCP no leiaute: a base é o
+		// próprio vBC, então o XSD só traz pFCP e vFCP.
+		if hasFCP {
+			node["pFCP"] = pFCP
+			node["vFCP"] = vFCP
+		}
+		return map[string]any{"ICMS00": node}
 
 	case "02":
 		adRem := cfgStr(cfg, "icms_ad_rem", "0.0000")
@@ -243,6 +271,7 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		}
 		addFCP(node)
 		addFCPST(node)
+		addSTDeson(node)
 		return map[string]any{"ICMS10": node}
 
 	case "15":
@@ -309,11 +338,14 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		vICMSOp := vICMSd
 		vICMSDif := vICMSOp.Mul(pDifd).Div(decimal.NewFromInt(100)).RoundBank(2)
 		vICMSEfetivo := vICMSOp.Sub(vICMSDif).RoundBank(2)
-		return map[string]any{"ICMS51": map[string]any{
+		node := map[string]any{
 			"orig": origin, "CST": cst, "modBC": modBC, "pRedBC": pRedBC,
 			"vBC": vBC, "pICMS": pICMS, "vICMSOp": q2(vICMSOp), "pDif": pDif,
 			"vICMSDif": q2(vICMSDif), "vICMS": q2(vICMSEfetivo),
-		}}
+		}
+		addFCP(node)
+		addFCPDif(node)
+		return map[string]any{"ICMS51": node}
 
 	case "53":
 		adRem := cfgStr(cfg, "icms_ad_rem", "0.0000")
@@ -363,6 +395,7 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		addFCP(node)
 		addFCPST(node)
 		addDeson(node)
+		addSTDeson(node)
 		return map[string]any{"ICMS70": node}
 
 	case "90":
@@ -373,7 +406,9 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		node["pICMS"] = pICMS
 		node["vICMS"] = vICMS
 		addFCP(node)
+		addFCPDif(node)
 		addDeson(node)
+		addSTDeson(node)
 		return map[string]any{"ICMS90": node}
 	}
 

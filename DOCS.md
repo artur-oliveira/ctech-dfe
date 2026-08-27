@@ -924,6 +924,8 @@ the frontend's divergence warning.
 | ICMS ST previously withheld (CST 41/60, CSOSN 500) | `icms_v_bc_st_ret`, `icms_v_icms_st_ret`, `icms_p_st`, `icms_fcp_v_bc_st_ret`, `icms_fcp_st_ret_aliq` — o mesmo grupo nos três (`addSTRetida`) |
 | ICMS ST repassed interstate (CST 41 → `ICMSST`) | `icms_v_bc_st_dest`, `icms_v_icms_st_dest`. CST 41 **com** ST retida vira `ICMSST`; sem ela continua `ICMS40` (não tributada) |
 | ICMS efetivo (`ICMS60`, `ICMSST`, `ICMSSN500`)  | `icms_p_red_bc_efet`, `icms_p_icms_efet` — `vBCEfet`/`vICMSEfet` são **calculados** (`addICMSEfetivo`) |
+| ST desonerada (ICMS10/70/90)                   | `icms_mot_des_st` — `vICMSSTDeson` é o próprio ICMS-ST calculado |
+| FCP diferido (ICMS51/90)                       | `icms_p_fcp_dif` — `vFCPDif` e `vFCPEfet` são calculados |
 | Partilha do ICMS entre UFs (`ICMSPart`)        | `icms_part_p_bc_op` + `icms_part_uf_st`. Não há CST próprio: com o par presente, CST 10/90 emite `ICMSPart` no lugar de `ICMS10`/`ICMS90` |
 | ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret` |
 

@@ -546,6 +546,13 @@ components:
             Partilha do ICMS (`ICMSPart`). Junto de `icms_part_uf_st`, troca
             `ICMS10`/`ICMS90` por `ICMSPart` — não há CST próprio para a partilha.
         icms_part_uf_st: { type: [ string, 'null' ] }
+        icms_mot_des_st:
+          type: [ string, 'null' ]
+          description: Motivo da desoneração da ST (`vICMSSTDeson`/`motDesICMSST` em ICMS10/70/90).
+        icms_p_fcp_dif:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: '% do FCP diferido (`pFCPDif`/`vFCPDif`/`vFCPEfet` em ICMS51/90).'
         pis: { type: string, pattern: '^\d{2}$', description: CST do PIS. }
         cofins: { type: string, pattern: '^\d{2}$', description: CST da COFINS. }
         pis_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
