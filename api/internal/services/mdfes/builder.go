@@ -188,11 +188,17 @@ func (p buildParams) buildRodo() map[string]any {
 		"tpCar": p.vehicle.TpCar,
 		"UF":    p.vehicle.UF,
 	}
+	if p.vehicle.CInt != "" {
+		veic["cInt"] = p.vehicle.CInt
+	}
 	if p.vehicle.RENAVAM != "" {
 		veic["RENAVAM"] = p.vehicle.RENAVAM
 	}
 	if p.vehicle.CapKG != "" {
 		veic["capKG"] = p.vehicle.CapKG
+	}
+	if p.vehicle.CapM3 != "" {
+		veic["capM3"] = p.vehicle.CapM3
 	}
 	if prop := buildProp(p.owner); prop != nil {
 		veic["prop"] = prop
@@ -209,11 +215,17 @@ func (p buildParams) buildRodo() map[string]any {
 		reboques := make([]map[string]any, 0, len(p.trailers))
 		for _, t := range p.trailers {
 			reboque := map[string]any{"placa": t.Placa, "tara": t.Tara, "tpCar": t.TpCar}
+			if t.CInt != "" {
+				reboque["cInt"] = t.CInt
+			}
 			if t.RENAVAM != "" {
 				reboque["RENAVAM"] = t.RENAVAM
 			}
 			if t.CapKG != "" {
 				reboque["capKG"] = t.CapKG
+			}
+			if t.CapM3 != "" {
+				reboque["capM3"] = t.CapM3
 			}
 			if t.UF != "" {
 				reboque["UF"] = t.UF
@@ -362,6 +374,9 @@ func buildEnderMDFe(person map[string]any) map[string]any {
 		"xMun":    anyStr(addr, "city"),
 		"CEP":     onlyDigits(anyStr(addr, "postal_code")),
 		"UF":      anyStr(addr, "state_federation"),
+	}
+	if cpl := anyStr(addr, "complement"); cpl != "" {
+		ender["xCpl"] = cpl
 	}
 	if email := services.FirstEmail(person); email != "" {
 		ender["email"] = email

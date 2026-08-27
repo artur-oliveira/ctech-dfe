@@ -14,3 +14,20 @@ func (p buildParams) buildInfANTT() map[string]any {
 	}
 	return infANTT
 }
+
+// categCombVeic (valePed/categCombVeic) classifica a combinação veicular pelo
+// número de eixos, que aqui é derivado da composição: o trator sozinho é
+// caminhão simples; cada reboque acrescenta uma categoria. Perguntar isso ao
+// operador seria perguntar algo que o próprio manifesto já diz.
+func categCombVeic(trailers int) string {
+	switch trailers {
+	case 0:
+		return categCombCaminhao
+	case 1:
+		return categCombCaminhaoReboque
+	case 2:
+		return categCombCaminhaoDoisReboques
+	default:
+		return categCombCaminhaoTresReboques
+	}
+}

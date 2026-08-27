@@ -544,9 +544,12 @@ type resolvedVehicle struct {
 	UF      string
 	RENAVAM string
 	CapKG   string
-	TpRod   string
-	TpCar   string
-	RNTRC   string // owner RNTRC, when the vehicle is registered with an owner
+	// CInt e CapM3 já vivem no cadastro do veículo — o builder só não os lia.
+	CInt  string
+	CapM3 string
+	TpRod string
+	TpCar string
+	RNTRC string // owner RNTRC, when the vehicle is registered with an owner
 	// Owner é o proprietário cadastrado no veículo (VehicleOwnerBody). Serve de
 	// default para veicTracao/prop quando a emissão não traz um proprietário —
 	// antes este dado era cadastrado e depois redigitado a cada emissão.
@@ -603,6 +606,14 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 		}
 		if out.RENAVAM == "" {
 			out.RENAVAM = strAttr(vehicle, "renavam")
+		}
+		if out.CInt == "" {
+			out.CInt = strAttr(vehicle, "cint")
+		}
+		if out.CapM3 == "" {
+			if m3 := intAttr(vehicle, "cap_m3", 0); m3 > 0 {
+				out.CapM3 = strconv.Itoa(m3)
+			}
 		}
 		if owner, ok := vehicle["owner"].(*types.AttributeValueMemberM); ok {
 			if r, ok := owner.Value["rntrc"].(*types.AttributeValueMemberS); ok {

@@ -83,6 +83,13 @@ const (
 	// feito por terceiro. Ausente significa encerrado pelo emitente.
 	indEncPorTerceiroSim = "1"
 
+	// categCombVeic (valePed) — categoria da combinação veicular, derivada do
+	// número de reboques do próprio manifesto.
+	categCombCaminhao             = "02" // caminhão simples
+	categCombCaminhaoReboque      = "04" // caminhão + 1 reboque
+	categCombCaminhaoDoisReboques = "06" // caminhão + 2 reboques
+	categCombCaminhaoTresReboques = "07" // caminhão + 3 ou mais reboques
+
 	// Campos do CSRT na configuração fiscal (organization_mdfe_configs).
 	csrtIDField = "csrt_id"
 	csrtField   = "csrt"

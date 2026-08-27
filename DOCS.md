@@ -1617,6 +1617,10 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   própria: não vira `prop` e `ide/tpTransp` fica como está (F18/F19/F25).
 - `trailers[]?` — up to 3 `{sk}` (registered vehicles with `role=trailer`), emitted as
   `veicReboque`. Same completeness gating as `vehicle.sk` (`weight`/`cap_kg`/`bodywork` required).
+  `cint` e `cap_m3` do cadastro do veículo saem como `cInt`/`capM3` tanto em `veicTracao` quanto em
+  `veicReboque` — nunca são perguntados na emissão, porque já estão no cadastro. Da mesma forma,
+  `complement` do endereço do emitente vira `enderEmit/xCpl`, e `valePed/categCombVeic` é **derivado**
+  do número de reboques (0⇒`02`, 1⇒`04`, 2⇒`06`, 3+⇒`07`) — o manifesto já diz a composição.
 - `drivers[]` — `{name, cpf}` (≥ 1 required).
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
