@@ -1424,7 +1424,7 @@ sintetizadas:
 | Atributo    | Valor                                                        |
 |-------------|--------------------------------------------------------------|
 | `pk`        | `INUT#{env}#{org_pk}` — todas as inutilizações da organização em uma query |
-| `sk`        | `{uuidv7}`                                                    |
+| `sk`        | `{ulid}`                                                    |
 | `event_key` | `INUT#{ano}#{serie:03d}#{nNFIni:09d}#{nNFFin:09d}`             |
 | `event_type`| `INUT` — inutilização não é evento SEFAZ (não tem `tpEvento`)  |
 
@@ -2620,7 +2620,7 @@ cdk destroy --all  # Deletes EVERYTHING including data in dev/staging with DESTR
 
 - `PK`: `USER_{uuid}`, `CNPJ_{cnpj}`, `CPF_{cpf}`, `{org_pk}`, `{access_key}`
 - `SK` for documents: 44-digit access key
-- `SK` for events: `{uuidv7}` (time-sortable)
+- `SK` for events: `{ulid}` (time-sortable)
 - `SK` for products: `PRODUCT_{uuid}`
 - `SK` for vehicles: `VEHICLE_{id}`
 

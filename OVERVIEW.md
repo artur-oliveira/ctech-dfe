@@ -127,12 +127,12 @@ export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; `Fron
 | organization_persons        | {cpf_cnpj}               | PERSON_{id}      |
 | organization_certificates   | {org_pk}                 | CERT_{timestamp} |
 | nfes / nfces / ctes / mdfes | {env}#{CNPJ}             | {access_key}     |
-| nfe_events / ...            | {access_key}             | {uuidv7}         |
+| nfe_events / ...            | {access_key}             | {ulid}         |
 | organization_nfe_configs    | {org_pk}                 | —                |
 | organization_services       | {org_pk}                 | SERVICE_{uuid}   |
 | organization_nfse_configs   | {org_pk}                 | —                |
 | nfses                       | {env}#{CNPJ}             | id_dps           |
-| nfse_events                 | {id_dps}                 | {uuidv7}         |
+| nfse_events                 | {id_dps}                 | {ulid}         |
 | organization_tax_profiles   | {org_pk}                 | TAXPROFILE_{uuid}  |
 | organization_operations     | {org_pk}                 | OPERATION_{uuid}   |
 | organization_payment_terms  | {org_pk}                 | PAYMENTTERM_{uuid} |

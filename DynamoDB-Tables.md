@@ -25,23 +25,23 @@ PITR: enabled in production only.
 | 12 | `nfces`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 13 | `ctes`                      | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 14 | `mdfes`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
-| 15 | `nfe_events`                | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
-| 16 | `nfce_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
-| 17 | `cte_events`                | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
-| 18 | `mdfe_events`               | `{org_pk}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
+| 15 | `nfe_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 16 | `nfce_events`               | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 17 | `cte_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 18 | `mdfe_events`               | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 19 | `nfe_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 20 | `cte_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 21 | `mdfe_distributions`        | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 22 | `nfse_distributions`        | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 23 | `roles`                     | `ROLE_{NAME}`                | —                                        | —                                                  |
-| 24 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{uuidv7}` | `org-time-index`, `user-id-index`                  |
+| 24 | `audit_logs`                | `{org_pk}`                   | `{resource_type}#{resource_id}#{ulid}` | `org-time-index`, `user-id-index`                  |
 | 25 | `organization_users`        | `{org_pk}`                   | `USER_{sub}`                             | `user-index` (inverted)                            |
 | 26 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                                 |
 | 27 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                                  |
 | 28 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index`                  |
 | 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
 | 30 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
-| 31 | `nfse_events`               | `{id_dps}`                   | `{uuidv7}`                               | `org-event-key-index`                              |
+| 31 | `nfse_events`               | `{id_dps}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 32 | `organization_tax_profiles` | `{org_pk}`                   | `TAXPROFILE_{uuid}`                      | `name-index`                                       |
 | 33 | `organization_operations`   | `{org_pk}`                   | `OPERATION_{uuid}`                       | `name-index`                                       |
 | 34 | `organization_payment_terms`| `{org_pk}`                   | `PAYMENTTERM_{uuid}`                     | `name-index`                                       |
@@ -264,7 +264,7 @@ SEFAZ communication events for a document (authorization, cancellation, CC-e, ma
 | Attribute         | Type | Notes                                                        |
 |-------------------|------|--------------------------------------------------------------|
 | `pk`              | S    | `{org_pk}` — partition key                                   |
-| `sk`              | S    | `{uuidv7}` — sort key (time-sortable, unique per event)      |
+| `sk`              | S    | `{ulid}` — sort key (time-sortable, unique per event)      |
 | `access_key`      | S    | 44-digit key of the parent document                          |
 | `event_key`       | S    | `{access_key}#{event_type}#{seq:03d}` — GSI sort key         |
 | `event_type`      | S    | SEFAZ event type code (`110111` cancel, `110110` CC-e, etc.) |
@@ -347,7 +347,7 @@ without its audit trail (or vice versa).
 | Attribute       | Type | Notes                                                                                                                                           |
 |-----------------|------|-------------------------------------------------------------------------------------------------------------------------------------------------|
 | `pk`            | S    | `{org_pk}` — the owning organization                                                                                                            |
-| `sk`            | S    | `{resource_type}#{resource_id}#{uuidv7}` — sort key                                                                                             |
+| `sk`            | S    | `{resource_type}#{resource_id}#{ulid}` — sort key                                                                                             |
 | `resource_type` | S    | `ORGANIZATION`, `CERTIFICATE`, `PRODUCT`, `VEHICLE`, `PERSON`, `NFE_CONFIG`, `NFCE_CONFIG`, `CTE_CONFIG`, `MDFE_CONFIG`                         |
 | `resource_id`   | S    | The resource's own id (e.g. a product's `sk`, a cert's `md5`, a fiscal-config doc-type string, or `org_pk` itself for organization/config rows) |
 | `action`        | S    | `CREATE` \| `UPDATE` \| `DELETE`                                                                                                                |
@@ -695,7 +695,7 @@ rather than `org_pk`, since events can arrive before the access key exists.
 | Attribute    | Type | Notes                                                   |
 |--------------|------|---------------------------------------------------------|
 | `pk`         | S    | `{id_dps}` — partition key                              |
-| `sk`         | S    | `{uuidv7}` — sort key (time-sortable, unique per event) |
+| `sk`         | S    | `{ulid}` — sort key (time-sortable, unique per event) |
 | `event_type` | S    | Event type code                                         |
 | `event_key`  | S    | GSI sort key on `org-event-key-index`                   |
 | `status`     | S    | `authorized`, `rejected`, `pending`, `failed`           |

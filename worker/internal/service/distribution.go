@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	mathrand "math/rand"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -22,7 +20,6 @@ import (
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
-	"github.com/oklog/ulid/v2"
 
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
@@ -1674,27 +1671,6 @@ func attributeList(rows []map[string]string) *types.AttributeValueMemberL {
 		list = append(list, &types.AttributeValueMemberM{Value: m})
 	}
 	return &types.AttributeValueMemberL{Value: list}
-}
-
-// GenerateID returns a new ULID strings
-func genULID() string {
-	return newULID().String()
-}
-
-var ulidPool = sync.Pool{
-	New: func() any {
-		return ulid.Monotonic(rand.Reader, 0)
-	},
-}
-
-func newULID() ulid.ULID {
-	// Acquire engine from pool
-	entropy := ulidPool.Get().(ulid.MonotonicReader)
-	defer ulidPool.Put(entropy)
-
-	ms := ulid.Timestamp(time.Now())
-	id, _ := ulid.New(ms, entropy)
-	return id
 }
 
 func snsInput(topicARN, message string) *sns.PublishInput {
