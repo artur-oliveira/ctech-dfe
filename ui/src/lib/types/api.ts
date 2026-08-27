@@ -649,6 +649,16 @@ export interface PersonDetailsOut {
   nfse?: NfseInfo | null
   /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
   delivery_locations?: NfeLocalOut[]
+  bank?: PersonBank | null
+}
+
+/** Recebimento do condutor/TAC (MDF-e infANTT/infPag/infBanc). Choice: PIX, ou
+ *  banco + agência, ou CNPJ da instituição de pagamento. */
+export interface PersonBank {
+  pix_key?: string | null
+  bank_code?: string | null
+  branch_code?: string | null
+  cnpj_ipef?: string | null
 }
 
 export interface PersonItemOut {
@@ -1181,6 +1191,29 @@ export interface MdfeEmit {
   /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
   toll_vouchers?: MdfeTollIn[] | null
   contractors?: MdfeContractorIn[] | null
+  payments?: MdfePaymentIn[] | null
+}
+
+/** Componente do valor do frete (`infPag/Comp`). */
+export interface MdfePaymentComponentIn {
+  type: string
+  value: string
+  description?: string
+}
+
+/** Pagamento ao transportador autônomo na emissão (`infANTT/infPag`). As
+ *  parcelas são derivadas do prazo pelo backend, nunca enviadas. */
+export interface MdfePaymentIn {
+  person_doc: string
+  components: MdfePaymentComponentIn[]
+  contract_value: string
+  /** indPag: 0 à vista, 1 a prazo. */
+  payment_type: string
+  advance_value?: string
+  high_performance?: string
+  installments?: number
+  interval_days?: number
+  first_due_days?: number
 }
 
 /** Contratante do frete. Identidade vem do cadastro; o contrato é da viagem. */

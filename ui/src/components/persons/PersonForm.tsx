@@ -57,6 +57,12 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
       })),
       contacts: p.person.contacts ?? {emails: [], phones: []},
       nfse: nfseInfoFromApi(p.person.nfse),
+      bank: {
+        pix_key: p.person.bank?.pix_key ?? '',
+        bank_code: p.person.bank?.bank_code ?? '',
+        branch_code: p.person.bank?.branch_code ?? '',
+        cnpj_ipef: p.person.bank?.cnpj_ipef ?? '',
+      },
     },
   }
 }

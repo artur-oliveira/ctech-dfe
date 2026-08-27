@@ -18,6 +18,9 @@ func (p buildParams) buildInfANTT() map[string]any {
 	if ct := p.buildInfContratante(); ct != nil {
 		infANTT["infContratante"] = ct
 	}
+	if len(p.infPag) > 0 {
+		infANTT["infPag"] = p.infPag
+	}
 	return infANTT
 }
 

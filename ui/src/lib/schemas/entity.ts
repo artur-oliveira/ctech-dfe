@@ -125,6 +125,14 @@ export const entitySchema = z.object({
     cnae: z.string().regex(/^\d{7}$/, 'CNAE tem 7 dígitos').optional().or(z.literal('')),
     /** Inscrição Suframa do emitente (emit/ISUFEmit). */
     isuf_emit: z.string().regex(/^\d{1,9}$/, 'Suframa é numérico').optional().or(z.literal('')),
+    /** Recebimento do condutor/TAC (MDF-e infANTT/infPag/infBanc). Choice:
+     *  PIX, ou banco + agência, ou CNPJ da instituição de pagamento. */
+    bank: z.object({
+      pix_key: z.string().max(250).optional().or(z.literal('')),
+      bank_code: z.string().regex(/^\d{3}$/, 'Código do banco tem 3 dígitos').optional().or(z.literal('')),
+      branch_code: z.string().max(10).optional().or(z.literal('')),
+      cnpj_ipef: z.string().optional().or(z.literal('')),
+    }).default({pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''}),
   }),
 }).superRefine((data, ctx) => {
   // Pessoa no exterior não tem CPF/CNPJ: os dois campos são exclusivos.

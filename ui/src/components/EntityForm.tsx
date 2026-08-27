@@ -128,6 +128,7 @@ const DEFAULT_VALUES: EntityFormData = {
     nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
     cnae: '',
     isuf_emit: '',
+    bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
   },
 }
 
@@ -147,6 +148,7 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.contacts.phones.length > 0) return true
   if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
   if (data.person.cnae || data.person.isuf_emit) return true
+  if (data.person.bank?.pix_key || data.person.bank?.bank_code || data.person.bank?.cnpj_ipef) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
   return false
 }
@@ -389,6 +391,63 @@ export function EntityForm({
     </div>
   )
 
+  // Recebimento do condutor/TAC: o MDF-e declara em infBanc pra quem o frete
+  // foi pago. É dado da pessoa, não da viagem — a emissão nunca pergunta.
+  const bankSection = (
+    <div className="pt-1 border-t border-gray-100">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+        MDF-e — recebimento do frete
+      </p>
+      <p className="text-xs text-gray-500 mb-3">
+        Informe a chave PIX <span className="font-medium">ou</span> banco e agência
+        <span className="font-medium"> ou</span> o CNPJ da instituição de pagamento.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <FormField control={form.control as never} name="person.bank.pix_key"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Chave PIX</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={250}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        <FormField control={form.control as never} name="person.bank.cnpj_ipef"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>CNPJ da instituição de pagamento</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={18}
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        <FormField control={form.control as never} name="person.bank.bank_code"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Banco</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
+                              inputMode="numeric" placeholder="3 dígitos"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        <FormField control={form.control as never} name="person.bank.branch_code"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Agência</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={10}
+                              inputMode="numeric"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+      </div>
+    </div>
+  )
+
   // NFS-e: inscrição municipal + regime tributário do prestador. Ficam no
   // cadastro (e não na config da organização) porque quem presta pode ser uma
   // pessoa quando a org emite como tomadora/intermediária — ver dto.go.
@@ -621,6 +680,8 @@ export function EntityForm({
             {isOrg && ieSection}
 
             {isOrg && nfeEmitSection}
+
+            {!isOrg && bankSection}
 
             {nfseSection}
           </SectionCard>

@@ -37,6 +37,7 @@ import type {
   MdfeEmit,
   MdfeMunIn,
   MdfeContractorIn,
+  MdfePaymentIn,
   MdfeTollIn,
   NfeListOut,
   VehicleCreate,
@@ -44,6 +45,7 @@ import type {
 } from '@/lib/types/api'
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
+import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
 import {Plane, Ship, TramFront, Truck} from 'lucide-react'
 
 // ─── steps ──────────────────────────────────────────────────────────────────
@@ -364,6 +366,7 @@ export function MdfeEmitForm() {
   const [tripStart, setTripStart] = useState('')
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
+  const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('')
@@ -582,6 +585,7 @@ export function MdfeEmitForm() {
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       contractors: contractors.length ? contractors : undefined,
+      payments: freightPayments.length ? freightPayments : undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
@@ -721,6 +725,9 @@ export function MdfeEmitForm() {
           <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
 
           <ContractorsFields contractors={contractors} onChange={setContractors}/>
+
+          <FreightPaymentFields payments={freightPayments} onChange={setFreightPayments}
+                                required={contractors.length > 0}/>
 
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">

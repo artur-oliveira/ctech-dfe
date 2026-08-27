@@ -108,6 +108,17 @@ type PersonObjectBody struct {
 	IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
 	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
 	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
+	// Bank são os dados de recebimento do condutor/TAC (MDF-e infANTT/infBanc).
+	// Ficam na pessoa porque são invariantes dela, não da viagem.
+	Bank *PersonBankBody `json:"bank" validate:"omitempty"`
+}
+
+// PersonBankBody é o choice de infBanc: PIX, ou banco+agência, ou CNPJ do IPEF.
+type PersonBankBody struct {
+	PixKey     *string `json:"pix_key" validate:"omitempty,max=250"`
+	BankCode   *string `json:"bank_code" validate:"omitempty,len=3,number"`
+	BranchCode *string `json:"branch_code" validate:"omitempty,max=10,number"`
+	CNPJIPEF   *string `json:"cnpj_ipef" validate:"omitempty,cnpj"`
 }
 
 // ── Persons ──────────────────────────────────────────────────────────────────

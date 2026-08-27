@@ -57,6 +57,10 @@ type MdfeEmitBody struct {
 	// person_doc aponta para organization_persons; o contrato é da viagem.
 	Contractors []MdfeContractorBody `json:"contractors" validate:"omitempty,max=10,dive"`
 
+	// Payments é o pagamento ao transportador autônomo (infANTT/infPag).
+	// Obrigatório quando há contratante.
+	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
+
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
 	Water *MdfeWaterModal `json:"water" validate:"omitempty"`
@@ -77,6 +81,41 @@ type MdfeContractorBody struct {
 	PersonDoc      string `json:"person_doc" validate:"required"`
 	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
 	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+}
+
+// validateFreightDeclaration recusa o manifesto que declara contratante mas não
+// declara pagamento: quem contrata frete de terceiro paga alguém por ele, e o
+// infANTT sem infPag é o MDF-e incompleto que só a SEFAZ recusaria.
+func validateFreightDeclaration(req MdfeEmitBody) error {
+	if len(req.Contractors) > 0 && len(req.Payments) == 0 {
+		return problem.BadRequest("MDF-e com contratante exige o grupo de pagamento (infPag)")
+	}
+	return nil
+}
+
+// MdfePaymentBody é o pagamento do frete a um transportador autônomo na
+// emissão. Nome, documento e dados de recebimento vêm do cadastro da pessoa;
+// aqui fica o que é da viagem: componentes, valor e prazo. As parcelas
+// (infPrazo) são derivadas do prazo, nunca digitadas uma a uma — por isso este
+// corpo não é o MdfePayment dos eventos de pagamento, que declaram parcelas já
+// acordadas.
+type MdfePaymentBody struct {
+	PersonDoc  string                 `json:"person_doc" validate:"required"`
+	Components []MdfePaymentComponent `json:"components" validate:"required,min=1,dive"`
+	// ContractValue é vContrato; PaymentType é indPag (0 à vista, 1 a prazo).
+	ContractValue string `json:"contract_value" validate:"required,decimalv"`
+	PaymentType   string `json:"payment_type" validate:"required,oneof=0 1"`
+
+	AdvanceValue    *string `json:"advance_value" validate:"omitempty,decimalv"`    // vAdiant
+	AdvanceRequest  *string `json:"advance_request" validate:"omitempty,oneof=0 1"` // indAntecipaAdiant
+	AdvanceKind     *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"`  // tpAntecip
+	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"`  // indAltoDesemp
+
+	// Prazo: quantas parcelas, de quantos em quantos dias, a primeira quantos
+	// dias depois da emissão.
+	Installments int `json:"installments" validate:"omitempty,min=1,max=120"`
+	IntervalDays int `json:"interval_days" validate:"omitempty,min=0"`
+	FirstDueDays int `json:"first_due_days" validate:"omitempty,min=0"`
 }
 
 // MdfeDocRef references an NF-e or CT-e to be transported.
@@ -224,6 +263,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if len(req.Drivers) == 0 {
 		return nil, problem.BadRequest("informe ao menos um condutor")
 	}
+	if err := validateFreightDeclaration(req); err != nil {
+		return nil, err
+	}
 
 	orgItem, err := s.orgRepo.GetOrganization(ctx, orgPK)
 	if err != nil {
@@ -295,6 +337,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	tpEmis := tpEmisNormal
 
 	now := time.Now()
+
+	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
+	if err != nil {
+		return nil, err
+	}
 	cnpj := services.StripPKPrefix(orgPK)
 	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now, tpEmis)
 	if accessKey == "" {
@@ -327,6 +374,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tpEmis:      tpEmis,
 		tolls:       tolls,
 		contractors: contractors,
+		infPag:      infPag,
 		tech:        s.tech,
 		csrtID:      strAttr(configItem, csrtIDField),
 		csrt:        strAttr(configItem, csrtField),
@@ -639,6 +687,20 @@ func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []Md
 // cnpjLen distingue CNPJ de CPF num documento já sem prefixo.
 const cnpjLen = 14
 
+// personDocChoice traduz o SK do cadastro no choice CPF | CNPJ | idEstrangeiro
+// do XSD: o prefixo estrangeiro é explícito e o resto se distingue pelo
+// tamanho do documento. Vale para infContratante e infPag.
+func personDocChoice(sk string) (cpf, cnpj, foreign string) {
+	if rest, ok := strings.CutPrefix(sk, repositories.SKPrefixForeign); ok {
+		return "", "", rest
+	}
+	if doc := services.StripPKPrefix(sk); len(doc) == cnpjLen {
+		return "", doc, ""
+	} else {
+		return doc, "", ""
+	}
+}
+
 // resolvedContractor é um contratante do frete já cruzado com o cadastro.
 type resolvedContractor struct {
 	Name           string
@@ -676,17 +738,7 @@ func (s *MdfeService) resolveContractors(
 			ContractNumber: c.ContractNumber,
 			ContractValue:  c.ContractValue,
 		}
-		// O choice do XSD é CPF | CNPJ | idEstrangeiro, e o próprio SK já diz
-		// qual: o prefixo estrangeiro é explícito, e o resto se distingue pelo
-		// tamanho do documento.
-		switch doc := services.StripPKPrefix(sk); {
-		case strings.HasPrefix(sk, repositories.SKPrefixForeign):
-			rc.Foreign = strings.TrimPrefix(sk, repositories.SKPrefixForeign)
-		case len(doc) == cnpjLen:
-			rc.CNPJ = doc
-		default:
-			rc.CPF = doc
-		}
+		rc.CPF, rc.CNPJ, rc.Foreign = personDocChoice(sk)
 		out = append(out, rc)
 	}
 	return out, nil

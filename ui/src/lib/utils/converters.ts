@@ -28,6 +28,8 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
       })),
       contacts: contacts ?? {emails: [], phones: []},
       nfse: nfseInfoFromApi(nfse),
+      // Organização não recebe frete; o grupo existe só pra satisfazer o schema.
+      bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
     },
   }
 }

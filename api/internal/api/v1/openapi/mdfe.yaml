@@ -720,6 +720,13 @@ components:
             `CPF|CNPJ|idEstrangeiro` vêm de `organization_persons`; só o contrato
             é da viagem.
           items: { $ref: '#/components/schemas/MdfeContractor' }
+        payments:
+          type: array
+          description: |
+            Pagamento ao transportador autônomo (`infANTT/infPag`). Obrigatório
+            quando há contratante. Nome, documento e recebimento vêm do
+            cadastro da pessoa; as parcelas (`infPrazo`) são derivadas do prazo.
+          items: { $ref: '#/components/schemas/MdfePaymentEmit' }
         predominant: { $ref: '#/components/schemas/MdfeProdPred' }
         bulk_cargo: { $ref: '#/components/schemas/MdfeBulkCargo' }
         trip_start: { type: [ string, 'null' ], description: '`dhIniViagem`, em RFC 3339.' }
@@ -752,6 +759,35 @@ components:
             `infContrato/NroContrato`. Ausente, o grupo `infContrato` inteiro fica
             de fora — `NroContrato` é obrigatório dentro dele.
         contract_value: { type: string, description: '`infContrato/vContratoGlobal`.' }
+
+    MdfePaymentEmit:
+      type: object
+      required: [ person_doc, components, contract_value, payment_type ]
+      properties:
+        person_doc:
+          type: string
+          description: CPF/CNPJ (ou `IDEST_…`) do beneficiário no cadastro de pessoas.
+        components:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/MdfePaymentComponent' }
+        contract_value: { type: string, description: '`vContrato`.' }
+        payment_type:
+          type: string
+          enum: [ '0', '1' ]
+          description: '`indPag`: 0 à vista, 1 a prazo.'
+        advance_value: { type: [ string, 'null' ], description: '`vAdiant`.' }
+        advance_request: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
+        advance_kind: { type: [ string, 'null' ], enum: [ '0', '1', '2', null ] }
+        high_performance:
+          type: [ string, 'null' ]
+          enum: [ '1', null ]
+          description: '`indAltoDesemp`.'
+        installments:
+          type: integer
+          description: Número de parcelas; as parcelas em si são derivadas, nunca enviadas.
+        interval_days: { type: integer }
+        first_due_days: { type: integer }
 
     MdfeCargoPreview:
       type: object

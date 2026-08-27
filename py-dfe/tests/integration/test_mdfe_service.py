@@ -98,6 +98,30 @@ class TestMDFeSVRS:
         ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
         assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
 
+    def test_authorization_com_pagamento(self, real_cert_manager):
+        """infANTT/infPag: componentes, prazo derivado e infBanc por PIX."""
+        svc = _mdfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_mdfe(inf_antt={
+            "infContratante": [{"xNome": "Transportadora X", "CNPJ": "11111111111111"}],
+            "infPag": [{
+                "xNome": "João",
+                "CPF": "11144477735",
+                "Comp": [{"tpComp": "01", "vComp": "3000.00"}],
+                "vContrato": "3000.00",
+                "indAltoDesemp": "1",
+                "indPag": "1",
+                "vAdiant": "0.00",
+                "infPrazo": [
+                    {"nParcela": "001", "dVenc": "2026-09-11", "vParcela": "1500.00"},
+                    {"nParcela": "002", "dVenc": "2026-09-26", "vParcela": "1500.00"},
+                ],
+                "infBanc": {"PIX": "joao@pix.com"},
+            }],
+        })
+        result = svc.recepcao_sinc(payload)
+        ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
+        assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
+
     def test_authorization(self, real_cert_manager):
         svc = _mdfe_svc(real_cert_manager, UF.PI.value)
         payload, chave = build_mdfe()

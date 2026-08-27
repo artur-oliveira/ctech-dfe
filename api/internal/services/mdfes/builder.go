@@ -71,7 +71,10 @@ type buildParams struct {
 	// contractors são os contratantes do frete (infANTT/infContratante), já
 	// resolvidos contra organization_persons.
 	contractors []resolvedContractor
-	tech        TechData
+	// infPag é o pagamento ao transportador autônomo, já montado por
+	// buildInfPag a partir do cadastro e do prazo da viagem.
+	infPag []map[string]any
+	tech   TechData
 	// csrtID/csrt são o Código de Segurança do Responsável Técnico. Só o hash
 	// derivado entra no XML.
 	csrtID string

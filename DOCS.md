@@ -1183,8 +1183,13 @@ um *choice* entre `CPF`, `CNPJ` e `idEstrangeiro`. A pessoa é gravada com `sk` 
 described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_trib`,
 `foreign_address`) — used when this person is the prestador/tomador of a DPS.
 
+`POST /persons` e `PUT /persons/{cpf_cnpj}` aceitam ainda `person.bank`
+(`{pix_key?, bank_code?, branch_code?, cnpj_ipef?}`) — o recebimento do condutor/TAC usado no
+`infANTT/infPag/infBanc` do MDF-e. Fica na pessoa porque é invariante dela: a emissão nunca
+pergunta chave PIX nem agência.
+
 **`roles` (multi-papel).** A person carries a `roles` list (`customer`, `supplier`, `carrier`,
-`driver`, `provider`) — the same CNPJ is often customer *and* carrier, so a single-value field would
+`driver`, `provider`, `freight_contractor`) — the same CNPJ is often customer *and* carrier, so a single-value field would
 force duplicate records. `?role=` filters the listing via `contains(roles, :v)` on `org-name-index`.
 No `PUT`, `roles` só é tocado quando o corpo traz a chave: ausente = papéis preservados, `[]` = limpa
 todos. Na UI o campo se chama **Tipo de cadastro** (`roles` continua sendo o nome na API).
@@ -1637,6 +1642,14 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   `organization_persons` (papel `freight_contractor`); só o contrato é da viagem, e sem
   `contract_number` o grupo `infContrato` inteiro fica de fora (`NroContrato` é obrigatório dentro
   dele). Um `person_doc` fora do cadastro é 404.
+- `payments[]?` — pagamento ao transportador autônomo (`infANTT/infPag`), **obrigatório quando há
+  contratante**: `{person_doc, components[], contract_value, payment_type, advance_value?,
+  advance_request?, advance_kind?, high_performance?, installments?, interval_days?, first_due_days?}`.
+  Nome, o choice `CPF|CNPJ|idEstrangeiro` e o `infBanc` (PIX, banco+agência ou CNPJIPEF) vêm de
+  `organization_persons.person.bank` — um beneficiário sem dado de recebimento no cadastro é 400. As
+  parcelas (`infPrazo`) são **derivadas** do prazo pelo mesmo `services.ExpandInstallments` que gera as
+  duplicatas da NF-e, sobre o saldo (`contract_value − advance_value`); nunca são digitadas uma a uma.
+  O nó é montado pelo mesmo `buildInfPag` dos eventos de pagamento (110116/110118).
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).

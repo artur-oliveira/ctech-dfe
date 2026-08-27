@@ -391,6 +391,19 @@ components:
           items: { $ref: '#/components/schemas/AddressBody' }
         contacts: { $ref: '#/components/schemas/ContactsBody' }
         nfse: { $ref: '#/components/schemas/NfseInfoBody' }
+        bank: { $ref: '#/components/schemas/PersonBankBody' }
+
+    PersonBankBody:
+      type: object
+      description: |
+        Recebimento do condutor/TAC (MDF-e `infANTT/infPag/infBanc`). Choice:
+        PIX, ou banco + agência, ou CNPJ da instituição de pagamento. Fica na
+        pessoa porque é invariante dela, não da viagem.
+      properties:
+        pix_key: { type: [ string, 'null' ], maxLength: 250 }
+        bank_code: { type: [ string, 'null' ], pattern: '^\d{3}$' }
+        branch_code: { type: [ string, 'null' ], maxLength: 10 }
+        cnpj_ipef: { type: [ string, 'null' ] }
 
     PersonRoles:
       type: array
