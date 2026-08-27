@@ -1,0 +1,156 @@
+package nfes
+
+// builders_party.go — nós de identificação de partes (endereços, locais de
+// retirada/entrega e autXML). Extraído de builders_doc.go.
+
+import (
+	"fmt"
+	"strings"
+
+	"gopkg.aoctech.app/dfe/api/internal/services"
+)
+
+// getIEForUF returns the IE for the given UF from state_registrations list.
+func getIEForUF(person map[string]any, uf string) string {
+	if regs, ok := person["state_registrations"].([]any); ok && len(regs) > 0 {
+		for _, r := range regs {
+			rm, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			if rm["uf"] == uf {
+				if v, ok := rm["state_registration"].(string); ok && v != "" {
+					return v
+				}
+				if v, ok := rm["ie"].(string); ok && v != "" {
+					return v
+				}
+			}
+		}
+		// fallback: first entry
+		first := regs[0].(map[string]any)
+		if v, ok := first["state_registration"].(string); ok && v != "" {
+			return v
+		}
+		if v, ok := first["ie"].(string); ok && v != "" {
+			return v
+		}
+	}
+	if v, ok := person["state_registration"].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func buildEnder(person map[string]any) map[string]string {
+	address := services.FirstAddress(person)
+	uf := anyStr(address, "state_federation", "")
+	ender := map[string]string{
+		"xLgr":    anyStr(address, "street", ""),
+		"nro":     strOrDefault(anyStr(address, "number", ""), "S/N"),
+		"xBairro": anyStr(address, "neighborhood", ""),
+		"cMun":    strOrDefault(anyStr(address, "city_ibge_code", ""), "0000000"),
+		"xMun":    anyStr(address, "city", ""),
+		"UF":      uf,
+		"CEP":     strings.ReplaceAll(anyStr(address, "postal_code", ""), "-", ""),
+		"cPais":   cPaisBrasil,
+		"xPais":   xPaisBrasil,
+	}
+	if phone := services.FirstPhone(person); phone != "" {
+		ender["fone"] = phone
+	}
+	return ender
+}
+
+// buildAutXML builds the autXML list (CPF/CNPJ authorized to view this
+// organization's NF-e XML) from the organization's authorized_xml_viewers
+// attribute. Returns nil (key omitted) when the organization has none.
+func buildAutXML(org map[string]any) []map[string]any {
+	raw, _ := org["authorized_xml_viewers"].([]any)
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(raw))
+	for _, v := range raw {
+		vm, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		doc := anyStr(vm, "cpf_cnpj", "")
+		if doc == "" {
+			continue
+		}
+		entry := map[string]any{}
+		if len(doc) == 14 {
+			entry["CNPJ"] = doc
+		} else {
+			entry["CPF"] = doc
+		}
+		out = append(out, entry)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// buildLocal builds a TLocal-shaped map (local de retirada/entrega) — same
+// field set for both, per xsd_order.py's "retirada"/"entrega" ordering.
+// Unlike buildEnder (TEndereco), TLocal has no CEP.
+func buildLocal(l *NfeLocalBody) map[string]any {
+	if l == nil {
+		return nil
+	}
+	m := map[string]any{
+		"xLgr":    l.XLgr,
+		"nro":     l.Nro,
+		"xBairro": l.XBairro,
+		"cMun":    l.CMun,
+		"xMun":    l.XMun,
+		"UF":      l.UF,
+		"cPais":   cPaisBrasil,
+		"xPais":   xPaisBrasil,
+	}
+	if l.CNPJ != nil && *l.CNPJ != "" {
+		m["CNPJ"] = *l.CNPJ
+	}
+	if l.CPF != nil && *l.CPF != "" {
+		m["CPF"] = *l.CPF
+	}
+	if l.XNome != nil && *l.XNome != "" {
+		m["xNome"] = *l.XNome
+	}
+	if l.XCpl != nil && *l.XCpl != "" {
+		m["xCpl"] = *l.XCpl
+	}
+	if l.Fone != nil && *l.Fone != "" {
+		m["fone"] = *l.Fone
+	}
+	if l.Email != nil && *l.Email != "" {
+		m["email"] = *l.Email
+	}
+	return m
+}
+
+func getPersonMap(entity map[string]any) map[string]any {
+	if p, ok := entity["person"].(map[string]any); ok {
+		return p
+	}
+	return map[string]any{}
+}
+
+// buildEmit monta o nó emit (emitente) a partir da organização.
+func buildEmit(org, orgPerson map[string]any, orgPK, emitUF string, orgCRT int) map[string]any {
+	emitKey := "CPF"
+	if strings.HasPrefix(orgPK, "CNPJ_") {
+		emitKey = "CNPJ"
+	}
+	return map[string]any{
+		emitKey:     services.StripPKPrefix(orgPK),
+		"xNome":     anyStr(org, "name", ""),
+		"xFant":     anyStr(orgPerson, "fantasy_name", ""),
+		"enderEmit": buildEnder(orgPerson),
+		"IE":        getIEForUF(orgPerson, emitUF),
+		"CRT":       fmt.Sprintf("%d", orgCRT),
+	}
+}

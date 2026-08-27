@@ -1,0 +1,140 @@
+package nfes
+
+// builders_prod.go — nó prod de cada item da NF-e, incluindo os grupos
+// específicos de combustível, medicamento, veículo novo e arma. Extraído de
+// builders_doc.go.
+
+import "github.com/shopspring/decimal"
+
+// prodParams carrega os valores já calculados no laço de itens que o nó prod
+// consome. Struct em vez de parâmetros posicionais: prod cresce por tag.
+type prodParams struct {
+	Description                string
+	Unit, TaxableUnit          string
+	QTrib, VUnTrib, VProd      string
+	Disc, VFrete, VSeg, VOutro decimal.Decimal
+}
+
+// buildProd monta o nó prod de um item.
+func buildProd(item map[string]any, p prodParams) map[string]any {
+	prod := map[string]any{
+		"cProd":    anyStr(item, "product_code", ""),
+		"cEAN":     strOrDefault(anyStr(item, "cean", ""), "SEM GTIN"),
+		"xProd":    p.Description,
+		"NCM":      anyStr(item, "ncm", ""),
+		"CFOP":     anyStr(item, "cfop", ""),
+		"uCom":     p.Unit,
+		"qCom":     anyStr(item, "quantity", "0"),
+		"vUnCom":   anyStr(item, "unit_value", "0"),
+		"vProd":    p.VProd,
+		"cEANTrib": strOrDefault(anyStr(item, "cean", ""), "SEM GTIN"),
+		"uTrib":    p.TaxableUnit,
+		"qTrib":    p.QTrib,
+		"vUnTrib":  p.VUnTrib,
+		"indTot":   strOrDefault(anyStr(item, "ind_tot", ""), indTotCompoe),
+	}
+	if d(anyStr(item, "discount", "0")).GreaterThan(decimal.Zero) {
+		prod["vDesc"] = q2(p.Disc.RoundBank(2))
+	}
+	if p.VFrete.GreaterThan(decimal.Zero) {
+		prod["vFrete"] = q2(p.VFrete.RoundBank(2))
+	}
+	if p.VSeg.GreaterThan(decimal.Zero) {
+		prod["vSeg"] = q2(p.VSeg.RoundBank(2))
+	}
+	if p.VOutro.GreaterThan(decimal.Zero) {
+		prod["vOutro"] = q2(p.VOutro.RoundBank(2))
+	}
+	if cest := anyStr(item, "cest", ""); cest != "" {
+		prod["CEST"] = cest
+		if v := anyStr(item, "ind_escala", ""); v != "" {
+			prod["indEscala"] = v
+		}
+		if v := anyStr(item, "cnpj_fab", ""); v != "" {
+			prod["CNPJFab"] = v
+		}
+	}
+	if v := anyStr(item, "c_benef", ""); v != "" {
+		prod["cBenef"] = v
+	}
+	if v := anyStr(item, "ext_ipi", ""); v != "" {
+		prod["EXTIPI"] = v
+	}
+
+	if combProd := anyStr(item, "comb_c_prod_anp", ""); combProd != "" {
+		combNode := map[string]any{
+			"cProdANP": combProd,
+			"descANP":  strOrDefault(anyStr(item, "comb_desc_anp", ""), ""),
+			"UFCons":   strOrDefault(anyStr(item, "comb_uf_cons", ""), ""),
+		}
+		for field, xml := range map[string]string{
+			"comb_p_glp": "pGLP", "comb_p_gnn": "pGNn", "comb_p_gni": "pGNi",
+			"comb_v_part": "vPart", "comb_codif": "CODIF", "comb_p_bio": "pBio",
+		} {
+			if v := anyStr(item, field, ""); v != "" {
+				combNode[xml] = v
+			}
+		}
+		prod["comb"] = combNode
+	}
+
+	if medProd := anyStr(item, "med_c_prod_anvisa", ""); medProd != "" {
+		medNode := map[string]any{
+			"cProdANVISA": medProd,
+			"vPMC":        strOrDefault(anyStr(item, "med_v_pmc", ""), "0.00"),
+		}
+		if v := anyStr(item, "med_x_motivo_isencao", ""); v != "" {
+			medNode["xMotivoIsencao"] = v
+		}
+		prod["med"] = medNode
+	}
+
+	if veicChassi := anyStr(item, "veic_chassi", ""); veicChassi != "" {
+		veicNode := map[string]any{
+			"tpOp":         strOrDefault(anyStr(item, "veic_tp_op", ""), "0"),
+			"chassi":       veicChassi,
+			"cCor":         strOrDefault(firstNonEmpty(anyStr(item, "veic_c_cor_override", ""), anyStr(item, "veic_c_cor", "")), ""),
+			"xCor":         strOrDefault(firstNonEmpty(anyStr(item, "veic_x_cor_override", ""), anyStr(item, "veic_x_cor", "")), ""),
+			"pot":          strOrDefault(anyStr(item, "veic_pot", ""), "0"),
+			"cilin":        strOrDefault(anyStr(item, "veic_cilin", ""), "0"),
+			"pesoL":        strOrDefault(anyStr(item, "net_weight", ""), "0"),
+			"pesoB":        strOrDefault(anyStr(item, "gross_weight", ""), "0"),
+			"nSerie":       strOrDefault(anyStr(item, "veic_n_serie", ""), ""),
+			"tpComb":       strOrDefault(anyStr(item, "veic_tp_comb", ""), "02"),
+			"nMotor":       strOrDefault(anyStr(item, "veic_n_motor", ""), ""),
+			"CMT":          strOrDefault(anyStr(item, "veic_cmt", ""), "0"),
+			"dist":         strOrDefault(anyStr(item, "veic_dist", ""), "0"),
+			"anoMod":       strOrDefault(anyStr(item, "veic_ano_mod", ""), ""),
+			"anoFab":       strOrDefault(anyStr(item, "veic_ano_fab", ""), ""),
+			"tpPint":       strOrDefault(anyStr(item, "veic_tp_pint", ""), "S"),
+			"tpVeic":       strOrDefault(anyStr(item, "veic_tp_veic", ""), "06"),
+			"espVeic":      strOrDefault(anyStr(item, "veic_esp_veic", ""), "1"),
+			"VIN":          strOrDefault(anyStr(item, "veic_vin", ""), "N"),
+			"condVeic":     strOrDefault(anyStr(item, "veic_cond_veic", ""), "1"),
+			"cMod":         strOrDefault(anyStr(item, "veic_c_mod", ""), "000001"),
+			"cCorDENATRAN": strOrDefault(anyStr(item, "veic_c_cor_denatran", ""), "01"),
+			"lota":         strOrDefault(anyStr(item, "veic_lota", ""), "5"),
+			"tpRest":       strOrDefault(anyStr(item, "veic_tp_rest", ""), "0"),
+		}
+		prod["veicProd"] = veicNode
+	}
+
+	if armas, ok := item["armas"].([]any); ok && len(armas) > 0 {
+		armaList := make([]map[string]any, 0, len(armas))
+		for _, a := range armas {
+			if am, ok := a.(map[string]any); ok {
+				armaItem := map[string]any{
+					"tpArma": strOrDefault(anyStr(item, "arma_tp_arma", ""), "0"),
+					"nSerie": anyStr(am, "n_serie", ""),
+					"nCano":  anyStr(am, "n_cano", ""),
+					"descr":  firstNonEmpty(anyStr(am, "descr", ""), anyStr(item, "arma_descr", "")),
+				}
+				armaList = append(armaList, armaItem)
+			}
+		}
+		if len(armaList) > 0 {
+			prod["arma"] = armaList
+		}
+	}
+	return prod
+}

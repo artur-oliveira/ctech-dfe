@@ -1,0 +1,223 @@
+{
+  "enviNFe": {
+    "@versao": "4.00",
+    "@xmlns": "http://www.portalfiscal.inf.br/nfe",
+    "NFe": {
+      "infNFe": {
+        "@Id": "NFe22260811647612000197550010000000011100000015",
+        "@versao": "4.00",
+        "dest": {
+          "CNPJ": "11222333000181",
+          "IE": "111222333444",
+          "enderDest": {
+            "CEP": "01000000",
+            "UF": "SP",
+            "cMun": "3550308",
+            "cPais": "1058",
+            "nro": "20",
+            "xBairro": "Centro",
+            "xLgr": "Rua Dest",
+            "xMun": "Sao Paulo",
+            "xPais": "Brasil"
+          },
+          "indIEDest": "1",
+          "xNome": "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+        },
+        "det": [
+          {
+            "@nItem": 1,
+            "imposto": {
+              "COFINS": {
+                "COFINSAliq": {
+                  "CST": "01",
+                  "pCOFINS": "7.60",
+                  "vBC": "100.00",
+                  "vCOFINS": "7.60"
+                }
+              },
+              "IBSCBS": {
+                "CST": "000",
+                "cClassTrib": "000001",
+                "gIBSCBS": {
+                  "gCBS": {
+                    "pCBS": "0.9000",
+                    "vCBS": "0.90"
+                  },
+                  "gIBSMun": {
+                    "pIBSMun": "0.0500",
+                    "vIBSMun": "0.05"
+                  },
+                  "gIBSUF": {
+                    "pIBSUF": "0.1000",
+                    "vIBSUF": "0.10"
+                  },
+                  "vBC": "100.00",
+                  "vIBS": "0.15"
+                }
+              },
+              "ICMS": {
+                "ICMS00": {
+                  "CST": "00",
+                  "modBC": "3",
+                  "orig": "0",
+                  "pFCP": "2.00",
+                  "pICMS": "12.00",
+                  "vBC": "100.00",
+                  "vBCFCP": "100.00",
+                  "vFCP": "2.00",
+                  "vICMS": "12.00"
+                }
+              },
+              "IPI": {
+                "IPITrib": {
+                  "CST": "50",
+                  "pIPI": "5.00",
+                  "vBC": "100.00",
+                  "vIPI": "5.00"
+                },
+                "cEnq": "999"
+              },
+              "PIS": {
+                "PISAliq": {
+                  "CST": "01",
+                  "pPIS": "1.65",
+                  "vBC": "100.00",
+                  "vPIS": "1.65"
+                }
+              }
+            },
+            "prod": {
+              "CFOP": "6102",
+              "NCM": "84713012",
+              "cEAN": "SEM GTIN",
+              "cEANTrib": "SEM GTIN",
+              "cProd": "P1",
+              "indTot": "1",
+              "qCom": "2",
+              "qTrib": "2",
+              "uCom": "UN",
+              "uTrib": "UN",
+              "vProd": "100.00",
+              "vUnCom": "50.00",
+              "vUnTrib": "50.00",
+              "xProd": "Produto 1"
+            }
+          }
+        ],
+        "emit": {
+          "CNPJ": "11647612000197",
+          "CRT": "3",
+          "IE": "194000000",
+          "enderEmit": {
+            "CEP": "64000000",
+            "UF": "PI",
+            "cMun": "2211001",
+            "cPais": "1058",
+            "nro": "10",
+            "xBairro": "Centro",
+            "xLgr": "Rua Emit",
+            "xMun": "Teresina",
+            "xPais": "Brasil"
+          },
+          "xFant": "Emit",
+          "xNome": "Emit Ltda"
+        },
+        "ide": {
+          "cDV": "5",
+          "cMunFG": "2211001",
+          "cNF": "10000001",
+          "cUF": "22",
+          "dhEmi": "2026-08-27T10:00:00-03:00",
+          "finNFe": "1",
+          "idDest": "2",
+          "indFinal": "1",
+          "indPres": "1",
+          "mod": "55",
+          "nNF": "1",
+          "natOp": "Venda de Mercadoria",
+          "procEmi": "0",
+          "serie": "1",
+          "tpAmb": "2",
+          "tpEmis": "1",
+          "tpImp": "1",
+          "tpNF": "1",
+          "verProc": "1.0"
+        },
+        "infRespTec": {
+          "CNPJ": "11647612000197",
+          "email": "t@t.com",
+          "fone": "8630000000",
+          "xContato": "Ctech"
+        },
+        "pag": {
+          "detPag": [
+            {
+              "indPag": "0",
+              "tPag": "01",
+              "vPag": "100.00"
+            }
+          ]
+        },
+        "total": {
+          "IBSCBSTot": {
+            "gCBS": {
+              "vCBS": "0.90",
+              "vCredPres": "0.00",
+              "vCredPresCondSus": "0.00",
+              "vDevTrib": "0.00",
+              "vDif": "0.00"
+            },
+            "gIBS": {
+              "gIBSMun": {
+                "vDevTrib": "0.00",
+                "vDif": "0.00",
+                "vIBSMun": "0.05"
+              },
+              "gIBSUF": {
+                "vDevTrib": "0.00",
+                "vDif": "0.00",
+                "vIBSUF": "0.10"
+              },
+              "vCredPres": "0.00",
+              "vCredPresCondSus": "0.00",
+              "vIBS": "0.15"
+            },
+            "vBCIBSCBS": "100.00"
+          },
+          "ICMSTot": {
+            "vBC": "100.00",
+            "vBCST": "0.00",
+            "vCOFINS": "7.60",
+            "vDesc": "0.00",
+            "vFCP": "2.00",
+            "vFCPST": "0.00",
+            "vFCPSTRet": "0.00",
+            "vFrete": "0.00",
+            "vICMS": "12.00",
+            "vICMSDeson": "0.00",
+            "vII": "0.00",
+            "vIPI": "5.00",
+            "vIPIDevol": "0.00",
+            "vNF": "105.00",
+            "vOutro": "0.00",
+            "vPIS": "1.65",
+            "vProd": "100.00",
+            "vST": "0.00",
+            "vSeg": "0.00",
+            "vTotTrib": "0.00"
+          }
+        },
+        "transp": {
+          "modFrete": "9",
+          "vol": {
+            "pesoB": "4.000",
+            "pesoL": "3.000",
+            "qVol": "1"
+          }
+        }
+      }
+    },
+    "idLote": "000000000000001",
+    "indSinc": "1"
+  }
+}
