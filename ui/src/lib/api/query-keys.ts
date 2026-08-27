@@ -54,7 +54,10 @@ export const queryKeys = {
     requirements: (id: string, docType: string, role: string) => ['vehicle-requirements', id, docType, role] as const,
   },
   persons: {
-    list: (orgPk: string | undefined) => ['persons', orgPk] as const,
+    // role separa o cache da listagem geral do cache de cada papel: são
+    // respostas diferentes da mesma rota.
+    list: (orgPk: string | undefined, role?: string) =>
+      role ? (['persons', orgPk, role] as const) : (['persons', orgPk] as const),
     detail: (cpfCnpj: string) => ['person', cpfCnpj] as const,
     search: (query: string) => ['persons-search', query] as const,
   },

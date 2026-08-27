@@ -84,6 +84,20 @@ class TestMDFeSVRS:
         ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
         assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
 
+    def test_authorization_com_contratante(self, real_cert_manager):
+        """infANTT/infContratante + infContrato."""
+        svc = _mdfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_mdfe(inf_antt={
+            "infContratante": [{
+                "xNome": "Transportadora X",
+                "CNPJ": "11111111111111",
+                "infContrato": {"NroContrato": "CT-42", "vContratoGlobal": "9000.00"},
+            }],
+        })
+        result = svc.recepcao_sinc(payload)
+        ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
+        assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
+
     def test_authorization(self, real_cert_manager):
         svc = _mdfe_svc(real_cert_manager, UF.PI.value)
         payload, chave = build_mdfe()

@@ -36,12 +36,14 @@ import type {
   PersonItemOut,
   MdfeEmit,
   MdfeMunIn,
+  MdfeContractorIn,
   MdfeTollIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
+import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {Plane, Ship, TramFront, Truck} from 'lucide-react'
 
 // ─── steps ──────────────────────────────────────────────────────────────────
@@ -361,6 +363,7 @@ export function MdfeEmitForm() {
   const [newRouteUf, setNewRouteUf] = useState('')
   const [tripStart, setTripStart] = useState('')
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
+  const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('')
@@ -578,6 +581,7 @@ export function MdfeEmitForm() {
       trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
+      contractors: contractors.length ? contractors : undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
@@ -715,6 +719,8 @@ export function MdfeEmitForm() {
           </div>
 
           <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
+
+          <ContractorsFields contractors={contractors} onChange={setContractors}/>
 
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">

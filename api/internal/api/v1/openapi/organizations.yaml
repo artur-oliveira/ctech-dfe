@@ -403,7 +403,7 @@ components:
         Ausente ou vazio: a pessoa aparece só na listagem geral.
       items:
         type: string
-        enum: [ customer, supplier, carrier, driver, provider ]
+        enum: [ customer, supplier, carrier, driver, provider, freight_contractor ]
 
     Person:
       type: object

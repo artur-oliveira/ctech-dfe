@@ -1163,7 +1163,7 @@ tractor.
 
 | Method | Endpoint                   | Description                        |
 |--------|----------------------------|------------------------------------|
-| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider`, `?cursor=`, `?limit=` |
+| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider\|freight_contractor`, `?cursor=`, `?limit=` |
 | POST   | `/v1.0/persons`            | Register — 400 if `person.crt` missing for CNPJ; 409 if CPF/CNPJ already registered in this org |
 | PUT    | `/v1.0/persons/{cpf_cnpj}` | Update                             |
 | DELETE | `/v1.0/persons/{cpf_cnpj}` | Remove                             |
@@ -1632,6 +1632,11 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   `{toll_provider_id, n_compra, v_vale_ped}`. CNPJ da fornecedora, pagador e `tpValePed` vêm de
   `organization_toll_providers`; `valePed/categCombVeic` é derivado do número de reboques. Um
   `toll_provider_id` inexistente é 404, nunca silêncio.
+- `contractors[]?` — contratantes do frete (`infANTT/infContratante`, máx 10):
+  `{person_doc, contract_number?, contract_value?}`. Nome e o choice `CPF|CNPJ|idEstrangeiro` vêm de
+  `organization_persons` (papel `freight_contractor`); só o contrato é da viagem, e sem
+  `contract_number` o grupo `infContrato` inteiro fica de fora (`NroContrato` é obrigatório dentro
+  dele). Um `person_doc` fora do cadastro é 404.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).

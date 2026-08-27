@@ -68,7 +68,10 @@ type buildParams struct {
 	tpEmis string
 	// tolls são os vales-pedágio da viagem, já cruzados com o cadastro.
 	tolls []resolvedToll
-	tech  TechData
+	// contractors são os contratantes do frete (infANTT/infContratante), já
+	// resolvidos contra organization_persons.
+	contractors []resolvedContractor
+	tech        TechData
 	// csrtID/csrt são o Código de Segurança do Responsável Técnico. Só o hash
 	// derivado entra no XML.
 	csrtID string

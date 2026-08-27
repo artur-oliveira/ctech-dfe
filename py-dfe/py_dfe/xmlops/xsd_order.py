@@ -523,6 +523,7 @@ _ENVIMDFE: dict[str, list[str]] = {
     "valePed":    ["disp", "categCombVeic"],
     "disp":       ["CNPJForn", "CNPJPg", "CPFPg", "nCompra", "vValePed", "tpValePed"],
     "infContratante": ["xNome", "CPF", "CNPJ", "idEstrangeiro", "infContrato"],
+    "infContrato": ["NroContrato", "vContratoGlobal"],
     "veicTracao": ["cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "condutor", "tpRod", "tpCar", "UF"],
     "veicReboque": ["cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "tpCar", "UF"],
     "prop":       ["CPF", "CNPJ", "RNTRC", "xNome", "IE", "UF", "tpProp"],

@@ -115,7 +115,7 @@ type PersonObjectBody struct {
 // personRolesValidation is the shared `validate` tag for the person role list.
 // The accepted values mirror services.AllPersonRoles; TestPersonRolesTagMatchesAllPersonRoles
 // fails if the two drift apart.
-const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider"
+const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"
 
 // PersonCreateBody is the body for POST /persons.
 //
@@ -129,7 +129,7 @@ type PersonCreateBody struct {
 	// IDEstrangeiro é o documento de pessoa no exterior (dest/idEstrangeiro).
 	IDEstrangeiro *string          `json:"id_estrangeiro" validate:"omitempty,max=20"`
 	Name          string           `json:"name" validate:"required,min=2,max=255"`
-	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
+	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"`
 	Person        PersonObjectBody `json:"person" validate:"required"`
 }
 
@@ -141,7 +141,7 @@ type PersonCreateBody struct {
 // continua sendo a forma de limpar todos os papéis.
 type PersonUpdateBody struct {
 	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
-	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
+	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 

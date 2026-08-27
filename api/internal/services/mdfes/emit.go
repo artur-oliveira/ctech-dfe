@@ -53,6 +53,10 @@ type MdfeEmitBody struct {
 	// fornecedor vem do cadastro; aqui só o que muda a cada viagem.
 	TollVouchers []MdfeTollBody `json:"toll_vouchers" validate:"omitempty,dive"`
 
+	// Contractors são os contratantes do frete (infANTT/infContratante, máx 10).
+	// person_doc aponta para organization_persons; o contrato é da viagem.
+	Contractors []MdfeContractorBody `json:"contractors" validate:"omitempty,max=10,dive"`
+
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
 	Water *MdfeWaterModal `json:"water" validate:"omitempty"`
@@ -65,6 +69,14 @@ type MdfeTollBody struct {
 	TollProviderID string `json:"toll_provider_id" validate:"required"`
 	NCompra        string `json:"n_compra" validate:"required,max=20"`
 	VValePed       string `json:"v_vale_ped" validate:"required,money"`
+}
+
+// MdfeContractorBody é um contratante do frete. Nome e identidade vêm do
+// cadastro de pessoas; só o contrato muda a cada viagem.
+type MdfeContractorBody struct {
+	PersonDoc      string `json:"person_doc" validate:"required"`
+	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
+	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
 }
 
 // MdfeDocRef references an NF-e or CT-e to be transported.
@@ -258,6 +270,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	contractors, err := s.resolveContractors(ctx, orgPK, req.Contractors)
+	if err != nil {
+		return nil, err
+	}
+
 	resolvedVehicle, err := s.resolveVehicle(ctx, orgPK, req.Vehicle)
 	if err != nil {
 		return nil, err
@@ -309,6 +326,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		rail:        req.Rail,
 		tpEmis:      tpEmis,
 		tolls:       tolls,
+		contractors: contractors,
 		tech:        s.tech,
 		csrtID:      strAttr(configItem, csrtIDField),
 		csrt:        strAttr(configItem, csrtField),
@@ -614,6 +632,62 @@ func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []Md
 			NCompra:   t.NCompra,
 			VValePed:  t.VValePed,
 		})
+	}
+	return out, nil
+}
+
+// cnpjLen distingue CNPJ de CPF num documento já sem prefixo.
+const cnpjLen = 14
+
+// resolvedContractor é um contratante do frete já cruzado com o cadastro.
+type resolvedContractor struct {
+	Name           string
+	CPF            string
+	CNPJ           string
+	Foreign        string
+	ContractNumber string
+	ContractValue  string
+}
+
+// resolveContractors lê cada contratante do cadastro de pessoas. São no máximo
+// 10 por manifesto e a emissão de MDF-e é rara comparada à de NF-e, então um
+// Get por contratante custa menos que manter um BatchGet só para isto.
+func (s *MdfeService) resolveContractors(
+	ctx context.Context, orgPK string, contractors []MdfeContractorBody,
+) ([]resolvedContractor, error) {
+	if len(contractors) == 0 {
+		return nil, nil
+	}
+	out := make([]resolvedContractor, 0, len(contractors))
+	for _, c := range contractors {
+		sk, err := services.BuildPersonSK(c.PersonDoc)
+		if err != nil {
+			return nil, err
+		}
+		person, err := s.personRepo.Get(ctx, orgPK, sk)
+		if err != nil {
+			return nil, err
+		}
+		if person == nil {
+			return nil, problem.NotFound("contratante do frete não encontrado no cadastro: " + c.PersonDoc)
+		}
+		rc := resolvedContractor{
+			Name:           strAttr(person, "name"),
+			ContractNumber: c.ContractNumber,
+			ContractValue:  c.ContractValue,
+		}
+		// O choice do XSD é CPF | CNPJ | idEstrangeiro, e o próprio SK já diz
+		// qual: o prefixo estrangeiro é explícito, e o resto se distingue pelo
+		// tamanho do documento.
+		switch doc := services.StripPKPrefix(sk); {
+		case strings.HasPrefix(sk, repositories.SKPrefixForeign):
+			rc.Foreign = strings.TrimPrefix(sk, repositories.SKPrefixForeign)
+		case len(doc) == cnpjLen:
+			rc.CNPJ = doc
+		default:
+			rc.CPF = doc
+		}
+		out = append(out, rc)
 	}
 	return out, nil
 }

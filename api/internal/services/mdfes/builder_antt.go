@@ -15,6 +15,9 @@ func (p buildParams) buildInfANTT() map[string]any {
 	if vp := p.buildValePed(); vp != nil {
 		infANTT["valePed"] = vp
 	}
+	if ct := p.buildInfContratante(); ct != nil {
+		infANTT["infContratante"] = ct
+	}
 	return infANTT
 }
 
@@ -59,4 +62,34 @@ func (p buildParams) buildValePed() map[string]any {
 		disp = append(disp, item)
 	}
 	return map[string]any{"disp": disp, "categCombVeic": categCombVeic(len(p.trailers))}
+}
+
+// buildInfContratante monta infANTT/infContratante (0..10). Ordem XSD:
+// xNome, choice{CPF|CNPJ|idEstrangeiro}, infContrato. Identidade e nome vêm do
+// cadastro de pessoas; o contrato é da viagem.
+func (p buildParams) buildInfContratante() []map[string]any {
+	if len(p.contractors) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(p.contractors))
+	for _, c := range p.contractors {
+		node := map[string]any{"xNome": c.Name}
+		switch {
+		case c.CNPJ != "":
+			node["CNPJ"] = c.CNPJ
+		case c.CPF != "":
+			node["CPF"] = c.CPF
+		default:
+			node["idEstrangeiro"] = c.Foreign
+		}
+		// NroContrato é obrigatório dentro de infContrato: sem ele o grupo
+		// inteiro fica de fora, em vez de sair vazio e ser recusado.
+		if c.ContractNumber != "" {
+			node["infContrato"] = map[string]any{
+				"NroContrato": c.ContractNumber, "vContratoGlobal": c.ContractValue,
+			}
+		}
+		out = append(out, node)
+	}
+	return out
 }

@@ -231,7 +231,7 @@ paths:
             nenhuma listagem filtrada — comportamento correto, não omissão.
           schema:
             type: string
-            enum: [ customer, supplier, carrier, driver, provider ]
+            enum: [ customer, supplier, carrier, driver, provider, freight_contractor ]
         - name: q
           in: query
           required: false

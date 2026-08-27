@@ -84,3 +84,50 @@ func TestBuildInfANTTIncluiValePed(t *testing.T) {
 		t.Fatalf("valePed ausente em infANTT: %v", p.buildInfANTT())
 	}
 }
+
+func TestBuildInfContratanteComContrato(t *testing.T) {
+	p := buildParams{contractors: []resolvedContractor{{
+		Name: "Transportadora X", CNPJ: "11111111111111",
+		ContractNumber: "CT-42", ContractValue: "9000.00",
+	}}}
+	got := p.buildInfContratante()
+	if got[0]["xNome"] != "Transportadora X" || got[0]["CNPJ"] != "11111111111111" {
+		t.Fatalf("contratante errado: %v", got[0])
+	}
+	ct := got[0]["infContrato"].(map[string]any)
+	if ct["NroContrato"] != "CT-42" || ct["vContratoGlobal"] != "9000.00" {
+		t.Fatalf("infContrato errado: %v", ct)
+	}
+}
+
+// Sem número de contrato não há grupo infContrato: NroContrato é obrigatório
+// dentro dele, então emitir o nó vazio seria XML inválido.
+func TestBuildInfContratanteSemContrato(t *testing.T) {
+	p := buildParams{contractors: []resolvedContractor{{Name: "João", CPF: "11144477735"}}}
+	got := p.buildInfContratante()[0]
+	if got["CPF"] != "11144477735" {
+		t.Fatalf("CPF ausente: %v", got)
+	}
+	if _, ok := got["infContrato"]; ok {
+		t.Fatalf("infContrato não devia existir: %v", got)
+	}
+}
+
+func TestBuildInfContratanteEstrangeiro(t *testing.T) {
+	p := buildParams{contractors: []resolvedContractor{{Name: "Acme Ltd", Foreign: "A1234567"}}}
+	got := p.buildInfContratante()[0]
+	if got["idEstrangeiro"] != "A1234567" {
+		t.Fatalf("idEstrangeiro ausente: %v", got)
+	}
+	if _, ok := got["CPF"]; ok {
+		t.Fatalf("choice violado: %v", got)
+	}
+}
+
+func TestBuildInfANTTIncluiContratante(t *testing.T) {
+	p := buildParams{contractors: []resolvedContractor{{Name: "Transportadora X", CNPJ: "11111111111111"}}}
+	antt := p.buildInfANTT()
+	if len(antt["infContratante"].([]map[string]any)) != 1 {
+		t.Fatalf("infContratante ausente do infANTT: %v", antt)
+	}
+}

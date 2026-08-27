@@ -706,6 +706,20 @@ components:
         drivers:
           type: array
           items: { $ref: '#/components/schemas/MdfeDriver' }
+        toll_vouchers:
+          type: array
+          description: |
+            Vales-pedágio da viagem (`infANTT/valePed`). O CNPJ da fornecedora, o
+            pagador e o `tpValePed` vêm de `organization_toll_providers`.
+          items: { $ref: '#/components/schemas/MdfeToll' }
+        contractors:
+          type: array
+          maxItems: 10
+          description: |
+            Contratantes do frete (`infANTT/infContratante`). Nome e o choice
+            `CPF|CNPJ|idEstrangeiro` vêm de `organization_persons`; só o contrato
+            é da viagem.
+          items: { $ref: '#/components/schemas/MdfeContractor' }
         predominant: { $ref: '#/components/schemas/MdfeProdPred' }
         bulk_cargo: { $ref: '#/components/schemas/MdfeBulkCargo' }
         trip_start: { type: [ string, 'null' ], description: '`dhIniViagem`, em RFC 3339.' }
@@ -715,6 +729,29 @@ components:
         air: { $ref: '#/components/schemas/MdfeAirModal' }
         water: { $ref: '#/components/schemas/MdfeWaterModal' }
         rail: { $ref: '#/components/schemas/MdfeRailModal' }
+
+    MdfeToll:
+      type: object
+      required: [ toll_provider_id, n_compra, v_vale_ped ]
+      properties:
+        toll_provider_id: { type: string }
+        n_compra: { type: string, maxLength: 20 }
+        v_vale_ped: { type: string }
+
+    MdfeContractor:
+      type: object
+      required: [ person_doc ]
+      properties:
+        person_doc:
+          type: string
+          description: CPF/CNPJ (ou `IDEST_…`) da pessoa cadastrada como contratante do frete.
+        contract_number:
+          type: string
+          maxLength: 20
+          description: |
+            `infContrato/NroContrato`. Ausente, o grupo `infContrato` inteiro fica
+            de fora — `NroContrato` é obrigatório dentro dele.
+        contract_value: { type: string, description: '`infContrato/vContratoGlobal`.' }
 
     MdfeCargoPreview:
       type: object

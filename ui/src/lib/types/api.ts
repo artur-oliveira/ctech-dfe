@@ -1180,6 +1180,14 @@ export interface MdfeEmit {
   additional_info?: string | null
   /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
   toll_vouchers?: MdfeTollIn[] | null
+  contractors?: MdfeContractorIn[] | null
+}
+
+/** Contratante do frete. Identidade vem do cadastro; o contrato é da viagem. */
+export interface MdfeContractorIn {
+  person_doc: string
+  contract_number?: string
+  contract_value?: string
 }
 
 /** Vale-pedágio de uma viagem. Só o que muda entre viagens. */

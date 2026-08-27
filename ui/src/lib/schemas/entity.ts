@@ -34,7 +34,7 @@ export const stateRegistrationSchema = z.object({
 // Papel é filtro de cadastro, não regra fiscal: a emissão nunca valida papel, e
 // uma pessoa acumula quantos papéis forem verdade ao mesmo tempo — transportadora
 // que também é cliente é o caso normal, não a exceção.
-export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider'] as const
+export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider', 'freight_contractor'] as const
 export type PersonRole = typeof PERSON_ROLES[number]
 
 export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
@@ -43,6 +43,7 @@ export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
   carrier: 'Transportadora',
   driver: 'Condutor',
   provider: 'Prestador',
+  freight_contractor: 'Contratante de frete',
 }
 
 // Papel pré-marcado num cadastro novo de pessoa.
