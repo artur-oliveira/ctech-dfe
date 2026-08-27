@@ -1650,6 +1650,12 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   parcelas (`infPrazo`) são **derivadas** do prazo pelo mesmo `services.ExpandInstallments` que gera as
   duplicatas da NF-e, sobre o saldo (`contract_value − advance_value`); nunca são digitadas uma a uma.
   O nó é montado pelo mesmo `buildInfPag` dos eventos de pagamento (110116/110118).
+O grupo **`peri`** (produto perigoso) é **derivado**: a emissão lê os itens (`det/prod/cProd`) de cada NF-e
+referenciada, reencontra cada produto pelo `code-index` de `organization_products` e monta `peri` a partir
+dos campos `peri_*` do cadastro, agrupando por número ONU e somando as quantidades. Produto sem `peri_n_onu`
+não gera grupo; item que não existe no cadastro é ignorado (a NF-e já foi autorizada com ele). Nada de
+produto perigoso é perguntado por viagem.
+
 - `redelivery_keys[]?` — chaves dos documentos em reentrega (`infDoc/.../indReentrega`). O
   `SegCodBarra` de cada NF-e/CT-e **não** é pedido: o código de barras do documento é a própria
   chave, que a emissão já referenciou.

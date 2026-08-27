@@ -655,6 +655,16 @@ components:
         med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
         med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
         med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        peri_n_onu:
+          type: [ string, 'null' ]
+          maxLength: 4
+          description: |
+            Número ONU do produto perigoso. Classificado uma vez aqui; o MDF-e
+            deriva o grupo `peri` sozinho ao referenciar a NF-e com este item.
+        peri_x_nome_ae: { type: [ string, 'null' ], maxLength: 150 }
+        peri_x_cla_risco: { type: [ string, 'null' ], maxLength: 40 }
+        peri_gr_emb: { type: [ string, 'null' ], maxLength: 6 }
+        peri_q_vol_tipo: { type: [ string, 'null' ], maxLength: 60 }
         veic_tp_op: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', null ] }
         veic_tp_comb: { type: [ string, 'null' ], maxLength: 2 }
         veic_tp_pint: { type: [ string, 'null' ], maxLength: 1 }

@@ -143,10 +143,17 @@ Product catalog per org. Includes ICMS/IBS-CBS tax config per CFOP.
 | `icms_aliq_override` | S    | Optional: overrides UF rate table                             |
 | `fcp_aliq_override`  | S    | Optional: overrides FCP rate                                  |
 | `prod_type`          | S    | `comb` (fuel) or `med` (medicine) — optional                  |
+| `peri_n_onu`         | S    | Número ONU do produto perigoso (MDF-e `peri/nONU`) — optional |
+| `peri_x_nome_ae`     | S    | Nome apropriado para embarque (`xNomeAE`)                     |
+| `peri_x_cla_risco`   | S    | Classe de risco (`xClaRisco`)                                 |
+| `peri_gr_emb`        | S    | Grupo de embalagem (`grEmb`) — optional                       |
+| `peri_q_vol_tipo`    | S    | Tipo de volume transportado (`qVolTipo`)                      |
 | `created_at`         | S    | ISO-8601 UTC                                                  |
 | `updated_at`         | S    | ISO-8601 UTC                                                  |
 
-**GSIs:** `code-index` (PK: `pk`, SK: `code`), `description-index` (PK: `pk`, SK: `description`).
+**GSIs:** `code-index` (PK: `pk`, SK: `code`), `description-index` (PK: `pk`, SK: `description`). O MDF-e usa
+`code-index` para reencontrar o produto pelo `cProd` que sai na NF-e referenciada e derivar dele o grupo `peri`
+(`ProductRepository.GetByCode`).
 
 ---
 

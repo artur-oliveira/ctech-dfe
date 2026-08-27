@@ -502,6 +502,13 @@ type ProductBody struct {
 	MedCProdAnvisa    *string `json:"med_c_prod_anvisa" validate:"omitempty,min=5"`
 	MedXMotivoIsencao *string `json:"med_x_motivo_isencao" validate:"omitempty,max=255"`
 	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
+	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
+	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
+	PeriNOnu      *string `json:"peri_n_onu" validate:"omitempty,max=4,number"`
+	PeriXNomeAE   *string `json:"peri_x_nome_ae" validate:"omitempty,max=150"`
+	PeriXClaRisco *string `json:"peri_x_cla_risco" validate:"omitempty,max=40"`
+	PeriGrEmb     *string `json:"peri_gr_emb" validate:"omitempty,max=6"`
+	PeriQVolTipo  *string `json:"peri_q_vol_tipo" validate:"omitempty,max=60"`
 	// veicProd — dados do modelo
 	VeicTpOp         *string `json:"veic_tp_op" validate:"omitempty,oneof=0 1 2 3"`
 	VeicTpComb       *string `json:"veic_tp_comb" validate:"omitempty,max=2"`

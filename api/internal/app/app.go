@@ -404,6 +404,7 @@ func newMDFeService(
 	personRepo *repositories.PersonRepository,
 	vehicleSetRepo *repositories.VehicleSetRepository,
 	tollProviderRepo *repositories.TollProviderRepository,
+	productRepo *repositories.ProductRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -413,7 +414,8 @@ func newMDFeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
-		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo,
+		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,

@@ -359,6 +359,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	// Hoje sempre normal; a contingência do MDF-e entra na fase C6 do plano.
 	tpEmis := tpEmisNormal
 
+	docPeri, err := s.resolveDocPeri(ctx, orgPK, cargo.docs)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 
 	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
@@ -398,6 +403,8 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tolls:         tolls,
 		contractors:   contractors,
 		infPag:        infPag,
+		redelivery:    keySet(req.RedeliveryKeys),
+		peri:          docPeri,
 		seals:         req.Seals,
 		rodoSeals:     req.RodoSeals,
 		portAgentCode: valueOr(req.PortAgentCode, ""),

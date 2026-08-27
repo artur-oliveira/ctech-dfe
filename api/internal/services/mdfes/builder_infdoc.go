@@ -33,6 +33,11 @@ func (p buildParams) docNodes(keyField string, keys []string) []map[string]any {
 		if p.redelivery[k] {
 			node["indReentrega"] = indReentregaSim
 		}
+		// peri vem do cadastro do produto que a nota referenciada declara — o
+		// operador classifica a ONU uma vez, não a cada viagem.
+		if peri := p.peri[k]; len(peri) > 0 {
+			node["peri"] = peri
+		}
 		out = append(out, node)
 	}
 	return out

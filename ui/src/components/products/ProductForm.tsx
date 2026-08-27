@@ -296,6 +296,11 @@ function toFormData(p: ProductOut): ProductFormData {
     med_c_prod_anvisa: p.med_c_prod_anvisa ?? '',
     med_x_motivo_isencao: p.med_x_motivo_isencao ?? '',
     med_v_pmc: p.med_v_pmc ?? '',
+    peri_n_onu: p.peri_n_onu ?? '',
+    peri_x_nome_ae: p.peri_x_nome_ae ?? '',
+    peri_x_cla_risco: p.peri_x_cla_risco ?? '',
+    peri_gr_emb: p.peri_gr_emb ?? '',
+    peri_q_vol_tipo: p.peri_q_vol_tipo ?? '',
     veic_tp_op: p.veic_tp_op ?? '',
     veic_tp_comb: p.veic_tp_comb ?? '',
     veic_tp_pint: p.veic_tp_pint ?? '',
@@ -437,6 +442,11 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     med_c_prod_anvisa: nullify(data.med_c_prod_anvisa),
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
+    peri_n_onu: nullify(data.peri_n_onu),
+    peri_x_nome_ae: nullify(data.peri_x_nome_ae),
+    peri_x_cla_risco: nullify(data.peri_x_cla_risco),
+    peri_gr_emb: nullify(data.peri_gr_emb),
+    peri_q_vol_tipo: nullify(data.peri_q_vol_tipo),
     veic_tp_op: nullify(data.veic_tp_op),
     veic_tp_comb: nullify(data.veic_tp_comb),
     veic_tp_pint: nullify(data.veic_tp_pint),
@@ -528,6 +538,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       comb_c_prod_anp: '', comb_desc_anp: '', comb_uf_cons: '', comb_codif: '',
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
+      peri_n_onu: '', peri_x_nome_ae: '', peri_x_cla_risco: '', peri_gr_emb: '', peri_q_vol_tipo: '',
       veic_tp_op: '', veic_tp_comb: '', veic_tp_pint: '', veic_tp_veic: '',
       veic_esp_veic: '', veic_vin: '', veic_cond_veic: '', veic_c_mod: '',
       veic_c_cor_denatran: '', veic_lota: '', veic_tp_rest: '', veic_ano_mod: '',
@@ -1301,6 +1312,60 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 </div>
               </div>
             )}
+
+            {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
+            <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                Produto perigoso (MDF-e)
+              </p>
+              <p className="text-xs text-gray-500">
+                Preencha só se o produto for classificado como perigoso. O MDF-e monta o grupo
+                <span className="font-medium"> peri</span> sozinho a partir daqui — nunca é perguntado por viagem.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField control={form.control} name="peri_n_onu" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Número ONU</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                           inputMode="numeric" placeholder="Ex: 1203"
+                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="peri_x_nome_ae" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Nome apropriado para embarque</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={150}
+                           placeholder="Ex: GASOLINA"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="peri_x_cla_risco" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Classe de risco</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={40}
+                           placeholder="Ex: 3"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="peri_gr_emb" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Grupo de embalagem</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={6}
+                           placeholder="Ex: II"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="peri_q_vol_tipo" render={({field}) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Tipo de volume transportado</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
+                           placeholder="Ex: TAMBOR"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+              </div>
+            </div>
 
             {/* ── Veículo novo (veicProd) ─────────────────────────────── */}
             {watchedProdType === 'veiculo' && (

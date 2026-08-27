@@ -184,6 +184,13 @@ export const productSchema = z.object({
   med_c_prod_anvisa: nullableStr(z.string().min(5, 'Campo inválido')),
   med_x_motivo_isencao: nullableStr(z.string().max(255)),
   med_v_pmc: nullableStr(z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valor inválido')),
+  // peri — classificação de produto perigoso (MDF-e). Cadastrada uma vez aqui;
+  // o MDF-e a deriva sozinho ao referenciar a NF-e que contém o item.
+  peri_n_onu: nullableStr(z.string().regex(/^\d{1,4}$/, 'ONU tem até 4 dígitos')),
+  peri_x_nome_ae: nullableStr(z.string().max(150)),
+  peri_x_cla_risco: nullableStr(z.string().max(40)),
+  peri_gr_emb: nullableStr(z.string().max(6)),
+  peri_q_vol_tipo: nullableStr(z.string().max(60)),
   // veicProd — dados do modelo
   veic_tp_op: nullableStr(z.string().regex(/^[0-3]$/, 'Valor inválido')),
   veic_tp_comb: nullableStr(z.string().max(2, 'Máximo 2 chars')),

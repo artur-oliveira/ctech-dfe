@@ -73,6 +73,9 @@ type buildParams struct {
 	contractors []resolvedContractor
 	// redelivery marca por chave os documentos que são reentrega.
 	redelivery map[string]bool
+	// peri traz, por chave de documento, o produto perigoso derivado do
+	// cadastro dos itens da nota referenciada.
+	peri map[string][]map[string]any
 	// seals são os lacres da carga (infMDFe/lacres); rodoSeals, os lacres da
 	// unidade de transporte (rodo/lacRodo); portAgentCode é o agente portuário.
 	seals         []string

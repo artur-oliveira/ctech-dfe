@@ -385,6 +385,12 @@ export interface ProductOut {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** Classificação de produto perigoso (MDF-e peri). */
+  peri_n_onu?: string | null
+  peri_x_nome_ae?: string | null
+  peri_x_cla_risco?: string | null
+  peri_gr_emb?: string | null
+  peri_q_vol_tipo?: string | null
   // veicProd — dados do modelo
   veic_tp_op?: string | null
   veic_tp_comb?: string | null
@@ -454,6 +460,12 @@ export interface ProductCreate {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** Classificação de produto perigoso (MDF-e peri). */
+  peri_n_onu?: string | null
+  peri_x_nome_ae?: string | null
+  peri_x_cla_risco?: string | null
+  peri_gr_emb?: string | null
+  peri_q_vol_tipo?: string | null
   veic_tp_op?: string | null
   veic_tp_comb?: string | null
   veic_tp_pint?: string | null

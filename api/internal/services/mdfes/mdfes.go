@@ -130,11 +130,14 @@ type MdfeService struct {
 	personRepo       *repositories.PersonRepository
 	vehicleSetRepo   *repositories.VehicleSetRepository
 	tollProviderRepo *repositories.TollProviderRepository
-	clients          *awsclient.Clients
-	workerSvc        *services.WorkerService
-	billingSvc       *services.BillingService
-	bucketDocs       string
-	tech             TechData
+	// productRepo reencontra no cadastro o produto que a NF-e referenciada
+	// declarou, para derivar dele o grupo peri (produto perigoso).
+	productRepo *repositories.ProductRepository
+	clients     *awsclient.Clients
+	workerSvc   *services.WorkerService
+	billingSvc  *services.BillingService
+	bucketDocs  string
+	tech        TechData
 }
 
 // TechData carries the technical-responsible (infRespTec) information.
@@ -158,6 +161,7 @@ func NewMdfeService(
 	personRepo *repositories.PersonRepository,
 	vehicleSetRepo *repositories.VehicleSetRepository,
 	tollProviderRepo *repositories.TollProviderRepository,
+	productRepo *repositories.ProductRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -177,6 +181,7 @@ func NewMdfeService(
 		personRepo:       personRepo,
 		vehicleSetRepo:   vehicleSetRepo,
 		tollProviderRepo: tollProviderRepo,
+		productRepo:      productRepo,
 		clients:          clients,
 		workerSvc:        workerSvc,
 		bucketDocs:       bucketDocs,

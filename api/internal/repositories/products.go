@@ -68,6 +68,32 @@ func (r *ProductRepository) List(ctx context.Context, orgPK string, opts Product
 	})
 }
 
+// GetByCode busca o produto pelo código do emitente (o cProd que sai na NF-e).
+// Devolve nil quando não há produto com esse código exato — o prefixo do índice
+// casaria "GAS" com "GASOLINA", então a igualdade é conferida aqui.
+func (r *ProductRepository) GetByCode(ctx context.Context, orgPK, code string) (map[string]types.AttributeValue, error) {
+	if code == "" {
+		return nil, nil
+	}
+	res, err := r.Query(ctx, QueryOpts{
+		PK: orgPK, SKPrefix: code, IndexName: "code-index", SKField: "code",
+		ScanIndexForward: true, Limit: productCodeQueryLimit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range res.Items {
+		if v, ok := item["code"].(*types.AttributeValueMemberS); ok && v.Value == code {
+			return item, nil
+		}
+	}
+	return nil, nil
+}
+
+// productCodeQueryLimit limita a página do índice por código: só interessa a
+// igualdade, e os vizinhos de prefixo são poucos.
+const productCodeQueryLimit = 20
+
 func (r *ProductRepository) Update(ctx context.Context, orgPK, sk string, updates map[string]any) (bool, error) {
 	return r.CRUDRepository.Update(ctx, orgPK, buildProductSK(sk), updates)
 }
