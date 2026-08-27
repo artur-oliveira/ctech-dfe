@@ -727,6 +727,18 @@ components:
             quando há contratante. Nome, documento e recebimento vêm do
             cadastro da pessoa; as parcelas (`infPrazo`) são derivadas do prazo.
           items: { $ref: '#/components/schemas/MdfePaymentEmit' }
+        seals:
+          type: array
+          description: Lacres da carga (`infMDFe/lacres`).
+          items: { type: string, maxLength: 60 }
+        rodo_seals:
+          type: array
+          description: Lacres da unidade de transporte (`rodo/lacRodo`).
+          items: { type: string, maxLength: 60 }
+        port_agent_code:
+          type: [ string, 'null' ]
+          maxLength: 16
+          description: Código do agente portuário (`rodo/codAgPorto`).
         predominant: { $ref: '#/components/schemas/MdfeProdPred' }
         bulk_cargo: { $ref: '#/components/schemas/MdfeBulkCargo' }
         trip_start: { type: [ string, 'null' ], description: '`dhIniViagem`, em RFC 3339.' }

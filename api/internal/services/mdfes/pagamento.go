@@ -122,3 +122,11 @@ func optional(v string) *string {
 	}
 	return &v
 }
+
+// valueOr desreferencia um campo opcional do request.
+func valueOr(v *string, def string) string {
+	if v == nil || *v == "" {
+		return def
+	}
+	return *v
+}

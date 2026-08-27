@@ -5,6 +5,8 @@ package nfes
 
 import (
 	"github.com/shopspring/decimal"
+
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 // buildTransp builds the transp XML node.
@@ -160,25 +162,10 @@ func buildVols(vols []NfeVolBody, defEsp, defMarca string) []map[string]any {
 			}
 		}
 		if len(v.Lacres) > 0 {
-			node["lacres"] = sealNodes(v.Lacres)
+			node["lacres"] = services.SealNodes(v.Lacres)
 		}
 		if len(node) > 0 {
 			out = append(out, node)
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// sealNodes monta a lista de lacres. Compartilhado com o MDF-e, que usa o
-// mesmo nó `nLacre` em lacRodo e em infMDFe/lacres.
-func sealNodes(seals []string) []map[string]any {
-	out := make([]map[string]any, 0, len(seals))
-	for _, s := range seals {
-		if s != "" {
-			out = append(out, map[string]any{"nLacre": s})
 		}
 	}
 	if len(out) == 0 {

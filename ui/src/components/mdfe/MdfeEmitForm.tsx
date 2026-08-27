@@ -46,6 +46,12 @@ import type {
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
+
+/** Lacres são digitados numa linha só; o leiaute quer uma lista de nLacre. */
+const splitSeals = (raw: string): string[] | undefined => {
+  const list = raw.split(',').map((s) => s.trim()).filter(Boolean)
+  return list.length ? list : undefined
+}
 import {Plane, Ship, TramFront, Truck} from 'lucide-react'
 
 // ─── steps ──────────────────────────────────────────────────────────────────
@@ -367,6 +373,9 @@ export function MdfeEmitForm() {
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
   const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
+  const [seals, setSeals] = useState('')
+  const [rodoSeals, setRodoSeals] = useState('')
+  const [portAgentCode, setPortAgentCode] = useState('')
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('')
@@ -586,6 +595,9 @@ export function MdfeEmitForm() {
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
+      seals: splitSeals(seals),
+      rodo_seals: splitSeals(rodoSeals),
+      port_agent_code: portAgentCode || undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
@@ -728,6 +740,33 @@ export function MdfeEmitForm() {
 
           <FreightPaymentFields payments={freightPayments} onChange={setFreightPayments}
                                 required={contractors.length > 0}/>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Lacres (opcional)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-seals" className="text-xs font-medium text-gray-600">
+                  Lacres da carga
+                </Label>
+                <Input id="mdfe-seals" value={seals} placeholder="Separados por vírgula"
+                       onChange={(e) => setSeals(e.target.value)}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-rodo-seals" className="text-xs font-medium text-gray-600">
+                  Lacres da unidade de transporte
+                </Label>
+                <Input id="mdfe-rodo-seals" value={rodoSeals} placeholder="Separados por vírgula"
+                       onChange={(e) => setRodoSeals(e.target.value)}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-port-agent" className="text-xs font-medium text-gray-600">
+                  Agente portuário
+                </Label>
+                <Input id="mdfe-port-agent" value={portAgentCode} maxLength={16}
+                       onChange={(e) => setPortAgentCode(e.target.value)}/>
+              </div>
+            </div>
+          </div>
 
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">

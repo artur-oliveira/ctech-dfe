@@ -1192,6 +1192,12 @@ export interface MdfeEmit {
   toll_vouchers?: MdfeTollIn[] | null
   contractors?: MdfeContractorIn[] | null
   payments?: MdfePaymentIn[] | null
+  /** Lacres da carga (infMDFe/lacres). */
+  seals?: string[] | null
+  /** Lacres da unidade de transporte (rodo/lacRodo). */
+  rodo_seals?: string[] | null
+  /** Código do agente portuário (rodo/codAgPorto). */
+  port_agent_code?: string | null
 }
 
 /** Componente do valor do frete (`infPag/Comp`). */

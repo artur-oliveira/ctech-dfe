@@ -61,6 +61,13 @@ type MdfeEmitBody struct {
 	// Obrigatório quando há contratante.
 	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
 
+	// Seals são os lacres da carga (infMDFe/lacres); RodoSeals, os lacres da
+	// unidade de transporte (rodo/lacRodo); PortAgentCode é o código do agente
+	// portuário, exigido no transporte de contêiner para porto.
+	Seals         []string `json:"seals" validate:"omitempty,dive,max=60"`
+	RodoSeals     []string `json:"rodo_seals" validate:"omitempty,dive,max=60"`
+	PortAgentCode *string  `json:"port_agent_code" validate:"omitempty,max=16"`
+
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
 	Water *MdfeWaterModal `json:"water" validate:"omitempty"`
@@ -349,35 +356,38 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 
 	mdfeBody := BuildMDFe(buildParams{
-		org:         orgItem,
-		orgPK:       orgPK,
-		accessKey:   accessKey,
-		serie:       serie,
-		number:      currentNumber,
-		environment: environment,
-		now:         now,
-		modal:       modal,
-		cargo:       cargo,
-		vehicle:     resolvedVehicle,
-		trailers:    trailers,
-		owner:       owner,
-		drivers:     req.Drivers,
-		route:       req.Route,
-		bulkCargo:   req.BulkCargo,
-		tripStart:   req.TripStart,
-		rntrc:       req.RNTRC,
-		ciot:        req.CIOT,
-		addInfo:     req.AdditionalInfo,
-		air:         req.Air,
-		water:       req.Water,
-		rail:        req.Rail,
-		tpEmis:      tpEmis,
-		tolls:       tolls,
-		contractors: contractors,
-		infPag:      infPag,
-		tech:        s.tech,
-		csrtID:      strAttr(configItem, csrtIDField),
-		csrt:        strAttr(configItem, csrtField),
+		org:           orgItem,
+		orgPK:         orgPK,
+		accessKey:     accessKey,
+		serie:         serie,
+		number:        currentNumber,
+		environment:   environment,
+		now:           now,
+		modal:         modal,
+		cargo:         cargo,
+		vehicle:       resolvedVehicle,
+		trailers:      trailers,
+		owner:         owner,
+		drivers:       req.Drivers,
+		route:         req.Route,
+		bulkCargo:     req.BulkCargo,
+		tripStart:     req.TripStart,
+		rntrc:         req.RNTRC,
+		ciot:          req.CIOT,
+		addInfo:       req.AdditionalInfo,
+		air:           req.Air,
+		water:         req.Water,
+		rail:          req.Rail,
+		tpEmis:        tpEmis,
+		tolls:         tolls,
+		contractors:   contractors,
+		infPag:        infPag,
+		seals:         req.Seals,
+		rodoSeals:     req.RodoSeals,
+		portAgentCode: valueOr(req.PortAgentCode, ""),
+		tech:          s.tech,
+		csrtID:        strAttr(configItem, csrtIDField),
+		csrt:          strAttr(configItem, csrtField),
 	})
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)

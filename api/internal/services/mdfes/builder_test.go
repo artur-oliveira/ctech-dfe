@@ -198,3 +198,33 @@ func TestResolveOwner(t *testing.T) {
 		t.Errorf("CPF not normalised: %q", o.CPF)
 	}
 }
+
+func TestBuildMDFeLacres(t *testing.T) {
+	p := baseParams(nil)
+	p.seals = []string{"L1", "L2"}
+	p.rodoSeals = []string{"R1"}
+	p.portAgentCode = "AG-9"
+	inf := BuildMDFe(p)["MDFe"].(map[string]any)["infMDFe"].(map[string]any)
+	if len(inf["lacres"].([]map[string]any)) != 2 {
+		t.Fatalf("lacres da carga ausentes: %v", inf["lacres"])
+	}
+	rodo := inf["infModal"].(map[string]any)["rodo"].(map[string]any)
+	if len(rodo["lacRodo"].([]map[string]any)) != 1 {
+		t.Fatalf("lacRodo ausente: %v", rodo)
+	}
+	if rodo["codAgPorto"] != "AG-9" {
+		t.Fatalf("codAgPorto ausente: %v", rodo)
+	}
+}
+
+// Sem lacre nenhum os nós não existem — lista vazia o XSD recusa.
+func TestBuildMDFeSemLacres(t *testing.T) {
+	inf := BuildMDFe(baseParams(nil))["MDFe"].(map[string]any)["infMDFe"].(map[string]any)
+	if _, ok := inf["lacres"]; ok {
+		t.Fatalf("lacres não devia existir: %v", inf["lacres"])
+	}
+	rodo := inf["infModal"].(map[string]any)["rodo"].(map[string]any)
+	if _, ok := rodo["lacRodo"]; ok {
+		t.Fatalf("lacRodo não devia existir: %v", rodo)
+	}
+}

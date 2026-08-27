@@ -71,6 +71,11 @@ type buildParams struct {
 	// contractors são os contratantes do frete (infANTT/infContratante), já
 	// resolvidos contra organization_persons.
 	contractors []resolvedContractor
+	// seals são os lacres da carga (infMDFe/lacres); rodoSeals, os lacres da
+	// unidade de transporte (rodo/lacRodo); portAgentCode é o agente portuário.
+	seals         []string
+	rodoSeals     []string
+	portAgentCode string
 	// infPag é o pagamento ao transportador autônomo, já montado por
 	// buildInfPag a partir do cadastro e do prazo da viagem.
 	infPag []map[string]any
@@ -100,6 +105,9 @@ func BuildMDFe(p buildParams) map[string]any {
 		"infDoc":   p.buildInfDoc(),
 		"prodPred": p.buildProdPred(),
 		"tot":      p.buildTot(),
+	}
+	if lac := services.SealNodes(p.seals); lac != nil {
+		infMDFe["lacres"] = lac
 	}
 	if p.addInfo != nil && *p.addInfo != "" {
 		infMDFe["infAdic"] = map[string]any{"infCpl": *p.addInfo}
@@ -244,6 +252,12 @@ func (p buildParams) buildRodo() map[string]any {
 	}
 	if infANTT := p.buildInfANTT(); len(infANTT) > 0 {
 		rodo["infANTT"] = infANTT
+	}
+	if p.portAgentCode != "" {
+		rodo["codAgPorto"] = p.portAgentCode
+	}
+	if lac := services.SealNodes(p.rodoSeals); lac != nil {
+		rodo["lacRodo"] = lac
 	}
 	return rodo
 }

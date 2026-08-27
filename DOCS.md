@@ -1650,6 +1650,9 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   parcelas (`infPrazo`) são **derivadas** do prazo pelo mesmo `services.ExpandInstallments` que gera as
   duplicatas da NF-e, sobre o saldo (`contract_value − advance_value`); nunca são digitadas uma a uma.
   O nó é montado pelo mesmo `buildInfPag` dos eventos de pagamento (110116/110118).
+- `seals[]?`, `rodo_seals[]?`, `port_agent_code?` — lacres da carga (`infMDFe/lacres`), lacres da
+  unidade de transporte (`rodo/lacRodo`) e código do agente portuário (`rodo/codAgPorto`). Os dois
+  grupos de lacre saem do mesmo `services.SealNodes` que monta `transp/vol/lacres` na NF-e.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).
