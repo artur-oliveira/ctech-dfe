@@ -61,6 +61,13 @@ type MdfeEmitBody struct {
 	// Obrigatório quando há contratante.
 	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
 
+	// PartialDeliveries declara a entrega parcial (corte de voo) e a prestação
+	// parcial de um CT-e transportado.
+	PartialDeliveries []MdfePartialDeliveryBody `json:"partial_deliveries" validate:"omitempty,dive"`
+
+	// TransportedMdfes são os MDF-e que este manifesto transporta.
+	TransportedMdfes []MdfeTransportedBody `json:"transported_mdfes" validate:"omitempty,dive"`
+
 	// TransportUnits associa unidades do cadastro aos documentos que elas
 	// levam (infUnidTransp/infUnidCarga). O rateio é calculado dos pesos.
 	TransportUnits []MdfeTransportUnitBody `json:"transport_units" validate:"omitempty,dive"`
@@ -96,6 +103,18 @@ type MdfeContractorBody struct {
 	PersonDoc      string `json:"person_doc" validate:"required"`
 	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
 	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+}
+
+// partialByKey indexa as entregas parciais pela chave do CT-e.
+func partialByKey(items []MdfePartialDeliveryBody) map[string]partialDelivery {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make(map[string]partialDelivery, len(items))
+	for _, p := range items {
+		out[p.AccessKey] = partialDelivery{QtdTotal: p.QtdTotal, QtdParcial: p.QtdParcial, NFeKeys: p.NFeKeys}
+	}
+	return out
 }
 
 // keySet indexa as chaves marcadas para consulta O(1) no builder.
@@ -143,6 +162,24 @@ type MdfePaymentBody struct {
 	Installments int `json:"installments" validate:"omitempty,min=1,max=120"`
 	IntervalDays int `json:"interval_days" validate:"omitempty,min=0"`
 	FirstDueDays int `json:"first_due_days" validate:"omitempty,min=0"`
+}
+
+// MdfePartialDeliveryBody é a entrega parcial de um CT-e transportado. O XSD só
+// prevê o grupo em infCTe: um chNFe aqui é ignorado pelo builder.
+type MdfePartialDeliveryBody struct {
+	AccessKey  string `json:"access_key" validate:"required,len=44,numeric"`
+	QtdTotal   string `json:"qtd_total" validate:"required,decimalv"`
+	QtdParcial string `json:"qtd_parcial" validate:"required,decimalv"`
+	// NFeKeys são as NF-e já entregues do CT-e (indPrestacaoParcial).
+	NFeKeys []string `json:"nfe_keys" validate:"omitempty,dive,len=44,numeric"`
+}
+
+// MdfeTransportedBody é um MDF-e transportado por este (infMDFeTransp), com o
+// município onde ele é descarregado.
+type MdfeTransportedBody struct {
+	AccessKey  string  `json:"access_key" validate:"required,len=44,numeric"`
+	Unloading  MdfeMun `json:"unloading" validate:"required"`
+	Redelivery bool    `json:"redelivery"`
 }
 
 // MdfeTransportUnitBody é uma unidade de transporte da viagem: qual unidade do
@@ -405,41 +442,43 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 
 	mdfeBody := BuildMDFe(buildParams{
-		org:           orgItem,
-		orgPK:         orgPK,
-		accessKey:     accessKey,
-		serie:         serie,
-		number:        currentNumber,
-		environment:   environment,
-		now:           now,
-		modal:         modal,
-		cargo:         cargo,
-		vehicle:       resolvedVehicle,
-		trailers:      trailers,
-		owner:         owner,
-		drivers:       req.Drivers,
-		route:         req.Route,
-		bulkCargo:     req.BulkCargo,
-		tripStart:     req.TripStart,
-		rntrc:         req.RNTRC,
-		ciot:          req.CIOT,
-		addInfo:       req.AdditionalInfo,
-		air:           req.Air,
-		water:         req.Water,
-		rail:          req.Rail,
-		tpEmis:        tpEmis,
-		tolls:         tolls,
-		contractors:   contractors,
-		infPag:        infPag,
-		redelivery:    keySet(req.RedeliveryKeys),
-		peri:          docPeri,
-		unidTransp:    unidTransp,
-		seals:         req.Seals,
-		rodoSeals:     req.RodoSeals,
-		portAgentCode: valueOr(req.PortAgentCode, ""),
-		tech:          s.tech,
-		csrtID:        strAttr(configItem, csrtIDField),
-		csrt:          strAttr(configItem, csrtField),
+		org:              orgItem,
+		orgPK:            orgPK,
+		accessKey:        accessKey,
+		serie:            serie,
+		number:           currentNumber,
+		environment:      environment,
+		now:              now,
+		modal:            modal,
+		cargo:            cargo,
+		vehicle:          resolvedVehicle,
+		trailers:         trailers,
+		owner:            owner,
+		drivers:          req.Drivers,
+		route:            req.Route,
+		bulkCargo:        req.BulkCargo,
+		tripStart:        req.TripStart,
+		rntrc:            req.RNTRC,
+		ciot:             req.CIOT,
+		addInfo:          req.AdditionalInfo,
+		air:              req.Air,
+		water:            req.Water,
+		rail:             req.Rail,
+		tpEmis:           tpEmis,
+		tolls:            tolls,
+		contractors:      contractors,
+		infPag:           infPag,
+		redelivery:       keySet(req.RedeliveryKeys),
+		partial:          partialByKey(req.PartialDeliveries),
+		transportedMdfes: req.TransportedMdfes,
+		peri:             docPeri,
+		unidTransp:       unidTransp,
+		seals:            req.Seals,
+		rodoSeals:        req.RodoSeals,
+		portAgentCode:    valueOr(req.PortAgentCode, ""),
+		tech:             s.tech,
+		csrtID:           strAttr(configItem, csrtIDField),
+		csrt:             strAttr(configItem, csrtField),
 	})
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)

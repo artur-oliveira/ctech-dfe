@@ -1657,6 +1657,13 @@ dos campos `peri_*` do cadastro, agrupando por número ONU e somando as quantida
 não gera grupo; item que não existe no cadastro é ignorado (a NF-e já foi autorizada com ele). Nada de
 produto perigoso é perguntado por viagem.
 
+- `partial_deliveries[]?` — entrega parcial (corte de voo) de um CT-e transportado:
+  `{access_key, qtd_total, qtd_parcial, nfe_keys[]?}`. `nfe_keys` liga `indPrestacaoParcial` +
+  `infNFePrestParcial` (NF-e já entregues do CT-e). O XSD só prevê o grupo em `infCTe`: uma chave de
+  NF-e informada aqui é ignorada pelo builder, não vira XML inválido.
+- `transported_mdfes[]?` — MDF-e transportados por este (`infMDFeTransp`): `{access_key, unloading}`.
+  O município de descarga entra no grupo `infMunDescarga` que já existir, ou cria um novo.
+  `tot/qMDFe` é **derivado**: é a contagem deles.
 - `transport_units[]?` — unidades de transporte da viagem (`infUnidTransp`):
   `{cargo_unit_id, document_keys[], cargo_unit_ids[]?}`. Tipo, identificação e lacres vêm de
   `organization_cargo_units`; `cargo_unit_ids` são as unidades de carga (contêiner, pallet) dentro

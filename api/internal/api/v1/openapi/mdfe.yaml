@@ -727,6 +727,16 @@ components:
             quando há contratante. Nome, documento e recebimento vêm do
             cadastro da pessoa; as parcelas (`infPrazo`) são derivadas do prazo.
           items: { $ref: '#/components/schemas/MdfePaymentEmit' }
+        partial_deliveries:
+          type: array
+          description: |
+            Entrega parcial (corte de voo) e prestação parcial de um CT-e
+            transportado. O XSD só prevê o grupo em `infCTe`.
+          items: { $ref: '#/components/schemas/MdfePartialDelivery' }
+        transported_mdfes:
+          type: array
+          description: MDF-e transportados por este (`infMDFeTransp`). `tot/qMDFe` é a contagem deles.
+          items: { $ref: '#/components/schemas/MdfeTransported' }
         redelivery_keys:
           type: array
           description: |
@@ -754,6 +764,25 @@ components:
         air: { $ref: '#/components/schemas/MdfeAirModal' }
         water: { $ref: '#/components/schemas/MdfeWaterModal' }
         rail: { $ref: '#/components/schemas/MdfeRailModal' }
+
+    MdfePartialDelivery:
+      type: object
+      required: [ access_key, qtd_total, qtd_parcial ]
+      properties:
+        access_key: { type: string, minLength: 44, maxLength: 44, description: Chave do CT-e transportado. }
+        qtd_total: { type: string, description: '`qtdTotal` — volumes totais.' }
+        qtd_parcial: { type: string, description: '`qtdParcial` — volumes neste MDF-e.' }
+        nfe_keys:
+          type: array
+          description: NF-e já entregues do CT-e (`indPrestacaoParcial` + `infNFePrestParcial`).
+          items: { type: string, minLength: 44, maxLength: 44 }
+
+    MdfeTransported:
+      type: object
+      required: [ access_key, unloading ]
+      properties:
+        access_key: { type: string, minLength: 44, maxLength: 44 }
+        unloading: { $ref: '#/components/schemas/MdfeMun' }
 
     MdfeToll:
       type: object

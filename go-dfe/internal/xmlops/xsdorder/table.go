@@ -493,7 +493,12 @@ var envimdfe = map[string][]string{
 	"infPercurso":    {"UFPer"},
 
 	// infMunDescarga items com contexto específico
-	"infMunDescarga:infCTe": {"chCTe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri", "infEntregaParcial"},
+	"infMunDescarga:infCTe": {
+		"chCTe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri",
+		"infEntregaParcial", "indPrestacaoParcial", "infNFePrestParcial",
+	},
+	"infEntregaParcial":     {"qtdTotal", "qtdParcial"},
+	"infNFePrestParcial":    {"chNFe"},
 	"infMunDescarga:infNFe": {"chNFe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri"},
 	"infMDFeTransp":         {"chMDFe", "indReentrega", "infUnidTransp", "peri"},
 	"infUnidTransp":         {"tpUnidTransp", "idUnidTransp", "lacUnidTransp", "infUnidCarga", "qtdRat"},

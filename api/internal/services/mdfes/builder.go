@@ -3,6 +3,7 @@ package mdfes
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,6 +74,10 @@ type buildParams struct {
 	contractors []resolvedContractor
 	// redelivery marca por chave os documentos que são reentrega.
 	redelivery map[string]bool
+	// partial traz, por chave de CT-e, a entrega parcial e as NF-e já entregues.
+	partial map[string]partialDelivery
+	// transportedMdfes são os MDF-e transportados por este (infMDFeTransp).
+	transportedMdfes []MdfeTransportedBody
 	// unidTransp traz, por chave de documento, as unidades de transporte que o
 	// levam, já com o rateio calculado.
 	unidTransp map[string][]map[string]any
@@ -346,6 +351,10 @@ func (p buildParams) buildTot() map[string]any {
 		"vCarga": p.cargo.totalValue.StringFixed(2),
 		"cUnid":  cUnidKG,
 		"qCarga": p.cargo.totalWeight.StringFixed(4),
+	}
+	// qMDFe é contagem: quantos MDF-e este manifesto transporta.
+	if n := len(p.transportedMdfes); n > 0 {
+		tot["qMDFe"] = strconv.Itoa(n)
 	}
 	n := fmt.Sprintf("%d", len(p.cargo.docs))
 	if len(p.cargo.docs) > 0 && p.cargo.docs[0].docType == docTypeCTe {
