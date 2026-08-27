@@ -1385,6 +1385,12 @@ request continua se chamando `veiculo_rntrc`.
 | `nfp`    | `refNFP`    | `c_uf`, `aamm`, `cnpj` **ou** `cpf`, `ie`, `mod`, `serie`, `n_nf` |
 | `ecf`    | `refECF`    | `mod`, `n_ecf`, `n_coo`                                     |
 
+**CSRT (`infRespTec/idCSRT` + `hashCSRT`).** A configuração fiscal de cada documento aceita
+`csrt_id` e `csrt` (NT 2018.005). Quando os dois estão presentes, o `infRespTec` da NF-e, da NFC-e e
+do MDF-e sai com `idCSRT` e `hashCSRT = Base64(SHA1(CSRT + chave de acesso))` — o par é tudo-ou-nada.
+**O `csrt` nunca volta numa resposta**, nem no PUT que acabou de gravá-lo; o mesmo vale para
+`prod_csc`/`hom_csc` da NFC-e. Ver `CONDUCT.md` §6.
+
 **Grupo `emit` — derivado do cadastro, nunca do request:**
 
 | Tag        | Origem                                                                                     |

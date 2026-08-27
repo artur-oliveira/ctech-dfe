@@ -188,6 +188,19 @@ components:
           description: Último número emitido em produção. Reduzi-lo reemite números já usados.
         hom_current_serie: { type: integer, minimum: 0 }
         hom_current_number: { type: integer, minimum: 0 }
+        csrt_id:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Identificador do CSRT (NT 2018.005). Não é segredo — o XML o carrega em claro.
+        csrt:
+          type: [ string, 'null' ]
+          minLength: 36
+          maxLength: 36
+          description: |
+            Código de Segurança do Responsável Técnico. **Write-only**: nunca
+            aparece numa resposta, nem neste PUT. Omiti-lo mantém o valor
+            gravado; só um valor novo o substitui. O que vai no XML é
+            `hashCSRT = Base64(SHA1(CSRT + chave de acesso))`.
 
     NfceConfigBody:
       type: object
@@ -203,10 +216,25 @@ components:
         prod_csc:
           type: string
           maxLength: 36
-          description: Código de Segurança do Contribuinte de produção, usado no QR Code.
+          description: |
+            Código de Segurança do Contribuinte de produção, usado no QR Code.
+            **Write-only**, pelas mesmas regras de `csrt`.
         prod_csc_id: { type: integer, minimum: 1 }
         hom_csc: { type: string, maxLength: 36 }
         hom_csc_id: { type: integer, minimum: 1 }
+        csrt_id:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Identificador do CSRT (NT 2018.005). Não é segredo — o XML o carrega em claro.
+        csrt:
+          type: [ string, 'null' ]
+          minLength: 36
+          maxLength: 36
+          description: |
+            Código de Segurança do Responsável Técnico. **Write-only**: nunca
+            aparece numa resposta, nem neste PUT. Omiti-lo mantém o valor
+            gravado; só um valor novo o substitui. O que vai no XML é
+            `hashCSRT = Base64(SHA1(CSRT + chave de acesso))`.
 
     NfseAbrasfBody:
       type: object

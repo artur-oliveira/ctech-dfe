@@ -445,6 +445,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			ObsFisco:         operationObs(operation, opFieldObsFisco, interpVars),
 			ProcRef:          buildProcRef(req.ProcRef),
 			PaymentTerminals: terminals,
+			CsrtID:           strAttr(configItem, csrtIDField),
+			Csrt:             strAttr(configItem, csrtField),
 		},
 	)
 

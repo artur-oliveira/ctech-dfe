@@ -63,6 +63,10 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
     prod_current_number: String(cfg?.prod_current_number ?? 1),
     hom_current_serie: String(cfg?.hom_current_serie ?? 0),
     hom_current_number: String(cfg?.hom_current_number ?? 1),
+    csrt_id: String(cfg?.csrt_id ?? ''),
+    // O CSRT nunca volta da API: o campo nasce vazio a cada abertura, e vazio
+    // no PUT significa "manter o que está gravado", não "apagar".
+    csrt: '',
   }
 
   if (variant === 'nfce') {
@@ -88,6 +92,10 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
     prod_current_number: parseInt(d.prod_current_number, 10),
     hom_current_serie: parseInt(d.hom_current_serie, 10),
     hom_current_number: parseInt(d.hom_current_number, 10),
+    csrt_id: d.csrt_id || null,
+    // Chave ausente, não null: vazio significa "manter o gravado". Enviar null
+    // apagaria o segredo que a tela nunca chegou a exibir.
+    ...(d.csrt ? {csrt: d.csrt} : {}),
   }
 
   if (variant === 'nfce') {
@@ -351,6 +359,44 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
             )}
           </section>
         </div>
+
+        {/* Responsável técnico — CSRT (NT 2018.005). Vale para os dois ambientes. */}
+        <section className="space-y-3 rounded-lg border border-gray-200 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Responsável técnico (CSRT)
+          </p>
+          <p className="text-xs text-gray-500">
+            Algumas UFs exigem o CSRT. O código é secreto: ele nunca é devolvido pela API, então este
+            campo volta em branco a cada abertura — deixá-lo vazio mantém o que já está gravado.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="csrt_id"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>Identificador do CSRT</FormLabel>
+                  <NumericInput {...field} value={field.value ?? ''} integerPlaces={2} placeholder="01"
+                                onChange={field.onChange}/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="csrt"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>CSRT (36 caracteres)</FormLabel>
+                  <Input {...field} value={field.value ?? ''} maxLength={36}
+                         autoComplete="off" placeholder="Deixe vazio para manter"
+                         className="font-mono text-xs"/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+          </div>
+        </section>
 
         <div className="flex items-center justify-between pt-2">
           {savedAt ? (

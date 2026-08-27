@@ -82,6 +82,10 @@ const (
 	// indEncPorTerceiro (evEncMDFe): único valor aceito pelo XSD — encerramento
 	// feito por terceiro. Ausente significa encerrado pelo emitente.
 	indEncPorTerceiroSim = "1"
+
+	// Campos do CSRT na configuração fiscal (organization_mdfe_configs).
+	csrtIDField = "csrt_id"
+	csrtField   = "csrt"
 )
 
 // modalCodes maps an API modal value to its ide/modal code.

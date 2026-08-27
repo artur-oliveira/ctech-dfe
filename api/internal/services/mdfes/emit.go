@@ -292,6 +292,8 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		rail:        req.Rail,
 		tpEmis:      tpEmis,
 		tech:        s.tech,
+		csrtID:      strAttr(configItem, csrtIDField),
+		csrt:        strAttr(configItem, csrtField),
 	})
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)

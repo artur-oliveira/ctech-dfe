@@ -584,12 +584,9 @@ func BuildEnviNFe(
 		extra.ObsCont, extra.ObsFisco, extra.ProcRef); infAdic != nil {
 		infNFe["infAdic"] = infAdic
 	}
-	infNFe["infRespTec"] = map[string]any{
-		"CNPJ":     tech.CNPJ,
-		"xContato": tech.Name,
-		"email":    tech.Email,
-		"fone":     tech.Phone,
-	}
+	infNFe["infRespTec"] = services.BuildRespTec(
+		tech.CNPJ, tech.Name, tech.Email, tech.Phone,
+		extra.CsrtID, extra.Csrt, accessKey)
 
 	nfe := map[string]any{"infNFe": infNFe}
 	if supl != nil {

@@ -202,7 +202,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		s.tech, nfModel65, supl,
 		nil, nil,
 		mode,
-		docExtras{PaymentTerminals: terminals},
+		docExtras{
+			PaymentTerminals: terminals,
+			CsrtID:           strAttr(configItem, csrtIDField),
+			Csrt:             strAttr(configItem, csrtField),
+		},
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))

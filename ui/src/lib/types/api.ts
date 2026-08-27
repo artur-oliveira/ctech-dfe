@@ -195,6 +195,8 @@ export interface NFeConfigOut {
   prod_last_dist_nsu_at: string | null
   hom_nsu: number
   hom_last_dist_nsu_at: string | null
+  /** Identificador do CSRT (NT 2018.005). O `csrt` em si nunca volta da API. */
+  csrt_id?: string | null
   updated_at: string
 }
 

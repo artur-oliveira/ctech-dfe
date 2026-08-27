@@ -675,6 +675,11 @@ type fiscalConfigBase struct {
 	ProdCurrentNumber int    `json:"prod_current_number" validate:"gte=0"`
 	HomCurrentSerie   int    `json:"hom_current_serie" validate:"gte=0"`
 	HomCurrentNumber  int    `json:"hom_current_number" validate:"gte=0"`
+
+	// CSRT do responsável técnico (NT 2018.005). Segredo: a API nunca o devolve
+	// — ver redactFiscalSecrets em helpers.go.
+	CsrtID *string `json:"csrt_id" validate:"omitempty,max=2,number"`
+	Csrt   *string `json:"csrt" validate:"omitempty,len=36"`
 }
 
 // FiscalConfigBody is the body for PUT /…/nfe-config, cte-config, mdfe-config.

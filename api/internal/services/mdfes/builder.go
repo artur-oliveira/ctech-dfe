@@ -67,6 +67,10 @@ type buildParams struct {
 	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
 	tpEmis string
 	tech   TechData
+	// csrtID/csrt são o Código de Segurança do Responsável Técnico. Só o hash
+	// derivado entra no XML.
+	csrtID string
+	csrt   string
 }
 
 // BuildMDFe constructs the MDFe dict sent to the py-dfe Lambda. SEFAZ no longer
@@ -92,7 +96,7 @@ func BuildMDFe(p buildParams) map[string]any {
 	if p.addInfo != nil && *p.addInfo != "" {
 		infMDFe["infAdic"] = map[string]any{"infCpl": *p.addInfo}
 	}
-	if rt := buildRespTec(p.tech); rt != nil {
+	if rt := buildRespTec(p.tech, p.csrtID, p.csrt, p.accessKey); rt != nil {
 		infMDFe["infRespTec"] = rt
 	}
 
@@ -368,16 +372,13 @@ func buildEnderMDFe(person map[string]any) map[string]any {
 	return ender
 }
 
-func buildRespTec(t TechData) map[string]any {
+// buildRespTec delega ao nó compartilhado: infRespTec é literalmente o mesmo
+// grupo na NF-e, no CT-e e no MDF-e (ver a tabela de ordem XSD).
+func buildRespTec(t TechData, csrtID, csrt, accessKey string) map[string]any {
 	if t.CNPJ == "" {
 		return nil
 	}
-	return map[string]any{
-		"CNPJ":     t.CNPJ,
-		"xContato": t.Name,
-		"email":    t.Email,
-		"fone":     onlyDigits(t.Phone),
-	}
+	return services.BuildRespTec(t.CNPJ, t.Name, t.Email, onlyDigits(t.Phone), csrtID, csrt, accessKey)
 }
 
 func verProc(t TechData) string {

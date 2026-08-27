@@ -128,6 +128,17 @@ Never commit or expose:
 - Real customer data (CPF/CNPJ, names, tax identifiers)
 - External API tokens
 
+## CSRT e CSC nunca saem da API
+
+O CSRT (Código de Segurança do Responsável Técnico, NT 2018.005) e o CSC da NFC-e identificam o emitente perante a
+SEFAZ: quem os tem assina no lugar dele. Eles entram por `PUT /…/nfe-config` e afins, mas **nunca aparecem em resposta
+de API nem em log** — `redactFiscalSecrets` (`internal/api/v1/helpers.go`) os apaga no GET e no próprio PUT que os
+gravou. O que viaja no XML é só o derivado: `hashCSRT = Base64(SHA1(CSRT + chave))` no `infRespTec`, e o hash do CSC no
+QR Code da NFC-e — nenhum dos dois é reversível.
+
+Ao acrescentar um segredo novo à configuração fiscal, acrescente o nome do campo a `fiscalConfigSecrets` no mesmo
+commit.
+
 ## Secret management
 
 - Production/Staging: AWS SSM Parameter Store (with decryption)

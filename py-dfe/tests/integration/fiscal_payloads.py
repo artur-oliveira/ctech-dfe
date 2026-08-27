@@ -94,6 +94,7 @@ def build_nfe(
         vols: list[dict] | None = None,
         reboques: list[dict] | None = None,
         inf_adic: dict | None = None,
+        resp_tec: dict | None = None,
 ) -> tuple[dict, str]:
     """Minimal NF-e (mod=55). Pass uf= to target a specific authorizer's cUF.
     fin_nfe/nfref cobrem devolução e complementar (ide/NFref).
@@ -197,6 +198,8 @@ def build_nfe(
     }
     if nfref:
         payload["enviNFe"]["NFe"]["infNFe"]["ide"]["NFref"] = nfref
+    if resp_tec:
+        payload["enviNFe"]["NFe"]["infNFe"].setdefault("infRespTec", {}).update(resp_tec)
     if inf_adic:
         payload["enviNFe"]["NFe"]["infNFe"]["infAdic"].update(inf_adic)
     if vols or reboques:

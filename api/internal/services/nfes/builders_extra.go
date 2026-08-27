@@ -6,6 +6,12 @@ package nfes
 // natOpMaxLen is the SEFAZ ide.natOp limit (xNatOp: 1-60 chars).
 const natOpMaxLen = 60
 
+// Campos do CSRT na configuração fiscal (organization_*_configs).
+const (
+	csrtIDField = "csrt_id"
+	csrtField   = "csrt"
+)
+
 // truncateNatOp enforces the SEFAZ ide.natOp 60-char limit. The frontend sends a
 // summarized CFOP description; this is a rune-safe safety net that truncates with
 // an ellipsis suffix when the value exceeds natOpMaxLen.
@@ -35,6 +41,10 @@ type docExtras struct {
 	// PaymentTerminals são os terminais de captura citados pelos pagamentos,
 	// indexados pelo SK do cadastro.
 	PaymentTerminals map[string]map[string]any
+	// CsrtID/Csrt são o Código de Segurança do Responsável Técnico. O segredo
+	// não é gravado no documento: só o hash entra no XML.
+	CsrtID string
+	Csrt   string
 }
 
 // buildInfAdic monta infAdic. Ordem XSD: infAdFisco, infCpl, obsCont, obsFisco,

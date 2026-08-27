@@ -233,6 +233,22 @@ class TestNFeSVRS:
         TestNFeSVRS._chave = chave
         TestNFeSVRS._nprot = prot.get("nProt") or "322260000007475"
 
+    def test_nfe_com_csrt(self, real_cert_manager):
+        """infRespTec com idCSRT + hashCSRT (NT 2018.005)."""
+        import base64
+        import hashlib
+
+        svc = _nfe_svc(real_cert_manager, UF.PI.value)
+        csrt = "G8063NG5H4YQ01M4L3AKG25OZ4A2GL123456"
+        payload, chave = build_nfe(uf="PI")
+        digest = hashlib.sha1((csrt + chave).encode()).digest()
+        payload["enviNFe"]["NFe"]["infNFe"].setdefault("infRespTec", {}).update({
+            "idCSRT": "01",
+            "hashCSRT": base64.b64encode(digest).decode(),
+        })
+        result = svc.authorization(payload)
+        _assert_comunicacao_authorization(result)
+
     def test_nfe_com_inf_adic_completo(self, real_cert_manager):
         """infAdic completo: infAdFisco, obsCont, obsFisco e procRef."""
         svc = _nfe_svc(real_cert_manager, UF.PI.value)
