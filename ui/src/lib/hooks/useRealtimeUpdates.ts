@@ -7,7 +7,7 @@ import {useAuth} from './useAuth'
 import {useWebSocket, type WSStatus} from '@aoctech/ws-client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {getAccessToken, subscribeAccessToken} from '@/lib/api/client'
-import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
+import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
 
 // `next dev` rewrites do not proxy the WebSocket upgrade, so local development
 // points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments now set it
@@ -49,6 +49,13 @@ const DOC_QUERY_KEYS = {
   nfses: queryKeys.nfses,
 } as const
 
+// Inutilização queries are keyed by doc_type ('nfe'/'nfce'), not by the
+// DynamoDB table name the result message carries.
+const INUT_DOC_TYPE: Record<string, string> = {
+  nfes: 'nfe',
+  nfces: 'nfce',
+}
+
 export function useRealtimeUpdates(): { wsStatus: WSStatus } {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
@@ -64,13 +71,25 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     if (!msg?.type || msg.type === 'ping' || msg.type === 'connected') return
 
     if (msg.type === 'dfe_result' && msg.access_key) {
-      // Route invalidation by document type so each document's updates reach
-      // its own queries (detail, list, and event history).
-      const doc = DOC_QUERY_KEYS[msg.table_name as keyof typeof DOC_QUERY_KEYS]
-      if (doc) {
-        void qc.invalidateQueries({queryKey: doc.detail(msg.access_key)})
-        void qc.invalidateQueries({queryKey: doc.lists(selectedOrg?.pk)})
-        void qc.invalidateQueries({queryKey: doc.events(msg.access_key)})
+      // An inutilização is not an event on a document — its access_key is
+      // synthetic ("INUT#{env}#{org_pk}") and there is no detail/list/event
+      // cache to refresh. Its own list and the detected-gaps list are what
+      // must go stale, or the closed gap keeps showing after the toast.
+      if (msg.event_type === EVENT_TYPE_INUTILIZACAO) {
+        const inutDocType = INUT_DOC_TYPE[msg.table_name ?? '']
+        if (inutDocType) {
+          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.list(inutDocType, selectedOrg?.pk)})
+          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.gaps(inutDocType, selectedOrg?.pk)})
+        }
+      } else {
+        // Route invalidation by document type so each document's updates reach
+        // its own queries (detail, list, and event history).
+        const doc = DOC_QUERY_KEYS[msg.table_name as keyof typeof DOC_QUERY_KEYS]
+        if (doc) {
+          void qc.invalidateQueries({queryKey: doc.detail(msg.access_key)})
+          void qc.invalidateQueries({queryKey: doc.lists(selectedOrg?.pk)})
+          void qc.invalidateQueries({queryKey: doc.events(msg.access_key)})
+        }
       }
       // Resolve the toast from the result — event results report the event
       // outcome, not the (possibly reverted) document status.

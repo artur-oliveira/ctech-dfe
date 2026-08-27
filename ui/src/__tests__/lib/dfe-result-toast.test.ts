@@ -103,4 +103,44 @@ describe('resolveDfeResultToast — event results', () => {
       resolveDfeResultToast({result_kind: 'event', table_name: 'nfes', event_type: '110112', status: 'success'}),
     ).toEqual({variant: 'success', message: 'NF-e cancelada com sucesso'})
   })
+
+  // Regressão: INUT caía no ramo de cancelamento e a inutilização de uma faixa
+  // de numeração era anunciada como "NFC-e cancelada com sucesso".
+  it('uses inutilização wording for an INUT event', () => {
+    expect(
+      resolveDfeResultToast({result_kind: 'event', table_name: 'nfces', event_type: 'INUT', status: 'success'}),
+    ).toEqual({variant: 'success', message: 'Faixa de numeração de NFC-e inutilizada com sucesso'})
+  })
+
+  it('reports a rejected INUT event with the SEFAZ motive', () => {
+    expect(
+      resolveDfeResultToast({
+        result_kind: 'event',
+        table_name: 'nfes',
+        event_type: 'INUT',
+        status: 'rejected',
+        sefaz_motive: 'Ja existe NF-e autorizada para a faixa informada',
+      }),
+    ).toEqual({
+      variant: 'error',
+      message: 'Inutilização de numeração de NF-e rejeitada pela SEFAZ — Ja existe NF-e autorizada para a faixa informada',
+    })
+  })
+
+  it('reports a failed INUT event as an inutilização failure', () => {
+    expect(
+      resolveDfeResultToast({result_kind: 'event', table_name: 'nfces', event_type: 'INUT', status: 'error'}),
+    ).toEqual({variant: 'error', message: 'Falha ao inutilizar a numeração de NFC-e'})
+  })
+
+  it('keeps an INUT retryable failure non-alarming', () => {
+    expect(
+      resolveDfeResultToast({
+        result_kind: 'event',
+        table_name: 'nfces',
+        event_type: 'INUT',
+        status: 'retryable_failed',
+      }),
+    ).toEqual({variant: 'info', message: 'Inutilização de numeração não concluída — tentando novamente'})
+  })
 })

@@ -22,6 +22,11 @@ const STATUS_RETRYABLE_FAILED = 'retryable_failed'
 const EVENT_TYPE_ENCERRAMENTO = '110112'
 const TABLE_MDFE = 'mdfes'
 
+// Inutilização de numeração (api: nfes.EventTypeInutilizacao). Travels through
+// the same event-result channel as cancellation, but is not an event *on* a
+// document — reporting it as a cancellation told users the wrong thing happened.
+export const EVENT_TYPE_INUTILIZACAO = 'INUT'
+
 const TABLE_LABEL: Record<string, string> = {
   nfes: 'NF-e',
   nfces: 'NFC-e',
@@ -82,12 +87,31 @@ function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
 function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
   const doc = docLabel(msg.table_name)
   const motive = motiveSuffix(msg.sefaz_motive)
-  const isEncerramento = msg.event_type === EVENT_TYPE_ENCERRAMENTO && msg.table_name === TABLE_MDFE
   const a = DOC_GENDER[msg.table_name ?? ''] === 'm' ? 'o' : 'a'
 
-  const wording = isEncerramento
-    ? {success: `${doc} encerrad${a} com sucesso`, fail: `Falha ao encerrar ${doc}`, reject: `Encerramento de ${doc} rejeitado pela SEFAZ`}
-    : {success: `${doc} cancelad${a} com sucesso`, fail: `Falha ao cancelar ${doc}`, reject: `Cancelamento de ${doc} rejeitado pela SEFAZ`}
+  let wording: { retry: string; success: string; fail: string; reject: string }
+  if (msg.event_type === EVENT_TYPE_INUTILIZACAO) {
+    wording = {
+      retry: 'Inutilização de numeração não concluída',
+      success: `Faixa de numeração de ${doc} inutilizada com sucesso`,
+      fail: `Falha ao inutilizar a numeração de ${doc}`,
+      reject: `Inutilização de numeração de ${doc} rejeitada pela SEFAZ`,
+    }
+  } else if (msg.event_type === EVENT_TYPE_ENCERRAMENTO && msg.table_name === TABLE_MDFE) {
+    wording = {
+      retry: `Encerramento de ${doc} não concluído`,
+      success: `${doc} encerrad${a} com sucesso`,
+      fail: `Falha ao encerrar ${doc}`,
+      reject: `Encerramento de ${doc} rejeitado pela SEFAZ`,
+    }
+  } else {
+    wording = {
+      retry: `Cancelamento de ${doc} não concluído`,
+      success: `${doc} cancelad${a} com sucesso`,
+      fail: `Falha ao cancelar ${doc}`,
+      reject: `Cancelamento de ${doc} rejeitado pela SEFAZ`,
+    }
+  }
 
   switch (msg.status) {
     case EVENT_STATUS_SUCCESS:
@@ -97,7 +121,7 @@ function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
     case STATUS_RETRYABLE_FAILED:
       return {
         variant: 'info',
-        message: `${isEncerramento ? 'Encerramento' : 'Cancelamento'} de ${doc} não concluído — tentando novamente${motive}`,
+        message: `${wording.retry} — tentando novamente${motive}`,
       }
     default:
       // 'error' or any unexpected status — treat as a processing failure.

@@ -4,10 +4,12 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import type {ReactNode} from 'react'
 import {CLIENT_PING_INTERVAL_MS, CLIENT_PONG_TIMEOUT_MS} from '@aoctech/ws-client'
 import {useRealtimeUpdates} from '@/lib/hooks/useRealtimeUpdates'
+import {queryKeys} from '@/lib/api/query-keys'
 
 vi.mock('@/lib/hooks/useAuth', () => ({
   useAuth: () => ({selectedOrg: {pk: 'CNPJ_00000000000191'}}),
 }))
+vi.mock('sonner', () => ({toast: {success: vi.fn(), error: vi.fn(), info: vi.fn()}}))
 vi.mock('@/lib/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api/client')>()
   return {...actual, getAccessToken: () => 'test-token'}
@@ -39,6 +41,15 @@ class FakeWebSocket {
 function wrapper({children}: {children: ReactNode}) {
   const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+}
+
+const ORG_PK = 'CNPJ_00000000000191'
+
+/** Wrapper over a caller-owned QueryClient, so invalidations can be asserted. */
+function wrapperWith(qc: QueryClient) {
+  return function Wrapper({children}: {children: ReactNode}) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+  }
 }
 
 describe('useRealtimeUpdates', () => {
@@ -87,5 +98,57 @@ describe('useRealtimeUpdates', () => {
 
     expect(FakeWebSocket.instances.length).toBe(2)
     expect(firstClosed).toBe(true)
+  })
+
+  // Regressão: um resultado de inutilização só invalidava as queries de
+  // documento, então a lacuna fechada e a faixa recém-enviada continuavam na
+  // tela depois da notificação.
+  it('invalidates the inutilização list and gaps on an INUT event result', () => {
+    const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
+    const invalidate = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue(undefined)
+    renderHook(() => useRealtimeUpdates(), {wrapper: wrapperWith(qc)})
+    const sock = FakeWebSocket.instances[0]
+    act(() => sock.onopen?.())
+
+    act(() => sock.onmessage?.({
+      data: JSON.stringify({
+        type: 'dfe_result',
+        result_kind: 'event',
+        access_key: 'INUT#prod#' + ORG_PK,
+        doc_pk: 'prod#' + ORG_PK,
+        table_name: 'nfces',
+        event_type: 'INUT',
+        status: 'success',
+      }),
+    }))
+
+    const keys = invalidate.mock.calls.map(([arg]) => arg?.queryKey)
+    expect(keys).toContainEqual(queryKeys.inutilizations.list('nfce', ORG_PK))
+    expect(keys).toContainEqual(queryKeys.inutilizations.gaps('nfce', ORG_PK))
+    // Nenhuma query de documento: a chave é sintética, não existe NFC-e alguma.
+    expect(keys).not.toContainEqual(queryKeys.nfces.lists(ORG_PK))
+  })
+
+  it('still invalidates document queries on a document result', () => {
+    const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
+    const invalidate = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue(undefined)
+    renderHook(() => useRealtimeUpdates(), {wrapper: wrapperWith(qc)})
+    const sock = FakeWebSocket.instances[0]
+    act(() => sock.onopen?.())
+
+    act(() => sock.onmessage?.({
+      data: JSON.stringify({
+        type: 'dfe_result',
+        result_kind: 'document',
+        access_key: 'AK1',
+        doc_pk: 'prod#' + ORG_PK,
+        table_name: 'nfces',
+        status: 'authorized',
+      }),
+    }))
+
+    const keys = invalidate.mock.calls.map(([arg]) => arg?.queryKey)
+    expect(keys).toContainEqual(queryKeys.nfces.lists(ORG_PK))
+    expect(keys).toContainEqual(queryKeys.nfces.detail('AK1'))
   })
 })

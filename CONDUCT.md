@@ -458,6 +458,14 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   guarde só a resposta: sem o request assinado junto, não há como comprovar a inutilização depois.
 - **Número que gerou documento utilizável nunca é inutilizado.** Só `rejected` e `failed` liberam o
   número; a validação roda antes de qualquer chamada à SEFAZ.
+- **No tempo real, `event_type: INUT` é um caso próprio — não um cancelamento.** O reuso do caminho
+  genérico de evento faz o resultado chegar como `result_kind: event`, e o frontend tem que
+  desambiguar por `event_type` em dois pontos: o texto do toast
+  (`ui/src/lib/utils/dfe-result-toast.ts`) e a invalidação de cache
+  (`ui/src/lib/hooks/useRealtimeUpdates.ts`, que invalida `inutilizations.list`/`.gaps`, não as
+  queries de documento — a `access_key` é sintética). Faltando isso, a notificação dizia
+  "NFC-e cancelada" e a lacuna fechada continuava na tela. Todo evento novo que não seja evento
+  *sobre um documento* tem o mesmo dever.
 
 ## Evento de documento com emitente pessoa física
 

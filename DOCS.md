@@ -1463,6 +1463,19 @@ a própria raiz do request. O worker o grava no S3 e guarda a chave em `xml_s3_k
 genérico de `saveResponse`, sem código específico. `GET .../inutilizations/{sk}/xml` o devolve; a
 aba de inutilizações só mostra o botão de download quando `xml_s3_key` existe.
 
+**Tempo real (`dfe_result` com `result_kind: event`, `event_type: INUT`).** Por herdar o caminho
+genérico de evento, o resultado da inutilização chega pelo mesmo canal de um cancelamento, e o
+frontend precisa desambiguar por `event_type`:
+
+- `src/lib/utils/dfe-result-toast.ts` tem um ramo `EVENT_TYPE_INUTILIZACAO` com texto próprio
+  (*"Faixa de numeração de NFC-e inutilizada com sucesso"*). Sem ele o resultado caía no ramo de
+  cancelamento e a notificação anunciava *"NFC-e cancelada com sucesso"*.
+- `src/lib/hooks/useRealtimeUpdates.ts` invalida `queryKeys.inutilizations.list/gaps` (mapeando
+  `table_name` → `doc_type`: `nfes` → `nfe`, `nfces` → `nfce`) em vez das queries de documento. A
+  `access_key` da mensagem é sintética (`INUT#{env}#{org_pk}`), então não existe detalhe, lista nem
+  histórico de documento para atualizar — e sem invalidar as duas queries da aba, a lacuna fechada e
+  o status da faixa continuavam na tela depois da notificação.
+
 **Issuance body (`POST /v1.0/nfces`):** `consumer_cpf?` (CPF only), `products[]`
 (`product_id`, `cfop` 5xxx, `quantity`, `unit_value?`, `discount?`), `payments[]`
 (`payment_type`, `value`), `additional_info?`, `nat_op?`. **Substitution body:**
