@@ -49,6 +49,10 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 			if p := bindJSON(c, &dto); p != nil {
 				return nil, p
 			}
+			docKey, err := personDocKey(dto)
+			if err != nil {
+				return nil, err
+			}
 			if err := services.RequirePJFields(dto.CpfOrCnpj, dto.Person.Crt); err != nil {
 				return nil, err
 			}
@@ -56,7 +60,7 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 			if err != nil {
 				return nil, err
 			}
-			return svc.Create(c.Context(), orgPK, dto.CpfOrCnpj, body, userID, userName)
+			return svc.Create(c.Context(), orgPK, docKey, body, userID, userName)
 		},
 
 		get: func(c fiber.Ctx, orgPK, id string) (map[string]types.AttributeValue, error) {
@@ -95,4 +99,18 @@ func RegisterPersons(router fiber.Router, svc *services.PersonService, userSvc *
 			return svc.Delete(c.Context(), orgPK, id, userID, userName)
 		},
 	})
+}
+
+// personDocKey resolve a identidade do cadastro: CPF/CNPJ ou, para pessoa no
+// exterior, o documento estrangeiro prefixado. O XSD de dest é um choice, então
+// informar os dois (ou nenhum) é erro de request.
+func personDocKey(dto PersonCreateBody) (string, error) {
+	foreign := dto.IDEstrangeiro != nil && *dto.IDEstrangeiro != ""
+	if foreign == (dto.CpfOrCnpj != "") {
+		return "", problem.BadRequest("informe cpf_or_cnpj ou id_estrangeiro, nunca os dois")
+	}
+	if foreign {
+		return repositories.SKPrefixForeign + *dto.IDEstrangeiro, nil
+	}
+	return dto.CpfOrCnpj, nil
 }

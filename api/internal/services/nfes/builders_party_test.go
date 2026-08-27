@@ -53,3 +53,29 @@ func TestBuildEmitIESTUsaUFDeDestino(t *testing.T) {
 		t.Fatalf("IEST na UF de destino: %v", got["IEST"])
 	}
 }
+
+func TestBuildDestEstrangeiro(t *testing.T) {
+	receiver := map[string]any{"name": "John Doe", "sk": "IDEST_A1234567", "person": map[string]any{
+		"id_estrangeiro": "A1234567",
+		"addresses":      []any{map[string]any{"state_federation": "EX", "city": "Exterior"}},
+	}}
+	got := buildDest(receiver, getPersonMap(receiver), "IDEST_A1234567", "EX", false, 1, "")
+	if got["idEstrangeiro"] != "A1234567" {
+		t.Fatalf("idEstrangeiro ausente: %v", got)
+	}
+	if _, ok := got["CPF"]; ok {
+		t.Fatal("CPF não pode coexistir com idEstrangeiro (choice do XSD)")
+	}
+	if _, ok := got["CNPJ"]; ok {
+		t.Fatal("CNPJ não pode coexistir com idEstrangeiro")
+	}
+	if got["indIEDest"] != indIEDestNaoContrib {
+		t.Fatalf("estrangeiro é sempre não contribuinte: %v", got["indIEDest"])
+	}
+}
+
+func TestBuildDestNilQuandoSemDestinatario(t *testing.T) {
+	if got := buildDest(nil, nil, "", "SP", true, 1, ""); got != nil {
+		t.Fatalf("want nil, got %v", got)
+	}
+}

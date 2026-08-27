@@ -10,6 +10,7 @@ import {
   type PersonRole,
 } from '@/lib/schemas/entity'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
+import {SK_PREFIX} from '@/lib/constants/entity-keys'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 
 // Re-export for any existing code that imports UF_OPTIONS from here
@@ -34,7 +35,8 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
   const validCrt = ['1', '2', '3', '4'].includes(crt)
   return {
     tipo: isPJ ? 'pj' : 'pf',
-    cpf_or_cnpj: unformatCpfCnpj(p.sk),
+    cpf_or_cnpj: p.sk.startsWith(SK_PREFIX.FOREIGN) ? '' : unformatCpfCnpj(p.sk),
+    id_estrangeiro: p.sk.startsWith(SK_PREFIX.FOREIGN) ? p.sk.slice(SK_PREFIX.FOREIGN.length) : '',
     name: p.name,
     description: '',
     // Pessoa cadastrada antes dos papéis existirem volta sem `roles` — lista
@@ -91,6 +93,7 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
 
     await onSubmit({
       cpf_or_cnpj: data.cpf_or_cnpj,
+      id_estrangeiro: data.id_estrangeiro || null,
       // Persist names uppercase so person search stays assertive (see searchPersonsByName).
       name: data.name.toUpperCase(),
       roles: data.roles,

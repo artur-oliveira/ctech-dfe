@@ -103,6 +103,9 @@ type PersonObjectBody struct {
 	// CNAE do emitente. Exigido pelo leiaute quando IM está presente (NF-e
 	// mista mercadoria + serviço).
 	Cnae *string `json:"cnae" validate:"omitempty,len=7,number"`
+	// IDEstrangeiro repetido no objeto person para que o builder da NF-e o
+	// encontre onde já lê o resto da identidade.
+	IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
 	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
 	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
 }
@@ -120,10 +123,14 @@ const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier dr
 // fiscal rule — a person may hold several at once, and an absent list is valid:
 // that person simply never shows up in a role-filtered listing.
 type PersonCreateBody struct {
-	CpfOrCnpj string           `json:"cpf_or_cnpj" validate:"required,cpfcnpj"`
-	Name      string           `json:"name" validate:"required,min=2,max=255"`
-	Roles     []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
-	Person    PersonObjectBody `json:"person" validate:"required"`
+	// CpfOrCnpj e IDEstrangeiro são alternativos: o XSD de dest é um choice
+	// entre CPF, CNPJ e idEstrangeiro. Exatamente um dos dois é obrigatório.
+	CpfOrCnpj string `json:"cpf_or_cnpj" validate:"omitempty,cpfcnpj"`
+	// IDEstrangeiro é o documento de pessoa no exterior (dest/idEstrangeiro).
+	IDEstrangeiro *string          `json:"id_estrangeiro" validate:"omitempty,max=20"`
+	Name          string           `json:"name" validate:"required,min=2,max=255"`
+	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
+	Person        PersonObjectBody `json:"person" validate:"required"`
 }
 
 // PersonUpdateBody is the body for PUT /persons/:cpf_cnpj (partial; the document

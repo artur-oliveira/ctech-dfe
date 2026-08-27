@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -192,4 +193,45 @@ func getIESTForUF(person map[string]any, uf string) string {
 		}
 	}
 	return ""
+}
+
+// buildDest monta o nó dest. O documento do destinatário é um choice do XSD —
+// CPF, CNPJ ou idEstrangeiro, nunca dois. Na NFC-e o consumidor é identificado
+// só pelo documento, sem endereço, e pode ser omitido por inteiro.
+func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, isNFCe bool, environment int, destIE string) map[string]any {
+	if len(receiver) == 0 {
+		return nil
+	}
+	dest := map[string]any{}
+	switch {
+	case strings.HasPrefix(receiverSK, repositories.SKPrefixForeign):
+		// choice do XSD: idEstrangeiro exclui CPF e CNPJ.
+		dest["idEstrangeiro"] = strings.TrimPrefix(receiverSK, repositories.SKPrefixForeign)
+	case strings.HasPrefix(receiverSK, "CNPJ_"):
+		dest["CNPJ"] = services.StripPKPrefix(receiverSK)
+	default:
+		dest["CPF"] = services.StripPKPrefix(receiverSK)
+	}
+
+	if isNFCe {
+		dest["indIEDest"] = indIEDestNaoContrib
+		return dest
+	}
+
+	receiverName := anyStr(receiver, "name", "")
+	if environment != 1 {
+		receiverName = homNameReceiver
+	}
+	dest["xNome"] = receiverName
+	dest["enderDest"] = buildEnder(destPerson)
+	if destIE != "" && destUF != ufExterior {
+		dest["IE"] = destIE
+		dest["indIEDest"] = indIEDestContrib
+	} else {
+		dest["indIEDest"] = indIEDestNaoContrib
+	}
+	if email := services.FirstEmail(destPerson); email != "" {
+		dest["email"] = email
+	}
+	return dest
 }

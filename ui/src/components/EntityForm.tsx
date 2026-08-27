@@ -115,6 +115,7 @@ const EMPTY_ADDRESS: EntityFormData['person']['addresses'][number] = {
 const DEFAULT_VALUES: EntityFormData = {
   tipo: 'pj',
   cpf_or_cnpj: '',
+  id_estrangeiro: '',
   name: '',
   description: '',
   roles: [],
@@ -206,6 +207,9 @@ export function EntityForm({
   const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? []
   const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? []
   const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? ''
+  // Pessoa no exterior (dest/idEstrangeiro): sem CPF/CNPJ, sem consulta à
+  // Receita, sem IE. Só a variante 'person' oferece — o emitente é sempre BR.
+  const [isForeign, setIsForeign] = useState(Boolean(form.getValues('id_estrangeiro')))
   const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'})
 
   // Autofill from SEFAZ lookup
@@ -452,7 +456,21 @@ export function EntityForm({
         )}
 
         {/* PJ / PF toggle */}
-        {!isEdit && !lockTipo && (
+        {!isEdit && variant === 'person' && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={isForeign}
+                   onChange={(e) => {
+                     setIsForeign(e.target.checked)
+                     form.setValue('cpf_or_cnpj', '')
+                     form.setValue('id_estrangeiro', '')
+                     resetLookup()
+                   }}
+                   className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+            Pessoa no exterior (sem CPF/CNPJ)
+          </label>
+        )}
+
+        {!isEdit && !lockTipo && !isForeign && (
           <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 gap-1">
             {(['pj', 'pf'] as Tipo[]).map((t) => (
               <button key={t} type="button" onClick={() => switchTipo(t)}
@@ -472,6 +490,18 @@ export function EntityForm({
           {/* Identificação */}
           <SectionCard icon={isPJ ? <BuildingIcon/> : <UserIcon/>} title="Identificação">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {isForeign ? (
+                <FormField control={form.control as never} name="id_estrangeiro"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Documento estrangeiro *</FormLabel>
+                               <Input {...field} id={field.name} value={String(field.value ?? '')}
+                                      maxLength={20} placeholder="Passaporte, tax ID, etc."/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+              ) : (
               <FormField control={form.control as never} name="cpf_or_cnpj"
                          render={({field}) => (
                            <FormItem>
@@ -499,6 +529,7 @@ export function EntityForm({
                            </FormItem>
                          )}
               />
+              )}
               <FormField control={form.control as never} name="name"
                          render={({field}) => (
                            <FormItem>

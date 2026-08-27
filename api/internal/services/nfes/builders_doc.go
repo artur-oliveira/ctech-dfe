@@ -52,11 +52,13 @@ const (
 	modFreteProprioDestinatario = "4" // Transporte próprio por conta do destinatário
 	qVolPadrao                  = "1"
 	cPaisBrasil                 = "1058"
-	xPaisBrasil                 = "Brasil"
-	indSinc                     = "1"
-	natOpVenda                  = "Venda de Mercadoria"
-	homNameReceiver             = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
-	homProduct                  = "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+	// ufExterior é a UF convencional do destinatário no exterior (leiauteNFe).
+	ufExterior      = "EX"
+	xPaisBrasil     = "Brasil"
+	indSinc         = "1"
+	natOpVenda      = "Venda de Mercadoria"
+	homNameReceiver = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+	homProduct      = "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 )
 
 // TechData holds the technical issuer info included in infRespTec.
@@ -505,46 +507,8 @@ func BuildEnviNFe(
 	// ── emit / dest structs ───────────────────────────────────────────────────
 	emitStruct := buildEmit(org, orgPerson, orgPK, emitUF, destUF, orgCRT)
 
-	// dest is optional. For NFC-e the consumer (pessoa física) is identified by
-	// CPF only — no address node — and may be omitted entirely (receiver == nil).
-	// For NF-e dest is always present and carries the full address.
-	var destStruct map[string]any
-	hasDest := len(receiver) > 0
-	destKey := "CPF"
-	if isDestPJ {
-		destKey = "CNPJ"
-	}
-	switch {
-	case isNFCe:
-		if hasDest {
-			destStruct = map[string]any{
-				destKey:     destDoc,
-				"indIEDest": indIEDestNaoContrib,
-			}
-		}
-	default:
-		receiverName := anyStr(receiver, "name", "")
-		if environment != 1 {
-			receiverName = homNameReceiver
-		}
-		destStruct = map[string]any{
-			destKey:     destDoc,
-			"xNome":     receiverName,
-			"enderDest": buildEnder(destPerson),
-			"indIEDest": func() string {
-				if destIE == "" {
-					return indIEDestNaoContrib
-				}
-				return indIEDestContrib
-			}(),
-		}
-		if destIE != "" {
-			destStruct["IE"] = destIE
-		}
-		if email := services.FirstEmail(destPerson); email != "" {
-			destStruct["email"] = email
-		}
-	}
+	// dest é opcional só na NFC-e (consumidor não identificado).
+	destStruct := buildDest(receiver, destPerson, receiverSK, destUF, isNFCe, environment, destIE)
 
 	// ── totals ────────────────────────────────────────────────────────────────
 	totalNode := buildTotal(t, now)

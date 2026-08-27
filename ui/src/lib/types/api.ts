@@ -671,7 +671,10 @@ export interface PersonObject {
 }
 
 export interface PersonCreate {
+  /** CPF/CNPJ, ou vazio quando `id_estrangeiro` identifica a pessoa. */
   cpf_or_cnpj: string
+  /** Documento de pessoa no exterior (dest/idEstrangeiro). Exclusivo com cpf_or_cnpj. */
+  id_estrangeiro?: string | null
   name: string
   roles?: PersonRole[]
   person: PersonObject

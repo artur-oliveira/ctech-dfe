@@ -1173,6 +1173,12 @@ CRT is required for a CNPJ person (same rule as organizations), but IE (`state_r
 and whether they're an ICMS contributor is a per-emission choice (`indIEDest`), not a cadastro
 requirement. See `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`.
 
+**Pessoa no exterior (`id_estrangeiro`).** `POST /persons` aceita `id_estrangeiro` no lugar de
+`cpf_or_cnpj` — exatamente um dos dois, nunca ambos (400 caso contrário), porque o `dest` da NF-e é
+um *choice* entre `CPF`, `CNPJ` e `idEstrangeiro`. A pessoa é gravada com `sk` =
+`IDEST_{documento}`, e a emissão que a escolhe como destinatário sai com `dest/idEstrangeiro`, sem
+`IE` e com `indIEDest = 9` (não contribuinte).
+
 `POST /persons` and `PUT /persons/{cpf_cnpj}` accept the same optional `person.nfse` object
 described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_trib`,
 `foreign_address`) — used when this person is the prestador/tomador of a DPS.

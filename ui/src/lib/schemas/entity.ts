@@ -102,7 +102,10 @@ export const REG_ESP_TRIB_OPTIONS = [
 
 export const entitySchema = z.object({
   tipo: z.enum(['pf', 'pj']),
-  cpf_or_cnpj: z.string().min(1, 'CPF/CNPJ obrigatório'),
+  cpf_or_cnpj: z.string().default(''),
+  /** Documento de pessoa no exterior (dest/idEstrangeiro). Alternativa a
+   *  cpf_or_cnpj, nunca acompanhante — o XSD de dest é um choice. */
+  id_estrangeiro: z.string().max(20).optional().or(z.literal('')),
   name: z.string().min(2, 'Mínimo 2 caracteres').max(255),
   description: z.string().max(120).optional().or(z.literal('')),
   // Só a variante 'person' renderiza e envia este campo; organização o ignora.
@@ -123,6 +126,17 @@ export const entitySchema = z.object({
     isuf_emit: z.string().regex(/^\d{1,9}$/, 'Suframa é numérico').optional().or(z.literal('')),
   }),
 }).superRefine((data, ctx) => {
+  // Pessoa no exterior não tem CPF/CNPJ: os dois campos são exclusivos.
+  if (data.id_estrangeiro) {
+    if (data.cpf_or_cnpj) {
+      ctx.addIssue({code: 'custom', message: 'Informe CPF/CNPJ ou documento estrangeiro, nunca os dois', path: ['id_estrangeiro']})
+    }
+    return
+  }
+  if (!data.cpf_or_cnpj) {
+    ctx.addIssue({code: 'custom', message: 'CPF/CNPJ obrigatório', path: ['cpf_or_cnpj']})
+    return
+  }
   const raw = data.cpf_or_cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase()
   if (data.tipo === 'pf' && !validateCPF(raw)) {
     ctx.addIssue({code: 'custom', message: 'CPF inválido', path: ['cpf_or_cnpj']})

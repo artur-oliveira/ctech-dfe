@@ -3,6 +3,8 @@ export const SK_PREFIX = {
   PRODUCT: 'PRODUCT_',
   CPF: 'CPF_',
   CNPJ: 'CNPJ_',
+  /** Pessoa no exterior, sem CPF/CNPJ (dest/idEstrangeiro). */
+  FOREIGN: 'IDEST_',
   CERTIFICATE: 'CERT_',
   SERVICE: 'SERVICE_',
   TAX_PROFILE: 'TAXPROFILE_',

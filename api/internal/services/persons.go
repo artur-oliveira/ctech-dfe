@@ -19,6 +19,11 @@ var (
 
 // BuildPersonSK returns "CNPJ_14digits" or "CPF_11digits". Strips punctuation first.
 func BuildPersonSK(cpfCNPJ string) (string, error) {
+	// Pessoa no exterior (dest/idEstrangeiro) já chega com o prefixo: o
+	// documento estrangeiro não tem formato fixo pra derivar um.
+	if strings.HasPrefix(cpfCNPJ, repositories.SKPrefixForeign) {
+		return cpfCNPJ, nil
+	}
 	v := strings.NewReplacer(".", "", "-", "", "/", "").Replace(cpfCNPJ)
 	if cnpjRe.MatchString(v) {
 		return "CNPJ_" + v, nil

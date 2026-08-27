@@ -41,6 +41,10 @@ const (
 	// document search has to cover — the SK already *is* the document.
 	personDocPrefixCNPJ = "CNPJ_"
 	personDocPrefixCPF  = "CPF_"
+	// SKPrefixForeign identifica a pessoa sem CPF/CNPJ (dest/idEstrangeiro). O
+	// documento estrangeiro não tem formato fixo, então a unicidade por org é a
+	// própria string informada.
+	SKPrefixForeign = "IDEST_"
 )
 
 var digitsOnlyRe = regexp.MustCompile(`^\d+$`)
