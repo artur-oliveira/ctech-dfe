@@ -61,6 +61,10 @@ type MdfeEmitBody struct {
 	// Obrigatório quando há contratante.
 	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
 
+	// RedeliveryKeys são as chaves dos documentos que estão em reentrega
+	// (infDoc/.../indReentrega).
+	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,len=44,numeric"`
+
 	// Seals são os lacres da carga (infMDFe/lacres); RodoSeals, os lacres da
 	// unidade de transporte (rodo/lacRodo); PortAgentCode é o código do agente
 	// portuário, exigido no transporte de contêiner para porto.
@@ -88,6 +92,18 @@ type MdfeContractorBody struct {
 	PersonDoc      string `json:"person_doc" validate:"required"`
 	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
 	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+}
+
+// keySet indexa as chaves marcadas para consulta O(1) no builder.
+func keySet(keys []string) map[string]bool {
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		out[k] = true
+	}
+	return out
 }
 
 // validateFreightDeclaration recusa o manifesto que declara contratante mas não

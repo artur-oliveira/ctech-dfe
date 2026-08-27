@@ -1650,6 +1650,9 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   parcelas (`infPrazo`) são **derivadas** do prazo pelo mesmo `services.ExpandInstallments` que gera as
   duplicatas da NF-e, sobre o saldo (`contract_value − advance_value`); nunca são digitadas uma a uma.
   O nó é montado pelo mesmo `buildInfPag` dos eventos de pagamento (110116/110118).
+- `redelivery_keys[]?` — chaves dos documentos em reentrega (`infDoc/.../indReentrega`). O
+  `SegCodBarra` de cada NF-e/CT-e **não** é pedido: o código de barras do documento é a própria
+  chave, que a emissão já referenciou.
 - `seals[]?`, `rodo_seals[]?`, `port_agent_code?` — lacres da carga (`infMDFe/lacres`), lacres da
   unidade de transporte (`rodo/lacRodo`) e código do agente portuário (`rodo/codAgPorto`). Os dois
   grupos de lacre saem do mesmo `services.SealNodes` que monta `transp/vol/lacres` na NF-e.

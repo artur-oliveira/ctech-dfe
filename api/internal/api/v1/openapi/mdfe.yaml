@@ -727,6 +727,12 @@ components:
             quando há contratante. Nome, documento e recebimento vêm do
             cadastro da pessoa; as parcelas (`infPrazo`) são derivadas do prazo.
           items: { $ref: '#/components/schemas/MdfePaymentEmit' }
+        redelivery_keys:
+          type: array
+          description: |
+            Chaves dos documentos em reentrega (`indReentrega`). `SegCodBarra` é
+            derivado — o código de barras do documento é a própria chave.
+          items: { type: string, minLength: 44, maxLength: 44 }
         seals:
           type: array
           description: Lacres da carga (`infMDFe/lacres`).

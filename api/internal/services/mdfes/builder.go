@@ -71,6 +71,8 @@ type buildParams struct {
 	// contractors são os contratantes do frete (infANTT/infContratante), já
 	// resolvidos contra organization_persons.
 	contractors []resolvedContractor
+	// redelivery marca por chave os documentos que são reentrega.
+	redelivery map[string]bool
 	// seals são os lacres da carga (infMDFe/lacres); rodoSeals, os lacres da
 	// unidade de transporte (rodo/lacRodo); portAgentCode é o agente portuário.
 	seals         []string

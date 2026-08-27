@@ -13,6 +13,7 @@ import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {RowCheckbox} from '@/components/ui/table-shell'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -274,12 +275,15 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
 
 // ─── cargo step ───────────────────────────────────────────────────────────────
 
-function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange}: {
+function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, redelivery, onRedeliveryChange}: {
   preview: MdfeCargoPreview | undefined
   isLoading: boolean
   error: string | null
   weightOverrides: Record<string, string>
   onWeightChange: (key: string, weight: string) => void
+  /** Chaves marcadas como reentrega (infDoc/.../indReentrega). */
+  redelivery: Record<string, boolean>
+  onRedeliveryChange: (key: string) => void
 }) {
   if (isLoading) {
     return <LoadingSkeleton count={3} height="h-20" rounded="rounded-xl"/>
@@ -330,6 +334,12 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange}:
                 </p>
               </div>
             </div>
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <RowCheckbox checked={!!redelivery[d.access_key]}
+                           onChange={() => onRedeliveryChange(d.access_key)}
+                           ariaLabel={`Marcar ${d.access_key} como reentrega`}/>
+              Reentrega
+            </label>
             {d.has_weight ? (
               <p className="text-xs text-gray-500">Peso: {parseFloat(d.weight).toLocaleString('pt-BR')} kg</p>
             ) : (
@@ -373,6 +383,7 @@ export function MdfeEmitForm() {
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
   const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
+  const [redelivery, setRedelivery] = useState<Record<string, boolean>>({})
   const [seals, setSeals] = useState('')
   const [rodoSeals, setRodoSeals] = useState('')
   const [portAgentCode, setPortAgentCode] = useState('')
@@ -595,6 +606,7 @@ export function MdfeEmitForm() {
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
+      redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
       seals: splitSeals(seals),
       rodo_seals: splitSeals(rodoSeals),
       port_agent_code: portAgentCode || undefined,
@@ -670,7 +682,9 @@ export function MdfeEmitForm() {
       {step === 'carga' && (
         <CargoStep preview={preview} isLoading={previewLoading} error={previewError}
                    weightOverrides={weightOverrides}
-                   onWeightChange={(k, w) => setWeightOverrides((p) => ({...p, [k]: w}))}/>
+                   onWeightChange={(k, w) => setWeightOverrides((p) => ({...p, [k]: w}))}
+                   redelivery={redelivery}
+                   onRedeliveryChange={(k) => setRedelivery((p) => ({...p, [k]: !p[k]}))}/>
       )}
 
       {/* Step 4 — transporte */}

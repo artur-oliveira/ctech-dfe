@@ -270,6 +270,9 @@ func sefazEnvFor(environment int) string {
 	return SefazEnvHom
 }
 
+// indReentregaSim é o único valor aceito por indReentrega no leiaute.
+const indReentregaSim = "1"
+
 func strAttr(item map[string]types.AttributeValue, key string) string {
 	v, ok := item[key].(*types.AttributeValueMemberS)
 	if !ok {

@@ -11,20 +11,29 @@ func (p buildParams) buildInfDoc() map[string]any {
 			"xMunDescarga": g.mun.City,
 		}
 		if len(g.nfeKeys) > 0 {
-			nfes := make([]map[string]any, 0, len(g.nfeKeys))
-			for _, k := range g.nfeKeys {
-				nfes = append(nfes, map[string]any{"chNFe": k})
-			}
-			node["infNFe"] = nfes
+			node["infNFe"] = p.docNodes("chNFe", g.nfeKeys)
 		}
 		if len(g.cteKeys) > 0 {
-			ctes := make([]map[string]any, 0, len(g.cteKeys))
-			for _, k := range g.cteKeys {
-				ctes = append(ctes, map[string]any{"chCTe": k})
-			}
-			node["infCTe"] = ctes
+			node["infCTe"] = p.docNodes("chCTe", g.cteKeys)
 		}
 		munDescarga = append(munDescarga, node)
 	}
 	return map[string]any{"infMunDescarga": munDescarga}
+}
+
+// docNodes monta os nós de documento transportado. NF-e e CT-e têm a mesma
+// forma no leiaute (chave, SegCodBarra, indReentrega), então é uma função só.
+func (p buildParams) docNodes(keyField string, keys []string) []map[string]any {
+	out := make([]map[string]any, 0, len(keys))
+	for _, k := range keys {
+		// SegCodBarra é o código de barras do documento — que é a própria
+		// chave. Perguntá-lo ao operador seria pedir de volta o dado que ele
+		// acabou de referenciar.
+		node := map[string]any{keyField: k, "SegCodBarra": k}
+		if p.redelivery[k] {
+			node["indReentrega"] = indReentregaSim
+		}
+		out = append(out, node)
+	}
+	return out
 }

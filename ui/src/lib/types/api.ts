@@ -1192,6 +1192,8 @@ export interface MdfeEmit {
   toll_vouchers?: MdfeTollIn[] | null
   contractors?: MdfeContractorIn[] | null
   payments?: MdfePaymentIn[] | null
+  /** Chaves dos documentos em reentrega (infDoc/.../indReentrega). */
+  redelivery_keys?: string[] | null
   /** Lacres da carga (infMDFe/lacres). */
   seals?: string[] | null
   /** Lacres da unidade de transporte (rodo/lacRodo). */
