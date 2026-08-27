@@ -3370,7 +3370,7 @@ viagem só a averbação.
     - `func buildSeg(policies []resolvedPolicy) []map[string]any` — ordem XSD `infResp{respSeg, CNPJ|CPF},
     infSeg{xSeg, CNPJ}, nApol, nAver`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildSegComResponsavelESeguradora(t *testing.T) {
@@ -3391,7 +3391,7 @@ t.Fatalf("averbações ausentes: %v", s)
 }
 ```
 
-- [ ] **Step 2/3/4/5:** falhar → implementar → UI (R1.11) → docs (§41) → commit
+- [x] **Step 2/3/4/5:** falhar → implementar → UI (R1.11) → docs (§41) → commit
   (`feat(mdfe): cadastro de apólices e grupo seg completo`).
 
 ---

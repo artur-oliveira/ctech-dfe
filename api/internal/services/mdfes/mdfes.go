@@ -132,6 +132,8 @@ type MdfeService struct {
 	tollProviderRepo *repositories.TollProviderRepository
 	// cargoUnitRepo traz as unidades de transporte e de carga do cadastro.
 	cargoUnitRepo *repositories.CargoUnitRepository
+	// insurancePolicyRepo traz as apólices de seguro da carga do cadastro.
+	insurancePolicyRepo *repositories.InsurancePolicyRepository
 	// productRepo reencontra no cadastro o produto que a NF-e referenciada
 	// declarou, para derivar dele o grupo peri (produto perigoso).
 	productRepo *repositories.ProductRepository
@@ -165,6 +167,7 @@ func NewMdfeService(
 	tollProviderRepo *repositories.TollProviderRepository,
 	productRepo *repositories.ProductRepository,
 	cargoUnitRepo *repositories.CargoUnitRepository,
+	insurancePolicyRepo *repositories.InsurancePolicyRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -172,24 +175,25 @@ func NewMdfeService(
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
-		orgRepo:          orgRepo,
-		billingSvc:       billingSvc,
-		certRepo:         certRepo,
-		configRepo:       configRepo,
-		mdfeRepo:         mdfeRepo,
-		nfeRepo:          nfeRepo,
-		cteRepo:          cteRepo,
-		eventRepo:        eventRepo,
-		vehicleRepo:      vehicleRepo,
-		personRepo:       personRepo,
-		vehicleSetRepo:   vehicleSetRepo,
-		tollProviderRepo: tollProviderRepo,
-		productRepo:      productRepo,
-		cargoUnitRepo:    cargoUnitRepo,
-		clients:          clients,
-		workerSvc:        workerSvc,
-		bucketDocs:       bucketDocs,
-		tech:             tech,
+		orgRepo:             orgRepo,
+		billingSvc:          billingSvc,
+		certRepo:            certRepo,
+		configRepo:          configRepo,
+		mdfeRepo:            mdfeRepo,
+		nfeRepo:             nfeRepo,
+		cteRepo:             cteRepo,
+		eventRepo:           eventRepo,
+		vehicleRepo:         vehicleRepo,
+		personRepo:          personRepo,
+		vehicleSetRepo:      vehicleSetRepo,
+		tollProviderRepo:    tollProviderRepo,
+		productRepo:         productRepo,
+		cargoUnitRepo:       cargoUnitRepo,
+		insurancePolicyRepo: insurancePolicyRepo,
+		clients:             clients,
+		workerSvc:           workerSvc,
+		bucketDocs:          bucketDocs,
+		tech:                tech,
 	}
 }
 

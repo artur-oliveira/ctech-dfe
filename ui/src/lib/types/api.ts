@@ -853,6 +853,29 @@ export interface TollProviderItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — apólices de seguro da carga (MDF-e infMDFe/seg)
+export interface InsurancePolicyCreate extends Record<string, unknown> {
+  name: string
+  /** 1 = emitente do MDF-e; 2 = contratante do serviço de transporte. */
+  resp_seg: string
+  cnpj?: string | null
+  cpf?: string | null
+  x_seg?: string | null
+  cnpj_seg?: string | null
+  n_apol?: string | null
+}
+
+export interface InsurancePolicyItemOut {
+  pk: string
+  sk: string
+  name: string
+  resp_seg: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — unidades de transporte e de carga (MDF-e)
 export interface CargoUnitCreate extends Record<string, unknown> {
   name: string
@@ -1333,6 +1356,8 @@ export interface MdfeEmit {
   additional_info?: string | null
   /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
   toll_vouchers?: MdfeTollIn[] | null
+  /** Apólices de seguro da carga desta viagem (infMDFe/seg). */
+  insurance_policies?: MdfeInsuranceIn[] | null
   contractors?: MdfeContractorIn[] | null
   payments?: MdfePaymentIn[] | null
   /** Unidades de transporte da viagem (infUnidTransp). */
@@ -1385,6 +1410,12 @@ export interface MdfeContractorIn {
 }
 
 /** Vale-pedágio de uma viagem. Só o que muda entre viagens. */
+export interface MdfeInsuranceIn {
+  insurance_policy_id: string
+  /** Averbações desta viagem (nAver). */
+  n_aver?: string[]
+}
+
 export interface MdfeTollIn {
   toll_provider_id: string
   n_compra: string

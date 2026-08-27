@@ -3,6 +3,8 @@ import type {
   OperationCreate,
   CargoUnitCreate,
   ImportDeclarationCreate,
+  InsurancePolicyCreate,
+  InsurancePolicyItemOut,
   ImportDeclarationItemOut,
   CargoUnitItemOut,
   TollProviderCreate,
@@ -585,6 +587,28 @@ class ApiClient {
 
   async deleteImportDeclaration(id: string): Promise<void> {
     return this.del(`/v1.0/import-declarations/${id}`)
+  }
+
+  // Insurance policies (apólices de seguro da carga — MDF-e infMDFe/seg)
+
+  async getInsurancePolicies(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<InsurancePolicyItemOut>> {
+    return this.get('/v1.0/insurance-policies', {params})
+  }
+
+  async getInsurancePolicy(id: string): Promise<InsurancePolicyItemOut> {
+    return this.get(`/v1.0/insurance-policies/${id}`)
+  }
+
+  async createInsurancePolicy(data: InsurancePolicyCreate): Promise<InsurancePolicyItemOut> {
+    return this.post('/v1.0/insurance-policies', data)
+  }
+
+  async updateInsurancePolicy(id: string, data: InsurancePolicyCreate): Promise<InsurancePolicyItemOut> {
+    return this.put(`/v1.0/insurance-policies/${id}`, data)
+  }
+
+  async deleteInsurancePolicy(id: string): Promise<void> {
+    return this.del(`/v1.0/insurance-policies/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

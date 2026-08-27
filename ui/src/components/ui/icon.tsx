@@ -2,6 +2,7 @@ import {
   CalendarClock,
   Container,
   Ship,
+  Umbrella,
   CreditCard,
   ClipboardList,
   Combine,
@@ -71,6 +72,11 @@ export const PackageIcon = ({width = 16, height = 16}: IconProps) => (
 /** Declaração de importação — DI, adições e desembaraço */
 export const ImportIcon = ({width = 16, height = 16}: IconProps) => (
   <Ship width={width} height={height}/>
+)
+
+/** Apólice de seguro — responsável, seguradora e averbações da carga */
+export const InsuranceIcon = ({width = 16, height = 16}: IconProps) => (
+  <Umbrella width={width} height={height}/>
 )
 
 /** Composição veicular — cavalo, reboques e condutores que andam juntos */

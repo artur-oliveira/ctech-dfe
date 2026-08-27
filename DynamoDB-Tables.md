@@ -48,6 +48,9 @@ PITR: enabled in production only.
 | 35 | `organization_vehicle_sets` | `{org_pk}`                   | `VEHICLESET_{uuid}`                      | `name-index`                                       |
 | 37 | `organization_payment_terminals` | `{org_pk}`              | `TERMINAL_{uuid}`                        | `name-index`                                       |
 | 38 | `organization_toll_providers`| `{org_pk}`                   | `TOLLPROVIDER_{uuid}`                    | `name-index`                                       |
+| 39 | `organization_cargo_units`  | `{org_pk}`                   | `CARGOUNIT_{uuid}`                       | `name-index`                                       |
+| 40 | `organization_import_declarations` | `{org_pk}`            | `IMPORTDI_{uuid}`                        | `name-index`                                       |
+| 41 | `organization_insurance_policies` | `{org_pk}`             | `INSURANCE_{uuid}`                       | `name-index`                                       |
 
 ---
 
@@ -838,4 +841,29 @@ nota só aponta **qual adição** o representa (`products[].import_declarations[
 | `uf_terceiro`    | S    | → `DI/UFTerceiro`                                                        |
 | `c_exportador`   | S    | → `DI/cExportador`                                                       |
 | `additions`      | L    | `{n_adicao, c_fabricante, v_desc_di?, n_draw?}` → `DI/adi`               |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 41. `organization_insurance_policies`
+
+Apólices de seguro da carga (MDF-e `infMDFe/seg`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `INSURANCE_{uuid}`, GSI `name-index`).
+
+Responsável, seguradora e número da apólice recorrem entre viagens; só as averbações (`nAver`) são
+da viagem e entram no corpo da emissão (`insurance_policies[] = {insurance_policy_id, n_aver[]}`).
+O documento do responsável (`cnpj`/`cpf`) só é informado quando ele não é o emitente do MDF-e —
+logo, obrigatório quando `resp_seg = 2`, recusado no cadastro e não na SEFAZ. `x_seg` e `cnpj_seg`
+andam juntos: meia seguradora o XSD recusa.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `INSURANCE_{uuid}`                                                       |
+| `name`           | S    | Nome de uso ("Apólice frota 2026"). GSI: `name-index`                     |
+| `resp_seg`       | S    | `1` emitente do MDF-e · `2` contratante → `seg/infResp/respSeg`          |
+| `cnpj` / `cpf`   | S    | Responsável, quando não é o emitente → `seg/infResp/CNPJ\|CPF`           |
+| `x_seg`          | S    | Nome da seguradora → `seg/infSeg/xSeg`                                    |
+| `cnpj_seg`       | S    | CNPJ da seguradora → `seg/infSeg/CNPJ`                                    |
+| `n_apol`         | S    | → `seg/nApol`                                                            |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                |

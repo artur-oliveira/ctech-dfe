@@ -545,6 +545,42 @@ type ImportAdditionBody struct {
 	NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
 }
 
+// InsurancePolicyBody é o body de POST/PUT /insurance-policies.
+//
+// A apólice e a seguradora recorrem entre viagens; por viagem muda só a
+// averbação, que vai no corpo da emissão do MDF-e.
+type InsurancePolicyBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// RespSeg: 1 emitente do MDF-e, 2 contratante do serviço de transporte.
+	RespSeg string `json:"resp_seg" validate:"required,oneof=1 2"`
+	// Documento do responsável pelo seguro. Só é informado quando o responsável
+	// não é o emitente — logo, obrigatório quando resp_seg = 2.
+	CNPJ *string `json:"cnpj" validate:"omitempty,cnpj,excluded_with=CPF"`
+	CPF  *string `json:"cpf" validate:"omitempty,cpf,excluded_with=CNPJ"`
+	// Seguradora: nome e CNPJ (infSeg). Andam juntos ou nenhum dos dois.
+	XSeg    *string `json:"x_seg" validate:"omitempty,min=2,max=30"`
+	CNPJSeg *string `json:"cnpj_seg" validate:"omitempty,cnpj"`
+	NApol   *string `json:"n_apol" validate:"omitempty,max=20"`
+}
+
+// Validate cobre as duas regras que as tags não expressam: o responsável que
+// não é o emitente precisa se identificar, e a seguradora é nome + CNPJ ou
+// nada — meia seguradora o XSD recusa.
+func (b InsurancePolicyBody) Validate() error {
+	if b.RespSeg == respSegContratante && emptyStr(b.CNPJ) && emptyStr(b.CPF) {
+		return problem.BadRequest("cnpj ou cpf é obrigatório quando o responsável pelo seguro é o contratante (resp_seg = 2)")
+	}
+	if emptyStr(b.XSeg) != emptyStr(b.CNPJSeg) {
+		return problem.BadRequest("x_seg e cnpj_seg devem ser informados juntos")
+	}
+	return nil
+}
+
+// respSegContratante é o responsável pelo seguro = contratante do serviço.
+const respSegContratante = "2"
+
+func emptyStr(s *string) bool { return s == nil || *s == "" }
+
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
 type ObsBody struct {
 	XCampo string `json:"x_campo" validate:"required,max=20"`

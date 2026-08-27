@@ -34,6 +34,9 @@ const (
 	// TableImportDeclarations guarda as declarações de importação: uma DI cobre
 	// várias notas e vários itens, então ela é cadastro, não campo de emissão.
 	TableImportDeclarations = "organization_import_declarations"
+	// TableInsurancePolicies guarda as apólices de seguro da carga: a apólice e
+	// a seguradora recorrem entre viagens; por viagem muda só a averbação.
+	TableInsurancePolicies = "organization_insurance_policies"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -43,6 +46,7 @@ const (
 	SKPrefixTollProvider    = "TOLLPROVIDER_"
 	SKPrefixCargoUnit       = "CARGOUNIT_"
 	SKPrefixImportDI        = "IMPORTDI_"
+	SKPrefixInsurance       = "INSURANCE_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -227,6 +231,13 @@ type ImportDeclarationRepository struct{ OrgEntityRepository }
 
 func NewImportDeclarationRepository(db *dynamodb.Client, cfg *config.Config) *ImportDeclarationRepository {
 	return &ImportDeclarationRepository{newOrgEntityRepository(db, cfg, TableImportDeclarations, SKPrefixImportDI)}
+}
+
+// InsurancePolicyRepository — organization_insurance_policies.
+type InsurancePolicyRepository struct{ OrgEntityRepository }
+
+func NewInsurancePolicyRepository(db *dynamodb.Client, cfg *config.Config) *InsurancePolicyRepository {
+	return &InsurancePolicyRepository{newOrgEntityRepository(db, cfg, TableInsurancePolicies, SKPrefixInsurance)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

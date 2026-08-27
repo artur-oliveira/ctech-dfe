@@ -746,6 +746,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Apólices de seguro ─────────────────────────────────────────────────────
+
+  /v1.0/insurance-policies:
+    get:
+      tags: [ InsurancePolicies ]
+      summary: Lista apólices de seguro da carga
+      operationId: listInsurancePolicies
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de apólices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ InsurancePolicies ]
+      summary: Cria uma apólice de seguro
+      operationId: createInsurancePolicy
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InsurancePolicyBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/insurance-policies/{insurance_policy_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: insurance_policy_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ InsurancePolicies ]
+      summary: Detalha uma apólice
+      operationId: getInsurancePolicy
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ InsurancePolicies ]
+      summary: Atualiza uma apólice
+      operationId: updateInsurancePolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InsurancePolicyBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ InsurancePolicies ]
+      summary: Remove uma apólice
+      operationId: deleteInsurancePolicy
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -1124,6 +1224,44 @@ components:
         kind: { type: string }
         tp_unid: { type: string }
         id_unid: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    InsurancePolicyBody:
+      type: object
+      description: |
+        Apólice de seguro da carga (`infMDFe/seg`). A apólice e a seguradora
+        recorrem entre viagens; por viagem muda só a averbação, que vai no
+        corpo da emissão do MDF-e.
+      required: [ name, resp_seg ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        resp_seg:
+          type: string
+          enum: [ '1', '2' ]
+          description: '`1` emitente do MDF-e · `2` contratante do serviço de transporte.'
+        cnpj:
+          type: [ string, 'null' ]
+          description: Documento do responsável, obrigatório quando `resp_seg = 2`. Exclusivo com `cpf`.
+        cpf: { type: [ string, 'null' ] }
+        x_seg:
+          type: [ string, 'null' ]
+          minLength: 2
+          maxLength: 30
+          description: Nome da seguradora. Informado junto com `cnpj_seg` ou nenhum dos dois.
+        cnpj_seg: { type: [ string, 'null' ] }
+        n_apol: { type: [ string, 'null' ], maxLength: 20 }
+
+    InsurancePolicyItem:
+      type: object
+      description: Apólice de seguro persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        resp_seg: { type: string }
+        n_apol: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

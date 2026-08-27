@@ -89,6 +89,8 @@ type buildParams struct {
 	seals         []string
 	rodoSeals     []string
 	portAgentCode string
+	// policies são as apólices de seguro da carga, já cruzadas com o cadastro.
+	policies []resolvedPolicy
 	// infPag é o pagamento ao transportador autônomo, já montado por
 	// buildInfPag a partir do cadastro e do prazo da viagem.
 	infPag []map[string]any
@@ -118,6 +120,9 @@ func BuildMDFe(p buildParams) map[string]any {
 		"infDoc":   p.buildInfDoc(),
 		"prodPred": p.buildProdPred(),
 		"tot":      p.buildTot(),
+	}
+	if seg := buildSeg(p.policies); seg != nil {
+		infMDFe["seg"] = seg
 	}
 	if lac := services.SealNodes(p.seals); lac != nil {
 		infMDFe["lacres"] = lac

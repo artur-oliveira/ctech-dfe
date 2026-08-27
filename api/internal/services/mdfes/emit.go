@@ -76,6 +76,10 @@ type MdfeEmitBody struct {
 	// (infDoc/.../indReentrega).
 	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,len=44,numeric"`
 
+	// InsurancePolicies são as apólices de seguro da carga (infMDFe/seg). A
+	// apólice vem do cadastro; a averbação é por viagem.
+	InsurancePolicies []MdfeInsuranceBody `json:"insurance_policies" validate:"omitempty,dive"`
+
 	// Seals são os lacres da carga (infMDFe/lacres); RodoSeals, os lacres da
 	// unidade de transporte (rodo/lacRodo); PortAgentCode é o código do agente
 	// portuário, exigido no transporte de contêiner para porto.
@@ -103,6 +107,13 @@ type MdfeContractorBody struct {
 	PersonDoc      string `json:"person_doc" validate:"required"`
 	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
 	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+}
+
+// MdfeInsuranceBody aponta uma apólice do cadastro e traz as averbações desta
+// viagem — o único dado do grupo seg que não recorre.
+type MdfeInsuranceBody struct {
+	InsurancePolicyID string   `json:"insurance_policy_id" validate:"required"`
+	NAver             []string `json:"n_aver" validate:"omitempty,dive,max=40"`
 }
 
 // partialByKey indexa as entregas parciais pela chave do CT-e.
@@ -400,6 +411,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	policies, err := s.resolvePolicies(ctx, orgPK, req.InsurancePolicies)
+	if err != nil {
+		return nil, err
+	}
+
 	resolvedVehicle, err := s.resolveVehicle(ctx, orgPK, req.Vehicle)
 	if err != nil {
 		return nil, err
@@ -467,6 +483,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tpEmis:           tpEmis,
 		tolls:            tolls,
 		contractors:      contractors,
+		policies:         policies,
 		infPag:           infPag,
 		redelivery:       keySet(req.RedeliveryKeys),
 		partial:          partialByKey(req.PartialDeliveries),
@@ -780,6 +797,39 @@ func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []Md
 			TpValePed: strAttr(provider, "tp_vale_ped"),
 			NCompra:   t.NCompra,
 			VValePed:  t.VValePed,
+		})
+	}
+	return out, nil
+}
+
+// resolvePolicies lê num BatchGet só as apólices citadas. Um id inexistente é
+// erro de request, não silêncio.
+func (s *MdfeService) resolvePolicies(ctx context.Context, orgPK string, items []MdfeInsuranceBody) ([]resolvedPolicy, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, i := range items {
+		ids = append(ids, i.InsurancePolicyID)
+	}
+	raw, err := s.insurancePolicyRepo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]resolvedPolicy, 0, len(items))
+	for _, i := range items {
+		policy, ok := raw[i.InsurancePolicyID]
+		if !ok {
+			return nil, problem.NotFound("apólice de seguro não encontrada: " + i.InsurancePolicyID)
+		}
+		out = append(out, resolvedPolicy{
+			RespSeg: strAttr(policy, "resp_seg"),
+			CNPJ:    strAttr(policy, "cnpj"),
+			CPF:     strAttr(policy, "cpf"),
+			XSeg:    strAttr(policy, "x_seg"),
+			CNPJSeg: strAttr(policy, "cnpj_seg"),
+			NApol:   strAttr(policy, "n_apol"),
+			NAver:   i.NAver,
 		})
 	}
 	return out, nil

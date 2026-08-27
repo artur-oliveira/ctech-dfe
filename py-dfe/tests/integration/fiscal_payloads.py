@@ -599,10 +599,16 @@ def build_cte_cancelamento(chave: str, nprot: str) -> dict:
     }
 
 
-def build_mdfe(serie: int = 1, nmdf: int | None = None, inf_antt: dict | None = None) -> tuple[dict, str]:
+def build_mdfe(
+    serie: int = 1,
+    nmdf: int | None = None,
+    inf_antt: dict | None = None,
+    seg: list[dict] | None = None,
+) -> tuple[dict, str]:
     """Minimal MDF-e (mod=58) for SVRS/SP HOMOLOGAÇÃO. Returns (payload, chave_44).
 
     inf_antt estende infANTT (valePed, infContratante, infPag).
+    seg é o grupo do seguro da carga (infMDFe/seg).
     """
     if nmdf is None:
         nmdf = random.randint(800_000_001, 899_999_999)
@@ -690,6 +696,8 @@ def build_mdfe(serie: int = 1, nmdf: int | None = None, inf_antt: dict | None = 
     if inf_antt:
         rodo = payload["MDFe"]["infMDFe"]["infModal"]["rodo"]
         rodo.setdefault("infANTT", {}).update(inf_antt)
+    if seg:
+        payload["MDFe"]["infMDFe"]["seg"] = seg
     return payload, chave
 
 

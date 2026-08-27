@@ -1251,6 +1251,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Fornecedora de vale-pedágio | `/v1.0/toll-providers` | `TOLLPROVIDER_` | `organization_toll_providers` |
 | Unidade de transporte/carga | `/v1.0/cargo-units` | `CARGOUNIT_` | `organization_cargo_units` |
 | Declaração de importação | `/v1.0/import-declarations` | `IMPORTDI_` | `organization_import_declarations` |
+| Apólice de seguro | `/v1.0/insurance-policies` | `INSURANCE_` | `organization_insurance_policies` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -1712,6 +1713,10 @@ produto perigoso é perguntado por viagem.
 - `redelivery_keys[]?` — chaves dos documentos em reentrega (`infDoc/.../indReentrega`). O
   `SegCodBarra` de cada NF-e/CT-e **não** é pedido: o código de barras do documento é a própria
   chave, que a emissão já referenciou.
+- `insurance_policies[]?` — seguro da carga (`infMDFe/seg`): `{insurance_policy_id, n_aver[]?}`.
+  Responsável (`infResp`), seguradora (`infSeg`) e `nApol` vêm de `organization_insurance_policies`;
+  só as averbações são da viagem. O documento do responsável só sai no XML quando ele não é o
+  emitente, e a seguradora é nome + CNPJ ou nada — as duas regras são recusadas no cadastro.
 - `seals[]?`, `rodo_seals[]?`, `port_agent_code?` — lacres da carga (`infMDFe/lacres`), lacres da
   unidade de transporte (`rodo/lacRodo`) e código do agente portuário (`rodo/codAgPorto`). Os dois
   grupos de lacre saem do mesmo `services.SealNodes` que monta `transp/vol/lacres` na NF-e.

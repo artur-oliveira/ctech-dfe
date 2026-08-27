@@ -60,6 +60,7 @@ var Module = fx.Options(
 		repositories.NewTollProviderRepository,
 		repositories.NewCargoUnitRepository,
 		repositories.NewImportDeclarationRepository,
+		repositories.NewInsurancePolicyRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -95,6 +96,7 @@ var Module = fx.Options(
 		newTollProviderService,
 		newCargoUnitService,
 		newImportDeclarationService,
+		newInsurancePolicyService,
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
@@ -288,6 +290,10 @@ func newImportDeclarationService(repo *repositories.ImportDeclarationRepository,
 	return services.NewImportDeclarationService(repo, auditRepo, c)
 }
 
+func newInsurancePolicyService(repo *repositories.InsurancePolicyRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.InsurancePolicyService {
+	return services.NewInsurancePolicyService(repo, auditRepo, c)
+}
+
 func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
 	return services.NewPaymentTermService(repo, auditRepo, c)
 }
@@ -420,6 +426,7 @@ func newMDFeService(
 	tollProviderRepo *repositories.TollProviderRepository,
 	productRepo *repositories.ProductRepository,
 	cargoUnitRepo *repositories.CargoUnitRepository,
+	insurancePolicyRepo *repositories.InsurancePolicyRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -430,6 +437,7 @@ func newMDFeService(
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
 		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo, cargoUnitRepo,
+		insurancePolicyRepo,
 		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -488,6 +496,7 @@ type Services struct {
 	TollProviderSvc *services.TollProviderService
 	CargoUnitSvc    *services.CargoUnitService
 	ImportDISvc     *services.ImportDeclarationService
+	InsurancePolSvc *services.InsurancePolicyService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
 	VehicleSvc      *services.VehicleService
@@ -527,6 +536,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		TollProvider:    svcs.TollProviderSvc,
 		CargoUnit:       svcs.CargoUnitSvc,
 		ImportDI:        svcs.ImportDISvc,
+		InsurancePolicy: svcs.InsurancePolSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,
 		Vehicle:         svcs.VehicleSvc,

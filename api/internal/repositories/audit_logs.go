@@ -38,6 +38,7 @@ const (
 	AuditResourceTollProvider    = "TOLL_PROVIDER"
 	AuditResourceCargoUnit       = "CARGO_UNIT"
 	AuditResourceImportDI        = "IMPORT_DECLARATION"
+	AuditResourceInsurance       = "INSURANCE_POLICY"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"
 	AuditResourceInvitation      = "INVITATION"

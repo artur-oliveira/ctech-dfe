@@ -202,6 +202,18 @@ func RegisterImportDeclarations(router fiber.Router, svc *services.ImportDeclara
 	})
 }
 
+// RegisterInsurancePolicies mounts /insurance-policies under a tenant-scoped group.
+func RegisterInsurancePolicies(router fiber.Router, svc *services.InsurancePolicyService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/insurance-policies",
+		param:      "insurance_policy_id",
+		resource:   "organization_insurance_policies",
+		bindCreate: bindValidatedCreate[InsurancePolicyBody],
+		bindUpdate: bindValidatedUpdate[InsurancePolicyBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

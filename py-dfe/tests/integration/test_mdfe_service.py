@@ -84,6 +84,19 @@ class TestMDFeSVRS:
         ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
         assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
 
+    def test_authorization_com_seguro(self, real_cert_manager):
+        """infMDFe/seg: responsável, seguradora, apólice e averbações."""
+        svc = _mdfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_mdfe(seg=[{
+            "infResp": {"respSeg": "2", "CNPJ": "11111111111111"},
+            "infSeg": {"xSeg": "Seguradora X", "CNPJ": "22222222222222"},
+            "nApol": "AP-1",
+            "nAver": ["AV-1", "AV-2"],
+        }])
+        result = svc.recepcao_sinc(payload)
+        ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
+        assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
+
     def test_authorization_com_contratante(self, real_cert_manager):
         """infANTT/infContratante + infContrato."""
         svc = _mdfe_svc(real_cert_manager, UF.PI.value)

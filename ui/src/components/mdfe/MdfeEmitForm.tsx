@@ -41,11 +41,13 @@ import type {
   MdfePaymentIn,
   MdfeTransportUnitIn,
   MdfeTollIn,
+  MdfeInsuranceIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
+import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
 import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
@@ -383,6 +385,7 @@ export function MdfeEmitForm() {
   const [newRouteUf, setNewRouteUf] = useState('')
   const [tripStart, setTripStart] = useState('')
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
+  const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
   const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
   const [redelivery, setRedelivery] = useState<Record<string, boolean>>({})
@@ -607,6 +610,7 @@ export function MdfeEmitForm() {
       trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
+      insurance_policies: insurancePolicies.length ? insurancePolicies : undefined,
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
       redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
@@ -813,12 +817,7 @@ export function MdfeEmitForm() {
 
       {/* Step (optional) — seguro */}
       {step === 'seguro' && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-          <p className="text-sm font-medium text-gray-900">Seguro — em breve</p>
-          <p className="mt-1.5 text-sm text-gray-500">
-            Os dados de seguro são exigidos para MDF-e de CT-e. O suporte completo será disponibilizado em breve.
-          </p>
-        </div>
+        <InsurancePoliciesFields policies={insurancePolicies} onChange={setInsurancePolicies}/>
       )}
 
       {/* Step — veículo / condutor */}
