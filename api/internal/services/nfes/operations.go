@@ -21,6 +21,10 @@ const (
 	opFieldModFrete   = "mod_frete"
 	opFieldInfAdFisco = "inf_ad_fisco"
 	opFieldInfCpl     = "inf_cpl"
+	opFieldVolEsp     = "vol_esp"
+	opFieldVolMarca   = "vol_marca"
+	opFieldObsCont    = "obs_cont"
+	opFieldObsFisco   = "obs_fisco"
 )
 
 // loadOperation carrega a natureza de operação referenciada na emissão.
@@ -128,4 +132,28 @@ func (s *NfceService) resolveNfceOperation(ctx context.Context, orgPK string, op
 		return nil, problem.InternalServer("failed to decode default operation")
 	}
 	return op, nil
+}
+
+// operationObs traduz obs_cont / obs_fisco da operação para os nós de infAdic,
+// interpolando os mesmos placeholders de inf_cpl. Uma observação cujo texto não
+// interpola é descartada — texto vazio é rejeição no XSD.
+func operationObs(op map[string]any, field string, vars map[string]string) []map[string]any {
+	raw, _ := op[field].([]any)
+	out := make([]map[string]any, 0, len(raw))
+	for _, entry := range raw {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		campo := anyStr(m, "x_campo", "")
+		texto, err := services.Interpolate(anyStr(m, "x_texto", ""), vars)
+		if err != nil || campo == "" || texto == "" {
+			continue
+		}
+		out = append(out, map[string]any{"@xCampo": campo, "xTexto": texto})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

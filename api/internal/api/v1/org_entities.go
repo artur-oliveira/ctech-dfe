@@ -122,6 +122,18 @@ func RegisterPaymentTerms(router fiber.Router, svc *services.PaymentTermService,
 	})
 }
 
+// RegisterPaymentTerminals mounts /payment-terminals under a tenant-scoped group.
+func RegisterPaymentTerminals(router fiber.Router, svc *services.PaymentTerminalService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/payment-terminals",
+		param:      "payment_terminal_id",
+		resource:   "organization_payment_terminals",
+		bindCreate: bindEntityCreate[PaymentTerminalBody],
+		bindUpdate: bindEntityUpdate[PaymentTerminalBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {
@@ -165,6 +177,13 @@ func validateOperationPlaceholders(dto OperationBody) error {
 			continue
 		}
 		if err := services.ValidatePlaceholders(*tpl); err != nil {
+			return err
+		}
+	}
+	// obsCont/obsFisco aceitam os mesmos placeholders: chave desconhecida é 400
+	// aqui, no cadastro, nunca silêncio no XML.
+	for _, obs := range append(append([]ObsBody{}, dto.ObsCont...), dto.ObsFisco...) {
+		if err := services.ValidatePlaceholders(obs.XTexto); err != nil {
 			return err
 		}
 	}

@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  CreditCard,
   ClipboardList,
   Combine,
   FileSignature,
@@ -53,6 +54,11 @@ export const PercentIcon = ({width = 16, height = 16}: IconProps) => (
 /** Condição de pagamento — parcelas e vencimentos reutilizáveis */
 export const CalendarClockIcon = ({width = 16, height = 16}: IconProps) => (
   <CalendarClock width={width} height={height}/>
+)
+
+/** Terminal de captura (POS) — CNPJ recebedor e id da maquininha */
+export const CreditCardIcon = ({width = 16, height = 16}: IconProps) => (
+  <CreditCard width={width} height={height}/>
 )
 
 /** Composição veicular — cavalo, reboques e condutores que andam juntos */

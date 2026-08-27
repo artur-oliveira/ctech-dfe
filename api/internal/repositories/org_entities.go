@@ -22,11 +22,15 @@ const (
 	TableOperations   = "organization_operations"
 	TablePaymentTerms = "organization_payment_terms"
 	TableVehicleSets  = "organization_vehicle_sets"
+	// TablePaymentTerminals guarda os terminais de captura (POS): CNPJ recebedor
+	// e identificador do terminal são invariantes por maquininha.
+	TablePaymentTerminals = "organization_payment_terminals"
 
-	SKPrefixTaxProfile  = "TAXPROFILE_"
-	SKPrefixOperation   = "OPERATION_"
-	SKPrefixPaymentTerm = "PAYMENTTERM_"
-	SKPrefixVehicleSet  = "VEHICLESET_"
+	SKPrefixTaxProfile      = "TAXPROFILE_"
+	SKPrefixOperation       = "OPERATION_"
+	SKPrefixPaymentTerm     = "PAYMENTTERM_"
+	SKPrefixVehicleSet      = "VEHICLESET_"
+	SKPrefixPaymentTerminal = "TERMINAL_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -182,6 +186,14 @@ type VehicleSetRepository struct{ OrgEntityRepository }
 
 func NewVehicleSetRepository(db *dynamodb.Client, cfg *config.Config) *VehicleSetRepository {
 	return &VehicleSetRepository{newOrgEntityRepository(db, cfg, TableVehicleSets, SKPrefixVehicleSet)}
+}
+
+// PaymentTerminalRepository — organization_payment_terminals. Um terminal de
+// captura tem CNPJ recebedor e id próprios, invariantes por maquininha.
+type PaymentTerminalRepository struct{ OrgEntityRepository }
+
+func NewPaymentTerminalRepository(db *dynamodb.Client, cfg *config.Config) *PaymentTerminalRepository {
+	return &PaymentTerminalRepository{newOrgEntityRepository(db, cfg, TablePaymentTerminals, SKPrefixPaymentTerminal)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

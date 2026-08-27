@@ -56,6 +56,7 @@ var Module = fx.Options(
 		repositories.NewTaxProfileRepository,
 		repositories.NewOperationRepository,
 		repositories.NewPaymentTermRepository,
+		repositories.NewPaymentTerminalRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -87,6 +88,7 @@ var Module = fx.Options(
 		newTaxProfileService,
 		newOperationService,
 		newPaymentTermService,
+		newPaymentTerminalService,
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
@@ -264,6 +266,10 @@ func newOperationService(repo *repositories.OperationRepository, auditRepo *repo
 	return services.NewOperationService(repo, auditRepo, c)
 }
 
+func newPaymentTerminalService(repo *repositories.PaymentTerminalRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTerminalService {
+	return services.NewPaymentTerminalService(repo, auditRepo, c)
+}
+
 func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
 	return services.NewPaymentTermService(repo, auditRepo, c)
 }
@@ -327,6 +333,7 @@ func newNFeService(
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
+	paymentTerminalRepo *repositories.PaymentTerminalRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -338,7 +345,7 @@ func newNFeService(
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo, paymentTermRepo,
-		nfeRepo, eventRepo, vehicleRepo, clients,
+		paymentTerminalRepo, nfeRepo, eventRepo, vehicleRepo, clients,
 		workerSvc, extSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -358,6 +365,7 @@ func newNFCeService(
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
+	paymentTerminalRepo *repositories.PaymentTerminalRepository,
 	nfceRepo *repositories.NfceRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
@@ -368,7 +376,7 @@ func newNFCeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
 	return nfesvc.NewNfceService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
-		nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		paymentTerminalRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -442,68 +450,70 @@ func newNfseService(
 type Services struct {
 	fx.In
 
-	OrgSvc       *services.OrganizationService
-	UserSvc      *services.UserService
-	MemberSvc    *services.MembershipService
-	InvSvc       *services.InvitationService
-	CertSvc      *services.CertificateService
-	ProductSvc   *services.ProductService
-	ServiceSvc   *services.ServiceService
-	TaxProfSvc   *services.TaxProfileService
-	OperationSvc *services.OperationService
-	PayTermSvc   *services.PaymentTermService
-	VehSetSvc    *services.VehicleSetService
-	PersonSvc    *services.PersonService
-	VehicleSvc   *services.VehicleService
-	NfeSvc       *nfesvc.NfeService
-	NfceSvc      *nfesvc.NfceService
-	MdfeSvc      *mdfesvc.MdfeService
-	NfseSvc      *nfsesvc.NfseService
-	NfeConf      *services.NfeConfigService
-	NfceConf     *services.NfceConfigService
-	CteConf      *services.CteConfigService
-	MdfeConf     *services.MdfeConfigService
-	NfseConf     *services.NfseConfigService
-	DistSvc      *services.DistributionService
-	ExternalSvc  *services.ExternalService
-	AuditLogSvc  *services.AuditLogService
-	BillingSvc   *services.BillingService
-	RoleRepo     *repositories.RoleRepository
-	Cache        cache.Backend
-	WSReg        ws.Registry
-	Cfg          *config.Config
-	AWS          *awsclient.Clients
+	OrgSvc         *services.OrganizationService
+	UserSvc        *services.UserService
+	MemberSvc      *services.MembershipService
+	InvSvc         *services.InvitationService
+	CertSvc        *services.CertificateService
+	ProductSvc     *services.ProductService
+	ServiceSvc     *services.ServiceService
+	TaxProfSvc     *services.TaxProfileService
+	OperationSvc   *services.OperationService
+	PayTermSvc     *services.PaymentTermService
+	PayTerminalSvc *services.PaymentTerminalService
+	VehSetSvc      *services.VehicleSetService
+	PersonSvc      *services.PersonService
+	VehicleSvc     *services.VehicleService
+	NfeSvc         *nfesvc.NfeService
+	NfceSvc        *nfesvc.NfceService
+	MdfeSvc        *mdfesvc.MdfeService
+	NfseSvc        *nfsesvc.NfseService
+	NfeConf        *services.NfeConfigService
+	NfceConf       *services.NfceConfigService
+	CteConf        *services.CteConfigService
+	MdfeConf       *services.MdfeConfigService
+	NfseConf       *services.NfseConfigService
+	DistSvc        *services.DistributionService
+	ExternalSvc    *services.ExternalService
+	AuditLogSvc    *services.AuditLogService
+	BillingSvc     *services.BillingService
+	RoleRepo       *repositories.RoleRepository
+	Cache          cache.Backend
+	WSReg          ws.Registry
+	Cfg            *config.Config
+	AWS            *awsclient.Clients
 }
 
 func registerRoutes(app *fiber.App, svcs Services) {
 	apiv1.Register(app, svcs.Cache, svcs.Cfg, svcs.WSReg, svcs.AWS, apiv1.Services{
-		Org:          svcs.OrgSvc,
-		User:         svcs.UserSvc,
-		Member:       svcs.MemberSvc,
-		Invitation:   svcs.InvSvc,
-		Cert:         svcs.CertSvc,
-		Product:      svcs.ProductSvc,
-		Service:      svcs.ServiceSvc,
-		TaxProfile:   svcs.TaxProfSvc,
-		Operation:    svcs.OperationSvc,
-		PaymentTerm:  svcs.PayTermSvc,
-		VehicleSet:   svcs.VehSetSvc,
-		Person:       svcs.PersonSvc,
-		Vehicle:      svcs.VehicleSvc,
-		NFe:          svcs.NfeSvc,
-		NFCe:         svcs.NfceSvc,
-		MDFe:         svcs.MdfeSvc,
-		Nfse:         svcs.NfseSvc,
-		NfeConfig:    svcs.NfeConf,
-		NfceConfig:   svcs.NfceConf,
-		CteConfig:    svcs.CteConf,
-		MdfeConfig:   svcs.MdfeConf,
-		NfseConfig:   svcs.NfseConf,
-		Distribution: svcs.DistSvc,
-		External:     svcs.ExternalSvc,
-		AuditLog:     svcs.AuditLogSvc,
-		Billing:      svcs.BillingSvc,
-		RoleRepo:     svcs.RoleRepo,
+		Org:             svcs.OrgSvc,
+		User:            svcs.UserSvc,
+		Member:          svcs.MemberSvc,
+		Invitation:      svcs.InvSvc,
+		Cert:            svcs.CertSvc,
+		Product:         svcs.ProductSvc,
+		Service:         svcs.ServiceSvc,
+		TaxProfile:      svcs.TaxProfSvc,
+		Operation:       svcs.OperationSvc,
+		PaymentTerm:     svcs.PayTermSvc,
+		PaymentTerminal: svcs.PayTerminalSvc,
+		VehicleSet:      svcs.VehSetSvc,
+		Person:          svcs.PersonSvc,
+		Vehicle:         svcs.VehicleSvc,
+		NFe:             svcs.NfeSvc,
+		NFCe:            svcs.NfceSvc,
+		MDFe:            svcs.MdfeSvc,
+		Nfse:            svcs.NfseSvc,
+		NfeConfig:       svcs.NfeConf,
+		NfceConfig:      svcs.NfceConf,
+		CteConfig:       svcs.CteConf,
+		MdfeConfig:      svcs.MdfeConf,
+		NfseConfig:      svcs.NfseConf,
+		Distribution:    svcs.DistSvc,
+		External:        svcs.ExternalSvc,
+		AuditLog:        svcs.AuditLogSvc,
+		Billing:         svcs.BillingSvc,
+		RoleRepo:        svcs.RoleRepo,
 	})
 }
 

@@ -15,6 +15,8 @@ const base = {
   mod_frete: '' as const,
   inf_ad_fisco: '',
   inf_cpl: '',
+  obs_cont: [],
+  obs_fisco: [],
   requires_receiver: true,
   is_default: false,
 }

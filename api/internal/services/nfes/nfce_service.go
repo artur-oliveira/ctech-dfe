@@ -25,20 +25,21 @@ const TpEventoCancelamentoSubst = "110112"
 
 // NfceService manages NFC-e lifecycle.
 type NfceService struct {
-	orgRepo        *repositories.OrganizationRepository
-	certRepo       *repositories.CertificateRepository
-	personRepo     *repositories.PersonRepository
-	configRepo     *repositories.NfceConfigRepository
-	productRepo    *repositories.ProductRepository
-	taxProfileRepo *repositories.TaxProfileRepository
-	operationRepo  *repositories.OperationRepository
-	nfceRepo       *repositories.NfceRepository
-	eventRepo      *repositories.DocumentEventRepository // nfce_events
-	clients        *awsclient.Clients
-	workerSvc      *services.WorkerService
-	billingSvc     *services.BillingService
-	bucketDocs     string
-	tech           TechData
+	orgRepo             *repositories.OrganizationRepository
+	certRepo            *repositories.CertificateRepository
+	personRepo          *repositories.PersonRepository
+	configRepo          *repositories.NfceConfigRepository
+	productRepo         *repositories.ProductRepository
+	taxProfileRepo      *repositories.TaxProfileRepository
+	operationRepo       *repositories.OperationRepository
+	paymentTerminalRepo *repositories.PaymentTerminalRepository
+	nfceRepo            *repositories.NfceRepository
+	eventRepo           *repositories.DocumentEventRepository // nfce_events
+	clients             *awsclient.Clients
+	workerSvc           *services.WorkerService
+	billingSvc          *services.BillingService
+	bucketDocs          string
+	tech                TechData
 }
 
 func NewNfceService(
@@ -49,6 +50,7 @@ func NewNfceService(
 	productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
+	paymentTerminalRepo *repositories.PaymentTerminalRepository,
 	nfceRepo *repositories.NfceRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	clients *awsclient.Clients,
@@ -59,7 +61,8 @@ func NewNfceService(
 ) *NfceService {
 	return &NfceService{
 		orgRepo: orgRepo, certRepo: certRepo, personRepo: personRepo,
-		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, operationRepo: operationRepo, nfceRepo: nfceRepo,
+		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, operationRepo: operationRepo,
+		paymentTerminalRepo: paymentTerminalRepo, nfceRepo: nfceRepo,
 		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc, billingSvc: billingSvc,
 		bucketDocs: bucketDocs, tech: tech,
 	}

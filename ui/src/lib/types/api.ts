@@ -731,6 +731,28 @@ export interface OperationItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — terminais de pagamento (POS)
+export interface PaymentTerminalCreate extends Record<string, unknown> {
+  name: string
+  cnpj_receb: string
+  id_term_pag: string
+  cnpj_pag?: string | null
+  uf_pag?: string | null
+  t_band?: string | null
+}
+
+export interface PaymentTerminalItemOut {
+  pk: string
+  sk: string
+  name: string
+  cnpj_receb: string
+  id_term_pag: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — condições de pagamento e composições veiculares
 export interface PaymentTermCreate extends Record<string, unknown> {
   name: string
@@ -793,6 +815,28 @@ export interface NfeTransportIn {
   veiculo_placa?: string | null
   veiculo_uf?: string | null
   veiculo_rntrc?: string | null
+  /** Volumes transportados (transp/vol). Vazio ⇒ backend deriva um volume com o peso dos itens. */
+  vols?: NfeVolIn[] | null
+  /** Reboques do veículo transportador (transp/reboque, máx 5). */
+  reboques?: NfeReboqueIn[] | null
+}
+
+/** Volume transportado (transp/vol). */
+export interface NfeVolIn {
+  q_vol?: string | null
+  esp?: string | null
+  marca?: string | null
+  n_vol?: string | null
+  peso_l?: string | null
+  peso_b?: string | null
+  lacres?: string[] | null
+}
+
+/** Reboque do veículo transportador (transp/reboque). */
+export interface NfeReboqueIn {
+  placa: string
+  uf: string
+  rntc?: string | null
 }
 
 /** TLocal-shaped address (local de retirada/entrega) — lighter than
@@ -899,6 +943,10 @@ export interface NfePaymentIn {
   ind_pag?: '0' | '1' | null
   d_pag?: string | null
   card?: NfeCardIn | null
+  /** Terminal de captura (organization_payment_terminals) que processou o pagamento. */
+  terminal_id?: string | null
+  /** Descrição da forma de pagamento quando tPag é 99 (outros). */
+  x_pag?: string | null
 }
 
 /** Documento referenciado em ide/NFref. Espelha `NfeRefBody` do backend. */
@@ -944,6 +992,16 @@ export interface NfeEmit {
   save_entrega_location?: boolean
   /** Documentos referenciados. Obrigatório para fin_nfe 2, 3 e 4. */
   nf_refs?: NfeRefIn[] | null
+  /** Processos referenciados (infAdic/procRef). */
+  proc_ref?: NfeProcRefIn[] | null
+}
+
+/** Processo referenciado em infAdic/procRef. */
+export interface NfeProcRefIn {
+  n_proc: string
+  /** 0 SEFAZ, 1 Justiça Federal, 2 Justiça Estadual, 3 Secex/RFB, 9 outros. */
+  ind_proc: '0' | '1' | '2' | '3' | '9'
+  tp_ato?: string | null
 }
 
 // NFC-e (modelo 65) — no recipient address, transport, or billing.

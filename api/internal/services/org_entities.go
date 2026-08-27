@@ -181,6 +181,16 @@ func NewPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *
 	)}
 }
 
+// PaymentTerminalService owns organization_payment_terminals.
+type PaymentTerminalService struct{ OrgEntityService }
+
+func NewPaymentTerminalService(repo *repositories.PaymentTerminalRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *PaymentTerminalService {
+	return &PaymentTerminalService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopePaymentTerminals, repositories.AuditResourcePaymentTerminal, "payment terminal not found",
+	)}
+}
+
 // OperationService owns organization_operations, e é a única das quatro
 // entidades com uma regra própria: no máximo uma operação padrão por
 // organização.
@@ -267,8 +277,9 @@ func (s *OperationService) transactWith(extra []types.TransactWriteItem) func(co
 
 // Cache scopes for the registry entities (segment of the cache key).
 const (
-	CacheScopeTaxProfiles  = "tax_profiles"
-	CacheScopeOperations   = "operations"
-	CacheScopePaymentTerms = "payment_terms"
-	CacheScopeVehicleSets  = "vehicle_sets"
+	CacheScopeTaxProfiles      = "tax_profiles"
+	CacheScopeOperations       = "operations"
+	CacheScopePaymentTerms     = "payment_terms"
+	CacheScopeVehicleSets      = "vehicle_sets"
+	CacheScopePaymentTerminals = "payment_terminals"
 )

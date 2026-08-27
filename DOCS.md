@@ -1195,7 +1195,7 @@ transformá-lo em validação quebraria emissões legítimas de quem nunca preen
 
 #### Cadastros reutilizáveis (perfis, operações, condições, composições)
 
-Quatro entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
+Cinco entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
 a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-index`):
 
 | Entidade                | Rota base                 | Prefixo do `sk` | Tabela                        |
@@ -1204,6 +1204,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Natureza de operação    | `/v1.0/operations`        | `OPERATION_`    | `organization_operations`     |
 | Condição de pagamento   | `/v1.0/payment-terms`     | `PAYMENTTERM_`  | `organization_payment_terms`  |
 | Composição veicular     | `/v1.0/vehicle-sets`      | `VEHICLESET_`   | `organization_vehicle_sets`   |
+| Terminal de pagamento   | `/v1.0/payment-terminals` | `TERMINAL_`     | `organization_payment_terminals` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -1222,9 +1223,18 @@ dos campos já preenchidos (`deriveTaxGroups`), senão o toggle nasce desligado 
 **Natureza de operação** (`OperationBody`): `name`, `doc_types` (`nfe`/`nfce`), `is_default`
 (no máximo uma por organização, garantida por `TransactWrite`), `nat_op`, `cfop_suffix` (3 dígitos —
 o escopo 5/6/7 é derivado na emissão), `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`,
+`vol_esp`, `vol_marca` (espécie e marca padrão dos volumes de `transp/vol`),
+`obs_cont` e `obs_fisco` (listas de `{x_campo, x_texto}`, máx. 10 cada, que viram
+`infAdic/obsCont` e `infAdic/obsFisco` — o texto aceita os mesmos placeholders),
 `payment_term_id`, `additional_info`. Os campos de texto aceitam os placeholders
 `{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um placeholder
 desconhecido é 400 no cadastro, não erro na emissão.
+
+**Terminal de pagamento** (`PaymentTerminalBody`): `name`, `cnpj_receb`, `id_term_pag`, `cnpj_pag`,
+`uf_pag`, `t_band`. Um posto com quatro maquininhas não redigita CNPJ recebedor e identificador a
+cada NFC-e: o pagamento aponta `terminal_id` e o builder preenche `detPag/CNPJPag`, `detPag/UFPag`,
+`card/CNPJReceb` e `card/idTermPag`. `uf_pag` só é válido acompanhado de `cnpj_pag`; a bandeira
+informada na emissão vence `t_band`. Um `terminal_id` inexistente é 404, nunca silêncio.
 
 **Condição de pagamento** (`PaymentTermBody`): `name`, `payment_type` (tPag), `ind_pag`
 (vazio = derivado), `installments`, `interval_days`, `first_due_days`, `card`. Na emissão expande
@@ -1331,15 +1341,38 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `ind_final`       | "0"/"1"     | End consumer (default "1")                                 |
 | `ind_pres`        | "1"–"4","9" | Presence: 1=In-person (default), 2=Internet, 9=Other       |
 | `tp_nf`           | "0"/"1"     | Type: 0=Inbound, 1=Outbound (default)                      |
-| `transport`       | object      | Carrier and vehicle (modFrete, CNPJ/CPF, plate)            |
+| `transport`       | object      | Carrier and vehicle (modFrete, CNPJ/CPF, plate), mais `vols[]` e `reboques[]` — ver abaixo |
 | `cobr_fat`        | object      | Invoice: nFat, vOrig, vDesc, vLiq                          |
 | `cobr_duplicatas` | list        | Installments: nDup, dVenc, vDup (max 120)                  |
 | `v_troco`         | decimal     | Change amount in BRL                                       |
+| `payments[].terminal_id` | string | Terminal de captura do cadastro. Preenche `detPag/CNPJPag`, `detPag/UFPag`, `card/CNPJReceb`, `card/idTermPag` e a bandeira default. |
+| `payments[].x_pag` | string     | Descrição da forma de pagamento quando `payment_type` é `99` (outros). |
 | `retirada`        | object      | Local de retirada (TLocal — no CEP, unlike an `AddressBody`): `cnpj`/`cpf`, `x_nome`, `x_lgr`, `nro`, `x_cpl`, `x_bairro`, `c_mun`, `x_mun`, `uf`, `fone`, `email`. Free-form per emission — org itself is the remetente for this purpose. |
 | `entrega`         | object      | Local de entrega, same TLocal shape as `retirada`, scoped to the selected `receiver_id`. |
 | `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
 | `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
 | `nf_refs`         | list        | Documentos referenciados (`ide/NFref`, máx. 500). **Obrigatório quando `fin_nfe` é 2, 3 ou 4** — sem ele a emissão devolve 400. Cada entrada é ou `{"nfe_id": "<chave>"}`, uma nota da própria organização de onde chave e tipo são derivados (vira `refNFe`), ou um documento de fora do sistema com `kind` + os campos do grupo. |
+
+**`proc_ref[]` (infAdic/procRef).** Processos referenciados: `{n_proc, ind_proc, tp_ato}`, máx. 100.
+`ind_proc`: `0` SEFAZ, `1` Justiça Federal, `2` Justiça Estadual, `3` Secex/RFB, `9` outros.
+`infAdic` sai completo — `infAdFisco` e `obsCont`/`obsFisco` vêm da operação (interpolados como
+`inf_cpl`), `infCpl` vem de `additional_info`, `procRef` vem daqui. Nó vazio nunca é emitido.
+
+**`transport.vols[]` (transp/vol) e `transport.reboques[]` (transp/reboque):**
+
+| Campo                | Descrição                                                                        |
+|----------------------|-----------------------------------------------------------------------------------|
+| `vols[].q_vol`       | Quantidade de volumes                                                              |
+| `vols[].esp`         | Espécie. Vazio ⇒ `operations.vol_esp` da operação escolhida                        |
+| `vols[].marca`       | Marca. Vazio ⇒ `operations.vol_marca`                                              |
+| `vols[].n_vol`       | Numeração dos volumes                                                              |
+| `vols[].peso_l` / `peso_b` | Pesos líquido e bruto (3 casas)                                              |
+| `vols[].lacres`      | Lista de números de lacre (viram `lacres/nLacre`)                                   |
+| `reboques[]`         | `{placa, uf, rntc}` — máx. 5 pelo XSD                                              |
+
+Sem `vols`, o comportamento antigo é preservado: um volume único com o peso somado dos itens.
+A tag do RNTC em `veicTransp`/`reboque` da NF-e é **`RNTC`** — `RNTRC` é do CT-e/MDF-e; o campo do
+request continua se chamando `veiculo_rntrc`.
 
 **`nf_refs[]` — documento de fora do sistema:**
 

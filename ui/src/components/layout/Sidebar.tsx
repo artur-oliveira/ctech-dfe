@@ -8,6 +8,7 @@ import type {ReactNode} from 'react'
 import {
   BriefcaseIcon,
   CalendarClockIcon,
+  CreditCardIcon,
   CteIcon,
   MdfeIcon,
   NfceIcon,
@@ -105,6 +106,7 @@ const navGroups: NavGroup[] = [
       {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
       {href: '/operations', label: 'Naturezas de operação', icon: <RouteIcon/>},
       {href: '/payment-terms', label: 'Condições de pagamento', icon: <CalendarClockIcon/>},
+      {href: '/payment-terminals', label: 'Terminais de pagamento', icon: <CreditCardIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
       {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
     ],

@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
+import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useQuery} from '@tanstack/react-query'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
@@ -38,7 +38,8 @@ interface OperationFormProps {
 const EMPTY: OperationFormData = {
   name: '', doc_types: ['nfe'], nat_op: '', tp_nf: '1', fin_nfe: '1',
   ind_final: '1', ind_pres: '1', cfop_suffix: '', tax_profile_id: '',
-  payment_term_id: '', mod_frete: '', inf_ad_fisco: '', inf_cpl: '',
+  payment_term_id: '', mod_frete: '', vol_esp: '', vol_marca: '',
+  inf_ad_fisco: '', inf_cpl: '', obs_cont: [], obs_fisco: [],
   requires_receiver: true, is_default: false,
 }
 
@@ -57,11 +58,61 @@ function toFormData(op: OperationItemOut): OperationFormData {
     tax_profile_id: str(op.tax_profile_id),
     payment_term_id: str(op.payment_term_id),
     mod_frete: str(op.mod_frete) as OperationFormData['mod_frete'],
+    vol_esp: str(op.vol_esp),
+    vol_marca: str(op.vol_marca),
     inf_ad_fisco: str(op.inf_ad_fisco),
+    obs_cont: Array.isArray(op.obs_cont) ? (op.obs_cont as OperationFormData['obs_cont']) : [],
+    obs_fisco: Array.isArray(op.obs_fisco) ? (op.obs_fisco as OperationFormData['obs_fisco']) : [],
     inf_cpl: str(op.inf_cpl),
     requires_receiver: op.requires_receiver !== false,
     is_default: op.is_default === true,
   }
+}
+
+/**
+ * Lista de pares campo/texto de infAdic (obsCont ou obsFisco). Observação fixa
+ * por operação: o texto que se repete por cenário mora no cadastro, não na nota.
+ */
+function ObsListField({form, name, label}: {
+  form: UseFormReturn<OperationFormData>
+  name: 'obs_cont' | 'obs_fisco'
+  label: string
+}) {
+  const {fields, append, remove} = useFieldArray({control: form.control, name})
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <FormLabel>{label}</FormLabel>
+        <Button type="button" variant="ghost" size="xs" disabled={fields.length >= 10}
+                onClick={() => append({x_campo: '', x_texto: ''})}>
+          + Observação
+        </Button>
+      </div>
+      {fields.map((field, index) => (
+        <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] gap-2 items-end">
+          <FormField control={form.control} name={`${name}.${index}.x_campo`}
+                     render={({field: f}) => (
+                       <FormItem>
+                         <Input {...f} id={f.name} placeholder="Campo" maxLength={20} className="w-full"/>
+                         <FormMessage/>
+                       </FormItem>
+                     )}
+          />
+          <FormField control={form.control} name={`${name}.${index}.x_texto`}
+                     render={({field: f}) => (
+                       <FormItem>
+                         <Input {...f} id={f.name} placeholder="Texto" maxLength={60} className="w-full"/>
+                         <FormMessage/>
+                       </FormItem>
+                     )}
+          />
+          <Button type="button" variant="ghost" size="xs" onClick={() => remove(index)}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 /** Campo string vazio vira null: um "" gravado é um default silenciosamente vazio. */
@@ -115,7 +166,11 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         tax_profile_id: nullify(data.tax_profile_id),
         payment_term_id: nullify(data.payment_term_id),
         mod_frete: nullify(data.mod_frete),
+        vol_esp: nullify(data.vol_esp),
+        vol_marca: nullify(data.vol_marca),
         inf_ad_fisco: nullify(data.inf_ad_fisco),
+        obs_cont: data.obs_cont.length > 0 ? data.obs_cont : null,
+        obs_fisco: data.obs_fisco.length > 0 ? data.obs_fisco : null,
         inf_cpl: nullify(data.inf_cpl),
         requires_receiver: data.requires_receiver,
         is_default: data.is_default,
@@ -229,6 +284,22 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                        )}
             />
 
+            {([
+              ['vol_esp', 'Espécie do volume', 'CAIXA'],
+              ['vol_marca', 'Marca do volume', 'ACME'],
+            ] as const).map(([name, label, placeholder]) => (
+              <FormField key={name} control={form.control} name={name}
+                         render={({field}) => (
+                           <FormItem>
+                             <FormLabel>{label}</FormLabel>
+                             <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
+                                    className="w-full" placeholder={placeholder}/>
+                             <FormMessage/>
+                           </FormItem>
+                         )}
+              />
+            ))}
+
             <FormField control={form.control} name="tax_profile_id"
                        render={({field}) => (
                          <FormItem>
@@ -291,6 +362,11 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                          </FormItem>
                        )}
             />
+
+            {(['obs_cont', 'obs_fisco'] as const).map((name) => (
+              <ObsListField key={name} form={form} name={name}
+                            label={name === 'obs_cont' ? 'Observações do contribuinte' : 'Observações ao fisco'}/>
+            ))}
           </div>
         </CollapsibleSection>
 

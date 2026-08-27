@@ -156,6 +156,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		receiverAny = map[string]any{"sk": receiverSK, "name": destName}
 	}
 
+	terminals, err := resolvePaymentTerminals(ctx, s.paymentTerminalRepo, orgPK, req.Payments)
+	if err != nil {
+		return nil, err
+	}
+
 	// Payments + troco.
 	paymentsAny := make([]map[string]any, 0, len(req.Payments))
 	summaryPayments := make([]map[string]any, 0, len(req.Payments))
@@ -167,6 +172,12 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		}
 		if p.Card != nil {
 			pm["card"] = p.Card
+		}
+		if p.TerminalID != nil {
+			pm["terminal_id"] = terminalSK(*p.TerminalID)
+		}
+		if p.XPag != nil {
+			pm["x_pag"] = *p.XPag
 		}
 		paymentsAny = append(paymentsAny, pm)
 		summaryPayments = append(summaryPayments, map[string]any{"payment_type": p.PaymentType, "value": p.Value})
@@ -191,7 +202,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		s.tech, nfModel65, supl,
 		nil, nil,
 		mode,
-		docExtras{},
+		docExtras{PaymentTerminals: terminals},
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))

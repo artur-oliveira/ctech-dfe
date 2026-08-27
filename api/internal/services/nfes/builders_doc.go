@@ -88,7 +88,7 @@ func anyStrPtr(m map[string]any, key string) *string {
 }
 
 // buildPag builds the pag XML node.
-func buildPag(payments []map[string]any, vTroco *string) map[string]any {
+func buildPag(payments []map[string]any, vTroco *string, terminals map[string]map[string]any) map[string]any {
 	detPag := make([]map[string]any, 0, len(payments))
 	for _, p := range payments {
 		item := map[string]any{}
@@ -100,6 +100,17 @@ func buildPag(payments []map[string]any, vTroco *string) map[string]any {
 		if v := anyStr(p, "d_pag", ""); v != "" {
 			item["dPag"] = v
 		}
+		if v := anyStr(p, "x_pag", ""); v != "" {
+			item["xPag"] = v
+		}
+		term := terminals[anyStr(p, "terminal_id", "")]
+		if v := anyStr(term, "cnpj_pag", ""); v != "" {
+			item["CNPJPag"] = v
+			// UFPag só é válido acompanhado de CNPJPag.
+			if uf := anyStr(term, "uf_pag", ""); uf != "" {
+				item["UFPag"] = uf
+			}
+		}
 		if cardRaw, ok := p["card"].(map[string]any); ok && cardRaw != nil {
 			cardNode := map[string]any{"tpIntegra": anyStr(cardRaw, "tp_integra", "")}
 			if v := anyStr(cardRaw, "cnpj", ""); v != "" {
@@ -110,6 +121,17 @@ func buildPag(payments []map[string]any, vTroco *string) map[string]any {
 			}
 			if v := anyStr(cardRaw, "c_aut", ""); v != "" {
 				cardNode["cAut"] = v
+			}
+			if v := anyStr(term, "cnpj_receb", ""); v != "" {
+				cardNode["CNPJReceb"] = v
+			}
+			if v := anyStr(term, "id_term_pag", ""); v != "" {
+				cardNode["idTermPag"] = v
+			}
+			if _, ok := cardNode["tBand"]; !ok {
+				if v := anyStr(term, "t_band", ""); v != "" {
+					cardNode["tBand"] = v
+				}
 			}
 			item["card"] = cardNode
 		}
@@ -539,8 +561,9 @@ func BuildEnviNFe(
 		"total":   totalNode,
 		"transp": buildTransp(hasPesoL, hasPesoB, totalPesoL, totalPesoB, transport,
 			buildPartyTransporta(emitDoc, isEmitPJ, anyStr(org, "name", ""), getIEForUF(orgPerson, emitUF), orgAddress),
-			buildPartyTransporta(destDoc, isDestPJ, anyStr(receiver, "name", ""), destIE, destAddress)),
-		"pag": buildPag(payments, vTroco),
+			buildPartyTransporta(destDoc, isDestPJ, anyStr(receiver, "name", ""), destIE, destAddress),
+			extra.Vols, extra.Reboques),
+		"pag": buildPag(payments, vTroco, extra.PaymentTerminals),
 	}
 	if destStruct != nil {
 		infNFe["dest"] = destStruct
@@ -557,8 +580,9 @@ func BuildEnviNFe(
 	if cobrFat != nil || len(cobrDuplicatas) > 0 {
 		infNFe["cobr"] = buildCobr(cobrFat, cobrDuplicatas)
 	}
-	if additionalInfo != nil && *additionalInfo != "" {
-		infNFe["infAdic"] = map[string]any{"infCpl": *additionalInfo}
+	if infAdic := buildInfAdic(extra.InfAdFisco, ptrStr(additionalInfo),
+		extra.ObsCont, extra.ObsFisco, extra.ProcRef); infAdic != nil {
+		infNFe["infAdic"] = infAdic
 	}
 	infNFe["infRespTec"] = map[string]any{
 		"CNPJ":     tech.CNPJ,

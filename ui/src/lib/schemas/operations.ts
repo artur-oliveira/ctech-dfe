@@ -39,6 +39,12 @@ const fiscalText = (max: number) => z.string().max(max).optional().or(z.literal(
     }
   })
 
+/** Par campo/texto de infAdic (obsCont ou obsFisco). */
+export const obsSchema = z.object({
+  x_campo: z.string().min(1, 'Campo obrigatório').max(20),
+  x_texto: z.string().min(1, 'Texto obrigatório').max(60),
+})
+
 export const operationSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
   doc_types: z.array(z.enum(['nfe', 'nfce', 'cte', 'mdfe'])),
@@ -52,7 +58,13 @@ export const operationSchema = z.object({
   tax_profile_id: z.string().optional().or(z.literal('')),
   payment_term_id: z.string().optional().or(z.literal('')),
   mod_frete: z.enum(['0', '1', '2', '3', '4', '9']).optional().or(z.literal('')),
+  /** Espécie e marca padrão dos volumes de transp/vol. */
+  vol_esp: z.string().max(60).optional().or(z.literal('')),
+  vol_marca: z.string().max(60).optional().or(z.literal('')),
   inf_ad_fisco: fiscalText(2000),
+  /** Observações de campo livre de infAdic (obsCont/obsFisco), máx 10 cada. */
+  obs_cont: z.array(obsSchema).max(10),
+  obs_fisco: z.array(obsSchema).max(10),
   inf_cpl: fiscalText(5000),
   requires_receiver: z.boolean(),
   is_default: z.boolean(),

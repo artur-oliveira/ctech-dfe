@@ -346,6 +346,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Terminais de pagamento ─────────────────────────────────────────────────
+
+  /v1.0/payment-terminals:
+    get:
+      tags: [ PaymentTerminals ]
+      summary: Lista terminais de pagamento
+      operationId: listPaymentTerminals
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de terminais de pagamento
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ PaymentTerminals ]
+      summary: Cria um terminal de pagamento
+      operationId: createPaymentTerminal
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTerminalBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/payment-terminals/{payment_terminal_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: payment_terminal_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ PaymentTerminals ]
+      summary: Detalha um terminal de pagamento
+      operationId: getPaymentTerminal
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ PaymentTerminals ]
+      summary: Atualiza um terminal de pagamento
+      operationId: updatePaymentTerminal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTerminalBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ PaymentTerminals ]
+      summary: Remove um terminal de pagamento
+      operationId: deletePaymentTerminal
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -590,6 +690,47 @@ components:
         name: { type: string }
         payment_type: { type: string }
         installments: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PaymentTerminalBody:
+      type: object
+      description: |
+        Terminal de captura (POS). CNPJ recebedor e identificador do terminal são
+        invariantes por maquininha: a NFC-e só aponta `terminal_id` no pagamento
+        e o builder preenche `detPag/CNPJPag`, `detPag/UFPag`, `card/CNPJReceb`
+        e `card/idTermPag`.
+      required: [ name, cnpj_receb, id_term_pag ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cnpj_receb:
+          type: string
+          description: CNPJ do estabelecimento credenciado que recebe o pagamento.
+        id_term_pag:
+          type: string
+          maxLength: 40
+          description: Identificador do terminal, atribuído pela adquirente.
+        cnpj_pag:
+          type: [ string, 'null' ]
+          description: |
+            Pagador institucional, quando a operação de pagamento ocorre fora do
+            estabelecimento emitente. `uf_pag` só é válido acompanhado dele.
+        uf_pag: { type: [ string, 'null' ] }
+        t_band:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Bandeira default (`card/tBand`). Sobrescrevível na emissão.
+
+    PaymentTerminalItem:
+      type: object
+      description: Terminal de pagamento persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        cnpj_receb: { type: string }
+        id_term_pag: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

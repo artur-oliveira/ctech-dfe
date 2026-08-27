@@ -23,4 +23,57 @@ func truncateNatOp(s string) string {
 type docExtras struct {
 	// NFref são os documentos referenciados já resolvidos (ide/NFref).
 	NFRefs []map[string]any
+	// Vols e Reboques são os volumes e reboques de transp, já resolvidos.
+	Vols     []map[string]any
+	Reboques []map[string]any
+	// InfAdFisco, ObsCont, ObsFisco e ProcRef completam infAdic; infCpl continua
+	// vindo do parâmetro additionalInfo de BuildEnviNFe.
+	InfAdFisco string
+	ObsCont    []map[string]any
+	ObsFisco   []map[string]any
+	ProcRef    []map[string]any
+	// PaymentTerminals são os terminais de captura citados pelos pagamentos,
+	// indexados pelo SK do cadastro.
+	PaymentTerminals map[string]map[string]any
+}
+
+// buildInfAdic monta infAdic. Ordem XSD: infAdFisco, infCpl, obsCont, obsFisco,
+// procRef. Devolve nil quando não há nada — nó vazio é rejeição.
+func buildInfAdic(infAdFisco, infCpl string, obsCont, obsFisco, procRef []map[string]any) map[string]any {
+	node := map[string]any{}
+	if infAdFisco != "" {
+		node["infAdFisco"] = infAdFisco
+	}
+	if infCpl != "" {
+		node["infCpl"] = infCpl
+	}
+	if len(obsCont) > 0 {
+		node["obsCont"] = obsCont
+	}
+	if len(obsFisco) > 0 {
+		node["obsFisco"] = obsFisco
+	}
+	if len(procRef) > 0 {
+		node["procRef"] = procRef
+	}
+	if len(node) == 0 {
+		return nil
+	}
+	return node
+}
+
+// buildProcRef traduz os processos referenciados do request (infAdic/procRef).
+func buildProcRef(refs []NfeProcRefBody) []map[string]any {
+	out := make([]map[string]any, 0, len(refs))
+	for _, r := range refs {
+		node := map[string]any{"nProc": r.NProc, "indProc": r.IndProc}
+		if r.TpAto != nil && *r.TpAto != "" {
+			node["tpAto"] = *r.TpAto
+		}
+		out = append(out, node)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

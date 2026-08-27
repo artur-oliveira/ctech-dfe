@@ -38,3 +38,12 @@ export const IND_PRES_OPTIONS = [
   {value: '5', label: '5 – Presencial fora do estabelecimento'},
   {value: '9', label: '9 – Outros'},
 ]
+
+/** infAdic/procRef — origem do processo referenciado. */
+export const IND_PROC_OPTIONS = [
+  {value: '0', label: '0 – SEFAZ'},
+  {value: '1', label: '1 – Justiça Federal'},
+  {value: '2', label: '2 – Justiça Estadual'},
+  {value: '3', label: '3 – Secex / RFB'},
+  {value: '9', label: '9 – Outros'},
+]

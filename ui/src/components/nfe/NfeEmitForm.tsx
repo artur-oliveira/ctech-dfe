@@ -32,8 +32,11 @@ import type {
   NfeFatIn,
   NfeListOut,
   NfeLocalIn,
+  NfeProcRefIn,
   NfeRefIn,
+  NfeReboqueIn,
   NfeTransportIn,
+  NfeVolIn,
   PersonCreate,
   PersonItemOut,
   ProductOut,
@@ -44,7 +47,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
 import {PersonForm} from '@/components/persons/PersonForm'
 import {PersonPicker} from '@/components/persons/PersonPicker'
-import {MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
+import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {resolveCfopScope} from '@/lib/data/cfop'
 import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
@@ -67,6 +70,7 @@ import {previewInstallments} from "@/lib/schemas/payment-terms"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
 import {LocationPicker} from "@/components/nfe/LocationPicker"
 import {NfeRefsPicker} from "@/components/nfe/NfeRefsPicker"
+import {VolumesFields} from "@/components/nfe/VolumesFields"
 import {finNFeRequiresRef} from "@/lib/schemas/nfe-refs"
 
 // ─── Local state types ────────────────────────────────────────────────────────
@@ -93,6 +97,8 @@ interface EmitPayment {
   value: string
   ind_pag: '0' | '1'
   card: NfeCardIn | null
+  /** Terminal de captura que processou o pagamento, quando houver. */
+  terminal_id: string | null
 }
 
 interface EmitTransport {
@@ -646,6 +652,9 @@ export function NfeEmitForm() {
   const [payments, setPayments] = useState<EmitPayment[]>([])
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [nfRefs, setNfRefs] = useState<NfeRefIn[]>([])
+  const [vols, setVols] = useState<NfeVolIn[]>([])
+  const [reboques, setReboques] = useState<NfeReboqueIn[]>([])
+  const [procRef, setProcRef] = useState<NfeProcRefIn[]>([])
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null)
@@ -657,6 +666,7 @@ export function NfeEmitForm() {
   const paymentValueLockedRef = useRef(false)
   const [newPaymentIndPag, setNewPaymentIndPag] = useState<'0' | '1'>('0')
   const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
+  const [newPaymentTerminal, setNewPaymentTerminal] = useState('')
   const [showCardToggle, setShowCardToggle] = useState(false)
   // Cobrança
   const [cobrFat, setCobrFat] = useState<NfeFatIn>({n_fat: '', v_orig: '', v_desc: '', v_liq: ''})
@@ -857,7 +867,7 @@ export function NfeEmitForm() {
     setPrevHasNoPaymentCfop(hasNoPaymentCfop)
     if (hasNoPaymentCfop) {
       setNewPaymentType(NO_PAYMENT_TYPE)
-      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null}])
+      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null, terminal_id: null}])
     }
   }
 
@@ -970,9 +980,11 @@ export function NfeEmitForm() {
       value,
       ind_pag: newPaymentIndPag,
       card: showCardToggle ? newPaymentCard : null,
+      terminal_id: showCardToggle ? (newPaymentTerminal || null) : null,
     }])
     paymentValueLockedRef.current = false
     setNewPaymentCard(null)
+    setNewPaymentTerminal('')
     setShowCardToggle(false)
     setNewPaymentIndPag('0')
   }
@@ -1034,6 +1046,7 @@ export function NfeEmitForm() {
       payments: payments.map(p => ({
         payment_type: p.payment_type, value: p.value,
         ind_pag: p.ind_pag || undefined, card: p.card || undefined,
+        terminal_id: p.terminal_id || undefined,
       })),
       additional_info: additionalInfo.trim() || null,
       nat_op: natOp || null,
@@ -1048,6 +1061,8 @@ export function NfeEmitForm() {
           veiculo_placa: !selectedVehicle ? (transport.veiculo_placa || null) : null,
           veiculo_uf: !selectedVehicle ? (transport.veiculo_uf || null) : null,
           veiculo_rntrc: !selectedVehicle ? (transport.veiculo_rntrc || null) : null,
+          vols: vols.length > 0 ? vols : null,
+          reboques: reboques.length > 0 ? reboques : null,
         } as NfeTransportIn
       })() : null,
       cobr_fat: hasCobr ? {
@@ -1063,6 +1078,7 @@ export function NfeEmitForm() {
       save_retirada_location: retirada ? saveRetiradaLocation : false,
       save_entrega_location: entrega ? saveEntregaLocation : false,
       nf_refs: nfRefs.length > 0 ? nfRefs : null,
+      proc_ref: procRef.length > 0 ? procRef : null,
     }
 
     setIsSubmitting(true)
@@ -1399,7 +1415,8 @@ export function NfeEmitForm() {
                   </label>
                 </div>
                 {showCardToggle && (
-                  <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
+                  <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}
+                                   terminalId={newPaymentTerminal} onTerminalChange={setNewPaymentTerminal}/>
                 )}
               </div>
             )}
@@ -1700,7 +1717,7 @@ export function NfeEmitForm() {
                               onChange={e => setTransport(t => ({...t, veiculo_uf: e.target.value.toUpperCase()}))}
                               placeholder="SP" maxLength={2}/></div>
                             <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">RNTRC</Label><Input
+                              className="text-xs font-medium text-gray-600">RNTC</Label><Input
                               value={transport.veiculo_rntrc}
                               onChange={e => setTransport(t => ({...t, veiculo_rntrc: e.target.value}))}
                               placeholder="Opcional"/></div>
@@ -1712,6 +1729,42 @@ export function NfeEmitForm() {
                 )}
               </div>
             )}
+            {showTransport && (
+              <div className="pt-3 border-t border-gray-100">
+                <VolumesFields vols={vols} onVolsChange={setVols}
+                               reboques={reboques} onReboquesChange={setReboques}/>
+              </div>
+            )}
+          </div>
+
+          {/* Processos referenciados (infAdic/procRef) */}
+          <div className="space-y-2 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-700">Processos referenciados</Label>
+              <Button type="button" variant="ghost" size="xs"
+                      onClick={() => setProcRef(p => [...p, {n_proc: '', ind_proc: '0'}])}>
+                + Processo
+              </Button>
+            </div>
+            {procRef.map((proc, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] gap-2 items-end">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`proc-nproc-${i}`} className="text-xs font-medium text-gray-600">Número</Label>
+                  <Input id={`proc-nproc-${i}`} maxLength={60} value={proc.n_proc} placeholder="0001/2026"
+                         onChange={e => setProcRef(p => p.map((v, k) => k === i ? {...v, n_proc: e.target.value} : v))}/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`proc-indproc-${i}`} className="text-xs font-medium text-gray-600">Origem</Label>
+                  <OptionsSelect id={`proc-indproc-${i}`} value={proc.ind_proc}
+                                 options={[...IND_PROC_OPTIONS]}
+                                 onValueChange={(v: string) => setProcRef(p => p.map((x, k) => k === i ? {...x, ind_proc: v as NfeProcRefIn['ind_proc']} : x))}/>
+                </div>
+                <Button type="button" variant="ghost" size="xs"
+                        onClick={() => setProcRef(p => p.filter((_, k) => k !== i))}>
+                  Remover
+                </Button>
+              </div>
+            ))}
           </div>
 
           {/* Additional info */}

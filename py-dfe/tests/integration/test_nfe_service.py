@@ -233,6 +233,33 @@ class TestNFeSVRS:
         TestNFeSVRS._chave = chave
         TestNFeSVRS._nprot = prot.get("nProt") or "322260000007475"
 
+    def test_nfe_com_inf_adic_completo(self, real_cert_manager):
+        """infAdic completo: infAdFisco, obsCont, obsFisco e procRef."""
+        svc = _nfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_nfe(uf="PI", inf_adic={
+            "infAdFisco": "Beneficio fiscal 123",
+            "obsCont": [{"@xCampo": "Pedido", "xTexto": "42"}],
+            "obsFisco": [{"@xCampo": "Regime", "xTexto": "Especial"}],
+            "procRef": [{"nProc": "0001/2026", "indProc": "0"}],
+        })
+        result = svc.authorization(payload)
+        _assert_comunicacao_authorization(result)
+
+    def test_nfe_com_volumes_lacres_e_reboque(self, real_cert_manager):
+        """transp completo: vol como lista, lacres e reboque (tag RNTC)."""
+        svc = _nfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_nfe(
+            uf="PI",
+            vols=[{
+                "qVol": "2", "esp": "CAIXA", "marca": "ACME", "nVol": "001/002",
+                "pesoL": "10.000", "pesoB": "12.000",
+                "lacres": [{"nLacre": "L1"}, {"nLacre": "L2"}],
+            }],
+            reboques=[{"placa": "XYZ9Z99", "UF": "PI", "RNTC": "87654321"}],
+        )
+        result = svc.authorization(payload)
+        _assert_comunicacao_authorization(result)
+
     def test_nfe_devolucao_com_nfref(self, real_cert_manager):
         """Devolução (finNFe=4) referencia a chave autorizada em ide/NFref."""
         if TestNFeSVRS._chave is None:

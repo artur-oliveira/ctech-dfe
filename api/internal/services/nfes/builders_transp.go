@@ -14,7 +14,11 @@ import (
 // destTransporta instead of the request-supplied transporta_* fields:
 //   - modFrete "3" (próprio por conta do remetente)    → emitTransporta
 //   - modFrete "4" (próprio por conta do destinatário)  → destTransporta
-func buildTransp(hasPesoL, hasPesoB bool, totalPesoL, totalPesoB decimal.Decimal, transport, emitTransporta, destTransporta map[string]any) map[string]any {
+func buildTransp(
+	hasPesoL, hasPesoB bool, totalPesoL, totalPesoB decimal.Decimal,
+	transport, emitTransporta, destTransporta map[string]any,
+	vols []map[string]any, reboques []map[string]any,
+) map[string]any {
 	modFrete := modFreteSemFrete
 	if transport != nil {
 		if v := anyStr(transport, "mod_frete", ""); v != "" {
@@ -44,15 +48,22 @@ func buildTransp(hasPesoL, hasPesoB bool, totalPesoL, totalPesoB decimal.Decimal
 		if v := anyStr(transport, "veiculo_uf", ""); v != "" {
 			veiculo["UF"] = v
 		}
+		// A tag da NF-e é RNTC; RNTRC é do MDF-e/CT-e.
 		if v := anyStr(transport, "veiculo_rntrc", ""); v != "" {
-			veiculo["RNTRC"] = v
+			veiculo["RNTC"] = v
 		}
 		if len(veiculo) > 0 {
 			transp["veicTransp"] = veiculo
 		}
 	}
 
-	if hasPesoL || hasPesoB {
+	// vol é lista no XSD (0..N). Volume explícito vence; sem nenhum, o
+	// comportamento antigo é preservado — um volume sintético com os pesos
+	// somados dos itens, que é o que a maioria das notas precisa.
+	switch {
+	case len(vols) > 0:
+		transp["vol"] = vols
+	case hasPesoL || hasPesoB:
 		vol := map[string]any{"qVol": qVolPadrao}
 		if hasPesoL {
 			vol["pesoL"] = totalPesoL.StringFixed(3)
@@ -60,7 +71,10 @@ func buildTransp(hasPesoL, hasPesoB bool, totalPesoL, totalPesoB decimal.Decimal
 		if hasPesoB {
 			vol["pesoB"] = totalPesoB.StringFixed(3)
 		}
-		transp["vol"] = vol
+		transp["vol"] = []map[string]any{vol}
+	}
+	if len(reboques) > 0 {
+		transp["reboque"] = reboques
 	}
 	return transp
 }
@@ -124,4 +138,67 @@ func buildPartyTransporta(doc string, isPJ bool, name, ie string, address map[st
 		transporta["UF"] = v
 	}
 	return transporta
+}
+
+// buildVols traduz os volumes do request para os nós transp/vol. `esp` e
+// `marca` sem valor caem para o default da operação — a espécie do volume é
+// característica da operação, não da nota.
+func buildVols(vols []NfeVolBody, defEsp, defMarca string) []map[string]any {
+	out := make([]map[string]any, 0, len(vols))
+	for _, v := range vols {
+		node := map[string]any{}
+		for key, val := range map[string]string{
+			"qVol":  ptrStr(v.QVol),
+			"esp":   firstNonEmpty(ptrStr(v.Esp), defEsp),
+			"marca": firstNonEmpty(ptrStr(v.Marca), defMarca),
+			"nVol":  ptrStr(v.NVol),
+			"pesoL": ptrStr(v.PesoL),
+			"pesoB": ptrStr(v.PesoB),
+		} {
+			if val != "" {
+				node[key] = val
+			}
+		}
+		if len(v.Lacres) > 0 {
+			node["lacres"] = sealNodes(v.Lacres)
+		}
+		if len(node) > 0 {
+			out = append(out, node)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// sealNodes monta a lista de lacres. Compartilhado com o MDF-e, que usa o
+// mesmo nó `nLacre` em lacRodo e em infMDFe/lacres.
+func sealNodes(seals []string) []map[string]any {
+	out := make([]map[string]any, 0, len(seals))
+	for _, s := range seals {
+		if s != "" {
+			out = append(out, map[string]any{"nLacre": s})
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// buildReboques traduz os reboques do request para os nós transp/reboque.
+func buildReboques(reboques []NfeReboqueBody) []map[string]any {
+	out := make([]map[string]any, 0, len(reboques))
+	for _, r := range reboques {
+		node := map[string]any{"placa": r.Placa, "UF": r.UF}
+		if r.RNTC != nil && *r.RNTC != "" {
+			node["RNTC"] = *r.RNTC
+		}
+		out = append(out, node)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

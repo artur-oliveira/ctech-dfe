@@ -46,6 +46,7 @@ PITR: enabled in production only.
 | 33 | `organization_operations`   | `{org_pk}`                   | `OPERATION_{uuid}`                       | `name-index`                                       |
 | 34 | `organization_payment_terms`| `{org_pk}`                   | `PAYMENTTERM_{uuid}`                     | `name-index`                                       |
 | 35 | `organization_vehicle_sets` | `{org_pk}`                   | `VEHICLESET_{uuid}`                      | `name-index`                                       |
+| 37 | `organization_payment_terminals` | `{org_pk}`              | `TERMINAL_{uuid}`                        | `name-index`                                       |
 
 ---
 
@@ -679,7 +680,9 @@ Campos próprios (schemas completos em `DOCS.md § Cadastros reutilizáveis`):
   (ICMS/IPI/PIS/COFINS/IBS/CBS) idêntico ao de `organization_products.cfop_config`.
 - **`organization_operations`** — `doc_types` (L), `is_default` (BOOL, **no máximo uma por org**,
   garantida por `TransactWrite` que desmarca a anterior), `nat_op`, `cfop_suffix` (3 dígitos),
-  `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `payment_term_id`, `additional_info`.
+  `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `vol_esp`, `vol_marca`,
+  `obs_cont` / `obs_fisco` (L de `{x_campo, x_texto}`, máx. 10 cada — viram `infAdic/obsCont`
+  e `infAdic/obsFisco`), `payment_term_id`, `additional_info`.
 - **`organization_payment_terms`** — `payment_type`, `ind_pag`, `installments` (N),
   `interval_days` (N), `first_due_days` (N), `card` (M).
 - **`organization_vehicle_sets`** — `tractor_sk`, `trailer_sks` (L, máx. 3), `driver_docs` (L de
@@ -728,3 +731,26 @@ rather than `org_pk`, since events can arrive before the access key exists.
 | List persons by role                | `query_gsi`      | `organization_persons` / `org-name-index` + `contains(roles, :v)` |
 | Marcar operação padrão              | `transact_write` | `organization_operations` (desmarca a anterior) |
 | Carregar perfis fiscais de um item  | `batch_get`      | `organization_tax_profiles`            |
+
+---
+
+## 37. `organization_payment_terminals`
+
+Terminais de captura (POS). Mesma forma dos outros cadastros reutilizáveis (`pk` = org, `sk` =
+`TERMINAL_{uuid}`, GSI `name-index`, projeção ALL) — ver `OrgEntityRepository`.
+
+Um posto com quatro maquininhas emite mil notas por dia: o CNPJ recebedor e o identificador do
+terminal são invariantes por maquininha, então digitá-los por nota é o erro que este cadastro existe
+para evitar. Na emissão, o pagamento só aponta `terminal_id`.
+
+| Attribute     | Type | Notes                                                                                       |
+|---------------|------|----------------------------------------------------------------------------------------------|
+| `pk`          | S    | `{org_pk}`                                                                                   |
+| `sk`          | S    | `TERMINAL_{uuid}`                                                                            |
+| `name`        | S    | Nome do terminal ("POS Caixa 1"). GSI: `name-index`                                          |
+| `cnpj_receb`  | S    | CNPJ do estabelecimento credenciado que recebe o pagamento → NF-e `card/CNPJReceb`           |
+| `id_term_pag` | S    | Identificador do terminal, atribuído pela adquirente → `card/idTermPag`                      |
+| `cnpj_pag`    | S    | Pagador institucional, quando o pagamento ocorre fora do estabelecimento → `detPag/CNPJPag`  |
+| `uf_pag`      | S    | UF do pagador. Só válido acompanhado de `cnpj_pag` → `detPag/UFPag`                          |
+| `t_band`      | S    | Bandeira default (`card/tBand`). A bandeira informada na emissão sempre vence                |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                                 |

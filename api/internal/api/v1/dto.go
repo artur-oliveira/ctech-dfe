@@ -352,16 +352,50 @@ type OperationBody struct {
 	PaymentTermID *string `json:"payment_term_id" validate:"omitempty"`
 	ModFrete      *string `json:"mod_frete" validate:"omitempty,oneof=0 1 2 3 4 9"`
 
+	// Espécie e marca padrão dos volumes (transp/vol). São característica da
+	// operação, não da nota — quem sempre despacha em caixa não redigita.
+	VolEsp   *string `json:"vol_esp" validate:"omitempty,max=60"`
+	VolMarca *string `json:"vol_marca" validate:"omitempty,max=60"`
+
 	// Aceitam placeholders {{chave}} — ver services.AllPlaceholders. Chave
 	// desconhecida é erro aqui, no cadastro, nunca silêncio no XML.
 	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
 	InfCpl     *string `json:"inf_cpl" validate:"omitempty,max=5000"`
+
+	// ObsCont/ObsFisco são observações de campo livre do leiaute (máx 10 cada).
+	// Aceitam os mesmos placeholders de inf_cpl.
+	ObsCont  []ObsBody `json:"obs_cont" validate:"omitempty,max=10,dive"`
+	ObsFisco []ObsBody `json:"obs_fisco" validate:"omitempty,max=10,dive"`
 
 	// RequiresReceiver falso habilita emissão sem destinatário (self_issuance).
 	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
 	// IsDefault marca a operação pré-selecionada da organização. Só uma pode
 	// estar marcada; marcar uma desmarca a anterior no mesmo TransactWrite.
 	IsDefault bool `json:"is_default"`
+}
+
+// PaymentTerminalBody é o body de POST/PUT /payment-terminals.
+//
+// Um terminal de captura (POS) tem CNPJ recebedor e identificador próprios,
+// invariantes por maquininha. Ficam aqui para que a NFC-e só aponte o terminal.
+type PaymentTerminalBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// CNPJReceb — CNPJ do estabelecimento credenciado que recebe o pagamento.
+	CNPJReceb string `json:"cnpj_receb" validate:"required,cnpj"`
+	// IdTermPag — identificador do terminal, atribuído pela adquirente.
+	IdTermPag string `json:"id_term_pag" validate:"required,max=40"`
+	// CNPJPag/UFPag identificam o pagador institucional quando a operação de
+	// pagamento ocorre fora do estabelecimento emitente (detPag/CNPJPag).
+	CNPJPag *string `json:"cnpj_pag" validate:"omitempty,cnpj"`
+	UFPag   *string `json:"uf_pag" validate:"omitempty,uf"`
+	// TBand é a bandeira default (card/tBand). Sobrescrevível na emissão.
+	TBand *string `json:"t_band" validate:"omitempty,max=2"`
+}
+
+// ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
+type ObsBody struct {
+	XCampo string `json:"x_campo" validate:"required,max=20"`
+	XTexto string `json:"x_texto" validate:"required,max=60"`
 }
 
 // ProductTaxProfileRef liga um produto a um perfil fiscal, opcionalmente

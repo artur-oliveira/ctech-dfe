@@ -52,10 +52,22 @@ type NfeEmitBody struct {
 	SaveRetiradaLocation bool          `json:"save_retirada_location"`
 	SaveEntregaLocation  bool          `json:"save_entrega_location"`
 
+	// ProcRef são processos referenciados (infAdic/procRef): nº do processo e
+	// sua origem. indProc: 0 SEFAZ, 1 Justiça Federal, 2 Justiça Estadual,
+	// 3 Secex/RFB, 9 outros.
+	ProcRef []NfeProcRefBody `json:"proc_ref" validate:"omitempty,max=100,dive"`
+
 	// NFRefs são os documentos referenciados (ide/NFref). finNFe 2/3/4 é
 	// rejeitado sem pelo menos um. `nfe_id` referencia uma nota da própria base
 	// e dispensa o resto: chave e tipo saem do registro.
 	NFRefs []NfeRefBody `json:"nf_refs" validate:"omitempty,max=500,dive"`
+}
+
+// NfeProcRefBody é um processo referenciado (infAdic/procRef).
+type NfeProcRefBody struct {
+	NProc   string  `json:"n_proc" validate:"required,max=60"`
+	IndProc string  `json:"ind_proc" validate:"required,oneof=0 1 2 3 9"`
+	TpAto   *string `json:"tp_ato" validate:"omitempty,len=2,number"`
 }
 
 // NfeRefBody é uma referência de documento em ide/NFref. Ou `nfe_id` (uma nota
@@ -105,6 +117,11 @@ type NfePaymentItem struct {
 	IndPag      *string        `json:"ind_pag" validate:"omitempty,oneof=0 1"`
 	DPag        *string        `json:"d_pag" validate:"omitempty"`
 	Card        map[string]any `json:"card" validate:"omitempty"`
+	// TerminalID aponta um organization_payment_terminals: CNPJReceb, idTermPag,
+	// CNPJPag/UFPag e a bandeira default saem do cadastro.
+	TerminalID *string `json:"terminal_id" validate:"omitempty"`
+	// XPag descreve a forma de pagamento quando tPag é 99 (outros).
+	XPag *string `json:"x_pag" validate:"omitempty,max=60"`
 }
 
 // NfeTransportItem holds transport data for an NF-e emission request.
@@ -122,6 +139,29 @@ type NfeTransportItem struct {
 	VeiculoPlaca    *string `json:"veiculo_placa" validate:"omitempty,placa"`
 	VeiculoUF       *string `json:"veiculo_uf" validate:"omitempty,uf"`
 	VeiculoRNTRC    *string `json:"veiculo_rntrc" validate:"omitempty,rntrc"`
+	// Vols são os volumes transportados (transp/vol). Ausente, o builder deriva
+	// um volume único com o peso somado dos itens.
+	Vols []NfeVolBody `json:"vols" validate:"omitempty,max=5000,dive"`
+	// Reboques do veículo transportador (transp/reboque, máx 5 pelo XSD).
+	Reboques []NfeReboqueBody `json:"reboques" validate:"omitempty,max=5,dive"`
+}
+
+// NfeVolBody é um volume transportado (transp/vol).
+type NfeVolBody struct {
+	QVol   *string  `json:"q_vol" validate:"omitempty,max=15,number"`
+	Esp    *string  `json:"esp" validate:"omitempty,max=60"`
+	Marca  *string  `json:"marca" validate:"omitempty,max=60"`
+	NVol   *string  `json:"n_vol" validate:"omitempty,max=60"`
+	PesoL  *string  `json:"peso_l" validate:"omitempty,weight3"`
+	PesoB  *string  `json:"peso_b" validate:"omitempty,weight3"`
+	Lacres []string `json:"lacres" validate:"omitempty,max=5000,dive,max=60"`
+}
+
+// NfeReboqueBody é um reboque do veículo transportador (transp/reboque).
+type NfeReboqueBody struct {
+	Placa string  `json:"placa" validate:"required,placa"`
+	UF    string  `json:"uf" validate:"required,uf"`
+	RNTC  *string `json:"rntc" validate:"omitempty,max=20"`
 }
 
 // NfeFatItem is the invoice header (cobr.fat) in an NF-e emission request.
@@ -263,6 +303,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	terminals, err := resolvePaymentTerminals(ctx, s.paymentTerminalRepo, orgPK, req.Payments)
+	if err != nil {
+		return nil, err
+	}
+
 	// Unmarshal DynamoDB items to plain maps for BuildEnviNFe
 	orgAny, err := unmarshalToAny(orgItem)
 	if err != nil {
@@ -333,6 +378,12 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		if p.DPag != nil {
 			pm["d_pag"] = *p.DPag
 		}
+		if p.TerminalID != nil {
+			pm["terminal_id"] = terminalSK(*p.TerminalID)
+		}
+		if p.XPag != nil {
+			pm["x_pag"] = *p.XPag
+		}
 		if p.Card != nil {
 			pm["card"] = p.Card
 		}
@@ -366,6 +417,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 	additionalInfo := firstNonNil(req.AdditionalInfo, infCpl)
 
+	infAdFisco, err := interpolateOperationText(operation, opFieldInfAdFisco, interpVars)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build full enviNFe structure
 	enviNFe := BuildEnviNFe(
 		orgAny, receiverAny, orgPK,
@@ -378,7 +434,18 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		s.tech, nfModel55, nil,
 		req.Retirada, req.Entrega,
 		mode,
-		docExtras{NFRefs: nfRefs},
+		docExtras{
+			NFRefs: nfRefs,
+			Vols: buildVols(transportVols(req.Transport),
+				ptrStr(operationDefault(operation, opFieldVolEsp)),
+				ptrStr(operationDefault(operation, opFieldVolMarca))),
+			Reboques:         buildReboques(transportReboques(req.Transport)),
+			InfAdFisco:       ptrStr(infAdFisco),
+			ObsCont:          operationObs(operation, opFieldObsCont, interpVars),
+			ObsFisco:         operationObs(operation, opFieldObsFisco, interpVars),
+			ProcRef:          buildProcRef(req.ProcRef),
+			PaymentTerminals: terminals,
+		},
 	)
 
 	// Summary products for DynamoDB record
@@ -883,4 +950,62 @@ func ptrStr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// transportVols / transportReboques leem as listas do transporte sem forçar o
+// chamador a checar nil — transport é opcional na emissão.
+func transportVols(t *NfeTransportItem) []NfeVolBody {
+	if t == nil {
+		return nil
+	}
+	return t.Vols
+}
+
+func transportReboques(t *NfeTransportItem) []NfeReboqueBody {
+	if t == nil {
+		return nil
+	}
+	return t.Reboques
+}
+
+// terminalSK normaliza o id do terminal para o SK do cadastro, aceitando tanto
+// o uuid quanto o SK completo vindo da UI.
+func terminalSK(id string) string {
+	if strings.HasPrefix(id, repositories.SKPrefixPaymentTerminal) {
+		return id
+	}
+	return repositories.SKPrefixPaymentTerminal + id
+}
+
+// resolvePaymentTerminals lê num BatchGet só todos os terminais citados pelos
+// pagamentos. Um id inexistente é erro de request, não silêncio. Função livre e
+// não método: NF-e e NFC-e usam a mesma resolução.
+func resolvePaymentTerminals(ctx context.Context, repo *repositories.PaymentTerminalRepository, orgPK string, payments []NfePaymentItem) (map[string]map[string]any, error) {
+	var ids []string
+	for _, p := range payments {
+		if p.TerminalID != nil && *p.TerminalID != "" {
+			ids = append(ids, strings.TrimPrefix(*p.TerminalID, repositories.SKPrefixPaymentTerminal))
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	raw, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]map[string]any, len(raw))
+	for id, item := range raw {
+		m, err := unmarshalToAny(item)
+		if err != nil {
+			return nil, problem.InternalServer("failed to decode payment terminal")
+		}
+		out[repo.SK(id)] = m
+	}
+	for _, id := range ids {
+		if _, ok := out[repo.SK(id)]; !ok {
+			return nil, problem.NotFound("terminal de pagamento não encontrado: " + id)
+		}
+	}
+	return out, nil
 }

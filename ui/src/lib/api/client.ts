@@ -1,6 +1,8 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   OperationCreate,
+  PaymentTerminalCreate,
+  PaymentTerminalItemOut,
   PaymentTermCreate,
   PaymentTermItemOut,
   VehicleSetCreate,
@@ -489,6 +491,28 @@ class ApiClient {
 
   async deletePaymentTerm(id: string): Promise<void> {
     return this.del(`/v1.0/payment-terms/${id}`)
+  }
+
+  // Payment terminals (terminais de captura / POS)
+
+  async getPaymentTerminals(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<PaymentTerminalItemOut>> {
+    return this.get('/v1.0/payment-terminals', {params})
+  }
+
+  async getPaymentTerminal(id: string): Promise<PaymentTerminalItemOut> {
+    return this.get(`/v1.0/payment-terminals/${id}`)
+  }
+
+  async createPaymentTerminal(data: PaymentTerminalCreate): Promise<PaymentTerminalItemOut> {
+    return this.post('/v1.0/payment-terminals', data)
+  }
+
+  async updatePaymentTerminal(id: string, data: PaymentTerminalCreate): Promise<PaymentTerminalItemOut> {
+    return this.put(`/v1.0/payment-terminals/${id}`, data)
+  }
+
+  async deletePaymentTerminal(id: string): Promise<void> {
+    return this.del(`/v1.0/payment-terminals/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

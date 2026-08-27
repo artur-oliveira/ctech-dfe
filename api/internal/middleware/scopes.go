@@ -27,21 +27,22 @@ const (
 // too: `read` grants list/get across the family, `write` grants
 // create/update/delete across it (including the config).
 var scopeFamilies = map[string][]string{
-	"nfes":                       {"nfes", "nfe_events", "nfe_distributions", "organization_nfe_configs"},
-	"nfces":                      {"nfces", "nfce_events", "organization_nfce_configs"},
-	"ctes":                       {"ctes", "cte_events", "cte_distributions", "organization_cte_configs"},
-	"mdfes":                      {"mdfes", "mdfe_events", "mdfe_distributions", "organization_mdfe_configs"},
-	"nfses":                      {"nfses", "nfse_events", "nfse_distributions", "organization_nfse_configs"},
-	"organization_services":      {"organization_services"},
-	"organization_products":      {"organization_products"},
-	"organization_vehicles":      {"organization_vehicles"},
-	"organization_vehicle_sets":  {"organization_vehicle_sets"},
-	"organization_payment_terms": {"organization_payment_terms"},
-	"organization_tax_profiles":  {"organization_tax_profiles"},
-	"organization_operations":    {"organization_operations"},
-	"organization_persons":       {"organization_persons"},
-	"organizations":              {"organizations"},
-	"organization_certificates":  {"organization_certificates"},
+	"nfes":                           {"nfes", "nfe_events", "nfe_distributions", "organization_nfe_configs"},
+	"nfces":                          {"nfces", "nfce_events", "organization_nfce_configs"},
+	"ctes":                           {"ctes", "cte_events", "cte_distributions", "organization_cte_configs"},
+	"mdfes":                          {"mdfes", "mdfe_events", "mdfe_distributions", "organization_mdfe_configs"},
+	"nfses":                          {"nfses", "nfse_events", "nfse_distributions", "organization_nfse_configs"},
+	"organization_services":          {"organization_services"},
+	"organization_products":          {"organization_products"},
+	"organization_vehicles":          {"organization_vehicles"},
+	"organization_vehicle_sets":      {"organization_vehicle_sets"},
+	"organization_payment_terms":     {"organization_payment_terms"},
+	"organization_payment_terminals": {"organization_payment_terminals"},
+	"organization_tax_profiles":      {"organization_tax_profiles"},
+	"organization_operations":        {"organization_operations"},
+	"organization_persons":           {"organization_persons"},
+	"organizations":                  {"organizations"},
+	"organization_certificates":      {"organization_certificates"},
 }
 
 // readActions / writeActions map a scope access level to RBAC actions.
