@@ -475,6 +475,11 @@ func BuildEnviNFe(
 			}
 		}
 
+		// PISST/COFINSST são grupos irmãos de PIS/COFINS, não parte deles:
+		// combustíveis e farmacêutico recolhem a ST separada.
+		pisSTNode := buildPISST(cfopEntry, vBCIBSCBS)
+		cofinsSTNode := buildCOFINSST(cfopEntry, vBCIBSCBS)
+
 		var imposto map[string]any
 		if isISSQNItem && issqnNode != nil {
 			imposto = map[string]any{
@@ -492,8 +497,7 @@ func BuildEnviNFe(
 			}
 
 			ipiCST := cfgStr(cfopEntry, "ipi_cst", "")
-			ipiAliq := anyStrPtr(cfopEntry, "ipi_aliq")
-			ipiNode := buildIPI(ipiCST, vBCIBSCBS, ipiAliq)
+			ipiNode := buildIPI(ipiCST, vBCIBSCBS, qty, cfopEntry, item)
 			if ipiNode != nil {
 				if ipiData, ok := ipiNode["IPI"].(map[string]any); ok {
 					if ipiTrib, ok := ipiData["IPITrib"].(map[string]any); ok {
@@ -506,6 +510,13 @@ func BuildEnviNFe(
 			if len(icmsUFDestNode) > 0 {
 				imposto["ICMSUFDest"] = icmsUFDestNode
 			}
+		}
+
+		if pisSTNode != nil {
+			imposto["PISST"] = pisSTNode
+		}
+		if cofinsSTNode != nil {
+			imposto["COFINSST"] = cofinsSTNode
 		}
 
 		isCST := cfgStr(cfopEntry, "is_cst", "")

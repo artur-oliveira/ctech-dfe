@@ -554,8 +554,18 @@ export function TaxFieldsEditor({
             <div className="grid gap-1">
               <label className="text-sm font-medium text-gray-700">Alíquota %</label>
               <NumericInput value={value.ipi_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
-                            placeholder="0.0000"
+                            placeholder="0.0000" disabled={!!value.ipi_v_unid}
                             onChange={(v) => onChange((r) => ({...r, ipi_aliq: v}))}/>
+            </div>
+            <div className="grid gap-1 col-span-2">
+              <label className="text-sm font-medium text-gray-700">Valor por unidade (R$)</label>
+              <NumericInput value={value.ipi_v_unid ?? ''} decimal integerPlaces={13} decimalPlaces={4}
+                            placeholder="0.0000"
+                            onChange={(v) => onChange((r) => ({...r, ipi_v_unid: v}))}/>
+              <p className="text-xs text-gray-500">
+                Bebidas e cigarros recolhem IPI por unidade. Preenchido, substitui a alíquota — os dois
+                modos são exclusivos no leiaute.
+              </p>
             </div>
           </div>
         )}

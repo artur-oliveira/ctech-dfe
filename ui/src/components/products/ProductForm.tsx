@@ -144,6 +144,7 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   icms_part_uf_st: '',
   icms_mot_des_st: '',
   icms_p_fcp_dif: '',
+  ipi_v_unid: '',
   pis: '',
   cofins: '',
   pis_aliq: '',
@@ -256,6 +257,7 @@ function toFormData(p: ProductOut): ProductFormData {
       icms_part_uf_st: c.icms_part_uf_st ?? '',
       icms_mot_des_st: c.icms_mot_des_st ?? '',
       icms_p_fcp_dif: c.icms_p_fcp_dif ?? '',
+      ipi_v_unid: c.ipi_v_unid ?? '',
       pis_aliq: c.pis_aliq ?? '',
       cofins_aliq: c.cofins_aliq ?? '',
       pis_aliq_unid: c.pis_aliq_unid ?? '',
@@ -312,6 +314,10 @@ function toFormData(p: ProductOut): ProductFormData {
     med_c_prod_anvisa: p.med_c_prod_anvisa ?? '',
     med_x_motivo_isencao: p.med_x_motivo_isencao ?? '',
     med_v_pmc: p.med_v_pmc ?? '',
+    ipi_cnpj_prod: p.ipi_cnpj_prod ?? '',
+    ipi_c_selo: p.ipi_c_selo ?? '',
+    ipi_q_selo: p.ipi_q_selo ?? '',
+    ipi_c_enq: p.ipi_c_enq ?? '',
     peri_n_onu: p.peri_n_onu ?? '',
     peri_x_nome_ae: p.peri_x_nome_ae ?? '',
     peri_x_cla_risco: p.peri_x_cla_risco ?? '',
@@ -438,6 +444,7 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       icms_part_uf_st: nullify(c.icms_part_uf_st),
       icms_mot_des_st: nullify(c.icms_mot_des_st),
       icms_p_fcp_dif: nullify(c.icms_p_fcp_dif),
+      ipi_v_unid: nullify(c.ipi_v_unid),
       // ISSQN
       issqn_ind_iss: nullify(c.issqn_ind_iss),
       issqn_c_list_serv: nullify(c.issqn_c_list_serv),
@@ -466,6 +473,10 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     med_c_prod_anvisa: nullify(data.med_c_prod_anvisa),
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
+    ipi_cnpj_prod: nullify(data.ipi_cnpj_prod),
+    ipi_c_selo: nullify(data.ipi_c_selo),
+    ipi_q_selo: nullify(data.ipi_q_selo),
+    ipi_c_enq: nullify(data.ipi_c_enq),
     peri_n_onu: nullify(data.peri_n_onu),
     peri_x_nome_ae: nullify(data.peri_x_nome_ae),
     peri_x_cla_risco: nullify(data.peri_x_cla_risco),
@@ -562,6 +573,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       comb_c_prod_anp: '', comb_desc_anp: '', comb_uf_cons: '', comb_codif: '',
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
+      ipi_cnpj_prod: '', ipi_c_selo: '', ipi_q_selo: '', ipi_c_enq: '',
       peri_n_onu: '', peri_x_nome_ae: '', peri_x_cla_risco: '', peri_gr_emb: '', peri_q_vol_tipo: '',
       veic_tp_op: '', veic_tp_comb: '', veic_tp_pint: '', veic_tp_veic: '',
       veic_esp_veic: '', veic_vin: '', veic_cond_veic: '', veic_c_mod: '',
@@ -1336,6 +1348,53 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 </div>
               </div>
             )}
+
+            {/* ── IPI — selo de controle e enquadramento ──────────────── */}
+            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                IPI — selo de controle
+              </p>
+              <p className="text-xs text-gray-500">
+                Só para produto com selo (bebidas, cigarros). O enquadramento legal (cEnq) sai como
+                <span className="font-medium"> 999</span> quando não informado.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField control={form.control} name="ipi_cnpj_prod" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>CNPJ do produtor</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={18}
+                           placeholder="Somente números"
+                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Enquadramento legal (cEnq)</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
+                           inputMode="numeric" placeholder="999"
+                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="ipi_c_selo" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Código do selo</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="ipi_q_selo" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Quantidade de selos</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={12}
+                           inputMode="numeric"
+                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+              </div>
+            </div>
 
             {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
             <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">

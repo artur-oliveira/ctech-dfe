@@ -578,6 +578,11 @@ components:
         cbs_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         ipi_cst: { type: [ string, 'null' ] }
         ipi_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ipi_v_unid:
+          type: [ string, 'null' ]
+          description: |
+            IPI por unidade (bebidas, cigarros). Presente, o item sai com
+            `qUnid`+`vUnid` no lugar de `vBC`+`pIPI` — são choice no XSD.
         is_cst: { type: [ string, 'null' ], description: CST do Imposto Seletivo. }
         is_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         is_class_trib: { type: [ string, 'null' ], pattern: '^\d{6}$' }
@@ -678,6 +683,12 @@ components:
         med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
         med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
         med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        ipi_cnpj_prod: { type: [ string, 'null' ], pattern: '^\d{14}$' }
+        ipi_c_selo: { type: [ string, 'null' ], maxLength: 60 }
+        ipi_q_selo: { type: [ string, 'null' ] }
+        ipi_c_enq:
+          type: [ string, 'null' ]
+          description: Enquadramento legal do IPI (`cEnq`); `999` quando ausente.
         peri_n_onu:
           type: [ string, 'null' ]
           maxLength: 4

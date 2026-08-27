@@ -76,6 +76,8 @@ export const cfopConfigSchema = z.object({
   // ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90)
   icms_mot_des_st: optionalStr,
   icms_p_fcp_dif: optionalPercent,
+  // IPI por unidade — vUnid presente troca vBC+pIPI por qUnid+vUnid
+  ipi_v_unid: optionalStr,
   // PIS/COFINS
   pis: z.string().regex(/^\d{2}$/, 'PIS deve ter 2 dígitos'),
   cofins: z.string().regex(/^\d{2}$/, 'COFINS deve ter 2 dígitos'),
@@ -198,6 +200,11 @@ export const productSchema = z.object({
   med_v_pmc: nullableStr(z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valor inválido')),
   // peri — classificação de produto perigoso (MDF-e). Cadastrada uma vez aqui;
   // o MDF-e a deriva sozinho ao referenciar a NF-e que contém o item.
+  // Selo de controle do IPI e enquadramento legal — nível produto
+  ipi_cnpj_prod: nullableStr(z.string().regex(/^\d{14}$/, 'CNPJ tem 14 dígitos')),
+  ipi_c_selo: nullableStr(z.string().max(60)),
+  ipi_q_selo: nullableStr(z.string().regex(/^\d{1,12}$/, 'Quantidade inválida')),
+  ipi_c_enq: nullableStr(z.string().regex(/^\d{1,3}$/, 'Enquadramento tem até 3 dígitos')),
   peri_n_onu: nullableStr(z.string().regex(/^\d{1,4}$/, 'ONU tem até 4 dígitos')),
   peri_x_nome_ae: nullableStr(z.string().max(150)),
   peri_x_cla_risco: nullableStr(z.string().max(40)),

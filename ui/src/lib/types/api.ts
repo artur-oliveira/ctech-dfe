@@ -299,6 +299,8 @@ export interface CfopConfigItem {
   /** ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90). */
   icms_mot_des_st?: string | null
   icms_p_fcp_dif?: string | null
+  /** IPI por unidade (bebidas, cigarros) — choice com vBC+pIPI. */
+  ipi_v_unid?: string | null
   pis: string
   cofins: string
   pis_aliq?: string | null
@@ -397,6 +399,11 @@ export interface ProductOut {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** Selo de controle do IPI e enquadramento legal. */
+  ipi_cnpj_prod?: string | null
+  ipi_c_selo?: string | null
+  ipi_q_selo?: string | null
+  ipi_c_enq?: string | null
   /** Classificação de produto perigoso (MDF-e peri). */
   peri_n_onu?: string | null
   peri_x_nome_ae?: string | null
@@ -472,6 +479,11 @@ export interface ProductCreate {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** Selo de controle do IPI e enquadramento legal. */
+  ipi_cnpj_prod?: string | null
+  ipi_c_selo?: string | null
+  ipi_q_selo?: string | null
+  ipi_c_enq?: string | null
   /** Classificação de produto perigoso (MDF-e peri). */
   peri_n_onu?: string | null
   peri_x_nome_ae?: string | null

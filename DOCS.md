@@ -927,6 +927,9 @@ the frontend's divergence warning.
 | ST desonerada (ICMS10/70/90)                   | `icms_mot_des_st` — `vICMSSTDeson` é o próprio ICMS-ST calculado |
 | FCP diferido (ICMS51/90)                       | `icms_p_fcp_dif` — `vFCPDif` e `vFCPEfet` são calculados |
 | Partilha do ICMS entre UFs (`ICMSPart`)        | `icms_part_p_bc_op` + `icms_part_uf_st`. Não há CST próprio: com o par presente, CST 10/90 emite `ICMSPart` no lugar de `ICMS10`/`ICMS90` |
+| IPI por unidade (bebidas, cigarros)            | `ipi_v_unid` — troca `vBC`+`pIPI` por `qUnid`+`vUnid` (choice no XSD) |
+| IPI com selo de controle                       | produto: `ipi_cnpj_prod`, `ipi_c_selo`, `ipi_q_selo`, `ipi_c_enq` (default `999`) |
+| PIS-ST / COFINS-ST (combustíveis, farmacêutico) | `pis_st_aliq`/`pis_st_v_bc`, `cofins_st_aliq`/`cofins_st_v_bc` — grupos `PISST`/`COFINSST`, irmãos de PIS/COFINS. Sem base própria, a base é o valor do produto |
 | ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret` |
 
 **Specific product types** (`prod_type`):

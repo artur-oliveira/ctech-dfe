@@ -419,27 +419,72 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 
 var ipiCSTTributado = map[string]bool{"50": true, "51": true}
 
-func buildIPI(ipiCST string, vProd decimal.Decimal, ipiAliq *string) map[string]any {
+func buildIPI(ipiCST string, vProd, qty decimal.Decimal, cfg, item map[string]any) map[string]any {
 	if ipiCST == "" {
 		return nil
 	}
-	aliq := "0.0000"
-	if ipiAliq != nil && *ipiAliq != "" {
-		aliq = *ipiAliq
+	// cEnq é o enquadramento legal do IPI: vem do produto, com o genérico 999
+	// como default (é o que a Receita aceita quando não há enquadramento).
+	node := map[string]any{}
+	if v := anyStrPtr(item, "ipi_cnpj_prod"); v != nil && *v != "" {
+		node["CNPJProd"] = *v
 	}
-	if ipiCSTTributado[ipiCST] {
-		vIPI := q2(vProd.Mul(d(aliq)).Div(decimal.NewFromInt(100)).RoundBank(2))
-		return map[string]any{"IPI": map[string]any{
-			"cEnq": "999",
-			"IPITrib": map[string]any{
-				"CST":  ipiCST,
-				"vBC":  q2(vProd.RoundBank(2)),
-				"pIPI": aliq,
-				"vIPI": vIPI,
-			},
-		}}
+	if v := anyStrPtr(item, "ipi_c_selo"); v != nil && *v != "" {
+		node["cSelo"] = *v
+		if q := anyStrPtr(item, "ipi_q_selo"); q != nil && *q != "" {
+			node["qSelo"] = *q
+		}
 	}
-	return map[string]any{"IPI": map[string]any{"cEnq": "999", "IPINT": map[string]any{"CST": ipiCST}}}
+	node["cEnq"] = anyStr(item, "ipi_c_enq", "999")
+
+	if !ipiCSTTributado[ipiCST] {
+		node["IPINT"] = map[string]any{"CST": ipiCST}
+		return map[string]any{"IPI": node}
+	}
+
+	// vBC+pIPI e qUnid+vUnid são choice no XSD: o IPI é ad valorem ou por
+	// unidade, nunca os dois. vUnid configurado é o que decide.
+	trib := map[string]any{"CST": ipiCST}
+	if vUnid := cfgStrPtr(cfg, "ipi_v_unid"); vUnid != nil && *vUnid != "" {
+		qUnid := q4(qty.RoundBank(4))
+		trib["qUnid"] = qUnid
+		trib["vUnid"] = *vUnid
+		trib["vIPI"] = q2(d(qUnid).Mul(d(*vUnid)).RoundBank(2))
+	} else {
+		aliq := cfgStr(cfg, "ipi_aliq", "0.0000")
+		trib["vBC"] = q2(vProd.RoundBank(2))
+		trib["pIPI"] = aliq
+		trib["vIPI"] = q2(vProd.Mul(d(aliq)).Div(decimal.NewFromInt(100)).RoundBank(2))
+	}
+	node["IPITrib"] = trib
+	return map[string]any{"IPI": node}
+}
+
+// buildPISCOFINSST monta PISST/COFINSST, que têm estrutura idêntica e só
+// diferem nos nomes das tags. Base própria (v_bc) quando informada; senão o
+// valor do produto. O modo por quantidade (qBCProd+vAliqProd) fica de fora até
+// haver caso concreto — o XSD é choice e adivinhar o ramo é pior que não emitir.
+func buildPISCOFINSST(cfg map[string]any, vProd decimal.Decimal, aliqKey, vbcKey, pTag, vTag string) map[string]any {
+	aliq := cfgStrPtr(cfg, aliqKey)
+	if aliq == nil || *aliq == "" {
+		return nil
+	}
+	vBC := vProd.RoundBank(2)
+	if v := cfgStrPtr(cfg, vbcKey); v != nil && *v != "" {
+		vBC = d(*v)
+	}
+	return map[string]any{
+		"vBC": q2(vBC), pTag: *aliq,
+		vTag: q2(vBC.Mul(d(*aliq)).Div(decimal.NewFromInt(100)).RoundBank(2)),
+	}
+}
+
+func buildPISST(cfg map[string]any, vProd decimal.Decimal) map[string]any {
+	return buildPISCOFINSST(cfg, vProd, "pis_st_aliq", "pis_st_v_bc", "pPIS", "vPIS")
+}
+
+func buildCOFINSST(cfg map[string]any, vProd decimal.Decimal) map[string]any {
+	return buildPISCOFINSST(cfg, vProd, "cofins_st_aliq", "cofins_st_v_bc", "pCOFINS", "vCOFINS")
 }
 
 // ─── IS ──────────────────────────────────────────────────────────────────────

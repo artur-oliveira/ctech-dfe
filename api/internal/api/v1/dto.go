@@ -255,6 +255,9 @@ type TaxFieldsBody struct {
 	CofinsStAliq *string `json:"cofins_st_aliq" validate:"omitempty,percent"`
 	PisStVBc     *string `json:"pis_st_v_bc" validate:"omitempty,money2"`
 	CofinsStVBc  *string `json:"cofins_st_v_bc" validate:"omitempty,money2"`
+	// IPI por unidade (bebidas, cigarros): vUnid presente troca vBC+pIPI por
+	// qUnid+vUnid — são choice no XSD.
+	IpiVUnid *string `json:"ipi_v_unid" validate:"omitempty,money"`
 	// IBS / CBS (Reforma Tributária) — opcional, tudo-ou-nada (ver validateIbsCbsGroup).
 	// Vigência obrigatória: 2026-08-03 (não-Simples) / 2027-01-04 (Simples/MEI) —
 	// até lá, e mesmo depois para quem ainda não migrou, o grupo pode ficar ausente.
@@ -536,6 +539,11 @@ type ProductBody struct {
 	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
 	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
 	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
+	// Selo de controle do IPI e enquadramento legal — nível produto.
+	IpiCnpjProd   *string `json:"ipi_cnpj_prod" validate:"omitempty,digits14"`
+	IpiCSelo      *string `json:"ipi_c_selo" validate:"omitempty,max=60"`
+	IpiQSelo      *string `json:"ipi_q_selo" validate:"omitempty,max=12,number"`
+	IpiCEnq       *string `json:"ipi_c_enq" validate:"omitempty,max=3,number"`
 	PeriNOnu      *string `json:"peri_n_onu" validate:"omitempty,max=4,number"`
 	PeriXNomeAE   *string `json:"peri_x_nome_ae" validate:"omitempty,max=150"`
 	PeriXClaRisco *string `json:"peri_x_cla_risco" validate:"omitempty,max=40"`

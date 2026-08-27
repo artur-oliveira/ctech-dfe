@@ -136,14 +136,14 @@ func TestBuildICMSNormal_ICMSCalculationCST00(t *testing.T) {
 // ─── buildIPI ─────────────────────────────────────────────────────────────────
 
 func TestBuildIPI_EmptyCSTReturnsNil(t *testing.T) {
-	result := buildIPI("", dec("100.00"), nil)
+	result := buildIPI("", dec("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
 	if result != nil {
 		t.Errorf("empty CST should return nil, got %v", result)
 	}
 }
 
 func TestBuildIPI_TributadoCST50(t *testing.T) {
-	result := buildIPI("50", dec("100.00"), new("10.00"))
+	result := buildIPI("50", dec("100.00"), decimal.NewFromInt(1), map[string]any{"ipi_aliq": "10.00"}, map[string]any{})
 	ipi := mapKey(t, result, "IPI")
 	trib := mapKey(t, ipi, "IPITrib")
 	strField(t, trib, "CST", "50")
@@ -153,7 +153,7 @@ func TestBuildIPI_TributadoCST50(t *testing.T) {
 }
 
 func TestBuildIPI_NaoTributadoCST03(t *testing.T) {
-	result := buildIPI("03", dec("100.00"), nil)
+	result := buildIPI("03", dec("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
 	ipi := mapKey(t, result, "IPI")
 	nt := mapKey(t, ipi, "IPINT")
 	strField(t, nt, "CST", "03")
@@ -362,5 +362,65 @@ func TestICMS00FCPSemVBCFCP(t *testing.T) {
 	}
 	if _, ok := n["vBCFCP"]; ok {
 		t.Fatalf("vBCFCP não existe em ICMS00: %v", n)
+	}
+}
+
+func TestBuildIPIPorUnidade(t *testing.T) {
+	got := buildIPI("50", decimal.RequireFromString("100.00"), decimal.RequireFromString("3"),
+		map[string]any{"ipi_v_unid": "1.5000"}, map[string]any{"ipi_c_enq": "999"})
+	trib := got["IPI"].(map[string]any)["IPITrib"].(map[string]any)
+	if trib["qUnid"] != "3.0000" || trib["vUnid"] != "1.5000" || trib["vIPI"] != "4.50" {
+		t.Fatalf("IPI por unidade errado: %v", trib)
+	}
+	if _, ok := trib["pIPI"]; ok {
+		t.Fatal("qUnid/vUnid e vBC/pIPI são choice — não coexistem")
+	}
+}
+
+func TestBuildIPISelo(t *testing.T) {
+	got := buildIPI("50", decimal.RequireFromString("100.00"), decimal.NewFromInt(1),
+		map[string]any{"ipi_aliq": "10.00"},
+		map[string]any{"ipi_cnpj_prod": "11111111111111", "ipi_c_selo": "S1", "ipi_q_selo": "10"})
+	ipi := got["IPI"].(map[string]any)
+	if ipi["CNPJProd"] != "11111111111111" || ipi["cSelo"] != "S1" || ipi["qSelo"] != "10" {
+		t.Fatalf("selo ausente: %v", ipi)
+	}
+	trib := ipi["IPITrib"].(map[string]any)
+	if trib["pIPI"] != "10.00" || trib["vIPI"] != "10.00" {
+		t.Fatalf("IPI ad valorem errado: %v", trib)
+	}
+}
+
+// cEnq vem do produto; 999 é o default de quem não tem enquadramento.
+func TestBuildIPICEnqDoProduto(t *testing.T) {
+	got := buildIPI("53", decimal.RequireFromString("100.00"), decimal.NewFromInt(1),
+		map[string]any{}, map[string]any{"ipi_c_enq": "101"})
+	if got["IPI"].(map[string]any)["cEnq"] != "101" {
+		t.Fatalf("cEnq do produto ignorado: %v", got)
+	}
+	def := buildIPI("53", decimal.RequireFromString("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
+	if def["IPI"].(map[string]any)["cEnq"] != "999" {
+		t.Fatalf("default de cEnq errado: %v", def)
+	}
+}
+
+func TestBuildPISST(t *testing.T) {
+	got := buildPISST(map[string]any{"pis_st_v_bc": "120.00", "pis_st_aliq": "1.65"}, decimal.RequireFromString("100.00"))
+	if got["vBC"] != "120.00" || got["pPIS"] != "1.65" || got["vPIS"] != "1.98" {
+		t.Fatalf("PISST errado: %v", got)
+	}
+}
+
+func TestBuildPISSTAusente(t *testing.T) {
+	if buildPISST(map[string]any{}, decimal.RequireFromString("100.00")) != nil {
+		t.Fatal("sem configuração de ST, o grupo não existe")
+	}
+}
+
+// Sem base própria, a base é o valor do produto.
+func TestBuildCOFINSSTUsaVProdSemBase(t *testing.T) {
+	got := buildCOFINSST(map[string]any{"cofins_st_aliq": "7.60"}, decimal.RequireFromString("100.00"))
+	if got["vBC"] != "100.00" || got["vCOFINS"] != "7.60" {
+		t.Fatalf("COFINSST errado: %v", got)
 	}
 }
