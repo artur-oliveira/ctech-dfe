@@ -1,6 +1,8 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   OperationCreate,
+  CargoUnitCreate,
+  CargoUnitItemOut,
   TollProviderCreate,
   TollProviderItemOut,
   PaymentTerminalCreate,
@@ -537,6 +539,28 @@ class ApiClient {
 
   async deleteTollProvider(id: string): Promise<void> {
     return this.del(`/v1.0/toll-providers/${id}`)
+  }
+
+  // Cargo units (unidades de transporte e de carga do MDF-e)
+
+  async getCargoUnits(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<CargoUnitItemOut>> {
+    return this.get('/v1.0/cargo-units', {params})
+  }
+
+  async getCargoUnit(id: string): Promise<CargoUnitItemOut> {
+    return this.get(`/v1.0/cargo-units/${id}`)
+  }
+
+  async createCargoUnit(data: CargoUnitCreate): Promise<CargoUnitItemOut> {
+    return this.post('/v1.0/cargo-units', data)
+  }
+
+  async updateCargoUnit(id: string, data: CargoUnitCreate): Promise<CargoUnitItemOut> {
+    return this.put(`/v1.0/cargo-units/${id}`, data)
+  }
+
+  async deleteCargoUnit(id: string): Promise<void> {
+    return this.del(`/v1.0/cargo-units/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

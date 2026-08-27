@@ -419,6 +419,24 @@ type TollProviderBody struct {
 	TpValePed *string `json:"tp_vale_ped" validate:"omitempty,oneof=01 02 03"`
 }
 
+// CargoUnitBody é o body de POST/PUT /cargo-units.
+//
+// Uma unidade de transporte (carreta, vagão) ou de carga (contêiner, pallet)
+// recorre entre viagens e tem identificação própria. O rateio (qtdRat) não vive
+// aqui: é calculado dos pesos dos documentos a cada manifesto.
+type CargoUnitBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// Kind separa infUnidTransp de infUnidCarga — a estrutura é a mesma, o nó não.
+	Kind string `json:"kind" validate:"required,oneof=transport cargo"`
+	// TpUnidTransp: 1 rodoviário tração, 2 rodoviário reboque, 3 navio, 4 balsa,
+	// 5 aeronave, 6 vagão, 7 outros. TpUnidCarga: 1 contêiner, 2 ULD, 3 pallet, 4 outros.
+	TpUnid string `json:"tp_unid" validate:"required,oneof=1 2 3 4 5 6 7"`
+	// IdUnid é a identificação (placa, número do contêiner, número do vagão).
+	IdUnid string `json:"id_unid" validate:"required,max=20"`
+	// Seals são os lacres fixos da unidade, quando houver.
+	Seals []string `json:"seals" validate:"omitempty,dive,max=60"`
+}
+
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
 type ObsBody struct {
 	XCampo string `json:"x_campo" validate:"required,max=20"`

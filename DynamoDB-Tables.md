@@ -785,3 +785,26 @@ perguntado — é derivado do número de reboques do próprio manifesto.
 | `cpf_pg`      | S    | Idem, pessoa física → `disp/CPFPg`                                      |
 | `tp_vale_ped` | S    | `01` TAG · `02` cupom · `03` cartão → `disp/tpValePed`                  |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                              |
+
+---
+
+## 39. `organization_cargo_units`
+
+Unidades de transporte (carreta, vagão) e de carga (contêiner, pallet). Mesma forma dos demais
+cadastros reutilizáveis (`pk` = org, `sk` = `CARGOUNIT_{uuid}`, GSI `name-index`).
+
+A unidade recorre entre viagens, então tipo, identificação e lacres fixos vivem aqui. O **rateio**
+(`qtdRat`) nunca é gravado nem perguntado: a emissão do MDF-e o calcula a partir dos pesos dos
+documentos que cada unidade leva (`rateCargo`, em `api/internal/services/mdfes/rateio.go`), com a
+última chave absorvendo o resíduo para o somatório fechar em 100,00.
+
+| Attribute   | Type | Notes                                                                              |
+|-------------|------|--------------------------------------------------------------------------------------|
+| `pk`        | S    | `{org_pk}`                                                                           |
+| `sk`        | S    | `CARGOUNIT_{uuid}`                                                                   |
+| `name`      | S    | Nome de uso ("Carreta 1"). GSI: `name-index`                                         |
+| `kind`      | S    | `transport` → `infUnidTransp` · `cargo` → `infUnidCarga`                             |
+| `tp_unid`   | S    | `tpUnidTransp` (1–7) ou `tpUnidCarga` (1–4), conforme `kind`                          |
+| `id_unid`   | S    | Identificação → `idUnidTransp` / `idUnidCarga` (placa, contêiner, vagão)              |
+| `seals`     | L    | Lacres fixos → `lacUnidTransp` / `lacUnidCarga`                                       |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                          |

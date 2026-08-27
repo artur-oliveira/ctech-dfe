@@ -39,6 +39,7 @@ import type {
   MdfeMunIn,
   MdfeContractorIn,
   MdfePaymentIn,
+  MdfeTransportUnitIn,
   MdfeTollIn,
   NfeListOut,
   VehicleCreate,
@@ -47,6 +48,7 @@ import type {
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
+import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
 
 /** Lacres são digitados numa linha só; o leiaute quer uma lista de nLacre. */
 const splitSeals = (raw: string): string[] | undefined => {
@@ -384,6 +386,7 @@ export function MdfeEmitForm() {
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
   const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
   const [redelivery, setRedelivery] = useState<Record<string, boolean>>({})
+  const [transportUnits, setTransportUnits] = useState<MdfeTransportUnitIn[]>([])
   const [seals, setSeals] = useState('')
   const [rodoSeals, setRodoSeals] = useState('')
   const [portAgentCode, setPortAgentCode] = useState('')
@@ -607,6 +610,7 @@ export function MdfeEmitForm() {
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
       redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
+      transport_units: transportUnits.length ? transportUnits : undefined,
       seals: splitSeals(seals),
       rodo_seals: splitSeals(rodoSeals),
       port_agent_code: portAgentCode || undefined,
@@ -754,6 +758,8 @@ export function MdfeEmitForm() {
 
           <FreightPaymentFields payments={freightPayments} onChange={setFreightPayments}
                                 required={contractors.length > 0}/>
+
+          <TransportUnitsFields units={transportUnits} onChange={setTransportUnits} documentKeys={docKeys}/>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Lacres (opcional)</p>

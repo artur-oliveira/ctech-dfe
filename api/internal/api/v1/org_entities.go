@@ -146,6 +146,18 @@ func RegisterTollProviders(router fiber.Router, svc *services.TollProviderServic
 	})
 }
 
+// RegisterCargoUnits mounts /cargo-units under a tenant-scoped group.
+func RegisterCargoUnits(router fiber.Router, svc *services.CargoUnitService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/cargo-units",
+		param:      "cargo_unit_id",
+		resource:   "organization_cargo_units",
+		bindCreate: bindEntityCreate[CargoUnitBody],
+		bindUpdate: bindEntityUpdate[CargoUnitBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

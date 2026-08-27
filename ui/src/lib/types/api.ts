@@ -797,6 +797,29 @@ export interface TollProviderItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — unidades de transporte e de carga (MDF-e)
+export interface CargoUnitCreate extends Record<string, unknown> {
+  name: string
+  /** transport = infUnidTransp (carreta, vagão); cargo = infUnidCarga (contêiner, pallet). */
+  kind: 'transport' | 'cargo'
+  tp_unid: string
+  id_unid: string
+  seals?: string[] | null
+}
+
+export interface CargoUnitItemOut {
+  pk: string
+  sk: string
+  name: string
+  kind: 'transport' | 'cargo'
+  tp_unid: string
+  id_unid: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — condições de pagamento e composições veiculares
 export interface PaymentTermCreate extends Record<string, unknown> {
   name: string
@@ -1204,6 +1227,8 @@ export interface MdfeEmit {
   toll_vouchers?: MdfeTollIn[] | null
   contractors?: MdfeContractorIn[] | null
   payments?: MdfePaymentIn[] | null
+  /** Unidades de transporte da viagem (infUnidTransp). */
+  transport_units?: MdfeTransportUnitIn[] | null
   /** Chaves dos documentos em reentrega (infDoc/.../indReentrega). */
   redelivery_keys?: string[] | null
   /** Lacres da carga (infMDFe/lacres). */
@@ -1212,6 +1237,14 @@ export interface MdfeEmit {
   rodo_seals?: string[] | null
   /** Código do agente portuário (rodo/codAgPorto). */
   port_agent_code?: string | null
+}
+
+/** Unidade de transporte da viagem: unidade do cadastro, documentos que ela
+ *  leva e unidades de carga dentro dela. O rateio é calculado no backend. */
+export interface MdfeTransportUnitIn {
+  cargo_unit_id: string
+  document_keys: string[]
+  cargo_unit_ids?: string[]
 }
 
 /** Componente do valor do frete (`infPag/Comp`). */

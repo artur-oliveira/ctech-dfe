@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  Container,
   CreditCard,
   ClipboardList,
   Combine,
@@ -59,6 +60,11 @@ export const CalendarClockIcon = ({width = 16, height = 16}: IconProps) => (
 /** Terminal de captura (POS) — CNPJ recebedor e id da maquininha */
 export const CreditCardIcon = ({width = 16, height = 16}: IconProps) => (
   <CreditCard width={width} height={height}/>
+)
+
+/** Unidade de transporte/carga — carreta, vagão, contêiner, pallet */
+export const PackageIcon = ({width = 16, height = 16}: IconProps) => (
+  <Container width={width} height={height}/>
 )
 
 /** Composição veicular — cavalo, reboques e condutores que andam juntos */

@@ -30,6 +30,7 @@ type Services struct {
 	PaymentTerm     *services.PaymentTermService
 	PaymentTerminal *services.PaymentTerminalService
 	TollProvider    *services.TollProviderService
+	CargoUnit       *services.CargoUnitService
 	VehicleSet      *services.VehicleSetService
 	Person          *services.PersonService
 	Vehicle         *services.VehicleService
@@ -90,6 +91,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterPaymentTerms(v1, svcs.PaymentTerm, svcs.User, authMw, perm)
 	RegisterPaymentTerminals(v1, svcs.PaymentTerminal, svcs.User, authMw, perm)
 	RegisterTollProviders(v1, svcs.TollProvider, svcs.User, authMw, perm)
+	RegisterCargoUnits(v1, svcs.CargoUnit, svcs.User, authMw, perm)
 	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)

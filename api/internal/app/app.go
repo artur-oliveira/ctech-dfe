@@ -58,6 +58,7 @@ var Module = fx.Options(
 		repositories.NewPaymentTermRepository,
 		repositories.NewPaymentTerminalRepository,
 		repositories.NewTollProviderRepository,
+		repositories.NewCargoUnitRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -91,6 +92,7 @@ var Module = fx.Options(
 		newPaymentTermService,
 		newPaymentTerminalService,
 		newTollProviderService,
+		newCargoUnitService,
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
@@ -276,6 +278,10 @@ func newTollProviderService(repo *repositories.TollProviderRepository, auditRepo
 	return services.NewTollProviderService(repo, auditRepo, c)
 }
 
+func newCargoUnitService(repo *repositories.CargoUnitRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.CargoUnitService {
+	return services.NewCargoUnitService(repo, auditRepo, c)
+}
+
 func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
 	return services.NewPaymentTermService(repo, auditRepo, c)
 }
@@ -405,6 +411,7 @@ func newMDFeService(
 	vehicleSetRepo *repositories.VehicleSetRepository,
 	tollProviderRepo *repositories.TollProviderRepository,
 	productRepo *repositories.ProductRepository,
+	cargoUnitRepo *repositories.CargoUnitRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -414,7 +421,7 @@ func newMDFeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
-		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo,
+		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo, cargoUnitRepo,
 		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -471,6 +478,7 @@ type Services struct {
 	PayTermSvc      *services.PaymentTermService
 	PayTerminalSvc  *services.PaymentTerminalService
 	TollProviderSvc *services.TollProviderService
+	CargoUnitSvc    *services.CargoUnitService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
 	VehicleSvc      *services.VehicleService
@@ -508,6 +516,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		PaymentTerm:     svcs.PayTermSvc,
 		PaymentTerminal: svcs.PayTerminalSvc,
 		TollProvider:    svcs.TollProviderSvc,
+		CargoUnit:       svcs.CargoUnitSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,
 		Vehicle:         svcs.VehicleSvc,

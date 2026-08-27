@@ -546,6 +546,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Unidades de transporte e de carga ──────────────────────────────────────
+
+  /v1.0/cargo-units:
+    get:
+      tags: [ CargoUnits ]
+      summary: Lista unidades de transporte e de carga
+      operationId: listCargoUnits
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de unidades
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ CargoUnits ]
+      summary: Cria uma unidade de transporte ou de carga
+      operationId: createCargoUnit
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CargoUnitBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/cargo-units/{cargo_unit_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: cargo_unit_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ CargoUnits ]
+      summary: Detalha uma unidade
+      operationId: getCargoUnit
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ CargoUnits ]
+      summary: Atualiza uma unidade
+      operationId: updateCargoUnit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CargoUnitBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ CargoUnits ]
+      summary: Remove uma unidade
+      operationId: deleteCargoUnit
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -863,6 +963,47 @@ components:
         sk: { type: string }
         name: { type: string }
         cnpj_forn: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CargoUnitBody:
+      type: object
+      description: |
+        Unidade de transporte (carreta, vagão) ou de carga (contêiner, pallet).
+        Recorre entre viagens, então identificação, tipo e lacres fixos ficam no
+        cadastro. O rateio (`qtdRat`) **não** vive aqui: é calculado dos pesos
+        dos documentos a cada manifesto.
+      required: [ name, kind, tp_unid, id_unid ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        kind:
+          type: string
+          enum: [ transport, cargo ]
+          description: Separa `infUnidTransp` de `infUnidCarga` — mesma estrutura, nó diferente.
+        tp_unid:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7' ]
+          description: |
+            `tpUnidTransp`: 1 rodoviário tração · 2 rodoviário reboque · 3 navio ·
+            4 balsa · 5 aeronave · 6 vagão · 7 outros.
+            `tpUnidCarga`: 1 contêiner · 2 ULD · 3 pallet · 4 outros.
+        id_unid: { type: string, maxLength: 20, description: Placa, número do contêiner ou do vagão. }
+        seals:
+          type: array
+          description: Lacres fixos da unidade (`lacUnidTransp` / `lacUnidCarga`).
+          items: { type: string, maxLength: 60 }
+
+    CargoUnitItem:
+      type: object
+      description: Unidade de transporte ou de carga persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        tp_unid: { type: string }
+        id_unid: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

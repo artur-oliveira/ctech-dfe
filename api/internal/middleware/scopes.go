@@ -39,6 +39,7 @@ var scopeFamilies = map[string][]string{
 	"organization_payment_terms":     {"organization_payment_terms"},
 	"organization_payment_terminals": {"organization_payment_terminals"},
 	"organization_toll_providers":    {"organization_toll_providers"},
+	"organization_cargo_units":       {"organization_cargo_units"},
 	"organization_tax_profiles":      {"organization_tax_profiles"},
 	"organization_operations":        {"organization_operations"},
 	"organization_persons":           {"organization_persons"},

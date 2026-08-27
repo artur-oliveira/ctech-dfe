@@ -1211,6 +1211,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Composição veicular     | `/v1.0/vehicle-sets`      | `VEHICLESET_`   | `organization_vehicle_sets`   |
 | Terminal de pagamento   | `/v1.0/payment-terminals` | `TERMINAL_`     | `organization_payment_terminals` |
 | Fornecedora de vale-pedágio | `/v1.0/toll-providers` | `TOLLPROVIDER_` | `organization_toll_providers` |
+| Unidade de transporte/carga | `/v1.0/cargo-units` | `CARGOUNIT_` | `organization_cargo_units` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -1656,6 +1657,12 @@ dos campos `peri_*` do cadastro, agrupando por número ONU e somando as quantida
 não gera grupo; item que não existe no cadastro é ignorado (a NF-e já foi autorizada com ele). Nada de
 produto perigoso é perguntado por viagem.
 
+- `transport_units[]?` — unidades de transporte da viagem (`infUnidTransp`):
+  `{cargo_unit_id, document_keys[], cargo_unit_ids[]?}`. Tipo, identificação e lacres vêm de
+  `organization_cargo_units`; `cargo_unit_ids` são as unidades de carga (contêiner, pallet) dentro
+  dela. O **rateio (`qtdRat`) é calculado**, nunca digitado: proporcional ao peso de cada documento
+  na unidade, com a última chave absorvendo o resíduo para fechar em 100,00. Usar uma unidade
+  `kind=cargo` onde o leiaute quer `transport` (ou o contrário) é 400.
 - `redelivery_keys[]?` — chaves dos documentos em reentrega (`infDoc/.../indReentrega`). O
   `SegCodBarra` de cada NF-e/CT-e **não** é pedido: o código de barras do documento é a própria
   chave, que a emissão já referenciou.

@@ -28,6 +28,7 @@ export type TableName = (
   'payment_terms' |
   'payment_terminals' |
   'toll_providers' |
+  'cargo_units' |
   'vehicle_sets' |
   'nfes' |
   'nfces' |
@@ -609,6 +610,8 @@ export class DynamoDBStack extends cdk.Stack {
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'payment_terminals'));
     this.tables.set('toll_providers', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'toll_providers'));
+    this.tables.set('cargo_units', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'cargo_units'));
     this.tables.set('vehicle_sets', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'vehicle_sets'));
 

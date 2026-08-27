@@ -489,6 +489,10 @@ _ENVIMDFE: dict[str, list[str]] = {
     "infMunDescarga:infCTe": ["chCTe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri", "infEntregaParcial"],
     "infMunDescarga:infNFe": ["chNFe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri"],
     "infMDFeTransp":         ["chMDFe", "indReentrega", "infUnidTransp", "peri"],
+    "infUnidTransp": ["tpUnidTransp", "idUnidTransp", "lacUnidTransp", "infUnidCarga", "qtdRat"],
+    "infUnidCarga": ["tpUnidCarga", "idUnidCarga", "lacUnidCarga", "qtdRat"],
+    "lacUnidTransp": ["nLacre"],
+    "lacUnidCarga": ["nLacre"],
 
     # peri
     "peri": ["nONU", "xNomeAE", "xClaRisco", "grEmb", "qTotProd", "qVolTipo"],

@@ -28,6 +28,9 @@ const (
 	// TableTollProviders guarda as fornecedoras de vale-pedágio: CNPJ da
 	// fornecedora e do pagador são invariantes; por viagem muda só nº e valor.
 	TableTollProviders = "organization_toll_providers"
+	// TableCargoUnits guarda as unidades de transporte e de carga (carreta,
+	// vagão, contêiner, pallet): identificação e tipo recorrem entre viagens.
+	TableCargoUnits = "organization_cargo_units"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -35,6 +38,7 @@ const (
 	SKPrefixVehicleSet      = "VEHICLESET_"
 	SKPrefixPaymentTerminal = "TERMINAL_"
 	SKPrefixTollProvider    = "TOLLPROVIDER_"
+	SKPrefixCargoUnit       = "CARGOUNIT_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -205,6 +209,13 @@ type TollProviderRepository struct{ OrgEntityRepository }
 
 func NewTollProviderRepository(db *dynamodb.Client, cfg *config.Config) *TollProviderRepository {
 	return &TollProviderRepository{newOrgEntityRepository(db, cfg, TableTollProviders, SKPrefixTollProvider)}
+}
+
+// CargoUnitRepository — organization_cargo_units.
+type CargoUnitRepository struct{ OrgEntityRepository }
+
+func NewCargoUnitRepository(db *dynamodb.Client, cfg *config.Config) *CargoUnitRepository {
+	return &CargoUnitRepository{newOrgEntityRepository(db, cfg, TableCargoUnits, SKPrefixCargoUnit)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

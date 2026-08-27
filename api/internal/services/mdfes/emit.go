@@ -61,6 +61,10 @@ type MdfeEmitBody struct {
 	// Obrigatório quando há contratante.
 	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
 
+	// TransportUnits associa unidades do cadastro aos documentos que elas
+	// levam (infUnidTransp/infUnidCarga). O rateio é calculado dos pesos.
+	TransportUnits []MdfeTransportUnitBody `json:"transport_units" validate:"omitempty,dive"`
+
 	// RedeliveryKeys são as chaves dos documentos que estão em reentrega
 	// (infDoc/.../indReentrega).
 	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,len=44,numeric"`
@@ -139,6 +143,15 @@ type MdfePaymentBody struct {
 	Installments int `json:"installments" validate:"omitempty,min=1,max=120"`
 	IntervalDays int `json:"interval_days" validate:"omitempty,min=0"`
 	FirstDueDays int `json:"first_due_days" validate:"omitempty,min=0"`
+}
+
+// MdfeTransportUnitBody é uma unidade de transporte da viagem: qual unidade do
+// cadastro, quais documentos ela leva e quais unidades de carga vão dentro.
+type MdfeTransportUnitBody struct {
+	CargoUnitID  string   `json:"cargo_unit_id" validate:"required"`
+	DocumentKeys []string `json:"document_keys" validate:"required,min=1,dive,len=44,numeric"`
+	// CargoUnitIDs são as unidades de carga (contêiner, pallet) dentro desta.
+	CargoUnitIDs []string `json:"cargo_unit_ids" validate:"omitempty,dive,required"`
 }
 
 // MdfeDocRef references an NF-e or CT-e to be transported.
@@ -234,6 +247,16 @@ type resolvedCargo struct {
 	prodPred    MdfeProdPred               // predominant product
 	ufIni       string
 	ufFim       string
+}
+
+// weightByDoc indexa o peso bruto por chave de acesso — a base do rateio das
+// unidades de transporte.
+func (c *resolvedCargo) weightByDoc() map[string]decimal.Decimal {
+	out := make(map[string]decimal.Decimal, len(c.docs))
+	for _, d := range c.docs {
+		out[d.accessKey] = d.weightKG
+	}
+	return out
 }
 
 // descargaGroup is one infMunDescarga node: a municipality and the access keys
@@ -364,6 +387,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	unidTransp, err := s.resolveTransportUnits(ctx, orgPK, req.TransportUnits, cargo.weightByDoc())
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 
 	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
@@ -405,6 +433,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		infPag:        infPag,
 		redelivery:    keySet(req.RedeliveryKeys),
 		peri:          docPeri,
+		unidTransp:    unidTransp,
 		seals:         req.Seals,
 		rodoSeals:     req.RodoSeals,
 		portAgentCode: valueOr(req.PortAgentCode, ""),

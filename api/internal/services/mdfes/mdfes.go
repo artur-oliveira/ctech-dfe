@@ -130,6 +130,8 @@ type MdfeService struct {
 	personRepo       *repositories.PersonRepository
 	vehicleSetRepo   *repositories.VehicleSetRepository
 	tollProviderRepo *repositories.TollProviderRepository
+	// cargoUnitRepo traz as unidades de transporte e de carga do cadastro.
+	cargoUnitRepo *repositories.CargoUnitRepository
 	// productRepo reencontra no cadastro o produto que a NF-e referenciada
 	// declarou, para derivar dele o grupo peri (produto perigoso).
 	productRepo *repositories.ProductRepository
@@ -162,6 +164,7 @@ func NewMdfeService(
 	vehicleSetRepo *repositories.VehicleSetRepository,
 	tollProviderRepo *repositories.TollProviderRepository,
 	productRepo *repositories.ProductRepository,
+	cargoUnitRepo *repositories.CargoUnitRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -182,6 +185,7 @@ func NewMdfeService(
 		vehicleSetRepo:   vehicleSetRepo,
 		tollProviderRepo: tollProviderRepo,
 		productRepo:      productRepo,
+		cargoUnitRepo:    cargoUnitRepo,
 		clients:          clients,
 		workerSvc:        workerSvc,
 		bucketDocs:       bucketDocs,

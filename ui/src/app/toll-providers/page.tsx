@@ -71,8 +71,8 @@ function TollProvidersContent() {
           <LoadingSkeleton/>
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            title="Nenhuma condição de pagamento"
-            description="Uma condição guarda forma de pagamento, número de parcelas e vencimentos. Na emissão, o total da nota vira fatura e duplicatas automaticamente."
+            title="Nenhuma fornecedora de vale-pedágio"
+            description="A fornecedora guarda o CNPJ dela e o do pagador. Na emissão do MDF-e entram só o número da compra e o valor do vale."
             action={{label: 'Nova fornecedora', onClick: () => router.push('/toll-providers/new')}}
             icon={<RouteIcon width={20} height={20}/>}
           />
