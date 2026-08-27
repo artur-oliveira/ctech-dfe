@@ -50,6 +50,57 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 		return sendPage(c, res, cursor)
 	})
 
+	// ── Inutilização de numeração ────────────────────────────────────────────
+	// Registered before /:access_key so the literal path is not captured by the
+	// access-key parameter route.
+
+	// POST /nfces/inutilizations — inutilize an unused number range
+	g.Post("/inutilizations", perm.Require("create.nfce_events"), func(c fiber.Ctx) error {
+		var body nfesvc.InutilizationBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		item, err := svc.Inutilize(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		m, err := unmarshal(item)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(m)
+	})
+
+	// GET /nfces/inutilizations — list requested/homologated ranges
+	g.Get("/inutilizations", perm.Require("list.nfce_events"), func(c fiber.Ctx) error {
+		cursor := c.Query("cursor")
+		res, err := svc.ListInutilizations(c.Context(), middleware.GetOrgPK(c),
+			intQuery(c, "limit", 50), decodeCursor(cursor))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendPage(c, res, cursor)
+	})
+
+	// GET /nfces/inutilizations/gaps — numbering holes still open
+	g.Get("/inutilizations/gaps", perm.Require("list.nfce_events"), func(c fiber.Ctx) error {
+		gaps, err := svc.NumberGaps(c.Context(), middleware.GetOrgPK(c))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(fiber.Map{"items": gaps})
+	})
+
+	// GET /nfces/inutilizations/:sk/xml — ProcInutNFe (request assinado + retorno)
+	g.Get("/inutilizations/:sk/xml", perm.Require("list.nfce_events"), func(c fiber.Ctx) error {
+		data, err := svc.GetInutilizationXML(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendXML(c, data, "inutilizacao-"+c.Params("sk"))
+	})
+
 	// GET /nfces/:access_key
 	g.Get("/:access_key", perm.Require("get.nfces"), func(c fiber.Ctx) error {
 		nfce, err := svc.GetNFCe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))

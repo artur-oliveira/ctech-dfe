@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -297,55 +298,48 @@ func TestFmtDhManifest_PositiveOffset(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// newUUIDv7
+// genULID
 // ---------------------------------------------------------------------------
 
-func TestNewUUIDv7_Format(t *testing.T) {
-	id := newUUIDv7()
-	parts := strings.Split(id, "-")
-	if len(parts) != 5 {
-		t.Fatalf("UUID has %d dash-separated parts, want 5: %q", len(parts), id)
-	}
-	wantLens := []int{8, 4, 4, 4, 12}
-	for i, p := range parts {
-		if len(p) != wantLens[i] {
-			t.Errorf("part %d has length %d, want %d: %q", i, len(p), wantLens[i], p)
-		}
+// TestgenULID_Format valida o tamanho exato de 26 caracteres do ULID string.
+func TestGenULID_Format(t *testing.T) {
+	id := genULID()
+
+	// Um ULID no formato string tem exatamente 26 caracteres (Base32).
+	if len(id) != 26 {
+		t.Fatalf("ULID deve ter exatamente 26 caracteres, mas tem %d: %q", len(id), id)
 	}
 }
 
-func TestNewUUIDv7_Version7Nibble(t *testing.T) {
-	id := newUUIDv7()
-	// Third group's first hex char must be '7' (UUID version 7).
-	third := strings.Split(id, "-")[2]
-	if third[0] != '7' {
-		t.Errorf("UUID version nibble = %c, want '7': %q", third[0], id)
+// TestgenULID_CrockfordBase32 valida se a string usa apenas o alfabeto Crockford Base32.
+// Ele exclui explicitamente as letras I, L, O e U para evitar ambiguidade visual.
+func TestGenULID_CrockfordBase32(t *testing.T) {
+	id := genULID()
+
+	// Regex aceita apenas números e letras válidas no padrão Crockford (Maiúsculas)
+	isValidULID := regexp.MustCompile("^[0-9A-HJKMNP-TV-Z]{26}$").MatchString
+
+	if !isValidULID(id) {
+		t.Errorf("ULID contém caracteres inválidos para o padrão Crockford Base32: %q", id)
+	}
+
+}
+
+// TestgenULID_Uppercase valida se a string retornada segue o padrão oficial de maiúsculas.
+func TestGenULID_Uppercase(t *testing.T) {
+	id := genULID()
+	if id != strings.ToUpper(id) {
+		t.Errorf("O ULID padrão deve ser retornado em letras maiúsculas: %q", id)
 	}
 }
 
-func TestNewUUIDv7_VariantBits(t *testing.T) {
-	id := newUUIDv7()
-	// Fourth group's first hex char must be 8, 9, a, or b (RFC 4122 variant).
-	fourth := strings.Split(id, "-")[3]
-	c := fourth[0]
-	if c != '8' && c != '9' && c != 'a' && c != 'b' {
-		t.Errorf("UUID variant nibble = %c, want one of 8/9/a/b: %q", c, id)
-	}
-}
-
-func TestNewUUIDv7_LowercaseHex(t *testing.T) {
-	id := newUUIDv7()
-	if id != strings.ToLower(id) {
-		t.Errorf("UUID should be lowercase: %q", id)
-	}
-}
-
-func TestNewUUIDv7_Uniqueness(t *testing.T) {
+// TestgenULID_Uniqueness garante a unicidade em gerações em lote.
+func TestGenULID_Uniqueness(t *testing.T) {
 	seen := make(map[string]bool)
-	for range 200 {
-		id := newUUIDv7()
+	for range 100000 {
+		id := genULID()
 		if seen[id] {
-			t.Fatalf("duplicate UUID generated: %q", id)
+			t.Fatalf("ULID duplicado detectado: %q", id)
 		}
 		seen[id] = true
 	}

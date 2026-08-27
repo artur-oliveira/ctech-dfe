@@ -123,8 +123,12 @@ var docTerminalStatuses = map[string]bool{
 	StatusCancelled: true, StatusClosed: true,
 }
 
+// StatusRejected belongs here too: a SEFAZ business rejection of an event is
+// final. Without it, claimProcessing could not claim the row (rejected is not a
+// claimable status) and did not recognise it as already-done either, so every
+// SQS redelivery errored until the message reached the DLQ.
 var eventTerminalStatuses = map[string]bool{
-	EventStatusSuccess: true, EventStatusError: true,
+	EventStatusSuccess: true, EventStatusError: true, StatusRejected: true,
 }
 
 const processingLeaseDuration = 6 * time.Minute

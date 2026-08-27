@@ -16,8 +16,13 @@ const (
 	mdfeVersao = "3.00"
 	mdfeXMLNS  = "http://www.portalfiscal.inf.br/mdfe"
 
-	procEmiOwn   = "0" // emissão com aplicativo do contribuinte
-	tpEmisNormal = "1" // forma de emissão: normal
+	procEmiOwn   = "0"                   // emissão com aplicativo do contribuinte
+	tpEmisNormal = services.TpEmisNormal // forma de emissão: normal
+	// TpEmisContingencia / TpEmisRegEspNFF completam a enumeração de ide/tpEmis
+	// do MDF-e (mdfeTiposBasico_v3.00). O MDF-e em contingência é autorizado
+	// depois — ver o plano de contingência, fase C6.
+	TpEmisContingencia = "2"
+	TpEmisRegEspNFF    = "3"
 
 	// tpEmit (TEmit). MVP issues on behalf of an NF-e emitter hauling its own
 	// cargo, so tpEmit is "2" (Carga Própria). 1=Prestador de serviço, 3=CT-e
@@ -58,7 +63,10 @@ type buildParams struct {
 	air         *MdfeAirModal   // modal aéreo data (API-supplied)
 	water       *MdfeWaterModal // modal aquaviário data (API-supplied)
 	rail        *MdfeRailModal  // modal ferroviário data (API-supplied)
-	tech        TechData
+	// tpEmis é a forma de emissão (1 normal, 2 contingência, 3 Regime Especial
+	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
+	tpEmis string
+	tech   TechData
 }
 
 // BuildMDFe constructs the MDFe dict sent to the py-dfe Lambda. SEFAZ no longer
@@ -113,7 +121,7 @@ func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
 		"cDV":     cDV,
 		"modal":   modalCode(p.modal),
 		"dhEmi":   p.now.Format(layoutDateTimeTZ),
-		"tpEmis":  tpEmisNormal,
+		"tpEmis":  p.tpEmis,
 		"procEmi": procEmiOwn,
 		"verProc": verProc(p.tech),
 		"UFIni":   p.cargo.ufIni,

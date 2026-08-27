@@ -15,6 +15,7 @@ import {EmptyState} from '@/components/ui/empty-state'
 import {NfeIcon} from '@/components/ui/icon'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal'
 import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
+import {InutilizationsTab} from '@/components/dfe/InutilizationsTab'
 import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Pagination} from '@/components/ui/pagination'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -26,7 +27,7 @@ import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, formatNsu, parseAccessKey, triggerDownload} from '@/lib/utils/dfe'
 import {maskAccessKey} from '@/lib/utils/masks'
-import {validateAccessKey, type AccessKeyField} from '@/lib/utils/access-key'
+import {type AccessKeyField, validateAccessKey} from '@/lib/utils/access-key'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
@@ -38,7 +39,7 @@ import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 import {DownloadPdfButton} from "@/components/dfe/DownloadPdfButton";
 
-type Tab = 'emitidas' | 'recebidas' | 'transportadas' | 'distribuicao'
+type Tab = 'emitidas' | 'recebidas' | 'transportadas' | 'distribuicao' | 'inutilizacoes'
 
 const LIST_TABS: { key: Tab; label: string; incoming: 0 | 1 | 2; emptyLabel: string; emptyDesc: string }[] = [
   {
@@ -67,6 +68,7 @@ const LIST_TABS: { key: Tab; label: string; incoming: 0 | 1 | 2; emptyLabel: str
 const ALL_TAB_LABELS: { key: Tab; label: string }[] = [
   ...LIST_TABS,
   {key: 'distribuicao', label: 'Importação/Distribuição'},
+  {key: 'inutilizacoes', label: 'Inutilizações'},
 ]
 
 const ACCESS_KEY_FIELD_LABELS: Record<AccessKeyField, string> = {
@@ -173,7 +175,6 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
   const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importKeyInput, setImportKeyInput] = useState('')
-  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
 
   const {config} = useFiscalConfig('nfe', orgPk)
 
@@ -254,14 +255,6 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
           >
             Importar NF-e
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowImportXmlModal(true)}
-            className="text-brand-600 border-brand-200 hover:bg-brand-50"
-          >
-            Importar XML
-          </Button>
         </div>
       </div>
 
@@ -324,7 +317,6 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
         </div>
       </Modal>
 
-      <ImportXmlModal docType="nfe" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </div>
   )
 }
@@ -583,6 +575,7 @@ function NfesContent() {
 
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
   const [justification, setJustification] = useState('')
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
 
   const setActiveTab = (tab: Tab) => {
     router.replace(`/nfe?tab=${tab}`, {scroll: false})
@@ -624,10 +617,20 @@ function NfesContent() {
             <p className="text-gray-500 text-sm mt-0.5">Nota Fiscal Eletrônica</p>
           </div>
           {selectedOrg && (
-            <Button variant="brand" render={<Link href="/nfe/emit"/>}>
-              <span className="text-base leading-none">+</span>
-              Emitir NF-e
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowImportXmlModal(true)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Importar XML
+              </Button>
+              <Button variant="brand" render={<Link href="/nfe/emit"/>}>
+                <span className="text-base leading-none">+</span>
+                Emitir NF-e
+              </Button>
+            </div>
           )}
         </div>
 
@@ -655,6 +658,8 @@ function NfesContent() {
           <NoOrgBanner/>
         ) : activeTab === 'distribuicao' ? (
           <NfeDistributionTab key="nfe-distribution" orgPk={selectedOrg.pk}/>
+        ) : activeTab === 'inutilizacoes' ? (
+          <InutilizationsTab key="nfe-inutilizations" docType="nfe" docLabel="NF-e" orgPk={selectedOrg.pk}/>
         ) : currentListTab ? (
           <NfeListTab key={activeTab} tab={currentListTab} orgPk={selectedOrg.pk}
                       onCancelRequest={openCancelModal}/>
@@ -675,6 +680,7 @@ function NfesContent() {
         loading={cancelMutation.isPending}
         error={cancelMutation.error}
       />
+      <ImportXmlModal docType="nfe" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </RootLayout>
   )
 }

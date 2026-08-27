@@ -81,8 +81,11 @@ func isCloseEvent(docType string, eventType *string) bool {
 	return eventType != nil && docType == docTypeMDFe && *eventType == mdfeEncerramentoEvent
 }
 
+// authorizedStats are the cStat codes that mean the SEFAZ operation succeeded.
+// 102 is "Inutilizacao de numero homologado" — the success code of the
+// NfeInutilizacao service, which returns no protocol-bearing infProt.
 var authorizedStats = map[string]bool{
-	"100": true, "135": true, "136": true, "150": true, "155": true,
+	"100": true, "102": true, "135": true, "136": true, "150": true, "155": true,
 }
 
 // batchStats are envelope-level cStat codes that wrap per-document results

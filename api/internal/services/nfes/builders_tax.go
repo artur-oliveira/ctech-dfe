@@ -410,7 +410,7 @@ func buildIS(isCST string, vProd decimal.Decimal, isAliq *string, cfg map[string
 		node["vBCIS"] = q2(vProd.RoundBank(2))
 		node["pIS"] = aliq
 		if aliqEspec != nil {
-			node["pISEspec"] = *aliqEspec
+			node["adRemIS"] = *aliqEspec
 		}
 		if unidTrib != nil {
 			node["uTrib"] = *unidTrib

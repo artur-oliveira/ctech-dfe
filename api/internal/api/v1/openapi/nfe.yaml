@@ -273,6 +273,228 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/nfes/{access_key}/prorrogation:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Pedido de prorrogação do ICMS suspenso (eventos 111500 / 111501)
+      description: |
+        Caso de uso: remessa para industrialização, cuja suspensão do ICMS tem prazo.
+        O pedido é por item da NF-e (quantidade a prorrogar), não pela nota inteira.
+        `111500` é o pedido do 1º prazo; `111501`, o do 2º.
+      operationId: requestNfeProrrogation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ event_type, items ]
+              properties:
+                event_type: { type: string, enum: [ '111500', '111501' ] }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 990
+                  items: { $ref: '#/components/schemas/ProrrogationItem' }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/{access_key}/prorrogation-cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Cancela um pedido de prorrogação (eventos 111502 / 111503)
+      description: |
+        `111502` cancela o pedido `111500`; `111503` cancela o `111501`.
+        `request_id` é o `Id` do evento de prorrogação sendo cancelado.
+      operationId: cancelNfeProrrogation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ event_type, request_id ]
+              properties:
+                event_type: { type: string, enum: [ '111502', '111503' ] }
+                request_id: { type: string, maxLength: 60, description: idPedidoCancelado }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/{access_key}/cancel-event:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Cancelamento de evento (evento 110001)
+      description: |
+        Cancela um evento já autorizado. A enumeração `tpEventoAut` do layout só
+        aceita eventos da reforma tributária (`1121xx`, `2111xx`, `2121xx`,
+        `4121xx`) — qualquer outro código é recusado com `400`.
+
+        `cancelled_protocol` é o protocolo do **evento**, não o da NF-e.
+      operationId: cancelNfeEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ cancelled_event_type, cancelled_protocol ]
+              properties:
+                cancelled_event_type:
+                  type: string
+                  enum: [ '112110', '112120', '112130', '112140', '112150',
+                          '211110', '211120', '211124', '211128', '211130',
+                          '211140', '211150', '212110', '212120',
+                          '412120', '412130' ]
+                cancelled_protocol: { type: string, maxLength: 15, description: nProtEvento }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/inutilizations:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+    post:
+      tags: [ NF-e ]
+      summary: Inutiliza uma faixa de numeração não utilizada
+      description: |
+        Numeração fiscal não pode ter buraco. Toda falha que consome um número
+        sem gerar documento autorizado deixa uma lacuna que o fisco cobra, e a
+        inutilização é a única forma de fechá-la.
+
+        A faixa é recusada se contiver qualquer número que já produziu documento
+        utilizável — só números livres podem ser inutilizados. `year` é opcional
+        e assume o ano corrente. O layout `inutNFe` da SEFAZ só aceita emitente
+        pessoa jurídica.
+      operationId: inutilizeNFe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InutilizationBody' }
+      responses:
+        '201':
+          description: Inutilização registrada e enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Inutilization' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ NF-e ]
+      summary: Lista as inutilizações da organização
+      operationId: listNFeInutilizations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de inutilizações, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Inutilization' }
+                  next_cursor: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/nfes/inutilizations/gaps:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+    get:
+      tags: [ NF-e ]
+      summary: Lacunas de numeração ainda em aberto
+      description: |
+        Varre a numeração da série corrente até o contador atual e devolve as
+        faixas contíguas que não produziram documento utilizável e ainda não
+        foram inutilizadas. É o que transforma a tela de inutilizações em
+        ferramenta em vez de formulário em branco.
+      operationId: listNFeNumberGaps
+      responses:
+        '200':
+          description: Faixas em aberto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/NumberGap' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/nfes/inutilizations/{sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: sk
+        in: path
+        required: true
+        schema: { type: string }
+        description: '`sk` da inutilização (uuidv7), devolvido pela listagem.'
+    get:
+      tags: [ NF-e ]
+      summary: Baixa o XML processado da inutilização
+      description: |
+        Devolve o `ProcInutNFe` — o `inutNFe` assinado que foi enviado somado ao
+        `retInutNFe` devolvido pela SEFAZ, sob uma raiz única. É o documento que
+        comprova a inutilização; só existe depois que a faixa é homologada.
+      operationId: getNFeInutilizationXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── NFC-e ──────────────────────────────────────────────────────────────────
 
   /v1.0/nfces:
@@ -479,9 +701,194 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/nfces/inutilizations:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+    post:
+      tags: [ NFC-e ]
+      summary: Inutiliza uma faixa de numeração não utilizada
+      description: |
+        Numeração fiscal não pode ter buraco. Toda falha que consome um número
+        sem gerar documento autorizado deixa uma lacuna que o fisco cobra, e a
+        inutilização é a única forma de fechá-la.
+
+        A faixa é recusada se contiver qualquer número que já produziu documento
+        utilizável — só números livres podem ser inutilizados. `year` é opcional
+        e assume o ano corrente. O layout `inutNFe` da SEFAZ só aceita emitente
+        pessoa jurídica.
+      operationId: inutilizeNFCe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InutilizationBody' }
+      responses:
+        '201':
+          description: Inutilização registrada e enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Inutilization' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ NFC-e ]
+      summary: Lista as inutilizações da organização
+      operationId: listNFCeInutilizations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de inutilizações, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Inutilization' }
+                  next_cursor: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/nfces/inutilizations/gaps:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+    get:
+      tags: [ NFC-e ]
+      summary: Lacunas de numeração ainda em aberto
+      description: |
+        Varre a numeração da série corrente até o contador atual e devolve as
+        faixas contíguas que não produziram documento utilizável e ainda não
+        foram inutilizadas. É o que transforma a tela de inutilizações em
+        ferramenta em vez de formulário em branco.
+      operationId: listNFCeNumberGaps
+      responses:
+        '200':
+          description: Faixas em aberto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/NumberGap' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+
+  /v1.0/nfces/inutilizations/{sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: sk
+        in: path
+        required: true
+        schema: { type: string }
+        description: '`sk` da inutilização (uuidv7), devolvido pela listagem.'
+    get:
+      tags: [ NFC-e ]
+      summary: Baixa o XML processado da inutilização
+      description: |
+        Devolve o `ProcInutNFe` — o `inutNFe` assinado que foi enviado somado ao
+        `retInutNFe` devolvido pela SEFAZ, sob uma raiz única. É o documento que
+        comprova a inutilização; só existe depois que a faixa é homologada.
+      operationId: getNFCeInutilizationXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
 components:
 
   schemas:
+
+
+    ProrrogationItem:
+      type: object
+      description: '`itemPedido` — um item da NF-e cujo prazo está sendo prorrogado.'
+      required: [ item_number, quantity ]
+      properties:
+        item_number:
+          type: integer
+          minimum: 1
+          maximum: 990
+          description: 'Número do item na NF-e (`@numItem`).'
+        quantity: { type: string, description: qtdeItem }
+
+    # -- Inutilização de numeração ------------------------------------------
+
+    InutilizationBody:
+      type: object
+      description: Faixa de numeração a inutilizar.
+      required: [ number_start, number_end, justification ]
+      properties:
+        serie:
+          type: integer
+          minimum: 0
+          maximum: 999
+          description: Série da numeração. Padrão 0.
+        number_start: { type: integer, minimum: 1, maximum: 999999999 }
+        number_end:
+          type: integer
+          minimum: 1
+          maximum: 999999999
+          description: Maior ou igual a `number_start`.
+        justification:
+          type: string
+          minLength: 15
+          maxLength: 255
+          description: Mínimo de 15 caracteres, exigência da SEFAZ.
+        year:
+          type: integer
+          nullable: true
+          minimum: 2006
+          maximum: 2100
+          description: Ano da numeração. Padrão é o ano corrente.
+
+    Inutilization:
+      type: object
+      description: |
+        Registro de inutilização. Persistido na tabela de eventos do documento
+        (`nfe_events` / `nfce_events`) com `pk` sintético `INUT#{env}#{org_pk}`,
+        já que uma inutilização não tem chave de acesso.
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        event_type: { type: string, enum: [ INUT ] }
+        event_key: { type: string }
+        status:
+          type: string
+          enum: [ pending, processing, success, error, rejected, retryable_failed ]
+          description: '`success` = faixa homologada pela SEFAZ (cStat 102).'
+        year: { type: integer }
+        serie: { type: integer }
+        number_start: { type: integer }
+        number_end: { type: integer }
+        justification: { type: string }
+        sefaz_status: { type: string, nullable: true }
+        sefaz_motive: { type: string, nullable: true }
+        xml_s3_key: { type: string, nullable: true }
+        user_id: { type: string }
+        user_name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    NumberGap:
+      type: object
+      description: Faixa contígua de números sem documento utilizável.
+      properties:
+        serie: { type: integer }
+        number_start: { type: integer }
+        number_end: { type: integer }
 
     # -- Emissão de NF-e ----------------------------------------------------
 

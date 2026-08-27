@@ -33,6 +33,14 @@ import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
 import {SubstituteModal} from '@/components/nfce/SubstituteModal'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
+import {InutilizationsTab} from '@/components/dfe/InutilizationsTab'
+
+type Tab = 'emitidas' | 'inutilizacoes'
+
+const TAB_LABELS: { key: Tab; label: string }[] = [
+  {key: 'emitidas', label: 'Emitidas'},
+  {key: 'inutilizacoes', label: 'Inutilizações'},
+]
 
 const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
 const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
@@ -204,6 +212,10 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
 function NfceContent() {
   const {selectedOrg} = useAuth()
   const qc = useQueryClient()
+  const router = useRouter()
+  const params = useSearchParams()
+
+  const activeTab = (params.get('tab') as Tab) || 'emitidas'
 
   const {config: nfceConfig, isMissing: nfceConfigMissing} = useFiscalConfig('nfce', selectedOrg?.pk)
 
@@ -278,8 +290,27 @@ function NfceContent() {
         <HomologationBanner environment={nfceConfig?.environment}/>
         <ConfigRequiredBanner show={nfceConfigMissing} variant="nfce" docLabel="NFC-e"/>
 
+        {/* Submenu tabs */}
+        <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
+          {TAB_LABELS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => router.replace(`/nfce?tab=${tab.key}`, {scroll: false})}
+              className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "text-brand-700 after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-brand-600 after:content-['']"
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {!selectedOrg ? (
           <NoOrgBanner/>
+        ) : activeTab === 'inutilizacoes' ? (
+          <InutilizationsTab key="nfce-inutilizations" docType="nfce" docLabel="NFC-e" orgPk={selectedOrg.pk}/>
         ) : (
           <NfceList orgPk={selectedOrg.pk} onCancel={(n) => {
             setJustification('')

@@ -19,7 +19,7 @@ type eventContext struct {
 	pk          string
 	environment int
 	cnpj        string
-	isPJ        bool
+	docTag      string
 	emitUF      string
 	sefazEnv    string
 	certS3Key   string
@@ -72,7 +72,7 @@ func (s *MdfeService) resolveEventContext(ctx context.Context, orgPK, accessKey 
 		pk:          pk,
 		environment: environment,
 		cnpj:        services.StripPKPrefix(orgPK),
-		isPJ:        len(orgPK) > 5 && orgPK[:5] == "CNPJ_",
+		docTag:      services.IssuerDocTag(orgPK),
 		emitUF:      emitUFFromAccessKey(accessKey),
 		sefazEnv:    sefazEnvFor(environment),
 		certS3Key:   strAttr(cert, "s3_key"),
@@ -154,7 +154,7 @@ func (s *MdfeService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 
 // Close dispatches an encerramento event (110112). cMun/UF identify where the
 // trip ended; when omitted, UF defaults to the MDF-e UFFim.
-func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf string, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf string, byThirdParty bool, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
 	ec, err := s.resolveEventContext(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err
@@ -173,15 +173,19 @@ func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf stri
 	if cMun == "" {
 		return nil, problem.BadRequest("informe o município de encerramento (cMun)")
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, map[string]any{
-		"evEncMDFe": map[string]any{
-			"descEvento": "Encerramento",
-			"nProt":      nProt,
-			"dtEnc":      time.Now().Format("2006-01-02"), // placeholder; overridden below
-			"cUF":        cUF,
-			"cMun":       cMun,
-		},
-	})
+	evEnc := map[string]any{
+		"descEvento": "Encerramento",
+		"nProt":      nProt,
+		"dtEnc":      time.Now().Format("2006-01-02"), // placeholder; overridden below
+		"cUF":        cUF,
+		"cMun":       cMun,
+	}
+	// indEncPorTerceiro só existe com valor "1": o XSD tem um único enumeration.
+	// Ausente = encerrado pelo próprio emitente.
+	if byThirdParty {
+		evEnc["indEncPorTerceiro"] = indEncPorTerceiroSim
+	}
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, evEnc)
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoEncerramento, seq, body, StatusClosePending, userID, userName)
 }
 
@@ -264,11 +268,7 @@ func (s *MdfeService) buildEventEnvelope(ec *eventContext, accessKey, tpEvento s
 		"nSeqEvento": fmt.Sprintf("%d", seq),
 		"detEvento":  detEvento,
 	}
-	if ec.isPJ {
-		infEvento["CNPJ"] = ec.cnpj
-	} else {
-		infEvento["CPF"] = ec.cnpj
-	}
+	infEvento[ec.docTag] = ec.cnpj
 
 	return map[string]any{
 		"eventoMDFe": map[string]any{

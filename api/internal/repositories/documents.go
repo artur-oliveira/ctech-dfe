@@ -134,6 +134,39 @@ func (r *DocumentRepository) queryNumberIndex(ctx context.Context, pk string, nu
 	return &QueryResult{Items: out.Items, LastEvaluatedKey: out.LastEvaluatedKey}, nil
 }
 
+// NumbersInRange returns the documents of a partition whose fiscal number falls
+// in [start,end], projecting only what number-gap analysis needs. Used by
+// inutilization to prove a range is free and to detect existing gaps.
+func (r *DocumentRepository) NumbersInRange(ctx context.Context, pk string, start, end int) ([]map[string]types.AttributeValue, error) {
+	var items []map[string]types.AttributeValue
+	var startKey map[string]types.AttributeValue
+	for {
+		input := &dynamodb.QueryInput{
+			TableName:                aws.String(r.TableName),
+			IndexName:                aws.String("number-index-v2"),
+			KeyConditionExpression:   aws.String("pk = :pk AND #num BETWEEN :lo AND :hi"),
+			ProjectionExpression:     aws.String("#num, serie, #status"),
+			ExpressionAttributeNames: map[string]string{"#num": "number", "#status": "status"},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk": &types.AttributeValueMemberS{Value: pk},
+				":lo": &types.AttributeValueMemberN{Value: strconv.Itoa(start)},
+				":hi": &types.AttributeValueMemberN{Value: strconv.Itoa(end)},
+			},
+			ExclusiveStartKey: startKey,
+		}
+		out, err := r.db.Query(ctx, input)
+		if err != nil {
+			return nil, wrapDynamoErr(err)
+		}
+		items = append(items, out.Items...)
+		if len(out.LastEvaluatedKey) == 0 {
+			break
+		}
+		startKey = out.LastEvaluatedKey
+	}
+	return items, nil
+}
+
 func (r *DocumentRepository) queryDateIndex(ctx context.Context, pk string, incoming int, year, month, day, number *int, limit int, startKey map[string]types.AttributeValue, sort string) (*QueryResult, error) {
 	keyExpr := "#pk = :pk AND #incoming = :incoming"
 	exprValues := map[string]types.AttributeValue{

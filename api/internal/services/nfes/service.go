@@ -41,6 +41,9 @@ const (
 	xCondUsoCCe1 = "A Carta de Correção é disciplinada pelo § 1º-A do art. 7º do Convênio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularização de erro ocorrido na emissão de documento fiscal, desde que o erro não esteja relacionado com: I - as variáveis que determinam o valor do imposto tais como: base de cálculo, alíquota, diferença de preço, quantidade, valor da operação ou da prestação; II - a correção de dados cadastrais que implique mudança do remetente ou do destinatário; III - a data de emissão ou de saída."
 	xCondUsoCCe2 = "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida."
 
+	// eventVersao is the leiauteEvento version used by every NF-e event.
+	eventVersao = "1.00"
+
 	NotIncoming = 0
 
 	SefazEnvProd = services.SefazEnvProd
@@ -196,7 +199,7 @@ func (s *NfeService) Cancel(ctx context.Context, orgPK, accessKey, justification
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
-		Body:            buildCancelBody(accessKey, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
+		Body:            buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(TpEventoCancelamento),
 		SequenceNumber:  &sequenceNumber,
@@ -241,7 +244,7 @@ func (s *NfeService) CorrectionLetter(ctx context.Context, orgPK, accessKey, cor
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
-		Body:            buildCCeBody(accessKey, ectx.cnpj, ectx.environment, correctionText, sequenceNumber),
+		Body:            buildCCeBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, correctionText, sequenceNumber),
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(TpEventoCCe),
 		SequenceNumber:  &sequenceNumber,
@@ -282,7 +285,7 @@ func (s *NfeService) Manifestation(ctx context.Context, orgPK, accessKey, eventT
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
-		Body:            buildManifestBody(accessKey, ectx.cnpj, ectx.environment, eventType, sequenceNumber, justification),
+		Body:            buildManifestBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, eventType, sequenceNumber, justification),
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(eventType),
 		SequenceNumber:  &sequenceNumber,
@@ -347,6 +350,7 @@ type nfeEventContext struct {
 	envPrefix   string
 	environment int
 	cnpj        string
+	docTag      string
 	emitUF      string
 	sefazEnv    string
 }
@@ -391,7 +395,8 @@ func resolveEventContext(ctx context.Context, orgRepo *repositories.Organization
 			password: strAttr(cert, "password"),
 		},
 		now: time.Now().UTC(), pk: pk, envPrefix: envPrefix,
-		environment: environment, cnpj: cnpj, emitUF: emitUF, sefazEnv: sefazEnv,
+		environment: environment, cnpj: cnpj, docTag: services.IssuerDocTag(orgPK),
+		emitUF: emitUF, sefazEnv: sefazEnv,
 	}, nil
 }
 
@@ -433,11 +438,11 @@ func extractEmitUF(org map[string]types.AttributeValue) string {
 // --- SEFAZ event body builders ---
 // Each function produces the full envEvento JSON sent directly to SEFAZ via py-dfe Lambda.
 
-func buildCancelBody(accessKey, cnpj string, environment int, sefazProtocol, justification string, seq int) map[string]any {
+func buildCancelBody(accessKey, docTag, cnpj string, environment int, sefazProtocol, justification string, seq int) map[string]any {
 	return map[string]any{
 		"envEvento": map[string]any{
 			"@versao": "1.00",
-			"@xmlns":  "http://www.portalfiscal.inf.br/nfe",
+			"@xmlns":  nfeXMLNS,
 			"idLote":  sefazBatchID(),
 			"evento": map[string]any{
 				"@versao": "1.00",
@@ -445,7 +450,7 @@ func buildCancelBody(accessKey, cnpj string, environment int, sefazProtocol, jus
 					"@Id":        fmt.Sprintf("ID%s%s%02d", TpEventoCancelamento, accessKey, seq),
 					"cOrgao":     accessKey[:2],
 					"tpAmb":      fmt.Sprintf("%d", environment),
-					"CNPJ":       cnpj,
+					docTag:       cnpj,
 					"chNFe":      accessKey,
 					"dhEvento":   dhEvento(),
 					"tpEvento":   TpEventoCancelamento,
@@ -453,7 +458,7 @@ func buildCancelBody(accessKey, cnpj string, environment int, sefazProtocol, jus
 					"verEvento":  "1.00",
 					"detEvento": map[string]any{
 						"@versao":    "1.00",
-						"@xmlns":     "http://www.portalfiscal.inf.br/nfe",
+						"@xmlns":     nfeXMLNS,
 						"descEvento": "Cancelamento",
 						"nProt":      sefazProtocol,
 						"xJust":      justification,
@@ -464,7 +469,7 @@ func buildCancelBody(accessKey, cnpj string, environment int, sefazProtocol, jus
 	}
 }
 
-func buildCCeBody(accessKey, cnpj string, environment int, correctionText string, seq int) map[string]any {
+func buildCCeBody(accessKey, docTag, cnpj string, environment int, correctionText string, seq int) map[string]any {
 	uf := accessKey[:2]
 	var dsc string
 	var condition string
@@ -478,7 +483,7 @@ func buildCCeBody(accessKey, cnpj string, environment int, correctionText string
 	return map[string]any{
 		"envEvento": map[string]any{
 			"@versao": "1.00",
-			"@xmlns":  "http://www.portalfiscal.inf.br/nfe",
+			"@xmlns":  nfeXMLNS,
 			"idLote":  sefazBatchID(),
 			"evento": map[string]any{
 				"@versao": "1.00",
@@ -486,7 +491,7 @@ func buildCCeBody(accessKey, cnpj string, environment int, correctionText string
 					"@Id":        fmt.Sprintf("ID%s%s%02d", TpEventoCCe, accessKey, seq),
 					"cOrgao":     uf,
 					"tpAmb":      fmt.Sprintf("%d", environment),
-					"CNPJ":       cnpj,
+					docTag:       cnpj,
 					"chNFe":      accessKey,
 					"dhEvento":   dhEvento(),
 					"tpEvento":   TpEventoCCe,
@@ -494,7 +499,7 @@ func buildCCeBody(accessKey, cnpj string, environment int, correctionText string
 					"verEvento":  "1.00",
 					"detEvento": map[string]any{
 						"@versao":    "1.00",
-						"@xmlns":     "http://www.portalfiscal.inf.br/nfe",
+						"@xmlns":     nfeXMLNS,
 						"descEvento": dsc,
 						"xCorrecao":  correctionText,
 						"xCondUso":   condition,
@@ -512,10 +517,10 @@ var manifestDescEvento = map[string]string{
 	TpEventoNaoRealizacao:       "Operacao nao Realizada",
 }
 
-func buildManifestBody(accessKey, cnpj string, environment int, eventType string, seq int, justification *string) map[string]any {
+func buildManifestBody(accessKey, docTag, cnpj string, environment int, eventType string, seq int, justification *string) map[string]any {
 	det := map[string]any{
 		"@versao":    "1.00",
-		"@xmlns":     "http://www.portalfiscal.inf.br/nfe",
+		"@xmlns":     nfeXMLNS,
 		"descEvento": manifestDescEvento[eventType],
 	}
 	if justification != nil {
@@ -524,7 +529,7 @@ func buildManifestBody(accessKey, cnpj string, environment int, eventType string
 	return map[string]any{
 		"envEvento": map[string]any{
 			"@versao": "1.00",
-			"@xmlns":  "http://www.portalfiscal.inf.br/nfe",
+			"@xmlns":  nfeXMLNS,
 			"idLote":  sefazBatchID(),
 			"evento": map[string]any{
 				"@versao": "1.00",
@@ -532,7 +537,7 @@ func buildManifestBody(accessKey, cnpj string, environment int, eventType string
 					"@Id":        fmt.Sprintf("ID%s%s%02d", eventType, accessKey, seq),
 					"cOrgao":     "91",
 					"tpAmb":      fmt.Sprintf("%d", environment),
-					"CNPJ":       cnpj,
+					docTag:       cnpj,
 					"chNFe":      accessKey,
 					"dhEvento":   dhEvento(),
 					"tpEvento":   eventType,

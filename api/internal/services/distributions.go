@@ -19,7 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/google/uuid"
 )
 
 var docTypeSefazService = map[string]string{
@@ -509,7 +508,7 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 	// staging não precisa de env (hom/prod) no path — é uma área de espera
 	// efêmera; o worker (runImportXML) já resolve o ambiente de novo a
 	// partir do fiscal config ao processar o job.
-	stagingKey := fmt.Sprintf("%s-import-staging/%s/%s.xml", docType, orgPK, uuid.NewString())
+	stagingKey := fmt.Sprintf("%s-import-staging/%s/%s.xml", docType, orgPK, repositories.GenerateID())
 	if _, err := s.clients.S3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketDocs),
 		Key:         aws.String(stagingKey),

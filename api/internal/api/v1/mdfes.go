@@ -128,13 +128,14 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, ext *services.
 		var body struct {
 			CMun           string `json:"ibge_code" validate:"required,ibge"`
 			UF             string `json:"uf" validate:"required,uf"`
+			ByThirdParty   bool   `json:"by_third_party"`
 			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
 		}
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
 		userID, userName := resolveActor(c, userSvc)
-		mdfe, err := svc.Close(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.CMun, body.UF, defaultSeq(body.SequenceNumber), userID, userName)
+		mdfe, err := svc.Close(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.CMun, body.UF, body.ByThirdParty, defaultSeq(body.SequenceNumber), userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -172,6 +173,60 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, ext *services.
 		}
 		userID, userName := resolveActor(c, userSvc)
 		mdfe, err := svc.IncludeDFe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.CMunCarrega, body.XMunCarrega, body.Documents, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, mdfe)
+	})
+
+	// POST /mdfes/:access_key/payment — evPagtoOperMDFe (110116)
+	g.Post("/:access_key/payment", perm.Require("create.mdfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Trips          mdfesvc.MdfePaymentTrips `json:"trips" validate:"required"`
+			Payments       []mdfesvc.MdfePayment    `json:"payments" validate:"required,min=1,dive"`
+			SequenceNumber int                      `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		mdfe, err := svc.PayTransportOperation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.Trips, body.Payments, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, mdfe)
+	})
+
+	// POST /mdfes/:access_key/confirm-service — evConfirmaServMDFe (110117)
+	g.Post("/:access_key/confirm-service", perm.Require("create.mdfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		mdfe, err := svc.ConfirmService(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, mdfe)
+	})
+
+	// POST /mdfes/:access_key/change-payment — evAlteracaoPagtoServMDFe (110118)
+	g.Post("/:access_key/change-payment", perm.Require("create.mdfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Payments       []mdfesvc.MdfePayment `json:"payments" validate:"required,min=1,dive"`
+			SequenceNumber int                   `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		mdfe, err := svc.ChangeServicePayment(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.Payments, defaultSeq(body.SequenceNumber), userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}

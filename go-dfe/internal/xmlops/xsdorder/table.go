@@ -187,10 +187,10 @@ var envInfe = map[string][]string{
 	"gIBSMun": {"pIBSMun", "gDif", "gDevTrib", "gRed", "vIBSMun"},
 	"gCBS":    {"pCBS", "gDif", "gDevTrib", "gRed", "vCBS"},
 
-	// IS — Imposto Seletivo (NT 2024.001)
+	// IS — Imposto Seletivo (PL_010e_v1.02)
 	"IS": {
-		"CST", "cClassTrib", "vBC", "qBCIS",
-		"pAliq", "vAliqEspIS", "vIS",
+		"CSTIS", "cClassTribIS", "vBCIS", "pIS",
+		"adRemIS", "uTrib", "qTrib", "vIS",
 	},
 
 	// Grupos ICMS
@@ -330,6 +330,7 @@ var envEventoNfe = map[string][]string{
 	//   110140 EPEC:          descEvento, cOrgaoAutor, tpAutor, verAplic, dhEmi, tpNF, IE, dest, vNF, vICMS
 	//   111500/1 Prorrog:     descEvento, nProt, itemPedido
 	//   111502/3 CancProrrog: descEvento, idPedidoCancelado, nProt
+	//   110001 CancEvento:    descEvento, cOrgaoAutor, verAplic, tpEventoAut, nProtEvento
 	//   210200/10 Manifest:   descEvento
 	//   210220 Desconhec:     descEvento, xJust
 	//   210240 Op.n.Real:     descEvento, xJust
@@ -337,7 +338,8 @@ var envEventoNfe = map[string][]string{
 	"detEvento": {
 		"descEvento",
 		"xCorrecao", "xCondUso", // CC-e (110110)
-		"cOrgaoAutor", "tpAutor", "verAplic", // cancel-subst (110112), EPEC (110140)
+		"cOrgaoAutor", "tpAutor", "verAplic", // cancel-subst (110112), EPEC (110140), cancel-evento (110001)
+		"tpEventoAut", "nProtEvento", // cancel-evento (110001)
 		"dhEmi", "tpNF", "IE", "dest", // EPEC (110140)
 		"vNF", "vICMS", // EPEC (110140) — filhos diretos de detEvento
 		"idPedidoCancelado", // cancel-prorrogação (111502/111503)

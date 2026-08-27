@@ -15,7 +15,7 @@
 /** The API is fronted by a load balancer and answers fast or not at all. */
 export const HTTP_TIMEOUT_MS = 5_000
 /** Health path — public (no auth, not gated by the subscription middleware). */
-export const HEALTH_PATH = '/v1.0/health-check'
+export const HEALTH_PATH = '/v1.0/health'
 export const HEALTHY_POLL_INTERVAL_MS = 30_000
 export const MAX_UNAVAILABLE_POLL_INTERVAL_MS = 30_000
 const FIRST_BACKOFF_MS = 1_000

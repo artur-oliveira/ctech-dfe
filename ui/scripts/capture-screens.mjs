@@ -102,6 +102,7 @@ const CAPTURES = [
     steps: [{waitText: 'Cancelar'}, {click: 'Cancelar'}, {waitAt: '[role="dialog"]'}],
   },
   {slug: 'nfe-distribution', route: '/nfe?tab=distribuicao', waitText: 'NSU'},
+  {slug: 'nfe-inutilizations', route: '/nfe?tab=inutilizacoes', waitText: 'Lacunas detectadas'},
 
   // ── NFC-e ────────────────────────────────────────────────────────────────
   {slug: 'nfce-list', route: '/nfce', waitText: 'Cliente Exemplo LTDA'},

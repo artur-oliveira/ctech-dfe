@@ -16,6 +16,12 @@ var emissionServices = map[string]emissionSpec{
 	"CTeRecepcaoGTVe":  {"GTVeProc", "GTVe", "protCTe", "4.00"},
 	"CTeRecepcaoSimp":  {"cteSimpProc", "CTeSimp", "protCTe", "4.00"},
 	"MDFeRecepcaoSinc": {"mdfeProc", "MDFe", "protMDFe", "3.00"},
+
+	// Inutilização não é emissão, mas tem exatamente a mesma forma processada:
+	// documento assinado + resposta da SEFAZ sob uma raiz única. O elemento é
+	// ProcInutNFe (P maiúsculo, procInutNFe_v4.00.xsd), e o "documento" é a
+	// própria raiz do request — firstByLocal inclui a raiz na busca.
+	"NfeInutilizacao": {"ProcInutNFe", "inutNFe", "retInutNFe", "4.00"},
 }
 
 // eventServices mirrors py-dfe's _EVENT. py-dfe's own CTeRecepcaoEvento

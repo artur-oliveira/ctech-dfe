@@ -120,8 +120,14 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	// C0: ver o comentário equivalente em emit.go.
+	mode := NormalEmission(nfModel65)
+	if err := mode.Validate(); err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
-	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel65)
+	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel65, mode.TpEmis)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +190,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		nil, nil, nil, vTroco,
 		s.tech, nfModel65, supl,
 		nil, nil,
+		mode,
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))

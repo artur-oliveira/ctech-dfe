@@ -276,6 +276,13 @@ SEFAZ communication events for a document (authorization, cancellation, CC-e, ma
 | `created_at`      | S    | ISO-8601 UTC                                                 |
 | `updated_at`      | S    | ISO-8601 UTC                                                 |
 
+As tabelas de NF-e/NFC-e guardam também as **inutilizações de numeração**, que não têm chave de
+acesso e por isso sintetizam as chaves: `pk = INUT#{env}#{org_pk}`,
+`event_key = INUT#{ano}#{serie:03d}#{nNFIni:09d}#{nNFFin:09d}`, `event_type = INUT`. Essas linhas
+carregam ainda `year`, `serie`, `number_start`, `number_end` e `justification`; `status` usa o mesmo
+vocabulário de evento (`success` = cStat 102, faixa homologada). Ver DOCS.md → *Inutilização de
+numeração*.
+
 **GSI `org-event-key-index`** (PK: `pk`, SK: `event_key`):
 
 ```python

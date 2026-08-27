@@ -1294,6 +1294,47 @@ export interface NFeDistributionOut {
   created_at: string
 }
 
+/**
+ * Inutilização de numeração (NF-e / NFC-e). Persistida na tabela de eventos do
+ * documento — `status` segue o vocabulário compartilhado de DfeStatus, onde
+ * `success` significa faixa homologada pela SEFAZ (cStat 102).
+ */
+export interface InutilizationOut {
+  pk: string
+  sk: string
+  event_type: string
+  event_key: string
+  status: string
+  year: number
+  serie: number
+  number_start: number
+  number_end: number
+  justification: string
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  xml_s3_key: string | null
+  user_id: string | null
+  user_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Faixa contígua de números sem documento utilizável e ainda não inutilizada. */
+export interface NumberGapOut {
+  serie: number
+  number_start: number
+  number_end: number
+}
+
+/** Corpo de POST /{doc}s/inutilizations. */
+export interface InutilizationIn {
+  serie: number
+  number_start: number
+  number_end: number
+  justification: string
+  year?: number
+}
+
 export interface SyncEnqueuedOut {
   status: string
   nsu: number

@@ -31,7 +31,7 @@ func buildAuditLogTxItem(tablePrefix, orgPK, resourceType, resourceID, action st
 	modsAV, _ := attributevalue.MarshalList(modifications) // modifications is always a small, well-typed local slice — marshal cannot fail here
 	item := map[string]types.AttributeValue{
 		"pk":            &types.AttributeValueMemberS{Value: orgPK},
-		"sk":            &types.AttributeValueMemberS{Value: fmt.Sprintf("%s#%s#%s", resourceType, resourceID, newUUIDv7())},
+		"sk":            &types.AttributeValueMemberS{Value: fmt.Sprintf("%s#%s#%s", resourceType, resourceID, genULID())},
 		"resource_type": &types.AttributeValueMemberS{Value: resourceType},
 		"resource_id":   &types.AttributeValueMemberS{Value: resourceID},
 		"action":        &types.AttributeValueMemberS{Value: action},

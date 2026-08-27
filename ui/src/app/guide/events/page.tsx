@@ -133,6 +133,47 @@ export default function GuideEventos() {
             </p>
           ),
         },
+        {
+          id: 'inutilization',
+          title: 'Inutilização de numeração',
+          summary:
+            'Numeração fiscal não pode ter buraco. Quando um número é consumido sem virar documento autorizado, a inutilização fecha a lacuna junto à SEFAZ.',
+          image: {
+            src: '/guide/nfe-inutilizations.webp',
+            alt: 'Aba de inutilizações de NF-e com as lacunas de numeração detectadas e as faixas já inutilizadas',
+          },
+          body: (
+            <>
+              <p>
+                A aba <b>Inutilizações</b>, em NF-e e NFC-e, abre pelas <b>lacunas detectadas</b>: as
+                faixas da série corrente que não produziram documento utilizável. Cada lacuna traz o
+                botão <b>Inutilizar</b> já com a faixa preenchida — você só escreve a justificativa.
+              </p>
+              <GuideBullets>
+                <li>
+                  Um número que gerou documento autorizado <b>nunca</b> pode ser inutilizado: a faixa
+                  é recusada antes de sair daqui.
+                </li>
+                <li>
+                  A justificativa tem no mínimo 15 caracteres, exigência da SEFAZ — a mesma regra do
+                  cancelamento.
+                </li>
+                <li>
+                  A ação é irreversível: os números da faixa deixam de poder ser usados.
+                </li>
+                <li>
+                  Depois que a SEFAZ homologa, a linha ganha o botão <b>XML</b>: é o
+                  <b> ProcInutNFe</b>, o pedido assinado somado ao retorno da SEFAZ. É esse arquivo
+                  que comprova a inutilização — guarde-o como guarda um DANFE.
+                </li>
+              </GuideBullets>
+              <GuideCallout kind="info" title="Só para pessoa jurídica">
+                O layout de inutilização da SEFAZ só aceita emitente pessoa jurídica. Emitente
+                pessoa física (CPF) não tem esse recurso disponível.
+              </GuideCallout>
+            </>
+          ),
+        },
       ]}
     />
   )

@@ -135,7 +135,7 @@ func testOrg() map[string]types.AttributeValue {
 
 func TestBuildEnviMDFe_Structure(t *testing.T) {
 	now := time.Date(2026, 6, 12, 10, 0, 0, 0, time.UTC)
-	accessKey := services.GenerateAccessKey("SP", "12345678000190", services.ModelMDFe, 1, 1, now)
+	accessKey := services.GenerateAccessKey("SP", "12345678000190", services.ModelMDFe, 1, 1, now, services.TpEmisNormal)
 	if len(accessKey) != 44 {
 		t.Fatalf("access key len = %d, want 44", len(accessKey))
 	}
@@ -211,7 +211,7 @@ func eventDetEvento(body map[string]any, part string) map[string]any {
 
 func TestBuildEventEnvelope_Encerramento(t *testing.T) {
 	s := &MdfeService{}
-	ec := &eventContext{environment: 2, cnpj: "12345678000190", isPJ: true}
+	ec := &eventContext{environment: 2, cnpj: "12345678000190", docTag: services.TagCNPJ}
 	key := "35260612345678000190580010000000011000000017"
 	body := s.buildEventEnvelope(ec, key, TpEventoEncerramento, 1, map[string]any{
 		"evEncMDFe": map[string]any{

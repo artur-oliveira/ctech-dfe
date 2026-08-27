@@ -71,11 +71,17 @@ const (
 	defaultTpCarga = "05"
 
 	// MDF-e event type codes (eventoMDFe_v3.00).
-	TpEventoCancelamento  = "110111"
-	TpEventoEncerramento  = "110112"
-	TpEventoInclusaoCond  = "110114"
-	TpEventoInclusaoDFe   = "110115"
-	TpEventoPagamentoOper = "110116"
+	TpEventoCancelamento    = "110111"
+	TpEventoEncerramento    = "110112"
+	TpEventoInclusaoCond    = "110114"
+	TpEventoInclusaoDFe     = "110115"
+	TpEventoPagamentoOper   = "110116"
+	TpEventoConfirmaServico = "110117"
+	TpEventoAlteracaoPagto  = "110118"
+
+	// indEncPorTerceiro (evEncMDFe): único valor aceito pelo XSD — encerramento
+	// feito por terceiro. Ausente significa encerrado pelo emitente.
+	indEncPorTerceiroSim = "1"
 )
 
 // modalCodes maps an API modal value to its ide/modal code.

@@ -56,6 +56,62 @@ func (r *DocumentEventRepository) CreateEvent(
 	return item, r.PutItem(ctx, item)
 }
 
+// InutilizationRecord is a number-inutilization request stored in the events
+// table. Inutilização has no chave de acesso, so PK/EventKey are synthesized by
+// the caller (see api/internal/services/nfes/inutilization.go).
+type InutilizationRecord struct {
+	PK            string
+	EventKey      string
+	Year          int
+	Serie         int
+	NumberStart   int
+	NumberEnd     int
+	Justification string
+	Status        string
+	UserID        string
+	UserName      string
+}
+
+// CreateInutilization persists an inutilization request. The attributes shared
+// with events (status, event_type, sequence_number, timestamps) keep the same
+// names so the worker's generic event update path applies unchanged.
+func (r *DocumentEventRepository) CreateInutilization(ctx context.Context, rec InutilizationRecord) (map[string]types.AttributeValue, error) {
+	id := GenerateID()
+	now := NowStr()
+
+	item := map[string]types.AttributeValue{
+		"pk":              &types.AttributeValueMemberS{Value: rec.PK},
+		"sk":              &types.AttributeValueMemberS{Value: id},
+		"access_key":      &types.AttributeValueMemberS{Value: rec.PK},
+		"event_key":       &types.AttributeValueMemberS{Value: rec.EventKey},
+		"event_type":      &types.AttributeValueMemberS{Value: eventTypeInutilizacao},
+		"sequence_number": &types.AttributeValueMemberN{Value: "1"},
+		"status":          &types.AttributeValueMemberS{Value: rec.Status},
+		"year":            &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", rec.Year)},
+		"serie":           &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", rec.Serie)},
+		"number_start":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", rec.NumberStart)},
+		"number_end":      &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", rec.NumberEnd)},
+		"justification":   &types.AttributeValueMemberS{Value: rec.Justification},
+		"user_id":         &types.AttributeValueMemberS{Value: rec.UserID},
+		"user_name":       &types.AttributeValueMemberS{Value: rec.UserName},
+		"created_at":      &types.AttributeValueMemberS{Value: now},
+		"updated_at":      &types.AttributeValueMemberS{Value: now},
+	}
+	return item, r.PutItem(ctx, item)
+}
+
+// eventTypeInutilizacao mirrors nfes.EventTypeInutilizacao; duplicated as an
+// unexported constant to keep repositories free of a service-layer import.
+const eventTypeInutilizacao = "INUT"
+
+// ListInutilizations returns an organization's inutilizations for one
+// environment, newest first (the SK is a time-sortable uuidv7).
+func (r *DocumentEventRepository) ListInutilizations(ctx context.Context, pk string, limit int, startKey map[string]types.AttributeValue) (*QueryResult, error) {
+	return r.Query(ctx, QueryOpts{
+		PK: pk, Limit: limit, ExclusiveStartKey: startKey, ScanIndexForward: false,
+	})
+}
+
 func (r *DocumentEventRepository) UpdateEvent(ctx context.Context, accessKey, sk string, updates map[string]any) error {
 	updates["updated_at"] = NowStr()
 	_, err := r.UpdateItem(ctx, accessKey, &sk, updates)

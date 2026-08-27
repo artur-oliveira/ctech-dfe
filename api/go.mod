@@ -28,7 +28,10 @@ require (
 
 require gopkg.in/yaml.v3 v3.0.1
 
-require github.com/kr/pretty v0.3.1 // indirect
+require (
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/oklog/ulid/v2 v2.1.2 // indirect
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.2 // indirect

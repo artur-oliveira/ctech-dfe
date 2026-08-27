@@ -123,7 +123,7 @@ func (s *NfceService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamento, sequenceNumber, strAttr(event, "sk"),
-		buildCancelBody(accessKey, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
+		buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
 	); err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (s *NfceService) Substitute(ctx context.Context, orgPK, accessKey, substitu
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamentoSubst, sequenceNumber, strAttr(event, "sk"),
-		buildSubstituteBody(accessKey, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version),
+		buildSubstituteBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version),
 	); err != nil {
 		return nil, err
 	}
@@ -267,11 +267,11 @@ func (s *NfceService) publishEvent(ctx context.Context, ectx *nfeEventContext, a
 
 // buildSubstituteBody produces the envEvento for event 110112 (Cancelamento por
 // Substituição). chNFeRef is the access key of the replacement NFC-e.
-func buildSubstituteBody(accessKey, cnpj string, environment int, sefazProtocol, substituteKey, justification string, seq int, verAplic string) map[string]any {
+func buildSubstituteBody(accessKey, docTag, cnpj string, environment int, sefazProtocol, substituteKey, justification string, seq int, verAplic string) map[string]any {
 	return map[string]any{
 		"envEvento": map[string]any{
 			"@versao": "1.00",
-			"@xmlns":  "http://www.portalfiscal.inf.br/nfe",
+			"@xmlns":  nfeXMLNS,
 			"idLote":  sefazBatchID(),
 			"evento": map[string]any{
 				"@versao": "1.00",
@@ -279,7 +279,7 @@ func buildSubstituteBody(accessKey, cnpj string, environment int, sefazProtocol,
 					"@Id":        fmt.Sprintf("ID%s%s%02d", TpEventoCancelamentoSubst, accessKey, seq),
 					"cOrgao":     accessKey[:2],
 					"tpAmb":      fmt.Sprintf("%d", environment),
-					"CNPJ":       cnpj,
+					docTag:       cnpj,
 					"chNFe":      accessKey,
 					"dhEvento":   dhEvento(),
 					"tpEvento":   TpEventoCancelamentoSubst,
@@ -287,7 +287,7 @@ func buildSubstituteBody(accessKey, cnpj string, environment int, sefazProtocol,
 					"verEvento":  "1.00",
 					"detEvento": map[string]any{
 						"@versao":     "1.00",
-						"@xmlns":      "http://www.portalfiscal.inf.br/nfe",
+						"@xmlns":      nfeXMLNS,
 						"descEvento":  "Cancelamento por substituicao",
 						"cOrgaoAutor": accessKey[:2],
 						"tpAutor":     "1",

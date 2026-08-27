@@ -24,7 +24,7 @@ func orgWithUF(uf string) map[string]types.AttributeValue {
 
 func TestGenerateAccessKey_Model65(t *testing.T) {
 	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
-	key, err := generateAccessKey("CNPJ_11222333000181", orgWithUF("SP"), 1, 1, now, nfModel65)
+	key, err := generateAccessKey("CNPJ_11222333000181", orgWithUF("SP"), 1, 1, now, nfModel65, tpEmisNormal)
 	if err != nil {
 		t.Fatalf("generateAccessKey: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestBuildNFCeSupl_Errors(t *testing.T) {
 
 func TestBuildSubstituteBody_Structure(t *testing.T) {
 	chave := strings.Repeat("3", 44)
-	body := buildSubstituteBody(chave, "11222333000181", 2, "PROT123", strings.Repeat("4", 44), "just", 1, "ver")
+	body := buildSubstituteBody(chave, "CNPJ", "11222333000181", 2, "PROT123", strings.Repeat("4", 44), "just", 1, "ver")
 	env := body["envEvento"].(map[string]any)
 	evt := env["evento"].(map[string]any)
 	inf := evt["infEvento"].(map[string]any)

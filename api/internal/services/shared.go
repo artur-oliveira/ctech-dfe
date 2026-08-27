@@ -127,6 +127,10 @@ func attrStrAV(item map[string]types.AttributeValue, key string) string {
 	return ""
 }
 
+// TpEmisNormal is ide/tpEmis = 1 (emissão normal), shared by every document
+// type. Contingency codes are document-specific and live in each service.
+const TpEmisNormal = "1"
+
 // StripPKPrefix removes "CNPJ_" or "CPF_" prefix from a DynamoDB PK.
 func StripPKPrefix(pk string) string {
 	for _, p := range []string{"CNPJ_", "CPF_"} {
@@ -135,6 +139,24 @@ func StripPKPrefix(pk string) string {
 		}
 	}
 	return pk
+}
+
+// TagCNPJ / TagCPF are the XSD element names of the issuer document choice
+// (CNPJ | CPF) present in infEvento, infInut, emit and dest.
+const (
+	TagCNPJ = "CNPJ"
+	TagCPF  = "CPF"
+)
+
+// IssuerDocTag returns the XSD element name for the issuer's document, derived
+// from the organization PK prefix. Natural-person issuers (produtor rural, MEI
+// pessoa física) carry a CPF and would otherwise be emitted as CNPJ, which
+// SEFAZ rejects.
+func IssuerDocTag(orgPK string) string {
+	if strings.HasPrefix(orgPK, TagCPF+"_") {
+		return TagCPF
+	}
+	return TagCNPJ
 }
 
 // CalcMod11DV computes the mod-11 check digit for a 43-char DFe access key.
@@ -157,7 +179,9 @@ func CalcMod11DV(key43 string) string {
 // GenerateAccessKey builds a 44-digit DFe access key:
 // cUF(2) + AAMM(4) + CNPJ(14) + mod(2) + serie(3) + num(9) + tpEmis(1) + cNF(8) + cDV(1).
 // model is one of ModelNFe/ModelNFCe/ModelCTe/ModelMDFe. Returns "" if uf is unknown.
-func GenerateAccessKey(uf, cnpj, model string, serie, number int, now time.Time) string {
+// tpEmis ocupa a posição 35 da chave de acesso — muda com a forma de emissão
+// (contingência). Use TpEmisNormal para a emissão online.
+func GenerateAccessKey(uf, cnpj, model string, serie, number int, now time.Time, tpEmis string) string {
 	cUF, ok := UFCode[uf]
 	if !ok {
 		return ""
@@ -171,6 +195,6 @@ func GenerateAccessKey(uf, cnpj, model string, serie, number int, now time.Time)
 		cnpj += "0"
 	}
 	cNF := fmt.Sprintf("%08d", 10_000_000+rand.Intn(90_000_000))
-	key43 := fmt.Sprintf("%s%s%s%s%03d%09d1%s", cUF, aamm, cnpj, model, serie, number, cNF)
+	key43 := fmt.Sprintf("%s%s%s%s%03d%09d%s%s", cUF, aamm, cnpj, model, serie, number, tpEmis, cNF)
 	return key43 + CalcMod11DV(key43)
 }

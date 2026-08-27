@@ -52,6 +52,57 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.Ext
 		return sendPage(c, res, cursor)
 	})
 
+	// ── Inutilização de numeração ────────────────────────────────────────────
+	// Registered before /:access_key so the literal path is not captured by the
+	// access-key parameter route.
+
+	// POST /nfes/inutilizations — inutilize an unused number range
+	g.Post("/inutilizations", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body nfesvc.InutilizationBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		item, err := svc.Inutilize(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		m, err := unmarshal(item)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(m)
+	})
+
+	// GET /nfes/inutilizations — list requested/homologated ranges
+	g.Get("/inutilizations", perm.Require("list.nfe_events"), func(c fiber.Ctx) error {
+		cursor := c.Query("cursor")
+		res, err := svc.ListInutilizations(c.Context(), middleware.GetOrgPK(c),
+			intQuery(c, "limit", 50), decodeCursor(cursor))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendPage(c, res, cursor)
+	})
+
+	// GET /nfes/inutilizations/gaps — numbering holes still open
+	g.Get("/inutilizations/gaps", perm.Require("list.nfe_events"), func(c fiber.Ctx) error {
+		gaps, err := svc.NumberGaps(c.Context(), middleware.GetOrgPK(c))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(fiber.Map{"items": gaps})
+	})
+
+	// GET /nfes/inutilizations/:sk/xml — ProcInutNFe (request assinado + retorno)
+	g.Get("/inutilizations/:sk/xml", perm.Require("list.nfe_events"), func(c fiber.Ctx) error {
+		data, err := svc.GetInutilizationXML(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendXML(c, data, "inutilizacao-"+c.Params("sk"))
+	})
+
 	// GET /nfes/:access_key
 	g.Get("/:access_key", perm.Require("get.nfes"), func(c fiber.Ctx) error {
 		nfe, err := svc.GetNFe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
@@ -150,6 +201,63 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.Ext
 		}
 		userID, userName := resolveActor(c, userSvc)
 		nfe, err := svc.Manifestation(c.Context(), middleware.GetOrgPK(c), accessKey, body.EventType, body.SequenceNumber, body.Justification, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/prorrogation — pedido de prorrogação (111500/111501)
+	g.Post("/:access_key/prorrogation", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			EventType      string                    `json:"event_type" validate:"required,oneof=111500 111501"`
+			Items          []nfesvc.ProrrogationItem `json:"items" validate:"required,min=1,max=990,dive"`
+			SequenceNumber int                       `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.RequestProrrogation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.EventType, body.Items, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/prorrogation-cancel — cancelamento do pedido (111502/111503)
+	g.Post("/:access_key/prorrogation-cancel", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			EventType      string `json:"event_type" validate:"required,oneof=111502 111503"`
+			RequestID      string `json:"request_id" validate:"required,max=60"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.CancelProrrogation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.EventType, body.RequestID, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/cancel-event — cancelamento de evento (110001)
+	g.Post("/:access_key/cancel-event", perm.Require("delete.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			CancelledEventType string `json:"cancelled_event_type" validate:"required,len=6,numeric"`
+			CancelledProtocol  string `json:"cancelled_protocol" validate:"required,max=15,numeric"`
+			SequenceNumber     int    `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.CancelEvent(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.CancelledEventType, body.CancelledProtocol, defaultSeq(body.SequenceNumber), userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}

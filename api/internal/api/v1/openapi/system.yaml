@@ -26,6 +26,23 @@ paths:
 
   # ── Health / WebSocket ─────────────────────────────────────────────────────
 
+  /v1.0/health:
+    get:
+      tags: [ Health ]
+      summary: Liveness — responde sem tocar em nenhuma dependência
+      description: |
+        Rota pública e barata: só confirma que o processo está de pé, sem
+        consultar cache, DynamoDB, S3, SNS ou SQS. Para a saúde real das
+        dependências use `/v1.0/health-check`.
+      operationId: healthLiveness
+      security: [ ]
+      responses:
+        '200':
+          description: Processo no ar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
   /v1.0/health-check:
     get:
       tags: [ Health ]

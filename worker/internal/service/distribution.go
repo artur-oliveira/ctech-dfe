@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	mathrand "math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -20,7 +22,7 @@ import (
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
-	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
@@ -871,7 +873,7 @@ func (s *DistributionService) autoScience(
 	}
 
 	seqNum := 1
-	eventSK := newUUIDv7()
+	eventSK := genULID()
 	eventKey := fmt.Sprintf("%s#%s#%03d", accessKey, tpEventoCiencia, seqNum)
 	now := time.Now().UTC()
 	dh := fmtDhManifest(now)
@@ -1117,7 +1119,7 @@ func (s *DistributionService) persistEvent(ctx context.Context, fields DocFields
 	if n, err := strconv.Atoi(fields.SequenceNumber); err == nil && n > 0 {
 		seqNum = n
 	}
-	eventSK := newUUIDv7()
+	eventSK := genULID()
 	eventKey := fmt.Sprintf("%s#%s#%03d", fields.AccessKey, fields.EventType, seqNum)
 	now := time.Now().UTC()
 	table := s.cfg.TablePrefix + "_" + dtcfg.eventsTable
@@ -1674,10 +1676,25 @@ func attributeList(rows []map[string]string) *types.AttributeValueMemberL {
 	return &types.AttributeValueMemberL{Value: list}
 }
 
-// newUUIDv7 generates a UUID v7
-func newUUIDv7() string {
-	id, _ := uuid.NewV7()
-	return id.String()
+// GenerateID returns a new ULID strings
+func genULID() string {
+	return newULID().String()
+}
+
+var ulidPool = sync.Pool{
+	New: func() any {
+		return ulid.Monotonic(rand.Reader, 0)
+	},
+}
+
+func newULID() ulid.ULID {
+	// Acquire engine from pool
+	entropy := ulidPool.Get().(ulid.MonotonicReader)
+	defer ulidPool.Put(entropy)
+
+	ms := ulid.Timestamp(time.Now())
+	id, _ := ulid.New(ms, entropy)
+	return id
 }
 
 func snsInput(topicARN, message string) *sns.PublishInput {

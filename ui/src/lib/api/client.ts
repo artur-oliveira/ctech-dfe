@@ -57,6 +57,9 @@ import type {
   VehicleOut,
   VehicleRequirements,
   VehicleUpdate,
+  InutilizationIn,
+  InutilizationOut,
+  NumberGapOut,
 } from '@/lib/types/api'
 import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage'
@@ -871,6 +874,32 @@ class ApiClient {
   // que api/internal/services/distributions.go não registra para "nfse").
   async listNfseDistributions(params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<NfseDistributionOut>> {
     return this.get('/v1.0/nfse/distributions', {params})
+  }
+
+  // ── Inutilização de numeração (NF-e / NFC-e) ──────────────────────────────
+
+  /** Lista as inutilizações da organização, mais recentes primeiro. */
+  async listInutilizations(docType: 'nfe' | 'nfce', params?: {
+    limit?: number;
+    cursor?: string
+  }): Promise<PaginatedResponse<InutilizationOut>> {
+    return this.get(`/v1.0/${docType}s/inutilizations`, {params})
+  }
+
+  /** Faixas de numeração sem documento utilizável e ainda não inutilizadas. */
+  async listNumberGaps(docType: 'nfe' | 'nfce'): Promise<{ items: NumberGapOut[] }> {
+    return this.get(`/v1.0/${docType}s/inutilizations/gaps`)
+  }
+
+  /** Baixa o ProcInutNFe — request assinado + retorno da SEFAZ. */
+  async downloadInutilizationXml(docType: 'nfe' | 'nfce', sk: string): Promise<Blob> {
+    return (await this.http.get<Blob>(
+      `/v1.0/${docType}s/inutilizations/${encodeURIComponent(sk)}/xml`, {responseType: 'blob'})).data
+  }
+
+  /** Envia uma faixa não utilizada para inutilização na SEFAZ (201). */
+  async createInutilization(docType: 'nfe' | 'nfce', body: InutilizationIn): Promise<InutilizationOut> {
+    return this.post(`/v1.0/${docType}s/inutilizations`, body)
   }
 
   async downloadDistributionXml(docType: string, nsu: number): Promise<Blob> {

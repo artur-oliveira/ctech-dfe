@@ -124,6 +124,8 @@ await apiClient.me()                       // GET /v1.0/auth/me
 await apiClient.listNfes(params)           // GET /v1.0/nfes
 await apiClient.emitNfe(body)              // POST /v1.0/nfes
 await apiClient.cancelNfe(accessKey, body) // POST /v1.0/nfes/{key}/cancel
+await apiClient.listNumberGaps('nfe')      // GET /v1.0/nfes/inutilizations/gaps
+await apiClient.createInutilization('nfe', body) // POST /v1.0/nfes/inutilizations
 await apiClient.getAuditLogs(params)       // GET /v1.0/audit-logs (OWNER/ADMIN only)
 ```
 

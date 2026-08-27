@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,20 +75,14 @@ func RegisterHealth(router fiber.Router, cacheBackend cache.Backend, clients *aw
 		loadBearing := []string{dynamo.Status, s3c.Status, snsc.Status, sqsResults.Status, sqsDist.Status, cpu.Status, mem.Status}
 		overall := "pass"
 		statusCode := fiber.StatusOK
-		for _, s := range loadBearing {
-			if s == "fail" {
-				overall = "fail"
-				statusCode = fiber.StatusServiceUnavailable
-				break
-			}
+		if slices.Contains(loadBearing, "fail") {
+			overall = "fail"
+			statusCode = fiber.StatusServiceUnavailable
 		}
 		if overall != "fail" {
-			for _, s := range append(loadBearing, cachec.Status) {
-				if s == "warn" {
-					overall = "warn"
-					statusCode = 207
-					break
-				}
+			if slices.Contains(append(loadBearing, cachec.Status), "warn") {
+				overall = "warn"
+				statusCode = 207
 			}
 		}
 
@@ -108,6 +103,14 @@ func RegisterHealth(router fiber.Router, cacheBackend cache.Backend, clients *aw
 				"memory":           mem,
 				"cache":            cachec,
 			},
+		})
+	})
+
+	router.Get("/health", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(healthResponse{
+			Status:    "pass",
+			ReleaseID: cfg.AppVersion,
+			ServiceID: "CTech DF-e",
 		})
 	})
 }

@@ -13,7 +13,7 @@ func baseParams(owner *resolvedOwner) buildParams {
 	return buildParams{
 		org:         testOrg(),
 		orgPK:       "CNPJ_12345678000190",
-		accessKey:   services.GenerateAccessKey("SP", "12345678000190", services.ModelMDFe, 1, 1, now),
+		accessKey:   services.GenerateAccessKey("SP", "12345678000190", services.ModelMDFe, 1, 1, now, services.TpEmisNormal),
 		serie:       1,
 		number:      1,
 		environment: 2,

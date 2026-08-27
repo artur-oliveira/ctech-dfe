@@ -773,6 +773,41 @@ export const mdfeEventsFixture = [
   dfeEvent(mdfesFixture[0].sk, '110112', 1, 'success', '2026-07-02T18:40:00Z'),
 ]
 
+// Inutilizações de numeração (NF-e / NFC-e)
+const inutilization = (
+  sk: string, year: number, serie: number, start: number, end: number,
+  status: string, justification: string, createdAt: string,
+) => ({
+  pk: `INUT#hom#${ORG_PK}`,
+  sk,
+  event_type: 'INUT',
+  event_key: `INUT#${year}#${String(serie).padStart(3, '0')}#${String(start).padStart(9, '0')}#${String(end).padStart(9, '0')}`,
+  status,
+  year,
+  serie,
+  number_start: start,
+  number_end: end,
+  justification,
+  sefaz_status: status === 'success' ? '102' : null,
+  sefaz_motive: status === 'success' ? 'Inutilizacao de numero homologado' : null,
+  xml_s3_key: status === 'success' ? `nfe/hom/${ORG_PK}/inut.xml` : null,
+  user_id: 'user-1',
+  user_name: 'Operador',
+  created_at: createdAt,
+  updated_at: createdAt,
+})
+
+export const inutilizationsFixture = [
+  inutilization('01924f10-0001', 2026, 1, 118, 120, 'success',
+    'Numeros perdidos por falha de transmissao', '2026-07-04T09:15:00Z'),
+  inutilization('01924f10-0002', 2026, 1, 97, 97, 'pending',
+    'Numero consumido sem gerar documento autorizado', '2026-07-06T16:02:00Z'),
+]
+
+export const numberGapsFixture = [
+  {serie: 1, number_start: 131, number_end: 133},
+]
+
 // Catálogo de serviços (NFS-e)
 export const servicesFixture = [
   {

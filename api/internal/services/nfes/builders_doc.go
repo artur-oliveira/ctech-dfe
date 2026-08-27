@@ -15,12 +15,31 @@ import (
 )
 
 const (
-	nfModel55    = "55"
-	nfModel65    = "65"
-	tpEmisNormal = "1"
+	nfeXMLNS  = "http://www.portalfiscal.inf.br/nfe"
+	nfModel55 = "55"
+	nfModel65 = "65"
 
-	tpImpDANFERetrato = "1"
-	tpImpDANFENFCe    = "4"
+	// ide/tpEmis — forma de emissão (leiauteNFe_v4.00). Só `1` é normal; todo
+	// o resto é contingência e exige o grupo dhCont + xJust.
+	tpEmisNormal    = "1"
+	TpEmisFS        = "2" // Formulário de Segurança
+	TpEmisRegEspNFF = "3" // Regime Especial NFF
+	TpEmisEPEC      = "4" // EPEC — evento prévio, transmissão posterior
+	TpEmisFSDA      = "5" // Formulário de Segurança para Impressão de DANFE
+	TpEmisSVCAN     = "6" // Sefaz Virtual de Contingência — Ambiente Nacional
+	TpEmisSVCRS     = "7" // Sefaz Virtual de Contingência — RS
+	TpEmisOffline   = "9" // NFC-e offline
+
+	// ide/tpImp — layout do DANFE. Contingência muda o formato impresso.
+	tpImpDANFERetrato  = "1"
+	TpImpDANFEPaisagem = "2"
+	TpImpDANFESimpl    = "3"
+	tpImpDANFENFCe     = "4"
+	TpImpDANFENFCeMsg  = "5" // NFC-e em mensagem eletrônica
+	TpImpDANFESimplT2  = "6" // DANFE NFC-e Simplificado (contingência offline)
+
+	// contJustificationMin is the xJust minimum the XSD imposes on contingency.
+	contJustificationMin = 15
 
 	procEmiApp          = "0"
 	indTotCompoe        = "1"
@@ -405,6 +424,7 @@ func BuildEnviNFe(
 	model string,
 	supl map[string]any,
 	retirada, entrega *NfeLocalBody,
+	mode EmissionMode,
 ) map[string]any {
 	isNFCe := model == nfModel65
 	orgPerson := getPersonMap(org)
@@ -986,39 +1006,39 @@ func BuildEnviNFe(
 	if natOp != nil && *natOp != "" {
 		natOpStr = truncateNatOp(*natOp)
 	}
-	var tpImp string
-	if isNFCe {
-		tpImp = tpImpDANFENFCe
-	} else {
-		tpImp = tpImpDANFERetrato
+	ide := map[string]any{
+		"cUF":      cUF,
+		"cNF":      cNF,
+		"natOp":    natOpStr,
+		"mod":      model,
+		"serie":    fmt.Sprintf("%d", serie),
+		"nNF":      fmt.Sprintf("%d", number),
+		"dhEmi":    dhEmi,
+		"tpNF":     tpNF,
+		"idDest":   idDest,
+		"cMunFG":   strOrDefault(anyStr(orgAddress, "city_ibge_code", ""), "0000000"),
+		"tpImp":    mode.TpImp,
+		"tpEmis":   mode.TpEmis,
+		"cDV":      string(accessKey[len(accessKey)-1]),
+		"tpAmb":    fmt.Sprintf("%d", environment),
+		"finNFe":   finNFe,
+		"indFinal": indFinal,
+		"indPres":  indPres,
+		"procEmi":  procEmiApp,
+		"verProc":  tech.Version,
+	}
+	// dhCont + xJust são exigidos "apenas para tpEmis diferente de 1" (XSD).
+	if mode.IsContingency() {
+		ide["dhCont"] = fmtDhEmi(mode.ContingencyAt)
+		ide["xJust"] = mode.Justification
 	}
 	infNFe := map[string]any{
 		"@versao": "4.00",
 		"@Id":     fmt.Sprintf("NFe%s", accessKey),
-		"ide": map[string]any{
-			"cUF":      cUF,
-			"cNF":      cNF,
-			"natOp":    natOpStr,
-			"mod":      model,
-			"serie":    fmt.Sprintf("%d", serie),
-			"nNF":      fmt.Sprintf("%d", number),
-			"dhEmi":    dhEmi,
-			"tpNF":     tpNF,
-			"idDest":   idDest,
-			"cMunFG":   strOrDefault(anyStr(orgAddress, "city_ibge_code", ""), "0000000"),
-			"tpImp":    tpImp,
-			"tpEmis":   tpEmisNormal,
-			"cDV":      string(accessKey[len(accessKey)-1]),
-			"tpAmb":    fmt.Sprintf("%d", environment),
-			"finNFe":   finNFe,
-			"indFinal": indFinal,
-			"indPres":  indPres,
-			"procEmi":  procEmiApp,
-			"verProc":  tech.Version,
-		},
-		"emit":  emitStruct,
-		"det":   det,
-		"total": totalNode,
+		"ide":     ide,
+		"emit":    emitStruct,
+		"det":     det,
+		"total":   totalNode,
 		"transp": buildTransp(hasPesoL, hasPesoB, totalPesoL, totalPesoB, transport,
 			buildPartyTransporta(emitDoc, isEmitPJ, anyStr(org, "name", ""), getIEForUF(orgPerson, emitUF), orgAddress),
 			buildPartyTransporta(destDoc, isDestPJ, anyStr(receiver, "name", ""), destIE, destAddress)),
@@ -1057,7 +1077,7 @@ func BuildEnviNFe(
 	return map[string]any{
 		"enviNFe": map[string]any{
 			"@versao": "4.00",
-			"@xmlns":  "http://www.portalfiscal.inf.br/nfe",
+			"@xmlns":  nfeXMLNS,
 			"idLote":  fmt.Sprintf("%015d", number),
 			"indSinc": indSinc,
 			"NFe":     nfe,

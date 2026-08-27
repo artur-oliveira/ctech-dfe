@@ -1289,10 +1289,17 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | GET    | `/v1.0/nfes/{access_key}`                 | Detail                                      |
 | POST   | `/v1.0/nfes/{access_key}/cancel`          | Cancel                                      |
 | POST   | `/v1.0/nfes/{access_key}/manifestation`   | Manifestação do destinatário (210200/210210/210220/210240) |
+| POST   | `/v1.0/nfes/{access_key}/prorrogation`    | Pedido de prorrogação do ICMS suspenso (111500/111501) |
+| POST   | `/v1.0/nfes/{access_key}/prorrogation-cancel` | Cancela o pedido de prorrogação (111502/111503) |
+| POST   | `/v1.0/nfes/{access_key}/cancel-event`    | Cancelamento de evento (110001)             |
 | GET    | `/v1.0/nfes/{access_key}/xml`             | Download XML                                |
 | GET    | `/v1.0/nfes/{access_key}/danfe`           | Download DANFE (future)                     |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
 | GET    | `/v1.0/nfes/{access_key}/events/{sk}/xml` | Event XML                                   |
+| POST   | `/v1.0/nfes/inutilizations`               | Inutiliza faixa de numeração não utilizada  |
+| GET    | `/v1.0/nfes/inutilizations`               | Lista as inutilizações da organização       |
+| GET    | `/v1.0/nfes/inutilizations/gaps`          | Lacunas de numeração ainda em aberto        |
+| GET    | `/v1.0/nfes/inutilizations/{sk}/xml`      | Baixa o `ProcInutNFe` da faixa              |
 
 **NF-e status transitions:**
 
@@ -1370,6 +1377,91 @@ online, SHA-1 with the CSC stored in `organization_nfce_configs` as
 | GET    | `/v1.0/nfces/{access_key}/danfce`           | Download DANFC-e PDF (py-dfe `GerarDanfe`)         |
 | GET    | `/v1.0/nfces/{access_key}/events`           | List events                                         |
 | GET    | `/v1.0/nfces/{access_key}/events/{sk}/xml`  | Event XML                                           |
+| POST   | `/v1.0/nfces/inutilizations`                | Inutiliza faixa de numeração não utilizada          |
+| GET    | `/v1.0/nfces/inutilizations`                | Lista as inutilizações da organização               |
+| GET    | `/v1.0/nfces/inutilizations/gaps`           | Lacunas de numeração ainda em aberto                |
+| GET    | `/v1.0/nfces/inutilizations/{sk}/xml`       | Baixa o `ProcInutNFe` da faixa                      |
+
+#### Contingência — fase C0 (forma de emissão parametrizável)
+
+Antes desta fase toda emissão era `ide/tpEmis = 1` fixo e `ide/tpImp` fixo por modelo, o que
+tornava contingência impossível. Agora a forma de emissão é um parâmetro do builder:
+
+- **`nfes.EmissionMode`** (`emission_mode.go`) carrega `TpEmis`, `TpImp`, `ContingencyAt` e
+  `Justification`. `NormalEmission(model)` é o modo online — o que toda emissão usa hoje.
+- **`ide/dhCont` + `ide/xJust`** são emitidos **apenas** quando `TpEmis != 1`, como o XSD exige
+  ("apenas para tpEmis diferente de 1"). `EmissionMode.Validate()` recusa contingência sem os dois,
+  com `xJust` de no mínimo 15 caracteres.
+- **`tpEmis` está na chave de acesso** (posição 35), então o modo é resolvido *antes* de gerar a
+  chave. `generateAccessKey` (NF-e/NFC-e) e `services.GenerateAccessKey` (CT-e/MDF-e) recebem
+  `tpEmis`.
+- **MDF-e** tem `tpEmis` 1/2/3 mas o layout **não tem** `dhCont`/`xJust` — a forma de emissão passa
+  por `buildParams.tpEmis`, sem grupo de contingência.
+
+Constantes: `nfes.TpEmisFS/RegEspNFF/EPEC/FSDA/SVCAN/SVCRS/Offline`,
+`nfes.TpImpDANFEPaisagem/Simpl/NFCeMsg/SimplT2`, `mdfes.TpEmisContingencia/RegEspNFF`,
+`services.TpEmisNormal`.
+
+**Quem escolhe o modo ainda não existe.** A detecção de indisponibilidade, a máquina de estados por
+organização e os autorizadores SVC são as fases C1–C7 do plano
+(`docs/plans/2026-08-26-contingencia-e-inutilizacao-dfe.md`). Hoje `NormalEmission` é sempre usada.
+
+#### Inutilização de numeração (NF-e / NFC-e)
+
+Numeração fiscal não pode ter lacuna: todo número consumido sem gerar documento autorizado
+(rejeição definitiva, falha entre a reserva do número e a transmissão, troca de série) deixa um
+buraco que o fisco cobra. A inutilização (serviço SEFAZ `NfeInutilizacao`) é a única forma de
+fechá-lo.
+
+**Rotas registradas antes de `/:access_key`** nos dois routers — o caminho literal
+`inutilizations` seria capturado pela rota paramétrica caso contrário.
+
+**Persistência — reuso das tabelas de eventos.** As inutilizações vivem em `nfe_events` /
+`nfce_events`, as mesmas tabelas às quais o worker `nfe-inutilization` já tem acesso IAM
+(`cdk/lib/worker-definitions.ts`). Como uma inutilização não tem chave de acesso, as chaves são
+sintetizadas:
+
+| Atributo    | Valor                                                        |
+|-------------|--------------------------------------------------------------|
+| `pk`        | `INUT#{env}#{org_pk}` — todas as inutilizações da organização em uma query |
+| `sk`        | `{uuidv7}`                                                    |
+| `event_key` | `INUT#{ano}#{serie:03d}#{nNFIni:09d}#{nNFFin:09d}`             |
+| `event_type`| `INUT` — inutilização não é evento SEFAZ (não tem `tpEvento`)  |
+
+Atributos próprios: `year`, `serie`, `number_start`, `number_end`, `justification`. O restante
+(`status`, `sefaz_status`, `sefaz_motive`, `xml_s3_key`, timestamps) segue o caminho genérico de
+evento do worker, sem alteração.
+
+**Fluxo.** API valida → grava a linha com `status: pending` → publica `WorkerMessage` com
+`SefazService: NfeInutilizacao` e `EventsTableName`/`EventSK` preenchidos (o que faz o worker
+tratá-la como evento e nunca tocar na tabela do documento) → worker chama a SEFAZ via go-dfe →
+grava `success` (cStat **102**, *Inutilização de número homologado*) ou `error`.
+
+`102` foi adicionado a `authorizedStats` (`worker/internal/service/helpers.go`): é o código de
+sucesso da inutilização, que não devolve `infProt`.
+
+**Regras de negócio:**
+
+- A faixa é recusada se contiver qualquer número que já produziu documento utilizável. Só
+  `rejected` e `failed` liberam o número.
+- Justificativa: mínimo 15 caracteres (exigência SEFAZ), igual ao cancelamento.
+- `year` é opcional; assume o ano corrente.
+- O layout `inutNFe` só tem elemento `CNPJ` — **não há choice CNPJ|CPF**. Emitente pessoa física
+  recebe `400`.
+- `GET .../gaps` varre a série corrente até `{env}_current_number` da config fiscal e devolve as
+  faixas contíguas sem documento utilizável, já descontando as inutilizações homologadas.
+
+**Body `inutNFe`** — `@Id` = `ID` + cUF(2) + ano(2) + CNPJ(14) + mod(2) + serie(3) + nNFIni(9) +
+nNFFin(9), 43 caracteres.
+
+**XML processado — `ProcInutNFe`.** Como toda emissão e todo evento, a inutilização homologada gera
+um documento processado: o `inutNFe` assinado que foi enviado somado ao `retInutNFe` devolvido pela
+SEFAZ, sob a raiz `ProcInutNFe` (P maiúsculo, `procInutNFe_v4.00.xsd`). É construído por
+`go-dfe`'s `xmlops.BuildProcessedXML` — a inutilização entrou em `emissionServices` porque tem
+exatamente a mesma forma (documento + resposta sob raiz única), com o detalhe de que o "documento" é
+a própria raiz do request. O worker o grava no S3 e guarda a chave em `xml_s3_key` pelo caminho
+genérico de `saveResponse`, sem código específico. `GET .../inutilizations/{sk}/xml` o devolve; a
+aba de inutilizações só mostra o botão de download quando `xml_s3_key` existe.
 
 **Issuance body (`POST /v1.0/nfces`):** `consumer_cpf?` (CPF only), `products[]`
 (`product_id`, `cfop` 5xxx, `quantity`, `unit_value?`, `discount?`), `payments[]`
@@ -1393,11 +1485,25 @@ Modal is **rodoviário only** in the MVP; other modais are reserved.
 | GET    | `/v1.0/mdfes/{access_key}/xml`                       | Download XML                                       |
 | GET    | `/v1.0/mdfes/{access_key}/damdfe`                    | Download DAMDFE PDF (py-dfe `GerarDamdfe`)         |
 | POST   | `/v1.0/mdfes/{access_key}/cancel`                    | Cancel (event 110111, `justification` ≥ 15 chars) |
-| POST   | `/v1.0/mdfes/{access_key}/close`                     | Encerramento (event 110112, `ibge_code`, `uf?`)   |
+| POST   | `/v1.0/mdfes/{access_key}/close`                     | Encerramento (110112, `ibge_code`, `uf?`, `by_third_party?`) |
 | POST   | `/v1.0/mdfes/{access_key}/include-condutor`          | Inclusão de condutor (event 110114)               |
 | POST   | `/v1.0/mdfes/{access_key}/include-dfe`               | Inclusão de DF-e (event 110115)                   |
+| POST   | `/v1.0/mdfes/{access_key}/payment`                   | Pagamento da operação de transporte (110116)      |
+| POST   | `/v1.0/mdfes/{access_key}/confirm-service`           | Confirmação da prestação do serviço (110117)      |
+| POST   | `/v1.0/mdfes/{access_key}/change-payment`            | Alteração do pagamento declarado (110118)         |
 | GET    | `/v1.0/mdfes/{access_key}/events`                    | List events                                       |
 | GET    | `/v1.0/mdfes/{access_key}/events/{sk}/xml`           | Event XML                                          |
+
+**Eventos de pagamento (110116 / 110117 / 110118).** `infPag` é a **mesma estrutura** de
+`infANTT/infPag` do modal rodoviário, e tem um único construtor —
+`mdfes.buildInfPag` (`payment_events.go`). Quando a emissão passar a emitir `infANTT/infPag`, ela
+reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chamar a SEFAZ:
+
+- `Comp` com `tpComp = 99` exige `description` (xComp).
+- `indPag = 1` (a prazo) exige ao menos uma parcela em `installments` (infPrazo).
+- `infBanc` é choice: PIX, CNPJ da instituição de pagamento, ou banco **+** agência.
+- Recebedor é choice `CPF | CNPJ | idEstrangeiro` — exatamente um.
+
 
 **Issuance body (`POST /v1.0/mdfes`):**
 

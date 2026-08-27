@@ -2100,7 +2100,7 @@ func buildAuditLogTxItem(tablePrefix, orgPK, resourceType, resourceID, action st
 	modsAV, _ := attributevalue.MarshalList(modifications) // modifications is always a small, well-typed local slice — marshal cannot fail here
 	item := map[string]types.AttributeValue{
 		"pk":            &types.AttributeValueMemberS{Value: orgPK},
-		"sk":            &types.AttributeValueMemberS{Value: fmt.Sprintf("%s#%s#%s", resourceType, resourceID, newUUIDv7())},
+		"sk":            &types.AttributeValueMemberS{Value: fmt.Sprintf("%s#%s#%s", resourceType, resourceID, genULID())},
 		"resource_type": &types.AttributeValueMemberS{Value: resourceType},
 		"resource_id":   &types.AttributeValueMemberS{Value: resourceID},
 		"action":        &types.AttributeValueMemberS{Value: action},
@@ -2118,7 +2118,7 @@ func buildAuditLogTxItem(tablePrefix, orgPK, resourceType, resourceID, action st
 }
 ```
 
-(`newUUIDv7` and `nowStr` already exist in this package — `persistEvent` uses `newUUIDv7()` at `distribution.go:795`,
+(`genULID` and `nowStr` already exist in this package — `persistEvent` uses `genULID()` at `distribution.go:795`,
 and `now.UTC().Format(time.RFC3339Nano)` is used inline at `distribution.go:761` for `persistPerson`'s own timestamp;
 check whether a `nowStr()` helper already exists in `worker/internal/service/` before adding a new one — if not, either
 add a one-line `nowStr()` returning that same format, or inline `time.Now().UTC().Format(time.RFC3339Nano)` directly in

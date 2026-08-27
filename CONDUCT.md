@@ -425,6 +425,46 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   replacement NFC-e). For NF-e/NFC-e the worker treats `110111` and `110112` alike
   (doc → cancelled) — **but `110112` is NOT cancellation for MDF-e** (see below).
 
+## Forma de emissão (tpEmis) e contingência
+
+- **`tpEmis` está na chave de acesso** (posição 35). Resolva a forma de emissão **antes** de gerar a
+  chave — chave e `ide/tpEmis` divergentes são rejeição certa. `generateAccessKey` (NF-e/NFC-e) e
+  `services.GenerateAccessKey` (CT-e/MDF-e) exigem o `tpEmis` como argumento justamente para que
+  ninguém esqueça.
+- **`ide/dhCont` + `ide/xJust` são obrigatórios sempre que `tpEmis != 1`** e proibidos quando
+  `tpEmis == 1`. Passe por `nfes.EmissionMode`; nunca escreva os dois campos à mão. O MDF-e é a
+  exceção: tem `tpEmis` 1/2/3 mas o layout não tem o grupo de contingência.
+- **Não existe seleção automática de contingência ainda.** `NormalEmission` é sempre usada. Não
+  introduza um checkbox manual de contingência: entrar em contingência sem necessidade produz
+  documento em modo errado. A decisão pertence à máquina de estados da fase C2.
+
+## Inutilização de numeração (NF-e / NFC-e)
+
+- **Não tem tabela própria.** As linhas vivem em `nfe_events` / `nfce_events`, com `pk` sintético
+  `INUT#{env}#{org_pk}` e `event_type = INUT`. Foi o reuso deliberado: o worker `nfe-inutilization`
+  já tinha IAM sobre essas tabelas (`cdk/lib/worker-definitions.ts`) e o caminho genérico de evento
+  do worker se aplica sem alteração. Não crie `nfe_inutilizations`.
+- **Rotas antes de `/:access_key`.** Em Fiber a rota paramétrica captura `inutilizations` se vier
+  primeiro. Qualquer rota literal nova nesses routers segue a mesma regra.
+- **cStat `102` é sucesso** (*Inutilização de número homologado*) e está em `authorizedStats`
+  (`worker/internal/service/helpers.go`). Ao contrário da autorização, a resposta não traz `infProt`.
+- **`infInut` não tem choice CNPJ|CPF** — só `CNPJ`. Emitente pessoa física não consegue inutilizar;
+  isso é limite do layout SEFAZ, não do produto, e a API responde `400` explicando.
+- **cStat `102` é sucesso, e um evento rejeitado é terminal.** Os dois já morderam em produção:
+  `102` fora de `authorizedStats` marcou faixa homologada como `rejected` (2026-08-27), e
+  `rejected` fora de `eventTerminalStatuses` fazia a mensagem reentregar até a DLQ, porque
+  `claimProcessing` não consegue reivindicar esse status nem o reconhecia como concluído.
+- **A inutilização homologada gera `ProcInutNFe`**, montado por `xmlops.BuildProcessedXML`. Nunca
+  guarde só a resposta: sem o request assinado junto, não há como comprovar a inutilização depois.
+- **Número que gerou documento utilizável nunca é inutilizado.** Só `rejected` e `failed` liberam o
+  número; a validação roda antes de qualquer chamada à SEFAZ.
+
+## Evento de documento com emitente pessoa física
+
+- `infEvento` é `choice CNPJ | CPF`. O elemento sai de `services.IssuerDocTag(orgPK)`, derivado do
+  prefixo do PK da organização — nunca escreva `"CNPJ"` fixo num builder de evento. Produtor rural e
+  MEI pessoa física ficavam sem cancelamento, sem CC-e e sem manifestação por causa disso.
+
 ## DANFE rendering (py-dfe `danfe/`)
 
 - DANFE generation (`service="GerarDanfe"`) is **pure-local**: no certificate, no

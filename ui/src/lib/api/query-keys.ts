@@ -76,6 +76,11 @@ export const queryKeys = {
     detail: (id: string) => ['nfse', id] as const,
     events: (id: string) => ['nfse-events', id] as const,
   },
+  /** Inutilizações e lacunas de numeração, por tipo de documento e organização. */
+  inutilizations: {
+    list: (docType: string, orgPk: string | undefined) => [`${docType}-inutilizations`, orgPk] as const,
+    gaps: (docType: string, orgPk: string | undefined) => [`${docType}-number-gaps`, orgPk] as const,
+  },
   distributions: {
     history: (docType: string, orgPk: string | undefined) => [`${docType}-distributions`, orgPk] as const,
   },

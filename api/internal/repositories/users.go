@@ -7,8 +7,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/google/uuid"
-
 	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
@@ -66,14 +64,4 @@ func (r *UserRepository) CreateMinimal(ctx context.Context, userID string) (map[
 func (r *UserRepository) Update(ctx context.Context, userID string, updates map[string]any) (bool, error) {
 	updates["updated_at"] = NowStr()
 	return r.UpdateItem(ctx, BuildUserPK(userID), nil, updates)
-}
-
-// GenerateID returns a new UUID v7 string.
-func GenerateID() string {
-	id, err := uuid.NewV7()
-	if err != nil {
-		logUnexpectedError("generate UUID v7", err)
-		return uuid.NewString()
-	}
-	return id.String()
 }

@@ -15,6 +15,8 @@ import {
   certificatesFixture,
   cteConfigFixture,
   distributionsFixture,
+  inutilizationsFixture,
+  numberGapsFixture,
   mdfeConfigFixture,
   mdfeDetailFixture,
   mdfeEventsFixture,
@@ -151,6 +153,13 @@ function route(method: string, path: string, body: unknown): RouteResult {
   }
   if (key === 'get /v1.0/nfses') return {data: paginated(nfsesFixture)}
   if (m === 'post' && path === '/v1.0/nfses') return {data: echo(body, 'nfse')}
+
+  // Inutilização de numeração — antes das rotas de detalhe, que também casam
+  // com `/nfes/{key}`.
+  if (/^get \/v1\.0\/nfc?es\/inutilizations\/gaps$/.test(key)) return {data: {items: numberGapsFixture}}
+  if (/^get \/v1\.0\/nfc?es\/inutilizations$/.test(key)) return {data: paginated(inutilizationsFixture)}
+  if (/^post \/v1\.0\/nfc?es\/inutilizations$/.test(key)) return {data: inutilizationsFixture[1]}
+  if (/^get \/v1\.0\/nfc?es\/inutilizations\/[^/]+\/xml$/.test(key)) return {data: '<ProcInutNFe/>'}
 
   // Event timelines. Antes das rotas de detalhe: `/nfes/{key}/events` também
   // casa com o padrão de detalhe.

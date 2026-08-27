@@ -214,8 +214,16 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
+	// Hoje sempre normal; a seleção automática entra com a máquina de estados de
+	// contingência (fase C2 do plano).
+	mode := NormalEmission(nfModel55)
+	if err := mode.Validate(); err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
-	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel55)
+	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel55, mode.TpEmis)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +343,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		resolvedTransport, cobrFatAny, cobrDupAny, req.VTroco,
 		s.tech, nfModel55, nil,
 		req.Retirada, req.Entrega,
+		mode,
 	)
 
 	// Summary products for DynamoDB record
@@ -548,7 +557,7 @@ func (s *NfeService) appendPickupLocation(ctx context.Context, orgPK string, loc
 // generateAccessKey ports Python _generate_access_key.
 // 44-digit key: cUF(2) + AAMM(4) + CNPJ(14) + mod(2) + serie(3) + nNF(9) + tpEmis(1) + cNF(8) + cDV(1).
 // model is "55" (NF-e) or "65" (NFC-e).
-func generateAccessKey(orgPK string, org map[string]types.AttributeValue, serie, number int, now time.Time, model string) (string, error) {
+func generateAccessKey(orgPK string, org map[string]types.AttributeValue, serie, number int, now time.Time, model, tpEmis string) (string, error) {
 	uf := extractEmitUFFromItem(org)
 	cUF, ok := services.UFCode[uf]
 	if !ok {
@@ -563,7 +572,8 @@ func generateAccessKey(orgPK string, org map[string]types.AttributeValue, serie,
 		cnpj += "0"
 	}
 	cNF := fmt.Sprintf("%08d", 10_000_000+rand.Intn(90_000_000))
-	key43 := fmt.Sprintf("%s%s%s%s%03d%09d1%s", cUF, aamm, cnpj, model, serie, number, cNF)
+	// tpEmis ocupa a posição 35 da chave — muda com a forma de emissão.
+	key43 := fmt.Sprintf("%s%s%s%s%03d%09d%s%s", cUF, aamm, cnpj, model, serie, number, tpEmis, cNF)
 	return key43 + calcDV(key43), nil
 }
 

@@ -256,9 +256,13 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
+	// Hoje sempre normal; a contingência do MDF-e entra na fase C6 do plano.
+	tpEmis := tpEmisNormal
+
 	now := time.Now()
 	cnpj := services.StripPKPrefix(orgPK)
-	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now)
+	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now, tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
 	}
@@ -286,6 +290,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		air:         req.Air,
 		water:       req.Water,
 		rail:        req.Rail,
+		tpEmis:      tpEmis,
 		tech:        s.tech,
 	})
 
