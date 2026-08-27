@@ -40,6 +40,10 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['payment-terminals', orgPk] as const,
     detail: (id: string) => ['payment-terminal', id] as const,
   },
+  tollProviders: {
+    list: (orgPk: string | undefined) => ['toll-providers', orgPk] as const,
+    detail: (id: string) => ['toll-provider', id] as const,
+  },
   vehicleSets: {
     list: (orgPk: string | undefined) => ['vehicle-sets', orgPk] as const,
     detail: (id: string) => ['vehicle-set', id] as const,

@@ -446,6 +446,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Fornecedoras de vale-pedágio ───────────────────────────────────────────
+
+  /v1.0/toll-providers:
+    get:
+      tags: [ TollProviders ]
+      summary: Lista fornecedoras de vale-pedágio
+      operationId: listTollProviders
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de fornecedoras de vale-pedágio
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ TollProviders ]
+      summary: Cria uma fornecedora de vale-pedágio
+      operationId: createTollProvider
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TollProviderBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/toll-providers/{toll_provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: toll_provider_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ TollProviders ]
+      summary: Detalha uma fornecedora de vale-pedágio
+      operationId: getTollProvider
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ TollProviders ]
+      summary: Atualiza uma fornecedora de vale-pedágio
+      operationId: updateTollProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TollProviderBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ TollProviders ]
+      summary: Remove uma fornecedora de vale-pedágio
+      operationId: deleteTollProvider
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -731,6 +831,38 @@ components:
         name: { type: string }
         cnpj_receb: { type: string }
         id_term_pag: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TollProviderBody:
+      type: object
+      description: |
+        Fornecedora de vale-pedágio. O vale é obrigatório no transporte
+        rodoviário de carga (Lei 10.209); a fornecedora e o pagador são
+        invariantes, então por viagem só entram `n_compra` e `v_vale_ped` no
+        corpo da emissão do MDF-e (`toll_vouchers[]`).
+      required: [ name, cnpj_forn ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cnpj_forn: { type: string, description: CNPJ da fornecedora do vale-pedágio. }
+        cnpj_pg:
+          type: [ string, 'null' ]
+          description: Pagador do vale quando não é o emitente. Choice com `cpf_pg` — nunca os dois.
+        cpf_pg: { type: [ string, 'null' ] }
+        tp_vale_ped:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', null ]
+          description: '`01` TAG · `02` cupom · `03` cartão.'
+
+    TollProviderItem:
+      type: object
+      description: Fornecedora de vale-pedágio persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        cnpj_forn: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

@@ -42,3 +42,45 @@ func TestBuildEnderMDFeIncluiXCpl(t *testing.T) {
 		t.Fatalf("xCpl ausente: %v", got)
 	}
 }
+
+func TestBuildValePedComDispECategoria(t *testing.T) {
+	p := buildParams{
+		trailers: []resolvedVehicle{{Placa: "R1"}},
+		tolls: []resolvedToll{
+			{CNPJForn: "11111111111111", CNPJPg: "22222222222222", NCompra: "C-1", VValePed: "150.00", TpValePed: "01"},
+		},
+	}
+	got := p.buildValePed()
+	disp := got["disp"].([]map[string]any)
+	if len(disp) != 1 || disp[0]["CNPJForn"] != "11111111111111" || disp[0]["vValePed"] != "150.00" {
+		t.Fatalf("disp errado: %v", disp)
+	}
+	if got["categCombVeic"] != "04" {
+		t.Fatalf("categoria derivada errada: %v", got["categCombVeic"])
+	}
+}
+
+func TestBuildValePedSemValeDevolveNil(t *testing.T) {
+	if (buildParams{}).buildValePed() != nil {
+		t.Fatal("valePed sem vale tem que ser omitido")
+	}
+}
+
+// CNPJPg e CPFPg são um choice: informados os dois no cadastro, só o CNPJ sai.
+func TestBuildValePedPagadorEChoice(t *testing.T) {
+	p := buildParams{tolls: []resolvedToll{{
+		CNPJForn: "1", CNPJPg: "22222222222222", CPFPg: "33333333333",
+		NCompra: "C-1", VValePed: "10.00",
+	}}}
+	disp := p.buildValePed()["disp"].([]map[string]any)[0]
+	if _, ok := disp["CPFPg"]; ok {
+		t.Fatalf("CPFPg não pode coexistir com CNPJPg: %v", disp)
+	}
+}
+
+func TestBuildInfANTTIncluiValePed(t *testing.T) {
+	p := buildParams{tolls: []resolvedToll{{CNPJForn: "1", NCompra: "C-1", VValePed: "10.00"}}}
+	if _, ok := p.buildInfANTT()["valePed"]; !ok {
+		t.Fatalf("valePed ausente em infANTT: %v", p.buildInfANTT())
+	}
+}

@@ -191,6 +191,16 @@ func NewPaymentTerminalService(repo *repositories.PaymentTerminalRepository, aud
 	)}
 }
 
+// TollProviderService owns organization_toll_providers.
+type TollProviderService struct{ OrgEntityService }
+
+func NewTollProviderService(repo *repositories.TollProviderRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *TollProviderService {
+	return &TollProviderService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeTollProviders, repositories.AuditResourceTollProvider, "toll provider not found",
+	)}
+}
+
 // OperationService owns organization_operations, e é a única das quatro
 // entidades com uma regra própria: no máximo uma operação padrão por
 // organização.
@@ -282,4 +292,5 @@ const (
 	CacheScopePaymentTerms     = "payment_terms"
 	CacheScopeVehicleSets      = "vehicle_sets"
 	CacheScopePaymentTerminals = "payment_terminals"
+	CacheScopeTollProviders    = "toll_providers"
 )

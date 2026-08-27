@@ -47,6 +47,7 @@ PITR: enabled in production only.
 | 34 | `organization_payment_terms`| `{org_pk}`                   | `PAYMENTTERM_{uuid}`                     | `name-index`                                       |
 | 35 | `organization_vehicle_sets` | `{org_pk}`                   | `VEHICLESET_{uuid}`                      | `name-index`                                       |
 | 37 | `organization_payment_terminals` | `{org_pk}`              | `TERMINAL_{uuid}`                        | `name-index`                                       |
+| 38 | `organization_toll_providers`| `{org_pk}`                   | `TOLLPROVIDER_{uuid}`                    | `name-index`                                       |
 
 ---
 
@@ -754,3 +755,26 @@ para evitar. Na emissão, o pagamento só aponta `terminal_id`.
 | `uf_pag`      | S    | UF do pagador. Só válido acompanhado de `cnpj_pag` → `detPag/UFPag`                          |
 | `t_band`      | S    | Bandeira default (`card/tBand`). A bandeira informada na emissão sempre vence                |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                                 |
+
+---
+
+## 38. `organization_toll_providers`
+
+Fornecedoras de vale-pedágio. Mesma forma dos demais cadastros reutilizáveis (`pk` = org, `sk` =
+`TOLLPROVIDER_{uuid}`, GSI `name-index`).
+
+O vale-pedágio é obrigatório no transporte rodoviário de carga por conta de terceiros (Lei 10.209).
+A fornecedora e o pagador não mudam entre viagens: por viagem, o corpo da emissão do MDF-e traz só
+`toll_vouchers[] = {toll_provider_id, n_compra, v_vale_ped}`. `categCombVeic` nunca é gravado nem
+perguntado — é derivado do número de reboques do próprio manifesto.
+
+| Attribute     | Type | Notes                                                                  |
+|---------------|------|-------------------------------------------------------------------------|
+| `pk`          | S    | `{org_pk}`                                                              |
+| `sk`          | S    | `TOLLPROVIDER_{uuid}`                                                   |
+| `name`        | S    | Nome da fornecedora ("Sem Parar"). GSI: `name-index`                    |
+| `cnpj_forn`   | S    | CNPJ da fornecedora → MDF-e `valePed/disp/CNPJForn`                     |
+| `cnpj_pg`     | S    | Pagador do vale quando não é o emitente → `disp/CNPJPg`. Choice com `cpf_pg` |
+| `cpf_pg`      | S    | Idem, pessoa física → `disp/CPFPg`                                      |
+| `tp_vale_ped` | S    | `01` TAG · `02` cupom · `03` cartão → `disp/tpValePed`                  |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                              |

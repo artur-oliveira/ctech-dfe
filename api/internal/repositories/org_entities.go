@@ -25,12 +25,16 @@ const (
 	// TablePaymentTerminals guarda os terminais de captura (POS): CNPJ recebedor
 	// e identificador do terminal são invariantes por maquininha.
 	TablePaymentTerminals = "organization_payment_terminals"
+	// TableTollProviders guarda as fornecedoras de vale-pedágio: CNPJ da
+	// fornecedora e do pagador são invariantes; por viagem muda só nº e valor.
+	TableTollProviders = "organization_toll_providers"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
 	SKPrefixPaymentTerm     = "PAYMENTTERM_"
 	SKPrefixVehicleSet      = "VEHICLESET_"
 	SKPrefixPaymentTerminal = "TERMINAL_"
+	SKPrefixTollProvider    = "TOLLPROVIDER_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -194,6 +198,13 @@ type PaymentTerminalRepository struct{ OrgEntityRepository }
 
 func NewPaymentTerminalRepository(db *dynamodb.Client, cfg *config.Config) *PaymentTerminalRepository {
 	return &PaymentTerminalRepository{newOrgEntityRepository(db, cfg, TablePaymentTerminals, SKPrefixPaymentTerminal)}
+}
+
+// TollProviderRepository — organization_toll_providers.
+type TollProviderRepository struct{ OrgEntityRepository }
+
+func NewTollProviderRepository(db *dynamodb.Client, cfg *config.Config) *TollProviderRepository {
+	return &TollProviderRepository{newOrgEntityRepository(db, cfg, TableTollProviders, SKPrefixTollProvider)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

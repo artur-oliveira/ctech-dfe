@@ -109,6 +109,7 @@ const navGroups: NavGroup[] = [
       {href: '/payment-terminals', label: 'Terminais de pagamento', icon: <CreditCardIcon/>},
       {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
       {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
+      {href: '/toll-providers', label: 'Vale-pedágio', icon: <RouteIcon/>},
     ],
   },
   {

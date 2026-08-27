@@ -1,6 +1,8 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   OperationCreate,
+  TollProviderCreate,
+  TollProviderItemOut,
   PaymentTerminalCreate,
   PaymentTerminalItemOut,
   PaymentTermCreate,
@@ -513,6 +515,28 @@ class ApiClient {
 
   async deletePaymentTerminal(id: string): Promise<void> {
     return this.del(`/v1.0/payment-terminals/${id}`)
+  }
+
+  // Toll providers (fornecedoras de vale-pedágio)
+
+  async getTollProviders(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<TollProviderItemOut>> {
+    return this.get('/v1.0/toll-providers', {params})
+  }
+
+  async getTollProvider(id: string): Promise<TollProviderItemOut> {
+    return this.get(`/v1.0/toll-providers/${id}`)
+  }
+
+  async createTollProvider(data: TollProviderCreate): Promise<TollProviderItemOut> {
+    return this.post('/v1.0/toll-providers', data)
+  }
+
+  async updateTollProvider(id: string, data: TollProviderCreate): Promise<TollProviderItemOut> {
+    return this.put(`/v1.0/toll-providers/${id}`, data)
+  }
+
+  async deleteTollProvider(id: string): Promise<void> {
+    return this.del(`/v1.0/toll-providers/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

@@ -392,6 +392,22 @@ type PaymentTerminalBody struct {
 	TBand *string `json:"t_band" validate:"omitempty,max=2"`
 }
 
+// TollProviderBody é o body de POST/PUT /toll-providers.
+//
+// Vale-pedágio é obrigatório no transporte rodoviário de carga (Lei 10.209). A
+// fornecedora e o pagador são invariantes; por viagem muda só o número da
+// compra e o valor, que vão no corpo da emissão.
+type TollProviderBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// CNPJForn — CNPJ da fornecedora do vale-pedágio.
+	CNPJForn string `json:"cnpj_forn" validate:"required,cnpj"`
+	// Pagador do vale, quando não é o emitente. Um dos dois, nunca ambos.
+	CNPJPg *string `json:"cnpj_pg" validate:"omitempty,cnpj,excluded_with=CPFPg"`
+	CPFPg  *string `json:"cpf_pg" validate:"omitempty,cpf,excluded_with=CNPJPg"`
+	// TpValePed: 01 TAG, 02 cupom, 03 cartão.
+	TpValePed *string `json:"tp_vale_ped" validate:"omitempty,oneof=01 02 03"`
+}
+
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
 type ObsBody struct {
 	XCampo string `json:"x_campo" validate:"required,max=20"`

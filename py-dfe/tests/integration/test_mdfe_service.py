@@ -65,6 +65,25 @@ class TestMDFeSVRS:
         ret = result.get("mdfeResultMsg", {}).get("retConsMDFeNaoEnc", {})
         assert ret.get("cStat") in _CONS_NAO_ENC_STATS, ret
 
+    def test_authorization_com_vale_pedagio(self, real_cert_manager):
+        """infANTT/valePed: disp + categCombVeic derivada da composição."""
+        svc = _mdfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_mdfe(inf_antt={
+            "valePed": {
+                "disp": [{
+                    "CNPJForn": "11111111111111",
+                    "CNPJPg": "22222222222222",
+                    "nCompra": "C-1",
+                    "vValePed": "150.00",
+                    "tpValePed": "01",
+                }],
+                "categCombVeic": "02",
+            },
+        })
+        result = svc.recepcao_sinc(payload)
+        ret = result.get("mdfeResultMsg", {}).get("retMDFe", {})
+        assert ret.get("cStat") is not None, f"sem resposta da SEFAZ: {ret}"
+
     def test_authorization(self, real_cert_manager):
         svc = _mdfe_svc(real_cert_manager, UF.PI.value)
         payload, chave = build_mdfe()

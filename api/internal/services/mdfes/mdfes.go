@@ -127,13 +127,14 @@ type MdfeService struct {
 	eventRepo   *repositories.DocumentEventRepository
 	vehicleRepo *repositories.VehicleRepository
 	// personRepo resolve os CPFs dos condutores de uma composição veicular.
-	personRepo     *repositories.PersonRepository
-	vehicleSetRepo *repositories.VehicleSetRepository
-	clients        *awsclient.Clients
-	workerSvc      *services.WorkerService
-	billingSvc     *services.BillingService
-	bucketDocs     string
-	tech           TechData
+	personRepo       *repositories.PersonRepository
+	vehicleSetRepo   *repositories.VehicleSetRepository
+	tollProviderRepo *repositories.TollProviderRepository
+	clients          *awsclient.Clients
+	workerSvc        *services.WorkerService
+	billingSvc       *services.BillingService
+	bucketDocs       string
+	tech             TechData
 }
 
 // TechData carries the technical-responsible (infRespTec) information.
@@ -156,6 +157,7 @@ func NewMdfeService(
 	vehicleRepo *repositories.VehicleRepository,
 	personRepo *repositories.PersonRepository,
 	vehicleSetRepo *repositories.VehicleSetRepository,
+	tollProviderRepo *repositories.TollProviderRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -163,21 +165,22 @@ func NewMdfeService(
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
-		orgRepo:        orgRepo,
-		billingSvc:     billingSvc,
-		certRepo:       certRepo,
-		configRepo:     configRepo,
-		mdfeRepo:       mdfeRepo,
-		nfeRepo:        nfeRepo,
-		cteRepo:        cteRepo,
-		eventRepo:      eventRepo,
-		vehicleRepo:    vehicleRepo,
-		personRepo:     personRepo,
-		vehicleSetRepo: vehicleSetRepo,
-		clients:        clients,
-		workerSvc:      workerSvc,
-		bucketDocs:     bucketDocs,
-		tech:           tech,
+		orgRepo:          orgRepo,
+		billingSvc:       billingSvc,
+		certRepo:         certRepo,
+		configRepo:       configRepo,
+		mdfeRepo:         mdfeRepo,
+		nfeRepo:          nfeRepo,
+		cteRepo:          cteRepo,
+		eventRepo:        eventRepo,
+		vehicleRepo:      vehicleRepo,
+		personRepo:       personRepo,
+		vehicleSetRepo:   vehicleSetRepo,
+		tollProviderRepo: tollProviderRepo,
+		clients:          clients,
+		workerSvc:        workerSvc,
+		bucketDocs:       bucketDocs,
+		tech:             tech,
 	}
 }
 

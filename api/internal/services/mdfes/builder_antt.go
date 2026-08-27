@@ -12,6 +12,9 @@ func (p buildParams) buildInfANTT() map[string]any {
 	if p.ciot != nil && *p.ciot != "" {
 		infANTT["infCIOT"] = map[string]any{"CIOT": *p.ciot, "CPF": onlyDigits(p.firstCondutorCPF())}
 	}
+	if vp := p.buildValePed(); vp != nil {
+		infANTT["valePed"] = vp
+	}
 	return infANTT
 }
 
@@ -30,4 +33,30 @@ func categCombVeic(trailers int) string {
 	default:
 		return categCombCaminhaoTresReboques
 	}
+}
+
+// buildValePed monta infANTT/valePed. Ordem XSD: disp (0..N), categCombVeic.
+// O fornecedor e o pagador vêm do cadastro de fornecedoras de vale-pedágio; da
+// viagem saem só número da compra e valor.
+func (p buildParams) buildValePed() map[string]any {
+	if len(p.tolls) == 0 {
+		return nil
+	}
+	disp := make([]map[string]any, 0, len(p.tolls))
+	for _, t := range p.tolls {
+		item := map[string]any{"CNPJForn": t.CNPJForn}
+		// CNPJPg e CPFPg são um choice no XSD: no máximo um.
+		if t.CNPJPg != "" {
+			item["CNPJPg"] = t.CNPJPg
+		} else if t.CPFPg != "" {
+			item["CPFPg"] = t.CPFPg
+		}
+		item["nCompra"] = t.NCompra
+		item["vValePed"] = t.VValePed
+		if t.TpValePed != "" {
+			item["tpValePed"] = t.TpValePed
+		}
+		disp = append(disp, item)
+	}
+	return map[string]any{"disp": disp, "categCombVeic": categCombVeic(len(p.trailers))}
 }

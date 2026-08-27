@@ -1195,7 +1195,7 @@ transformá-lo em validação quebraria emissões legítimas de quem nunca preen
 
 #### Cadastros reutilizáveis (perfis, operações, condições, composições)
 
-Cinco entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
+Seis entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
 a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-index`):
 
 | Entidade                | Rota base                 | Prefixo do `sk` | Tabela                        |
@@ -1205,6 +1205,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Condição de pagamento   | `/v1.0/payment-terms`     | `PAYMENTTERM_`  | `organization_payment_terms`  |
 | Composição veicular     | `/v1.0/vehicle-sets`      | `VEHICLESET_`   | `organization_vehicle_sets`   |
 | Terminal de pagamento   | `/v1.0/payment-terminals` | `TERMINAL_`     | `organization_payment_terminals` |
+| Fornecedora de vale-pedágio | `/v1.0/toll-providers` | `TOLLPROVIDER_` | `organization_toll_providers` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -1235,6 +1236,11 @@ desconhecido é 400 no cadastro, não erro na emissão.
 cada NFC-e: o pagamento aponta `terminal_id` e o builder preenche `detPag/CNPJPag`, `detPag/UFPag`,
 `card/CNPJReceb` e `card/idTermPag`. `uf_pag` só é válido acompanhado de `cnpj_pag`; a bandeira
 informada na emissão vence `t_band`. Um `terminal_id` inexistente é 404, nunca silêncio.
+
+**Fornecedora de vale-pedágio** (`TollProviderBody`): `name`, `cnpj_forn`, `cnpj_pg`, `cpf_pg`,
+`tp_vale_ped`. O vale é obrigatório no transporte rodoviário de carga (Lei 10.209) e a fornecedora
+não muda entre viagens; a emissão do MDF-e só aponta `toll_vouchers[] = {toll_provider_id, n_compra,
+v_vale_ped}`. `cnpj_pg` e `cpf_pg` são choice — nunca os dois.
 
 **Condição de pagamento** (`PaymentTermBody`): `name`, `payment_type` (tPag), `ind_pag`
 (vazio = derivado), `installments`, `interval_days`, `first_due_days`, `card`. Na emissão expande
@@ -1622,6 +1628,10 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   `complement` do endereço do emitente vira `enderEmit/xCpl`, e `valePed/categCombVeic` é **derivado**
   do número de reboques (0⇒`02`, 1⇒`04`, 2⇒`06`, 3+⇒`07`) — o manifesto já diz a composição.
 - `drivers[]` — `{name, cpf}` (≥ 1 required).
+- `toll_vouchers[]?` — vales-pedágio da viagem (`infANTT/valePed`):
+  `{toll_provider_id, n_compra, v_vale_ped}`. CNPJ da fornecedora, pagador e `tpValePed` vêm de
+  `organization_toll_providers`; `valePed/categCombVeic` é derivado do número de reboques. Um
+  `toll_provider_id` inexistente é 404, nunca silêncio.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).

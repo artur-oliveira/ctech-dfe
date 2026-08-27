@@ -35,6 +35,7 @@ const (
 	AuditResourceOperation       = "OPERATION"
 	AuditResourcePaymentTerm     = "PAYMENT_TERM"
 	AuditResourcePaymentTerminal = "PAYMENT_TERMINAL"
+	AuditResourceTollProvider    = "TOLL_PROVIDER"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"
 	AuditResourceInvitation      = "INVITATION"

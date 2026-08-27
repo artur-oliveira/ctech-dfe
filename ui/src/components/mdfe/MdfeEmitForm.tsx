@@ -36,10 +36,12 @@ import type {
   PersonItemOut,
   MdfeEmit,
   MdfeMunIn,
+  MdfeTollIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
+import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {Plane, Ship, TramFront, Truck} from 'lucide-react'
 
 // ─── steps ──────────────────────────────────────────────────────────────────
@@ -358,6 +360,7 @@ export function MdfeEmitForm() {
   const [routeOverride, setRouteOverride] = useState<string[] | null>(null)
   const [newRouteUf, setNewRouteUf] = useState('')
   const [tripStart, setTripStart] = useState('')
+  const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('')
@@ -574,6 +577,7 @@ export function MdfeEmitForm() {
       vehicle: {sk: vehicleSk},
       trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
+      toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
@@ -709,6 +713,8 @@ export function MdfeEmitForm() {
             <input type="datetime-local" value={tripStart} onChange={(e) => setTripStart(e.target.value)}
                    className="w-full sm:w-64 h-11 rounded-md border border-gray-300 px-3 text-sm"/>
           </div>
+
+          <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
 
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">

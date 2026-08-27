@@ -528,7 +528,7 @@ var envimdfe = map[string][]string{
 	"infANTT":        {"RNTRC", "infCIOT", "valePed", "infContratante", "infPag"},
 	"infCIOT":        {"CIOT", "CPF", "CNPJ"},
 	"valePed":        {"disp", "categCombVeic"},
-	"disp":           {"CNPJForn", "CNPJPg", "nCompra", "vValePed", "tpValePed"},
+	"disp":           {"CNPJForn", "CNPJPg", "CPFPg", "nCompra", "vValePed", "tpValePed"},
 	"infContratante": {"xNome", "CPF", "CNPJ", "idEstrangeiro", "infContrato"},
 	"veicTracao":     {"cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "condutor", "tpRod", "tpCar", "UF"},
 	"veicReboque":    {"cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "tpCar", "UF"},

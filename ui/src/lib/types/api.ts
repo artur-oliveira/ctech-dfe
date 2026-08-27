@@ -755,6 +755,26 @@ export interface PaymentTerminalItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — fornecedoras de vale-pedágio
+export interface TollProviderCreate extends Record<string, unknown> {
+  name: string
+  cnpj_forn: string
+  cnpj_pg?: string | null
+  cpf_pg?: string | null
+  tp_vale_ped?: string | null
+}
+
+export interface TollProviderItemOut {
+  pk: string
+  sk: string
+  name: string
+  cnpj_forn: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — condições de pagamento e composições veiculares
 export interface PaymentTermCreate extends Record<string, unknown> {
   name: string
@@ -1158,6 +1178,15 @@ export interface MdfeEmit {
   rntrc?: string | null
   ciot?: string | null
   additional_info?: string | null
+  /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
+  toll_vouchers?: MdfeTollIn[] | null
+}
+
+/** Vale-pedágio de uma viagem. Só o que muda entre viagens. */
+export interface MdfeTollIn {
+  toll_provider_id: string
+  n_compra: string
+  v_vale_ped: string
 }
 
 // ── cargo preview (POST /mdfes/cargo-preview) ──

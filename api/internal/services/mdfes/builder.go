@@ -66,7 +66,9 @@ type buildParams struct {
 	// tpEmis é a forma de emissão (1 normal, 2 contingência, 3 Regime Especial
 	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
 	tpEmis string
-	tech   TechData
+	// tolls são os vales-pedágio da viagem, já cruzados com o cadastro.
+	tolls []resolvedToll
+	tech  TechData
 	// csrtID/csrt são o Código de Segurança do Responsável Técnico. Só o hash
 	// derivado entra no XML.
 	csrtID string

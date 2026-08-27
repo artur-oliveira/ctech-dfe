@@ -49,10 +49,22 @@ type MdfeEmitBody struct {
 	CIOT           *string `json:"ciot" validate:"omitempty"`
 	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=5000"`
 
+	// TollVouchers são os vales-pedágio da viagem (infANTT/valePed). O
+	// fornecedor vem do cadastro; aqui só o que muda a cada viagem.
+	TollVouchers []MdfeTollBody `json:"toll_vouchers" validate:"omitempty,dive"`
+
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
 	Water *MdfeWaterModal `json:"water" validate:"omitempty"`
 	Rail  *MdfeRailModal  `json:"rail" validate:"omitempty"`
+}
+
+// MdfeTollBody é um vale-pedágio da viagem. O fornecedor vem do cadastro;
+// aqui só o que muda a cada viagem.
+type MdfeTollBody struct {
+	TollProviderID string `json:"toll_provider_id" validate:"required"`
+	NCompra        string `json:"n_compra" validate:"required,max=20"`
+	VValePed       string `json:"v_vale_ped" validate:"required,money"`
 }
 
 // MdfeDocRef references an NF-e or CT-e to be transported.
@@ -241,6 +253,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	tolls, err := s.resolveTolls(ctx, orgPK, req.TollVouchers)
+	if err != nil {
+		return nil, err
+	}
+
 	resolvedVehicle, err := s.resolveVehicle(ctx, orgPK, req.Vehicle)
 	if err != nil {
 		return nil, err
@@ -291,6 +308,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		water:       req.Water,
 		rail:        req.Rail,
 		tpEmis:      tpEmis,
+		tolls:       tolls,
 		tech:        s.tech,
 		csrtID:      strAttr(configItem, csrtIDField),
 		csrt:        strAttr(configItem, csrtField),
@@ -554,6 +572,50 @@ type resolvedVehicle struct {
 	// default para veicTracao/prop quando a emissão não traz um proprietário —
 	// antes este dado era cadastrado e depois redigitado a cada emissão.
 	Owner *MdfeOwner
+}
+
+// resolvedToll é um vale-pedágio da viagem já cruzado com o cadastro: o que é
+// invariante veio de organization_toll_providers, o que muda por viagem veio do
+// corpo da emissão.
+type resolvedToll struct {
+	CNPJForn  string
+	CNPJPg    string
+	CPFPg     string
+	TpValePed string
+	NCompra   string
+	VValePed  string
+}
+
+// resolveTolls lê num BatchGet só as fornecedoras citadas. Um id inexistente é
+// erro de request, não silêncio.
+func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []MdfeTollBody) ([]resolvedToll, error) {
+	if len(tolls) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(tolls))
+	for _, t := range tolls {
+		ids = append(ids, t.TollProviderID)
+	}
+	raw, err := s.tollProviderRepo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]resolvedToll, 0, len(tolls))
+	for _, t := range tolls {
+		provider, ok := raw[t.TollProviderID]
+		if !ok {
+			return nil, problem.NotFound("fornecedora de vale-pedágio não encontrada: " + t.TollProviderID)
+		}
+		out = append(out, resolvedToll{
+			CNPJForn:  strAttr(provider, "cnpj_forn"),
+			CNPJPg:    strAttr(provider, "cnpj_pg"),
+			CPFPg:     strAttr(provider, "cpf_pg"),
+			TpValePed: strAttr(provider, "tp_vale_ped"),
+			NCompra:   t.NCompra,
+			VValePed:  t.VValePed,
+		})
+	}
+	return out, nil
 }
 
 // resolveVehicle merges a registered vehicle (by SK) with the request

@@ -57,6 +57,7 @@ var Module = fx.Options(
 		repositories.NewOperationRepository,
 		repositories.NewPaymentTermRepository,
 		repositories.NewPaymentTerminalRepository,
+		repositories.NewTollProviderRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -89,6 +90,7 @@ var Module = fx.Options(
 		newOperationService,
 		newPaymentTermService,
 		newPaymentTerminalService,
+		newTollProviderService,
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
@@ -270,6 +272,10 @@ func newPaymentTerminalService(repo *repositories.PaymentTerminalRepository, aud
 	return services.NewPaymentTerminalService(repo, auditRepo, c)
 }
 
+func newTollProviderService(repo *repositories.TollProviderRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.TollProviderService {
+	return services.NewTollProviderService(repo, auditRepo, c)
+}
+
 func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
 	return services.NewPaymentTermService(repo, auditRepo, c)
 }
@@ -397,6 +403,7 @@ func newMDFeService(
 	vehicleRepo *repositories.VehicleRepository,
 	personRepo *repositories.PersonRepository,
 	vehicleSetRepo *repositories.VehicleSetRepository,
+	tollProviderRepo *repositories.TollProviderRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -406,7 +413,7 @@ func newMDFeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
-		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -450,38 +457,39 @@ func newNfseService(
 type Services struct {
 	fx.In
 
-	OrgSvc         *services.OrganizationService
-	UserSvc        *services.UserService
-	MemberSvc      *services.MembershipService
-	InvSvc         *services.InvitationService
-	CertSvc        *services.CertificateService
-	ProductSvc     *services.ProductService
-	ServiceSvc     *services.ServiceService
-	TaxProfSvc     *services.TaxProfileService
-	OperationSvc   *services.OperationService
-	PayTermSvc     *services.PaymentTermService
-	PayTerminalSvc *services.PaymentTerminalService
-	VehSetSvc      *services.VehicleSetService
-	PersonSvc      *services.PersonService
-	VehicleSvc     *services.VehicleService
-	NfeSvc         *nfesvc.NfeService
-	NfceSvc        *nfesvc.NfceService
-	MdfeSvc        *mdfesvc.MdfeService
-	NfseSvc        *nfsesvc.NfseService
-	NfeConf        *services.NfeConfigService
-	NfceConf       *services.NfceConfigService
-	CteConf        *services.CteConfigService
-	MdfeConf       *services.MdfeConfigService
-	NfseConf       *services.NfseConfigService
-	DistSvc        *services.DistributionService
-	ExternalSvc    *services.ExternalService
-	AuditLogSvc    *services.AuditLogService
-	BillingSvc     *services.BillingService
-	RoleRepo       *repositories.RoleRepository
-	Cache          cache.Backend
-	WSReg          ws.Registry
-	Cfg            *config.Config
-	AWS            *awsclient.Clients
+	OrgSvc          *services.OrganizationService
+	UserSvc         *services.UserService
+	MemberSvc       *services.MembershipService
+	InvSvc          *services.InvitationService
+	CertSvc         *services.CertificateService
+	ProductSvc      *services.ProductService
+	ServiceSvc      *services.ServiceService
+	TaxProfSvc      *services.TaxProfileService
+	OperationSvc    *services.OperationService
+	PayTermSvc      *services.PaymentTermService
+	PayTerminalSvc  *services.PaymentTerminalService
+	TollProviderSvc *services.TollProviderService
+	VehSetSvc       *services.VehicleSetService
+	PersonSvc       *services.PersonService
+	VehicleSvc      *services.VehicleService
+	NfeSvc          *nfesvc.NfeService
+	NfceSvc         *nfesvc.NfceService
+	MdfeSvc         *mdfesvc.MdfeService
+	NfseSvc         *nfsesvc.NfseService
+	NfeConf         *services.NfeConfigService
+	NfceConf        *services.NfceConfigService
+	CteConf         *services.CteConfigService
+	MdfeConf        *services.MdfeConfigService
+	NfseConf        *services.NfseConfigService
+	DistSvc         *services.DistributionService
+	ExternalSvc     *services.ExternalService
+	AuditLogSvc     *services.AuditLogService
+	BillingSvc      *services.BillingService
+	RoleRepo        *repositories.RoleRepository
+	Cache           cache.Backend
+	WSReg           ws.Registry
+	Cfg             *config.Config
+	AWS             *awsclient.Clients
 }
 
 func registerRoutes(app *fiber.App, svcs Services) {
@@ -497,6 +505,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Operation:       svcs.OperationSvc,
 		PaymentTerm:     svcs.PayTermSvc,
 		PaymentTerminal: svcs.PayTerminalSvc,
+		TollProvider:    svcs.TollProviderSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,
 		Vehicle:         svcs.VehicleSvc,
