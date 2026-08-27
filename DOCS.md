@@ -1605,7 +1605,8 @@ frontend precisa desambiguar por `event_type`:
 
 Authorization is **synchronous** (`MDFeRecepcaoSinc`): SEFAZ returns `protMDFe` inline, so the worker
 persists the authorized status in a single pass. All MDF-e services route to **SVRS** for every UF.
-Modal is **rodoviário only** in the MVP; other modais are reserved.
+Modais habilitados: **rodoviário**, **aéreo** e **ferroviário**. O **aquaviário** é recusado com 400
+enquanto `buildAquav` não cobrir `infEmbComb`, as unidades vazias e o MMSI.
 
 | Method | Endpoint                                            | Description                                       |
 |--------|-----------------------------------------------------|---------------------------------------------------|
@@ -1642,8 +1643,16 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
 > `condutores`), `loadings`/`unloadings` (not `carregamento`/`descarregamento`), `route` (not
 > `percurso`), `predominant` (not `prod_pred`), `bulk_cargo` (not `lotacao`), `trip_start` (dhIniViagem).
 
-- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. Only `rodoviario` is enabled for emission
-  (others are modelled and dispatched but gated). Non-rodoviário payloads go in `air`/`water`/`rail`.
+- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. `rodoviario`, `aereo` e `ferroviario`
+  emitem; `aquaviario` ainda é 400. O modal escolhido **exige** o payload dele: `air` no aéreo, `rail`
+  no ferroviário — sem ele a emissão é 400, não um nó vazio que a SEFAZ rejeitaria depois. O
+  rodoviário não tem payload de modal: ele é montado do cadastro de veículos e dos condutores.
+  No aéreo e no ferroviário, `vehicle`, `trailers` e `drivers` são ignorados.
+  - `air` — `{nationality, registration, flight_number, origin_airport, dest_airport, flight_date}`.
+    Os seis são obrigatórios: o `mdfeModalAereo_v3.00` não tem campo opcional.
+  - `rail` — `{train_prefix, train_datetime?, origin_station, dest_station, wagons[]}`, com
+    `wagons[] = {weight_bc, weight_real, series, number, tu, wagon_type?, sequence?}`. O `qVag` do XML
+    é **derivado** do tamanho de `wagons`, nunca informado.
 - `documents[]` — `{type: "nfe"|"cte", access_key, weight?}`. **Single type only** (NF-e and CT-e cannot be
   mixed). Each referenced document must already exist in the `nfes`/`ctes` table with an `xml_s3_key`.
   `weight` (kg, decimal string) is an optional gross-weight override used when the document XML carries

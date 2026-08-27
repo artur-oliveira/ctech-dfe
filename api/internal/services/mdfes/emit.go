@@ -140,6 +140,27 @@ func keySet(keys []string) map[string]bool {
 	return out
 }
 
+// validateModalPayload recusa o manifesto que escolhe um modal e não manda os
+// dados dele. Sem isso o builder emitiria um <aereo/> vazio e a rejeição só
+// viria da SEFAZ, com uma mensagem que não diz o que faltou.
+func validateModalPayload(modal string, req MdfeEmitBody) error {
+	switch modal {
+	case ModalAereo:
+		if req.Air == nil {
+			return problem.BadRequest("modal aéreo exige os dados do voo (air)")
+		}
+	case ModalFerroviario:
+		if req.Rail == nil {
+			return problem.BadRequest("modal ferroviário exige os dados do trem (rail)")
+		}
+	case ModalAquaviario:
+		if req.Water == nil {
+			return problem.BadRequest("modal aquaviário exige os dados da embarcação (water)")
+		}
+	}
+	return nil
+}
+
 // validateFreightDeclaration recusa o manifesto que declara contratante mas não
 // declara pagamento: quem contrata frete de terceiro paga alguém por ele, e o
 // infANTT sem infPag é o MDF-e incompleto que só a SEFAZ recusaria.
@@ -331,6 +352,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 	if !enabledModals[modal] {
 		return nil, problem.BadRequest("modal " + modal + " ainda não disponível para emissão")
+	}
+	if err := validateModalPayload(modal, req); err != nil {
+		return nil, err
 	}
 	if len(req.Documents) == 0 {
 		return nil, problem.BadRequest("informe ao menos um documento (NF-e ou CT-e)")

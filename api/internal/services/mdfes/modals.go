@@ -9,17 +9,18 @@ import "strconv"
 // XSD structure (mdfeModalAereo/Aquaviario/Ferroviario_v3.00). Element ordering
 // is applied downstream by py-dfe's XSD_ORDER table.
 //
-// These builders are wired into the modal dispatch (buildInfModal) but the Emit
-// service currently only enables rodoviário — see enabledModals.
+// Quais modais a emissão aceita está em enabledModals; validateModalPayload
+// garante que o payload do modal escolhido veio junto.
 
-// MdfeAirModal mirrors the <aereo> group.
+// MdfeAirModal mirrors the <aereo> group. Todos os seis campos são obrigatórios
+// no XSD — não há grupo opcional no modal aéreo.
 type MdfeAirModal struct {
-	Nac     string `json:"nationality"`    // nac — matrícula da aeronave (nacionalidade)
-	Matr    string `json:"registration"`   // matr — marca/matrícula
-	NVoo    string `json:"flight_number"`  // nVoo
-	CAerEmb string `json:"origin_airport"` // cAerEmb — aeródromo de embarque (IATA)
-	CAerDes string `json:"dest_airport"`   // cAerDes — aeródromo de destino (IATA)
-	DVoo    string `json:"flight_date"`    // dVoo — AAAA-MM-DD
+	Nac     string `json:"nationality" validate:"required,max=4"`    // nac — matrícula da aeronave (nacionalidade)
+	Matr    string `json:"registration" validate:"required,max=6"`   // matr — marca/matrícula
+	NVoo    string `json:"flight_number" validate:"required,max=9"`  // nVoo
+	CAerEmb string `json:"origin_airport" validate:"required,max=4"` // cAerEmb — aeródromo de embarque (IATA)
+	CAerDes string `json:"dest_airport" validate:"required,max=4"`   // cAerDes — aeródromo de destino (IATA)
+	DVoo    string `json:"flight_date" validate:"required,isodate"`  // dVoo — AAAA-MM-DD
 }
 
 func buildAereo(a *MdfeAirModal) map[string]any {
@@ -91,22 +92,23 @@ func buildWaterTerminals(terminals []MdfeWaterTerminal, codeTag, nameTag string)
 
 // MdfeRailWagon mirrors one <vag> entry.
 type MdfeRailWagon struct {
-	PesoBC string `json:"weight_bc"`   // pesoBC
-	PesoR  string `json:"weight_real"` // pesoR
-	TpVag  string `json:"wagon_type"`  // tpVag (optional)
-	Serie  string `json:"series"`      // serie
-	NVag   string `json:"number"`      // nVag
-	NSeq   string `json:"sequence"`    // nSeq (optional)
-	TU     string `json:"tu"`          // TU — tonelada útil
+	PesoBC string `json:"weight_bc" validate:"required,decimalv"`   // pesoBC
+	PesoR  string `json:"weight_real" validate:"required,decimalv"` // pesoR
+	TpVag  string `json:"wagon_type" validate:"omitempty,max=3"`    // tpVag (optional)
+	Serie  string `json:"series" validate:"required,max=3"`         // serie
+	NVag   string `json:"number" validate:"required,max=9"`         // nVag
+	NSeq   string `json:"sequence" validate:"omitempty,max=2"`      // nSeq (optional)
+	TU     string `json:"tu" validate:"required,decimalv"`          // TU — tonelada útil
 }
 
-// MdfeRailModal mirrors the <ferrov> group (trem + wagons).
+// MdfeRailModal mirrors the <ferrov> group (trem + wagons). qVag é derivado da
+// lista de vagões, nunca informado.
 type MdfeRailModal struct {
-	XPref  string          `json:"train_prefix"` // trem/xPref
-	DhTrem string          `json:"train_datetime"`
-	XOri   string          `json:"origin_station"` // trem/xOri
-	XDest  string          `json:"dest_station"`   // trem/xDest
-	Wagons []MdfeRailWagon `json:"wagons"`
+	XPref  string          `json:"train_prefix" validate:"required,max=10"` // trem/xPref
+	DhTrem string          `json:"train_datetime" validate:"omitempty"`
+	XOri   string          `json:"origin_station" validate:"required,max=100"` // trem/xOri
+	XDest  string          `json:"dest_station" validate:"required,max=100"`   // trem/xDest
+	Wagons []MdfeRailWagon `json:"wagons" validate:"required,min=1,dive"`
 }
 
 func buildFerrov(r *MdfeRailModal) map[string]any {

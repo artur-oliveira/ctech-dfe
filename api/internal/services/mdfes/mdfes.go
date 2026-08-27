@@ -103,11 +103,13 @@ var modalCodes = map[string]string{
 	ModalFerroviario: modalCodeFerroviario,
 }
 
-// enabledModals are the modals the Emit service accepts. Rodoviário is the only
-// one wired end-to-end (vehicle/owner data + DAMDFE); the remaining modals are
-// modelled in the builder but not yet exposed for emission.
+// enabledModals are the modals the Emit service accepts. O aquaviário fica de
+// fora enquanto buildAquav não cobre infEmbComb, as unidades vazias e o MMSI —
+// emitir um aquav parcial é pedir rejeição na SEFAZ.
 var enabledModals = map[string]bool{
-	ModalRodoviario: true,
+	ModalRodoviario:  true,
+	ModalAereo:       true,
+	ModalFerroviario: true,
 }
 
 // ErrMDFeNotFound is returned when an MDF-e cannot be found in any partition.

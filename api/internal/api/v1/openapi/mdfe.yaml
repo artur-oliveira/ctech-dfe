@@ -601,7 +601,10 @@ components:
 
     MdfeAirModal:
       type: object
-      description: Grupo `aereo`.
+      description: |
+        Grupo `aereo`. Obrigatório quando `modal = aereo` — todos os seis campos
+        são exigidos pelo XSD, não há grupo opcional no modal aéreo.
+      required: [ nationality, registration, flight_number, origin_airport, dest_airport, flight_date ]
       properties:
         nationality: { type: string, description: Nacionalidade da aeronave. }
         registration: { type: string, description: Marca/matrícula. }
@@ -638,6 +641,7 @@ components:
 
     MdfeRailWagon:
       type: object
+      required: [ weight_bc, weight_real, series, number, tu ]
       properties:
         weight_bc: { type: string }
         weight_real: { type: string }
@@ -649,7 +653,10 @@ components:
 
     MdfeRailModal:
       type: object
-      description: Grupo `ferrov`.
+      description: |
+        Grupo `ferrov`. Obrigatório quando `modal = ferroviario`. O `qVag` do XML
+        é derivado do tamanho de `wagons`, nunca informado.
+      required: [ train_prefix, origin_station, dest_station, wagons ]
       properties:
         train_prefix: { type: string }
         train_datetime: { type: string }
@@ -670,6 +677,10 @@ components:
         modal:
           type: string
           enum: [ rodoviario, aereo, aquaviario, ferroviario ]
+          description: |
+            `rodoviario`, `aereo` e `ferroviario` estão habilitados; `aquaviario`
+            ainda é recusado com 400. O modal escolhido exige o payload
+            correspondente (`air`, `rail`) — sem ele a emissão é 400.
         documents:
           type: array
           minItems: 1
@@ -761,9 +772,15 @@ components:
         rntrc: { $ref: '#/components/schemas/Rntrc' }
         ciot: { type: [ string, 'null' ] }
         additional_info: { type: [ string, 'null' ], maxLength: 5000 }
-        air: { $ref: '#/components/schemas/MdfeAirModal' }
-        water: { $ref: '#/components/schemas/MdfeWaterModal' }
-        rail: { $ref: '#/components/schemas/MdfeRailModal' }
+        air:
+          allOf: [ { $ref: '#/components/schemas/MdfeAirModal' } ]
+          description: Obrigatório quando `modal = aereo`.
+        water:
+          allOf: [ { $ref: '#/components/schemas/MdfeWaterModal' } ]
+          description: Modal aquaviário ainda não habilitado para emissão.
+        rail:
+          allOf: [ { $ref: '#/components/schemas/MdfeRailModal' } ]
+          description: Obrigatório quando `modal = ferroviario`.
 
     MdfePartialDelivery:
       type: object

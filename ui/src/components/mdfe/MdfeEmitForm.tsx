@@ -42,12 +42,15 @@ import type {
   MdfeTransportUnitIn,
   MdfeTollIn,
   MdfeInsuranceIn,
+  MdfeAirModalIn,
+  MdfeRailModalIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields'
+import {AirModalFields, RailModalFields, airComplete, railComplete} from '@/components/mdfe/ModalFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
 import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
@@ -68,23 +71,52 @@ interface StepDef {
   label: string
 }
 
-const BASE_STEPS: StepDef[] = [
+// O último passo é o do modal escolhido: veículo/condutores no rodoviário,
+// dados do voo no aéreo, dados do trem no ferroviário.
+const MODAL_STEP_LABEL: Record<ModalId, string> = {
+  rodoviario: 'Veículo',
+  aereo: 'Voo',
+  aquaviario: 'Embarcação',
+  ferroviario: 'Trem',
+}
+
+const baseSteps = (modal: ModalId): StepDef[] => [
   {id: 'modal', label: 'Transporte'},
   {id: 'documentos', label: 'Documentos'},
   {id: 'carga', label: 'Carga'},
   {id: 'transporte', label: 'Trajeto'},
-  {id: 'veiculo', label: 'Veículo'},
+  {id: 'veiculo', label: MODAL_STEP_LABEL[modal]},
 ]
 
 // Seguro só aparece quando há CT-e (MDF-e de NF-e não exige seguro).
 const SEGURO_STEP: StepDef = {id: 'seguro', label: 'Seguro'}
 
-const MODAIS = [
+type ModalId = 'rodoviario' | 'aereo' | 'aquaviario' | 'ferroviario'
+
+// O aquaviário continua desligado: o builder ainda não cobre combustível de
+// bordo, unidades vazias e MMSI, e o backend recusa a emissão dele.
+const MODAIS: { id: ModalId; label: string; icon: React.ReactElement; enabled: boolean }[] = [
   {id: 'rodoviario', label: 'Rodoviário', icon: <Truck/>, enabled: true},
-  {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: false},
+  {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: true},
   {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: false},
-  {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: false},
+  {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: true},
 ]
+
+const MODAL_BLOCKED_REASON: Record<ModalId, string> = {
+  rodoviario: 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.',
+  aereo: 'Preencha carga, trajeto e todos os dados do voo.',
+  aquaviario: 'Modal aquaviário ainda não disponível para emissão.',
+  ferroviario: 'Preencha carga, trajeto, os dados do trem e ao menos um vagão completo.',
+}
+
+const EMPTY_AIR: MdfeAirModalIn = {
+  nationality: '', registration: '', flight_number: '',
+  origin_airport: '', dest_airport: '', flight_date: '',
+}
+
+const EMPTY_RAIL: MdfeRailModalIn = {
+  train_prefix: '', train_datetime: '', origin_station: '', dest_station: '', wagons: [],
+}
 
 function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
   const idx = steps.findIndex((s) => s.id === current)
@@ -384,6 +416,9 @@ export function MdfeEmitForm() {
   const [routeOverride, setRouteOverride] = useState<string[] | null>(null)
   const [newRouteUf, setNewRouteUf] = useState('')
   const [tripStart, setTripStart] = useState('')
+  const [modal, setModal] = useState<ModalId>('rodoviario')
+  const [air, setAir] = useState<MdfeAirModalIn>(EMPTY_AIR)
+  const [rail, setRail] = useState<MdfeRailModalIn>(EMPTY_RAIL)
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
   const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
@@ -490,10 +525,10 @@ export function MdfeEmitForm() {
   // Seguro só aparece com CT-e. O seletor de documentos é NF-e-only no MVP, logo
   // hasCte é sempre falso; mantido explícito para quando o CT-e for habilitado.
   const hasCte = false
-  const STEPS = useMemo(
-    () => (hasCte ? [...BASE_STEPS.slice(0, 4), SEGURO_STEP, BASE_STEPS[4]] : BASE_STEPS),
-    [hasCte],
-  )
+  const STEPS = useMemo(() => {
+    const base = baseSteps(modal)
+    return hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base
+  }, [hasCte, modal])
 
   // Cargo preview: fetched once documents are chosen and we reach the carga step.
   const docKeys = docs.map((d) => d.sk)
@@ -583,9 +618,15 @@ export function MdfeEmitForm() {
     if (stepIdx > 0) setStep(STEPS[stepIdx - 1].id)
   }
 
-  const canEmit = docs.length > 0 && !!vehicleSk && drivers.length > 0 && allWeightsKnown
+  // Cada modal fecha com o seu próprio conjunto obrigatório.
+  const modalReady = modal === 'rodoviario'
+    ? !!vehicleSk && drivers.length > 0
+    : modal === 'aereo' ? airComplete(air)
+      : modal === 'ferroviario' ? railComplete(rail)
+        : false
+  const canEmit = docs.length > 0 && modalReady && allWeightsKnown
     && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8))
-  const emitBlockedReason = canEmit ? null : 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.'
+  const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal]
 
   const handleSubmit = async () => {
     setSubmitError(null)
@@ -593,8 +634,9 @@ export function MdfeEmitForm() {
       setSubmitError({message: emitBlockedReason})
       return
     }
+    const isRodo = modal === 'rodoviario'
     const payload: MdfeEmit = {
-      modal: 'rodoviario',
+      modal,
       documents: docs.map((d) => {
         const override = weightOverrides[d.sk]?.trim()
         return {type: 'nfe', access_key: d.sk, ...(override ? {weight: override} : {})}
@@ -604,10 +646,14 @@ export function MdfeEmitForm() {
       route: route.length ? route : undefined,
       loadings: loadings.length ? loadings : undefined,
       unloadings: unloadings.length ? unloadings : undefined,
-      drivers,
-      vehicle_set_id: vehicleSetId || null,
-      vehicle: {sk: vehicleSk},
-      trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
+      // Veículo, reboques e condutores são do rodoviário; os outros modais
+      // levam o payload do próprio grupo.
+      drivers: isRodo ? drivers : [],
+      vehicle_set_id: isRodo ? (vehicleSetId || null) : null,
+      vehicle: {sk: isRodo ? vehicleSk : null},
+      trailers: isRodo && trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
+      air: modal === 'aereo' ? air : undefined,
+      rail: modal === 'ferroviario' ? rail : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       insurance_policies: insurancePolicies.length ? insurancePolicies : undefined,
@@ -647,11 +693,14 @@ export function MdfeEmitForm() {
           <p className="text-sm text-gray-500">Selecione o tipo de transporte.</p>
           <div className="grid grid-cols-2 gap-3">
             {MODAIS.map((m) => (
-              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === 'rodoviario'}
+              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === modal}
+                      onClick={() => setModal(m.id)}
                       className={`relative rounded-xl border p-4 text-left transition-colors ${
-                        m.id === 'rodoviario'
+                        m.id === modal
                           ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
-                          : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
+                          : m.enabled
+                            ? 'border-gray-200 hover:border-brand-300'
+                            : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
                 {m.icon}
                 <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
                 {!m.enabled && <span
@@ -820,8 +869,23 @@ export function MdfeEmitForm() {
         <InsurancePoliciesFields policies={insurancePolicies} onChange={setInsurancePolicies}/>
       )}
 
-      {/* Step — veículo / condutor */}
-      {step === 'veiculo' && (
+      {/* Step final — dados do modal escolhido */}
+      {step === 'veiculo' && modal === 'aereo' && (
+        <div className="space-y-4">
+          <AirModalFields value={air} onChange={setAir}/>
+          <EmitError failure={submitError}/>
+        </div>
+      )}
+
+      {step === 'veiculo' && modal === 'ferroviario' && (
+        <div className="space-y-4">
+          <RailModalFields value={rail} onChange={setRail}/>
+          <EmitError failure={submitError}/>
+        </div>
+      )}
+
+      {/* Step — veículo / condutor (rodoviário) */}
+      {step === 'veiculo' && modal === 'rodoviario' && (
         <div className="space-y-4">
           {vehicleSets.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
@@ -962,7 +1026,13 @@ export function MdfeEmitForm() {
         docLabel="MDF-e"
         summary={[
           {label: 'Documentos', value: `${docs.length} documento(s)`},
-          {label: 'Veículo', value: tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—'},
+          {
+            label: MODAL_STEP_LABEL[modal],
+            value: modal === 'rodoviario'
+              ? (tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—')
+              : modal === 'aereo' ? `${air.flight_number} · ${air.origin_airport} → ${air.dest_airport}`
+                : `${rail.train_prefix} · ${rail.wagons.length} vagão(ões)`,
+          },
           {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '—'},
         ]}
       />

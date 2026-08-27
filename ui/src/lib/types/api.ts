@@ -1378,6 +1378,41 @@ export interface MdfeEmit {
   rodo_seals?: string[] | null
   /** Código do agente portuário (rodo/codAgPorto). */
   port_agent_code?: string | null
+  /** Dados do voo — obrigatório quando `modal = aereo` (grupo `aereo`). */
+  air?: MdfeAirModalIn | null
+  /** Dados do trem — obrigatório quando `modal = ferroviario` (grupo `ferrov`). */
+  rail?: MdfeRailModalIn | null
+}
+
+/** Grupo `aereo`. Os seis campos são obrigatórios no XSD. */
+export interface MdfeAirModalIn {
+  nationality: string
+  registration: string
+  flight_number: string
+  origin_airport: string
+  dest_airport: string
+  flight_date: string
+}
+
+/** Um vagão do grupo `ferrov/vag`. */
+export interface MdfeRailWagonIn {
+  weight_bc: string
+  weight_real: string
+  wagon_type?: string
+  series: string
+  number: string
+  sequence?: string
+  /** Tonelada útil. */
+  tu: string
+}
+
+/** Grupo `ferrov`. O `qVag` do XML sai do tamanho de `wagons`. */
+export interface MdfeRailModalIn {
+  train_prefix: string
+  train_datetime?: string
+  origin_station: string
+  dest_station: string
+  wagons: MdfeRailWagonIn[]
 }
 
 /** Unidade de transporte da viagem: unidade do cadastro, documentos que ela

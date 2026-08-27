@@ -3425,7 +3425,7 @@ Os builders existem e estão desligados. Antes de ligar: conferir campo a campo 
 - Produces: `enabledModals` passa a `{rodoviario, aereo, ferroviario: true}`; `MdfeEmitBody` valida que o payload do
   modal escolhido está presente (`problem.BadRequest` quando falta).
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestEmitAereoExigePayloadDoModal(t *testing.T) {
@@ -3437,7 +3437,7 @@ func TestEmitAereoAceito(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2/3/4:** falhar → ligar + validar + DAMDFE → PASS → commit
+- [x] **Step 2/3/4:** falhar → ligar + validar + DAMDFE → PASS → commit
   (`feat(mdfe): habilita emissão nos modais aéreo e ferroviário`).
 
 ---
