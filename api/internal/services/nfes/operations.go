@@ -25,6 +25,9 @@ const (
 	opFieldVolMarca   = "vol_marca"
 	opFieldObsCont    = "obs_cont"
 	opFieldObsFisco   = "obs_fisco"
+	// opFieldRetTrib é o perfil de retenções federais da operação: os
+	// percentuais são invariantes do cenário, os valores saem da base da nota.
+	opFieldRetTrib = "ret_trib"
 )
 
 // loadOperation carrega a natureza de operação referenciada na emissão.
@@ -137,6 +140,12 @@ func (s *NfceService) resolveNfceOperation(ctx context.Context, orgPK string, op
 // operationObs traduz obs_cont / obs_fisco da operação para os nós de infAdic,
 // interpolando os mesmos placeholders de inf_cpl. Uma observação cujo texto não
 // interpola é descartada — texto vazio é rejeição no XSD.
+// operationGroup devolve um grupo aninhado da operação (ret_trib, por exemplo).
+func operationGroup(op map[string]any, field string) map[string]any {
+	m, _ := op[field].(map[string]any)
+	return m
+}
+
 func operationObs(op map[string]any, field string, vars map[string]string) []map[string]any {
 	raw, _ := op[field].([]any)
 	out := make([]map[string]any, 0, len(raw))

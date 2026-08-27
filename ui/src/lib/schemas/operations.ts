@@ -66,6 +66,15 @@ export const operationSchema = z.object({
   obs_cont: z.array(obsSchema).max(10),
   obs_fisco: z.array(obsSchema).max(10),
   inf_cpl: fiscalText(5000),
+  /** Perfil de retenções federais (total/retTrib). Percentuais; os valores
+   *  saem da base da nota na emissão. */
+  ret_trib: z.object({
+    p_ret_pis: z.string().optional().or(z.literal('')),
+    p_ret_cofins: z.string().optional().or(z.literal('')),
+    p_ret_csll: z.string().optional().or(z.literal('')),
+    p_ret_irrf: z.string().optional().or(z.literal('')),
+    p_ret_prev_inss: z.string().optional().or(z.literal('')),
+  }),
   requires_receiver: z.boolean(),
   is_default: z.boolean(),
 })

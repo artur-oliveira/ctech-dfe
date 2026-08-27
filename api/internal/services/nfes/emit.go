@@ -92,7 +92,11 @@ type NfeRefBody struct {
 
 // NfeProductItem is a line item in an NF-e emission request.
 type NfeProductItem struct {
-	ProductID string `json:"product_id" validate:"required"`
+	// ProductID é obrigatório; ServiceID é opcional e aponta para o catálogo de
+	// serviços da NFS-e (organization_services), reusado na NF-e mista: item da
+	// lista, código e alíquota do ISS saem de lá, nunca de um segundo cadastro.
+	ProductID string  `json:"product_id" validate:"required"`
+	ServiceID *string `json:"service_id" validate:"omitempty"`
 	// Vazio é aceito quando a emissão informa uma operação com cfop_suffix —
 	// aí o CFOP é resolvido pelas UFs de emitente e destinatário.
 	CFOP       string           `json:"cfop" validate:"omitempty,cfop"`
@@ -108,6 +112,9 @@ type NfeProductItem struct {
 	VeicCCor   *string          `json:"veic_c_cor" validate:"omitempty"`
 	VeicXCor   *string          `json:"veic_x_cor" validate:"omitempty"`
 	Armas      []map[string]any `json:"armas" validate:"omitempty"`
+	// PDevol é o percentual devolvido do item (impostoDevol). Só vale em nota
+	// de devolução (finNFe=4).
+	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
 }
 
 // NfePaymentItem is a payment method in an NF-e emission request.
@@ -275,6 +282,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 
 	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, destUF, items)
+	if err == nil {
+		err = applyServiceDefaults(ctx, s.serviceRepo, orgPK, items, productItems)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -404,6 +414,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	if finNFeExigeRef[finNFe] && len(nfRefs) == 0 {
 		return nil, problem.BadRequest("finNFe " + finNFe + " exige pelo menos um documento em nf_refs")
 	}
+	if err := validateDevolucao(finNFe, req.Products); err != nil {
+		return nil, err
+	}
 
 	// Mensagens fiscais da operação, com os placeholders já interpolados.
 	interpVars := map[string]string{
@@ -445,6 +458,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			ObsFisco:         operationObs(operation, opFieldObsFisco, interpVars),
 			ProcRef:          buildProcRef(req.ProcRef),
 			PaymentTerminals: terminals,
+			RetTrib:          operationGroup(operation, opFieldRetTrib),
+			FinNFe4:          finNFe == finNFeDevolucao,
 			CsrtID:           strAttr(configItem, csrtIDField),
 			Csrt:             strAttr(configItem, csrtField),
 		},
@@ -721,6 +736,81 @@ func extractEmitUFFromItem(org map[string]types.AttributeValue) string {
 // resolveProducts resolves emission line items against the product catalog,
 // validates each CFOP is configured on the product, and computes totals.
 // Shared by NF-e and NFC-e emission.
+// finNFeDevolucao é a finalidade "devolução de mercadoria" — o único caso em
+// que o item pode declarar impostoDevol.
+const finNFeDevolucao = "4"
+
+// validateDevolucao recusa p_devol fora da nota de devolução: impostoDevol em
+// nota normal é XML que só a SEFAZ rejeitaria.
+func validateDevolucao(finNFe string, items []NfeProductItem) error {
+	if finNFe == finNFeDevolucao {
+		return nil
+	}
+	for _, it := range items {
+		if it.PDevol != nil && *it.PDevol != "" {
+			return problem.BadRequest("p_devol só é aceito em nota de devolução (fin_nfe = 4)")
+		}
+	}
+	return nil
+}
+
+// applyServiceDefaults completa a tributação do item de serviço com o que já
+// está no catálogo da NFS-e: item da lista de serviços, alíquota do ISS e
+// código do serviço. O que a tributação do produto já define vence — o catálogo
+// é default, não override.
+func applyServiceDefaults(
+	ctx context.Context, serviceRepo *repositories.ServiceRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	for i, item := range items {
+		if item.ServiceID == nil || *item.ServiceID == "" || serviceRepo == nil {
+			continue
+		}
+		svcAttr, err := serviceRepo.Get(ctx, orgPK, *item.ServiceID)
+		if err != nil {
+			return err
+		}
+		if svcAttr == nil {
+			return problem.NotFound("serviço não encontrado: " + *item.ServiceID)
+		}
+		var svc map[string]any
+		if err := attributevalue.UnmarshalMap(svcAttr, &svc); err != nil {
+			return problem.InternalServer("failed to decode service")
+		}
+		cfgs, _ := productItems[i]["cfop_config"].([]any)
+		if len(cfgs) == 0 {
+			continue
+		}
+		cfg, _ := cfgs[0].(map[string]any)
+		if cfg == nil {
+			continue
+		}
+		setDefault(cfg, "issqn_c_list_serv", anyStr(svc, "trib_nacional_code", ""))
+		setDefault(cfg, "issqn_c_servico", anyStr(svc, "code", ""))
+		if iss, ok := svc["iss"].(map[string]any); ok {
+			setDefault(cfg, "issqn_aliq", anyStr(iss, "tax_rate", ""))
+		}
+		// Sem indISS declarado, o item de serviço é exigível: é o caso normal,
+		// e sem ele o grupo ISSQN inteiro não sairia.
+		setDefault(cfg, "issqn_ind_iss", issqnIndISSExigivel)
+	}
+	return nil
+}
+
+// issqnIndISSExigivel é indISS=1 (exigível), o default do item de serviço.
+const issqnIndISSExigivel = "1"
+
+// setDefault só preenche o que ainda não foi decidido pela tributação.
+func setDefault(cfg map[string]any, key, value string) {
+	if value == "" {
+		return
+	}
+	if cur, ok := cfg[key].(string); ok && cur != "" {
+		return
+	}
+	cfg[key] = value
+}
+
 func resolveProducts(
 	ctx context.Context, productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository, orgPK, destUF string, items []NfeProductItem,
@@ -857,6 +947,15 @@ func resolveProducts(
 			"v_seg":                ptrStr(item.VSeg),
 			"v_outro":              ptrStr(item.VOutro),
 			"total":                q2(itemTotal.RoundBank(2)),
+			"p_devol":              ptrStr(item.PDevol),
+			// Selo e enquadramento do IPI vêm do cadastro do produto.
+			"ipi_cnpj_prod": product["ipi_cnpj_prod"],
+			"ipi_c_selo":    product["ipi_c_selo"],
+			"ipi_q_selo":    product["ipi_q_selo"],
+			"ipi_c_enq":     product["ipi_c_enq"],
+			// Observação fiscal padrão do produto (det/obsItem).
+			"obs_item_x_campo": product["obs_item_x_campo"],
+			"obs_item_x_texto": product["obs_item_x_texto"],
 		}
 		productItems = append(productItems, pi)
 	}
@@ -910,6 +1009,11 @@ func (s *NfeService) resolveTransport(ctx context.Context, orgPK string, t *NfeT
 						if reg, ok := regs[0].(map[string]any); ok {
 							td["transporta_ie"] = reg["state_registration"]
 						}
+					}
+					// Perfil de ICMS retido pelo remetente (transp/retTransp):
+					// é invariante da transportadora, não da nota.
+					if ret, ok := person["freight_retention"].(map[string]any); ok {
+						td["freight_retention"] = ret
 					}
 				}
 			}

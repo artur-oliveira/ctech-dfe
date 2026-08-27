@@ -752,9 +752,73 @@ export function TaxFieldsEditor({
                               placeholder="0.00"
                               onChange={(v) => onChange((r) => ({...r, issqn_v_iss_ret: v}))}/>
               </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Outras retenções R$</label>
+                <NumericInput value={value.issqn_v_outro ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, issqn_v_outro: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Desconto incondicional R$</label>
+                <NumericInput value={value.issqn_v_desc_incond ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, issqn_v_desc_incond: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Desconto condicional R$</label>
+                <NumericInput value={value.issqn_v_desc_cond ?? ''} decimal integerPlaces={9} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, issqn_v_desc_cond: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Código do serviço no município</label>
+                <Input value={value.issqn_c_servico ?? ''} maxLength={20}
+                       onChange={(e) => onChange((r) => ({...r, issqn_c_servico: e.target.value}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Município de incidência (IBGE)</label>
+                <Input value={value.issqn_c_mun ?? ''} maxLength={7} inputMode="numeric"
+                       onChange={(e) => onChange((r) => ({...r, issqn_c_mun: e.target.value.replace(/\D/g, '')}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">País do serviço</label>
+                <Input value={value.issqn_c_pais ?? ''} maxLength={4} inputMode="numeric" placeholder="1058"
+                       onChange={(e) => onChange((r) => ({...r, issqn_c_pais: e.target.value.replace(/\D/g, '')}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Nº do processo</label>
+                <Input value={value.issqn_n_processo ?? ''} maxLength={30}
+                       onChange={(e) => onChange((r) => ({...r, issqn_n_processo: e.target.value}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Incentivo fiscal</label>
+                <OptionsSelect value={value.issqn_ind_incentivo ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, issqn_ind_incentivo: v}))}
+                               placeholder="Não informado"
+                               options={[{value: '1', label: '1 – Sim'}, {value: '2', label: '2 – Não'}]}/>
+              </div>
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Observação fiscal do item (obsItem) ─────────────────── */}
+      <div className="rounded-lg border border-gray-100 p-3 space-y-3">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          Observação fiscal do item
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid gap-1">
+            <label className="text-sm font-medium text-gray-700">Campo</label>
+            <Input value={value.obs_item_x_campo ?? ''} maxLength={20} placeholder="Ex: Beneficio"
+                   onChange={(e) => onChange((r) => ({...r, obs_item_x_campo: e.target.value}))}/>
+          </div>
+          <div className="grid gap-1">
+            <label className="text-sm font-medium text-gray-700">Texto</label>
+            <Input value={value.obs_item_x_texto ?? ''} maxLength={60}
+                   onChange={(e) => onChange((r) => ({...r, obs_item_x_texto: e.target.value}))}/>
+          </div>
+        </div>
       </div>
 
       {/* ── IBS / CBS ───────────────────────────────────────────── */}

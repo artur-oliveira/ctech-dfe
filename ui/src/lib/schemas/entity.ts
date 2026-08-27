@@ -133,6 +133,15 @@ export const entitySchema = z.object({
       branch_code: z.string().max(10).optional().or(z.literal('')),
       cnpj_ipef: z.string().optional().or(z.literal('')),
     }).default({pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''}),
+    /** Perfil de ICMS retido pelo remetente sobre o frete (NF-e transp/retTransp).
+     *  É da transportadora, não da nota. */
+    freight_retention: z.object({
+      v_serv: z.string().optional().or(z.literal('')),
+      v_bc_ret: z.string().optional().or(z.literal('')),
+      p_icms_ret: z.string().optional().or(z.literal('')),
+      cfop: z.string().regex(/^\d{4}$/, 'CFOP tem 4 dígitos').optional().or(z.literal('')),
+      c_mun_fg: z.string().regex(/^\d{7}$/, 'IBGE tem 7 dígitos').optional().or(z.literal('')),
+    }).default({v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''}),
   }),
 }).superRefine((data, ctx) => {
   // Pessoa no exterior não tem CPF/CNPJ: os dois campos são exclusivos.

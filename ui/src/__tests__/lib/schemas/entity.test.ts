@@ -25,6 +25,7 @@ const basePF: EntityFormData = {
     contacts: {emails: ['carvalholarissa_@hotmail.com'], phones: ['86995373408']},
     nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
     bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
+    freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
   },
 }
 

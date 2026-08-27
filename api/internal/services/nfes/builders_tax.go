@@ -692,19 +692,38 @@ func buildISSQN(vBC decimal.Decimal, cfg map[string]any) map[string]any {
 	vBCEfetiva := decimal.Max(vBCd.Sub(vDeducao), decimal.Zero)
 	vISSQN := q2(vBCEfetiva.Mul(d(aliq)).Div(decimal.NewFromInt(100)).RoundBank(2))
 
+	// Ordem XSD: vBC, vAliq, vISSQN, cMunFG, cListServ, vDeducao, vOutro,
+	// vDescIncond, vDescCond, vISSRet, indISS, cServico, cMun, cPais,
+	// nProcesso, indIncentivo.
 	node := map[string]any{
 		"vBC":       q2(vBCd),
 		"vAliq":     aliq,
 		"vISSQN":    vISSQN,
 		"cMunFG":    cfgStr(cfg, "issqn_c_mun_fg", "0000000"),
 		"cListServ": cfgStr(cfg, "issqn_c_list_serv", ""),
-		"indISS":    *indISS,
 	}
-	if vDedStr := cfgStrPtr(cfg, "issqn_v_deducao"); vDedStr != nil {
-		node["vDeducao"] = *vDedStr
+	for field, tag := range map[string]string{
+		"issqn_v_deducao":     "vDeducao",
+		"issqn_v_outro":       "vOutro",
+		"issqn_v_desc_incond": "vDescIncond",
+		"issqn_v_desc_cond":   "vDescCond",
+		"issqn_v_iss_ret":     "vISSRet",
+	} {
+		if v := cfgStrPtr(cfg, field); v != nil && *v != "" {
+			node[tag] = *v
+		}
 	}
-	if vISSRet := cfgStrPtr(cfg, "issqn_v_iss_ret"); vISSRet != nil {
-		node["vISSRet"] = *vISSRet
+	node["indISS"] = *indISS
+	for field, tag := range map[string]string{
+		"issqn_c_servico":     "cServico",
+		"issqn_c_mun":         "cMun",
+		"issqn_c_pais":        "cPais",
+		"issqn_n_processo":    "nProcesso",
+		"issqn_ind_incentivo": "indIncentivo",
+	} {
+		if v := cfgStrPtr(cfg, field); v != nil && *v != "" {
+			node[tag] = *v
+		}
 	}
 	return map[string]any{"ISSQN": node}
 }

@@ -831,6 +831,18 @@ components:
             `{{cliente}}`, `{{nat_op}}`, `{{competencia}}`. Chave desconhecida é
             erro de validação **no cadastro**, nunca interpolação em branco no XML.
         inf_cpl: { type: [ string, 'null' ], maxLength: 5000 }
+        ret_trib:
+          type: [ object, 'null' ]
+          description: |
+            Perfil de retenções federais do cenário (`total/retTrib`). Só os
+            percentuais ficam aqui; `vRetPIS`, `vRetCOFINS`, `vRetCSLL`,
+            `vIRRF` e `vRetPrev` são calculados sobre a base da nota.
+          properties:
+            p_ret_pis: { type: [ string, 'null' ] }
+            p_ret_cofins: { type: [ string, 'null' ] }
+            p_ret_csll: { type: [ string, 'null' ] }
+            p_ret_irrf: { type: [ string, 'null' ] }
+            p_ret_prev_inss: { type: [ string, 'null' ] }
         requires_receiver:
           type: [ boolean, 'null' ]
           description: '`false` habilita emissão sem destinatário (self_issuance).'

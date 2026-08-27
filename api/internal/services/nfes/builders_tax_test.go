@@ -424,3 +424,51 @@ func TestBuildCOFINSSTUsaVProdSemBase(t *testing.T) {
 		t.Fatalf("COFINSST errado: %v", got)
 	}
 }
+
+func TestBuildISSQNCompleto(t *testing.T) {
+	cfg := map[string]any{
+		"issqn_ind_iss": "1", "issqn_aliq": "5.00", "issqn_c_list_serv": "01.01",
+		"issqn_c_mun_fg": "2211001", "issqn_v_deducao": "100.00", "issqn_v_outro": "10.00",
+		"issqn_v_desc_incond": "5.00", "issqn_v_desc_cond": "2.00", "issqn_v_iss_ret": "1.00",
+		"issqn_c_servico": "S-1", "issqn_c_mun": "2211001", "issqn_c_pais": "1058",
+		"issqn_n_processo": "PROC-9", "issqn_ind_incentivo": "2",
+	}
+	node := buildISSQN(decimal.RequireFromString("1000.00"), cfg)["ISSQN"].(map[string]any)
+	// A dedução sai da base antes da alíquota: (1000 - 100) × 5%.
+	if node["vISSQN"] != "45.00" || node["vBC"] != "1000.00" {
+		t.Fatalf("ISS errado: %v", node)
+	}
+	for tag, want := range map[string]string{
+		"vDeducao": "100.00", "vOutro": "10.00", "vDescIncond": "5.00", "vDescCond": "2.00",
+		"vISSRet": "1.00", "cServico": "S-1", "cMun": "2211001", "cPais": "1058",
+		"nProcesso": "PROC-9", "indIncentivo": "2",
+	} {
+		if node[tag] != want {
+			t.Fatalf("%s: want %q, got %v", tag, want, node[tag])
+		}
+	}
+}
+
+// Campo ausente não vira nó vazio.
+func TestBuildISSQNMinimo(t *testing.T) {
+	node := buildISSQN(decimal.RequireFromString("100.00"),
+		map[string]any{"issqn_ind_iss": "1", "issqn_aliq": "2.00"})["ISSQN"].(map[string]any)
+	for _, tag := range []string{"vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cServico"} {
+		if _, ok := node[tag]; ok {
+			t.Fatalf("%s não devia existir: %v", tag, node)
+		}
+	}
+}
+
+func TestSetDefaultNaoSobrescreve(t *testing.T) {
+	cfg := map[string]any{"issqn_aliq": "3.00"}
+	setDefault(cfg, "issqn_aliq", "5.00")
+	setDefault(cfg, "issqn_c_servico", "S-1")
+	setDefault(cfg, "issqn_c_mun", "")
+	if cfg["issqn_aliq"] != "3.00" || cfg["issqn_c_servico"] != "S-1" {
+		t.Fatalf("default sobrescreveu a tributação: %v", cfg)
+	}
+	if _, ok := cfg["issqn_c_mun"]; ok {
+		t.Fatalf("valor vazio não pode virar chave: %v", cfg)
+	}
+}

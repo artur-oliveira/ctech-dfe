@@ -299,6 +299,18 @@ export interface CfopConfigItem {
   /** ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90). */
   icms_mot_des_st?: string | null
   icms_p_fcp_dif?: string | null
+  /** Restante do grupo ISSQN do leiaute. */
+  issqn_v_outro?: string | null
+  issqn_v_desc_incond?: string | null
+  issqn_v_desc_cond?: string | null
+  issqn_c_servico?: string | null
+  issqn_c_mun?: string | null
+  issqn_c_pais?: string | null
+  issqn_n_processo?: string | null
+  issqn_ind_incentivo?: string | null
+  /** Observação fiscal do item (det/obsItem). */
+  obs_item_x_campo?: string | null
+  obs_item_x_texto?: string | null
   /** IPI por unidade (bebidas, cigarros) — choice com vBC+pIPI. */
   ipi_v_unid?: string | null
   pis: string
@@ -686,6 +698,16 @@ export interface PersonDetailsOut {
   /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
   delivery_locations?: NfeLocalOut[]
   bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
+}
+
+/** Perfil de ICMS retido pelo remetente sobre o frete (NF-e transp/retTransp). */
+export interface PersonFreightRetention {
+  v_serv?: string | null
+  v_bc_ret?: string | null
+  p_icms_ret?: string | null
+  cfop?: string | null
+  c_mun_fg?: string | null
 }
 
 /** Recebimento do condutor/TAC (MDF-e infANTT/infPag/infBanc). Choice: PIX, ou

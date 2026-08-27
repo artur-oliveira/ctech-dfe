@@ -930,7 +930,19 @@ the frontend's divergence warning.
 | IPI por unidade (bebidas, cigarros)            | `ipi_v_unid` — troca `vBC`+`pIPI` por `qUnid`+`vUnid` (choice no XSD) |
 | IPI com selo de controle                       | produto: `ipi_cnpj_prod`, `ipi_c_selo`, `ipi_q_selo`, `ipi_c_enq` (default `999`) |
 | PIS-ST / COFINS-ST (combustíveis, farmacêutico) | `pis_st_aliq`/`pis_st_v_bc`, `cofins_st_aliq`/`cofins_st_v_bc` — grupos `PISST`/`COFINSST`, irmãos de PIS/COFINS. Sem base própria, a base é o valor do produto |
-| ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret` |
+| ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret`, `issqn_v_outro`, `issqn_v_desc_incond`, `issqn_v_desc_cond`, `issqn_c_servico`, `issqn_c_mun`, `issqn_c_pais`, `issqn_n_processo`, `issqn_ind_incentivo`. Um item com `service_id` puxa item da lista, código e alíquota de `organization_services` — o catálogo da NFS-e, não um segundo cadastro |
+| Observação fiscal do item (`det/obsItem`)      | `obs_item_x_campo` + `obs_item_x_texto`, na tributação (vence) ou no produto |
+
+**Retenções e devolução (nível documento):**
+
+- `total/retTrib` é **derivado**: o perfil de percentuais fica na operação (`ret_trib`:
+  `p_ret_pis`, `p_ret_cofins`, `p_ret_csll`, `p_ret_irrf`, `p_ret_prev_inss`) e os valores saem da
+  base (produtos − desconto). `vBCIRRF`/`vBCRetPrev` só aparecem acompanhados do respectivo valor.
+- `det/impostoDevol` exige `fin_nfe = 4` (devolução): `products[].p_devol` fora disso é **400**.
+  `vIPIDevol` é calculado do IPI do item e somado no `ICMSTot`.
+- `transp/retTransp` sai do perfil `person.freight_retention` da transportadora
+  (`v_serv`, `v_bc_ret`, `p_icms_ret`, `cfop`, `c_mun_fg`); `vICMSRet` é calculado. O grupo é
+  tudo-ou-nada: perfil incompleto não emite nada.
 
 **Specific product types** (`prod_type`):
 

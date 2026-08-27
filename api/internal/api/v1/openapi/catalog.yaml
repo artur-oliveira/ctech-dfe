@@ -594,6 +594,14 @@ components:
         issqn_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         issqn_v_deducao: { type: [ string, 'null' ] }
         issqn_v_iss_ret: { type: [ string, 'null' ] }
+        issqn_v_outro: { type: [ string, 'null' ] }
+        issqn_v_desc_incond: { type: [ string, 'null' ] }
+        issqn_v_desc_cond: { type: [ string, 'null' ] }
+        issqn_c_servico: { type: [ string, 'null' ], maxLength: 20 }
+        issqn_c_mun: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        issqn_c_pais: { type: [ string, 'null' ] }
+        issqn_n_processo: { type: [ string, 'null' ], maxLength: 30 }
+        issqn_ind_incentivo: { type: [ string, 'null' ], enum: [ '1', '2', null ] }
 
 
     ProductTaxProfileRef:
@@ -683,6 +691,8 @@ components:
         med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
         med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
         med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        obs_item_x_campo: { type: [ string, 'null' ], maxLength: 20 }
+        obs_item_x_texto: { type: [ string, 'null' ], maxLength: 60 }
         ipi_cnpj_prod: { type: [ string, 'null' ], pattern: '^\d{14}$' }
         ipi_c_selo: { type: [ string, 'null' ], maxLength: 60 }
         ipi_q_selo: { type: [ string, 'null' ] }

@@ -78,6 +78,9 @@ export const cfopConfigSchema = z.object({
   icms_p_fcp_dif: optionalPercent,
   // IPI por unidade — vUnid presente troca vBC+pIPI por qUnid+vUnid
   ipi_v_unid: optionalStr,
+  // Observação fiscal do item (det/obsItem)
+  obs_item_x_campo: optionalStr,
+  obs_item_x_texto: optionalStr,
   // PIS/COFINS
   pis: z.string().regex(/^\d{2}$/, 'PIS deve ter 2 dígitos'),
   cofins: z.string().regex(/^\d{2}$/, 'COFINS deve ter 2 dígitos'),
@@ -123,6 +126,14 @@ export const cfopConfigSchema = z.object({
   issqn_c_mun_fg: z.string().regex(/^\d{7}$/, 'Código deve ter 7 dígitos').optional().or(z.literal('')),
   issqn_aliq: optionalPercent,
   issqn_v_deducao: optionalStr,
+  issqn_v_outro: optionalStr,
+  issqn_v_desc_incond: optionalStr,
+  issqn_v_desc_cond: optionalStr,
+  issqn_c_servico: optionalStr,
+  issqn_c_mun: optionalStr,
+  issqn_c_pais: optionalStr,
+  issqn_n_processo: optionalStr,
+  issqn_ind_incentivo: optionalStr,
   issqn_v_iss_ret: optionalStr,
   // Overrides por UF de destino — só preenche o que diverge para aquelas UFs
   uf_overrides: z.array(ufTaxOverrideSchema).optional(),

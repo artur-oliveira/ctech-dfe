@@ -108,9 +108,22 @@ type PersonObjectBody struct {
 	IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
 	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
 	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
+	// FreightRetention é o perfil de ICMS retido pelo remetente sobre o frete
+	// (NF-e transp/retTransp). Fica na pessoa porque é da transportadora.
+	FreightRetention *FreightRetentionBody `json:"freight_retention" validate:"omitempty"`
 	// Bank são os dados de recebimento do condutor/TAC (MDF-e infANTT/infBanc).
 	// Ficam na pessoa porque são invariantes dela, não da viagem.
 	Bank *PersonBankBody `json:"bank" validate:"omitempty"`
+}
+
+// FreightRetentionBody é o grupo retTransp: serviço, base, alíquota, CFOP e
+// município do fato gerador. vICMSRet é calculado na emissão.
+type FreightRetentionBody struct {
+	VServ    *string `json:"v_serv" validate:"omitempty,money2"`
+	VBcRet   *string `json:"v_bc_ret" validate:"omitempty,money2"`
+	PIcmsRet *string `json:"p_icms_ret" validate:"omitempty,percent"`
+	CFOP     *string `json:"cfop" validate:"omitempty,cfop"`
+	CMunFG   *string `json:"c_mun_fg" validate:"omitempty,ibge"`
 }
 
 // PersonBankBody é o choice de infBanc: PIX, ou banco+agência, ou CNPJ do IPEF.
@@ -258,6 +271,10 @@ type TaxFieldsBody struct {
 	// IPI por unidade (bebidas, cigarros): vUnid presente troca vBC+pIPI por
 	// qUnid+vUnid — são choice no XSD.
 	IpiVUnid *string `json:"ipi_v_unid" validate:"omitempty,money"`
+	// Observação fiscal do item (det/obsItem). Pode vir da tributação ou do
+	// produto; a tributação vence por ser a mais específica do cenário.
+	ObsItemXCampo *string `json:"obs_item_x_campo" validate:"omitempty,max=20"`
+	ObsItemXTexto *string `json:"obs_item_x_texto" validate:"omitempty,max=60"`
 	// IBS / CBS (Reforma Tributária) — opcional, tudo-ou-nada (ver validateIbsCbsGroup).
 	// Vigência obrigatória: 2026-08-03 (não-Simples) / 2027-01-04 (Simples/MEI) —
 	// até lá, e mesmo depois para quem ainda não migrou, o grupo pode ficar ausente.
@@ -292,6 +309,15 @@ type TaxFieldsBody struct {
 	IssqnAliq      *string `json:"issqn_aliq" validate:"omitempty,percent"`
 	IssqnVDeducao  *string `json:"issqn_v_deducao" validate:"omitempty"`
 	IssqnVIssRet   *string `json:"issqn_v_iss_ret" validate:"omitempty"`
+	// Restante do grupo ISSQN do leiaute.
+	IssqnVOutro       *string `json:"issqn_v_outro" validate:"omitempty,money2"`
+	IssqnVDescIncond  *string `json:"issqn_v_desc_incond" validate:"omitempty,money2"`
+	IssqnVDescCond    *string `json:"issqn_v_desc_cond" validate:"omitempty,money2"`
+	IssqnCServico     *string `json:"issqn_c_servico" validate:"omitempty,max=20"`
+	IssqnCMun         *string `json:"issqn_c_mun" validate:"omitempty,ibge"`
+	IssqnCPais        *string `json:"issqn_c_pais" validate:"omitempty,max=4,number"`
+	IssqnNProcesso    *string `json:"issqn_n_processo" validate:"omitempty,max=30"`
+	IssqnIndIncentivo *string `json:"issqn_ind_incentivo" validate:"omitempty,oneof=1 2"`
 }
 
 // UfTaxOverride is a partial TaxFieldsBody override applied only when the
@@ -395,6 +421,10 @@ type OperationBody struct {
 	ObsCont  []ObsBody `json:"obs_cont" validate:"omitempty,max=10,dive"`
 	ObsFisco []ObsBody `json:"obs_fisco" validate:"omitempty,max=10,dive"`
 
+	// RetTrib é o perfil de retenções federais do cenário (total/retTrib). Os
+	// percentuais são invariantes da operação; os valores saem da base da nota.
+	RetTrib *RetTribBody `json:"ret_trib" validate:"omitempty"`
+
 	// RequiresReceiver falso habilita emissão sem destinatário (self_issuance).
 	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
 	// IsDefault marca a operação pré-selecionada da organização. Só uma pode
@@ -452,6 +482,16 @@ type CargoUnitBody struct {
 	IdUnid string `json:"id_unid" validate:"required,max=20"`
 	// Seals são os lacres fixos da unidade, quando houver.
 	Seals []string `json:"seals" validate:"omitempty,dive,max=60"`
+}
+
+// RetTribBody são os percentuais de retenção federal da operação. O que sai no
+// XML (vRetPIS, vRetCOFINS, vRetCSLL, vIRRF, vRetPrev) é calculado da base.
+type RetTribBody struct {
+	PRetPis      *string `json:"p_ret_pis" validate:"omitempty,percent"`
+	PRetCofins   *string `json:"p_ret_cofins" validate:"omitempty,percent"`
+	PRetCsll     *string `json:"p_ret_csll" validate:"omitempty,percent"`
+	PRetIrrf     *string `json:"p_ret_irrf" validate:"omitempty,percent"`
+	PRetPrevInss *string `json:"p_ret_prev_inss" validate:"omitempty,percent"`
 }
 
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
@@ -539,6 +579,9 @@ type ProductBody struct {
 	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
 	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
 	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
+	// Observação fiscal padrão do produto (det/obsItem).
+	ObsItemXCampo *string `json:"obs_item_x_campo" validate:"omitempty,max=20"`
+	ObsItemXTexto *string `json:"obs_item_x_texto" validate:"omitempty,max=60"`
 	// Selo de controle do IPI e enquadramento legal — nível produto.
 	IpiCnpjProd   *string `json:"ipi_cnpj_prod" validate:"omitempty,digits14"`
 	IpiCSelo      *string `json:"ipi_c_selo" validate:"omitempty,max=60"`

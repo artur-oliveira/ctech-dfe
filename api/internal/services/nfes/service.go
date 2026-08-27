@@ -58,11 +58,14 @@ var ErrNFCeNotFound = problem.NotFound("NFC-e não encontrada")
 
 // NfeService manages NF-e lifecycle.
 type NfeService struct {
-	orgRepo             *repositories.OrganizationRepository
-	certRepo            *repositories.CertificateRepository
-	personRepo          *repositories.PersonRepository
-	configRepo          *repositories.NfeConfigRepository
-	productRepo         *repositories.ProductRepository
+	orgRepo     *repositories.OrganizationRepository
+	certRepo    *repositories.CertificateRepository
+	personRepo  *repositories.PersonRepository
+	configRepo  *repositories.NfeConfigRepository
+	productRepo *repositories.ProductRepository
+	// serviceRepo é o catálogo de serviços da NFS-e, reusado pela NF-e mista:
+	// código, item da lista e alíquota do ISS vivem lá, não num segundo cadastro.
+	serviceRepo         *repositories.ServiceRepository
 	taxProfileRepo      *repositories.TaxProfileRepository
 	operationRepo       *repositories.OperationRepository
 	paymentTermRepo     *repositories.PaymentTermRepository
@@ -84,6 +87,7 @@ func NewNfeService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
+	serviceRepo *repositories.ServiceRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -104,6 +108,7 @@ func NewNfeService(
 		personRepo:          personRepo,
 		configRepo:          configRepo,
 		productRepo:         productRepo,
+		serviceRepo:         serviceRepo,
 		taxProfileRepo:      taxProfileRepo,
 		operationRepo:       operationRepo,
 		paymentTermRepo:     paymentTermRepo,

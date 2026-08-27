@@ -392,6 +392,21 @@ components:
         contacts: { $ref: '#/components/schemas/ContactsBody' }
         nfse: { $ref: '#/components/schemas/NfseInfoBody' }
         bank: { $ref: '#/components/schemas/PersonBankBody' }
+        freight_retention: { $ref: '#/components/schemas/FreightRetentionBody' }
+
+    FreightRetentionBody:
+      type: object
+      description: |
+        ICMS retido pelo remetente sobre o serviço de transporte
+        (NF-e `transp/retTransp`). É perfil da transportadora, não da nota;
+        `vICMSRet` é calculado na emissão. O grupo é tudo-ou-nada: sem
+        `v_serv`, `v_bc_ret` e `p_icms_ret` juntos, nada é emitido.
+      properties:
+        v_serv: { type: [ string, 'null' ] }
+        v_bc_ret: { type: [ string, 'null' ] }
+        p_icms_ret: { type: [ string, 'null' ] }
+        cfop: { type: [ string, 'null' ] }
+        c_mun_fg: { type: [ string, 'null' ] }
 
     PersonBankBody:
       type: object

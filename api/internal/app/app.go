@@ -342,6 +342,7 @@ func newNFeService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
+	serviceRepo *repositories.ServiceRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -356,7 +357,7 @@ func newNFeService(
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
-		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo, paymentTermRepo,
+		orgRepo, certRepo, personRepo, configRepo, productRepo, serviceRepo, taxProfileRepo, operationRepo, paymentTermRepo,
 		paymentTerminalRepo, nfeRepo, eventRepo, vehicleRepo, clients,
 		workerSvc, extSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{

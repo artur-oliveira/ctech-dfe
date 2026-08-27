@@ -17,6 +17,7 @@ const base = {
   inf_cpl: '',
   obs_cont: [],
   obs_fisco: [],
+  ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true,
   is_default: false,
 }

@@ -129,6 +129,7 @@ const DEFAULT_VALUES: EntityFormData = {
     cnae: '',
     isuf_emit: '',
     bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
+    freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
   },
 }
 
@@ -149,6 +150,7 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
   if (data.person.cnae || data.person.isuf_emit) return true
   if (data.person.bank?.pix_key || data.person.bank?.bank_code || data.person.bank?.cnpj_ipef) return true
+  if (data.person.freight_retention?.p_icms_ret) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
   return false
 }
@@ -448,6 +450,35 @@ export function EntityForm({
     </div>
   )
 
+  // ICMS retido pelo remetente sobre o frete: perfil da transportadora, usado
+  // em transp/retTransp. O valor retido é calculado na emissão.
+  const freightRetentionSection = (
+    <div className="pt-1 border-t border-gray-100">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+        NF-e — ICMS retido sobre o frete
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {([
+          ['v_serv', 'Valor do serviço'],
+          ['v_bc_ret', 'Base de cálculo da retenção'],
+          ['p_icms_ret', 'Alíquota do ICMS retido (%)'],
+          ['cfop', 'CFOP do serviço'],
+          ['c_mun_fg', 'Município do fato gerador (IBGE)'],
+        ] as const).map(([key, label]) => (
+          <FormField key={key} control={form.control as never} name={`person.freight_retention.${key}`}
+                     render={({field}) => (
+                       <FormItem>
+                         <FormLabel>{label}</FormLabel>
+                         <Input {...field} id={field.name} value={field.value ?? ''}/>
+                         <FormMessage/>
+                       </FormItem>
+                     )}
+          />
+        ))}
+      </div>
+    </div>
+  )
+
   // NFS-e: inscrição municipal + regime tributário do prestador. Ficam no
   // cadastro (e não na config da organização) porque quem presta pode ser uma
   // pessoa quando a org emite como tomadora/intermediária — ver dto.go.
@@ -682,6 +713,8 @@ export function EntityForm({
             {isOrg && nfeEmitSection}
 
             {!isOrg && bankSection}
+
+            {!isOrg && freightRetentionSection}
 
             {nfseSection}
           </SectionCard>

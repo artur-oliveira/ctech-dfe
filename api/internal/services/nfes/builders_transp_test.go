@@ -92,3 +92,37 @@ func TestBuildTranspVolumeDerivadoDosPesos(t *testing.T) {
 		t.Fatalf("volume derivado errado: %v", vols)
 	}
 }
+
+func TestBuildRetTranspCalculaICMSRetido(t *testing.T) {
+	got := buildRetTransp(map[string]any{"freight_retention": map[string]any{
+		"v_serv": "500.00", "v_bc_ret": "500.00", "p_icms_ret": "12.00",
+		"cfop": "5352", "c_mun_fg": "2211001",
+	}})
+	if got["vICMSRet"] != "60.00" || got["vServ"] != "500.00" || got["CFOP"] != "5352" {
+		t.Fatalf("retTransp errado: %v", got)
+	}
+}
+
+// O grupo é tudo-ou-nada: meio preenchido não vira nó.
+func TestBuildRetTranspIncompleto(t *testing.T) {
+	if buildRetTransp(map[string]any{"freight_retention": map[string]any{"v_serv": "500.00"}}) != nil {
+		t.Fatal("perfil incompleto não pode virar retTransp")
+	}
+	if buildRetTransp(map[string]any{}) != nil {
+		t.Fatal("sem perfil não há retTransp")
+	}
+}
+
+func TestBuildObsItemTributacaoVenceProduto(t *testing.T) {
+	got := buildObsItem(
+		map[string]any{"obs_item_x_campo": "CFOP", "obs_item_x_texto": "Venda interna"},
+		map[string]any{"obs_item_x_campo": "PROD", "obs_item_x_texto": "Do produto"},
+	)
+	obs := got["obsCont"].(map[string]any)
+	if obs["@xCampo"] != "CFOP" || obs["xTexto"] != "Venda interna" {
+		t.Fatalf("obsItem errado: %v", obs)
+	}
+	if buildObsItem(map[string]any{}, map[string]any{"obs_item_x_campo": "PROD"}) != nil {
+		t.Fatal("campo sem texto não vira observação")
+	}
+}

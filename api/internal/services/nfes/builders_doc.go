@@ -296,6 +296,12 @@ func BuildEnviNFe(
 				t.VServ = t.VServ.Add(vProdDec)
 				t.VBCISSQN = t.VBCISSQN.Add(vBCIBSCBS)
 				t.VISSQN = t.VISSQN.Add(d(anyStr(issqnInner, "vISSQN", "0")))
+				// ISSQNtot repete, somados, os mesmos valores do item.
+				t.VDeducaoISSQN = t.VDeducaoISSQN.Add(d(anyStr(issqnInner, "vDeducao", "0")))
+				t.VOutroISSQN = t.VOutroISSQN.Add(d(anyStr(issqnInner, "vOutro", "0")))
+				t.VDescIncondISSQN = t.VDescIncondISSQN.Add(d(anyStr(issqnInner, "vDescIncond", "0")))
+				t.VDescCondISSQN = t.VDescCondISSQN.Add(d(anyStr(issqnInner, "vDescCond", "0")))
+				t.VISSRet = t.VISSRet.Add(d(anyStr(issqnInner, "vISSRet", "0")))
 			}
 		} else {
 			cstForItem := cfgStr(cfopEntry, "icms", "40")
@@ -534,6 +540,24 @@ func BuildEnviNFe(
 		if infAd := anyStr(item, "inf_ad_prod", ""); infAd != "" {
 			detItem["infAdProd"] = infAd
 		}
+		if obs := buildObsItem(cfopEntry, item); obs != nil {
+			detItem["obsItem"] = obs
+		}
+		// impostoDevol só existe na devolução (finNFe=4); a emissão recusa
+		// p_devol fora desse caso antes de chegar aqui.
+		if extra.FinNFe4 {
+			if pDevol := anyStr(item, "p_devol", ""); pDevol != "" {
+				vIPIItem := decimal.Zero
+				if ipiData, ok := imposto["IPI"].(map[string]any); ok {
+					if ipiTrib, ok := ipiData["IPITrib"].(map[string]any); ok {
+						vIPIItem = d(anyStr(ipiTrib, "vIPI", "0"))
+					}
+				}
+				devol := buildImpostoDevol(pDevol, vIPIItem)
+				detItem["impostoDevol"] = devol
+				t.VIPIDevol = t.VIPIDevol.Add(d(anyStr(devol["IPI"].(map[string]any), "vIPIDevol", "0")))
+			}
+		}
 		det = append(det, detItem)
 	}
 
@@ -544,7 +568,8 @@ func BuildEnviNFe(
 	destStruct := buildDest(receiver, destPerson, receiverSK, destUF, isNFCe, environment, destIE)
 
 	// ── totals ────────────────────────────────────────────────────────────────
-	totalNode := buildTotal(t, now)
+	// A base das retenções é o valor dos produtos líquido de desconto.
+	totalNode := buildTotal(t, now, buildRetTrib(extra.RetTrib, t.Products.Sub(t.Discount)))
 
 	// ── infNFe ────────────────────────────────────────────────────────────────
 	natOpStr := natOpVenda

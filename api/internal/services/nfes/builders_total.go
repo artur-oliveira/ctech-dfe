@@ -15,9 +15,16 @@ type totals struct {
 	VPIS, VCOFINS, VIPI, VFrete, VSeg, VOutro            decimal.Decimal
 	VICMSUFDest, VFCPUFDest                              decimal.Decimal
 	VServ, VBCISSQN, VISSQN, VPISISSQN, VCOFINSISSQN     decimal.Decimal
-	IBSBC, IBSUF, IBSMun, IBS, CBSBC, CBS                decimal.Decimal
-	Products, Discount                                   decimal.Decimal
-	HasISSQN                                             bool
+	// Restante do ISSQNtot: deduções, descontos e ISS retido, somados dos itens.
+	VDeducaoISSQN, VOutroISSQN                decimal.Decimal
+	VDescIncondISSQN, VDescCondISSQN, VISSRet decimal.Decimal
+	// RegTribISSQN é o regime especial de tributação do prestador (cRegTrib).
+	RegTribISSQN                          string
+	IBSBC, IBSUF, IBSMun, IBS, CBSBC, CBS decimal.Decimal
+	Products, Discount                    decimal.Decimal
+	// VIPIDevol é o IPI devolvido (impostoDevol) somado dos itens.
+	VIPIDevol decimal.Decimal
+	HasISSQN  bool
 }
 
 // newTotals devolve um acumulador zerado com os totais de produto e desconto
@@ -29,13 +36,15 @@ func newTotals(products, discount decimal.Decimal) totals {
 		VPIS: z, VCOFINS: z, VIPI: z, VFrete: z, VSeg: z, VOutro: z,
 		VICMSUFDest: z, VFCPUFDest: z,
 		VServ: z, VBCISSQN: z, VISSQN: z, VPISISSQN: z, VCOFINSISSQN: z,
+		VDeducaoISSQN: z, VOutroISSQN: z, VDescIncondISSQN: z, VDescCondISSQN: z, VISSRet: z,
 		IBSBC: z, IBSUF: z, IBSMun: z, IBS: z, CBSBC: z, CBS: z,
-		Products: products, Discount: discount,
+		VIPIDevol: z,
+		Products:  products, Discount: discount,
 	}
 }
 
 // buildTotal monta o nó total a partir dos acumuladores do laço de itens.
-func buildTotal(t totals, now time.Time) map[string]any {
+func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any {
 	vNF := t.Products.Sub(t.Discount).
 		Add(t.VFrete).Add(t.VSeg).Add(t.VOutro).
 		Add(t.VIPI).Add(t.VICMSST).
@@ -56,7 +65,7 @@ func buildTotal(t totals, now time.Time) map[string]any {
 		"vDesc":      q2(t.Discount.RoundBank(2)),
 		"vII":        "0.00",
 		"vIPI":       q2(t.VIPI.RoundBank(2)),
-		"vIPIDevol":  "0.00",
+		"vIPIDevol":  q2(t.VIPIDevol.RoundBank(2)),
 		"vPIS":       q2(t.VPIS.RoundBank(2)),
 		"vCOFINS":    q2(t.VCOFINS.RoundBank(2)),
 		"vOutro":     q2(t.VOutro.RoundBank(2)),
@@ -94,8 +103,13 @@ func buildTotal(t totals, now time.Time) map[string]any {
 			},
 		},
 	}
+	if len(retTrib) > 0 {
+		totalNode["retTrib"] = retTrib
+	}
 	if t.HasISSQN {
-		totalNode["ISSQNtot"] = map[string]any{
+		// Ordem XSD: vServ, vBC, vISS, vPIS, vCOFINS, dCompet, vDeducao,
+		// vOutro, vDescIncond, vDescCond, vISSRet, cRegTrib.
+		issqnTot := map[string]any{
 			"vServ":   q2(t.VServ.RoundBank(2)),
 			"vBC":     q2(t.VBCISSQN.RoundBank(2)),
 			"vISS":    q2(t.VISSQN.RoundBank(2)),
@@ -103,6 +117,76 @@ func buildTotal(t totals, now time.Time) map[string]any {
 			"vCOFINS": q2(t.VCOFINSISSQN.RoundBank(2)),
 			"dCompet": now.Format("2006-01-02"),
 		}
+		for tag, v := range map[string]decimal.Decimal{
+			"vDeducao":    t.VDeducaoISSQN,
+			"vOutro":      t.VOutroISSQN,
+			"vDescIncond": t.VDescIncondISSQN,
+			"vDescCond":   t.VDescCondISSQN,
+			"vISSRet":     t.VISSRet,
+		} {
+			if v.IsPositive() {
+				issqnTot[tag] = q2(v.RoundBank(2))
+			}
+		}
+		if t.RegTribISSQN != "" {
+			issqnTot["cRegTrib"] = t.RegTribISSQN
+		}
+		totalNode["ISSQNtot"] = issqnTot
 	}
 	return totalNode
+}
+
+// buildRetTrib monta total/retTrib — as retenções federais da nota. O perfil de
+// retenção é da operação (nível 2); os valores saem da base do documento, então
+// nunca são digitados. Ordem XSD: vRetPIS, vRetCOFINS, vRetCSLL, vBCIRRF,
+// vIRRF, vBCRetPrev, vRetPrev.
+func buildRetTrib(profile map[string]any, base decimal.Decimal) map[string]any {
+	if len(profile) == 0 {
+		return nil
+	}
+	hundred := decimal.NewFromInt(100)
+	pct := func(key string) (decimal.Decimal, bool) {
+		v, _ := profile[key].(string)
+		if v == "" || v == "0.00" {
+			return decimal.Zero, false
+		}
+		return base.Mul(d(v)).Div(hundred).RoundBank(2), true
+	}
+	node := map[string]any{}
+	if v, ok := pct("p_ret_pis"); ok {
+		node["vRetPIS"] = q2(v)
+	}
+	if v, ok := pct("p_ret_cofins"); ok {
+		node["vRetCOFINS"] = q2(v)
+	}
+	if v, ok := pct("p_ret_csll"); ok {
+		node["vRetCSLL"] = q2(v)
+	}
+	// vBCIRRF e vBCRetPrev só existem acompanhados do respectivo valor.
+	if v, ok := pct("p_ret_irrf"); ok {
+		node["vBCIRRF"] = q2(base.RoundBank(2))
+		node["vIRRF"] = q2(v)
+	}
+	if v, ok := pct("p_ret_prev_inss"); ok {
+		node["vBCRetPrev"] = q2(base.RoundBank(2))
+		node["vRetPrev"] = q2(v)
+	}
+	if len(node) == 0 {
+		return nil
+	}
+	return node
+}
+
+// buildImpostoDevol monta det/impostoDevol — o IPI devolvido na devolução de
+// mercadoria a não contribuinte. Só faz sentido com finNFe=4, o que a emissão
+// valida antes de chegar aqui.
+func buildImpostoDevol(pDevol string, vIPI decimal.Decimal) map[string]any {
+	if pDevol == "" {
+		return nil
+	}
+	vIPIDevol := vIPI.Mul(d(pDevol)).Div(decimal.NewFromInt(100)).RoundBank(2)
+	return map[string]any{
+		"pDevol": pDevol,
+		"IPI":    map[string]any{"vIPIDevol": q2(vIPIDevol)},
+	}
 }

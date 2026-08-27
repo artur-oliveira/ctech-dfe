@@ -41,6 +41,11 @@ type docExtras struct {
 	// PaymentTerminals são os terminais de captura citados pelos pagamentos,
 	// indexados pelo SK do cadastro.
 	PaymentTerminals map[string]map[string]any
+	// RetTrib é o perfil de retenções federais da operação (total/retTrib).
+	RetTrib map[string]any
+	// FinNFe4 diz se a nota é de devolução — o único caso em que impostoDevol
+	// pode existir.
+	FinNFe4 bool
 	// CsrtID/Csrt são o Código de Segurança do Responsável Técnico. O segredo
 	// não é gravado no documento: só o hash entra no XML.
 	CsrtID string

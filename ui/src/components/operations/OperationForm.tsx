@@ -6,6 +6,7 @@ import {zodResolver} from '@hookform/resolvers/zod'
 import {useQuery} from '@tanstack/react-query'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
+import {NumericInput} from '@/components/ui/numeric-input'
 import {Textarea} from '@/components/ui/textarea'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
@@ -40,6 +41,7 @@ const EMPTY: OperationFormData = {
   ind_final: '1', ind_pres: '1', cfop_suffix: '', tax_profile_id: '',
   payment_term_id: '', mod_frete: '', vol_esp: '', vol_marca: '',
   inf_ad_fisco: '', inf_cpl: '', obs_cont: [], obs_fisco: [],
+  ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true, is_default: false,
 }
 
@@ -62,6 +64,13 @@ function toFormData(op: OperationItemOut): OperationFormData {
     vol_marca: str(op.vol_marca),
     inf_ad_fisco: str(op.inf_ad_fisco),
     obs_cont: Array.isArray(op.obs_cont) ? (op.obs_cont as OperationFormData['obs_cont']) : [],
+    ret_trib: {
+      p_ret_pis: retTribField(op, 'p_ret_pis'),
+      p_ret_cofins: retTribField(op, 'p_ret_cofins'),
+      p_ret_csll: retTribField(op, 'p_ret_csll'),
+      p_ret_irrf: retTribField(op, 'p_ret_irrf'),
+      p_ret_prev_inss: retTribField(op, 'p_ret_prev_inss'),
+    },
     obs_fisco: Array.isArray(op.obs_fisco) ? (op.obs_fisco as OperationFormData['obs_fisco']) : [],
     inf_cpl: str(op.inf_cpl),
     requires_receiver: op.requires_receiver !== false,
@@ -73,6 +82,19 @@ function toFormData(op: OperationItemOut): OperationFormData {
  * Lista de pares campo/texto de infAdic (obsCont ou obsFisco). Observação fixa
  * por operação: o texto que se repete por cenário mora no cadastro, não na nota.
  */
+/** Lê um percentual do grupo ret_trib de uma operação persistida. */
+function retTribField(op: Record<string, unknown>, key: string): string {
+  const group = op.ret_trib as Record<string, unknown> | undefined
+  const v = group?.[key]
+  return typeof v === 'string' ? v : ''
+}
+
+/** Grupo todo vazio vira null: perfil sem percentual nenhum não é perfil. */
+function retTribPayload(v: OperationFormData['ret_trib']): Record<string, string> | null {
+  const filled = Object.entries(v).filter(([, value]) => !!value)
+  return filled.length ? Object.fromEntries(filled) : null
+}
+
 function ObsListField({form, name, label}: {
   form: UseFormReturn<OperationFormData>
   name: 'obs_cont' | 'obs_fisco'
@@ -170,6 +192,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         vol_marca: nullify(data.vol_marca),
         inf_ad_fisco: nullify(data.inf_ad_fisco),
         obs_cont: data.obs_cont.length > 0 ? data.obs_cont : null,
+        ret_trib: retTribPayload(data.ret_trib),
         obs_fisco: data.obs_fisco.length > 0 ? data.obs_fisco : null,
         inf_cpl: nullify(data.inf_cpl),
         requires_receiver: data.requires_receiver,
@@ -367,6 +390,35 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
               <ObsListField key={name} form={form} name={name}
                             label={name === 'obs_cont' ? 'Observações do contribuinte' : 'Observações ao fisco'}/>
             ))}
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Retenções federais (%)
+              </p>
+              <p className="text-xs text-gray-500">
+                Percentuais do cenário. Os valores retidos são calculados sobre a base da nota na emissão.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {([
+                  ['p_ret_pis', 'PIS'],
+                  ['p_ret_cofins', 'COFINS'],
+                  ['p_ret_csll', 'CSLL'],
+                  ['p_ret_irrf', 'IRRF'],
+                  ['p_ret_prev_inss', 'INSS'],
+                ] as const).map(([key, label]) => (
+                  <FormField key={key} control={form.control} name={`ret_trib.${key}` as const}
+                             render={({field}) => (
+                               <FormItem>
+                                 <FormLabel>{label}</FormLabel>
+                                 <NumericInput id={field.name} decimal integerPlaces={3} decimalPlaces={4}
+                                               value={field.value ?? ''} placeholder="0.0000"
+                                               onChange={field.onChange}/>
+                                 <FormMessage/>
+                               </FormItem>
+                             )}/>
+                ))}
+              </div>
+            </div>
           </div>
         </CollapsibleSection>
 

@@ -236,7 +236,11 @@ var envInfe = map[string][]string{
 
 	// total — NF-e (com IBS/CBS/IS — NT 2024.001)
 	// Ordem conforme leiauteNFe_v4.00.xsd: ISTot precede IBSCBSTot
-	"total": {"ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
+	"total":    {"ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
+	"ISSQN":    {"vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"},
+	"ISSQNtot": {"vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"},
+	"obsItem":  {"obsCont", "obsFisco"},
+	"retTrib":  {"vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"},
 
 	// IBSCBSTot — totais IBS/CBS por nota (type TIBSCBSMonoTot)
 	"IBSCBSTot": {"vBCIBSCBS", "gIBS", "gCBS", "gMono", "gEstornoCred"},

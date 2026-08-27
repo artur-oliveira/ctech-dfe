@@ -41,6 +41,9 @@ func buildTransp(
 	if len(transporta) > 0 {
 		transp["transporta"] = transporta
 	}
+	if ret := buildRetTransp(transport); ret != nil {
+		transp["retTransp"] = ret
+	}
 
 	if transport != nil {
 		veiculo := map[string]any{}
@@ -188,4 +191,41 @@ func buildReboques(reboques []NfeReboqueBody) []map[string]any {
 		return nil
 	}
 	return out
+}
+
+// buildRetTransp monta transp/retTransp — o ICMS retido pelo remetente sobre o
+// serviço de transporte. O perfil vive no cadastro da transportadora; o valor
+// retido é calculado. Ordem XSD: vServ, vBCRet, pICMSRet, vICMSRet, CFOP, cMunFG.
+func buildRetTransp(transport map[string]any) map[string]any {
+	ret, _ := transport["freight_retention"].(map[string]any)
+	if len(ret) == 0 {
+		return nil
+	}
+	vServ := anyStr(ret, "v_serv", "")
+	vBCRet := anyStr(ret, "v_bc_ret", "")
+	pICMSRet := anyStr(ret, "p_icms_ret", "")
+	if vServ == "" || vBCRet == "" || pICMSRet == "" {
+		// O grupo é tudo-ou-nada no leiaute: meio preenchido seria recusado.
+		return nil
+	}
+	return map[string]any{
+		"vServ":    q2(d(vServ).RoundBank(2)),
+		"vBCRet":   q2(d(vBCRet).RoundBank(2)),
+		"pICMSRet": pICMSRet,
+		"vICMSRet": q2(d(vBCRet).Mul(d(pICMSRet)).Div(decimal.NewFromInt(100)).RoundBank(2)),
+		"CFOP":     anyStr(ret, "cfop", ""),
+		"cMunFG":   anyStr(ret, "c_mun_fg", ""),
+	}
+}
+
+// buildObsItem monta det/obsItem — a observação fiscal do item. O par
+// campo/texto pode vir da tributação (nível 3) ou do próprio produto (nível 4);
+// a tributação vence, porque é a mais específica do cenário.
+func buildObsItem(cfg, item map[string]any) map[string]any {
+	campo := anyStr(cfg, "obs_item_x_campo", anyStr(item, "obs_item_x_campo", ""))
+	texto := anyStr(cfg, "obs_item_x_texto", anyStr(item, "obs_item_x_texto", ""))
+	if campo == "" || texto == "" {
+		return nil
+	}
+	return map[string]any{"obsCont": map[string]any{"@xCampo": campo, "xTexto": texto}}
 }

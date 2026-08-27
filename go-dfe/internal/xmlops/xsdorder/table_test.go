@@ -563,8 +563,8 @@ func TestTableKeyCount(t *testing.T) {
 	// este contador é o que faz uma metade esquecida aparecer.
 	// 213 no port original + 7 do MDF-e (infContrato, infUnidTransp,
 	// infUnidCarga, lacUnidTransp, lacUnidCarga, infEntregaParcial,
-	// infNFePrestParcial) + ICMS61, que faltava.
-	const wantKeys = 221
+	// infNFePrestParcial) + ICMS61, retTrib, ISSQN, ISSQNtot e obsItem, que faltavam.
+	const wantKeys = 225
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
