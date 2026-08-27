@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/go-playground/validator/v10"
 
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
@@ -494,6 +495,50 @@ type RetTribBody struct {
 	PRetPrevInss *string `json:"p_ret_prev_inss" validate:"omitempty,percent"`
 }
 
+// ImportDeclarationBody é o body de POST/PUT /import-declarations.
+//
+// Uma DI cobre várias notas e vários itens. Ela é cadastrada uma vez, com suas
+// adições; na emissão o item só aponta qual adição o representa, e nAdicao /
+// nSeqAdic saem desse vínculo.
+type ImportDeclarationBody struct {
+	Name       string `json:"name" validate:"required,min=2,max=120"`
+	NDI        string `json:"n_di" validate:"required,max=15"`
+	DDI        string `json:"d_di" validate:"required,isodate"`
+	XLocDesemb string `json:"x_loc_desemb" validate:"required,max=60"`
+	UFDesemb   string `json:"uf_desemb" validate:"required,uf"`
+	DDesemb    string `json:"d_desemb" validate:"required,isodate"`
+	// tpViaTransp: 01 marítima … 12 por reboque (TViaTransp do XSD).
+	TpViaTransp string `json:"tp_via_transp" validate:"required,len=2,number"`
+	// vAFRMM é obrigatório quando tpViaTransp = 01 (marítima).
+	VAFRMM *string `json:"v_afrmm" validate:"omitempty,money2"`
+	// tpIntermedio: 1 conta própria, 2 conta e ordem, 3 encomenda.
+	TpIntermedio string               `json:"tp_intermedio" validate:"required,oneof=1 2 3"`
+	CNPJ         *string              `json:"cnpj" validate:"omitempty,cnpj"`
+	UFTerceiro   *string              `json:"uf_terceiro" validate:"omitempty,uf"`
+	CExportador  string               `json:"c_exportador" validate:"required,max=60"`
+	Additions    []ImportAdditionBody `json:"additions" validate:"required,min=1,max=100,dive"`
+}
+
+// Validate cobre a regra que as tags não expressam: o AFRMM é obrigatório no
+// transporte marítimo, e uma DI sem ele seria recusada só lá na SEFAZ.
+func (b ImportDeclarationBody) Validate() error {
+	if b.TpViaTransp == tpViaTranspMaritima && (b.VAFRMM == nil || *b.VAFRMM == "") {
+		return problem.BadRequest("v_afrmm é obrigatório quando a via de transporte é marítima (01)")
+	}
+	return nil
+}
+
+// tpViaTranspMaritima é a via de transporte 01 (marítima), a única que exige AFRMM.
+const tpViaTranspMaritima = "01"
+
+// ImportAdditionBody é uma adição da DI (prod/DI/adi).
+type ImportAdditionBody struct {
+	NAdicao     string  `json:"n_adicao" validate:"required,max=3,number"`
+	CFabricante string  `json:"c_fabricante" validate:"required,max=60"`
+	VDescDI     *string `json:"v_desc_di" validate:"omitempty,money2"`
+	NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
+}
+
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
 type ObsBody struct {
 	XCampo string `json:"x_campo" validate:"required,max=20"`
@@ -579,6 +624,11 @@ type ProductBody struct {
 	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
 	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
 	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
+	// NVE, FCI e códigos de barra próprios — nível produto.
+	Nve        []string `json:"nve" validate:"omitempty,max=8,dive,len=6"`
+	NFci       *string  `json:"n_fci" validate:"omitempty,uuid"`
+	CBarra     *string  `json:"c_barra" validate:"omitempty,max=30"`
+	CBarraTrib *string  `json:"c_barra_trib" validate:"omitempty,max=30"`
 	// Observação fiscal padrão do produto (det/obsItem).
 	ObsItemXCampo *string `json:"obs_item_x_campo" validate:"omitempty,max=20"`
 	ObsItemXTexto *string `json:"obs_item_x_texto" validate:"omitempty,max=60"`

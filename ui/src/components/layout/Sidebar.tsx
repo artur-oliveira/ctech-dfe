@@ -15,6 +15,7 @@ import {
   NfeIcon,
   NfseIcon,
   PercentIcon,
+  ImportIcon,
   PackageIcon,
   RouteIcon,
   SettingsIcon,
@@ -112,6 +113,7 @@ const navGroups: NavGroup[] = [
       {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
       {href: '/toll-providers', label: 'Vale-pedágio', icon: <RouteIcon/>},
       {href: '/cargo-units', label: 'Unidades de carga', icon: <PackageIcon/>},
+      {href: '/import-declarations', label: 'Declarações de importação', icon: <ImportIcon/>},
     ],
   },
   {

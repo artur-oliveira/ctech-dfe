@@ -112,9 +112,21 @@ type NfeProductItem struct {
 	VeicCCor   *string          `json:"veic_c_cor" validate:"omitempty"`
 	VeicXCor   *string          `json:"veic_x_cor" validate:"omitempty"`
 	Armas      []map[string]any `json:"armas" validate:"omitempty"`
+	// ImportDeclarations liga o item às adições da DI que o representam
+	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
+	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
 	// PDevol é o percentual devolvido do item (impostoDevol). Só vale em nota
 	// de devolução (finNFe=4).
 	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
+}
+
+// NfeItemDIBody aponta uma adição de uma declaração de importação cadastrada.
+type NfeItemDIBody struct {
+	ImportDeclarationID string `json:"import_declaration_id" validate:"required"`
+	// AdditionIndex é a posição (base 1) da adição no cadastro da DI.
+	AdditionIndex int `json:"addition_index" validate:"required,min=1"`
+	// NDraw do embarque, quando difere do cadastrado na adição.
+	NDraw *string `json:"n_draw" validate:"omitempty,max=20"`
 }
 
 // NfePaymentItem is a payment method in an NF-e emission request.
@@ -284,6 +296,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, destUF, items)
 	if err == nil {
 		err = applyServiceDefaults(ctx, s.serviceRepo, orgPK, items, productItems)
+	}
+	if err == nil {
+		err = applyImportDeclarations(ctx, s.importDIRepo, orgPK, items, productItems)
 	}
 	if err != nil {
 		return nil, err
@@ -754,6 +769,53 @@ func validateDevolucao(finNFe string, items []NfeProductItem) error {
 	return nil
 }
 
+// applyImportDeclarations resolve as DIs citadas pelos itens num BatchGet só e
+// monta prod/DI de cada um. Uma DI inexistente é erro de request.
+func applyImportDeclarations(
+	ctx context.Context, repo *repositories.ImportDeclarationRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	if repo == nil {
+		return nil
+	}
+	var ids []string
+	for _, item := range items {
+		for _, ref := range item.ImportDeclarations {
+			ids = append(ids, ref.ImportDeclarationID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return err
+	}
+	decoded := make(map[string]map[string]any, len(rows))
+	for id, row := range rows {
+		var m map[string]any
+		if err := attributevalue.UnmarshalMap(row, &m); err != nil {
+			return problem.InternalServer("failed to decode import declaration " + id)
+		}
+		decoded[id] = m
+	}
+	for i, item := range items {
+		if len(item.ImportDeclarations) == 0 {
+			continue
+		}
+		nodes := make([]map[string]any, 0, len(item.ImportDeclarations))
+		for seq, ref := range item.ImportDeclarations {
+			di, ok := decoded[ref.ImportDeclarationID]
+			if !ok {
+				return problem.NotFound("declaração de importação não encontrada: " + ref.ImportDeclarationID)
+			}
+			nodes = append(nodes, buildDI(di, ref.AdditionIndex, seq+1, ptrStr(ref.NDraw)))
+		}
+		productItems[i]["import_declarations"] = nodes
+	}
+	return nil
+}
+
 // applyServiceDefaults completa a tributação do item de serviço com o que já
 // está no catálogo da NFS-e: item da lista de serviços, alíquota do ISS e
 // código do serviço. O que a tributação do produto já define vence — o catálogo
@@ -956,6 +1018,11 @@ func resolveProducts(
 			// Observação fiscal padrão do produto (det/obsItem).
 			"obs_item_x_campo": product["obs_item_x_campo"],
 			"obs_item_x_texto": product["obs_item_x_texto"],
+			// NVE, nFCI e códigos de barra próprios — nível produto.
+			"nve":          product["nve"],
+			"n_fci":        product["n_fci"],
+			"c_barra":      product["c_barra"],
+			"c_barra_trib": product["c_barra_trib"],
 		}
 		productItems = append(productItems, pi)
 	}

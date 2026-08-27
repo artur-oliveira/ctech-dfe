@@ -2,6 +2,8 @@ import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequ
 import type {
   OperationCreate,
   CargoUnitCreate,
+  ImportDeclarationCreate,
+  ImportDeclarationItemOut,
   CargoUnitItemOut,
   TollProviderCreate,
   TollProviderItemOut,
@@ -561,6 +563,28 @@ class ApiClient {
 
   async deleteCargoUnit(id: string): Promise<void> {
     return this.del(`/v1.0/cargo-units/${id}`)
+  }
+
+  // Import declarations (declarações de importação — NF-e prod/DI)
+
+  async getImportDeclarations(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ImportDeclarationItemOut>> {
+    return this.get('/v1.0/import-declarations', {params})
+  }
+
+  async getImportDeclaration(id: string): Promise<ImportDeclarationItemOut> {
+    return this.get(`/v1.0/import-declarations/${id}`)
+  }
+
+  async createImportDeclaration(data: ImportDeclarationCreate): Promise<ImportDeclarationItemOut> {
+    return this.post('/v1.0/import-declarations', data)
+  }
+
+  async updateImportDeclaration(id: string, data: ImportDeclarationCreate): Promise<ImportDeclarationItemOut> {
+    return this.put(`/v1.0/import-declarations/${id}`, data)
+  }
+
+  async deleteImportDeclaration(id: string): Promise<void> {
+    return this.del(`/v1.0/import-declarations/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

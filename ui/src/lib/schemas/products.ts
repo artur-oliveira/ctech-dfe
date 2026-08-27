@@ -216,6 +216,11 @@ export const productSchema = z.object({
   ipi_c_selo: nullableStr(z.string().max(60)),
   ipi_q_selo: nullableStr(z.string().regex(/^\d{1,12}$/, 'Quantidade inválida')),
   ipi_c_enq: nullableStr(z.string().regex(/^\d{1,3}$/, 'Enquadramento tem até 3 dígitos')),
+  // NVE, FCI e códigos de barra próprios — nível produto
+  nve: z.array(z.string().length(6, 'NVE tem 6 caracteres')).max(8).optional(),
+  n_fci: nullableStr(z.string().regex(/^[0-9a-fA-F-]{36}$/, 'FCI inválida')),
+  c_barra: nullableStr(z.string().max(30)),
+  c_barra_trib: nullableStr(z.string().max(30)),
   peri_n_onu: nullableStr(z.string().regex(/^\d{1,4}$/, 'ONU tem até 4 dígitos')),
   peri_x_nome_ae: nullableStr(z.string().max(150)),
   peri_x_cla_risco: nullableStr(z.string().max(40)),

@@ -411,6 +411,11 @@ export interface ProductOut {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** NVE, FCI e códigos de barra próprios do produto. */
+  nve?: string[] | null
+  n_fci?: string | null
+  c_barra?: string | null
+  c_barra_trib?: string | null
   /** Selo de controle do IPI e enquadramento legal. */
   ipi_cnpj_prod?: string | null
   ipi_c_selo?: string | null
@@ -491,6 +496,11 @@ export interface ProductCreate {
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** NVE, FCI e códigos de barra próprios do produto. */
+  nve?: string[] | null
+  n_fci?: string | null
+  c_barra?: string | null
+  c_barra_trib?: string | null
   /** Selo de controle do IPI e enquadramento legal. */
   ipi_cnpj_prod?: string | null
   ipi_c_selo?: string | null
@@ -864,6 +874,49 @@ export interface CargoUnitItemOut {
   updated_at: string
 
   [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — declarações de importação (NF-e prod/DI)
+export interface ImportAdditionIn {
+  n_adicao: string
+  c_fabricante: string
+  v_desc_di?: string | null
+  n_draw?: string | null
+}
+
+export interface ImportDeclarationCreate extends Record<string, unknown> {
+  name: string
+  n_di: string
+  d_di: string
+  x_loc_desemb: string
+  uf_desemb: string
+  d_desemb: string
+  tp_via_transp: string
+  v_afrmm?: string | null
+  tp_intermedio: string
+  cnpj?: string | null
+  uf_terceiro?: string | null
+  c_exportador: string
+  additions: ImportAdditionIn[]
+}
+
+export interface ImportDeclarationItemOut {
+  pk: string
+  sk: string
+  name: string
+  n_di: string
+  additions?: ImportAdditionIn[]
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+/** Vínculo item↔adição da DI na emissão. nAdicao/nSeqAdic são derivados. */
+export interface NfeItemDIIn {
+  import_declaration_id: string
+  addition_index: number
+  n_draw?: string
 }
 
 // Cadastros reutilizáveis — condições de pagamento e composições veiculares

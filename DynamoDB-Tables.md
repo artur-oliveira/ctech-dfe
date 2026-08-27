@@ -808,3 +808,34 @@ documentos que cada unidade leva (`rateCargo`, em `api/internal/services/mdfes/r
 | `id_unid`   | S    | Identificação → `idUnidTransp` / `idUnidCarga` (placa, contêiner, vagão)              |
 | `seals`     | L    | Lacres fixos → `lacUnidTransp` / `lacUnidCarga`                                       |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                          |
+
+---
+
+## 40. `organization_import_declarations`
+
+Declarações de importação (NF-e `prod/DI`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `IMPORTDI_{uuid}`, GSI `name-index`).
+
+Uma DI cobre várias notas e vários itens, então ela é cadastro e não campo de emissão: o item da
+nota só aponta **qual adição** o representa (`products[].import_declarations[] =
+{import_declaration_id, addition_index, n_draw?}`), e `nAdicao`/`nSeqAdic` saem desse vínculo.
+`v_afrmm` é obrigatório quando `tp_via_transp = 01` (marítima) — recusado no cadastro, não na SEFAZ.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `IMPORTDI_{uuid}`                                                        |
+| `name`           | S    | Nome de uso ("DI 2026/0000001 — Itaqui"). GSI: `name-index`              |
+| `n_di`           | S    | → `DI/nDI`                                                               |
+| `d_di`           | S    | → `DI/dDI` (AAAA-MM-DD)                                                  |
+| `x_loc_desemb`   | S    | → `DI/xLocDesemb`                                                        |
+| `uf_desemb`      | S    | → `DI/UFDesemb`                                                          |
+| `d_desemb`       | S    | → `DI/dDesemb`                                                           |
+| `tp_via_transp`  | S    | `01`–`12` (TViaTransp) → `DI/tpViaTransp`                                |
+| `v_afrmm`        | S    | → `DI/vAFRMM`. Obrigatório na via `01`                                   |
+| `tp_intermedio`  | S    | `1` conta própria · `2` conta e ordem · `3` encomenda                    |
+| `cnpj`           | S    | Adquirente/encomendante → `DI/CNPJ`                                      |
+| `uf_terceiro`    | S    | → `DI/UFTerceiro`                                                        |
+| `c_exportador`   | S    | → `DI/cExportador`                                                       |
+| `additions`      | L    | `{n_adicao, c_fabricante, v_desc_di?, n_draw?}` → `DI/adi`               |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |

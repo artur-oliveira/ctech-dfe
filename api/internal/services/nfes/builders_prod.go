@@ -4,7 +4,11 @@ package nfes
 // específicos de combustível, medicamento, veículo novo e arma. Extraído de
 // builders_doc.go.
 
-import "github.com/shopspring/decimal"
+import (
+	"strconv"
+
+	"github.com/shopspring/decimal"
+)
 
 // prodParams carrega os valores já calculados no laço de itens que o nó prod
 // consome. Struct em vez de parâmetros posicionais: prod cresce por tag.
@@ -59,6 +63,23 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	}
 	if v := anyStr(item, "ext_ipi", ""); v != "" {
 		prod["EXTIPI"] = v
+	}
+	// NVE, nFCI e os códigos de barra próprios são do cadastro do produto.
+	if nve := anyStrList(item, "nve"); len(nve) > 0 {
+		prod["NVE"] = nve
+	}
+	if v := anyStr(item, "n_fci", ""); v != "" {
+		prod["nFCI"] = v
+	}
+	if v := anyStr(item, "c_barra", ""); v != "" {
+		prod["cBarra"] = v
+	}
+	if v := anyStr(item, "c_barra_trib", ""); v != "" {
+		prod["cBarraTrib"] = v
+	}
+	// DI: o item aponta a declaração e a adição; nAdicao/nSeqAdic saem daí.
+	if dis, ok := item["import_declarations"].([]map[string]any); ok && len(dis) > 0 {
+		prod["DI"] = dis
 	}
 
 	if combProd := anyStr(item, "comb_c_prod_anp", ""); combProd != "" {
@@ -137,4 +158,78 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 		}
 	}
 	return prod
+}
+
+// anyStrList lê uma lista de strings do item — o cadastro devolve []any depois
+// do unmarshal do DynamoDB, e o request devolve []string.
+func anyStrList(m map[string]any, key string) []string {
+	switch v := m[key].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, e := range v {
+			if s, ok := e.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// buildDI monta prod/DI com uma única adição — a que representa este item.
+// Ordem XSD: nDI, dDI, xLocDesemb, UFDesemb, dDesemb, tpViaTransp, vAFRMM,
+// tpIntermedio, CNPJ, CPF, UFTerceiro, cExportador, adi; e dentro de adi:
+// nAdicao, nSeqAdic, cFabricante, vDescDI, nDraw.
+//
+// additionIndex é a posição (base 1) da adição no cadastro da DI e nSeqAdic é a
+// ordem do item dentro dela: os dois são derivados do vínculo, nunca digitados.
+func buildDI(di map[string]any, additionIndex, seq int, nDraw string) map[string]any {
+	node := map[string]any{
+		"nDI":          anyStr(di, "n_di", ""),
+		"dDI":          anyStr(di, "d_di", ""),
+		"xLocDesemb":   anyStr(di, "x_loc_desemb", ""),
+		"UFDesemb":     anyStr(di, "uf_desemb", ""),
+		"dDesemb":      anyStr(di, "d_desemb", ""),
+		"tpViaTransp":  anyStr(di, "tp_via_transp", ""),
+		"tpIntermedio": anyStr(di, "tp_intermedio", ""),
+		"cExportador":  anyStr(di, "c_exportador", ""),
+	}
+	if v := anyStr(di, "v_afrmm", ""); v != "" {
+		node["vAFRMM"] = v
+	}
+	if v := anyStr(di, "cnpj", ""); v != "" {
+		node["CNPJ"] = v
+	}
+	if v := anyStr(di, "uf_terceiro", ""); v != "" {
+		node["UFTerceiro"] = v
+	}
+
+	additions, _ := di["additions"].([]any)
+	idx := additionIndex - 1
+	if idx < 0 || idx >= len(additions) {
+		return node
+	}
+	add, _ := additions[idx].(map[string]any)
+	if add == nil {
+		return node
+	}
+	adi := map[string]any{
+		"nAdicao":     anyStr(add, "n_adicao", ""),
+		"nSeqAdic":    strconv.Itoa(seq),
+		"cFabricante": anyStr(add, "c_fabricante", ""),
+	}
+	if v := anyStr(add, "v_desc_di", ""); v != "" {
+		adi["vDescDI"] = v
+	}
+	// nDraw da emissão vence o do cadastro: o drawback é do embarque, não da DI.
+	if nDraw == "" {
+		nDraw = anyStr(add, "n_draw", "")
+	}
+	if nDraw != "" {
+		adi["nDraw"] = nDraw
+	}
+	node["adi"] = []map[string]any{adi}
+	return node
 }

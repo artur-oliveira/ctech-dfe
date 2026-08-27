@@ -646,6 +646,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Declarações de importação ──────────────────────────────────────────────
+
+  /v1.0/import-declarations:
+    get:
+      tags: [ ImportDeclarations ]
+      summary: Lista declarações de importação
+      operationId: listImportDeclarations
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de declarações
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ImportDeclarations ]
+      summary: Cria uma declaração de importação
+      operationId: createImportDeclaration
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportDeclarationBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/import-declarations/{import_declaration_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: import_declaration_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ImportDeclarations ]
+      summary: Detalha uma declaração
+      operationId: getImportDeclaration
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ImportDeclarations ]
+      summary: Atualiza uma declaração
+      operationId: updateImportDeclaration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportDeclarationBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ImportDeclarations ]
+      summary: Remove uma declaração
+      operationId: deleteImportDeclaration
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -1016,6 +1116,61 @@ components:
         kind: { type: string }
         tp_unid: { type: string }
         id_unid: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ImportDeclarationBody:
+      type: object
+      description: |
+        Declaração de importação. Uma DI cobre várias notas e vários itens, por
+        isso é cadastro e não campo de emissão: o item só aponta qual adição o
+        representa, e `nAdicao`/`nSeqAdic` saem desse vínculo.
+      required: [ name, n_di, d_di, x_loc_desemb, uf_desemb, d_desemb, tp_via_transp, tp_intermedio, c_exportador, additions ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        n_di: { type: string, maxLength: 15 }
+        d_di: { type: string, format: date }
+        x_loc_desemb: { type: string, maxLength: 60 }
+        uf_desemb: { $ref: '#/components/schemas/Uf' }
+        d_desemb: { type: string, format: date }
+        tp_via_transp:
+          type: string
+          pattern: '^\d{2}$'
+          description: '`01` marítima … `12` por reboque (TViaTransp).'
+        v_afrmm:
+          type: [ string, 'null' ]
+          description: Obrigatório quando `tp_via_transp = 01` (marítima) — validado no cadastro.
+        tp_intermedio:
+          type: string
+          enum: [ '1', '2', '3' ]
+          description: '`1` conta própria · `2` conta e ordem · `3` encomenda.'
+        cnpj: { type: [ string, 'null' ] }
+        uf_terceiro: { type: [ string, 'null' ] }
+        c_exportador: { type: string, maxLength: 60 }
+        additions:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ImportAdditionBody' }
+
+    ImportAdditionBody:
+      type: object
+      required: [ n_adicao, c_fabricante ]
+      properties:
+        n_adicao: { type: string, maxLength: 3 }
+        c_fabricante: { type: string, maxLength: 60 }
+        v_desc_di: { type: [ string, 'null' ] }
+        n_draw: { type: [ string, 'null' ], maxLength: 20 }
+
+    ImportDeclarationItem:
+      type: object
+      description: Declaração de importação persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        n_di: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

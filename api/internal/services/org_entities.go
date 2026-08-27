@@ -211,6 +211,16 @@ func NewCargoUnitService(repo *repositories.CargoUnitRepository, auditRepo *repo
 	)}
 }
 
+// ImportDeclarationService owns organization_import_declarations.
+type ImportDeclarationService struct{ OrgEntityService }
+
+func NewImportDeclarationService(repo *repositories.ImportDeclarationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ImportDeclarationService {
+	return &ImportDeclarationService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeImportDIs, repositories.AuditResourceImportDI, "import declaration not found",
+	)}
+}
+
 // OperationService owns organization_operations, e é a única das quatro
 // entidades com uma regra própria: no máximo uma operação padrão por
 // organização.
@@ -304,4 +314,5 @@ const (
 	CacheScopePaymentTerminals = "payment_terminals"
 	CacheScopeTollProviders    = "toll_providers"
 	CacheScopeCargoUnits       = "cargo_units"
+	CacheScopeImportDIs        = "import_declarations"
 )

@@ -31,6 +31,9 @@ const (
 	// TableCargoUnits guarda as unidades de transporte e de carga (carreta,
 	// vagão, contêiner, pallet): identificação e tipo recorrem entre viagens.
 	TableCargoUnits = "organization_cargo_units"
+	// TableImportDeclarations guarda as declarações de importação: uma DI cobre
+	// várias notas e vários itens, então ela é cadastro, não campo de emissão.
+	TableImportDeclarations = "organization_import_declarations"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -39,6 +42,7 @@ const (
 	SKPrefixPaymentTerminal = "TERMINAL_"
 	SKPrefixTollProvider    = "TOLLPROVIDER_"
 	SKPrefixCargoUnit       = "CARGOUNIT_"
+	SKPrefixImportDI        = "IMPORTDI_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -216,6 +220,13 @@ type CargoUnitRepository struct{ OrgEntityRepository }
 
 func NewCargoUnitRepository(db *dynamodb.Client, cfg *config.Config) *CargoUnitRepository {
 	return &CargoUnitRepository{newOrgEntityRepository(db, cfg, TableCargoUnits, SKPrefixCargoUnit)}
+}
+
+// ImportDeclarationRepository — organization_import_declarations.
+type ImportDeclarationRepository struct{ OrgEntityRepository }
+
+func NewImportDeclarationRepository(db *dynamodb.Client, cfg *config.Config) *ImportDeclarationRepository {
+	return &ImportDeclarationRepository{newOrgEntityRepository(db, cfg, TableImportDeclarations, SKPrefixImportDI)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

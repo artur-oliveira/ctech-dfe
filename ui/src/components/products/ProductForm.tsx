@@ -334,6 +334,10 @@ function toFormData(p: ProductOut): ProductFormData {
     med_c_prod_anvisa: p.med_c_prod_anvisa ?? '',
     med_x_motivo_isencao: p.med_x_motivo_isencao ?? '',
     med_v_pmc: p.med_v_pmc ?? '',
+    nve: Array.isArray(p.nve) ? (p.nve as string[]) : [],
+    n_fci: p.n_fci ?? '',
+    c_barra: p.c_barra ?? '',
+    c_barra_trib: p.c_barra_trib ?? '',
     ipi_cnpj_prod: p.ipi_cnpj_prod ?? '',
     ipi_c_selo: p.ipi_c_selo ?? '',
     ipi_q_selo: p.ipi_q_selo ?? '',
@@ -503,6 +507,10 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     med_c_prod_anvisa: nullify(data.med_c_prod_anvisa),
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
+    nve: data.nve?.length ? data.nve : null,
+    n_fci: nullify(data.n_fci),
+    c_barra: nullify(data.c_barra),
+    c_barra_trib: nullify(data.c_barra_trib),
     ipi_cnpj_prod: nullify(data.ipi_cnpj_prod),
     ipi_c_selo: nullify(data.ipi_c_selo),
     ipi_q_selo: nullify(data.ipi_q_selo),
@@ -603,6 +611,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       comb_c_prod_anp: '', comb_desc_anp: '', comb_uf_cons: '', comb_codif: '',
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
+      nve: [], n_fci: '', c_barra: '', c_barra_trib: '',
       ipi_cnpj_prod: '', ipi_c_selo: '', ipi_q_selo: '', ipi_c_enq: '',
       peri_n_onu: '', peri_x_nome_ae: '', peri_x_cla_risco: '', peri_gr_emb: '', peri_q_vol_tipo: '',
       veic_tp_op: '', veic_tp_comb: '', veic_tp_pint: '', veic_tp_veic: '',
@@ -1378,6 +1387,48 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 </div>
               </div>
             )}
+
+            {/* ── Importação e códigos próprios ───────────────────────── */}
+            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Importação e códigos próprios
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField control={form.control} name="nve" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>NVE (até 8, separados por vírgula)</FormLabel>
+                    <Input id={field.name} value={(field.value ?? []).join(', ')}
+                           placeholder="AA0001, BB0002"
+                           onChange={(e) => field.onChange(
+                             e.target.value.split(',').map((v) => v.trim().toUpperCase()).filter(Boolean),
+                           )}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="n_fci" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Número da FCI</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={36}
+                           placeholder="UUID da Ficha de Conteúdo de Importação"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="c_barra" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Código de barras próprio</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="c_barra_trib" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Código de barras da unidade tributável</FormLabel>
+                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+              </div>
+            </div>
 
             {/* ── IPI — selo de controle e enquadramento ──────────────── */}
             <div className="rounded-lg border border-gray-100 p-4 space-y-3">

@@ -933,6 +933,13 @@ the frontend's divergence warning.
 | ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret`, `issqn_v_outro`, `issqn_v_desc_incond`, `issqn_v_desc_cond`, `issqn_c_servico`, `issqn_c_mun`, `issqn_c_pais`, `issqn_n_processo`, `issqn_ind_incentivo`. Um item com `service_id` puxa item da lista, código e alíquota de `organization_services` — o catálogo da NFS-e, não um segundo cadastro |
 | Observação fiscal do item (`det/obsItem`)      | `obs_item_x_campo` + `obs_item_x_texto`, na tributação (vence) ou no produto |
 
+**Importação (nível item):** `products[].import_declarations[] = {import_declaration_id,
+addition_index, n_draw?}` monta `prod/DI`. Número da DI, desembaraço, via de transporte e adições
+vêm de `organization_import_declarations`; `nAdicao` sai da adição escolhida e `nSeqAdic` é a ordem
+do vínculo no item — nenhum dos dois é digitado. O `n_draw` da emissão vence o da adição (o drawback
+é do embarque). DI inexistente é 404. `NVE`, `nFCI`, `cBarra` e `cBarraTrib` são do cadastro do
+produto (`nve[]`, `n_fci`, `c_barra`, `c_barra_trib`).
+
 **Retenções e devolução (nível documento):**
 
 - `total/retTrib` é **derivado**: o perfil de percentuais fica na operação (`ret_trib`:
@@ -1232,6 +1239,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Terminal de pagamento   | `/v1.0/payment-terminals` | `TERMINAL_`     | `organization_payment_terminals` |
 | Fornecedora de vale-pedágio | `/v1.0/toll-providers` | `TOLLPROVIDER_` | `organization_toll_providers` |
 | Unidade de transporte/carga | `/v1.0/cargo-units` | `CARGOUNIT_` | `organization_cargo_units` |
+| Declaração de importação | `/v1.0/import-declarations` | `IMPORTDI_` | `organization_import_declarations` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.

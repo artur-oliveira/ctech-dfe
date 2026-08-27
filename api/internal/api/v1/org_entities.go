@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
@@ -98,6 +99,37 @@ func bindEntityUpdate[T any](c fiber.Ctx) (map[string]any, error) {
 	return structToMap(dto)
 }
 
+// entityValidator é o corpo que tem uma regra que as tags de validação não
+// expressam (um campo obrigatório só em função de outro, por exemplo).
+type entityValidator interface{ Validate() error }
+
+// bindValidatedCreate/Update aplicam essa regra depois do bind genérico.
+func bindValidatedCreate[T entityValidator](c fiber.Ctx) (map[string]types.AttributeValue, error) {
+	var dto T
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := dto.Validate(); err != nil {
+		return nil, err
+	}
+	av, err := structToAV(dto)
+	if err != nil {
+		return nil, problem.InternalServer(err.Error())
+	}
+	return av, nil
+}
+
+func bindValidatedUpdate[T entityValidator](c fiber.Ctx) (map[string]any, error) {
+	var dto T
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := dto.Validate(); err != nil {
+		return nil, err
+	}
+	return structToMap(dto)
+}
+
 // RegisterVehicleSets mounts /vehicle-sets under a tenant-scoped group.
 func RegisterVehicleSets(router fiber.Router, svc *services.VehicleSetService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {
@@ -155,6 +187,18 @@ func RegisterCargoUnits(router fiber.Router, svc *services.CargoUnitService, use
 		resource:   "organization_cargo_units",
 		bindCreate: bindEntityCreate[CargoUnitBody],
 		bindUpdate: bindEntityUpdate[CargoUnitBody],
+	})
+}
+
+// RegisterImportDeclarations mounts /import-declarations under a tenant-scoped group.
+func RegisterImportDeclarations(router fiber.Router, svc *services.ImportDeclarationService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/import-declarations",
+		param:      "import_declaration_id",
+		resource:   "organization_import_declarations",
+		bindCreate: bindValidatedCreate[ImportDeclarationBody],
+		bindUpdate: bindValidatedUpdate[ImportDeclarationBody],
 	})
 }
 

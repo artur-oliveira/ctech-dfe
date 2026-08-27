@@ -65,7 +65,9 @@ type NfeService struct {
 	productRepo *repositories.ProductRepository
 	// serviceRepo é o catálogo de serviços da NFS-e, reusado pela NF-e mista:
 	// código, item da lista e alíquota do ISS vivem lá, não num segundo cadastro.
-	serviceRepo         *repositories.ServiceRepository
+	serviceRepo *repositories.ServiceRepository
+	// importDIRepo traz as declarações de importação citadas pelos itens.
+	importDIRepo        *repositories.ImportDeclarationRepository
 	taxProfileRepo      *repositories.TaxProfileRepository
 	operationRepo       *repositories.OperationRepository
 	paymentTermRepo     *repositories.PaymentTermRepository
@@ -88,6 +90,7 @@ func NewNfeService(
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
 	serviceRepo *repositories.ServiceRepository,
+	importDIRepo *repositories.ImportDeclarationRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -109,6 +112,7 @@ func NewNfeService(
 		configRepo:          configRepo,
 		productRepo:         productRepo,
 		serviceRepo:         serviceRepo,
+		importDIRepo:        importDIRepo,
 		taxProfileRepo:      taxProfileRepo,
 		operationRepo:       operationRepo,
 		paymentTermRepo:     paymentTermRepo,
