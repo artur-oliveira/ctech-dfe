@@ -34,6 +34,10 @@ type AddressBody struct {
 type StateRegistrationBody struct {
 	UF                string `json:"uf" validate:"required,uf"`
 	StateRegistration string `json:"state_registration" validate:"required,max=20"`
+	// IeSt é a inscrição de substituto tributário nesta UF (emit/IEST). Mora
+	// aqui, e não numa lista à parte, porque é a mesma inscrição na mesma UF
+	// com outro papel.
+	IeSt *string `json:"ie_st" validate:"omitempty,max=20"`
 }
 
 // ContactsBody holds e-mail and phone contact lists.
@@ -96,6 +100,11 @@ type PersonObjectBody struct {
 	Addresses          []AddressBody           `json:"addresses" validate:"required,min=1,dive"`
 	Contacts           *ContactsBody           `json:"contacts" validate:"omitempty"`
 	Nfse               *NfseInfoBody           `json:"nfse" validate:"omitempty"`
+	// CNAE do emitente. Exigido pelo leiaute quando IM está presente (NF-e
+	// mista mercadoria + serviço).
+	Cnae *string `json:"cnae" validate:"omitempty,len=7,number"`
+	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
+	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
 }
 
 // ── Persons ──────────────────────────────────────────────────────────────────

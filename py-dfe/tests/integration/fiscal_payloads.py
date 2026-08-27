@@ -88,9 +88,12 @@ def build_nfe(
         serie: int = 1,
         nnf: int | None = None,
         uf: str = "PI",
-        mod: str = '55'
+        mod: str = '55',
+        fin_nfe: str = "1",
+        nfref: list[dict] | None = None,
 ) -> tuple[dict, str]:
     """Minimal NF-e (mod=55). Pass uf= to target a specific authorizer's cUF.
+    fin_nfe/nfref cobrem devolução e complementar (ide/NFref).
     Returns (payload, chave_44)."""
     cuf, cmunfg, xmun, uf_sig = UF_PARAMS.get(uf, UF_PARAMS["PI"])
     if nnf is None:
@@ -125,7 +128,7 @@ def build_nfe(
                         "tpEmis": "1",
                         "cDV": cdv,
                         "tpAmb": _ENV,
-                        "finNFe": "1",
+                        "finNFe": fin_nfe,
                         "indFinal": "0",
                         "indPres": "0",
                         "procEmi": "0",
@@ -189,6 +192,8 @@ def build_nfe(
             },
         }
     }
+    if nfref:
+        payload["enviNFe"]["NFe"]["infNFe"]["ide"]["NFref"] = nfref
     return payload, chave
 
 

@@ -51,6 +51,31 @@ type NfeEmitBody struct {
 	Entrega              *NfeLocalBody `json:"entrega" validate:"omitempty"`
 	SaveRetiradaLocation bool          `json:"save_retirada_location"`
 	SaveEntregaLocation  bool          `json:"save_entrega_location"`
+
+	// NFRefs são os documentos referenciados (ide/NFref). finNFe 2/3/4 é
+	// rejeitado sem pelo menos um. `nfe_id` referencia uma nota da própria base
+	// e dispensa o resto: chave e tipo saem do registro.
+	NFRefs []NfeRefBody `json:"nf_refs" validate:"omitempty,max=500,dive"`
+}
+
+// NfeRefBody é uma referência de documento em ide/NFref. Ou `nfe_id` (uma nota
+// desta organização, de onde chave e tipo são derivados), ou os campos do
+// documento de fora do sistema.
+type NfeRefBody struct {
+	NfeID *string `json:"nfe_id" validate:"omitempty"`
+	Kind  *string `json:"kind" validate:"omitempty,oneof=nfe nfesig nf nfp cte ecf"`
+	// Chave de 44 dígitos, para kind nfe/nfesig/cte informados manualmente.
+	AccessKey *string `json:"access_key" validate:"omitempty,len=44,number"`
+	CUF       *string `json:"c_uf" validate:"omitempty,len=2,number"`
+	AAMM      *string `json:"aamm" validate:"omitempty,len=4,number"`
+	CNPJ      *string `json:"cnpj" validate:"omitempty,cnpj"`
+	CPF       *string `json:"cpf" validate:"omitempty,cpf"`
+	IE        *string `json:"ie" validate:"omitempty,max=14"`
+	Mod       *string `json:"mod" validate:"omitempty,max=2"`
+	Serie     *string `json:"serie" validate:"omitempty,max=3,number"`
+	NNF       *string `json:"n_nf" validate:"omitempty,max=9,number"`
+	NECF      *string `json:"n_ecf" validate:"omitempty,max=3,number"`
+	NCOO      *string `json:"n_coo" validate:"omitempty,max=6,number"`
 }
 
 // NfeProductItem is a line item in an NF-e emission request.
@@ -233,6 +258,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	nfRefs, err := s.resolveNFRefs(ctx, orgPK, envPrefix, req.NFRefs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Unmarshal DynamoDB items to plain maps for BuildEnviNFe
 	orgAny, err := unmarshalToAny(orgItem)
 	if err != nil {
@@ -320,6 +350,10 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	tpNF := strOrDefault(ptrStr(firstNonNil(req.TpNF, operationDefault(operation, opFieldTpNF))), "1")
 	natOp := firstNonNil(req.NatOp, operationDefault(operation, opFieldNatOp))
 
+	if finNFeExigeRef[finNFe] && len(nfRefs) == 0 {
+		return nil, problem.BadRequest("finNFe " + finNFe + " exige pelo menos um documento em nf_refs")
+	}
+
 	// Mensagens fiscais da operação, com os placeholders já interpolados.
 	interpVars := map[string]string{
 		services.PlaceholderVNF:     q2(totalProducts.Sub(totalDiscount)),
@@ -344,6 +378,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		s.tech, nfModel55, nil,
 		req.Retirada, req.Entrega,
 		mode,
+		docExtras{NFRefs: nfRefs},
 	)
 
 	// Summary products for DynamoDB record

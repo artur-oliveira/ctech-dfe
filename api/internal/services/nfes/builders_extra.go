@@ -16,3 +16,11 @@ func truncateNatOp(s string) string {
 	}
 	return string(r[:natOpMaxLen-3]) + "..."
 }
+
+// docExtras carrega os grupos opcionais da NF-e que não cabem nos parâmetros
+// posicionais de BuildEnviNFe. Cada tarefa de cobertura de tags acrescenta um
+// campo aqui em vez de mais um parâmetro na assinatura.
+type docExtras struct {
+	// NFref são os documentos referenciados já resolvidos (ide/NFref).
+	NFRefs []map[string]any
+}

@@ -183,6 +183,7 @@ func BuildEnviNFe(
 	supl map[string]any,
 	retirada, entrega *NfeLocalBody,
 	mode EmissionMode,
+	extra docExtras,
 ) map[string]any {
 	isNFCe := model == nfModel65
 	orgPerson := getPersonMap(org)
@@ -502,7 +503,7 @@ func BuildEnviNFe(
 	}
 
 	// ── emit / dest structs ───────────────────────────────────────────────────
-	emitStruct := buildEmit(org, orgPerson, orgPK, emitUF, orgCRT)
+	emitStruct := buildEmit(org, orgPerson, orgPK, emitUF, destUF, orgCRT)
 
 	// dest is optional. For NFC-e the consumer (pessoa física) is identified by
 	// CPF only — no address node — and may be omitted entirely (receiver == nil).
@@ -563,6 +564,7 @@ func BuildEnviNFe(
 		IndPres:  indPres,
 		Mode:     mode,
 		VerProc:  tech.Version,
+		NFref:    extra.NFRefs,
 	})
 	infNFe := map[string]any{
 		"@versao": "4.00",

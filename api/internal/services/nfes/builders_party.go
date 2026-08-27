@@ -140,12 +140,12 @@ func getPersonMap(entity map[string]any) map[string]any {
 }
 
 // buildEmit monta o nó emit (emitente) a partir da organização.
-func buildEmit(org, orgPerson map[string]any, orgPK, emitUF string, orgCRT int) map[string]any {
+func buildEmit(org, orgPerson map[string]any, orgPK, emitUF, destUF string, orgCRT int) map[string]any {
 	emitKey := "CPF"
 	if strings.HasPrefix(orgPK, "CNPJ_") {
 		emitKey = "CNPJ"
 	}
-	return map[string]any{
+	emit := map[string]any{
 		emitKey:     services.StripPKPrefix(orgPK),
 		"xNome":     anyStr(org, "name", ""),
 		"xFant":     anyStr(orgPerson, "fantasy_name", ""),
@@ -153,4 +153,43 @@ func buildEmit(org, orgPerson map[string]any, orgPK, emitUF string, orgCRT int) 
 		"IE":        getIEForUF(orgPerson, emitUF),
 		"CRT":       fmt.Sprintf("%d", orgCRT),
 	}
+	// IEST só é informado na operação interestadual em que o emitente é
+	// substituto tributário na UF de destino.
+	if iest := getIESTForUF(orgPerson, destUF); iest != "" {
+		emit["IEST"] = iest
+	}
+	// IM já existe no cadastro (person.nfse.im) por causa da NFS-e — a NF-e
+	// mista só precisa lê-lo. CNAE é obrigatório quando IM está presente.
+	if nfse, ok := orgPerson["nfse"].(map[string]any); ok {
+		if im := anyStr(nfse, "im", ""); im != "" {
+			emit["IM"] = im
+			if cnae := anyStr(orgPerson, "cnae", ""); cnae != "" {
+				emit["CNAE"] = cnae
+			}
+		}
+	}
+	if suframa := anyStr(orgPerson, "isuf_emit", ""); suframa != "" {
+		emit["ISUFEmit"] = suframa
+	}
+	return emit
+}
+
+// getIESTForUF devolve a inscrição de substituto tributário na UF de destino.
+// Mora na mesma lista de state_registrations que a IE: é a mesma inscrição, no
+// mesmo cadastro, com outro papel — criar uma segunda lista duplicaria a UF.
+func getIESTForUF(person map[string]any, uf string) string {
+	regs, ok := person["state_registrations"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, r := range regs {
+		rm, ok := r.(map[string]any)
+		if !ok || rm["uf"] != uf {
+			continue
+		}
+		if v, ok := rm["ie_st"].(string); ok {
+			return v
+		}
+	}
+	return ""
 }

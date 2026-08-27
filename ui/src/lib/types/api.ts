@@ -898,6 +898,23 @@ export interface NfePaymentIn {
   card?: NfeCardIn | null
 }
 
+/** Documento referenciado em ide/NFref. Espelha `NfeRefBody` do backend. */
+export interface NfeRefIn {
+  nfe_id?: string | null
+  kind?: 'nfe' | 'nfesig' | 'nf' | 'nfp' | 'cte' | 'ecf' | null
+  access_key?: string | null
+  c_uf?: string | null
+  aamm?: string | null
+  cnpj?: string | null
+  cpf?: string | null
+  ie?: string | null
+  mod?: string | null
+  serie?: string | null
+  n_nf?: string | null
+  n_ecf?: string | null
+  n_coo?: string | null
+}
+
 export interface NfeEmit {
   receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx — omit when self_issuance=true
   self_issuance?: boolean
@@ -922,6 +939,8 @@ export interface NfeEmit {
   entrega?: NfeLocalIn | null
   save_retirada_location?: boolean
   save_entrega_location?: boolean
+  /** Documentos referenciados. Obrigatório para fin_nfe 2, 3 e 4. */
+  nf_refs?: NfeRefIn[] | null
 }
 
 // NFC-e (modelo 65) — no recipient address, transport, or billing.

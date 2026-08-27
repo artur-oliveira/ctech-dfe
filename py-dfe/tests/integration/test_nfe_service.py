@@ -233,6 +233,17 @@ class TestNFeSVRS:
         TestNFeSVRS._chave = chave
         TestNFeSVRS._nprot = prot.get("nProt") or "322260000007475"
 
+    def test_nfe_devolucao_com_nfref(self, real_cert_manager):
+        """Devolução (finNFe=4) referencia a chave autorizada em ide/NFref."""
+        if TestNFeSVRS._chave is None:
+            pytest.skip("test_authorization did not complete successfully")
+        svc = _nfe_svc(real_cert_manager, UF.PI.value)
+        payload, _ = build_nfe(
+            uf="PI", fin_nfe="4", nfref=[{"refNFe": TestNFeSVRS._chave}]
+        )
+        result = svc.authorization(payload)
+        _assert_comunicacao_authorization(result)
+
     def test_consultar_protocolo(self, real_cert_manager):
         if TestNFeSVRS._chave is None:
             pytest.skip("test_authorization did not complete successfully")

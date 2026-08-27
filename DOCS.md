@@ -1333,6 +1333,18 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `entrega`         | object      | Local de entrega, same TLocal shape as `retirada`, scoped to the selected `receiver_id`. |
 | `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
 | `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
+| `nf_refs`         | list        | Documentos referenciados (`ide/NFref`, máx. 500). **Obrigatório quando `fin_nfe` é 2, 3 ou 4** — sem ele a emissão devolve 400. Cada entrada é ou `{"nfe_id": "<chave>"}`, uma nota da própria organização de onde chave e tipo são derivados (vira `refNFe`), ou um documento de fora do sistema com `kind` + os campos do grupo. |
+
+**`nf_refs[]` — documento de fora do sistema:**
+
+| `kind`   | Nó XML      | Campos exigidos                                            |
+|----------|-------------|------------------------------------------------------------|
+| `nfe`    | `refNFe`    | `access_key` (44 dígitos)                                   |
+| `nfesig` | `refNFeSig` | `access_key` (44 dígitos) — NF-e com destinatário em sigilo |
+| `cte`    | `refCTe`    | `access_key` (44 dígitos)                                   |
+| `nf`     | `refNF`     | `c_uf`, `aamm`, `cnpj`, `mod`, `serie`, `n_nf`              |
+| `nfp`    | `refNFP`    | `c_uf`, `aamm`, `cnpj` **ou** `cpf`, `ie`, `mod`, `serie`, `n_nf` |
+| `ecf`    | `refECF`    | `mod`, `n_ecf`, `n_coo`                                     |
 
 Neither `retirada`/`entrega` nor `autXML` (see Organizations §) require any py-dfe change —
 `xsd_order.py` already orders both. `autXML` is not a field on this body at all: it's always

@@ -127,6 +127,7 @@ func TestBuildEnviNFeGolden(t *testing.T) {
 		nil, nil, nil, nil,
 		TechData{CNPJ: "11647612000197", Name: "Ctech", Email: "t@t.com", Phone: "8630000000", Version: "1.0"},
 		nfModel55, nil, nil, nil, NormalEmission(nfModel55),
+		docExtras{},
 	)
 	b, err := json.MarshalIndent(got, "", "  ")
 	if err != nil {

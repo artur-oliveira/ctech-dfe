@@ -15,6 +15,8 @@ type ideParams struct {
 	FinNFe, IndFinal, IndPres         string
 	Mode                              EmissionMode
 	VerProc                           string
+	// NFref são os documentos referenciados já resolvidos (ide/NFref).
+	NFref []map[string]any
 }
 
 // buildIde monta o nó ide, incluindo o grupo de contingência quando a emissão
@@ -45,6 +47,9 @@ func buildIde(p ideParams) map[string]any {
 	if p.Mode.IsContingency() {
 		ide["dhCont"] = fmtDhEmi(p.Mode.ContingencyAt)
 		ide["xJust"] = p.Mode.Justification
+	}
+	if len(p.NFref) > 0 {
+		ide["NFref"] = p.NFref
 	}
 	return ide
 }

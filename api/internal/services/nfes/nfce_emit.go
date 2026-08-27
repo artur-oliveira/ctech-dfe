@@ -191,6 +191,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		s.tech, nfModel65, supl,
 		nil, nil,
 		mode,
+		docExtras{},
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))

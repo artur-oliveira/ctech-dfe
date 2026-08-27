@@ -41,6 +41,7 @@ func TestBuildEnviNFe_EntregaPresent(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, &NfeLocalBody{XLgr: "Rua Entrega", Nro: "1", XBairro: "B", CMun: "3550308", XMun: "SP", UF: "SP"},
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	entrega, ok := infNFe["entrega"].(map[string]any)
@@ -71,6 +72,7 @@ func TestBuildEnviNFe_AutXMLPresentWhenOrgHasAuthorizedViewers(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	autXML, ok := infNFe["autXML"].([]map[string]any)
@@ -95,6 +97,7 @@ func TestBuildEnviNFe_NoAutXMLWhenOrgHasNoAuthorizedViewers(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	if _, hasAutXML := infNFe["autXML"]; hasAutXML {

@@ -32,6 +32,7 @@ import type {
   NfeFatIn,
   NfeListOut,
   NfeLocalIn,
+  NfeRefIn,
   NfeTransportIn,
   PersonCreate,
   PersonItemOut,
@@ -65,6 +66,8 @@ import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options"
 import {previewInstallments} from "@/lib/schemas/payment-terms"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
 import {LocationPicker} from "@/components/nfe/LocationPicker"
+import {NfeRefsPicker} from "@/components/nfe/NfeRefsPicker"
+import {finNFeRequiresRef} from "@/lib/schemas/nfe-refs"
 
 // ─── Local state types ────────────────────────────────────────────────────────
 
@@ -642,6 +645,7 @@ export function NfeEmitForm() {
   const [rawProducts, setProducts] = useState<EmitProduct[]>([])
   const [payments, setPayments] = useState<EmitPayment[]>([])
   const [additionalInfo, setAdditionalInfo] = useState('')
+  const [nfRefs, setNfRefs] = useState<NfeRefIn[]>([])
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null)
@@ -746,6 +750,13 @@ export function NfeEmitForm() {
   const operationCfopSuffix = typeof selectedOperation?.cfop_suffix === 'string'
     ? selectedOperation.cfop_suffix
     : ''
+
+  // Complementar, ajuste e devolução só existem contra um documento anterior:
+  // a seção de referências aparece exatamente nessas finalidades.
+  const operationFinNFe = typeof selectedOperation?.fin_nfe === 'string'
+    ? selectedOperation.fin_nfe
+    : null
+  const requiresNfRefs = finNFeRequiresRef(operationFinNFe)
 
 
   // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
@@ -1001,6 +1012,10 @@ export function NfeEmitForm() {
       setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'})
       return
     }
+    if (requiresNfRefs && nfRefs.length === 0) {
+      setSubmitError({message: 'Esta finalidade exige ao menos um documento referenciado. Adicione a nota de origem em "Documentos referenciados".'})
+      return
+    }
     const vTroco = totalPaid > totalNfe + 0.005 ? (totalPaid - totalNfe).toFixed(2) : null
     const hasCobr = hasPrazoPayment && (cobrFat.v_liq || duplicatas.length > 0)
 
@@ -1047,6 +1062,7 @@ export function NfeEmitForm() {
       entrega: entrega,
       save_retirada_location: retirada ? saveRetiradaLocation : false,
       save_entrega_location: entrega ? saveEntregaLocation : false,
+      nf_refs: nfRefs.length > 0 ? nfRefs : null,
     }
 
     setIsSubmitting(true)
@@ -1600,6 +1616,16 @@ export function NfeEmitForm() {
             <span className="text-sm font-medium text-gray-700">Total da NF-e</span>
             <span className="text-lg font-semibold text-gray-900">{fmt(totalNfe)}</span>
           </div>
+        </div>
+      )}
+
+      {/* Documentos referenciados (ide/NFref) — obrigatório na finalidade
+          escolhida, então fica à vista e não dentro do grupo opcional. */}
+      {currentStep === 'pagamento' && requiresNfRefs && (
+        <div className="mt-4 space-y-2 rounded-lg border border-gray-200 p-3">
+          <Label className="text-sm font-medium text-gray-700">Documentos referenciados</Label>
+          <p className="text-xs text-gray-500">Esta finalidade de emissão exige a nota de origem.</p>
+          <NfeRefsPicker value={nfRefs} onChange={setNfRefs}/>
         </div>
       )}
 
