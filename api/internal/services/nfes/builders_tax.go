@@ -71,7 +71,12 @@ func buildICMSSN(origin, csosn string, vProd decimal.Decimal, cfg map[string]any
 	case "102", "103", "300", "400":
 		return map[string]any{"ICMSSN102": map[string]any{"orig": origin, "CSOSN": csosn}}
 	case "500":
-		return map[string]any{"ICMSSN500": map[string]any{"orig": origin, "CSOSN": csosn}}
+		// CSOSN 500 é a revenda de mercadoria com ST já retida: os mesmos
+		// valores retidos e o mesmo ICMS efetivo do ICMS60 do regime normal.
+		node := map[string]any{"orig": origin, "CSOSN": csosn}
+		addSTRetida(node, cfg)
+		addICMSEfetivo(node, vProd, cfg)
+		return map[string]any{"ICMSSN500": node}
 	case "101":
 		return map[string]any{"ICMSSN101": map[string]any{
 			"orig": origin, "CSOSN": csosn, "pCredSN": pCredSN, "vCredICMSSN": vCredSN,
@@ -198,6 +203,23 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		return nd
 	}
 
+	// ICMSPart substitui ICMS10/ICMS90 quando há partilha do ICMS entre a UF de
+	// origem e a de destino. O par pBCOp+UFST é o que distingue os dois casos.
+	if pBCOp := cfgStrPtr(cfg, "icms_part_p_bc_op"); pBCOp != nil && *pBCOp != "" && icmsPartCSTs[cst] {
+		if ufST := cfgStrPtr(cfg, "icms_part_uf_st"); ufST != nil && *ufST != "" {
+			node := map[string]any{
+				"orig": origin, "CST": cst, "modBC": modBC, "vBC": vBC,
+				"pRedBC": pRedBC, "pICMS": pICMS, "vICMS": vICMS,
+				"modBCST": modBCST, "pMVAST": pMVAST, "pRedBCST": pRedBCST,
+				"vBCST": vBCST, "pICMSST": pICMSST, "vICMSST": vICMSST,
+				"pBCOp": *pBCOp, "UFST": *ufST,
+			}
+			addFCPST(node)
+			addDeson(node)
+			return map[string]any{"ICMSPart": node}
+		}
+	}
+
 	switch cst {
 	case "00":
 		node := map[string]any{"orig": origin, "CST": cst, "modBC": modBC, "vBC": vBC, "pICMS": pICMS, "vICMS": vICMS}
@@ -263,6 +285,20 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		return map[string]any{"ICMS30": node}
 
 	case "40", "41", "50":
+		// ICMSST (CST 41) é o repasse, na operação interestadual, do ICMS-ST já
+		// retido antes. Sem os valores retidos, 41 é apenas não tributada.
+		if cst == "41" {
+			if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil && *vBCSTRet != "" {
+				node := map[string]any{"orig": origin, "CST": cst}
+				addSTRetida(node, cfg)
+				if v := cfgStrPtr(cfg, "icms_v_bc_st_dest"); v != nil && *v != "" {
+					node["vBCSTDest"] = *v
+					node["vICMSSTDest"] = cfgStr(cfg, "icms_v_icms_st_dest", "0.00")
+				}
+				addICMSEfetivo(node, vProd, cfg)
+				return map[string]any{"ICMSST": node}
+			}
+		}
 		return map[string]any{"ICMS40": addDeson(map[string]any{"orig": origin, "CST": cst})}
 
 	case "51":
@@ -301,23 +337,8 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 
 	case "60":
 		node := map[string]any{"orig": origin, "CST": cst}
-		if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil {
-			if vICMSSTRet := cfgStrPtr(cfg, "icms_v_icms_st_ret"); vICMSSTRet != nil {
-				node["vBCSTRet"] = *vBCSTRet
-				if pST := cfgStrPtr(cfg, "icms_p_st"); pST != nil {
-					node["pST"] = *pST
-				}
-				node["vICMSSTRet"] = *vICMSSTRet
-			}
-		}
-		if vBCFCPSTRet := cfgStrPtr(cfg, "icms_fcp_v_bc_st_ret"); vBCFCPSTRet != nil {
-			if pFCPSTRet := cfgStrPtr(cfg, "icms_fcp_st_ret_aliq"); pFCPSTRet != nil {
-				vFCPRet := q2(d(*vBCFCPSTRet).Mul(d(*pFCPSTRet)).Div(decimal.NewFromInt(100)).RoundBank(2))
-				node["vBCFCPSTRet"] = *vBCFCPSTRet
-				node["pFCPSTRet"] = *pFCPSTRet
-				node["vFCPSTRet"] = vFCPRet
-			}
-		}
+		addSTRetida(node, cfg)
+		addICMSEfetivo(node, vProd, cfg)
 		return map[string]any{"ICMS60": node}
 
 	case "61":
@@ -610,6 +631,10 @@ func buildISSQN(vBC decimal.Decimal, cfg map[string]any) map[string]any {
 
 // ─── DIFAL ────────────────────────────────────────────────────────────────────
 
+// icmsPartCSTs são os CSTs em que a partilha do ICMS (ICMSPart) pode ocorrer.
+// Não há CST próprio para ela: o que distingue é o par pBCOp + UFST.
+var icmsPartCSTs = map[string]bool{"10": true, "90": true}
+
 var icmsCSTDifalEligible = map[string]bool{
 	"00": true, "20": true, "51": true, "70": true, "90": true,
 }
@@ -654,4 +679,42 @@ func applyUFRules(emitUF, cst string, cfopEntry map[string]any, pICMSResolved st
 		}
 	}
 	return cfopEntry
+}
+
+// addICMSEfetivo acrescenta o grupo do ICMS efetivo (pRedBCEfet, vBCEfet,
+// pICMSEfet, vICMSEfet), exigido por algumas UFs na revenda de mercadoria com
+// ST retida. Vale para ICMS60, ICMSST e ICMSSN500 — a mesma quádrupla, com o
+// mesmo cálculo, nos três; por isso uma função e não três cópias.
+func addICMSEfetivo(node map[string]any, vProd decimal.Decimal, cfg map[string]any) {
+	pICMSEfet := cfgStrPtr(cfg, "icms_p_icms_efet")
+	if pICMSEfet == nil || *pICMSEfet == "" {
+		return
+	}
+	pRed := cfgStr(cfg, "icms_p_red_bc_efet", "0.00")
+	vBCEfet := vProd.Mul(decimal.NewFromInt(1).Sub(d(pRed).Div(decimal.NewFromInt(100)))).RoundBank(2)
+	if pRed != "" && pRed != "0.00" {
+		node["pRedBCEfet"] = pRed
+	}
+	node["vBCEfet"] = q2(vBCEfet)
+	node["pICMSEfet"] = *pICMSEfet
+	node["vICMSEfet"] = q2(vBCEfet.Mul(d(*pICMSEfet)).Div(decimal.NewFromInt(100)).RoundBank(2))
+}
+
+// addSTRetida acrescenta os valores do ICMS-ST retido anteriormente
+// (vBCSTRet, pST, vICMSSTRet e o FCP-ST retido). São os mesmos campos, com o
+// mesmo significado, em ICMS60, ICMSST e ICMSSN500.
+func addSTRetida(node map[string]any, cfg map[string]any) {
+	if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil && *vBCSTRet != "" {
+		node["vBCSTRet"] = *vBCSTRet
+		if pST := cfgStrPtr(cfg, "icms_p_st"); pST != nil && *pST != "" {
+			node["pST"] = *pST
+		}
+		node["vICMSSTRet"] = cfgStr(cfg, "icms_v_icms_st_ret", "0.00")
+	}
+	if vBCFCPSTRet := cfgStrPtr(cfg, "icms_fcp_v_bc_st_ret"); vBCFCPSTRet != nil && *vBCFCPSTRet != "" {
+		pFCPSTRet := cfgStr(cfg, "icms_fcp_st_ret_aliq", "0.00")
+		node["vBCFCPSTRet"] = *vBCFCPSTRet
+		node["pFCPSTRet"] = pFCPSTRet
+		node["vFCPSTRet"] = q2(d(*vBCFCPSTRet).Mul(d(pFCPSTRet)).Div(decimal.NewFromInt(100)).RoundBank(2))
+	}
 }

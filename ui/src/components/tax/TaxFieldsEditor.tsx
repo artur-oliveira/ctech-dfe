@@ -9,6 +9,7 @@ import {getAllCfopOptions} from '@/lib/data/cfop'
 import {getCfopHint} from '@/lib/data/cfop_rules'
 import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
 import {IPI_CST_OPTIONS} from '@/lib/data/ipi'
+import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is'
 import {CSOSN_OPTIONS} from '@/lib/data/csosn'
 import {ICMS_CST_OPTIONS} from '@/lib/data/icms'
@@ -138,6 +139,13 @@ export function TaxFieldsEditor({
   const cfopHint = getCfopHint(value.cfop)
   const showSt = (!simples && !!value.icms && ICMS_ST_CSTS.has(value.icms)) ||
     (simples && !!value.csosn && ICMS_ST_CSTS.has(value.csosn))
+  // ST já retida + ICMS efetivo: revenda de mercadoria com ST (CST 41/60,
+  // CSOSN 500). É o mesmo grupo de campos nos três casos.
+  const showStRet = (!simples && ['41', '60'].includes(value.icms ?? '')) ||
+    (simples && value.csosn === '500')
+  // Partilha do ICMS (ICMSPart): não tem CST próprio, o par pBCOp+UFST é que
+  // troca ICMS10/ICMS90 pelo grupo.
+  const showPart = !simples && ['10', '90'].includes(value.icms ?? '')
 
   return (
     <div className="space-y-5">
@@ -332,6 +340,92 @@ export function TaxFieldsEditor({
                               onChange={(v) => onChange((r) => ({...r, icms_st_red_bc: v}))}/>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ST retida anteriormente + ICMS efetivo */}
+        {showStRet && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              ST retida anteriormente
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">BC da ST retida</label>
+                <NumericInput value={value.icms_v_bc_st_ret ?? ''} decimal integerPlaces={13} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, icms_v_bc_st_ret: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">ICMS-ST retido</label>
+                <NumericInput value={value.icms_v_icms_st_ret ?? ''} decimal integerPlaces={13} decimalPlaces={2}
+                              placeholder="0.00"
+                              onChange={(v) => onChange((r) => ({...r, icms_v_icms_st_ret: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Alíquota suportada %</label>
+                <NumericInput value={value.icms_p_st ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                              placeholder="0.0000"
+                              onChange={(v) => onChange((r) => ({...r, icms_p_st: v}))}/>
+              </div>
+              {value.icms === '41' && (
+                <>
+                  <div className="grid gap-1">
+                    <label className="text-sm font-medium text-gray-700">BC da ST na UF de destino</label>
+                    <NumericInput value={value.icms_v_bc_st_dest ?? ''} decimal integerPlaces={13} decimalPlaces={2}
+                                  placeholder="0.00"
+                                  onChange={(v) => onChange((r) => ({...r, icms_v_bc_st_dest: v}))}/>
+                  </div>
+                  <div className="grid gap-1">
+                    <label className="text-sm font-medium text-gray-700">ICMS-ST da UF de destino</label>
+                    <NumericInput value={value.icms_v_icms_st_dest ?? ''} decimal integerPlaces={13} decimalPlaces={2}
+                                  placeholder="0.00"
+                                  onChange={(v) => onChange((r) => ({...r, icms_v_icms_st_dest: v}))}/>
+                  </div>
+                </>
+              )}
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Redução BC efetiva</label>
+                <NumericInput value={value.icms_p_red_bc_efet ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                              placeholder="0.0000"
+                              onChange={(v) => onChange((r) => ({...r, icms_p_red_bc_efet: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Alíquota efetiva %</label>
+                <NumericInput value={value.icms_p_icms_efet ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                              placeholder="0.0000"
+                              onChange={(v) => onChange((r) => ({...r, icms_p_icms_efet: v}))}/>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              A base e o valor do ICMS efetivo são calculados na emissão — informe só os percentuais.
+            </p>
+          </div>
+        )}
+
+        {/* Partilha do ICMS entre UFs (ICMSPart) */}
+        {showPart && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              Partilha do ICMS entre UFs
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% da BC na origem</label>
+                <NumericInput value={value.icms_part_p_bc_op ?? ''} decimal integerPlaces={3} decimalPlaces={4}
+                              placeholder="0.0000"
+                              onChange={(v) => onChange((r) => ({...r, icms_part_p_bc_op: v}))}/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">UF do ST</label>
+                <OptionsSelect value={value.icms_part_uf_st ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, icms_part_uf_st: v}))}
+                               options={UF_OPTIONS} placeholder="UF"/>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Preencha os dois para emitir o grupo ICMSPart no lugar de ICMS{value.icms}.
+            </p>
           </div>
         )}
 

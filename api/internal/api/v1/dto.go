@@ -229,6 +229,17 @@ type TaxFieldsBody struct {
 	IcmsPSt          *string `json:"icms_p_st" validate:"omitempty,percent"`
 	IcmsFcpVBcStRet  *string `json:"icms_fcp_v_bc_st_ret" validate:"omitempty"`
 	IcmsFcpStRetAliq *string `json:"icms_fcp_st_ret_aliq" validate:"omitempty,percent"`
+	// ICMSST (CST 41) — repasse, na operação interestadual, da ST já retida.
+	IcmsVBcStDest   *string `json:"icms_v_bc_st_dest" validate:"omitempty,money2"`
+	IcmsVIcmsStDest *string `json:"icms_v_icms_st_dest" validate:"omitempty,money2"`
+	// ICMS efetivo (ICMS60, ICMSST e ICMSSN500) — exigido por algumas UFs na
+	// revenda de mercadoria com ST retida.
+	IcmsPRedBcEfet *string `json:"icms_p_red_bc_efet" validate:"omitempty,percent"`
+	IcmsPIcmsEfet  *string `json:"icms_p_icms_efet" validate:"omitempty,percent"`
+	// ICMSPart — partilha do ICMS entre a UF de origem e a de destino. Não há
+	// CST próprio: é o par abaixo que troca ICMS10/ICMS90 por ICMSPart.
+	IcmsPartPBCOp *string `json:"icms_part_p_bc_op" validate:"omitempty,percent"`
+	IcmsPartUFST  *string `json:"icms_part_uf_st" validate:"omitempty,uf"`
 	// PIS / COFINS
 	Pis            string  `json:"pis" validate:"required,digits2"`
 	Cofins         string  `json:"cofins" validate:"required,digits2"`

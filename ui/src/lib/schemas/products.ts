@@ -64,6 +64,15 @@ export const cfopConfigSchema = z.object({
   icms_p_st: optionalPercent,
   icms_fcp_v_bc_st_ret: optionalStr,
   icms_fcp_st_ret_aliq: optionalPercent,
+  // ICMSST (CST 41) — repasse da ST já retida na operação interestadual
+  icms_v_bc_st_dest: optionalStr,
+  icms_v_icms_st_dest: optionalStr,
+  // ICMS efetivo — ICMS60, ICMSST e ICMSSN500
+  icms_p_red_bc_efet: optionalPercent,
+  icms_p_icms_efet: optionalPercent,
+  // ICMSPart — partilha entre UF de origem e destino (não tem CST próprio)
+  icms_part_p_bc_op: optionalPercent,
+  icms_part_uf_st: optionalStr,
   // PIS/COFINS
   pis: z.string().regex(/^\d{2}$/, 'PIS deve ter 2 dígitos'),
   cofins: z.string().regex(/^\d{2}$/, 'COFINS deve ter 2 dígitos'),

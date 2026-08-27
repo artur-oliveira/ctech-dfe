@@ -242,3 +242,94 @@ func TestApplyUFRules_NilWhenNoRule(t *testing.T) {
 	result := applyUFRules("SP", "00", map[string]any{}, "18.00")
 	_ = result // nil is valid — means no override
 }
+
+func TestBuildICMSPart(t *testing.T) {
+	cfg := map[string]any{
+		"icms_mod_bc": "3", "icms_st_aliq": "18.00", "icms_st_mva": "40.00",
+		"icms_part_p_bc_op": "60.00", "icms_part_uf_st": "SP",
+	}
+	got := buildICMSNormal("0", "10", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	node, ok := got["ICMSPart"].(map[string]any)
+	if !ok {
+		t.Fatalf("esperava ICMSPart, veio %v", got)
+	}
+	if node["pBCOp"] != "60.00" || node["UFST"] != "SP" || node["CST"] != "10" {
+		t.Fatalf("ICMSPart errado: %v", node)
+	}
+	if _, ok := got["ICMS10"]; ok {
+		t.Fatal("ICMSPart substitui ICMS10, não convive")
+	}
+}
+
+// Sem o par pBCOp+UFST, CST 10 continua sendo ICMS10.
+func TestBuildICMSPartExigeOPar(t *testing.T) {
+	got := buildICMSNormal("0", "10", decimal.RequireFromString("100.00"),
+		map[string]any{"icms_part_p_bc_op": "60.00"}, "12.00", "0.00", decimal.NewFromInt(1))
+	if _, ok := got["ICMS10"]; !ok {
+		t.Fatalf("esperava ICMS10, veio %v", got)
+	}
+}
+
+func TestBuildICMSSTRepasse(t *testing.T) {
+	cfg := map[string]any{
+		"icms_v_bc_st_ret": "200.00", "icms_v_icms_st_ret": "36.00",
+		"icms_v_bc_st_dest": "150.00", "icms_v_icms_st_dest": "27.00",
+	}
+	got := buildICMSNormal("0", "41", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	node, ok := got["ICMSST"].(map[string]any)
+	if !ok {
+		t.Fatalf("CST 41 com ST retida tem que virar ICMSST, veio %v", got)
+	}
+	if node["vBCSTDest"] != "150.00" || node["vICMSSTDest"] != "27.00" {
+		t.Fatalf("ICMSST errado: %v", node)
+	}
+	if node["vBCSTRet"] != "200.00" || node["vICMSSTRet"] != "36.00" {
+		t.Fatalf("ST retida perdida: %v", node)
+	}
+}
+
+// Sem os valores de ST, 41 continua sendo não tributada (ICMS40).
+func TestBuildICMS41SemSTContinuaICMS40(t *testing.T) {
+	got := buildICMSNormal("0", "41", decimal.RequireFromString("100.00"), map[string]any{}, "12.00", "0.00", decimal.NewFromInt(1))
+	if _, ok := got["ICMS40"]; !ok {
+		t.Fatalf("esperava ICMS40, veio %v", got)
+	}
+}
+
+func TestAddICMSEfetivoCalculaBaseEValor(t *testing.T) {
+	node := map[string]any{}
+	addICMSEfetivo(node, decimal.RequireFromString("100.00"),
+		map[string]any{"icms_p_red_bc_efet": "20.00", "icms_p_icms_efet": "18.00"})
+	if node["pRedBCEfet"] != "20.00" || node["vBCEfet"] != "80.00" ||
+		node["pICMSEfet"] != "18.00" || node["vICMSEfet"] != "14.40" {
+		t.Fatalf("efetivo errado: %v", node)
+	}
+}
+
+func TestAddICMSEfetivoAusenteNaoPoluiONo(t *testing.T) {
+	node := map[string]any{"CST": "60"}
+	addICMSEfetivo(node, decimal.RequireFromString("100.00"), map[string]any{})
+	if len(node) != 1 {
+		t.Fatalf("sem configuração, nada pode ser acrescentado: %v", node)
+	}
+}
+
+// ICMS60 e CSOSN 500 são o mesmo caso em regimes diferentes: os dois trazem a
+// ST retida e o ICMS efetivo.
+func TestICMS60ECSOSN500TrazemSTRetidaEEfetivo(t *testing.T) {
+	cfg := map[string]any{
+		"icms_v_bc_st_ret": "200.00", "icms_v_icms_st_ret": "36.00", "icms_p_st": "18.00",
+		"icms_p_icms_efet": "18.00", "icms_p_red_bc_efet": "20.00",
+	}
+	vProd := decimal.RequireFromString("100.00")
+	normal := buildICMSNormal("0", "60", vProd, cfg, "12.00", "0.00", decimal.NewFromInt(1))["ICMS60"].(map[string]any)
+	sn := buildICMSSN("0", "500", vProd, cfg)["ICMSSN500"].(map[string]any)
+	for _, node := range []map[string]any{normal, sn} {
+		if node["vBCSTRet"] != "200.00" || node["pST"] != "18.00" || node["vICMSSTRet"] != "36.00" {
+			t.Fatalf("ST retida ausente: %v", node)
+		}
+		if node["vBCEfet"] != "80.00" || node["vICMSEfet"] != "14.40" {
+			t.Fatalf("ICMS efetivo ausente: %v", node)
+		}
+	}
+}

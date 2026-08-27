@@ -287,6 +287,15 @@ export interface CfopConfigItem {
   icms_p_st?: string | null
   icms_fcp_v_bc_st_ret?: string | null
   icms_fcp_st_ret_aliq?: string | null
+  /** ICMSST (CST 41) — repasse da ST retida na operação interestadual. */
+  icms_v_bc_st_dest?: string | null
+  icms_v_icms_st_dest?: string | null
+  /** ICMS efetivo — ICMS60, ICMSST e ICMSSN500. */
+  icms_p_red_bc_efet?: string | null
+  icms_p_icms_efet?: string | null
+  /** ICMSPart — partilha do ICMS entre UF de origem e destino. */
+  icms_part_p_bc_op?: string | null
+  icms_part_uf_st?: string | null
   pis: string
   cofins: string
   pis_aliq?: string | null

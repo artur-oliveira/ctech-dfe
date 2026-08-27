@@ -559,10 +559,12 @@ func TestLookupMissingKey(t *testing.T) {
 
 func TestTableKeyCount(t *testing.T) {
 	// Sanity check: the merged table must have exactly as many keys as the
-	// Python XSD_ORDER (213, verified by diffing a JSON dump of both against
-	// each other during the port — see task report). This guards against an
-	// accidental key loss/duplication regressing silently.
-	const wantKeys = 213
+	// Python XSD_ORDER. Toda chave nova entra nas duas tabelas no mesmo commit;
+	// este contador é o que faz uma metade esquecida aparecer.
+	// 213 no port original + 7 do MDF-e (infContrato, infUnidTransp,
+	// infUnidCarga, lacUnidTransp, lacUnidCarga, infEntregaParcial,
+	// infNFePrestParcial).
+	const wantKeys = 220
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
