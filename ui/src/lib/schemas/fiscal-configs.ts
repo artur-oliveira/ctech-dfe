@@ -53,7 +53,14 @@ const baseFields = {
 
 export const nfeConfigSchema = z.object({ ...baseFields })
 export const cteConfigSchema = nfeConfigSchema
-export const mdfeConfigSchema = z.object({ ...baseFields })
+// O MDF-e acrescenta três campos que só existem no leiaute dele e recorrem em
+// toda emissão da organização — a observação da viagem continua na emissão.
+export const mdfeConfigSchema = z.object({
+  ...baseFields,
+  ind_canal_verde: z.boolean(),
+  ind_carrega_posterior: z.boolean(),
+  inf_ad_fisco: z.string().max(2000).optional().or(z.literal('')),
+})
 
 export const nfceConfigSchema = z.object({
   ...baseFields,

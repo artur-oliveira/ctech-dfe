@@ -896,6 +896,21 @@ type FiscalConfigBody struct {
 	fiscalConfigBase
 }
 
+// MdfeConfigBody is the body for PUT /…/mdfe-config. Os três campos extras
+// são do leiaute do MDF-e e não existem na NF-e/CT-e, por isso um body próprio
+// em vez de poluir o FiscalConfigBody compartilhado.
+type MdfeConfigBody struct {
+	fiscalConfigBase
+	// IndCanalVerde — participação da organização no Canal Verde (ide/indCanalVerde).
+	IndCanalVerde bool `json:"ind_canal_verde"`
+	// IndCarregaPosterior — a organização inclui DF-e por evento depois de
+	// emitir o manifesto (ide/indCarregaPosterior).
+	IndCarregaPosterior bool `json:"ind_carrega_posterior"`
+	// InfAdFisco — mensagem de interesse do fisco repetida em toda emissão
+	// (infAdic/infAdFisco). A observação da viagem continua no corpo da emissão.
+	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
+}
+
 // NfceConfigBody is the body for PUT /…/nfce-config (adds CSC fields).
 type NfceConfigBody struct {
 	fiscalConfigBase

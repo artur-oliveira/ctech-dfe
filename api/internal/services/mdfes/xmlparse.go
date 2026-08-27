@@ -152,6 +152,7 @@ type docCargo struct {
 	totalValue decimal.Decimal
 	predNCM    string // NCM of the highest-value line item
 	predProd   string // description of the highest-value line item
+	predEAN    string // GTIN of the highest-value line item (may be "SEM GTIN")
 	items      []parsedItem
 }
 
@@ -212,6 +213,7 @@ func extractCargoNFe(accessKey string, root *xnode) (*docCargo, error) {
 			maxVal = v
 			c.predNCM = prod.txt("NCM")
 			c.predProd = prod.txt("xProd")
+			c.predEAN = prod.txt("cEAN")
 		}
 	}
 	return c, nil

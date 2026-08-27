@@ -3406,7 +3406,7 @@ Quatro campos de nível 1/2 e um derivado, num commit. `FiscalConfigBody` (usado
 - Produces: `buildIde` do MDF-e emite `indCanalVerde`/`indCarregaPosterior`; `buildProdPred` emite `cEAN` lido do
   produto predominante; `BuildMDFe` usa `nfes.BuildRespTec` (ou o equivalente promovido a `services/`, ver Task 9).
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit
+- [x] **Steps:** teste → falha → implementação → PASS → commit
   (`feat(mdfe): canal verde, carregamento posterior, cEAN do produto predominante e mensagem ao fisco`).
 
 ---

@@ -577,7 +577,7 @@ Profile and password management are handled by ctech-account directly.
 | PUT    | `/v1.0/organizations/{pk}/nfe-config`         | Configure NF-e        |
 | PUT    | `/v1.0/organizations/{pk}/nfce-config`        | Configure NFC-e       |
 | PUT    | `/v1.0/organizations/{pk}/cte-config`         | Configure CT-e        |
-| PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e       |
+| PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e (`MdfeConfigBody`: base + `ind_canal_verde`, `ind_carrega_posterior`, `inf_ad_fisco`) |
 | POST   | `/v1.0/organizations/{pk}/certificates`       | Upload A1 certificate |
 | GET    | `/v1.0/organizations/{pk}/certificates`       | List certificates     |
 | DELETE | `/v1.0/organizations/{pk}/certificates/{md5}` | Remove certificate    |
@@ -1723,7 +1723,11 @@ produto perigoso é perguntado por viagem.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).
-- `rntrc?`, `ciot?`, `additional_info?`.
+- `rntrc?`, `ciot?`, `additional_info?` — `additional_info` é o `infAdic/infCpl` da viagem. A
+  mensagem ao fisco (`infAdFisco`) **não** entra aqui: é da configuração (`inf_ad_fisco` em
+  `mdfe-config`), assim como `ind_canal_verde` e `ind_carrega_posterior`, que recorrem em toda
+  emissão. O `prodPred/cEAN` também não é perguntado: sai do documento referenciado, junto de
+  `xProd` e `NCM` do item de maior valor.
 
 **`POST /v1.0/mdfes/cargo-preview`** (`{documents: [{type, access_key}]}`) returns the parsed cargo
 without persisting: per-doc `{emit_name, dest_name, loading, unloading, uf_start, uf_end, weight,

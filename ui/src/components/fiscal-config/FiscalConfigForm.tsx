@@ -5,6 +5,7 @@ import type {Resolver} from 'react-hook-form'
 import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Input} from '@/components/ui/input'
+import {Textarea} from '@/components/ui/textarea'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -80,6 +81,16 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
     } as never;
   }
 
+  if (variant === 'mdfe') {
+    const mdfe = data as MDFeConfigOut | undefined
+    return {
+      ...base,
+      ind_canal_verde: mdfe?.ind_canal_verde ?? false,
+      ind_carrega_posterior: mdfe?.ind_carrega_posterior ?? false,
+      inf_ad_fisco: mdfe?.inf_ad_fisco ?? '',
+    } as never;
+  }
+
   return base as never;
 }
 
@@ -105,6 +116,16 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
       prod_csc_id: parseInt(d.prod_csc_id, 10),
       hom_csc: d.hom_csc,
       hom_csc_id: parseInt(d.hom_csc_id, 10),
+    }
+  }
+
+  if (variant === 'mdfe') {
+    const m = data as unknown as MDFeConfigFormData
+    return {
+      ...base,
+      ind_canal_verde: m.ind_canal_verde,
+      ind_carrega_posterior: m.ind_carrega_posterior,
+      inf_ad_fisco: m.inf_ad_fisco || null,
     }
   }
 
@@ -147,6 +168,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
   }, [form, initialData, variant])
 
   const showCsc = variant === 'nfce'
+  const showMdfeFields = variant === 'mdfe'
   const showNsu = variant !== 'nfce'
   const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null
   const isProd = nsuConfig?.environment === 1
@@ -359,6 +381,72 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
             )}
           </section>
         </div>
+
+        {/* Campos que só existem no leiaute do MDF-e e recorrem em toda emissão. */}
+        {showMdfeFields && (
+          <section className="space-y-3 rounded-lg border border-gray-200 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Manifesto (MDF-e)
+            </p>
+            <p className="text-xs text-gray-500">
+              Valem para toda emissão da organização. A observação de uma viagem específica continua
+              sendo preenchida na emissão do manifesto.
+            </p>
+            <FormField
+              control={form.control}
+              name={'ind_canal_verde' as never}
+              render={({field}) => (
+                <FormItem>
+                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
+                    <input type="checkbox" checked={!!field.value}
+                           onChange={(e) => field.onChange(e.target.checked)}
+                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+                    <span className="text-sm text-gray-700">
+                      Participa do Canal Verde
+                      <span className="block text-xs text-gray-500">
+                        Programa de circulação simplificada de cargas nas fronteiras estaduais.
+                      </span>
+                    </span>
+                  </label>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={'ind_carrega_posterior' as never}
+              render={({field}) => (
+                <FormItem>
+                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
+                    <input type="checkbox" checked={!!field.value}
+                           onChange={(e) => field.onChange(e.target.checked)}
+                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+                    <span className="text-sm text-gray-700">
+                      Inclui carga depois de emitir
+                      <span className="block text-xs text-gray-500">
+                        Os documentos entram por evento de inclusão de DF-e após a autorização.
+                      </span>
+                    </span>
+                  </label>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={'inf_ad_fisco' as never}
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>Mensagem ao fisco</FormLabel>
+                  <Textarea {...field} value={(field.value as string) ?? ''} maxLength={2000} rows={3}
+                            className="w-full"
+                            placeholder="Ex.: regime especial concedido pelo processo nº …"/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+          </section>
+        )}
 
         {/* Responsável técnico — CSRT (NT 2018.005). Vale para os dois ambientes. */}
         <section className="space-y-3 rounded-lg border border-gray-200 p-3">

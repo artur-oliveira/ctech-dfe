@@ -290,6 +290,12 @@ const (
 	indPrestacaoParcialSim = "1"
 )
 
+// boolAttr lê um BOOL da configuração; ausente é falso.
+func boolAttr(item map[string]types.AttributeValue, key string) bool {
+	v, ok := item[key].(*types.AttributeValueMemberBOOL)
+	return ok && v.Value
+}
+
 func strAttr(item map[string]types.AttributeValue, key string) string {
 	v, ok := item[key].(*types.AttributeValueMemberS)
 	if !ok {

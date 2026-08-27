@@ -38,6 +38,9 @@ const (
 
 	// tpProp (veicTracao/prop): 0=TAC Agregado, 1=TAC Independente, 2=Outros.
 	tpPropOutros = "2"
+
+	// indSim é o único valor que indCanalVerde e indCarregaPosterior aceitam.
+	indSim = "1"
 )
 
 // buildParams carries everything BuildMDFe needs.
@@ -89,6 +92,14 @@ type buildParams struct {
 	seals         []string
 	rodoSeals     []string
 	portAgentCode string
+	// indCanalVerde e indCarregaPosterior são indicadores da configuração do
+	// MDF-e: participação no Canal Verde e inclusão de DF-e por evento depois
+	// da emissão. O XSD só aceita o valor "1", então aqui eles são booleanos.
+	indCanalVerde       bool
+	indCarregaPosterior bool
+	// infAdFisco é a mensagem ao fisco da configuração; addInfo é a observação
+	// da viagem. As duas convivem no mesmo infAdic.
+	infAdFisco string
 	// policies são as apólices de seguro da carga, já cruzadas com o cadastro.
 	policies []resolvedPolicy
 	// infPag é o pagamento ao transportador autônomo, já montado por
@@ -127,8 +138,8 @@ func BuildMDFe(p buildParams) map[string]any {
 	if lac := services.SealNodes(p.seals); lac != nil {
 		infMDFe["lacres"] = lac
 	}
-	if p.addInfo != nil && *p.addInfo != "" {
-		infMDFe["infAdic"] = map[string]any{"infCpl": *p.addInfo}
+	if infAdic := p.buildInfAdic(); infAdic != nil {
+		infMDFe["infAdic"] = infAdic
 	}
 	if rt := buildRespTec(p.tech, p.csrtID, p.csrt, p.accessKey); rt != nil {
 		infMDFe["infRespTec"] = rt
@@ -145,6 +156,22 @@ func BuildMDFe(p buildParams) map[string]any {
 			"infMDFeSupl": infMDFeSupl,
 		},
 	}
+}
+
+// buildInfAdic junta a mensagem ao fisco (configuração) e a observação da
+// viagem. O MDF-e só tem esses dois filhos — nada de obsCont/obsFisco/procRef.
+func (p buildParams) buildInfAdic() map[string]any {
+	infAdic := map[string]any{}
+	if p.infAdFisco != "" {
+		infAdic["infAdFisco"] = p.infAdFisco
+	}
+	if p.addInfo != nil && *p.addInfo != "" {
+		infAdic["infCpl"] = *p.addInfo
+	}
+	if len(infAdic) == 0 {
+		return nil
+	}
+	return infAdic
 }
 
 func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
@@ -191,6 +218,14 @@ func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
 	}
 	if p.tripStart != nil && *p.tripStart != "" {
 		ide["dhIniViagem"] = *p.tripStart
+	}
+	// Os dois indicadores são enumerações de um valor só: existir já quer dizer
+	// "sim", e o XSD não aceita "0".
+	if p.indCanalVerde {
+		ide["indCanalVerde"] = indSim
+	}
+	if p.indCarregaPosterior {
+		ide["indCarregaPosterior"] = indSim
 	}
 	return ide
 }
@@ -332,6 +367,9 @@ func (p buildParams) buildProdPred() map[string]any {
 	pred := map[string]any{
 		"tpCarga": p.cargo.prodPred.TpCarga,
 		"xProd":   p.cargo.prodPred.XProd,
+	}
+	if p.cargo.prodPred.CEAN != "" {
+		pred["cEAN"] = p.cargo.prodPred.CEAN
 	}
 	if p.cargo.prodPred.NCM != "" {
 		pred["NCM"] = p.cargo.prodPred.NCM

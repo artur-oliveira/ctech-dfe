@@ -236,6 +236,9 @@ Fiscal configuration per org per document type. PK only (no SK). Table names use
 | `improper_usage_until`    | S    | ISO-8601 UTC — consumo indevido block expiry           |
 | `cons_quota_calls`        | N    | Rolling consNSU/consChNFe counter (reset hourly)       |
 | `cons_quota_window_start` | S    | ISO-8601 UTC — start of current 1-hour quota window    |
+| `ind_canal_verde`         | BOOL | MDF-e only: participação no Canal Verde → `ide/indCanalVerde` |
+| `ind_carrega_posterior`   | BOOL | MDF-e only: inclusão de DF-e por evento → `ide/indCarregaPosterior` |
+| `inf_ad_fisco`            | S    | MDF-e only: mensagem ao fisco → `infAdic/infAdFisco`   |
 | `updated_at`              | S    | ISO-8601 UTC                                           |
 
 ---

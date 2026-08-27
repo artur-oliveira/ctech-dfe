@@ -259,6 +259,9 @@ type MdfeProdPred struct {
 	TpCarga string `json:"tp_carga" validate:"omitempty"`
 	XProd   string `json:"x_prod" validate:"omitempty,max=120"`
 	NCM     string `json:"ncm" validate:"omitempty,ncm"`
+	// CEAN é o GTIN do produto predominante. Derivado do documento
+	// referenciado; o override da emissão pode informá-lo, mas ninguém precisa.
+	CEAN string `json:"cean" validate:"omitempty"`
 }
 
 // MdfeBulkCargo carries the single-document (carga lotação) loading/unloading CEPs.
@@ -458,44 +461,49 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 
 	mdfeBody := BuildMDFe(buildParams{
-		org:              orgItem,
-		orgPK:            orgPK,
-		accessKey:        accessKey,
-		serie:            serie,
-		number:           currentNumber,
-		environment:      environment,
-		now:              now,
-		modal:            modal,
-		cargo:            cargo,
-		vehicle:          resolvedVehicle,
-		trailers:         trailers,
-		owner:            owner,
-		drivers:          req.Drivers,
-		route:            req.Route,
-		bulkCargo:        req.BulkCargo,
-		tripStart:        req.TripStart,
-		rntrc:            req.RNTRC,
-		ciot:             req.CIOT,
-		addInfo:          req.AdditionalInfo,
-		air:              req.Air,
-		water:            req.Water,
-		rail:             req.Rail,
-		tpEmis:           tpEmis,
-		tolls:            tolls,
-		contractors:      contractors,
-		policies:         policies,
-		infPag:           infPag,
-		redelivery:       keySet(req.RedeliveryKeys),
-		partial:          partialByKey(req.PartialDeliveries),
-		transportedMdfes: req.TransportedMdfes,
-		peri:             docPeri,
-		unidTransp:       unidTransp,
-		seals:            req.Seals,
-		rodoSeals:        req.RodoSeals,
-		portAgentCode:    valueOr(req.PortAgentCode, ""),
-		tech:             s.tech,
-		csrtID:           strAttr(configItem, csrtIDField),
-		csrt:             strAttr(configItem, csrtField),
+		org:         orgItem,
+		orgPK:       orgPK,
+		accessKey:   accessKey,
+		serie:       serie,
+		number:      currentNumber,
+		environment: environment,
+		now:         now,
+		modal:       modal,
+		cargo:       cargo,
+		vehicle:     resolvedVehicle,
+		trailers:    trailers,
+		owner:       owner,
+		drivers:     req.Drivers,
+		route:       req.Route,
+		bulkCargo:   req.BulkCargo,
+		tripStart:   req.TripStart,
+		rntrc:       req.RNTRC,
+		ciot:        req.CIOT,
+		addInfo:     req.AdditionalInfo,
+		// Canal Verde, carregamento posterior e mensagem ao fisco são da
+		// configuração do MDF-e: recorrem em toda emissão da organização.
+		indCanalVerde:       boolAttr(configItem, "ind_canal_verde"),
+		indCarregaPosterior: boolAttr(configItem, "ind_carrega_posterior"),
+		infAdFisco:          strAttr(configItem, "inf_ad_fisco"),
+		air:                 req.Air,
+		water:               req.Water,
+		rail:                req.Rail,
+		tpEmis:              tpEmis,
+		tolls:               tolls,
+		contractors:         contractors,
+		policies:            policies,
+		infPag:              infPag,
+		redelivery:          keySet(req.RedeliveryKeys),
+		partial:             partialByKey(req.PartialDeliveries),
+		transportedMdfes:    req.TransportedMdfes,
+		peri:                docPeri,
+		unidTransp:          unidTransp,
+		seals:               req.Seals,
+		rodoSeals:           req.RodoSeals,
+		portAgentCode:       valueOr(req.PortAgentCode, ""),
+		tech:                s.tech,
+		csrtID:              strAttr(configItem, csrtIDField),
+		csrt:                strAttr(configItem, csrtField),
 	})
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)
@@ -639,7 +647,7 @@ func (s *MdfeService) resolveCargo(ctx context.Context, orgPK, envPrefix, docTyp
 		}
 		if cargo.totalValue.GreaterThan(predValue) {
 			predValue = cargo.totalValue
-			res.prodPred = MdfeProdPred{TpCarga: defaultTpCarga, XProd: cargo.predProd, NCM: cargo.predNCM}
+			res.prodPred = MdfeProdPred{TpCarga: defaultTpCarga, XProd: cargo.predProd, NCM: cargo.predNCM, CEAN: cargo.predEAN}
 		}
 	}
 

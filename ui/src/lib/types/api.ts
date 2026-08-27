@@ -216,7 +216,15 @@ export interface NFCeConfigOut {
 }
 
 export type CTeConfigOut = NFeConfigOut
-export type MDFeConfigOut = NFeConfigOut
+/** O MDF-e tem três campos de leiaute que a NF-e/CT-e não têm. */
+export interface MDFeConfigOut extends NFeConfigOut {
+  /** Participação no Canal Verde → `ide/indCanalVerde`. */
+  ind_canal_verde?: boolean
+  /** Inclusão de DF-e por evento após a emissão → `ide/indCarregaPosterior`. */
+  ind_carrega_posterior?: boolean
+  /** Mensagem ao fisco repetida em toda emissão → `infAdic/infAdFisco`. */
+  inf_ad_fisco?: string | null
+}
 
 // NFS-e usa uma única série para os dois ambientes.
 export interface NfseAbrasfBody {
