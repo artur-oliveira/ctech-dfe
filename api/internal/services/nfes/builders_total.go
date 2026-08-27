@@ -22,9 +22,10 @@ type totals struct {
 	RegTribISSQN                          string
 	IBSBC, IBSUF, IBSMun, IBS, CBSBC, CBS decimal.Decimal
 	Products, Discount                    decimal.Decimal
-	// VIPIDevol é o IPI devolvido (impostoDevol) somado dos itens.
-	VIPIDevol decimal.Decimal
-	HasISSQN  bool
+	// VIPIDevol é o IPI devolvido (impostoDevol) somado dos itens; VII é o
+	// imposto de importação somado.
+	VIPIDevol, VII decimal.Decimal
+	HasISSQN       bool
 }
 
 // newTotals devolve um acumulador zerado com os totais de produto e desconto
@@ -38,8 +39,8 @@ func newTotals(products, discount decimal.Decimal) totals {
 		VServ: z, VBCISSQN: z, VISSQN: z, VPISISSQN: z, VCOFINSISSQN: z,
 		VDeducaoISSQN: z, VOutroISSQN: z, VDescIncondISSQN: z, VDescCondISSQN: z, VISSRet: z,
 		IBSBC: z, IBSUF: z, IBSMun: z, IBS: z, CBSBC: z, CBS: z,
-		VIPIDevol: z,
-		Products:  products, Discount: discount,
+		VIPIDevol: z, VII: z,
+		Products: products, Discount: discount,
 	}
 }
 
@@ -47,7 +48,7 @@ func newTotals(products, discount decimal.Decimal) totals {
 func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any {
 	vNF := t.Products.Sub(t.Discount).
 		Add(t.VFrete).Add(t.VSeg).Add(t.VOutro).
-		Add(t.VIPI).Add(t.VICMSST).
+		Add(t.VIPI).Add(t.VICMSST).Add(t.VII).
 		RoundBank(2)
 
 	icmsTot := map[string]any{
@@ -63,7 +64,7 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 		"vFrete":     q2(t.VFrete.RoundBank(2)),
 		"vSeg":       q2(t.VSeg.RoundBank(2)),
 		"vDesc":      q2(t.Discount.RoundBank(2)),
-		"vII":        "0.00",
+		"vII":        q2(t.VII.RoundBank(2)),
 		"vIPI":       q2(t.VIPI.RoundBank(2)),
 		"vIPIDevol":  q2(t.VIPIDevol.RoundBank(2)),
 		"vPIS":       q2(t.VPIS.RoundBank(2)),

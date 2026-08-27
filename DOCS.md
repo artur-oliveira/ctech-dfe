@@ -940,6 +940,17 @@ do vínculo no item — nenhum dos dois é digitado. O `n_draw` da emissão venc
 é do embarque). DI inexistente é 404. `NVE`, `nFCI`, `cBarra` e `cBarraTrib` são do cadastro do
 produto (`nve[]`, `n_fci`, `c_barra`, `c_barra_trib`).
 
+**Exportação:** a operação de exportação guarda `export_uf_saida_pais` e
+`export_loc_despacho_index` — um **índice** em `organizations.pickup_locations`, para referenciar o
+recinto de despacho já salvo em vez de recopiar o endereço; `infNFe/exporta` sai daí
+(`UFSaidaPais`, `xLocExporta` = município do local, `xLocDespacho` = logradouro). No item,
+`products[].exports[] = {n_draw?, n_re?, ch_nfe?, q_export?}` vira `prod/detExport`; `exportInd`
+só sai com o trio `nRE`+`chNFe`+`qExport` completo.
+
+**Imposto de importação:** `products[].ii_v_desp_adu` / `ii_v_ii` / `ii_v_iof` viram `imposto/II`
+(a base é o valor do item) e `vII` passa a somar no `ICMSTot` e no `vNF`. Sem valores declarados, o
+grupo não existe — item importado que não recolheu II não declara II.
+
 **Retenções e devolução (nível documento):**
 
 - `total/retTrib` é **derivado**: o perfil de percentuais fica na operação (`ret_trib`:

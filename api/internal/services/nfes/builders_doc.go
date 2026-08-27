@@ -518,6 +518,10 @@ func BuildEnviNFe(
 			}
 		}
 
+		if iiNode := buildII(item, vProdDec); iiNode != nil {
+			imposto["II"] = iiNode
+			t.VII = t.VII.Add(d(anyStr(iiNode, "vII", "0")))
+		}
 		if pisSTNode != nil {
 			imposto["PISST"] = pisSTNode
 		}
@@ -615,6 +619,9 @@ func BuildEnviNFe(
 	}
 	if cobrFat != nil || len(cobrDuplicatas) > 0 {
 		infNFe["cobr"] = buildCobr(cobrFat, cobrDuplicatas)
+	}
+	if len(extra.Exporta) > 0 {
+		infNFe["exporta"] = extra.Exporta
 	}
 	if infAdic := buildInfAdic(extra.InfAdFisco, ptrStr(additionalInfo),
 		extra.ObsCont, extra.ObsFisco, extra.ProcRef); infAdic != nil {

@@ -67,3 +67,58 @@ func TestBuildProdNVEnFCIeCodigosDeBarra(t *testing.T) {
 		t.Fatalf("códigos de barra ausentes: %v", prod)
 	}
 }
+
+func TestBuildExportaUsaLocalDeRetiradaSalvo(t *testing.T) {
+	op := map[string]any{"export_uf_saida_pais": "PI", "export_loc_despacho_index": 0}
+	pickups := []any{map[string]any{"x_lgr": "Porto de Luís Correia", "x_mun": "Luis Correia"}}
+	got := buildExporta(op, pickups)
+	if got["UFSaidaPais"] != "PI" || got["xLocDespacho"] != "Porto de Luís Correia" {
+		t.Fatalf("exporta errado: %v", got)
+	}
+	if got["xLocExporta"] != "Luis Correia" {
+		t.Fatalf("município de saída ausente: %v", got)
+	}
+}
+
+// Índice fora da lista não inventa local: só a UF sai.
+func TestBuildExportaIndiceInvalido(t *testing.T) {
+	got := buildExporta(map[string]any{"export_uf_saida_pais": "PI", "export_loc_despacho_index": 3}, nil)
+	if len(got) != 1 || got["UFSaidaPais"] != "PI" {
+		t.Fatalf("want só UFSaidaPais: %v", got)
+	}
+	if buildExporta(map[string]any{}, nil) != nil {
+		t.Fatal("operação sem UF de saída não é exportação")
+	}
+}
+
+func TestBuildDetExportExportIndTudoOuNada(t *testing.T) {
+	got := buildDetExport([]map[string]any{
+		{"n_draw": "D1", "n_re": "123456789012", "ch_nfe": testDetExportKey, "q_export": "10.0000"},
+		{"n_draw": "D2", "n_re": "123456789012"},
+	})
+	if len(got) != 2 {
+		t.Fatalf("want 2 nós: %v", got)
+	}
+	if got[0]["exportInd"].(map[string]any)["nRE"] != "123456789012" {
+		t.Fatalf("exportInd errado: %v", got[0])
+	}
+	if _, ok := got[1]["exportInd"]; ok {
+		t.Fatalf("exportInd incompleto não pode sair: %v", got[1])
+	}
+	if buildDetExport(nil) != nil {
+		t.Fatal("sem exportação não há detExport")
+	}
+}
+
+const testDetExportKey = "22260811647612000197550010000000011100000015"
+
+func TestBuildIISoComValoresDeclarados(t *testing.T) {
+	got := buildII(map[string]any{"ii_v_ii": "50.00", "ii_v_desp_adu": "10.00"},
+		decimal.RequireFromString("100.00"))
+	if got["vBC"] != "100.00" || got["vII"] != "50.00" || got["vDespAdu"] != "10.00" || got["vIOF"] != "0.00" {
+		t.Fatalf("II errado: %v", got)
+	}
+	if buildII(map[string]any{}, decimal.RequireFromString("100.00")) != nil {
+		t.Fatal("item sem II declarado não gera o grupo")
+	}
+}

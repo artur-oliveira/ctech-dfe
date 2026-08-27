@@ -75,6 +75,10 @@ export const operationSchema = z.object({
     p_ret_irrf: z.string().optional().or(z.literal('')),
     p_ret_prev_inss: z.string().optional().or(z.literal('')),
   }),
+  /** Exportação: UF de saída do país e índice do local de despacho salvo na
+   *  organização (pickup_locations) — o endereço é referenciado, não copiado. */
+  export_uf_saida_pais: z.string().optional().or(z.literal('')),
+  export_loc_despacho_index: z.number().int().min(0).optional(),
   requires_receiver: z.boolean(),
   is_default: z.boolean(),
 })

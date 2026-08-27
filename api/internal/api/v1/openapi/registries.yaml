@@ -931,6 +931,14 @@ components:
             `{{cliente}}`, `{{nat_op}}`, `{{competencia}}`. Chave desconhecida é
             erro de validação **no cadastro**, nunca interpolação em branco no XML.
         inf_cpl: { type: [ string, 'null' ], maxLength: 5000 }
+        export_uf_saida_pais:
+          type: [ string, 'null' ]
+          description: UF de saída do país (`infNFe/exporta/UFSaidaPais`).
+        export_loc_despacho_index:
+          type: [ integer, 'null' ]
+          description: |
+            Índice em `organizations.pickup_locations` do recinto de despacho —
+            o endereço é referenciado, nunca recopiado.
         ret_trib:
           type: [ object, 'null' ]
           description: |

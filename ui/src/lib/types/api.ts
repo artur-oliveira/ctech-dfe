@@ -912,6 +912,15 @@ export interface ImportDeclarationItemOut {
   [field: string]: unknown
 }
 
+/** Exportação indireta do item (prod/detExport). O trio nRE+chNFe+qExport é
+ *  tudo-ou-nada. */
+export interface NfeDetExportIn {
+  n_draw?: string
+  n_re?: string
+  ch_nfe?: string
+  q_export?: string
+}
+
 /** Vínculo item↔adição da DI na emissão. nAdicao/nSeqAdic são derivados. */
 export interface NfeItemDIIn {
   import_declaration_id: string

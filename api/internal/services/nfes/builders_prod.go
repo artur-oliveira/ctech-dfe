@@ -81,6 +81,11 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	if dis, ok := item["import_declarations"].([]map[string]any); ok && len(dis) > 0 {
 		prod["DI"] = dis
 	}
+	if exports, ok := item["exports"].([]map[string]any); ok {
+		if node := buildDetExport(exports); node != nil {
+			prod["detExport"] = node
+		}
+	}
 
 	if combProd := anyStr(item, "comb_c_prod_anp", ""); combProd != "" {
 		combNode := map[string]any{
@@ -232,4 +237,45 @@ func buildDI(di map[string]any, additionIndex, seq int, nDraw string) map[string
 	}
 	node["adi"] = []map[string]any{adi}
 	return node
+}
+
+// buildDetExport monta prod/detExport — a exportação indireta do item.
+// Ordem XSD: nDraw, exportInd{nRE, chNFe, qExport}.
+func buildDetExport(exports []map[string]any) []map[string]any {
+	out := make([]map[string]any, 0, len(exports))
+	for _, e := range exports {
+		node := map[string]any{}
+		if v := anyStr(e, "n_draw", ""); v != "" {
+			node["nDraw"] = v
+		}
+		// exportInd é tudo-ou-nada: os três campos ou nenhum.
+		nRE, chNFe, qExport := anyStr(e, "n_re", ""), anyStr(e, "ch_nfe", ""), anyStr(e, "q_export", "")
+		if nRE != "" && chNFe != "" && qExport != "" {
+			node["exportInd"] = map[string]any{"nRE": nRE, "chNFe": chNFe, "qExport": qExport}
+		}
+		if len(node) > 0 {
+			out = append(out, node)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// buildII monta imposto/II — o imposto de importação do item. Sem despesa
+// aduaneira nem imposto declarados, não há grupo: o item importado que não
+// recolheu II não declara II.
+func buildII(item map[string]any, vProd decimal.Decimal) map[string]any {
+	vII := anyStr(item, "ii_v_ii", "")
+	vDespAdu := anyStr(item, "ii_v_desp_adu", "")
+	if vII == "" && vDespAdu == "" {
+		return nil
+	}
+	return map[string]any{
+		"vBC":      q2(vProd.RoundBank(2)),
+		"vDespAdu": strOrDefault(vDespAdu, "0.00"),
+		"vII":      strOrDefault(vII, "0.00"),
+		"vIOF":     strOrDefault(anyStr(item, "ii_v_iof", ""), "0.00"),
+	}
 }

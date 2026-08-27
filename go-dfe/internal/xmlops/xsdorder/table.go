@@ -240,6 +240,7 @@ var envInfe = map[string][]string{
 	"ISSQN":    {"vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"},
 	"ISSQNtot": {"vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"},
 	"obsItem":  {"obsCont", "obsFisco"},
+	"II":       {"vBC", "vDespAdu", "vII", "vIOF"},
 	"retTrib":  {"vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"},
 
 	// IBSCBSTot — totais IBS/CBS por nota (type TIBSCBSMonoTot)

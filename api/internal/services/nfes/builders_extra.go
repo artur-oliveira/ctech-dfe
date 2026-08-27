@@ -27,6 +27,9 @@ func truncateNatOp(s string) string {
 // posicionais de BuildEnviNFe. Cada tarefa de cobertura de tags acrescenta um
 // campo aqui em vez de mais um parâmetro na assinatura.
 type docExtras struct {
+	// Exporta é o grupo infNFe/exporta, já resolvido da operação + locais de
+	// retirada salvos na organização.
+	Exporta map[string]any
 	// NFref são os documentos referenciados já resolvidos (ide/NFref).
 	NFRefs []map[string]any
 	// Vols e Reboques são os volumes e reboques de transp, já resolvidos.
@@ -91,4 +94,38 @@ func buildProcRef(refs []NfeProcRefBody) []map[string]any {
 		return nil
 	}
 	return out
+}
+
+// buildExporta monta infNFe/exporta — UF de saída do país e local de despacho.
+// A UF vem da operação de exportação (nível 1) e o local reusa os
+// pickup_locations já salvos na organização, em vez de redigitar o endereço.
+// Ordem XSD: UFSaidaPais, xLocExporta, xLocDespacho.
+func buildExporta(op map[string]any, pickups []any) map[string]any {
+	uf := anyStr(op, "export_uf_saida_pais", "")
+	if uf == "" {
+		return nil
+	}
+	node := map[string]any{"UFSaidaPais": uf}
+	idx, ok := op["export_loc_despacho_index"].(float64)
+	if !ok {
+		if n, isInt := op["export_loc_despacho_index"].(int); isInt {
+			idx, ok = float64(n), true
+		}
+	}
+	if !ok || int(idx) < 0 || int(idx) >= len(pickups) {
+		return node
+	}
+	loc, _ := pickups[int(idx)].(map[string]any)
+	if loc == nil {
+		return node
+	}
+	// xLocExporta é o município onde a mercadoria sai; xLocDespacho, o
+	// logradouro do recinto — os dois saem do mesmo local salvo.
+	if v := anyStr(loc, "x_mun", ""); v != "" {
+		node["xLocExporta"] = v
+	}
+	if v := anyStr(loc, "x_lgr", ""); v != "" {
+		node["xLocDespacho"] = v
+	}
+	return node
 }

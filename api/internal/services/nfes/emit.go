@@ -115,6 +115,13 @@ type NfeProductItem struct {
 	// ImportDeclarations liga o item às adições da DI que o representam
 	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
 	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
+	// Exports são as exportações indiretas do item (prod/detExport).
+	Exports []NfeDetExportBody `json:"exports" validate:"omitempty,max=500,dive"`
+	// II é o imposto de importação do item: as despesas aduaneiras e o imposto
+	// são do lote importado, não do cadastro do produto.
+	IIVDespAdu *string `json:"ii_v_desp_adu" validate:"omitempty,money2"`
+	IIVII      *string `json:"ii_v_ii" validate:"omitempty,money2"`
+	IIVIOF     *string `json:"ii_v_iof" validate:"omitempty,money2"`
 	// PDevol é o percentual devolvido do item (impostoDevol). Só vale em nota
 	// de devolução (finNFe=4).
 	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
@@ -127,6 +134,15 @@ type NfeItemDIBody struct {
 	AdditionIndex int `json:"addition_index" validate:"required,min=1"`
 	// NDraw do embarque, quando difere do cadastrado na adição.
 	NDraw *string `json:"n_draw" validate:"omitempty,max=20"`
+}
+
+// NfeDetExportBody é uma exportação indireta do item (prod/detExport). O trio
+// nRE + chNFe + qExport é tudo-ou-nada: exportInd sem um deles é XML inválido.
+type NfeDetExportBody struct {
+	NDraw   *string `json:"n_draw" validate:"omitempty,max=20"`
+	NRE     *string `json:"n_re" validate:"omitempty,max=12,number"`
+	ChNFe   *string `json:"ch_nfe" validate:"omitempty,len=44,numeric"`
+	QExport *string `json:"q_export" validate:"omitempty,decimalv"`
 }
 
 // NfePaymentItem is a payment method in an NF-e emission request.
@@ -474,6 +490,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			ProcRef:          buildProcRef(req.ProcRef),
 			PaymentTerminals: terminals,
 			RetTrib:          operationGroup(operation, opFieldRetTrib),
+			Exporta:          buildExporta(operation, orgPickupLocations(orgItem)),
 			FinNFe4:          finNFe == finNFeDevolucao,
 			CsrtID:           strAttr(configItem, csrtIDField),
 			Csrt:             strAttr(configItem, csrtField),
@@ -873,6 +890,35 @@ func setDefault(cfg map[string]any, key, value string) {
 	cfg[key] = value
 }
 
+// detExportMaps traduz as exportações do request para o mapa que o builder lê.
+// orgPickupLocations lê os locais de retirada já salvos na organização — a
+// exportação reusa o recinto de despacho de emissões anteriores.
+func orgPickupLocations(org map[string]types.AttributeValue) []any {
+	plain, err := unmarshalToAny(org)
+	if err != nil {
+		return nil
+	}
+	locs, _ := plain["pickup_locations"].([]any)
+	return locs
+}
+
+// detExportMaps traduz as exportações do request para o mapa que o builder lê.
+func detExportMaps(exports []NfeDetExportBody) []map[string]any {
+	if len(exports) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(exports))
+	for _, e := range exports {
+		out = append(out, map[string]any{
+			"n_draw":   ptrStr(e.NDraw),
+			"n_re":     ptrStr(e.NRE),
+			"ch_nfe":   ptrStr(e.ChNFe),
+			"q_export": ptrStr(e.QExport),
+		})
+	}
+	return out
+}
+
 func resolveProducts(
 	ctx context.Context, productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository, orgPK, destUF string, items []NfeProductItem,
@@ -1010,6 +1056,10 @@ func resolveProducts(
 			"v_outro":              ptrStr(item.VOutro),
 			"total":                q2(itemTotal.RoundBank(2)),
 			"p_devol":              ptrStr(item.PDevol),
+			"ii_v_desp_adu":        ptrStr(item.IIVDespAdu),
+			"ii_v_ii":              ptrStr(item.IIVII),
+			"ii_v_iof":             ptrStr(item.IIVIOF),
+			"exports":              detExportMaps(item.Exports),
 			// Selo e enquadramento do IPI vêm do cadastro do produto.
 			"ipi_cnpj_prod": product["ipi_cnpj_prod"],
 			"ipi_c_selo":    product["ipi_c_selo"],

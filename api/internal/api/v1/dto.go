@@ -422,6 +422,12 @@ type OperationBody struct {
 	ObsCont  []ObsBody `json:"obs_cont" validate:"omitempty,max=10,dive"`
 	ObsFisco []ObsBody `json:"obs_fisco" validate:"omitempty,max=10,dive"`
 
+	// ExportUFSaidaPais e ExportLocDespachoIndex montam infNFe/exporta. O local
+	// aponta um índice em organizations.pickup_locations — o endereço não é
+	// copiado, é referenciado.
+	ExportUFSaidaPais      *string `json:"export_uf_saida_pais" validate:"omitempty,uf"`
+	ExportLocDespachoIndex *int    `json:"export_loc_despacho_index" validate:"omitempty,min=0"`
+
 	// RetTrib é o perfil de retenções federais do cenário (total/retTrib). Os
 	// percentuais são invariantes da operação; os valores saem da base da nota.
 	RetTrib *RetTribBody `json:"ret_trib" validate:"omitempty"`
