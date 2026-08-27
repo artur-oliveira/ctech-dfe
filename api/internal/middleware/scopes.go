@@ -110,3 +110,13 @@ func splitPermission(permission string) (action, resource string, ok bool) {
 	action, resource, ok = strings.Cut(permission, ".")
 	return action, resource, ok
 }
+
+// ScopeFamilies devolve o mapa de famílias de escopo. Cópia rasa pela mesma
+// razão de AllResources.
+func ScopeFamilies() map[string][]string {
+	out := make(map[string][]string, len(scopeFamilies))
+	for k, v := range scopeFamilies {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}

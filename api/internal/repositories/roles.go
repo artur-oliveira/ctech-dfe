@@ -199,3 +199,7 @@ func (r *RoleRepository) Upsert(ctx context.Context, name, description string, p
 
 	return item, r.PutItem(ctx, item)
 }
+
+// AllResources devolve os resources RBAC conhecidos. Cópia: a lista é global e
+// mutá-la de fora reescreveria as permissões do processo inteiro.
+func AllResources() []string { return append([]string(nil), resources...) }

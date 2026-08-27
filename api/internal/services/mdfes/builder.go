@@ -224,18 +224,6 @@ func (p buildParams) buildRodo() map[string]any {
 	return rodo
 }
 
-// buildInfANTT assembles the ANTT regulatory group (RNTRC + optional CIOT).
-func (p buildParams) buildInfANTT() map[string]any {
-	infANTT := map[string]any{}
-	if rntrc := p.resolveRNTRC(); rntrc != "" {
-		infANTT["RNTRC"] = rntrc
-	}
-	if p.ciot != nil && *p.ciot != "" {
-		infANTT["infCIOT"] = map[string]any{"CIOT": *p.ciot, "CPF": onlyDigits(p.firstCondutorCPF())}
-	}
-	return infANTT
-}
-
 // resolveRNTRC picks the request override, then the registered-vehicle owner RNTRC.
 func (p buildParams) resolveRNTRC() string {
 	if p.rntrc != nil && *p.rntrc != "" {
@@ -282,32 +270,6 @@ func tpTranspFor(o *resolvedOwner) string {
 		return tpTranspCTC
 	}
 	return tpTranspETC
-}
-
-func (p buildParams) buildInfDoc() map[string]any {
-	munDescarga := make([]map[string]any, 0, len(p.cargo.descarga))
-	for _, g := range p.cargo.descarga {
-		node := map[string]any{
-			"cMunDescarga": g.mun.IBGECode,
-			"xMunDescarga": g.mun.City,
-		}
-		if len(g.nfeKeys) > 0 {
-			nfes := make([]map[string]any, 0, len(g.nfeKeys))
-			for _, k := range g.nfeKeys {
-				nfes = append(nfes, map[string]any{"chNFe": k})
-			}
-			node["infNFe"] = nfes
-		}
-		if len(g.cteKeys) > 0 {
-			ctes := make([]map[string]any, 0, len(g.cteKeys))
-			for _, k := range g.cteKeys {
-				ctes = append(ctes, map[string]any{"chCTe": k})
-			}
-			node["infCTe"] = ctes
-		}
-		munDescarga = append(munDescarga, node)
-	}
-	return map[string]any{"infMunDescarga": munDescarga}
 }
 
 func (p buildParams) buildProdPred() map[string]any {
