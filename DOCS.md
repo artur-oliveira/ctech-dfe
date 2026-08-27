@@ -1346,6 +1346,15 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `nfp`    | `refNFP`    | `c_uf`, `aamm`, `cnpj` **ou** `cpf`, `ie`, `mod`, `serie`, `n_nf` |
 | `ecf`    | `refECF`    | `mod`, `n_ecf`, `n_coo`                                     |
 
+**Grupo `emit` — derivado do cadastro, nunca do request:**
+
+| Tag        | Origem                                                                                     |
+|------------|--------------------------------------------------------------------------------------------|
+| `IEST`     | `person.state_registrations[uf == UF do destinatário].ie_st` — só sai na operação em que o emitente é substituto tributário na UF de destino |
+| `IM`       | `person.nfse.im` — o mesmo campo que a NFS-e já usa                                          |
+| `CNAE`     | `person.cnae` — só sai junto de `IM`, como o leiaute exige                                   |
+| `ISUFEmit` | `person.isuf_emit` — Suframa do emitente                                                     |
+
 Neither `retirada`/`entrega` nor `autXML` (see Organizations §) require any py-dfe change —
 `xsd_order.py` already orders both. `autXML` is not a field on this body at all: it's always
 pulled from the organization's `authorized_xml_viewers` and included whenever non-empty.

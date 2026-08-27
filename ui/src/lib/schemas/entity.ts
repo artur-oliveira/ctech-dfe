@@ -26,6 +26,8 @@ export const addressSchema = z.object({
 export const stateRegistrationSchema = z.object({
   uf: z.enum(UF_LIST, {error: 'UF inválida'}),
   state_registration: z.string().min(1, 'IE obrigatória').max(20),
+  /** Inscrição de substituto tributário nesta UF (emit/IEST). */
+  ie_st: z.string().max(20).optional().or(z.literal('')),
 })
 
 // Papéis de pessoa (services.AllPersonRoles em api/internal/services/person_roles.go).
@@ -115,6 +117,10 @@ export const entitySchema = z.object({
       phones: z.string().regex(/^\d{10,11}$/, 'Telefone inválido').array().max(5, 'Máximo 5 telefones'),
     }).default({emails: [], phones: []}),
     nfse: nfseInfoSchema.default({im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''}),
+    /** CNAE do emitente — exigido pelo leiaute quando IM está presente. */
+    cnae: z.string().regex(/^\d{7}$/, 'CNAE tem 7 dígitos').optional().or(z.literal('')),
+    /** Inscrição Suframa do emitente (emit/ISUFEmit). */
+    isuf_emit: z.string().regex(/^\d{1,9}$/, 'Suframa é numérico').optional().or(z.literal('')),
   }),
 }).superRefine((data, ctx) => {
   const raw = data.cpf_or_cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase()

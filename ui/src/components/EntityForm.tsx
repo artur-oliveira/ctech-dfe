@@ -125,6 +125,8 @@ const DEFAULT_VALUES: EntityFormData = {
     addresses: [EMPTY_ADDRESS],
     contacts: {emails: [], phones: []},
     nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
+    cnae: '',
+    isuf_emit: '',
   },
 }
 
@@ -143,6 +145,7 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.contacts.emails.length > 0) return true
   if (data.person.contacts.phones.length > 0) return true
   if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
+  if (data.person.cnae || data.person.isuf_emit) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
   return false
 }
@@ -329,6 +332,16 @@ export function EntityForm({
                          </FormItem>
                        )}
             />
+            <FormField control={form.control as never}
+                       name={`person.state_registrations.${index}.ie_st`}
+                       render={({field: f}) => (
+                         <FormItem className="flex-1">
+                           {index === 0 && <FormLabel>IE de ST</FormLabel>}
+                           <Input {...f} value={f.value ?? ''} placeholder="Opcional" maxLength={20}/>
+                           <FormMessage/>
+                         </FormItem>
+                       )}
+            />
             <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
                     aria-label="Remover inscrição estadual"
                     className="mb-0.5 text-gray-400 hover:text-red-500 hover:bg-red-50">
@@ -337,6 +350,38 @@ export function EntityForm({
           </div>
         )
       })}
+    </div>
+  )
+
+  // CNAE e Suframa do emitente: NF-e mista (mercadoria + serviço) exige o CNAE
+  // junto da inscrição municipal, e ISUFEmit é a Suframa do próprio emitente.
+  const nfeEmitSection = (
+    <div className="pt-1 border-t border-gray-100">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">NF-e — emitente</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <FormField control={form.control as never} name="person.cnae"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>CNAE principal</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={7}
+                              inputMode="numeric" placeholder="7 dígitos"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+        <FormField control={form.control as never} name="person.isuf_emit"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>Inscrição Suframa</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={9}
+                              inputMode="numeric" placeholder="Somente números"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
+      </div>
     </div>
   )
 
@@ -543,6 +588,8 @@ export function EntityForm({
 
             {/* Inscrições Estaduais — sempre visível pra organização PJ (obrigatória) */}
             {isOrg && ieSection}
+
+            {isOrg && nfeEmitSection}
 
             {nfseSection}
           </SectionCard>
