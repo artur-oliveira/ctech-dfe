@@ -48,13 +48,20 @@ var regexValidators = map[string]*regexp.Regexp{
 	"prodcode": regexp.MustCompile(`^[A-Z0-9._\-]+$`),
 	"cean":     regexp.MustCompile(`^(\d{8,14}|SEM GTIN)$`),
 	"cbenef":   regexp.MustCompile(`^([!-ÿ]{8}|[!-ÿ]{10}|SEM CBENEF)$`),
-	"digits2":  regexp.MustCompile(`^\d{2}$`),
-	"extipi":   regexp.MustCompile(`^\d{2,3}$`),
-	"digits9":  regexp.MustCompile(`^\d{9}$`),
-	"digits14": regexp.MustCompile(`^\d{14}$`),
-	"class6":   regexp.MustCompile(`^\d{6}$`),
-	"letters2": regexp.MustCompile(`^[A-Z]{2}$`),
-	"ibscst":   regexp.MustCompile(`^(000|010|011|200|220|221|222|400|410|510|515|550|620|800|810|811|820|830)$`),
+	// cCredPresumido (prod/gCred) tem o mesmo formato do cBenef, mas sem o
+	// literal de ausência: sem código não há crédito presumido nenhum.
+	"ccredpres": regexp.MustCompile(`^([!-ÿ]{8}|[!-ÿ]{10})$`),
+	"digits2":   regexp.MustCompile(`^\d{2}$`),
+	"extipi":    regexp.MustCompile(`^\d{2,3}$`),
+	"digits9":   regexp.MustCompile(`^\d{9}$`),
+	"digits14":  regexp.MustCompile(`^\d{14}$`),
+	"class6":    regexp.MustCompile(`^\d{6}$`),
+	"letters2":  regexp.MustCompile(`^[A-Z]{2}$`),
+	"ibscst":    regexp.MustCompile(`^(000|010|011|200|220|221|222|400|410|510|515|550|620|800|810|811|820|830)$`),
+	// cana (infNFe/cana): mês de referência MM/AAAA e dia do mês sem zero à
+	// esquerda — os dois padrões vêm do próprio XSD.
+	"canaref": regexp.MustCompile(`^(0[1-9]|1[0-2])/2\d{3}$`),
+	"canadia": regexp.MustCompile(`^([1-9]|[12]\d|3[01])$`),
 	// Vehicle-product (veicProd) micro-formats
 	"d1":  regexp.MustCompile(`^\d$`),
 	"d12": regexp.MustCompile(`^\d{1,2}$`),

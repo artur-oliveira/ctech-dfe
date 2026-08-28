@@ -313,7 +313,7 @@ nada de mudar comportamento.
   }
   ```
 
-- [ ] **Step 1: Fixar o comportamento atual com um teste de ouro**
+- [x] **Step 1: Fixar o comportamento atual com um teste de ouro**
 
 Criar `api/internal/services/nfes/builders_golden_test.go`:
 
@@ -376,7 +376,7 @@ t.Fatalf("árvore mudou.\nwant:\n%s\ngot:\n%s", want, got)
 }
 ```
 
-- [ ] **Step 2: Gerar o golden e conferir que ele trava**
+- [x] **Step 2: Gerar o golden e conferir que ele trava**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildEnviNFeGolden -update
@@ -385,7 +385,7 @@ go test ./internal/services/nfes -run TestBuildEnviNFeGolden
 
 Esperado: primeiro comando cria `testdata/envinfe_golden.json`, segundo passa.
 
-- [ ] **Step 3: Mover as funções, sem editar corpo nenhum**
+- [x] **Step 3: Mover as funções, sem editar corpo nenhum**
 
 `git mv` não serve — é recorte por função. Distribuição:
 
@@ -396,7 +396,7 @@ Esperado: primeiro comando cria `testdata/envinfe_golden.json`, segundo passa.
 | `builders_extra.go`      | `truncateNatOp` e o `const` `natOpMaxLen`                                                                                                                                       |
 | `builders_doc.go` (fica) | `BuildEnviNFe`, `buildPag`, `buildCobr`, e os helpers `anyStr`, `anyStrPtr`, `getAnyInt`, `getCFOPConfig`, `findCFOPEntry`, `firstValue`, `dv`, `strOrDefault`, `firstNonEmpty` |
 
-- [ ] **Step 4: Extrair `buildIde`, `buildEmit` e `buildTotal` do corpo de `BuildEnviNFe`**
+- [x] **Step 4: Extrair `buildIde`, `buildEmit` e `buildTotal` do corpo de `BuildEnviNFe`**
 
 `buildIde` recebe `ideParams` e devolve exatamente o `map` que hoje é montado inline em
 `builders_doc.go:1009-1033`, incluindo o bloco de contingência:
@@ -425,7 +425,7 @@ return ide
 incluindo `ISSQNtot` quando `t.HasISSQN`. `BuildEnviNFe` passa a preencher um
 `totals` no laço em vez de 25 variáveis soltas.
 
-- [ ] **Step 5: Rodar o golden — nenhuma diferença é permitida**
+- [x] **Step 5: Rodar o golden — nenhuma diferença é permitida**
 
 ```bash
 cd api && go test ./internal/services/nfes/... -v
@@ -434,7 +434,7 @@ cd api && go test ./internal/services/nfes/... -v
 Esperado: PASS, incluindo `TestBuildEnviNFeGolden` **sem** `-update`. Se o golden acusar diferença, o split mudou
 comportamento: desfazer e refazer o recorte, nunca regravar o golden aqui.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add api/internal/services/nfes/
@@ -465,11 +465,11 @@ Mesma razão da Task 1, mais os dois getters que a Receita R1 exige.
     - `func repositories.AllResources() []string` — cópia defensiva de `resources`.
     - `func middleware.ScopeFamilies() map[string][]string` — cópia defensiva de `scopeFamilies`.
 
-- [ ] **Step 1: Escrever o teste de fiação (falha por não compilar)**
+- [x] **Step 1: Escrever o teste de fiação (falha por não compilar)**
 
 `api/internal/api/v1/org_entities_wiring_test.go`, com o corpo dado na Receita R1 (teste de fiação).
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/api/v1 -run TestEveryRegistryResourceHasScopeFamily
@@ -477,7 +477,7 @@ cd api && go test ./internal/api/v1 -run TestEveryRegistryResourceHasScopeFamily
 
 Esperado: FAIL de compilação — `undefined: repositories.AllResources`.
 
-- [ ] **Step 3: Criar os getters**
+- [x] **Step 3: Criar os getters**
 
 Em `api/internal/repositories/roles.go`:
 
@@ -501,7 +501,7 @@ return out
 }
 ```
 
-- [ ] **Step 4: Mover `buildInfANTT` e `buildInfDoc`, rodar tudo**
+- [x] **Step 4: Mover `buildInfANTT` e `buildInfDoc`, rodar tudo**
 
 ```bash
 cd api && go test ./internal/services/mdfes/... ./internal/api/v1/... ./internal/middleware/...
@@ -509,7 +509,7 @@ cd api && go test ./internal/services/mdfes/... ./internal/api/v1/... ./internal
 
 Esperado: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/internal/services/mdfes/ api/internal/repositories/roles.go api/internal/middleware/scopes.go api/internal/api/v1/org_entities_wiring_test.go
@@ -548,7 +548,7 @@ vira formulário.
     - `func buildNFref(refs []map[string]any) []map[string]any`
     - `ideParams` ganha o campo `NFref []map[string]any`.
 
-- [ ] **Step 1: Conferir a ordem XSD**
+- [x] **Step 1: Conferir a ordem XSD**
 
 ```bash
 rg '"NFref"|refNFeSig|refNFP' go-dfe/internal/xmlops/xsdorder/table.go py-dfe/py_dfe/xmlops/xsd_order.py
@@ -563,7 +563,7 @@ listado em `infNFe:ide`. Nada a acrescentar. Se faltar `refNF`/`refNFP`/`refECF`
 "refECF": {"mod", "nECF", "nCOO"},
 ```
 
-- [ ] **Step 2: Escrever o teste que falha**
+- [x] **Step 2: Escrever o teste que falha**
 
 `api/internal/services/nfes/references_test.go`:
 
@@ -612,7 +612,7 @@ func TestBuildNFrefCupomFiscal(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Rodar e ver falhar**
+- [x] **Step 3: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildNFref
@@ -620,7 +620,7 @@ cd api && go test ./internal/services/nfes -run TestBuildNFref
 
 Esperado: FAIL — `undefined: buildNFref`, `undefined: refKindNFe`.
 
-- [ ] **Step 4: Implementar `references.go`**
+- [x] **Step 4: Implementar `references.go`**
 
 ```go
 package nfes
@@ -688,7 +688,7 @@ func buildNFref(refs []map[string]any) []map[string]any {
 }
 ```
 
-- [ ] **Step 5: Rodar e ver passar**
+- [x] **Step 5: Rodar e ver passar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildNFref -v
@@ -696,7 +696,7 @@ cd api && go test ./internal/services/nfes -run TestBuildNFref -v
 
 Esperado: PASS nos três.
 
-- [ ] **Step 6: Ligar ao request e ao `ide`**
+- [x] **Step 6: Ligar ao request e ao `ide`**
 
 Em `emit.go`, dentro de `NfeEmitBody`:
 
@@ -799,7 +799,7 @@ ide["NFref"] = p.NFref
 }
 ```
 
-- [ ] **Step 7: Teste de emissão ponta a ponta e payload de integração**
+- [x] **Step 7: Teste de emissão ponta a ponta e payload de integração**
 
 Em `emit_test.go`, um teste que chama `Emit` com `FinNFe: ptr("4")` e `NFRefs` vazio e afirma o 400; outro com
 `NFRefs: []NfeRefBody{{Kind: ptr("nfe"), AccessKey: ptr("2226…")}}` e afirma `enviNFe.NFe.infNFe.ide.NFref`.
@@ -816,14 +816,14 @@ def build_nfe(..., nfref: list[dict] | None = None) -> tuple[dict, str]:
 e o teste `test_nfe_service.py::test_nfe_devolucao_com_nfref` monta uma devolução (`finNFe="4"`) contra uma chave
 autorizada na sessão anterior.
 
-- [ ] **Step 8: UI — seletor de nota**
+- [x] **Step 8: UI — seletor de nota**
 
 `ui/src/components/nfe/NfeEmitForm.tsx` ganha uma seção "Documentos referenciados", visível quando `fin_nfe != '1'`:
 um combobox que consulta `apiClient.getNfes({search})` e adiciona `{nfe_id}` à lista, mais um "documento externo"
 que abre os campos de `refNF`/`refNFP`/`refECF`. Schema zod novo em `ui/src/lib/schemas/nfe-refs.ts`, espelhando
 `NfeRefBody`, com `superRefine` exigindo `nfe_id` **ou** `kind`.
 
-- [ ] **Step 9: Rodar tudo e commitar**
+- [x] **Step 9: Rodar tudo e commitar**
 
 ```bash
 cd api && go test ./... && cd ../ui && npx eslint src --ext .ts,.tsx
@@ -858,7 +858,7 @@ Nível 1 (empresa). `IM` já está no cadastro e só precisa ser lido; os outros
 - Produces: `buildEmit` passa a emitir `IEST`, `IM`, `CNAE`, `ISUFEmit` quando presentes.
   `getIESTForUF(person map[string]any, uf string) string` em `builders_party.go`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildEmitIncluiIESTIMCNAE(t *testing.T) {
@@ -896,7 +896,7 @@ t.Fatalf("%s não deveria estar presente", k)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildEmit
@@ -904,7 +904,7 @@ cd api && go test ./internal/services/nfes -run TestBuildEmit
 
 Esperado: FAIL — chaves ausentes.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Em `builders_party.go`:
 
@@ -957,7 +957,7 @@ emit["ISUFEmit"] = suframa
 `buildEmit` ganha o parâmetro `destUF string` (o `IEST` depende da UF de destino) — atualizar a chamada em
 `BuildEnviNFe`.
 
-- [ ] **Step 4: DTO + validação**
+- [x] **Step 4: DTO + validação**
 
 `StateRegistrationBody` ganha `IeSt *string \`json:"ie_st" validate:"omitempty,max=20"\``.
 `PersonObjectBody` ganha:
@@ -970,7 +970,7 @@ Cnae *string `json:"cnae" validate:"omitempty,len=7,number"`
 IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
 ```
 
-- [ ] **Step 5: Rodar, atualizar docs, commitar**
+- [x] **Step 5: Rodar, atualizar docs, commitar**
 
 ```bash
 cd api && go test ./internal/services/nfes/... ./internal/api/v1/... && cd ../ui && npx eslint src --ext .ts,.tsx
@@ -1005,7 +1005,7 @@ Nível 5 (contraparte). Venda a pessoa no exterior e NFC-e a turista: hoje impos
   `func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, isNFCe bool, environment int, destIE string) map[string]any`
   — move o `switch` que hoje monta `destStruct` em `builders_doc.go:922-946` e acrescenta o ramo estrangeiro.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildDestEstrangeiro(t *testing.T) {
@@ -1029,7 +1029,7 @@ t.Fatalf("estrangeiro é sempre não contribuinte: %v", got["indIEDest"])
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildDestEstrangeiro
@@ -1037,7 +1037,7 @@ cd api && go test ./internal/services/nfes -run TestBuildDestEstrangeiro
 
 Esperado: FAIL — `undefined: buildDest`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Prefixo de SK novo em `repositories/persons.go`, junto de `CNPJ_`/`CPF_`:
 
@@ -1102,7 +1102,7 @@ IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
 
 com validação de struct: exatamente um de `cpf_or_cnpj` / `id_estrangeiro`.
 
-- [ ] **Step 4: Rodar, ver passar, e conferir que a emissão comum não mudou**
+- [x] **Step 4: Rodar, ver passar, e conferir que a emissão comum não mudou**
 
 ```bash
 cd api && go test ./internal/services/nfes/... -v
@@ -1110,7 +1110,7 @@ cd api && go test ./internal/services/nfes/... -v
 
 Esperado: PASS, **inclusive `TestBuildEnviNFeGolden`** — o refactor de `buildDest` não pode mexer no caso comum.
 
-- [ ] **Step 5: UI + docs + commit**
+- [x] **Step 5: UI + docs + commit**
 
 `EntityForm.tsx` ganha o toggle "pessoa no exterior" na variante `person`, que troca o campo de documento.
 `DynamoDB-Tables.md` §6: SK passa a admitir `IDEST_{documento}`.
@@ -1148,7 +1148,7 @@ Hoje `buildTransp` só monta um volume com peso. `esp`/`marca` são nível 2 (op
   ) map[string]any
   ```
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildTranspVolumesELacres(t *testing.T) {
@@ -1185,7 +1185,7 @@ t.Fatalf("volume derivado errado: %v", vols)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildTransp
@@ -1193,7 +1193,7 @@ cd api && go test ./internal/services/nfes -run TestBuildTransp
 
 Esperado: FAIL — assinatura antiga, `vol` é `map` e não lista.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Substituir o bloco de `vol` em `buildTransp` por:
 
@@ -1257,7 +1257,7 @@ RNTC  *string `json:"rntc" validate:"omitempty,max=20"`
 segundo). `esp`/`marca` sem valor no request caem para o default da operação:
 `OperationBody` ganha `VolEsp *string` e `VolMarca *string` (`max=60`), aplicados em `resolveTransport`.
 
-- [ ] **Step 4: Rodar e regravar o golden de propósito**
+- [x] **Step 4: Rodar e regravar o golden de propósito**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildTransp -v
@@ -1267,7 +1267,7 @@ git diff api/internal/services/nfes/testdata/envinfe_golden.json
 
 Esperado: o diff mostra **só** `vol` virando lista. Qualquer outra diferença é bug.
 
-- [ ] **Step 5: Payload de integração, UI e commit**
+- [x] **Step 5: Payload de integração, UI e commit**
 
 `build_nfe(..., vols=None, reboques=None)`. Na UI, `NfeEmitForm.tsx` ganha a seção "Volumes" com
 `useFieldArray`.
@@ -1297,7 +1297,7 @@ Nível 2. Hoje só `infCpl` é preenchido, embora `OperationBody.InfAdFisco` já
 - Produces:
   `func buildInfAdic(infAdFisco, infCpl string, obsCont, obsFisco []map[string]any, procRef []map[string]any) map[string]any`
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildInfAdicTodosOsDestinos(t *testing.T) {
@@ -1322,7 +1322,7 @@ t.Fatal("infAdic vazio tem que ser omitido, não presente e vazio")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildInfAdic
@@ -1330,7 +1330,7 @@ cd api && go test ./internal/services/nfes -run TestBuildInfAdic
 
 Esperado: FAIL — `undefined: buildInfAdic`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // buildInfAdic monta infAdic. Ordem XSD: infAdFisco, infCpl, obsCont, obsFisco,
@@ -1398,7 +1398,7 @@ ProcRef []NfeProcRefBody `json:"proc_ref" validate:"omitempty,max=100,dive"`
 
 `validateOperationPlaceholders` passa a percorrer também os `XTexto` de `ObsCont`/`ObsFisco`.
 
-- [ ] **Step 4: Rodar, atualizar golden, commitar**
+- [x] **Step 4: Rodar, atualizar golden, commitar**
 
 ```bash
 cd api && go test ./internal/services/nfes/... ./internal/api/v1/...
@@ -1441,12 +1441,12 @@ mil notas por dia — é o caso canônico de cadastro dedicado.
     — um `BatchGet` só, nunca `Get` dentro do laço.
     - `buildPag` ganha o parâmetro `terminals map[string]map[string]any`.
 
-- [ ] **Step 1: Aplicar R1.1–R1.3 e R1.8–R1.10 com estes valores**
+- [x] **Step 1: Aplicar R1.1–R1.3 e R1.8–R1.10 com estes valores**
 
 Tabela `organization_payment_terminals`, prefixo `TERMINAL_`, resource `organization_payment_terminals`, audit
 `PAYMENT_TERMINAL`, cache scope `payment_terminals`, chave CDK `payment_terminals`.
 
-- [ ] **Step 2: DTO (R1.4)**
+- [x] **Step 2: DTO (R1.4)**
 
 ```go
 // PaymentTerminalBody é o body de POST/PUT /payment-terminals.
@@ -1468,7 +1468,7 @@ TBand *string `json:"t_band" validate:"omitempty,max=2"`
 }
 ```
 
-- [ ] **Step 3: Teste de builder que falha**
+- [x] **Step 3: Teste de builder que falha**
 
 ```go
 func TestBuildPagComTerminal(t *testing.T) {
@@ -1492,7 +1492,7 @@ t.Fatalf("card incompleto: %v", card)
 }
 ```
 
-- [ ] **Step 4: Rodar e ver falhar**
+- [x] **Step 4: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildPagComTerminal
@@ -1500,7 +1500,7 @@ cd api && go test ./internal/services/nfes -run TestBuildPagComTerminal
 
 Esperado: FAIL — `buildPag` tem 2 parâmetros.
 
-- [ ] **Step 5: Implementar**
+- [x] **Step 5: Implementar**
 
 `NfePaymentItem` ganha `TerminalID *string \`json:"terminal_id" validate:"omitempty"\`` e
 `XPag *string \`json:"x_pag" validate:"omitempty,max=60"\``.
@@ -1539,7 +1539,7 @@ cardNode["tBand"] = v
 
 Ordem XSD de `card`: `tpIntegra, CNPJ, tBand, cAut, CNPJReceb, idTermPag`. Conferir nas duas tabelas de ordem.
 
-- [ ] **Step 6: Resolver os terminais em `Emit` e `NfceService.Emit`**
+- [x] **Step 6: Resolver os terminais em `Emit` e `NfceService.Emit`**
 
 ```go
 // resolvePaymentTerminals lê num BatchGet só todos os terminais citados pelos
@@ -1575,7 +1575,7 @@ return out, nil
 }
 ```
 
-- [ ] **Step 7: UI (R1.11), docs (R1.12) e commit**
+- [x] **Step 7: UI (R1.11), docs (R1.12) e commit**
 
 `DynamoDB-Tables.md` §37. `NfeEmitForm.tsx`/`NfceEmitForm`: quando `payment_type` é cartão (`03`/`04`), aparece o select
 de terminal.
@@ -1609,7 +1609,7 @@ Nível 1 + derivado. `hashCSRT = Base64(SHA1(CSRT + chave de acesso))`. O CSRT �
       por NF-e, NFC-e **e** MDF-e (o MDF-e importa do pacote `nfes` via um wrapper de uma linha, ou a função sobe para
       `services/` — decidir na implementação e justificar no comentário; a regra DRY exige uma só cópia).
 
-- [ ] **Step 1: Teste com vetor conhecido**
+- [x] **Step 1: Teste com vetor conhecido**
 
 ```go
 func TestHashCSRT(t *testing.T) {
@@ -1643,7 +1643,7 @@ t.Fatal("hashCSRT não pode aparecer sem CSRT configurado")
 Rodar o `openssl` do comentário **antes** de escrever `HashCSRT` e fixar `want` com o valor obtido. Se depois a
 implementação divergir, o erro está nela — a concatenação é `CSRT + chave`, sem separador (NT 2018.005).
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/nfes -run 'TestHashCSRT|TestBuildRespTec'
@@ -1651,7 +1651,7 @@ cd api && go test ./internal/services/nfes -run 'TestHashCSRT|TestBuildRespTec'
 
 Esperado: FAIL — `undefined: HashCSRT`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 package nfes
@@ -1690,7 +1690,7 @@ return node
 }
 ```
 
-- [ ] **Step 4: Configuração**
+- [x] **Step 4: Configuração**
 
 `fiscalConfigBase` ganha:
 
@@ -1708,7 +1708,7 @@ Teste obrigatório:
 func TestGetFiscalConfigNuncaDevolveCSRT(t *testing.T) { /* GET após PUT com csrt; afirma ausência da chave */ }
 ```
 
-- [ ] **Step 5: Rodar, documentar a regra em CONDUCT.md, commitar**
+- [x] **Step 5: Rodar, documentar a regra em CONDUCT.md, commitar**
 
 `CONDUCT.md` ganha uma linha em "Segredos": *CSRT e CSC nunca aparecem em resposta de API nem em log; só o hash derivado
 entra no XML.*
@@ -1744,7 +1744,7 @@ Nível 0 em tudo: os dados já existem, o builder simplesmente não os lê. `cat
     - `resolvedVehicle` ganha os campos `CInt string` e `CapM3 string`.
     - `func categCombVeic(trailers int) string`
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestCategCombVeic(t *testing.T) {
@@ -1764,7 +1764,7 @@ t.Fatalf("cInt/capM3 ausentes: %v", veic)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/mdfes -run 'TestCategCombVeic|TestBuildRodoInclui'
@@ -1772,7 +1772,7 @@ cd api && go test ./internal/services/mdfes -run 'TestCategCombVeic|TestBuildRod
 
 Esperado: FAIL — `undefined: categCombVeic`, campos ausentes.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Em `builder_antt.go`:
 
@@ -1822,7 +1822,7 @@ ender["xCpl"] = cpl
 
 `resolveVehicle` (em `mdfes/emit.go`) passa a copiar `cint` e `cap_m3` do item do DynamoDB para o struct.
 
-- [ ] **Step 4: Rodar, ver passar, commitar**
+- [x] **Step 4: Rodar, ver passar, commitar**
 
 ```bash
 cd api && go test ./internal/services/mdfes/... -v
@@ -1852,7 +1852,7 @@ invariantes; por viagem só entram nº da compra e valor.
     - `MdfeEmitBody` ganha `TollVouchers []MdfeTollBody` (`json:"toll_vouchers"`).
     - `func (p buildParams) buildValePed() map[string]any`
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildValePedComDispECategoria(t *testing.T) {
@@ -1879,7 +1879,7 @@ t.Fatal("valePed sem vale tem que ser omitido")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services/mdfes -run TestBuildValePed
@@ -1887,7 +1887,7 @@ cd api && go test ./internal/services/mdfes -run TestBuildValePed
 
 Esperado: FAIL — `undefined: buildValePed`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // buildValePed monta infANTT/valePed. Ordem XSD: disp (0..N), categCombVeic.
@@ -1947,7 +1947,7 @@ VValePed       string `json:"v_vale_ped" validate:"required,money2"`
 }
 ```
 
-- [ ] **Step 4: Rodar, UI (R1.11), docs (§38), commit**
+- [x] **Step 4: Rodar, UI (R1.11), docs (§38), commit**
 
 ```bash
 cd api && go test ./... && cd ../ui && npx eslint src --ext .ts,.tsx && cd ../cdk && npx tsc --noEmit
@@ -1976,7 +1976,7 @@ divergirem.
   10, e a emissão de MDF-e é rara comparada à de NF-e; documentar a escolha no comentário).
 - Produces: `func (p buildParams) buildInfContratante() []map[string]any`; `resolvedContractor` struct.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildInfContratanteComContrato(t *testing.T) {
@@ -1995,10 +1995,10 @@ t.Fatalf("infContrato errado: %v", ct)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `cd api && go test ./internal/services/mdfes -run TestBuildInfContratante`.
+- [x] **Step 2: Rodar e ver falhar** — `cd api && go test ./internal/services/mdfes -run TestBuildInfContratante`.
   Esperado: FAIL, `undefined: resolvedContractor`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // buildInfContratante monta infANTT/infContratante (0..10). Ordem XSD:
@@ -2037,7 +2037,7 @@ return out
 Contractors []MdfeContractorBody `json:"contractors" validate:"omitempty,max=10,dive"`
 ```
 
-- [ ] **Step 4: Rodar, docs, commit**
+- [x] **Step 4: Rodar, docs, commit**
 
 ```bash
 cd api && go test ./... && git add api DOCS.md && git commit -m "feat(mdfe): contratante do frete e contrato em infANTT"
@@ -2068,7 +2068,7 @@ escolhido** — nunca digitadas uma a uma (é a mesma lógica de `ExpandPaymentT
     - `func (p buildParams) buildInfPag() []map[string]any`
     - `services.ExpandInstallments` + `services.Installment{Number string; DueDate time.Time; Value decimal.Decimal}`
 
-- [ ] **Step 1: Teste que falha (dois: o compartilhado e o do MDF-e)**
+- [x] **Step 1: Teste que falha (dois: o compartilhado e o do MDF-e)**
 
 ```go
 // services/installments_test.go
@@ -2114,7 +2114,7 @@ t.Fatalf("PIX ausente: %v", got["infBanc"])
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 ```bash
 cd api && go test ./internal/services -run TestExpandInstallments ./internal/services/mdfes -run TestBuildInfPag
@@ -2122,7 +2122,7 @@ cd api && go test ./internal/services -run TestExpandInstallments ./internal/ser
 
 Esperado: FAIL nos dois.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 `services/installments.go` recebe o algoritmo que hoje está dentro de `nfes.ExpandPaymentTerm` (mover, não copiar), e
 `ExpandPaymentTerm` vira uma casca que traduz `PaymentTermBody` → `ExpandInstallments`.
@@ -2215,7 +2215,7 @@ CNPJIPEF   *string `json:"cnpj_ipef" validate:"omitempty,cnpj"`
 }
 ```
 
-- [ ] **Step 4: Regra de negócio: contratante exige infPag**
+- [x] **Step 4: Regra de negócio: contratante exige infPag**
 
 Em `MdfeService.Emit`, junto das outras validações:
 
@@ -2227,7 +2227,7 @@ return nil, problem.BadRequest("MDF-e com contratante exige o grupo de pagamento
 
 com teste em `mdfes_test.go`.
 
-- [ ] **Step 5: Rodar tudo (o refactor de parcelas toca NF-e), UI, docs, commit**
+- [x] **Step 5: Rodar tudo (o refactor de parcelas toca NF-e), UI, docs, commit**
 
 ```bash
 cd api && go test ./... && cd ../ui && npx eslint src --ext .ts,.tsx
@@ -2252,7 +2252,7 @@ Nível 7 puro. Três campos, um commit.
 - Consumes: `buildRodo`, `BuildMDFe`.
 - Produces: `MdfeEmitBody` ganha `Seals []string`, `RodoSeals []string`, `PortAgentCode *string`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildMDFeLacres(t *testing.T) {
@@ -2274,9 +2274,9 @@ t.Fatalf("codAgPorto ausente: %v", rodo)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestBuildMDFeLacres`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestBuildMDFeLacres`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Em `BuildMDFe`, depois de `tot` (ordem XSD de `infMDFe`: `ide, emit, infModal, infDoc, seg, prodPred, tot, lacres,
 autXML, infAdic, infRespTec, infSolicNFF`):
@@ -2310,7 +2310,7 @@ return out
 }
 ```
 
-- [ ] **Step 4: Rodar, commitar**
+- [x] **Step 4: Rodar, commitar**
 
 ```bash
 cd api && go test ./internal/services/mdfes/...
@@ -2340,7 +2340,7 @@ Nível 0. `SegCodBarra` é o código de barras da NF-e (a própria chave); `indR
 - Produces: cada documento de `infMunDescarga` passa a carregar `SegCodBarra` e, quando marcado, `indReentrega`.
   `MdfeEmitBody` ganha `RedeliveryKeys []string` (chaves que são reentrega).
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildInfDocSegCodBarra(t *testing.T) {
@@ -2358,9 +2358,9 @@ t.Fatalf("indReentrega ausente: %v", nfe)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestBuildInfDocSegCodBarra`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestBuildInfDocSegCodBarra`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 `const indReentregaSim = "1"` em `mdfes.go`. Em `buildInfDoc`, no laço de `nfeKeys`:
 
@@ -2377,7 +2377,7 @@ nfes = append(nfes, node)
 }
 ```
 
-- [ ] **Step 4: Rodar, commitar** —
+- [x] **Step 4: Rodar, commitar** —
   `git commit -m "feat(mdfe): deriva SegCodBarra e marca reentrega em infDoc"`
 
 ---
@@ -2401,7 +2401,7 @@ itens perigosos e monta `peri` sozinho. Digitar isso por viagem é o que o plano
     - `func resolvePeri(items []parsedItem, byCode map[string]map[string]any) []map[string]any`
     - `ProductBody` ganha o bloco `peri_*`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestResolvePeriSomaQuantidadesPorONU(t *testing.T) {
@@ -2431,9 +2431,9 @@ t.Fatal("nota sem produto perigoso não pode gerar peri")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestResolvePeri`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestResolvePeri`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 package mdfes
@@ -2504,7 +2504,7 @@ PeriQVolTipo  *string `json:"peri_q_vol_tipo" validate:"omitempty,max=60"`
 `buildInfDoc` acrescenta `peri` ao nó `infNFe` do documento correspondente (ordem:
 `chNFe, SegCodBarra, indReentrega, infUnidTransp, peri`).
 
-- [ ] **Step 4: Rodar, docs, commit**
+- [x] **Step 4: Rodar, docs, commit**
 
 `DynamoDB-Tables.md` §4 ganha as cinco linhas `peri_*`.
 
@@ -2537,7 +2537,7 @@ a partir dos pesos dos documentos, não digitado.
       por chave, com a **última** chave absorvendo o resíduo (mesma regra das parcelas).
     - `func (p buildParams) buildUnidTransp(docKey string) []map[string]any`
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestRateCargoSomaCem(t *testing.T) {
@@ -2560,9 +2560,9 @@ t.Fatalf("resíduo tem que cair na última chave: %v", got)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestRateCargo`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/mdfes -run TestRateCargo`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // rateCargo distribui 100% da unidade de carga entre os documentos que ela
@@ -2614,7 +2614,7 @@ IdUnid string `json:"id_unid" validate:"required,max=20"`
 `buildUnidTransp` monta `infUnidTransp{tpUnidTransp, idUnidTransp, lacUnidTransp[], infUnidCarga[], qtdRat}` com
 `qtdRat` vindo de `rateCargo`, e `infUnidCarga{tpUnidCarga, idUnidCarga, lacUnidCarga[], qtdRat}` aninhado.
 
-- [ ] **Step 4: Rodar, UI, docs (§39), commit**
+- [x] **Step 4: Rodar, UI, docs (§39), commit**
 
 ```bash
 cd api && go test ./... && cd ../ui && npx eslint src --ext .ts,.tsx && cd ../cdk && npx tsc --noEmit
@@ -2639,7 +2639,7 @@ Nível 7 (+0 para `qMDFe`, que é contagem).
 - Produces: `MdfeEmitBody` ganha `PartialDeliveries []MdfePartialDeliveryBody` e `TransportedMdfes []string`;
   `buildTot` passa a emitir `qMDFe`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildTotQMDFe(t *testing.T) {
@@ -2657,13 +2657,13 @@ p.partial = map[string]partialDelivery{"chNFe1": {QtdTotal: "10.0000", QtdParcia
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar** — `infMDFeTransp` reusa exatamente a mesma montagem de `infNFe`/`infCTe`
+- [x] **Step 3: Implementar** — `infMDFeTransp` reusa exatamente a mesma montagem de `infNFe`/`infCTe`
   (`chMDFe, indReentrega, infUnidTransp, peri`), então extrair uma função
   `docNode(key string, p buildParams, tag string) map[string]any` e chamar as três vezes, em vez de três laços.
 
-- [ ] **Step 4: Rodar, commit** —
+- [x] **Step 4: Rodar, commit** —
   `git commit -m "feat(mdfe): entrega parcial, prestação parcial e MDF-e transportado"`
 
 ---
@@ -2684,7 +2684,7 @@ tarefas pequenas de propósito, para poderem ser revisadas em separado.
 - Produces: `TaxFieldsBody` ganha `IcmsPartPBCOp *string` e `IcmsPartUFST *string`; `buildICMSNormal` passa a devolver
   `ICMSPart` quando ambos estão presentes e o CST é 10 ou 90.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildICMSPart(t *testing.T) {
@@ -2706,9 +2706,9 @@ t.Fatal("ICMSPart substitui ICMS10, não convive")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/nfes -run TestBuildICMSPart`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/nfes -run TestBuildICMSPart`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 No início do `switch cst`, antes dos cases:
 
@@ -2732,7 +2732,7 @@ return map[string]any{"ICMSPart": node}
 
 com `var icmsPartCSTs = map[string]bool{"10": true, "90": true}` junto de `icmsCSTDifalEligible`.
 
-- [ ] **Step 4: Rodar, payload de integração, commit**
+- [x] **Step 4: Rodar, payload de integração, commit**
 
 ```bash
 cd api && go test ./internal/services/nfes -run TestBuildICMS -v
@@ -2752,7 +2752,7 @@ Hoje CST 41 cai em `ICMS40`, que é isenção — errado para repasse interestad
 - Produces: `TaxFieldsBody` ganha `IcmsVBcStDest *string` e `IcmsVIcmsStDest *string`; CST 41 com o par presente passa a
   produzir `ICMSST`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildICMSSTRepasse(t *testing.T) {
@@ -2779,9 +2779,9 @@ t.Fatalf("esperava ICMS40, veio %v", got)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar** — no `case "40", "41", "50"`, antes do `return` atual:
+- [x] **Step 3: Implementar** — no `case "40", "41", "50"`, antes do `return` atual:
 
 ```go
     case "40", "41", "50":
@@ -2808,7 +2808,7 @@ return map[string]any{"ICMSST": node}
 return map[string]any{"ICMS40": addDeson(map[string]any{"orig": origin, "CST": cst})}
 ```
 
-- [ ] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): grupo ICMSST para repasse de ST retida (CST 41)"`
+- [x] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): grupo ICMSST para repasse de ST retida (CST 41)"`
 
 ---
 
@@ -2825,7 +2825,7 @@ Exigido por MG, RS e outras na revenda de mercadoria com ST. Um grupo, três lug
     - `func addICMSEfetivo(node map[string]any, vProd decimal.Decimal, cfg map[string]any)` — chamada de
       `ICMS60`, `ICMSST` e `ICMSSN500`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestAddICMSEfetivoCalculaBaseEValor(t *testing.T) {
@@ -2847,9 +2847,9 @@ t.Fatalf("sem configuração, nada pode ser acrescentado: %v", node)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // addICMSEfetivo acrescenta o grupo do ICMS efetivo (vBCEfet, pRedBCEfet,
@@ -2875,7 +2875,7 @@ node["vICMSEfet"] = q2(vBCEfet.Mul(d(*pICMSEfet)).Div(decimal.NewFromInt(100)).R
 Chamar no fim do `case "60"`, no ramo `ICMSST` da Task 20, e no ramo CSOSN 500 de `buildICMSSN`. Ordem XSD em ICMS60:
 `…vFCPSTRet, pRedBCEfet, vBCEfet, pICMSEfet, vICMSEfet`.
 
-- [ ] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): ICMS efetivo em ICMS60, ICMSST e ICMSSN500"`
+- [x] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): ICMS efetivo em ICMS60, ICMSST e ICMSSN500"`
 
 ---
 
@@ -2888,7 +2888,7 @@ Dois grupos pequenos, um commit — mudam o mesmo `switch` e compartilham o padr
 - Produces: `TaxFieldsBody` ganha `IcmsMotDesSt *string` e `IcmsPFcpDif *string`;
   `addSTDeson(node)` e `addFCPDif(node)` como closures irmãs de `addDeson`/`addFCP`, dentro de `buildICMSNormal`.
 
-- [ ] **Step 1: Testes que falham**
+- [x] **Step 1: Testes que falham**
 
 ```go
 func TestICMS70ComSTDesonerada(t *testing.T) {
@@ -2910,9 +2910,9 @@ t.Fatalf("FCP diferido errado: %v", n)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
     // addSTDeson: ST desonerada. vICMSSTDeson é o ICMS-ST que deixou de ser
@@ -2941,7 +2941,7 @@ return nd
 
 `addSTDeson` entra em 10, 70 e 90; `addFCPDif` em 51 e 90. Conferir a ordem XSD dos dois grupos nas tabelas.
 
-- [ ] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): ST desonerada e FCP diferido nos grupos de ICMS"`
+- [x] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): ST desonerada e FCP diferido nos grupos de ICMS"`
 
 ---
 
@@ -2958,7 +2958,7 @@ IPI por unidade é bebida e cigarro; o selo é nível 4 (produto).
     - `buildIPI(ipiCST string, vProd, qty decimal.Decimal, cfg, item map[string]any) map[string]any` — assinatura nova.
     - `TaxFieldsBody` ganha `IpiVUnid *string`; `ProductBody` ganha `IpiCnpjProd`, `IpiCSelo`, `IpiQSelo`, `IpiCEnq`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildIPIPorUnidade(t *testing.T) {
@@ -2984,14 +2984,14 @@ t.Fatalf("selo ausente: %v", ipi)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar** — dentro de `buildIPI`, o ramo tributado passa a escolher entre os dois modos (`vUnid`
+- [x] **Step 3: Implementar** — dentro de `buildIPI`, o ramo tributado passa a escolher entre os dois modos (`vUnid`
   presente ⇒ `qUnid`+`vUnid`; senão `vBC`+`pIPI`), e o nó `IPI` externo ganha
   `CNPJProd`/`cSelo`/`qSelo` antes de `cEnq` (ordem XSD: `CNPJProd, cSelo, qSelo, cEnq, choice{IPITrib|IPINT}`).
   `cEnq` deixa de ser fixo `"999"` e passa a ler `item["ipi_c_enq"]` com `"999"` de default.
 
-- [ ] **Step 4: Rodar, atualizar golden, commit** —
+- [x] **Step 4: Rodar, atualizar golden, commit** —
   `git commit -am "feat(nfe): IPI por unidade e selo de controle"`
 
 ---
@@ -3008,7 +3008,7 @@ Combustíveis e farmacêutico. Os quatro campos já existem em `TaxFieldsBody` (
     - `func buildCOFINSST(cfg map[string]any, vProd decimal.Decimal) map[string]any`
     - Ambas devolvem `nil` quando não configuradas; `imposto["PISST"]`/`imposto["COFINSST"]` só entram se não-nil.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildPISST(t *testing.T) {
@@ -3025,9 +3025,9 @@ t.Fatal("sem configuração de ST, o grupo não existe")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar** — uma função genérica parametrizada pelos nomes das tags, e duas cascas:
+- [x] **Step 3: Implementar** — uma função genérica parametrizada pelos nomes das tags, e duas cascas:
 
 ```go
 // buildPISCOFINSST monta PISST/COFINSST, que têm estrutura idêntica e só
@@ -3059,7 +3059,7 @@ return buildPISCOFINSST(cfg, vProd, "cofins_st_aliq", "cofins_st_v_bc", "pCOFINS
 }
 ```
 
-- [ ] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): grupos PISST e COFINSST"`
+- [x] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): grupos PISST e COFINSST"`
 
 ---
 
@@ -3078,7 +3078,7 @@ Nível 2: o **perfil** de retenção fica na operação; os valores são calcula
     - `func buildRetTrib(profile map[string]any, base decimal.Decimal) map[string]any`
     - `buildTotal` ganha o parâmetro `retTrib map[string]any`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildRetTribCalculaSobreABase(t *testing.T) {
@@ -3097,13 +3097,13 @@ t.Fatal("INSS não configurado não pode aparecer")
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar.**
+- [x] **Step 2: Rodar e ver falhar.**
 
-- [ ] **Step 3: Implementar** — ordem XSD:
+- [x] **Step 3: Implementar** — ordem XSD:
   `vRetPIS, vRetCOFINS, vRetCSLL, vBCIRRF, vIRRF, vBCRetPrev, vRetPrev`. `vBCIRRF`/`vBCRetPrev` só aparecem acompanhados
   do respectivo valor.
 
-- [ ] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): retenções federais em total/retTrib"`
+- [x] **Step 4: Rodar, commit** — `git commit -am "feat(nfe): retenções federais em total/retTrib"`
 
 ---
 
@@ -3118,7 +3118,7 @@ devolvido é nível 7 (é da nota); o `vIPIDevol` é calculado.
   `func buildImpostoDevol (pDevol string, vIPI decimal.Decimal) map[string]any`;
   `ICMSTot.vIPIDevol` deixa de ser fixo `"0.00"`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildImpostoDevol(t *testing.T) {
@@ -3129,7 +3129,7 @@ t.Fatalf("impostoDevol errado: %v", got)
 }
 ```
 
-- [ ] **Step 2/3/4:** implementar, somar em `totals.VIPIDevol`, emitir `vIPIDevol` no `ICMSTot`, e validar em `Emit`
+- [x] **Step 2/3/4:** implementar, somar em `totals.VIPIDevol`, emitir `vIPIDevol` no `ICMSTot`, e validar em `Emit`
   que `p_devol` só é aceito com `finNFe=4` (`problem.BadRequest` caso contrário, com teste).
   `git commit -am "feat(nfe): impostoDevol na devolução por não contribuinte"`
 
@@ -3149,7 +3149,7 @@ t.Fatalf("impostoDevol errado: %v", got)
     - `TaxFieldsBody`/`ProductBody` ganham `obs_item_x_campo`/`obs_item_x_texto`;
       `func buildObsItem(cfg, item map[string]any) map[string]any`.
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit
+- [x] **Steps:** teste → falha → implementação → PASS → commit
   (`feat(nfe): ICMS retido pelo remetente e observação fiscal por item`).
 
 ---
@@ -3166,7 +3166,7 @@ segundo catálogo seria a duplicação que o plano proíbe.
 - Produces: `NfeProductItem` ganha `ServiceID *string`; `resolveProducts` passa a aceitar item de serviço (produto
   **ou** serviço, nunca ambos); `buildISSQN(vBC decimal.Decimal, cfg, service map[string]any) map[string]any`.
 
-- [ ] **Steps:** teste com item de serviço completo → falha → implementação → PASS → payload de integração
+- [x] **Steps:** teste com item de serviço completo → falha → implementação → PASS → payload de integração
   (`build_nfe(..., servicos=[…])`) → commit
   (`feat(nfe): NF-e mista com ISSQN completo reusando o catálogo de serviços`).
 
@@ -3194,7 +3194,7 @@ e vários itens; `nAdicao`/`nSeqAdic` são **derivados** do vínculo item↔adi�
       `{ImportDeclarationID string; AdditionIndex int; NDraw *string}`.
     - `func buildDI(di map[string]any, additionIndex, seq int, nDraw string) map[string]any`
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildDIDerivaNumeroDaAdicao(t *testing.T) {
@@ -3218,9 +3218,9 @@ t.Fatalf("adição derivada errada: %v", adi)
 }
 ```
 
-- [ ] **Step 2: Rodar e ver falhar** — `go test ./internal/services/nfes -run TestBuildDI`.
+- [x] **Step 2: Rodar e ver falhar** — `go test ./internal/services/nfes -run TestBuildDI`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```go
 // ImportDeclarationBody é o body de POST/PUT /import-declarations.
@@ -3261,10 +3261,10 @@ NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
 `adi` contendo só a adição escolhida (`nAdicao, nSeqAdic, cFabricante, vDescDI, nDraw`).
 `vAFRMM` obrigatório quando `tpViaTransp == "01"`: validar no serviço, com `problem.BadRequest`, e testar.
 
-- [ ] **Step 4: Ligar em `resolveProducts`** — as DIs citadas por todos os itens são lidas num `BatchGet` só, como os
+- [x] **Step 4: Ligar em `resolveProducts`** — as DIs citadas por todos os itens são lidas num `BatchGet` só, como os
   perfis fiscais já são hoje (`loadTaxProfiles`). Uma DI inexistente é `problem.NotFound`.
 
-- [ ] **Step 5: Rodar, UI, docs (§40), commit**
+- [x] **Step 5: Rodar, UI, docs (§40), commit**
 
 ```bash
 cd api && go test ./... && cd ../ui && npx eslint src --ext .ts,.tsx && cd ../cdk && npx tsc --noEmit
@@ -3284,7 +3284,7 @@ Nível 4 — quatro campos do produto, um commit.
   `CBarra *string` (`max=30`), `CBarraTrib *string` (`max=30`); `buildProd` os emite na ordem XSD (`cProd, cEAN, cBarra, xProd, NCM, NVE, CEST, indEscala, CNPJFab, cBenef, gCred, EXTIPI, CFOP, uCom, qCom,
   vUnCom, vProd, cEANTrib, cBarraTrib, uTrib, …`).
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildProdNVEComoLista(t *testing.T) {
@@ -3300,7 +3300,7 @@ t.Fatalf("nFCI ausente: %v", prod)
 }
 ```
 
-- [ ] **Step 2/3/4:** falhar → implementar → PASS → commit
+- [x] **Step 2/3/4:** falhar → implementar → PASS → commit
   (`feat(nfe): NVE, nFCI e códigos de barra próprios no produto`).
 
 ---
@@ -3318,7 +3318,7 @@ a UF de saída vem da operação de exportação; o local de despacho reusa `pic
       `organizations.pickup_locations`, para não copiar o endereço).
     - `func buildExporta(op map[string]any, pickups []any) map[string]any` em `builders_extra.go`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildExportaUsaLocalDeRetiradaSalvo(t *testing.T) {
@@ -3331,7 +3331,7 @@ t.Fatalf("exporta errado: %v", got)
 }
 ```
 
-- [ ] **Step 2/3/4:** falhar → implementar (`xLocExporta` = município do local; ordem
+- [x] **Step 2/3/4:** falhar → implementar (`xLocExporta` = município do local; ordem
   `UFSaidaPais, xLocExporta, xLocDespacho`) → PASS → commit
   (`feat(nfe): exportação direta e indireta (exporta e detExport)`).
 
@@ -3347,7 +3347,7 @@ Casado com a DI da Task 29. Nível 3 para as alíquotas, nível 7 para as despes
   `func buildII(item map[string]any, vProd decimal.Decimal) map[string]any`;
   `ICMSTot.vII` deixa de ser fixo `"0.00"` e passa a somar `totals.VII`.
 
-- [ ] **Steps:** teste (`vII` somado no total, `II` ausente quando não há DI) → falha → implementação → PASS → commit
+- [x] **Steps:** teste (`vII` somado no total, `II` ausente quando não há DI) → falha → implementação → PASS → commit
   (`feat(nfe): imposto de importação no item e no total`).
 
 ---
@@ -3563,7 +3563,7 @@ condicional (`xMotivoIsencao` **exige** ausência de `vPMC`).
 - Produces: `buildVeicProd(item map[string]any) (map[string]any, error)` — devolve erro nomeando o campo faltante em vez
   de inventar valor; `buildMed(item map[string]any) (map[string]any, error)` idem.
 
-- [ ] **Steps:** teste que afirma erro explícito por campo faltante → falha → implementação → PASS → commit
+- [x] **Steps:** teste que afirma erro explícito por campo faltante → falha → implementação → PASS → commit
   (`fix(nfe): remove defaults inventados de veicProd e valida med`).
 
 ---
@@ -3584,7 +3584,7 @@ Três grupos de nicho, um commit por não compartilharem nada além do nível de
     - `compra`: `OperationBody` ganha `CompraXNEmp *string`; `NfeEmitBody` ganha `CompraXPed`/`CompraXCont`;
       `func buildCompra(op map[string]any, xPed, xCont string) map[string]any`.
 
-- [ ] **Steps por grupo:** teste → falha → implementação → PASS → commit (`feat(nfe): grupo agropecuario`,
+- [x] **Steps por grupo:** teste → falha → implementação → PASS → commit (`feat(nfe): grupo agropecuario`,
   `feat(nfe): grupo cana`, `feat(nfe): grupo compra`).
 
 ---
@@ -3604,7 +3604,7 @@ Quatro itens pequenos, agrupados por serem todos "um campo, um nível óbvio".
       (override) — nível 2 + 7.
     - `NfeProductItem` ganha `XPed *string` e `NItemPed *string` — nível 7.
 
-- [ ] **Steps:** um teste por campo → falha → implementação → PASS → commit
+- [x] **Steps:** um teste por campo → falha → implementação → PASS → commit
   (`feat(nfe): papel imune, marketplace, datas de saída/entrega e pedido do cliente`).
 
 ---
@@ -3627,13 +3627,13 @@ apropriação de crédito presumido sem `gCredPresOper` no item.
 
 - Produces: `ideParams` ganha `CIndOp, CMunFGIBS, TpNFDebito, TpNFCredito string` e `CompraGov map[string]any`;
   `OperationBody` ganha os quatro primeiros; `func buildCompraGov(op map[string]any, refs []string) map[string]any`.
-- [ ] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): campos de ide da reforma tributária`).
+- [x] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): campos de ide da reforma tributária`).
 
 ## Task 43: `prod/gCred`, `prod/tpCredPresIBSZFM`, `prod/indBemMovelUsado`
 
 Nível 4/3. `gCred` é lista (`cCredPres`, `pCredPres`, `vCredPres`).
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit
+- [x] **Steps:** teste → falha → implementação → PASS → commit
   (`feat(nfe): crédito presumido e bem móvel usado no produto`).
 
 ## Task 44: `gTribRegular` e `gTribCompraGov` no item
@@ -3641,31 +3641,31 @@ Nível 4/3. `gCred` é lista (`cCredPres`, `pCredPres`, `vCredPres`).
 Ambos repetem a quádrupla CST/cClassTrib/alíquota/valor — extrair `buildTribBlock(prefix string, cfg map[string]any,
 vBC decimal.Decimal) map[string]any` e usá-la nos dois, em vez de duas cópias.
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): gTribRegular e gTribCompraGov`).
+- [x] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): gTribRegular e gTribCompraGov`).
 
 ## Task 45: `gIBSCBSMono` — `gMonoReten`, `gMonoRet`, `gMonoDif` e seus totais
 
 O bloco monofásico da reforma. Espelha, em IBS/CBS, o que `ICMS02/15/53/61` já fazem em ICMS — reusar o mesmo formato de
 alíquota específica (`adRem`) e o mesmo cálculo por quantidade.
 
-- [ ] **Steps:** teste por sub-grupo → falha → implementação → PASS → commit (`feat(nfe): grupo monofásico de IBS/CBS`).
+- [x] **Steps:** teste por sub-grupo → falha → implementação → PASS → commit (`feat(nfe): grupo monofásico de IBS/CBS`).
 
 ## Task 46: `gTransfCred`, `gAjusteCompet`, `gEstornoCred`
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit
+- [x] **Steps:** teste → falha → implementação → PASS → commit
   (`feat(nfe): transferência, ajuste de competência e estorno de crédito`).
 
 ## Task 47: `gCredPresOper`, `gCredPresIBSZFM`, `gALCZFMCBS`
 
 `gALCZFMCBS` é novo no `PL_010e_v1.02` — conferir que existe na versão do XSD em `py-dfe/schemas/` antes de emitir.
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): créditos presumidos e ALC/ZFM`).
+- [x] **Steps:** teste → falha → implementação → PASS → commit (`feat(nfe): créditos presumidos e ALC/ZFM`).
 
 ## Task 48: `pDevTrib` nos três `gDevTrib`
 
 Um campo, três lugares (`gIBSUF`, `gIBSMun`, `gCBS`) — uma função aplicada três vezes.
 
-- [ ] **Steps:** teste → falha → implementação → PASS → commit
+- [x] **Steps:** teste → falha → implementação → PASS → commit
   (`feat(nfe): pDevTrib nos grupos de devolução de tributo`).
 
 ## Task 49: Totais da reforma — `IBSCBSTot/gMono`, `IBSCBSTot/gEstornoCred`, `ISTot`, `vNFTot`
@@ -3682,7 +3682,7 @@ func TestTotaisDaReformaConservamASomaDosItens(t *testing.T) {
 }
 ```
 
-- [ ] **Steps:** teste de conservação → falha → implementação → PASS → payload de integração completo → commit
+- [x] **Steps:** teste de conservação → falha → implementação → PASS → payload de integração completo → commit
   (`feat(nfe): totais da reforma tributária`).
 
 ---

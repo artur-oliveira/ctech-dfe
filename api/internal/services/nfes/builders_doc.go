@@ -210,6 +210,9 @@ func BuildEnviNFe(
 	extra docExtras,
 ) map[string]any {
 	isNFCe := model == nfModel65
+	// Período de apuração da reforma (AAAA-MM): é o mês da emissão, nunca um
+	// campo — gAjusteCompet e gCredPresIBSZFM leem daqui.
+	competApur := now.Format(competApurLayout)
 	orgPerson := getPersonMap(org)
 	orgAddress := services.FirstAddress(orgPerson)
 	orgCRT := getAnyInt(orgPerson, "crt", 1)
@@ -220,11 +223,11 @@ func BuildEnviNFe(
 	}
 
 	emitDoc := services.StripPKPrefix(orgPK)
-	isEmitPJ := strings.HasPrefix(orgPK, "CNPJ_")
+	isEmitPJ := strings.HasPrefix(orgPK, cnpjPrefix)
 
 	receiverSK := anyStr(receiver, "sk", "")
 	destDoc := services.StripPKPrefix(receiverSK)
-	isDestPJ := strings.HasPrefix(receiverSK, "CNPJ_")
+	isDestPJ := strings.HasPrefix(receiverSK, cnpjPrefix)
 	destPerson := getPersonMap(receiver)
 	destAddress := services.FirstAddress(destPerson)
 	destUF := anyStr(destAddress, "state_federation", "")
@@ -411,23 +414,18 @@ func BuildEnviNFe(
 		ibsMunAliq := cfgStr(cfopEntry, "ibs_mun_aliq", "0.0000")
 		cbsAliq := cfgStr(cfopEntry, "cbs_aliq", "0.0000")
 
-		gIBSCBS := buildGIBSCBS(ibsCBSCST, ibsCBSClassTrib, vBCIBSCBS, ibsUFAliq, ibsMunAliq, cbsAliq, cfopEntry)
+		gIBSCBS := buildIBSCBS(ibsCBSParams{
+			CST: ibsCBSCST, ClassTrib: ibsCBSClassTrib, VBC: vBCIBSCBS,
+			IBSUFAliq: ibsUFAliq, IBSMunAliq: ibsMunAliq, CBSAliq: cbsAliq,
+			Cfg: cfopEntry, Quantity: qty, CompetApur: competApur,
+			TpCredPresIBSZFM: anyStr(item, "tp_cred_pres_ibs_zfm", ""),
+			NProcSuframa:     anyStr(item, "alc_zfm_n_proc_suframa", ""),
+			TransfCred:       itemIBSCBSPair(item, "transf_cred"),
+			AjusteCompet:     itemIBSCBSPair(item, "ajuste_compet"),
+			EstornoCred:      itemIBSCBSPair(item, "estorno_cred"),
+		})
 
-		if !ibsCBSExempt[ibsCBSCST] {
-			if inner, ok := gIBSCBS["gIBSCBS"].(map[string]any); ok {
-				t.IBSBC = t.IBSBC.Add(vBCIBSCBS)
-				gIBSUF, _ := inner["gIBSUF"].(map[string]any)
-				gIBSMunMap, _ := inner["gIBSMun"].(map[string]any)
-				itemIBSUF := d(anyStr(gIBSUF, "vIBSUF", "0"))
-				itemIBSMun := d(anyStr(gIBSMunMap, "vIBSMun", "0"))
-				t.IBSUF = t.IBSUF.Add(itemIBSUF)
-				t.IBSMun = t.IBSMun.Add(itemIBSMun)
-				t.IBS = t.IBS.Add(itemIBSUF).Add(itemIBSMun)
-				t.CBSBC = t.CBSBC.Add(vBCIBSCBS)
-				gCBSMap, _ := inner["gCBS"].(map[string]any)
-				t.CBS = t.CBS.Add(d(anyStr(gCBSMap, "vCBS", "0")))
-			}
-		}
+		accumulateIBSCBS(&t, gIBSCBS, vBCIBSCBS)
 
 		var prodDescription string
 		if isNFCe && environment == 2 && i == 0 {
@@ -534,6 +532,11 @@ func BuildEnviNFe(
 		isNode := buildIS(isCST, vBCIBSCBS, isAliq, cfopEntry)
 		if isNode != nil {
 			imposto["IS"] = isNode["IS"]
+			// O ISTot é a soma do vIS dos itens — lida do nó emitido, não
+			// recalculada, para que total e itens fechem centavo a centavo.
+			if inner, ok := isNode["IS"].(map[string]any); ok {
+				t.VIS = t.VIS.Add(d(anyStr(inner, "vIS", "0")))
+			}
 		}
 
 		detItem := map[string]any{
@@ -591,6 +594,11 @@ func BuildEnviNFe(
 		Mode:     mode,
 		VerProc:  tech.Version,
 		NFref:    extra.NFRefs,
+		DhSaiEnt: extra.DhSaiEnt, DPrevEntrega: extra.DPrevEntrega,
+		IndIntermed: extra.IndIntermed,
+		CIndOp:      extra.CIndOp, CMunFGIBS: extra.CMunFGIBS,
+		TpNFDebito: extra.TpNFDebito, TpNFCredito: extra.TpNFCredito,
+		CompraGov: extra.CompraGov, PagAntecipado: extra.PagAntecipado,
 	})
 	infNFe := map[string]any{
 		"@versao": "4.00",
@@ -627,6 +635,18 @@ func BuildEnviNFe(
 		extra.ObsCont, extra.ObsFisco, extra.ProcRef); infAdic != nil {
 		infNFe["infAdic"] = infAdic
 	}
+	if len(extra.InfIntermed) > 0 {
+		infNFe["infIntermed"] = extra.InfIntermed
+	}
+	if len(extra.Compra) > 0 {
+		infNFe["compra"] = extra.Compra
+	}
+	if len(extra.Cana) > 0 {
+		infNFe["cana"] = extra.Cana
+	}
+	if len(extra.Agropecuario) > 0 {
+		infNFe["agropecuario"] = extra.Agropecuario
+	}
 	infNFe["infRespTec"] = services.BuildRespTec(
 		tech.CNPJ, tech.Name, tech.Email, tech.Phone,
 		extra.CsrtID, extra.Csrt, accessKey)
@@ -661,6 +681,24 @@ func getAnyInt(m map[string]any, key string, def int) int {
 		}
 	}
 	return def
+}
+
+// anyInt lê um inteiro opcional de um mapa vindo do DynamoDB (onde números
+// chegam como float64). O segundo retorno distingue "ausente" de "zero" — um
+// offset de 0 dia significa saída no mesmo dia, não campo em branco.
+func anyInt(m map[string]any, key string) (int, bool) {
+	if m == nil {
+		return 0, false
+	}
+	switch n := m[key].(type) {
+	case int:
+		return n, true
+	case int64:
+		return int(n), true
+	case float64:
+		return int(n), true
+	}
+	return 0, false
 }
 
 func getCFOPConfig(item map[string]any) []any {

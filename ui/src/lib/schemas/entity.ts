@@ -34,7 +34,7 @@ export const stateRegistrationSchema = z.object({
 // Papel é filtro de cadastro, não regra fiscal: a emissão nunca valida papel, e
 // uma pessoa acumula quantos papéis forem verdade ao mesmo tempo — transportadora
 // que também é cliente é o caso normal, não a exceção.
-export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider', 'freight_contractor'] as const
+export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider', 'freight_contractor', 'intermediary'] as const
 export type PersonRole = typeof PERSON_ROLES[number]
 
 export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
@@ -44,7 +44,11 @@ export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
   driver: 'Condutor',
   provider: 'Prestador',
   freight_contractor: 'Contratante de frete',
+  intermediary: 'Intermediador / marketplace',
 }
+
+/** Papel do intermediador da transação — quem a NF-e declara em infIntermed. */
+export const PERSON_ROLE_INTERMEDIARY: PersonRole = 'intermediary'
 
 // Papel pré-marcado num cadastro novo de pessoa.
 export const PERSON_ROLE_DEFAULT: PersonRole = 'customer'
@@ -125,6 +129,13 @@ export const entitySchema = z.object({
     cnae: z.string().regex(/^\d{7}$/, 'CNAE tem 7 dígitos').optional().or(z.literal('')),
     /** Inscrição Suframa do emitente (emit/ISUFEmit). */
     isuf_emit: z.string().regex(/^\d{1,9}$/, 'Suframa é numérico').optional().or(z.literal('')),
+    /** Identificador do emitente no cadastro do intermediador
+     *  (NF-e infIntermed/idCadIntTran) — o "seller id" do marketplace. */
+    intermediary_id: z.string().max(60).optional().or(z.literal('')),
+    /** CPF do responsável técnico agronômico (NF-e agropecuario/CPFRespTec).
+     *  É o mesmo agrônomo em toda nota de defensivo, então mora no cadastro. */
+    technical_manager_cpf: z.string().optional().or(z.literal(''))
+      .refine((v) => !v || validateCPF(v.replace(/\D/g, '')), 'CPF inválido'),
     /** Recebimento do condutor/TAC (MDF-e infANTT/infPag/infBanc). Choice:
      *  PIX, ou banco + agência, ou CNPJ da instituição de pagamento. */
     bank: z.object({

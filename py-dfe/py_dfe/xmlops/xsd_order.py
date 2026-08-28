@@ -177,17 +177,63 @@ _ENVINFE: dict[str, list[str]] = {
         "gIBSMun",
         "vIBS",
         "gCBS",
+        "gTribRegular",
+        "gTribCompraGov",
     ],
 
     # Subgrupos IBS estadual / municipal / CBS
     "gIBSUF":  ["pIBSUF",  "gDif", "gDevTrib", "gRed", "vIBSUF"],
     "gIBSMun": ["pIBSMun", "gDif", "gDevTrib", "gRed", "vIBSMun"],
-    "gCBS":    ["pCBS",    "gDif", "gDevTrib", "gRed", "vCBS"],
+    "gCBS":    ["pCBS",    "gDif", "gDevTrib", "gRed", "gALCZFMCBS", "vCBS"],
 
-    # IS — Imposto Seletivo (NT 2024.001)
+    # Subgrupos genéricos de diferimento, devolução e redução — compartilhados
+    # por gIBSUF, gIBSMun e gCBS.
+    "gDif":     ["pDif", "vDif"],
+    "gDevTrib": ["pDevTrib", "vDevTrib"],
+    "gRed":     ["pRedAliq", "pAliqEfet"],
+
+    # gALCZFMCBS — alíquota zero da CBS em ALC/ZFM (dentro de gCBS)
+    "gALCZFMCBS": ["tpALCZFMCBS", "nProcSuframa", "pAliqEfetRegCBS", "vTribRegCBS"],
+
+    # Tributação de referência do item (dentro de gIBSCBS)
+    "gTribRegular": [
+        "CSTReg", "cClassTribReg",
+        "pAliqEfetRegIBSUF", "vTribRegIBSUF",
+        "pAliqEfetRegIBSMun", "vTribRegIBSMun",
+        "pAliqEfetRegCBS", "vTribRegCBS",
+    ],
+    "gTribCompraGov": [
+        "pAliqIBSUF", "vTribIBSUF",
+        "pAliqIBSMun", "vTribIBSMun",
+        "pAliqCBS", "vTribCBS",
+    ],
+
+    # gIBSCBSMono — monofasia de IBS/CBS no item (type TMonofasia)
+    "gIBSCBSMono": ["gMonoPadrao", "gMonoReten", "gMonoRet", "gMonoDif", "vTotIBSMonoItem", "vTotCBSMonoItem"],
+    "gMonoPadrao": ["qBCMono", "adRemIBS", "adRemCBS", "vIBSMono", "vCBSMono"],
+    "gMonoReten":  ["qBCMonoReten", "adRemIBSReten", "vIBSMonoReten", "adRemCBSReten", "vCBSMonoReten"],
+    "gMonoRet":    ["qBCMonoRet", "adRemIBSRet", "vIBSMonoRet", "adRemCBSRet", "vCBSMonoRet"],
+    "gMonoDif":    ["pDifIBS", "vIBSMonoDif", "pDifCBS", "vCBSMonoDif"],
+
+    # Transferência de crédito, ajuste de competência e estorno no item
+    "gTransfCred":   ["vIBS", "vCBS"],
+    "gAjusteCompet": ["competApur", "vIBS", "vCBS"],
+    "gEstornoCred":  ["vIBSEstCred", "vCBSEstCred"],
+
+    # Créditos presumidos no item
+    "gCredPresOper":   ["vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"],
+    "gIBSCredPres":    ["pCredPres", "vCredPres", "vCredPresCondSus"],
+    "gCBSCredPres":    ["pCredPres", "vCredPres", "vCredPresCondSus"],
+    "gCredPresIBSZFM": ["competApur", "tpCredPresIBSZFM", "vCredPresIBSZFM"],
+
+    # Compras governamentais e antecipação de pagamento (dentro de ide)
+    "gCompraGov":     ["tpEnteGov", "pRedutor", "tpOperGov", "refDFeAnt"],
+    "gPagAntecipado": ["refNFe"],
+
+    # IS — Imposto Seletivo (PL_010e_v1.02)
     "IS": [
-        "CST", "cClassTrib", "vBC", "qBCIS",
-        "pAliq", "vAliqEspIS", "vIS",
+        "CSTIS", "cClassTribIS", "vBCIS", "pIS",
+        "adRemIS", "uTrib", "qTrib", "vIS",
     ],
 
     # Grupos ICMS
@@ -250,6 +296,13 @@ _ENVINFE: dict[str, list[str]] = {
 
     # gCBS dentro de IBSCBSTot
     "IBSCBSTot:gCBS": ["vDif", "vDevTrib", "vCBS", "vCredPres", "vCredPresCondSus"],
+
+    # gMono dentro de IBSCBSTot — totais da monofasia da reforma
+    "IBSCBSTot:gMono": [
+        "vIBSMono", "vCBSMono",
+        "vIBSMonoReten", "vCBSMonoReten",
+        "vIBSMonoRet", "vCBSMonoRet",
+    ],
 
     "ICMSTot": [
         "vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
@@ -341,6 +394,7 @@ _ENV_EVENTO_NFE: dict[str, list[str]] = {
         "descEvento",
         "xCorrecao", "xCondUso",               # CC-e (110110)
         "cOrgaoAutor", "tpAutor", "verAplic",  # cancel-subst (110112), EPEC (110140)
+        "tpEventoAut", "nProtEvento",          # cancelamento de evento (110001)
         "dhEmi", "tpNF", "IE", "dest",         # EPEC (110140)
         "vNF", "vICMS",                        # EPEC (110140) — filhos diretos de detEvento
         "idPedidoCancelado",                   # cancel-prorrogação (111502/111503)

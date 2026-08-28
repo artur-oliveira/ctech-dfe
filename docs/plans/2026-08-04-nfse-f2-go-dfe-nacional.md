@@ -13,7 +13,7 @@ reusado; `dfe.Call` ganha um desvio antes dele para `docType == "nfse"`. Dentro 
 a tabela `xsdorder` usada pelos outros doc types. Assinatura, carga de certificado e mTLS são os existentes, sem
 alteração: `xmlops.Sign` e `certificate.Load`.
 
-**Tech Stack:** Go 1.26, `encoding/xml`, `compress/gzip`, `encoding/base64`, `net/http`, `crypto/tls`. Zero dependência
+**Tech Stack:** go 1.27, `encoding/xml`, `compress/gzip`, `encoding/base64`, `net/http`, `crypto/tls`. Zero dependência
 nova.
 
 **Spec:** `docs/specs/2026-08-04-nfse-design.md` §4 inteiro, §3.7 (consome as tabelas da F1), §9 (linhas `go-dfe`).

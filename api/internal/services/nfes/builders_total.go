@@ -21,7 +21,27 @@ type totals struct {
 	// RegTribISSQN é o regime especial de tributação do prestador (cRegTrib).
 	RegTribISSQN                          string
 	IBSBC, IBSUF, IBSMun, IBS, CBSBC, CBS decimal.Decimal
-	Products, Discount                    decimal.Decimal
+	// Reforma tributária: cada grupo novo do item tem seu acumulador no total.
+	// Diferimento e devolução de tributo, por esfera.
+	IBSUFDif, IBSMunDif, CBSDif             decimal.Decimal
+	IBSUFDevTrib, IBSMunDevTrib, CBSDevTrib decimal.Decimal
+	// Crédito presumido, separando o crédito do crédito com condição suspensiva
+	// (o choice do XSD) em cada esfera.
+	IBSCredPres, IBSCredPresCondSus decimal.Decimal
+	CBSCredPres, CBSCredPresCondSus decimal.Decimal
+	// Monofasia: padrão, com retenção e já retido — os três somam em gMono.
+	IBSMono, CBSMono           decimal.Decimal
+	IBSMonoReten, CBSMonoReten decimal.Decimal
+	IBSMonoRet, CBSMonoRet     decimal.Decimal
+	// Estorno de crédito.
+	IBSEstCred, CBSEstCred decimal.Decimal
+	// VIS é o Imposto Seletivo somado dos itens (total/ISTot).
+	VIS decimal.Decimal
+	// HasIBSCBSMono e HasEstornoCred marcam a presença dos sub-grupos
+	// opcionais do total: gMono e gEstornoCred só existem quando algum item os
+	// trouxe — nó vazio é rejeição.
+	HasIBSCBSMono, HasEstornoCred bool
+	Products, Discount            decimal.Decimal
 	// VIPIDevol é o IPI devolvido (impostoDevol) somado dos itens; VII é o
 	// imposto de importação somado.
 	VIPIDevol, VII decimal.Decimal
@@ -39,6 +59,11 @@ func newTotals(products, discount decimal.Decimal) totals {
 		VServ: z, VBCISSQN: z, VISSQN: z, VPISISSQN: z, VCOFINSISSQN: z,
 		VDeducaoISSQN: z, VOutroISSQN: z, VDescIncondISSQN: z, VDescCondISSQN: z, VISSRet: z,
 		IBSBC: z, IBSUF: z, IBSMun: z, IBS: z, CBSBC: z, CBS: z,
+		IBSUFDif: z, IBSMunDif: z, CBSDif: z,
+		IBSUFDevTrib: z, IBSMunDevTrib: z, CBSDevTrib: z,
+		IBSCredPres: z, IBSCredPresCondSus: z, CBSCredPres: z, CBSCredPresCondSus: z,
+		IBSMono: z, CBSMono: z, IBSMonoReten: z, CBSMonoReten: z,
+		IBSMonoRet: z, CBSMonoRet: z, IBSEstCred: z, CBSEstCred: z, VIS: z,
 		VIPIDevol: z, VII: z,
 		Products: products, Discount: discount,
 	}
@@ -80,29 +105,16 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 	}
 
 	totalNode := map[string]any{
-		"ICMSTot": icmsTot,
-		"IBSCBSTot": map[string]any{
-			"vBCIBSCBS": q2(t.IBSBC.RoundBank(2)),
-			"gIBS": map[string]any{
-				"gIBSUF": map[string]any{
-					"vDif": "0.00", "vDevTrib": "0.00",
-					"vIBSUF": q2(t.IBSUF.RoundBank(2)),
-				},
-				"gIBSMun": map[string]any{
-					"vDif": "0.00", "vDevTrib": "0.00",
-					"vIBSMun": q2(t.IBSMun.RoundBank(2)),
-				},
-				"vIBS":             q2(t.IBS.RoundBank(2)),
-				"vCredPres":        "0.00",
-				"vCredPresCondSus": "0.00",
-			},
-			"gCBS": map[string]any{
-				"vDif": "0.00", "vDevTrib": "0.00",
-				"vCBS":             q2(t.CBS.RoundBank(2)),
-				"vCredPres":        "0.00",
-				"vCredPresCondSus": "0.00",
-			},
-		},
+		"ICMSTot":   icmsTot,
+		"IBSCBSTot": buildIBSCBSTot(t),
+	}
+	// ISTot e vNFTot só existem quando a reforma incide: o vNFTot é o total do
+	// documento com os tributos por fora, e um total igual ao vNF só polui.
+	if t.VIS.IsPositive() {
+		totalNode["ISTot"] = map[string]any{"vIS": q2(t.VIS.RoundBank(2))}
+	}
+	if vNFTot := reformDocumentTotal(t, vNF); vNFTot != nil {
+		totalNode["vNFTot"] = *vNFTot
 	}
 	if len(retTrib) > 0 {
 		totalNode["retTrib"] = retTrib
@@ -190,4 +202,70 @@ func buildImpostoDevol(pDevol string, vIPI decimal.Decimal) map[string]any {
 		"pDevol": pDevol,
 		"IPI":    map[string]any{"vIPIDevol": q2(vIPIDevol)},
 	}
+}
+
+// buildIBSCBSTot monta total/IBSCBSTot (type TIBSCBSMonoTot). Ordem XSD:
+// vBCIBSCBS, gIBS, gCBS, gMono, gEstornoCred.
+//
+// Todo valor aqui é a **soma dos itens**, lida dos nós que já foram emitidos —
+// nunca um segundo cálculo sobre a mesma base, que é como total e itens deixam
+// de fechar.
+func buildIBSCBSTot(t totals) map[string]any {
+	node := map[string]any{
+		"vBCIBSCBS": q2(t.IBSBC.RoundBank(2)),
+		"gIBS": map[string]any{
+			"gIBSUF": map[string]any{
+				"vDif":     q2(t.IBSUFDif.RoundBank(2)),
+				"vDevTrib": q2(t.IBSUFDevTrib.RoundBank(2)),
+				"vIBSUF":   q2(t.IBSUF.RoundBank(2)),
+			},
+			"gIBSMun": map[string]any{
+				"vDif":     q2(t.IBSMunDif.RoundBank(2)),
+				"vDevTrib": q2(t.IBSMunDevTrib.RoundBank(2)),
+				"vIBSMun":  q2(t.IBSMun.RoundBank(2)),
+			},
+			"vIBS":             q2(t.IBS.RoundBank(2)),
+			"vCredPres":        q2(t.IBSCredPres.RoundBank(2)),
+			"vCredPresCondSus": q2(t.IBSCredPresCondSus.RoundBank(2)),
+		},
+		"gCBS": map[string]any{
+			"vDif":             q2(t.CBSDif.RoundBank(2)),
+			"vDevTrib":         q2(t.CBSDevTrib.RoundBank(2)),
+			"vCBS":             q2(t.CBS.RoundBank(2)),
+			"vCredPres":        q2(t.CBSCredPres.RoundBank(2)),
+			"vCredPresCondSus": q2(t.CBSCredPresCondSus.RoundBank(2)),
+		},
+	}
+	if t.HasIBSCBSMono {
+		node["gMono"] = map[string]any{
+			"vIBSMono":      q2(t.IBSMono.RoundBank(2)),
+			"vCBSMono":      q2(t.CBSMono.RoundBank(2)),
+			"vIBSMonoReten": q2(t.IBSMonoReten.RoundBank(2)),
+			"vCBSMonoReten": q2(t.CBSMonoReten.RoundBank(2)),
+			"vIBSMonoRet":   q2(t.IBSMonoRet.RoundBank(2)),
+			"vCBSMonoRet":   q2(t.CBSMonoRet.RoundBank(2)),
+		}
+	}
+	if t.HasEstornoCred {
+		node["gEstornoCred"] = map[string]any{
+			"vIBSEstCred": q2(t.IBSEstCred.RoundBank(2)),
+			"vCBSEstCred": q2(t.CBSEstCred.RoundBank(2)),
+		}
+	}
+	return node
+}
+
+// reformDocumentTotal devolve o vNFTot — o total do documento com os tributos
+// por fora (IBS, CBS e IS) somados ao vNF. Devolve nil quando a reforma não
+// incide em item nenhum: repetir o vNF numa tag nova não informa nada.
+func reformDocumentTotal(t totals, vNF decimal.Decimal) *string {
+	extra := t.IBS.Add(t.CBS).
+		Add(t.IBSMono).Add(t.CBSMono).
+		Add(t.IBSMonoReten).Add(t.CBSMonoReten).
+		Add(t.VIS)
+	if !extra.IsPositive() {
+		return nil
+	}
+	out := q2(vNF.Add(extra).RoundBank(2))
+	return &out
 }

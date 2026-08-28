@@ -166,6 +166,10 @@ export interface PersonOut {
   isuf_emit?: string | null
   bank?: PersonBank | null
   freight_retention?: PersonFreightRetention | null
+  /** Identificador do emitente no cadastro do intermediador (infIntermed/idCadIntTran). */
+  intermediary_id?: string | null
+  /** CPF do responsável técnico agronômico (NF-e agropecuario/CPFRespTec). */
+  technical_manager_cpf?: string | null
 }
 
 export interface ContactsOut {
@@ -383,6 +387,30 @@ export interface CfopConfigItem {
   ibs_ad_rem?: string | null
   cbs_ad_rem?: string | null
   ibs_cbs_p_dev_trib?: string | null
+  // Monofasia da reforma (gIBSCBSMono): retenção, já retido e diferimento.
+  ibs_ad_rem_reten?: string | null
+  cbs_ad_rem_reten?: string | null
+  ibs_ad_rem_ret?: string | null
+  cbs_ad_rem_ret?: string | null
+  ibs_p_dif_mono?: string | null
+  cbs_p_dif_mono?: string | null
+  // Tributação de referência (gTribRegular) e de compra governamental.
+  ibs_reg_cst?: string | null
+  ibs_reg_class_trib?: string | null
+  ibs_reg_uf_aliq?: string | null
+  ibs_reg_mun_aliq?: string | null
+  cbs_reg_aliq?: string | null
+  ibs_gov_uf_aliq?: string | null
+  ibs_gov_mun_aliq?: string | null
+  cbs_gov_aliq?: string | null
+  // Créditos presumidos e alíquota zero da CBS em ALC/ZFM.
+  ibs_cbs_c_cred_pres?: string | null
+  ibs_p_cred_pres?: string | null
+  cbs_p_cred_pres?: string | null
+  ibs_cbs_cred_pres_cond_sus?: string | null
+  ibs_zfm_p_cred_pres?: string | null
+  alc_zfm_tp_cbs?: string | null
+  alc_zfm_n_proc_suframa?: string | null
   // IPI
   ipi_cst?: string | null
   ipi_aliq?: string | null
@@ -461,6 +489,15 @@ export interface ProductOut {
   n_fci?: string | null
   c_barra?: string | null
   c_barra_trib?: string | null
+  /** RECOPI do papel imune (prod/nRECOPI), 20 dígitos. */
+  n_recopi?: string | null
+  /** Créditos presumidos da UF (prod/gCred, máx. 4). O vCredPresumido é
+   *  derivado do percentual sobre o valor do item na emissão. */
+  gcred?: GCredIn[] | null
+  /** Classificação da subapuração do IBS na ZFM (prod/tpCredPresIBSZFM). */
+  tp_cred_pres_ibs_zfm?: string | null
+  /** prod/indBemMovelUsado. O XSD enumera um valor só: 1. */
+  ind_bem_movel_usado?: string | null
   /** Selo de controle do IPI e enquadramento legal. */
   ipi_cnpj_prod?: string | null
   ipi_c_selo?: string | null
@@ -550,6 +587,15 @@ export interface ProductCreate {
   n_fci?: string | null
   c_barra?: string | null
   c_barra_trib?: string | null
+  /** RECOPI do papel imune (prod/nRECOPI), 20 dígitos. */
+  n_recopi?: string | null
+  /** Créditos presumidos da UF (prod/gCred, máx. 4). O vCredPresumido é
+   *  derivado do percentual sobre o valor do item na emissão. */
+  gcred?: GCredIn[] | null
+  /** Classificação da subapuração do IBS na ZFM (prod/tpCredPresIBSZFM). */
+  tp_cred_pres_ibs_zfm?: string | null
+  /** prod/indBemMovelUsado. O XSD enumera um valor só: 1. */
+  ind_bem_movel_usado?: string | null
   /** Selo de controle do IPI e enquadramento legal. */
   ipi_cnpj_prod?: string | null
   ipi_c_selo?: string | null
@@ -1244,6 +1290,28 @@ export interface NfeProductIn {
   veic_x_cor?: string | null
   // arma — por unidade
   armas?: NfeArmaIn[] | null
+  /** Pedido de compra do cliente (prod/xPed, ≤15) e o item dentro dele. */
+  x_ped?: string | null
+  n_item_ped?: string | null
+  /** Grupos apurados da reforma. transf_cred e ajuste_compet substituem a
+   *  apuração normal do item (choice do XSD); estorno_cred convive com ela. */
+  transf_cred?: NfeIBSCBSPairIn | null
+  ajuste_compet?: NfeIBSCBSPairIn | null
+  estorno_cred?: NfeIBSCBSPairIn | null
+  /** Processo Suframa deste embarque (gALCZFMCBS/nProcSuframa). */
+  alc_zfm_n_proc_suframa?: string | null
+}
+
+/** Crédito presumido da UF aplicado ao item (prod/gCred). */
+export interface GCredIn {
+  c_cred_presumido: string
+  p_cred_presumido: string
+}
+
+/** Par de valores IBS/CBS apurados por nota. Um lado sozinho vale zero no outro. */
+export interface NfeIBSCBSPairIn {
+  v_ibs?: string | null
+  v_cbs?: string | null
 }
 
 export interface NfePaymentIn {
@@ -1303,6 +1371,63 @@ export interface NfeEmit {
   nf_refs?: NfeRefIn[] | null
   /** Processos referenciados (infAdic/procRef). */
   proc_ref?: NfeProcRefIn[] | null
+  /** Pedido e contrato desta nota (infNFe/compra). A nota de empenho é da operação. */
+  compra_x_ped?: string | null
+  compra_x_cont?: string | null
+  /** Registro mensal de aquisição de cana (infNFe/cana). A safra é da operação. */
+  cana?: NfeCanaIn | null
+  /** Grupo agropecuario: receituários **ou** guia de trânsito, nunca os dois. */
+  agro?: NfeAgroIn | null
+  /** Saída da mercadoria (ide/dhSaiEnt). Vence o prazo padrão da operação. */
+  dh_sai_ent?: string | null
+  /** Previsão de entrega ou disponibilização do bem (ide/dPrevEntrega). */
+  d_prev_entrega?: string | null
+  /** Chaves dos documentos fiscais anteriores da compra governamental
+   *  (ide/gCompraGov/refDFeAnt). Obrigatório com tp_oper_gov 2 e 3, vedado em
+   *  1 e 4; no tipo 2, uma chave só. */
+  compra_gov_refs?: string[] | null
+  /** Chaves das NF-e de antecipação de pagamento a abater (ide/gPagAntecipado). */
+  pag_antecipado_refs?: string[] | null
+}
+
+/** Registro mensal de aquisição de cana. Espelha `NfeCanaBody` do backend. */
+export interface NfeCanaIn {
+  /** Mês/ano de referência no formato MM/AAAA. */
+  ref: string
+  deliveries: NfeCanaDeliveryIn[]
+  deducoes?: NfeCanaDeducIn[] | null
+  /** Acumulado dos meses anteriores; qTotMes e qTotGer são derivados no backend. */
+  q_tot_ant?: string | null
+}
+
+/** Fornecimento diário de cana (cana/forDia). */
+export interface NfeCanaDeliveryIn {
+  /** Dia do mês, 1 a 31, sem zero à esquerda. */
+  dia: string
+  qtde: string
+}
+
+/** Dedução do fornecimento de cana (cana/deduc). */
+export interface NfeCanaDeducIn {
+  x_ded: string
+  v_ded: string
+}
+
+/** Grupo infNFe/agropecuario — choice entre defensivo e guia de trânsito. */
+export interface NfeAgroIn {
+  /** Números dos receituários de defensivo (máx. 20). O CPF do responsável
+   *  técnico vem do cadastro da organização. */
+  receituarios?: string[] | null
+  guia?: NfeAgroGuiaIn | null
+}
+
+/** Guia de trânsito animal/vegetal (agropecuario/guiaTransito). */
+export interface NfeAgroGuiaIn {
+  /** 1 GTA, 2 TTA, 3 DTA, 4 ATV, 5 PTV, 6 GTV, 7 Guia Florestal. */
+  tp_guia: '1' | '2' | '3' | '4' | '5' | '6' | '7'
+  uf_guia: string
+  serie_guia?: string | null
+  n_guia: string
 }
 
 /** Processo referenciado em infAdic/procRef. */

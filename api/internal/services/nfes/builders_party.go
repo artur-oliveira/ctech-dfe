@@ -133,6 +133,10 @@ func buildLocal(l *NfeLocalBody) map[string]any {
 	return m
 }
 
+// cnpjPrefix é o prefixo do sk/pk de pessoa jurídica no DynamoDB. Emitente,
+// destinatário, transportadora e intermediador decidem CNPJ vs CPF por ele.
+const cnpjPrefix = "CNPJ_"
+
 func getPersonMap(entity map[string]any) map[string]any {
 	if p, ok := entity["person"].(map[string]any); ok {
 		return p
@@ -143,7 +147,7 @@ func getPersonMap(entity map[string]any) map[string]any {
 // buildEmit monta o nó emit (emitente) a partir da organização.
 func buildEmit(org, orgPerson map[string]any, orgPK, emitUF, destUF string, orgCRT int) map[string]any {
 	emitKey := "CPF"
-	if strings.HasPrefix(orgPK, "CNPJ_") {
+	if strings.HasPrefix(orgPK, cnpjPrefix) {
 		emitKey = "CNPJ"
 	}
 	emit := map[string]any{
@@ -207,7 +211,7 @@ func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, i
 	case strings.HasPrefix(receiverSK, repositories.SKPrefixForeign):
 		// choice do XSD: idEstrangeiro exclui CPF e CNPJ.
 		dest["idEstrangeiro"] = strings.TrimPrefix(receiverSK, repositories.SKPrefixForeign)
-	case strings.HasPrefix(receiverSK, "CNPJ_"):
+	case strings.HasPrefix(receiverSK, cnpjPrefix):
 		dest["CNPJ"] = services.StripPKPrefix(receiverSK)
 	default:
 		dest["CPF"] = services.StripPKPrefix(receiverSK)

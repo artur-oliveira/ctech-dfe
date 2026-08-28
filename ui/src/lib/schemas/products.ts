@@ -116,10 +116,38 @@ export const cfopConfigSchema = z.object({
   ibs_uf_p_dif: optionalPercent,
   ibs_mun_p_dif: optionalPercent,
   cbs_p_dif: optionalPercent,
-  ibs_ind_doacao: optionalStr,
+  // indDoacao (TIndDoacao) enumera um valor só: 1. Na UI é um checkbox.
+  ibs_ind_doacao: z.enum(['1']).optional().or(z.literal('')),
+  // Monofasia (gIBSCBSMono): alíquota específica por unidade em cada sub-grupo.
   ibs_ad_rem: optionalPercent,
   cbs_ad_rem: optionalPercent,
+  ibs_ad_rem_reten: optionalPercent,
+  cbs_ad_rem_reten: optionalPercent,
+  ibs_ad_rem_ret: optionalPercent,
+  cbs_ad_rem_ret: optionalPercent,
+  ibs_p_dif_mono: optionalPercent,
+  cbs_p_dif_mono: optionalPercent,
+  // Devolução de tributo ao adquirente: um percentual só, nas três esferas.
   ibs_cbs_p_dev_trib: optionalPercent,
+  // Tributação de referência (gTribRegular) e de compra governamental
+  // (gTribCompraGov) — quanto o item pagaria fora do benefício.
+  ibs_reg_cst: z.string().regex(_ibsCbsCstRegex, 'CST IBS/CBS inválido').optional().or(z.literal('')),
+  ibs_reg_class_trib: z.string().regex(_ibsCbsClassRegex, 'Código de classificação deve ter 6 dígitos').optional().or(z.literal('')),
+  ibs_reg_uf_aliq: optionalPercent,
+  ibs_reg_mun_aliq: optionalPercent,
+  cbs_reg_aliq: optionalPercent,
+  ibs_gov_uf_aliq: optionalPercent,
+  ibs_gov_mun_aliq: optionalPercent,
+  cbs_gov_aliq: optionalPercent,
+  // Crédito presumido da operação e o da ZFM (choice: o da operação vence).
+  ibs_cbs_c_cred_pres: z.string().regex(/^\d{2}$/, 'Código do crédito presumido tem 2 dígitos').optional().or(z.literal('')),
+  ibs_p_cred_pres: optionalPercent,
+  cbs_p_cred_pres: optionalPercent,
+  ibs_cbs_cred_pres_cond_sus: z.enum(['1']).optional().or(z.literal('')),
+  ibs_zfm_p_cred_pres: optionalPercent,
+  // Alíquota zero da CBS em ALC/ZFM (gALCZFMCBS).
+  alc_zfm_tp_cbs: z.enum(['1', '2']).optional().or(z.literal('')),
+  alc_zfm_n_proc_suframa: z.string().regex(/^.{8,12}$/, 'Processo Suframa tem 8 a 12 caracteres').optional().or(z.literal('')),
   // ISSQN — Imposto Sobre Serviços (LC 116/2003)
   issqn_ind_iss: optionalStr,
   issqn_c_list_serv: optionalStr,
@@ -227,6 +255,19 @@ export const productSchema = z.object({
   n_fci: nullableStr(z.string().regex(/^[0-9a-fA-F-]{36}$/, 'FCI inválida')),
   c_barra: nullableStr(z.string().max(30)),
   c_barra_trib: nullableStr(z.string().max(30)),
+  /** RECOPI do papel imune (prod/nRECOPI) — 20 dígitos. Último ramo do choice
+   *  de prod: com comb/med/veicProd/arma no item, não é emitido. */
+  n_recopi: nullableStr(z.string().regex(/^\d{20}$/, 'RECOPI tem 20 dígitos')),
+  /** Créditos presumidos da UF aplicados ao item (prod/gCred, máx. 4). O valor
+   *  é derivado do percentual sobre o valor do item na emissão. */
+  gcred: z.array(z.object({
+    c_cred_presumido: z.string().regex(/^.{8}$|^.{10}$/, 'Código tem 8 ou 10 caracteres'),
+    p_cred_presumido: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Percentual inválido'),
+  })).max(4).optional(),
+  /** Classificação da subapuração do IBS na ZFM (prod/tpCredPresIBSZFM). */
+  tp_cred_pres_ibs_zfm: z.enum(['0', '1', '2', '3', '4']).optional().or(z.literal('')),
+  /** prod/indBemMovelUsado. O XSD enumera um valor só: 1. */
+  ind_bem_movel_usado: z.enum(['1']).optional().or(z.literal('')),
   peri_n_onu: nullableStr(z.string().regex(/^\d{1,4}$/, 'ONU tem até 4 dígitos')),
   peri_x_nome_ae: nullableStr(z.string().max(150)),
   peri_x_cla_risco: nullableStr(z.string().max(40)),

@@ -393,6 +393,22 @@ components:
         nfse: { $ref: '#/components/schemas/NfseInfoBody' }
         bank: { $ref: '#/components/schemas/PersonBankBody' }
         freight_retention: { $ref: '#/components/schemas/FreightRetentionBody' }
+        intermediary_id:
+          type: [ string, 'null' ]
+          minLength: 2
+          maxLength: 60
+          description: |
+            Identificador do emitente no cadastro do intermediador
+            (`NF-e infIntermed/idCadIntTran`) — o "seller id" do marketplace.
+            É invariante do par emitente↔plataforma, então mora na pessoa; a
+            operação só aponta qual plataforma.
+        technical_manager_cpf:
+          type: [ string, 'null' ]
+          description: |
+            CPF do responsável técnico agronômico
+            (`NF-e agropecuario/defensivo/CPFRespTec`). É o mesmo agrônomo em
+            toda nota de defensivo do emitente, então mora no cadastro; sem ele,
+            emitir com `agro.receituarios` é 400.
 
     FreightRetentionBody:
       type: object
@@ -431,7 +447,7 @@ components:
         Ausente ou vazio: a pessoa aparece só na listagem geral.
       items:
         type: string
-        enum: [ customer, supplier, carrier, driver, provider, freight_contractor ]
+        enum: [ customer, supplier, carrier, driver, provider, freight_contractor, intermediary ]
 
     Person:
       type: object

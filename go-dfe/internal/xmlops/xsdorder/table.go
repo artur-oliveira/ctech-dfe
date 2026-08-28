@@ -180,12 +180,58 @@ var envInfe = map[string][]string{
 		"gIBSMun",
 		"vIBS",
 		"gCBS",
+		"gTribRegular",
+		"gTribCompraGov",
 	},
 
 	// Subgrupos IBS estadual / municipal / CBS
 	"gIBSUF":  {"pIBSUF", "gDif", "gDevTrib", "gRed", "vIBSUF"},
 	"gIBSMun": {"pIBSMun", "gDif", "gDevTrib", "gRed", "vIBSMun"},
-	"gCBS":    {"pCBS", "gDif", "gDevTrib", "gRed", "vCBS"},
+	"gCBS":    {"pCBS", "gDif", "gDevTrib", "gRed", "gALCZFMCBS", "vCBS"},
+
+	// Subgrupos genéricos de diferimento, devolução e redução — compartilhados
+	// por gIBSUF, gIBSMun e gCBS.
+	"gDif":     {"pDif", "vDif"},
+	"gDevTrib": {"pDevTrib", "vDevTrib"},
+	"gRed":     {"pRedAliq", "pAliqEfet"},
+
+	// gALCZFMCBS — alíquota zero da CBS em ALC/ZFM (dentro de gCBS)
+	"gALCZFMCBS": {"tpALCZFMCBS", "nProcSuframa", "pAliqEfetRegCBS", "vTribRegCBS"},
+
+	// Tributação de referência do item (dentro de gIBSCBS)
+	"gTribRegular": {
+		"CSTReg", "cClassTribReg",
+		"pAliqEfetRegIBSUF", "vTribRegIBSUF",
+		"pAliqEfetRegIBSMun", "vTribRegIBSMun",
+		"pAliqEfetRegCBS", "vTribRegCBS",
+	},
+	"gTribCompraGov": {
+		"pAliqIBSUF", "vTribIBSUF",
+		"pAliqIBSMun", "vTribIBSMun",
+		"pAliqCBS", "vTribCBS",
+	},
+
+	// gIBSCBSMono — monofasia de IBS/CBS no item (type TMonofasia)
+	"gIBSCBSMono": {"gMonoPadrao", "gMonoReten", "gMonoRet", "gMonoDif", "vTotIBSMonoItem", "vTotCBSMonoItem"},
+	"gMonoPadrao": {"qBCMono", "adRemIBS", "adRemCBS", "vIBSMono", "vCBSMono"},
+	"gMonoReten":  {"qBCMonoReten", "adRemIBSReten", "vIBSMonoReten", "adRemCBSReten", "vCBSMonoReten"},
+	"gMonoRet":    {"qBCMonoRet", "adRemIBSRet", "vIBSMonoRet", "adRemCBSRet", "vCBSMonoRet"},
+	"gMonoDif":    {"pDifIBS", "vIBSMonoDif", "pDifCBS", "vCBSMonoDif"},
+
+	// Transferência de crédito, ajuste de competência e estorno no item
+	"gTransfCred":   {"vIBS", "vCBS"},
+	"gAjusteCompet": {"competApur", "vIBS", "vCBS"},
+	"gEstornoCred":  {"vIBSEstCred", "vCBSEstCred"},
+
+	// Créditos presumidos no item
+	"gCredPresOper":   {"vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"},
+	"gIBSCredPres":    {"pCredPres", "vCredPres", "vCredPresCondSus"},
+	"gCBSCredPres":    {"pCredPres", "vCredPres", "vCredPresCondSus"},
+	"gCredPresIBSZFM": {"competApur", "tpCredPresIBSZFM", "vCredPresIBSZFM"},
+
+	// Compras governamentais e antecipação de pagamento (dentro de ide)
+	"gCompraGov":     {"tpEnteGov", "pRedutor", "tpOperGov", "refDFeAnt"},
+	"gPagAntecipado": {"refNFe"},
 
 	// IS — Imposto Seletivo (PL_010e_v1.02)
 	"IS": {
@@ -253,6 +299,13 @@ var envInfe = map[string][]string{
 
 	// gCBS dentro de IBSCBSTot
 	"IBSCBSTot:gCBS": {"vDif", "vDevTrib", "vCBS", "vCredPres", "vCredPresCondSus"},
+
+	// gMono dentro de IBSCBSTot — totais da monofasia da reforma
+	"IBSCBSTot:gMono": {
+		"vIBSMono", "vCBSMono",
+		"vIBSMonoReten", "vCBSMonoReten",
+		"vIBSMonoRet", "vCBSMonoRet",
+	},
 
 	"ICMSTot": {
 		"vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",

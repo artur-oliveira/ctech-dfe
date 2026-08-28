@@ -15,11 +15,21 @@ import {apiClient, ApiError} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
+import {PERSON_ROLE_INTERMEDIARY} from '@/lib/schemas/entity'
+import {Combobox} from '@/components/ui/combobox'
+import {CITY_OPTIONS} from '@/lib/data/cities'
+import {
+  COMPRA_GOV_TP_ENTE_OPTIONS,
+  COMPRA_GOV_TP_OPER_OPTIONS,
+  TP_NF_CREDITO_OPTIONS,
+  TP_NF_DEBITO_OPTIONS,
+} from '@/lib/data/ibs_cbs_reform'
 import {
   DOC_TYPE_OPTIONS,
   OPERATION_PLACEHOLDERS,
   type OperationFormData,
   operationSchema,
+  safraOptions,
 } from '@/lib/schemas/operations'
 import {
   FIN_NFE_OPTIONS,
@@ -36,11 +46,19 @@ interface OperationFormProps {
   loading?: boolean
 }
 
+// Calculadas uma vez por carga do módulo: a lista não muda durante a sessão.
+const SAFRA_OPTIONS = safraOptions()
+
+
 const EMPTY: OperationFormData = {
   name: '', doc_types: ['nfe'], nat_op: '', tp_nf: '1', fin_nfe: '1',
   ind_final: '1', ind_pres: '1', cfop_suffix: '', tax_profile_id: '',
   payment_term_id: '', mod_frete: '', vol_esp: '', vol_marca: '',
   inf_ad_fisco: '', inf_cpl: '', obs_cont: [], obs_fisco: [],
+  compra_x_n_emp: '', cana_safra: '',
+  intermediary_person_id: '', ind_intermed: '', dh_sai_ent_offset_days: '',
+  c_ind_op: '', c_mun_fg_ibs: '', tp_nf_debito: '', tp_nf_credito: '',
+  compra_gov_tp_ente: '', compra_gov_p_redutor: '', compra_gov_tp_oper: '',
   ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true, is_default: false,
 }
@@ -73,6 +91,20 @@ function toFormData(op: OperationItemOut): OperationFormData {
     },
     obs_fisco: Array.isArray(op.obs_fisco) ? (op.obs_fisco as OperationFormData['obs_fisco']) : [],
     inf_cpl: str(op.inf_cpl),
+    compra_x_n_emp: str(op.compra_x_n_emp),
+    cana_safra: str(op.cana_safra),
+    intermediary_person_id: str(op.intermediary_person_id),
+    ind_intermed: str(op.ind_intermed) as OperationFormData['ind_intermed'],
+    dh_sai_ent_offset_days: typeof op.dh_sai_ent_offset_days === 'number'
+      ? String(op.dh_sai_ent_offset_days)
+      : '',
+    c_ind_op: str(op.c_ind_op),
+    c_mun_fg_ibs: str(op.c_mun_fg_ibs),
+    tp_nf_debito: str(op.tp_nf_debito) as OperationFormData['tp_nf_debito'],
+    tp_nf_credito: str(op.tp_nf_credito) as OperationFormData['tp_nf_credito'],
+    compra_gov_tp_ente: str(op.compra_gov_tp_ente) as OperationFormData['compra_gov_tp_ente'],
+    compra_gov_p_redutor: str(op.compra_gov_p_redutor),
+    compra_gov_tp_oper: str(op.compra_gov_tp_oper) as OperationFormData['compra_gov_tp_oper'],
     requires_receiver: op.requires_receiver !== false,
     is_default: op.is_default === true,
   }
@@ -166,6 +198,19 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
     })),
   ]
 
+  // Intermediadores cadastrados: a operação aponta a plataforma, e o "seller
+  // id" vem do cadastro dela. Sem nenhum cadastrado, o select fica só com a
+  // opção de canal próprio — não há campo livre para errar o CNPJ.
+  const {data: intermediaryPage} = useQuery({
+    queryKey: queryKeys.persons.list(selectedOrg?.pk, PERSON_ROLE_INTERMEDIARY),
+    queryFn: () => apiClient.getPersons({role: PERSON_ROLE_INTERMEDIARY, limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const intermediaryOptions = [
+    {value: '', label: 'Venda em canal próprio'},
+    ...(intermediaryPage?.items ?? []).map((p) => ({value: p.sk, label: p.name})),
+  ]
+
   const docTypes = useWatch({control: form.control, name: 'doc_types'}) ?? []
   const toggleDocType = (value: OperationFormData['doc_types'][number]) => {
     form.setValue('doc_types', docTypes.includes(value)
@@ -195,6 +240,20 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         ret_trib: retTribPayload(data.ret_trib),
         obs_fisco: data.obs_fisco.length > 0 ? data.obs_fisco : null,
         inf_cpl: nullify(data.inf_cpl),
+        compra_x_n_emp: nullify(data.compra_x_n_emp),
+        cana_safra: nullify(data.cana_safra),
+        intermediary_person_id: nullify(data.intermediary_person_id),
+        ind_intermed: nullify(data.ind_intermed),
+        dh_sai_ent_offset_days: data.dh_sai_ent_offset_days
+          ? Number(data.dh_sai_ent_offset_days)
+          : null,
+        c_ind_op: nullify(data.c_ind_op),
+        c_mun_fg_ibs: nullify(data.c_mun_fg_ibs),
+        tp_nf_debito: nullify(data.tp_nf_debito),
+        tp_nf_credito: nullify(data.tp_nf_credito),
+        compra_gov_tp_ente: nullify(data.compra_gov_tp_ente),
+        compra_gov_p_redutor: nullify(data.compra_gov_p_redutor),
+        compra_gov_tp_oper: nullify(data.compra_gov_tp_oper),
         requires_receiver: data.requires_receiver,
         is_default: data.is_default,
       })
@@ -417,6 +476,167 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                                </FormItem>
                              )}/>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Reforma tributária (IBS/CBS)
+              </p>
+              <p className="text-xs text-gray-500">
+                Campos de identificação do documento. As alíquotas e os CSTs ficam no perfil fiscal
+                ou no produto, não aqui.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="c_ind_op"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Local da operação (cIndOp)</FormLabel>
+                               <NumericInput id={field.name} value={field.value ?? ''} maxLength={6}
+                                             placeholder="6 dígitos" onChange={field.onChange}/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="c_mun_fg_ibs"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Município do fato gerador do IBS/CBS</FormLabel>
+                               <Combobox id={field.name} value={field.value ?? ''}
+                                         onValueChange={field.onChange} options={CITY_OPTIONS}
+                                         placeholder="Buscar município"/>
+                               <p className="text-xs text-gray-500">
+                                 Só quando a presença é 5 (fora do estabelecimento) e não há endereço
+                                 de destinatário nem local de entrega.
+                               </p>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="tp_nf_debito"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Nota de débito</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={field.onChange}
+                                              options={TP_NF_DEBITO_OPTIONS} placeholder="Não se aplica"/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="tp_nf_credito"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Nota de crédito</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={field.onChange}
+                                              options={TP_NF_CREDITO_OPTIONS} placeholder="Não se aplica"/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="compra_gov_tp_ente"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Ente governamental comprador</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={field.onChange}
+                                              options={COMPRA_GOV_TP_ENTE_OPTIONS}
+                                              placeholder="Não é compra governamental"/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="compra_gov_p_redutor"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>% Redutor da compra governamental</FormLabel>
+                               <NumericInput id={field.name} decimal integerPlaces={3} decimalPlaces={4}
+                                             value={field.value ?? ''} placeholder="0.0000"
+                                             onChange={field.onChange}/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="compra_gov_tp_oper"
+                           render={({field}) => (
+                             <FormItem className="sm:col-span-2">
+                               <FormLabel>Tipo da operação governamental</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={field.onChange}
+                                              options={COMPRA_GOV_TP_OPER_OPTIONS}
+                                              placeholder="Não se aplica"/>
+                               <p className="text-xs text-gray-500">
+                                 O tipo decide se a emissão pede as chaves dos documentos anteriores —
+                                 o formulário de emissão só mostra o campo quando ele é aceito.
+                               </p>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Grupos de nicho
+              </p>
+              <p className="text-xs text-gray-500">
+                Só aparecem no XML quando preenchidos. Pedido, contrato e os fornecimentos diários
+                de cana variam por nota e são pedidos na emissão.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="intermediary_person_id"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Intermediador (marketplace)</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={(v) => {
+                                                field.onChange(v)
+                                                // O indicador acompanha a escolha: plataforma de
+                                                // terceiros é 1, canal próprio é 0.
+                                                form.setValue('ind_intermed', v ? '1' : '0')
+                                              }}
+                                              options={intermediaryOptions}/>
+                               <p className="text-xs text-gray-500">
+                                 Cadastre a plataforma como pessoa com o papel “Intermediador”.
+                               </p>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="dh_sai_ent_offset_days"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Prazo de saída (dias após a emissão)</FormLabel>
+                               <NumericInput id={field.name} value={field.value ?? ''} maxLength={3}
+                                             placeholder="Em branco: não declara saída"
+                                             onChange={field.onChange}/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="compra_x_n_emp"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Nota de empenho (compra/xNEmp)</FormLabel>
+                               <Input {...field} id={field.name} value={field.value ?? ''} maxLength={22}
+                                      className="w-full" placeholder="2026NE000123"/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
+                <FormField control={form.control} name="cana_safra"
+                           render={({field}) => (
+                             <FormItem>
+                               <FormLabel>Safra da cana (cana/safra)</FormLabel>
+                               <OptionsSelect id={field.name} value={field.value ?? ''}
+                                              onValueChange={field.onChange} options={SAFRA_OPTIONS}
+                                              placeholder="Não se aplica"/>
+                               <FormMessage/>
+                             </FormItem>
+                           )}
+                />
               </div>
             </div>
           </div>

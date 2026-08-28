@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import {useState} from 'react'
 import {generateEntityCode} from '@/lib/utils/code'
-import {useForm, useWatch} from 'react-hook-form'
+import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
 import {useQuery} from '@tanstack/react-query'
 import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -39,7 +39,20 @@ import {
 import {isRegimeSimples} from '@/lib/constants/tax'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
+import {TP_CRED_PRES_IBS_ZFM_OPTIONS} from '@/lib/data/ibs_cbs_reform'
 import {ORIGIN_OPTIONS} from '@/lib/data/origin'
+import {
+  VEIC_COND_OPTIONS,
+  VEIC_COR_DENATRAN_OPTIONS,
+  VEIC_ESP_VEIC_OPTIONS,
+  VEIC_TP_COMB_OPTIONS,
+  VEIC_TP_OP_OPTIONS,
+  VEIC_TP_PINT_OPTIONS,
+  VEIC_TP_REST_OPTIONS,
+  VEIC_TP_VEIC_OPTIONS,
+  VEIC_VIN_OPTIONS,
+  vehicleYearOptions,
+} from '@/lib/data/vehicle'
 import {UfOverridesEditor, type UfOverrideFormData} from '@/components/tax/UfOverridesEditor'
 import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
 
@@ -57,9 +70,67 @@ interface ProductFormProps {
   loading?: boolean
 }
 
+// indBemMovelUsado (prod/indBemMovelUsado) enumera um valor só no XSD.
+const IND_BEM_MOVEL_USADO_SIM = '1'
+
+/** Limite de gCred no leiaute (maxOccurs=4). */
+const MAX_GCRED = 4
+
+/**
+ * Créditos presumidos da UF aplicados ao item (prod/gCred). O `vCredPresumido`
+ * não aparece: é o percentual sobre o valor do item, calculado na emissão —
+ * pedir os três seria pedir que o operador feche uma conta que o sistema faz.
+ */
+function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
+  const {fields, append, remove} = useFieldArray({control: form.control, name: 'gcred'})
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <FormLabel>Créditos presumidos da UF</FormLabel>
+        <Button type="button" variant="ghost" size="xs" disabled={fields.length >= MAX_GCRED}
+                onClick={() => append({c_cred_presumido: '', p_cred_presumido: ''})}>
+          + Crédito
+        </Button>
+      </div>
+      {fields.length === 0 && (
+        <p className="text-xs text-gray-500">
+          Nenhum. O valor de cada crédito é calculado do percentual na emissão.
+        </p>
+      )}
+      {fields.map((row, index) => (
+        <div key={row.id}
+             className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] gap-2 items-end">
+          <FormField control={form.control} name={`gcred.${index}.c_cred_presumido`} render={({field}) => (
+            <FormItem>
+              <FormLabel>Código do benefício</FormLabel>
+              <Input {...field} id={field.name} value={field.value ?? ''} maxLength={10}
+                     className="w-full" placeholder="8 ou 10 caracteres"/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+          <FormField control={form.control} name={`gcred.${index}.p_cred_presumido`} render={({field}) => (
+            <FormItem>
+              <FormLabel>% Crédito</FormLabel>
+              <NumericInput id={field.name} decimal integerPlaces={3} decimalPlaces={4}
+                            value={field.value ?? ''} placeholder="0.0000" onChange={field.onChange}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+          <Button type="button" variant="ghost" size="xs" className="min-h-11" onClick={() => remove(index)}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const IS_SIMPLES = isRegimeSimples
+
+// Calculada uma vez por carga do módulo: a lista não muda durante a sessão.
+const VEHICLE_YEAR_OPTIONS = vehicleYearOptions()
 
 const TABS: { id: ProductTab; label: string }[] = [
   {id: 'produto', label: 'Produto'},
@@ -68,43 +139,6 @@ const TABS: { id: ProductTab; label: string }[] = [
   {id: 'especial', label: 'Tipo Especial'},
 ]
 
-const VEIC_TP_OP_OPTIONS = [
-  {value: '0', label: '0 – Outros'},
-  {value: '1', label: '1 – Venda concessionária'},
-  {value: '2', label: '2 – Faturamento direto'},
-  {value: '3', label: '3 – Venda direta'},
-]
-const VEIC_TP_COMB_OPTIONS = [
-  {value: '01', label: '01 – Álcool'},
-  {value: '02', label: '02 – Gasolina'},
-  {value: '03', label: '03 – Diesel'},
-  {value: '16', label: '16 – Álcool/Gasolina'},
-  {value: '17', label: '17 – Gas./Álcool/GNV'},
-  {value: '18', label: '18 – Gasolina/Elétrico'},
-]
-const VEIC_COND_OPTIONS = [
-  {value: '1', label: '1 – Acabado'},
-  {value: '2', label: '2 – Inacabado'},
-  {value: '3', label: '3 – Semi-acabado'},
-]
-const VEIC_TP_REST_OPTIONS = [
-  {value: '0', label: '0 – Sem restrição'},
-  {value: '1', label: '1 – Alienação Fiduciária'},
-  {value: '2', label: '2 – Arrendamento Mercantil'},
-  {value: '3', label: '3 – Reserva de Domínio'},
-  {value: '4', label: '4 – Penhor de Veículos'},
-  {value: '9', label: '9 – Outras'},
-]
-const VEIC_COR_DENATRAN_OPTIONS = [
-  {value: '01', label: '01 – Amarelo'}, {value: '02', label: '02 – Azul'},
-  {value: '03', label: '03 – Bege'}, {value: '04', label: '04 – Branca'},
-  {value: '05', label: '05 – Cinza'}, {value: '06', label: '06 – Dourada'},
-  {value: '07', label: '07 – Grena'}, {value: '08', label: '08 – Laranja'},
-  {value: '09', label: '09 – Marrom'}, {value: '10', label: '10 – Prata'},
-  {value: '11', label: '11 – Preta'}, {value: '12', label: '12 – Rosa'},
-  {value: '13', label: '13 – Roxa'}, {value: '14', label: '14 – Verde'},
-  {value: '15', label: '15 – Vermelha'}, {value: '16', label: '16 – Fantasia'},
-]
 
 
 const EMPTY_CFOP_ROW: CfopConfigFormData = {
@@ -175,6 +209,15 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   ibs_mun_p_dif: '',
   cbs_p_dif: '',
   ibs_ind_doacao: '',
+  ibs_ad_rem_reten: '', cbs_ad_rem_reten: '',
+  ibs_ad_rem_ret: '', cbs_ad_rem_ret: '',
+  ibs_p_dif_mono: '', cbs_p_dif_mono: '',
+  ibs_reg_cst: '', ibs_reg_class_trib: '',
+  ibs_reg_uf_aliq: '', ibs_reg_mun_aliq: '', cbs_reg_aliq: '',
+  ibs_gov_uf_aliq: '', ibs_gov_mun_aliq: '', cbs_gov_aliq: '',
+  ibs_cbs_c_cred_pres: '', ibs_p_cred_pres: '', cbs_p_cred_pres: '',
+  ibs_cbs_cred_pres_cond_sus: '', ibs_zfm_p_cred_pres: '',
+  alc_zfm_tp_cbs: '', alc_zfm_n_proc_suframa: '',
   ibs_ad_rem: '',
   cbs_ad_rem: '',
   ibs_cbs_p_dev_trib: '',
@@ -295,10 +338,32 @@ function toFormData(p: ProductOut): ProductFormData {
       ibs_uf_p_dif: c.ibs_uf_p_dif ?? '',
       ibs_mun_p_dif: c.ibs_mun_p_dif ?? '',
       cbs_p_dif: c.cbs_p_dif ?? '',
-      ibs_ind_doacao: c.ibs_ind_doacao ?? '',
+      ibs_ind_doacao: (c.ibs_ind_doacao ?? '') as CfopConfigFormData['ibs_ind_doacao'],
       ibs_ad_rem: c.ibs_ad_rem ?? '',
       cbs_ad_rem: c.cbs_ad_rem ?? '',
+      ibs_ad_rem_reten: c.ibs_ad_rem_reten ?? '',
+      cbs_ad_rem_reten: c.cbs_ad_rem_reten ?? '',
+      ibs_ad_rem_ret: c.ibs_ad_rem_ret ?? '',
+      cbs_ad_rem_ret: c.cbs_ad_rem_ret ?? '',
+      ibs_p_dif_mono: c.ibs_p_dif_mono ?? '',
+      cbs_p_dif_mono: c.cbs_p_dif_mono ?? '',
       ibs_cbs_p_dev_trib: c.ibs_cbs_p_dev_trib ?? '',
+      ibs_reg_cst: c.ibs_reg_cst ?? '',
+      ibs_reg_class_trib: c.ibs_reg_class_trib ?? '',
+      ibs_reg_uf_aliq: c.ibs_reg_uf_aliq ?? '',
+      ibs_reg_mun_aliq: c.ibs_reg_mun_aliq ?? '',
+      cbs_reg_aliq: c.cbs_reg_aliq ?? '',
+      ibs_gov_uf_aliq: c.ibs_gov_uf_aliq ?? '',
+      ibs_gov_mun_aliq: c.ibs_gov_mun_aliq ?? '',
+      cbs_gov_aliq: c.cbs_gov_aliq ?? '',
+      ibs_cbs_c_cred_pres: c.ibs_cbs_c_cred_pres ?? '',
+      ibs_p_cred_pres: c.ibs_p_cred_pres ?? '',
+      cbs_p_cred_pres: c.cbs_p_cred_pres ?? '',
+      ibs_cbs_cred_pres_cond_sus:
+        (c.ibs_cbs_cred_pres_cond_sus ?? '') as CfopConfigFormData['ibs_cbs_cred_pres_cond_sus'],
+      ibs_zfm_p_cred_pres: c.ibs_zfm_p_cred_pres ?? '',
+      alc_zfm_tp_cbs: (c.alc_zfm_tp_cbs ?? '') as CfopConfigFormData['alc_zfm_tp_cbs'],
+      alc_zfm_n_proc_suframa: c.alc_zfm_n_proc_suframa ?? '',
       issqn_ind_iss: c.issqn_ind_iss ?? '',
       issqn_c_list_serv: c.issqn_c_list_serv ?? '',
       issqn_c_mun_fg: c.issqn_c_mun_fg ?? '',
@@ -341,6 +406,10 @@ function toFormData(p: ProductOut): ProductFormData {
     n_fci: p.n_fci ?? '',
     c_barra: p.c_barra ?? '',
     c_barra_trib: p.c_barra_trib ?? '',
+    n_recopi: p.n_recopi ?? '',
+    gcred: Array.isArray(p.gcred) ? (p.gcred as ProductFormData['gcred']) : [],
+    tp_cred_pres_ibs_zfm: (p.tp_cred_pres_ibs_zfm ?? '') as ProductFormData['tp_cred_pres_ibs_zfm'],
+    ind_bem_movel_usado: (p.ind_bem_movel_usado ?? '') as ProductFormData['ind_bem_movel_usado'],
     ipi_cnpj_prod: p.ipi_cnpj_prod ?? '',
     ipi_c_selo: p.ipi_c_selo ?? '',
     ipi_q_selo: p.ipi_q_selo ?? '',
@@ -441,6 +510,27 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       ibs_mun_p_dif: nullify(c.ibs_mun_p_dif),
       cbs_p_dif: nullify(c.cbs_p_dif),
       ibs_ind_doacao: nullify(c.ibs_ind_doacao),
+      ibs_ad_rem_reten: nullify(c.ibs_ad_rem_reten),
+      cbs_ad_rem_reten: nullify(c.cbs_ad_rem_reten),
+      ibs_ad_rem_ret: nullify(c.ibs_ad_rem_ret),
+      cbs_ad_rem_ret: nullify(c.cbs_ad_rem_ret),
+      ibs_p_dif_mono: nullify(c.ibs_p_dif_mono),
+      cbs_p_dif_mono: nullify(c.cbs_p_dif_mono),
+      ibs_reg_cst: nullify(c.ibs_reg_cst),
+      ibs_reg_class_trib: nullify(c.ibs_reg_class_trib),
+      ibs_reg_uf_aliq: nullify(c.ibs_reg_uf_aliq),
+      ibs_reg_mun_aliq: nullify(c.ibs_reg_mun_aliq),
+      cbs_reg_aliq: nullify(c.cbs_reg_aliq),
+      ibs_gov_uf_aliq: nullify(c.ibs_gov_uf_aliq),
+      ibs_gov_mun_aliq: nullify(c.ibs_gov_mun_aliq),
+      cbs_gov_aliq: nullify(c.cbs_gov_aliq),
+      ibs_cbs_c_cred_pres: nullify(c.ibs_cbs_c_cred_pres),
+      ibs_p_cred_pres: nullify(c.ibs_p_cred_pres),
+      cbs_p_cred_pres: nullify(c.cbs_p_cred_pres),
+      ibs_cbs_cred_pres_cond_sus: nullify(c.ibs_cbs_cred_pres_cond_sus),
+      ibs_zfm_p_cred_pres: nullify(c.ibs_zfm_p_cred_pres),
+      alc_zfm_tp_cbs: nullify(c.alc_zfm_tp_cbs),
+      alc_zfm_n_proc_suframa: nullify(c.alc_zfm_n_proc_suframa),
       ibs_ad_rem: nullify(c.ibs_ad_rem),
       cbs_ad_rem: nullify(c.cbs_ad_rem),
       ibs_cbs_p_dev_trib: nullify(c.ibs_cbs_p_dev_trib),
@@ -513,9 +603,13 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
     nve: data.nve?.length ? data.nve : null,
+    gcred: data.gcred?.length ? data.gcred : null,
+    tp_cred_pres_ibs_zfm: nullify(data.tp_cred_pres_ibs_zfm),
+    ind_bem_movel_usado: nullify(data.ind_bem_movel_usado),
     n_fci: nullify(data.n_fci),
     c_barra: nullify(data.c_barra),
     c_barra_trib: nullify(data.c_barra_trib),
+    n_recopi: nullify(data.n_recopi),
     ipi_cnpj_prod: nullify(data.ipi_cnpj_prod),
     ipi_c_selo: nullify(data.ipi_c_selo),
     ipi_q_selo: nullify(data.ipi_q_selo),
@@ -617,7 +711,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
       comb_cide_v_aliq_prod: '', comb_orig: [],
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
-      nve: [], n_fci: '', c_barra: '', c_barra_trib: '',
+      nve: [], n_fci: '', c_barra: '', c_barra_trib: '', n_recopi: '',
+      gcred: [], tp_cred_pres_ibs_zfm: '', ind_bem_movel_usado: '',
       ipi_cnpj_prod: '', ipi_c_selo: '', ipi_q_selo: '', ipi_c_enq: '',
       peri_n_onu: '', peri_x_nome_ae: '', peri_x_cla_risco: '', peri_gr_emb: '', peri_q_vol_tipo: '',
       veic_tp_op: '', veic_tp_comb: '', veic_tp_pint: '', veic_tp_veic: '',
@@ -749,6 +844,28 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         ibs_ind_doacao: taxGroups.ibsCbs ? cfopRow.ibs_ind_doacao : '',
         ibs_ad_rem: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem : '',
         cbs_ad_rem: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem : '',
+        // clear IBS/CBS advanced reform groups if IBS/CBS itself is off
+        ibs_ad_rem_reten: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem_reten : '',
+        cbs_ad_rem_reten: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem_reten : '',
+        ibs_ad_rem_ret: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem_ret : '',
+        cbs_ad_rem_ret: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem_ret : '',
+        ibs_p_dif_mono: taxGroups.ibsCbs ? cfopRow.ibs_p_dif_mono : '',
+        cbs_p_dif_mono: taxGroups.ibsCbs ? cfopRow.cbs_p_dif_mono : '',
+        ibs_reg_cst: taxGroups.ibsCbs ? cfopRow.ibs_reg_cst : '',
+        ibs_reg_class_trib: taxGroups.ibsCbs ? cfopRow.ibs_reg_class_trib : '',
+        ibs_reg_uf_aliq: taxGroups.ibsCbs ? cfopRow.ibs_reg_uf_aliq : '',
+        ibs_reg_mun_aliq: taxGroups.ibsCbs ? cfopRow.ibs_reg_mun_aliq : '',
+        cbs_reg_aliq: taxGroups.ibsCbs ? cfopRow.cbs_reg_aliq : '',
+        ibs_gov_uf_aliq: taxGroups.ibsCbs ? cfopRow.ibs_gov_uf_aliq : '',
+        ibs_gov_mun_aliq: taxGroups.ibsCbs ? cfopRow.ibs_gov_mun_aliq : '',
+        cbs_gov_aliq: taxGroups.ibsCbs ? cfopRow.cbs_gov_aliq : '',
+        ibs_cbs_c_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_cbs_c_cred_pres : '',
+        ibs_p_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_p_cred_pres : '',
+        cbs_p_cred_pres: taxGroups.ibsCbs ? cfopRow.cbs_p_cred_pres : '',
+        ibs_cbs_cred_pres_cond_sus: taxGroups.ibsCbs ? cfopRow.ibs_cbs_cred_pres_cond_sus : '',
+        ibs_zfm_p_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_zfm_p_cred_pres : '',
+        alc_zfm_tp_cbs: taxGroups.ibsCbs ? cfopRow.alc_zfm_tp_cbs : '',
+        alc_zfm_n_proc_suframa: taxGroups.ibsCbs ? cfopRow.alc_zfm_n_proc_suframa : '',
         // clear IBS/CBS reduction/deferral if not enabled
         ibs_uf_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_uf_p_red : '',
         ibs_mun_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_mun_p_red : '',
@@ -1432,6 +1549,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormMessage/>
                   </FormItem>
                 )}/>
+                <FormField control={form.control} name="n_recopi" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>RECOPI (papel imune)</FormLabel>
+                    <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={20}
+                                  placeholder="20 dígitos" onChange={field.onChange}/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
                 <FormField control={form.control} name="c_barra" render={({field}) => (
                   <FormItem>
                     <FormLabel>Código de barras próprio</FormLabel>
@@ -1447,6 +1572,41 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   </FormItem>
                 )}/>
               </div>
+            </div>
+
+            {/* ── Reforma tributária — nível produto ──────────────────── */}
+            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Reforma tributária (IBS/CBS) — produto
+              </p>
+              <p className="text-xs text-gray-500">
+                Crédito presumido da UF, subapuração na ZFM e bem móvel usado. As alíquotas e os CSTs
+                do IBS/CBS ficam na aba Tributação, por CFOP.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField control={form.control} name="tp_cred_pres_ibs_zfm" render={({field}) => (
+                  <FormItem>
+                    <FormLabel>Subapuração do IBS na ZFM</FormLabel>
+                    <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                   options={TP_CRED_PRES_IBS_ZFM_OPTIONS} placeholder="Não se aplica"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="ind_bem_movel_usado" render={({field}) => (
+                  <FormItem>
+                    <label htmlFor={field.name}
+                           className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" id={field.name}
+                             checked={field.value === IND_BEM_MOVEL_USADO_SIM}
+                             onChange={(e) => field.onChange(e.target.checked ? IND_BEM_MOVEL_USADO_SIM : '')}
+                             className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+                      Fornecimento de bem móvel usado
+                    </label>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
+              </div>
+              <GCredEditor form={form}/>
             </div>
 
             {/* ── IPI — selo de controle e enquadramento ──────────────── */}
@@ -1587,16 +1747,16 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_ano_mod" render={({field}) => (
                     <FormItem>
                       <FormLabel>Ano modelo *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
-                                    placeholder="2025" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEHICLE_YEAR_OPTIONS} placeholder="Ano"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_ano_fab" render={({field}) => (
                     <FormItem>
                       <FormLabel>Ano fabricação *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
-                                    placeholder="2024" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEHICLE_YEAR_OPTIONS} placeholder="Ano"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1611,30 +1771,32 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_pot" render={({field}) => (
                     <FormItem>
                       <FormLabel>Potência (CV) *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="130" maxLength={4}/>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                                    placeholder="130" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_cilin" render={({field}) => (
                     <FormItem>
                       <FormLabel>Cilindradas (CC) *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="1599" maxLength={4}/>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                                    placeholder="1599" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_tp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Tipo veículo RENAVAM *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={2}
-                                    placeholder="06" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEIC_TP_VEIC_OPTIONS} placeholder="Tipo RENAVAM"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_esp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Espécie RENAVAM *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={1}
-                                    placeholder="1" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEIC_ESP_VEIC_OPTIONS} placeholder="Espécie"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1650,8 +1812,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormItem>
                       <FormLabel>VIN remarcado *</FormLabel>
                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={[{value: 'N', label: 'N – Normal'}, {value: 'R', label: 'R – Remarcado'}]}
-                                     placeholder="VIN"/>
+                                     options={VEIC_VIN_OPTIONS} placeholder="VIN"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1689,7 +1850,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_tp_pint" render={({field}) => (
                     <FormItem>
                       <FormLabel>Tipo pintura *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="S" maxLength={1}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEIC_TP_PINT_OPTIONS} placeholder="Pintura"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>

@@ -105,6 +105,7 @@ these aren't optional the way they can be for a `organization_persons` record.
 | `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — NFS-e identity fields, optional, shared verbatim with `organization_persons.person.nfse` (see below) |
 | `person.cnae`                | S    | CNAE principal (7 dígitos, opcional). NF-e `emit/CNAE` — o leiaute o exige quando `person.nfse.im` está presente (nota mista mercadoria + serviço)                                                                   |
 | `person.isuf_emit`           | S    | Inscrição Suframa do emitente (≤9 dígitos, opcional). NF-e `emit/ISUFEmit`                                                                                                                                          |
+| `person.technical_manager_cpf` | S  | CPF do responsável técnico agronômico (opcional). NF-e `agropecuario/defensivo/CPFRespTec` — é o mesmo agrônomo em toda nota de defensivo, então mora aqui e não na emissão                                          |
 | `pickup_locations`           | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation`                                                                          |
 | `authorized_xml_viewers`     | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer`                                                                                    |
 | `owner_user_id`              | S    | Bare `sub` of the account whose subscription pays for this organization. Written at creation in the same `TransactWrite` as the single OWNER membership it mirrors — the membership grants access, this gets billed, and they cannot disagree. A **field, not a lookup**: it is read on the issuance path, and deriving it would mean listing every member. Rewritten only by an explicit ownership transfer (not implemented). Rows created before the field existed are repaired on first read (`BillingService.OwnerOf`) |
@@ -153,6 +154,10 @@ Product catalog per org. Includes ICMS/IBS-CBS tax config per CFOP.
 | `peri_x_cla_risco`   | S    | Classe de risco (`xClaRisco`)                                 |
 | `peri_gr_emb`        | S    | Grupo de embalagem (`grEmb`) — optional                       |
 | `peri_q_vol_tipo`    | S    | Tipo de volume transportado (`qVolTipo`)                      |
+| `n_recopi`           | S    | RECOPI do papel imune (20 dígitos, `prod/nRECOPI`) — último ramo do choice de `prod` |
+| `gcred`              | L    | Créditos presumidos da UF (`prod/gCred`, máx. 4): `{c_cred_presumido, p_cred_presumido}`. O `vCredPresumido` é derivado do percentual sobre o valor do item |
+| `tp_cred_pres_ibs_zfm` | S  | Classificação da subapuração do IBS na ZFM (0–4, `prod/tpCredPresIBSZFM`) |
+| `ind_bem_movel_usado`  | S  | `1` = bem móvel usado (`prod/indBemMovelUsado`). O XSD enumera esse valor só |
 | `created_at`         | S    | ISO-8601 UTC                                                  |
 | `updated_at`         | S    | ISO-8601 UTC                                                  |
 
@@ -206,8 +211,9 @@ cadastro requirement.
 | `pk`                         | S    | `{org_pk}` — partition key                                                                                                                                                                                                                       |
 | `sk`                         | S    | `CNPJ_{14 digits}`, `CPF_{11 digits}` ou `IDEST_{documento}` — sort key. `IDEST_` identifica pessoa no exterior sem CPF/CNPJ (NF-e `dest/idEstrangeiro`); o documento estrangeiro não tem formato fixo, então a própria string é a chave           |
 | `name`                       | S    | Full name / razão social. GSI: `org-name-index`                                                                                                                                                                                                  |
-| `roles`                      | L    | Lista de papéis: `customer`, `supplier`, `carrier`, `driver`, `provider`. A mesma pessoa costuma ter mais de um. Filtrada por `contains(roles, :v)` sobre `org-name-index` (projeção ALL). É filtro de cadastro — **nenhuma emissão valida papel** |
+| `roles`                      | L    | Lista de papéis: `customer`, `supplier`, `carrier`, `driver`, `provider`, `freight_contractor`, `intermediary`. A mesma pessoa costuma ter mais de um. Filtrada por `contains(roles, :v)` sobre `org-name-index` (projeção ALL). É filtro de cadastro — **nenhuma emissão valida papel** |
 | `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                                                                                                                         |
+| `person.intermediary_id`     | S    | Identificador do emitente no cadastro deste intermediador (2–60, opcional; papel `intermediary`). NF-e `infIntermed/idCadIntTran` — o "seller id" do marketplace, invariante do par emitente↔plataforma                                          |
 | `person.crt`                 | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE                                                                                                                                                                  |
 | `person.state_registrations` | L    | List of `{uf, state_registration, ie_st}` (optional); `ie_st` = inscrição de substituto tributário na UF                                                                                                                                                                                                    |
 | `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1                                                                                                                                |
@@ -698,7 +704,14 @@ Campos próprios (schemas completos em `DOCS.md § Cadastros reutilizáveis`):
   garantida por `TransactWrite` que desmarca a anterior), `nat_op`, `cfop_suffix` (3 dígitos),
   `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `vol_esp`, `vol_marca`,
   `obs_cont` / `obs_fisco` (L de `{x_campo, x_texto}`, máx. 10 cada — viram `infAdic/obsCont`
-  e `infAdic/obsFisco`), `payment_term_id`, `additional_info`.
+  e `infAdic/obsFisco`), `payment_term_id`, `additional_info`, `ret_trib` (M, percentuais de
+  `total/retTrib`), `export_uf_saida_pais` / `export_loc_despacho_index` (`infNFe/exporta`),
+  `compra_x_n_emp` (nota de empenho, `infNFe/compra/xNEmp`), `cana_safra`
+  (safra da aquisição de cana, `infNFe/cana/safra`), `intermediary_person_id` + `ind_intermed`
+  (canal de venda, `ide/indIntermed` + `infNFe/infIntermed`), `dh_sai_ent_offset_days` (N, prazo
+  padrão de saída da mercadoria em dias corridos, `ide/dhSaiEnt`) e os campos de `ide` da reforma:
+  `c_ind_op`, `c_mun_fg_ibs`, `tp_nf_debito`, `tp_nf_credito` e o trio de compras governamentais
+  `compra_gov_tp_ente` / `compra_gov_p_redutor` / `compra_gov_tp_oper` (`ide/gCompraGov`).
 - **`organization_payment_terms`** — `payment_type`, `ind_pag`, `installments` (N),
   `interval_days` (N), `first_due_days` (N), `card` (M).
 - **`organization_vehicle_sets`** — `tractor_sk`, `trailer_sks` (L, máx. 3), `driver_docs` (L de

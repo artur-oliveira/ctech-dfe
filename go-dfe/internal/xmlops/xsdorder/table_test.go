@@ -174,8 +174,11 @@ func TestGIBSCBS(t *testing.T) {
 	}
 	assertBefore(t, order, "gIBSUF", "gIBSMun")
 	assertBefore(t, order, "gIBSMun", "vIBS")
-	if order[len(order)-1] != "gCBS" {
-		t.Errorf("expected gCBS last, got %v", order)
+	// gCBS deixou de ser o último no PL_010e_v1.02: a tributação de referência
+	// (gTribRegular) e a de compra governamental (gTribCompraGov) vêm depois.
+	assertBefore(t, order, "gCBS", "gTribRegular")
+	if order[len(order)-1] != "gTribCompraGov" {
+		t.Errorf("expected gTribCompraGov last, got %v", order)
 	}
 
 	ufOrder := mustResolve(t, "", "gIBSUF")
@@ -563,9 +566,119 @@ func TestTableKeyCount(t *testing.T) {
 	// este contador é o que faz uma metade esquecida aparecer.
 	// 213 no port original + 7 do MDF-e (infContrato, infUnidTransp,
 	// infUnidCarga, lacUnidTransp, lacUnidCarga, infEntregaParcial,
-	// infNFePrestParcial) + ICMS61, retTrib, ISSQN, ISSQNtot, obsItem e II, que faltavam.
-	const wantKeys = 226
+	// infNFePrestParcial) + ICMS61, retTrib, ISSQN, ISSQNtot, obsItem e II, que
+	// faltavam + 21 da reforma tributária (gDif, gDevTrib, gRed, gALCZFMCBS,
+	// gTribRegular, gTribCompraGov, gIBSCBSMono, gMonoPadrao, gMonoReten,
+	// gMonoRet, gMonoDif, gTransfCred, gAjusteCompet, gEstornoCred,
+	// gCredPresOper, gIBSCredPres, gCBSCredPres, gCredPresIBSZFM, gCompraGov,
+	// gPagAntecipado, IBSCBSTot:gMono).
+	const wantKeys = 247
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Reforma tributária — PL_010e_v1.02 (Bloco 8 do plano de cobertura de tags)
+// ---------------------------------------------------------------------------
+
+// Os três subgrupos genéricos aparecem dentro de gIBSUF, gIBSMun e gCBS, e o
+// XSD fixa a ordem interna de cada um.
+func TestSubgruposDeAliquotaDaReforma(t *testing.T) {
+	for _, tc := range []struct {
+		tag  string
+		want []string
+	}{
+		{"gDif", []string{"pDif", "vDif"}},
+		{"gDevTrib", []string{"pDevTrib", "vDevTrib"}},
+		{"gRed", []string{"pRedAliq", "pAliqEfet"}},
+		{"gALCZFMCBS", []string{"tpALCZFMCBS", "nProcSuframa", "pAliqEfetRegCBS", "vTribRegCBS"}},
+	} {
+		order := mustResolve(t, "", tc.tag)
+		assertOrderIsCorrect(t, order, tc.want)
+		if len(order) != len(tc.want) {
+			t.Errorf("%s: got %v, want exactly %v", tc.tag, order, tc.want)
+		}
+	}
+}
+
+// gALCZFMCBS mora dentro de gCBS, antes do vCBS.
+func TestGCBSAceitaALCZFM(t *testing.T) {
+	order := mustResolve(t, "", "gCBS")
+	assertBefore(t, order, "gRed", "gALCZFMCBS")
+	assertBefore(t, order, "gALCZFMCBS", "vCBS")
+}
+
+// gIBSCBSMono e seus quatro sub-grupos (TMonofasia).
+func TestMonofasiaDaReforma(t *testing.T) {
+	order := mustResolve(t, "", "gIBSCBSMono")
+	assertOrderIsCorrect(t, order, []string{
+		"gMonoPadrao", "gMonoReten", "gMonoRet", "gMonoDif",
+		"vTotIBSMonoItem", "vTotCBSMonoItem",
+	})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gMonoReten"),
+		[]string{"qBCMonoReten", "adRemIBSReten", "vIBSMonoReten", "adRemCBSReten", "vCBSMonoReten"})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gMonoRet"),
+		[]string{"qBCMonoRet", "adRemIBSRet", "vIBSMonoRet", "adRemCBSRet", "vCBSMonoRet"})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gMonoDif"),
+		[]string{"pDifIBS", "vIBSMonoDif", "pDifCBS", "vCBSMonoDif"})
+}
+
+// Tributação de referência: o quarteto CST/cClassTrib/alíquota/valor repetido
+// para IBS-UF, IBS-Mun e CBS.
+func TestTributacaoDeReferencia(t *testing.T) {
+	assertOrderIsCorrect(t, mustResolve(t, "", "gTribRegular"), []string{
+		"CSTReg", "cClassTribReg",
+		"pAliqEfetRegIBSUF", "vTribRegIBSUF",
+		"pAliqEfetRegIBSMun", "vTribRegIBSMun",
+		"pAliqEfetRegCBS", "vTribRegCBS",
+	})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gTribCompraGov"), []string{
+		"pAliqIBSUF", "vTribIBSUF", "pAliqIBSMun", "vTribIBSMun", "pAliqCBS", "vTribCBS",
+	})
+}
+
+// Transferência, ajuste de competência, estorno e créditos presumidos.
+func TestCreditosDaReforma(t *testing.T) {
+	assertOrderIsCorrect(t, mustResolve(t, "", "gAjusteCompet"), []string{"competApur", "vIBS", "vCBS"})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gEstornoCred"), []string{"vIBSEstCred", "vCBSEstCred"})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gCredPresOper"),
+		[]string{"vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"})
+	// O choice vCredPres | vCredPresCondSus vale nos dois lados.
+	for _, tag := range []string{"gIBSCredPres", "gCBSCredPres"} {
+		assertOrderIsCorrect(t, mustResolve(t, "", tag),
+			[]string{"pCredPres", "vCredPres", "vCredPresCondSus"})
+	}
+	assertOrderIsCorrect(t, mustResolve(t, "", "gCredPresIBSZFM"),
+		[]string{"competApur", "tpCredPresIBSZFM", "vCredPresIBSZFM"})
+}
+
+// gCompraGov e gPagAntecipado ficam no ide.
+func TestCompraGovernamentalNoIde(t *testing.T) {
+	ide := mustResolve(t, "infNFe", "ide")
+	assertBefore(t, ide, "NFref", "gCompraGov")
+	assertBefore(t, ide, "gCompraGov", "gPagAntecipado")
+	assertOrderIsCorrect(t, mustResolve(t, "", "gCompraGov"),
+		[]string{"tpEnteGov", "pRedutor", "tpOperGov", "refDFeAnt"})
+	assertOrderIsCorrect(t, mustResolve(t, "", "gPagAntecipado"), []string{"refNFe"})
+}
+
+// gMono dentro de IBSCBSTot é escopado: os nomes não colidem com o gMono do
+// item porque só o total tem esta chave.
+func TestTotalDaMonofasia(t *testing.T) {
+	assertOrderIsCorrect(t, mustResolve(t, "IBSCBSTot", "gMono"), []string{
+		"vIBSMono", "vCBSMono", "vIBSMonoReten", "vCBSMonoReten", "vIBSMonoRet", "vCBSMonoRet",
+	})
+	tot := mustResolve(t, "total", "IBSCBSTot")
+	assertBefore(t, tot, "gCBS", "gMono")
+	assertBefore(t, tot, "gMono", "gEstornoCred")
+}
+
+// O IS do PL_010e_v1.02 usa CSTIS/cClassTribIS/vBCIS/pIS — os nomes da
+// NT 2024.001 (CST/cClassTrib/vBC) não valem mais. A tabela Python ficou para
+// trás uma vez; TestXsdOrderParity (py-dfe) é o guarda permanente disso.
+func TestISUsaOsNomesDoPL010e(t *testing.T) {
+	assertOrderIsCorrect(t, mustResolve(t, "", "IS"), []string{
+		"CSTIS", "cClassTribIS", "vBCIS", "pIS", "adRemIS", "uTrib", "qTrib", "vIS",
+	})
 }

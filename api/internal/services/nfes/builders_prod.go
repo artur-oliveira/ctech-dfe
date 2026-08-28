@@ -8,6 +8,8 @@ import (
 	"strconv"
 
 	"github.com/shopspring/decimal"
+
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 // prodParams carrega os valores já calculados no laço de itens que o nó prod
@@ -77,6 +79,26 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	if v := anyStr(item, "c_barra_trib", ""); v != "" {
 		prod["cBarraTrib"] = v
 	}
+	// Reforma tributária no produto: crédito presumido da UF, classificação da
+	// subapuração do IBS na ZFM e o indicador de bem móvel usado.
+	if creds := buildGCred(anyList(item, "gcred"), d(p.VProd)); len(creds) > 0 {
+		prod["gCred"] = creds
+	}
+	if v := anyStr(item, "tp_cred_pres_ibs_zfm", ""); v != "" {
+		prod["tpCredPresIBSZFM"] = v
+	}
+	// O XSD enumera um valor só: 1 = bem móvel usado.
+	if anyStr(item, "ind_bem_movel_usado", "") == indBemMovelUsadoSim {
+		prod["indBemMovelUsado"] = indBemMovelUsadoSim
+	}
+	// Pedido de compra do cliente: controle B2B do emissor, informado por item
+	// na emissão. nItemPed sem xPed não identifica nada, então anda junto.
+	if v := anyStr(item, "x_ped", ""); v != "" {
+		prod["xPed"] = v
+		if n := anyStr(item, "n_item_ped", ""); n != "" {
+			prod["nItemPed"] = n
+		}
+	}
 	// DI: o item aponta a declaração e a adição; nAdicao/nSeqAdic saem daí.
 	if dis, ok := item["import_declarations"].([]map[string]any); ok && len(dis) > 0 {
 		prod["DI"] = dis
@@ -98,45 +120,12 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 		prod["comb"] = comb
 	}
 
-	if medProd := anyStr(item, "med_c_prod_anvisa", ""); medProd != "" {
-		medNode := map[string]any{
-			"cProdANVISA": medProd,
-			"vPMC":        strOrDefault(anyStr(item, "med_v_pmc", ""), "0.00"),
-		}
-		if v := anyStr(item, "med_x_motivo_isencao", ""); v != "" {
-			medNode["xMotivoIsencao"] = v
-		}
-		prod["med"] = medNode
+	if med, err := buildMed(item); err == nil && med != nil {
+		prod["med"] = med
 	}
 
-	if veicChassi := anyStr(item, "veic_chassi", ""); veicChassi != "" {
-		veicNode := map[string]any{
-			"tpOp":         strOrDefault(anyStr(item, "veic_tp_op", ""), "0"),
-			"chassi":       veicChassi,
-			"cCor":         strOrDefault(firstNonEmpty(anyStr(item, "veic_c_cor_override", ""), anyStr(item, "veic_c_cor", "")), ""),
-			"xCor":         strOrDefault(firstNonEmpty(anyStr(item, "veic_x_cor_override", ""), anyStr(item, "veic_x_cor", "")), ""),
-			"pot":          strOrDefault(anyStr(item, "veic_pot", ""), "0"),
-			"cilin":        strOrDefault(anyStr(item, "veic_cilin", ""), "0"),
-			"pesoL":        strOrDefault(anyStr(item, "net_weight", ""), "0"),
-			"pesoB":        strOrDefault(anyStr(item, "gross_weight", ""), "0"),
-			"nSerie":       strOrDefault(anyStr(item, "veic_n_serie", ""), ""),
-			"tpComb":       strOrDefault(anyStr(item, "veic_tp_comb", ""), "02"),
-			"nMotor":       strOrDefault(anyStr(item, "veic_n_motor", ""), ""),
-			"CMT":          strOrDefault(anyStr(item, "veic_cmt", ""), "0"),
-			"dist":         strOrDefault(anyStr(item, "veic_dist", ""), "0"),
-			"anoMod":       strOrDefault(anyStr(item, "veic_ano_mod", ""), ""),
-			"anoFab":       strOrDefault(anyStr(item, "veic_ano_fab", ""), ""),
-			"tpPint":       strOrDefault(anyStr(item, "veic_tp_pint", ""), "S"),
-			"tpVeic":       strOrDefault(anyStr(item, "veic_tp_veic", ""), "06"),
-			"espVeic":      strOrDefault(anyStr(item, "veic_esp_veic", ""), "1"),
-			"VIN":          strOrDefault(anyStr(item, "veic_vin", ""), "N"),
-			"condVeic":     strOrDefault(anyStr(item, "veic_cond_veic", ""), "1"),
-			"cMod":         strOrDefault(anyStr(item, "veic_c_mod", ""), "000001"),
-			"cCorDENATRAN": strOrDefault(anyStr(item, "veic_c_cor_denatran", ""), "01"),
-			"lota":         strOrDefault(anyStr(item, "veic_lota", ""), "5"),
-			"tpRest":       strOrDefault(anyStr(item, "veic_tp_rest", ""), "0"),
-		}
-		prod["veicProd"] = veicNode
+	if veic, err := buildVeicProd(item); err == nil && veic != nil {
+		prod["veicProd"] = veic
 	}
 
 	if armas, ok := item["armas"].([]any); ok && len(armas) > 0 {
@@ -156,7 +145,27 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 			prod["arma"] = armaList
 		}
 	}
+
+	// nRECOPI (papel imune) é o último ramo do choice do XSD: comb, med,
+	// veicProd e arma o excluem. Emitir os dois é rejeição, então o grupo já
+	// presente vence — o RECOPI de um item de combustível é erro de cadastro.
+	if v := anyStr(item, "n_recopi", ""); v != "" && !hasProdChoiceGroup(prod) {
+		prod["nRECOPI"] = v
+	}
 	return prod
+}
+
+// prodChoiceGroups são os ramos do choice de prod que excluem nRECOPI.
+var prodChoiceGroups = []string{"veicProd", "med", "arma", "comb"}
+
+// hasProdChoiceGroup diz se o item já ocupou o choice de prod.
+func hasProdChoiceGroup(prod map[string]any) bool {
+	for _, g := range prodChoiceGroups {
+		if _, ok := prod[g]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // anyStrList lê uma lista de strings do item — o cadastro devolve []any depois
@@ -272,4 +281,158 @@ func buildII(item map[string]any, vProd decimal.Decimal) map[string]any {
 		"vII":      strOrDefault(vII, "0.00"),
 		"vIOF":     strOrDefault(anyStr(item, "ii_v_iof", ""), "0.00"),
 	}
+}
+
+// ── veicProd e med ───────────────────────────────────────────────────────────
+//
+// As 24 tags de veicProd são todas obrigatórias no XSD, e as três de med também
+// (xMotivoIsencao é condicional). Nenhuma delas ganha default: um "000001" de
+// cMod ou um "06" de tpVeic inventado aqui é rejeição adiada para a SEFAZ, com
+// a diferença de que lá o erro não diz qual campo falta no cadastro.
+
+// medIsento é o literal aceito em cProdANVISA no lugar do número do registro.
+const medIsento = "ISENTO"
+
+// veicProdTagOrder é a ordem do XSD (leiauteNFe_v4.00, grupo veicProd). Serve
+// de fonte única do conjunto de tags obrigatórias.
+var veicProdTagOrder = []string{
+	"tpOp", "chassi", "cCor", "xCor", "pot", "cilin", "pesoL", "pesoB", "nSerie",
+	"tpComb", "nMotor", "CMT", "dist", "anoMod", "anoFab", "tpPint", "tpVeic",
+	"espVeic", "VIN", "condVeic", "cMod", "cCorDENATRAN", "lota", "tpRest",
+}
+
+// veicProdFields mapeia a chave do item (cadastro do produto ou emissão) para a
+// tag do XML. A cor tem override de emissão e é tratada fora do mapa.
+var veicProdFields = map[string]string{
+	"veic_tp_op":          "tpOp",
+	"veic_chassi":         "chassi",
+	"veic_pot":            "pot",
+	"veic_cilin":          "cilin",
+	"net_weight":          "pesoL",
+	"gross_weight":        "pesoB",
+	"veic_n_serie":        "nSerie",
+	"veic_tp_comb":        "tpComb",
+	"veic_n_motor":        "nMotor",
+	"veic_cmt":            "CMT",
+	"veic_dist":           "dist",
+	"veic_ano_mod":        "anoMod",
+	"veic_ano_fab":        "anoFab",
+	"veic_tp_pint":        "tpPint",
+	"veic_tp_veic":        "tpVeic",
+	"veic_esp_veic":       "espVeic",
+	"veic_vin":            "VIN",
+	"veic_cond_veic":      "condVeic",
+	"veic_c_mod":          "cMod",
+	"veic_c_cor_denatran": "cCorDENATRAN",
+	"veic_lota":           "lota",
+	"veic_tp_rest":        "tpRest",
+}
+
+// buildVeicProd monta prod/veicProd. Devolve (nil, nil) quando o item não é
+// veículo novo — a ausência do chassi é o que define isso — e erro nomeando a
+// tag faltante quando é, mas está incompleto.
+func buildVeicProd(item map[string]any) (map[string]any, error) {
+	if anyStr(item, "veic_chassi", "") == "" {
+		return nil, nil
+	}
+	node := make(map[string]any, len(veicProdTagOrder))
+	// cCor e xCor aceitam override na emissão: a cor é do veículo vendido, não
+	// do modelo cadastrado.
+	node["cCor"] = firstNonEmpty(anyStr(item, "veic_c_cor_override", ""), anyStr(item, "veic_c_cor", ""))
+	node["xCor"] = firstNonEmpty(anyStr(item, "veic_x_cor_override", ""), anyStr(item, "veic_x_cor", ""))
+	for key, tag := range veicProdFields {
+		node[tag] = anyStr(item, key, "")
+	}
+	for _, tag := range veicProdTagOrder {
+		if node[tag] == "" {
+			return nil, problem.BadRequest(
+				"veículo novo sem " + tag + ": complete o cadastro do produto ou informe o campo na emissão")
+		}
+	}
+	return node, nil
+}
+
+// buildMed monta prod/med. Devolve (nil, nil) quando o item não é medicamento.
+// cProdANVISA = ISENTO exige xMotivoIsencao; registro numérico o proíbe.
+func buildMed(item map[string]any) (map[string]any, error) {
+	reg := anyStr(item, "med_c_prod_anvisa", "")
+	if reg == "" {
+		return nil, nil
+	}
+	pmc := anyStr(item, "med_v_pmc", "")
+	if pmc == "" {
+		return nil, problem.BadRequest("medicamento sem vPMC: informe o preço máximo ao consumidor no cadastro do produto")
+	}
+	motivo := anyStr(item, "med_x_motivo_isencao", "")
+	if reg == medIsento && motivo == "" {
+		return nil, problem.BadRequest("medicamento isento de registro exige xMotivoIsencao (número da RDC que o isenta)")
+	}
+	if reg != medIsento && motivo != "" {
+		return nil, problem.BadRequest("xMotivoIsencao só é aceito quando cProdANVISA é " + medIsento)
+	}
+	node := map[string]any{"cProdANVISA": reg, "vPMC": pmc}
+	if motivo != "" {
+		node["xMotivoIsencao"] = motivo
+	}
+	return node, nil
+}
+
+// ── gCred, tpCredPresIBSZFM e indBemMovelUsado ───────────────────────────────
+
+// maxGCred é o maxOccurs do grupo gCred no XSD.
+const maxGCred = 4
+
+// indBemMovelUsadoSim é o único valor que o XSD enumera para o indicador.
+const indBemMovelUsadoSim = "1"
+
+// buildGCred monta prod/gCred — os créditos presumidos da UF aplicados ao item.
+// Ordem XSD: cCredPresumido, pCredPresumido, vCredPresumido.
+//
+// O vCredPresumido é **derivado** do percentual sobre o valor do item: código e
+// percentual são do cadastro, e o valor é aritmética. Digitar os três seria
+// pedir que o operador feche uma conta que o sistema já sabe fazer.
+func buildGCred(creds []any, vProd decimal.Decimal) []map[string]any {
+	if len(creds) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, min(len(creds), maxGCred))
+	for _, raw := range creds {
+		if len(out) == maxGCred {
+			break
+		}
+		m, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		code := anyStr(m, "c_cred_presumido", "")
+		pct := anyStr(m, "p_cred_presumido", "")
+		if code == "" || pct == "" {
+			continue
+		}
+		out = append(out, map[string]any{
+			"cCredPresumido": code,
+			"pCredPresumido": pct,
+			"vCredPresumido": calcTaxValue(vProd, pct),
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// anyList lê uma lista de mapas de um item, aceitando o []any que vem do
+// unmarshal do DynamoDB e o []map[string]any que o request monta.
+func anyList(m map[string]any, key string) []any {
+	switch v := m[key].(type) {
+	case []any:
+		return v
+	case []map[string]any:
+		out := make([]any, 0, len(v))
+		for _, e := range v {
+			out = append(out, e)
+		}
+		return out
+	}
+	return nil
 }

@@ -129,6 +129,8 @@ const DEFAULT_VALUES: EntityFormData = {
     nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
     cnae: '',
     isuf_emit: '',
+    intermediary_id: '',
+    technical_manager_cpf: '',
     bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
     freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
   },
@@ -149,7 +151,8 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.contacts.emails.length > 0) return true
   if (data.person.contacts.phones.length > 0) return true
   if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
-  if (data.person.cnae || data.person.isuf_emit) return true
+  if (data.person.cnae || data.person.isuf_emit || data.person.technical_manager_cpf) return true
+  if (data.person.intermediary_id) return true
   if (data.person.bank && Object.values(data.person.bank).some(Boolean)) return true
   if (data.person.freight_retention && Object.values(data.person.freight_retention).some(Boolean)) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
@@ -216,6 +219,7 @@ export function EntityForm({
   const watchedBank = useWatch({control: form.control, name: 'person.bank'})
   const watchedFreight = useWatch({control: form.control, name: 'person.freight_retention'})
   const watchedNfse = useWatch({control: form.control, name: 'person.nfse'})
+  const watchedIntermediaryID = useWatch({control: form.control, name: 'person.intermediary_id'})
   const debouncedDoc = useDebounce(watchedDoc, 300)
   // Pessoa no exterior (dest/idEstrangeiro): sem CPF/CNPJ, sem consulta à
   // Receita, sem IE. Só a variante 'person' oferece — o emitente é sempre BR.
@@ -325,6 +329,10 @@ export function EntityForm({
   const showBankSection = !isOrg && (selectedRoles.includes('driver') || selectedRoles.includes('carrier') || hasBankData)
   const showFreightSection = !isOrg && (selectedRoles.includes('carrier') || hasFreightData)
   const showNfseSection = isOrg || selectedRoles.includes('provider') || hasNfseData
+  // O "seller id" só existe para quem é intermediador — perguntar a todo
+  // cadastro seria mais um campo em branco em 99% das pessoas.
+  const showIntermediarySection = !isOrg
+    && (selectedRoles.includes('intermediary') || !!watchedIntermediaryID)
 
   // Pessoa física (person variant) may leave CRT unspecified — backend omits it
   // and defaults to Simples Nacional on emission. Org PF (MEI) still picks a regime.
@@ -433,6 +441,17 @@ export function EntityForm({
                      </FormItem>
                    )}
         />
+        <FormField control={form.control as never} name="person.technical_manager_cpf"
+                   render={({field}) => (
+                     <FormItem>
+                       <FormLabel>CPF do responsável técnico agronômico</FormLabel>
+                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={11}
+                              inputMode="numeric" placeholder="Somente números"
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <FormMessage/>
+                     </FormItem>
+                   )}
+        />
       </div>
     </div>
   )
@@ -494,6 +513,29 @@ export function EntityForm({
 
   // ICMS retido pelo remetente sobre o frete: perfil da transportadora, usado
   // em transp/retTransp. O valor retido é calculado na emissão.
+  // Intermediador (marketplace/plataforma): o identificador do emitente no
+  // cadastro dela é invariante do par emitente↔plataforma, então mora aqui e
+  // não na emissão. A operação só aponta qual plataforma.
+  const intermediarySection = (
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-1 text-sm font-semibold text-gray-900">Intermediador da transação</h3>
+      <p className="mb-3 text-xs text-gray-500">
+        Identificador do seu estabelecimento no cadastro desta plataforma
+        (NF-e <code>infIntermed/idCadIntTran</code>).
+      </p>
+      <FormField control={form.control as never} name="person.intermediary_id"
+                 render={({field}) => (
+                   <FormItem>
+                     <FormLabel>Identificador no intermediador</FormLabel>
+                     <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
+                            placeholder="Ex: LOJA-42"/>
+                     <FormMessage/>
+                   </FormItem>
+                 )}
+      />
+    </div>
+  )
+
   const freightRetentionSection = (
     <div className="border-t border-gray-200 pt-4">
       <h3 className="mb-3 text-sm font-semibold text-gray-900">ICMS retido sobre o frete</h3>
@@ -809,6 +851,8 @@ export function EntityForm({
               {showBankSection && bankSection}
 
               {showFreightSection && freightRetentionSection}
+
+              {showIntermediarySection && intermediarySection}
 
               {showNfseSection && nfseSection}
 

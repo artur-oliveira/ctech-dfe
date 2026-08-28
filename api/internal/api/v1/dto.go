@@ -115,6 +115,14 @@ type PersonObjectBody struct {
 	// Bank são os dados de recebimento do condutor/TAC (MDF-e infANTT/infBanc).
 	// Ficam na pessoa porque são invariantes dela, não da viagem.
 	Bank *PersonBankBody `json:"bank" validate:"omitempty"`
+	// IntermediaryID é o identificador do emitente no cadastro do intermediador
+	// (NF-e infIntermed/idCadIntTran) — o "seller id" do marketplace. É
+	// invariante do par emitente↔plataforma, então mora na pessoa.
+	IntermediaryID *string `json:"intermediary_id" validate:"omitempty,min=2,max=60"`
+	// TechnicalManagerCpf é o CPF do responsável técnico agronômico
+	// (NF-e agropecuario/defensivo/CPFRespTec). É o mesmo agrônomo em toda nota
+	// de defensivo do emitente, então mora no cadastro, não na emissão.
+	TechnicalManagerCpf *string `json:"technical_manager_cpf" validate:"omitempty,cpf"`
 }
 
 // FreightRetentionBody é o grupo retTransp: serviço, base, alíquota, CFOP e
@@ -140,7 +148,7 @@ type PersonBankBody struct {
 // personRolesValidation is the shared `validate` tag for the person role list.
 // The accepted values mirror services.AllPersonRoles; TestPersonRolesTagMatchesAllPersonRoles
 // fails if the two drift apart.
-const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"
+const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"
 
 // PersonCreateBody is the body for POST /persons.
 //
@@ -154,7 +162,7 @@ type PersonCreateBody struct {
 	// IDEstrangeiro é o documento de pessoa no exterior (dest/idEstrangeiro).
 	IDEstrangeiro *string          `json:"id_estrangeiro" validate:"omitempty,max=20"`
 	Name          string           `json:"name" validate:"required,min=2,max=255"`
-	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"`
+	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
 	Person        PersonObjectBody `json:"person" validate:"required"`
 }
 
@@ -166,7 +174,7 @@ type PersonCreateBody struct {
 // continua sendo a forma de limpar todos os papéis.
 type PersonUpdateBody struct {
 	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
-	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor"`
+	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 
@@ -290,10 +298,51 @@ type TaxFieldsBody struct {
 	IbsUfPDif       *string `json:"ibs_uf_p_dif" validate:"omitempty,percent"`
 	IbsMunPDif      *string `json:"ibs_mun_p_dif" validate:"omitempty,percent"`
 	CbsPDif         *string `json:"cbs_p_dif" validate:"omitempty,percent"`
-	IbsIndDoacao    *string `json:"ibs_ind_doacao" validate:"omitempty"`
-	IbsAdRem        *string `json:"ibs_ad_rem" validate:"omitempty,percent"`
-	CbsAdRem        *string `json:"cbs_ad_rem" validate:"omitempty,percent"`
-	IbsCbsPDevTrib  *string `json:"ibs_cbs_p_dev_trib" validate:"omitempty,percent"`
+	// IbsIndDoacao: o XSD (TIndDoacao) enumera um valor só, "1". "S"/"N" era o
+	// domínio de uma NT anterior e hoje é rejeição.
+	IbsIndDoacao *string `json:"ibs_ind_doacao" validate:"omitempty,oneof=1"`
+	IbsAdRem     *string `json:"ibs_ad_rem" validate:"omitempty,percent"`
+	CbsAdRem     *string `json:"cbs_ad_rem" validate:"omitempty,percent"`
+	// IbsCbsPDevTrib é o percentual de devolução de tributo ao adquirente. Vale
+	// nas três esferas (gIBSUF/gDevTrib, gIBSMun/gDevTrib, gCBS/gDevTrib): o
+	// vDevTrib de cada uma é este percentual sobre o tributo daquela esfera.
+	IbsCbsPDevTrib *string `json:"ibs_cbs_p_dev_trib" validate:"omitempty,percent"`
+	// Monofasia da reforma (gIBSCBSMono). A alíquota específica é por unidade,
+	// não percentual: a base é a quantidade. ibs_ad_rem/cbs_ad_rem são o
+	// gMonoPadrao; *_reten é a retenção, *_ret o já retido e *_p_dif_mono o
+	// diferimento — cada par é tudo-ou-nada.
+	IbsAdRemReten *string `json:"ibs_ad_rem_reten" validate:"omitempty,money"`
+	CbsAdRemReten *string `json:"cbs_ad_rem_reten" validate:"omitempty,money"`
+	IbsAdRemRet   *string `json:"ibs_ad_rem_ret" validate:"omitempty,money"`
+	CbsAdRemRet   *string `json:"cbs_ad_rem_ret" validate:"omitempty,money"`
+	IbsPDifMono   *string `json:"ibs_p_dif_mono" validate:"omitempty,percent"`
+	CbsPDifMono   *string `json:"cbs_p_dif_mono" validate:"omitempty,percent"`
+	// Tributação de referência (gTribRegular): quanto o item pagaria fora do
+	// regime ou benefício. Sem ibs_reg_cst, o bloco não é emitido.
+	IbsRegCst       *string `json:"ibs_reg_cst" validate:"omitempty,ibscst"`
+	IbsRegClassTrib *string `json:"ibs_reg_class_trib" validate:"omitempty,class6"`
+	IbsRegUfAliq    *string `json:"ibs_reg_uf_aliq" validate:"omitempty,percent"`
+	IbsRegMunAliq   *string `json:"ibs_reg_mun_aliq" validate:"omitempty,percent"`
+	CbsRegAliq      *string `json:"cbs_reg_aliq" validate:"omitempty,percent"`
+	// Tributação de compra governamental (gTribCompraGov): quanto o item
+	// pagaria se o comprador não fosse ente público. Não tem CST próprio.
+	IbsGovUfAliq  *string `json:"ibs_gov_uf_aliq" validate:"omitempty,percent"`
+	IbsGovMunAliq *string `json:"ibs_gov_mun_aliq" validate:"omitempty,percent"`
+	CbsGovAliq    *string `json:"cbs_gov_aliq" validate:"omitempty,percent"`
+	// Crédito presumido da operação (gCredPresOper). O valor de cada esfera é o
+	// percentual sobre a base; cond_sus só muda a tag de destino (o choice
+	// vCredPres | vCredPresCondSus), nunca a conta.
+	IbsCbsCCredPres       *string `json:"ibs_cbs_c_cred_pres" validate:"omitempty,len=2,number"`
+	IbsPCredPres          *string `json:"ibs_p_cred_pres" validate:"omitempty,percent"`
+	CbsPCredPres          *string `json:"cbs_p_cred_pres" validate:"omitempty,percent"`
+	IbsCbsCredPresCondSus *string `json:"ibs_cbs_cred_pres_cond_sus" validate:"omitempty,oneof=1"`
+	// Crédito presumido do IBS na ZFM (gCredPresIBSZFM). A classificação vem do
+	// produto (tp_cred_pres_ibs_zfm); aqui só o percentual.
+	IbsZfmPCredPres *string `json:"ibs_zfm_p_cred_pres" validate:"omitempty,percent"`
+	// Alíquota zero da CBS em ALC/ZFM (gCBS/gALCZFMCBS). tp: 1 ou 2; a alíquota
+	// de referência é cbs_reg_aliq.
+	AlcZfmTpCbs        *string `json:"alc_zfm_tp_cbs" validate:"omitempty,oneof=1 2"`
+	AlcZfmNProcSuframa *string `json:"alc_zfm_n_proc_suframa" validate:"omitempty,min=8,max=12"`
 	// IPI
 	IpiCst  *string `json:"ipi_cst" validate:"omitempty"`
 	IpiAliq *string `json:"ipi_aliq" validate:"omitempty,percent"`
@@ -431,6 +480,50 @@ type OperationBody struct {
 	// RetTrib é o perfil de retenções federais do cenário (total/retTrib). Os
 	// percentuais são invariantes da operação; os valores saem da base da nota.
 	RetTrib *RetTribBody `json:"ret_trib" validate:"omitempty"`
+
+	// CompraXNEmp é a nota de empenho do cenário de venda a órgão público
+	// (infNFe/compra/xNEmp). Quem vende por empenho vende sempre por empenho;
+	// pedido e contrato variam por nota e vão no request de emissão.
+	CompraXNEmp *string `json:"compra_x_n_emp" validate:"omitempty,min=1,max=22"`
+
+	// IntermediaryPersonID é o marketplace/plataforma do cenário
+	// (infNFe/infIntermed) e IndIntermed marca ide/indIntermed. Uma operação
+	// por canal de venda: "venda no site próprio" é 0, "venda no marketplace X"
+	// é 1 mais a pessoa da plataforma.
+	IntermediaryPersonID *string `json:"intermediary_person_id" validate:"omitempty"`
+	IndIntermed          *string `json:"ind_intermed" validate:"omitempty,oneof=0 1"`
+
+	// Reforma tributária no ide. Todos são do cenário, não da nota: o local da
+	// operação de fornecimento, o município do fato gerador do IBS/CBS (só
+	// quando ind_pres é 5 e não há endereço de destinatário nem de entrega) e o
+	// par nota de débito / nota de crédito.
+	// TpNFDebito (01–08) e TpNFCredito (01–06) são os motivos da nota de débito
+	// e da nota de crédito da reforma (TTpNFDebito / TTpNFCredito). São códigos
+	// de dois dígitos, não o 0/1 de entrada/saída do tpNF.
+	CIndOp      *string `json:"c_ind_op" validate:"omitempty,len=6,number"`
+	CMunFGIBS   *string `json:"c_mun_fg_ibs" validate:"omitempty,ibge"`
+	TpNFDebito  *string `json:"tp_nf_debito" validate:"omitempty,oneof=01 02 03 04 05 06 07 08"`
+	TpNFCredito *string `json:"tp_nf_credito" validate:"omitempty,oneof=01 02 03 04 05 06"`
+
+	// Compras governamentais (ide/gCompraGov). tp_ente_gov: 1 União, 2 Estados,
+	// 3 DF, 4 Municípios, 5 Consórcio Público, 6 Comitê Gestor do IBS.
+	// tp_oper_gov: 1 fornecimento com pagamento posterior, 2 recebimento do
+	// pagamento com fornecimento já realizado, 3 fornecimento com pagamento já
+	// realizado, 4 recebimento do pagamento com fornecimento posterior. As
+	// chaves de refDFeAnt são da nota, não do cadastro.
+	CompraGovTpEnte   *string `json:"compra_gov_tp_ente" validate:"omitempty,oneof=1 2 3 4 5 6"`
+	CompraGovPRedutor *string `json:"compra_gov_p_redutor" validate:"omitempty,percent"`
+	CompraGovTpOper   *string `json:"compra_gov_tp_oper" validate:"omitempty,oneof=1 2 3 4"`
+
+	// DhSaiEntOffsetDays é o prazo padrão de saída da mercadoria, em dias
+	// corridos a partir da emissão (ide/dhSaiEnt). Quem despacha sempre no dia
+	// seguinte cadastra 1 e nunca mais digita a data.
+	DhSaiEntOffsetDays *int `json:"dh_sai_ent_offset_days" validate:"omitempty,min=0,max=365"`
+
+	// CanaSafra é a safra do registro de aquisição de cana (infNFe/cana/safra),
+	// ex. "2025/2026". O mês de referência e os fornecimentos diários variam
+	// por nota e vão no request.
+	CanaSafra *string `json:"cana_safra" validate:"omitempty,min=4,max=9"`
 
 	// RequiresReceiver falso habilita emissão sem destinatário (self_issuance).
 	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
@@ -724,6 +817,18 @@ type ProductBody struct {
 	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
 	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
 	// NVE, FCI e códigos de barra próprios — nível produto.
+	// Reforma tributária no produto. GCred são os créditos presumidos da UF
+	// aplicados ao item (máx. 4 pelo leiaute): código e percentual são
+	// cadastrados; o valor é derivado do percentual sobre o valor do item.
+	GCred []GCredBody `json:"gcred" validate:"omitempty,max=4,dive"`
+	// TpCredPresIBSZFM é a classificação para subapuração do IBS na ZFM.
+	TpCredPresIBSZFM *string `json:"tp_cred_pres_ibs_zfm" validate:"omitempty,oneof=0 1 2 3 4"`
+	// IndBemMovelUsado marca fornecimento de bem móvel usado. O XSD enumera um
+	// valor só: 1.
+	IndBemMovelUsado *string `json:"ind_bem_movel_usado" validate:"omitempty,oneof=1"`
+	// NRecopi é o número do RECOPI do papel imune (prod/nRECOPI). É do produto,
+	// e o XSD o coloca no mesmo choice de comb/med/veicProd/arma.
+	NRecopi    *string  `json:"n_recopi" validate:"omitempty,len=20,number"`
 	Nve        []string `json:"nve" validate:"omitempty,max=8,dive,len=6"`
 	NFci       *string  `json:"n_fci" validate:"omitempty,uuid"`
 	CBarra     *string  `json:"c_barra" validate:"omitempty,max=30"`
@@ -764,6 +869,15 @@ type ProductBody struct {
 	// arma
 	ArmaTpArma *string `json:"arma_tp_arma" validate:"omitempty,oneof=0 1"`
 	ArmaDescr  *string `json:"arma_descr" validate:"omitempty,max=256"`
+}
+
+// GCredBody é um crédito presumido da UF aplicado ao item (prod/gCred). O
+// vCredPresumido não está aqui: é o percentual sobre o valor do item, calculado
+// na emissão.
+type GCredBody struct {
+	// CCredPresumido é o código do benefício, de 8 ou 10 caracteres.
+	CCredPresumido string `json:"c_cred_presumido" validate:"required,ccredpres"`
+	PCredPresumido string `json:"p_cred_presumido" validate:"required,percent"`
 }
 
 // ── Serviços (catálogo NFS-e) ────────────────────────────────────────────────

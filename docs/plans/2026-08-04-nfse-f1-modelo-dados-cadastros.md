@@ -14,7 +14,7 @@ genérico + `CRUDRepository` + `CRUDMutationHelper`). `organization_nfse_configs
 tributação nacional, NBS, `indOp`) viram um pacote Go exportado em `go-dfe`, consumido pela `api` para validação e
 depois pela própria `go-dfe` na montagem do XML.
 
-**Tech Stack:** Go 1.26 (Fiber v3, aws-sdk-go-v2, go-playground/validator, uber/fx), AWS CDK v2 TypeScript, DynamoDB,
+**Tech Stack:** go 1.27 (Fiber v3, aws-sdk-go-v2, go-playground/validator, uber/fx), AWS CDK v2 TypeScript, DynamoDB,
 Next.js/TypeScript (só dados de referência nesta fase), Python 3 + openpyxl (apenas para gerar as tabelas, não roda em
 produção).
 

@@ -62,6 +62,80 @@ type NfeEmitBody struct {
 	// rejeitado sem pelo menos um. `nfe_id` referencia uma nota da própria base
 	// e dispensa o resto: chave e tipo saem do registro.
 	NFRefs []NfeRefBody `json:"nf_refs" validate:"omitempty,max=500,dive"`
+
+	// CompraXPed/CompraXCont são o pedido e o contrato desta nota
+	// (infNFe/compra). A nota de empenho é da natureza de operação.
+	CompraXPed  *string `json:"compra_x_ped" validate:"omitempty,max=60"`
+	CompraXCont *string `json:"compra_x_cont" validate:"omitempty,max=60"`
+
+	// Cana é o registro de aquisição de cana do mês (infNFe/cana). A safra é da
+	// natureza de operação; aqui vêm o mês de referência e os lançamentos.
+	Cana *NfeCanaBody `json:"cana" validate:"omitempty"`
+
+	// Agro é o grupo agropecuario: receituários de defensivo **ou** guia de
+	// trânsito, nunca os dois (choice do XSD).
+	Agro *NfeAgroBody `json:"agro" validate:"omitempty"`
+
+	// DhSaiEnt e DPrevEntrega vencem o offset cadastrado na operação — é o
+	// despacho fora do padrão que precisa de data explícita.
+	DhSaiEnt     *string `json:"dh_sai_ent" validate:"omitempty,datetime=2006-01-02T15:04:05-07:00"`
+	DPrevEntrega *string `json:"d_prev_entrega" validate:"omitempty,isodate"`
+
+	// CompraGovRefs são as chaves dos documentos fiscais anteriores da compra
+	// governamental (ide/gCompraGov/refDFeAnt). O tipo de ente, o redutor e o
+	// tipo de operação são da natureza de operação.
+	CompraGovRefs []string `json:"compra_gov_refs" validate:"omitempty,max=99,dive,len=44,number"`
+	// PagAntecipadoRefs são as chaves das NF-e de antecipação de pagamento a
+	// abater nesta nota (ide/gPagAntecipado).
+	PagAntecipadoRefs []string `json:"pag_antecipado_refs" validate:"omitempty,max=99,dive,len=44,number"`
+}
+
+// NfeCanaBody é o registro mensal de aquisição de cana (infNFe/cana).
+//
+// Só o que varia por nota está aqui: o mês de referência, os fornecimentos
+// diários e as deduções. qTotMes, qTotGer, vTotDed e vLiqFor são derivados em
+// buildCana; a safra vem da natureza de operação.
+type NfeCanaBody struct {
+	// Ref é o mês/ano de referência no formato MM/AAAA (padrão do XSD).
+	Ref string `json:"ref" validate:"required,canaref"`
+	// Deliveries são os fornecimentos diários (máx. 31, um por dia).
+	Deliveries []NfeCanaDeliveryBody `json:"deliveries" validate:"required,min=1,max=31,dive"`
+	// Deducoes são as deduções do fornecimento (máx. 10 pelo leiaute).
+	Deducoes []NfeCanaDeducBody `json:"deducoes" validate:"omitempty,max=10,dive"`
+	// QTotAnt é o acumulado das safras/meses anteriores, que vem do razão do
+	// fornecedor — é a única quantidade da cana que não sai desta nota.
+	QTotAnt *string `json:"q_tot_ant" validate:"omitempty,decimalv"`
+}
+
+// NfeCanaDeliveryBody é um fornecimento diário (cana/forDia).
+type NfeCanaDeliveryBody struct {
+	// Dia é o dia do mês, 1 a 31 (atributo @dia, sem zero à esquerda).
+	Dia  string `json:"dia" validate:"required,canadia"`
+	Qtde string `json:"qtde" validate:"required,decimalv"`
+}
+
+// NfeCanaDeducBody é uma dedução do fornecimento (cana/deduc).
+type NfeCanaDeducBody struct {
+	XDed string `json:"x_ded" validate:"required,max=60"`
+	VDed string `json:"v_ded" validate:"required,money2"`
+}
+
+// NfeAgroBody é o grupo infNFe/agropecuario — um choice no XSD.
+type NfeAgroBody struct {
+	// Receituarios são os números dos receituários de defensivo (máx. 20). O
+	// CPF do responsável técnico acompanha cada um e vem da organização.
+	Receituarios []string `json:"receituarios" validate:"omitempty,max=20,dive,min=1,max=30"`
+	// Guia é a guia de trânsito animal/vegetal, alternativa aos receituários.
+	Guia *NfeAgroGuiaBody `json:"guia" validate:"omitempty"`
+}
+
+// NfeAgroGuiaBody é agropecuario/guiaTransito.
+type NfeAgroGuiaBody struct {
+	// TpGuia: 1 GTA, 2 TTA, 3 DTA, 4 ATV, 5 PTV, 6 GTV, 7 Guia Florestal.
+	TpGuia    string  `json:"tp_guia" validate:"required,oneof=1 2 3 4 5 6 7"`
+	UFGuia    string  `json:"uf_guia" validate:"required,uf"`
+	SerieGuia *string `json:"serie_guia" validate:"omitempty,min=1,max=9"`
+	NGuia     string  `json:"n_guia" validate:"required,max=9,number"`
 }
 
 // NfeProcRefBody é um processo referenciado (infAdic/procRef).
@@ -135,6 +209,29 @@ type NfeProductItem struct {
 	// PDevol é o percentual devolvido do item (impostoDevol). Só vale em nota
 	// de devolução (finNFe=4).
 	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
+	// XPed e NItemPed são o pedido de compra do cliente e o item dentro dele
+	// (prod/xPed, prod/nItemPed) — controle B2B, muda a cada nota.
+	XPed     *string `json:"x_ped" validate:"omitempty,min=1,max=15"`
+	NItemPed *string `json:"n_item_ped" validate:"omitempty,max=6,number"`
+
+	// Grupos da reforma que só existem por nota, porque são valores apurados e
+	// não configuração: transferência de crédito, ajuste de competência e
+	// estorno de crédito. Transferência e ajuste **substituem** a apuração
+	// normal do item (choice do XSD); o estorno convive com ela.
+	TransfCred   *NfeIBSCBSPairBody `json:"transf_cred" validate:"omitempty"`
+	AjusteCompet *NfeIBSCBSPairBody `json:"ajuste_compet" validate:"omitempty"`
+	EstornoCred  *NfeIBSCBSPairBody `json:"estorno_cred" validate:"omitempty"`
+	// AlcZfmNProcSuframa é o processo Suframa deste item (gALCZFMCBS). É do
+	// embarque, não do cadastro do produto — quando ausente, vale o do perfil.
+	AlcZfmNProcSuframa *string `json:"alc_zfm_n_proc_suframa" validate:"omitempty,min=8,max=12"`
+}
+
+// NfeIBSCBSPairBody é o par de valores IBS/CBS que a transferência de crédito, o
+// ajuste de competência e o estorno de crédito repetem. Um lado sozinho é
+// aceito e o outro vale zero — a apuração pode atingir só um dos tributos.
+type NfeIBSCBSPairBody struct {
+	VIBS *string `json:"v_ibs" validate:"omitempty,money2"`
+	VCBS *string `json:"v_cbs" validate:"omitempty,money2"`
 }
 
 // NfeItemDIBody aponta uma adição de uma declaração de importação cadastrada.
@@ -460,6 +557,31 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		})
 	}
 
+	// Compras governamentais: tipo de ente, redutor e tipo de operação vêm da
+	// operação; as chaves referenciadas, da nota. A regra do refDFeAnt por
+	// tpOperGov é validada aqui, não pela SEFAZ.
+	compraGovNode, err := buildCompraGov(operation, req.CompraGovRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Canal de venda: a operação diz se a venda passou por marketplace e qual.
+	intermediary, err := s.resolveIntermediary(ctx, orgPK, operationDefault(operation, opFieldIntermediaryPersonID))
+	if err != nil {
+		return nil, err
+	}
+
+	// Grupos de nicho: cana usa o total do fornecimento como vFor, e
+	// agropecuario lê o CPF do responsável técnico agronômico do emitente.
+	canaNode, err := buildCana(operation, req.Cana, totalProducts.Sub(totalDiscount))
+	if err != nil {
+		return nil, err
+	}
+	agroNode, err := buildAgropecuario(getPersonMap(orgAny), req.Agro)
+	if err != nil {
+		return nil, err
+	}
+
 	// Escada: valor no request → operação → default do leiaute.
 	finNFe := strOrDefault(ptrStr(firstNonNil(req.FinNFe, operationDefault(operation, opFieldFinNFe))), "1")
 	indFinal := strOrDefault(ptrStr(firstNonNil(req.IndFinal, operationDefault(operation, opFieldIndFinal))), "1")
@@ -519,6 +641,19 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			FinNFe4:          finNFe == finNFeDevolucao,
 			CsrtID:           strAttr(configItem, csrtIDField),
 			Csrt:             strAttr(configItem, csrtField),
+			Compra:           buildCompra(operation, ptrStr(req.CompraXPed), ptrStr(req.CompraXCont)),
+			Cana:             canaNode,
+			Agropecuario:     agroNode,
+			DhSaiEnt:         resolveDhSaiEnt(operation, req.DhSaiEnt, now),
+			DPrevEntrega:     ptrStr(req.DPrevEntrega),
+			IndIntermed:      ptrStr(operationDefault(operation, opFieldIndIntermed)),
+			InfIntermed:      buildInfIntermed(intermediary),
+			CIndOp:           ptrStr(operationDefault(operation, opFieldCIndOp)),
+			CMunFGIBS:        ptrStr(operationDefault(operation, opFieldCMunFGIBS)),
+			TpNFDebito:       ptrStr(operationDefault(operation, opFieldTpNFDebito)),
+			TpNFCredito:      ptrStr(operationDefault(operation, opFieldTpNFCredito)),
+			CompraGov:        compraGovNode,
+			PagAntecipado:    req.PagAntecipadoRefs,
 		},
 	)
 
@@ -1001,6 +1136,47 @@ func encerranteTx(repo *repositories.FuelPumpRepository, orgPK string, readings 
 	return out
 }
 
+// pairValue lê um lado do par IBS/CBS de um grupo apurado da reforma. Devolve
+// string vazia quando o grupo não veio, para que o builder não o monte.
+func pairValue(pair *NfeIBSCBSPairBody, ibs bool) string {
+	if pair == nil {
+		return ""
+	}
+	if ibs {
+		return ptrStr(pair.VIBS)
+	}
+	return ptrStr(pair.VCBS)
+}
+
+// resolveIntermediary carrega a pessoa cadastrada como intermediador da
+// operação e devolve o mapa que buildInfIntermed lê: sk (de onde sai o CNPJ) e
+// o identificador do emitente no cadastro da plataforma.
+//
+// Devolve (nil, nil) quando a operação não aponta intermediador — a venda em
+// canal próprio não tem grupo nenhum.
+func (s *NfeService) resolveIntermediary(
+	ctx context.Context, orgPK string, personID *string,
+) (map[string]any, error) {
+	if personID == nil || *personID == "" {
+		return nil, nil
+	}
+	item, err := s.personRepo.Get(ctx, orgPK, *personID)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, problem.NotFound("intermediador não encontrado: " + *personID)
+	}
+	var row map[string]any
+	if err := attributevalue.UnmarshalMap(item, &row); err != nil {
+		return nil, problem.InternalServer("failed to decode intermediary")
+	}
+	return map[string]any{
+		"sk":                      *personID,
+		personIntermediaryIDField: anyStr(getPersonMap(row), personIntermediaryIDField, ""),
+	}, nil
+}
+
 // sameEntityID compara ids de cadastro aceitando um com prefixo e outro sem —
 // as rotas de cadastro aceitam as duas formas, e o vínculo gravado pode ter
 // vindo de qualquer uma delas.
@@ -1246,11 +1422,37 @@ func resolveProducts(
 			"obs_item_x_campo": product["obs_item_x_campo"],
 			"obs_item_x_texto": product["obs_item_x_texto"],
 			// NVE, nFCI e códigos de barra próprios — nível produto.
-			"nve":          product["nve"],
-			"n_fci":        product["n_fci"],
-			"c_barra":      product["c_barra"],
-			"c_barra_trib": product["c_barra_trib"],
+			"x_ped":      ptrStr(item.XPed),
+			"n_item_ped": ptrStr(item.NItemPed),
+			"n_recopi":   product["n_recopi"],
+			// Reforma tributária: os grupos apurados por nota e o processo
+			// Suframa do embarque.
+			"transf_cred_v_ibs":      pairValue(item.TransfCred, true),
+			"transf_cred_v_cbs":      pairValue(item.TransfCred, false),
+			"ajuste_compet_v_ibs":    pairValue(item.AjusteCompet, true),
+			"ajuste_compet_v_cbs":    pairValue(item.AjusteCompet, false),
+			"estorno_cred_v_ibs":     pairValue(item.EstornoCred, true),
+			"estorno_cred_v_cbs":     pairValue(item.EstornoCred, false),
+			"alc_zfm_n_proc_suframa": ptrStr(item.AlcZfmNProcSuframa),
+			// Reforma tributária no produto.
+			"gcred":                product["gcred"],
+			"tp_cred_pres_ibs_zfm": product["tp_cred_pres_ibs_zfm"],
+			"ind_bem_movel_usado":  product["ind_bem_movel_usado"],
+			"nve":                  product["nve"],
+			"n_fci":                product["n_fci"],
+			"c_barra":              product["c_barra"],
+			"c_barra_trib":         product["c_barra_trib"],
 		}
+		// Grupos de produto que não têm default: veículo novo e medicamento são
+		// recusados aqui, nomeando o campo que falta no cadastro, em vez de
+		// virarem rejeição da SEFAZ sobre uma tag inventada.
+		if _, err := buildVeicProd(pi); err != nil {
+			return nil, decimal.Zero, decimal.Zero, err
+		}
+		if _, err := buildMed(pi); err != nil {
+			return nil, decimal.Zero, decimal.Zero, err
+		}
+
 		productItems = append(productItems, pi)
 	}
 
@@ -1283,7 +1485,7 @@ func (s *NfeService) resolveTransport(ctx context.Context, orgPK string, t *NfeT
 			return nil, err
 		}
 		if carrier != nil {
-			isPJ := strings.HasPrefix(*t.TransportaPK, "CNPJ_")
+			isPJ := strings.HasPrefix(*t.TransportaPK, cnpjPrefix)
 			doc := services.StripPKPrefix(*t.TransportaPK)
 			if isPJ {
 				td["transporta_cnpj"] = doc

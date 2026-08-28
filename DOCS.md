@@ -259,7 +259,7 @@ segno          # QR Code generation
 
 ### go-dfe — In-Process Go Migration (New)
 
-**Location:** `/go-dfe/` (module `gopkg.aoctech.app/dfe/go-dfe`, go 1.26; sibling of `worker/`/`api/`,
+**Location:** `/go-dfe/` (module `gopkg.aoctech.app/dfe/go-dfe`, go 1.27; sibling of `worker/`/`api/`,
 linked via root `go.work`). See `docs/plans/2026-07-17-go-dfe-migration.md` and `MIGRATION.md` (2026-07-18
 entry) for the full rationale and phasing.
 
@@ -916,8 +916,13 @@ the frontend's divergence warning.
 | Taxed IS (CST 000)                             | `is_aliq`, `is_class_trib` required                                                                        |
 | IBS/CBS with reduction (CST 010/011)           | `ibs_uf_p_red`, `ibs_mun_p_red`, `cbs_p_red`                                                               |
 | IBS/CBS with deferral (CST 200/220)            | `ibs_uf_p_dif`, `ibs_mun_p_dif`, `cbs_p_dif`                                                               |
-| IBS/CBS monophase (CST 620)                    | `ibs_ad_rem`, `cbs_ad_rem`                                                                                 |
-| IBS/CBS cashback fiscal (NT 2025.002)          | `ibs_cbs_p_dev_trib`                                                                                       |
+| IBS/CBS monophase (CST 620)                    | `ibs_ad_rem`, `cbs_ad_rem` (`gMonoPadrao`); `ibs_ad_rem_reten`/`cbs_ad_rem_reten` (`gMonoReten`), `ibs_ad_rem_ret`/`cbs_ad_rem_ret` (`gMonoRet`), `ibs_p_dif_mono`/`cbs_p_dif_mono` (`gMonoDif`) — cada par é tudo-ou-nada |
+| IBS/CBS cashback fiscal (NT 2025.002)          | `ibs_cbs_p_dev_trib` — um percentual só, aplicado nas **três** esferas (`gIBSUF`/`gIBSMun`/`gCBS`/`gDevTrib`) |
+| IBS/CBS reference taxation (`gTribRegular`)    | `ibs_reg_cst` (habilita o bloco), `ibs_reg_class_trib`, `ibs_reg_uf_aliq`, `ibs_reg_mun_aliq`, `cbs_reg_aliq` |
+| IBS/CBS government purchase (`gTribCompraGov`) | `ibs_gov_uf_aliq`, `ibs_gov_mun_aliq`, `cbs_gov_aliq` — sem CST próprio no XSD                              |
+| IBS/CBS presumed credit (`gCredPresOper`)      | `ibs_cbs_c_cred_pres` (habilita), `ibs_p_cred_pres`, `cbs_p_cred_pres`; `ibs_cbs_cred_pres_cond_sus=1` troca `vCredPres` por `vCredPresCondSus` |
+| IBS presumed credit ZFM (`gCredPresIBSZFM`)    | `ibs_zfm_p_cred_pres` + `tp_cred_pres_ibs_zfm` do produto. **Choice** com `gCredPresOper`: o da operação vence |
+| CBS zero rate ALC/ZFM (`gALCZFMCBS`)           | `alc_zfm_tp_cbs` (habilita), `alc_zfm_n_proc_suframa`, e `cbs_reg_aliq` como alíquota de referência         |
 | Monophase ICMS fuel (CST 02)                   | `icms_ad_rem` (ad rem, R$/unit)                                                                            |
 | Monophase ICMS with retention (CST 15)         | `icms_ad_rem`, `icms_ad_rem_reten`, `icms_p_red_ad_rem`, `icms_mot_red_ad_rem`                             |
 | Monophase ICMS with deferral (CST 53)          | `icms_ad_rem`, `icms_p_dif_mono`                                                                           |
@@ -982,7 +987,19 @@ grupo não existe — item importado que não recolheu II não declara II.
 | `prod_type` | XML node | Required fields                                    | Optional fields                                                                     |
 |-------------|----------|----------------------------------------------------|-------------------------------------------------------------------------------------|
 | `comb`      | `comb`   | `comb_c_prod_anp`, `comb_desc_anp`, `comb_uf_cons` | `comb_codif`, `comb_p_glp`, `comb_p_gnn`, `comb_p_gni`, `comb_v_part`, `comb_p_bio` |
-| `med`       | `med`    | `med_c_prod_anvisa`, `med_v_pmc`                   | `med_x_motivo_isencao` (required when `ISENTO`)                                     |
+| `med`       | `med`    | `med_c_prod_anvisa`, `med_v_pmc`                   | `med_x_motivo_isencao` (required when `ISENTO`, forbidden otherwise)                |
+| `veiculo`   | `veicProd` | as **24** tags do grupo (ver abaixo)             | —                                                                                   |
+| `arma`      | `arma`   | `arma_tp_arma`; por unidade `n_serie`, `n_cano`     | `arma_descr`                                                                        |
+
+**Grupos sem default (`veicProd` e `med`):** as 24 tags de `veicProd` são todas obrigatórias no XSD,
+e nenhuma ganha valor inventado. Vinte e duas vêm do cadastro do produto (`veic_tp_op`, `veic_pot`,
+`veic_cilin`, `net_weight`, `gross_weight`, `veic_tp_comb`, `veic_cmt`, `veic_dist`, `veic_ano_mod`,
+`veic_ano_fab`, `veic_tp_pint`, `veic_tp_veic`, `veic_esp_veic`, `veic_vin`, `veic_cond_veic`,
+`veic_c_mod`, `veic_c_cor_denatran`, `veic_lota`, `veic_tp_rest`, `veic_c_cor`, `veic_x_cor`) e
+quatro são do veículo vendido, informadas na emissão: `veic_chassi` (é ele que diz que o item é
+veículo novo), `veic_n_serie`, `veic_n_motor` e o par de cor `veic_c_cor`/`veic_x_cor`, que **vence**
+o cadastro do modelo. Qualquer tag em branco é **400 nomeando a tag** na resolução dos produtos —
+antes de chegar à SEFAZ. Em `med`, `vPMC` ausente também é 400: `0.00` inventado é rejeição adiada.
 
 **Automatic DIFAL** (`app/services/nfes._build_icms_uf_dest`):
 
@@ -1216,7 +1233,7 @@ tractor.
 
 | Method | Endpoint                   | Description                        |
 |--------|----------------------------|------------------------------------|
-| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider\|freight_contractor`, `?cursor=`, `?limit=` |
+| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider\|freight_contractor\|intermediary`, `?cursor=`, `?limit=` |
 | POST   | `/v1.0/persons`            | Register — 400 if `person.crt` missing for CNPJ; 409 if CPF/CNPJ already registered in this org |
 | PUT    | `/v1.0/persons/{cpf_cnpj}` | Update                             |
 | DELETE | `/v1.0/persons/{cpf_cnpj}` | Remove                             |
@@ -1242,7 +1259,7 @@ described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_tri
 pergunta chave PIX nem agência.
 
 **`roles` (multi-papel).** A person carries a `roles` list (`customer`, `supplier`, `carrier`,
-`driver`, `provider`, `freight_contractor`) — the same CNPJ is often customer *and* carrier, so a single-value field would
+`driver`, `provider`, `freight_contractor`, `intermediary`) — the same CNPJ is often customer *and* carrier, so a single-value field would
 force duplicate records. `?role=` filters the listing via `contains(roles, :v)` on `org-name-index`.
 No `PUT`, `roles` só é tocado quando o corpo traz a chave: ausente = papéis preservados, `[]` = limpa
 todos. Na UI o campo se chama **Tipo de cadastro** (`roles` continua sendo o nome na API).
@@ -1305,9 +1322,14 @@ o escopo 5/6/7 é derivado na emissão), `fin_nfe`, `ind_final`, `ind_pres`, `tp
 `vol_esp`, `vol_marca` (espécie e marca padrão dos volumes de `transp/vol`),
 `obs_cont` e `obs_fisco` (listas de `{x_campo, x_texto}`, máx. 10 cada, que viram
 `infAdic/obsCont` e `infAdic/obsFisco` — o texto aceita os mesmos placeholders),
-`payment_term_id`, `additional_info`. Os campos de texto aceitam os placeholders
-`{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um placeholder
-desconhecido é 400 no cadastro, não erro na emissão.
+`payment_term_id`, `additional_info`, `ret_trib` (percentuais de `total/retTrib`),
+`export_uf_saida_pais` e `export_loc_despacho_index` (`infNFe/exporta`),
+`compra_x_n_emp` (nota de empenho da venda a órgão público, `infNFe/compra/xNEmp`),
+`cana_safra` (safra da aquisição de cana, `infNFe/cana/safra`), `intermediary_person_id` +
+`ind_intermed` (canal de venda — ver abaixo) e `dh_sai_ent_offset_days` (prazo padrão de saída da
+mercadoria, em dias corridos a partir da emissão). Os campos de texto aceitam os
+placeholders `{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um
+placeholder desconhecido é 400 no cadastro, não erro na emissão.
 
 **Terminal de pagamento** (`PaymentTerminalBody`): `name`, `cnpj_receb`, `id_term_pag`, `cnpj_pag`,
 `uf_pag`, `t_band`. Um posto com quatro maquininhas não redigita CNPJ recebedor e identificador a
@@ -1436,6 +1458,85 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
 | `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
 | `nf_refs`         | list        | Documentos referenciados (`ide/NFref`, máx. 500). **Obrigatório quando `fin_nfe` é 2, 3 ou 4** — sem ele a emissão devolve 400. Cada entrada é ou `{"nfe_id": "<chave>"}`, uma nota da própria organização de onde chave e tipo são derivados (vira `refNFe`), ou um documento de fora do sistema com `kind` + os campos do grupo. |
+
+**Canal de venda (`ide/indIntermed` + `infNFe/infIntermed`).** É a operação que diz o canal, não a
+nota: `operations.ind_intermed` (`0` plataforma própria, `1` plataforma de terceiros) e
+`operations.intermediary_person_id`, que aponta uma pessoa com o papel **`intermediary`**. O `CNPJ`
+do grupo sai do sk dessa pessoa e o `idCadIntTran` de `person.intermediary_id` — o "seller id" é
+invariante do par emitente↔plataforma, então mora no cadastro da pessoa. Uma operação por canal
+("venda no site", "venda no marketplace X"). Intermediador com CPF não vira grupo: o XSD exige
+`TCnpj`. Pessoa inexistente é 404.
+
+**Saída e previsão de entrega (`ide/dhSaiEnt`, `ide/dPrevEntrega`).** `operations.dh_sai_ent_offset_days`
+é o prazo padrão em dias corridos contados da emissão — quem despacha sempre no dia seguinte cadastra
+`1` e nunca mais digita a data. `dh_sai_ent` e `d_prev_entrega` no request vencem o offset. Sem
+offset nem valor explícito, as tags não existem: data inventada mentiria sobre quando a mercadoria
+circulou.
+
+**Pedido do cliente (`prod/xPed`, `prod/nItemPed`).** `products[].x_ped` (≤15) e
+`products[].n_item_ped` (≤6 dígitos) são controle B2B do emissor, informados por item na emissão.
+`nItemPed` só sai acompanhado de `xPed` — número de item sem pedido não identifica nada.
+
+**Papel imune (`prod/nRECOPI`).** `n_recopi` (20 dígitos) é do cadastro do produto e é o último ramo
+do **choice** de `prod`: item com `comb`, `med`, `veicProd` ou `arma` não emite RECOPI — o grupo já
+presente vence, porque emitir os dois é rejeição.
+
+**Reforma tributária (IBS/CBS/IS) — o que é derivado.** Todo `v*` do bloco sai de `p*` × base e
+toda `pAliqEfet` sai de alíquota × (1 − redução): nenhum valor é digitado ao lado do percentual que
+o produz. Em concreto:
+
+- `gDif/vDif` e `gDevTrib/vDevTrib` são percentuais sobre o **tributo daquela esfera**, não sobre a
+  base — diferir 30% do IBS-UF é 30% do `vIBSUF`, não da `vBC`.
+- `gRed/pAliqEfet` é alíquota × (1 − `pRed`/100), com as 4 casas do leiaute.
+- Na monofasia (`gIBSCBSMono`), a base é a **quantidade** (`qBCMono`), não o valor, e cada `v*` é
+  quantidade × alíquota específica. `vTotIBSMonoItem`/`vTotCBSMonoItem` somam o padrão e a retenção;
+  o já retido (`gMonoRet`) **não** entra, porque foi recolhido por outro.
+- `gCred/vCredPresumido` (nível produto) é o percentual sobre o valor do item.
+- `competApur` é o mês da emissão (`AAAA-MM`), nunca um campo.
+
+**Choices do XSD que o backend fecha (400 antes da SEFAZ, não rejeição depois):**
+`gIBSCBS` | `gIBSCBSMono` | `gTransfCred` | `gAjusteCompet` são alternativos — transferência de
+crédito e ajuste de competência **substituem** a apuração do item. `gEstornoCred` convive com
+qualquer um. `gCredPresOper` | `gCredPresIBSZFM` são alternativos. `vCredPres` | `vCredPresCondSus`
+também. E `indDoacao` aceita **`1` e nada mais** (`TIndDoacao`) — `S`/`N` era o domínio de uma NT
+anterior e hoje é rejeição.
+
+**Grupos apurados por nota (não são cadastro).** `products[].transf_cred`, `products[].ajuste_compet`
+e `products[].estorno_cred`, cada um `{v_ibs?, v_cbs?}`: são valores de apuração, que não existem
+antes da nota. Um lado sozinho é aceito e o outro vale zero.
+`products[].alc_zfm_n_proc_suframa` é o processo Suframa do embarque e vence o do perfil.
+
+**`ide` da reforma.** Da natureza de operação: `c_ind_op` (local da operação de fornecimento, 6
+dígitos), `c_mun_fg_ibs` (município do fato gerador do IBS/CBS — só quando `ind_pres` é 5 e não há
+endereço de destinatário nem local de entrega), `tp_nf_debito` e `tp_nf_credito`, mais o trio de
+compras governamentais `compra_gov_tp_ente` / `compra_gov_p_redutor` / `compra_gov_tp_oper`. Da nota:
+`compra_gov_refs[]` (`refDFeAnt`) e `pag_antecipado_refs[]` (`gPagAntecipado/refNFe`).
+A regra do `refDFeAnt` é validada aqui: **obrigatório** em `tp_oper_gov` 2 e 3, **vedado** em 1 e 4, e
+no tipo 2 aceita **uma** chave só.
+
+**Totais da reforma (`total/ISTot`, `total/IBSCBSTot`, `total/vNFTot`).** Todo acumulador do
+`IBSCBSTot` é a **soma dos nós já emitidos** — lida de volta do XML montado, nunca um segundo
+cálculo sobre a mesma base. É o que `TestTotaisDaReformaConservamASomaDosItens` trava. `gMono` e
+`gEstornoCred` só existem quando algum item os trouxe; `ISTot` só quando há IS; e `vNFTot` (vNF +
+IBS + CBS + monofásico + IS) só quando a reforma incide — repetir o `vNF` numa tag nova não informa
+nada.
+
+**Grupos de nicho (`compra`, `cana`, `agropecuario`).** Todos opcionais e todos alocados pela régua:
+
+- **`compra`** — `compra_x_ped` e `compra_x_cont` no request (`xPed`/`xCont`, o pedido e o contrato
+  desta nota); `xNEmp` vem de `operations.compra_x_n_emp`, porque quem vende por empenho vende
+  sempre por empenho. Sem nenhum dos três o grupo não é emitido.
+- **`cana`** — `cana = {ref, deliveries[], deducoes[], q_tot_ant}`. A **safra** vem de
+  `operations.cana_safra`; sem ela a emissão é **400**. `ref` é `MM/AAAA`; `deliveries[]` são até
+  31 lançamentos `{dia, qtde}` e **dois no mesmo dia são 400** (`@dia` é chave única no XSD).
+  Quatro valores são **derivados** e não existem no request: `qTotMes` é a soma dos dias,
+  `qTotGer` é ela mais `q_tot_ant`, `vTotDed` é a soma das deduções e `vLiqFor` é `vFor` menos
+  elas — sendo `vFor` a própria base da nota (produtos − desconto).
+- **`agropecuario`** — `agro = {receituarios[], guia}`, um **choice** no XSD: informar os dois é
+  **400**. O `CPFRespTec` de cada receituário vem de
+  `organizations.person.technical_manager_cpf` (é o mesmo agrônomo em toda nota); sem ele o
+  receituário é 400. `guia` é `{tp_guia, uf_guia, serie_guia?, n_guia}`, com `tp_guia`
+  `1` GTA · `2` TTA · `3` DTA · `4` ATV · `5` PTV · `6` GTV · `7` Guia Florestal.
 
 **`proc_ref[]` (infAdic/procRef).** Processos referenciados: `{n_proc, ind_proc, tp_ato}`, máx. 100.
 `ind_proc`: `0` SEFAZ, `1` Justiça Federal, `2` Justiça Estadual, `3` Secex/RFB, `9` outros.

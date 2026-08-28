@@ -95,9 +95,14 @@ def build_nfe(
         reboques: list[dict] | None = None,
         inf_adic: dict | None = None,
         resp_tec: dict | None = None,
+        prod_extra: dict | None = None,
+        inf_nfe_extra: dict | None = None,
 ) -> tuple[dict, str]:
     """Minimal NF-e (mod=55). Pass uf= to target a specific authorizer's cUF.
     fin_nfe/nfref cobrem devolução e complementar (ide/NFref).
+    prod_extra acrescenta grupos ao nó prod do item (veicProd, med...).
+    inf_nfe_extra acrescenta grupos ao nível de infNFe (compra, cana,
+    agropecuario...).
     Returns (payload, chave_44)."""
     cuf, cmunfg, xmun, uf_sig = UF_PARAMS.get(uf, UF_PARAMS["PI"])
     if nnf is None:
@@ -196,6 +201,10 @@ def build_nfe(
             },
         }
     }
+    if prod_extra:
+        payload["enviNFe"]["NFe"]["infNFe"]["det"]["prod"].update(prod_extra)
+    if inf_nfe_extra:
+        payload["enviNFe"]["NFe"]["infNFe"].update(inf_nfe_extra)
     if nfref:
         payload["enviNFe"]["NFe"]["infNFe"]["ide"]["NFref"] = nfref
     if resp_tec:

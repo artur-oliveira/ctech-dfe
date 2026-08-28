@@ -8,6 +8,11 @@ import type {CfopConfigFormData} from '@/lib/schemas/products'
 import {getAllCfopOptions} from '@/lib/data/cfop'
 import {getCfopHint} from '@/lib/data/cfop_rules'
 import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
+import {
+  ALC_ZFM_TP_CBS_OPTIONS,
+  IBS_CBS_C_CRED_PRES_OPTIONS,
+  IBS_IND_DOACAO_SIM,
+} from '@/lib/data/ibs_cbs_reform'
 import {IPI_CST_OPTIONS} from '@/lib/data/ipi'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is'
@@ -78,11 +83,17 @@ export interface TaxGroups {
   issqn: boolean
   icmsMono: boolean
   pisCofinsSt: boolean
+  /** Monofasia do IBS/CBS: retenção, já retido e diferimento (gIBSCBSMono). */
+  ibsMono: boolean
+  /** Tributação de referência e de compra governamental. */
+  ibsRef: boolean
+  /** Créditos presumidos (operação, ZFM) e alíquota zero da CBS em ALC/ZFM. */
+  ibsCred: boolean
 }
 
 export const EMPTY_TAX_GROUPS: TaxGroups = {
   ipi: false, is: false, ibsCbs: false, ibsRed: false, ibsDif: false, issqn: false,
-  icmsMono: false, pisCofinsSt: false,
+  icmsMono: false, pisCofinsSt: false, ibsMono: false, ibsRef: false, ibsCred: false,
 }
 
 /**
@@ -98,6 +109,10 @@ export const deriveTaxGroups = (data: Partial<CfopConfigFormData>): TaxGroups =>
   issqn: !!data.issqn_ind_iss,
   icmsMono: !!data.icms_ad_rem,
   pisCofinsSt: !!(data.pis_st_aliq || data.cofins_st_aliq || data.pis_st_v_bc || data.cofins_st_v_bc),
+  ibsMono: !!(data.ibs_ad_rem || data.cbs_ad_rem || data.ibs_ad_rem_reten || data.cbs_ad_rem_reten
+    || data.ibs_ad_rem_ret || data.cbs_ad_rem_ret || data.ibs_p_dif_mono || data.cbs_p_dif_mono),
+  ibsRef: !!(data.ibs_reg_cst || data.ibs_gov_uf_aliq || data.ibs_gov_mun_aliq || data.cbs_gov_aliq),
+  ibsCred: !!(data.ibs_cbs_c_cred_pres || data.ibs_zfm_p_cred_pres || data.alc_zfm_tp_cbs),
 })
 
 /** icms_mod_bc cujo cálculo usa um valor fixo em vez do valor de venda. */
@@ -119,7 +134,8 @@ export function TaxFieldsEditor({
 }: TaxFieldsEditorProps) {
   const {ipi: showIpi, is: showIs, ibsCbs: showIbsCbs, ibsRed: showIbsCbsRed,
     ibsDif: showIbsCbsDif, issqn: showIssqn, icmsMono: showIcmsMono,
-    pisCofinsSt: showPisCofinsSt} = groups
+    pisCofinsSt: showPisCofinsSt, ibsMono: showIbsMono, ibsRef: showIbsRef,
+    ibsCred: showIbsCred} = groups
   const setGroup = (key: keyof TaxGroups) => (on: boolean) => onGroupsChange({...groups, [key]: on})
   const setShowIpi = setGroup('ipi')
   const setShowIs = setGroup('is')
@@ -129,6 +145,9 @@ export function TaxFieldsEditor({
   const setShowIssqn = setGroup('issqn')
   const setShowIcmsMono = setGroup('icmsMono')
   const setShowPisCofinsSt = setGroup('pisCofinsSt')
+  const setShowIbsMono = setGroup('ibsMono')
+  const setShowIbsRef = setGroup('ibsRef')
+  const setShowIbsCred = setGroup('ibsCred')
 
   const systemAliq = useIcmsAliqPreview(emitUf, destUf, ncm)
   const aliqDiverges = !!systemAliq && !!value.icms_aliq_override &&
@@ -940,6 +959,217 @@ export function TaxFieldsEditor({
               <NumericInput value={value.cbs_p_dif ?? ''} decimal decimalPlaces={4}
                             onChange={(v) => onChange((r) => ({...r, cbs_p_dif: v}))} placeholder="0.0000"/>
             </div>
+          </div>
+        )}
+
+        {/* Doação e devolução de tributo — dois campos avulsos do grupo. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label htmlFor="ibs-ind-doacao"
+                 className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" id="ibs-ind-doacao"
+                   checked={value.ibs_ind_doacao === IBS_IND_DOACAO_SIM}
+                   onChange={(e) => onChange((r) => ({
+                     ...r, ibs_ind_doacao: e.target.checked ? IBS_IND_DOACAO_SIM : '',
+                   }))}
+                   className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+            Operação é doação (indDoacao)
+          </label>
+          <div className="grid gap-1">
+            <label className="text-sm font-medium text-gray-700">% Devolução de tributo</label>
+            <NumericInput value={value.ibs_cbs_p_dev_trib ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                          onChange={(v) => onChange((r) => ({...r, ibs_cbs_p_dev_trib: v}))}
+                          placeholder="0.0000"/>
+            <p className="text-xs text-gray-500">
+              Um percentual só: vale nas três esferas, sobre o tributo de cada uma.
+            </p>
+          </div>
+        </div>
+
+        {/* Toggle monofasia do IBS/CBS (CST 620) */}
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="toggle-ibs-mono" checked={showIbsMono}
+                 onChange={(e) => {
+                   setShowIbsMono(e.target.checked)
+                   if (!e.target.checked) onChange((r) => ({
+                     ...r, ibs_ad_rem: '', cbs_ad_rem: '',
+                     ibs_ad_rem_reten: '', cbs_ad_rem_reten: '',
+                     ibs_ad_rem_ret: '', cbs_ad_rem_ret: '',
+                     ibs_p_dif_mono: '', cbs_p_dif_mono: '',
+                   }))
+                 }}
+                 className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+          <label htmlFor="toggle-ibs-mono" className="text-xs font-medium text-gray-500 cursor-pointer">
+            Monofasia IBS/CBS (CST 620)
+          </label>
+        </div>
+        {showIbsMono && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500">
+              Alíquota por unidade (R$), não percentual: a base é a quantidade vendida. Os valores e
+              os totais do item são calculados na emissão.
+            </p>
+            {([
+              ['ibs_ad_rem', 'cbs_ad_rem', 'Padrão'],
+              ['ibs_ad_rem_reten', 'cbs_ad_rem_reten', 'Com retenção'],
+              ['ibs_ad_rem_ret', 'cbs_ad_rem_ret', 'Já retido anteriormente'],
+            ] as const).map(([ibsKey, cbsKey, label]) => (
+              <div key={label} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                <div className="grid gap-1">
+                  <label className="text-sm font-medium text-gray-700">{label} — IBS R$/un</label>
+                  <NumericInput value={value[ibsKey] ?? ''} decimal decimalPlaces={4}
+                                onChange={(v) => onChange((r) => ({...r, [ibsKey]: v}))} placeholder="0.0000"/>
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-sm font-medium text-gray-700">{label} — CBS R$/un</label>
+                  <NumericInput value={value[cbsKey] ?? ''} decimal decimalPlaces={4}
+                                onChange={(v) => onChange((r) => ({...r, [cbsKey]: v}))} placeholder="0.0000"/>
+                </div>
+              </div>
+            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Diferimento IBS monofásico</label>
+                <NumericInput value={value.ibs_p_dif_mono ?? ''} decimal decimalPlaces={4}
+                              onChange={(v) => onChange((r) => ({...r, ibs_p_dif_mono: v}))} placeholder="0.0000"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Diferimento CBS monofásica</label>
+                <NumericInput value={value.cbs_p_dif_mono ?? ''} decimal decimalPlaces={4}
+                              onChange={(v) => onChange((r) => ({...r, cbs_p_dif_mono: v}))} placeholder="0.0000"/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toggle tributação de referência */}
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="toggle-ibs-ref" checked={showIbsRef}
+                 onChange={(e) => {
+                   setShowIbsRef(e.target.checked)
+                   if (!e.target.checked) onChange((r) => ({
+                     ...r, ibs_reg_cst: '', ibs_reg_class_trib: '',
+                     ibs_reg_uf_aliq: '', ibs_reg_mun_aliq: '', cbs_reg_aliq: '',
+                     ibs_gov_uf_aliq: '', ibs_gov_mun_aliq: '', cbs_gov_aliq: '',
+                   }))
+                 }}
+                 className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+          <label htmlFor="toggle-ibs-ref" className="text-xs font-medium text-gray-500 cursor-pointer">
+            Tributação de referência e de compra governamental
+          </label>
+        </div>
+        {showIbsRef && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500">
+              Quanto o item pagaria fora do regime ou benefício — é o que mede o incentivo. Os
+              valores saem das alíquotas na emissão.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">CST de referência</label>
+                <OptionsSelect value={value.ibs_reg_cst ?? ''}
+                               onValueChange={(v) => onChange((r) => ({
+                                 ...r, ibs_reg_cst: v,
+                                 ibs_reg_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? '',
+                               }))}
+                               options={IBS_CBS_CST_OPTIONS} placeholder="Não se aplica"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Classificação de referência</label>
+                <OptionsSelect value={value.ibs_reg_class_trib ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, ibs_reg_class_trib: v}))}
+                               options={IBS_CBS_CLASS_BY_CST[value.ibs_reg_cst ?? ''] ?? []}
+                               placeholder="Código"/>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {([
+                ['ibs_reg_uf_aliq', 'IBS UF de referência %'],
+                ['ibs_reg_mun_aliq', 'IBS Mun de referência %'],
+                ['cbs_reg_aliq', 'CBS de referência %'],
+                ['ibs_gov_uf_aliq', 'IBS UF compra gov %'],
+                ['ibs_gov_mun_aliq', 'IBS Mun compra gov %'],
+                ['cbs_gov_aliq', 'CBS compra gov %'],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="grid gap-1">
+                  <label className="text-sm font-medium text-gray-700">{label}</label>
+                  <NumericInput value={value[key] ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                                onChange={(v) => onChange((r) => ({...r, [key]: v}))} placeholder="0.0000"/>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Toggle créditos presumidos e ALC/ZFM */}
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="toggle-ibs-cred" checked={showIbsCred}
+                 onChange={(e) => {
+                   setShowIbsCred(e.target.checked)
+                   if (!e.target.checked) onChange((r) => ({
+                     ...r, ibs_cbs_c_cred_pres: '', ibs_p_cred_pres: '', cbs_p_cred_pres: '',
+                     ibs_cbs_cred_pres_cond_sus: '', ibs_zfm_p_cred_pres: '',
+                     alc_zfm_tp_cbs: '', alc_zfm_n_proc_suframa: '',
+                   }))
+                 }}
+                 className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+          <label htmlFor="toggle-ibs-cred" className="text-xs font-medium text-gray-500 cursor-pointer">
+            Crédito presumido e ALC/ZFM
+          </label>
+        </div>
+        {showIbsCred && (
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid gap-1 sm:col-span-3">
+                <label className="text-sm font-medium text-gray-700">Código do crédito presumido</label>
+                <OptionsSelect value={value.ibs_cbs_c_cred_pres ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, ibs_cbs_c_cred_pres: v}))}
+                               options={IBS_CBS_C_CRED_PRES_OPTIONS} placeholder="Não se aplica"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Crédito IBS</label>
+                <NumericInput value={value.ibs_p_cred_pres ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                              onChange={(v) => onChange((r) => ({...r, ibs_p_cred_pres: v}))} placeholder="0.0000"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Crédito CBS</label>
+                <NumericInput value={value.cbs_p_cred_pres ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                              onChange={(v) => onChange((r) => ({...r, cbs_p_cred_pres: v}))} placeholder="0.0000"/>
+              </div>
+              <label htmlFor="ibs-cred-cond-sus"
+                     className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" id="ibs-cred-cond-sus"
+                       checked={value.ibs_cbs_cred_pres_cond_sus === IBS_IND_DOACAO_SIM}
+                       onChange={(e) => onChange((r) => ({
+                         ...r, ibs_cbs_cred_pres_cond_sus: e.target.checked ? IBS_IND_DOACAO_SIM : '',
+                       }))}
+                       className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+                Condição suspensiva
+              </label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">% Crédito IBS na ZFM</label>
+                <NumericInput value={value.ibs_zfm_p_cred_pres ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                              onChange={(v) => onChange((r) => ({...r, ibs_zfm_p_cred_pres: v}))}
+                              placeholder="0.0000"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Alíquota zero CBS (ALC/ZFM)</label>
+                <OptionsSelect value={value.alc_zfm_tp_cbs ?? ''}
+                               onValueChange={(v) => onChange((r) => ({...r, alc_zfm_tp_cbs: v as never}))}
+                               options={ALC_ZFM_TP_CBS_OPTIONS} placeholder="Não se aplica"/>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm font-medium text-gray-700">Processo Suframa</label>
+                <Input value={value.alc_zfm_n_proc_suframa ?? ''} maxLength={12} className="w-full"
+                       placeholder="8 a 12 caracteres"
+                       onChange={(e) => onChange((r) => ({...r, alc_zfm_n_proc_suframa: e.target.value}))}/>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              O crédito da operação e o da ZFM são alternativos no leiaute — com os dois preenchidos,
+              o da operação é o emitido.
+            </p>
           </div>
         )}
         </>

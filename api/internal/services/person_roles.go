@@ -17,6 +17,9 @@ const (
 	RoleProvider = "provider"
 	// RoleContractor é o contratante do frete (MDF-e infANTT/infContratante).
 	RoleContractor = "freight_contractor"
+	// RoleIntermediary é o intermediador da transação — marketplace, plataforma
+	// de delivery, agenciador (NF-e infIntermed).
+	RoleIntermediary = "intermediary"
 )
 
 // PersonRolesField is the attribute name holding the role list on the person
@@ -32,6 +35,7 @@ var AllPersonRoles = []string{
 	RoleDriver,
 	RoleProvider,
 	RoleContractor,
+	RoleIntermediary,
 }
 
 // IsValidPersonRole reports whether role is one of AllPersonRoles.

@@ -1251,6 +1251,94 @@ components:
             p_ret_csll: { type: [ string, 'null' ] }
             p_ret_irrf: { type: [ string, 'null' ] }
             p_ret_prev_inss: { type: [ string, 'null' ] }
+        intermediary_person_id:
+          type: [ string, 'null' ]
+          description: |
+            Pessoa (papel `intermediary`) do marketplace/plataforma do cenário.
+            Vira `infNFe/infIntermed` — `CNPJ` do sk e `idCadIntTran` de
+            `person.intermediary_id`. Uma operação por canal de venda.
+        ind_intermed:
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
+          description: '`0` site/plataforma própria · `1` plataforma de terceiros (`ide/indIntermed`).'
+        dh_sai_ent_offset_days:
+          type: [ integer, 'null' ]
+          minimum: 0
+          maximum: 365
+          description: |
+            Prazo padrão de saída da mercadoria, em dias corridos a partir da
+            emissão (`ide/dhSaiEnt`). Quem despacha sempre no dia seguinte
+            cadastra `1` e nunca mais digita a data; `dh_sai_ent` no request
+            vence.
+        c_ind_op:
+          type: [ string, 'null' ]
+          pattern: '^\d{6}$'
+          description: Código indicador do local da operação de fornecimento (`ide/cIndOp`).
+        c_mun_fg_ibs:
+          type: [ string, 'null' ]
+          pattern: '^\d{7}$'
+          description: |
+            Município do fato gerador do IBS/CBS (`ide/cMunFGIBS`). O leiaute só
+            o aceita quando `ind_pres` é 5 e não há endereço de destinatário nem
+            local de entrega.
+        tp_nf_debito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', '07', '08', null ]
+          description: |
+            Motivo da nota de débito (`ide/tpNFDebito`, `TTpNFDebito`):
+            `01` transferência de créditos para cooperativas ·
+            `02` anulação de crédito por saídas imunes/isentas ·
+            `03` débitos de notas não processadas na apuração ·
+            `04` multa e juros · `05` transferência de crédito na sucessão ·
+            `06` pagamento antecipado · `07` perda em estoque ·
+            `08` desenquadramento do Simples Nacional.
+        tp_nf_credito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', null ]
+          description: |
+            Motivo da nota de crédito (`ide/tpNFCredito`, `TTpNFCredito`):
+            `01` multa e juros ·
+            `02` crédito presumido de IBS sobre saldo devedor na ZFM ·
+            `03` retorno por recusa na entrega ou destinatário não localizado ·
+            `04` redução de valores · `05` transferência de crédito na sucessão ·
+            `06` retorno por recusa parcial na entrega.
+        compra_gov_tp_ente:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', '4', '5', '6', null ]
+          description: |
+            Ente governamental (`ide/gCompraGov/tpEnteGov`): `1` União ·
+            `2` Estados · `3` DF · `4` Municípios · `5` Consórcio Público ·
+            `6` Comitê Gestor do IBS. Presente, habilita o grupo.
+        compra_gov_p_redutor:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: Percentual de redução de alíquota em compra governamental.
+        compra_gov_tp_oper:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', '4', null ]
+          description: |
+            Tipo da operação (`tpOperGov`): `1` fornecimento com pagamento
+            posterior · `2` recebimento do pagamento com fornecimento já
+            realizado · `3` fornecimento com pagamento já realizado ·
+            `4` recebimento do pagamento com fornecimento posterior.
+
+            A regra do `refDFeAnt` é validada na emissão: **obrigatório** em 2 e
+            3, **vedado** em 1 e 4, e no tipo 2 aceita **uma** chave só.
+        compra_x_n_emp:
+          type: [ string, 'null' ]
+          minLength: 1
+          maxLength: 22
+          description: |
+            Nota de empenho da venda a órgão público (`infNFe/compra/xNEmp`).
+            Quem vende por empenho vende sempre por empenho; pedido e contrato
+            variam por nota e vão no request de emissão.
+        cana_safra:
+          type: [ string, 'null' ]
+          minLength: 4
+          maxLength: 9
+          description: |
+            Safra do registro de aquisição de cana (`infNFe/cana/safra`), ex.
+            `2025/2026`. Sem ela cadastrada, a emissão com `cana` é 400.
         requires_receiver:
           type: [ boolean, 'null' ]
           description: '`false` habilita emissão sem destinatário (self_issuance).'

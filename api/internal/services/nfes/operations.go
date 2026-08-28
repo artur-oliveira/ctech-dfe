@@ -28,6 +28,20 @@ const (
 	// opFieldRetTrib é o perfil de retenções federais da operação: os
 	// percentuais são invariantes do cenário, os valores saem da base da nota.
 	opFieldRetTrib = "ret_trib"
+	// Grupos de nicho: nota de empenho da venda a órgão público e safra da
+	// aquisição de cana. Pedido, contrato e mês de referência são da nota.
+	opFieldCompraXNEmp = "compra_x_n_emp"
+	opFieldCanaSafra   = "cana_safra"
+	// Canal de venda: marketplace do cenário e o indicador de ide.
+	opFieldIntermediaryPersonID = "intermediary_person_id"
+	opFieldIndIntermed          = "ind_intermed"
+	// Reforma tributária no ide: local da operação, município do fato gerador
+	// do IBS/CBS e o par nota de débito / nota de crédito. Todos são do
+	// cenário, não da nota.
+	opFieldCIndOp      = "c_ind_op"
+	opFieldCMunFGIBS   = "c_mun_fg_ibs"
+	opFieldTpNFDebito  = "tp_nf_debito"
+	opFieldTpNFCredito = "tp_nf_credito"
 )
 
 // loadOperation carrega a natureza de operação referenciada na emissão.

@@ -16,6 +16,17 @@ import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
+import {datetimeLocalToOffset} from '@/lib/utils/datetime'
+import {AccessKeyPicker} from '@/components/nfe/AccessKeyPicker'
+import {
+  COMPRA_GOV_TP_OPER_COM_REFERENCIA,
+  COMPRA_GOV_TP_OPER_REFERENCIA_UNICA,
+} from '@/lib/data/ibs_cbs_reform'
+import {
+  EMPTY_NICHE_GROUPS,
+  NicheGroupsFields,
+  type NicheGroupsValue,
+} from '@/components/nfe/NicheGroupsFields'
 import {Modal} from '@/components/ui/modal'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {EmitError} from '@/components/ui/emit-error'
@@ -26,6 +37,7 @@ import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {StepIndicator} from '@/components/ui/step-indicator'
 import type {
   NfeArmaIn,
+  NfeIBSCBSPairIn,
   NfeCardIn,
   NfeDuplicataIn,
   NfeEmit,
@@ -90,6 +102,42 @@ interface EmitProduct {
   veic_x_cor?: string
   // arma — por unidade (list)
   armas?: NfeArmaIn[]
+  // Pedido de compra do cliente (prod/xPed, prod/nItemPed) — controle B2B.
+  x_ped?: string
+  n_item_ped?: string
+  // Grupos apurados da reforma. transf_cred e ajuste_compet substituem a
+  // apuração normal do item (choice do XSD); estorno_cred convive com ela.
+  reform_mode?: ReformItemMode
+  reform_v_ibs?: string
+  reform_v_cbs?: string
+  estorno_v_ibs?: string
+  estorno_v_cbs?: string
+}
+
+/**
+ * Ramo escolhido do choice de apuração da reforma no item. O radio existe para
+ * que o operador não possa marcar dois — o XSD os declara alternativos, e a
+ * alternativa seria descobrir isso na rejeição.
+ */
+type ReformItemMode = 'none' | 'transf_cred' | 'ajuste_compet'
+
+const REFORM_ITEM_MODE_OPTIONS: { value: ReformItemMode; label: string }[] = [
+  {value: 'none', label: 'Apuração normal'},
+  {value: 'transf_cred', label: 'Transferência de crédito'},
+  {value: 'ajuste_compet', label: 'Ajuste de competência'},
+]
+
+/** Par IBS/CBS do ramo escolhido; null quando o item não usa aquele ramo. */
+function reformPair(item: EmitProduct, mode: ReformItemMode): NfeIBSCBSPairIn | null {
+  if ((item.reform_mode ?? 'none') !== mode) return null
+  if (!item.reform_v_ibs && !item.reform_v_cbs) return null
+  return {v_ibs: item.reform_v_ibs || null, v_cbs: item.reform_v_cbs || null}
+}
+
+/** Estorno de crédito do item — convive com qualquer ramo da apuração. */
+function estornoPair(item: EmitProduct): NfeIBSCBSPairIn | null {
+  if (!item.estorno_v_ibs && !item.estorno_v_cbs) return null
+  return {v_ibs: item.estorno_v_ibs || null, v_cbs: item.estorno_v_cbs || null}
 }
 
 interface EmitPayment {
@@ -516,6 +564,91 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         </div>
       )}
 
+      {/* ── Reforma: apuração do item (choice do XSD) ─────────────── */}
+      <details className="rounded-md border border-gray-200 p-3">
+        <summary className="cursor-pointer text-sm font-medium text-gray-700">
+          Apuração de IBS/CBS deste item (opcional)
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-gray-500">
+            Transferência de crédito e ajuste de competência <strong>substituem</strong> a apuração
+            normal do item — por isso a escolha é exclusiva. O estorno de crédito convive com ela.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            {REFORM_ITEM_MODE_OPTIONS.map((opt) => (
+              <label key={opt.value} htmlFor={`item-reform-${index}-${opt.value}`}
+                     className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                <input type="radio" id={`item-reform-${index}-${opt.value}`}
+                       name={`item-reform-${index}`} value={opt.value}
+                       checked={(item.reform_mode ?? 'none') === opt.value}
+                       onChange={() => onChange(index, {
+                         reform_mode: opt.value,
+                         // Trocar de modo zera os valores: eles significam
+                         // coisas diferentes em cada ramo.
+                         reform_v_ibs: '', reform_v_cbs: '',
+                       })}
+                       className="h-4 w-4 border-gray-300 text-brand-600"/>
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          {(item.reform_mode ?? 'none') !== 'none' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`item-reform-ibs-${index}`} className="text-xs font-medium text-gray-600">
+                  Valor de IBS
+                </Label>
+                <CurrencyInput id={`item-reform-ibs-${index}`} value={item.reform_v_ibs ?? ''}
+                               onChange={(v) => onChange(index, {reform_v_ibs: v})}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`item-reform-cbs-${index}`} className="text-xs font-medium text-gray-600">
+                  Valor de CBS
+                </Label>
+                <CurrencyInput id={`item-reform-cbs-${index}`} value={item.reform_v_cbs ?? ''}
+                               onChange={(v) => onChange(index, {reform_v_cbs: v})}/>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`item-estorno-ibs-${index}`} className="text-xs font-medium text-gray-600">
+                Estorno de crédito — IBS
+              </Label>
+              <CurrencyInput id={`item-estorno-ibs-${index}`} value={item.estorno_v_ibs ?? ''}
+                             onChange={(v) => onChange(index, {estorno_v_ibs: v})}/>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`item-estorno-cbs-${index}`} className="text-xs font-medium text-gray-600">
+                Estorno de crédito — CBS
+              </Label>
+              <CurrencyInput id={`item-estorno-cbs-${index}`} value={item.estorno_v_cbs ?? ''}
+                             onChange={(v) => onChange(index, {estorno_v_cbs: v})}/>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      {/* ── Pedido de compra do cliente (prod/xPed, prod/nItemPed) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`item-xped-${index}`} className="text-xs font-medium text-gray-600">
+            Pedido do cliente
+          </Label>
+          <Input id={`item-xped-${index}`} value={item.x_ped ?? ''} maxLength={15} className="w-full"
+                 placeholder="Opcional — controle B2B"
+                 onChange={(e) => onChange(index, {x_ped: e.target.value})}/>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`item-nitemped-${index}`} className="text-xs font-medium text-gray-600">
+            Item do pedido
+          </Label>
+          <NumericInput id={`item-nitemped-${index}`} value={item.n_item_ped ?? ''} maxLength={6}
+                        disabled={!item.x_ped} placeholder="Só com pedido informado"
+                        onChange={(v) => onChange(index, {n_item_ped: v})}/>
+        </div>
+      </div>
+
       {/* ── Armamento — dados por unidade ─────────────────────────── */}
       {isArma && (
         <div className="rounded-md border border-red-100 bg-red-50/20 p-3 space-y-2">
@@ -658,6 +791,16 @@ export function NfeEmitForm() {
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null)
+  // Grupos de nicho (compra, cana, agropecuario) — todos opcionais.
+  const [nicheGroups, setNicheGroups] = useState<NicheGroupsValue>(EMPTY_NICHE_GROUPS)
+  // Saída da mercadoria e previsão de entrega. Em branco, valem o prazo padrão
+  // da natureza de operação (ou nenhuma tag, se ela não define prazo).
+  const [dhSaiEnt, setDhSaiEnt] = useState('')
+  const [dPrevEntrega, setDPrevEntrega] = useState('')
+  // Chaves referenciadas da reforma: documentos anteriores da compra
+  // governamental e NF-e de antecipação de pagamento a abater.
+  const [compraGovRefs, setCompraGovRefs] = useState<string[]>([])
+  const [pagAntecipadoRefs, setPagAntecipadoRefs] = useState<string[]>([])
   // '' = pagamento manual (comportamento de sempre).
   const [paymentTermId, setPaymentTermId] = useState('')
   const [showProductPicker, setShowProductPicker] = useState(false)
@@ -767,6 +910,27 @@ export function NfeEmitForm() {
     ? selectedOperation.fin_nfe
     : null
   const requiresNfRefs = finNFeRequiresRef(operationFinNFe)
+
+  // Safra da cana e CPF do responsável técnico agronômico: os dois vêm do
+  // cadastro (operação e organização) e habilitam os grupos de nicho.
+  const operationCanaSafra = typeof selectedOperation?.cana_safra === 'string'
+    ? selectedOperation.cana_safra
+    : null
+  const orgTechnicalManagerCpf = typeof orgData?.person?.technical_manager_cpf === 'string'
+    ? orgData.person.technical_manager_cpf
+    : null
+  const operationDhSaiEntOffsetDays = typeof selectedOperation?.dh_sai_ent_offset_days === 'number'
+    ? selectedOperation.dh_sai_ent_offset_days
+    : null
+
+  // A regra do refDFeAnt é do leiaute: obrigatório nos tipos 2 e 3, vedado em 1
+  // e 4, e no tipo 2 uma chave só. O formulário só mostra o campo quando ele é
+  // aceito — assim a rejeição não é a primeira notícia da regra.
+  const operationCompraGovTpOper = typeof selectedOperation?.compra_gov_tp_oper === 'string'
+    ? selectedOperation.compra_gov_tp_oper
+    : ''
+  const compraGovNeedsRef = COMPRA_GOV_TP_OPER_COM_REFERENCIA.has(operationCompraGovTpOper)
+  const compraGovRefMax = operationCompraGovTpOper === COMPRA_GOV_TP_OPER_REFERENCIA_UNICA ? 1 : undefined
 
 
   // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
@@ -1042,6 +1206,11 @@ export function NfeEmitForm() {
         veic_n_motor: p.veic_n_motor || null, veic_c_cor: p.veic_c_cor || null,
         veic_x_cor: p.veic_x_cor || null,
         armas: p.armas && p.armas.length > 0 ? p.armas : null,
+        x_ped: p.x_ped || null,
+        n_item_ped: p.x_ped ? (p.n_item_ped || null) : null,
+        transf_cred: reformPair(p, 'transf_cred'),
+        ajuste_compet: reformPair(p, 'ajuste_compet'),
+        estorno_cred: estornoPair(p),
       })),
       payments: payments.map(p => ({
         payment_type: p.payment_type, value: p.value,
@@ -1079,6 +1248,14 @@ export function NfeEmitForm() {
       save_entrega_location: entrega ? saveEntregaLocation : false,
       nf_refs: nfRefs.length > 0 ? nfRefs : null,
       proc_ref: procRef.length > 0 ? procRef : null,
+      compra_x_ped: nicheGroups.compraXPed.trim() || null,
+      compra_x_cont: nicheGroups.compraXCont.trim() || null,
+      cana: nicheGroups.cana,
+      agro: nicheGroups.agro,
+      dh_sai_ent: datetimeLocalToOffset(dhSaiEnt) || null,
+      d_prev_entrega: dPrevEntrega || null,
+      compra_gov_refs: compraGovRefs.length > 0 ? compraGovRefs : null,
+      pag_antecipado_refs: pagAntecipadoRefs.length > 0 ? pagAntecipadoRefs : null,
     }
 
     setIsSubmitting(true)
@@ -1765,6 +1942,64 @@ export function NfeEmitForm() {
                 </Button>
               </div>
             ))}
+          </div>
+
+          {/* Compra governamental e antecipação de pagamento (ide da reforma) */}
+          {(compraGovNeedsRef || pagAntecipadoRefs.length > 0 || compraGovRefs.length > 0) && (
+            <div className="space-y-3 pt-3 border-t border-gray-100">
+              {compraGovNeedsRef && (
+                <AccessKeyPicker
+                  id="nfe-compra-gov-refs"
+                  label="Documentos anteriores da compra governamental"
+                  value={compraGovRefs}
+                  onChange={setCompraGovRefs}
+                  max={compraGovRefMax}
+                  hint={compraGovRefMax === 1
+                    ? 'A operação escolhida na natureza aceita uma chave só.'
+                    : 'Obrigatório para o tipo de operação governamental cadastrado.'}/>
+              )}
+              <AccessKeyPicker
+                id="nfe-pag-antecipado-refs"
+                label="NF-e de antecipação de pagamento a abater"
+                value={pagAntecipadoRefs}
+                onChange={setPagAntecipadoRefs}
+                hint="Opcional. Abate as parcelas já recebidas por antecipação."/>
+            </div>
+          )}
+
+          {/* Saída da mercadoria e previsão de entrega (ide) */}
+          <div className="space-y-2 pt-3 border-t border-gray-100">
+            <Label className="text-sm font-medium text-gray-700">Saída e entrega</Label>
+            <p className="text-xs text-gray-500">
+              {operationDhSaiEntOffsetDays === null
+                ? 'Em branco, a nota não declara data de saída.'
+                : `Em branco, a saída é ${operationDhSaiEntOffsetDays} dia(s) após a emissão (prazo da operação).`}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="nfe-dh-sai-ent" className="text-xs font-medium text-gray-600">
+                  Saída da mercadoria
+                </Label>
+                <input id="nfe-dh-sai-ent" type="datetime-local" value={dhSaiEnt}
+                       onChange={(e) => setDhSaiEnt(e.target.value)}
+                       className="w-full h-11 rounded-md border border-gray-300 px-3 text-sm"/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="nfe-d-prev-entrega" className="text-xs font-medium text-gray-600">
+                  Previsão de entrega
+                </Label>
+                <input id="nfe-d-prev-entrega" type="date" value={dPrevEntrega}
+                       onChange={(e) => setDPrevEntrega(e.target.value)}
+                       className="w-full h-11 rounded-md border border-gray-300 px-3 text-sm"/>
+              </div>
+            </div>
+          </div>
+
+          {/* Grupos de nicho: compra pública, cana e agropecuário */}
+          <div className="pt-3 border-t border-gray-100">
+            <NicheGroupsFields value={nicheGroups} onChange={setNicheGroups}
+                               canaSafra={operationCanaSafra}
+                               technicalManagerCpf={orgTechnicalManagerCpf}/>
           </div>
 
           {/* Additional info */}

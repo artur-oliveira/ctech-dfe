@@ -30,6 +30,8 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
       nfse: nfseInfoFromApi(nfse),
       cnae: rest.cnae ?? '',
       isuf_emit: rest.isuf_emit ?? '',
+      intermediary_id: rest.intermediary_id ?? '',
+      technical_manager_cpf: rest.technical_manager_cpf ?? '',
       // Organização não recebe frete; o grupo existe só pra satisfazer o schema.
       bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
       // Organização não é transportadora de si mesma; o grupo existe só para
