@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
+import {paymentBalanceGap} from '@/lib/utils/emit-guards'
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
@@ -372,7 +373,9 @@ export function NfceEmitForm() {
       ? 'Há produtos sem CFOP de saída (5xxx).'
       : effectivePayments().length === 0
         ? 'Informe pelo menos uma forma de pagamento.'
-        : null
+        // Excedente aqui é troco legítimo (vTroco); falta continua sendo a
+        // rejeição de somatório, e é o computador que tem que fechar a conta.
+        : paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), true)
   const canEmit = !emitBlockedReason
 
   // ─── submit ───────────────────────────────────────────────────────────────

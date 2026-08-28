@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 import {apiClient} from '@/lib/api/client'
 import {useDebounce} from '@/lib/hooks/useDebounce'
 
@@ -15,7 +15,13 @@ export interface IcmsAliqPreview {
  */
 export function useIcmsAliqPreview(emitUf?: string, destUf?: string, ncm?: string): IcmsAliqPreview | null {
   const [preview, setPreview] = useState<IcmsAliqPreview | null>(null)
-  const debouncedQuery = useDebounce(emitUf && destUf ? {emitUf, destUf, ncm} : null, 300)
+  // useDebounce compara por identidade: um objeto literal novo a cada render
+  // rearmaria o timer para sempre, num loop de fetch a cada 300ms.
+  const query = useMemo(
+    () => (emitUf && destUf ? {emitUf, destUf, ncm} : null),
+    [emitUf, destUf, ncm],
+  )
+  const debouncedQuery = useDebounce(query, 300)
 
   useEffect(() => {
     let cancelled = false

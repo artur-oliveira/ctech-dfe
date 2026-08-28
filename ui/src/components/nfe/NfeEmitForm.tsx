@@ -6,6 +6,7 @@ import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
+import {duplicataSumGap, paymentBalanceGap, SUM_TOLERANCE, unitDataGap} from '@/lib/utils/emit-guards'
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {Textarea} from '@/components/ui/textarea'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
@@ -176,6 +177,28 @@ function computeTotal(p: EmitProduct): number {
 
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+}
+
+/** Data de hoje em ISO — piso de vencimento: duplicata vencida antes da emissão é rejeição. */
+function todayIso(): string {
+  return localIso().slice(0, 10)
+}
+
+/** Agora no formato do input datetime-local (hora local, não UTC). */
+function localIso(): string {
+  const now = new Date()
+  const offsetMs = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function itemUnitDataGap(item: EmitProduct): string | null {
+  return unitDataGap({
+    prodType: item.product.prod_type,
+    chassi: item.veic_chassi,
+    nSerie: item.veic_n_serie,
+    nMotor: item.veic_n_motor,
+    armaCount: (item.armas ?? []).length,
+  })
 }
 
 // ─── Receiver search ──────────────────────────────────────────────────────────
@@ -465,6 +488,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
   const total = computeTotal(item)
   const isVeiculo = item.product.prod_type === 'veiculo'
   const isArma = item.product.prod_type === 'arma'
+  const unitDataGap = itemUnitDataGap(item)
 
   const [newArma, setNewArma] = useState<NfeArmaIn>({n_serie: '', n_cano: '', descr: ''})
 
@@ -524,6 +548,10 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         </>
       }
     >
+
+      {unitDataGap && (
+        <p role="alert" className="text-[0.8rem] text-danger">{unitDataGap}</p>
+      )}
 
       {/* ── Veículo — dados por unidade ───────────────────────────── */}
       {isVeiculo && (
@@ -1009,6 +1037,14 @@ export function NfeEmitForm() {
   // (sameUf === null) AND a same-scope variant is resolved (non-empty cfop).
   const cfopUnresolvedError = products.some(p => p.cfopSuffix && (!p.cfop || sameUf === null))
 
+  // Dados por unidade (chassi, motor, arma) que a SEFAZ só cobra na emissão.
+  const itemGaps = useMemo(
+    () => products
+      .map((item, index) => ({index, reason: itemUnitDataGap(item)}))
+      .filter((g): g is {index: number; reason: string} => g.reason !== null),
+    [products],
+  )
+
   // Re-resolve CFOPs when sameUf changes (same-render pattern to avoid effect setState warning)
   if (sameUf !== prevSameUf) {
     setPrevSameUf(sameUf)
@@ -1037,6 +1073,25 @@ export function NfeEmitForm() {
 
   // Derived — cobrança only shown when there's an "a prazo" payment
   const hasPrazoPayment = payments.some(p => p.ind_pag === '1')
+
+  // A fatura e suas parcelas também têm que fechar: "somatório das duplicatas
+  // difere do valor da fatura" é rejeição, não aviso.
+  const faturaTotal = parseFloat(cobrFat.v_liq || cobrFat.v_orig || '') || totalNfe
+  const duplicataGap: string | null = !hasPrazoPayment || duplicatas.length === 0
+    ? null
+    : duplicataSumGap(faturaTotal, duplicatas.reduce((sum, d) => sum + (parseFloat(d.v_dup) || 0), 0))
+
+  // Saída anterior à emissão e entrega no passado são rejeições da SEFAZ; o
+  // `min` do input cobre o caminho do calendário, esta regra cobre o resto.
+  const dateGap: string | null = (() => {
+    if (dhSaiEnt && dhSaiEnt < localIso().slice(0, 10)) {
+      return 'A saída da mercadoria não pode ser anterior à emissão.'
+    }
+    if (dPrevEntrega && dPrevEntrega < todayIso()) {
+      return 'A previsão de entrega não pode ser anterior à emissão.'
+    }
+    return null
+  })()
   const isPix = isPixPaymentType(newPaymentType)
   const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
 
@@ -1077,16 +1132,58 @@ export function NfeEmitForm() {
 
   // ─── Step navigation ──────────────────────────────────────────────────────
 
-  function canGoNext(step: EmitStep): boolean {
-    if (step === 'destinatario') return selfIssuance || receiver !== null
-    if (step === 'produtos') return products.length > 0 && !cfopMixError && !cfopUnresolvedError
-    if (step === 'pagamento') {
-      if (paymentTermId) return true
-      if (payments.length > 0) return true
-      if (newPaymentType === NO_PAYMENT_TYPE) return true
-      return !!newPaymentValue && parseFloat(newPaymentValue) > 0
+  /**
+   * Motivo pelo qual o passo ainda não pode avançar, ou null quando pode. É uma
+   * frase, não um booleano, porque um botão desabilitado sem explicação faz o
+   * operador procurar o problema no lugar errado.
+   */
+  function stepBlockReason(step: EmitStep): string | null {
+    if (step === 'destinatario') {
+      return selfIssuance || receiver !== null ? null : 'Selecione o destinatário da nota.'
     }
-    return true
+    if (step === 'produtos') {
+      if (products.length === 0) return 'Adicione ao menos um produto.'
+      if (cfopMixError) return 'A nota mistura CFOP de entrada e de saída.'
+      if (cfopUnresolvedError) return 'Há item sem CFOP resolvido para a UF de destino.'
+      const gap = itemGaps[0]
+      if (gap) return `Item ${gap.index + 1}: ${gap.reason}`
+      return null
+    }
+    if (step === 'pagamento') {
+      // O prazo gera parcelas, fatura e duplicatas a partir do total na emissão:
+      // por construção a soma fecha.
+      if (paymentTermId) return null
+      if (newPaymentType === NO_PAYMENT_TYPE) return null
+      if (payments.some(p => p.payment_type === NO_PAYMENT_TYPE)) return null
+      if (payments.length === 0 && !(parseFloat(newPaymentValue) > 0)) {
+        return 'Informe o pagamento da nota.'
+      }
+      // O valor ainda não adicionado conta: handleNext o adiciona ao avançar.
+      const balanceGap = paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), false)
+      if (balanceGap !== null) return balanceGap
+      if (duplicataGap !== null) return duplicataGap
+      return null
+    }
+    return null
+  }
+
+  function canGoNext(step: EmitStep): boolean {
+    return stepBlockReason(step) === null
+  }
+
+  /**
+   * Joga a diferença na última parcela. O resíduo quase sempre é arredondamento
+   * de rateio, e refazer a conta à mão é exatamente o trabalho que o produto
+   * existe para tirar do operador.
+   */
+  function handleAbsorbRemainder() {
+    setPayments(prev => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      const adjusted = (parseFloat(last.value) || 0) + remaining
+      if (adjusted <= 0) return prev
+      return [...prev.slice(0, -1), {...last, value: adjusted.toFixed(2)}]
+    })
   }
 
   function handleNext() {
@@ -1526,12 +1623,20 @@ export function NfeEmitForm() {
                   </div>
                 </div>
               ))}
-              <p
-                className={`text-sm pt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-blue-700' : 'text-warning'}`}>
-                {Math.abs(remaining) < 0.01
-                  ? '✓ Total confere.'
-                  : remaining > 0 ? `⌛ Restam ${fmt(remaining)}.` : `↩ Troco: ${fmt(-remaining)}`}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <p className={`text-sm ${Math.abs(remaining) < SUM_TOLERANCE ? 'text-success' : 'text-warning'}`}>
+                  {Math.abs(remaining) < SUM_TOLERANCE
+                    ? '✓ Total confere.'
+                    : remaining > 0
+                      ? `⌛ Restam ${fmt(remaining)} para fechar o total.`
+                      : `⚠ Pagamentos excedem o total em ${fmt(-remaining)}.`}
+                </p>
+                {Math.abs(remaining) >= SUM_TOLERANCE && (
+                  <Button type="button" variant="outline" size="xs" onClick={handleAbsorbRemainder}>
+                    Ajustar última parcela
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1670,7 +1775,8 @@ export function NfeEmitForm() {
                     </div>
                     <div className="flex flex-col gap-1 w-40">
                       <Label className="text-xs font-medium text-gray-600 whitespace-nowrap">1º vencimento</Label>
-                      <Input type="date" value={dupFirstDate} onChange={e => setDupFirstDate(e.target.value)}/>
+                      <Input type="date" min={todayIso()} value={dupFirstDate}
+                             onChange={e => setDupFirstDate(e.target.value)}/>
                     </div>
                     <Button type="button" variant="brand" size="sm" onClick={handleGenerateDuplicatas}>
                       Gerar parcelas
@@ -1689,7 +1795,7 @@ export function NfeEmitForm() {
                       <div key={i}
                            className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0 border-gray-50">
                         <span className="font-mono text-xs text-gray-400 w-7 shrink-0">{d.n_dup}</span>
-                        <Input type="date" value={d.d_venc}
+                        <Input type="date" min={todayIso()} value={d.d_venc}
                                onChange={e => {
                                  const newDate = e.target.value
                                  setDuplicatas(prev => {
@@ -1980,17 +2086,15 @@ export function NfeEmitForm() {
                 <Label htmlFor="nfe-dh-sai-ent" className="text-xs font-medium text-gray-600">
                   Saída da mercadoria
                 </Label>
-                <input id="nfe-dh-sai-ent" type="datetime-local" value={dhSaiEnt}
-                       onChange={(e) => setDhSaiEnt(e.target.value)}
-                       className="w-full h-11 rounded-md border border-gray-300 px-3 text-sm"/>
+                <Input id="nfe-dh-sai-ent" type="datetime-local" min={localIso()} value={dhSaiEnt}
+                       onChange={(e) => setDhSaiEnt(e.target.value)}/>
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="nfe-d-prev-entrega" className="text-xs font-medium text-gray-600">
                   Previsão de entrega
                 </Label>
-                <input id="nfe-d-prev-entrega" type="date" value={dPrevEntrega}
-                       onChange={(e) => setDPrevEntrega(e.target.value)}
-                       className="w-full h-11 rounded-md border border-gray-300 px-3 text-sm"/>
+                <Input id="nfe-d-prev-entrega" type="date" min={todayIso()} value={dPrevEntrega}
+                       onChange={(e) => setDPrevEntrega(e.target.value)}/>
               </div>
             </div>
           </div>
@@ -2043,14 +2147,22 @@ export function NfeEmitForm() {
           )}
 
           {currentStep !== 'revisao' ? (
-            <Button type="button" variant="brand" disabled={!canGoNext(currentStep)} onClick={handleNext}>
-              Próximo
-            </Button>
+            <div className="flex items-center gap-3">
+              {stepBlockReason(currentStep) && (
+                <span className="text-right text-[0.8rem] text-warning">{stepBlockReason(currentStep)}</span>
+              )}
+              <Button type="button" variant="brand" disabled={!canGoNext(currentStep)} onClick={handleNext}>
+                Próximo
+              </Button>
+            </div>
           ) : (
-            <Button type="button" variant="brand" disabled={isSubmitting}
-                    onClick={() => setShowEmitConfirm(true)}>
-              {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
-            </Button>
+            <div className="flex items-center gap-3">
+              {dateGap && <span className="text-right text-[0.8rem] text-warning">{dateGap}</span>}
+              <Button type="button" variant="brand" disabled={isSubmitting || dateGap !== null}
+                      onClick={() => setShowEmitConfirm(true)}>
+                {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
+              </Button>
+            </div>
           )}
         </div>
       </div>

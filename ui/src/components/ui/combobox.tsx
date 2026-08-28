@@ -66,23 +66,26 @@ export function Combobox({
 
   const selected = value ? options.find((o) => o.value === value) : undefined
 
+  // O índice do Fuse é caro (milhares de opções: NCM, municípios, CFOP) e não
+  // depende do texto buscado — indexar por tecla digitada derrubava o campo.
+  const fuse = useMemo(
+    () => (fuzzySearch
+      ? new Fuse(options, {keys: ['value', 'label'], threshold: 0.3, ignoreDiacritics: true, ignoreLocation: true})
+      : null),
+    [fuzzySearch, options],
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim()
     if (!q) return options
-    if (fuzzySearch) {
-      const fuse = new Fuse(options, {
-        keys: ['value', 'label'],
-        threshold: 0.3,
-        ignoreDiacritics: true,
-        ignoreLocation: true,
-      })
+    if (fuse) {
       return fuse.search(q).map(({item}) => item)
     }
     const normalizedQuery = q.toLowerCase()
     return options.filter((o) =>
       o.label.toLowerCase().includes(normalizedQuery) || o.value.toLowerCase().includes(normalizedQuery),
     )
-  }, [fuzzySearch, options, search])
+  }, [fuse, options, search])
 
   const visibleItems = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length
@@ -146,7 +149,7 @@ export function Combobox({
     }
     el.addEventListener('scroll', onScroll, {passive: true})
     return () => el.removeEventListener('scroll', onScroll)
-  })
+  }, [open])
 
   const handleSelect = (optValue: string) => {
     onValueChange?.(optValue)
@@ -199,6 +202,8 @@ export function Combobox({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+          aria-controls={listboxId}
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
@@ -210,6 +215,7 @@ export function Combobox({
             {visibleItems.map((opt, i) => (
               <button
                 key={opt.value}
+                id={`${listboxId}-opt-${i}`}
                 type="button"
                 role="option"
                 aria-selected={opt.value === value}
@@ -252,6 +258,7 @@ export function Combobox({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
+        aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
         className={cn(
           'flex min-h-11 sm:min-h-0 sm:h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none select-none',
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
