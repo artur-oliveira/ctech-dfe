@@ -140,6 +140,30 @@ const TABS: { id: ProductTab; label: string }[] = [
   {id: 'especial', label: 'Tipo Especial'},
 ]
 
+/**
+ * Em que aba mora cada campo. Sem isso, um erro de validação numa aba inativa é
+ * invisível: o submit falha, nada muda na tela e o operador procura às cegas.
+ */
+const TAB_FIELDS: Record<Exclude<ProductTab, 'especial'>, readonly string[]> = {
+  produto: [
+    'code', 'description', 'brand', 'ncm', 'cest', 'origin', 'c_benef', 'ext_ipi',
+    'ind_escala', 'cnpj_fab', 'ind_tot', 'inf_ad_prod',
+  ],
+  unidades: [
+    'unit', 'taxable_unit', 'cean', 'taxable_cean', 'value', 'value_resale',
+    'net_weight', 'gross_weight', 'conversion_factors',
+  ],
+  tributacao: ['cfop_nfce', 'cfop_config', 'icms_aliq_override', 'fcp_aliq_override'],
+}
+
+/** A aba "Tipo Especial" é o resto: tudo que não é identificação, preço ou tributação. */
+function tabOfField(field: string): ProductTab {
+  for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
+    if (fields.includes(field)) return tab as ProductTab
+  }
+  return 'especial'
+}
+
 
 
 const EMPTY_CFOP_ROW: CfopConfigFormData = {
@@ -953,6 +977,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     }
   })
 
+  // Quantos campos com erro cada aba tem — o badge é o que faz o submit falho
+  // apontar para onde o operador precisa ir.
+  const errorsByTab = Object.keys(form.formState.errors).reduce<Record<string, number>>((acc, field) => {
+    const tab = tabOfField(field)
+    acc[tab] = (acc[tab] ?? 0) + 1
+    return acc
+  }, {})
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -981,6 +1013,12 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               {tab.id === 'tributacao' && cfopConfig.length > 0 && (
                 <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
                   {cfopConfig.length}
+                </span>
+              )}
+              {(errorsByTab[tab.id] ?? 0) > 0 && (
+                <span aria-label={`${errorsByTab[tab.id]} campo(s) com erro`}
+                      className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+                  {errorsByTab[tab.id]}
                 </span>
               )}
             </button>

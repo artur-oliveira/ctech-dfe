@@ -40,3 +40,30 @@ describe('TaxFieldsEditor — grupos opcionais novos', () => {
     expect(screen.getByText('Alíquota PIS-ST %')).toBeInTheDocument()
   })
 })
+
+describe('TaxFieldsEditor — rótulos ligados ao controle', () => {
+  const groupsWithMono = {...EMPTY_TAX_GROUPS, icmsMono: true}
+
+  it('associa cada rótulo ao seu campo (clicar no rótulo foca o controle)', () => {
+    render(<TaxFieldsEditor value={{...baseValue, icms_mod_bc: '1'}} onChange={() => {}} simples={false}
+                            groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>)
+    expect(screen.getByLabelText('CFOP *')).toBeInTheDocument()
+    expect(screen.getByLabelText('PIS *')).toBeInTheDocument()
+    expect(screen.getByLabelText('COFINS *')).toBeInTheDocument()
+    expect(screen.getByLabelText('Alíquota ICMS %')).toBeInTheDocument()
+    expect(screen.getByLabelText('Valor da pauta fiscal (R$)')).toBeInTheDocument()
+  })
+
+  it('não repete id entre dois editores na mesma tela', () => {
+    const {container} = render(
+      <div>
+        <TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                         groups={groupsWithMono} onGroupsChange={() => {}}/>
+        <TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                         groups={groupsWithMono} onGroupsChange={() => {}}/>
+      </div>,
+    )
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})

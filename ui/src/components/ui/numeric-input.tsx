@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import {useFieldAria} from '@/components/ui/form'
 import {cn} from '@/lib/utils'
 
 interface NumericInputProps
@@ -33,6 +34,9 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
     },
     ref
   ) {
+    // Em formulário react-hook-form o campo passa `name` ou `id={field.name}`:
+    // qualquer um dos dois liga o controle à mensagem de erro.
+    const aria = useFieldAria(props.name ?? props.id)
     const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     React.useEffect(() => () => {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -109,6 +113,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
           onKeyDown={handleKeyDown}
           onChange={handleChange}
           className={cn(baseInputClass, 'px-2.5 py-1')}
+          {...aria}
           {...props}
           id={props.id ?? props.name}
         />

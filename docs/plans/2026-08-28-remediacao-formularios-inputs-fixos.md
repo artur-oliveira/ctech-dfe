@@ -51,10 +51,10 @@ Scores de partida: **Design 24/40**, **Audit 7/20**.
 
 ## Fase 3 — acessibilidade e DRY na raiz
 
-- [ ] **Task 9: `<TaxField>`** — um wrapper `label htmlFor` + controle `id`, com `useId()` como prefixo, substituindo os
+- [x] **Task 9: `<TaxField>`** — um wrapper `label htmlFor` + controle `id`, com `useId()` como prefixo, substituindo os
   ~90 blocos copiados do TaxFieldsEditor (remove ~600 linhas e conserta os 13 ids literais que colidem quando o
   componente monta duas vezes na mesma tela).
-- [ ] **Task 10: `form.tsx`** — `aria-invalid` + `aria-describedby` ligados ao `FormMessage` que já existe e nunca é
+- [x] **Task 10: `form.tsx`** — `aria-invalid` + `aria-describedby` ligados ao `FormMessage` que já existe e nunca é
   consumido; badge de erro nas abas/seções colapsadas (`ProductForm`, `EntityForm`, `OperationForm`).
 
 ## Fase 4 — trocas de controle com tabela já existente (custo zero)
@@ -89,7 +89,7 @@ contagem), e a troca do controle correspondente no mesmo commit.
   blocos Importação/Reforma/Selo/Perigoso gateados por `prod_type` ou por um checklist explícito.
 - [ ] **Task 22: NfeEmitForm** — a gaveta única vira três: Transporte / Documentos e datas / Grupos setoriais; grupo que
   se torna obrigatório sobe para fora da gaveta, como `requiresNfRefs` já faz.
-- [ ] **Task 23: OperationForm** — renomear "Mensagens fiscais" e separar retenções, reforma e grupos setoriais.
+- [x] **Task 23: OperationForm** — renomear "Mensagens fiscais" e separar retenções, reforma e grupos setoriais.
 
 ## Fase 7 — dívida de design system
 

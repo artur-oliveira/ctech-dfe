@@ -323,6 +323,12 @@ export function EntityForm({
     () => setAdvancedOpen(true),
   )
 
+  // Erros dentro do bloco avançado. Ele já reabre no submit falho; o número diz
+  // quantos campos procurar, em vez de deixar o operador varrer a seção inteira.
+  const advancedErrorCount = Object.keys(form.formState.errors.person ?? {}).length
+    + (form.formState.errors.roles ? 1 : 0)
+    + (form.formState.errors.description ? 1 : 0)
+
   const hasBankData = watchedBank ? Object.values(watchedBank).some(Boolean) : false
   const hasFreightData = watchedFreight ? Object.values(watchedFreight).some(Boolean) : false
   const hasNfseData = watchedNfse ? Object.values(watchedNfse).some(Boolean) : false
@@ -819,6 +825,12 @@ export function EntityForm({
                     className="px-0 text-brand-700 hover:text-brand-800">
               {advancedOpen ? '− Ocultar dados complementares' : '+ Dados complementares e fiscais'}
             </Button>
+            {advancedErrorCount > 0 && (
+              <span aria-label={`${advancedErrorCount} campo(s) com erro nos dados complementares`}
+                    className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+                {advancedErrorCount}
+              </span>
+            )}
             {!advancedOpen && (
               <span className="text-xs text-gray-500">Contatos, outros endereços e campos conforme os papéis escolhidos.</span>
             )}

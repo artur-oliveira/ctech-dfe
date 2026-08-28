@@ -176,6 +176,18 @@ const nullify = (v: string | undefined) => (v ? v : null)
  * Cadastro de natureza de operação — o formulário curto que responde de uma vez
  * as perguntas que hoje o operador refaz a cada emissão.
  */
+
+/** Campos de cada seção avançada — o badge de erro precisa saber onde eles moram. */
+const MESSAGE_FIELDS = ['inf_ad_fisco', 'inf_cpl', 'obs_cont', 'obs_fisco'] as const
+const TAX_FIELDS = [
+  'ret_trib', 'c_ind_op', 'c_mun_fg_ibs', 'tp_nf_debito', 'tp_nf_credito',
+  'compra_gov_tp_ente', 'compra_gov_p_redutor', 'compra_gov_tp_oper',
+] as const
+const NICHE_FIELDS = [
+  'intermediary_person_id', 'ind_intermed', 'dh_sai_ent_offset_days',
+  'compra_x_n_emp', 'cana_safra', 'export_uf_saida_pais', 'export_loc_despacho_index',
+] as const
+
 export function OperationForm({initialData, onSubmit, loading = false}: OperationFormProps) {
   const {selectedOrg} = useAuth()
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -261,6 +273,23 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
       setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a operação.')
     }
   }
+
+  /**
+   * Marca da seção fechada: quantos campos dela estão com erro. Uma seção
+   * colapsada escondendo o erro que impede o salvamento é submit que falha sem
+   * nada mudar na tela.
+   */
+  const sectionBadge = (fields: readonly string[]) => {
+    const count = fields.filter((f) => f in form.formState.errors).length
+    if (count === 0) return null
+    return (
+      <span aria-label={`${count} campo(s) com erro`}
+            className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+        {count}
+      </span>
+    )
+  }
+
 
   return (
     <Form {...form}>
@@ -412,7 +441,9 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
           />
         </div>
 
-        <CollapsibleSection title="Mensagens fiscais">
+        <CollapsibleSection title="Mensagens fiscais"
+                            description="Texto que vai em infAdic de toda nota da operação"
+                            badge={sectionBadge(MESSAGE_FIELDS)}>
           <div className="space-y-4">
             <p className="text-xs text-gray-500">
               Disponíveis:{' '}
@@ -449,7 +480,13 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
               <ObsListField key={name} form={form} name={name}
                             label={name === 'obs_cont' ? 'Observações do contribuinte' : 'Observações ao fisco'}/>
             ))}
+          </div>
+        </CollapsibleSection>
 
+        <CollapsibleSection title="Retenções e reforma tributária"
+                            description="Percentuais de retenção federal e identificação de IBS/CBS"
+                            badge={sectionBadge(TAX_FIELDS)}>
+          <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Retenções federais (%)
@@ -478,6 +515,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                 ))}
               </div>
             </div>
+
 
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -577,6 +615,13 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
               </div>
             </div>
 
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Grupos setoriais"
+                            description="Marketplace, prazo de saída, compra pública e cana"
+                            badge={sectionBadge(NICHE_FIELDS)}>
+          <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Grupos de nicho
