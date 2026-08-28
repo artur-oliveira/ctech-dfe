@@ -38,14 +38,15 @@ Scores de partida: **Design 24/40**, **Audit 7/20**.
 
 ## Fase 2 — validação granular nos schemas
 
-- [ ] **Task 5: `products.ts` `superRefine`** — comb (cProdANP/descANP/UFCons), veículo (13 campos), arma, med ISENTO →
+- [x] **Task 5: `products.ts` `superRefine`** — comb (cProdANP/descANP/UFCons), veículo (13 campos), arma, med ISENTO →
   motivo, indEscala N → CNPJ fab, selo IPI (código+qtd juntos), peri (ONU → nome/classe/grupo), `Σ p_orig = 100`,
-  `gross_weight ≥ net_weight`, dígito verificador do GTIN, CEST × NCM.
-- [ ] **Task 6: `entity.ts`** — `freight_retention` all-or-nothing com formato por campo; CNAE conferido contra
+  `gross_weight ≥ net_weight`, dígito verificador do GTIN. **CEST × NCM fica para a Fase 5** — depende da
+  tabela de vínculo CEST/NCM, que ainda não existe no repositório.
+- [x] **Task 6: `entity.ts`** — `freight_retention` all-or-nothing com formato por campo; CNAE conferido contra
   `ALL_CNAES`; `bank_code` contra a tabela BACEN (Task 12).
-- [ ] **Task 7: `operations.ts`** — `cfop_suffix` conferido contra a tabela CFOP; `compra_gov_tp_oper ∈ {2,3}` exige as
+- [x] **Task 7: `operations.ts`** — `cfop_suffix` conferido contra a tabela CFOP; `compra_gov_tp_oper ∈ {2,3}` exige as
   chaves de referência já no save da operação, não só na emissão.
-- [ ] **Task 8: TaxFieldsEditor** — IPI (pIPI xor vUnid quando CST tributado), ICMSPart (pBCOp + UFST juntos),
+- [x] **Task 8: TaxFieldsEditor** — IPI (pIPI xor vUnid quando CST tributado), ICMSPart (pBCOp + UFST juntos),
   modBC ∈ {1,2} → pauta, ALC/ZFM (tpCBS + nProcSUFRAMA juntos), obsItem (xCampo + xTexto juntos).
 
 ## Fase 3 — acessibilidade e DRY na raiz

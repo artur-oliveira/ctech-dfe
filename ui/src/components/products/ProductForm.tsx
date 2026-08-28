@@ -20,6 +20,7 @@ import {Button} from '@/components/ui/button'
 import {Label} from '@/components/ui/label'
 import {
   type CfopConfigFormData,
+  cfopConfigSchema,
   type ConversionFactorFormData,
   type ProductFormData,
   productSchema
@@ -792,6 +793,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     }
     if (taxGroups.issqn && !cfopRow.issqn_ind_iss) {
       setCfopError('Exigibilidade ISS obrigatória quando ISSQN está habilitado')
+      return
+    }
+
+    // Regras de grupo do leiaute (IPI, ICMSPart, pauta, ALC/ZFM, obsItem) vivem
+    // no schema, para valerem também no perfil fiscal e no salvamento.
+    const groupCheck = cfopConfigSchema.safeParse({...cfopRow, cfop: cfopRow.cfop})
+    if (!groupCheck.success) {
+      setCfopError(groupCheck.error.issues[0].message)
       return
     }
 

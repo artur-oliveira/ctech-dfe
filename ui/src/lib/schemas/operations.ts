@@ -3,6 +3,7 @@
  * negócio. Espelha OperationBody (api/internal/api/v1/dto.go).
  */
 import {z} from 'zod'
+import {CFOP_SUFFIXES} from '@/lib/data/cfop'
 
 export const DOC_TYPE_OPTIONS = [
   {value: 'nfe', label: 'NF-e'},
@@ -103,6 +104,31 @@ export const operationSchema = z.object({
   export_loc_despacho_index: z.number().int().min(0).optional(),
   requires_receiver: z.boolean(),
   is_default: z.boolean(),
+}).superRefine((data, ctx) => {
+  // Três dígitos que passam no regex mas não existem na tabela CFOP são o erro
+  // mais caro do cadastro: ele só aparece na emissão, em toda nota da operação.
+  if (data.cfop_suffix && !CFOP_SUFFIXES.has(data.cfop_suffix)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['cfop_suffix'],
+      message: 'Natureza fiscal não existe na tabela CFOP',
+    })
+  }
+
+  // gCompraGov: o tipo do ente e o redutor formam grupo com o tipo de operação.
+  const govFields = ['compra_gov_tp_ente', 'compra_gov_tp_oper'] as const
+  const govFilled = govFields.filter((f) => data[f])
+  if (govFilled.length === 1) {
+    for (const field of govFields) {
+      if (!data[field]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [field],
+          message: 'Compra governamental exige o tipo do ente e o tipo da operação',
+        })
+      }
+    }
+  }
 })
 
 export type OperationFormData = z.infer<typeof operationSchema>

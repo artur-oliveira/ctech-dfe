@@ -117,3 +117,63 @@ describe('entitySchema — grupo NFS-e', () => {
     expect(entitySchema.safeParse(data).success).toBe(true)
   })
 })
+
+describe('entitySchema — CNAE e retenção do frete', () => {
+  const pathsOf = (data: EntityFormData): string[] => {
+    const result = entitySchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('aceita CNAE existente e recusa código inexistente', () => {
+    const valido = {...basePF, person: {...basePF.person, cnae: '0111301'}}
+    expect(entitySchema.safeParse(valido).success).toBe(true)
+    const invalido = {...basePF, person: {...basePF.person, cnae: '9999999'}}
+    expect(pathsOf(invalido)).toContain('person.cnae')
+  })
+
+  it('retenção do frete é grupo: metade preenchida é recusada', () => {
+    const meio = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {v_serv: '150.00', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
+      },
+    }
+    const paths = pathsOf(meio)
+    expect(paths).toEqual(expect.arrayContaining([
+      'person.freight_retention.v_bc_ret',
+      'person.freight_retention.p_icms_ret',
+      'person.freight_retention.cfop',
+      'person.freight_retention.c_mun_fg',
+    ]))
+  })
+
+  it('aceita a retenção do frete completa e o grupo inteiro vazio', () => {
+    const completo = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {
+          v_serv: '150.00', v_bc_ret: '150.00', p_icms_ret: '12.0000',
+          cfop: '5353', c_mun_fg: '2211001',
+        },
+      },
+    }
+    expect(entitySchema.safeParse(completo).success).toBe(true)
+    expect(entitySchema.safeParse(basePF).success).toBe(true)
+  })
+
+  it('recusa valor de serviço fora do formato decimal', () => {
+    const errado = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {
+          v_serv: 'cento e cinquenta', v_bc_ret: '150.00', p_icms_ret: '12.0000',
+          cfop: '5353', c_mun_fg: '2211001',
+        },
+      },
+    }
+    expect(pathsOf(errado)).toContain('person.freight_retention.v_serv')
+  })
+})

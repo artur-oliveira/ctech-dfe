@@ -3750,6 +3750,29 @@ export const groupCfopConfigBySuffix = (config: CfopConfigItem[]): CfopSuffixGro
   return [...bySuffix.values()]
 }
 
+/**
+ * Naturezas fiscais de saída (o sufixo de 3 dígitos, sem o escopo 5/6/7), com a
+ * descrição do CFOP. É o domínio de `operation.cfop_suffix`: pedir três dígitos
+ * decorados era o campo mais multiplicativo do sistema — um sufixo errado
+ * envenena toda nota emitida sob aquela operação.
+ */
+export const cfopSuffixOptions = (): DisplayCfop[] => {
+  const bySuffix = new Map<string, string>()
+  for (const entry of ALL_CFOPS) {
+    for (const variant of entry.variants) {
+      if (!'567'.includes(cfopScope(variant))) continue
+      const suffix = cfopSuffix(variant)
+      if (!bySuffix.has(suffix)) bySuffix.set(suffix, entry.description)
+    }
+  }
+  return [...bySuffix.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([suffix, description]) => ({value: suffix, label: `${suffix} - ${description}`}))
+}
+
+/** Sufixos válidos, indexados para validação de schema. */
+export const CFOP_SUFFIXES: ReadonlySet<string> = new Set(cfopSuffixOptions().map((o) => o.value))
+
 /** Escopo do destino: '5' dentro da UF, '6' outra UF, '7' exterior. */
 export const CFOP_SCOPE_INTRA_UF = '5'
 export const CFOP_SCOPE_INTER_UF = '6'

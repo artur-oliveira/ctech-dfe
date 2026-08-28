@@ -5,6 +5,7 @@
 import {z} from 'zod'
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators'
 import type {NfseInfo, PersonBank, PersonFreightRetention} from '@/lib/types/api'
+import {ALL_CNAES} from '@/lib/data/cnae'
 
 export const UF_LIST = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -105,6 +106,9 @@ export const REG_ESP_TRIB_OPTIONS = [
   {value: '9', label: '9 – Outros'},
 ]
 
+/** Índice dos códigos CNAE, para a validação não varrer 1.300 entradas por tecla. */
+const CNAE_CODES = new Set(ALL_CNAES.map((c) => c.code))
+
 export const entitySchema = z.object({
   tipo: z.enum(['pf', 'pj']),
   cpf_or_cnpj: z.string().default(''),
@@ -147,9 +151,9 @@ export const entitySchema = z.object({
     /** Perfil de ICMS retido pelo remetente sobre o frete (NF-e transp/retTransp).
      *  É da transportadora, não da nota. */
     freight_retention: z.object({
-      v_serv: z.string().optional().or(z.literal('')),
-      v_bc_ret: z.string().optional().or(z.literal('')),
-      p_icms_ret: z.string().optional().or(z.literal('')),
+      v_serv: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valor inválido (ex: 150.00)').optional().or(z.literal('')),
+      v_bc_ret: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valor inválido (ex: 150.00)').optional().or(z.literal('')),
+      p_icms_ret: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, '% inválido').optional().or(z.literal('')),
       cfop: z.string().regex(/^\d{4}$/, 'CFOP tem 4 dígitos').optional().or(z.literal('')),
       c_mun_fg: z.string().regex(/^\d{7}$/, 'IBGE tem 7 dígitos').optional().or(z.literal('')),
     }).default({v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''}),
@@ -180,6 +184,29 @@ export const entitySchema = z.object({
   const dup = ufs.find((uf, i) => ufs.indexOf(uf) !== i)
   if (dup) {
     ctx.addIssue({code: 'custom', message: `UF duplicada: ${dup}`, path: ['person', 'state_registrations']})
+  }
+
+  // O CNAE tem formato de 7 dígitos e uma tabela fechada: passar no regex e não
+  // existir na tabela é o erro que o município devolve depois.
+  if (data.person.cnae && !CNAE_CODES.has(data.person.cnae)) {
+    ctx.addIssue({code: 'custom', message: 'CNAE não existe na tabela', path: ['person', 'cnae']})
+  }
+
+  // retTransp é um grupo do leiaute: ou os cinco campos vêm, ou nenhum. Meio
+  // preenchido é "retTransp incompleto" na emissão de quem contratar o frete.
+  const ret = data.person.freight_retention
+  const retFields = ['v_serv', 'v_bc_ret', 'p_icms_ret', 'cfop', 'c_mun_fg'] as const
+  const retFilled = retFields.filter((f) => (ret?.[f] ?? '') !== '')
+  if (retFilled.length > 0 && retFilled.length < retFields.length) {
+    for (const field of retFields) {
+      if ((ret?.[field] ?? '') === '') {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'A retenção do frete é um grupo: preencha todos os campos ou nenhum',
+          path: ['person', 'freight_retention', field],
+        })
+      }
+    }
   }
 })
 
