@@ -472,6 +472,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	emptyUnits, err := s.resolveEmptyUnits(ctx, orgPK, req.Water)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 
 	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
@@ -516,6 +521,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tolls:               tolls,
 		contractors:         contractors,
 		policies:            policies,
+		emptyUnits:          emptyUnits,
 		infPag:              infPag,
 		redelivery:          keySet(req.RedeliveryKeys),
 		partial:             partialByKey(req.PartialDeliveries),

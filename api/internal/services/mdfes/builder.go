@@ -100,6 +100,9 @@ type buildParams struct {
 	// infAdFisco é a mensagem ao fisco da configuração; addInfo é a observação
 	// da viagem. As duas convivem no mesmo infAdic.
 	infAdFisco string
+	// emptyUnits são as unidades de carga e de transporte que viajam vazias no
+	// modal aquaviário, já resolvidas contra organization_cargo_units.
+	emptyUnits emptyUnitNodes
 	// policies são as apólices de seguro da carga, já cruzadas com o cadastro.
 	policies []resolvedPolicy
 	// infPag é o pagamento ao transportador autônomo, já montado por
@@ -239,7 +242,7 @@ func (p buildParams) buildInfModal() map[string]any {
 	case ModalAereo:
 		modal["aereo"] = buildAereo(p.air)
 	case ModalAquaviario:
-		modal["aquav"] = buildAquav(p.water)
+		modal["aquav"] = buildAquav(p.water, p.emptyUnits)
 	case ModalFerroviario:
 		modal["ferrov"] = buildFerrov(p.rail)
 	default:

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
-import {airComplete, railComplete} from '@/components/mdfe/ModalFields'
-import type {MdfeAirModalIn, MdfeRailModalIn} from '@/lib/types/api'
+import {airComplete, railComplete, waterComplete} from '@/components/mdfe/ModalFields'
+import type {MdfeAirModalIn, MdfeRailModalIn, MdfeWaterModalIn} from '@/lib/types/api'
 
 const air: MdfeAirModalIn = {
   nationality: 'PP', registration: 'ABC123', flight_number: 'JJ1234',
@@ -39,5 +39,25 @@ describe('railComplete', () => {
 
   it('aceita vagão sem os campos opcionais tpVag e nSeq', () => {
     expect(railComplete({...rail, wagons: [{...rail.wagons[0], wagon_type: '', sequence: ''}]})).toBe(true)
+  })
+})
+
+const water: MdfeWaterModalIn = {
+  irin: 'IR1', vessel_type: '01', vessel_code: 'EMB1', vessel_name: 'NAVIO X',
+  voyage_number: 'V1', origin_port: 'BRSSZ', dest_port: 'BRRIO',
+}
+
+describe('waterComplete', () => {
+  it('aceita a embarcação com os sete campos obrigatórios', () => {
+    expect(waterComplete(water)).toBe(true)
+  })
+
+  it('recusa porto fora do formato UN/LOCODE de 5 caracteres', () => {
+    expect(waterComplete({...water, origin_port: 'BRS'})).toBe(false)
+    expect(waterComplete({...water, dest_port: ''})).toBe(false)
+  })
+
+  it('não exige balsas, terminais nem unidades vazias — todos são minOccurs=0', () => {
+    expect(waterComplete({...water, barges: [], loading_terminals: [], empty_cargo_unit_ids: []})).toBe(true)
   })
 })

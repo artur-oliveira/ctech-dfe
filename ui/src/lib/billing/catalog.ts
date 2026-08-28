@@ -92,5 +92,8 @@ export function buildPlanOptions(products: BillingProduct[]): PlanOption[] {
 
 /** The meters a plan grants, in the order the screens list them. */
 export function grantedMeters(quotas: Record<string, number>): string[] {
+  if (!quotas) {
+    return [];
+  }
   return [...DOCUMENT_METERS, ...ACCOUNT_METERS].filter((m) => quotas[m] !== undefined && quotas[m] !== 0)
 }

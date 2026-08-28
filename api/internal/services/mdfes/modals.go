@@ -39,26 +39,47 @@ func buildAereo(a *MdfeAirModal) map[string]any {
 
 // MdfeWaterTerminal is one loading/unloading terminal (infTermCarreg/Descarreg).
 type MdfeWaterTerminal struct {
-	Code string `json:"code"` // cTermCarreg / cTermDescarreg
-	Name string `json:"name"` // xTermCarreg / xTermDescarreg
+	Code string `json:"code" validate:"required,max=8"`  // cTermCarreg / cTermDescarreg
+	Name string `json:"name" validate:"required,max=60"` // xTermCarreg / xTermDescarreg
 }
 
-// MdfeWaterModal mirrors the <aquav> group (core fields + terminal lists).
+// MdfeWaterBarge é uma balsa do comboio (infEmbComb). Apesar do nome, o grupo
+// não tem nada de combustível: "EmbComb" é embarcação do comboio.
+type MdfeWaterBarge struct {
+	Code string `json:"code" validate:"required,max=10"` // cEmbComb
+	Name string `json:"name" validate:"required,max=60"` // xBalsa
+}
+
+// MdfeWaterModal mirrors the <aquav> group.
 type MdfeWaterModal struct {
-	Irin            string              `json:"irin"`
-	TpEmb           string              `json:"vessel_type"`     // tpEmb
-	CEmbar          string              `json:"vessel_code"`     // cEmbar
-	XEmbar          string              `json:"vessel_name"`     // xEmbar
-	NViag           string              `json:"voyage_number"`   // nViag
-	CPrtEmb         string              `json:"origin_port"`     // cPrtEmb
-	CPrtDest        string              `json:"dest_port"`       // cPrtDest
-	PrtTrans        string              `json:"transit_port"`    // prtTrans (optional)
-	TpNav           string              `json:"navigation_type"` // tpNav (optional)
-	LoadTerminals   []MdfeWaterTerminal `json:"loading_terminals"`
-	UnloadTerminals []MdfeWaterTerminal `json:"unloading_terminals"`
+	Irin            string              `json:"irin" validate:"required,max=10"`
+	TpEmb           string              `json:"vessel_type" validate:"required,len=2,number"`   // tpEmb
+	CEmbar          string              `json:"vessel_code" validate:"required,max=10"`         // cEmbar
+	XEmbar          string              `json:"vessel_name" validate:"required,max=60"`         // xEmbar
+	NViag           string              `json:"voyage_number" validate:"required,max=10"`       // nViag
+	CPrtEmb         string              `json:"origin_port" validate:"required,len=5"`          // cPrtEmb
+	CPrtDest        string              `json:"dest_port" validate:"required,len=5"`            // cPrtDest
+	PrtTrans        string              `json:"transit_port" validate:"omitempty,max=60"`       // prtTrans (optional)
+	TpNav           string              `json:"navigation_type" validate:"omitempty,oneof=0 1"` // tpNav (optional)
+	LoadTerminals   []MdfeWaterTerminal `json:"loading_terminals" validate:"omitempty,max=5,dive"`
+	UnloadTerminals []MdfeWaterTerminal `json:"unloading_terminals" validate:"omitempty,max=5,dive"`
+	// Barges são as balsas do comboio (infEmbComb), até 30.
+	Barges []MdfeWaterBarge `json:"barges" validate:"omitempty,max=30,dive"`
+	// As unidades vazias apontam para organization_cargo_units: o contêiner ou a
+	// carreta que viaja vazia é a mesma que já está cadastrada.
+	EmptyCargoUnitIDs     []string `json:"empty_cargo_unit_ids" validate:"omitempty,dive,required"`
+	EmptyTransportUnitIDs []string `json:"empty_transport_unit_ids" validate:"omitempty,dive,required"`
+	// MMSI é a identificação da embarcação no sistema marítimo internacional.
+	MMSI string `json:"mmsi" validate:"omitempty,max=9"`
 }
 
-func buildAquav(w *MdfeWaterModal) map[string]any {
+// emptyUnitNodes são as unidades vazias já resolvidas contra o cadastro.
+type emptyUnitNodes struct {
+	Cargo     []map[string]any
+	Transport []map[string]any
+}
+
+func buildAquav(w *MdfeWaterModal, empty emptyUnitNodes) map[string]any {
 	if w == nil {
 		return map[string]any{}
 	}
@@ -79,6 +100,20 @@ func buildAquav(w *MdfeWaterModal) map[string]any {
 	if terms := buildWaterTerminals(w.UnloadTerminals, "cTermDescarreg", "xTermDescarreg"); len(terms) > 0 {
 		aquav["infTermDescarreg"] = terms
 	}
+	if len(w.Barges) > 0 {
+		barges := make([]map[string]any, 0, len(w.Barges))
+		for _, b := range w.Barges {
+			barges = append(barges, map[string]any{"cEmbComb": b.Code, "xBalsa": b.Name})
+		}
+		aquav["infEmbComb"] = barges
+	}
+	if len(empty.Cargo) > 0 {
+		aquav["infUnidCargaVazia"] = empty.Cargo
+	}
+	if len(empty.Transport) > 0 {
+		aquav["infUnidTranspVazia"] = empty.Transport
+	}
+	setIfStr(aquav, "MMSI", w.MMSI)
 	return aquav
 }
 

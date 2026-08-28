@@ -22,15 +22,52 @@ func TestValidateModalPayload(t *testing.T) {
 }
 
 func TestEnabledModals(t *testing.T) {
-	for _, modal := range []string{ModalRodoviario, ModalAereo, ModalFerroviario} {
+	for _, modal := range []string{ModalRodoviario, ModalAereo, ModalAquaviario, ModalFerroviario} {
 		if !enabledModals[modal] {
 			t.Errorf("modal %s deveria estar habilitado", modal)
 		}
 	}
-	// O aquaviário só entra quando buildAquav cobrir infEmbComb, as unidades
-	// vazias e o MMSI (Task 36).
-	if enabledModals[ModalAquaviario] {
-		t.Error("modal aquaviário ainda não está completo")
+}
+
+// TestBuildAquav_GruposCompletos cobre os grupos que faltavam: comboio de
+// balsas, unidades vazias e MMSI. As unidades chegam prontas do cadastro.
+func TestBuildAquav_GruposCompletos(t *testing.T) {
+	got := buildAquav(&MdfeWaterModal{
+		Irin: "IR1", TpEmb: "01", CEmbar: "EMB1", XEmbar: "NAVIO X", NViag: "V1",
+		CPrtEmb: "BRSSZ", CPrtDest: "BRRIO", TpNav: "0",
+		LoadTerminals:   []MdfeWaterTerminal{{Code: "T1", Name: "TERMINAL 1"}},
+		UnloadTerminals: []MdfeWaterTerminal{{Code: "T2", Name: "TERMINAL 2"}},
+		Barges:          []MdfeWaterBarge{{Code: "B1", Name: "BALSA 1"}, {Code: "B2", Name: "BALSA 2"}},
+		MMSI:            "710000000",
+	}, emptyUnitNodes{
+		Cargo:     []map[string]any{{"idUnidCargaVazia": "CONT1", "tpUnidCargaVazia": "1"}},
+		Transport: []map[string]any{{"idUnidTranspVazia": "ABC1D23", "tpUnidTranspVazia": "2"}},
+	})
+
+	if barges := got["infEmbComb"].([]map[string]any); len(barges) != 2 || barges[0]["xBalsa"] != "BALSA 1" {
+		t.Fatalf("infEmbComb = %v", got["infEmbComb"])
+	}
+	if got["MMSI"] != "710000000" {
+		t.Fatalf("MMSI = %v", got["MMSI"])
+	}
+	if cargas := got["infUnidCargaVazia"].([]map[string]any); cargas[0]["idUnidCargaVazia"] != "CONT1" {
+		t.Fatalf("infUnidCargaVazia = %v", got["infUnidCargaVazia"])
+	}
+	if transp := got["infUnidTranspVazia"].([]map[string]any); transp[0]["tpUnidTranspVazia"] != "2" {
+		t.Fatalf("infUnidTranspVazia = %v", got["infUnidTranspVazia"])
+	}
+}
+
+// TestBuildAquav_OmiteGruposVazios confirma o minOccurs=0 de cada grupo novo.
+func TestBuildAquav_OmiteGruposVazios(t *testing.T) {
+	got := buildAquav(&MdfeWaterModal{
+		Irin: "IR1", TpEmb: "01", CEmbar: "EMB1", XEmbar: "NAVIO X", NViag: "V1",
+		CPrtEmb: "BRSSZ", CPrtDest: "BRRIO",
+	}, emptyUnitNodes{})
+	for _, tag := range []string{"infEmbComb", "infUnidCargaVazia", "infUnidTranspVazia", "MMSI", "prtTrans", "tpNav"} {
+		if _, has := got[tag]; has {
+			t.Errorf("%s não informado não deve sair no XML: %v", tag, got)
+		}
 	}
 }
 

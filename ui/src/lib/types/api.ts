@@ -1382,6 +1382,40 @@ export interface MdfeEmit {
   air?: MdfeAirModalIn | null
   /** Dados do trem — obrigatório quando `modal = ferroviario` (grupo `ferrov`). */
   rail?: MdfeRailModalIn | null
+  /** Dados da embarcação — obrigatório quando `modal = aquaviario` (grupo `aquav`). */
+  water?: MdfeWaterModalIn | null
+}
+
+/** Terminal de carregamento/descarregamento (`infTermCarreg`/`infTermDescarreg`). */
+export interface MdfeWaterTerminalIn {
+  code: string
+  name: string
+}
+
+/** Balsa do comboio (`infEmbComb`) — apesar da tag, não tem nada de combustível. */
+export interface MdfeWaterBargeIn {
+  code: string
+  name: string
+}
+
+/** Grupo `aquav`. As unidades vazias apontam para `organization_cargo_units`. */
+export interface MdfeWaterModalIn {
+  irin: string
+  vessel_type: string
+  vessel_code: string
+  vessel_name: string
+  voyage_number: string
+  origin_port: string
+  dest_port: string
+  transit_port?: string
+  /** `0` interior · `1` cabotagem. */
+  navigation_type?: string
+  loading_terminals?: MdfeWaterTerminalIn[]
+  unloading_terminals?: MdfeWaterTerminalIn[]
+  barges?: MdfeWaterBargeIn[]
+  empty_cargo_unit_ids?: string[]
+  empty_transport_unit_ids?: string[]
+  mmsi?: string
 }
 
 /** Grupo `aereo`. Os seis campos são obrigatórios no XSD. */

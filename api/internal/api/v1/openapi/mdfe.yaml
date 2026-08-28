@@ -615,29 +615,68 @@ components:
 
     MdfeWaterTerminal:
       type: object
+      required: [ code, name ]
       properties:
-        code: { type: string }
-        name: { type: string }
+        code: { type: string, maxLength: 8 }
+        name: { type: string, maxLength: 60 }
+
+    MdfeWaterBarge:
+      type: object
+      description: |
+        Balsa do comboio (`infEmbComb`). Apesar do nome da tag, o grupo não tem
+        nada de combustível — `EmbComb` é *embarcação do comboio*.
+      required: [ code, name ]
+      properties:
+        code: { type: string, maxLength: 10, description: '`cEmbComb`.' }
+        name: { type: string, maxLength: 60, description: '`xBalsa`.' }
 
     MdfeWaterModal:
       type: object
-      description: Grupo `aquav`.
+      description: |
+        Grupo `aquav`. Obrigatório quando `modal = aquaviario`. As unidades que
+        viajam vazias apontam para `organization_cargo_units` — o contêiner ou a
+        carreta já cadastrados, não uma redigitação.
+      required: [ irin, vessel_type, vessel_code, vessel_name, voyage_number, origin_port, dest_port ]
       properties:
-        irin: { type: string }
-        vessel_type: { type: string }
-        vessel_code: { type: string }
-        vessel_name: { type: string }
-        voyage_number: { type: string }
-        origin_port: { type: string }
-        dest_port: { type: string }
-        transit_port: { type: string }
-        navigation_type: { type: string }
+        irin: { type: string, maxLength: 10 }
+        vessel_type: { type: string, description: '`tpEmb`, dois dígitos.' }
+        vessel_code: { type: string, maxLength: 10 }
+        vessel_name: { type: string, maxLength: 60 }
+        voyage_number: { type: string, maxLength: 10 }
+        origin_port: { type: string, minLength: 5, maxLength: 5, description: '`cPrtEmb` (UN/LOCODE).' }
+        dest_port: { type: string, minLength: 5, maxLength: 5, description: '`cPrtDest` (UN/LOCODE).' }
+        transit_port: { type: string, maxLength: 60 }
+        navigation_type:
+          type: string
+          enum: [ '0', '1' ]
+          description: '`tpNav`: `0` interior · `1` cabotagem.'
         loading_terminals:
           type: array
+          maxItems: 5
           items: { $ref: '#/components/schemas/MdfeWaterTerminal' }
         unloading_terminals:
           type: array
+          maxItems: 5
           items: { $ref: '#/components/schemas/MdfeWaterTerminal' }
+        barges:
+          type: array
+          maxItems: 30
+          description: Balsas do comboio (`infEmbComb`).
+          items: { $ref: '#/components/schemas/MdfeWaterBarge' }
+        empty_cargo_unit_ids:
+          type: array
+          description: |
+            Unidades de carga que viajam vazias (`infUnidCargaVazia`). Ids de
+            `organization_cargo_units` com `kind = cargo`.
+          items: { type: string }
+        empty_transport_unit_ids:
+          type: array
+          description: |
+            Unidades de transporte vazias (`infUnidTranspVazia`). Ids de
+            `organization_cargo_units` com `kind = transport` e `tp_unid` `1` ou
+            `2` — o XSD só aceita as rodoviárias aqui.
+          items: { type: string }
+        mmsi: { type: [ string, 'null' ], maxLength: 9 }
 
     MdfeRailWagon:
       type: object
@@ -678,9 +717,8 @@ components:
           type: string
           enum: [ rodoviario, aereo, aquaviario, ferroviario ]
           description: |
-            `rodoviario`, `aereo` e `ferroviario` estão habilitados; `aquaviario`
-            ainda é recusado com 400. O modal escolhido exige o payload
-            correspondente (`air`, `rail`) — sem ele a emissão é 400.
+            Os quatro modais emitem. O modal escolhido exige o payload
+            correspondente (`air`, `water`, `rail`) — sem ele a emissão é 400.
         documents:
           type: array
           minItems: 1
@@ -777,7 +815,7 @@ components:
           description: Obrigatório quando `modal = aereo`.
         water:
           allOf: [ { $ref: '#/components/schemas/MdfeWaterModal' } ]
-          description: Modal aquaviário ainda não habilitado para emissão.
+          description: Obrigatório quando `modal = aquaviario`.
         rail:
           allOf: [ { $ref: '#/components/schemas/MdfeRailModal' } ]
           description: Obrigatório quando `modal = ferroviario`.

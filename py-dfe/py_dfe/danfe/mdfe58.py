@@ -147,6 +147,12 @@ def _modal_context(inf_mdfe: dict, modal: str) -> dict[str, Any]:
             "nviag": aqua.get("nViag", ""),
             "cprtemb": aqua.get("cPrtEmb", ""),
             "cprtdest": aqua.get("cPrtDest", ""),
+            "mmsi": aqua.get("MMSI", ""),
+            # infEmbComb são as balsas do comboio (não combustível).
+            "balsas": [
+                {"cod": b.get("cEmbComb", ""), "nome": b.get("xBalsa", "")}
+                for b in _as_list(aqua.get("infEmbComb"))
+            ],
         }
     elif modal == c.MODAL_FERROVIARIO:
         ferr = info.get("ferrov", {}) or {}

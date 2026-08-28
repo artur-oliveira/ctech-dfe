@@ -3453,9 +3453,14 @@ uma oitava tabela.
 - Produces: `MdfeWaterModal` ganha `MMSI string`, `Fuels []MdfeVesselFuel{CComb, QTotComb}`,
   `EmptyCargoUnits []string`, `EmptyTransportUnits []string`; `CargoUnitBody.Kind` aceita `vessel`.
 
-- [ ] **Steps:** teste comparando o nó `aquav` produzido com o XSD (todos os grupos presentes) → falha → implementação →
+- [x] **Steps:** teste comparando o nó `aquav` produzido com o XSD (todos os grupos presentes) → falha → implementação →
   `enabledModals[ModalAquaviario] = true` → PASS → commit
   (`feat(mdfe): completa o modal aquaviário e habilita sua emissão`).
+
+> **Correção do plano:** `infEmbComb` **não** é combustível de bordo — `EmbComb` é *embarcação do
+> comboio*, e o grupo é `{cEmbComb, xBalsa}`. Não existe `MdfeVesselFuel{CComb, QTotComb}` no
+> `mdfeModalAquaviario_v3.00`. O tipo `vessel` em `CargoUnitBody.Kind` também não foi criado: as
+> unidades vazias reusam `kind` `cargo`/`transport` como estão, que é o que o XSD pede.
 
 ---
 

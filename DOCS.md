@@ -200,7 +200,8 @@ MOC 3.00b Anexo II). Same pure-local contract (no certificate, no SEFAZ).
 - **CODE-128 barcode** of the 44-digit chave + **QR Code** from
   `infMDFeSupl/qrCodMDFe` (segno). All four **modais** rendered from
   `ide/modal`: **1 rodoviário** (RNTRC, veículo tração/reboques, condutores,
-  CIOT), **2 aéreo**, **3 aquaviário**, **4 ferroviário**.
+  CIOT), **2 aéreo**, **3 aquaviário** (embarcação, MMSI e balsas do comboio),
+  **4 ferroviário**.
 - Variants via `layout`: **retrato** (default) / **paisagem**, both fixed A4
   multi-page (long document-key lists paginate naturally, `fit_height=False`).
 - **Contingência** from `ide/tpEmis==2` (prints "EMISSÃO EM CONTINGÊNCIA",
@@ -1605,8 +1606,7 @@ frontend precisa desambiguar por `event_type`:
 
 Authorization is **synchronous** (`MDFeRecepcaoSinc`): SEFAZ returns `protMDFe` inline, so the worker
 persists the authorized status in a single pass. All MDF-e services route to **SVRS** for every UF.
-Modais habilitados: **rodoviário**, **aéreo** e **ferroviário**. O **aquaviário** é recusado com 400
-enquanto `buildAquav` não cobrir `infEmbComb`, as unidades vazias e o MMSI.
+Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 
 | Method | Endpoint                                            | Description                                       |
 |--------|-----------------------------------------------------|---------------------------------------------------|
@@ -1643,9 +1643,9 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
 > `condutores`), `loadings`/`unloadings` (not `carregamento`/`descarregamento`), `route` (not
 > `percurso`), `predominant` (not `prod_pred`), `bulk_cargo` (not `lotacao`), `trip_start` (dhIniViagem).
 
-- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. `rodoviario`, `aereo` e `ferroviario`
-  emitem; `aquaviario` ainda é 400. O modal escolhido **exige** o payload dele: `air` no aéreo, `rail`
-  no ferroviário — sem ele a emissão é 400, não um nó vazio que a SEFAZ rejeitaria depois. O
+- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. Os quatro emitem. O modal escolhido
+  **exige** o payload dele: `air` no aéreo, `water` no aquaviário, `rail` no ferroviário — sem ele a
+  emissão é 400, não um nó vazio que a SEFAZ rejeitaria depois. O
   rodoviário não tem payload de modal: ele é montado do cadastro de veículos e dos condutores.
   No aéreo e no ferroviário, `vehicle`, `trailers` e `drivers` são ignorados.
   - `air` — `{nationality, registration, flight_number, origin_airport, dest_airport, flight_date}`.
@@ -1653,6 +1653,13 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   - `rail` — `{train_prefix, train_datetime?, origin_station, dest_station, wagons[]}`, com
     `wagons[] = {weight_bc, weight_real, series, number, tu, wagon_type?, sequence?}`. O `qVag` do XML
     é **derivado** do tamanho de `wagons`, nunca informado.
+  - `water` — `{irin, vessel_type, vessel_code, vessel_name, voyage_number, origin_port, dest_port}`
+    obrigatórios, mais `transit_port?`, `navigation_type?` (`0` interior, `1` cabotagem), `mmsi?`,
+    `loading_terminals[]`/`unloading_terminals[]` (até 5 cada) e `barges[]` (`infEmbComb`, até 30 —
+    apesar da tag, são as **balsas do comboio**, não combustível). As unidades que viajam vazias não
+    são redigitadas: `empty_cargo_unit_ids[]` e `empty_transport_unit_ids[]` apontam para
+    `organization_cargo_units` (`kind = cargo` e `kind = transport`), e o XSD só aceita unidades de
+    transporte rodoviárias (`tp_unid` `1` ou `2`) — as demais são 400.
 - `documents[]` — `{type: "nfe"|"cte", access_key, weight?}`. **Single type only** (NF-e and CT-e cannot be
   mixed). Each referenced document must already exist in the `nfes`/`ctes` table with an `xml_s3_key`.
   `weight` (kg, decimal string) is an optional gross-weight override used when the document XML carries

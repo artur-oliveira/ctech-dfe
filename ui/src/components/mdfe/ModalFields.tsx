@@ -1,10 +1,23 @@
 'use client'
 
+import {useQuery} from '@tanstack/react-query'
 import {Button} from '@/components/ui/button'
 import {Label} from '@/components/ui/label'
 import {Input} from '@/components/ui/input'
 import {NumericInput} from '@/components/ui/numeric-input'
-import type {MdfeAirModalIn, MdfeRailModalIn, MdfeRailWagonIn} from '@/lib/types/api'
+import {OptionsSelect} from '@/components/ui/options-select'
+import {apiClient} from '@/lib/api/client'
+import {queryKeys} from '@/lib/api/query-keys'
+import {useAuth} from '@/lib/hooks/useAuth'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
+import type {
+  CargoUnitItemOut,
+  MdfeAirModalIn,
+  MdfeRailModalIn,
+  MdfeRailWagonIn,
+  MdfeWaterModalIn,
+  MdfeWaterTerminalIn,
+} from '@/lib/types/api'
 
 const EMPTY_WAGON: MdfeRailWagonIn = {
   weight_bc: '', weight_real: '', series: '', number: '', tu: '', wagon_type: '', sequence: '',
@@ -159,6 +172,190 @@ export function RailModalFields({value, onChange}: {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+/** Uma embarcação é válida com os sete campos obrigatórios do XSD. */
+export function waterComplete(w: MdfeWaterModalIn): boolean {
+  return !!(w.irin && w.vessel_type && w.vessel_code && w.vessel_name
+    && w.voyage_number && w.origin_port.length === 5 && w.dest_port.length === 5)
+}
+
+/** tpNav — tipo de navegação. */
+const TP_NAV_OPTIONS = [
+  {value: '0', label: '0 – Interior'},
+  {value: '1', label: '1 – Cabotagem'},
+]
+
+/** Lista de pares código/nome: terminais e balsas têm a mesma forma. */
+function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onChange, max}: {
+  title: string
+  addLabel: string
+  codeLabel: string
+  nameLabel: string
+  idPrefix: string
+  items: MdfeWaterTerminalIn[]
+  onChange: (v: MdfeWaterTerminalIn[]) => void
+  max: number
+}) {
+  const patch = (i: number, p: Partial<MdfeWaterTerminalIn>) =>
+    onChange(items.map((t, k) => (k === i ? {...t, ...p} : t)))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-gray-600">{title}</p>
+        <Button type="button" variant="ghost" size="xs" disabled={items.length >= max}
+                onClick={() => onChange([...items, {code: '', name: ''}])}>
+          {addLabel}
+        </Button>
+      </div>
+      {items.map((t, i) => (
+        <div key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] gap-2 items-end">
+          <Field id={`${idPrefix}-code-${i}`} label={codeLabel}>
+            <Input id={`${idPrefix}-code-${i}`} className="w-full" value={t.code}
+                   onChange={(e) => patch(i, {code: e.target.value})}/>
+          </Field>
+          <Field id={`${idPrefix}-name-${i}`} label={nameLabel}>
+            <Input id={`${idPrefix}-name-${i}`} maxLength={60} className="w-full" value={t.name}
+                   onChange={(e) => patch(i, {name: e.target.value})}/>
+          </Field>
+          <Button type="button" variant="ghost" size="xs"
+                  onClick={() => onChange(items.filter((_, k) => k !== i))}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Unidades do cadastro que viajam vazias — marcadas, não redigitadas. */
+function EmptyUnitPicker({label, hint, idPrefix, options, selected, onChange}: {
+  label: string
+  hint: string
+  idPrefix: string
+  options: CargoUnitItemOut[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const toggle = (id: string) =>
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id])
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-gray-600">{label}</p>
+      {options.length === 0 ? (
+        <p className="text-xs text-gray-500">{hint}</p>
+      ) : (
+        options.map((u) => {
+          const id = extractId(u.sk, SK_PREFIX.CARGO_UNIT)
+          return (
+            <label key={u.sk} htmlFor={`${idPrefix}-${id}`}
+                   className="flex items-center gap-2 min-h-11 py-1 cursor-pointer text-sm text-gray-700">
+              <input id={`${idPrefix}-${id}`} type="checkbox" checked={selected.includes(id)}
+                     onChange={() => toggle(id)}
+                     className="size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+              <span>{u.name} <span className="text-gray-400">· {u.id_unid}</span></span>
+            </label>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+export function WaterModalFields({value, onChange}: {
+  value: MdfeWaterModalIn
+  onChange: (v: MdfeWaterModalIn) => void
+}) {
+  const {selectedOrg} = useAuth()
+  const patch = (p: Partial<MdfeWaterModalIn>) => onChange({...value, ...p})
+  const upper = (s: string) => s.toUpperCase()
+
+  const {data: page} = useQuery({
+    queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getCargoUnits({limit: 100}),
+    enabled: !!selectedOrg,
+  })
+  const units = page?.items ?? []
+  // O XSD só aceita unidades rodoviárias (tração/reboque) como transporte vazio.
+  const emptyTransportOptions = units.filter((u) => u.kind === 'transport' && (u.tp_unid === '1' || u.tp_unid === '2'))
+  const emptyCargoOptions = units.filter((u) => u.kind === 'cargo')
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Dados da embarcação</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field id="water-irin" label="IRIN">
+          <Input id="water-irin" maxLength={10} className="w-full" value={value.irin}
+                 onChange={(e) => patch({irin: upper(e.target.value)})}/>
+        </Field>
+        <Field id="water-tpemb" label="Tipo da embarcação">
+          <Input id="water-tpemb" maxLength={2} className="w-full" placeholder="01" value={value.vessel_type}
+                 onChange={(e) => patch({vessel_type: e.target.value.replace(/\D/g, '')})}/>
+        </Field>
+        <Field id="water-cembar" label="Código da embarcação">
+          <Input id="water-cembar" maxLength={10} className="w-full" value={value.vessel_code}
+                 onChange={(e) => patch({vessel_code: upper(e.target.value)})}/>
+        </Field>
+        <Field id="water-xembar" label="Nome da embarcação">
+          <Input id="water-xembar" maxLength={60} className="w-full" value={value.vessel_name}
+                 onChange={(e) => patch({vessel_name: e.target.value})}/>
+        </Field>
+        <Field id="water-nviag" label="Número da viagem">
+          <Input id="water-nviag" maxLength={10} className="w-full" value={value.voyage_number}
+                 onChange={(e) => patch({voyage_number: upper(e.target.value)})}/>
+        </Field>
+        <Field id="water-mmsi" label="MMSI (opcional)">
+          <Input id="water-mmsi" maxLength={9} className="w-full" value={value.mmsi ?? ''}
+                 onChange={(e) => patch({mmsi: e.target.value.replace(/\D/g, '')})}/>
+        </Field>
+        <Field id="water-prtemb" label="Porto de embarque (UN/LOCODE)">
+          <Input id="water-prtemb" maxLength={5} className="w-full" placeholder="BRSSZ" value={value.origin_port}
+                 onChange={(e) => patch({origin_port: upper(e.target.value)})}/>
+        </Field>
+        <Field id="water-prtdest" label="Porto de destino (UN/LOCODE)">
+          <Input id="water-prtdest" maxLength={5} className="w-full" placeholder="BRRIO" value={value.dest_port}
+                 onChange={(e) => patch({dest_port: upper(e.target.value)})}/>
+        </Field>
+        <Field id="water-prttrans" label="Porto de transbordo (opcional)">
+          <Input id="water-prttrans" maxLength={60} className="w-full" value={value.transit_port ?? ''}
+                 onChange={(e) => patch({transit_port: e.target.value})}/>
+        </Field>
+        <Field id="water-tpnav" label="Tipo de navegação (opcional)">
+          <OptionsSelect id="water-tpnav" value={value.navigation_type ?? ''}
+                         placeholder="Não informado"
+                         onValueChange={(v: string) => patch({navigation_type: v})}
+                         options={[...TP_NAV_OPTIONS]}/>
+        </Field>
+      </div>
+
+      <PairList title="Terminais de carregamento (até 5)" addLabel="+ Terminal"
+                codeLabel="Código" nameLabel="Nome" idPrefix="water-tcar" max={5}
+                items={value.loading_terminals ?? []}
+                onChange={(v) => patch({loading_terminals: v})}/>
+
+      <PairList title="Terminais de descarregamento (até 5)" addLabel="+ Terminal"
+                codeLabel="Código" nameLabel="Nome" idPrefix="water-tdes" max={5}
+                items={value.unloading_terminals ?? []}
+                onChange={(v) => patch({unloading_terminals: v})}/>
+
+      <PairList title="Balsas do comboio (até 30)" addLabel="+ Balsa"
+                codeLabel="Código" nameLabel="Nome da balsa" idPrefix="water-balsa" max={30}
+                items={value.barges ?? []}
+                onChange={(v) => patch({barges: v})}/>
+
+      <EmptyUnitPicker label="Unidades de carga vazias" idPrefix="water-uc"
+                       hint="Cadastre contêineres ou pallets em Cadastros → Unidades de carga para marcá-los aqui."
+                       options={emptyCargoOptions} selected={value.empty_cargo_unit_ids ?? []}
+                       onChange={(ids) => patch({empty_cargo_unit_ids: ids})}/>
+
+      <EmptyUnitPicker label="Unidades de transporte vazias (rodoviárias)" idPrefix="water-ut"
+                       hint="Só carretas e reboques (tração ou reboque) entram aqui, e vêm do cadastro de unidades."
+                       options={emptyTransportOptions} selected={value.empty_transport_unit_ids ?? []}
+                       onChange={(ids) => patch({empty_transport_unit_ids: ids})}/>
     </div>
   )
 }

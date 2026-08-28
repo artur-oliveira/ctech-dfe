@@ -103,12 +103,12 @@ var modalCodes = map[string]string{
 	ModalFerroviario: modalCodeFerroviario,
 }
 
-// enabledModals are the modals the Emit service accepts. O aquaviário fica de
-// fora enquanto buildAquav não cobre infEmbComb, as unidades vazias e o MMSI —
-// emitir um aquav parcial é pedir rejeição na SEFAZ.
+// enabledModals are the modals the Emit service accepts. Os quatro estão
+// modelados campo a campo contra os XSDs de modal.
 var enabledModals = map[string]bool{
 	ModalRodoviario:  true,
 	ModalAereo:       true,
+	ModalAquaviario:  true,
 	ModalFerroviario: true,
 }
 

@@ -114,6 +114,45 @@ func buildUnidCarga(units []cargoUnit) []map[string]any {
 	return out
 }
 
+// tpUnidTranspVazia só aceita os dois rodoviários (1 tração, 2 reboque); o
+// cadastro de unidades de transporte vai até 7 (navio, balsa, vagão…).
+var tpUnidTranspVaziaOK = map[string]bool{"1": true, "2": true}
+
+// resolveEmptyUnits monta infUnidCargaVazia/infUnidTranspVazia do modal
+// aquaviário a partir das unidades já cadastradas: o contêiner que viaja vazio
+// é o mesmo que o cadastro descreve, não uma redigitação.
+func (s *MdfeService) resolveEmptyUnits(ctx context.Context, orgPK string, w *MdfeWaterModal) (emptyUnitNodes, error) {
+	var out emptyUnitNodes
+	if w == nil {
+		return out, nil
+	}
+	for _, id := range w.EmptyCargoUnitIDs {
+		u, err := s.loadCargoUnit(ctx, orgPK, id, cargoUnitKindCargo)
+		if err != nil {
+			return emptyUnitNodes{}, err
+		}
+		out.Cargo = append(out.Cargo, map[string]any{
+			"idUnidCargaVazia": u.IdUnid,
+			"tpUnidCargaVazia": u.TpUnid,
+		})
+	}
+	for _, id := range w.EmptyTransportUnitIDs {
+		u, err := s.loadCargoUnit(ctx, orgPK, id, cargoUnitKindTransport)
+		if err != nil {
+			return emptyUnitNodes{}, err
+		}
+		if !tpUnidTranspVaziaOK[u.TpUnid] {
+			return emptyUnitNodes{}, problem.BadRequest(
+				"unidade de transporte vazia " + id + " precisa ser rodoviária (tração ou reboque)")
+		}
+		out.Transport = append(out.Transport, map[string]any{
+			"idUnidTranspVazia": u.IdUnid,
+			"tpUnidTranspVazia": u.TpUnid,
+		})
+	}
+	return out, nil
+}
+
 // loadCargoUnit lê a unidade do cadastro e confere o tipo: usar um contêiner
 // onde o leiaute quer uma carreta produziria um XML que só a SEFAZ recusaria.
 func (s *MdfeService) loadCargoUnit(ctx context.Context, orgPK, id, wantKind string) (*cargoUnit, error) {

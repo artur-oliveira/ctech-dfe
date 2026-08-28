@@ -44,13 +44,21 @@ import type {
   MdfeInsuranceIn,
   MdfeAirModalIn,
   MdfeRailModalIn,
+  MdfeWaterModalIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
 import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields'
-import {AirModalFields, RailModalFields, airComplete, railComplete} from '@/components/mdfe/ModalFields'
+import {
+  AirModalFields,
+  RailModalFields,
+  WaterModalFields,
+  airComplete,
+  railComplete,
+  waterComplete,
+} from '@/components/mdfe/ModalFields'
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
 import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
@@ -93,19 +101,17 @@ const SEGURO_STEP: StepDef = {id: 'seguro', label: 'Seguro'}
 
 type ModalId = 'rodoviario' | 'aereo' | 'aquaviario' | 'ferroviario'
 
-// O aquaviário continua desligado: o builder ainda não cobre combustível de
-// bordo, unidades vazias e MMSI, e o backend recusa a emissão dele.
 const MODAIS: { id: ModalId; label: string; icon: React.ReactElement; enabled: boolean }[] = [
   {id: 'rodoviario', label: 'Rodoviário', icon: <Truck/>, enabled: true},
   {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: true},
-  {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: false},
+  {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: true},
   {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: true},
 ]
 
 const MODAL_BLOCKED_REASON: Record<ModalId, string> = {
   rodoviario: 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.',
   aereo: 'Preencha carga, trajeto e todos os dados do voo.',
-  aquaviario: 'Modal aquaviário ainda não disponível para emissão.',
+  aquaviario: 'Preencha carga, trajeto e os dados da embarcação.',
   ferroviario: 'Preencha carga, trajeto, os dados do trem e ao menos um vagão completo.',
 }
 
@@ -116,6 +122,13 @@ const EMPTY_AIR: MdfeAirModalIn = {
 
 const EMPTY_RAIL: MdfeRailModalIn = {
   train_prefix: '', train_datetime: '', origin_station: '', dest_station: '', wagons: [],
+}
+
+const EMPTY_WATER: MdfeWaterModalIn = {
+  irin: '', vessel_type: '', vessel_code: '', vessel_name: '', voyage_number: '',
+  origin_port: '', dest_port: '', transit_port: '', navigation_type: '', mmsi: '',
+  loading_terminals: [], unloading_terminals: [], barges: [],
+  empty_cargo_unit_ids: [], empty_transport_unit_ids: [],
 }
 
 function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
@@ -419,6 +432,7 @@ export function MdfeEmitForm() {
   const [modal, setModal] = useState<ModalId>('rodoviario')
   const [air, setAir] = useState<MdfeAirModalIn>(EMPTY_AIR)
   const [rail, setRail] = useState<MdfeRailModalIn>(EMPTY_RAIL)
+  const [water, setWater] = useState<MdfeWaterModalIn>(EMPTY_WATER)
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
   const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([])
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
@@ -623,7 +637,7 @@ export function MdfeEmitForm() {
     ? !!vehicleSk && drivers.length > 0
     : modal === 'aereo' ? airComplete(air)
       : modal === 'ferroviario' ? railComplete(rail)
-        : false
+        : waterComplete(water)
   const canEmit = docs.length > 0 && modalReady && allWeightsKnown
     && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8))
   const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal]
@@ -654,6 +668,7 @@ export function MdfeEmitForm() {
       trailers: isRodo && trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
       air: modal === 'aereo' ? air : undefined,
       rail: modal === 'ferroviario' ? rail : undefined,
+      water: modal === 'aquaviario' ? water : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       insurance_policies: insurancePolicies.length ? insurancePolicies : undefined,
@@ -877,6 +892,13 @@ export function MdfeEmitForm() {
         </div>
       )}
 
+      {step === 'veiculo' && modal === 'aquaviario' && (
+        <div className="space-y-4">
+          <WaterModalFields value={water} onChange={setWater}/>
+          <EmitError failure={submitError}/>
+        </div>
+      )}
+
       {step === 'veiculo' && modal === 'ferroviario' && (
         <div className="space-y-4">
           <RailModalFields value={rail} onChange={setRail}/>
@@ -1031,7 +1053,8 @@ export function MdfeEmitForm() {
             value: modal === 'rodoviario'
               ? (tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—')
               : modal === 'aereo' ? `${air.flight_number} · ${air.origin_airport} → ${air.dest_airport}`
-                : `${rail.train_prefix} · ${rail.wagons.length} vagão(ões)`,
+                : modal === 'aquaviario' ? `${water.vessel_name} · ${water.origin_port} → ${water.dest_port}`
+                  : `${rail.train_prefix} · ${rail.wagons.length} vagão(ões)`,
           },
           {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '—'},
         ]}
