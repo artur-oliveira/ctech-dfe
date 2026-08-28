@@ -746,6 +746,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Lotes de produção ──────────────────────────────────────────────────────
+
+  /v1.0/product-lots:
+    get:
+      tags: [ ProductLots ]
+      summary: Lista lotes de produção
+      operationId: listProductLots
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de lotes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ProductLots ]
+      summary: Cria um lote de produção
+      operationId: createProductLot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductLotBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/product-lots/{product_lot_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: product_lot_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ProductLots ]
+      summary: Detalha um lote
+      operationId: getProductLot
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ProductLots ]
+      summary: Atualiza um lote
+      operationId: updateProductLot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductLotBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ProductLots ]
+      summary: Remove um lote
+      operationId: deleteProductLot
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Apólices de seguro ─────────────────────────────────────────────────────
 
   /v1.0/insurance-policies:
@@ -1224,6 +1324,44 @@ components:
         kind: { type: string }
         tp_unid: { type: string }
         id_unid: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ProductLotBody:
+      type: object
+      description: |
+        Lote de produção (`prod/rastro`). O lote é do produto e reaparece em
+        várias notas até acabar, por isso é cadastro: a emissão só aponta qual
+        lote saiu no item, e a quantidade (`qLote`) é rateada da quantidade
+        vendida.
+      required: [ name, product_id, n_lote, q_lote, d_fab, d_val ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        product_id:
+          type: string
+          description: Produto que fabricou o lote. Um lote não sai no item de outro produto (400).
+        n_lote: { type: string, maxLength: 20 }
+        q_lote:
+          type: string
+          description: Quantidade produzida no lote. A quantidade que sai por nota vem do item.
+        d_fab: { type: string, format: date }
+        d_val:
+          type: string
+          format: date
+          description: Não pode ser anterior a `d_fab` — validado no cadastro.
+        c_agreg: { type: [ string, 'null' ], maxLength: 20 }
+
+    ProductLotItem:
+      type: object
+      description: Lote de produção persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        product_id: { type: string }
+        n_lote: { type: string }
+        d_val: { type: string, format: date }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

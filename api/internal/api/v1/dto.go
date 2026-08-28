@@ -545,6 +545,34 @@ type ImportAdditionBody struct {
 	NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
 }
 
+// ProductLotBody é o body de POST/PUT /product-lots.
+//
+// O lote é do produto e reaparece em várias notas até acabar, então é cadastro
+// e não campo de emissão: a nota só aponta qual lote saiu, e a quantidade é
+// rateada pela quantidade vendida.
+type ProductLotBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// ProductID amarra o lote ao produto — um lote de um produto não pode sair
+	// no item de outro.
+	ProductID string `json:"product_id" validate:"required"`
+	NLote     string `json:"n_lote" validate:"required,max=20"`
+	// QLote é a quantidade produzida no lote. Serve de saldo e de referência; a
+	// quantidade que sai em cada nota vem do item.
+	QLote  string  `json:"q_lote" validate:"required,decimalv"`
+	DFab   string  `json:"d_fab" validate:"required,isodate"`
+	DVal   string  `json:"d_val" validate:"required,isodate"`
+	CAgreg *string `json:"c_agreg" validate:"omitempty,max=20"`
+}
+
+// Validate cobre a regra que as tags não expressam: um lote que vence antes de
+// ser fabricado é erro de digitação, não dado.
+func (b ProductLotBody) Validate() error {
+	if b.DVal < b.DFab {
+		return problem.BadRequest("d_val não pode ser anterior a d_fab")
+	}
+	return nil
+}
+
 // InsurancePolicyBody é o body de POST/PUT /insurance-policies.
 //
 // A apólice e a seguradora recorrem entre viagens; por viagem muda só a

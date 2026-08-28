@@ -861,6 +861,32 @@ export interface TollProviderItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — lotes de produção (NF-e prod/rastro)
+export interface ProductLotCreate extends Record<string, unknown> {
+  name: string
+  /** Produto que fabricou o lote. */
+  product_id: string
+  n_lote: string
+  /** Quantidade produzida no lote; a de cada nota é rateada da quantidade vendida. */
+  q_lote: string
+  d_fab: string
+  d_val: string
+  c_agreg?: string | null
+}
+
+export interface ProductLotItemOut {
+  pk: string
+  sk: string
+  name: string
+  product_id: string
+  n_lote: string
+  d_val: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — apólices de seguro da carga (MDF-e infMDFe/seg)
 export interface InsurancePolicyCreate extends Record<string, unknown> {
   name: string

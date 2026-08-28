@@ -51,6 +51,7 @@ PITR: enabled in production only.
 | 39 | `organization_cargo_units`  | `{org_pk}`                   | `CARGOUNIT_{uuid}`                       | `name-index`                                       |
 | 40 | `organization_import_declarations` | `{org_pk}`            | `IMPORTDI_{uuid}`                        | `name-index`                                       |
 | 41 | `organization_insurance_policies` | `{org_pk}`             | `INSURANCE_{uuid}`                       | `name-index`                                       |
+| 42 | `organization_product_lots` | `{org_pk}`                   | `PRODUCTLOT_{uuid}`                      | `name-index`                                       |
 
 ---
 
@@ -869,4 +870,29 @@ andam juntos: meia seguradora o XSD recusa.
 | `x_seg`          | S    | Nome da seguradora → `seg/infSeg/xSeg`                                    |
 | `cnpj_seg`       | S    | CNPJ da seguradora → `seg/infSeg/CNPJ`                                    |
 | `n_apol`         | S    | → `seg/nApol`                                                            |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 42. `organization_product_lots`
+
+Lotes de produção (NF-e `prod/rastro`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `PRODUCTLOT_{uuid}`, GSI `name-index`).
+
+O lote é do produto e reaparece em várias notas até acabar, então é cadastro e não campo de emissão:
+o item da nota só aponta **de quais lotes** ele saiu (`products[].lots[] = {lot_id, quantity?}`), e a
+`qLote` de cada um é **rateada** da quantidade vendida — a última parte absorve o resíduo, para o
+somatório fechar exatamente na quantidade do item. `d_val` anterior a `d_fab` é recusado no cadastro.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `PRODUCTLOT_{uuid}`                                                      |
+| `name`           | S    | Nome de uso ("Lote 2026/001"). GSI: `name-index`                         |
+| `product_id`     | S    | Produto que fabricou o lote; um lote não sai no item de outro produto    |
+| `n_lote`         | S    | → `rastro/nLote`                                                         |
+| `q_lote`         | S    | Quantidade produzida (saldo do lote)                                     |
+| `d_fab`          | S    | → `rastro/dFab` (AAAA-MM-DD)                                             |
+| `d_val`          | S    | → `rastro/dVal` (AAAA-MM-DD)                                             |
+| `c_agreg`        | S    | → `rastro/cAgreg`                                                        |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                |

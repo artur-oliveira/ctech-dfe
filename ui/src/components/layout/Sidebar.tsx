@@ -17,6 +17,7 @@ import {
   PercentIcon,
   ImportIcon,
   InsuranceIcon,
+  LotIcon,
   PackageIcon,
   RouteIcon,
   SettingsIcon,
@@ -116,6 +117,7 @@ const navGroups: NavGroup[] = [
       {href: '/cargo-units', label: 'Unidades de carga', icon: <PackageIcon/>},
       {href: '/import-declarations', label: 'Declarações de importação', icon: <ImportIcon/>},
       {href: '/insurance-policies', label: 'Apólices de seguro', icon: <InsuranceIcon/>},
+      {href: '/product-lots', label: 'Lotes de produção', icon: <LotIcon/>},
     ],
   },
   {

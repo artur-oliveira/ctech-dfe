@@ -67,7 +67,9 @@ type NfeService struct {
 	// código, item da lista e alíquota do ISS vivem lá, não num segundo cadastro.
 	serviceRepo *repositories.ServiceRepository
 	// importDIRepo traz as declarações de importação citadas pelos itens.
-	importDIRepo        *repositories.ImportDeclarationRepository
+	importDIRepo *repositories.ImportDeclarationRepository
+	// productLotRepo traz os lotes de produção citados pelos itens (prod/rastro).
+	productLotRepo      *repositories.ProductLotRepository
 	taxProfileRepo      *repositories.TaxProfileRepository
 	operationRepo       *repositories.OperationRepository
 	paymentTermRepo     *repositories.PaymentTermRepository
@@ -91,6 +93,7 @@ func NewNfeService(
 	productRepo *repositories.ProductRepository,
 	serviceRepo *repositories.ServiceRepository,
 	importDIRepo *repositories.ImportDeclarationRepository,
+	productLotRepo *repositories.ProductLotRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -113,6 +116,7 @@ func NewNfeService(
 		productRepo:         productRepo,
 		serviceRepo:         serviceRepo,
 		importDIRepo:        importDIRepo,
+		productLotRepo:      productLotRepo,
 		taxProfileRepo:      taxProfileRepo,
 		operationRepo:       operationRepo,
 		paymentTermRepo:     paymentTermRepo,

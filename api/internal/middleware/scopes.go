@@ -42,6 +42,7 @@ var scopeFamilies = map[string][]string{
 	"organization_cargo_units":         {"organization_cargo_units"},
 	"organization_import_declarations": {"organization_import_declarations"},
 	"organization_insurance_policies":  {"organization_insurance_policies"},
+	"organization_product_lots":        {"organization_product_lots"},
 	"organization_tax_profiles":        {"organization_tax_profiles"},
 	"organization_operations":          {"organization_operations"},
 	"organization_persons":             {"organization_persons"},

@@ -37,6 +37,9 @@ const (
 	// TableInsurancePolicies guarda as apólices de seguro da carga: a apólice e
 	// a seguradora recorrem entre viagens; por viagem muda só a averbação.
 	TableInsurancePolicies = "organization_insurance_policies"
+	// TableProductLots guarda os lotes de produção (prod/rastro): o lote é do
+	// produto e reaparece em várias notas até acabar.
+	TableProductLots = "organization_product_lots"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -47,6 +50,7 @@ const (
 	SKPrefixCargoUnit       = "CARGOUNIT_"
 	SKPrefixImportDI        = "IMPORTDI_"
 	SKPrefixInsurance       = "INSURANCE_"
+	SKPrefixProductLot      = "PRODUCTLOT_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -231,6 +235,13 @@ type ImportDeclarationRepository struct{ OrgEntityRepository }
 
 func NewImportDeclarationRepository(db *dynamodb.Client, cfg *config.Config) *ImportDeclarationRepository {
 	return &ImportDeclarationRepository{newOrgEntityRepository(db, cfg, TableImportDeclarations, SKPrefixImportDI)}
+}
+
+// ProductLotRepository — organization_product_lots.
+type ProductLotRepository struct{ OrgEntityRepository }
+
+func NewProductLotRepository(db *dynamodb.Client, cfg *config.Config) *ProductLotRepository {
+	return &ProductLotRepository{newOrgEntityRepository(db, cfg, TableProductLots, SKPrefixProductLot)}
 }
 
 // InsurancePolicyRepository — organization_insurance_policies.

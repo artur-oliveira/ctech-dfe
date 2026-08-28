@@ -115,6 +115,9 @@ type NfeProductItem struct {
 	// ImportDeclarations liga o item às adições da DI que o representam
 	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
 	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
+	// Lots são os lotes de produção que saíram neste item (prod/rastro). O lote
+	// vem do cadastro; a quantidade em branco é rateada da quantidade vendida.
+	Lots []NfeItemLotBody `json:"lots" validate:"omitempty,max=500,dive"`
 	// Exports são as exportações indiretas do item (prod/detExport).
 	Exports []NfeDetExportBody `json:"exports" validate:"omitempty,max=500,dive"`
 	// II é o imposto de importação do item: as despesas aduaneiras e o imposto
@@ -134,6 +137,14 @@ type NfeItemDIBody struct {
 	AdditionIndex int `json:"addition_index" validate:"required,min=1"`
 	// NDraw do embarque, quando difere do cadastrado na adição.
 	NDraw *string `json:"n_draw" validate:"omitempty,max=20"`
+}
+
+// NfeItemLotBody aponta um lote cadastrado. Quantity só é informada quando o
+// item sai de vários lotes em proporções diferentes — em branco, o rateio pela
+// quantidade vendida resolve.
+type NfeItemLotBody struct {
+	LotID    string  `json:"lot_id" validate:"required"`
+	Quantity *string `json:"quantity" validate:"omitempty,decimalv"`
 }
 
 // NfeDetExportBody é uma exportação indireta do item (prod/detExport). O trio
@@ -315,6 +326,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 	if err == nil {
 		err = applyImportDeclarations(ctx, s.importDIRepo, orgPK, items, productItems)
+	}
+	if err == nil {
+		err = applyProductLots(ctx, s.productLotRepo, orgPK, items, productItems)
 	}
 	if err != nil {
 		return nil, err
@@ -831,6 +845,70 @@ func applyImportDeclarations(
 		productItems[i]["import_declarations"] = nodes
 	}
 	return nil
+}
+
+// applyProductLots resolve os lotes citados pelos itens num BatchGet só e monta
+// prod/rastro de cada um. Um lote inexistente é erro de request; um lote de
+// outro produto também — o lote pertence ao produto que o fabricou.
+func applyProductLots(
+	ctx context.Context, repo *repositories.ProductLotRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	if repo == nil {
+		return nil
+	}
+	var ids []string
+	for _, item := range items {
+		for _, ref := range item.Lots {
+			ids = append(ids, ref.LotID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return err
+	}
+	decoded := make(map[string]map[string]any, len(rows))
+	for id, row := range rows {
+		var m map[string]any
+		if err := attributevalue.UnmarshalMap(row, &m); err != nil {
+			return problem.InternalServer("failed to decode product lot " + id)
+		}
+		decoded[id] = m
+	}
+	for i, item := range items {
+		if len(item.Lots) == 0 {
+			continue
+		}
+		lots := make([]resolvedLot, 0, len(item.Lots))
+		for _, ref := range item.Lots {
+			row, ok := decoded[ref.LotID]
+			if !ok {
+				return problem.NotFound("lote não encontrado: " + ref.LotID)
+			}
+			if pid := anyStr(row, "product_id", ""); pid != "" && item.ProductID != "" && !sameEntityID(pid, item.ProductID) {
+				return problem.BadRequest("lote " + ref.LotID + " não pertence ao produto do item")
+			}
+			lots = append(lots, resolvedLot{
+				NLote:    anyStr(row, "n_lote", ""),
+				DFab:     anyStr(row, "d_fab", ""),
+				DVal:     anyStr(row, "d_val", ""),
+				CAgreg:   anyStr(row, "c_agreg", ""),
+				Quantity: ptrStr(ref.Quantity),
+			})
+		}
+		productItems[i]["lots"] = buildRastro(lots, d(item.Quantity))
+	}
+	return nil
+}
+
+// sameEntityID compara ids de cadastro aceitando um com prefixo e outro sem —
+// as rotas de cadastro aceitam as duas formas, e o vínculo gravado pode ter
+// vindo de qualquer uma delas.
+func sameEntityID(a, b string) bool {
+	return services.StripPKPrefix(a) == services.StripPKPrefix(b)
 }
 
 // applyServiceDefaults completa a tributação do item de serviço com o que já

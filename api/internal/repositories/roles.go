@@ -78,7 +78,7 @@ var resources = []string{
 	"organization_payment_terms", "organization_vehicle_sets",
 	"organization_payment_terminals", "organization_toll_providers",
 	"organization_cargo_units", "organization_import_declarations",
-	"organization_insurance_policies",
+	"organization_insurance_policies", "organization_product_lots",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
 	"organization_nfse_configs",

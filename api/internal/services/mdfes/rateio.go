@@ -5,30 +5,28 @@ package mdfes
 // o operador nunca digita percentual, e o somatório fecha em 100,00 por
 // construção.
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+
+	"gopkg.aoctech.app/dfe/api/internal/services"
+)
 
 // rateCargo distribui 100% da unidade de carga entre os documentos que ela
-// transporta, proporcionalmente ao peso. A última chave absorve o resíduo de
-// arredondamento — sem isso o somatório fecha em 99.99 e a SEFAZ rejeita.
+// transporta, proporcionalmente ao peso. O fechamento exato no total (a última
+// parte absorvendo o resíduo) é o mesmo problema do rateio de lote da NF-e —
+// ver services.SplitProportional.
 func rateCargo(weights map[string]decimal.Decimal, keys []string) map[string]string {
-	total := decimal.Zero
-	for _, k := range keys {
-		total = total.Add(weights[k])
-	}
-	out := make(map[string]string, len(keys))
-	if total.IsZero() {
-		return out
-	}
-	hundred := decimal.NewFromInt(100)
-	acc := decimal.Zero
+	parts := make([]decimal.Decimal, len(keys))
 	for i, k := range keys {
-		if i == len(keys)-1 {
-			out[k] = hundred.Sub(acc).StringFixed(2)
-			continue
+		parts[i] = weights[k]
+	}
+	shares := services.SplitProportional(decimal.NewFromInt(100), parts, 2)
+	out := make(map[string]string, len(keys))
+	for i, k := range keys {
+		if shares == nil {
+			return out
 		}
-		part := weights[k].Mul(hundred).Div(total).RoundBank(2)
-		acc = acc.Add(part)
-		out[k] = part.StringFixed(2)
+		out[k] = shares[i]
 	}
 	return out
 }

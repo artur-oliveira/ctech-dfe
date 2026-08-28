@@ -3,6 +3,7 @@ import {
   Container,
   Ship,
   Umbrella,
+  Boxes,
   CreditCard,
   ClipboardList,
   Combine,
@@ -72,6 +73,11 @@ export const PackageIcon = ({width = 16, height = 16}: IconProps) => (
 /** Declaração de importação — DI, adições e desembaraço */
 export const ImportIcon = ({width = 16, height = 16}: IconProps) => (
   <Ship width={width} height={height}/>
+)
+
+/** Lote de produção — número, validade e rastreabilidade do item */
+export const LotIcon = ({width = 16, height = 16}: IconProps) => (
+  <Boxes width={width} height={height}/>
 )
 
 /** Apólice de seguro — responsável, seguradora e averbações da carga */

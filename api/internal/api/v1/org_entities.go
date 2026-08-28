@@ -202,6 +202,18 @@ func RegisterImportDeclarations(router fiber.Router, svc *services.ImportDeclara
 	})
 }
 
+// RegisterProductLots mounts /product-lots under a tenant-scoped group.
+func RegisterProductLots(router fiber.Router, svc *services.ProductLotService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/product-lots",
+		param:      "product_lot_id",
+		resource:   "organization_product_lots",
+		bindCreate: bindValidatedCreate[ProductLotBody],
+		bindUpdate: bindValidatedUpdate[ProductLotBody],
+	})
+}
+
 // RegisterInsurancePolicies mounts /insurance-policies under a tenant-scoped group.
 func RegisterInsurancePolicies(router fiber.Router, svc *services.InsurancePolicyService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

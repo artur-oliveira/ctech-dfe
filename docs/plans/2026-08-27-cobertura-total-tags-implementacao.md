@@ -3485,7 +3485,7 @@ rateada automaticamente** pela quantidade vendida.
     - `func buildRastro(lots []resolvedLot, qty decimal.Decimal) []map[string]any` — quando o item cita lotes sem
       quantidade, a quantidade vendida é rateada entre eles, a última absorvendo o resíduo (mesma regra da Task 17).
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildRastroRateiaQuantidade(t *testing.T) {
@@ -3502,7 +3502,7 @@ t.Fatalf("lote errado: %v", got[0])
 }
 ```
 
-- [ ] **Step 2/3/4/5:** falhar → implementar (ordem `nLote, qLote, dFab, dVal, cAgreg`) → UI → docs (§42) → commit
+- [x] **Step 2/3/4/5:** falhar → implementar (ordem `nLote, qLote, dFab, dVal, cAgreg`) → UI → docs (§42) → commit
   (`feat(nfe): cadastro de lotes e grupo prod/rastro com rateio`).
 
 ---

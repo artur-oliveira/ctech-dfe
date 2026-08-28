@@ -5,6 +5,8 @@ import type {
   ImportDeclarationCreate,
   InsurancePolicyCreate,
   InsurancePolicyItemOut,
+  ProductLotCreate,
+  ProductLotItemOut,
   ImportDeclarationItemOut,
   CargoUnitItemOut,
   TollProviderCreate,
@@ -609,6 +611,28 @@ class ApiClient {
 
   async deleteInsurancePolicy(id: string): Promise<void> {
     return this.del(`/v1.0/insurance-policies/${id}`)
+  }
+
+  // Product lots (lotes de produção — NF-e prod/rastro)
+
+  async getProductLots(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ProductLotItemOut>> {
+    return this.get('/v1.0/product-lots', {params})
+  }
+
+  async getProductLot(id: string): Promise<ProductLotItemOut> {
+    return this.get(`/v1.0/product-lots/${id}`)
+  }
+
+  async createProductLot(data: ProductLotCreate): Promise<ProductLotItemOut> {
+    return this.post('/v1.0/product-lots', data)
+  }
+
+  async updateProductLot(id: string, data: ProductLotCreate): Promise<ProductLotItemOut> {
+    return this.put(`/v1.0/product-lots/${id}`, data)
+  }
+
+  async deleteProductLot(id: string): Promise<void> {
+    return this.del(`/v1.0/product-lots/${id}`)
   }
 
   // Vehicle sets (composições veiculares)

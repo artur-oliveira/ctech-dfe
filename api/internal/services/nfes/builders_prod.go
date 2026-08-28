@@ -81,6 +81,10 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	if dis, ok := item["import_declarations"].([]map[string]any); ok && len(dis) > 0 {
 		prod["DI"] = dis
 	}
+	// rastro: o lote vem do cadastro e a quantidade sai do rateio (rastro.go).
+	if lots, ok := item["lots"].([]map[string]any); ok && len(lots) > 0 {
+		prod["rastro"] = lots
+	}
 	if exports, ok := item["exports"].([]map[string]any); ok {
 		if node := buildDetExport(exports); node != nil {
 			prod["detExport"] = node

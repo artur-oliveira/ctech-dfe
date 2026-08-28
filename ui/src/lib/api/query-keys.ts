@@ -52,6 +52,10 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['import-declarations', orgPk] as const,
     detail: (id: string) => ['import-declaration', id] as const,
   },
+  productLots: {
+    list: (orgPk: string | undefined) => ['product-lots', orgPk] as const,
+    detail: (id: string) => ['product-lot', id] as const,
+  },
   insurancePolicies: {
     list: (orgPk: string | undefined) => ['insurance-policies', orgPk] as const,
     detail: (id: string) => ['insurance-policy', id] as const,
