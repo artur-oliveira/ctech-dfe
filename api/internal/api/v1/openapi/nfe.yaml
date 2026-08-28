@@ -920,6 +920,39 @@ components:
           type: array
           description: Dados de armas, quando o produto é dessa natureza.
           items: { type: object, additionalProperties: true }
+        lots:
+          type: array
+          maxItems: 500
+          description: |
+            Lotes de `organization_product_lots` de onde o item saiu
+            (`prod/rastro`). A `qLote` de cada um é **rateada** da quantidade
+            vendida quando `quantity` vem em branco.
+          items: { $ref: '#/components/schemas/NfeItemLot' }
+        fuel_pump_id:
+          type: [ string, 'null' ]
+          description: |
+            Bico de `organization_fuel_pumps` por onde a venda saiu
+            (`prod/comb/encerrante`).
+        v_enc_fin:
+          type: [ string, 'null' ]
+          description: |
+            Leitura final do encerrante. O `vEncIni` **não** é informado: é a
+            leitura final da venda anterior da mesma bomba. Uma leitura menor
+            que a anterior é 400.
+        q_temp:
+          type: [ string, 'null' ]
+          description: Quantidade a 20 °C (`comb/qTemp`) — muda a cada venda.
+
+    NfeItemLot:
+      type: object
+      required: [ lot_id ]
+      properties:
+        lot_id: { type: string }
+        quantity:
+          type: [ string, 'null' ]
+          description: |
+            Só quando o item sai de vários lotes em proporções diferentes. Em
+            branco, o rateio pela quantidade vendida resolve.
 
     NfePaymentItem:
       type: object

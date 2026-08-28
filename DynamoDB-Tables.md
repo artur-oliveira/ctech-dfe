@@ -52,6 +52,7 @@ PITR: enabled in production only.
 | 40 | `organization_import_declarations` | `{org_pk}`            | `IMPORTDI_{uuid}`                        | `name-index`                                       |
 | 41 | `organization_insurance_policies` | `{org_pk}`             | `INSURANCE_{uuid}`                       | `name-index`                                       |
 | 42 | `organization_product_lots` | `{org_pk}`                   | `PRODUCTLOT_{uuid}`                      | `name-index`                                       |
+| 43 | `organization_fuel_pumps`   | `{org_pk}`                   | `FUELPUMP_{uuid}`                        | `name-index`                                       |
 
 ---
 
@@ -895,4 +896,28 @@ somatório fechar exatamente na quantidade do item. `d_val` anterior a `d_fab` �
 | `d_fab`          | S    | → `rastro/dFab` (AAAA-MM-DD)                                             |
 | `d_val`          | S    | → `rastro/dVal` (AAAA-MM-DD)                                             |
 | `c_agreg`        | S    | → `rastro/cAgreg`                                                        |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 43. `organization_fuel_pumps`
+
+Bicos, bombas e tanques do posto (NF-e `prod/comb/encerrante`). Mesma forma dos demais cadastros
+reutilizáveis (`pk` = org, `sk` = `FUELPUMP_{uuid}`, GSI `name-index`).
+
+`last_v_enc_fin` é o único atributo que **a emissão escreve e o usuário não**: ele guarda onde o
+marcador da bomba parou na última venda, e é o `vEncIni` da venda seguinte. A gravação acontece na
+**mesma `TransactWriteItems`** que reserva o número da nota — gravar depois deixaria a próxima venda
+partir de uma leitura velha se o processo caísse no meio. Uma leitura final menor que a anterior é
+recusada com 400: encerrante é totalizador mecânico, não anda para trás.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `FUELPUMP_{uuid}`                                                        |
+| `name`           | S    | Nome de uso ("Bico 1 — Gasolina comum"). GSI: `name-index`               |
+| `n_bico`         | S    | → `encerrante/nBico`                                                     |
+| `n_bomba`        | S    | → `encerrante/nBomba`                                                    |
+| `n_tanque`       | S    | → `encerrante/nTanque`                                                   |
+| `last_v_enc_fin` | S    | Última leitura final. **Escrito pela emissão**, na transação da nota      |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                |

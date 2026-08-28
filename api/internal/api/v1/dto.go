@@ -545,6 +545,19 @@ type ImportAdditionBody struct {
 	NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
 }
 
+// FuelPumpBody é o body de POST/PUT /fuel-pumps.
+//
+// Bico, bomba e tanque são físicos: recorrem em toda venda do posto. A leitura
+// do encerrante (`last_v_enc_fin`) **não** entra aqui — ela é escrita pela
+// emissão, na mesma transação que reserva o número da nota, e digitá-la à mão
+// quebraria a sequência que a SEFAZ confere.
+type FuelPumpBody struct {
+	Name    string `json:"name" validate:"required,min=2,max=120"`
+	NBico   string `json:"n_bico" validate:"required,max=3,number"`
+	NBomba  string `json:"n_bomba" validate:"omitempty,max=3,number"`
+	NTanque string `json:"n_tanque" validate:"omitempty,max=3,number"`
+}
+
 // ProductLotBody é o body de POST/PUT /product-lots.
 //
 // O lote é do produto e reaparece em várias notas até acabar, então é cadastro
@@ -608,6 +621,16 @@ func (b InsurancePolicyBody) Validate() error {
 const respSegContratante = "2"
 
 func emptyStr(s *string) bool { return s == nil || *s == "" }
+
+// CombOrigBody é uma origem do combustível (comb/origComb): de onde veio e em
+// que proporção.
+type CombOrigBody struct {
+	// IndImport: 0 nacional, 1 importado.
+	IndImport string `json:"ind_import" validate:"required,oneof=0 1"`
+	// CUFOrig é o código IBGE da UF de origem (2 dígitos).
+	CUFOrig string `json:"c_uf_orig" validate:"required,len=2,number"`
+	POrig   string `json:"p_orig" validate:"required,percent"`
+}
 
 // ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
 type ObsBody struct {
@@ -679,19 +702,25 @@ type ProductBody struct {
 	TaxProfiles       []ProductTaxProfileRef `json:"tax_profiles" validate:"required_without=CfopConfig,omitempty,dive"`
 	ConversionFactors []ConversionFactorBody `json:"conversion_factors" validate:"omitempty,dive"`
 	// Tipo específico e campos especiais
-	ProdType          *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`
-	CombCProdAnp      *string `json:"comb_c_prod_anp" validate:"omitempty,digits9"`
-	CombDescAnp       *string `json:"comb_desc_anp" validate:"omitempty,max=95"`
-	CombUfCons        *string `json:"comb_uf_cons" validate:"omitempty,letters2"`
-	CombCodif         *string `json:"comb_codif" validate:"omitempty,max=21"`
-	CombPGlp          *string `json:"comb_p_glp" validate:"omitempty,percent"`
-	CombPGnn          *string `json:"comb_p_gnn" validate:"omitempty,percent"`
-	CombPGni          *string `json:"comb_p_gni" validate:"omitempty,percent"`
-	CombVPart         *string `json:"comb_v_part" validate:"omitempty,money2"`
-	CombPBio          *string `json:"comb_p_bio" validate:"omitempty,percent"`
-	MedCProdAnvisa    *string `json:"med_c_prod_anvisa" validate:"omitempty,min=5"`
-	MedXMotivoIsencao *string `json:"med_x_motivo_isencao" validate:"omitempty,max=255"`
-	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
+	ProdType     *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`
+	CombCProdAnp *string `json:"comb_c_prod_anp" validate:"omitempty,digits9"`
+	CombDescAnp  *string `json:"comb_desc_anp" validate:"omitempty,max=95"`
+	CombUfCons   *string `json:"comb_uf_cons" validate:"omitempty,letters2"`
+	CombCodif    *string `json:"comb_codif" validate:"omitempty,max=21"`
+	CombPGlp     *string `json:"comb_p_glp" validate:"omitempty,percent"`
+	CombPGnn     *string `json:"comb_p_gnn" validate:"omitempty,percent"`
+	CombPGni     *string `json:"comb_p_gni" validate:"omitempty,percent"`
+	CombVPart    *string `json:"comb_v_part" validate:"omitempty,money2"`
+	CombPBio     *string `json:"comb_p_bio" validate:"omitempty,percent"`
+	// CombCideVAliqProd é a alíquota da CIDE do produto. A base (qBCProd) é a
+	// quantidade vendida e o vCIDE é o produto dos dois — nenhum dos dois é
+	// digitado.
+	CombCideVAliqProd *string `json:"comb_cide_v_aliq_prod" validate:"omitempty,money"`
+	// CombOrig é a origem do combustível (prod/comb/origComb), até 30 entradas.
+	CombOrig          []CombOrigBody `json:"comb_orig" validate:"omitempty,max=30,dive"`
+	MedCProdAnvisa    *string        `json:"med_c_prod_anvisa" validate:"omitempty,min=5"`
+	MedXMotivoIsencao *string        `json:"med_x_motivo_isencao" validate:"omitempty,max=255"`
+	MedVPmc           *string        `json:"med_v_pmc" validate:"omitempty,money2"`
 	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
 	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
 	// NVE, FCI e códigos de barra próprios — nível produto.

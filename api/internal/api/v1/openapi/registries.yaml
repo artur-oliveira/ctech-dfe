@@ -746,6 +746,106 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Bombas de combustível ──────────────────────────────────────────────────
+
+  /v1.0/fuel-pumps:
+    get:
+      tags: [ FuelPumps ]
+      summary: Lista bicos, bombas e tanques
+      operationId: listFuelPumps
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de bombas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ FuelPumps ]
+      summary: Cria uma bomba
+      operationId: createFuelPump
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuelPumpBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/fuel-pumps/{fuel_pump_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: fuel_pump_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ FuelPumps ]
+      summary: Detalha uma bomba
+      operationId: getFuelPump
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ FuelPumps ]
+      summary: Atualiza uma bomba
+      operationId: updateFuelPump
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuelPumpBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ FuelPumps ]
+      summary: Remove uma bomba
+      operationId: deleteFuelPump
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Lotes de produção ──────────────────────────────────────────────────────
 
   /v1.0/product-lots:
@@ -1324,6 +1424,37 @@ components:
         kind: { type: string }
         tp_unid: { type: string }
         id_unid: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FuelPumpBody:
+      type: object
+      description: |
+        Bico, bomba e tanque do posto. A leitura do encerrante
+        (`last_v_enc_fin`) **não** entra aqui: ela é escrita pela emissão, na
+        mesma transação que reserva o número da nota. O `vEncIni` de cada venda
+        é o `vEncFin` da venda anterior da mesma bomba.
+      required: [ name, n_bico ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        n_bico: { type: string, maxLength: 3, description: '`encerrante/nBico`.' }
+        n_bomba: { type: string, maxLength: 3, description: '`encerrante/nBomba`.' }
+        n_tanque: { type: string, maxLength: 3, description: '`encerrante/nTanque`.' }
+
+    FuelPumpItem:
+      type: object
+      description: Bomba persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        n_bico: { type: string }
+        last_v_enc_fin:
+          type: string
+          description: |
+            Última leitura final gravada pela emissão. Somente leitura — o PUT
+            não a altera.
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

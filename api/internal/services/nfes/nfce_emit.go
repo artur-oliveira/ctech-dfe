@@ -120,6 +120,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	// O posto emite NFC-e: o encerrante da bomba vale aqui tanto quanto na NF-e.
+	pumpReadings, err := applyFuelPumps(ctx, s.fuelPumpRepo, orgPK, items, productItems)
+	if err != nil {
+		return nil, err
+	}
 	// C0: ver o comentário equivalente em emit.go.
 	mode := NormalEmission(nfModel65)
 	if err := mode.Validate(); err != nil {
@@ -285,8 +290,9 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 
+	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if err := s.nfceRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded, txItems...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número da NFC-e. Tente novamente.")

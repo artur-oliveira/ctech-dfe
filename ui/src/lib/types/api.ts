@@ -93,6 +93,35 @@ export interface LookupOrganizationOut {
   state_registrations: LookupStateRegistrationOut[]
 }
 
+/** Resposta pública de `GET https://open.cnpja.com/office/:cnpj`.
+ * Os campos são opcionais porque a cobertura varia conforme a empresa. */
+export interface OpenCnpjOffice {
+  taxId: string
+  updated?: string | null
+  alias?: string | null
+  founded?: string | null
+  company?: {
+    name?: string | null
+    simples?: {optant?: boolean | null} | null
+    simei?: {optant?: boolean | null} | null
+  } | null
+  status?: {id?: number | string | null; text?: string | null} | null
+  address?: {
+    municipality?: number | string | null
+    street?: string | null
+    number?: string | null
+    details?: string | null
+    district?: string | null
+    city?: string | null
+    state?: string | null
+    zip?: string | null
+  } | null
+  phones?: Array<{area?: string | null; number?: string | null}> | null
+  emails?: Array<{address?: string | null}> | null
+  mainActivity?: {id?: number | string | null; text?: string | null} | null
+  suframa?: Array<{number?: string | null; active?: boolean | null}> | null
+}
+
 // Organizations
 export interface AddressOut {
   city_ibge_code: string
@@ -133,6 +162,10 @@ export interface PersonOut {
   addresses: AddressOut[]
   contacts: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
+  bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
 }
 
 export interface ContactsOut {
@@ -416,6 +449,10 @@ export interface ProductOut {
   comb_p_gni?: string | null
   comb_v_part?: string | null
   comb_p_bio?: string | null
+  /** Alíquota da CIDE; base e valor saem da quantidade vendida. */
+  comb_cide_v_aliq_prod?: string | null
+  /** Origem do combustível (comb/origComb), até 30 entradas. */
+  comb_orig?: CombOrigIn[] | null
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
@@ -501,6 +538,10 @@ export interface ProductCreate {
   comb_p_gni?: string | null
   comb_v_part?: string | null
   comb_p_bio?: string | null
+  /** Alíquota da CIDE; base e valor saem da quantidade vendida. */
+  comb_cide_v_aliq_prod?: string | null
+  /** Origem do combustível (comb/origComb), até 30 entradas. */
+  comb_orig?: CombOrigIn[] | null
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
@@ -713,6 +754,8 @@ export interface PersonDetailsOut {
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
   /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
   delivery_locations?: NfeLocalOut[]
   bank?: PersonBank | null
@@ -756,6 +799,10 @@ export interface PersonObject {
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
+  bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
 }
 
 export interface PersonCreate {
@@ -855,6 +902,36 @@ export interface TollProviderItemOut {
   sk: string
   name: string
   cnpj_forn: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+/** Uma origem do combustível (comb/origComb). */
+export interface CombOrigIn {
+  /** `0` nacional · `1` importado. */
+  ind_import: '0' | '1'
+  /** Código IBGE da UF de origem (2 dígitos). */
+  c_uf_orig: string
+  p_orig: string
+}
+
+// Cadastros reutilizáveis — bicos, bombas e tanques (NF-e prod/comb/encerrante)
+export interface FuelPumpCreate extends Record<string, unknown> {
+  name: string
+  n_bico: string
+  n_bomba?: string
+  n_tanque?: string
+}
+
+export interface FuelPumpItemOut {
+  pk: string
+  sk: string
+  name: string
+  n_bico: string
+  /** Última leitura final, escrita pela emissão. Somente leitura. */
+  last_v_enc_fin?: string
   created_at: string
   updated_at: string
 

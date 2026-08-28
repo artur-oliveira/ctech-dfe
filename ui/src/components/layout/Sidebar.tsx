@@ -18,6 +18,7 @@ import {
   ImportIcon,
   InsuranceIcon,
   LotIcon,
+  FuelPumpIcon,
   PackageIcon,
   RouteIcon,
   SettingsIcon,
@@ -118,6 +119,7 @@ const navGroups: NavGroup[] = [
       {href: '/import-declarations', label: 'Declarações de importação', icon: <ImportIcon/>},
       {href: '/insurance-policies', label: 'Apólices de seguro', icon: <InsuranceIcon/>},
       {href: '/product-lots', label: 'Lotes de produção', icon: <LotIcon/>},
+      {href: '/fuel-pumps', label: 'Bombas de combustível', icon: <FuelPumpIcon/>},
     ],
   },
   {

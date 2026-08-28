@@ -221,6 +221,16 @@ func NewImportDeclarationService(repo *repositories.ImportDeclarationRepository,
 	)}
 }
 
+// FuelPumpService owns organization_fuel_pumps.
+type FuelPumpService struct{ OrgEntityService }
+
+func NewFuelPumpService(repo *repositories.FuelPumpRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *FuelPumpService {
+	return &FuelPumpService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeFuelPumps, repositories.AuditResourceFuelPump, "fuel pump not found",
+	)}
+}
+
 // ProductLotService owns organization_product_lots.
 type ProductLotService struct{ OrgEntityService }
 
@@ -337,4 +347,5 @@ const (
 	CacheScopeImportDIs         = "import_declarations"
 	CacheScopeInsurancePolicies = "insurance_policies"
 	CacheScopeProductLots       = "product_lots"
+	CacheScopeFuelPumps         = "fuel_pumps"
 )

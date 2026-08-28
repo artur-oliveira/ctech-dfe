@@ -91,21 +91,11 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 		}
 	}
 
-	if combProd := anyStr(item, "comb_c_prod_anp", ""); combProd != "" {
-		combNode := map[string]any{
-			"cProdANP": combProd,
-			"descANP":  strOrDefault(anyStr(item, "comb_desc_anp", ""), ""),
-			"UFCons":   strOrDefault(anyStr(item, "comb_uf_cons", ""), ""),
-		}
-		for field, xml := range map[string]string{
-			"comb_p_glp": "pGLP", "comb_p_gnn": "pGNn", "comb_p_gni": "pGNi",
-			"comb_v_part": "vPart", "comb_codif": "CODIF", "comb_p_bio": "pBio",
-		} {
-			if v := anyStr(item, field, ""); v != "" {
-				combNode[xml] = v
-			}
-		}
-		prod["comb"] = combNode
+	// comb: CIDE, encerrante e origComb entram em comb.go — a bomba é resolvida
+	// na emissão e chega em item["fuel_pump"].
+	pump, _ := item["fuel_pump"].(map[string]any)
+	if comb := buildComb(item, pump, d(anyStr(item, "quantity", "0"))); comb != nil {
+		prod["comb"] = comb
 	}
 
 	if medProd := anyStr(item, "med_c_prod_anvisa", ""); medProd != "" {

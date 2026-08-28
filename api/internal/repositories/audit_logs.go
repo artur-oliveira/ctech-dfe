@@ -40,6 +40,7 @@ const (
 	AuditResourceImportDI        = "IMPORT_DECLARATION"
 	AuditResourceInsurance       = "INSURANCE_POLICY"
 	AuditResourceProductLot      = "PRODUCT_LOT"
+	AuditResourceFuelPump        = "FUEL_PUMP"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"
 	AuditResourceInvitation      = "INVITATION"

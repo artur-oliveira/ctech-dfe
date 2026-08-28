@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -115,6 +116,12 @@ type NfeProductItem struct {
 	// ImportDeclarations liga o item às adições da DI que o representam
 	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
 	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
+	// FuelPumpID é o bico por onde a venda saiu (prod/comb/encerrante); VEncFin
+	// é onde o marcador parou. O vEncIni vem do cadastro da bomba.
+	FuelPumpID *string `json:"fuel_pump_id" validate:"omitempty"`
+	VEncFin    *string `json:"v_enc_fin" validate:"omitempty,decimalv"`
+	// QTemp é a quantidade a 20 °C: muda a cada venda, não é do cadastro.
+	QTemp *string `json:"q_temp" validate:"omitempty,decimalv"`
 	// Lots são os lotes de produção que saíram neste item (prod/rastro). O lote
 	// vem do cadastro; a quantidade em branco é rateada da quantidade vendida.
 	Lots []NfeItemLotBody `json:"lots" validate:"omitempty,max=500,dive"`
@@ -329,6 +336,10 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 	if err == nil {
 		err = applyProductLots(ctx, s.productLotRepo, orgPK, items, productItems)
+	}
+	pumpReadings, err2 := applyFuelPumps(ctx, s.fuelPumpRepo, orgPK, items, productItems)
+	if err == nil {
+		err = err2
 	}
 	if err != nil {
 		return nil, err
@@ -595,8 +606,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	// O encerrante avança na MESMA transação da emissão: gravar depois deixaria
+	// a próxima venda partir de uma leitura antiga se o processo caísse aqui.
+	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if err := s.nfeRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, txItems...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número da NF-e. Tente novamente.")
@@ -904,6 +918,89 @@ func applyProductLots(
 	return nil
 }
 
+// applyFuelPumps resolve as bombas citadas pelos itens, valida a leitura do
+// encerrante e injeta a bomba no item para o builder. Devolve, por bomba, a
+// leitura final a gravar — o avanço em si acontece na transação da emissão.
+func applyFuelPumps(
+	ctx context.Context, repo *repositories.FuelPumpRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) (map[string]string, error) {
+	if repo == nil {
+		return nil, nil
+	}
+	var ids []string
+	for _, item := range items {
+		if item.FuelPumpID != nil && *item.FuelPumpID != "" {
+			ids = append(ids, *item.FuelPumpID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	readings := map[string]string{}
+	for i, item := range items {
+		if item.QTemp != nil && *item.QTemp != "" {
+			productItems[i]["comb_q_temp"] = *item.QTemp
+		}
+		if item.FuelPumpID == nil || *item.FuelPumpID == "" {
+			continue
+		}
+		row, ok := rows[*item.FuelPumpID]
+		if !ok {
+			return nil, problem.NotFound("bomba não encontrada: " + *item.FuelPumpID)
+		}
+		var pump map[string]any
+		if err := attributevalue.UnmarshalMap(row, &pump); err != nil {
+			return nil, problem.InternalServer("failed to decode fuel pump " + *item.FuelPumpID)
+		}
+		// Uma nota com duas vendas do mesmo bico: a segunda parte de onde a
+		// primeira terminou, senão as duas gravariam o mesmo vEncIni.
+		if prev, ok := readings[*item.FuelPumpID]; ok {
+			pump["last_v_enc_fin"] = prev
+		}
+		vEncFin := ptrStr(item.VEncFin)
+		if err := validateEncerrante(pump, vEncFin); err != nil {
+			return nil, err
+		}
+		productItems[i]["fuel_pump"] = pump
+		productItems[i]["comb_v_enc_fin"] = vEncFin
+		if vEncFin != "" {
+			readings[*item.FuelPumpID] = vEncFin
+		}
+	}
+	return readings, nil
+}
+
+// encerranteTx monta o avanço de last_v_enc_fin de cada bomba usada, para
+// entrar na transação que reserva o número e grava a nota.
+func encerranteTx(repo *repositories.FuelPumpRepository, orgPK string, readings map[string]string) []types.TransactWriteItem {
+	if repo == nil || len(readings) == 0 {
+		return nil
+	}
+	out := make([]types.TransactWriteItem, 0, len(readings))
+	for id, vEncFin := range readings {
+		out = append(out, types.TransactWriteItem{
+			Update: &types.Update{
+				TableName: aws.String(repo.TableName),
+				Key: map[string]types.AttributeValue{
+					"pk": &types.AttributeValueMemberS{Value: orgPK},
+					"sk": &types.AttributeValueMemberS{Value: repo.SK(id)},
+				},
+				UpdateExpression: aws.String("SET last_v_enc_fin = :v, updated_at = :ts"),
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":v":  &types.AttributeValueMemberS{Value: vEncFin},
+					":ts": &types.AttributeValueMemberS{Value: repositories.NowStr()},
+				},
+			},
+		})
+	}
+	return out
+}
+
 // sameEntityID compara ids de cadastro aceitando um com prefixo e outro sem —
 // as rotas de cadastro aceitam as duas formas, e o vínculo gravado pode ter
 // vindo de qualquer uma delas.
@@ -1075,69 +1172,71 @@ func resolveProducts(
 			// Uma única entrada, já resolvida para o CFOP deste item — os
 			// construtores do XML continuam lendo cfop_config exatamente como
 			// antes (findCFOPEntry), sem saber que perfis existem.
-			"cfop_config":          []any{resolvedTax},
-			"conversion_factors":   product["conversion_factors"],
-			"net_weight":           product["net_weight"],
-			"gross_weight":         product["gross_weight"],
-			"c_benef":              product["c_benef"],
-			"ext_ipi":              product["ext_ipi"],
-			"ind_escala":           product["ind_escala"],
-			"cnpj_fab":             product["cnpj_fab"],
-			"ind_tot":              product["ind_tot"],
-			"icms_aliq_override":   product["icms_aliq_override"],
-			"fcp_aliq_override":    product["fcp_aliq_override"],
-			"inf_ad_prod":          product["inf_ad_prod"],
-			"comb_c_prod_anp":      product["comb_c_prod_anp"],
-			"comb_desc_anp":        product["comb_desc_anp"],
-			"comb_uf_cons":         product["comb_uf_cons"],
-			"comb_codif":           product["comb_codif"],
-			"comb_p_glp":           product["comb_p_glp"],
-			"comb_p_gnn":           product["comb_p_gnn"],
-			"comb_p_gni":           product["comb_p_gni"],
-			"comb_v_part":          product["comb_v_part"],
-			"comb_p_bio":           product["comb_p_bio"],
-			"med_c_prod_anvisa":    product["med_c_prod_anvisa"],
-			"med_x_motivo_isencao": product["med_x_motivo_isencao"],
-			"med_v_pmc":            product["med_v_pmc"],
-			"veic_tp_op":           product["veic_tp_op"],
-			"veic_tp_comb":         product["veic_tp_comb"],
-			"veic_tp_pint":         product["veic_tp_pint"],
-			"veic_tp_veic":         product["veic_tp_veic"],
-			"veic_esp_veic":        product["veic_esp_veic"],
-			"veic_vin":             product["veic_vin"],
-			"veic_cond_veic":       product["veic_cond_veic"],
-			"veic_c_mod":           product["veic_c_mod"],
-			"veic_c_cor_denatran":  product["veic_c_cor_denatran"],
-			"veic_lota":            product["veic_lota"],
-			"veic_tp_rest":         product["veic_tp_rest"],
-			"veic_ano_mod":         product["veic_ano_mod"],
-			"veic_ano_fab":         product["veic_ano_fab"],
-			"veic_pot":             product["veic_pot"],
-			"veic_cilin":           product["veic_cilin"],
-			"veic_cmt":             product["veic_cmt"],
-			"veic_dist":            product["veic_dist"],
-			"veic_c_cor":           product["veic_c_cor"],
-			"veic_x_cor":           product["veic_x_cor"],
-			"veic_chassi":          ptrStr(item.VeicChassi),
-			"veic_n_serie":         ptrStr(item.VeicNSerie),
-			"veic_n_motor":         ptrStr(item.VeicNMotor),
-			"veic_c_cor_override":  ptrStr(item.VeicCCor),
-			"veic_x_cor_override":  ptrStr(item.VeicXCor),
-			"arma_tp_arma":         product["arma_tp_arma"],
-			"arma_descr":           product["arma_descr"],
-			"armas":                item.Armas,
-			"quantity":             item.Quantity,
-			"unit_value":           unitVal.String(),
-			"discount":             item.Discount,
-			"v_frete":              ptrStr(item.VFrete),
-			"v_seg":                ptrStr(item.VSeg),
-			"v_outro":              ptrStr(item.VOutro),
-			"total":                q2(itemTotal.RoundBank(2)),
-			"p_devol":              ptrStr(item.PDevol),
-			"ii_v_desp_adu":        ptrStr(item.IIVDespAdu),
-			"ii_v_ii":              ptrStr(item.IIVII),
-			"ii_v_iof":             ptrStr(item.IIVIOF),
-			"exports":              detExportMaps(item.Exports),
+			"cfop_config":           []any{resolvedTax},
+			"conversion_factors":    product["conversion_factors"],
+			"net_weight":            product["net_weight"],
+			"gross_weight":          product["gross_weight"],
+			"c_benef":               product["c_benef"],
+			"ext_ipi":               product["ext_ipi"],
+			"ind_escala":            product["ind_escala"],
+			"cnpj_fab":              product["cnpj_fab"],
+			"ind_tot":               product["ind_tot"],
+			"icms_aliq_override":    product["icms_aliq_override"],
+			"fcp_aliq_override":     product["fcp_aliq_override"],
+			"inf_ad_prod":           product["inf_ad_prod"],
+			"comb_c_prod_anp":       product["comb_c_prod_anp"],
+			"comb_desc_anp":         product["comb_desc_anp"],
+			"comb_uf_cons":          product["comb_uf_cons"],
+			"comb_codif":            product["comb_codif"],
+			"comb_p_glp":            product["comb_p_glp"],
+			"comb_p_gnn":            product["comb_p_gnn"],
+			"comb_p_gni":            product["comb_p_gni"],
+			"comb_v_part":           product["comb_v_part"],
+			"comb_p_bio":            product["comb_p_bio"],
+			"comb_cide_v_aliq_prod": product["comb_cide_v_aliq_prod"],
+			"comb_orig":             product["comb_orig"],
+			"med_c_prod_anvisa":     product["med_c_prod_anvisa"],
+			"med_x_motivo_isencao":  product["med_x_motivo_isencao"],
+			"med_v_pmc":             product["med_v_pmc"],
+			"veic_tp_op":            product["veic_tp_op"],
+			"veic_tp_comb":          product["veic_tp_comb"],
+			"veic_tp_pint":          product["veic_tp_pint"],
+			"veic_tp_veic":          product["veic_tp_veic"],
+			"veic_esp_veic":         product["veic_esp_veic"],
+			"veic_vin":              product["veic_vin"],
+			"veic_cond_veic":        product["veic_cond_veic"],
+			"veic_c_mod":            product["veic_c_mod"],
+			"veic_c_cor_denatran":   product["veic_c_cor_denatran"],
+			"veic_lota":             product["veic_lota"],
+			"veic_tp_rest":          product["veic_tp_rest"],
+			"veic_ano_mod":          product["veic_ano_mod"],
+			"veic_ano_fab":          product["veic_ano_fab"],
+			"veic_pot":              product["veic_pot"],
+			"veic_cilin":            product["veic_cilin"],
+			"veic_cmt":              product["veic_cmt"],
+			"veic_dist":             product["veic_dist"],
+			"veic_c_cor":            product["veic_c_cor"],
+			"veic_x_cor":            product["veic_x_cor"],
+			"veic_chassi":           ptrStr(item.VeicChassi),
+			"veic_n_serie":          ptrStr(item.VeicNSerie),
+			"veic_n_motor":          ptrStr(item.VeicNMotor),
+			"veic_c_cor_override":   ptrStr(item.VeicCCor),
+			"veic_x_cor_override":   ptrStr(item.VeicXCor),
+			"arma_tp_arma":          product["arma_tp_arma"],
+			"arma_descr":            product["arma_descr"],
+			"armas":                 item.Armas,
+			"quantity":              item.Quantity,
+			"unit_value":            unitVal.String(),
+			"discount":              item.Discount,
+			"v_frete":               ptrStr(item.VFrete),
+			"v_seg":                 ptrStr(item.VSeg),
+			"v_outro":               ptrStr(item.VOutro),
+			"total":                 q2(itemTotal.RoundBank(2)),
+			"p_devol":               ptrStr(item.PDevol),
+			"ii_v_desp_adu":         ptrStr(item.IIVDespAdu),
+			"ii_v_ii":               ptrStr(item.IIVII),
+			"ii_v_iof":              ptrStr(item.IIVIOF),
+			"exports":               detExportMaps(item.Exports),
 			// Selo e enquadramento do IPI vêm do cadastro do produto.
 			"ipi_cnpj_prod": product["ipi_cnpj_prod"],
 			"ipi_c_selo":    product["ipi_c_selo"],

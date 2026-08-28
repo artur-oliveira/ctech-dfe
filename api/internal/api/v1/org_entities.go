@@ -202,6 +202,18 @@ func RegisterImportDeclarations(router fiber.Router, svc *services.ImportDeclara
 	})
 }
 
+// RegisterFuelPumps mounts /fuel-pumps under a tenant-scoped group.
+func RegisterFuelPumps(router fiber.Router, svc *services.FuelPumpService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/fuel-pumps",
+		param:      "fuel_pump_id",
+		resource:   "organization_fuel_pumps",
+		bindCreate: bindEntityCreate[FuelPumpBody],
+		bindUpdate: bindEntityUpdate[FuelPumpBody],
+	})
+}
+
 // RegisterProductLots mounts /product-lots under a tenant-scoped group.
 func RegisterProductLots(router fiber.Router, svc *services.ProductLotService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

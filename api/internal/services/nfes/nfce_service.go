@@ -33,13 +33,15 @@ type NfceService struct {
 	taxProfileRepo      *repositories.TaxProfileRepository
 	operationRepo       *repositories.OperationRepository
 	paymentTerminalRepo *repositories.PaymentTerminalRepository
-	nfceRepo            *repositories.NfceRepository
-	eventRepo           *repositories.DocumentEventRepository // nfce_events
-	clients             *awsclient.Clients
-	workerSvc           *services.WorkerService
-	billingSvc          *services.BillingService
-	bucketDocs          string
-	tech                TechData
+	// fuelPumpRepo guarda a leitura do encerrante entre uma venda e a seguinte.
+	fuelPumpRepo *repositories.FuelPumpRepository
+	nfceRepo     *repositories.NfceRepository
+	eventRepo    *repositories.DocumentEventRepository // nfce_events
+	clients      *awsclient.Clients
+	workerSvc    *services.WorkerService
+	billingSvc   *services.BillingService
+	bucketDocs   string
+	tech         TechData
 }
 
 func NewNfceService(
@@ -51,6 +53,7 @@ func NewNfceService(
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTerminalRepo *repositories.PaymentTerminalRepository,
+	fuelPumpRepo *repositories.FuelPumpRepository,
 	nfceRepo *repositories.NfceRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	clients *awsclient.Clients,
@@ -62,7 +65,7 @@ func NewNfceService(
 	return &NfceService{
 		orgRepo: orgRepo, certRepo: certRepo, personRepo: personRepo,
 		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, operationRepo: operationRepo,
-		paymentTerminalRepo: paymentTerminalRepo, nfceRepo: nfceRepo,
+		paymentTerminalRepo: paymentTerminalRepo, fuelPumpRepo: fuelPumpRepo, nfceRepo: nfceRepo,
 		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc, billingSvc: billingSvc,
 		bucketDocs: bucketDocs, tech: tech,
 	}

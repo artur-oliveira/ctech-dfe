@@ -40,6 +40,9 @@ const (
 	// TableProductLots guarda os lotes de produção (prod/rastro): o lote é do
 	// produto e reaparece em várias notas até acabar.
 	TableProductLots = "organization_product_lots"
+	// TableFuelPumps guarda bicos, bombas e tanques do posto, mais a última
+	// leitura do encerrante — que a emissão escreve, não o usuário.
+	TableFuelPumps = "organization_fuel_pumps"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -51,6 +54,7 @@ const (
 	SKPrefixImportDI        = "IMPORTDI_"
 	SKPrefixInsurance       = "INSURANCE_"
 	SKPrefixProductLot      = "PRODUCTLOT_"
+	SKPrefixFuelPump        = "FUELPUMP_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -235,6 +239,13 @@ type ImportDeclarationRepository struct{ OrgEntityRepository }
 
 func NewImportDeclarationRepository(db *dynamodb.Client, cfg *config.Config) *ImportDeclarationRepository {
 	return &ImportDeclarationRepository{newOrgEntityRepository(db, cfg, TableImportDeclarations, SKPrefixImportDI)}
+}
+
+// FuelPumpRepository — organization_fuel_pumps.
+type FuelPumpRepository struct{ OrgEntityRepository }
+
+func NewFuelPumpRepository(db *dynamodb.Client, cfg *config.Config) *FuelPumpRepository {
+	return &FuelPumpRepository{newOrgEntityRepository(db, cfg, TableFuelPumps, SKPrefixFuelPump)}
 }
 
 // ProductLotRepository — organization_product_lots.

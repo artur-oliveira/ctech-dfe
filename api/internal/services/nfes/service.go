@@ -69,7 +69,10 @@ type NfeService struct {
 	// importDIRepo traz as declarações de importação citadas pelos itens.
 	importDIRepo *repositories.ImportDeclarationRepository
 	// productLotRepo traz os lotes de produção citados pelos itens (prod/rastro).
-	productLotRepo      *repositories.ProductLotRepository
+	productLotRepo *repositories.ProductLotRepository
+	// fuelPumpRepo traz as bombas citadas pelos itens e guarda a leitura do
+	// encerrante entre uma venda e a seguinte.
+	fuelPumpRepo        *repositories.FuelPumpRepository
 	taxProfileRepo      *repositories.TaxProfileRepository
 	operationRepo       *repositories.OperationRepository
 	paymentTermRepo     *repositories.PaymentTermRepository
@@ -94,6 +97,7 @@ func NewNfeService(
 	serviceRepo *repositories.ServiceRepository,
 	importDIRepo *repositories.ImportDeclarationRepository,
 	productLotRepo *repositories.ProductLotRepository,
+	fuelPumpRepo *repositories.FuelPumpRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -117,6 +121,7 @@ func NewNfeService(
 		serviceRepo:         serviceRepo,
 		importDIRepo:        importDIRepo,
 		productLotRepo:      productLotRepo,
+		fuelPumpRepo:        fuelPumpRepo,
 		taxProfileRepo:      taxProfileRepo,
 		operationRepo:       operationRepo,
 		paymentTermRepo:     paymentTermRepo,

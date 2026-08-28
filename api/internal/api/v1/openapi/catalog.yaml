@@ -688,6 +688,26 @@ components:
         comb_p_gni: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         comb_v_part: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
         comb_p_bio: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        comb_cide_v_aliq_prod:
+          type: [ string, 'null' ]
+          pattern: '^\d+(\.\d{1,4})?$'
+          description: |
+            Alíquota da CIDE. A base (`qBCProd`) é a quantidade vendida e o
+            `vCIDE` é o produto dos dois — nenhum dos dois é digitado.
+        comb_orig:
+          type: array
+          maxItems: 30
+          description: Origem do combustível (`comb/origComb`).
+          items:
+            type: object
+            required: [ ind_import, c_uf_orig, p_orig ]
+            properties:
+              ind_import:
+                type: string
+                enum: [ '0', '1' ]
+                description: '`0` nacional · `1` importado.'
+              c_uf_orig: { type: string, pattern: '^\d{2}$', description: Código IBGE da UF de origem. }
+              p_orig: { type: string, pattern: '^\d{1,3}(\.\d{1,4})?$' }
         med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
         med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
         med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }

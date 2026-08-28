@@ -62,6 +62,7 @@ var Module = fx.Options(
 		repositories.NewImportDeclarationRepository,
 		repositories.NewInsurancePolicyRepository,
 		repositories.NewProductLotRepository,
+		repositories.NewFuelPumpRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
 		repositories.NewVehicleRepository,
@@ -99,6 +100,7 @@ var Module = fx.Options(
 		newImportDeclarationService,
 		newInsurancePolicyService,
 		newProductLotService,
+		newFuelPumpService,
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
@@ -300,6 +302,10 @@ func newProductLotService(repo *repositories.ProductLotRepository, auditRepo *re
 	return services.NewProductLotService(repo, auditRepo, c)
 }
 
+func newFuelPumpService(repo *repositories.FuelPumpRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.FuelPumpService {
+	return services.NewFuelPumpService(repo, auditRepo, c)
+}
+
 func newPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.PaymentTermService {
 	return services.NewPaymentTermService(repo, auditRepo, c)
 }
@@ -363,6 +369,7 @@ func newNFeService(
 	serviceRepo *repositories.ServiceRepository,
 	importDIRepo *repositories.ImportDeclarationRepository,
 	productLotRepo *repositories.ProductLotRepository,
+	fuelPumpRepo *repositories.FuelPumpRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
@@ -377,7 +384,7 @@ func newNFeService(
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
-		orgRepo, certRepo, personRepo, configRepo, productRepo, serviceRepo, importDIRepo, productLotRepo,
+		orgRepo, certRepo, personRepo, configRepo, productRepo, serviceRepo, importDIRepo, productLotRepo, fuelPumpRepo,
 		taxProfileRepo, operationRepo, paymentTermRepo,
 		paymentTerminalRepo, nfeRepo, eventRepo, vehicleRepo, clients,
 		workerSvc, extSvc, billingSvc, cfg.S3BucketDocuments,
@@ -400,6 +407,7 @@ func newNFCeService(
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTerminalRepo *repositories.PaymentTerminalRepository,
+	fuelPumpRepo *repositories.FuelPumpRepository,
 	nfceRepo *repositories.NfceRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
@@ -410,7 +418,7 @@ func newNFCeService(
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
 	return nfesvc.NewNfceService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
-		paymentTerminalRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		paymentTerminalRepo, fuelPumpRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -506,6 +514,7 @@ type Services struct {
 	ImportDISvc     *services.ImportDeclarationService
 	InsurancePolSvc *services.InsurancePolicyService
 	ProductLotSvc   *services.ProductLotService
+	FuelPumpSvc     *services.FuelPumpService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
 	VehicleSvc      *services.VehicleService
@@ -547,6 +556,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		ImportDI:        svcs.ImportDISvc,
 		InsurancePolicy: svcs.InsurancePolSvc,
 		ProductLot:      svcs.ProductLotSvc,
+		FuelPump:        svcs.FuelPumpSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,
 		Vehicle:         svcs.VehicleSvc,

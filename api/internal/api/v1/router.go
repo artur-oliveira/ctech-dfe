@@ -34,6 +34,7 @@ type Services struct {
 	ImportDI        *services.ImportDeclarationService
 	InsurancePolicy *services.InsurancePolicyService
 	ProductLot      *services.ProductLotService
+	FuelPump        *services.FuelPumpService
 	VehicleSet      *services.VehicleSetService
 	Person          *services.PersonService
 	Vehicle         *services.VehicleService
@@ -98,6 +99,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterImportDeclarations(v1, svcs.ImportDI, svcs.User, authMw, perm)
 	RegisterInsurancePolicies(v1, svcs.InsurancePolicy, svcs.User, authMw, perm)
 	RegisterProductLots(v1, svcs.ProductLot, svcs.User, authMw, perm)
+	RegisterFuelPumps(v1, svcs.FuelPump, svcs.User, authMw, perm)
 	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)

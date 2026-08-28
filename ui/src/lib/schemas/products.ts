@@ -205,6 +205,12 @@ export const productSchema = z.object({
   comb_p_gnn: nullableStr(z.string().regex(_percentRegex, '% inválido')),
   comb_p_gni: nullableStr(z.string().regex(_percentRegex, '% inválido')),
   comb_v_part: nullableStr(z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valor inválido')),
+  comb_cide_v_aliq_prod: z.string().optional().or(z.literal('')),
+  comb_orig: z.array(z.object({
+    ind_import: z.enum(['0', '1']),
+    c_uf_orig: z.string().regex(/^\d{2}$/, 'Código IBGE da UF: 2 dígitos'),
+    p_orig: z.string().min(1, 'Percentual obrigatório'),
+  })).optional(),
   comb_p_bio: nullableStr(z.string().regex(_percentRegex, '% inválido')),
   med_c_prod_anvisa: nullableStr(z.string().min(5, 'Campo inválido')),
   med_x_motivo_isencao: nullableStr(z.string().max(255)),

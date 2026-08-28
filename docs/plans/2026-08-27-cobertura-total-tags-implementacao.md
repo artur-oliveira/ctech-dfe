@@ -3527,7 +3527,7 @@ derivado, nunca digitado. `origComb` fica no produto.
     - `func (s *NfeService) advanceEncerrante(ctx context.Context, orgPK, pumpID, vEncFin string) error` — atualiza
       `last_v_enc_fin` **no mesmo TransactWrite** da emissão, nunca depois.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```go
 func TestBuildCombEncerranteUsaLeituraAnterior(t *testing.T) {
@@ -3546,7 +3546,7 @@ func TestBuildCombEncerranteRegressivoRecusado(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2/3/4/5:** falhar → implementar (incluindo `problem.BadRequest` no caso regressivo) → transação → UI → docs
+- [x] **Step 2/3/4/5:** falhar → implementar (incluindo `problem.BadRequest` no caso regressivo) → transação → UI → docs
   (§43) → commit (`feat(nfe): cadastro de bombas e grupo comb completo com encerrante derivado`).
 
 ---

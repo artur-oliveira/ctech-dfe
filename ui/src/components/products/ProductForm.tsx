@@ -17,13 +17,14 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
 import {Button} from '@/components/ui/button'
+import {Label} from '@/components/ui/label'
 import {
   type CfopConfigFormData,
   type ConversionFactorFormData,
   type ProductFormData,
   productSchema
 } from '@/lib/schemas/products'
-import type {ProductCreate, ProductOut} from '@/lib/types/api'
+import type {CombOrigIn, ProductCreate, ProductOut} from '@/lib/types/api'
 import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
 import {
   CSOSN_ST,
@@ -331,6 +332,8 @@ function toFormData(p: ProductOut): ProductFormData {
     comb_p_gni: p.comb_p_gni ?? '',
     comb_v_part: p.comb_v_part ?? '',
     comb_p_bio: p.comb_p_bio ?? '',
+    comb_cide_v_aliq_prod: p.comb_cide_v_aliq_prod ?? '',
+    comb_orig: Array.isArray(p.comb_orig) ? (p.comb_orig as ProductFormData['comb_orig']) : [],
     med_c_prod_anvisa: p.med_c_prod_anvisa ?? '',
     med_x_motivo_isencao: p.med_x_motivo_isencao ?? '',
     med_v_pmc: p.med_v_pmc ?? '',
@@ -504,6 +507,8 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     comb_p_gni: nullify(data.comb_p_gni),
     comb_v_part: nullify(data.comb_v_part),
     comb_p_bio: nullify(data.comb_p_bio),
+    comb_cide_v_aliq_prod: nullify(data.comb_cide_v_aliq_prod),
+    comb_orig: data.comb_orig?.length ? data.comb_orig : null,
     med_c_prod_anvisa: nullify(data.med_c_prod_anvisa),
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
@@ -610,6 +615,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       prod_type: '',
       comb_c_prod_anp: '', comb_desc_anp: '', comb_uf_cons: '', comb_codif: '',
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
+      comb_cide_v_aliq_prod: '', comb_orig: [],
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
       nve: [], n_fci: '', c_barra: '', c_barra_trib: '',
       ipi_cnpj_prod: '', ipi_c_selo: '', ipi_q_selo: '', ipi_c_enq: '',
@@ -630,6 +636,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const watchedCest = useWatch({control: form.control, name: 'cest'})
   const watchedNcm = useWatch({control: form.control, name: 'ncm'})
   const watchedProdType = useWatch({control: form.control, name: 'prod_type'})
+  const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'})
   const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit
 
   const [prevShowConvFact, setPrevShowConvFact] = useState(showConversionFactors)
@@ -1346,9 +1353,21 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <FormMessage/>
                     </FormItem>
                   )}/>
+                  <FormField control={form.control} name="comb_cide_v_aliq_prod" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Alíquota da CIDE (R$ por unidade)</FormLabel>
+                      <NumericInput {...field} id={field.name} decimal integerPlaces={9} decimalPlaces={4}
+                                    value={field.value ?? ''} placeholder="0.0000" onChange={field.onChange}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
                 </div>
+                <CombOrigFields
+                  value={watchedCombOrig ?? []}
+                  onChange={(v) => form.setValue('comb_orig', v, {shouldDirty: true})}/>
                 <p className="text-xs text-gray-400">
                   Para GLP (ANP 210203001): preencha também pGLP, pGNn, pGNi e vPart nas configurações avançadas.
+                  A base e o valor da CIDE saem da quantidade vendida — só a alíquota é cadastrada.
                 </p>
               </div>
             )}
@@ -1736,5 +1755,56 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         </div>
       </form>
     </Form>
+  )
+}
+/**
+ * Origem do combustível (comb/origComb): de onde veio e em que proporção. É do
+ * produto porque a mistura não muda por venda — muda quando o posto troca de
+ * fornecedor, e aí o cadastro é atualizado uma vez.
+ */
+function CombOrigFields({value, onChange}: {
+  value: NonNullable<ProductFormData['comb_orig']>
+  onChange: (v: NonNullable<ProductFormData['comb_orig']>) => void
+}) {
+  const patch = (i: number, p: Partial<CombOrigIn>) =>
+    onChange(value.map((o, k) => (k === i ? {...o, ...p} : o)))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-gray-600">Origem do combustível (até 30)</p>
+        <Button type="button" variant="ghost" size="xs" disabled={value.length >= 30}
+                onClick={() => onChange([...value, {ind_import: '0', c_uf_orig: '', p_orig: ''}])}>
+          + Origem
+        </Button>
+      </div>
+      {value.map((o, i) => (
+        <div key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-imp-${i}`} className="text-xs font-medium text-gray-600">Procedência</Label>
+            <OptionsSelect id={`orig-imp-${i}`} value={o.ind_import}
+                           onValueChange={(v: string) => patch(i, {ind_import: v as CombOrigIn['ind_import']})}
+                           options={[
+                             {value: '0', label: '0 – Nacional'},
+                             {value: '1', label: '1 – Importado'},
+                           ]}/>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-uf-${i}`} className="text-xs font-medium text-gray-600">UF de origem (IBGE)</Label>
+            <NumericInput id={`orig-uf-${i}`} value={o.c_uf_orig} integerPlaces={2} className="w-full"
+                          placeholder="35" onChange={(v) => patch(i, {c_uf_orig: v})}/>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-p-${i}`} className="text-xs font-medium text-gray-600">% da mistura</Label>
+            <NumericInput id={`orig-p-${i}`} value={o.p_orig} decimal integerPlaces={3} decimalPlaces={4}
+                          className="w-full" placeholder="70.0000" onChange={(v) => patch(i, {p_orig: v})}/>
+          </div>
+          <Button type="button" variant="ghost" size="xs"
+                  onClick={() => onChange(value.filter((_, k) => k !== i))}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
   )
 }

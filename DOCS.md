@@ -934,6 +934,14 @@ the frontend's divergence warning.
 | ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret`, `issqn_v_outro`, `issqn_v_desc_incond`, `issqn_v_desc_cond`, `issqn_c_servico`, `issqn_c_mun`, `issqn_c_pais`, `issqn_n_processo`, `issqn_ind_incentivo`. Um item com `service_id` puxa item da lista, código e alíquota de `organization_services` — o catálogo da NFS-e, não um segundo cadastro |
 | Observação fiscal do item (`det/obsItem`)      | `obs_item_x_campo` + `obs_item_x_texto`, na tributação (vence) ou no produto |
 
+**Combustível (nível item):** `products[].fuel_pump_id` aponta o bico de `organization_fuel_pumps`,
+`v_enc_fin` é onde o marcador parou e `q_temp` é a quantidade a 20 °C. Três valores do grupo `comb`
+**não** são digitados: o `vEncIni` (é o `vEncFin` da venda anterior da mesma bomba), o `qBCProd` da
+CIDE (é a quantidade vendida) e o `vCIDE` (é base × alíquota — só `comb_cide_v_aliq_prod` é
+cadastrado no produto, junto de `comb_orig[]`). A leitura final menor que a anterior é 400, e o
+avanço de `last_v_enc_fin` entra na mesma transação que reserva o número da nota. Vale para NF-e e
+NFC-e — o posto emite NFC-e.
+
 **Rastreabilidade (nível item):** `products[].lots[] = {lot_id, quantity?}` monta `prod/rastro`.
 Número, fabricação, validade e código de agregação vêm de `organization_product_lots`; a `qLote` é
 **rateada** da quantidade vendida quando `quantity` vem em branco (a última parte absorve o resíduo,
@@ -1260,6 +1268,7 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Declaração de importação | `/v1.0/import-declarations` | `IMPORTDI_` | `organization_import_declarations` |
 | Apólice de seguro | `/v1.0/insurance-policies` | `INSURANCE_` | `organization_insurance_policies` |
 | Lote de produção | `/v1.0/product-lots` | `PRODUCTLOT_` | `organization_product_lots` |
+| Bomba de combustível | `/v1.0/fuel-pumps` | `FUELPUMP_` | `organization_fuel_pumps` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.

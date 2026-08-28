@@ -52,6 +52,10 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['import-declarations', orgPk] as const,
     detail: (id: string) => ['import-declaration', id] as const,
   },
+  fuelPumps: {
+    list: (orgPk: string | undefined) => ['fuel-pumps', orgPk] as const,
+    detail: (id: string) => ['fuel-pump', id] as const,
+  },
   productLots: {
     list: (orgPk: string | undefined) => ['product-lots', orgPk] as const,
     detail: (id: string) => ['product-lot', id] as const,

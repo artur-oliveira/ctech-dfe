@@ -4,6 +4,7 @@ import {
   Ship,
   Umbrella,
   Boxes,
+  Fuel,
   CreditCard,
   ClipboardList,
   Combine,
@@ -73,6 +74,11 @@ export const PackageIcon = ({width = 16, height = 16}: IconProps) => (
 /** Declaração de importação — DI, adições e desembaraço */
 export const ImportIcon = ({width = 16, height = 16}: IconProps) => (
   <Ship width={width} height={height}/>
+)
+
+/** Bomba de combustível — bico, tanque e encerrante */
+export const FuelPumpIcon = ({width = 16, height = 16}: IconProps) => (
+  <Fuel width={width} height={height}/>
 )
 
 /** Lote de produção — número, validade e rastreabilidade do item */
