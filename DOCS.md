@@ -1247,6 +1247,21 @@ force duplicate records. `?role=` filters the listing via `contains(roles, :v)` 
 No `PUT`, `roles` só é tocado quando o corpo traz a chave: ausente = papéis preservados, `[]` = limpa
 todos. Na UI o campo se chama **Tipo de cadastro** (`roles` continua sendo o nome na API).
 
+**Formulário progressivo e consulta de CNPJ.** Pessoas e organizações usam o mesmo formulário de
+uma página. Identificação, papel e endereço ficam no fluxo básico; `carrier`/`driver` revelam os
+grupos bancário e de frete, e `provider` revela NFS-e em **Dados complementares e fiscais**. Dados
+avançados já persistidos sempre reabrem na edição, mesmo quando o papel legado está ausente.
+
+Ao completar um CNPJ, a UI consulta primeiro `GET https://open.cnpja.com/office/{cnpj}` diretamente
+do browser e depois, quando existe organização ativa, valida na SEFAZ por
+`GET /v1.0/external/lookup-organizations`. É uma única ação para o usuário: o CNPJá fornece a base
+cadastral (nome fantasia, endereço, CNAE, contato, Simples/MEI e data de atualização), e a SEFAZ
+prevalece em razão social, IE, CRT e endereço fiscal. Divergências são mostradas para revisão e um
+campo já editado nunca é sobrescrito pela resposta tardia. O cliente público é uma instância Axios
+isolada, sem `Authorization` nem `Dfe-Organization-Pk`, sem retry automático e com deduplicação/cache
+em memória por 30 minutos para respeitar o limite por IP do CNPJá. O origin público está declarado
+em `.github/workflows/frontend.yml` (`extra-connect-src`) para entrar no CSP gerado.
+
 **Papel é filtro de cadastro, não regra de emissão.** Nenhuma emissão valida o papel: escolher como
 transportador alguém sem `carrier` na lista funciona. O filtro existe para encurtar a busca na UI —
 transformá-lo em validação quebraria emissões legítimas de quem nunca preencheu o campo.
@@ -2009,6 +2024,7 @@ Key services:
 | `PersonService`       | person CRUD, SK generation (CPF_/CNPJ_), cache (TTL=300s)                          |
 | `NfeService`          | NF-e issuance, cancellation, CCe, manifestation, XML/DANFE download, event listing |
 | `ExternalService`     | SEFAZ NfeConsultaCadastro via Lambda, CPF/CNPJ + UF validation                     |
+| `ApiClient.lookupOpenCnpjOffice` | consulta cadastral pública ao CNPJá no browser; cliente sem autenticação, cache e deduplicação em memória |
 
 ### DynamoDB storage policy — null omission
 

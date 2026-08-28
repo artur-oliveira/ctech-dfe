@@ -4,7 +4,7 @@
  */
 import {z} from 'zod'
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators'
-import type {NfseInfo} from '@/lib/types/api'
+import type {NfseInfo, PersonBank, PersonFreightRetention} from '@/lib/types/api'
 
 export const UF_LIST = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -172,10 +172,18 @@ export const entitySchema = z.object({
   }
 })
 
-// IE is optional at cadastro time — a PJ organization may be registered without
-// any state registration (backend accepts empty state_registrations). Duplicate
-// UF validation still applies via entitySchema's base superRefine.
-export const organizationSchema = entitySchema
+// Organização CNPJ é sempre emitente fiscal, então o backend exige ao menos uma
+// IE. Pessoas continuam podendo ser cadastradas sem IE: a obrigatoriedade do
+// destinatário depende da operação, não do cadastro.
+export const organizationSchema = entitySchema.superRefine((data, ctx) => {
+  if (data.tipo === 'pj' && data.person.state_registrations.length === 0) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Adicione ao menos uma inscrição estadual',
+      path: ['person', 'state_registrations'],
+    })
+  }
+})
 
 export type EntityFormData = z.infer<typeof entitySchema>
 export type NfseInfoData = z.infer<typeof nfseInfoSchema>
@@ -204,6 +212,32 @@ export function nfseInfoToApi(v: NfseInfoData | undefined): NfseInfo | null {
         reg_esp_trib: Number(v.reg_esp_trib || '0'),
       }
       : null,
+  }
+}
+
+/** Estado do formulário → choice bancário do cadastro. Grupo vazio vira null
+ * para não persistir um mapa de strings vazias no DynamoDB. */
+export function personBankToApi(v: EntityFormData['person']['bank']): PersonBank | null {
+  if (!v || (!v.pix_key && !v.bank_code && !v.branch_code && !v.cnpj_ipef)) return null
+  return {
+    pix_key: v.pix_key || null,
+    bank_code: v.bank_code || null,
+    branch_code: v.branch_code || null,
+    cnpj_ipef: v.cnpj_ipef || null,
+  }
+}
+
+/** Estado do formulário → perfil de retenção do frete. */
+export function freightRetentionToApi(
+  v: EntityFormData['person']['freight_retention'],
+): PersonFreightRetention | null {
+  if (!v || (!v.v_serv && !v.v_bc_ret && !v.p_icms_ret && !v.cfop && !v.c_mun_fg)) return null
+  return {
+    v_serv: v.v_serv || null,
+    v_bc_ret: v.v_bc_ret || null,
+    p_icms_ret: v.p_icms_ret || null,
+    cfop: v.cfop || null,
+    c_mun_fg: v.c_mun_fg || null,
   }
 }
 

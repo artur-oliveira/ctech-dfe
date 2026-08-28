@@ -54,7 +54,7 @@ function EditOrganizationContent() {
             Organização não encontrada.
           </div>
         ) : (
-          <div className="space-y-8 max-w-2xl">
+          <div className="space-y-8">
             <OrganizationForm
               initialData={organizationOutToFormData(org)}
               orgPk={org.pk}

@@ -99,7 +99,7 @@ import type {
 // environments, and `next dev` proxies it locally (next.config.ts). Either way
 // the browser never makes a cross-origin request, so CORS never applies.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
-const ORG_HEADER = 'Dfe-Organization-Pk'
+export const ORG_HEADER = 'Dfe-Organization-Pk'
 const OPEN_CNPJ_API_URL = 'https://open.cnpja.com'
 const OPEN_CNPJ_DOCUMENT_LENGTH = 14
 const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000

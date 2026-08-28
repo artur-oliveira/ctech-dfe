@@ -4,9 +4,11 @@ import {EntityForm} from '@/components/EntityForm'
 import {
   CRT_NONE_VALUE,
   type EntityFormData,
+  freightRetentionToApi,
   nfseInfoFromApi,
   nfseInfoToApi,
   PERSON_ROLES,
+  personBankToApi,
   type PersonRole,
 } from '@/lib/schemas/entity'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
@@ -57,6 +59,8 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
       })),
       contacts: p.person.contacts ?? {emails: [], phones: []},
       nfse: nfseInfoFromApi(p.person.nfse),
+      cnae: p.person.cnae ?? '',
+      isuf_emit: p.person.isuf_emit ?? '',
       freight_retention: {
         v_serv: p.person.freight_retention?.v_serv ?? '',
         v_bc_ret: p.person.freight_retention?.v_bc_ret ?? '',
@@ -74,27 +78,30 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
   }
 }
 
-export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpfCnpj, initialRoles}: PersonFormProps) {
-  const handleSubmit = async (data: EntityFormData) => {
-    // Payload shape follows the selected type, not just initialData — this lets a
-    // brand-new PF be created correctly (e.g. NFC-e consumer).
-    const isPJ = data.tipo === 'pj'
-    const addresses = data.person.addresses.map((a) => ({
-      ...a,
-      postal_code: a.postal_code.replace(/\D/g, ''),
-      complement: a.complement || null,
-    }))
-    const nfse = nfseInfoToApi(data.person.nfse)
-    const personPayload = isPJ
-      ? {
+export function personFormToApi(data: EntityFormData): PersonCreate {
+  // Payload shape follows the selected type, not just initialData — this lets a
+  // brand-new PF be created correctly (e.g. NFC-e consumer).
+  const isPJ = data.tipo === 'pj'
+  const addresses = data.person.addresses.map((a) => ({
+    ...a,
+    postal_code: a.postal_code.replace(/\D/g, ''),
+    complement: a.complement || null,
+  }))
+  const nfse = nfseInfoToApi(data.person.nfse)
+  const personPayload: PersonCreate['person'] = isPJ
+    ? {
         fantasy_name: data.person.fantasy_name ?? '',
         crt: parseInt(data.person.crt ?? '3', 10),
         state_registrations: data.person.state_registrations,
         addresses,
         contacts: data.person.contacts,
         nfse,
-      }
-      : {
+        cnae: data.person.cnae || null,
+        isuf_emit: data.person.isuf_emit || null,
+        bank: personBankToApi(data.person.bank),
+        freight_retention: freightRetentionToApi(data.person.freight_retention),
+    }
+    : {
         fantasy_name: null,
         // PF CRT is optional: null tells the backend to omit it (defaults on emission).
         crt: data.person.crt && data.person.crt !== CRT_NONE_VALUE ? parseInt(data.person.crt, 10) : null,
@@ -102,16 +109,25 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
         addresses,
         contacts: data.person.contacts,
         nfse,
-      }
+        cnae: data.person.cnae || null,
+        isuf_emit: data.person.isuf_emit || null,
+        bank: personBankToApi(data.person.bank),
+        freight_retention: freightRetentionToApi(data.person.freight_retention),
+    }
 
-    await onSubmit({
-      cpf_or_cnpj: data.cpf_or_cnpj,
-      id_estrangeiro: data.id_estrangeiro || null,
-      // Persist names uppercase so person search stays assertive (see searchPersonsByName).
-      name: data.name.toUpperCase(),
-      roles: data.roles,
-      person: personPayload,
-    })
+  return {
+    cpf_or_cnpj: data.cpf_or_cnpj,
+    id_estrangeiro: data.id_estrangeiro || null,
+    // Persist names uppercase so person search stays assertive (see searchPersonsByName).
+    name: data.name.toUpperCase(),
+    roles: data.roles,
+    person: personPayload,
+  }
+}
+
+export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpfCnpj, initialRoles}: PersonFormProps) {
+  const handleSubmit = async (data: EntityFormData) => {
+    await onSubmit(personFormToApi(data))
   }
 
   return (

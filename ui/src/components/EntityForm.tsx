@@ -29,7 +29,8 @@ import {organizationSchema} from '@/lib/schemas/organizations'
 import {maskCnpj, maskCpf, maskPhone} from '@/lib/utils/masks'
 import {useCnpjLookup} from '@/lib/hooks/useCnpjLookup'
 import {useAuth} from '@/lib/hooks/useAuth'
-import {Crt} from "@/lib/types/api";
+import {useDebounce} from '@/lib/hooks/useDebounce'
+import type {Crt} from '@/lib/types/api'
 
 type Tipo = 'pf' | 'pj'
 
@@ -149,8 +150,8 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
   if (data.person.contacts.phones.length > 0) return true
   if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
   if (data.person.cnae || data.person.isuf_emit) return true
-  if (data.person.bank?.pix_key || data.person.bank?.bank_code || data.person.bank?.cnpj_ipef) return true
-  if (data.person.freight_retention?.p_icms_ret) return true
+  if (data.person.bank && Object.values(data.person.bank).some(Boolean)) return true
+  if (data.person.freight_retention && Object.values(data.person.freight_retention).some(Boolean)) return true
   if (!isOrg && data.person.state_registrations.length > 0) return true
   return false
 }
@@ -211,25 +212,60 @@ export function EntityForm({
   const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? []
   const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? []
   const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? ''
+  const selectedRoles = useWatch({control: form.control, name: 'roles'}) ?? []
+  const watchedBank = useWatch({control: form.control, name: 'person.bank'})
+  const watchedFreight = useWatch({control: form.control, name: 'person.freight_retention'})
+  const watchedNfse = useWatch({control: form.control, name: 'person.nfse'})
+  const debouncedDoc = useDebounce(watchedDoc, 300)
   // Pessoa no exterior (dest/idEstrangeiro): sem CPF/CNPJ, sem consulta à
   // Receita, sem IE. Só a variante 'person' oferece — o emitente é sempre BR.
   const [isForeign, setIsForeign] = useState(Boolean(form.getValues('id_estrangeiro')))
   const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'})
 
-  // Autofill from SEFAZ lookup
+  useEffect(() => {
+    if (isEdit || isForeign) return
+    const clean = debouncedDoc.replace(/\D/g, '')
+    const expectedLength = isPJ ? 14 : 11
+    if (clean.length === expectedLength) void lookup(clean, orgUf)
+    else resetLookup()
+  }, [debouncedDoc, isEdit, isForeign, isPJ, lookup, orgUf, resetLookup])
+
+  // Preenche só campos ainda não editados: a consulta nunca apaga uma escolha
+  // que o usuário fez enquanto as duas fontes respondiam.
   useEffect(() => {
     if (lookupState.status !== 'found' || !lookupState.result) return
     const r = lookupState.result
-    form.setValue('name', r.name, {shouldValidate: true})
-    form.setValue('person.fantasy_name', r.name, {shouldValidate: true})
-    form.setValue('person.crt', (r.crt ?? '1').toString() as Crt, {shouldValidate: true})
-    if (r.state_registrations.length > 0) {
+    if (!form.getFieldState('name').isDirty && r.name) {
+      form.setValue('name', r.name, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.fantasy_name').isDirty && r.fantasyName) {
+      form.setValue('person.fantasy_name', r.fantasyName, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.crt').isDirty && r.crt) {
+      form.setValue('person.crt', r.crt.toString() as Crt, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.cnae').isDirty && r.cnae) {
+      form.setValue('person.cnae', r.cnae, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.isuf_emit').isDirty && r.isufEmit) {
+      form.setValue('person.isuf_emit', r.isufEmit, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.nfse.op_simp_nac').isDirty && r.nfseSimpleOption) {
+      form.setValue('person.nfse.op_simp_nac', r.nfseSimpleOption, {shouldValidate: true})
+    }
+    if (!form.getFieldState('person.state_registrations').isDirty && r.state_registrations.length > 0) {
       form.setValue('person.state_registrations', r.state_registrations.map((sr) => ({
         uf: sr.uf as EntityFormData['person']['state_registrations'][number]['uf'],
         state_registration: sr.state_registration,
       })), {shouldValidate: true})
     }
-    if (r.addresses.length > 0) {
+    if (r.contacts.emails.length > 0 && !form.getFieldState('person.contacts.emails').isDirty) {
+      form.setValue('person.contacts.emails', r.contacts.emails.slice(0, 5), {shouldValidate: true})
+    }
+    if (r.contacts.phones.length > 0 && !form.getFieldState('person.contacts.phones').isDirty) {
+      form.setValue('person.contacts.phones', r.contacts.phones.slice(0, 5), {shouldValidate: true})
+    }
+    if (r.addresses.length > 0 && !form.getFieldState('person.addresses.0').isDirty) {
       const addr = r.addresses[0]
       if (addr.state_federation) {
         form.setValue('person.addresses.0.street', addr.street ?? '', {shouldValidate: true})
@@ -242,7 +278,7 @@ export function EntityForm({
         if (addr.city_ibge_code) form.setValue('person.addresses.0.city_ibge_code', addr.city_ibge_code, {shouldValidate: true})
       }
     }
-  }, [lookupState.status, lookupState.result, isPJ, form])
+  }, [lookupState.status, lookupState.result, form])
 
   const switchTipo = (next: Tipo) => {
     setTipo(next)
@@ -271,14 +307,24 @@ export function EntityForm({
   const removePhone = (i: number) =>
     form.setValue('person.contacts.phones', phones.filter((_, idx) => idx !== i), {shouldValidate: true})
 
-  const handleSubmit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
-    try {
-      await onSubmit(data)
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
-    }
-  })
+  const handleSubmit = form.handleSubmit(
+    async (data) => {
+      setSubmitError(null)
+      try {
+        await onSubmit(data)
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      }
+    },
+    () => setAdvancedOpen(true),
+  )
+
+  const hasBankData = watchedBank ? Object.values(watchedBank).some(Boolean) : false
+  const hasFreightData = watchedFreight ? Object.values(watchedFreight).some(Boolean) : false
+  const hasNfseData = watchedNfse ? Object.values(watchedNfse).some(Boolean) : false
+  const showBankSection = !isOrg && (selectedRoles.includes('driver') || selectedRoles.includes('carrier') || hasBankData)
+  const showFreightSection = !isOrg && (selectedRoles.includes('carrier') || hasFreightData)
+  const showNfseSection = isOrg || selectedRoles.includes('provider') || hasNfseData
 
   // Pessoa física (person variant) may leave CRT unspecified — backend omits it
   // and defaults to Simples Nacional on emission. Org PF (MEI) still picks a regime.
@@ -297,11 +343,9 @@ export function EntityForm({
   const ieRootError = form.formState.errors.person?.state_registrations?.message
 
   const ieSection = isPJ && (
-    <div className="pt-1 border-t border-gray-100">
+    <div className="border-t border-gray-200 pt-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Inscrições Estaduais
-        </p>
+        <h3 className="text-sm font-semibold text-gray-900">Inscrições estaduais</h3>
         <Button type="button" variant="ghost" size="xs"
                 onClick={() => {
                   const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP'
@@ -315,7 +359,7 @@ export function EntityForm({
           <PlusIcon/> Adicionar
         </Button>
       </div>
-      {ieRootError && <p className="text-xs text-red-600 mb-2">{ieRootError}</p>}
+      {ieRootError && <p role="alert" className="mb-2 text-xs text-red-700">{ieRootError}</p>}
       {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
       {ieFields.map((field, index) => {
         const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
@@ -352,7 +396,7 @@ export function EntityForm({
             />
             <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
                     aria-label="Remover inscrição estadual"
-                    className="mb-0.5 text-gray-400 hover:text-red-500 hover:bg-red-50">
+                    className="mb-0.5 text-red-600 hover:text-red-700 hover:bg-red-50">
               <XIcon/>
             </Button>
           </div>
@@ -364,8 +408,8 @@ export function EntityForm({
   // CNAE e Suframa do emitente: NF-e mista (mercadoria + serviço) exige o CNAE
   // junto da inscrição municipal, e ISUFEmit é a Suframa do próprio emitente.
   const nfeEmitSection = (
-    <div className="pt-1 border-t border-gray-100">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">NF-e — emitente</p>
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">Dados fiscais da NF-e</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField control={form.control as never} name="person.cnae"
                    render={({field}) => (
@@ -396,10 +440,8 @@ export function EntityForm({
   // Recebimento do condutor/TAC: o MDF-e declara em infBanc pra quem o frete
   // foi pago. É dado da pessoa, não da viagem — a emissão nunca pergunta.
   const bankSection = (
-    <div className="pt-1 border-t border-gray-100">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
-        MDF-e — recebimento do frete
-      </p>
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-1 text-sm font-semibold text-gray-900">Recebimento do frete no MDF-e</h3>
       <p className="text-xs text-gray-500 mb-3">
         Informe a chave PIX <span className="font-medium">ou</span> banco e agência
         <span className="font-medium"> ou</span> o CNPJ da instituição de pagamento.
@@ -453,10 +495,8 @@ export function EntityForm({
   // ICMS retido pelo remetente sobre o frete: perfil da transportadora, usado
   // em transp/retTransp. O valor retido é calculado na emissão.
   const freightRetentionSection = (
-    <div className="pt-1 border-t border-gray-100">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
-        NF-e — ICMS retido sobre o frete
-      </p>
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">ICMS retido sobre o frete</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {([
           ['v_serv', 'Valor do serviço'],
@@ -483,8 +523,8 @@ export function EntityForm({
   // cadastro (e não na config da organização) porque quem presta pode ser uma
   // pessoa quando a org emite como tomadora/intermediária — ver dto.go.
   const nfseSection = (
-    <div className="pt-1 border-t border-gray-100">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">NFS-e</p>
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">Dados fiscais da NFS-e</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField control={form.control as never} name="person.nfse.im"
                    render={({field}) => (
@@ -538,9 +578,9 @@ export function EntityForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="mx-auto max-w-6xl space-y-5">
         {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {submitError}
           </div>
         )}
@@ -550,9 +590,16 @@ export function EntityForm({
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isForeign}
                    onChange={(e) => {
-                     setIsForeign(e.target.checked)
+                     const checked = e.target.checked
+                     setIsForeign(checked)
                      form.setValue('cpf_or_cnpj', '')
                      form.setValue('id_estrangeiro', '')
+                     if (checked) {
+                       setTipo('pf')
+                       form.setValue('tipo', 'pf')
+                       form.setValue('person.crt', CRT_NONE_VALUE)
+                       form.setValue('person.state_registrations', [])
+                     }
                      resetLookup()
                    }}
                    className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
@@ -563,7 +610,7 @@ export function EntityForm({
         {!isEdit && !lockTipo && !isForeign && (
           <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 gap-1">
             {(['pj', 'pf'] as Tipo[]).map((t) => (
-              <button key={t} type="button" onClick={() => switchTipo(t)}
+              <button key={t} type="button" onClick={() => switchTipo(t)} aria-pressed={tipo === t}
                       className={['flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-all',
                         tipo === t ? 'bg-white shadow-card text-gray-900' : 'text-gray-500 hover:text-gray-700',
                       ].join(' ')}>
@@ -607,14 +654,10 @@ export function EntityForm({
                                    ? e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 14)
                                    : e.target.value.replace(/\D/g, '').slice(0, 11)
                                  field.onChange(raw)
-                                 const expectedLen = isPJ ? 14 : 11
-                                 if (raw.length === expectedLen) void lookup(raw, orgUf)
-                                 else if (lookupState.status !== 'idle') resetLookup()
                                }}
                                onBlur={field.onBlur}
                                ref={field.ref}
                              />
-                             {!isEdit && <CnpjLookupBadge state={lookupState}/>}
                              <FormMessage/>
                            </FormItem>
                          )}
@@ -636,6 +679,10 @@ export function EntityForm({
               />
             </div>
 
+            <div>
+              {!isEdit && <CnpjLookupBadge state={lookupState}/>}
+            </div>
+
             {/* Tipo de cadastro — multi-seleção. Uma pessoa acumula papéis (transportadora
                 que também é cliente é o caso normal), então são checkboxes, nunca
                 radio nem select único. */}
@@ -649,8 +696,8 @@ export function EntityForm({
                                : [...selected, role],
                            )
                            return (
-                             <FormItem>
-                               <FormLabel>Tipo de cadastro</FormLabel>
+                             <fieldset className="space-y-2">
+                               <legend className="text-sm font-medium text-gray-900">Papéis no cadastro</legend>
                                <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
                                  {PERSON_ROLE_OPTIONS.map((opt) => (
                                    <label key={opt.value}
@@ -666,10 +713,10 @@ export function EntityForm({
                                  ))}
                                </div>
                                <p className="text-xs text-gray-400">
-                                 Define onde a pessoa aparece nas buscas de emissão. Não altera nenhuma regra fiscal.
+                                 Os papéis mostram apenas os campos operacionais relevantes e definem onde a pessoa aparece nas buscas.
                                </p>
                                <FormMessage/>
-                             </FormItem>
+                             </fieldset>
                            )
                          }}
               />
@@ -690,8 +737,8 @@ export function EntityForm({
 
             {/* CRT */}
             {crtOptions.length > 0 && (
-              <div className="pt-1 border-t border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Fiscal</p>
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="mb-3 text-sm font-semibold text-gray-900">Enquadramento fiscal</h3>
                 <FormField control={form.control as never} name="person.crt"
                            render={({field}) => (
                              <FormItem>
@@ -710,39 +757,43 @@ export function EntityForm({
             {/* Inscrições Estaduais — sempre visível pra organização PJ (obrigatória) */}
             {isOrg && ieSection}
 
-            {isOrg && nfeEmitSection}
-
-            {!isOrg && bankSection}
-
-            {!isOrg && freightRetentionSection}
-
-            {nfseSection}
           </SectionCard>
 
           {/* Endereço principal */}
           {addressFields[0] && (
-            <SectionCard icon={<MapPinIcon/>} title="Endereço Principal">
+            <SectionCard icon={<MapPinIcon/>} title="Endereço principal">
               <AddressFields control={form.control} setValue={form.setValue}
                              basePath="person.addresses.0"/>
             </SectionCard>
           )}
         </div>
 
-        {/* Informações adicionais — nome fantasia, endereços extras, contatos e
-            (só para pessoa) inscrições estaduais. Fechado por padrão. */}
+        {/* Um único formulário, com os campos de rotina primeiro. Os papéis da
+            pessoa revelam aqui apenas os blocos operacionais pertinentes. */}
         <section className="space-y-3">
-          <Button type="button" variant="ghost" size="xs" onClick={() => setAdvancedOpen(!advancedOpen)}
-                  className="text-brand-600 hover:text-brand-700">
-            {advancedOpen ? '− Ocultar informações adicionais' : '+ Informações adicionais'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setAdvancedOpen(!advancedOpen)}
+                    aria-expanded={advancedOpen} aria-controls="entity-advanced-fields"
+                    className="px-0 text-brand-700 hover:text-brand-800">
+              {advancedOpen ? '− Ocultar dados complementares' : '+ Dados complementares e fiscais'}
+            </Button>
+            {!advancedOpen && (
+              <span className="text-xs text-gray-500">Contatos, outros endereços e campos conforme os papéis escolhidos.</span>
+            )}
+          </div>
 
           {advancedOpen && (
-            <div className="space-y-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div id="entity-advanced-fields" className="space-y-5 rounded-xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Dados complementares e fiscais</h2>
+                <p className="mt-1 text-sm text-gray-500">Preencha somente o que se aplica a este cadastro.</p>
+              </div>
+
               {isPJ && (
                 <FormField control={form.control as never} name="person.fantasy_name"
                            render={({field}) => (
                              <FormItem>
-                               <FormLabel>Nome Fantasia</FormLabel>
+                               <FormLabel>Nome fantasia</FormLabel>
                                <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Minha Loja"
                                       maxLength={255}/>
                                <FormMessage/>
@@ -753,12 +804,20 @@ export function EntityForm({
 
               {!isOrg && ieSection}
 
+              {isPJ && nfeEmitSection}
+
+              {showBankSection && bankSection}
+
+              {showFreightSection && freightRetentionSection}
+
+              {showNfseSection && nfseSection}
+
               {/* Endereços adicionais */}
               {addressFields.slice(1).map((field, idx) => (
                 <SectionCard key={field.id} icon={<MapPinIcon/>} title={`Endereço ${idx + 2}`} className="relative">
                   <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeAddress(idx + 1)}
-                          aria-label="Remover endereço"
-                          className="absolute top-3 right-4 text-gray-400 hover:text-red-500 hover:bg-red-50">
+                          aria-label={`Remover endereço ${idx + 2}`}
+                          className="absolute top-3 right-4 text-red-600 hover:text-red-700 hover:bg-red-50">
                     <XIcon/>
                   </Button>
                   <AddressFields control={form.control} setValue={form.setValue}
@@ -767,23 +826,23 @@ export function EntityForm({
               ))}
 
               <Button type="button" variant="ghost" size="sm" onClick={() => appendAddress(EMPTY_ADDRESS)}
-                      className="gap-1.5 text-brand-600 hover:text-brand-700 px-0">
-                <PlusIcon/> Adicionar endereço
+                      className="gap-1.5 px-0 text-brand-700 hover:text-brand-800">
+                <PlusIcon/> Adicionar outro endereço
               </Button>
 
               <SectionCard icon={<MailIcon/>} title="Contatos">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   {/* E-mails */}
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
+                    <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
                       <MailIcon/>E-mails <span className="text-xs font-normal text-gray-400">({emails.length}/5)</span>
                     </div>
                     <div className="flex gap-2">
-                      <Input type="email" placeholder="email@empresa.com" value={emailInput}
+                      <Input type="email" aria-label="Novo e-mail" placeholder="email@empresa.com" value={emailInput}
                              onChange={(e) => setEmailInput(e.target.value)}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter') {
-                                 e.preventDefault();
+                                 e.preventDefault()
                                  addEmail()
                                }
                              }}
@@ -797,12 +856,12 @@ export function EntityForm({
                     </div>
                     {emails.length > 0 && (
                       <ul className="space-y-1">
-                        {emails.map((e, i) => (
-                          <li key={i}
-                              className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
-                            <span className="truncate text-gray-700">{e}</span>
-                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(i)}
-                                    aria-label="Remover e-mail"
+                        {emails.map((email, index) => (
+                          <li key={email}
+                              className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-3 py-2 text-sm">
+                            <span className="truncate text-gray-700">{email}</span>
+                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(index)}
+                                    aria-label={`Remover e-mail ${email}`}
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
                           </li>
@@ -811,17 +870,16 @@ export function EntityForm({
                     )}
                   </div>
                   {/* Telefones */}
-                  <div className="md:border-l md:border-gray-100 md:pl-6 space-y-2">
-                    <div className="flex items-center gap-1.5 mb-1 text-sm font-medium text-gray-700">
-                      <PhoneIcon/>Telefones <span
-                      className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
+                  <div className="space-y-2 md:border-l md:border-gray-100 md:pl-6">
+                    <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                      <PhoneIcon/>Telefones <span className="text-xs font-normal text-gray-400">({phones.length}/5)</span>
                     </div>
                     <div className="flex gap-2">
-                      <Input type="tel" placeholder="(11) 98765-4321" value={phoneInput}
+                      <Input type="tel" aria-label="Novo telefone" placeholder="(11) 98765-4321" value={phoneInput}
                              onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter') {
-                                 e.preventDefault();
+                                 e.preventDefault()
                                  addPhone()
                                }
                              }}
@@ -835,12 +893,12 @@ export function EntityForm({
                     </div>
                     {phones.length > 0 && (
                       <ul className="space-y-1">
-                        {phones.map((p, i) => (
-                          <li key={i}
-                              className="flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 text-sm">
-                            <span className="text-gray-700">{maskPhone(p)}</span>
-                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(i)}
-                                    aria-label="Remover telefone"
+                        {phones.map((phone, index) => (
+                          <li key={phone}
+                              className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-3 py-2 text-sm">
+                            <span className="text-gray-700">{maskPhone(phone)}</span>
+                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(index)}
+                                    aria-label={`Remover telefone ${maskPhone(phone)}`}
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
                           </li>

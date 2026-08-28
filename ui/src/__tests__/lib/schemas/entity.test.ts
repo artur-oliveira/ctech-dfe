@@ -65,7 +65,7 @@ describe('entitySchema — PF edit', () => {
   })
 })
 
-describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected', () => {
+describe('organizationSchema — IE obrigatória para PJ, UFs duplicadas rejeitadas', () => {
   const pj: EntityFormData = {
     ...basePF,
     tipo: 'pj',
@@ -73,8 +73,15 @@ describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected',
     person: {...basePF.person, fantasy_name: 'Loja', crt: '1', state_registrations: []},
   }
 
-  it('organizationSchema aceita PJ sem inscrição estadual', () => {
-    expect(organizationSchema.safeParse(pj).success).toBe(true)
+  it('organizationSchema rejeita PJ sem inscrição estadual', () => {
+    const result = organizationSchema.safeParse(pj)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(expect.objectContaining({
+        path: ['person', 'state_registrations'],
+        message: 'Adicione ao menos uma inscrição estadual',
+      }))
+    }
   })
 
   it('organizationSchema aceita PJ com ao menos uma inscrição estadual', () => {

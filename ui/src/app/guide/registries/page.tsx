@@ -13,24 +13,45 @@ export default function GuideCadastros() {
           id: 'persons',
           title: 'Pessoas',
           summary:
-            'Clientes, fornecedores e transportadores no mesmo cadastro — o papel é definido pelo uso, não por um tipo fixo.',
+            'Um cadastro único e progressivo: informe o essencial e os papéis revelam somente os campos relevantes.',
           image: {
-            src: '/guide/persons.webp',
-            alt: 'Cadastro de pessoas com clientes e fornecedores, exibindo nome e CNPJ',
+            src: '/guide/persons-form.webp',
+            alt: 'Formulário de nova pessoa com identificação, papéis, endereço e dados complementares recolhidos',
           },
           body: (
             <>
               <p>
-                Uma pessoa guarda CPF ou CNPJ, inscrição estadual, endereços e contatos. Na emissão
-                ela vira destinatário, transportador ou tomador conforme o campo em que você a
-                escolhe.
+                Comece por documento, nome, papel e endereço. Marcar <b>Transportadora</b>,
+                <b> Condutor</b> ou <b>Prestador</b> faz os respectivos dados de frete, pagamento
+                ou NFS-e aparecerem em <b>Dados complementares e fiscais</b>. Um mesmo cadastro
+                pode acumular vários papéis.
               </p>
+              <GuideBullets>
+                <li>Ao completar um CNPJ, o sistema consulta o CNPJá e tenta validar os dados fiscais na SEFAZ.</li>
+                <li>Campos já editados não são sobrescritos pela consulta; divergências ficam sinalizadas para revisão.</li>
+                <li>CNPJá funciona no primeiro cadastro. A validação SEFAZ depende de uma organização ativa com certificado.</li>
+              </GuideBullets>
               <GuideCallout kind="tip" title="Inscrição estadual não é detalhe">
                 É a IE do destinatário que define se a operação é para contribuinte ou consumidor
                 final — e isso muda CFOP e tributação. Uma IE errada no cadastro vira rejeição na
                 emissão.
               </GuideCallout>
             </>
+          ),
+        },
+        {
+          id: 'person-search',
+          title: 'Encontre pelo papel',
+          summary: 'A lista reúne todos os cadastros e deixa cada papel visível para a busca certa na emissão.',
+          image: {
+            src: '/guide/persons.webp',
+            alt: 'Lista de pessoas com nome, documento e papéis de cliente e fornecedor',
+          },
+          body: (
+            <p>
+              Cliente, fornecedor, transportadora e prestador não precisam virar registros duplicados.
+              Use os papéis para localizar a mesma pessoa no contexto certo e edite o cadastro uma só vez.
+            </p>
           ),
         },
         {

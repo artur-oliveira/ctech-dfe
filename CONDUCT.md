@@ -260,6 +260,12 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 - **autXML é configuração de organização, não de emissão** — `organizations.authorized_xml_viewers`
   (cap 10, sem CPF/CNPJ duplicado) é sempre incluído no XML de NF-e quando não-vazio
   (`buildAutXML`), não é um campo do payload de `POST /nfes`.
+- **Consulta pública de CNPJ roda no browser e isolada da autenticação.** O CNPJá é a base cadastral
+  do primeiro cadastro; a SEFAZ continua sendo a fonte fiscal quando há organização/certificado.
+  Nunca use o Axios autenticado nem envie `Authorization`/`Dfe-Organization-Pk` ao origin público,
+  nunca faça retry automático sob 429 e mantenha deduplicação/cache apenas em memória. Campos já
+  editados não podem ser sobrescritos por nenhuma das fontes; conflitos precisam de revisão visível.
+  Todo origin público novo também entra como literal em `extra-connect-src` no workflow do frontend.
 - **Struct sem `dynamodbav` tags escrita direto via `attributevalue.Marshal` usa os nomes de campo
   Go (PascalCase), não as tags `json`.** Pegadinha real (já corrigida uma vez em
   `AuthorizedViewerEntry`/`toAuthorizedViewerMaps`): ao gravar uma lista de structs internos

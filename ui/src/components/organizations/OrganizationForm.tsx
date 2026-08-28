@@ -34,34 +34,8 @@ export function OrganizationForm({initialData, orgPk, onSubmit, loading}: Organi
   const [password, setPassword] = useState('')
   const [certError, setCertError] = useState<string | null>(null)
 
-  const toApi = (data: EntityFormData): OrganizationCreate => {
-    const addresses = data.person.addresses.map((a) => ({
-      ...a,
-      postal_code: a.postal_code.replace(/\D/g, ''),
-      complement: a.complement || null,
-    }))
-    const crtRaw = data.person.crt
-    const crt = crtRaw && crtRaw !== CRT_NONE_VALUE ? parseInt(crtRaw, 10) : null
-    return {
-      cpf_or_cnpj: data.cpf_or_cnpj,
-      name: data.name,
-      description: data.description || undefined,
-      person: {
-        fantasy_name: data.person.fantasy_name || null,
-        crt,
-        state_registrations: data.person.state_registrations,
-        addresses,
-        contacts: data.person.contacts,
-        nfse: nfseInfoToApi(data.person.nfse),
-      },
-    }
-  }
-
-  // Transform the form state into the clean API contract, attaching the
-  // certificate when one is needed. If a certificate is required but missing,
-  // throw — EntityForm surfaces the thrown message inline.
   const handleSubmit = async (data: EntityFormData) => {
-    const payload = toApi(data)
+    const payload = organizationFormToApi(data)
     if (!isCreate) {
       await onSubmit(payload)
       return
@@ -92,6 +66,31 @@ export function OrganizationForm({initialData, orgPk, onSubmit, loading}: Organi
       ) : undefined}
     />
   )
+}
+
+export function organizationFormToApi(data: EntityFormData): OrganizationCreate {
+  const addresses = data.person.addresses.map((a) => ({
+    ...a,
+    postal_code: a.postal_code.replace(/\D/g, ''),
+    complement: a.complement || null,
+  }))
+  const crtRaw = data.person.crt
+  const crt = crtRaw && crtRaw !== CRT_NONE_VALUE ? parseInt(crtRaw, 10) : null
+  return {
+    cpf_or_cnpj: data.cpf_or_cnpj,
+    name: data.name,
+    description: data.description || undefined,
+    person: {
+      fantasy_name: data.person.fantasy_name || null,
+      crt,
+      state_registrations: data.person.state_registrations,
+      addresses,
+      contacts: data.person.contacts,
+      nfse: nfseInfoToApi(data.person.nfse),
+      cnae: data.person.cnae || null,
+      isuf_emit: data.person.isuf_emit || null,
+    },
+  }
 }
 
 function CertificateSection({
