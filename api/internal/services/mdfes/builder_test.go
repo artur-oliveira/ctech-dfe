@@ -176,21 +176,22 @@ func TestModalDispatch_Ferroviario(t *testing.T) {
 // TestResolveOwner enforces the validation rules (exactly one doc, required
 // fields, and owner ≠ emitter — SEFAZ F21).
 func TestResolveOwner(t *testing.T) {
-	const orgPK = "CNPJ_12345678000190"
+	// The issuer DOCUMENT: resolveOwner compares against a CPF/CNPJ.
+	const emitterDoc = "12345678000190"
 
-	if o, err := resolveOwner(nil, orgPK); err != nil || o != nil {
+	if o, err := resolveOwner(nil, emitterDoc); err != nil || o != nil {
 		t.Errorf("nil owner: got (%v,%v), want (nil,nil)", o, err)
 	}
-	if _, err := resolveOwner(&MdfeOwner{CPF: "1", CNPJ: "2", Name: "X", RNTRC: "1"}, orgPK); err == nil {
+	if _, err := resolveOwner(&MdfeOwner{CPF: "1", CNPJ: "2", Name: "X", RNTRC: "1"}, emitterDoc); err == nil {
 		t.Error("expected error when both CPF and CNPJ are set")
 	}
-	if _, err := resolveOwner(&MdfeOwner{CNPJ: "99888777000166", Name: "X"}, orgPK); err == nil {
+	if _, err := resolveOwner(&MdfeOwner{CNPJ: "99888777000166", Name: "X"}, emitterDoc); err == nil {
 		t.Error("expected error when RNTRC missing")
 	}
-	if _, err := resolveOwner(&MdfeOwner{CNPJ: "12345678000190", Name: "SELF", RNTRC: "1"}, orgPK); err == nil {
+	if _, err := resolveOwner(&MdfeOwner{CNPJ: "12345678000190", Name: "SELF", RNTRC: "1"}, emitterDoc); err == nil {
 		t.Error("expected error when owner equals emitter (F21)")
 	}
-	o, err := resolveOwner(&MdfeOwner{CPF: "987.654.321-00", Name: "OK", RNTRC: "87654321"}, orgPK)
+	o, err := resolveOwner(&MdfeOwner{CPF: "987.654.321-00", Name: "OK", RNTRC: "87654321"}, emitterDoc)
 	if err != nil {
 		t.Fatalf("valid owner: %v", err)
 	}

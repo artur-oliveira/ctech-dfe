@@ -437,8 +437,10 @@ func buildEmit(org map[string]types.AttributeValue, orgPerson map[string]any, or
 	if fant := anyStr(orgPerson, "fantasy_name"); fant != "" {
 		emit["xFant"] = fant
 	}
-	doc := services.StripPKPrefix(orgPK)
-	if strings.HasPrefix(orgPK, "CNPJ_") {
+	// Off the record: a company id carries no document, and reading the key
+	// would put the UUID in the emit node and call every issuer a CPF.
+	doc, isPJ := services.IssuerDocAV(org, orgPK)
+	if isPJ {
 		emit["CNPJ"] = doc
 	} else {
 		emit["CPF"] = doc

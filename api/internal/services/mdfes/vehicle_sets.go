@@ -182,15 +182,18 @@ func ownerFromRegistry(owner map[string]types.AttributeValue) *MdfeOwner {
 // ao comportamento de hoje (regras SEFAZ F18/F19/F25). Pelo caminho do request
 // esse caso é erro, porque informá-lo explicitamente é contradição; pelo
 // cadastro é apenas o estado normal de quem tem frota própria.
-func firstOwner(fromRequest, fromRegistry *MdfeOwner, orgPK string) *MdfeOwner {
+// firstOwner takes the issuer's DOCUMENT, not its partition key: the check
+// below is a comparison against a CPF/CNPJ, and a company id would never match
+// one — which would not fail, it would quietly stop refusing an owner who is
+// the issuer.
+func firstOwner(fromRequest, fromRegistry *MdfeOwner, emitterDoc string) *MdfeOwner {
 	if fromRequest != nil {
 		return fromRequest
 	}
 	if fromRegistry == nil {
 		return nil
 	}
-	emitterDoc := services.StripPKPrefix(orgPK)
-	if fromRegistry.CPF == emitterDoc || fromRegistry.CNPJ == emitterDoc {
+	if emitterDoc != "" && (fromRegistry.CPF == emitterDoc || fromRegistry.CNPJ == emitterDoc) {
 		return nil
 	}
 	return fromRegistry

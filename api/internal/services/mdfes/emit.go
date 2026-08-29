@@ -396,6 +396,13 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.NotFound("organização não encontrada")
 	}
 
+	// The issuer's document, off the record. Resolved once: the persisted row,
+	// the SEFAZ envelope and the owner-is-not-the-issuer rule all need it.
+	emitterDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	if emitterDoc == "" {
+		return nil, problem.BadRequest("documento do emitente não encontrado")
+	}
+
 	certs, err := s.certRepo.List(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -453,7 +460,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
-	owner, err := resolveOwner(firstOwner(req.Vehicle.Owner, resolvedVehicle.Owner, orgPK), orgPK)
+	owner, err := resolveOwner(firstOwner(req.Vehicle.Owner, resolvedVehicle.Owner, emitterDoc), emitterDoc)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +495,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err != nil {
 		return nil, err
 	}
-	cnpj := services.StripPKPrefix(orgPK)
+	cnpj := emitterDoc
 	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now, tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
@@ -1052,7 +1059,10 @@ func (s *MdfeService) resolveTrailers(ctx context.Context, orgPK string, trailer
 // Returns (nil, nil) when no owner is supplied (vehicle belongs to the emitter —
 // carga própria). Enforces SEFAZ rules: exactly one of CPF/CNPJ, RNTRC and name
 // required, and the owner must differ from the MDF-e emitter (F21/cStat 740).
-func resolveOwner(o *MdfeOwner, orgPK string) (*resolvedOwner, error) {
+// resolveOwner takes the issuer's DOCUMENT, not its partition key, for the same
+// reason firstOwner does: the rule is "the owner must differ from the issuer",
+// and comparing against a company id silently never matches.
+func resolveOwner(o *MdfeOwner, emitterDoc string) (*resolvedOwner, error) {
 	if o == nil {
 		return nil, nil
 	}
@@ -1067,8 +1077,7 @@ func resolveOwner(o *MdfeOwner, orgPK string) (*resolvedOwner, error) {
 	if o.Name == "" {
 		return nil, problem.BadRequest("proprietário do veículo: nome/razão social é obrigatório")
 	}
-	emitterDoc := services.StripPKPrefix(orgPK)
-	if (cpf != "" && cpf == emitterDoc) || (cnpj != "" && cnpj == emitterDoc) {
+	if emitterDoc != "" && ((cpf != "" && cpf == emitterDoc) || (cnpj != "" && cnpj == emitterDoc)) {
 		return nil, problem.BadRequest("proprietário do veículo deve ser diferente do emitente do MDF-e")
 	}
 	return &resolvedOwner{
@@ -1090,6 +1099,9 @@ func (s *MdfeService) buildRecord(
 	cargo *resolvedCargo, vehicle resolvedVehicle, owner *resolvedOwner, req MdfeEmitBody,
 	userID, userName string,
 ) map[string]any {
+	// Off the record, like every other issuer document on this path.
+	recordEmitterDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+
 	docKeys := make([]map[string]any, 0, len(req.Documents))
 	for _, d := range req.Documents {
 		docKeys = append(docKeys, map[string]any{"type": d.Type, "access_key": d.AccessKey})
@@ -1131,7 +1143,7 @@ func (s *MdfeService) buildRecord(
 		"status":        StatusPending,
 		"sefaz_status":  nil,
 		"sefaz_motive":  nil,
-		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
+		"emit_cpf_cnpj": recordEmitterDoc,
 		"emit_name":     strAttr(orgItem, "name"),
 		"number":        number,
 		"serie":         serie,
