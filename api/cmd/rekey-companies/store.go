@@ -27,8 +27,19 @@ type store struct {
 // time by anybody — there is no file to keep, and no ordering between the two
 // tools beyond "pass one first".
 func (s *store) readMapping(ctx context.Context, legacyPK string) (*mapping, error) {
-	base := dynamo.NewBase(s.db, "", s.accountTable)
-	res, err := base.QueryGSI(ctx, "lookup-index", "lookup_pk", "SOURCE#"+sourceSystem+"#"+legacyPK, 1, nil)
+	// A raw Query rather than dynamo.Base: -account-companies is a PHYSICAL
+	// table name, and NewBase prefixes what it is given — with an empty prefix
+	// it built "_prod_account_companies" and every lookup answered
+	// ResourceNotFound. The account tables are not this repo's to prefix.
+	res, err := s.db.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(s.accountTable),
+		IndexName:              aws.String("lookup-index"),
+		KeyConditionExpression: aws.String("lookup_pk = :v"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":v": &types.AttributeValueMemberS{Value: "SOURCE#" + sourceSystem + "#" + legacyPK},
+		},
+		Limit: aws.Int32(1),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("reading the company for %s: %w", legacyPK, err)
 	}
