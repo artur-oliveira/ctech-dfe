@@ -2580,6 +2580,41 @@ background revalidations rather than overwriting it with the backend fallback.
 
 React Hook Form + Zod. Zod schemas in `lib/schemas/` mirror the backend Pydantic schemas.
 
+**Regra de controle (vale para todo formulário fiscal).** Domínio fechado nunca é campo de texto:
+tabela SEFAZ, enum, UF, município, país, unidade, CFOP, NCM, CEST, CST, `cClassTrib`, data — tudo é
+`OptionsSelect` (até ~12 opções) ou `Combobox` (acima disso, com busca). Literal de leiaute como
+`SEM GTIN` e `ISENTO` é escrito por checkbox, nunca digitado. Tabela de opções estática vive em escopo
+de módulo: recriar o array a cada render invalida o memo do `Combobox` e refaz o filtro da lista
+inteira.
+
+**Regras cruzadas moram no schema, não no componente.** Uma dependência do leiaute explicada como
+texto de ajuda ao lado do campo é uma rejeição adiada. `products.ts` (`superRefine`) cobre combustível,
+veículo, arma, ANVISA ISENTO, `indEscala`, selo do IPI, grupo `peri`, rateio de origem em 100%, peso
+bruto ≥ líquido e dígito verificador do GTIN. `applyTaxGroupRules` é compartilhada por
+`cfopConfigSchema` e `taxProfileSchema` (IPI tributado, `ICMSPart`, `modBC` por pauta, ALC/ZFM,
+`obsItem`). `entity.ts` valida CNAE contra a tabela e trata `retTransp` como grupo all-or-nothing.
+`operations.ts` confere o sufixo de CFOP contra a tabela — um sufixo inexistente envenena toda nota
+emitida sob aquela operação.
+
+**Guardas de emissão** (`lib/utils/emit-guards.ts`): soma de pagamentos e de duplicatas têm que fechar
+com tolerância de R$ 0,01 antes de avançar o passo — na NF-e o excedente é rejeição, na NFC-e é
+`vTroco`. Dados por unidade (chassi de 17 caracteres sem I/O/Q, série, motor, ao menos uma arma) são
+exigidos antes da emissão, não depois. As regras são puras e testadas fora do componente porque as duas
+telas de emissão as compartilham.
+
+**Acessibilidade.** `useFieldAria` (`components/ui/form.tsx`) liga `aria-invalid`/`aria-describedby` do
+controle à mensagem do `FormMessage`, cujo id deriva do nome do campo; `Input` e `NumericInput` o
+consomem sozinhos dentro de um formulário RHF. Fora de RHF, o `TaxField` do `TaxFieldsEditor` gera o id
+com `useId` e liga o rótulo — id literal colidia quando dois editores conviviam na mesma tela.
+Container fechado que esconde erro recebe badge com a contagem: por aba no `ProductForm`, por seção no
+`OperationForm` e no bloco avançado do `EntityForm`.
+
+**Simples e avançado.** O default é a visão simples. `TaxFieldsEditor` mostra CFOP, CST, PIS e COFINS e
+esconde os 11 grupos opcionais atrás de uma dobra que nasce aberta com contador quando já há grupo
+configurado. `ProductForm` recolhe o editor de tributação enquanto um perfil fiscal responder por ela, e
+gateia importação, reforma, selo do IPI e produto perigoso num checklist "este produto também tem".
+`NfeEmitForm` divide o avançado em Transporte / Documentos e datas / Grupos setoriais.
+
 ### NFS-e no front (F4)
 
 Quatro rotas (`/services`, `/nfse`, `/nfse/emit`, `/nfse/detail`) e uma aba em `/fiscal-config`.

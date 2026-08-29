@@ -959,6 +959,25 @@ Must follow Conventional Commits:
   grant (login), not on refresh — acceptable because `refresh_token` is session-scoped, so each new
   session re-logs in.
 - UI validation duplicates backend validation intentionally (UX vs security).
+- **Domínio fechado nunca é campo de texto.** Toda tabela SEFAZ, enum, UF, município, país, unidade,
+  CFOP, NCM, CEST, CST, `cClassTrib` e data é `OptionsSelect` (até ~12 opções) ou `Combobox` (acima
+  disso, buscável). Literal do leiaute (`SEM GTIN`, `ISENTO`) é escrito por checkbox, nunca digitado.
+  Antes de criar uma tabela de opções nova, procure em `lib/data/` — várias já existem e derivam umas
+  das outras (`UF_IBGE_OPTIONS` das cidades, `LC116_SERVICE_OPTIONS` da tabela nacional da NFS-e,
+  `cfopSuffixOptions()` da tabela de CFOP). Tabela de opções estática vai para escopo de módulo: um
+  array recriado por render invalida o memo do `Combobox`.
+- **Regra do leiaute que você sabe explicar em português vira `superRefine`, não texto de ajuda.**
+  Uma dependência condicional documentada só ao lado do campo é rejeição adiada — o cadastro salva e
+  detona semanas depois, na emissão, em outra tela. As regras de grupo tributário são compartilhadas
+  por `applyTaxGroupRules` (produto e perfil fiscal), e as de emissão por
+  `lib/utils/emit-guards.ts` (NF-e e NFC-e).
+- **Soma que não fecha bloqueia, não avisa.** Pagamentos e duplicatas conferem contra o total com
+  tolerância de R$ 0,01 antes de o passo avançar; excedente é `vTroco` só na NFC-e. Aritmética é
+  responsabilidade do sistema, não do operador.
+- **Container que pode esconder erro carrega badge de contagem.** Aba, `CollapsibleSection` e bloco
+  colapsado: submit que falha sem nada mudar na tela é o pior caso do formulário grande.
+- **Toda tela tem visão simples por padrão e avançada sob demanda.** O simples resolve o caso comum;
+  o avançado nasce aberto quando já tem dado, com contador, para fechado nunca virar escondido.
 - All UI must use shared component library unless explicitly justified otherwise.
 - Responsiveness across mobile/tablet/desktop is mandatory.
 - **All API calls must always show a loading state.** Use skeletons for initial/inline content
