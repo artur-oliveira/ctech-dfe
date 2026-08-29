@@ -1011,6 +1011,335 @@ document and the re-key does not reach them."
 
 ---
 
+### Task 8: The issuer document stops coming out of the key
+
+**Files:**
+- Modify: `api/internal/services/shared.go` (`StripPKPrefix`, `IssuerDocTag`)
+- Modify: the 22 call sites listed below, across 15 files
+- Test: `api/internal/services/issuer_doc_test.go` (create), plus one XML-level test per document type
+
+**This is the largest task in the plan, and it was missing from the first version.** The plan said "four places read the CNPJ back out of the key" and counted only `ParseOrgPK`, `cnpjRoot`, the header and the document partition comment. The emission services do it 22 more times.
+
+**Why it is the most dangerous of the three miscounts.** This is not a lookup or a cache — it is what goes in the signed XML:
+
+```go
+emitDoc := services.StripPKPrefix(orgPK)          // the issuer's document in the NF-e
+isEmitPJ := strings.HasPrefix(orgPK, cnpjPrefix)  // picks the <CNPJ> or <CPF> tag
+```
+
+`StripPKPrefix` finds no prefix on a company id and **returns the UUID unchanged** — no error, just the string. `HasPrefix` returns false, so every issuer becomes a natural person. The result is an NF-e carrying `<CPF>0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70</CPF>`.
+
+The SEFAZ rejects that on schema, which is luck: the failure mode was silence. `inutilization.go:170` builds a numbering-range invalidation the same way, and a range invalidated wrongly does not come back.
+
+**The seam is the org record, which is already in scope at most call sites.** `buildEmit(org, orgPerson map[string]any, orgPK, …)` already receives the organization item; so do `builders_doc.go`, `service.go` and `distributions.go`. The document comes off that map, not off the key.
+
+**Interfaces:**
+- Consumes: `AttrTaxID` / `AttrTaxIDKind` from Task 2, written onto the organization item by the migration.
+- Produces:
+
+```go
+// IssuerDoc returns the issuer's document and whether it is a legal person.
+func IssuerDoc(org map[string]any, orgPK string) (doc string, isPJ bool)
+```
+
+It is **transitional by design**: it reads `tax_id`/`tax_id_kind` off the record, and falls back to slicing the legacy key when the record has none. Both eras answer correctly, which is what lets this ship before the migration and keeps the rollback honest.
+
+`IssuerDocTag(orgPK)` becomes `IssuerDocTag(org, orgPK)` and delegates to `IssuerDoc`. Two spellings of "is this issuer a CNPJ" is how one of them ends up wrong.
+
+`StripPKPrefix` **survives, narrowed.** Its remaining 13 callers pass `receiverSK`, `sk` and person documents — sort keys that really are documents and are untouched by the re-key. Its doc comment gains a line saying an organization key must never be passed to it again, because the next person to reach for it will be looking at an org.
+
+- [ ] **Step 1: Write the failing test**
+
+```go
+package services
+
+import "testing"
+
+// After the migration the document comes off the record. The key is a company
+// id and carries nothing.
+func TestIssuerDocReadsTheRecord(t *testing.T) {
+	org := map[string]any{"tax_id": "11222333000181", "tax_id_kind": "cnpj"}
+	doc, isPJ := IssuerDoc(org, "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70")
+	if doc != "11222333000181" || !isPJ {
+		t.Fatalf("got %q, isPJ=%v", doc, isPJ)
+	}
+}
+
+// A natural-person issuer — produtor rural, MEI pessoa física — must pick the
+// CPF tag. Emitting them as CNPJ is what SEFAZ rejects.
+func TestIssuerDocKeepsANaturalPersonNatural(t *testing.T) {
+	org := map[string]any{"tax_id": "52998224725", "tax_id_kind": "cpf"}
+	doc, isPJ := IssuerDoc(org, "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70")
+	if doc != "52998224725" || isPJ {
+		t.Fatalf("got %q, isPJ=%v", doc, isPJ)
+	}
+}
+
+// Before the migration, and during a rollback, the record has no tax id and the
+// legacy key is the only source. Both eras must answer.
+func TestIssuerDocFallsBackToTheLegacyKey(t *testing.T) {
+	doc, isPJ := IssuerDoc(nil, "CNPJ_11222333000181")
+	if doc != "11222333000181" || !isPJ {
+		t.Fatalf("CNPJ: got %q, isPJ=%v", doc, isPJ)
+	}
+	doc, isPJ = IssuerDoc(map[string]any{}, "CPF_52998224725")
+	if doc != "52998224725" || isPJ {
+		t.Fatalf("CPF: got %q, isPJ=%v", doc, isPJ)
+	}
+}
+
+// The regression this task exists for. A company id with no record behind it
+// must NOT come back as a document — returning the UUID is how it reached the
+// XML, and an empty answer is what makes the caller fail loudly instead.
+func TestIssuerDocNeverReturnsACompanyID(t *testing.T) {
+	doc, isPJ := IssuerDoc(nil, "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70")
+	if doc != "" {
+		t.Fatalf("got %q, want empty — a company id is not a document", doc)
+	}
+	if isPJ {
+		t.Error("an unknown issuer defaulted to a legal person")
+	}
+}
+
+// The tag follows the same decision. Two spellings of "is this a CNPJ" is how
+// one of them ends up wrong.
+func TestIssuerDocTagAgreesWithIssuerDoc(t *testing.T) {
+	org := map[string]any{"tax_id": "52998224725", "tax_id_kind": "cpf"}
+	if got := IssuerDocTag(org, "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70"); got != TagCPF {
+		t.Fatalf("tag = %q, want CPF", got)
+	}
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd api && go test ./internal/services/ -run TestIssuerDoc -v`
+Expected: FAIL — `undefined: IssuerDoc`.
+
+- [ ] **Step 3: Write the helper**
+
+```go
+// IssuerDoc returns the issuer's document and whether it is a legal person.
+//
+// The document comes off the organization record, never off the partition key:
+// since ctech-billing ADR 0022 the key is a company id and carries nothing.
+// This is transitional and reads both eras — the legacy CNPJ_/CPF_ key is still
+// the only source before the migration and during a rollback.
+//
+// An unknown issuer answers ("", false) rather than guessing. The bug this
+// replaces returned the company id itself, which travelled into a signed XML as
+// <CPF>0199f3a1-…</CPF>; an empty document fails at the caller, loudly, where a
+// person can still see it.
+func IssuerDoc(org map[string]any, orgPK string) (string, bool) {
+	if doc := anyStr(org, AttrTaxID, ""); doc != "" {
+		return doc, anyStr(org, AttrTaxIDKind, "") == TaxKindCNPJ
+	}
+	if after, ok := strings.CutPrefix(orgPK, TagCNPJ+"_"); ok {
+		return after, true
+	}
+	if after, ok := strings.CutPrefix(orgPK, TagCPF+"_"); ok {
+		return after, false
+	}
+	return "", false
+}
+
+// IssuerDocTag returns the XSD element name for the issuer's document
+// (CNPJ | CPF) in infEvento, infInut, emit and dest. Natural-person issuers
+// (produtor rural, MEI pessoa física) carry a CPF and would otherwise be
+// emitted as CNPJ, which SEFAZ rejects.
+func IssuerDocTag(org map[string]any, orgPK string) string {
+	if _, isPJ := IssuerDoc(org, orgPK); isPJ {
+		return TagCNPJ
+	}
+	return TagCPF
+}
+```
+
+`TaxKindCNPJ` is `"cnpj"`, matching what `ctech-account` stores and what Task 2 caches. Declare it once in `shared.go`, next to `TagCNPJ`, and note that the two are different vocabularies on purpose: one is an XSD element name, the other a stored enum.
+
+- [ ] **Step 4: Narrow `StripPKPrefix`**
+
+```go
+// StripPKPrefix removes a CNPJ_/CPF_ prefix from a PERSON or ENTITY sort key.
+//
+// Never pass an organization key. Since ADR 0022 that key is a company id, and
+// this function would return it unchanged — which is how a UUID reached the
+// issuer field of a signed XML. Use IssuerDoc, which reads the record.
+func StripPKPrefix(pk string) string { /* unchanged */ }
+```
+
+- [ ] **Step 5: Convert the 22 call sites**
+
+Change `IssuerDocTag`'s signature first: the compiler then names every caller. Work file by file; each site has the org map in scope or one line away.
+
+| File | Line | What the value is |
+|---|---|---|
+| `nfes/builders_party.go` | 154 | `emit` node — the issuer in the NF-e |
+| `nfes/builders_doc.go` | 225 | `emitDoc` / `isEmitPJ` |
+| `nfes/emit.go` | 689, 724, 887 | persisted `emit_cpf_cnpj`, the SEFAZ envelope |
+| `nfes/nfce_emit.go` | 238, 273 | same, NFC-e |
+| `nfes/inutilization.go` | 170 | **numbering-range invalidation** — the one that cannot be undone |
+| `nfes/service.go` | 413 | status query |
+| `mdfes/emit.go` | 491, 1070, 1134 | issuer in the MDF-e |
+| `mdfes/builder.go` | 440 | issuer node |
+| `mdfes/events.go` | 74 | event issuer |
+| `mdfes/vehicle_sets.go` | 192 | issuer on a vehicle set |
+| `nfses/emit.go` | 252, 286, 331 | issuer in the NFS-e; 331 compares two documents |
+| `nfses/events.go` | 165 | `inscFederal` |
+| `nfses/municipal.go` | 104 | municipal envelope |
+| `distributions.go` | 331 | distribution query |
+| `external.go` | 116 | external API |
+
+`nfses/emit.go:331` deserves its own look: it compares `StripPKPrefix(*id)` against `StripPKPrefix(orgPK)` — a person's document against the issuer's. The left side keeps `StripPKPrefix`; only the right side moves.
+
+- [ ] **Step 6: Pin the XML**
+
+Unit tests on `IssuerDoc` are not enough — the failure was in the assembled document. One test per type (NF-e, NFC-e, MDF-e, NFS-e) that builds for a **re-keyed** company and asserts the issuer element:
+
+```go
+// The whole point, at the level the bug actually lived. A company id in the
+// issuer field is a rejected document at best and a wrong one at worst.
+func TestTheEmittedIssuerIsADocumentAndNotAKey(t *testing.T) {
+	// ... build with org = {tax_id: "11222333000181", tax_id_kind: "cnpj"},
+	// orgPK = a company id.
+	// Want: <CNPJ>11222333000181</CNPJ>, and no "-" anywhere in the issuer node.
+}
+```
+
+- [ ] **Step 7: Run everything**
+
+Run: `cd api && go build ./... && go vet ./... && go test ./... 2>&1 | grep -E "^(FAIL|---)"`
+Expected: no FAIL. Existing emission tests seed `orgPK = "CNPJ_…"` and keep passing through the fallback — which is the transitional behaviour working, not a gap.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add api/internal/services
+git commit -m "fix(rekey): the issuer document comes from the record, not the key
+
+StripPKPrefix finds no prefix on a company id and returns the UUID
+unchanged -- no error, just the string -- and HasPrefix then makes every
+issuer a natural person. The result was <CPF>0199f3a1-...</CPF> in a
+signed XML. SEFAZ rejects that on schema, which is luck: the failure mode
+was silence, and inutilization.go builds a numbering-range invalidation
+the same way.
+
+IssuerDoc reads tax_id off the organization record and falls back to the
+legacy key, so both eras answer and the rollback stays honest. An unknown
+issuer answers empty rather than guessing.
+
+StripPKPrefix survives for person and entity sort keys, which really are
+documents, and its comment now says an organization key must not reach it."
+```
+
+---
+
+### Task 9: S3, which needs no migration — and the two paths that do change
+
+**Files:**
+- Modify: `api/internal/services/certificates.go:139,194`
+- Modify: `api/internal/services/distributions.go:511`
+- Test: `api/internal/services/certificates_key_test.go` (create)
+
+**The finding first, because it is the reassuring one: the document XMLs do not move.**
+
+Every read resolves through a **stored** pointer, never a derived path — `xml_s3_key` on the document item (`nfes/documents.go:21`, `mdfes/documents.go:20`, `distributions.go:234`, and `nfses/service.go`'s `attrXMLS3Key`). Re-keying the DynamoDB partition does not invalidate a stored string. Millions of XML objects stay exactly where they are, and nothing has to copy them.
+
+That is not luck, it is the property that makes the whole re-key affordable: **the expensive artefact was never addressed by the key that is changing.** Had the code rebuilt `nfe/{env}/{cnpj}/{key}.xml` at read time, this plan would need an S3 migration alongside the DynamoDB one, and the freeze window would be days rather than hours.
+
+**Three paths are built from the key, and two of them matter:**
+
+| Site | Path | What happens |
+|---|---|---|
+| `certificates.go:139` | `certs/{orgPK}/{md5}.pfx` | new uploads land under the company id |
+| `certificates.go:194` | `certs/{orgPK}/{md5}.pfx` | same, the second upload path |
+| `distributions.go:511` | `{docType}-import-staging/{orgPK}/{id}.xml` | ephemeral; nothing reads it later |
+
+**Certificates need no copy either, for the same reason.** The PFX is fetched through `s3_key` read off the certificate row (`external.go:247`, `mdfes/emit.go:565`), so an existing certificate keeps resolving under its old path forever. New uploads simply write to a new prefix. The bucket ends up with both eras side by side, which is correct and needs no reconciliation.
+
+This also makes Task 3's matriz/filial reuse work across the boundary without special handling: it copies the sibling's `s3_key` string verbatim, so a filial created after the flip can reuse a matriz PFX uploaded before it.
+
+**What actually needs doing here is small:** the two certificate paths should be built from `company_id` deliberately rather than from "whatever the key happens to be", and that intent should be written down — the next person to read `certs/%s/` needs to know it is a company id and not a CNPJ, or they will parse it.
+
+**One decision to record, not to fix.** The worker builds the document path from the `CNPJ` field of its payload (`worker.go:24`), which Task 8 makes carry the real tax id. So two organizations that share a CNPJ write documents under the **same S3 prefix**. That is acceptable and deliberate:
+
+- Objects are addressed individually by the stored key; nothing collides, because the file name carries the access key.
+- Nothing in this repo lists by prefix — `grep -rn ListObjects` finds no caller — so the shared prefix is not a way to enumerate another tenant's documents.
+- Grouping fiscal documents by the CNPJ that issued them is what the paths *mean*. Splitting them by company id would make one CNPJ's history live in two places for a reason that is ours, not the SEFAZ's.
+
+If prefix listing is ever added, this decision has to be revisited before it ships — that is the trigger, and it belongs in the code comment, not only here.
+
+- [ ] **Step 1: Write the failing test**
+
+```go
+package services
+
+import "testing"
+
+// The path is built from a company id and must be written as such. The next
+// person to read "certs/%s/" needs to know it is not a CNPJ, or they will parse
+// it — which is the family of bug this whole plan is about.
+func TestCertificateKeyIsBuiltFromTheCompanyID(t *testing.T) {
+	const companyID = "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70"
+	got := CertificateS3Key(companyID, "d41d8cd98f00b204e9800998ecf8427e")
+	want := "certs/0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70/d41d8cd98f00b204e9800998ecf8427e.pfx"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// A legacy key still produces the path its existing objects live under. Old
+// certificates resolve through the stored s3_key, and a build that changed
+// their shape would be a build that cannot roll back.
+func TestCertificateKeyIsUnchangedForALegacyKey(t *testing.T) {
+	got := CertificateS3Key("CNPJ_11222333000181", "abc")
+	if got != "certs/CNPJ_11222333000181/abc.pfx" {
+		t.Fatalf("got %q", got)
+	}
+}
+```
+
+- [ ] **Step 2: Run red, then extract the builder**
+
+```go
+// CertificateS3Key is where an organization's PFX lives.
+//
+// The path segment is the partition key — a company id since ctech-billing ADR
+// 0022, a CNPJ_/CPF_ key before it. Do NOT parse it: existing objects keep the
+// era they were written in, and the row's stored s3_key is what resolves them.
+// Both eras coexist in the bucket permanently, which is correct and needs no
+// reconciliation.
+func CertificateS3Key(orgPK, md5 string) string {
+	return fmt.Sprintf("certs/%s/%s.pfx", orgPK, md5)
+}
+```
+
+Both call sites use it. One builder, because two `Sprintf`s of one path is how the upload and the re-upload end up disagreeing.
+
+- [ ] **Step 3: Comment the shared prefix decision**
+
+At `nfes/emit.go:724` (where `CNPJ` enters the worker payload), one comment recording that documents group by the issuing CNPJ, that two organizations sharing one write to the same prefix, and that adding prefix listing is what would make this need revisiting.
+
+- [ ] **Step 4: Run and commit**
+
+```bash
+cd api && go build ./... && go test ./internal/services/ 2>&1 | tail -5
+git add api/internal/services
+git commit -m "refactor(rekey): one builder for the certificate S3 path
+
+The document XMLs need no migration at all: every read resolves through
+a stored xml_s3_key, never a derived path, so re-keying the partition
+does not invalidate the pointer. That property is what makes the whole
+re-key affordable -- the expensive artefact was never addressed by the
+key that changes.
+
+Certificates are the same: the PFX resolves through the row's s3_key, so
+old objects keep their path and new uploads land under the company id.
+Both eras coexist in the bucket, deliberately."
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage.** The forcing function → Task 1. The seam → Task 1's middleware delegation. The local company record → Task 2. The série rule → Task 4. The four things that break: `cnpjRoot` → Task 3, `ParseOrgPK` → Task 1, the header → unchanged by design (constraint), documents reading a CNPJ off the partition → Task 6's ordering. The migration → Task 6. Quota → **no task, correctly**: the spec says it is unchanged, and the counters already live where they belong.
@@ -1019,6 +1348,12 @@ document and the re-key does not reach them."
 
 **Type consistency.** `LocalCompany` field names match across Tasks 2, 3 and 5. `IsCompanyKey` is defined in Task 1 and consumed in Tasks 2 and 6. `branchCandidate` is Task 3's alone. `SerieClaimPK`'s argument order `(taxID, modelo, ambiente, serie)` is identical in the test, the implementation and `Release`.
 
-**A gap the reader found, not the review.** The first version of this plan said "four places read the CNPJ back out of the key" and counted only Go. The browser does it in seven more, and one of them — the request header — would have broken every screen the moment a company id existed. Task 7 exists because that count was taken from one repo and stated as if it were the whole system.
+**Two gaps the reader found, not the review.** The first version of this plan said "four places read the CNPJ back out of the key". It was wrong twice, in the same way: a count taken from one directory and stated as if it were the system.
+
+The browser does it in seven more places, one of which — the request header — would have broken every screen the moment a company id existed (Task 7). And the emission services do it 22 more times, putting a company id into the issuer field of a signed XML (Task 8).
+
+The original count came from grepping `internal/repositories`, where the claim is true: no repository interprets the key. Generalizing that to `internal/services`, where the fiscal logic lives, is the error — and Task 8 is now the largest task in this plan.
+
+A third question from the same reader — what about S3 — turned out the other way, and Task 9 records why: the document XMLs are addressed by a **stored** pointer rather than a derived path, so they do not move. Worth stating explicitly, because "the storage layer must need a migration too" is the reasonable assumption and it happens to be false here. That single property is what keeps the freeze window in hours.
 
 **One gap found while reviewing:** Task 1's original draft widened `middleware.ParseOrgPK` in place, leaving two implementations of "which keys exist". Changed to delegation — the duplicate was already a latent disagreement, and this task is what would have triggered it.
