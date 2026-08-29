@@ -5,10 +5,10 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
-import {displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse} from '@/lib/types/api'
+import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, triggerDownload, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
@@ -31,7 +31,7 @@ export interface DfeDetailProps {
   cancelFn: (justification: string) => Promise<unknown>
   downloadXml: () => Promise<Blob>
   downloadEventXml: (eventSk: string) => Promise<Blob>
-  downloadDanfe?: () => Promise<Blob>
+  downloadDanfe?: () => Promise<AuxiliaryDocumentDownload>
   /** Doc-specific header buttons (e.g. CC-e for NF-e, Substituir for NFC-e). */
   headerActions?: (doc: NfeDetailOut) => ReactNode
   /** Doc-specific extra content/modals rendered with the loaded doc. */
@@ -95,7 +95,7 @@ export function DfeDetail({
     if (!downloadDanfe) return
     setDanfeLoading(true)
     try {
-      triggerDownload(await downloadDanfe(), `${accessKey}.pdf`)
+      triggerRemoteDownload((await downloadDanfe()).url)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : String(err));
     } finally {

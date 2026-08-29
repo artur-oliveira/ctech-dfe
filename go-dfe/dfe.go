@@ -128,8 +128,8 @@ func Call(ctx context.Context, req Request) (Response, error) {
 	// queries included — SEFAZ requires client-certificate auth even for
 	// StatusServico), and worker/api always populate CertificateB64 in the
 	// request today (see WorkerMessage.CertS3Key in worker/internal/service/dfe.go).
-	// py-dfe's RENDER_ONLY_SERVICES cert-free carve-out (handler.py) is for
-	// DANFE/DAMDFE rendering, which is out of go-dfe's scope entirely.
+	// Auxiliary-document rendering is handled by the API and is outside this
+	// SEFAZ client package; every operation dispatched here requires mTLS.
 	if req.CertificateB64 == "" {
 		return problemResponse(400, constants.ErrCodeCertRequired, fmt.Sprintf("service %q requires a certificate", req.Service))
 	}

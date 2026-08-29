@@ -57,6 +57,12 @@ export interface InvitationOut {
   token?: string
 }
 
+export interface AuxiliaryDocumentDownload {
+  url: string
+  expires_at: string
+  cached: boolean
+}
+
 export interface InvitationPreview {
   org_pk: string
   org_name: string

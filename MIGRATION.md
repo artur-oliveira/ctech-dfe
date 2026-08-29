@@ -67,8 +67,7 @@ distribuição → signed operations), with automatic fallback to the py-dfe Lam
   — this is the same 10k+ homologação bar from Scenario B's precondition, just verified per-operation instead of gating
   the entire rewrite.
 - **DANFE/DAMDFE rendering** is excluded from `go-dfe`'s scope permanently — no certificate, signature, SOAP, or mTLS
-  involved, so there is no fiscal or security upside, only WeasyPrint-equivalent cost. py-dfe remains the only path for
-  this indefinitely.
+  involved. The original decision to leave it in py-dfe was superseded by the 2026-08-29 API/Folio migration below.
 
 See `go-dfe/CLAUDE.md` for the module's own conventions and current `Implements()` set.
 
@@ -79,6 +78,17 @@ See `go-dfe/CLAUDE.md` for the module's own conventions and current `Implements(
 pedidos de evento antes da assinatura; NF-e aplica a mesma compatibilidade somente quando a UF
 autorizadora é MT. A declaração UTF-8 da NFS-e continua sendo acrescentada depois da assinatura,
 pois sua ausência é rejeitada pelo Sefin com E1229.
+
+### 2026-08-29 Update — Documentos auxiliares migrados para a API
+
+A exclusão de DANFE/DANFC-e/DAMDFE do escopo de `go-dfe` continua válida, mas a
+decisão de mantê-los no `py-dfe` foi substituída. A API Go agora renderiza esses
+documentos em processo com Folio, guarda o resultado no bucket de documentos com
+chave versionada por leiaute/estado e retorna uma URL S3 pré-assinada. PDFs
+marcados com `cache=auxiliary-document` expiram após 30 dias. O caminho
+`GerarDanfe`/`GerarDamdfe`, WeasyPrint e suas bibliotecas nativas foram removidos
+do Lambda Python; `py-dfe` permanece apenas como fallback de compatibilidade para
+operações SEFAZ ainda não despachadas pelo `go-dfe`.
 
 ---
 

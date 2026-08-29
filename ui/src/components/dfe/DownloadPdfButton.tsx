@@ -3,11 +3,14 @@
 import {useState} from 'react'
 import {toast} from 'sonner'
 import {Button} from '@/components/ui/button'
-import {triggerDownload} from '@/lib/utils/dfe'
+import {triggerDownload, triggerRemoteDownload} from '@/lib/utils/dfe'
+import type {AuxiliaryDocumentDownload} from '@/lib/types/api'
+
+type PdfDownload = Blob | AuxiliaryDocumentDownload
 
 interface DownloadPdfButtonProps {
-  /** Fetches the PDF blob (e.g. DANFC-e / DAMDFE) from the API. */
-  fetchPdf: () => Promise<Blob>
+  /** Fetches either a legacy PDF blob or a cached auxiliary-document URL. */
+  fetchPdf: () => Promise<PdfDownload>
   /** Downloaded filename without extension (e.g. the access key). */
   filename: string
   /** Button text when idle. Defaults to "DANFE". */
@@ -34,7 +37,12 @@ export function DownloadPdfButton({
   const handleClick = async () => {
     setLoading(true)
     try {
-      triggerDownload(await fetchPdf(), `${filename}.pdf`)
+      const download = await fetchPdf()
+      if (download instanceof Blob) {
+        triggerDownload(download, `${filename}.pdf`)
+      } else {
+        triggerRemoteDownload(download.url)
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao gerar o PDF.')
     } finally {

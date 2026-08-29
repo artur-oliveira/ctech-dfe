@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -40,6 +41,7 @@ type NfceService struct {
 	clients      *awsclient.Clients
 	workerSvc    *services.WorkerService
 	billingSvc   *services.BillingService
+	documentSvc  *documents.Service
 	bucketDocs   string
 	tech         TechData
 }
@@ -59,6 +61,7 @@ func NewNfceService(
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 	bucketDocs string,
 	tech TechData,
 ) *NfceService {
@@ -66,7 +69,7 @@ func NewNfceService(
 		orgRepo: orgRepo, certRepo: certRepo, personRepo: personRepo,
 		configRepo: configRepo, productRepo: productRepo, taxProfileRepo: taxProfileRepo, operationRepo: operationRepo,
 		paymentTerminalRepo: paymentTerminalRepo, fuelPumpRepo: fuelPumpRepo, nfceRepo: nfceRepo,
-		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc, billingSvc: billingSvc,
+		eventRepo: eventRepo, clients: clients, workerSvc: workerSvc, billingSvc: billingSvc, documentSvc: documentSvc,
 		bucketDocs: bucketDocs, tech: tech,
 	}
 }

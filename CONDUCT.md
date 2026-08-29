@@ -490,37 +490,23 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   prefixo do PK da organização — nunca escreva `"CNPJ"` fixo num builder de evento. Produtor rural e
   MEI pessoa física ficavam sem cancelamento, sem CC-e e sem manifestação por causa disso.
 
-## DANFE rendering (py-dfe `danfe/`)
+## Auxiliary-document rendering (API `services/documents`)
 
-- DANFE generation (`service="GerarDanfe"`) is **pure-local**: no certificate, no
-  SEFAZ. Routed in `_NFServiceClient.call` before any SEFAZ work. All content is read
-  from the XML only (manual mandate) — the QR URL comes from `infNFeSupl/qrCode`,
-  never recomputed.
-- `GerarDanfe` is **model-dispatched** (`danfe/document.py`): mod 65 → DANFC-e
-  (`danfce.py`), mod 55 → DANF-e (`nfe55.py`). Never branch on model inside a
-  renderer; add the branch in the dispatcher.
-- DANF-e (mod 55) uses **CODE-128** barcodes via **python-barcode** (pure-Python,
-  SVG, no native binary) — distinct from NFC-e's QR (segno). FS/FS-DA contingency
-  adds the 36-char "Dados da NF-e" code with a chave-style mod-11 DV (`barcode.py`).
-- Two sizing modes in `render.py::htmls_to_pdf(fit_height=...)`: roll/auto-height
-  (NFC-e, DANFE simplificado/etiqueta) vs fixed A4 multi-page (retrato/paisagem).
-  Multi-page DANFE repeats its header via WeasyPrint running elements
-  (`position: running()` + `@top-center { content: element(...) }`) and numbers
-  folhas with CSS `counter(page)/counter(pages)`.
-- Jinja gotcha: never name a context list `items` — `ctx.items` resolves to the
-  dict's `.items()` method, not your data. The DANF-e context uses `produtos`.
-- Rendering uses **WeasyPrint**, which requires native libraries (cairo, pango,
-  gdk-pixbuf, glib, gobject, fonts) bundled in the Lambda layer/image. The CDK layer
-  build **MUST** include them or the Lambda fails at import. Render pipeline
-  (`danfe/render.py`, `danfe/qr.py`, `danfe/barcode.py`, `danfe/formatters.py`) is
-  generic — reuse it for DACT-e/DAMDFE; do not fork per document.
-- **DAMDFE** (`service="GerarDamdfe"`, MDF-e mod 58, `danfe/mdfe58.py`) follows the
-  same pure-local pattern but routes in **`MDFeServiceClient.call`** (doc_type
-  `mdfe`), not `_NFServiceClient`. The handler's no-certificate allowlist is
-  `RENDER_ONLY_SERVICES` (= GerarDanfe + GerarDamdfe) — add future render services
-  there, never special-case a single service name. DAMDFE renders all four modais
-  (rodoviário/aéreo/aquaviário/ferroviário) from `ide/modal` via one macro set
-  (`_damdfe_macros.html`); barcode = CODE-128 of the chave, QR = `qrCodMDFe`.
+- DANFE, DANFC-e, and DAMDFE are rendered in-process by Folio from the stored XML;
+  never reintroduce a Lambda, headless browser, or network asset dependency.
+- Cache keys must include tenant PK, renderer schema version, document type,
+  access key, and active/canceled state. A template/context compatibility change
+  must increment `cacheSchemaVersion`; otherwise S3 can serve stale layouts.
+- Every cached PDF is tagged `cache=auxiliary-document`. Keep the CDK tag filter,
+  30-day current-version expiry, noncurrent-version cleanup, and the API role's
+  `s3:PutObjectTagging` permission in sync.
+- Preserve `If-None-Match: *` and per-process `singleflight`: two API replicas may
+  still render the same first miss, but only one can create the cache object.
+- Keep Folio resource limits and `StrictAssets`. QR/CODE-128 data must come from
+  the XML, and FS/FS-DA keeps the 36-digit Dados da NF-e code with mod-11 DV.
+- Gonja imported macros cannot call sibling imported macros. The renderer's
+  preprocessing is intentionally limited to `fld`/`title`; add an end-to-end
+  Folio render test for any macro/template change.
 
 ## MDF-e (modelo 58)
 

@@ -73,6 +73,7 @@ Mato Grosso) 3-prefix special-casing** (`table.go:382-403`). Environment constan
   to go-dfe does not close the PII leak.
 - XSD validation is intentionally absent (`CGO_ENABLED=0` rules out libxml2); `Call` fails loudly if `ValidateSchema` is
   requested for a service that requires it (`client.go:118-120`).
-- DANFE/DAMDFE rendering is permanently out of scope — py-dfe is the only render path.
+- DANFE/DANFC-e/DAMDFE rendering is permanently out of scope here; the API-local
+  Folio service owns rendering and S3 caching.
 
 See root [`CONDUCT.md`](../CONDUCT.md) / [`DOCS.md`](../DOCS.md) for the full register.

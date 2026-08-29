@@ -3,6 +3,11 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import {Construct} from 'constructs';
 import {Environment} from './types';
 
+const AUXILIARY_DOCUMENT_CACHE_TAG_KEY = 'cache';
+const AUXILIARY_DOCUMENT_CACHE_TAG_VALUE = 'auxiliary-document';
+const AUXILIARY_DOCUMENT_CACHE_DAYS = 30;
+const AUXILIARY_DOCUMENT_NONCURRENT_DAYS = 1;
+
 interface S3StackProps extends cdk.StackProps {
   bucketPrefix: string;
   environment: Environment;
@@ -44,6 +49,14 @@ export class S3Stack extends cdk.Stack {
       removalPolicy: isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !isProduction,
       lifecycleRules: [
+        {
+          id: 'AuxiliaryDocumentCache',
+          expiration: cdk.Duration.days(AUXILIARY_DOCUMENT_CACHE_DAYS),
+          noncurrentVersionExpiration: cdk.Duration.days(AUXILIARY_DOCUMENT_NONCURRENT_DAYS),
+          tagFilters: {
+            [AUXILIARY_DOCUMENT_CACHE_TAG_KEY]: AUXILIARY_DOCUMENT_CACHE_TAG_VALUE,
+          },
+        },
         {
           transitions: [
             {

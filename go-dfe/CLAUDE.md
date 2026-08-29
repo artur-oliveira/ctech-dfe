@@ -125,8 +125,8 @@ See `dfe.go`'s `implemented` map doc comment on the `constants.DocTypeNFSE` entr
 - XSD validation (`Config.RequiresValidation`) is not implemented — `CGO_ENABLED=0` (ARM64 Lambda
   `provided.al2023`, repo-wide rule) rules out libxml2, the only mature option. `services.Client.Call`
   fails loudly (not silently) if a caller requests `ValidateSchema: true` for a service that needs it.
-- DANFE/DAMDFE rendering is out of scope permanently (no cert/signature/SOAP/mTLS involved — no fiscal/security upside
-  to porting it). py-dfe remains the only path for rendering, indefinitely.
+- DANFE/DANFC-e/DAMDFE rendering is out of scope permanently because this package
+  is only a SEFAZ client. The API-local Folio service owns rendering and S3 caching.
 
 ### Go Rules
 

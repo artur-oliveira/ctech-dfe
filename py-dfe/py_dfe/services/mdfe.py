@@ -5,9 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from py_dfe.certificate.manager import CertificateManager
-from py_dfe.constants.danfe import SERVICE_GERAR_DAMDFE
 from py_dfe.constants.endpoints import get_authorizer
-from py_dfe.danfe.mdfe58 import generate_damdfe
 from py_dfe.exceptions import InvalidSefazResponseError
 from py_dfe.services.base import SefazClient, _ensure_list
 
@@ -71,8 +69,6 @@ class MDFeServiceClient:
         return inner
 
     def call(self, service: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if service == SERVICE_GERAR_DAMDFE:
-            return generate_damdfe(payload)
         authorizer = get_authorizer(self._client.doc_type, self._client.uf)
         result = self._parse_result_message(
             self._client.call(

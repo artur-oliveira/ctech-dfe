@@ -25,7 +25,7 @@ ctech-dfe/
 |-----------|----------------------------------------------------|
 | Backend   | Go (Fiber v3), aws-sdk-go-v2                       |
 | Workers   | Go Lambda (aws-lambda-go), SQS consumers           |
-| SEFAZ lib | Python 3.14 Lambda (py-dfe) — XML-DSig + SOAP mTLS |
+| SEFAZ lib | Go in-process (go-dfe), Python Lambda compatibility fallback |
 | Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN     |
 | Database  | DynamoDB (35 tables) + S3 (certificates and XMLs)  |
 | Messaging | SQS (standard) + SNS                               |
@@ -59,9 +59,11 @@ LambdaRequest → CertificateManager → ServiceClient → SEFAZ SOAP → Lambda
 In-process Go replacement for py-dfe's SEFAZ SOAP/mTLS calls, adopted operation-by-operation
 (`docs/plans/2026-07-17-go-dfe-migration.md`, `MIGRATION.md`). `worker`/`api` call `dfe.Call`
 directly (no Lambda Invoke) for any `(docType, service)` in `dfe.Implements()`; everything else still goes through the
-py-dfe Lambda — same request/response JSON contract either way. Currently implements unsigned operations only
-(status/consulta/distribuição); signed operations stay on py-dfe until the XML-DSig/C14N port passes a byte-identical
-gate against captured py-dfe output.
+py-dfe Lambda — same request/response JSON contract either way. The compiled set currently includes all operations
+used by the workers, including signed emission/events; the Python path remains a compatibility fallback.
+
+Auxiliary documents do not use either SEFAZ path. The API renders DANFE, DANFC-e,
+and DAMDFE in-process with Folio and caches tagged PDFs in S3 for 30 days.
 
 ### api — REST Backend
 
@@ -165,10 +167,8 @@ SQS → worker Lambda (Go)
   → Conditionally claim the document/event with owner + six-minute processing lease
   → Fail closed when the claim store is unavailable; only the owner may finalize
   → Fetch certificate from S3
-  → Invoke py-dfe Lambda
-      → Sign XML (XML-DSig)
-      → Submit via SOAP to SEFAZ (mTLS)
-      → Return result
+  → Call go-dfe in-process (py-dfe only for an unimplemented compatibility fallback)
+      → Sign XML (XML-DSig) → SOAP/mTLS to SEFAZ → return result
   → Persist NF-e + events in DynamoDB
   → Save XML to S3
   → Publish terminal result to results SNS

@@ -195,7 +195,29 @@ components:
         application/pdf:
           schema: { type: string, format: binary }
 
+    CachedPdfDownload:
+      description: URL temporária do PDF do documento auxiliar armazenado no S3
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/AuxiliaryDocumentDownload' }
+
   schemas:
+
+    AuxiliaryDocumentDownload:
+      type: object
+      required: [url, expires_at, cached]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL pré-assinada para baixar o PDF diretamente do S3.
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiração da URL pré-assinada, não do objeto em cache.
+        cached:
+          type: boolean
+          description: Indica se o PDF já existia no cache antes desta requisição.
 
     # -- Tipos escalares com formato fiscal --------------------------------
 

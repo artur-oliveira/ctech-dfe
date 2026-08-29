@@ -7,7 +7,6 @@ from typing import Any
 from pydantic import ValidationError
 
 from py_dfe.certificate.manager import CertificateManager
-from py_dfe.constants.danfe import RENDER_ONLY_SERVICES
 from py_dfe.exceptions import (
     CERT_REQUIRED,
     UNEXPECTED_ERROR_CODE,
@@ -63,7 +62,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             cert_manager = CertificateManager(
                 req.certificate_b64, req.certificate_password
             )
-        elif req.service not in RENDER_ONLY_SERVICES:
+        else:
             raise DFeError(
                 400, CERT_REQUIRED,
                 f"Service {req.service!r} requires a certificate",

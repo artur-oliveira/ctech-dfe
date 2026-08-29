@@ -142,7 +142,7 @@ emission route in this API** (inbound/distribution only).
 | GET    | `/nfes`                                  | `list.nfes`         | Filters `incoming`,`number`,`year`,`month`,`day`       |
 | GET    | `/nfes/:access_key`                      | `get.nfes`          | 404 → `ErrNFeNotFound`                                 |
 | GET    | `/nfes/:access_key/xml`                  | `get.nfes`          | Signed XML download                                    |
-| GET    | `/nfes/:access_key/danfe`                | `get.nfes`          | PDF via py-dfe `GerarDanfe` (cancelled flag honored)   |
+| GET    | `/nfes/:access_key/danfe`                | `get.nfes`          | JSON with 15-minute presigned cached DANFE URL         |
 | POST   | `/nfes/:access_key/cancel`               | `delete.nfes`       | Body `CancelEventBody{justification, sequence_number}` |
 | POST   | `/nfes/:access_key/correction-letter`    | `create.nfe_events` | CC-e; `correction_text` 15–1000 chars                  |
 | POST   | `/nfes/:access_key/manifestation`        | `create.nfe_events` | `event_type ∈ {210200,210210,210220,210240}`           |
@@ -154,7 +154,7 @@ emission route in this API** (inbound/distribution only).
 Same shape as NF-e (modelo 65) but reuses `NfeStatus`/`NfeListOut` (no separate status enum). | Method | Path | Perm |
 Notes | |--------|------|------|-------| | POST | `/nfces` | `create.nfces` | Emit `nfesvc.NfceEmitBody` | | GET |
 `/nfces` | `list.nfces` | list | | GET | `/nfces/:access_key` `[/xml]` | `get.nfces` | detail / signed XML | | GET |
-`/nfces/:access_key/danfce` | `get.nfces` | DANFC-e PDF via py-dfe | | POST | `/nfces/:access_key/cancel` |
+`/nfces/:access_key/danfce` | `get.nfces` | JSON with presigned cached DANFC-e URL | | POST | `/nfces/:access_key/cancel` |
 `delete.nfces` | cancellation | | POST | `/nfces/:access_key/substitute` | `delete.nfces` | cancellation-by-substitution
 (event 110112); body `SubstituteCancelBody` | | GET | `/nfces/:access_key/events` `[/:event_sk/xml]` |
 `get.nfce_events` | event history / XML |
@@ -166,7 +166,7 @@ Notes | |--------|------|------|-------| | POST | `/nfces` | `create.nfces` | Em
 | POST   | `/mdfes`                                       | `create.mdfes`       | Emit `mdfesvc.MdfeEmitBody`                          |
 | POST   | `/mdfes/cargo-preview`                         | `create.mdfes`       | Parses referenced docs → cargo data (no persistence) |
 | GET    | `/mdfes`                                       | `list.mdfes`         | list                                                 |
-| GET    | `/mdfes/:access_key` `[/xml]` `/damdfe`        | `get.mdfes`          | detail / XML / DAMDFE PDF                            |
+| GET    | `/mdfes/:access_key` `[/xml]` `/damdfe`        | `get.mdfes`          | detail / XML / presigned cached DAMDFE URL           |
 | POST   | `/mdfes/:access_key/cancel`                    | `delete.mdfes`       | cancellation                                         |
 | POST   | `/mdfes/:access_key/close`                     | `create.mdfe_events` | encerramento; `ibge_code`+`uf` required              |
 | POST   | `/mdfes/:access_key/include-condutor`          | `create.mdfe_events` | add driver (CPF)                                     |

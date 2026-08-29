@@ -88,7 +88,7 @@ worker/
 - `go-dfe` (module `gopkg.aoctech.app/dfe/go-dfe`, in-process, see `docs/plans/2026-07-17-go-dfe-migration.md`)
   is the sanctioned path for any SEFAZ operation in its `dfe.Implements(docType, service)` set. The
   py-dfe Lambda invocation remains the fallback for every operation NOT yet in that set, and is the
-  permanent path for DANFE/DAMDFE rendering (out of go-dfe's scope indefinitely — see `MIGRATION.md`).
+  compatibility fallback for unimplemented SEFAZ operations. Auxiliary-document rendering belongs to the API.
   Do not call py-dfe for an operation `go-dfe` already implements, and do not add a new SEFAZ
   operation to `go-dfe`'s implemented set without the byte-identical signature gate (signed ops) or
   shadow-mode parity window (unsigned ops) described in the plan.
@@ -126,7 +126,7 @@ Run: `go test ./... -race` from `worker/`.
 - DLQ receives messages after max retries — monitored via a CloudWatch alarm per queue (configured in `cdk/lib/worker-stack.ts`).
 - SQS is standard (not FIFO) — ordering across messages for the same org is NOT guaranteed; correctness relies on the fiscal-numbering `transact_write` (atomic, order-independent) plus the idempotency guard in `DfeService.Process`.
 - py-dfe Lambda is the fallback path for XML signing + SEFAZ SOAP not yet ported to `go-dfe`, and the
-  permanent path for DANFE/DAMDFE rendering; do not duplicate SEFAZ logic outside `go-dfe`/py-dfe.
+  compatibility fallback for SEFAZ; do not duplicate SEFAZ logic outside `go-dfe`/py-dfe.
 - After SEFAZ response: always update DynamoDB status, upload XML to S3, publish results to the SNS
   results topic (DfeResultsBus) — in that order. Redis pub/sub and WebSocket fan-out are done by the
   API's ResultsConsumer, not the worker.

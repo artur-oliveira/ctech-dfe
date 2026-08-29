@@ -41,3 +41,20 @@ test('documents bucket has a Standard-IA lifecycle transition', () => {
   expect(transitionRule).toBeDefined()
   expect(transitionRule.Transitions[0].TransitionInDays).toBe(90)
 })
+
+test('auxiliary document cache expires current and noncurrent versions', () => {
+  const prod = synth('prod')
+  const json = prod.toJSON()
+  const docsBucket = Object.values(json.Resources).find(
+    (r: any) => r.Type === 'AWS::S3::Bucket' && r.Properties?.BucketName === 'prod-ctech-dfe-documents'
+  ) as any
+  const rules = docsBucket.Properties.LifecycleConfiguration.Rules
+  const cacheRule = rules.find((r: any) => r.Id === 'AuxiliaryDocumentCache')
+
+  expect(cacheRule).toMatchObject({
+    ExpirationInDays: 30,
+    NoncurrentVersionExpiration: {NoncurrentDays: 1},
+    Status: 'Enabled',
+  })
+  expect(cacheRule.TagFilters).toEqual([{Key: 'cache', Value: 'auxiliary-document'}])
+})

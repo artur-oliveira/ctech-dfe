@@ -61,18 +61,18 @@
     <td class="idbox center">
       <div class="b xbig">{{ ctx.text.danfe }}</div>
       <div class="small">{{ ctx.text.danfe_desc }}</div>
-      <div class="tpnf">0 - ENTRADA<br>1 - SAÍDA &nbsp;<span class="tpnf-box">{{ ctx.ide.tpNF }}</span></div>
+      <div class="tpnf">0 - ENTRADA<br>1 - SAÍDA<span class="tpnf-box">{{ ctx.ide.tpNF }}</span></div>
       <div class="b">Nº {{ ctx.ide.nNF }}</div>
       <div class="b">SÉRIE {{ ctx.ide.serie }}</div>
     </td>
     <td class="keybox center">
-      <img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave">
+      <div class="barcode-band"><img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave"></div>
       <span class="lbl">CHAVE DE ACESSO</span>
       <div class="small b chave">{{ ctx.chave_fmt }}</div>
       <div class="tiny">{{ ctx.text.consulta }}</div>
       {% if ctx.is_fs %}
       <div class="small b">{{ ctx.text.dados_nfe }}</div>
-      <img class="barcode" src="{{ ctx.dados_nfe_barcode }}" alt="dados nf-e">
+      <div class="barcode-band"><img class="barcode" src="{{ ctx.dados_nfe_barcode }}" alt="dados nf-e"></div>
       {% endif %}
     </td>
   </tr></table>
@@ -116,7 +116,7 @@
     <colgroup><col style="width:38%"><col style="width:20%"><col style="width:16%"><col style="width:26%"></colgroup>
     <tr>
       {{ fld("ENDEREÇO", ctx.dest.endereco) }}
-      {{ fld("BAIRRO / DISTRITO", "") }}
+      {{ fld("BAIRRO / DISTRITO", ctx.dest.bairro) }}
       {{ fld("CEP", ctx.dest.cep) }}
       {{ fld("DATA DA SAÍDA/ENTRADA", ctx.ide.dhSaiEnt_data) }}
     </tr>
@@ -188,7 +188,7 @@
     <tr>
       {{ fld("NOME / RAZÃO SOCIAL", ctx.transp.nome) }}
       {{ fld("FRETE POR CONTA", ctx.transp.modFrete_label) }}
-      {{ fld("PLACA / UF", ctx.transp.placa ~ (" / " ~ ctx.transp.placa_uf if ctx.transp.placa_uf else "")) }}
+      {{ fld("PLACA / UF", ctx.transp.placa_uf_fmt) }}
       {{ fld("CNPJ / CPF", ctx.transp.doc) }}
     </tr>
   </table>
@@ -252,13 +252,13 @@
 {% endmacro %}
 
 {% macro infadic_box(ctx) %}
-{{ title("DADOS ADICIONAIS") }}
-<div class="quadro">
-  <table class="grid"><tr>
-    <td class="fld w70"><span class="lbl">INFORMAÇÕES COMPLEMENTARES</span>
-      {% for line in ctx.msg_fiscal %}<div>{{ line }}</div>{% endfor %}
-      {% for line in ctx.msg_contribuinte %}<div>{{ line }}</div>{% endfor %}</td>
-    <td class="fld w30"><span class="lbl">RESERVADO AO FISCO</span></td>
-  </tr></table>
+<div class="inf-title quadro-title">DADOS ADICIONAIS</div>
+<div class="inf-box quadro">
+  <div class="inf-compl">
+    <span class="lbl">INFORMAÇÕES COMPLEMENTARES</span>
+    {% for line in ctx.msg_fiscal %}<div>{{ line }}</div>{% endfor %}
+    {% for line in ctx.msg_contribuinte %}<div>{{ line }}</div>{% endfor %}
+  </div>
+  <div class="inf-fisco"><span class="lbl">RESERVADO AO FISCO</span></div>
 </div>
 {% endmacro %}

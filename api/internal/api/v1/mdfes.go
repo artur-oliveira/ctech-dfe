@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterMDFes mounts all /mdfes routes.
-func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, ext *services.ExternalService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
+func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/mdfes", authMw)
 
 	// POST /mdfes — emit a new MDF-e
@@ -85,28 +85,14 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, ext *services.
 		return sendXML(c, data, c.Params("access_key"))
 	})
 
-	// GET /mdfes/:access_key/damdfe — DAMDFE PDF rendered by py-dfe
+	// GET /mdfes/:access_key/damdfe — cached DAMDFE PDF URL rendered in-process
 	g.Get("/:access_key/damdfe", perm.Require("get.mdfes"), func(c fiber.Ctx) error {
-		orgPK := middleware.GetOrgPK(c)
 		accessKey := c.Params("access_key")
-		mdfe, err := svc.GetMDFe(c.Context(), orgPK, accessKey)
+		download, err := svc.GetDAMDFEURL(c.Context(), middleware.GetOrgPK(c), accessKey)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		if mdfe == nil {
-			return sendProblem(c, mdfesvc.ErrMDFeNotFound)
-		}
-		xml, err := svc.GetMDFeXML(c.Context(), orgPK, accessKey)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		pdf, err := ext.GeneratePDF(c.Context(), services.DocTypeMDFe, services.ServiceGerarDamdfe,
-			services.UFFromCode[accessKey[0:2]], services.StripPKPrefix(orgPK), string(xml),
-			attrStr(mdfe, "status") == services.StatusCancelled)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendAttachment(c, pdf, mimeApplicationPDF, accessKey, ".pdf")
+		return c.JSON(download)
 	})
 
 	// POST /mdfes/:access_key/cancel

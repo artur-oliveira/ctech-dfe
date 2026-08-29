@@ -77,12 +77,6 @@ const (
 	DocTypeNfse = "nfse"
 )
 
-// py-dfe render-only service keys (PDF generation; no certificate required).
-const (
-	ServiceGerarDanfe  = "GerarDanfe"  // DANFE (NF-e mod 55) / DANFC-e (NFC-e mod 65)
-	ServiceGerarDamdfe = "GerarDamdfe" // DAMDFE (MDF-e mod 58)
-)
-
 // StatusCancelled is the final document status written by the worker after a
 // successful cancellation event, shared across all doc types.
 const StatusCancelled = "cancelled"

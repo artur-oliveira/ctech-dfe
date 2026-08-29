@@ -12,7 +12,7 @@ import (
 )
 
 // RegisterNFes mounts all /nfes routes.
-func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.ExternalService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
+func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/nfes", authMw)
 
 	// POST /nfes — emit a new NF-e
@@ -117,32 +117,12 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, ext *services.Ext
 
 	// GET /nfes/:access_key/danfe
 	g.Get("/:access_key/danfe", perm.Require("get.nfes"), func(c fiber.Ctx) error {
-		orgPK := middleware.GetOrgPK(c)
 		accessKey := c.Params("access_key")
-		nfce, err := svc.GetNFe(c.Context(), orgPK, accessKey)
+		download, err := svc.GetDANFeURL(c.Context(), middleware.GetOrgPK(c), accessKey)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		if nfce == nil {
-			return sendProblem(c, nfesvc.ErrNFCeNotFound)
-		}
-		xml, err := svc.GetNFeXML(c.Context(), orgPK, accessKey)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		pdf, err := ext.GeneratePDF(
-			c.Context(),
-			services.DocTypeNFe,
-			services.ServiceGerarDanfe,
-			services.UFFromCode[accessKey[0:2]],
-			services.StripPKPrefix(orgPK),
-			string(xml),
-			attrStr(nfce, "status") == services.StatusCancelled,
-		)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendAttachment(c, pdf, mimeApplicationPDF, accessKey, ".pdf")
+		return c.JSON(download)
 	})
 
 	// GET /nfes/:access_key/xml

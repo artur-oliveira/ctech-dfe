@@ -21,6 +21,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
 	nfsesvc "gopkg.aoctech.app/dfe/api/internal/services/nfses"
@@ -111,6 +112,7 @@ var Module = fx.Options(
 		services.NewNfseConfigService,
 		newExternalService,
 		newWorkerService,
+		newAuxiliaryDocumentService,
 		newNFeService,
 		newNFCeService,
 		newMDFeService,
@@ -360,6 +362,10 @@ func newWorkerService(clients *awsclient.Clients, cfg *config.Config) *services.
 	return services.NewWorkerService(clients, cfg.WorkerTopicARN, cfg.TablePrefix)
 }
 
+func newAuxiliaryDocumentService(clients *awsclient.Clients, cfg *config.Config) (*documents.Service, error) {
+	return documents.NewService(clients, cfg.S3BucketDocuments)
+}
+
 func newNFeService(
 	orgRepo *repositories.OrganizationRepository,
 	certRepo *repositories.CertificateRepository,
@@ -381,13 +387,14 @@ func newNFeService(
 	workerSvc *services.WorkerService,
 	extSvc *services.ExternalService,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 	cfg *config.Config,
 ) *nfesvc.NfeService {
 	return nfesvc.NewNfeService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, serviceRepo, importDIRepo, productLotRepo, fuelPumpRepo,
 		taxProfileRepo, operationRepo, paymentTermRepo,
 		paymentTerminalRepo, nfeRepo, eventRepo, vehicleRepo, clients,
-		workerSvc, extSvc, billingSvc, cfg.S3BucketDocuments,
+		workerSvc, extSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -414,11 +421,12 @@ func newNFCeService(
 	db *dynamodb.Client,
 	cfg *config.Config,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 ) *nfesvc.NfceService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
 	return nfesvc.NewNfceService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
-		paymentTerminalRepo, fuelPumpRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		paymentTerminalRepo, fuelPumpRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -448,13 +456,14 @@ func newMDFeService(
 	db *dynamodb.Client,
 	cfg *config.Config,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 ) *mdfesvc.MdfeService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
 		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo, cargoUnitRepo,
 		insurancePolicyRepo,
-		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,

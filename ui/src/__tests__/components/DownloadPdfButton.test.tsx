@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 
 const triggerDownload = vi.fn()
+const triggerRemoteDownload = vi.fn()
 const toastError = vi.fn()
 
 vi.mock('@/lib/utils/dfe', () => ({
   triggerDownload: (...args: unknown[]) => triggerDownload(...args),
+  triggerRemoteDownload: (...args: unknown[]) => triggerRemoteDownload(...args),
 }))
 vi.mock('sonner', () => ({
   toast: {error: (...args: unknown[]) => toastError(...args)},
@@ -16,7 +18,22 @@ vi.mock('sonner', () => ({
 describe('DownloadPdfButton', () => {
   beforeEach(() => {
     triggerDownload.mockClear()
+    triggerRemoteDownload.mockClear()
     toastError.mockClear()
+  })
+
+  it('opens a cached auxiliary-document URL', async () => {
+    const fetchPdf = vi.fn().mockResolvedValue({
+      url: 'https://s3.example/ABC.pdf',
+      expires_at: '2026-08-29T12:00:00Z',
+      cached: true,
+    })
+    render(<DownloadPdfButton fetchPdf={fetchPdf} filename="ABC"/>)
+
+    await userEvent.click(screen.getByRole('button', {name: 'DANFE'}))
+
+    await waitFor(() => expect(triggerRemoteDownload).toHaveBeenCalledWith('https://s3.example/ABC.pdf'))
+    expect(triggerDownload).not.toHaveBeenCalled()
   })
 
   it('downloads the fetched PDF with a .pdf filename', async () => {

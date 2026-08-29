@@ -1,5 +1,9 @@
 # Migração incremental py-dfe → go-dfe
 
+> Nota de 2026-08-29: este plano continua histórico para a migração SEFAZ, mas a
+> decisão abaixo de manter PDFs no py-dfe foi substituída. DANFE/DANFC-e/DAMDFE
+> ficam fora de go-dfe e são renderizados diretamente na API Go com Folio e cache S3.
+
 ## Context
 
 py-dfe (Python Lambda: XML-DSig + SOAP SEFAZ + mTLS para NF-e/NFC-e/CT-e/MDF-e) está em produção e funcionando. Usuário
@@ -12,9 +16,8 @@ de tráfego em operação que assina XML.
 
 Decisões confirmadas com usuário:
 
-- **DANFE/DAMDFE (renderização PDF) excluído permanentemente do escopo.** Sem certificado/assinatura/SOAP/mTLS, sem
-  ganho fiscal ou de segurança — só custo (WeasyPrint sem equivalente Go). py-dfe continua vivo só pra isso,
-  indefinidamente.
+- **DANFE/DAMDFE (renderização PDF) excluído permanentemente do escopo de go-dfe.**
+  A implementação foi posteriormente movida para a API Go; consulte a nota acima.
 - **Validação XSD não portada por enquanto.** `CGO_ENABLED=0` é regra fixa em worker/api/cdk (build ARM64 Lambda
   `provided.al2023`) — única opção completa (libxml2) exige cgo. Sem validador XSD maduro em Go puro. Operações iniciais
   (status/consulta) têm payload trivial; SEFAZ valida server-side. Reavaliar só se operação assinada precisar

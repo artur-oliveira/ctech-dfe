@@ -145,18 +145,6 @@ py_dfe/
 │   ├── base.py             # SefazClient — async httpx, retry with backoff
 │   ├── _nf.py              # Shared NF-e/NFC-e logic
 │   ├── nfe.py / nfce.py / cte.py / mdfe.py
-├── danfe/                  # Auxiliary-document rendering (no cert, no SEFAZ)
-│   ├── render.py           # Generic Jinja2 HTML → WeasyPrint PDF (fit_height flag)
-│   ├── qr.py               # QR string → data-URI PNG (segno, level M, UTF-8)
-│   ├── barcode.py          # CODE-128 → data-URI SVG + FS/FS-DA dados-nfe code
-│   ├── formatters.py       # BR money/date/CNPJ/CPF/CEP/chave/aliquota formatting
-│   ├── document.py         # GerarDanfe dispatcher by ide/mod (55/65)
-│   ├── danfce.py           # DANFC-e (mod 65): XML → context, variant logic
-│   ├── nfe55.py            # DANF-e (mod 55): XML → context, variant logic
-│   ├── mdfe58.py           # DAMDFE (mod 58): MDF-e XML → context, modal logic
-│   └── templates/          # danfce.html + _danfe_macros.html + danfe_{retrato,
-│                           #   paisagem,simplificado,etiqueta}.html +
-│                           #   _damdfe_macros.html + damdfe_{retrato,paisagem}.html
 ├── soap/
 │   └── envelope.py         # Builds SOAP envelope for each service
 ├── xmlops/
@@ -166,68 +154,32 @@ py_dfe/
 └── schemas/xsds/           # Bundled XSDs (NF-e, NFC-e, CT-e, MDF-e)
 ```
 
-### Render service — `GerarDanfe` (auxiliary documents)
+### Auxiliary documents — API-local Folio renderer
 
-A non-SEFAZ render service generates the auxiliary fiscal document from an
-authorized XML locally. **No certificate, no SEFAZ call.**
-`danfe/document.py::generate_danfe` dispatches by `ide/mod`:
+`api/internal/services/documents` renders DANFE (model 55), DANFC-e (65), and
+DAMDFE (58) from the stored authorized XML. It uses Folio for HTML→PDF, Gonja for
+the embedded templates, and pure-Go QR/CODE-128 generation. There is no Lambda,
+certificate, browser process, or external asset fetch in this path.
 
-- **mod 65 → DANFC-e** (`danfe/danfce.py`): thermal receipt, QR Code (segno);
-  variants **completo**/**resumido** (`layout`); **2-via contingência** auto from
-  `ide/tpEmis==9`; **homologação** banner+watermark from `tpAmb==2`; **cancelada**
-  watermark from `canceled` flag. QR URL read from `infNFeSupl/qrCode`.
-- **mod 55 → DANF-e** (`danfe/nfe55.py`): NF-e DANFE, **CODE-128 barcode** of the
-  44-digit chave (`danfe/barcode.py`, python-barcode → inline SVG). Variants via
-  `layout`: **retrato** (default), **paisagem** (fixed A4, multi-page with a
-  running-element header + `counter(page)/pages`), **simplificado**, **etiqueta**
-  (roll ≥55mm, auto-height). Contingency by `ide/tpEmis`: normal/SCAN/SVC
-  (chave barcode + protocolo), **FS/FS-DA** (second "Dados da NF-e" 36-char
-  barcode, protocolo suppressed), **EPEC** (protocolo do EPEC).
+The first request performs `HeadObject`, renders on a miss, and stores the PDF at
+`{org_pk}/pdfs/v1/{nfe|nfce|mdfe}/{access_key}-{active|canceled}.pdf` with the tag
+`cache=auxiliary-document`. `If-None-Match: *` avoids overwrite races and
+`singleflight` coalesces misses inside one API process. The S3 lifecycle expires
+tagged current versions after 30 days and noncurrent versions after one day.
+Later requests only check S3 and return a 15-minute presigned URL.
 
-- Request: `doc_type="nfe"|"nfce"`, `service="GerarDanfe"`, `body={"xml": "…",
-  "layout": <variant>, "canceled": false}`. Model auto-detected from the XML;
-  `certificate_b64` optional (required only for SEFAZ services — handler raises
-  `DFeError(400, "certificate required", …)` otherwise).
-- Response: `{"pdf_b64": "<base64 PDF>", "html": ["<page>", …]}`.
+The three endpoints return JSON
+`{"url":"…","expires_at":"…","cached":true|false}`; the browser downloads the
+PDF directly from S3. Active and canceled variants have distinct keys, and the
+`v1` path component is the renderer/template invalidation boundary.
 
-### Render service — `GerarDamdfe` (DAMDFE, MDF-e mod 58)
-
-Sibling render service for the **MDF-e** auxiliary document (manual_damdfe.md,
-MOC 3.00b Anexo II). Same pure-local contract (no certificate, no SEFAZ).
-`danfe/mdfe58.py::generate_damdfe`:
-
-- Reads the authorized `<mdfeProc>` (or bare `<MDFe>`); requires `ide/mod==58`.
-- **CODE-128 barcode** of the 44-digit chave + **QR Code** from
-  `infMDFeSupl/qrCodMDFe` (segno). All four **modais** rendered from
-  `ide/modal`: **1 rodoviário** (RNTRC, veículo tração/reboques, condutores,
-  CIOT), **2 aéreo**, **3 aquaviário** (embarcação, MMSI e balsas do comboio),
-  **4 ferroviário**.
-- Variants via `layout`: **retrato** (default) / **paisagem**, both fixed A4
-  multi-page (long document-key lists paginate naturally, `fit_height=False`).
-- **Contingência** from `ide/tpEmis==2` (prints "EMISSÃO EM CONTINGÊNCIA",
-  suppresses protocolo); **homologação** watermark from `tpAmb==2`; **cancelada**
-  watermark from `canceled` flag.
-- Document keys grouped per discharge municipality (`infMunDescarga`):
-  NF-e/CT-e/MDF-e. Totals, seguros, lacres, observações rendered too.
-- Request: `doc_type="mdfe"`, `service="GerarDamdfe"`, `body={"xml": "…",
-  "layout": <variant>, "canceled": false}`. Routed in `MDFeServiceClient.call`;
-  certificate optional (`RENDER_ONLY_SERVICES` allowlist in handler).
-- Response: `{"pdf_b64": "<base64 PDF>", "html": ["<page>", …]}`.
-- All data read from the XML only (manual mandate).
-- Engine: WeasyPrint (HTML→PDF), Jinja2 (templates), segno (NFC-e QR),
-  python-barcode (NF-e CODE-128). WeasyPrint needs native libs in the Lambda
-  layer (see CONDUCT.md). Two sizing modes in `render.py::htmls_to_pdf`
-  (`fit_height=True` roll/auto-height; `False` fixed A4 multi-page).
-
-**API invocation (synchronous).** The Go API renders these PDFs on demand via
-`ExternalService.GeneratePDF` (`api/internal/services/external.go`), which invokes
-the **same py-dfe Lambda used for SEFAZ** (`SEFAZ_FUNCTION_NAME`) synchronously —
-no SNS/worker hop, no certificate. It fetches the authorized XML from S3, sends
-`{doc_type, service, body:{xml, canceled}}`, and decodes `pdf_b64` to PDF bytes.
-The `cnpj`/`uf` request fields are required by the schema but unused by the render
-path, so a CPF issuer or unknown UF falls back to a placeholder. Exposed as
-`GET /v1.0/nfces/{key}/danfce` and `GET /v1.0/mdfes/{key}/damdfe`. (NF-e mod 55
-`GET /v1.0/nfes/{key}/danfe` still uses the external `consultadanfe.com` provider.)
+Resource guards: source XML 20 MiB, rendered HTML 32 MiB, embedded assets 16 MiB,
+100,000 HTML elements, depth 128, and a detached 8-second generation deadline so
+a client disconnect does not abandon a PDF that other callers are waiting for.
+Folio never loads network assets (`StrictAssets`). Gonja cannot expose an imported
+macro to another imported macro, so the renderer expands only the legacy `fld`
+and `title` helper calls before parsing; template changes must preserve or test
+that narrow compatibility step.
 
 ### Error Handling
 
@@ -310,9 +262,9 @@ captured py-dfe corpus has NOT run for these; no dedicated test certificate exis
 See `internal/xmlops/signer.go`'s test file for what's verified today instead: W3C C14N spec vectors
 and an internal sign/verify round trip, not a py-dfe diff).
 
-**Explicitly out of scope:** XSD validation (no mature pure-Go validator, `CGO_ENABLED=0` rules out
-libxml2-based options) and DANFE/DAMDFE rendering (no cert/signature/SOAP/mTLS involved — no fiscal
-or security upside to porting it; py-dfe remains the only path for rendering indefinitely).
+**Explicitly out of scope for go-dfe:** XSD validation (no mature pure-Go validator,
+`CGO_ENABLED=0` rules out libxml2-based options) and auxiliary-document rendering.
+Rendering belongs to the API-local Folio service described above, not the SEFAZ client.
 
 **CI:** a dedicated `godfe` job (`.github/workflows/godfe.yml`, build+test only — this package has no
 deploy target of its own) runs in `deploy.yml`, gated on a `go-dfe/**`/`go.work`/`go.work.sum` path
@@ -1415,7 +1367,7 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | POST   | `/v1.0/nfes/{access_key}/prorrogation-cancel` | Cancela o pedido de prorrogação (111502/111503) |
 | POST   | `/v1.0/nfes/{access_key}/cancel-event`    | Cancelamento de evento (110001)             |
 | GET    | `/v1.0/nfes/{access_key}/xml`             | Download XML                                |
-| GET    | `/v1.0/nfes/{access_key}/danfe`           | Download DANFE (future)                     |
+| GET    | `/v1.0/nfes/{access_key}/danfe`           | Presigned cached DANFE PDF URL              |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
 | GET    | `/v1.0/nfes/{access_key}/events/{sk}/xml` | Event XML                                   |
 | POST   | `/v1.0/nfes/inutilizations`               | Inutiliza faixa de numeração não utilizada  |
@@ -1625,7 +1577,7 @@ online, SHA-1 with the CSC stored in `organization_nfce_configs` as
 | POST   | `/v1.0/nfces/{access_key}/cancel`           | Cancel (event 110111)                              |
 | POST   | `/v1.0/nfces/{access_key}/substitute`       | Cancel by substitution (event 110112, `chNFeRef`) |
 | GET    | `/v1.0/nfces/{access_key}/xml`              | Download XML                                        |
-| GET    | `/v1.0/nfces/{access_key}/danfce`           | Download DANFC-e PDF (py-dfe `GerarDanfe`)         |
+| GET    | `/v1.0/nfces/{access_key}/danfce`           | Presigned cached DANFC-e PDF URL (API/Folio)       |
 | GET    | `/v1.0/nfces/{access_key}/events`           | List events                                         |
 | GET    | `/v1.0/nfces/{access_key}/events/{sk}/xml`  | Event XML                                           |
 | POST   | `/v1.0/nfces/inutilizations`                | Inutiliza faixa de numeração não utilizada          |
@@ -1747,7 +1699,7 @@ Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 | POST   | `/v1.0/mdfes/cargo-preview`                          | Parse referenced docs → cargo preview (no persist) |
 | GET    | `/v1.0/mdfes/{access_key}`                           | Detail                                             |
 | GET    | `/v1.0/mdfes/{access_key}/xml`                       | Download XML                                       |
-| GET    | `/v1.0/mdfes/{access_key}/damdfe`                    | Download DAMDFE PDF (py-dfe `GerarDamdfe`)         |
+| GET    | `/v1.0/mdfes/{access_key}/damdfe`                    | Presigned cached DAMDFE PDF URL (API/Folio)        |
 | POST   | `/v1.0/mdfes/{access_key}/cancel`                    | Cancel (event 110111, `justification` ≥ 15 chars) |
 | POST   | `/v1.0/mdfes/{access_key}/close`                     | Encerramento (110112, `ibge_code`, `uf?`, `by_third_party?`) |
 | POST   | `/v1.0/mdfes/{access_key}/include-condutor`          | Inclusão de condutor (event 110114)               |
@@ -2124,6 +2076,7 @@ Key services:
 | `VehicleService`      | vehicle CRUD + validation (plate, RENAVAM, RNTRC), cache (TTL=300s)                |
 | `PersonService`       | person CRUD, SK generation (CPF_/CNPJ_), cache (TTL=300s)                          |
 | `NfeService`          | NF-e issuance, cancellation, CCe, manifestation, XML/DANFE download, event listing |
+| `documents.Service`   | Folio rendering, S3 PDF cache, and presigned auxiliary-document URLs               |
 | `ExternalService`     | SEFAZ NfeConsultaCadastro via Lambda, CPF/CNPJ + UF validation                     |
 | `ApiClient.lookupOpenCnpjOffice` | consulta cadastral pública ao CNPJá no browser; cliente sem autenticação, cache e deduplicação em memória |
 
@@ -2840,7 +2793,7 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 | `S3Stack`       | `s3-stack.ts`        | DFE certificates and documents buckets                   |
 | `EventBusStack` | `event-bus-stack.ts` | SNS command/results topics and SQS results queue          |
 | `IAMStack`      | `iam-stack.ts`       | Lambda and EC2 roles/instance profiles                    |
-| `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility/PDF Lambda                           |
+| `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility SEFAZ Lambda                         |
 | `WorkerStack`   | `worker-stack.ts`    | Fiscal workers, outbox publisher, standard SQS/DLQs       |
 | `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG, logs, scaling, and HAProxy route manifest |
 | `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + URL-rewrite KVS — retired, see below     |
@@ -2911,7 +2864,7 @@ explicit monitoring because application health is not a native ASG health-check 
 | Bucket                      | Lifecycle                     | Usage                           |
 |-----------------------------|-------------------------------|---------------------------------|
 | `{env}-py-dfe-certificates` | Expires `temp/` after 90 days | Organization A1 certificates    |
-| `{env}-py-dfe-documents`    | —                             | Issued XML and fiscal documents |
+| `{env}-py-dfe-documents`    | Tagged PDFs expire after 30d | Issued XML and cached auxiliary PDFs |
 | `{env}-py-dfe-deployments`  | Expires after 30 days         | API deployment artifacts        |
 | `{env}-py-dfe-logs`         | — (RETAIN in prod)            | Rotated EC2 instance logs       |
 

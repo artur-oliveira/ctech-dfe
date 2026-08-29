@@ -11,11 +11,6 @@ INVALID_SEFAZ_RESPONSE_ERROR = 'invalid sefaz response error'
 RETRY_EXHAUSTED_ERROR = 'retry exhausted error'
 VALIDATION_ERROR_CODE = 'validation error'
 UNEXPECTED_ERROR_CODE = 'unexpected error'
-DANFE_INVALID_XML = 'danfe invalid xml'
-DANFE_UNSUPPORTED_MODEL = 'danfe unsupported model'
-DANFE_MISSING_QRCODE = 'danfe missing qrcode'
-DANFE_RENDER_FAILED = 'danfe render failed'
-DANFE_INVALID_BARCODE = 'danfe invalid barcode'
 CERT_REQUIRED = 'certificate required'
 
 

@@ -9,6 +9,15 @@ export function triggerDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
+export function triggerRemoteDownload(url: string): void {
+  const a = document.createElement('a')
+  a.href = url
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
 export function formatNsu(nsu: number): string {
   return String(nsu).padStart(15, '0')
 }

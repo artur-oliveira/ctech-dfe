@@ -123,3 +123,23 @@ func TestOpenAPI_SpecLoads(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenAPI_AuxiliaryDocumentsReturnCachedDownloadDescriptor(t *testing.T) {
+	doc, err := mergeSpec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := doc["paths"].(map[string]any)
+	for _, path := range []string{
+		"/v1.0/nfes/{access_key}/danfe",
+		"/v1.0/nfces/{access_key}/danfce",
+		"/v1.0/mdfes/{access_key}/damdfe",
+	} {
+		operation := paths[path].(map[string]any)["get"].(map[string]any)
+		responses := operation["responses"].(map[string]any)
+		response := responses["200"].(map[string]any)
+		if got := response["$ref"]; got != "#/components/responses/CachedPdfDownload" {
+			t.Errorf("%s 200 response = %v", path, got)
+		}
+	}
+}

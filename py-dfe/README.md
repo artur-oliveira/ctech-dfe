@@ -1,10 +1,10 @@
 # py-dfe
 
-Python Lambda — XML-DSig, SEFAZ SOAP, mTLS, A1 certificate handling, and DANFE/DAMDFE
-rendering. This is the **authoritative / fallback** SEFAZ client: the `worker` dispatches
+Python Lambda — XML-DSig, SEFAZ SOAP, mTLS, and A1 certificate handling.
+This is the **authoritative / fallback** SEFAZ client: the `worker` dispatches
 to it via Lambda `InvokeFunction` when go-dfe does not `Implements` the operation
-(go-dfe-primary / py-dfe-fallback — see `worker/README.md` §3). Py-dfe is also the **only**
-DANFE/DAMDFE render path (go-dfe explicitly excludes rendering).
+(go-dfe-primary / py-dfe-fallback — see `worker/README.md` §3). Auxiliary documents are
+rendered by the Go API with Folio; this Lambda no longer accepts render-only services.
 
 Authoritative rules: [`CLAUDE.md`](CLAUDE.md) · root [`DOCS.md`](../DOCS.md) py-dfe section.
 Sibling: [`../go-dfe/README.md`](../go-dfe/README.md).
@@ -45,16 +45,7 @@ Sibling: [`../go-dfe/README.md`](../go-dfe/README.md).
 - Endpoints: `get_endpoint` / `get_authorizer` (`constants/endpoints.py:404,437`); values
   are byte-identical ports of go-dfe's table.
 
-## 4. DANFE / DAMDFE rendering (`py_dfe/danfe/`)
-
-- `generate_danfe(payload)` routes by model code 65→`generate_danfce`, 55→`generate_danfe_nfe`
-  (`danfe/document.py:16-29`). `generate_damdfe` for MDF-e (`danfe/mdfe58.py:19`).
-- Render: `render_html` / `html_to_pdf` / `htmls_to_pdf` (`danfe/render.py`); barcodes
-  (`danfe/barcode.py`); QR (`danfe/qr.py`); formatters (`mask_cnpj`, `money_br`, …).
-- Render is **cert-free**: `GerarDanfe`/`GerarDamdfe` are in `RENDER_ONLY_SERVICES` and
-  short-circuited in the handler (`handler.py:66,74`; `constants/danfe.py:4,137,140`).
-
-## 5. Known divergences (documented honestly)
+## 4. Known divergences (documented honestly)
 
 - **B12 — PII leak (CONFIRMED).** Full fiscal XML is logged at **INFO** in
   `py_dfe/services/base.py:169` (`raw xml`), `:177` (`soap xml`), `:180` (`received xml`,

@@ -27,20 +27,13 @@ const PYDFE_LAYER_DIR = path.join(__dirname, '../../py-dfe/layer');
 export function layerBundling(requirementsDir: string): cdk.BundlingOptions {
   const useLocal = process.env.CDK_LOCAL_BUNDLING === '1';
 
-  // build.sh (in the layer dir) does pip install AND copies the native
-  // pango/cairo/fontconfig .so deps + fonts that WeasyPrint dlopen()s at
-  // runtime. pip alone ships none of those → libpango load failure on Lambda.
-  // • Docker path (default on CI): sam/build-python3.14 = Amazon Linux 2023,
-  //   arm64, root → dnf installs the pango stack, cp314/aarch64 wheels.
-  // • Local path (CDK_LOCAL_BUNDLING=1): ONLY pip (no dnf on ubuntu). Native
-  //   libs must already be on the host. Use only when local Python is 3.14.
+  // Docker is the default so compiled wheels match Lambda's arm64 runtime.
+  // Local bundling is available only when the host already uses Python 3.14.
   const PIP_CMD = 'pip install -r requirements.txt -t {dest} --no-cache-dir';
 
   return {
     image: lambda.Runtime.PYTHON_3_14.bundlingImage,
     platform: 'linux/arm64',
-    // build.sh runs `dnf install` for the native pango stack — needs root.
-    // CDK defaults the container to the host uid (-u 1001) → override to root.
     user: 'root',
     command: ['bash', 'build.sh'],
     local: useLocal ? {
@@ -99,15 +92,9 @@ export class DfeStack extends cdk.Stack {
       layers: [pyDfeLayer],
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
-      // WeasyPrint PDF rendering needs more than 128 MB; pango/cairo + fonts.
       memorySize: 512,
       environment: {
         APP_ENVIRONMENT: environment,
-        // Native libs land in /opt/lib (already on Lambda's default
-        // LD_LIBRARY_PATH). Fontconfig: config + fonts in /opt/fonts, cache
-        // in /tmp (only writable path on Lambda).
-        FONTCONFIG_PATH: '/opt/fonts',
-        XDG_CACHE_HOME: '/tmp',
       },
     });
 

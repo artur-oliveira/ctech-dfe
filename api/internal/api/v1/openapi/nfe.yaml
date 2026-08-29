@@ -95,7 +95,7 @@ paths:
       description: Disponível apenas depois da autorização.
       operationId: getNfeDanfe
       responses:
-        '200': { $ref: '#/components/responses/PdfDownload' }
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -598,7 +598,7 @@ paths:
       summary: Baixa o DANFE NFC-e em PDF
       operationId: getNfceDanfce
       responses:
-        '200': { $ref: '#/components/responses/PdfDownload' }
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

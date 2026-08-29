@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -142,6 +143,7 @@ type MdfeService struct {
 	clients     *awsclient.Clients
 	workerSvc   *services.WorkerService
 	billingSvc  *services.BillingService
+	documentSvc *documents.Service
 	bucketDocs  string
 	tech        TechData
 }
@@ -173,12 +175,14 @@ func NewMdfeService(
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 	bucketDocs string,
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
 		orgRepo:             orgRepo,
 		billingSvc:          billingSvc,
+		documentSvc:         documentSvc,
 		certRepo:            certRepo,
 		configRepo:          configRepo,
 		mdfeRepo:            mdfeRepo,

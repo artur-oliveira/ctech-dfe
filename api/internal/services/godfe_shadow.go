@@ -9,9 +9,7 @@ import (
 // shadowCallGoDfeFromMap adapts invokeSefazLambda's map[string]any
 // payload/response shape to godfe.ShadowCompare — see
 // docs/plans/2026-07-17-go-dfe-migration.md, "Gate de validação por fase".
-// A payload that doesn't match the expected shape (e.g. GeneratePDF's
-// render-only payloads, which carry no certificate and whose doc_type/
-// service are never in go-dfe's implemented set anyway) is simply skipped;
+// A payload that doesn't match the expected shape is simply skipped;
 // this path only ever affects diagnostics, never the caller's response.
 //
 // Runs synchronously (not a goroutine): api/CLAUDE.md forbids goroutines
@@ -28,7 +26,7 @@ func shadowCallGoDfeFromMap(ctx context.Context, payload map[string]any, statusC
 }
 
 // mapToDfeRequest builds a godfe.Request from the map[string]any payload
-// shape invokeSefazLambda's callers build (LookupOrganization/GeneratePDF).
+// shape invokeSefazLambda's callers build (currently LookupOrganization).
 // Returns ok=false if the payload is missing a field this path relies on.
 func mapToDfeRequest(payload map[string]any) (godfe.Request, bool) {
 	cnpj, _ := payload["cnpj"].(string)

@@ -1,0 +1,66 @@
+{% import "_damdfe_macros.html" as m %}
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm 14mm 8mm;
+    @top-right { content: "FL " counter(page) "/" counter(pages); font-size: 6pt; color: #555; vertical-align: top; }
+  }
+  body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 7pt; color: #000; margin: 0; }
+
+  .b { font-weight: bold; }
+  .i { font-style: italic; }
+  .right, .right div { text-align: right; }
+  /* Folio does not inherit text-align into child blocks. */
+  .center, .center div { text-align: center; }
+  .muted { color: #555; }
+  .small { font-size: 6pt; }
+  .big { font-size: 9pt; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; word-wrap: break-word; }
+
+  .block { margin-bottom: 6pt; }
+  .section { font-size: 8.5pt; font-weight: bold; margin: 8pt 0 3pt 0; }
+
+  /* Tinted field boxes. The colour comes from the context so an emitente can
+     override it without touching the template. */
+  .boxes td { background: {{ ctx.brand.box_bg }}; padding: 2pt 4pt; border-right: 1.5pt solid #fff; }
+  .boxes .lbl { display: block; font-size: 5.5pt; color: #333; }
+  .boxes .val { display: block; font-weight: bold; }
+
+  /* Listing tables: header rule plus a dashed rule under each row. */
+  .list td { padding: 1.5pt 3pt 1.5pt 0; border-bottom: 0.4pt dashed #999; }
+  .list .head td { font-weight: normal; color: #333; border-bottom: 0.6pt solid #000; }
+
+  /* Folio reserves no vertical space for a block image. */
+  .logo-band { min-height: 12mm; }
+  .logo { max-width: 45mm; max-height: 12mm; display: block; }
+  .qr-band { min-height: 20mm; }
+  .qr { width: 20mm; display: block; margin-left: auto; }
+  .barcode-band { min-height: 15mm; }
+  .barcode { width: 100%; display: block; }
+
+  .chave { letter-spacing: 0.2pt; }
+  .banner { font-weight: bold; text-align: center; margin: 4pt 0; }
+  /* Pinned to the foot of the last sheet. Folio has no running elements, but an
+     HTML absolute is placed on the last page and anchored by its top edge, and
+     the @page bottom margin keeps flow content clear of the band. */
+  .foot-line { position: absolute; top: 286mm; left: 8mm; width: 194mm;
+    font-size: 6pt; color: #555; font-style: italic; text-align: right; }
+
+  /* Solid grey, not rgba: folio ignores the alpha channel and would paint the
+     watermark solid black over the content. */
+  .watermark { position: fixed; top: 30%; left: 0; width: 100%; text-align: center;
+    font-size: 18pt; color: #cfcfcf; font-weight: bold; }
+</style>
+{% if ctx.is_cancelada %}<div class="watermark">{{ ctx.text.cancelada }}</div>{% endif %}
+{% if ctx.is_homologacao %}<div class="watermark">{{ ctx.text.homologacao }}</div>{% endif %}
+
+{{ m.emitente(ctx) }}
+{{ m.identificacao(ctx) }}
+{{ m.carga_e_fisco(ctx) }}
+{{ m.modal(ctx) }}
+{{ m.documentos(ctx) }}
+{{ m.seguros(ctx) }}
+{{ m.observacoes(ctx) }}
+<div class="foot-line">{{ ctx.text.gerado_por }} {{ ctx.site }} em {{ ctx.gerado_em }}</div>

@@ -127,7 +127,7 @@ Run: `go test ./... -race` from `worker/`.
 
 - DLQ receives messages after max retries — monitor via CloudWatch alarms (configured in CDK).
 - Command queues are standard SQS; duplicate and out-of-order deliveries are expected.
-- `go-dfe` is the primary in-process path for promoted services; py-dfe remains the fallback and PDF renderer.
+- `go-dfe` is the primary in-process path for promoted services; py-dfe remains the SEFAZ fallback. The API renders PDFs.
 - After a terminal SEFAZ response: persist state, upload XML to S3, and publish the result to SNS; the API results
   consumer performs Valkey/WebSocket fan-out.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.

@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterNFCes mounts all /nfces routes (NFC-e, modelo 65).
-func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.ExternalService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
+func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/nfces", authMw)
 
 	// POST /nfces — emit a new NFC-e
@@ -122,28 +122,14 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, ext *services.E
 		return sendXML(c, data, c.Params("access_key"))
 	})
 
-	// GET /nfces/:access_key/danfce — DANFC-e PDF rendered by py-dfe
+	// GET /nfces/:access_key/danfce — cached DANFC-e PDF URL rendered in-process
 	g.Get("/:access_key/danfce", perm.Require("get.nfces"), func(c fiber.Ctx) error {
-		orgPK := middleware.GetOrgPK(c)
 		accessKey := c.Params("access_key")
-		nfce, err := svc.GetNFCe(c.Context(), orgPK, accessKey)
+		download, err := svc.GetDANFCeURL(c.Context(), middleware.GetOrgPK(c), accessKey)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		if nfce == nil {
-			return sendProblem(c, nfesvc.ErrNFCeNotFound)
-		}
-		xml, err := svc.GetNFCeXML(c.Context(), orgPK, accessKey)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		pdf, err := ext.GeneratePDF(c.Context(), services.DocTypeNFCe, services.ServiceGerarDanfe,
-			services.UFFromCode[accessKey[0:2]], services.StripPKPrefix(orgPK), string(xml),
-			attrStr(nfce, "status") == services.StatusCancelled)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		return sendAttachment(c, pdf, mimeApplicationPDF, accessKey, ".pdf")
+		return c.JSON(download)
 	})
 
 	// POST /nfces/:access_key/cancel

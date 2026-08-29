@@ -1,0 +1,228 @@
+<style>
+    @page {
+        /* 58 mm roll. The columns only fit at this width with the reduced type
+           scale below — at 7pt "UNID" broke one letter per line. */
+        size: 58mm 0;
+        margin: 2mm;
+    }
+
+    body {
+        font-family: "DejaVu Sans", Arial, sans-serif;
+        font-size: 6pt;
+        color: #000;
+        margin: 0;
+        padding: 0;
+    }
+
+    .receipt {
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    /* Folio does not inherit text-align into child blocks, so a centred
+       container has to hand the alignment down explicitly. */
+    .center, .center div { text-align: center; }
+    .right { text-align: right; }
+    .b { font-weight: bold; }
+    .i { font-style: italic; }
+    .small { font-size: 5pt; }
+
+    table { width: 100%; border-collapse: collapse; }
+    td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+    .num { text-align: right; white-space: nowrap; }
+
+    .block { margin-bottom: 3pt; }
+    .doc-auxiliar { margin-top: 4pt; }
+
+    /* Items: a rule under the header and one closing the table, as on the
+       reference receipt — no full grid. */
+    .items td { font-size: 5.5pt; padding: 0.5pt 1.5pt 0.5pt 0; }
+    .items .head td { font-weight: normal; border-bottom: 0.5pt solid #000; }
+    /* Closing rule on a wrapper: folio has no :last-child, and the table itself
+       must stay border-collapsed for the header rule. */
+    .items-wrap { border-bottom: 0.5pt solid #000; }
+    .items .num { overflow-wrap: normal; word-wrap: normal; }
+
+    .totals td { padding: 0.5pt 0; }
+    .totals .sep td { border-top: 0.5pt solid #000; }
+
+    /* QR beside the authorization block. Folio reserves no vertical space for a
+       block image, so the wrapper's min-height reserves the square. */
+    .logo-band { min-height: 12mm; margin-bottom: 2pt; }
+    .logo { max-width: 30mm; max-height: 12mm; display: block; margin: 0 auto; }
+
+    .qr-band { min-height: 20mm; }
+    .qr { width: 20mm; display: block; }
+    .auth td { padding: 0.5pt 0; }
+
+    .banner { font-weight: bold; text-align: center; margin: 3pt 0; }
+    .footer { font-size: 5pt; color: #555; margin-top: 4pt; }
+
+    /* Kept narrow and unrotated: folio does not clip a rotated overflow, so the
+       DANFE-style diagonal watermark ran off the page here. */
+    .watermark { text-align: center; font-weight: bold; color: rgba(0, 0, 0, 0.35); margin: 2pt 0; }
+</style>
+<div class="receipt">
+    {% if is_cancelada %}<div class="watermark">{{ text.cancelada }}</div>{% endif %}
+
+    {# Divisão I — Cabeçalho #}
+    <div class="block center">
+        {% if emit.logo_b64 %}
+        <div class="logo-band"><img class="logo" src="{{ emit.logo_b64 }}" alt="logo"></div>
+        {% endif %}
+        <div>CNPJ: {{ emit.cnpj }}</div>
+        <div class="b">{{ emit.nome }}</div>
+        <div>{{ emit.endereco }}</div>
+        <div class="doc-auxiliar">{{ text.doc_auxiliar }}</div>
+    </div>
+
+    {% if is_contingencia %}
+    <div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>
+    {% endif %}
+
+    {# Divisão II — Itens (completo only) #}
+    {% if show_items %}
+    <div class="items-wrap block">
+    <table class="items">
+        <colgroup>
+            <col style="width:13%">
+            <col style="width:33%">
+            <col style="width:13%">
+            <col style="width:9%">
+            <col style="width:16%">
+            <col style="width:16%">
+        </colgroup>
+        <thead>
+        <tr class="head">
+            <td>Código</td>
+            <td>Descrição</td>
+            <td class="num">Qtde</td>
+            <td>UN</td>
+            <td class="num">Vl Unit.</td>
+            <td class="num">Vl Tot.</td>
+        </tr>
+        </thead>
+        <tbody>
+        {% for it in items %}
+        <tr>
+            <td>{{ it.cProd }}</td>
+            <td>{{ it.xProd }}</td>
+            <td class="num">{{ it.qCom }}</td>
+            <td>{{ it.uCom }}</td>
+            <td class="num">{{ it.vUnCom }}</td>
+            <td class="num">{{ it.vProd }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% endif %}
+
+    {# Divisão III — Totais #}
+    <table class="totals block">
+        <colgroup>
+            <col style="width:60%">
+            <col style="width:40%">
+        </colgroup>
+        <tr>
+            <td class="b">Qtde. total de itens</td>
+            <td class="num b">{{ totals.qtd }}</td>
+        </tr>
+        <tr>
+            <td class="b">Valor total</td>
+            <td class="num b">R$ {{ totals.vProd }}</td>
+        </tr>
+        {% if totals.has_acrescimo_desconto %}
+        <tr>
+            <td>Descontos</td>
+            <td class="num">R$ {{ totals.vDesc }}</td>
+        </tr>
+        <tr>
+            <td>Acréscimos</td>
+            <td class="num">R$ {{ totals.vFrete }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td class="b">Valor a pagar</td>
+            <td class="num b">R$ {{ totals.vNF }}</td>
+        </tr>
+        <tr class="sep">
+            <td>Forma pagamento</td>
+            <td class="num">Valor pago (R$)</td>
+        </tr>
+        {% for p in totals.pagamentos %}
+        <tr>
+            <td>{{ p.forma }}</td>
+            <td class="num">R$ {{ p.valor }}</td>
+        </tr>
+        {% endfor %}
+        {% if totals.has_troco %}
+        <tr>
+            <td>Troco</td>
+            <td class="num">R$ {{ totals.troco }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    {# Divisão IV — Consulta via chave #}
+    <div class="block center">
+        <div class="b">Consulte pela Chave de acesso em</div>
+        <div>{{ url_chave }}</div>
+        <div>{{ chave_fmt }}</div>
+    </div>
+
+    {# Divisões V a VII — QR Code ao lado do consumidor, identificação e protocolo #}
+    <table class="block">
+        <colgroup>
+            <col style="width:40%">
+            <col style="width:60%">
+        </colgroup>
+        <tr>
+            <td>
+                <div class="qr-band"><img class="qr" src="{{ qr_uri }}" alt="QR Code"></div>
+            </td>
+            <td>
+                <table class="auth">
+                    <tr>
+                        <td class="b">{{ consumidor }}</td>
+                    </tr>
+                    <tr>
+                        <td class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }}
+                            {%- if via.label %} - {{ via.label }}{% endif %}
+                        </td>
+                    </tr>
+                    {% if protocolo %}
+                    <tr>
+                        <td class="b">Protocolo de autorização: {{ protocolo.nProt }}</td>
+                    </tr>
+                    <tr>
+                        <td class="b">Data de autorização: {{ protocolo.dhRecbto }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td class="b">Data de emissão: {{ ident.dhEmi }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {% if is_contingencia %}
+    <div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>
+    {% endif %}
+    {% if is_homologacao %}
+    <div class="banner">{{ text.homologacao }}</div>
+    {% endif %}
+
+    {# Divisão VIII — Mensagem fiscal #}
+    {% if msg_fiscal %}<div class="block center i">{{ msg_fiscal }}</div>{% endif %}
+
+    {# Divisão IX — Mensagem do contribuinte #}
+    {% if msg_contribuinte %}<div class="block right i">{{ msg_contribuinte }}</div>{% endif %}
+
+    <div class="center footer">{{ text.gerado_por }} {{ site }}<br>{{ gerado_em }}</div>
+</div>

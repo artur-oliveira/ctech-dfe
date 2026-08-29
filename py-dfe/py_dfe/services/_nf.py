@@ -3,9 +3,7 @@ import random
 from typing import Any
 
 from py_dfe.certificate.manager import CertificateManager
-from py_dfe.constants.danfe import SERVICE_GERAR_DANFE
 from py_dfe.constants.endpoints import get_authorizer
-from py_dfe.danfe.document import generate_danfe
 from py_dfe.constants.enums import TP_EVENTO_CANCELAMENTO
 from py_dfe.exceptions import InvalidSefazResponseError, DFeError
 from py_dfe.services.base import SefazClient, _ensure_list
@@ -63,8 +61,6 @@ class _NFServiceClient:
 
     def call(self, service: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Generic call for any NF-e service."""
-        if service == SERVICE_GERAR_DANFE:
-            return generate_danfe(payload)
         authorizer = get_authorizer(self._client.doc_type, self._client.uf)
         result = self._parse_result_message(
             self._client.call(

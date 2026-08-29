@@ -16,8 +16,7 @@ func TestMapToDfeRequest(t *testing.T) {
 		t.Errorf("req = %+v", req)
 	}
 
-	// GeneratePDF's render-only payloads have no doc_type/service/uf in this
-	// shape — must be skipped, not error.
+	// Incomplete payloads must be skipped, not treated as errors.
 	if _, ok := mapToDfeRequest(map[string]any{"xml": "<NFe/>"}); ok {
 		t.Error("expected ok=false for payload missing doc_type/service/uf/body")
 	}

@@ -23,6 +23,7 @@ import type {
   TaxProfileCreate,
   TaxProfileItemOut,
   AuditLogOut,
+  AuxiliaryDocumentDownload,
   CertificateOut,
   CTeConfigOut,
   DistributionLookupOut,
@@ -103,6 +104,7 @@ export const ORG_HEADER = 'Dfe-Organization-Pk'
 const OPEN_CNPJ_API_URL = 'https://open.cnpja.com'
 const OPEN_CNPJ_DOCUMENT_LENGTH = 14
 const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000
+const AUXILIARY_DOCUMENT_TIMEOUT_MS = 12_000
 
 // Retries live here rather than in TanStack: one bounded, jittered budget for
 // the whole app. Retrying in both layers turns three transport attempts into
@@ -886,8 +888,8 @@ class ApiClient {
     return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/xml`, {responseType: 'blob'})).data
   }
 
-  async downloadNfeDanfe(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/danfe`, {responseType: 'blob'})).data
+  async downloadNfeDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/nfes/${accessKey}/danfe`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS})
   }
 
   // NFC-es (modelo 65) — same record shape as NF-e, distinct routes
@@ -935,8 +937,8 @@ class ApiClient {
     return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
   }
 
-  async downloadNfceDanfe(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/danfce`, {responseType: 'blob'})).data
+  async downloadNfceDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/nfces/${accessKey}/danfce`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS})
   }
 
   // MDF-es (modelo 58) — uses Dfe-Organization-Pk header
@@ -997,8 +999,8 @@ class ApiClient {
     return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
   }
 
-  async downloadMdfeDamdfe(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/damdfe`, {responseType: 'blob'})).data
+  async downloadMdfeDamdfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/mdfes/${accessKey}/damdfe`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS})
   }
 
   // NFS-e — id é sempre o id_dps (45 chars), nunca a chave de acesso (spec §7 decisão 2)

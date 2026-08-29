@@ -61,7 +61,8 @@ Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
 - **distribution-dispatcher**: `${env}-distribution-dispatcher`, timeout 60 / mem 128,
   EventBridge schedule every **30 min** (`worker-stack.ts:346-368`).
 - **py-dfe**: `${env}-py-dfe`, Python 3.14, arm64, timeout 30 / mem 512, handler
-  `py_dfe.handler.handler` (`lib/dfe-stack.ts:93-112`). **There is no separate go-dfe
+  `py_dfe.handler.handler`. Its layer contains only Python SEFAZ dependencies; PDF-only
+  Pango/Cairo/font assets were removed. **There is no separate go-dfe
   Lambda** — go-dfe runs in-process inside the Go workers; a comment at
   `worker-stack.ts:226` about "go-dfe in-process" is forward-looking.
 
@@ -107,6 +108,9 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
   tables + `/index/*` (`iam-stack.ts:81-105`); S3 on cert/doc buckets; SNS publish on the
   event bus; SQS receive on results + send on distribution; SSM `GetParameter` on
   `/ctech-dfe|ctech-account|ctech/${env}/*`.
+- The API role can tag objects in the documents bucket. PDFs tagged
+  `cache=auxiliary-document` expire after 30 days; in versioned production buckets,
+  noncurrent tagged versions expire after one additional day.
 - **API on a private-IPv4 EC2 ASG routed by `ctech-lbalancer` HAProxy**
   (`api-stack.ts`): the shared `HaproxyEc2Service` creates the encrypted launch
   template, ASG, SG, log groups and CPU target tracking. Capacity remains

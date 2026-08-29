@@ -1,0 +1,173 @@
+{# Tinted field boxes are written out inline: gonja does not expose one macro
+   to another inside the same file. #}
+{% macro emitente(ctx) %}
+<table class="block"><tr>
+  <td style="width:70%">
+    {% if ctx.brand.logo_b64 %}
+    <div class="logo-band"><img class="logo" src="{{ ctx.brand.logo_b64 }}" alt="logo"></div>
+    {% endif %}
+    <div class="b big">{{ ctx.emit.nome }}</div>
+    {% if ctx.emit.fantasia %}<div>{{ ctx.emit.fantasia }}</div>{% endif %}
+    <div>{{ ctx.emit.endereco }}</div>
+    <div>{{ ctx.emit.mun }} - {{ ctx.emit.uf }} &nbsp; CEP: {{ ctx.emit.cep }}</div>
+    <div><span class="b">CNPJ/CPF:</span> {{ ctx.emit.doc }} &nbsp;
+      <span class="b">IE:</span> {{ ctx.emit.ie }}
+      {%- if ctx.rntrc %} &nbsp; <span class="b">RNTRC:</span> {{ ctx.rntrc }}{% endif %}</div>
+    {% if ctx.emit.fone %}<div>Fone: {{ ctx.emit.fone }}</div>{% endif %}
+  </td>
+  <td style="width:30%">
+    {% if ctx.qr_uri %}<div class="qr-band"><img class="qr" src="{{ ctx.qr_uri }}" alt="QR Code"></div>{% endif %}
+  </td>
+</tr></table>
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }}</div>{% endif %}
+{% endmacro %}
+
+{% macro identificacao(ctx) %}
+{# FL is printed in the page margin: folio resolves counter(page) only there. #}
+<div class="block"><span class="b big">{{ ctx.text.damdfe }}</span>
+  <span class="muted"> - Documento Auxiliar de Manifesto Eletrônico de Documentos Fiscais</span></div>
+<table class="boxes block"><tr>
+  <td style="width:10%"><span class="lbl">{{ "Modelo" }}</span><span class="val">{{ "58" }}</span></td>
+  <td style="width:10%"><span class="lbl">{{ "Série" }}</span><span class="val">{{ ctx.ide.serie }}</span></td>
+  <td style="width:18%"><span class="lbl">{{ "Número" }}</span><span class="val">{{ ctx.ide.nMDF }}</span></td>
+  <td style="width:30%"><span class="lbl">{{ "Data e hora de Emissão" }}</span><span class="val">{{ ctx.ide.dhEmi }}</span></td>
+  <td style="width:16%"><span class="lbl">{{ "UF Carreg." }}</span><span class="val">{{ ctx.ide.ufIni }}</span></td>
+  <td style="width:16%"><span class="lbl">{{ "UF Descarreg." }}</span><span class="val">{{ ctx.ide.ufFim }}</span></td>
+</tr></table>
+{% endmacro %}
+
+{% macro carga_e_fisco(ctx) %}
+<table class="block"><tr>
+  <td style="width:48%">
+    <div class="section">Modelo {{ ctx.modal_label }} de Carga</div>
+    <table class="boxes"><tr>
+      <td style="width:25%"><span class="lbl">{{ "Qtd. CTe" }}</span><span class="val">{{ ctx.tot.qCTe }}</span></td>
+      <td style="width:25%"><span class="lbl">{{ "Qtd. NFe" }}</span><span class="val">{{ ctx.tot.qNFe }}</span></td>
+      <td style="width:25%"><span class="lbl">{{ "Qtd. MDFe" }}</span><span class="val">{{ ctx.tot.qMDFe }}</span></td>
+      <td style="width:25%"><span class="lbl">{{ "Peso total (" ~ ctx.tot.cUnid_label ~ ")" }}</span><span class="val">{{ ctx.tot.qCarga }}</span></td>
+    </tr></table>
+    <div class="section">Produto predominante</div>
+    <div>{{ ctx.prodPred.xProd }}
+      {%- if ctx.prodPred.tpCarga_label %} &nbsp;·&nbsp; {{ ctx.prodPred.tpCarga_label }}{% endif %}
+      {%- if ctx.prodPred.ncm %} &nbsp;·&nbsp; NCM {{ ctx.prodPred.ncm }}{% endif %}</div>
+    <div class="section">{{ ctx.text.protocolo }}</div>
+    <div>{% if ctx.protocolo %}{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}{% endif %}</div>
+  </td>
+  <td style="width:52%">
+    <div class="section muted small">CONTROLE DO FISCO</div>
+    <div class="barcode-band"><img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave"></div>
+    <div class="b">Chave de Acesso</div>
+    <div class="chave">{{ ctx.chave_fmt }}</div>
+    <div>Consulte em: <span class="b">{{ ctx.consulta_url }}</span></div>
+  </td>
+</tr></table>
+{% endmacro %}
+
+{% macro modal(ctx) %}
+{% set mi = ctx.modal_info %}
+{% if mi.is_rodo %}
+<table class="block"><tr>
+  <td style="width:50%">
+    <div class="section">Veículo</div>
+    <table class="list">
+      <tr class="head"><td style="width:50%">Placa</td><td style="width:50%">RNTRC</td></tr>
+      <tr><td class="b">{{ mi.veic.placa_uf_fmt }}</td><td class="b">{{ mi.rntrc }}</td></tr>
+      {% for rb in mi.reboques %}<tr><td class="b">{{ rb.placa_uf_fmt }}</td><td></td></tr>{% endfor %}
+    </table>
+  </td>
+  <td style="width:50%">
+    <div class="section">Condutor</div>
+    <table class="list">
+      <tr class="head"><td style="width:40%">CPF</td><td style="width:60%">Nome</td></tr>
+      {% for cd in mi.condutores %}<tr><td class="b">{{ cd.cpf }}</td><td class="b">{{ cd.nome }}</td></tr>{% endfor %}
+    </table>
+  </td>
+</tr></table>
+{% elif mi.is_aereo %}
+<div class="section">Aeronave</div>
+<table class="boxes block"><tr>
+  <td style="width:16%"><span class="lbl">{{ "Nacionalidade" }}</span><span class="val">{{ mi.aereo.nac }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Matrícula" }}</span><span class="val">{{ mi.aereo.matr }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Nº do voo" }}</span><span class="val">{{ mi.aereo.nvoo }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Aer. embarque" }}</span><span class="val">{{ mi.aereo.caeremb }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Aer. destino" }}</span><span class="val">{{ mi.aereo.caerdes }}</span></td>
+  <td style="width:16%"><span class="lbl">{{ "Data do voo" }}</span><span class="val">{{ mi.aereo.dvoo }}</span></td>
+</tr></table>
+{% elif mi.is_aqua %}
+<div class="section">Embarcação</div>
+<table class="boxes block"><tr>
+  <td style="width:16%"><span class="lbl">{{ "IRIN" }}</span><span class="val">{{ mi.aqua.irin }}</span></td>
+  <td style="width:16%"><span class="lbl">{{ "Tipo" }}</span><span class="val">{{ mi.aqua.tpemb }}</span></td>
+  <td style="width:16%"><span class="lbl">{{ "Código" }}</span><span class="val">{{ mi.aqua.cembar }}</span></td>
+  <td style="width:26%"><span class="lbl">{{ "Embarcação" }}</span><span class="val">{{ mi.aqua.xembar }}</span></td>
+  <td style="width:13%"><span class="lbl">{{ "Nº viagem" }}</span><span class="val">{{ mi.aqua.nviag }}</span></td>
+  <td style="width:13%"><span class="lbl">{{ "Porto emb. / dest." }}</span><span class="val">{{ mi.aqua.cprtemb ~ " / " ~ mi.aqua.cprtdest }}</span></td>
+</tr></table>
+{% if mi.aqua.balsas %}
+<table class="list block">
+  <tr class="head"><td>Balsas</td></tr>
+  {% for bl in mi.aqua.balsas %}<tr><td class="b">{{ bl.nome_cod }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+{% elif mi.is_ferrov %}
+<div class="section">Trem</div>
+<table class="boxes block"><tr>
+  <td style="width:20%"><span class="lbl">{{ "Prefixo" }}</span><span class="val">{{ mi.ferrov.xpref }}</span></td>
+  <td style="width:20%"><span class="lbl">{{ "Data/hora" }}</span><span class="val">{{ mi.ferrov.dhtrem }}</span></td>
+  <td style="width:20%"><span class="lbl">{{ "Origem" }}</span><span class="val">{{ mi.ferrov.xori }}</span></td>
+  <td style="width:20%"><span class="lbl">{{ "Destino" }}</span><span class="val">{{ mi.ferrov.xdest }}</span></td>
+  <td style="width:20%"><span class="lbl">{{ "Nº vagões" }}</span><span class="val">{{ mi.ferrov.qvag }}</span></td>
+</tr></table>
+{% if mi.ferrov.vagoes %}
+<table class="list block">
+  <tr class="head"><td style="width:30%">Série</td><td style="width:70%">Nº do vagão</td></tr>
+  {% for vg in mi.ferrov.vagoes %}<tr><td class="b">{{ vg.serie }}</td><td class="b">{{ vg.nvag }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+{% endif %}
+{% if ctx.percurso %}<div class="block"><span class="b">UF de percurso:</span> {{ ctx.percurso }}</div>{% endif %}
+{% endmacro %}
+
+{% macro documentos(ctx) %}
+<div class="section center">Relação dos Documentos Fiscais Eletrônicos</div>
+{% for mun in ctx.municipios %}
+<div class="b small">Município de Descarregamento: {{ mun.mun }}</div>
+<table class="list block">
+  <tr class="head">
+    <td style="width:14%">Tp. Doc.</td>
+    <td style="width:36%">CPF/CNPJ Emitente</td>
+    <td style="width:50%">Série / Nº Documento</td>
+  </tr>
+  {% for d in mun.docs %}
+  <tr>
+    <td>{{ d.tipo }}</td>
+    <td class="b">{{ d.emit_doc }}</td>
+    <td class="b">{{ d.serie }} / {{ d.numero }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+{% endmacro %}
+
+{% macro seguros(ctx) %}
+{% if ctx.seguros %}
+<div class="section">Informações dos Seguros</div>
+<table class="list block">
+  <tr class="head">
+    <td style="width:34%">Seguradora</td><td style="width:22%">CNPJ</td>
+    <td style="width:20%">Apólice</td><td style="width:24%">Averbação</td>
+  </tr>
+  {% for s in ctx.seguros %}
+  <tr><td class="b">{{ s.nome }}</td><td class="b">{{ s.cnpj }}</td>
+    <td class="b">{{ s.apol }}</td><td class="b">{{ s.averbacoes }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endmacro %}
+
+{% macro observacoes(ctx) %}
+<div class="section">Observações</div>
+{% if ctx.msg_fiscal %}<div>{{ ctx.msg_fiscal }}</div>{% endif %}
+{% if ctx.msg_contribuinte %}<div>{{ ctx.msg_contribuinte }}</div>{% endif %}
+{% if ctx.lacres %}<div><span class="b">Lacres:</span> {{ ctx.lacres | join(", ") }}</div>{% endif %}
+{% endmacro %}

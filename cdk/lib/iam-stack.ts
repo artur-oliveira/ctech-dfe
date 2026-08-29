@@ -147,6 +147,10 @@ export class IAMStack extends cdk.Stack {
             `${props.documentsBucketArn}/*`,
           ],
         }),
+        new iam.PolicyStatement({
+          actions: ['s3:PutObjectTagging'],
+          resources: [`${props.documentsBucketArn}/*`],
+        }),
         // s3:ListBucket must be on the bucket ARN (not /*) — used by health check
         new iam.PolicyStatement({
           actions: ['s3:ListBucket'],
