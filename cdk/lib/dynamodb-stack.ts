@@ -12,6 +12,7 @@ export type TableName = (
   'organization_users' |
   'organization_invitations' |
   'account_billing' |
+  'serie_claims' |
   'audit_logs' |
   'products' |
   'vehicles' |
@@ -719,6 +720,29 @@ export class DynamoDBStack extends cdk.Stack {
       pointInTimeRecoverySpecification,
       encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
     });
+    // Uma linha por (tax_id, modelo, série, ambiente) — a mesma unicidade que a
+    // SEFAZ usa para uma NF-e, menos o número, que é a sequência que esta trava
+    // protege.
+    //
+    // Global de propósito, sem escopo de organização: a ADR 0022 do
+    // ctech-billing permite que duas organizações tenham o mesmo CNPJ, e o
+    // ponto desta trava é justamente que as duas não emitam na mesma série.
+    // Escopá-la anularia a razão de existir.
+    //
+    // Só pk: a linha é lida e escrita pela chave primária, nunca consultada.
+    const serieClaimsTable = new dynamodb.TableV2(this, `${tablePrefix}_serie_claims`, {
+      tableName: `${tablePrefix}_serie_claims`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    this.tables.set('serie_claims', serieClaimsTable);
+
     this.tables.set('worker_outbox', workerOutboxTable);
 
     // ============== OUTPUTS ==============
