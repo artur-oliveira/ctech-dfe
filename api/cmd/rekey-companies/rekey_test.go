@@ -314,3 +314,37 @@ func TestOtherTablesKeepTheStrictComparison(t *testing.T) {
 		t.Fatal("tax_id was excluded on a table that is not the company record")
 	}
 }
+
+// PermChecker resolves a membership on every request, so a flip that left this
+// table behind would answer 403 to everybody. It was excluded once — the spec
+// separates identity from membership — and the two share a partition key.
+func TestMembershipIsRekeyedToo(t *testing.T) {
+	for _, want := range []string{"organization_users", "organization_invitations"} {
+		var found bool
+		for _, tb := range tables {
+			if tb.Name == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%q is missing; the flip would refuse every request", want)
+		}
+	}
+}
+
+// And it comes before the documents, like every other thing a company needs in
+// order to be usable at all.
+func TestMembershipIsCopiedBeforeDocuments(t *testing.T) {
+	var membership, firstDocument = -1, -1
+	for i, tb := range tables {
+		if tb.Name == "organization_users" {
+			membership = i
+		}
+		if tb.Kind == kindEnvOrgPK && firstDocument == -1 {
+			firstDocument = i
+		}
+	}
+	if membership == -1 || membership > firstDocument {
+		t.Errorf("membership at %d, first document at %d", membership, firstDocument)
+	}
+}

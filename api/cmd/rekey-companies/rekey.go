@@ -43,6 +43,18 @@ var tables = []table{
 	// The company record itself, so a partial run leaves something to look at.
 	{"organizations", kindOrgPK},
 
+	// Access, and it comes early for a blunt reason: PermChecker resolves a
+	// membership on EVERY request. Leaving these behind would make the flip
+	// answer 403 to everybody — not a degradation, the product down.
+	//
+	// This is the re-key of dfe's own membership, not the unification with
+	// ctech-account's. That is a separate phase and stays one: dfe carries
+	// role + action.resource permissions that the platform ladder cannot
+	// express, and deciding what happens to an explicit grant is not a
+	// data migration.
+	{"organization_users", kindOrgPK},
+	{"organization_invitations", kindOrgPK},
+
 	// Fiscal configuration. Singletons, one row per company.
 	{"organization_nfe_configs", kindOrgPK},
 	{"organization_nfce_configs", kindOrgPK},
