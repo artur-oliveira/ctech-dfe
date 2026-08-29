@@ -132,7 +132,7 @@ const iamStack = new IAMStack(app, id('IAM'), {
   documentsBucketArn: s3Stack.documentsBucketArn,
   deploymentsBucketArn: `arn:aws:s3:::${CTECH_DEPLOYMENTS_BUCKET}`,
   logsBucketArn: `arn:aws:s3:::${CTECH_LOGS_BUCKET}`,
-  dynamoDBTables: dynamodbStack.tables,
+  tablePrefix: `${ENVIRONMENT}_dfe`,
   topicArn: eventBusStack.topic.topicArn,
   resultsQueueArn: eventBusStack.resultsQueueArn,
   distributionQueueArn: workerStack.distributionQueueArn,

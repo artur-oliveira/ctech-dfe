@@ -1,5 +1,4 @@
 import * as cdk from 'aws-cdk-lib';
-import {aws_dynamodb} from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import {Construct} from 'constructs';
 import {Environment} from './types';
@@ -14,7 +13,7 @@ interface IAMStackProps extends cdk.StackProps {
   logsBucketArn: string;
   topicArn: string;
 
-  dynamoDBTables: Map<string, aws_dynamodb.TableV2>;
+  tablePrefix: string;
 
   resultsQueueArn: string;
   distributionQueueArn: string;
@@ -77,7 +76,13 @@ export class IAMStack extends cdk.Stack {
      * DynamoDB Permissions
      * =========================
      * (ARN-based to sem dependência de Table construct)
+     *
+     * Prefix wildcard instead of one ARN per table: the explicit list grew past
+     * the 6144-byte managed policy limit as tables were added. Every table in
+     * this app is named `${tablePrefix}_*`, so the grant stays scoped to the
+     * environment.
      */
+    const tableArnPrefix = `arn:aws:dynamodb:${this.region}:${this.account}:table/${props.tablePrefix}_`;
     const dynamoPolicy = new iam.ManagedPolicy(this, 'DynamoPolicy', {
       managedPolicyName: `${environment}-ctech-dfe-dynamodb-policy`,
       statements: [
@@ -93,9 +98,7 @@ export class IAMStack extends cdk.Stack {
             'dynamodb:BatchWriteItem',
             'dynamodb:TransactWriteItems',
           ],
-          resources: [...props.dynamoDBTables.values()].flatMap(it => [
-            it.tableArn, `${it.tableArn}/index/*`
-          ]),
+          resources: [`${tableArnPrefix}*`, `${tableArnPrefix}*/index/*`],
         }),
         // ListTables doesn't support resource-level restrictions
         new iam.PolicyStatement({

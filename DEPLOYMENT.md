@@ -465,6 +465,8 @@ curl -s http://localhost:8080/v1.0/health-check
 | `Account 868899309401 is not available`        | Wrong AWS account                                                   | Verify `bin/cdk.ts`                                             |
 | `Bootstrap required`                           | CDK bootstrap not executed                                          | Run the bootstrap command                                       |
 | `iamInstanceProfile.arn is invalid`            | Instance profile not created yet                                    | Verify IAM stack deployment completed successfully              |
+| `Cannot exceed quota for PolicySize: 6144`     | Managed policy over the IAM 6 KB limit                              | Grant by ARN prefix wildcard, not one ARN per table              |
+| `Export ... cannot be deleted as it is in use` | Stack still imports an export the producer just dropped             | Deploy the consumer stack alone first (`--exclusively`)          |
 | `Volume of size XGB is smaller than snapshot`  | EBS volume smaller than AMI snapshot requirements                   | Use a larger volume or AL2023 Minimal                           |
 | `SSM agent offline`                            | AL2023 Minimal does not include SSM Agent by default                | Install and enable `amazon-ssm-agent`                           |
 | Instances continuously replaced                | ASG configured with ELB health checks before application deployment | Use EC2 health checks during bootstrap                          |
