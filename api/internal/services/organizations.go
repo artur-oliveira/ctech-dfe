@@ -92,13 +92,60 @@ func (s *OrganizationService) Create(ctx context.Context, cpfOrCNPJ string, fiel
 	return s.repo.GetOrganization(ctx, cpfOrCNPJ)
 }
 
-// cnpjRoot returns the 8-digit CNPJ root (raiz) of an org PK, or "" for a CPF
-// org (no branch concept).
-func cnpjRoot(orgPK string) string {
-	if cnpj, ok := strings.CutPrefix(orgPK, "CNPJ_"); ok && len(cnpj) >= 8 {
-		return cnpj[:8]
+// branchCandidate is what the matriz/filial rule needs to know about a company:
+// which workspace it belongs to, and its CNPJ raiz.
+//
+// OrganizationID is empty for a company that has not been through the re-key.
+// That is not a missing value to work around — it is what tells the two eras
+// apart, and isBranchSibling reads it as such.
+type branchCandidate struct {
+	OrganizationID string
+	Root           string
+}
+
+// isBranchSibling reports whether other is a matriz/filial sibling of mine.
+//
+// After the re-key both must be in the same organization. ctech-billing ADR
+// 0022 lets two organizations hold the same CNPJ — an accountant and their
+// client — so matching on the root alone would offer one customer another
+// customer's certificate.
+//
+// Before it, neither carries an organization id and the old partition key was
+// globally unique per CNPJ: one root meant one company, so the scope check has
+// nothing to add and demanding it would break matriz/filial reuse for every
+// existing customer on the day this ships.
+//
+// A half-migrated pair matches nothing. Under a global key it cannot exist; if
+// it appears, the migration is mid-flight and inheriting a certificate across
+// that boundary is a guess.
+func isBranchSibling(mine, other branchCandidate) bool {
+	if mine.Root == "" || other.Root == "" || mine.Root != other.Root {
+		return false
 	}
-	return ""
+	return mine.OrganizationID == other.OrganizationID
+}
+
+// typedRoot returns the raiz of a CPF/CNPJ as somebody typed it — mask and case
+// included. Creation has no record and no key yet, only what was typed.
+//
+// Alphanumeric-aware: a CNPJ's first twelve positions may hold letters since
+// the Receita Federal's 2026 change, so this keeps letters and uppercases them
+// rather than stripping to digits.
+func typedRoot(cpfOrCNPJ string) string {
+	var b strings.Builder
+	for _, r := range cpfOrCNPJ {
+		switch {
+		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r - 'a' + 'A')
+		}
+	}
+	canonical := b.String()
+	if len(canonical) != repositories.CNPJLength {
+		return ""
+	}
+	return canonical[:repositories.CNPJRootLength]
 }
 
 func certNotExpired(item map[string]types.AttributeValue) bool {
@@ -123,8 +170,10 @@ func (s *OrganizationService) branchCertificate(ctx context.Context, userID, cpf
 	if err != nil {
 		return nil, err
 	}
-	root := cnpjRoot(orgPK)
-	if root == "" {
+	// The raiz of the company being created comes from what was typed: there is
+	// no record for it yet, and after the re-key its key would carry nothing.
+	mine := branchCandidate{Root: typedRoot(cpfOrCNPJ)}
+	if mine.Root == "" {
 		return nil, nil
 	}
 	memberships, err := s.memberSvc.ListByUser(ctx, userID)
@@ -132,7 +181,14 @@ func (s *OrganizationService) branchCertificate(ctx context.Context, userID, cpf
 		return nil, err
 	}
 	for _, m := range memberships {
-		if m.OrgPK == orgPK || cnpjRoot(m.OrgPK) != root {
+		if m.OrgPK == orgPK {
+			continue
+		}
+		other, err := s.branchCandidateOf(ctx, m.OrgPK)
+		if err != nil {
+			return nil, err
+		}
+		if !isBranchSibling(mine, other) {
 			continue
 		}
 		certs, err := s.certRepo.List(ctx, m.OrgPK)
@@ -146,6 +202,29 @@ func (s *OrganizationService) branchCertificate(ctx context.Context, userID, cpf
 		}
 	}
 	return nil, nil
+}
+
+// branchCandidateOf reads a sibling's raiz off its RECORD, never off its key —
+// which is the whole point of the re-key. A record that predates the migration
+// carries no tax id, and its key is still a legacy CNPJ_ one, so the fallback
+// keeps existing customers working until it runs.
+func (s *OrganizationService) branchCandidateOf(ctx context.Context, orgPK string) (branchCandidate, error) {
+	company, err := s.repo.GetCompany(ctx, orgPK)
+	if err != nil {
+		return branchCandidate{}, err
+	}
+	if company == nil {
+		return branchCandidate{}, nil
+	}
+	if root := company.CNPJRoot(); root != "" {
+		return branchCandidate{OrganizationID: company.OrganizationID, Root: root}, nil
+	}
+	// Legacy: the document is still in the key, and there is no organization id
+	// to scope by because nothing has one yet.
+	if cnpj, ok := strings.CutPrefix(orgPK, "CNPJ_"); ok && len(cnpj) >= repositories.CNPJRootLength {
+		return branchCandidate{Root: cnpj[:repositories.CNPJRootLength]}, nil
+	}
+	return branchCandidate{}, nil
 }
 
 // CertificateRequired reports whether creating the given org requires a

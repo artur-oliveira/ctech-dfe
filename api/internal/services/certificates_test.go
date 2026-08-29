@@ -104,14 +104,18 @@ func TestMatchOrgDocument(t *testing.T) {
 	}
 }
 
-func TestCnpjRoot(t *testing.T) {
-	if got := cnpjRoot("CNPJ_12345678000195"); got != "12345678" {
-		t.Errorf("cnpjRoot = %q, want 12345678", got)
+// The raiz used to be sliced out of the partition key by cnpjRoot. Under a
+// company id that returned nothing, every filial started demanding its own
+// certificate, and the message said "certificado A1 é obrigatório" — which
+// describes none of that. typedRoot reads the document instead.
+func TestTypedRootMatchesMatrizAndFilial(t *testing.T) {
+	if got := typedRoot("12345678000195"); got != "12345678" {
+		t.Errorf("matriz root = %q, want 12345678", got)
 	}
-	if got := cnpjRoot("CNPJ_12345678000276"); got != "12345678" {
+	if got := typedRoot("12345678000276"); got != "12345678" {
 		t.Errorf("filial root = %q, want 12345678 (same as matriz)", got)
 	}
-	if got := cnpjRoot("CPF_12345678901"); got != "" {
-		t.Errorf("cnpjRoot for CPF = %q, want empty", got)
+	if got := typedRoot("12345678901"); got != "" {
+		t.Errorf("root for a CPF = %q, want empty", got)
 	}
 }

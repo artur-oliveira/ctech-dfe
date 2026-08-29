@@ -30,9 +30,16 @@ const (
 	TaxKindCPF  = "cpf"
 )
 
-// cnpjRootLength is the raiz: the first eight positions of a CNPJ, which
-// identify the company before its branch order and check digits.
-const cnpjRootLength = 8
+// CNPJLength and CNPJRootLength describe a CNPJ's shape. The raiz is its first
+// eight positions, which identify the company before its branch order and check
+// digits — so matriz and filial share it.
+//
+// Exported because the branch rule in the services package needs the same
+// numbers, and two copies of "the raiz is eight long" is one copy too many.
+const (
+	CNPJLength     = 14
+	CNPJRootLength = 8
+)
 
 // LocalCompany is the DF-e's projection of a platform company.
 //
@@ -62,10 +69,10 @@ type LocalCompany struct {
 // re-key. A CPF has no branch concept, and returning a prefix of one would make
 // two unrelated people look like matriz and filial.
 func (c *LocalCompany) CNPJRoot() string {
-	if c == nil || c.TaxIDKind != TaxKindCNPJ || len(c.TaxID) < cnpjRootLength {
+	if c == nil || c.TaxIDKind != TaxKindCNPJ || len(c.TaxID) < CNPJRootLength {
 		return ""
 	}
-	return c.TaxID[:cnpjRootLength]
+	return c.TaxID[:CNPJRootLength]
 }
 
 // IdentityStale reports whether the cached identity should be refreshed.
