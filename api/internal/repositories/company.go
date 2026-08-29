@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -63,6 +62,21 @@ type LocalCompany struct {
 	IdentitySyncedAt string
 }
 
+// Why there is no staleness check here.
+//
+// The identity is written by the re-key migration and by the handoff that links
+// a company (ctech-account's organization-handoff spec). Nothing re-reads it,
+// because nothing can: ctech-account's company routes sit behind
+// RequireClientID(SelfClientID), so a dfe-issued token is refused, and there is
+// no service credential for this direction. Inventing one is a cross-service
+// auth decision, not a detail of this re-key.
+//
+// It costs little, which is the point. TaxID and TaxIDKind never change — a
+// company whose tax id was wrong is a different company, register that one —
+// and LegalName is display-only here; the xNome on a document comes from this
+// repo's own `name` field, not from accounts. A refresher can be added when
+// there is a rename problem to solve and a credential to solve it with.
+
 // CNPJRoot returns the eight-position raiz, or "" when there is none.
 //
 // It reads the record, never the partition key — that is the whole point of the
@@ -73,23 +87,6 @@ func (c *LocalCompany) CNPJRoot() string {
 		return ""
 	}
 	return c.TaxID[:CNPJRootLength]
-}
-
-// IdentityStale reports whether the cached identity should be refreshed.
-//
-// Missing and unparseable both read as stale. Failing the other way means one
-// corrupt value pins a wrong name in place forever, with nothing to notice it.
-// A timestamp in the future reads as fresh rather than stale, so a clock that
-// ran backwards does not drive a refresh on every request.
-func (c *LocalCompany) IdentityStale(now time.Time, ttl time.Duration) bool {
-	if c == nil || c.IdentitySyncedAt == "" {
-		return true
-	}
-	at, err := time.Parse(time.RFC3339, c.IdentitySyncedAt)
-	if err != nil {
-		return true
-	}
-	return now.UTC().Sub(at.UTC()) > ttl
 }
 
 // GetCompany reads the local record. A legacy CNPJ_/CPF_ key still resolves, so
@@ -103,10 +100,12 @@ func (r *OrganizationRepository) GetCompany(ctx context.Context, orgPK string) (
 	if err != nil || item == nil {
 		return nil, err
 	}
-	return companyFromItem(pk, item), nil
+	return CompanyFromItem(pk, item), nil
 }
 
-func companyFromItem(pk string, item map[string]types.AttributeValue) *LocalCompany {
+// CompanyFromItem reads a company off an already-fetched item, so a caller that
+// has one (from the organization cache, say) does not fetch it twice.
+func CompanyFromItem(pk string, item map[string]types.AttributeValue) *LocalCompany {
 	return &LocalCompany{
 		CompanyID:        pk,
 		OrganizationID:   itemString(item, AttrOrganizationID),

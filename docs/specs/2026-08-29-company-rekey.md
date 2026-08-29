@@ -73,9 +73,20 @@ first discovering its organization. One `GetItem` here answers both, which keeps
 one read.
 
 The cached identity is a cache and must read like one: a rename in accounts is not an error
-here, and nothing in this repo may treat its copy as authoritative. It is refreshed when the
-company is read and its copy is older than the TTL — never written from a webhook body, the
-same discipline `AccountBillingRepository` already documents for the subscription snapshot.
+here, and nothing in this repo may treat its copy as authoritative.
+
+> **Amended during implementation.** This section first said the identity is refreshed on read
+> once its copy passes a TTL. There is no way to do that: `ctech-account`'s company routes sit
+> behind `RequireClientID(SelfClientID)`, so a dfe-issued token is refused, and no service
+> credential exists for this direction. Inventing one is a cross-service auth decision and not
+> a detail of this re-key.
+>
+> So **the identity is written and never re-read**: by the migration, and by the handoff that
+> links a company. The cost is small and worth stating, because "the cache goes stale" is the
+> obvious objection. `tax_id` and `tax_id_kind` never change — a company whose tax id was wrong
+> is a different company, and the answer is to register that one. `legal_name` is display-only
+> here; the `xNome` on a document comes from this repo's own `name` field. A refresher belongs
+> in the phase that also decides the credential.
 
 ## The série rule this spec owes ADR 0022
 

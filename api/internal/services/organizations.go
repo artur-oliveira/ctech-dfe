@@ -60,6 +60,23 @@ func (s *OrganizationService) Get(ctx context.Context, orgPK string) (map[string
 	return item, nil
 }
 
+// Company returns the local company record — the identity fields plus the ids
+// authorization needs — going through the same cache Get uses.
+//
+// It reads, and never refreshes: see the note on LocalCompany for why there is
+// no staleness check and no call to ctech-account here.
+func (s *OrganizationService) Company(ctx context.Context, orgPK string) (*repositories.LocalCompany, error) {
+	item, err := s.Get(ctx, orgPK)
+	if err != nil || item == nil {
+		return nil, err
+	}
+	pk, err := repositories.ParseOrgPK(orgPK)
+	if err != nil {
+		return nil, err
+	}
+	return repositories.CompanyFromItem(pk, item), nil
+}
+
 // SetOwnerUserID stamps the paying account on an organization.
 //
 // It exists only for the read-fallback repair of organizations created before

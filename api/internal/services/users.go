@@ -154,6 +154,11 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 			"name":             pk,
 			"description":      nil,
 			"state_federation": nil,
+			// The document, so the UI reads it from the record instead of
+			// slicing the pk. Empty until the re-key migration fills it, which
+			// is why orgTaxId in the browser falls back to the legacy key.
+			"tax_id":      nil,
+			"tax_id_kind": nil,
 		}
 		if pk != "" && s.orgSvc != nil {
 			if org, orgErr := s.orgSvc.Get(ctx, pk); orgErr == nil && org != nil {
@@ -161,6 +166,10 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 				if attributevalue.UnmarshalMap(org, &orgMap) == nil {
 					enriched["name"] = orgMap["name"]
 					enriched["description"] = orgMap["description"]
+					if v, ok := orgMap[repositories.AttrTaxID].(string); ok && v != "" {
+						enriched[repositories.AttrTaxID] = v
+						enriched[repositories.AttrTaxIDKind] = orgMap[repositories.AttrTaxIDKind]
+					}
 					if person, ok := orgMap["person"].(map[string]any); ok {
 						addrs, _ := person["addresses"].([]any)
 						if len(addrs) == 0 {

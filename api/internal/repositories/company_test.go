@@ -1,9 +1,6 @@
 package repositories
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 // The raiz comes off the record's tax id, never off the partition key. Under a
 // company id there is no CNPJ in the key to slice.
@@ -40,42 +37,5 @@ func TestCNPJRootIsEmptyWithoutATaxID(t *testing.T) {
 	}
 	if got := (&LocalCompany{}).CNPJRoot(); got != "" {
 		t.Errorf("CNPJRoot = %q, want empty", got)
-	}
-}
-
-// A record that predates the identity cache must read as stale, not as fresh
-// with empty names — otherwise the first read after the migration shows blanks
-// and never refreshes.
-func TestAnUnsyncedIdentityIsStale(t *testing.T) {
-	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
-	if !(&LocalCompany{}).IdentityStale(now, time.Hour) {
-		t.Error("a record with no sync timestamp read as fresh")
-	}
-	fresh := &LocalCompany{IdentitySyncedAt: now.Add(-time.Minute).UTC().Format(time.RFC3339)}
-	if fresh.IdentityStale(now, time.Hour) {
-		t.Error("a record synced a minute ago read as stale")
-	}
-	old := &LocalCompany{IdentitySyncedAt: now.Add(-2 * time.Hour).UTC().Format(time.RFC3339)}
-	if !old.IdentityStale(now, time.Hour) {
-		t.Error("a record synced two hours ago read as fresh")
-	}
-}
-
-// An unparseable timestamp is stale, not fresh. Failing the other way means one
-// corrupt value pins a wrong name in place forever, with nothing to notice it.
-func TestAnUnparseableSyncTimestampIsStale(t *testing.T) {
-	now := time.Now()
-	if !(&LocalCompany{IdentitySyncedAt: "ontem"}).IdentityStale(now, time.Hour) {
-		t.Error("an unparseable timestamp read as fresh")
-	}
-}
-
-// A clock that ran backwards — a record stamped in the future — must not read as
-// stale forever, nor drive a refresh loop.
-func TestAFutureSyncTimestampIsFresh(t *testing.T) {
-	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
-	ahead := &LocalCompany{IdentitySyncedAt: now.Add(time.Minute).UTC().Format(time.RFC3339)}
-	if ahead.IdentityStale(now, time.Hour) {
-		t.Error("a record stamped a minute ahead read as stale")
 	}
 }
