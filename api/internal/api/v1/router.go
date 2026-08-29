@@ -47,11 +47,15 @@ type Services struct {
 	CteConfig       *services.CteConfigService
 	MdfeConfig      *services.MdfeConfigService
 	NfseConfig      *services.NfseConfigService
-	Distribution    *services.DistributionService
-	External        *services.ExternalService
-	AuditLog        *services.AuditLogService
-	Billing         *services.BillingService
-	RoleRepo        *repositories.RoleRepository
+	// SerieClaims enforces ADR 0022's rule that two companies sharing a CNPJ
+	// must not emit on the same série. A repository rather than a service: the
+	// rule is one conditional write and has nothing else to decide.
+	SerieClaims  *repositories.SerieClaimRepository
+	Distribution *services.DistributionService
+	External     *services.ExternalService
+	AuditLog     *services.AuditLogService
+	Billing      *services.BillingService
+	RoleRepo     *repositories.RoleRepository
 }
 
 // Register mounts all /v1.0 routes onto the Fiber app.
@@ -73,17 +77,18 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterHealth(v1, cacheBackend, awsClients, cfg)
 	RegisterAuth(v1, svcs.User, svcs.Org, svcs.RoleRepo, authMw)
 	RegisterOrganizations(v1, OrgHandlers{
-		OrgSvc:     svcs.Org,
-		CertSvc:    svcs.Cert,
-		NfeConfig:  svcs.NfeConfig,
-		NfceConfig: svcs.NfceConfig,
-		CteConfig:  svcs.CteConfig,
-		MdfeConfig: svcs.MdfeConfig,
-		NfseConfig: svcs.NfseConfig,
-		UserSvc:    svcs.User,
-		MemberSvc:  svcs.Member,
-		InvSvc:     svcs.Invitation,
-		BillingSvc: svcs.Billing,
+		OrgSvc:      svcs.Org,
+		CertSvc:     svcs.Cert,
+		NfeConfig:   svcs.NfeConfig,
+		NfceConfig:  svcs.NfceConfig,
+		CteConfig:   svcs.CteConfig,
+		MdfeConfig:  svcs.MdfeConfig,
+		NfseConfig:  svcs.NfseConfig,
+		SerieClaims: svcs.SerieClaims,
+		UserSvc:     svcs.User,
+		MemberSvc:   svcs.Member,
+		InvSvc:      svcs.Invitation,
+		BillingSvc:  svcs.Billing,
 	}, authMw, perm)
 	RegisterBilling(v1, app, svcs.Billing, cfg.BillingWebhookSecret, authMw)
 	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)

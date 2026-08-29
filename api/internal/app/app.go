@@ -72,6 +72,7 @@ var Module = fx.Options(
 		repositories.NewCteConfigRepository,
 		repositories.NewMdfeConfigRepository,
 		repositories.NewNfseConfigRepository,
+		repositories.NewSerieClaimRepository,
 		repositories.NewNfeRepository,
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
@@ -536,6 +537,7 @@ type Services struct {
 	CteConf         *services.CteConfigService
 	MdfeConf        *services.MdfeConfigService
 	NfseConf        *services.NfseConfigService
+	SerieClaims     *repositories.SerieClaimRepository
 	DistSvc         *services.DistributionService
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
@@ -578,6 +580,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		CteConfig:       svcs.CteConf,
 		MdfeConfig:      svcs.MdfeConf,
 		NfseConfig:      svcs.NfseConf,
+		SerieClaims:     svcs.SerieClaims,
 		Distribution:    svcs.DistSvc,
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,

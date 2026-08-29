@@ -15,17 +15,18 @@ import (
 
 // OrgHandlers bundles services needed by organization routes.
 type OrgHandlers struct {
-	OrgSvc     *services.OrganizationService
-	CertSvc    *services.CertificateService
-	NfeConfig  *services.NfeConfigService
-	NfceConfig *services.NfceConfigService
-	CteConfig  *services.CteConfigService
-	MdfeConfig *services.MdfeConfigService
-	NfseConfig *services.NfseConfigService
-	UserSvc    *services.UserService
-	MemberSvc  *services.MembershipService
-	InvSvc     *services.InvitationService
-	BillingSvc *services.BillingService
+	OrgSvc      *services.OrganizationService
+	CertSvc     *services.CertificateService
+	NfeConfig   *services.NfeConfigService
+	NfceConfig  *services.NfceConfigService
+	CteConfig   *services.CteConfigService
+	MdfeConfig  *services.MdfeConfigService
+	NfseConfig  *services.NfseConfigService
+	SerieClaims *repositories.SerieClaimRepository
+	UserSvc     *services.UserService
+	MemberSvc   *services.MembershipService
+	InvSvc      *services.InvitationService
+	BillingSvc  *services.BillingService
 }
 
 // RegisterOrganizations mounts all /organizations routes.
@@ -205,21 +206,29 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	})
 
 	// ── Fiscal configs ───────────────────────────────────────────────────────
+	//
+	// The modelo on each is what the série claim is keyed by, and it is the
+	// SEFAZ's code, not ours. NFS-e passes none: it is municipal, its numbering
+	// is not keyed (CNPJ, modelo, série, número, ambiente), and claiming a
+	// national série for it would refuse a collision that cannot happen.
+	serieDeps := func(modelo string) fiscalConfigDeps {
+		return fiscalConfigDeps{orgSvc: h.OrgSvc, claims: h.SerieClaims, modelo: modelo}
+	}
 	registerFiscalConfig(scoped, "/nfe-config",
 		"get.organization_nfe_configs", "update.organization_nfe_configs",
-		h.NfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc)
+		h.NfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc, serieDeps(services.ModelNFe))
 	registerFiscalConfig(scoped, "/nfce-config",
 		"get.organization_nfce_configs", "update.organization_nfce_configs",
-		h.NfceConfig, perm, bindAVValidated[NfceConfigBody], h.UserSvc)
+		h.NfceConfig, perm, bindAVValidated[NfceConfigBody], h.UserSvc, serieDeps(services.ModelNFCe))
 	registerFiscalConfig(scoped, "/cte-config",
 		"get.organization_cte_configs", "update.organization_cte_configs",
-		h.CteConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc)
+		h.CteConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc, serieDeps(services.ModelCTe))
 	registerFiscalConfig(scoped, "/mdfe-config",
 		"get.organization_mdfe_configs", "update.organization_mdfe_configs",
-		h.MdfeConfig, perm, bindAVValidated[MdfeConfigBody], h.UserSvc)
+		h.MdfeConfig, perm, bindAVValidated[MdfeConfigBody], h.UserSvc, serieDeps(services.ModelMDFe))
 	registerFiscalConfig(scoped, "/nfse-config",
 		"get.organization_nfse_configs", "update.organization_nfse_configs",
-		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc)
+		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc, fiscalConfigDeps{})
 
 	// ── Certificates ────────────────────────────────────────────────────────
 

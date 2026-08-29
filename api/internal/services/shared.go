@@ -66,7 +66,13 @@ func closeReadCloser(ctx context.Context, body io.ReadCloser, operation string) 
 }
 
 // Fiscal document model codes (campo "mod" da chave de acesso).
+//
+// NFS-e não tem um: é municipal, e sua numeração não é chaveada por
+// (CNPJ, modelo, série, número, ambiente) como as nacionais.
 const (
+	ModelNFe  = "55"
+	ModelNFCe = "65"
+	ModelCTe  = "57"
 	ModelMDFe = "58"
 )
 

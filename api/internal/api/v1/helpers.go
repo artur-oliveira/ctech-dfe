@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"strconv"
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/observability"
@@ -380,8 +381,29 @@ type fiscalConfigSvc interface {
 // (e.g. /nfe-config, /nfce-config) under an already-authed scoped router. bind is
 // the variant-specific validated binder (FiscalConfigBody or NfceConfigBody).
 // userSvc resolves the caller's identity for audit attribution on PUT.
+// serieGuard is what registerFiscalConfig needs to enforce ctech-billing ADR
+// 0022's série rule. An interface so the handler is testable without DynamoDB,
+// and nil-able so a variant with no série concept mounts without one.
+type serieGuard interface {
+	Claim(ctx context.Context, taxID, modelo, ambiente string, serie int, companyID string) error
+	Release(ctx context.Context, taxID, modelo, ambiente string, serie int, companyID string) error
+}
+
+// fiscalConfigDeps carries what the PUT needs beyond the config itself: the
+// issuer's document, and the claim table that keeps two companies on one CNPJ
+// off the same série.
+type fiscalConfigDeps struct {
+	orgSvc *services.OrganizationService
+	claims serieGuard
+	// modelo is the SEFAZ document model this config emits under ("55", "65",
+	// …). Empty for a variant with no série uniqueness at the SEFAZ — NFS-e is
+	// municipal, and its numbering is not keyed this way.
+	modelo string
+}
+
 func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, svc fiscalConfigSvc, perm *middleware.PermChecker,
-	bind func(fiber.Ctx) (map[string]types.AttributeValue, *problem.Problem), userSvc *services.UserService) {
+	bind func(fiber.Ctx) (map[string]types.AttributeValue, *problem.Problem), userSvc *services.UserService,
+	deps fiscalConfigDeps) {
 	scoped.Get(path, perm.Require(getPerm), func(c fiber.Ctx) error {
 		item, err := svc.Get(c.Context(), middleware.GetOrgPK(c))
 		if err != nil {
@@ -394,11 +416,26 @@ func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, sv
 		if p != nil {
 			return sendProblem(c, p)
 		}
-		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Upsert(c.Context(), middleware.GetOrgPK(c), av, userID, userName)
+		orgPK := middleware.GetOrgPK(c)
+
+		// The série claim, before the write. ADR 0022 lets two organizations
+		// hold one CNPJ, so without this the collision surfaces at the SEFAZ as
+		// a duplicate rejection or a gap in numbering somebody must justify.
+		//
+		// Claim first, write second, release last. A failed claim then leaves
+		// the configuration untouched, and a release that never runs leaves a
+		// série held by its rightful owner rather than free for anybody.
+		released, err := claimSeries(c, orgPK, av, svc, deps)
 		if err != nil {
 			return sendProblem(c, err)
 		}
+
+		userID, userName := resolveActor(c, userSvc)
+		item, err := svc.Upsert(c.Context(), orgPK, av, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		released()
 		return sendItem(c, redactFiscalSecrets(item))
 	})
 }
@@ -421,4 +458,104 @@ func redactFiscalSecrets(item map[string]types.AttributeValue) map[string]types.
 		delete(out, k)
 	}
 	return out
+}
+
+// claimSeries resolves the issuer's document and the previous configuration,
+// then hands both to claimSeriesFor.
+//
+// The split is what makes the rule testable: everything below this line needs a
+// database, and everything in claimSeriesFor is the decision.
+func claimSeries(c fiber.Ctx, orgPK string, av map[string]types.AttributeValue, svc fiscalConfigSvc, deps fiscalConfigDeps) (func(), error) {
+	noop := func() {}
+	if deps.claims == nil || deps.modelo == "" || deps.orgSvc == nil {
+		return noop, nil
+	}
+
+	company, err := deps.orgSvc.Company(c.Context(), orgPK)
+	if err != nil {
+		return noop, err
+	}
+	taxID := ""
+	if company != nil {
+		taxID, _ = services.IssuerDoc(company.TaxID, company.TaxIDKind, orgPK)
+	}
+
+	// A previous configuration that cannot be read means nothing is released.
+	// The claims below are this company's own either way, and failing the save
+	// over an unreadable previous state would be worse than leaving one stale
+	// claim it still holds.
+	previous, err := svc.Get(c.Context(), orgPK)
+	if err != nil {
+		previous = nil
+	}
+
+	return claimSeriesFor(c.Context(), orgPK, taxID, deps,
+		avInt(av, "prod_current_serie"), avInt(av, "hom_current_serie"), previous)
+}
+
+// claimSeriesFor takes the séries this configuration declares and returns the
+// release of whatever the previous one held and this one does not.
+//
+// Claim first, release last, and the release is deferred to the caller so it
+// runs only after the write succeeds. Releasing first would leave a company
+// that failed to save with no claim on a série it is still emitting under.
+func claimSeriesFor(
+	ctx context.Context,
+	orgPK, taxID string,
+	deps fiscalConfigDeps,
+	prodSerie, homSerie int,
+	previous map[string]types.AttributeValue,
+) (func(), error) {
+	noop := func() {}
+	if deps.claims == nil || deps.modelo == "" {
+		return noop, nil
+	}
+	if taxID == "" {
+		// Nothing to key a claim by. Refusing here would block every existing
+		// customer's configuration save before the migration runs, and the rule
+		// protects a CNPJ shared between organizations — which cannot happen
+		// while the key still IS the CNPJ.
+		return noop, nil
+	}
+
+	after := services.SerieClaimsFor(deps.modelo, prodSerie, homSerie)
+	for _, claim := range after {
+		if err := deps.claims.Claim(ctx, taxID, claim.Modelo, claim.Ambiente, claim.Serie, orgPK); err != nil {
+			if errors.Is(err, repositories.ErrSerieTaken) {
+				// Never name the holder: that would disclose that somebody else
+				// carries this CNPJ, and who a customer's accountant is is not
+				// ours to reveal.
+				return noop, problem.Conflict(fmt.Sprintf(
+					"a série %d já está em uso para este CNPJ no modelo %s; escolha outra",
+					claim.Serie, claim.Modelo))
+			}
+			return noop, err
+		}
+	}
+
+	before := services.SerieClaimsFor(deps.modelo, avInt(previous, "prod_current_serie"), avInt(previous, "hom_current_serie"))
+	abandoned := services.AbandonedSerieClaims(before, after)
+
+	return func() {
+		for _, claim := range abandoned {
+			if err := deps.claims.Release(ctx, taxID, claim.Modelo, claim.Ambiente, claim.Serie, orgPK); err != nil {
+				observability.Warn(ctx, "releasing an abandoned série claim failed", err,
+					"org_pk", orgPK, "modelo", claim.Modelo, "ambiente", claim.Ambiente, "serie", claim.Serie)
+			}
+		}
+	}, nil
+}
+
+// avInt reads an integer attribute, treating anything unreadable as zero — the
+// same value an unset série carries, which claims nothing.
+func avInt(item map[string]types.AttributeValue, key string) int {
+	v, ok := item[key].(*types.AttributeValueMemberN)
+	if !ok {
+		return 0
+	}
+	n, err := strconv.Atoi(v.Value)
+	if err != nil {
+		return 0
+	}
+	return n
 }
