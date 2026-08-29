@@ -17,6 +17,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {PERSON_ROLE_INTERMEDIARY} from '@/lib/schemas/entity'
 import {Combobox} from '@/components/ui/combobox'
+import {cfopSuffixOptions} from '@/lib/data/cfop'
 import {CITY_OPTIONS} from '@/lib/data/cities'
 import {
   COMPRA_GOV_TP_ENTE_OPTIONS,
@@ -176,6 +177,9 @@ const nullify = (v: string | undefined) => (v ? v : null)
  * Cadastro de natureza de operação — o formulário curto que responde de uma vez
  * as perguntas que hoje o operador refaz a cada emissão.
  */
+
+/** Tabela estática das naturezas fiscais — recriar por render invalida o memo. */
+const CFOP_SUFFIX_OPTIONS = cfopSuffixOptions()
 
 /** Campos de cada seção avançada — o badge de erro precisa saber onde eles moram. */
 const MESSAGE_FIELDS = ['inf_ad_fisco', 'inf_cpl', 'obs_cont', 'obs_fisco'] as const
@@ -384,11 +388,13 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                        render={({field}) => (
                          <FormItem>
                            <FormLabel>Natureza fiscal do CFOP</FormLabel>
-                           <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
-                                  inputMode="numeric" className="w-full" placeholder="102"/>
+                           <Combobox id={field.name} value={field.value ?? ''}
+                                     onValueChange={field.onChange} options={CFOP_SUFFIX_OPTIONS}
+                                     placeholder="Natureza da operação"
+                                     searchPlaceholder="Código ou descrição..." fuzzySearch/>
                            <p className="text-xs text-gray-500">
-                             Só os 3 últimos dígitos. O primeiro (5 dentro da UF, 6 outra UF, 7 exterior)
-                             é resolvido na emissão pelo endereço do destinatário.
+                             O escopo (5 dentro da UF, 6 outra UF, 7 exterior) é resolvido na emissão
+                             pelo endereço do destinatário.
                            </p>
                            <FormMessage/>
                          </FormItem>

@@ -2376,3 +2376,17 @@ export const NFSE_TRIB_NACIONAL: readonly TribNacionalEntry[] = [
     "description": "Serviços sem a incidência de ISSQN e ICMS"
   }
 ] as const;
+
+/**
+ * Itens da lista de serviços da LC 116/2003 no formato `NN.NN` que o campo
+ * `cListServ` da NF-e exige. Deriva da tabela nacional da NFS-e, que já carrega
+ * item e subitem de cada serviço — dois cadastros da mesma lista seriam duas
+ * versões dela para divergirem.
+ */
+export const LC116_SERVICE_OPTIONS = [...new Map(
+  NFSE_TRIB_NACIONAL.map((e) => {
+    const code = `${e.item.padStart(2, '0')}.${e.subitem.padStart(2, '0')}`
+    return [code, {value: code, label: `${code} - ${e.description}`}] as const
+  }),
+).values()].sort((a, b) => a.value.localeCompare(b.value))
+

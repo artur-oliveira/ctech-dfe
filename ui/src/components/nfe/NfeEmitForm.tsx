@@ -11,6 +11,8 @@ import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {Textarea} from '@/components/ui/textarea'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {NumericInput} from '@/components/ui/numeric-input'
+import {Combobox} from '@/components/ui/combobox'
+import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
@@ -70,6 +72,7 @@ import {
   cfopGroupCodes,
   cfopSuffix,
   cfopTpNf,
+  getAllCfopOptions,
   groupCfopConfigBySuffix,
   NO_PAYMENT_CFOPS,
   resolveCfopForUf
@@ -178,6 +181,12 @@ function computeTotal(p: EmitProduct): number {
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
 }
+
+/** Tabela estática: recriar por render invalida o memo do Combobox. */
+const ALL_CFOP_OPTIONS = getAllCfopOptions()
+
+/** Placa Mercosul (ABC1D23) ou o padrão antigo (ABC1234) — nada mais entra no XML. */
+const PLATE_RE = /^[A-Z]{3}\d[A-Z0-9]\d{2}$/
 
 /** Data de hoje em ISO — piso de vencimento: duplicata vencida antes da emissão é rejeição. */
 function todayIso(): string {
@@ -532,8 +541,9 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
               }}
               options={cfopOptions} placeholder="CFOP"/>
           ) : (
-            <Input id={`nfe-item-${index}-cfop`} type="text" value={item.cfop} onChange={(e) => onChange(index, {cfop: e.target.value})}
-                   maxLength={4} placeholder="5102"/>
+            <Combobox id={`nfe-item-${index}-cfop`} value={item.cfop} options={ALL_CFOP_OPTIONS}
+                      onValueChange={(v) => onChange(index, {cfop: v})}
+                      placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
           )}
           {cfopUfUnknown && (
             <span className="text-xs text-red-600">
@@ -1072,6 +1082,7 @@ export function NfeEmitForm() {
   }
 
   // Derived — cobrança only shown when there's an "a prazo" payment
+  const plateInvalid = transport.veiculo_placa !== '' && !PLATE_RE.test(transport.veiculo_placa)
   const hasPrazoPayment = payments.some(p => p.ind_pag === '1')
 
   // A fatura e suas parcelas também têm que fechar: "somatório das duplicatas
@@ -1988,22 +1999,32 @@ export function NfeEmitForm() {
                       {!selectedVehicle && (
                         <details className="text-xs">
                           <summary className="cursor-pointer text-gray-400">Informar manualmente</summary>
-                          <div className="grid grid-cols-3 gap-2 mt-2">
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">Placa</Label><Input
-                              value={transport.veiculo_placa}
-                              onChange={e => setTransport(t => ({...t, veiculo_placa: e.target.value.toUpperCase()}))}
-                              placeholder="ABC1D23" maxLength={8}/></div>
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">UF</Label><Input
-                              value={transport.veiculo_uf}
-                              onChange={e => setTransport(t => ({...t, veiculo_uf: e.target.value.toUpperCase()}))}
-                              placeholder="SP" maxLength={2}/></div>
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">RNTC</Label><Input
-                              value={transport.veiculo_rntrc}
-                              onChange={e => setTransport(t => ({...t, veiculo_rntrc: e.target.value}))}
-                              placeholder="Opcional"/></div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-placa" className="text-xs font-medium text-gray-600">Placa</Label>
+                              <Input id="nfe-veiculo-placa" value={transport.veiculo_placa}
+                                     onChange={e => setTransport(t => ({...t, veiculo_placa: e.target.value.toUpperCase()}))}
+                                     placeholder="ABC1D23" maxLength={8}
+                                     aria-invalid={plateInvalid || undefined}
+                                     aria-describedby={plateInvalid ? 'nfe-veiculo-placa-erro' : undefined}/>
+                              {plateInvalid && (
+                                <span id="nfe-veiculo-placa-erro" className="text-[0.8rem] text-danger">
+                                  Placa no formato ABC1234 ou ABC1D23.
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-uf" className="text-xs font-medium text-gray-600">UF</Label>
+                              <OptionsSelect id="nfe-veiculo-uf" value={transport.veiculo_uf}
+                                             onValueChange={v => setTransport(t => ({...t, veiculo_uf: v}))}
+                                             options={UF_OPTIONS} placeholder="UF"/>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-rntc" className="text-xs font-medium text-gray-600">RNTC</Label>
+                              <Input id="nfe-veiculo-rntc" value={transport.veiculo_rntrc}
+                                     onChange={e => setTransport(t => ({...t, veiculo_rntrc: e.target.value}))}
+                                     placeholder="Opcional"/>
+                            </div>
                           </div>
                         </details>
                       )}

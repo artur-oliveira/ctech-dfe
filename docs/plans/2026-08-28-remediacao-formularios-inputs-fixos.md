@@ -59,7 +59,7 @@ Scores de partida: **Design 24/40**, **Audit 7/20**.
 
 ## Fase 4 — trocas de controle com tabela já existente (custo zero)
 
-- [ ] **Task 11:** `ProductForm:1451` UF consumo, `NfeEmitForm:1892` UF veículo → `UF_OPTIONS`;
+- [x] **Task 11:** `ProductForm:1451` UF consumo, `NfeEmitForm:1892` UF veículo → `UF_OPTIONS`;
   `TaxFieldsEditor:752,799` e `EntityForm` `c_mun_fg` → `CITY_OPTIONS`; `NfeEmitForm:511` CFOP e `EntityForm` CFOP de
   retenção → `getAllCfopOptions()`; `OperationForm:358` sufixo → derivado de `groupCfopConfigBySuffix`;
   `EntityForm:426` CNAE → `ALL_CNAES`; `TaxFieldsEditor:637` unidade IS → `UNIT_OPTIONS`;
@@ -77,7 +77,7 @@ contagem), e a troca do controle correspondente no mesmo commit.
 - [ ] **Task 16:** ONU + classe de risco + grupo de embalagem (I/II/III); `xNomeAE` derivado do ONU.
 - [ ] **Task 17:** cBenef por UF (inclui `SEM CBENEF` como opção explícita, não string mágica).
 - [ ] **Task 18:** banco BACEN — **checar antes `ctech-go-common` e `ctech-billing`**, pode já existir.
-- [ ] **Task 19:** strings mágicas viram controle: `SEM GTIN` (checkbox), `ISENTO` ANVISA (radio + campo desabilitado).
+- [x] **Task 19:** strings mágicas viram controle: `SEM GTIN` (checkbox), `ISENTO` ANVISA (radio + campo desabilitado).
 
 ## Fase 6 — visão simples e avançada
 

@@ -16,6 +16,8 @@ import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
+import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
+import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {Button} from '@/components/ui/button'
 import {Label} from '@/components/ui/label'
 import {
@@ -132,6 +134,13 @@ const IS_SIMPLES = isRegimeSimples
 
 // Calculada uma vez por carga do módulo: a lista não muda durante a sessão.
 const VEHICLE_YEAR_OPTIONS = vehicleYearOptions()
+
+/** Literais do leiaute — nunca digitados, sempre escritos por um controle. */
+const SEM_GTIN = 'SEM GTIN'
+const ANVISA_ISENTO = 'ISENTO'
+
+/** Tabela estática: recriar o array por render invalidava o memo do Combobox. */
+const NFCE_CFOP_OPTIONS = getCfopOptionsForNfce()
 
 const TABS: { id: ProductTab; label: string }[] = [
   {id: 'produto', label: 'Produto'},
@@ -714,8 +723,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       origin: '0',
       unit: 'UN',
       taxable_unit: 'UN',
-      cean: 'SEM GTIN',
-      taxable_cean: 'SEM GTIN',
+      cean: SEM_GTIN,
+      taxable_cean: SEM_GTIN,
       value: '',
       value_resale: '',
       net_weight: '',
@@ -779,7 +788,6 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const productAliqDiverges = !!productSystemAliq && !!watchedIcmsOverride &&
     watchedIcmsOverride !== productSystemAliq.icms_aliq
 
-  const nfceCfopOptions = getCfopOptionsForNfce()
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '')
 
@@ -1218,7 +1226,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormItem>
                     <FormLabel>CFOP NFC-e *</FormLabel>
                     <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                              options={nfceCfopOptions} placeholder="Buscar CFOP"
+                              options={NFCE_CFOP_OPTIONS} placeholder="Buscar CFOP"
                               searchPlaceholder="Código ou descrição..."/>
                     <FormMessage/>
                   </FormItem>
@@ -1251,20 +1259,31 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
               {/* GTIN */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
-                <FormField control={form.control} name="cean" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>EAN comercial</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} placeholder="EAN-13 ou SEM GTIN"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="taxable_cean" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>EAN tributável</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} placeholder="EAN-13 ou SEM GTIN"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+                {/* "SEM GTIN" é literal do leiaute: digitado à mão vira "sem gtin"
+                    e o produto é recusado. O checkbox escreve o valor exato. */}
+                {([
+                  ['cean', 'EAN comercial'],
+                  ['taxable_cean', 'EAN tributável'],
+                ] as const).map(([name, label]) => (
+                  <FormField key={name} control={form.control} name={name} render={({field}) => {
+                    const semGtin = field.value === SEM_GTIN
+                    return (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <Input {...field} id={field.name} value={semGtin ? '' : (field.value ?? '')}
+                               disabled={semGtin} inputMode="numeric" maxLength={14}
+                               placeholder={semGtin ? SEM_GTIN : 'EAN-13'}
+                               onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 sm:min-h-0">
+                          <input type="checkbox" className="size-4" checked={semGtin}
+                                 onChange={(e) => field.onChange(e.target.checked ? SEM_GTIN : '')}/>
+                          Produto sem código de barras
+                        </label>
+                        <FormMessage/>
+                      </FormItem>
+                    )
+                  }}/>
+                ))}
               </div>
 
               {/* Pesos */}
@@ -1495,9 +1514,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="comb_uf_cons" render={({field}) => (
                     <FormItem>
                       <FormLabel>UF de consumo *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''}
-                             placeholder="Ex: SP" maxLength={2}
-                             onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''}
+                                     onValueChange={field.onChange} options={UF_OPTIONS}
+                                     placeholder="UF"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1543,14 +1562,24 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   Medicamento — Dados ANVISA
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => (
-                    <FormItem>
-                      <FormLabel>Registro ANVISA *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''}
-                             placeholder="11 ou 13 dígitos, ou 'ISENTO'"/>
-                      <FormMessage/>
-                    </FormItem>
-                  )}/>
+                  <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => {
+                    const isento = field.value === ANVISA_ISENTO
+                    return (
+                      <FormItem>
+                        <FormLabel>Registro ANVISA *</FormLabel>
+                        <Input {...field} id={field.name} value={isento ? '' : (field.value ?? '')}
+                               disabled={isento} inputMode="numeric" maxLength={13}
+                               placeholder={isento ? ANVISA_ISENTO : '11 ou 13 dígitos'}
+                               onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 sm:min-h-0">
+                          <input type="checkbox" className="size-4" checked={isento}
+                                 onChange={(e) => field.onChange(e.target.checked ? ANVISA_ISENTO : '')}/>
+                          Medicamento isento de registro
+                        </label>
+                        <FormMessage/>
+                      </FormItem>
+                    )
+                  }}/>
                   <FormField control={form.control} name="med_v_pmc" render={({field}) => (
                     <FormItem>
                       <FormLabel>Preço Máximo ao Consumidor (R$) *</FormLabel>
@@ -1834,8 +1863,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_tp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Tipo veículo RENAVAM *</FormLabel>
-                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={VEIC_TP_VEIC_OPTIONS} placeholder="Tipo RENAVAM"/>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={VEIC_TP_VEIC_OPTIONS} placeholder="Tipo RENAVAM"
+                                searchPlaceholder="Código ou descrição..."/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1866,8 +1896,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_c_cor_denatran" render={({field}) => (
                     <FormItem>
                       <FormLabel>Cor DENATRAN *</FormLabel>
-                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={VEIC_COR_DENATRAN_OPTIONS} placeholder="Cor"/>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={VEIC_COR_DENATRAN_OPTIONS} placeholder="Cor"
+                                searchPlaceholder="Cor..."/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1999,9 +2030,9 @@ function CombOrigFields({value, onChange}: {
                            ]}/>
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor={`orig-uf-${i}`} className="text-xs font-medium text-gray-600">UF de origem (IBGE)</Label>
-            <NumericInput id={`orig-uf-${i}`} value={o.c_uf_orig} integerPlaces={2} className="w-full"
-                          placeholder="35" onChange={(v) => patch(i, {c_uf_orig: v})}/>
+            <Label htmlFor={`orig-uf-${i}`} className="text-xs font-medium text-gray-600">UF de origem</Label>
+            <OptionsSelect id={`orig-uf-${i}`} value={o.c_uf_orig} options={UF_IBGE_OPTIONS}
+                           onValueChange={(v: string) => patch(i, {c_uf_orig: v})} placeholder="UF"/>
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor={`orig-p-${i}`} className="text-xs font-medium text-gray-600">% da mistura</Label>

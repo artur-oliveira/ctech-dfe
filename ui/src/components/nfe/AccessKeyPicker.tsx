@@ -3,7 +3,7 @@
 import {useQuery} from '@tanstack/react-query'
 import {Button} from '@/components/ui/button'
 import {Label} from '@/components/ui/label'
-import {OptionsSelect} from '@/components/ui/options-select'
+import {Combobox} from '@/components/ui/combobox'
 import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -70,12 +70,16 @@ export function AccessKeyPicker({id, label, value, onChange, hint, max}: AccessK
         </ul>
       )}
 
-      <OptionsSelect
+      {/* Combobox, não select: são até 50 notas cujo rótulo carrega número, nome
+          e a chave de 44 dígitos — rolar essa lista é procurar, não escolher. */}
+      <Combobox
         id={id}
         value=""
         disabled={atMax || isLoading}
         placeholder={atMax ? 'Limite alcançado' : isLoading ? 'Carregando notas…' : 'Selecione uma nota emitida…'}
+        searchPlaceholder="Número, destinatário ou chave..."
         options={options}
+        fuzzySearch
         onValueChange={(v: string) => {
           if (v) onChange([...value, v])
         }}

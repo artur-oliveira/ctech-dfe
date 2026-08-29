@@ -8,6 +8,9 @@ import {NumericInput} from '@/components/ui/numeric-input'
 import {Input} from '@/components/ui/input'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 import {getAllCfopOptions} from '@/lib/data/cfop'
+import {CITY_OPTIONS} from '@/lib/data/cities'
+import {LC116_SERVICE_OPTIONS} from '@/lib/data/nfse_trib_nacional'
+import {UNIT_OPTIONS} from '@/lib/data/unit'
 import {getCfopHint} from '@/lib/data/cfop_rules'
 import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
 import {
@@ -152,6 +155,10 @@ export const deriveTaxGroups = (data: Partial<CfopConfigFormData>): TaxGroups =>
 /** icms_mod_bc cujo cálculo usa um valor fixo em vez do valor de venda. */
 const ICMS_MOD_BC_PAUTA = new Set(['1', '2'])
 
+/** A tabela de CFOP é estática: recriar o array a cada render invalidava o memo
+ *  do Combobox e refazia o filtro sobre a lista inteira. */
+const CFOP_OPTIONS = getAllCfopOptions()
+
 /**
  * Editor de tributação — ICMS/CSOSN, ST, PIS, COFINS, IBS/CBS, IPI, IS e ISSQN.
  *
@@ -191,7 +198,6 @@ export function TaxFieldsEditor({
     value.icms_aliq_override !== systemAliq.icms_aliq
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(value.icms ?? '')
-  const cfopOptions = getAllCfopOptions()
   const cfopHint = getCfopHint(value.cfop)
   const showSt = (!simples && !!value.icms && ICMS_ST_CSTS.has(value.icms)) ||
     (simples && !!value.csosn && ICMS_ST_CSTS.has(value.csosn))
@@ -213,16 +219,16 @@ export function TaxFieldsEditor({
             <TaxField label="CFOP *">
               <Combobox value={value.cfop}
                         onValueChange={(v) => onChange((r) => ({...r, cfop: v}))}
-                        options={cfopOptions} placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
+                        options={CFOP_OPTIONS} placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
             </TaxField>
           )}
           <TaxField label={simples ? 'CSOSN *' : 'ICMS CST *'}>
             {simples ? (
-              <OptionsSelect value={value.csosn ?? ''}
+              <Combobox value={value.csosn ?? ''}
                              onValueChange={(v) => onChange((r) => ({...r, csosn: v}))}
                              options={CSOSN_OPTIONS} placeholder="CSOSN"/>
             ) : (
-              <OptionsSelect value={value.icms ?? ''}
+              <Combobox value={value.icms ?? ''}
                              onValueChange={(v) => onChange((r) => ({
                                ...r, icms: v,
                                icms_p_red_bc: '', icms_mot_des: '', icms_p_dif: '',
@@ -564,9 +570,10 @@ export function TaxFieldsEditor({
         {showIpi && (
           <div className="grid grid-cols-2 gap-2 max-w-sm">
             <TaxField label="CST IPI *">
-              <OptionsSelect value={value.ipi_cst ?? ''}
-                             onValueChange={(v) => onChange((r) => ({...r, ipi_cst: v}))}
-                             options={IPI_CST_OPTIONS} placeholder="CST"/>
+              <Combobox value={value.ipi_cst ?? ''}
+                        onValueChange={(v) => onChange((r) => ({...r, ipi_cst: v}))}
+                        options={IPI_CST_OPTIONS} placeholder="CST"
+                        searchPlaceholder="Código ou descrição..."/>
             </TaxField>
             <TaxField label="Alíquota %">
               <NumericInput value={value.ipi_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
@@ -606,9 +613,10 @@ export function TaxFieldsEditor({
         {showIs && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <TaxField label="CST IS *">
-              <OptionsSelect value={value.is_cst ?? ''}
-                             onValueChange={(v) => onChange((r) => ({...r, is_cst: v}))}
-                             options={IS_CST_OPTIONS} placeholder="CST"/>
+              <Combobox value={value.is_cst ?? ''}
+                        onValueChange={(v) => onChange((r) => ({...r, is_cst: v}))}
+                        options={IS_CST_OPTIONS} placeholder="CST"
+                        searchPlaceholder="Código ou descrição..."/>
             </TaxField>
             <TaxField label="Alíquota %">
               <NumericInput value={value.is_aliq ?? ''} decimal integerPlaces={3} decimalPlaces={4}
@@ -626,9 +634,9 @@ export function TaxFieldsEditor({
                             onChange={(v) => onChange((r) => ({...r, is_aliq_espec: v}))}/>
             </TaxField>
             <TaxField label="Unid. tributável IS">
-              <Input value={value.is_unid_trib ?? ''}
-                     placeholder="Ex: UN"
-                     onChange={(e) => onChange((r) => ({...r, is_unid_trib: e.target.value}))}/>
+              <Combobox value={value.is_unid_trib ?? ''} options={UNIT_OPTIONS}
+                        onValueChange={(v) => onChange((r) => ({...r, is_unid_trib: v}))}
+                        placeholder="Unidade" searchPlaceholder="Código ou descrição..."/>
             </TaxField>
           </div>
         )}
@@ -727,15 +735,15 @@ export function TaxFieldsEditor({
                                onValueChange={(v) => onChange((r) => ({...r, issqn_ind_iss: v}))}
                                options={ISSQN_IND_ISS_OPTIONS} placeholder="Exigibilidade"/>
               </TaxField>
-              <TaxField label="Lista LC 116 (cListServ)">
-                <Input value={value.issqn_c_list_serv ?? ''}
-                       placeholder="Ex: 01.01"
-                       onChange={(e) => onChange((r) => ({...r, issqn_c_list_serv: e.target.value}))}/>
+              <TaxField label="Serviço prestado (LC 116)">
+                <Combobox value={value.issqn_c_list_serv ?? ''} options={LC116_SERVICE_OPTIONS}
+                          onValueChange={(v) => onChange((r) => ({...r, issqn_c_list_serv: v}))}
+                          placeholder="Item da lista" searchPlaceholder="Código ou descrição..." fuzzySearch/>
               </TaxField>
-              <TaxField label="IBGE Município FG">
-                <NumericInput value={value.issqn_c_mun_fg ?? ''} maxLength={7}
-                              placeholder="7 dígitos"
-                              onChange={(v) => onChange((r) => ({...r, issqn_c_mun_fg: v}))}/>
+              <TaxField label="Município do fato gerador">
+                <Combobox value={value.issqn_c_mun_fg ?? ''} options={CITY_OPTIONS}
+                          onValueChange={(v) => onChange((r) => ({...r, issqn_c_mun_fg: v}))}
+                          placeholder="Município" searchPlaceholder="Nome ou UF..." fuzzySearch/>
               </TaxField>
               <TaxField label="Alíquota ISSQN %">
                 <NumericInput value={value.issqn_aliq ?? ''} decimal integerPlaces={2} decimalPlaces={4}
@@ -771,9 +779,10 @@ export function TaxFieldsEditor({
                 <Input value={value.issqn_c_servico ?? ''} maxLength={20}
                        onChange={(e) => onChange((r) => ({...r, issqn_c_servico: e.target.value}))}/>
               </TaxField>
-              <TaxField label="Município de incidência (IBGE)">
-                <Input value={value.issqn_c_mun ?? ''} maxLength={7} inputMode="numeric"
-                       onChange={(e) => onChange((r) => ({...r, issqn_c_mun: e.target.value.replace(/\D/g, '')}))}/>
+              <TaxField label="Município de incidência">
+                <Combobox value={value.issqn_c_mun ?? ''} options={CITY_OPTIONS}
+                          onValueChange={(v) => onChange((r) => ({...r, issqn_c_mun: v}))}
+                          placeholder="Município" searchPlaceholder="Nome ou UF..." fuzzySearch/>
               </TaxField>
               <TaxField label="País do serviço">
                 <Input value={value.issqn_c_pais ?? ''} maxLength={4} inputMode="numeric" placeholder="1058"
@@ -833,18 +842,20 @@ export function TaxFieldsEditor({
         <>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <TaxField label="CST">
-            <OptionsSelect value={value.ibs_cbs_cst ?? ''}
-                           onValueChange={(v) => onChange((r) => ({
-                             ...r,
-                             ibs_cbs_cst: v,
-                             ibs_cbs_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? ''
-                           }))}
-                           options={IBS_CBS_CST_OPTIONS} placeholder="CST"/>
+            <Combobox value={value.ibs_cbs_cst ?? ''}
+                      onValueChange={(v) => onChange((r) => ({
+                        ...r,
+                        ibs_cbs_cst: v,
+                        ibs_cbs_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? ''
+                      }))}
+                      options={IBS_CBS_CST_OPTIONS} placeholder="CST"
+                      searchPlaceholder="Código ou descrição..."/>
           </TaxField>
           <TaxField label="Classificação">
-            <OptionsSelect value={value.ibs_cbs_class_trib ?? ''}
-                           onValueChange={(v) => onChange((r) => ({...r, ibs_cbs_class_trib: v}))}
-                           options={IBS_CBS_CLASS_BY_CST[value.ibs_cbs_cst ?? ''] ?? []} placeholder="Código"/>
+            <Combobox value={value.ibs_cbs_class_trib ?? ''}
+                      onValueChange={(v) => onChange((r) => ({...r, ibs_cbs_class_trib: v}))}
+                      options={IBS_CBS_CLASS_BY_CST[value.ibs_cbs_cst ?? ''] ?? []} placeholder="Código"
+                      searchPlaceholder="Código ou descrição..."/>
           </TaxField>
           <TaxField label="IBS UF %">
             <NumericInput decimal decimalPlaces={4} integerPlaces={3} value={value.ibs_uf_aliq ?? ''}
@@ -1020,18 +1031,19 @@ export function TaxFieldsEditor({
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <TaxField label="CST de referência">
-                <OptionsSelect value={value.ibs_reg_cst ?? ''}
-                               onValueChange={(v) => onChange((r) => ({
-                                 ...r, ibs_reg_cst: v,
-                                 ibs_reg_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? '',
-                               }))}
-                               options={IBS_CBS_CST_OPTIONS} placeholder="Não se aplica"/>
+                <Combobox value={value.ibs_reg_cst ?? ''}
+                          onValueChange={(v) => onChange((r) => ({
+                            ...r, ibs_reg_cst: v,
+                            ibs_reg_class_trib: IBS_CBS_CLASS_BY_CST[v]?.[0]?.value ?? '',
+                          }))}
+                          options={IBS_CBS_CST_OPTIONS} placeholder="Não se aplica"
+                          searchPlaceholder="Código ou descrição..."/>
               </TaxField>
               <TaxField label="Classificação de referência">
-                <OptionsSelect value={value.ibs_reg_class_trib ?? ''}
-                               onValueChange={(v) => onChange((r) => ({...r, ibs_reg_class_trib: v}))}
-                               options={IBS_CBS_CLASS_BY_CST[value.ibs_reg_cst ?? ''] ?? []}
-                               placeholder="Código"/>
+                <Combobox value={value.ibs_reg_class_trib ?? ''}
+                          onValueChange={(v) => onChange((r) => ({...r, ibs_reg_class_trib: v}))}
+                          options={IBS_CBS_CLASS_BY_CST[value.ibs_reg_cst ?? ''] ?? []}
+                          placeholder="Código" searchPlaceholder="Código ou descrição..."/>
               </TaxField>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

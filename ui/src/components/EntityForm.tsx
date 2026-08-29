@@ -7,6 +7,12 @@ import {zodResolver} from '@hookform/resolvers/zod'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {OptionsSelect} from '@/components/ui/options-select'
+import {Combobox} from '@/components/ui/combobox'
+import {CurrencyInput} from '@/components/ui/currency-input'
+import {NumericInput} from '@/components/ui/numeric-input'
+import {ALL_CNAES} from '@/lib/data/cnae'
+import {CITY_OPTIONS} from '@/lib/data/cities'
+import {getAllCfopOptions} from '@/lib/data/cfop'
 import {Button} from '@/components/ui/button'
 import {AddressFields} from '@/components/ui/address-fields'
 import {SectionCard} from '@/components/ui/section-card'
@@ -160,6 +166,17 @@ function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): bool
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
+/** Tabelas estáticas: recriar por render invalida o memo do Combobox. */
+const CNAE_OPTIONS = ALL_CNAES.map((c) => ({value: c.code, label: `${c.code} - ${c.description}`}))
+
+/**
+ * CFOPs de prestação de serviço de transporte — o único conjunto que pode
+ * aparecer em `retTransp`. Oferecer os 274 CFOPs aqui seria oferecer 260 erros.
+ */
+const FREIGHT_CFOP_SUFFIXES = new Set(['351', '352', '353', '354', '355', '356', '357', '359', '360', '932'])
+const FREIGHT_CFOP_OPTIONS = getAllCfopOptions()
+  .filter((o) => FREIGHT_CFOP_SUFFIXES.has(o.value.slice(1)))
+
 export function EntityForm({
                              variant,
                              initialData,
@@ -429,9 +446,9 @@ export function EntityForm({
                    render={({field}) => (
                      <FormItem>
                        <FormLabel>CNAE principal</FormLabel>
-                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={7}
-                              inputMode="numeric" placeholder="7 dígitos"
-                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                       <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                 options={CNAE_OPTIONS} placeholder="Atividade econômica"
+                                 searchPlaceholder="Código ou descrição..." fuzzySearch/>
                        <FormMessage/>
                      </FormItem>
                    )}
@@ -546,18 +563,34 @@ export function EntityForm({
     <div className="border-t border-gray-200 pt-4">
       <h3 className="mb-3 text-sm font-semibold text-gray-900">ICMS retido sobre o frete</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Cada campo tem o controle do seu domínio: dois valores, um percentual,
+            um CFOP de serviço de transporte e um município. Cinco caixas de
+            texto iguais eram cinco chances de digitar o que a SEFAZ recusa. */}
         {([
-          ['v_serv', 'Valor do serviço'],
-          ['v_bc_ret', 'Base de cálculo da retenção'],
-          ['p_icms_ret', 'Alíquota do ICMS retido (%)'],
-          ['cfop', 'CFOP do serviço'],
-          ['c_mun_fg', 'Município do fato gerador (IBGE)'],
-        ] as const).map(([key, label]) => (
+          ['v_serv', 'Valor do serviço', 'currency'],
+          ['v_bc_ret', 'Base de cálculo da retenção', 'currency'],
+          ['p_icms_ret', 'Alíquota do ICMS retido (%)', 'percent'],
+          ['cfop', 'CFOP do serviço', 'cfop'],
+          ['c_mun_fg', 'Município do fato gerador', 'city'],
+        ] as const).map(([key, label, kind]) => (
           <FormField key={key} control={form.control as never} name={`person.freight_retention.${key}`}
                      render={({field}) => (
                        <FormItem>
                          <FormLabel>{label}</FormLabel>
-                         <Input {...field} id={field.name} value={field.value ?? ''}/>
+                         {kind === 'currency' ? (
+                           <CurrencyInput id={field.name} decimalPlaces={2} value={field.value ?? ''}
+                                          onChange={field.onChange} placeholder="0,00"/>
+                         ) : kind === 'percent' ? (
+                           <NumericInput id={field.name} decimal integerPlaces={3} decimalPlaces={4}
+                                         value={field.value ?? ''} onChange={field.onChange}
+                                         placeholder="12.0000"/>
+                         ) : (
+                           <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={kind === 'cfop' ? FREIGHT_CFOP_OPTIONS : CITY_OPTIONS}
+                                     placeholder={kind === 'cfop' ? 'CFOP' : 'Município'}
+                                     searchPlaceholder={kind === 'cfop' ? 'Código ou descrição...' : 'Nome ou UF...'}
+                                     fuzzySearch={kind === 'city'}/>
+                         )}
                          <FormMessage/>
                        </FormItem>
                      )}
