@@ -1,7 +1,7 @@
 name: Deploy
 
 # Single entry point for every deploy. Owns the trigger, the path filter and the
-# ordering — infra/pydfe/worker/api/frontend are reusable workflows and have no
+# ordering — infra/worker/api/frontend are reusable workflows and have no
 # push trigger of their own, so a push that touches several of them still deploys
 # strictly in order:
 #
@@ -21,10 +21,7 @@ on:
         description: 'Deploy CDK'
         type: boolean
         default: false
-      pydfe:
-        description: 'Deploy py-dfe Lambda'
-        type: boolean
-        default: false
+
       godfe:
         description: 'Test go-dfe'
         type: boolean
@@ -62,7 +59,6 @@ jobs:
     runs-on: ubuntu-26.04-arm
     outputs:
       infra: ${{ steps.decide.outputs.infra }}
-      pydfe: ${{ steps.decide.outputs.pydfe }}
       godfe: ${{ steps.decide.outputs.godfe }}
       worker: ${{ steps.decide.outputs.worker }}
       scopes: ${{ steps.decide.outputs.scopes }}
@@ -76,7 +72,7 @@ jobs:
         id: filter
         if: github.event_name == 'push'
         with:
-          # py-dfe/layer/requirements.txt is in BOTH infra and pydfe: it changes the
+          # py-dfe/layer/requirements.txt is in BOTH infra and: it changes the
           # Lambda layer the CDK stack bundles, and the code that runs on top of it.
           # go-dfe/** and go.work(.sum) are in BOTH worker and api (and godfe): it's
           # a library both import in-process via the root go.work — a change there
@@ -86,9 +82,6 @@ jobs:
               - 'cdk/**'
               - 'py-dfe/layer/requirements.txt'
               - '.github/workflows/infra.yml'
-            pydfe:
-              - 'py-dfe/**'
-              - '.github/workflows/pydfe.yml'
             godfe:
               - 'go-dfe/**'
               - 'go.work'
@@ -119,7 +112,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "infra=${{ inputs.infra }}"       >> "$GITHUB_OUTPUT"
-            echo "pydfe=${{ inputs.pydfe }}"       >> "$GITHUB_OUTPUT"
             echo "godfe=${{ inputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ inputs.worker }}"     >> "$GITHUB_OUTPUT"
             echo "scopes=${{ inputs.scopes }}"     >> "$GITHUB_OUTPUT"
@@ -127,7 +119,6 @@ jobs:
             echo "frontend=${{ inputs.frontend }}" >> "$GITHUB_OUTPUT"
           else
             echo "infra=${{ steps.filter.outputs.infra }}"       >> "$GITHUB_OUTPUT"
-            echo "pydfe=${{ steps.filter.outputs.pydfe }}"       >> "$GITHUB_OUTPUT"
             echo "godfe=${{ steps.filter.outputs.godfe }}"       >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}"     >> "$GITHUB_OUTPUT"
             echo "scopes=${{ steps.filter.outputs.scopes }}"     >> "$GITHUB_OUTPUT"
@@ -144,15 +135,6 @@ jobs:
       id-token: write
       contents: read
       pull-requests: write
-
-  pydfe:
-    name: py-dfe
-    needs: [ changes, infra ]
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.pydfe == 'true' }}
-    uses: ./.github/workflows/pydfe.yml
-    permissions:
-      id-token: write
-      contents: read
 
   godfe:
     name: go-dfe
@@ -177,7 +159,7 @@ jobs:
 
   worker:
     name: Worker
-    needs: [ changes, infra, pydfe, godfe ]
+    needs: [ changes, infra, godfe ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.worker == 'true' }}
     uses: ./.github/workflows/worker.yml
     permissions:
@@ -186,7 +168,7 @@ jobs:
 
   api:
     name: API
-    needs: [ changes, infra, scopes, pydfe, godfe, worker ]
+    needs: [ changes, infra, scopes, godfe, worker ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.api == 'true' }}
     uses: ./.github/workflows/api.yml
     permissions:
@@ -195,7 +177,7 @@ jobs:
 
   frontend:
     name: Frontend
-    needs: [ changes, infra, pydfe, worker, api ]
+    needs: [ changes, infra, worker, api ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.frontend == 'true' }}
     uses: ./.github/workflows/frontend.yml
     # No id-token: the frontend deploys to Cloudflare with an API token now, not
