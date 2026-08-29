@@ -66,6 +66,13 @@ var tables = []table{
 	// through the s3_key stored on these rows, which is copied verbatim.
 	{"organization_certificates", kindOrgPK},
 
+	// The audit trail. Its name does not start with organization_, which is how
+	// it survived two passes over this list — the second one systematic, which
+	// is the one that found it. Leaving it behind would make a company's own
+	// history unreachable from the day of the flip, and an audit trail with a
+	// hole is worth less than one that is merely long.
+	{"audit_logs", kindOrgPK},
+
 	// Reusable registries.
 	{"organization_products", kindOrgPK},
 	{"organization_services", kindOrgPK},

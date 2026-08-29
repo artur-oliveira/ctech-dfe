@@ -348,3 +348,46 @@ func TestMembershipIsCopiedBeforeDocuments(t *testing.T) {
 		t.Errorf("membership at %d, first document at %d", membership, firstDocument)
 	}
 }
+
+// Every table this repo partitions by the organization key must be in the list.
+// Two were missed: organization_users, which would have made the flip answer
+// 403 to everybody, and audit_logs, whose name does not start with
+// organization_ and so read as somebody else's table twice.
+//
+// The list is explicit rather than derived, which is right — a derived list
+// quietly includes whatever it finds — but explicit means a human maintains it,
+// and this is what fails when one forgets.
+func TestTheKnownOrganizationPartitionedTablesAreAllListed(t *testing.T) {
+	// Names verified against production, not remembered.
+	mustBeListed := []string{
+		"organizations", "organization_users", "organization_invitations",
+		"organization_certificates", "audit_logs",
+		"organization_nfe_configs", "organization_nfce_configs",
+		"organization_cte_configs", "organization_mdfe_configs", "organization_nfse_configs",
+		"nfes", "nfces", "ctes", "mdfes", "nfses",
+	}
+	listed := map[string]bool{}
+	for _, tb := range tables {
+		listed[tb.Name] = true
+	}
+	for _, want := range mustBeListed {
+		if !listed[want] {
+			t.Errorf("%q is partitioned by the organization key and is not in the re-key list", want)
+		}
+	}
+}
+
+// And the ones that are NOT tenant-scoped must stay out. Copying them under a
+// company key would duplicate global data per company.
+func TestNonTenantTablesAreNotListed(t *testing.T) {
+	// Verified in production: users and account_billing are keyed by the
+	// account, roles is a global catalogue, worker_outbox by document, and
+	// serie_claims deliberately by tax id.
+	for _, name := range []string{"users", "roles", "account_billing", "worker_outbox", "serie_claims"} {
+		for _, tb := range tables {
+			if tb.Name == name {
+				t.Errorf("%q is not partitioned by the organization key and must not be copied", name)
+			}
+		}
+	}
+}
