@@ -142,13 +142,10 @@ func isBranchSibling(mine, other branchCandidate) bool {
 	return mine.OrganizationID == other.OrganizationID
 }
 
-// typedRoot returns the raiz of a CPF/CNPJ as somebody typed it — mask and case
-// included. Creation has no record and no key yet, only what was typed.
-//
-// Alphanumeric-aware: a CNPJ's first twelve positions may hold letters since
-// the Receita Federal's 2026 change, so this keeps letters and uppercases them
-// rather than stripping to digits.
-func typedRoot(cpfOrCNPJ string) string {
+// typedDocument canonicalizes a CPF/CNPJ as somebody typed it — mask stripped,
+// letters uppercased. A CNPJ's first twelve positions may hold letters since
+// the Receita Federal's 2026 change, so stripping to digits is wrong.
+func typedDocument(cpfOrCNPJ string) string {
 	var b strings.Builder
 	for _, r := range cpfOrCNPJ {
 		switch {
@@ -158,7 +155,17 @@ func typedRoot(cpfOrCNPJ string) string {
 			b.WriteRune(r - 'a' + 'A')
 		}
 	}
-	canonical := b.String()
+	return b.String()
+}
+
+// typedRoot returns the raiz of a CPF/CNPJ as somebody typed it — mask and case
+// included. Creation has no record and no key yet, only what was typed.
+//
+// Alphanumeric-aware: a CNPJ's first twelve positions may hold letters since
+// the Receita Federal's 2026 change, so this keeps letters and uppercases them
+// rather than stripping to digits.
+func typedRoot(cpfOrCNPJ string) string {
+	canonical := typedDocument(cpfOrCNPJ)
 	if len(canonical) != repositories.CNPJLength {
 		return ""
 	}
@@ -289,7 +296,9 @@ func (s *OrganizationService) CreateWithOwner(
 	var certTx types.TransactWriteItem
 	switch {
 	case len(pfx) > 0:
-		info, s3Key, upErr := s.certSvc.StageUpload(ctx, orgPK, pfx, password)
+		// The expected document is what was typed: the organization is being
+		// created, so there is no record yet and the key carries nothing.
+		info, s3Key, upErr := s.certSvc.StageUpload(ctx, orgPK, typedDocument(cpfOrCNPJ), pfx, password)
 		if upErr != nil {
 			return nil, upErr
 		}

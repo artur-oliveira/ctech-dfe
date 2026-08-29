@@ -509,6 +509,9 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 	// staging não precisa de env (hom/prod) no path — é uma área de espera
 	// efêmera; o worker (runImportXML) já resolve o ambiente de novo a
 	// partir do fiscal config ao processar o job.
+	// The path segment is the partition key, whatever era it belongs to. Nothing
+	// reads this object later — it is staging — so it needs no migration and no
+	// stable shape.
 	stagingKey := fmt.Sprintf("%s-import-staging/%s/%s.xml", docType, orgPK, repositories.GenerateID())
 	if _, err := s.clients.S3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketDocs),

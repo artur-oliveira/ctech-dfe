@@ -82,23 +82,29 @@ func TestParsePFX_WrongPassword(t *testing.T) {
 
 func TestMatchOrgDocument(t *testing.T) {
 	tests := []struct {
-		name    string
-		orgPK   string
-		info    *CertInfo
-		wantErr bool
+		name        string
+		expectedDoc string
+		info        *CertInfo
+		wantErr     bool
 	}{
-		{"cnpj match", "CNPJ_12345678000195", &CertInfo{CNPJ: "12345678000195"}, false},
-		{"cnpj mismatch", "CNPJ_12345678000195", &CertInfo{CNPJ: "99999999000199"}, true},
-		{"cpf match", "CPF_12345678901", &CertInfo{CPF: "12345678901"}, false},
-		{"cpf mismatch", "CPF_12345678901", &CertInfo{CPF: "00000000000"}, true},
-		{"no doc in CN is allowed", "CNPJ_12345678000195", &CertInfo{}, false},
-		{"cpf org with cnpj cert (no cpf) allowed", "CPF_12345678901", &CertInfo{CNPJ: "12345678000195"}, false},
+		{"cnpj match", "12345678000195", &CertInfo{CNPJ: "12345678000195"}, false},
+		{"cnpj mismatch", "12345678000195", &CertInfo{CNPJ: "99999999000199"}, true},
+		{"cpf match", "12345678901", &CertInfo{CPF: "12345678901"}, false},
+		{"cpf mismatch", "12345678901", &CertInfo{CPF: "00000000000"}, true},
+		{"no doc in CN is allowed", "12345678000195", &CertInfo{}, false},
+		// Changed deliberately, and it was permissive by accident rather than
+		// by decision: the old branch compared a CPF org against info.CPF only,
+		// so an e-CNPJ slipped past with no CPF to disagree with. The doc
+		// comment always said a CPF org must present an e-CPF. Nothing working
+		// breaks — signing a CPF issuer's document with another entity's
+		// certificate is rejected at the SEFAZ, later and less clearly.
+		{"cpf org with a cnpj cert is refused", "12345678901", &CertInfo{CNPJ: "12345678000195"}, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := MatchOrgDocument(tc.orgPK, tc.info)
+			err := MatchOrgDocument(tc.expectedDoc, tc.info)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("MatchOrgDocument(%s) err=%v, wantErr=%v", tc.orgPK, err, tc.wantErr)
+				t.Errorf("MatchOrgDocument(%s) err=%v, wantErr=%v", tc.expectedDoc, err, tc.wantErr)
 			}
 		})
 	}

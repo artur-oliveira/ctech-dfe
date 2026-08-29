@@ -729,11 +729,15 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		TableName:        "nfes",
 		S3Prefix:         "nfe",
 		ExpectedFileName: accessKey,
-		// Also the S3 path segment the worker writes under. Documents group by
-		// the issuing CNPJ, so two organizations sharing one share a prefix —
-		// deliberate: objects are addressed individually by the stored key, and
-		// nothing lists by prefix. Adding prefix listing would make this need
-		// revisiting.
+		// Also the S3 path segment the worker writes under, which is why it is
+		// the document and not the key.
+		//
+		// Two organizations sharing a CNPJ therefore share a prefix. That is
+		// deliberate: every object is addressed by the xml_s3_key stored on its
+		// own row, nothing in this repo lists by prefix (grep ListObjects), and
+		// grouping fiscal documents by the CNPJ that issued them is what the
+		// path means. Adding prefix listing is the change that would make this
+		// need revisiting.
 		CNPJ:             emitDoc,
 		UF:               emitUF,
 		SefazEnvironment: sefazEnv,

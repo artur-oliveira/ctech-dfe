@@ -241,8 +241,25 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 			return sendProblem(c, problem.BadRequest("arquivo do certificado é obrigatório"))
 		}
 		password := c.FormValue("password")
+		// The organization's own document, off the record: a certificate must
+		// belong to the company it is uploaded for, and the key stopped
+		// carrying a document (ctech-billing ADR 0022).
+		company, err := h.OrgSvc.Company(c.Context(), orgPK)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		// IssuerDoc, not company.TaxID: a record that has not been through the
+		// re-key carries none, and its key is still a legacy CNPJ_ one. Reading
+		// the field alone would refuse every existing customer's upload on the
+		// day this ships.
+		expectedDoc := ""
+		if company != nil {
+			expectedDoc, _ = services.IssuerDoc(company.TaxID, company.TaxIDKind, orgPK)
+		} else {
+			expectedDoc, _ = services.IssuerDoc("", "", orgPK)
+		}
 		userID, userName := resolveActor(c, h.UserSvc)
-		result, err := h.CertSvc.Upload(c.Context(), orgPK, buf, password, "", userID, userName)
+		result, err := h.CertSvc.Upload(c.Context(), orgPK, expectedDoc, buf, password, "", userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}

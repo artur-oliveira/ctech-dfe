@@ -75,27 +75,55 @@ func ParsePFX(pfxData []byte, password string) (*x509.Certificate, *rsa.PrivateK
 	return cert, rsaKey, info, nil
 }
 
-// MatchOrgDocument verifies that the certificate's holder document matches the
-// organization's PK. A CNPJ org (PK "CNPJ_…") must present an e-CNPJ for the
-// same CNPJ; a CPF org (PK "CPF_…") an e-CPF for the same CPF. When the CN
-// carries no recognizable document (some legacy certs) the check is skipped —
-// possession of the PFX + password is still proven by ParsePFX.
-func MatchOrgDocument(orgPK string, info *CertInfo) error {
-	if cnpj, ok := strings.CutPrefix(orgPK, "CNPJ_"); ok {
-		if info.CNPJ != "" && info.CNPJ != cnpj {
-			return problem.BadRequest(fmt.Sprintf(
-				"o CNPJ do certificado (%s) não corresponde ao CNPJ da organização (%s)", info.CNPJ, cnpj))
-		}
+// MatchOrgDocument verifies that a certificate's holder document is the
+// organization's own.
+//
+// It takes the expected DOCUMENT, not the partition key: since ctech-billing
+// ADR 0022 the key is a company id and carries none. The version this replaced
+// compared against a CNPJ_/CPF_ prefix, so a company id matched neither branch
+// and fell out of the bottom returning nil — accepting any certificate for any
+// company, with no error to notice.
+//
+// When the certificate carries no recognizable document (some legacy ones carry
+// only a CN) the check is skipped: possession of the PFX and its password is
+// still proven by ParsePFX. When the ORGANIZATION has no document, it refuses —
+// that is the fail-open above, closed.
+func MatchOrgDocument(expectedDoc string, info *CertInfo) error {
+	if expectedDoc == "" {
+		// Fail closed. This used to compare against a CNPJ_/CPF_ prefix, so a
+		// company id matched neither and fell through to "no opinion" — which
+		// made every company one that any certificate fits.
+		return problem.BadRequest("documento da organização não encontrado; não é possível validar o certificado")
+	}
+	certDoc := info.CNPJ
+	if certDoc == "" {
+		certDoc = info.CPF
+	}
+	if certDoc == "" {
+		// Some certificates carry only a CN. That was always permissive and
+		// stays so; what must not happen is being permissive because the
+		// organization's own document could not be read.
 		return nil
 	}
-	if cpf, ok := strings.CutPrefix(orgPK, "CPF_"); ok {
-		if info.CPF != "" && info.CPF != cpf {
-			return problem.BadRequest(fmt.Sprintf(
-				"o CPF do certificado (%s) não corresponde ao CPF da organização (%s)", info.CPF, cpf))
-		}
-		return nil
+	if certDoc != expectedDoc {
+		return problem.BadRequest(fmt.Sprintf(
+			"o documento do certificado (%s) não corresponde ao da organização (%s)", certDoc, expectedDoc))
 	}
 	return nil
+}
+
+// CertificateS3Key is where an organization's PFX lives.
+//
+// The path segment is the partition key — a company id since ctech-billing ADR
+// 0022, a CNPJ_/CPF_ key before it. Do NOT parse it: existing objects keep the
+// era they were written in, and the certificate row's stored s3_key is what
+// resolves them. Both eras coexist in the bucket permanently, which is correct
+// and needs no reconciliation.
+//
+// One builder, because two Sprintfs of one path is how the upload and the
+// re-upload end up disagreeing.
+func CertificateS3Key(orgPK, md5 string) string {
+	return fmt.Sprintf("certs/%s/%s.pfx", orgPK, md5)
 }
 
 // CertificateService mirrors api/app/services/certificates.py.
@@ -119,7 +147,9 @@ func NewCertificateService(
 // its CREATE audit row atomically. S3 upload happens first — an audit row for
 // a certificate that failed to upload would be wrong.
 // alias is an optional human-readable label (defaults to CN if empty).
-func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData []byte, password, alias, userID, userName string) (map[string]any, error) {
+// expectedDoc is the organization's own CPF/CNPJ, resolved by the caller —
+// which has the record, and which this service does not.
+func (s *CertificateService) Upload(ctx context.Context, orgPK, expectedDoc string, pfxData []byte, password, alias, userID, userName string) (map[string]any, error) {
 	_, _, info, err := ParsePFX(pfxData, password)
 	if err != nil {
 		return nil, err
@@ -128,7 +158,7 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 		return nil, problem.BadRequest("certificate is expired")
 	}
 
-	if err := MatchOrgDocument(orgPK, info); err != nil {
+	if err := MatchOrgDocument(expectedDoc, info); err != nil {
 		return nil, err
 	}
 
@@ -136,7 +166,7 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 		alias = info.CN
 	}
 
-	s3Key := fmt.Sprintf("certs/%s/%s.pfx", orgPK, info.MD5)
+	s3Key := CertificateS3Key(orgPK, info.MD5)
 	_, err = s.awsClients.S3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:               aws.String(s.bucketName),
 		Key:                  aws.String(s3Key),
@@ -180,7 +210,7 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK string, pfxData [
 // certificate row into a larger transaction (e.g. atomic org creation). It does
 // NOT write to DynamoDB. The S3 object is keyed by content MD5, so a stray
 // upload from a later-failed transaction is harmless.
-func (s *CertificateService) StageUpload(ctx context.Context, orgPK string, pfxData []byte, password string) (*CertInfo, string, error) {
+func (s *CertificateService) StageUpload(ctx context.Context, orgPK, expectedDoc string, pfxData []byte, password string) (*CertInfo, string, error) {
 	_, _, info, err := ParsePFX(pfxData, password)
 	if err != nil {
 		return nil, "", err
@@ -188,10 +218,10 @@ func (s *CertificateService) StageUpload(ctx context.Context, orgPK string, pfxD
 	if info.IsExpired {
 		return nil, "", problem.BadRequest("certificate is expired")
 	}
-	if err := MatchOrgDocument(orgPK, info); err != nil {
+	if err := MatchOrgDocument(expectedDoc, info); err != nil {
 		return nil, "", err
 	}
-	s3Key := fmt.Sprintf("certs/%s/%s.pfx", orgPK, info.MD5)
+	s3Key := CertificateS3Key(orgPK, info.MD5)
 	_, err = s.awsClients.S3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:               aws.String(s.bucketName),
 		Key:                  aws.String(s3Key),
