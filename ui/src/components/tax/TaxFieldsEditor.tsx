@@ -3,6 +3,7 @@
 import React, {Children, cloneElement, isValidElement, type ReactElement, useId, useState} from 'react'
 
 import {Combobox} from '@/components/ui/combobox'
+import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {Input} from '@/components/ui/input'
@@ -226,7 +227,7 @@ export function TaxFieldsEditor({
                         options={CFOP_OPTIONS} placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
             </TaxField>
           )}
-          <TaxField label={simples ? 'CSOSN *' : 'ICMS CST *'}>
+          <TaxField label={<>{simples ? 'CSOSN *' : 'ICMS CST *'} <GlossaryTerm term={simples ? 'csosn' : 'cst_icms'}/></>}>
             {simples ? (
               <Combobox value={value.csosn ?? ''}
                              onValueChange={(v) => onChange((r) => ({...r, csosn: v}))}
@@ -320,13 +321,13 @@ export function TaxFieldsEditor({
               </p>
             </TaxField>
             {['00', '10', '20', '51', '70', '90'].includes(value.icms) && (
-              <TaxField label="Modo de cálculo">
+              <TaxField label={<>Modo de cálculo <GlossaryTerm term="mod_bc"/></>}>
                 <OptionsSelect value={value.icms_mod_bc ?? '3'}
                                onValueChange={(v) => onChange((r) => ({...r, icms_mod_bc: v}))}
                                options={MOD_BC_OPTIONS} placeholder="Modo de cálculo"/>
               </TaxField>
             )}
-            <TaxField label="FCP %">
+            <TaxField label={<>FCP % <GlossaryTerm term="fcp"/></>}>
               <NumericInput value={value.icms_fcp_override ?? ''} decimal integerPlaces={2} decimalPlaces={4}
                             placeholder="Padrão: tabela da UF"
                             onChange={(v) => onChange((r) => ({...r, icms_fcp_override: v}))}/>
@@ -372,7 +373,7 @@ export function TaxFieldsEditor({
                                options={MOD_BC_ST_OPTIONS} placeholder="Modo"/>
               </TaxField>
               {(!value.icms_st_mod_bc || value.icms_st_mod_bc === '4') && (
-                <TaxField label="MVA %">
+                <TaxField label={<>MVA % <GlossaryTerm term="mva"/></>}>
                   <NumericInput value={value.icms_st_mva ?? ''} decimal integerPlaces={3} decimalPlaces={4}
                                 placeholder="Ex: 30.0000"
                                 onChange={(v) => onChange((r) => ({...r, icms_st_mva: v}))}/>
@@ -759,7 +760,7 @@ export function TaxFieldsEditor({
                 Quando habilitado, o item usa ISSQN no lugar de ICMS no XML da NF-e.
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <TaxField label="Exigibilidade ISS *">
+                <TaxField label={<>Exigibilidade ISS * <GlossaryTerm term="issqn_exigibilidade"/></>}>
                   <OptionsSelect value={value.issqn_ind_iss ?? ''}
                                  onValueChange={(v) => onChange((r) => ({...r, issqn_ind_iss: v}))}
                                  options={ISSQN_IND_ISS_OPTIONS} placeholder="Exigibilidade"/>
@@ -880,7 +881,7 @@ export function TaxFieldsEditor({
                         options={IBS_CBS_CST_OPTIONS} placeholder="CST"
                         searchPlaceholder="Código ou descrição..."/>
             </TaxField>
-            <TaxField label="Classificação">
+            <TaxField label={<>Classificação <GlossaryTerm term="c_class_trib"/></>}>
               <Combobox value={value.ibs_cbs_class_trib ?? ''}
                         onValueChange={(v) => onChange((r) => ({...r, ibs_cbs_class_trib: v}))}
                         options={IBS_CBS_CLASS_BY_CST[value.ibs_cbs_cst ?? ''] ?? []} placeholder="Código"

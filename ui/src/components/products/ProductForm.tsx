@@ -16,6 +16,7 @@ import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
+import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {Button} from '@/components/ui/button'
@@ -1122,7 +1123,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
               <FormField control={form.control} name="c_benef" render={({field}) => (
                 <FormItem>
-                  <FormLabel>Código de benefício fiscal</FormLabel>
+                  <FormLabel>Código de benefício fiscal <GlossaryTerm term="c_benef"/></FormLabel>
                   <Input {...field} id={field.name} value={field.value ?? ''}
                          placeholder="Ex: SP123456 ou SEM CBENEF" maxLength={10}/>
                   <FormMessage/>
@@ -1181,7 +1182,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {cfopConfig.some(c => c.ipi_cst) && (
               <FormField control={form.control} name="ext_ipi" render={({field}) => (
                 <FormItem>
-                  <FormLabel>Código EX TIPI</FormLabel>
+                  <FormLabel>Código EX TIPI <GlossaryTerm term="ext_ipi"/></FormLabel>
                   <NumericInput {...field} id={field.name} value={field.value ?? ''}
                                 placeholder="001" maxLength={3} onChange={field.onChange}/>
                   <FormMessage/>
@@ -1669,7 +1670,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="nve" render={({field}) => (
                     <FormItem>
-                      <FormLabel>NVE (até 8, separados por vírgula)</FormLabel>
+                      <FormLabel>NVE <GlossaryTerm term="nve"/></FormLabel>
                       <Input id={field.name} value={(field.value ?? []).join(', ')}
                              placeholder="AA0001, BB0002"
                              onChange={(e) => field.onChange(
@@ -1680,7 +1681,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   )}/>
                   <FormField control={form.control} name="n_fci" render={({field}) => (
                     <FormItem>
-                      <FormLabel>Número da FCI</FormLabel>
+                      <FormLabel>Número da FCI <GlossaryTerm term="n_fci"/></FormLabel>
                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={36}
                              placeholder="UUID da Ficha de Conteúdo de Importação"/>
                       <FormMessage/>
@@ -1688,7 +1689,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   )}/>
                   <FormField control={form.control} name="n_recopi" render={({field}) => (
                     <FormItem>
-                      <FormLabel>RECOPI (papel imune)</FormLabel>
+                      <FormLabel>RECOPI <GlossaryTerm term="n_recopi"/></FormLabel>
                       <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={20}
                                     placeholder="20 dígitos" onChange={field.onChange}/>
                       <FormMessage/>
@@ -1771,7 +1772,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   )}/>
                   <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
                     <FormItem>
-                      <FormLabel>Enquadramento legal (cEnq)</FormLabel>
+                      <FormLabel>Enquadramento legal <GlossaryTerm term="c_enq"/></FormLabel>
                       <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
                              inputMode="numeric" placeholder="999"
                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
