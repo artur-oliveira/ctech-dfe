@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"time"
@@ -62,9 +63,9 @@ func terminalUpdateTarget(msg service.WorkerMessage) (table, pk, sk, status stri
 	return tablePrefix + "_" + msg.TableName, msg.DocPK, msg.AccessKey, service.StatusFailed
 }
 
-// writeTerminalStatus marks the document or event as terminally failed. This
-// is the record of fact; the SNS publish below is a best-effort, real-time
-// notification only.
+// writeTerminalStatus marks the document or event as terminally failed. Both
+// this write and the result publication must succeed; either failure is
+// returned so Lambda/SQS retries the record.
 func writeTerminalStatus(ctx context.Context, msg service.WorkerMessage) error {
 	table, pk, sk, status := terminalUpdateTarget(msg)
 	_, err := dynamoClient.UpdateItem(ctx, &dynamodb.UpdateItemInput{
@@ -88,6 +89,7 @@ func writeTerminalStatus(ctx context.Context, msg service.WorkerMessage) error {
 }
 
 func handler(ctx context.Context, event sqsEvent) error {
+	var failures []error
 	for _, record := range event.Records {
 		var msg service.WorkerMessage
 		if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
@@ -103,21 +105,38 @@ func handler(ctx context.Context, event sqsEvent) error {
 
 		if err := writeTerminalStatus(ctx, msg); err != nil {
 			slog.Error("DLQ: failed to write terminal status", "id", record.MessageID, "access_key", msg.AccessKey, "err", err)
+			failures = append(failures, err)
+			continue
 		}
 
 		if resultsTopicARN == "" {
 			continue
 		}
 
+		resultStatus := service.StatusFailed
 		result := map[string]any{
-			"access_key":     msg.AccessKey,
-			"doc_pk":         msg.DocPK,
-			"table_name":     msg.TableName,
-			"status":         service.StatusFailed,
-			"sefaz_status":   nil,
-			"sefaz_motive":   dlqFailureMotive,
-			"sefaz_protocol": nil,
-			"xml_s3_key":     nil,
+			"result_kind":             "document",
+			"access_key":              msg.AccessKey,
+			"doc_pk":                  msg.DocPK,
+			"table_name":              msg.TableName,
+			"status":                  resultStatus,
+			"sefaz_status":            nil,
+			"sefaz_motive":            dlqFailureMotive,
+			"sefaz_protocol":          nil,
+			"xml_s3_key":              nil,
+			"billing_user_id":         msg.BillingUserID,
+			"billing_period":          msg.BillingPeriod,
+			"billing_subscription_id": msg.BillingSubscriptionID,
+			"billing_price_id":        msg.BillingPriceID,
+			"billing_meter":           msg.BillingMeter,
+			"billing_exempt":          msg.BillingExempt,
+		}
+		if msg.EventsTableName != nil {
+			resultStatus = service.EventStatusError
+			result["result_kind"] = "event"
+			result["status"] = resultStatus
+			result["event_type"] = msg.EventType
+			result["event_sk"] = msg.EventSK
 		}
 		msgJSON, _ := json.Marshal(result)
 
@@ -126,9 +145,10 @@ func handler(ctx context.Context, event sqsEvent) error {
 			Message:  aws.String(string(msgJSON)),
 		}); err != nil {
 			slog.Error("failed to publish DLQ result", "id", record.MessageID, "err", err)
+			failures = append(failures, err)
 		}
 	}
-	return nil
+	return errors.Join(failures...)
 }
 
 func main() {

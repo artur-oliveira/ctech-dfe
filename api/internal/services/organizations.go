@@ -166,7 +166,7 @@ func (s *OrganizationService) CertificateRequired(ctx context.Context, userID, c
 // org returns the existing item if the caller is already a member, else 409.
 func (s *OrganizationService) CreateWithOwner(
 	ctx context.Context, cpfOrCNPJ, userID, userName string,
-	fields map[string]types.AttributeValue, pfx []byte, password string,
+	fields map[string]types.AttributeValue, pfx []byte, password string, extra ...types.TransactWriteItem,
 ) (map[string]types.AttributeValue, error) {
 	orgPK, err := repositories.ParseOrgPK(cpfOrCNPJ)
 	if err != nil {
@@ -237,6 +237,7 @@ func (s *OrganizationService) CreateWithOwner(
 		certTx,
 		s.orgUserRepo.BuildCreateTxItem(orgPK, userID, repositories.RoleOwner, "", userName, nil),
 	}
+	txItems = append(txItems, extra...)
 
 	afterMap, err := attributeMapToPlain(orgItem)
 	if err != nil {
@@ -253,7 +254,7 @@ func (s *OrganizationService) CreateWithOwner(
 
 	if err := s.repo.TransactWrite(ctx, txItems); err != nil {
 		if repositories.IsConditionFailed(err) {
-			return nil, problem.Conflict("organização já cadastrada")
+			return nil, problem.Conflict("organização já cadastrada ou outra criação ocorreu; tente novamente")
 		}
 		return nil, err
 	}

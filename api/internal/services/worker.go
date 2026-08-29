@@ -15,19 +15,25 @@ import (
 
 // WorkerMessage is the SNS payload sent to py-dfe workers.
 type WorkerMessage struct {
-	DocPK            string `json:"doc_pk"`
-	AccessKey        string `json:"access_key"`
-	TableName        string `json:"table_name"`
-	S3Prefix         string `json:"s3_prefix"`
-	ExpectedFileName string `json:"expected_file_name"`
-	CNPJ             string `json:"cnpj"`
-	UF               string `json:"uf"`
-	SefazEnvironment string `json:"sefaz_environment"`
-	CertS3Key        string `json:"cert_s3_key"`
-	CertPassword     string `json:"cert_password"`
-	DocType          string `json:"doc_type"`
-	SefazService     string `json:"sefaz_service"`
-	Body             any    `json:"body"`
+	DocPK                 string `json:"doc_pk"`
+	AccessKey             string `json:"access_key"`
+	TableName             string `json:"table_name"`
+	S3Prefix              string `json:"s3_prefix"`
+	ExpectedFileName      string `json:"expected_file_name"`
+	CNPJ                  string `json:"cnpj"`
+	UF                    string `json:"uf"`
+	SefazEnvironment      string `json:"sefaz_environment"`
+	CertS3Key             string `json:"cert_s3_key"`
+	CertPassword          string `json:"cert_password"`
+	DocType               string `json:"doc_type"`
+	SefazService          string `json:"sefaz_service"`
+	Body                  any    `json:"body"`
+	BillingUserID         string `json:"billing_user_id,omitempty"`
+	BillingPeriod         string `json:"billing_period,omitempty"`
+	BillingSubscriptionID string `json:"billing_subscription_id,omitempty"`
+	BillingPriceID        string `json:"billing_price_id,omitempty"`
+	BillingMeter          string `json:"billing_meter,omitempty"`
+	BillingExempt         bool   `json:"billing_exempt,omitempty"`
 	// Optional event fields (cancellation, CC-e, manifestation).
 	EventsTableName *string `json:"events_table_name,omitempty"`
 	EventType       *string `json:"event_type,omitempty"`

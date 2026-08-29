@@ -638,8 +638,9 @@ verificação, e a rota aceita mudanças de estado de assinatura vindas de fora;
 percebe.
 
 O corpo é lido para uma coisa só: qual assinatura ir consultar no billing. Nada nele é tratado como verdade — o snapshot
-é sempre reconstruído a partir de uma leitura nova. Deduplicação por `X-Billing-Event-Id`, com escrita condicional
-**antes** do trabalho (entregas são at-least-once, então duas cópias do mesmo evento podem estar em voo juntas).
+é sempre reconstruído a partir de uma leitura nova. A deduplicação por `X-Billing-Event-Id` é gravada somente **depois**
+da sincronização idempotente terminar; assim uma falha transitória continua elegível ao retry. Duas entregas concorrentes
+podem repetir a leitura e o `Put` integral sem produzir estados diferentes.
 
 ### Bloqueio por assinatura e cotas
 
@@ -675,11 +676,16 @@ texto em português.
 
 #### Cotas
 
-A cota é reservada **quando o documento é pedido**, antes da escrita e antes de qualquer coisa
-chegar à SEFAZ, com `ADD` condicional numa única operação. Contar documentos autorizados tornaria o
+A cota de produção é reservada **quando o documento é pedido**, na mesma `TransactWrite` que grava
+documento, número fiscal e outbox, com `ADD` condicional. Contar documentos autorizados tornaria o
 limite assíncrono e furável: duas requisições simultâneas leriam "3 de 3 usados" e ambas emitiriam a
 quarta. O preço é que um documento rejeitado pela SEFAZ gastou uma vaga — devolvida quando o
 resultado terminal chega (ver *Acerto de uso e devolução de cota*).
+
+**Homologação não consome cota nem gera uso faturável.** O documento de teste continua passando pelo
+mesmo pipeline fiscal, mas o comando leva `billing_exempt: true` e a transação não contém incremento de
+uso. O marcador explícito mantém compatibilidade com comandos antigos de produção sem contexto de billing.
+O gate de assinatura e o RBAC continuam valendo; a isenção é somente de volume/faturamento.
 
 Um medidor que o plano **não menciona** é recusado, não liberado. É o que faz o silêncio do plano
 Free sobre CT-e significar "sem CT-e" em vez de "CT-e ilimitado", e é a direção segura: uma emissão
@@ -690,6 +696,14 @@ devolve a vaga, e um contador teria que ser decrementado por todo caminho que re
 são contados **distintos por conta**, não por organização (D5) — quem ajuda em duas empresas do mesmo
 cliente é uma pessoa. O corpo do 402 de cota traz `meter`, `plan`, `quota_limit` e `quota_used`, para
 a tela de upgrade não precisar de uma segunda chamada.
+
+Admissões concorrentes são serializadas por uma versão `QUOTA_GUARD_{user}#{companies|users}` incluída
+na mesma transação da criação/aceite. A contagem continua sendo o estado real, mas duas decisões feitas
+sobre a mesma versão não podem ambas gravar. O preço medido `companies` é reportado após a criação com
+chave idempotente `company:{org_pk}`.
+
+`mdfe_scope: frota_propria` é uma restrição adicional do plano Free em produção: a emissão é recusada
+quando o veículo de tração resolve um grupo `prop` de terceiro. Em homologação a restrição não se aplica.
 
 Rebaixar de plano com mais membros do que o novo limite **não expulsa ninguém**: a checagem acontece
 no convite e no aceite, então os membros existentes continuam.
@@ -702,7 +716,7 @@ Quando um documento chega a status terminal, o worker publica o resultado no `Df
 | Status terminal        | O que acontece                                                             |
 |------------------------|----------------------------------------------------------------------------|
 | `authorized`           | `POST /v1.0/usage` no billing, `quantity: 1`, **só se o plano tem medidor** |
-| `rejected` \| `failed` | devolve a vaga da cota, uma única vez                                       |
+| `rejected` \| `failed` | devolve a vaga e grava o marcador idempotente na mesma transação            |
 | `retryable_failed`     | nada — ainda está em voo, a vaga continua reservada                         |
 
 Só mensagens com `result_kind: document` contam. Um cancelamento ou uma CC-e é evento sobre um
@@ -712,6 +726,10 @@ O acerto roda na API, não no worker como o plano previa: o cliente do billing, 
 os contadores já estão aqui, e o worker é outro módulo Go que precisaria de uma segunda cópia dos
 três — incluindo o gerenciador de token — para alcançar as mesmas linhas.
 
+O comando imutável guarda `billing_user_id`, período, assinatura, preço e medidor capturados na reserva.
+O resultado repete esse contexto; troca de plano durante o processamento não desloca cobrança nem
+reembolso para o plano/período novo. Comandos antigos sem os campos usam o snapshot atual como fallback.
+
 Três propriedades sustentam o desenho:
 
 - **Plano fixo não reporta nada.** O preço fixo não carrega `meter`; reportar cada NF-e de um Pro
@@ -720,16 +738,17 @@ Três propriedades sustentam o desenho:
   de acesso do documento (o `id_dps` na NFS-e), então redelivery reporta a mesma emissão e o billing
   responde `duplicate: true`, que é sucesso.
 - **Devolução é idempotente por marcador.** Diferente do reporte, decrementar é destrutivo: o
-  marcador `refund:{meter}:{chave}` é reivindicado **antes** da devolução, na tabela `account_billing`
-  (TTL 7 dias). Falha entre os dois perde a devolução em vez de repeti-la — uma vaga a pedir de volta
-  é recuperável, uma vaga entregue a cada redelivery é emissão de graça.
+  marcador `refund:{meter}:{chave}` (TTL 7 dias) e o decremento condicionado a contador positivo são
+  gravados na mesma transação. Uma falha transitória não grava nenhum dos dois e volta para a fila;
+  uma redelivery após sucesso encontra o marcador e não decrementa novamente.
 
 **A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então dispara o
 alarme da DLQ de resultados — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
 Redirecionar (redrive) a DLQ é seguro: os dois lados são idempotentes.
 
-Ainda **não existe** varredura diária de uso não reportado (Fase 4.3). O caminho que ela cobriria e a
-DLQ não é o `publishResult` do worker falhar — SNS fora do ar — e nenhuma conta medida existe hoje.
+Falha ao publicar um resultado terminal volta para a fila. Na redelivery, um documento já terminal
+apenas republica o resultado, sem nova chamada à SEFAZ. Ao esgotar tentativas, o processador da DLQ
+publica `result_kind: document` e o mesmo contexto de billing, permitindo a devolução final da vaga.
 
 ### Modo sem cobrança
 

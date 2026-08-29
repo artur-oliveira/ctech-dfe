@@ -711,6 +711,10 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	if environment == 1 {
 		sefazEnv = SefazEnvProd
 	}
+	reservation, err := s.billingSvc.PrepareUsageReservation(ctx, orgPK, services.MeterNFe, envPrefix == EnvProd)
+	if err != nil {
+		return nil, err
+	}
 	workerMsg := services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        accessKey,
@@ -725,6 +729,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		DocType:          "nfe",
 		SefazService:     "NFeAutorizacao",
 		Body:             enviNFe,
+		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
+		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
 	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
 	if err != nil {
@@ -737,13 +744,12 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	// asynchronous and passable by two concurrent requests, each reading the same
 	// count and each issuing one more. The cost is that a document SEFAZ rejects
 	// has spent a slot; the worker gives it back on a terminal rejection.
-	if err := s.billingSvc.Reserve(ctx, orgPK, services.MeterNFe); err != nil {
-		return nil, err
-	}
-
 	// O encerrante avança na MESMA transação da emissão: gravar depois deixaria
 	// a próxima venda partir de uma leitura antiga se o processo caísse aqui.
 	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
+	if reservation.Tx != nil {
+		txItems = append(txItems, *reservation.Tx)
+	}
 	if err := s.nfeRepo.TransactReserveAndCreate(
 		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, txItems...,
 	); err != nil {

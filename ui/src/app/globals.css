@@ -63,7 +63,7 @@
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --font-sans: var(--font-sans);
-    --font-mono: var(--font-geist-mono);
+    --font-mono: var(--font-mono);
 
     /* Brand palette — generates text-brand-*, bg-brand-*, border-brand-*, ring-brand-* */
     --color-brand-50: var(--brand-50);
@@ -213,7 +213,7 @@ html, body {
 }
 
 body {
-    font-family: var(--font-geist-sans, Arial, sans-serif), sans-serif;
+    font-family: var(--font-sans, Arial, sans-serif), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }

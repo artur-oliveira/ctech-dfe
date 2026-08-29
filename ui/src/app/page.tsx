@@ -114,10 +114,12 @@ const PLANS = [
   },
   {
     name: 'Sob demanda',
-    tagline: 'Pague só pelo que emitir',
+    tagline: 'Pague só pelo que for usar',
     price: 'Variável',
     period: '',
     features: [
+      'R$ 1,00 por Usuário',
+      'R$ 5,00 por Empresa',
       'R$ 0,05 por NF-e',
       'R$ 0,01 por NFC-e',
       'R$ 0,50 por CT-e',

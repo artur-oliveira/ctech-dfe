@@ -130,8 +130,7 @@ func (s *DfeService) persistNfseEvent(ctx context.Context, msg WorkerMessage, ou
 	if err := s.updateClaimedEvent(ctx, msg, EventStatusSuccess, attrs); err != nil {
 		return err
 	}
-	s.publishEventResult(ctx, msg, EventStatusSuccess, attrs)
-	return nil
+	return s.publishEventResult(ctx, msg, EventStatusSuccess, attrs)
 }
 
 // putXML grava um XML sob o prefixo do documento e devolve a chave S3. Devolve

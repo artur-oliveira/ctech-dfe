@@ -5,9 +5,11 @@ import (
 
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -102,11 +104,20 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		// middleware: there is no organization yet, so the gate has nothing to
 		// resolve, and the limit belongs to the **caller's** account — the one
 		// that is about to own this organization and pay for it.
-		if err := h.BillingSvc.CheckCompanyQuota(c.Context(), userID); err != nil {
+		quotaGuard, err := h.BillingSvc.CompanyQuotaGuard(c.Context(), userID)
+		if err != nil {
 			return sendProblem(c, err)
 		}
-		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password)
+		var quotaTx []types.TransactWriteItem
+		if quotaGuard != nil {
+			quotaTx = append(quotaTx, *quotaGuard)
+		}
+		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password, quotaTx...)
 		if err != nil {
+			return sendProblem(c, err)
+		}
+		createdOrgPK, _ := repositories.ParseOrgPK(dto.CpfOrCnpj)
+		if err := h.BillingSvc.ReportCompanyUsage(c.Context(), createdOrgPK); err != nil {
 			return sendProblem(c, err)
 		}
 		m, err := unmarshal(org)

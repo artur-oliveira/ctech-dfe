@@ -154,11 +154,15 @@ func (m *mockDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput,
 
 type mockSNS struct {
 	calls []string
+	err   error
 }
 
 func (m *mockSNS) Publish(_ context.Context, in *sns.PublishInput, _ ...func(*sns.Options)) (*sns.PublishOutput, error) {
 	if in.Message != nil {
 		m.calls = append(m.calls, *in.Message)
+	}
+	if m.err != nil {
+		return nil, m.err
 	}
 	return &sns.PublishOutput{}, nil
 }
@@ -734,6 +738,51 @@ func TestProcess_SkipsSNSWhenTopicARNEmpty(t *testing.T) {
 	}
 }
 
+func TestProcess_RedeliveryRepublishesTerminalWithoutCallingSefazAgain(t *testing.T) {
+	cfg := *testCfg
+	cfg.ResultsTopicARN = "arn:aws:sns:us-east-1:123456789:results"
+	snsm := &mockSNS{err: context.DeadlineExceeded}
+	lam := &mockLambda{payload: invokeResp("100", "Autorizado", "135")}
+	dynm := &mockDynamo{}
+	svc := New(Clients{S3: certS3(), Lambda: lam, Dynamo: dynm, SNS: snsm}, &cfg)
+	msg := baseMsg
+	msg.BillingUserID = "owner"
+	msg.BillingPeriod = "2026-08-01"
+	msg.BillingSubscriptionID = "sub_1"
+	msg.BillingPriceID = "price_1"
+	msg.BillingMeter = "nfe"
+	msg.BillingExempt = true
+
+	if err := svc.Process(context.Background(), msg); !errors.Is(err, errResultPublish) {
+		t.Fatalf("first publish error = %v", err)
+	}
+	if got := dynm.updates[len(dynm.updates)-1].status; got != StatusAuthorized {
+		t.Fatalf("publish failure changed terminal status to %q", got)
+	}
+
+	snsm.err = nil
+	dynm.getItemOutput = statusItem(StatusAuthorized)
+	if err := svc.Process(context.Background(), msg); err != nil {
+		t.Fatalf("terminal redelivery: %v", err)
+	}
+	if lam.calls != 1 {
+		t.Fatalf("SEFAZ calls = %d, want 1", lam.calls)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(snsm.calls[len(snsm.calls)-1]), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload[notifyKeyBillingPeriod] != msg.BillingPeriod || payload[notifyKeyBillingPriceID] != msg.BillingPriceID {
+		t.Fatalf("billing context was not republished: %v", payload)
+	}
+	if payload[notifyKeyBillingExempt] != true {
+		t.Fatalf("billing exemption was not republished: %v", payload)
+	}
+	if payload[notifyKeySefazProtocol] != "135" {
+		t.Fatalf("terminal fiscal context was not republished: %v", payload)
+	}
+}
+
 // TestProcess_CancellationFailure_NotifiesEventNotDocument is a regression test
 // for the bug where a failed cancellation published the reverted document
 // status ("authorized") to SNS, masking the real event error. The notification
@@ -806,7 +855,8 @@ func endsWith(s, suffix string) bool {
 func statusItem(status string) *dynamodb.GetItemOutput {
 	return &dynamodb.GetItemOutput{
 		Item: map[string]types.AttributeValue{
-			"status": &types.AttributeValueMemberS{Value: status},
+			"status":         &types.AttributeValueMemberS{Value: status},
+			"sefaz_protocol": &types.AttributeValueMemberS{Value: "135"},
 		},
 	}
 }

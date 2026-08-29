@@ -904,9 +904,19 @@ Must follow Conventional Commits:
   `authorized`, quota refund on `rejected`/`failed`). Deleting on failure would drop a usage report
   with nothing but a log line behind it; leaving the message costs three redeliveries and then the
   results DLQ, which an operator redrives (there is no alarm on it since 2026-08-19 — depth is a
-  console check). Both sides are idempotent, so a
-  redrive is safe — the usage report by its access key, the refund by its `refund:{meter}:{key}`
-  marker. Anything added to the settlement path has to keep that property.
+  console check). Both sides are idempotent, so a redrive is safe — the usage report by its access
+  key; the refund decrements the counter and writes its `refund:{meter}:{key}` marker in the same
+  transaction. Anything added to the settlement path has to keep that property.
+- **Production quota and billing context are part of the issuance transaction.** Homologation never
+  reserves or reports usage and is identified explicitly by `billing_exempt`; an absent field is legacy,
+  not proof of exemption. Production commands carry the account, subscription, price, meter and
+  period captured at admission; settlement must never reassign an in-flight document to the plan
+  currently active. A terminal SNS publish failure is returned to SQS, and terminal redelivery only
+  republishes the result — it must not call SEFAZ again or rewrite the terminal status.
+- **Live company/user quotas use a transactional version guard.** Counting remains live state, but the
+  `QUOTA_GUARD_{user}#{meter}` update must travel in the same transaction as organization creation or
+  invitation acceptance. A read-count-write sequence without that guard can exceed the plan under
+  concurrent requests.
 - `CRUDRepository[T]`'s `Create`/`BuildCreateTxItem`/`BuildCreateTxItemIfAbsent` marshal `entity T`
   via `marshalEntity` (`internal/repositories/base.go`), never `MarshalMapOmitNull` directly — when
   `T = map[string]types.AttributeValue` (`ProductRepository`, `ServiceRepository`), the values are

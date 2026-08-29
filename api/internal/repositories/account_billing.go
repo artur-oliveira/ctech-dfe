@@ -18,15 +18,16 @@ import (
 
 // AccountBillingRepository stores what ctech-billing says about each account.
 //
-// Table structure (account_billing), three kinds of row:
+// Table structure (account_billing), four kinds of row:
 //
 //	pk = USER_{sub}                the subscription snapshot
 //	pk = EVENT_{event_id}          a processed webhook, with a TTL
 //	pk = USAGE_{sub}#{period}      this period's meters
+//	pk = QUOTA_GUARD_{sub}#{meter} concurrency guard for live resource quotas
 //
 // They share a table because they share a subject and their access pattern is
 // identical — one row, by primary key, never queried or scanned. A table each
-// would be three things to create, grant, prefix and remember, for no property
+// would be four things to create, grant, prefix and remember, for no property
 // gained; different pk values sit in different partitions, so they do not
 // contend.
 //
@@ -114,6 +115,9 @@ type AccountSnapshot struct {
 	// is populated only on usage-based plans. Its presence is what tells the
 	// worker to report an emission at all.
 	Meters map[string]string `dynamodbav:"meters,omitempty" json:"meters,omitempty"`
+	// Features carries non-quota plan constraints, such as the Free plan's
+	// own-fleet-only MDF-e scope.
+	Features map[string]string `dynamodbav:"features,omitempty" json:"features,omitempty"`
 
 	OpenInvoice *OpenInvoice `dynamodbav:"open_invoice,omitempty" json:"open_invoice,omitempty"`
 
@@ -167,12 +171,9 @@ func (r *AccountBillingRepository) Put(ctx context.Context, s *AccountSnapshot) 
 // once, so two deliveries of one event can be in flight together, and a check
 // followed by a write would let both through.
 //
-// It is called **before** the work rather than after. A delivery that fails
-// midway is retried by billing and finds the marker, so the work is at-most-once
-// — which is correct here because the work is "re-read billing and overwrite the
-// snapshot", and skipping a redundant re-read costs nothing. The opposite order
-// would make a crash between work and marker into a duplicate, which for a write
-// that is not idempotent would matter.
+// Callers record the marker after their idempotent work succeeds. That keeps a
+// transient failure retryable; concurrent deliveries may repeat the harmless
+// refresh, then exactly one records completion.
 func (r *AccountBillingRepository) MarkEventProcessed(ctx context.Context, eventID string) (bool, error) {
 	item := map[string]types.AttributeValue{
 		"pk":         &types.AttributeValueMemberS{Value: BillingEventPK(eventID)},
@@ -213,6 +214,36 @@ func UsageCounterPK(userID, period string) string {
 	return "USAGE_" + RawUserID(userID) + "#" + period
 }
 
+func quotaGuardPK(userID, meter string) string {
+	return "QUOTA_GUARD_" + RawUserID(userID) + "#" + meter
+}
+
+// BuildQuotaGuardTx advances a per-account resource version. Company creation
+// and invitation acceptance include it in their own transaction, serializing
+// the preceding live-count decision without replacing live state with counters.
+func (r *AccountBillingRepository) BuildQuotaGuardTx(ctx context.Context, userID, meter string) (types.TransactWriteItem, error) {
+	pk := quotaGuardPK(userID, meter)
+	item, err := r.GetItem(ctx, pk)
+	if err != nil {
+		return types.TransactWriteItem{}, err
+	}
+	var version int64
+	if n, ok := item["version"].(*types.AttributeValueMemberN); ok {
+		version, _ = strconv.ParseInt(n.Value, 10, 64)
+	}
+	return types.TransactWriteItem{Update: &types.Update{
+		TableName:                aws.String(r.TableName),
+		Key:                      map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: pk}},
+		UpdateExpression:         aws.String("SET #v = :next"),
+		ConditionExpression:      aws.String("attribute_not_exists(#v) OR #v = :expected"),
+		ExpressionAttributeNames: map[string]string{"#v": "version"},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":expected": &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
+			":next":     &types.AttributeValueMemberN{Value: strconv.FormatInt(version+1, 10)},
+		},
+	}}, nil
+}
+
 // usageCounterTTL keeps a closed period around long enough to answer "how much
 // did we use last month" and then lets it go. Thirteen months, so a
 // year-over-year comparison is still possible on the last day of the year.
@@ -239,6 +270,30 @@ var ErrQuotaExceeded = errors.New("quota exceeded")
 // It returns the count **after** the reservation, so a caller can report "3 of 3
 // used" without a second read.
 func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, userID, period, meter string, limit int64) (int64, error) {
+	tx := r.BuildReserveUsageTx(userID, period, meter, limit)
+	update := tx.Update
+	out, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 update.TableName,
+		Key:                       update.Key,
+		UpdateExpression:          update.UpdateExpression,
+		ConditionExpression:       update.ConditionExpression,
+		ExpressionAttributeNames:  update.ExpressionAttributeNames,
+		ExpressionAttributeValues: update.ExpressionAttributeValues,
+		ReturnValues:              types.ReturnValueUpdatedNew,
+	})
+	if IsConditionFailed(err) {
+		return limit, ErrQuotaExceeded
+	}
+	if err != nil {
+		return 0, wrapDynamoErr(err)
+	}
+	return counterValue(out.Attributes, meter), nil
+}
+
+// BuildReserveUsageTx builds the same conditional increment as ReserveUsage,
+// for inclusion in the document+fiscal-number+outbox transaction. A successful
+// quota claim can therefore never exist without the document it paid for.
+func (r *AccountBillingRepository) BuildReserveUsageTx(userID, period, meter string, limit int64) types.TransactWriteItem {
 	names := map[string]string{"#m": meter, "#ttl": "ttl"}
 	values := map[string]types.AttributeValue{
 		":one": &types.AttributeValueMemberN{Value: "1"},
@@ -270,7 +325,7 @@ func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, userID, per
 		values[":limit"] = &types.AttributeValueMemberN{Value: "0"}
 	}
 
-	out, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
+	return types.TransactWriteItem{Update: &types.Update{
 		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(userID, period)},
@@ -279,15 +334,7 @@ func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, userID, per
 		ConditionExpression:       conditionOrNil(condition),
 		ExpressionAttributeNames:  names,
 		ExpressionAttributeValues: values,
-		ReturnValues:              types.ReturnValueUpdatedNew,
-	})
-	if IsConditionFailed(err) {
-		return limit, ErrQuotaExceeded
-	}
-	if err != nil {
-		return 0, wrapDynamoErr(err)
-	}
-	return counterValue(out.Attributes, meter), nil
+	}}
 }
 
 // RefundUsage gives one unit back, for a document that never reached SEFAZ.
@@ -312,6 +359,38 @@ func (r *AccountBillingRepository) RefundUsage(ctx context.Context, userID, peri
 			":zero":     &types.AttributeValueMemberN{Value: "0"},
 		},
 	})
+	if IsConditionFailed(err) {
+		return nil
+	}
+	return wrapDynamoErr(err)
+}
+
+// RefundUsageOnce atomically records the document refund and decrements its
+// reserved meter. A redelivery sees the marker condition fail and is a no-op;
+// an infrastructure failure commits neither write and remains retryable.
+func (r *AccountBillingRepository) RefundUsageOnce(ctx context.Context, userID, period, meter, eventID string) error {
+	marker := map[string]types.AttributeValue{
+		"pk":         &types.AttributeValueMemberS{Value: BillingEventPK(eventID)},
+		"event_id":   &types.AttributeValueMemberS{Value: eventID},
+		"created_at": &types.AttributeValueMemberS{Value: NowStr()},
+		"ttl": &types.AttributeValueMemberN{
+			Value: strconv.FormatInt(time.Now().Add(billingEventTTL).Unix(), 10),
+		},
+	}
+	refund := types.TransactWriteItem{Update: &types.Update{
+		TableName: aws.String(r.TableName),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(userID, period)},
+		},
+		UpdateExpression:         aws.String("ADD #m :minusOne"),
+		ConditionExpression:      aws.String("#m > :zero"),
+		ExpressionAttributeNames: map[string]string{"#m": meter},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":minusOne": &types.AttributeValueMemberN{Value: "-1"},
+			":zero":     &types.AttributeValueMemberN{Value: "0"},
+		},
+	}}
+	err := r.TransactWrite(ctx, []types.TransactWriteItem{r.BuildPutTxItemIfAbsent(marker), refund})
 	if IsConditionFailed(err) {
 		return nil
 	}

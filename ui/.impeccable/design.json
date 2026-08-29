@@ -42,7 +42,7 @@
       "refersTo": "button-primary",
       "description": "The only filled, colored button. Soft-green fill with white text; carries every primary action. Mobile-first 44px touch target collapsing to 32px desktop.",
       "html": "<button class=\"ds-btn-primary\">Emitir documento</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; height: 44px; padding: 0 10px; gap: 6px; background: #218768; color: #ffffff; border: 1px solid transparent; border-radius: 14px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; } @media (min-width: 640px) { .ds-btn-primary { min-height: 0; height: 32px; } } .ds-btn-primary:hover { background: #1c6c55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; height: 44px; padding: 0 10px; gap: 6px; background: #218768; color: #ffffff; border: 1px solid transparent; border-radius: 14px; font: 500 14px/1 \"IBM Plex Sans\", system-ui, sans-serif; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease; } @media (min-width: 640px) { .ds-btn-primary { min-height: 0; height: 32px; } } .ds-btn-primary:hover { background: #1c6c55; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
     },
     {
       "name": "Input",
@@ -50,7 +50,7 @@
       "refersTo": "input",
       "description": "Transparent field, hairline border, 32px tall. Border + green ring on focus; red on error.",
       "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Número do documento\" />",
-      "css": ".ds-input { width: 100%; height: 32px; padding: 0 10px; background: transparent; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 400 16px/1 \"Geist Sans\", system-ui, sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } @media (min-width: 768px) { .ds-input { font-size: 14px; } } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: #218768; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-input[aria-invalid=\"true\"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }"
+      "css": ".ds-input { width: 100%; height: 32px; padding: 0 10px; background: transparent; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 400 16px/1 \"IBM Plex Sans\", system-ui, sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } @media (min-width: 768px) { .ds-input { font-size: 14px; } } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: #218768; box-shadow: 0 0 0 3px rgba(33,135,104,0.5); } .ds-input[aria-invalid=\"true\"] { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }"
     },
     {
       "name": "Status Badge (doc-neutral)",
@@ -58,7 +58,7 @@
       "refersTo": "badge-default",
       "description": "Pill status chip with a FIXED semantic palette — never recolored by data-dfe-theme. Status is a universal vocabulary the user must recognize across every doc type.",
       "html": "<span class=\"ds-status ds-status-authorized\">Autorizada</span>",
-      "css": ".ds-status { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; border-radius: 9999px; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; } .ds-status-pending { background: #fffbeb; color: #b45309; } .ds-status-authorized { background: #dcfce7; color: #15803d; } .ds-status-rejected { background: #fee2e2; color: #b91c1c; } .ds-status-failed { background: #fecaca; color: #991b1b; } .ds-status-cancelled { background: #f1f5f9; color: #64748b; }"
+      "css": ".ds-status { display: inline-flex; align-items: center; height: 20px; padding: 2px 8px; border-radius: 9999px; font: 600 12px/1 \"IBM Plex Sans\", system-ui, sans-serif; } .ds-status-pending { background: #fffbeb; color: #b45309; } .ds-status-authorized { background: #dcfce7; color: #15803d; } .ds-status-rejected { background: #fee2e2; color: #b91c1c; } .ds-status-failed { background: #fecaca; color: #991b1b; } .ds-status-cancelled { background: #f1f5f9; color: #64748b; }"
     },
     {
       "name": "Section Card",
@@ -66,7 +66,7 @@
       "refersTo": "button-primary",
       "description": "Titled grouping block: a soft Surface header strip with a tracked uppercase label, a hairline divider, then padded body.",
       "html": "<div class=\"ds-section-card\"><div class=\"ds-section-card-head\"><span class=\"ds-section-card-icon\"></span><h3 class=\"ds-section-card-title\">Dados do emitente</h3></div><div class=\"ds-section-card-body\">…</div></div>",
-      "css": ".ds-section-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; } .ds-section-card-head { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; } .ds-section-card-title { margin: 0; font: 600 12px/1 \"Geist Sans\", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; } .ds-section-card-body { padding: 20px; }"
+      "css": ".ds-section-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; } .ds-section-card-head { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; } .ds-section-card-title { margin: 0; font: 600 12px/1 \"IBM Plex Sans\", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; } .ds-section-card-body { padding: 20px; }"
     },
     {
       "name": "Modal / Dialog",
@@ -74,7 +74,7 @@
       "refersTo": "button-primary",
       "description": "Portal dialog: white rounded panel, shadow-modal, sticky header + footer, max-w-lg default. Always w-full + mx-4 so it never overflows at 375px.",
       "html": "<div class=\"ds-modal-backdrop\"><div class=\"ds-modal\" role=\"dialog\" aria-modal=\"true\"><div class=\"ds-modal-head\"><h2 class=\"ds-modal-title\">Confirmar</h2></div><div class=\"ds-modal-body\">…</div><div class=\"ds-modal-foot\"><button class=\"ds-btn-outline\">Cancelar</button><button class=\"ds-btn-primary\">Salvar</button></div></div></div>",
-      "css": ".ds-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); } .ds-modal { width: 100%; max-width: 512px; margin: 0 16px; max-height: 90vh; overflow-y: auto; background: #ffffff; border-radius: 14px; box-shadow: 0 20px 60px -10px rgba(0,0,0,0.25); } .ds-modal-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #ffffff; border-bottom: 1px solid #e2e8f0; } .ds-modal-title { margin: 0; font: 600 18px/1 \"Geist Sans\", system-ui, sans-serif; color: #0f172a; } .ds-modal-body { padding: 24px; } .ds-modal-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; } .ds-btn-outline { height: 32px; padding: 0 12px; background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; cursor: pointer; } .ds-btn-outline:hover { background: #f8fafc; }"
+      "css": ".ds-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); } .ds-modal { width: 100%; max-width: 512px; margin: 0 16px; max-height: 90vh; overflow-y: auto; background: #ffffff; border-radius: 14px; box-shadow: 0 20px 60px -10px rgba(0,0,0,0.25); } .ds-modal-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #ffffff; border-bottom: 1px solid #e2e8f0; } .ds-modal-title { margin: 0; font: 600 18px/1 \"IBM Plex Sans\", system-ui, sans-serif; color: #0f172a; } .ds-modal-body { padding: 24px; } .ds-modal-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; } .ds-btn-outline { height: 32px; padding: 0 12px; background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 14px; font: 500 14px/1 \"IBM Plex Sans\", system-ui, sans-serif; cursor: pointer; } .ds-btn-outline:hover { background: #f8fafc; }"
     },
     {
       "name": "Sidebar Nav Item",
@@ -82,7 +82,7 @@
       "refersTo": "button-primary",
       "description": "Left-sidebar link. Active item carries the brand-green tint and ink-strong text.",
       "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">NF-e</a>",
-      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 14px; color: #0f172a; font: 500 14px/1 \"Geist Sans\", system-ui, sans-serif; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: #f8fafc; } .ds-nav-item-active { background: rgba(33,135,104,0.12); color: #1c6c55; font-weight: 600; }"
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 14px; color: #0f172a; font: 500 14px/1 \"IBM Plex Sans\", system-ui, sans-serif; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: #f8fafc; } .ds-nav-item-active { background: rgba(33,135,104,0.12); color: #1c6c55; font-weight: 600; }"
     }
   ],
   "narrative": {

@@ -112,7 +112,7 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 	}
 }
 
-func TestHandler_DynamoUpdateFails_StillPublishesSNS(t *testing.T) {
+func TestHandler_DynamoUpdateFails_RetriesBatch(t *testing.T) {
 	tablePrefix = "dev"
 	resultsTopicARN = "" // keep SNS a no-op for this test; only asserting handler doesn't error
 	fd := &fakeDynamo{err: context.DeadlineExceeded}
@@ -122,7 +122,7 @@ func TestHandler_DynamoUpdateFails_StillPublishesSNS(t *testing.T) {
 	body, _ := json.Marshal(msg)
 	event := sqsEvent{Records: []sqsRecord{{MessageID: "m3", Body: string(body)}}}
 
-	if err := handler(context.Background(), event); err != nil {
-		t.Fatalf("handler must not fail the whole batch on a DynamoDB error: %v", err)
+	if err := handler(context.Background(), event); err == nil {
+		t.Fatal("handler must retry when the terminal status cannot be persisted")
 	}
 }

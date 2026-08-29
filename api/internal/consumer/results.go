@@ -28,13 +28,19 @@ const (
 // helpers.go, notifyKey*). They are the wire contract between the two services;
 // changing one without the other silently stops billing every emission.
 const (
-	resultKeyAccessKey  = "access_key"
-	resultKeyDocPK      = "doc_pk"
-	resultKeyOrgPK      = "org_pk"
-	resultKeyResultKind = "result_kind"
-	resultKeyStatus     = "status"
-	resultKeyTableName  = "table_name"
-	resultKeyType       = "type"
+	resultKeyAccessKey             = "access_key"
+	resultKeyDocPK                 = "doc_pk"
+	resultKeyOrgPK                 = "org_pk"
+	resultKeyResultKind            = "result_kind"
+	resultKeyStatus                = "status"
+	resultKeyTableName             = "table_name"
+	resultKeyType                  = "type"
+	resultKeyBillingUserID         = "billing_user_id"
+	resultKeyBillingPeriod         = "billing_period"
+	resultKeyBillingSubscriptionID = "billing_subscription_id"
+	resultKeyBillingPriceID        = "billing_price_id"
+	resultKeyBillingMeter          = "billing_meter"
+	resultKeyBillingExempt         = "billing_exempt"
 
 	resultKindDocument = "document"
 
@@ -256,23 +262,50 @@ func billingActionFor(event map[string]any) (billingAction, string) {
 // need a second copy of all three — a token manager included — to reach the same
 // rows, which is the duplication the repo's DRY rule exists to prevent.
 //
-// A failed report is returned so the message is retried. A failed refund is not:
-// its once-only marker is already claimed, so a retry would skip it anyway, and
-// the customer is short one slot rather than the queue being stuck.
+// Reports and refunds are idempotent. A transient failure is returned so SQS
+// retries without duplicating a charge or decrementing a counter twice.
 func (r *ResultsConsumer) settleBilling(ctx context.Context, event map[string]any, orgPK, accessKey string) error {
 	if r.billing == nil || accessKey == "" {
 		return nil
 	}
 	action, meter := billingActionFor(event)
+	billingExempt, _ := event[resultKeyBillingExempt].(bool)
+	if billingExempt {
+		return nil
+	}
+	reservedMeter, _ := event[resultKeyBillingMeter].(string)
+	if reservedMeter != "" {
+		meter = reservedMeter
+	}
+	userID, _ := event[resultKeyBillingUserID].(string)
+	period, _ := event[resultKeyBillingPeriod].(string)
+	subscriptionID, _ := event[resultKeyBillingSubscriptionID].(string)
+	priceID, _ := event[resultKeyBillingPriceID].(string)
 	switch action {
 	case billingReport:
-		if err := r.billing.ReportUsage(ctx, orgPK, meter, accessKey); err != nil {
+		var err error
+		if subscriptionID != "" || priceID != "" {
+			err = r.billing.ReportReservedUsage(ctx, subscriptionID, priceID, accessKey)
+		} else {
+			err = r.billing.ReportUsage(ctx, orgPK, meter, accessKey)
+		}
+		if err != nil {
 			slog.ErrorContext(ctx, "results consumer: usage report failed",
 				"org", orgPK, "key", accessKey, "meter", meter, "err", err)
 			return err
 		}
 	case billingRefund:
-		r.billing.RefundOnce(ctx, orgPK, meter, accessKey)
+		var err error
+		if userID != "" && period != "" {
+			err = r.billing.RefundReservedUsage(ctx, userID, period, meter, accessKey)
+		} else {
+			err = r.billing.RefundOnce(ctx, orgPK, meter, accessKey)
+		}
+		if err != nil {
+			slog.ErrorContext(ctx, "results consumer: quota refund failed",
+				"org", orgPK, "key", accessKey, "meter", meter, "err", err)
+			return err
+		}
 	}
 	return nil
 }

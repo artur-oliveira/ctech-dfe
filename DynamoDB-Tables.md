@@ -454,9 +454,9 @@ Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND
 
 ## 36. `account_billing`
 
-What ctech-billing says about each account, plus the ids of webhooks already processed. Two row shapes in one table
-because they share a subject and a lifetime; a second table for a set of ids with a TTL would be a second thing to
-create, grant and remember.
+What ctech-billing says about each account, plus webhook markers, usage counters and concurrency guards. Four row
+shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
+permissions without improving an access pattern.
 
 **The snapshot is a cache with a durable floor, not a source of truth.** Billing owns the subscription; this row is what
 the last read said, so a quota check on the issuance path is a `get_item` rather than a call across the network — and an
@@ -478,6 +478,7 @@ never from a webhook body.
 | `period_start` / `period_end` | S | Civil dates, America/São_Paulo                                                          |
 | `quotas`               | M    | Meter → monthly limit. `-1` unlimited; **absent means not granted**, which is why Free's `quota_cte: 0` is written explicitly |
 | `meters`               | M    | Meter → billing price id. Present only on usage-based plans; its presence is what tells the worker to report an emission |
+| `features`             | M    | Restrições não numéricas do plano, hoje `mdfe_scope`                                         |
 | `open_invoice`         | M    | `{id, total_cents, due_date, checkout_url}` when there is a bill waiting                     |
 | `no_charge`            | BOOL | Billing not configured — everything granted, and the flag says why                           |
 | `synced_at`            | S    | ISO-8601 UTC                                                                                 |
@@ -497,9 +498,9 @@ it is paying for.
 | `created_at` | S    | ISO-8601 UTC                                                 |
 | `ttl`        | N    | Epoch seconds (now + 7d)                                     |
 
-Written create-only (`attribute_not_exists`) **before** the work, which is what makes the webhook idempotent: billing
-delivers at least once, so two copies of one event can be in flight together and a read-then-write would let both
-through. Seven days outlasts billing's own retry policy (~2 days), so deduplication is complete rather than probabilistic.
+Written create-only (`attribute_not_exists`) **after** the idempotent snapshot refresh succeeds. A transient refresh
+failure therefore remains retryable; concurrent deliveries may repeat the same whole-snapshot `Put` before one records
+the marker. Seven days outlasts billing's own retry policy (~2 days).
 
 ### Usage counter row — `pk = USAGE_{sub}#{period}`
 
@@ -528,9 +529,22 @@ used" and both issue the fourth. Two branches, and the second is not an optimisa
 - `limit < 0` (unlimited) → no condition; the counter still moves, because the usage screen needs the
   number and a usage-based plan bills from it.
 
-Refunds are `ADD #m :minusOne` conditional on `#m > 0`. The floor matters: a refund is replayed
-whenever the worker's message is redelivered, and a counter that could go negative would hand out
-free headroom every time.
+Refunds transact `ADD #m :minusOne` conditional on `#m > 0` with a create-only
+`EVENT_refund:{meter}:{document}` marker. The floor and marker matter: a redelivery cannot decrement twice, while an
+infrastructure failure commits neither write and remains retryable.
+
+The production reservation update is included in the same transaction as document, fiscal number and command outbox.
+Homologation does not create or increment this row.
+
+### Resource quota guard — `pk = QUOTA_GUARD_{sub}#{meter}`
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `pk`      | S    | Guard de `companies` ou `users` por conta |
+| `version` | N    | Versão avançada condicionalmente na mesma transação da admissão |
+
+The guard is not a usage counter. Companies and distinct users remain live counts; the version only prevents two
+admissions based on the same count from committing concurrently.
 
 `companies` and `users` are **not** stored here. They are current state rather than a running total —
 deleting an organization gives the slot back — so they are counted live from the membership index.

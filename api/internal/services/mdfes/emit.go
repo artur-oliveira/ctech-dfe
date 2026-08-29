@@ -457,6 +457,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	if envPrefix == EnvProd {
+		if err := s.billingSvc.CheckMDFEScope(ctx, orgPK, owner != nil); err != nil {
+			return nil, err
+		}
+	}
 
 	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
 	// Hoje sempre normal; a contingência do MDF-e entra na fase C6 do plano.
@@ -544,6 +549,10 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.InternalServer("failed to encode MDF-e record")
 	}
 
+	reservation, err := s.billingSvc.PrepareUsageReservation(ctx, orgPK, services.MeterMDFe, envPrefix == EnvProd)
+	if err != nil {
+		return nil, err
+	}
 	workerMsg := services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        accessKey,
@@ -558,6 +567,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		DocType:          s3PrefixMdfe,
 		SefazService:     sefazServiceAutorizacao,
 		Body:             mdfeBody,
+		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
+		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
 	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
 	if err != nil {
@@ -570,12 +582,12 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	// asynchronous and passable by two concurrent requests, each reading the same
 	// count and each issuing one more. The cost is that a document SEFAZ rejects
 	// has spent a slot; the worker gives it back on a terminal rejection.
-	if err := s.billingSvc.Reserve(ctx, orgPK, services.MeterMDFe); err != nil {
-		return nil, err
+	extraTx := []types.TransactWriteItem{outboxTx}
+	if reservation.Tx != nil {
+		extraTx = append(extraTx, *reservation.Tx)
 	}
-
 	if err := s.mdfeRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, extraTx...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número do MDF-e. Tente novamente.")

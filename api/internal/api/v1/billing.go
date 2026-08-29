@@ -232,22 +232,10 @@ func registerBillingWebhook(app *fiber.App, svc *services.BillingService, secret
 			return sendProblem(c, problem.BadRequest("entrega sem identificador de evento"))
 		}
 
-		// Deduplicated before the work, not after. Deliveries are at-least-once,
-		// so two copies of one event can be in flight together; the conditional
-		// write is what lets exactly one of them through, and a read-then-write
-		// would let both.
-		//
-		// A duplicate answers 200. Anything else would make billing retry a
-		// delivery this service has already handled, and after twelve refusals
-		// billing disables the endpoint entirely.
-		fresh, err := svc.MarkEventProcessed(c.Context(), eventID)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		if !fresh {
-			return c.JSON(fiber.Map{"received": true, "duplicate": true})
-		}
-
+		// The durable marker is written only after the idempotent refresh. That
+		// keeps a transient billing/DynamoDB failure retryable. Concurrent copies
+		// may both refresh the same whole snapshot; the conditional marker then
+		// records exactly one completion and both deliveries answer successfully.
 		var event billingclient.WebhookEvent
 		if err := c.Bind().Body(&event); err != nil {
 			return sendProblem(c, problem.BadRequest("corpo inválido"))
@@ -276,6 +264,16 @@ func registerBillingWebhook(app *fiber.App, svc *services.BillingService, secret
 			slog.ErrorContext(c.Context(), "billing webhook sync failed",
 				"event_id", eventID, "subscription_id", subscriptionID, "error", err)
 			return sendProblem(c, problem.InternalServer("falha ao sincronizar a assinatura"))
+		}
+		// Sync is idempotent. Mark only after it succeeds so a transient
+		// dependency failure remains retryable; concurrent copies may safely
+		// repeat the refresh before exactly one records completion.
+		fresh, err := svc.MarkEventProcessed(c.Context(), eventID)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		if !fresh {
+			return c.JSON(fiber.Map{"received": true, "duplicate": true})
 		}
 		return c.JSON(fiber.Map{"received": true})
 	})

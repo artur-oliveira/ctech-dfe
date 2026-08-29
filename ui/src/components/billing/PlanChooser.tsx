@@ -1,6 +1,6 @@
 'use client'
 
-import {formatCents, METER_LABELS, PLAN_ONDEMAND, QUOTA_UNLIMITED} from '@/lib/constants/billing'
+import {formatCents, METER_COMPANIES, METER_USERS, METER_LABELS, PLAN_ONDEMAND, QUOTA_UNLIMITED} from '@/lib/constants/billing'
 import {grantedMeters, type PlanOption} from '@/lib/billing/catalog'
 
 interface PlanChooserProps {
@@ -96,7 +96,9 @@ export function PlanChooser({options, value, onChange, currentPlan}: PlanChooser
                     <dt className="text-sm text-gray-600">{METER_LABELS[m.meter] ?? m.meter}</dt>
                     <dd className="text-sm font-medium text-gray-900 tabular-nums">
                       {formatCents(m.unitAmount)}
-                      <span className="font-normal text-gray-500"> /doc</span>
+                      <span className="font-normal text-gray-500">
+                        {m.meter === METER_COMPANIES ? ' /empresa' : m.meter === METER_USERS ? ' /usuário' : ' /doc'}
+                      </span>
                     </dd>
                   </div>
                 ))}

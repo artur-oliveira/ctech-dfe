@@ -19,29 +19,29 @@ colors:
   accent-nfse: "#0f766e"
 typography:
   display:
-    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, system-ui, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, system-ui, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.3
   body:
-    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: "0.06em"
   caption:
-    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, system-ui, sans-serif"
     fontSize: "0.8rem"
     fontWeight: 400
     lineHeight: 1.4
@@ -129,9 +129,9 @@ actions visible and place downloads/events/cancellation in **Mais ações** so t
 
 ## 3. Typography
 
-**Display Font:** Geist Sans (with system-ui fallback) — loaded as `--font-geist-sans`.
-**Body Font:** Geist Sans (with system-ui fallback).
-**Label/Mono Font:** Geist Sans — labels are tracked uppercase, not a separate face.
+**Display Font:** IBM Plex Sans (with system-ui fallback) — loaded as `--font-sans`.
+**Body Font:** IBM Plex Sans (with system-ui fallback).
+**Label/Mono Font:** IBM Plex Sans — labels are tracked uppercase, not a separate face.
 
 **Character:** One well-tuned sans carries the entire system — headings, body, data, and labels. Hierarchy comes from weight and size, not from a second family. This is deliberate: the tool should disappear into the task.
 

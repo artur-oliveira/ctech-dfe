@@ -78,19 +78,25 @@ func New(clients Clients, cfg *config.Config) *DfeService {
 
 // WorkerMessage is the SQS message body for a DFe SEFAZ operation.
 type WorkerMessage struct {
-	DocPK            string         `json:"doc_pk"`
-	AccessKey        string         `json:"access_key"`
-	TableName        string         `json:"table_name"`
-	S3Prefix         string         `json:"s3_prefix"`
-	ExpectedFileName string         `json:"expected_file_name"`
-	CNPJ             string         `json:"cnpj"`
-	UF               string         `json:"uf"`
-	SefazEnvironment string         `json:"sefaz_environment"`
-	CertS3Key        string         `json:"cert_s3_key"`
-	CertPassword     string         `json:"cert_password"`
-	DocType          string         `json:"doc_type"`
-	SefazService     string         `json:"sefaz_service"`
-	Body             map[string]any `json:"body"`
+	DocPK                 string         `json:"doc_pk"`
+	AccessKey             string         `json:"access_key"`
+	TableName             string         `json:"table_name"`
+	S3Prefix              string         `json:"s3_prefix"`
+	ExpectedFileName      string         `json:"expected_file_name"`
+	CNPJ                  string         `json:"cnpj"`
+	UF                    string         `json:"uf"`
+	SefazEnvironment      string         `json:"sefaz_environment"`
+	CertS3Key             string         `json:"cert_s3_key"`
+	CertPassword          string         `json:"cert_password"`
+	DocType               string         `json:"doc_type"`
+	SefazService          string         `json:"sefaz_service"`
+	Body                  map[string]any `json:"body"`
+	BillingUserID         string         `json:"billing_user_id,omitempty"`
+	BillingPeriod         string         `json:"billing_period,omitempty"`
+	BillingSubscriptionID string         `json:"billing_subscription_id,omitempty"`
+	BillingPriceID        string         `json:"billing_price_id,omitempty"`
+	BillingMeter          string         `json:"billing_meter,omitempty"`
+	BillingExempt         bool           `json:"billing_exempt,omitempty"`
 	// Event fields — present only for SEFAZ event operations (cancellation, CC-e, …)
 	EventsTableName *string `json:"events_table_name,omitempty"`
 	EventType       *string `json:"event_type,omitempty"`
@@ -134,6 +140,7 @@ var eventTerminalStatuses = map[string]bool{
 const processingLeaseDuration = 6 * time.Minute
 
 var errProcessingLeaseHeld = errors.New("dfe processing lease is held by another worker")
+var errResultPublish = errors.New("publish terminal result")
 
 type processingTarget struct {
 	table    string
@@ -168,7 +175,7 @@ func newProcessingOwner() (string, error) {
 // claimProcessing is the idempotency boundary for every external SEFAZ call.
 // It atomically claims pending/retryable work or steals an expired lease. A
 // DynamoDB failure fails closed; no certificate or SEFAZ operation is touched.
-func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, owner string) (bool, error) {
+func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, owner string) (bool, string, updateAttrs, error) {
 	target := s.processingTarget(msg)
 	now := time.Now().UTC()
 	_, err := s.dynamo.UpdateItem(ctx, &dynamodb.UpdateItemInput{
@@ -195,10 +202,10 @@ func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, own
 		},
 	})
 	if err == nil {
-		return true, nil
+		return true, "", updateAttrs{}, nil
 	}
 	if _, ok := errors.AsType[*types.ConditionalCheckFailedException](err); !ok {
-		return false, fmt.Errorf("claim processing %s/%s: %w", target.table, target.sk, err)
+		return false, "", updateAttrs{}, fmt.Errorf("claim processing %s/%s: %w", target.table, target.sk, err)
 	}
 
 	out, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
@@ -207,24 +214,36 @@ func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, own
 			"pk": &types.AttributeValueMemberS{Value: target.pk},
 			"sk": &types.AttributeValueMemberS{Value: target.sk},
 		},
-		ProjectionExpression:     aws.String("#status"),
+		ProjectionExpression:     aws.String("#status, sefaz_status, sefaz_motive, sefaz_protocol, xml_s3_key"),
 		ExpressionAttributeNames: map[string]string{"#status": "status"},
 		ConsistentRead:           aws.Bool(true),
 	})
 	if err != nil {
-		return false, fmt.Errorf("read processing claim %s/%s: %w", target.table, target.sk, err)
+		return false, "", updateAttrs{}, fmt.Errorf("read processing claim %s/%s: %w", target.table, target.sk, err)
 	}
 	if out.Item == nil {
-		return false, fmt.Errorf("processing target %s/%s does not exist", target.table, target.sk)
+		return false, "", updateAttrs{}, fmt.Errorf("processing target %s/%s does not exist", target.table, target.sk)
 	}
 	statusAttr, ok := out.Item["status"].(*types.AttributeValueMemberS)
 	if !ok {
-		return false, fmt.Errorf("processing target %s/%s has no string status", target.table, target.sk)
+		return false, "", updateAttrs{}, fmt.Errorf("processing target %s/%s has no string status", target.table, target.sk)
 	}
 	if target.terminal[statusAttr.Value] {
-		return false, nil
+		return false, statusAttr.Value, updateAttrs{
+			SefazStatus:   attributeString(out.Item, "sefaz_status"),
+			SefazMotive:   attributeString(out.Item, "sefaz_motive"),
+			SefazProtocol: attributeString(out.Item, "sefaz_protocol"),
+			XMLS3Key:      attributeString(out.Item, "xml_s3_key"),
+		}, nil
 	}
-	return false, errProcessingLeaseHeld
+	return false, "", updateAttrs{}, errProcessingLeaseHeld
+}
+
+func attributeString(item map[string]types.AttributeValue, name string) *string {
+	if value, ok := item[name].(*types.AttributeValueMemberS); ok {
+		return aws.String(value.Value)
+	}
+	return nil
 }
 
 // Process handles a single DFe SEFAZ operation from an SQS message.
@@ -240,13 +259,16 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	if err != nil {
 		return err
 	}
-	claimed, err := s.claimProcessing(ctx, msg, owner)
+	claimed, terminalStatus, terminalAttrs, err := s.claimProcessing(ctx, msg, owner)
 	if err != nil {
 		return err
 	}
 	if !claimed {
-		slog.Info("skipping already-terminal message (redelivery)", "access_key", msg.AccessKey, "doc_pk", msg.DocPK)
-		return nil
+		slog.Info("republishing already-terminal message", "access_key", msg.AccessKey, "doc_pk", msg.DocPK)
+		if msg.EventsTableName != nil {
+			return s.publishEventResult(ctx, msg, terminalStatus, terminalAttrs)
+		}
+		return s.publishDocumentResult(ctx, msg, terminalStatus, terminalAttrs)
 	}
 	msg.processingOwner = owner
 
@@ -318,12 +340,18 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 
 	if isNfse(msg.DocType) {
 		if err := s.handleNfseResponse(ctx, msg, respBody); err != nil {
+			if errors.Is(err, errResultPublish) {
+				return err
+			}
 			return s.markRetryable(ctx, msg, err.Error(), err)
 		}
 		return nil
 	}
 
 	if err := s.handleSefazResponse(ctx, msg, respBody); err != nil {
+		if errors.Is(err, errResultPublish) {
+			return err
+		}
 		return s.markRetryable(ctx, msg, err.Error(), err)
 	}
 	return nil
@@ -446,7 +474,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 		}
 		// Notify on the event outcome — not the document status, which may have
 		// been reverted to "authorized" above after a rejected event.
-		s.publishEventResult(ctx, msg, eventStatus, eventAttrs)
+		return s.publishEventResult(ctx, msg, eventStatus, eventAttrs)
 	}
 
 	return nil
@@ -494,7 +522,7 @@ func (s *DfeService) failTerminal(ctx context.Context, msg WorkerMessage, motive
 		if err := s.updateClaimedEvent(ctx, msg, EventStatusError, eventAttrs); err != nil {
 			return err
 		}
-		s.publishEventResult(ctx, msg, EventStatusError, eventAttrs)
+		return s.publishEventResult(ctx, msg, EventStatusError, eventAttrs)
 	}
 	return nil
 }
@@ -590,33 +618,43 @@ func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expected
 // cancellation) must pass notify=false — the user-facing notification for those
 // is published by publishEventResult, not by the reverted document status.
 func (s *DfeService) updateStatus(ctx context.Context, docPK, accessKey, tableName, status string, attrs updateAttrs, notify bool) error {
-	return s.updateStatusOwned(ctx, docPK, accessKey, tableName, status, attrs, notify, "")
+	return s.updateStatusOwned(ctx, WorkerMessage{DocPK: docPK, AccessKey: accessKey, TableName: tableName}, status, attrs, notify, "")
 }
 
 func (s *DfeService) updateClaimedDocument(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs, notify bool) error {
-	return s.updateStatusOwned(ctx, msg.DocPK, msg.AccessKey, msg.TableName, status, attrs, notify, msg.processingOwner)
+	return s.updateStatusOwned(ctx, msg, status, attrs, notify, msg.processingOwner)
 }
 
-func (s *DfeService) updateStatusOwned(ctx context.Context, docPK, accessKey, tableName, status string, attrs updateAttrs, notify bool, owner string) error {
-	if err := updateDocumentStatus(ctx, s.dynamo, s.cfg.TablePrefix, docPK, accessKey, tableName, status, attrs, owner); err != nil {
+func (s *DfeService) updateStatusOwned(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs, notify bool, owner string) error {
+	if err := updateDocumentStatus(ctx, s.dynamo, s.cfg.TablePrefix, msg.DocPK, msg.AccessKey, msg.TableName, status, attrs, owner); err != nil {
 		return err
 	}
 
 	if notify {
-		s.publishResult(ctx, map[string]any{
-			notifyKeyResultKind:    resultKindDocument,
-			notifyKeyAccessKey:     accessKey,
-			notifyKeyDocPK:         docPK,
-			notifyKeyTableName:     tableName,
-			notifyKeyStatus:        status,
-			notifyKeySefazStatus:   strVal(attrs.SefazStatus),
-			notifyKeySefazMotive:   strVal(attrs.SefazMotive),
-			notifyKeySefazProtocol: strVal(attrs.SefazProtocol),
-			notifyKeyXMLS3Key:      strVal(attrs.XMLS3Key),
-		})
+		return s.publishDocumentResult(ctx, msg, status, attrs)
 	}
 
 	return nil
+}
+
+func (s *DfeService) publishDocumentResult(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs) error {
+	return s.publishResult(ctx, map[string]any{
+		notifyKeyResultKind:            resultKindDocument,
+		notifyKeyAccessKey:             msg.AccessKey,
+		notifyKeyDocPK:                 msg.DocPK,
+		notifyKeyTableName:             msg.TableName,
+		notifyKeyStatus:                status,
+		notifyKeySefazStatus:           strVal(attrs.SefazStatus),
+		notifyKeySefazMotive:           strVal(attrs.SefazMotive),
+		notifyKeySefazProtocol:         strVal(attrs.SefazProtocol),
+		notifyKeyXMLS3Key:              strVal(attrs.XMLS3Key),
+		notifyKeyBillingUserID:         msg.BillingUserID,
+		notifyKeyBillingPeriod:         msg.BillingPeriod,
+		notifyKeyBillingSubscriptionID: msg.BillingSubscriptionID,
+		notifyKeyBillingPriceID:        msg.BillingPriceID,
+		notifyKeyBillingMeter:          msg.BillingMeter,
+		notifyKeyBillingExempt:         msg.BillingExempt,
+	})
 }
 
 // publishEventResult publishes a SEFAZ event outcome (cancellation,
@@ -625,8 +663,8 @@ func (s *DfeService) updateStatusOwned(ctx context.Context, docPK, accessKey, ta
 // the frontend reports the event outcome instead of the (possibly reverted)
 // document status. table_name is the *document* table so the client can map
 // the event to its document and invalidate the right queries.
-func (s *DfeService) publishEventResult(ctx context.Context, msg WorkerMessage, eventStatus string, attrs updateAttrs) {
-	s.publishResult(ctx, map[string]any{
+func (s *DfeService) publishEventResult(ctx context.Context, msg WorkerMessage, eventStatus string, attrs updateAttrs) error {
+	return s.publishResult(ctx, map[string]any{
 		notifyKeyResultKind:  resultKindEvent,
 		notifyKeyAccessKey:   msg.AccessKey,
 		notifyKeyDocPK:       msg.DocPK,
@@ -641,28 +679,28 @@ func (s *DfeService) publishEventResult(ctx context.Context, msg WorkerMessage, 
 
 // publishResult marshals and publishes a result notification to the results
 // SNS topic. No-op when SNS is disabled or no topic is configured.
-func (s *DfeService) publishResult(ctx context.Context, payload map[string]any) {
+func (s *DfeService) publishResult(ctx context.Context, payload map[string]any) error {
 	if s.sns == nil || s.cfg.ResultsTopicARN == "" {
 		slog.Warn("results notification skipped: SNS disabled or RESULTS_TOPIC_ARN unset",
 			"access_key", payload[notifyKeyAccessKey])
-		return
+		return nil
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		slog.Error("sns marshal failed", "err", err)
-		return
+		return fmt.Errorf("%w: marshal notification: %v", errResultPublish, err)
 	}
 	out, err := s.sns.Publish(ctx, &sns.PublishInput{
 		TopicArn: aws.String(s.cfg.ResultsTopicARN),
 		Message:  aws.String(string(body)),
 	})
 	if err != nil {
-		slog.Error("sns publish failed", "err", err)
+		return fmt.Errorf("%w: %v", errResultPublish, err)
 	} else if out == nil {
-		slog.Error("no response from sns publish")
-	} else {
-		slog.Info("sns publish result", "result", out)
+		return fmt.Errorf("%w: no response", errResultPublish)
 	}
+	slog.Info("sns publish result", "result", out)
+	return nil
 }
 
 func (s *DfeService) updateClaimedEvent(ctx context.Context, msg WorkerMessage, status string, attrs updateAttrs) error {

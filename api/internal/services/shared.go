@@ -128,8 +128,8 @@ const TpEmisNormal = "1"
 // StripPKPrefix removes "CNPJ_" or "CPF_" prefix from a DynamoDB PK.
 func StripPKPrefix(pk string) string {
 	for _, p := range []string{"CNPJ_", "CPF_"} {
-		if strings.HasPrefix(pk, p) {
-			return strings.TrimPrefix(pk, p)
+		if after, ok := strings.CutPrefix(pk, p); ok {
+			return after
 		}
 	}
 	return pk

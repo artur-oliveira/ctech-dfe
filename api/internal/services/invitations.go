@@ -165,7 +165,8 @@ func (s *InvitationService) Accept(ctx context.Context, rawToken, userID, userNa
 	// owner may no longer be able to keep. The candidate is passed so somebody
 	// who already belongs to another of this account's organizations does not
 	// count twice — one person is one person (D5).
-	if err := s.billingSvc.CheckUserQuota(ctx, orgPK, userID); err != nil {
+	quotaGuard, err := s.billingSvc.UserQuotaGuard(ctx, orgPK, userID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -182,9 +183,12 @@ func (s *InvitationService) Accept(ctx context.Context, rawToken, userID, userNa
 		s.orgUserRepo.BuildCreateTxItem(orgPK, userID, role, invitedBy, userName, nil),
 		auditTx,
 	}
+	if quotaGuard != nil {
+		txItems = append(txItems, *quotaGuard)
+	}
 	if err := s.invRepo.TransactWrite(ctx, txItems); err != nil {
 		if repositories.IsConditionFailed(err) {
-			return nil, problem.Conflict("convite já utilizado ou expirado")
+			return nil, problem.Conflict("convite alterado ou outra admissão ocorreu; tente novamente")
 		}
 		return nil, err
 	}

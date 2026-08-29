@@ -1,10 +1,21 @@
 package services
 
 import (
+	"context"
 	"testing"
 
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 )
+
+func TestHomologationReservationIsExplicitlyExempt(t *testing.T) {
+	reservation, err := (&BillingService{}).PrepareUsageReservation(context.Background(), "ORG#test", MeterNFe, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reservation.Exempt || reservation.Tx != nil {
+		t.Fatalf("homologation reservation = %+v", reservation)
+	}
+}
 
 // SnapshotFrom is where the product's rules actually live — which subscription
 // governs the account, what a quota means, which meters the worker reports — so
@@ -57,6 +68,15 @@ func TestSnapshotCarriesThePlanAndItsQuotas(t *testing.T) {
 	// Fixed plans have no meters: nothing is reported per document.
 	if len(snap.Meters) != 0 {
 		t.Errorf("a fixed plan reports no usage, got meters %v", snap.Meters)
+	}
+}
+
+func TestSnapshotCarriesMDFEScope(t *testing.T) {
+	sub := proSubscription()
+	sub.Items[0].Metadata["mdfe_scope"] = "frota_propria"
+	snap := SnapshotFrom("user-scope", &billingclient.Entitlements{Subscriptions: []billingclient.EntitlementSubscription{sub}})
+	if snap.Features["mdfe_scope"] != "frota_propria" {
+		t.Fatalf("features = %v", snap.Features)
 	}
 }
 
@@ -320,6 +340,13 @@ func TestTheMeteredPlanIsAcceptedAsASetOfPrices(t *testing.T) {
 		[]string{"price_dfe_ondemand_nfe", "price_dfe_ondemand_nfce"})
 	if err != nil {
 		t.Fatalf("the usage-based plan was refused: %v", err)
+	}
+}
+
+func TestTheMeteredPlanRefusesAPartialPriceSet(t *testing.T) {
+	err := ValidatePriceSelection(sellable(catalogue()), []string{"price_dfe_ondemand_nfe"})
+	if err == nil {
+		t.Fatal("a partial on-demand product would omit meters and their charges")
 	}
 }
 

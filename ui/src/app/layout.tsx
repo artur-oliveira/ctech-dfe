@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from "next";
-import {Geist, Geist_Mono} from "next/font/google";
+import {IBM_Plex_Mono, IBM_Plex_Sans} from "next/font/google";
 import {AuthProvider} from "@/lib/context/AuthContext";
 import {QueryProvider} from "@/lib/providers/QueryProvider";
 import {RealtimeProvider} from "@/lib/providers/RealtimeProvider";
@@ -8,15 +8,8 @@ import {MOCK_ENABLED, MockDevPanel} from "@/lib/mock";
 import "./globals.css";
 import React from "react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const sans = IBM_Plex_Sans({subsets: ['latin'], variable: '--font-sans'});
+const mono = IBM_Plex_Mono({subsets: ['latin'], weight: ['400', '500', '600', '700',], variable: '--font-mono'});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -25,15 +18,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://dfe.aoctech.app'),
-  
+
   title: {
     default: 'CTech DF-e',
     template: '%s | CTech DF-e',
   },
-  
+
   description:
     'Plataforma SaaS para emissão de NF-e, NFC-e, CT-e e MDF-e integrada à SEFAZ.',
-  
+
   keywords: [
     'NF-e',
     'NFC-e',
@@ -45,13 +38,13 @@ export const metadata: Metadata = {
     'emissão fiscal',
     'API fiscal',
   ],
-  
+
   authors: [
     {
       name: 'Artur O Carvalho',
     },
   ],
-  
+
   openGraph: {
     title: 'CTech DF-e',
     description:
@@ -62,7 +55,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: ["/og-image.png"],
   },
-  
+
   twitter: {
     card: 'summary_large_image',
     title: 'CTech DF-e',
@@ -70,12 +63,12 @@ export const metadata: Metadata = {
       'Plataforma SaaS para emissão de documentos fiscais eletrônicos.',
     images: ["/og-image.png"],
   },
-  
+
   robots: {
     index: false,
     follow: false,
   },
-  
+
   manifest: '/site.webmanifest',
 }
 
@@ -88,7 +81,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
     <body className="min-h-full bg-gray-50">
     <QueryProvider>

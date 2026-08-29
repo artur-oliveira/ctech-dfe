@@ -273,6 +273,10 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	if environment == 1 {
 		sefazEnv = services.SefazEnvProd
 	}
+	reservation, err := s.billingSvc.PrepareUsageReservation(ctx, orgPK, services.MeterNFSe, envPrefix == services.EnvProd)
+	if err != nil {
+		return nil, err
+	}
 	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(services.WorkerMessage{
 		DocPK:            pk,
 		AccessKey:        idDPS, // identificador da linha; NFS-e usa id_dps
@@ -287,6 +291,9 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		DocType:          DocTypeNfse,
 		SefazService:     nfse.ServiceRecepcao,
 		Body:             workerBody,
+		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
+		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	})
 	if err != nil {
 		return nil, err
@@ -298,12 +305,12 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	// asynchronous and passable by two concurrent requests, each reading the same
 	// count and each issuing one more. The cost is that a document SEFAZ rejects
 	// has spent a slot; the worker gives it back on a terminal rejection.
-	if err := s.billingSvc.Reserve(ctx, orgPK, services.MeterNFSe); err != nil {
-		return nil, err
+	extraTx := []types.TransactWriteItem{outboxTx}
+	if reservation.Tx != nil {
+		extraTx = append(extraTx, *reservation.Tx)
 	}
-
 	if err := s.nfseRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, extraTx...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número da NFS-e. Tente novamente.")

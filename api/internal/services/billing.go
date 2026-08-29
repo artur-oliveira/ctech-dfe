@@ -43,13 +43,18 @@ const catalogCacheTTL = 300
 // enforcement here, and they exist as constants so a typo is a compile error in
 // one place rather than a quota that silently never applies.
 const (
-	metadataKeyPlan   = "plan"
-	metadataKeyMeter  = "meter"
-	metadataQuotaPref = "quota_"
+	metadataKeyPlan      = "plan"
+	metadataKeyMeter     = "meter"
+	metadataKeyMDFEScope = "mdfe_scope"
+	metadataQuotaPref    = "quota_"
 	// metadataKeyVisibility marks a price nobody may subscribe to through this
 	// API. See visibilityInternal.
 	metadataKeyVisibility = "visibility"
 )
+
+const mdfeScopeOwnFleet = "frota_propria"
+
+const companyUsageKeyPrefix = "company:"
 
 // visibilityInternal names a price that exists to be granted, never sold: the
 // R$ 0 unlimited the CTech team and the first two customers run on.
@@ -248,6 +253,12 @@ func SnapshotFrom(userID string, ent *billingclient.Entitlements) *repositories.
 			}
 			snap.Meters[meter] = it.PriceID
 		}
+		if scope := it.Metadata[metadataKeyMDFEScope]; scope != "" {
+			if snap.Features == nil {
+				snap.Features = map[string]string{}
+			}
+			snap.Features[metadataKeyMDFEScope] = scope
+		}
 	}
 
 	if inv := chosen.OpenInvoice; inv != nil {
@@ -433,29 +444,46 @@ func (s *BillingService) validatePrices(ctx context.Context, priceIDs []string) 
 // and separated for the same reason SnapshotFrom is: the rules are worth testing
 // without a network.
 func ValidatePriceSelection(products []billingclient.Product, priceIDs []string) error {
-	known := map[string]billingclient.Price{}
+	type offeredPrice struct {
+		price     billingclient.Price
+		productID string
+	}
+	known := map[string]offeredPrice{}
+	productPrices := map[string]map[string]bool{}
 	for _, product := range products {
+		productPrices[product.ID] = map[string]bool{}
 		for _, price := range product.Prices {
-			known[price.ID] = price
+			known[price.ID] = offeredPrice{price: price, productID: product.ID}
+			productPrices[product.ID][price.ID] = true
 		}
 	}
 
 	plan := ""
+	productID := ""
+	selected := map[string]bool{}
 	for _, id := range priceIDs {
-		price, ok := known[id]
+		offered, ok := known[id]
 		if !ok {
 			// Deliberately the same message for "does not exist" and "exists but
 			// is not for sale": a caller probing ids learns nothing from it.
 			return problem.BadRequest(fmt.Sprintf("preço indisponível: %s", id))
 		}
+		if selected[id] {
+			return problem.BadRequest(fmt.Sprintf("preço repetido: %s", id))
+		}
+		selected[id] = true
+		price := offered.price
 		itemPlan := price.Metadata[metadataKeyPlan]
 		if plan == "" {
 			plan = itemPlan
-			continue
+			productID = offered.productID
 		}
-		if itemPlan != plan {
+		if itemPlan != plan || offered.productID != productID {
 			return problem.BadRequest("todos os preços devem ser do mesmo plano")
 		}
+	}
+	if len(selected) != len(productPrices[productID]) {
+		return problem.BadRequest("selecione todos os preços que compõem o plano")
 	}
 	return nil
 }
@@ -632,6 +660,19 @@ type UsageMeter struct {
 	Limit int64 `json:"limit"`
 }
 
+// UsageReservation is both the atomic quota write and the immutable billing
+// identity attached to the worker command. Terminal settlement must use this
+// context, not whatever plan happens to be active minutes later.
+type UsageReservation struct {
+	Tx             *types.TransactWriteItem
+	Exempt         bool
+	UserID         string
+	Period         string
+	SubscriptionID string
+	PriceID        string
+	Meter          string
+}
+
 // usagePeriod is the key the counters are filed under.
 //
 // The subscription's own period start, so a plan anchored on the 10th resets on
@@ -686,6 +727,42 @@ func (s *BillingService) Reserve(ctx context.Context, orgPK, meter string) error
 	return nil
 }
 
+// PrepareUsageReservation validates headroom and returns a conditional update
+// that the issuance repository commits atomically with the document and outbox.
+func (s *BillingService) PrepareUsageReservation(ctx context.Context, orgPK, meter string, billable bool) (*UsageReservation, error) {
+	if !billable || !s.Enabled() {
+		return &UsageReservation{Exempt: true}, nil
+	}
+	snap, err := s.SnapshotForOrg(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	if !GrantsService(snap) {
+		return nil, BlockedProblem(snap)
+	}
+	limit, ok := Quota(snap, meter)
+	if !ok {
+		return nil, problem.QuotaExceeded(meter, snap.Plan, 0, 0,
+			"seu plano não inclui a emissão de "+strings.ToUpper(meter))
+	}
+	period := usagePeriod(snap)
+	if limit >= 0 {
+		used, getErr := s.repo.GetUsage(ctx, snap.UserID, period)
+		if getErr != nil {
+			return nil, getErr
+		}
+		if used[meter] >= limit {
+			return nil, problem.QuotaExceeded(meter, snap.Plan, limit, used[meter],
+				fmt.Sprintf("o limite de %d %s do plano já foi atingido neste período", limit, strings.ToUpper(meter)))
+		}
+	}
+	tx := s.repo.BuildReserveUsageTx(snap.UserID, period, meter, limit)
+	return &UsageReservation{
+		Tx: &tx, UserID: snap.UserID, Period: period,
+		SubscriptionID: snap.SubscriptionID, PriceID: snap.Meters[meter], Meter: meter,
+	}, nil
+}
+
 // Refund gives one unit of a meter back.
 //
 // Best-effort and never fatal to its caller: it runs after something else
@@ -713,27 +790,20 @@ func (s *BillingService) Refund(ctx context.Context, orgPK, meter string) {
 // second refund if it ever did.
 func refundMarker(meter, docKey string) string { return "refund:" + meter + ":" + docKey }
 
-// RefundOnce gives a quota unit back exactly once per document.
-//
-// The results queue redelivers, and a refund is not idempotent the way a usage
-// report is: billing dedupes a report by its event key, but this counter would
-// simply go down twice. The marker is claimed *before* the refund, so a failure
-// in between loses the refund rather than repeating it — one slot the customer
-// has to ask for back is recoverable, a slot handed out on every redelivery is
-// free issuance.
-func (s *BillingService) RefundOnce(ctx context.Context, orgPK, meter, docKey string) {
+// RefundOnce gives a quota unit back exactly once per document. The marker and
+// decrement are one transaction, so a transient failure remains retryable.
+func (s *BillingService) RefundOnce(ctx context.Context, orgPK, meter, docKey string) error {
 	if !s.Enabled() {
-		return
+		return nil
 	}
-	fresh, err := s.repo.MarkEventProcessed(ctx, refundMarker(meter, docKey))
+	snap, err := s.SnapshotForOrg(ctx, orgPK)
 	if err != nil {
-		slog.WarnContext(ctx, "billing: could not claim a refund", "org_pk", orgPK, "meter", meter, "error", err)
-		return
+		return err
 	}
-	if !fresh {
-		return
+	if snap.UserID == "" {
+		return nil
 	}
-	s.Refund(ctx, orgPK, meter)
+	return s.repo.RefundUsageOnce(ctx, snap.UserID, usagePeriod(snap), meter, refundMarker(meter, docKey))
 }
 
 // ReportUsage records one authorised document against the account's metered
@@ -759,6 +829,30 @@ func (s *BillingService) ReportUsage(ctx context.Context, orgPK, meter, docKey s
 		return nil
 	}
 	return s.client.ReportUsage(ctx, snap.SubscriptionID, priceID, 1, docKey)
+}
+
+// ReportCompanyUsage records creation of one company on the metered on-demand
+// price. The organization key makes a retried idempotent creation one charge.
+func (s *BillingService) ReportCompanyUsage(ctx context.Context, orgPK string) error {
+	return s.ReportUsage(ctx, orgPK, MeterCompanies, companyUsageKeyPrefix+orgPK)
+}
+
+// ReportReservedUsage settles against the subscription and price captured when
+// the quota was reserved, so a plan change while SEFAZ is processing cannot
+// move revenue between plans.
+func (s *BillingService) ReportReservedUsage(ctx context.Context, subscriptionID, priceID, docKey string) error {
+	if !s.Enabled() || subscriptionID == "" || priceID == "" {
+		return nil
+	}
+	return s.client.ReportUsage(ctx, subscriptionID, priceID, 1, docKey)
+}
+
+// RefundReservedUsage refunds the exact account period captured at admission.
+func (s *BillingService) RefundReservedUsage(ctx context.Context, userID, period, meter, docKey string) error {
+	if !s.Enabled() || userID == "" || period == "" || meter == "" {
+		return nil
+	}
+	return s.repo.RefundUsageOnce(ctx, userID, period, meter, refundMarker(meter, docKey))
 }
 
 // Usage reports what the account has consumed this period against what it may.
@@ -836,6 +930,17 @@ func (s *BillingService) CheckCompanyQuota(ctx context.Context, userID string) e
 	return nil
 }
 
+func (s *BillingService) CompanyQuotaGuard(ctx context.Context, userID string) (*types.TransactWriteItem, error) {
+	if err := s.CheckCompanyQuota(ctx, userID); err != nil {
+		return nil, err
+	}
+	if !s.Enabled() {
+		return nil, nil
+	}
+	tx, err := s.repo.BuildQuotaGuardTx(ctx, repositories.RawUserID(userID), MeterCompanies)
+	return &tx, err
+}
+
 // CheckUserQuota refuses admitting one more person than the plan allows.
 //
 // It counts **distinct people across the account's organizations**, not members
@@ -877,6 +982,40 @@ func (s *BillingService) CheckUserQuota(ctx context.Context, orgPK, candidate st
 			fmt.Sprintf("seu plano permite %d usuário(s) e você já tem %d", limit, len(people)))
 	}
 	return nil
+}
+
+func (s *BillingService) UserQuotaGuard(ctx context.Context, orgPK, candidate string) (*types.TransactWriteItem, error) {
+	if err := s.CheckUserQuota(ctx, orgPK, candidate); err != nil {
+		return nil, err
+	}
+	if !s.Enabled() {
+		return nil, nil
+	}
+	owner, err := s.OwnerOf(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.repo.BuildQuotaGuardTx(ctx, owner, MeterUsers)
+	return &tx, err
+}
+
+// CheckMDFEScope enforces non-numeric MDF-e constraints carried by the plan.
+// The Free plan permits MDF-e only with the issuer's own traction vehicle; in
+// the fiscal payload a non-nil owner is precisely the third-party `prop` group.
+func (s *BillingService) CheckMDFEScope(ctx context.Context, orgPK string, hasThirdPartyOwner bool) error {
+	if !s.Enabled() || !hasThirdPartyOwner {
+		return nil
+	}
+	snap, err := s.SnapshotForOrg(ctx, orgPK)
+	if err != nil {
+		return err
+	}
+	if snap.Features[metadataKeyMDFEScope] != mdfeScopeOwnFleet {
+		return nil
+	}
+	return problem.QuotaExceeded(MeterMDFe, snap.Plan, 0, 0,
+		"seu plano permite MDF-e apenas com veículo de tração da própria empresa",
+	)
 }
 
 // ownedOrganizations lists the organizations an account pays for.
