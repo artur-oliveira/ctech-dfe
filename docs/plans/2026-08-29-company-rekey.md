@@ -23,6 +23,8 @@
 
 Tasks 1–5 are code that is correct **before and after** the flip: they ship independently, on the old key, and change no behaviour until a company record carries the new fields. Task 6 is the migration tool. The operational run (freeze, verify, flip) is the runbook, not this plan.
 
+**Task 7 is the UI, and it ships before anything sends a company id.** The browser strips the key before putting it on the wire (`ui/src/lib/api/client.ts:222`), which mangles a UUID into a value the server refuses. Running the migration first means every screen answers "organização inválida" and the cause sits three layers from the symptom. It is numbered last because it is smallest, not because it is late.
+
 **Not here:** membership/RBAC unification (phase 3), deleting the old partitions, and the handoff landing route — all named in the spec's out-of-scope section.
 
 ---
@@ -37,6 +39,9 @@ Tasks 1–5 are code that is correct **before and after** the flip: they ship in
 | `api/internal/services/organizations.go` (modify) | `cnpjRoot` off the record, sibling search scoped to the organization |
 | `api/cmd/rekey-companies/` (create) | the pass-2 copy, verify and report |
 | `cdk/lib/dynamodb-stack.ts` (modify) | the série-claim table |
+| `ui/src/lib/utils/document.ts` (modify) | stop mangling a key that is not a document |
+| `ui/src/lib/api/client.ts` (modify) | the header carries the key verbatim |
+| `ui/src/lib/types/api.ts` (modify) | `OrganizationOut` carries `tax_id` / `tax_id_kind` |
 
 ---
 
@@ -830,6 +835,182 @@ func TestVerifyComparesBodiesNotJustCounts(t *testing.T) { /* ... */ }
 
 ---
 
+### Task 7: The browser stops reading a document out of the key
+
+**Files:**
+- Modify: `ui/src/lib/utils/document.ts`
+- Modify: `ui/src/lib/api/client.ts:222`, `:387`, `:391`
+- Modify: `ui/src/lib/types/api.ts` (`OrganizationOut`)
+- Modify: `ui/src/lib/utils/converters.ts:9,12`
+- Modify: `ui/src/components/organizations/OrganizationsTable.tsx:49`
+- Modify: `ui/src/components/nfe/NfeEmitForm.tsx:899,1228`
+- Test: `ui/src/__tests__/lib/document.test.ts` (extend), `ui/src/__tests__/lib/client-org-header.test.ts` (create)
+
+**Ships before the migration runs.** Everything else in this plan is inert until a company record exists; this one is not. `apiClient` puts `unformatCpfCnpj(org.pk)` on every request, and on a company id that strips the hyphens and uppercases the hex:
+
+```
+0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70  →  0199F3A18C427C319D5E6A2B4C8E1F70
+```
+
+Task 1's `IsCompanyKey` refuses that — lowercase hex, hyphens required — so **every screen would answer "organização inválida"** with the cause three layers from the symptom. The strictness is deliberate and this is the payoff: the alternative, a server that accepted both spellings, would have the browser and the migration tool writing two partitions for one company, and nothing would say so.
+
+**What is NOT in scope, and it is half of what a grep suggests.** `PersonForm.tsx:35`, `NfceEmitForm.tsx:152` and `EntityForm.tsx:146` test `sk.startsWith('CPF_')`. That is a **person or entity sort key**, not the organization partition key: a person stays keyed by their own document, and the re-key does not touch them. Of the 158 `orgPk` mentions in the UI, most only carry the key — a query key, a prop, a header — and never look inside. Seven read a document out of it, and they are the list above.
+
+**Interfaces:**
+- Consumes: `tax_id` / `tax_id_kind` on the API's organization payload, which Task 2's local company record supplies.
+- Produces: `OrganizationOut` gains `tax_id: string` and `tax_id_kind: 'cnpj' | 'cpf'`. `unformatCpfCnpj` and `docLabel` keep their signatures and stop being called with an organization key.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import {describe, expect, it, vi} from 'vitest'
+import {docLabel, unformatCpfCnpj} from '@/lib/utils/document'
+
+// The regression this task exists for. The helper is a document formatter, and
+// a company id is not a document: it must come back untouched rather than
+// silently reshaped into something the server refuses.
+describe('unformatCpfCnpj on a key that is not a document', () => {
+  it('leaves a company id exactly as it is', () => {
+    const id = '0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70'
+    expect(unformatCpfCnpj(id)).toBe(id)
+  })
+
+  it('still unwraps and normalizes a real document', () => {
+    expect(unformatCpfCnpj('CNPJ_11.222.333/0001-81')).toBe('11222333000181')
+    expect(unformatCpfCnpj('CPF_529.982.247-25')).toBe('52998224725')
+    // A CNPJ is alphanumeric in its first twelve positions since 2026.
+    expect(unformatCpfCnpj('CNPJ_12abc34501de35')).toBe('12ABC34501DE35')
+  })
+})
+
+// docLabel answers "CPF or CNPJ" for a badge. A company id is neither, and labelling
+// it "CNPJ" would print a wrong word next to a value that is not one.
+describe('docLabel on a company id', () => {
+  it('returns nothing to label', () => {
+    expect(docLabel('0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70')).toBe('')
+  })
+})
+```
+
+```ts
+// The header is the one that breaks everything, so it gets its own test rather
+// than being covered incidentally by the helper's.
+import {describe, expect, it} from 'vitest'
+import {orgHeaderValue} from '@/lib/api/client'
+
+describe('the organization header', () => {
+  it('sends a company id verbatim', () => {
+    const id = '0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70'
+    expect(orgHeaderValue({pk: id})).toBe(id)
+  })
+
+  // The legacy shape keeps travelling as bare digits: that is what the server's
+  // ParseOrgPK re-prefixes today, and the old partitions are the rollback.
+  it('still sends a legacy key as bare digits', () => {
+    expect(orgHeaderValue({pk: 'CNPJ_11222333000181'})).toBe('11222333000181')
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd ui && npx vitest run src/__tests__/lib/document.test.ts src/__tests__/lib/client-org-header.test.ts`
+Expected: FAIL — the company id comes back as `0199F3A18C427C319D5E6A2B4C8E1F70`, and `orgHeaderValue` does not exist.
+
+- [ ] **Step 3: Teach the helpers what a key is**
+
+In `ui/src/lib/utils/document.ts`:
+
+```ts
+/**
+ * A platform company id: a UUID in canonical 8-4-4-4-12 lowercase hex.
+ *
+ * Mirrors `repositories.IsCompanyKey` in the API, and the two must agree — a
+ * browser that reshapes a key the server validates writes to a partition
+ * nobody else addresses.
+ */
+export const isCompanyKey = (pk: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(pk)
+
+export const unformatCpfCnpj = (pk: string): string => {
+  // A company id is not a document. Stripping its hyphens and uppercasing its
+  // hex produced a value the API refuses, which is how every screen in the
+  // product started answering "organização inválida" at once.
+  if (isCompanyKey(pk)) return pk
+  return pk.replace(/^(CPF_|CNPJ_)/, '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+}
+
+export const docLabel = (pk: string): string => {
+  if (isCompanyKey(pk)) return ''
+  return pk.startsWith('CPF_') ? 'CPF' : 'CNPJ'
+}
+```
+
+`formatCpfCnpj` needs no change: it calls `unformatCpfCnpj` first, and a company id now falls through both regexes and comes back as itself. Confirm that with a test rather than by reading.
+
+- [ ] **Step 4: Extract and test the header value**
+
+`client.ts:222` builds the header inside an interceptor closure, where a test cannot reach it. Extract the decision:
+
+```ts
+/** The value of `Dfe-Organization-Pk`. Exported so the rule is testable — it
+ *  was a line inside an interceptor, and it was wrong. */
+export const orgHeaderValue = (org: {pk: string}): string => unformatCpfCnpj(org.pk)
+```
+
+The interceptor calls it. The header's **name** does not change: renaming it is a coordinated two-app deploy for a word (`middleware/rbac.go:22`).
+
+- [ ] **Step 5: Read the document from the record, not the key**
+
+Add to `OrganizationOut` in `ui/src/lib/types/api.ts`:
+
+```ts
+  /** Canonical tax id — mask stripped, letters uppercased. Read this, never the
+   *  pk: since ADR 0022 the pk is a company id and carries no document. */
+  tax_id: string
+  tax_id_kind: 'cnpj' | 'cpf'
+```
+
+Then the five remaining sites:
+
+| Site | Was | Becomes |
+|---|---|---|
+| `converters.ts:9` | `org.pk.startsWith('CNPJ_')` | `org.tax_id_kind === 'cnpj'` |
+| `converters.ts:12` | `unformatCpfCnpj(org.pk)` | `org.tax_id` |
+| `OrganizationsTable.tsx:49` | `org.pk.replace('CNPJ_','')…` | `formatCpfCnpj(org.tax_id)` |
+| `NfeEmitForm.tsx:899` | `unformatCpfCnpj(selectedOrg.pk)` | `selectedOrg.tax_id` |
+| `NfeEmitForm.tsx:1228` | `unformatCpfCnpj(selectedOrg?.pk ?? '')` | `selectedOrg?.tax_id ?? ''` |
+
+`NfeEmitForm` is the one to be careful with: that value is **the emitter's CNPJ in the XML**. Getting it from the key was always indirect; getting it from `tax_id` is what it meant all along. A test that pins the emitter document against `tax_id` and not `pk` belongs with this change.
+
+`client.ts:387,391` pass `orgPk` into an `/organizations/{…}/authorized-viewers` path. Once the API keys by company id the path segment is the key, so the `unformatCpfCnpj` wrapper comes off — the second argument on line 391 is a *person's* document and keeps it.
+
+- [ ] **Step 6: Run everything**
+
+Run: `cd ui && npx vitest run && npx tsc --noEmit && npm run lint`
+Expected: all green. Existing tests that seed `selectedOrg: {pk: 'CNPJ_…'}` now need `tax_id` too — that is the type checker doing its job, and each one is a real call site.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add ui/src
+git commit -m "fix(rekey): the browser stops reading a document out of the key
+
+apiClient put unformatCpfCnpj(org.pk) on every request, which on a
+company id strips the hyphens and uppercases the hex. The API refuses
+that, so every screen would have answered organização inválida with the
+cause three layers from the symptom.
+
+The document now comes from tax_id on the record. NfeEmitForm mattered
+most: that value is the emitter CNPJ in the XML, and reading it from the
+key was always indirect.
+
+Person and entity sort keys are untouched. They are keyed by their own
+document and the re-key does not reach them."
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage.** The forcing function → Task 1. The seam → Task 1's middleware delegation. The local company record → Task 2. The série rule → Task 4. The four things that break: `cnpjRoot` → Task 3, `ParseOrgPK` → Task 1, the header → unchanged by design (constraint), documents reading a CNPJ off the partition → Task 6's ordering. The migration → Task 6. Quota → **no task, correctly**: the spec says it is unchanged, and the counters already live where they belong.
@@ -837,5 +1018,7 @@ func TestVerifyComparesBodiesNotJustCounts(t *testing.T) { /* ... */ }
 **Placeholder scan.** Tasks 5 and 6 carry test *intent* with bodies left to the implementer, and that is a real weakness of this plan rather than a style choice — flagged here rather than hidden. Both depend on shapes (the account client, the table list) that are cheaper to read at implementation time than to transcribe wrongly now. Tasks 1–4, which carry the invariants, are complete.
 
 **Type consistency.** `LocalCompany` field names match across Tasks 2, 3 and 5. `IsCompanyKey` is defined in Task 1 and consumed in Tasks 2 and 6. `branchCandidate` is Task 3's alone. `SerieClaimPK`'s argument order `(taxID, modelo, ambiente, serie)` is identical in the test, the implementation and `Release`.
+
+**A gap the reader found, not the review.** The first version of this plan said "four places read the CNPJ back out of the key" and counted only Go. The browser does it in seven more, and one of them — the request header — would have broken every screen the moment a company id existed. Task 7 exists because that count was taken from one repo and stated as if it were the whole system.
 
 **One gap found while reviewing:** Task 1's original draft widened `middleware.ParseOrgPK` in place, leaving two implementations of "which keys exist". Changed to delegation — the duplicate was already a latent disagreement, and this task is what would have triggered it.
