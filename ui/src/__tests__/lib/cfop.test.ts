@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   cfopDirection, cfopTpNf, buildNatOpFromCfops,
   cfopScope, cfopSuffix, groupCfopConfigBySuffix, resolveCfopForUf, cfopGroupCodes,
+  getCfopDescription,
   NO_PAYMENT_CFOPS,
 } from '@/lib/data/cfop'
 import type { CfopConfigItem } from '@/lib/types/api'
@@ -115,8 +116,70 @@ describe('resolveCfopForUf', () => {
 })
 
 describe('NO_PAYMENT_CFOPS', () => {
-  it('contains the same-UF and other-UF remessa/bonificação CFOPs', () => {
+  it('cobre bonificação, doação e brinde — a operação sem pagamento por excelência', () => {
+    // Regressão: a lista trazia só 5920/6920, que na tabela do CONFAZ é remessa
+    // de vasilhame. A nota de doação (5910) não era forçada a tPag 90.
+    expect(NO_PAYMENT_CFOPS).toContain('5910')
+    expect(NO_PAYMENT_CFOPS).toContain('6910')
+  })
+
+  it('cobre amostra grátis e remessa de embalagem retornável', () => {
+    expect(NO_PAYMENT_CFOPS).toContain('5911')
+    expect(NO_PAYMENT_CFOPS).toContain('6911')
     expect(NO_PAYMENT_CFOPS).toContain('5920')
     expect(NO_PAYMENT_CFOPS).toContain('6920')
+  })
+
+  it('não inclui venda, que sempre tem pagamento', () => {
+    expect(NO_PAYMENT_CFOPS).not.toContain('5102')
+    expect(NO_PAYMENT_CFOPS).not.toContain('6102')
+  })
+})
+
+describe('cobertura da tabela oficial do CONFAZ', () => {
+  it('inclui os CFOPs de ato cooperativo (Ajuste SINIEF 18/17 e 11/18)', () => {
+    for (const code of ['1131', '2131', '5131', '6131', '5159', '6159', '5160', '6160']) {
+      expect(getCfopDescription(code)).toBeTruthy()
+    }
+  })
+
+  it('inclui o Sistema de Integração e Parceria Rural (Ajuste SINIEF 20/19)', () => {
+    expect(getCfopDescription('5451')).toMatch(/Integração e Parceria Rural/)
+    expect(getCfopDescription('1451')).toMatch(/Integração e Parceria Rural/)
+    expect(getCfopDescription('5456')).toMatch(/remuneração do produtor/)
+  })
+
+  it('inclui uso de bordo em tráfego internacional e o lote de exportação', () => {
+    expect(getCfopDescription('3552')).toMatch(/uso ou consumo de bordo/)
+    expect(getCfopDescription('7552')).toMatch(/uso ou consumo de bordo/)
+    expect(getCfopDescription('7504')).toMatch(/formação de lote/)
+  })
+
+  it('separa a natureza do escopo exterior quando a tabela oficial a separa', () => {
+    // 3552 é uso de bordo, não transferência de ativo como 1552/2552.
+    expect(getCfopDescription('1552')).toMatch(/ativo imobilizado/)
+    expect(getCfopDescription('3552')).not.toMatch(/ativo imobilizado/)
+    // 7501 é a exportação em si, não a remessa com fim específico.
+    expect(getCfopDescription('5501')).toMatch(/Remessa/)
+    expect(getCfopDescription('7501')).toMatch(/Exportação/)
+  })
+
+  it('descreve 1451 e 1452 como entrada do sistema de integração, não retorno', () => {
+    // A redação anterior ("Retorno de animal do estabelecimento produtor") foi
+    // substituída pelo Ajuste SINIEF 20/19 e não existe mais na tabela vigente.
+    expect(getCfopDescription('1451')).toMatch(/^Entrada de animal/)
+    expect(getCfopDescription('1452')).toMatch(/^Entrada de insumo/)
+  })
+})
+
+describe('getCfopDescription resolve variante, não só o grupo', () => {
+  it('devolve a descrição pelo código concreto de qualquer escopo', () => {
+    // Regressão: só o código do grupo resolvia, então 6102 devolvia null.
+    expect(getCfopDescription('6102')).toBe(getCfopDescription('5102'))
+    expect(getCfopDescription('2131')).toBe(getCfopDescription('1131'))
+  })
+
+  it('devolve null para código que não existe', () => {
+    expect(getCfopDescription('9999')).toBeNull()
   })
 })

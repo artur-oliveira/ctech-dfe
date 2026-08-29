@@ -21,11 +21,20 @@ export interface DisplayCfop {
 }
 
 /**
- * CFOPs that represent operations without payment (e.g. remessa em bonificação,
- * doação ou brinde). When a product with one of these CFOPs is added to a fiscal
- * document, the payment must be set to "Sem pagamento" (tPag 90).
+ * CFOPs de operação sem pagamento: a nota sai com tPag 90. São as saídas em que
+ * não há contraprestação financeira — bonificação, doação, brinde, amostra
+ * grátis e a remessa de embalagem retornável.
+ *
+ * O comentário anterior já dizia "bonificação, doação ou brinde", mas a lista
+ * trazia 5920/6920, que na tabela do CONFAZ é remessa de vasilhame: a nota de
+ * doação (5910) não era forçada a tPag 90, e a de vasilhame era, pelo motivo
+ * errado.
  */
-export const NO_PAYMENT_CFOPS: CfopCode[] = ['5920', '6920']
+export const NO_PAYMENT_CFOPS: CfopCode[] = [
+  '5910', '6910',  // Remessa em bonificação, doação ou brinde
+  '5911', '6911',  // Remessa de amostra grátis
+  '5920', '6920',  // Remessa de embalagens, vasilhames, pallets e assemelhados
+]
 
 const ALL_CFOPS: CfopEntry[] = [
   {
@@ -802,9 +811,10 @@ const ALL_CFOPS: CfopEntry[] = [
   {
     code: "1451",
     variants: [
-      "1451"
+      "1451",
+      "2451"
     ],
-    description: "Retorno de animal do estabelecimento produtor",
+    description: "Entrada de animal - Sistema de Integração e Parceria Rural",
     nfe: true,
     nfce: false,
     cte: false,
@@ -814,9 +824,10 @@ const ALL_CFOPS: CfopEntry[] = [
   {
     code: "1452",
     variants: [
-      "1452"
+      "1452",
+      "2452"
     ],
-    description: "Retorno de insumo não utilizado na produção",
+    description: "Entrada de insumo - Sistema de Integração e Parceria Rural",
     nfe: true,
     nfce: false,
     cte: false,
@@ -840,10 +851,21 @@ const ALL_CFOPS: CfopEntry[] = [
     code: "1503",
     variants: [
       "1503",
-      "2503",
-      "3503"
+      "2503"
     ],
     description: "Entrada decorrente de devolução de produto, de fabricação do estabelecimento, remetido com fim específico de exportação",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: true
+  },
+  {
+    code: "3503",
+    variants: [
+      "3503"
+    ],
+    description: "Devolução de mercadoria exportada que tenha sido recebida com fim específico de exportação",
     nfe: true,
     nfce: false,
     cte: false,
@@ -910,6 +932,18 @@ const ALL_CFOPS: CfopEntry[] = [
       "2552"
     ],
     description: "Transferência de bem do ativo imobilizado",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "3552",
+    variants: [
+      "3552"
+    ],
+    description: "Entrada de produto destinado para uso ou consumo de bordo, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",
     nfe: true,
     nfce: false,
     cte: false,
@@ -1062,7 +1096,6 @@ const ALL_CFOPS: CfopEntry[] = [
     code: "1652",
     variants: [
       "1652",
-      "2652",
       "2652",
       "3652"
     ],
@@ -1431,7 +1464,7 @@ const ALL_CFOPS: CfopEntry[] = [
       "1920",
       "2920"
     ],
-    description: "Entrada de vasilhame ou sacaria",
+    description: "Entrada de embalagem, vasilhame, sacaria, pallet, container ou assemelhado",
     nfe: true,
     nfce: false,
     cte: false,
@@ -1444,7 +1477,7 @@ const ALL_CFOPS: CfopEntry[] = [
       "1921",
       "2921"
     ],
-    description: "Retorno de vasilhame ou sacaria",
+    description: "Retorno de embalagem, vasilhame, sacaria, pallet, container ou assemelhado",
     nfe: true,
     nfce: false,
     cte: false,
@@ -2580,9 +2613,10 @@ const ALL_CFOPS: CfopEntry[] = [
   {
     code: "5451",
     variants: [
-      "5451"
+      "5451",
+      "6451"
     ],
-    description: "Remessa de animal e de insumo p/ estabelecimento produtor",
+    description: "Remessa de animal - Sistema de Integração e Parceria Rural",
     nfe: true,
     nfce: false,
     cte: false,
@@ -2593,10 +2627,21 @@ const ALL_CFOPS: CfopEntry[] = [
     code: "5501",
     variants: [
       "5501",
-      "6501",
-      "7501"
+      "6501"
     ],
     description: "Remessa de produção do estabelecimento, com fim específico de exportação",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "7501",
+    variants: [
+      "7501"
+    ],
+    description: "Exportação de mercadoria recebida com fim específico de exportação",
     nfe: true,
     nfce: false,
     cte: false,
@@ -2643,6 +2688,18 @@ const ALL_CFOPS: CfopEntry[] = [
     incoming: false
   },
   {
+    code: "7504",
+    variants: [
+      "7504"
+    ],
+    description: "Exportação de mercadoria que foi objeto de formação de lote de exportação",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
     code: "5505",
     variants: [
       "5505",
@@ -2676,6 +2733,18 @@ const ALL_CFOPS: CfopEntry[] = [
       "6552"
     ],
     description: "Transferência de bem do ativo imobilizado",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "7552",
+    variants: [
+      "7552"
+    ],
+    description: "Saída de produto destinado para uso ou consumo de bordo, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",
     nfe: true,
     nfce: false,
     cte: false,
@@ -3024,10 +3093,21 @@ const ALL_CFOPS: CfopEntry[] = [
     code: "5667",
     variants: [
       "5667",
-      "6667",
-      "7667"
+      "6667"
     ],
     description: "Venda de combustível ou lubrificante a consumidor ou usuário final estabelecido em outra UF",
+    nfe: true,
+    nfce: true,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "7667",
+    variants: [
+      "7667"
+    ],
+    description: "Saída de combustível ou lubrificante a consumidor ou usuário final",
     nfe: true,
     nfce: true,
     cte: false,
@@ -3092,7 +3172,7 @@ const ALL_CFOPS: CfopEntry[] = [
       "5905",
       "6905"
     ],
-    description: "Remessa p/ depósito fechado ou armazém geral",
+    description: "Remessa p/ depósito fechado, armazém geral ou outro estabelecimento",
     nfe: true,
     nfce: false,
     cte: false,
@@ -3287,7 +3367,7 @@ const ALL_CFOPS: CfopEntry[] = [
       "5920",
       "6920"
     ],
-    description: "Remessa de vasilhame ou sacaria",
+    description: "Remessa de embalagem, vasilhame, sacaria, pallet, container ou assemelhado",
     nfe: true,
     nfce: false,
     cte: false,
@@ -3300,7 +3380,7 @@ const ALL_CFOPS: CfopEntry[] = [
       "5921",
       "6921"
     ],
-    description: "Devolução de vasilhame ou sacaria",
+    description: "Devolução de embalagem, vasilhame, sacaria, pallet, container ou assemelhado",
     nfe: true,
     nfce: false,
     cte: false,
@@ -3569,6 +3649,356 @@ const ALL_CFOPS: CfopEntry[] = [
     cte: false,
     devolution: false,
     incoming: false
+  },
+  {
+    code: "5131",
+    variants: [
+      "5131",
+      "6131"
+    ],
+    description: "Remessa de produção do estabelecimento, com previsão de posterior ajuste ou fixação de preço, em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1131",
+    variants: [
+      "1131",
+      "2131"
+    ],
+    description: "Entrada de mercadoria, com previsão de posterior ajuste ou fixação de preço, em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5132",
+    variants: [
+      "5132",
+      "6132"
+    ],
+    description: "Fixação de preço de produção do estabelecimento, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1132",
+    variants: [
+      "1132",
+      "2132"
+    ],
+    description: "Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para comercialização",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "1135",
+    variants: [
+      "1135",
+      "2135"
+    ],
+    description: "Fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para industrialização",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5159",
+    variants: [
+      "5159",
+      "6159"
+    ],
+    description: "Fornecimento de produção do estabelecimento em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1159",
+    variants: [
+      "1159",
+      "2159"
+    ],
+    description: "Entrada decorrente do fornecimento de produto ou mercadoria em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5160",
+    variants: [
+      "5160",
+      "6160"
+    ],
+    description: "Fornecimento de mercadoria adquirida ou recebida de terceiros em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "5213",
+    variants: [
+      "5213",
+      "6213"
+    ],
+    description: "Devolução de entrada, inclusive simbólica, de mercadoria com previsão de posterior ajuste ou fixação de preço, em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: false
+  },
+  {
+    code: "1213",
+    variants: [
+      "1213",
+      "2213"
+    ],
+    description: "Devolução de remessa de produção do estabelecimento, com previsão de posterior ajuste ou fixação de preço, em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: true
+  },
+  {
+    code: "5214",
+    variants: [
+      "5214",
+      "6214"
+    ],
+    description: "Devolução referente à fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para comercialização",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: false
+  },
+  {
+    code: "1214",
+    variants: [
+      "1214",
+      "2214"
+    ],
+    description: "Devolução referente à fixação de preço de produção do estabelecimento produtor em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: true
+  },
+  {
+    code: "5215",
+    variants: [
+      "5215",
+      "6215"
+    ],
+    description: "Devolução referente à fixação de preço de produção do estabelecimento produtor, inclusive quando remetidas anteriormente com previsão de posterior ajuste ou fixação de preço, em ato cooperativo, para industrialização",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: false
+  },
+  {
+    code: "1215",
+    variants: [
+      "1215",
+      "2215"
+    ],
+    description: "Devolução de fornecimento de produção do estabelecimento em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: true
+  },
+  {
+    code: "5216",
+    variants: [
+      "5216",
+      "6216"
+    ],
+    description: "Devolução de entrada decorrente do fornecimento de produto ou mercadoria em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: false
+  },
+  {
+    code: "1216",
+    variants: [
+      "1216",
+      "2216"
+    ],
+    description: "Devolução de fornecimento de mercadoria adquirida ou recebida de terceiros em ato cooperativo",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: true,
+    incoming: true
+  },
+  {
+    code: "5452",
+    variants: [
+      "5452",
+      "6452"
+    ],
+    description: "Remessa de insumo - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "5453",
+    variants: [
+      "5453",
+      "6453"
+    ],
+    description: "Retorno de animal ou da produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1453",
+    variants: [
+      "1453",
+      "2453"
+    ],
+    description: "Retorno do animal ou da produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5454",
+    variants: [
+      "5454",
+      "6454"
+    ],
+    description: "Retorno simbólico de animal ou da produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1454",
+    variants: [
+      "1454",
+      "2454"
+    ],
+    description: "Retorno simbólico do animal ou da produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5455",
+    variants: [
+      "5455",
+      "6455"
+    ],
+    description: "Retorno de insumos não utilizados na produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1455",
+    variants: [
+      "1455",
+      "2455"
+    ],
+    description: "Retorno de insumo não utilizado na produção - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "5456",
+    variants: [
+      "5456",
+      "6456"
+    ],
+    description: "Saída referente à remuneração do produtor - Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: false
+  },
+  {
+    code: "1456",
+    variants: [
+      "1456",
+      "2456"
+    ],
+    description: "Entrada referente à remuneração do produtor no Sistema de Integração e Parceria Rural",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "1657",
+    variants: [
+      "1657",
+      "2657"
+    ],
+    description: "Retorno de remessa de combustíveis ou lubrificantes para venda fora do estabelecimento",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
+  },
+  {
+    code: "3667",
+    variants: [
+      "3667"
+    ],
+    description: "Entrada de combustíveis ou lubrificantes para consumo final, em embarcações ou aeronaves exclusivamente em tráfego internacional com destino ao exterior",
+    nfe: true,
+    nfce: false,
+    cte: false,
+    devolution: false,
+    incoming: true
   }
 ]
 
@@ -3607,7 +4037,10 @@ export const getCfopVariants = (code: CfopCode): string[] => {
 }
 
 export const getCfopDescription = (code: string): string | null => {
-  return ALL_CFOPS_GROUP[code as CfopCode]?.description ?? null
+  // Resolve pelo grupo e também por variante: 6102 é o mesmo 5102 em escopo
+  // interestadual, e devolver null para ele surpreendia quem chamava.
+  const group = ALL_CFOPS_GROUP[code as CfopCode] ?? ALL_CFOPS_GROUP[VARIANT_TO_CODE[code]]
+  return group?.description ?? null
 }
 
 /** Código canônico do grupo (5xxx) a que um CFOP concreto pertence, incluindo variantes 6xxx/7xxx. */

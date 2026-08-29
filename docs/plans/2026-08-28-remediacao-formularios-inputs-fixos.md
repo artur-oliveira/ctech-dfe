@@ -143,11 +143,12 @@ RS/SP/RJ/PR/ES), pares tpVeic × espVeic (39), unidade tributável por NCM (10.5
 
 ### Pendente conhecido
 
-- [ ] **59 CFOPs vigentes ausentes de `cfop.ts`**, todos válidos em NF-e (`indNFe = 1`): 1131, 1132,
-  1135, 1159, 1213–1216, 1453–1456, 1657, 2131, 2132, 2135, 2159, 2213–2216, 2451–2456, 2657, 3552,
-  3667 e os equivalentes 5xxx/6xxx/7xxx. A tabela oficial (`IT_2023.002`) traz só código e flags,
-  **sem descrição** — e um CFOP sem descrição no dropdown é pior que ausente. Precisa da descrição do
-  Convênio SINIEF s/nº para entrar.
+- [x] **59 CFOPs vigentes ausentes de `cfop.ts`** — resolvidos. As descrições vieram do texto do
+  Convênio SINIEF s/nº, Anexo II, na redação do Ajuste SINIEF 03/24 (vigente desde 01.06.24), baixado
+  do CONFAZ. São de ato cooperativo, Sistema de Integração e Parceria Rural, uso de bordo em tráfego
+  internacional e formação de lote de exportação. **Atenção à fonte:** a página `cfop_cvsn_70_vigente`
+  do CONFAZ, que os buscadores devolvem primeiro, é o anexo **revogado** — a vigente é
+  `cfop_cvsn_1-6.24`, e as redações diferem de forma sutil.
 - [ ] **Padrões de regime especial por UF** (`Tabela de Padrões de Regime Especial.xlsx`): traz a
   expressão regular de `nProc` por UF; hoje o campo é livre. Só PR e SP publicam.
 - [ ] **Prefixo GS1**: útil para a mensagem de erro do GTIN dizer *qual* país/entidade emitiu o
