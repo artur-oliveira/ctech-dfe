@@ -546,7 +546,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
                       placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
           )}
           {cfopUfUnknown && (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-danger">
               Selecione um destinatário com UF para definir o CFOP.
             </span>
           )}
@@ -1537,7 +1537,7 @@ export function NfeEmitForm() {
             </div>
           )}
           {cfopMixError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger">
               Não é possível misturar CFOPs de entrada (1/2/3) e de saída (5/6/7) na mesma NF-e.
               O tipo da nota é definido pelo CFOP do primeiro produto
               ({noteDirection === 'in' ? 'entrada' : 'saída'}).
@@ -1992,7 +1992,7 @@ export function NfeEmitForm() {
                             className="font-mono text-sm font-medium">{selectedVehicle.plate}</p><p
                             className="text-xs text-gray-500">{selectedVehicle.plate_uf}</p></div>
                           <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedVehicle(null)}
-                                  className="text-red-600">Trocar</Button>
+                                  className="text-danger">Trocar</Button>
                         </div>
                       ) : (
                         <VehicleSelect vehicles={vehiclesData?.items ?? []} onSelect={setSelectedVehicle}
@@ -2163,7 +2163,7 @@ export function NfeEmitForm() {
               <span className="text-gray-500 hidden sm:inline">Produtos: <span
                 className="font-medium text-gray-900">{fmt(totalProducts)}</span></span>
               {totalDiscount > 0 && <span className="text-gray-500 hidden sm:inline">Desc: <span
-                  className="font-medium text-red-600">-{fmt(totalDiscount)}</span></span>}
+                  className="font-medium text-danger">-{fmt(totalDiscount)}</span></span>}
               <span className="text-gray-700 font-semibold">Total: <span
                 className="text-gray-900">{fmt(totalNfe)}</span></span>
             </>

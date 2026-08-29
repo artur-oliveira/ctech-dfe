@@ -299,7 +299,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Identificação</p>
+          <p className="text-sm font-medium text-gray-600">Identificação</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField control={form.control} name="name"
@@ -357,7 +357,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Defaults da emissão</p>
+          <p className="text-sm font-medium text-gray-600">Defaults da emissão</p>
           <p className="text-xs text-gray-500">
             Estes valores entram na nota quando o request não traz os seus.
             Um valor informado na emissão sempre vence a operação.
@@ -494,7 +494,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                             badge={sectionBadge(TAX_FIELDS)}>
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <p className="text-sm font-medium text-gray-600">
                 Retenções federais (%)
               </p>
               <p className="text-xs text-gray-500">
@@ -524,7 +524,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
 
 
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <p className="text-sm font-medium text-gray-600">
                 Reforma tributária (IBS/CBS)
               </p>
               <p className="text-xs text-gray-500">
@@ -629,7 +629,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                             badge={sectionBadge(NICHE_FIELDS)}>
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <p className="text-sm font-medium text-gray-600">
                 Grupos de nicho
               </p>
               <p className="text-xs text-gray-500">
@@ -694,7 +694,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         </CollapsibleSection>
 
         {submitError && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger">
             {submitError}
           </div>
         )}

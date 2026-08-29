@@ -390,7 +390,7 @@ export function EntityForm({
           <PlusIcon/> Adicionar
         </Button>
       </div>
-      {ieRootError && <p role="alert" className="mb-2 text-xs text-red-700">{ieRootError}</p>}
+      {ieRootError && <p role="alert" className="mb-2 text-xs text-danger">{ieRootError}</p>}
       {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
       {ieFields.map((field, index) => {
         const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
@@ -661,7 +661,7 @@ export function EntityForm({
     <Form {...form}>
       <form onSubmit={handleSubmit} className="mx-auto max-w-6xl space-y-5">
         {submitError && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
             {submitError}
           </div>
         )}

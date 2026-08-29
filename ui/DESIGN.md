@@ -40,6 +40,11 @@ typography:
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: "0.06em"
+  caption:
+    fontFamily: "Geist Sans, system-ui, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 400
+    lineHeight: 1.4
 rounded:
   sm: "0.5rem"
   md: "0.625rem"

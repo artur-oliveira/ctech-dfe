@@ -217,7 +217,7 @@ export function TaxFieldsEditor({
     <div className="space-y-5">
       {/* ── Linha obrigatória ───────────────────────────────────── */}
       <div className="space-y-3 rounded-lg border border-gray-100 p-3 bg-gray-50/50">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dados da operação</p>
+        <p className="text-sm font-medium text-gray-600">Dados da operação</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {!hideCfop && (
             <TaxField label="CFOP *">
@@ -267,7 +267,7 @@ export function TaxFieldsEditor({
         {/* Hint fiscal CFOP */}
         {!hideCfop && cfopHint && (
           <div
-            className="col-span-full flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700">
+            className="col-span-full flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-warning">
             <span className="font-medium">!</span>
             <span>{cfopHint.label}</span>
           </div>
@@ -340,7 +340,7 @@ export function TaxFieldsEditor({
             )}
             {aliqDiverges && (
               <div role="alert"
-                   className="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                   className="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warning">
                 Alíquota ICMS digitada ({value.icms_aliq_override}%) diverge da tabela do sistema
                 para esta UF/NCM ({systemAliq?.icms_aliq}%).
               </div>
@@ -362,7 +362,7 @@ export function TaxFieldsEditor({
         {/* ST — Substituição Tributária */}
         {showSt && (
           <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
-            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+            <p className="text-sm font-medium text-blue-700">
               Substituição Tributária (ST)
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -405,7 +405,7 @@ export function TaxFieldsEditor({
         {/* ST retida anteriormente + ICMS efetivo */}
         {showStRet && (
           <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
-            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+            <p className="text-sm font-medium text-blue-700">
               ST retida anteriormente
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -458,7 +458,7 @@ export function TaxFieldsEditor({
         {/* Partilha do ICMS entre UFs (ICMSPart) */}
         {showPart && (
           <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
-            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+            <p className="text-sm font-medium text-blue-700">
               Partilha do ICMS entre UFs
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -550,9 +550,9 @@ export function TaxFieldsEditor({
                        ...r, pis_st_aliq: '', cofins_st_aliq: '', pis_st_v_bc: '', cofins_st_v_bc: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-pis-cofins-st`}
-                   className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                   className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
               PIS/COFINS-ST — Substituição Tributária
             </label>
           </div>
@@ -590,14 +590,14 @@ export function TaxFieldsEditor({
                      setShowIpi(e.target.checked)
                      if (!e.target.checked) onChange((r) => ({...r, ipi_cst: '', ipi_aliq: ''}))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ipi`}
-                   className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                   className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
               IPI — Imposto sobre Produtos Industrializados
             </label>
           </div>
           {showIpi && (
-            <div className="grid grid-cols-2 gap-2 max-w-sm">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:max-w-sm">
               <TaxField label="CST IPI *">
                 <Combobox value={value.ipi_cst ?? ''}
                           onValueChange={(v) => onChange((r) => ({...r, ipi_cst: v}))}
@@ -633,9 +633,9 @@ export function TaxFieldsEditor({
                        ...r, is_cst: '', is_aliq: '', is_class_trib: '', is_aliq_espec: '', is_unid_trib: ''
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-is`}
-                   className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                   className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
               IS — Imposto Seletivo (NT 2024.001)
             </label>
           </div>
@@ -683,9 +683,9 @@ export function TaxFieldsEditor({
                          icms_p_red_ad_rem: '', icms_mot_red_ad_rem: '', icms_p_dif_mono: '',
                        }))
                      }}
-                     className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                     className="size-4 rounded border-gray-300 text-brand-600"/>
               <label htmlFor={`${uid}-toggle-mono`}
-                     className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                     className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
                 ICMS Monofásico — Combustíveis (CST 02/15/53/61)
               </label>
             </div>
@@ -747,9 +747,9 @@ export function TaxFieldsEditor({
                        issqn_c_mun_fg: '', issqn_aliq: '', issqn_v_deducao: '', issqn_v_iss_ret: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-issqn`}
-                   className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                   className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
               ISSQN — Imposto Sobre Serviços (LC 116/2003)
             </label>
           </div>
@@ -834,7 +834,7 @@ export function TaxFieldsEditor({
 
         {/* ── Observação fiscal do item (obsItem) ─────────────────── */}
         <div className="rounded-lg border border-gray-100 p-3 space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <p className="text-sm font-medium text-gray-600">
             Observação fiscal do item
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -861,9 +861,9 @@ export function TaxFieldsEditor({
                        ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-cbs`}
-                   className="text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer select-none">
+                   className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
               IBS / CBS — Reforma Tributária
             </label>
           </div>
@@ -909,13 +909,13 @@ export function TaxFieldsEditor({
                        ...r, ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: ''
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-red`} className="text-xs font-medium text-gray-500 cursor-pointer">
               Redução de alíquota (CST 010/011)
             </label>
           </div>
           {showIbsCbsRed && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <TaxField label="% Redução IBS UF">
                 <NumericInput value={value.ibs_uf_p_red ?? ''} decimal decimalPlaces={4}
                               onChange={(v) => onChange((r) => ({...r, ibs_uf_p_red: v}))} placeholder="0.0000"/>
@@ -940,13 +940,13 @@ export function TaxFieldsEditor({
                        ...r, ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: ''
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-dif`} className="text-xs font-medium text-gray-500 cursor-pointer">
               Diferimento (CST 200/220)
             </label>
           </div>
           {showIbsCbsDif && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <TaxField label="% Diferimento IBS UF">
                 <NumericInput value={value.ibs_uf_p_dif ?? ''} decimal decimalPlaces={4}
                               onChange={(v) => onChange((r) => ({...r, ibs_uf_p_dif: v}))} placeholder="0.0000"/>
@@ -996,7 +996,7 @@ export function TaxFieldsEditor({
                        ibs_p_dif_mono: '', cbs_p_dif_mono: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-mono`} className="text-xs font-medium text-gray-500 cursor-pointer">
               Monofasia IBS/CBS (CST 620)
             </label>
@@ -1047,7 +1047,7 @@ export function TaxFieldsEditor({
                        ibs_gov_uf_aliq: '', ibs_gov_mun_aliq: '', cbs_gov_aliq: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-ref`} className="text-xs font-medium text-gray-500 cursor-pointer">
               Tributação de referência e de compra governamental
             </label>
@@ -1105,7 +1105,7 @@ export function TaxFieldsEditor({
                        alc_zfm_tp_cbs: '', alc_zfm_n_proc_suframa: '',
                      }))
                    }}
-                   className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
+                   className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-cred`} className="text-xs font-medium text-gray-500 cursor-pointer">
               Crédito presumido e ALC/ZFM
             </label>

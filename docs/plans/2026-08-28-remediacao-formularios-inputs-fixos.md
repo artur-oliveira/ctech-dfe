@@ -93,8 +93,8 @@ contagem), e a troca do controle correspondente no mesmo commit.
 
 ## Fase 7 — dívida de design system
 
-- [ ] **Task 24:** 33 eyebrows `uppercase tracking-wider` → `SectionCard` ou `text-sm font-medium text-gray-600`.
-- [ ] **Task 25:** um vocabulário de label; `red-*`/`amber-*` crus → `text-danger`/`text-warning`; datas cruas →
+- [x] **Task 24:** 33 eyebrows `uppercase tracking-wider` → `SectionCard` ou `text-sm font-medium text-gray-600`.
+- [x] **Task 25:** um vocabulário de label; `red-*`/`amber-*` crus → `text-danger`/`text-warning`; datas cruas →
   `Input type="date"`; alvos de 14 px → `min-h-11`; grids sem breakpoint.
 - [ ] **Task 26:** `GlossaryTerm` nos termos densos de ProductForm e TaxFieldsEditor; `caption` no front-matter do
   DESIGN.md para o detector parar de acusar `text-[0.8rem]`.

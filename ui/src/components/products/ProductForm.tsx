@@ -1026,7 +1026,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
             {submitError}
           </div>
         )}
@@ -1063,7 +1063,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {/* ── Tab: Produto ──────────────────────────────────────────────── */}
         {activeTab === 'produto' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Identificação</p>
+            <p className="text-sm font-medium text-gray-600">Identificação</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField control={form.control} name="code" render={({field}) => (
@@ -1143,7 +1143,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* Override de alíquota ICMS/FCP */}
             <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-3 space-y-2">
-              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+              <p className="text-sm font-medium text-warning">
                 Alíquota específica de ICMS (opcional)
               </p>
               <p className="text-xs text-gray-500">
@@ -1231,7 +1231,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
           <div className="space-y-4">
             {/* Preços */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Preço e NFC-e</p>
+              <p className="text-sm font-medium text-gray-600">Preço e NFC-e</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="value" render={({field}) => (
                   <FormItem>
@@ -1263,7 +1263,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* Unidades */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Unidades</p>
+              <p className="text-sm font-medium text-gray-600">Unidades</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="unit" render={({field}) => (
                   <FormItem>
@@ -1337,7 +1337,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* Fatores de conversão */}
             {showConversionFactors && (
               <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-5 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <p className="text-sm font-medium text-gray-600">
                   Fatores de conversão ({watchedUnit} ↔ {watchedTaxableUnit})
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-lg">
@@ -1387,7 +1387,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {activeTab === 'tributacao' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <p className="text-sm font-medium text-gray-600">
                 Configuração CFOP / Tributação
               </p>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -1399,7 +1399,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* ── Perfis fiscais ───────────────────────────────────────── */}
             <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Perfis fiscais</p>
+              <p className="text-sm font-medium text-gray-600">Perfis fiscais</p>
               <p className="text-xs text-gray-500">
                 Escolher um perfil dispensa preencher a tributação aqui. Para sobrescrever um CFOP só
                 neste produto, adicione a linha abaixo — ele tem prioridade sobre o perfil fiscal.
@@ -1459,7 +1459,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
                 {/* Overrides por UF de destino — só preenche o que diverge */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="text-sm font-medium text-gray-600">
                     Overrides por UF de destino (opcional)
                   </p>
                   <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
@@ -1512,7 +1512,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {activeTab === 'especial' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Tipo específico</p>
+              <p className="text-sm font-medium text-gray-600">Tipo específico</p>
               <p className="text-xs text-gray-400">Opcional — preencher apenas para combustíveis ou medicamentos</p>
             </div>
 
@@ -1534,7 +1534,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Combustível ────────────────────────────────────────── */}
             {watchedProdType === 'comb' && (
               <div className="rounded-lg border border-orange-100 bg-orange-50/30 p-4 space-y-3">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-orange-700">
                   Combustível — Dados ANP
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1601,7 +1601,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Medicamento ─────────────────────────────────────────── */}
             {watchedProdType === 'med' && (
               <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-4 space-y-3">
-                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-teal-700">
                   Medicamento — Dados ANVISA
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1663,7 +1663,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {extraGroups.importacao && (<>
               {/* ── Importação e códigos próprios ───────────────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <p className="text-sm font-medium text-gray-600">
                   Importação e códigos próprios
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1715,7 +1715,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {extraGroups.reforma && (<>
               {/* ── Reforma tributária — nível produto ──────────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <p className="text-sm font-medium text-gray-600">
                   Reforma tributária (IBS/CBS) — produto
                 </p>
                 <p className="text-xs text-gray-500">
@@ -1752,7 +1752,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {extraGroups.selo && (<>
               {/* ── IPI — selo de controle e enquadramento ──────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <p className="text-sm font-medium text-gray-600">
                   IPI — selo de controle
                 </p>
                 <p className="text-xs text-gray-500">
@@ -1801,7 +1801,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {extraGroups.perigoso && (<>
               {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
               <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-warning">
                   Produto perigoso (MDF-e)
                 </p>
                 <p className="text-xs text-gray-500">
@@ -1857,7 +1857,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Veículo novo (veicProd) ─────────────────────────────── */}
             {watchedProdType === 'veiculo' && (
               <div className="rounded-lg border border-indigo-100 bg-indigo-50/30 p-4 space-y-4">
-                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-indigo-700">
                   Veículo Novo — Dados do Modelo (RENAVAM)
                 </p>
                 <p className="text-xs text-gray-400">
@@ -2023,7 +2023,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Armamento ───────────────────────────────────────────── */}
             {watchedProdType === 'arma' && (
               <div className="rounded-lg border border-red-100 bg-red-50/20 p-4 space-y-3">
-                <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-danger">
                   Armamento — Dados do Tipo
                 </p>
                 <p className="text-xs text-gray-400">
