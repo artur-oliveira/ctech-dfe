@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -292,5 +294,57 @@ func TestBuildProdPred_CEAN(t *testing.T) {
 	p.cargo.prodPred.CEAN = ""
 	if _, has := p.buildProdPred()["cEAN"]; has {
 		t.Fatal("sem GTIN no documento, cEAN não deve sair")
+	}
+}
+
+// The MDF-e half of the re-key regression, pinned at the assembled emit node.
+// buildEmit sliced the issuer's document out of the partition key; a company id
+// has no prefix to slice, so the UUID went into the node and every issuer was
+// reported as a natural person.
+func TestBuildEmitTakesTheDocumentFromTheRecord(t *testing.T) {
+	const companyKey = "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70"
+	org := map[string]types.AttributeValue{
+		"name":        &types.AttributeValueMemberS{Value: "ACME"},
+		"tax_id":      &types.AttributeValueMemberS{Value: "11222333000181"},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: "cnpj"},
+	}
+	got := buildEmit(org, map[string]any{}, companyKey)
+
+	if got["CNPJ"] != "11222333000181" {
+		t.Fatalf("CNPJ = %v, want the record's tax id", got["CNPJ"])
+	}
+	if _, wrong := got["CPF"]; wrong {
+		t.Errorf("CPF present alongside CNPJ (choice violation): %#v", got)
+	}
+	for _, v := range got {
+		if s, ok := v.(string); ok && s == companyKey {
+			t.Fatalf("the company id reached the emit node: %#v", got)
+		}
+	}
+}
+
+// A natural-person issuer under a company id must still be a CPF.
+func TestBuildEmitKeepsANaturalPersonIssuerNatural(t *testing.T) {
+	org := map[string]types.AttributeValue{
+		"name":        &types.AttributeValueMemberS{Value: "PRODUTOR"},
+		"tax_id":      &types.AttributeValueMemberS{Value: "52998224725"},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: "cpf"},
+	}
+	got := buildEmit(org, map[string]any{}, "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70")
+	if got["CPF"] != "52998224725" {
+		t.Fatalf("CPF = %v", got["CPF"])
+	}
+	if _, wrong := got["CNPJ"]; wrong {
+		t.Errorf("CNPJ present alongside CPF (choice violation): %#v", got)
+	}
+}
+
+// The legacy key still assembles: every organization carries one until the
+// migration runs, and the rollback puts them all back.
+func TestBuildEmitStillWorksOnALegacyKey(t *testing.T) {
+	org := map[string]types.AttributeValue{"name": &types.AttributeValueMemberS{Value: "ACME"}}
+	got := buildEmit(org, map[string]any{}, "CNPJ_11222333000181")
+	if got["CNPJ"] != "11222333000181" {
+		t.Fatalf("CNPJ = %v", got["CNPJ"])
 	}
 }

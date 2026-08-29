@@ -79,3 +79,78 @@ func TestBuildDestNilQuandoSemDestinatario(t *testing.T) {
 		t.Fatalf("want nil, got %v", got)
 	}
 }
+
+// The regression the whole company re-key exists to prevent, pinned at the
+// level the bug actually lived: the assembled emit node.
+//
+// Before this, buildEmit sliced the issuer's document out of the partition key.
+// A company id has no prefix to slice, so StripPKPrefix returned the UUID and
+// HasPrefix reported a natural person — producing <CPF>0199f3a1-…</CPF> in a
+// signed XML. SEFAZ rejects that on schema, which was luck: the failure mode
+// was silence.
+func TestBuildEmitTakesTheDocumentFromTheRecordNotTheKey(t *testing.T) {
+	const companyKey = "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70"
+	org := map[string]any{
+		"name":        "ACME",
+		"tax_id":      "11647612000197",
+		"tax_id_kind": "cnpj",
+		"person": map[string]any{
+			"crt":                 3,
+			"addresses":           []any{map[string]any{"state_federation": "PI", "city": "Teresina"}},
+			"state_registrations": []any{map[string]any{"uf": "PI", "state_registration": "194000000"}},
+		},
+	}
+	got := buildEmit(org, getPersonMap(org), companyKey, "PI", "PI", 3)
+
+	if got["CNPJ"] != "11647612000197" {
+		t.Fatalf("CNPJ = %v, want the record's tax id", got["CNPJ"])
+	}
+	// The choice element: one of CNPJ|CPF, never both, and never the wrong one.
+	if _, wrong := got["CPF"]; wrong {
+		t.Errorf("CPF present alongside CNPJ (choice violation): %#v", got)
+	}
+	for _, v := range got {
+		if s, ok := v.(string); ok && s == companyKey {
+			t.Fatalf("the company id reached the emit node: %#v", got)
+		}
+	}
+}
+
+// A natural-person issuer — produtor rural, MEI pessoa física — under a company
+// id. Reading the key would call every issuer a CPF by accident; reading the
+// record has to call this one a CPF on purpose.
+func TestBuildEmitKeepsANaturalPersonIssuerNatural(t *testing.T) {
+	org := map[string]any{
+		"name":        "PRODUTOR",
+		"tax_id":      "52998224725",
+		"tax_id_kind": "cpf",
+		"person": map[string]any{
+			"crt":       1,
+			"addresses": []any{map[string]any{"state_federation": "PI", "city": "Teresina"}},
+		},
+	}
+	got := buildEmit(org, getPersonMap(org), "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70", "PI", "PI", 1)
+
+	if got["CPF"] != "52998224725" {
+		t.Fatalf("CPF = %v, want the record's tax id", got["CPF"])
+	}
+	if _, wrong := got["CNPJ"]; wrong {
+		t.Errorf("CNPJ present alongside CPF (choice violation): %#v", got)
+	}
+}
+
+// The legacy key still assembles correctly: every organization carries one
+// until the migration runs, and the rollback puts them all back.
+func TestBuildEmitStillWorksOnALegacyKey(t *testing.T) {
+	org := map[string]any{
+		"name": "ACME",
+		"person": map[string]any{
+			"crt":       3,
+			"addresses": []any{map[string]any{"state_federation": "PI", "city": "Teresina"}},
+		},
+	}
+	got := buildEmit(org, getPersonMap(org), "CNPJ_11647612000197", "PI", "PI", 3)
+	if got["CNPJ"] != "11647612000197" {
+		t.Fatalf("CNPJ = %v", got["CNPJ"])
+	}
+}
