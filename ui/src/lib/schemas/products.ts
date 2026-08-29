@@ -1,6 +1,7 @@
 import {z} from 'zod'
 import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods'
 import {IPI_CENQ} from '@/lib/data/ipi_cenq'
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CLASS_CODES} from '@/lib/data/ibs_cbs_cst'
 import {ANP_CODE_SET} from '@/lib/data/anp'
 import {isValidVehicleTypePair} from '@/lib/data/vehicle_type_pairs'
 
@@ -231,6 +232,29 @@ export function applyTaxGroupRules(
     ['obs_item_x_campo', 'obs_item_x_texto'],
     'A observação do item exige campo e texto',
   )
+
+  // Seis dígitos que passam no regex mas não existem na tabela publicada são
+  // rejeição na emissão, e a classificação tem que ser a do CST escolhido.
+  for (const [cstField, classField] of [
+    ['ibs_cbs_cst', 'ibs_cbs_class_trib'],
+    ['ibs_reg_cst', 'ibs_reg_class_trib'],
+  ] as const) {
+    const classCode = data[classField]
+    if (!filled(classCode)) continue
+    if (!IBS_CBS_CLASS_CODES.has(classCode as string)) {
+      ctx.addIssue({code: 'custom', path: [classField], message: 'Classificação não existe na tabela do IBS/CBS'})
+      continue
+    }
+    const cst = data[cstField]
+    const allowed = filled(cst) ? IBS_CBS_CLASS_BY_CST[cst as string] : undefined
+    if (allowed && !allowed.some((o) => o.value === classCode)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [classField],
+        message: 'Esta classificação não pertence ao CST de IBS/CBS escolhido',
+      })
+    }
+  }
 }
 
 export const cfopConfigSchema = cfopConfigBase.superRefine(applyTaxGroupRules)

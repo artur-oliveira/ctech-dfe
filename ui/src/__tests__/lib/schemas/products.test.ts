@@ -222,3 +222,27 @@ describe('productSchema — tabelas da ANP e de veículo', () => {
     expect(pathsOf({...base, veic_tp_veic: '2', veic_esp_veic: '1'})).not.toContain('veic_esp_veic')
   })
 })
+
+describe('cfopConfigSchema — classificação tributária do IBS/CBS', () => {
+  const base = {cfop: '5102', pis: '01', cofins: '01'}
+  const pathsOf = (data: Record<string, unknown>): string[] => {
+    const result = cfopConfigSchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('recusa classificação inexistente na tabela publicada', () => {
+    expect(pathsOf({...base, ibs_cbs_class_trib: '999999'})).toContain('ibs_cbs_class_trib')
+  })
+
+  it('recusa classificação que não pertence ao CST escolhido', () => {
+    expect(pathsOf({...base, ibs_cbs_cst: '000', ibs_cbs_class_trib: '830001'}))
+      .toContain('ibs_cbs_class_trib')
+    expect(pathsOf({...base, ibs_cbs_cst: '000', ibs_cbs_class_trib: '000001'}))
+      .not.toContain('ibs_cbs_class_trib')
+  })
+
+  it('aplica a mesma regra à tributação de referência', () => {
+    expect(pathsOf({...base, ibs_reg_cst: '000', ibs_reg_class_trib: '830001'}))
+      .toContain('ibs_reg_class_trib')
+  })
+})

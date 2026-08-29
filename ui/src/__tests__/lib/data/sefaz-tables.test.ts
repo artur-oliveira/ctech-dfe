@@ -3,6 +3,7 @@ import {ANP_CODE_SET, ANP_MONO_FUELS, anpMonoFuel, ANP_OPTIONS} from '@/lib/data
 import {benefitOptionsForUf, CBENEF_UFS, isKnownBenefit, SEM_CBENEF, ufHasBenefitTable} from '@/lib/data/cbenef'
 import {especieOptionsForTipo, isValidVehicleTypePair, VEHICLE_TYPE_PAIRS} from '@/lib/data/vehicle_type_pairs'
 import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS, TPAG_LABELS, TPAG_TABLE} from '@/lib/data/payment-tables'
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CLASS_CODES, IBS_CBS_CST} from '@/lib/data/ibs_cbs_cst'
 
 describe('tabela da ANP', () => {
   it('traz os 1031 códigos oficiais, todos com 9 dígitos', () => {
@@ -101,5 +102,25 @@ describe('tabelas de pagamento', () => {
     expect(CARD_PAYMENT_TYPES.has('20')).toBe(true)
     expect(CARD_PAYMENT_TYPES.has('01')).toBe(false)
     expect(CARD_PAYMENT_TYPES.has('90')).toBe(false)
+  })
+})
+
+describe('tabela de IBS/CBS', () => {
+  it('traz as 164 classificações publicadas nos 18 CSTs', () => {
+    expect(IBS_CBS_CST).toHaveLength(18)
+    expect(IBS_CBS_CLASS_CODES.size).toBe(164)
+    expect([...IBS_CBS_CLASS_CODES].every((c) => /^\d{6}$/.test(c))).toBe(true)
+  })
+
+  it('cada classificação pertence a um CST só', () => {
+    const all = IBS_CBS_CST.flatMap((e) => e.classCodes.map((c) => c.code))
+    expect(new Set(all).size).toBe(all.length)
+  })
+
+  it('mantém a classificação da tributação integral e traz as que faltavam', () => {
+    const integral = IBS_CBS_CLASS_BY_CST['000'].map((o) => o.value)
+    expect(integral).toContain('000001')
+    // 200002 é uma das 101 classificações ausentes antes desta tabela.
+    expect(IBS_CBS_CLASS_CODES.has('200002')).toBe(true)
   })
 })
