@@ -1942,7 +1942,9 @@ export function NfeEmitForm() {
 
       {/* Optional groups — collected before the review that shows them */}
       {currentStep === 'pagamento' && (
-        <CollapsibleSection title="Configurações avançadas" description="Transporte e informações adicionais (opcional)"
+        <>
+        <CollapsibleSection title="Transporte"
+                            description="Frete, transportadora, veículo, volumes e reboques"
                             className="mt-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -2040,7 +2042,10 @@ export function NfeEmitForm() {
               </div>
             )}
           </div>
-
+        </CollapsibleSection>
+        <CollapsibleSection title="Documentos e datas"
+                            description="Processos referenciados, chaves da reforma, saída e entrega"
+                            className="mt-4">
           {/* Processos referenciados (infAdic/procRef) */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between">
@@ -2119,7 +2124,10 @@ export function NfeEmitForm() {
               </div>
             </div>
           </div>
-
+        </CollapsibleSection>
+        <CollapsibleSection title="Grupos setoriais e observações"
+                            description="Compra pública, cana, agropecuário e informações adicionais"
+                            className="mt-4">
           {/* Grupos de nicho: compra pública, cana e agropecuário */}
           <div className="pt-3 border-t border-gray-100">
             <NicheGroupsFields value={nicheGroups} onChange={setNicheGroups}
@@ -2137,6 +2145,7 @@ export function NfeEmitForm() {
                       placeholder="Observações, dados ao fisco, pedido, etc. (opcional)" rows={3}/>
           </div>
         </CollapsibleSection>
+        </>
       )}
 
       {/* Emission failure — rendered next to the action bar that triggers it */}

@@ -81,13 +81,13 @@ contagem), e a troca do controle correspondente no mesmo commit.
 
 ## Fase 6 — visão simples e avançada
 
-- [ ] **Task 20: TaxFieldsEditor** — simples = CFOP + CST/CSOSN + PIS + COFINS e os condicionais que eles disparam
+- [x] **Task 20: TaxFieldsEditor** — simples = CFOP + CST/CSOSN + PIS + COFINS e os condicionais que eles disparam
   (já é o que `:161-224` faz). Os 11 toggles de grupo vão para uma seção "Outros impostos" com badge de quantos estão
   ativos, que `deriveTaxGroups` já calcula.
-- [ ] **Task 21: ProductForm** — cadastro rápido (código, descrição, NCM, origem, unidade, preço, CFOP, perfil fiscal) e
+- [x] **Task 21: ProductForm** — cadastro rápido (código, descrição, NCM, origem, unidade, preço, CFOP, perfil fiscal) e
   "mais campos" por aba; com perfil fiscal escolhido, o TaxFieldsEditor colapsa para um resumo com link "sobrescrever";
   blocos Importação/Reforma/Selo/Perigoso gateados por `prod_type` ou por um checklist explícito.
-- [ ] **Task 22: NfeEmitForm** — a gaveta única vira três: Transporte / Documentos e datas / Grupos setoriais; grupo que
+- [x] **Task 22: NfeEmitForm** — a gaveta única vira três: Transporte / Documentos e datas / Grupos setoriais; grupo que
   se torna obrigatório sobe para fora da gaveta, como `requiresNfRefs` já faz.
 - [x] **Task 23: OperationForm** — renomear "Mensagens fiscais" e separar retenções, reforma e grupos setoriais.
 

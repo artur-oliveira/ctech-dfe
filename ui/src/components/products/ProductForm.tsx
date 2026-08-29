@@ -135,6 +135,17 @@ const IS_SIMPLES = isRegimeSimples
 // Calculada uma vez por carga do módulo: a lista não muda durante a sessão.
 const VEHICLE_YEAR_OPTIONS = vehicleYearOptions()
 
+/** Grupos que não seguem o tipo do produto — qualquer produto pode ter qualquer um. */
+const EXTRA_GROUP_OPTIONS = [
+  {key: 'importacao', label: 'Origem importada, NVE ou código de barras próprio'},
+  {key: 'reforma', label: 'Crédito presumido ou regime da reforma (IBS/CBS)'},
+  {key: 'selo', label: 'Selo de controle do IPI'},
+  {key: 'perigoso', label: 'Classificação de produto perigoso'},
+] as const
+
+type ExtraGroupKey = typeof EXTRA_GROUP_OPTIONS[number]['key']
+type ExtraGroups = Record<ExtraGroupKey, boolean>
+
 /** Literais do leiaute — nunca digitados, sempre escritos por um controle. */
 const SEM_GTIN = 'SEM GTIN'
 const ANVISA_ISENTO = 'ISENTO'
@@ -687,6 +698,18 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   // Remonta o TaxFieldsEditor para zerar seus toggles internos quando
   // uma linha de CFOP é adicionada à lista.
   const [taxEditorKey, setTaxEditorKey] = useState(0)
+  const [taxOverrideOpen, setTaxOverrideOpen] = useState(false)
+  // Nasce marcado o grupo que já tem dado, senão editar um produto existente
+  // esconderia campos preenchidos.
+  const [extraGroups, setExtraGroups] = useState<ExtraGroups>(() => {
+    const p = initialData
+    return {
+      importacao: !!(p?.nve?.length || p?.n_fci || p?.c_barra || p?.c_barra_trib),
+      reforma: !!(p?.gcred?.length || p?.tp_cred_pres_ibs_zfm || p?.ind_bem_movel_usado),
+      selo: !!(p?.ipi_c_selo || p?.ipi_q_selo || p?.ipi_c_enq || p?.ipi_cnpj_prod),
+      perigoso: !!(p?.peri_n_onu || p?.peri_x_nome_ae || p?.peri_x_cla_risco || p?.peri_gr_emb),
+    }
+  })
   const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
   // Perfis fiscais vinculados. Fora do zod de propósito: o productSchema já é
   // grande o bastante para que mais um array aninhado estoure a inferência do
@@ -987,6 +1010,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
   // Quantos campos com erro cada aba tem — o badge é o que faz o submit falho
   // apontar para onde o operador precisa ir.
+  // O editor completo fica recolhido enquanto um perfil fiscal responder pela
+  // tributação e não houver linha própria nem intenção explícita de sobrescrever.
+  const taxOverrideCollapsed = taxProfileIds.length > 0 && cfopConfig.length === 0 && !taxOverrideOpen
+
   const errorsByTab = Object.keys(form.formState.errors).reduce<Record<string, number>>((acc, field) => {
     const tab = tabOfField(field)
     acc[tab] = (acc[tab] ?? 0) + 1
@@ -1411,32 +1438,48 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               )}
             </div>
 
-            {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
-            <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
-                             groups={taxGroups} onGroupsChange={setTaxGroups}
-                             emitUf={uf} destUf={uf} ncm={watchedNcm}/>
+            {/* Com um perfil escolhido, a tributação já está respondida: manter os
+                ~60 campos abertos embaixo faz o perfil parecer meia solução. */}
+            {taxOverrideCollapsed ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
+                <p className="text-sm text-gray-600">
+                  Tributação definida pelo{taxProfileIds.length > 1 ? 's' : ''} perfil
+                  {taxProfileIds.length > 1 ? 's' : ''} selecionado{taxProfileIds.length > 1 ? 's' : ''}.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={() => setTaxOverrideOpen(true)}>
+                  Sobrescrever neste produto
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
+                <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
+                                 groups={taxGroups} onGroupsChange={setTaxGroups}
+                                 emitUf={uf} destUf={uf} ncm={watchedNcm}/>
 
-            {/* Overrides por UF de destino — só preenche o que diverge */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Overrides por UF de destino (opcional)
-              </p>
-              <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
-                                 simples={simples}/>
-            </div>
+                {/* Overrides por UF de destino — só preenche o que diverge */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Overrides por UF de destino (opcional)
+                  </p>
+                  <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
+                                     simples={simples}/>
+                </div>
 
-            {/* ── Erros + botão ────────────────────────────────────────── */}
-            {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}
-            {form.formState.errors.cfop_config && (
-              <p className="text-[0.8rem] font-medium text-destructive">
-                {form.formState.errors.cfop_config.message ?? form.formState.errors.cfop_config.root?.message}
-              </p>
+                {/* ── Erros + botão ────────────────────────────────────── */}
+                {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}
+                {form.formState.errors.cfop_config && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {form.formState.errors.cfop_config.message ?? form.formState.errors.cfop_config.root?.message}
+                  </p>
+                )}
+
+                <Button type="button" variant="ghost" size="sm" onClick={addCfop}
+                        className="text-brand-600 hover:text-brand-700 px-0">
+                  + Adicionar CFOP
+                </Button>
+              </>
             )}
-
-            <Button type="button" variant="ghost" size="sm" onClick={addCfop}
-                    className="text-brand-600 hover:text-brand-700 px-0">
-              + Adicionar CFOP
-            </Button>
 
             {/* ── Lista de CFOPs configurados ──────────────────────────── */}
             {cfopConfig.length > 0 && (
@@ -1600,191 +1643,216 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               </div>
             )}
 
-            {/* ── Importação e códigos próprios ───────────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Importação e códigos próprios
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control} name="nve" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>NVE (até 8, separados por vírgula)</FormLabel>
-                    <Input id={field.name} value={(field.value ?? []).join(', ')}
-                           placeholder="AA0001, BB0002"
-                           onChange={(e) => field.onChange(
-                             e.target.value.split(',').map((v) => v.trim().toUpperCase()).filter(Boolean),
-                           )}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="n_fci" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Número da FCI</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={36}
-                           placeholder="UUID da Ficha de Conteúdo de Importação"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="n_recopi" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>RECOPI (papel imune)</FormLabel>
-                    <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={20}
-                                  placeholder="20 dígitos" onChange={field.onChange}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="c_barra" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Código de barras próprio</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="c_barra_trib" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Código de barras da unidade tributável</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+            {/* Checklist do que este produto tem. Sem ele, um parafuso genérico
+                pedia importação, reforma, selo de IPI e produto perigoso. */}
+            <div className="rounded-lg border border-gray-100 p-4 space-y-2">
+              <p className="text-sm font-medium text-gray-700">Este produto também tem:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                {EXTRA_GROUP_OPTIONS.map(({key, label}) => (
+                  <label key={key} htmlFor={`extra-${key}`}
+                         className="flex min-h-11 items-center gap-2 text-sm text-gray-700 sm:min-h-0 sm:py-1">
+                    <input type="checkbox" id={`extra-${key}`} className="size-4"
+                           checked={extraGroups[key]}
+                           onChange={(e) => setExtraGroups((g) => ({...g, [key]: e.target.checked}))}/>
+                    {label}
+                  </label>
+                ))}
               </div>
             </div>
 
-            {/* ── Reforma tributária — nível produto ──────────────────── */}
-            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Reforma tributária (IBS/CBS) — produto
-              </p>
-              <p className="text-xs text-gray-500">
-                Crédito presumido da UF, subapuração na ZFM e bem móvel usado. As alíquotas e os CSTs
-                do IBS/CBS ficam na aba Tributação, por CFOP.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control} name="tp_cred_pres_ibs_zfm" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Subapuração do IBS na ZFM</FormLabel>
-                    <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                   options={TP_CRED_PRES_IBS_ZFM_OPTIONS} placeholder="Não se aplica"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="ind_bem_movel_usado" render={({field}) => (
-                  <FormItem>
-                    <label htmlFor={field.name}
-                           className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
-                      <input type="checkbox" id={field.name}
-                             checked={field.value === IND_BEM_MOVEL_USADO_SIM}
-                             onChange={(e) => field.onChange(e.target.checked ? IND_BEM_MOVEL_USADO_SIM : '')}
-                             className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
-                      Fornecimento de bem móvel usado
-                    </label>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+            {extraGroups.importacao && (<>
+              {/* ── Importação e códigos próprios ───────────────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Importação e códigos próprios
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="nve" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>NVE (até 8, separados por vírgula)</FormLabel>
+                      <Input id={field.name} value={(field.value ?? []).join(', ')}
+                             placeholder="AA0001, BB0002"
+                             onChange={(e) => field.onChange(
+                               e.target.value.split(',').map((v) => v.trim().toUpperCase()).filter(Boolean),
+                             )}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="n_fci" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Número da FCI</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={36}
+                             placeholder="UUID da Ficha de Conteúdo de Importação"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="n_recopi" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>RECOPI (papel imune)</FormLabel>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={20}
+                                    placeholder="20 dígitos" onChange={field.onChange}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="c_barra" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código de barras próprio</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="c_barra_trib" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código de barras da unidade tributável</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
               </div>
-              <GCredEditor form={form}/>
-            </div>
+            </>)}
 
-            {/* ── IPI — selo de controle e enquadramento ──────────────── */}
-            <div className="rounded-lg border border-gray-100 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                IPI — selo de controle
-              </p>
-              <p className="text-xs text-gray-500">
-                Só para produto com selo (bebidas, cigarros). O enquadramento legal (cEnq) sai como
-                <span className="font-medium"> 999</span> quando não informado.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control} name="ipi_cnpj_prod" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>CNPJ do produtor</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={18}
-                           placeholder="Somente números"
-                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Enquadramento legal (cEnq)</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
-                           inputMode="numeric" placeholder="999"
-                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="ipi_c_selo" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Código do selo</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="ipi_q_selo" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Quantidade de selos</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={12}
-                           inputMode="numeric"
-                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+            {extraGroups.reforma && (<>
+              {/* ── Reforma tributária — nível produto ──────────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Reforma tributária (IBS/CBS) — produto
+                </p>
+                <p className="text-xs text-gray-500">
+                  Crédito presumido da UF, subapuração na ZFM e bem móvel usado. As alíquotas e os CSTs
+                  do IBS/CBS ficam na aba Tributação, por CFOP.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="tp_cred_pres_ibs_zfm" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Subapuração do IBS na ZFM</FormLabel>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={TP_CRED_PRES_IBS_ZFM_OPTIONS} placeholder="Não se aplica"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ind_bem_movel_usado" render={({field}) => (
+                    <FormItem>
+                      <label htmlFor={field.name}
+                             className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" id={field.name}
+                               checked={field.value === IND_BEM_MOVEL_USADO_SIM}
+                               onChange={(e) => field.onChange(e.target.checked ? IND_BEM_MOVEL_USADO_SIM : '')}
+                               className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+                        Fornecimento de bem móvel usado
+                      </label>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+                <GCredEditor form={form}/>
               </div>
-            </div>
+            </>)}
 
-            {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
-            <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">
-              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
-                Produto perigoso (MDF-e)
-              </p>
-              <p className="text-xs text-gray-500">
-                Preencha só se o produto for classificado como perigoso. O MDF-e monta o grupo
-                <span className="font-medium"> peri</span> sozinho a partir daqui — nunca é perguntado por viagem.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control} name="peri_n_onu" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Número ONU</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={4}
-                           inputMode="numeric" placeholder="Ex: 1203"
-                           onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="peri_x_nome_ae" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Nome apropriado para embarque</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={150}
-                           placeholder="Ex: GASOLINA"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="peri_x_cla_risco" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Classe de risco</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={40}
-                           placeholder="Ex: 3"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="peri_gr_emb" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>Grupo de embalagem</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={6}
-                           placeholder="Ex: II"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="peri_q_vol_tipo" render={({field}) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Tipo de volume transportado</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
-                           placeholder="Ex: TAMBOR"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+            {extraGroups.selo && (<>
+              {/* ── IPI — selo de controle e enquadramento ──────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  IPI — selo de controle
+                </p>
+                <p className="text-xs text-gray-500">
+                  Só para produto com selo (bebidas, cigarros). O enquadramento legal (cEnq) sai como
+                  <span className="font-medium"> 999</span> quando não informado.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="ipi_cnpj_prod" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>CNPJ do produtor</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={18}
+                             placeholder="Somente números"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Enquadramento legal (cEnq)</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
+                             inputMode="numeric" placeholder="999"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_c_selo" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código do selo</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_q_selo" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Quantidade de selos</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={12}
+                             inputMode="numeric"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
               </div>
-            </div>
+            </>)}
+
+            {extraGroups.perigoso && (<>
+              {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
+              <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                  Produto perigoso (MDF-e)
+                </p>
+                <p className="text-xs text-gray-500">
+                  Preencha só se o produto for classificado como perigoso. O MDF-e monta o grupo
+                  <span className="font-medium"> peri</span> sozinho a partir daqui — nunca é perguntado por viagem.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="peri_n_onu" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Número ONU</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                             inputMode="numeric" placeholder="Ex: 1203"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_x_nome_ae" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Nome apropriado para embarque</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={150}
+                             placeholder="Ex: GASOLINA"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_x_cla_risco" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Classe de risco</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={40}
+                             placeholder="Ex: 3"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_gr_emb" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Grupo de embalagem</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={6}
+                             placeholder="Ex: II"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_q_vol_tipo" render={({field}) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Tipo de volume transportado</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
+                             placeholder="Ex: TAMBOR"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+              </div>
+            </>)}
 
             {/* ── Veículo novo (veicProd) ─────────────────────────────── */}
             {watchedProdType === 'veiculo' && (
