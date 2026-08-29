@@ -190,6 +190,17 @@ type mismatch struct {
 	Reason    string
 }
 
+// enrichedTable is the one table whose copy is deliberately NOT identical to
+// its source: the company record gains the platform identity, which is what
+// every issuer document is read from after the flip.
+//
+// Its rows are compared with the identity removed from the copy, so the check
+// still catches a row whose real content changed. What it cannot catch is a
+// wrong identity — identityVerified does that, separately, because "the copy
+// matches" and "the identity is right" are two questions and one answer for
+// both would hide either.
+const enrichedTable = "organizations"
+
 // verify compares what was copied against what was there.
 //
 // Counts AND bodies: a count-only check passes on a copy that wrote every row

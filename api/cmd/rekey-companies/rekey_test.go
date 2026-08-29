@@ -231,11 +231,11 @@ func TestTheComparisonIgnoresThePartitionKey(t *testing.T) {
 		"pk": &types.AttributeValueMemberS{Value: "cmp_1"},
 		"sk": &types.AttributeValueMemberS{Value: "AK1"},
 	}
-	a, err := canonicalBody(source)
+	a, err := canonicalBody(source, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := canonicalBody(copied)
+	b, err := canonicalBody(copied, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,11 +249,68 @@ func TestTheComparisonIgnoresThePartitionKey(t *testing.T) {
 func TestTheComparisonNoticesEveryOtherAttribute(t *testing.T) {
 	a, _ := canonicalBody(map[string]types.AttributeValue{
 		"pk": &types.AttributeValueMemberS{Value: "x"}, "status": &types.AttributeValueMemberS{Value: "authorized"},
-	})
+	}, false)
 	b, _ := canonicalBody(map[string]types.AttributeValue{
 		"pk": &types.AttributeValueMemberS{Value: "y"}, "status": &types.AttributeValueMemberS{Value: "cancelled"},
-	})
+	}, false)
 	if a == b {
 		t.Fatal("two rows with different content compared as identical")
+	}
+}
+
+// The company record is the one table whose copy is deliberately not identical:
+// the migration adds the platform identity. Comparing it would report every
+// company as a mismatch and make the verification useless exactly where it
+// matters most.
+func TestTheIdentityIsExcludedFromTheCompanyRecordComparison(t *testing.T) {
+	source := map[string]types.AttributeValue{
+		"pk":   &types.AttributeValueMemberS{Value: "CNPJ_11222333000181"},
+		"name": &types.AttributeValueMemberS{Value: "ACME"},
+	}
+	enriched := map[string]types.AttributeValue{
+		"pk":              &types.AttributeValueMemberS{Value: "cmp_1"},
+		"name":            &types.AttributeValueMemberS{Value: "ACME"},
+		"organization_id": &types.AttributeValueMemberS{Value: "org_1"},
+		"tax_id":          &types.AttributeValueMemberS{Value: "11222333000181"},
+		"tax_id_kind":     &types.AttributeValueMemberS{Value: "cnpj"},
+		"legal_name":      &types.AttributeValueMemberS{Value: "ACME"},
+	}
+	a, err := canonicalBody(source, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := canonicalBody(enriched, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Fatalf("the enriched company record compared as different:\n  %s\n  %s", a, b)
+	}
+}
+
+// And the exclusion must not hide a real change: a row whose actual content
+// differs still fails, identity or not.
+func TestTheExclusionStillCatchesARealChange(t *testing.T) {
+	a, _ := canonicalBody(map[string]types.AttributeValue{
+		"name": &types.AttributeValueMemberS{Value: "ACME"},
+	}, true)
+	b, _ := canonicalBody(map[string]types.AttributeValue{
+		"name":   &types.AttributeValueMemberS{Value: "OUTRA"},
+		"tax_id": &types.AttributeValueMemberS{Value: "11222333000181"},
+	}, true)
+	if a == b {
+		t.Fatal("a changed name passed because the identity was excluded")
+	}
+}
+
+// Every other table keeps the strict comparison. Excluding the identity there
+// would hide a real difference in a document.
+func TestOtherTablesKeepTheStrictComparison(t *testing.T) {
+	a, _ := canonicalBody(map[string]types.AttributeValue{
+		"tax_id": &types.AttributeValueMemberS{Value: "11222333000181"},
+	}, false)
+	b, _ := canonicalBody(map[string]types.AttributeValue{}, false)
+	if a == b {
+		t.Fatal("tax_id was excluded on a table that is not the company record")
 	}
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"gopkg.aoctech.app/api-commons/dynamo"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // store is every DynamoDB call this tool makes, behind one type so the planner
@@ -81,9 +83,19 @@ func (s *store) listLegacyOrganizations(ctx context.Context) ([]string, error) {
 			return nil, fmt.Errorf("scanning organizations: %w", err)
 		}
 		for _, item := range res.Items {
-			if pk := attrS(item, "pk"); pk != "" {
-				out = append(out, pk)
+			pk := attrS(item, "pk")
+			if pk == "" {
+				continue
 			}
+			// Skip what this tool already wrote. After -apply the table holds
+			// both eras, and a company id has no source_ref to map — so
+			// without this, -verify plans for its own copies and refuses, and
+			// a second -apply refuses too. The copy is what makes the scan
+			// return rows that were not there when it started.
+			if repositories.IsCompanyKey(pk) {
+				continue
+			}
+			out = append(out, pk)
 		}
 		if len(res.LastEvaluatedKey) == 0 {
 			return out, nil
@@ -97,7 +109,7 @@ func (s *store) listLegacyOrganizations(ctx context.Context) ([]string, error) {
 //
 // The organizations table has no sort key, which is why the empty string is a
 // valid key here rather than a bug.
-func (s *store) readPartition(ctx context.Context, tableName, pk string) (map[string]string, error) {
+func (s *store) readPartition(ctx context.Context, tableName, pk string, dropIdentity bool) (map[string]string, error) {
 	base := dynamo.NewBase(s.db, s.dfePrefix, tableName)
 	out := map[string]string{}
 	var start map[string]types.AttributeValue
@@ -112,7 +124,7 @@ func (s *store) readPartition(ctx context.Context, tableName, pk string) (map[st
 			return nil, fmt.Errorf("reading %s/%s: %w", tableName, pk, err)
 		}
 		for _, item := range res.Items {
-			body, err := canonicalBody(item)
+			body, err := canonicalBody(item, dropIdentity)
 			if err != nil {
 				return nil, err
 			}
@@ -188,12 +200,30 @@ func identityAttrs(m *mapping) map[string]types.AttributeValue {
 	}
 }
 
-// canonicalBody renders an item for comparison, with pk removed — it is the one
-// attribute the copy is supposed to change.
-func canonicalBody(item map[string]types.AttributeValue) (string, error) {
+// identityFields are what the migration deliberately adds to the company
+// record. They are excluded from the body comparison for that table, and
+// checked on their own instead.
+var identityFields = map[string]bool{
+	"organization_id": true,
+	"tax_id":          true,
+	"tax_id_kind":     true,
+	"legal_name":      true,
+}
+
+// canonicalBody renders an item for comparison.
+//
+// pk is removed — it is the one attribute the copy is supposed to change. On
+// the company record the identity is removed too: the migration adds it on
+// purpose, so comparing it here would report every company as a mismatch and
+// make the verification useless exactly where it matters most. The identity is
+// checked separately.
+func canonicalBody(item map[string]types.AttributeValue, dropIdentity bool) (string, error) {
 	trimmed := make(map[string]types.AttributeValue, len(item))
 	for k, v := range item {
 		if k == "pk" {
+			continue
+		}
+		if dropIdentity && identityFields[k] {
 			continue
 		}
 		trimmed[k] = v
@@ -212,4 +242,34 @@ func attrS(item map[string]types.AttributeValue, key string) string {
 		return v.Value
 	}
 	return ""
+}
+
+// identityVerified checks the platform identity actually landed on the company
+// record, and matches what the mapping said.
+//
+// Separate from the body comparison on purpose: that one asks "is the copy the
+// same row", this one asks "did the enrichment happen and is it right". One
+// answer covering both would let a copy pass with an empty tax_id, which is a
+// company that cannot emit and reports itself migrated.
+func (s *store) identityVerified(ctx context.Context, m *mapping) []mismatch {
+	base := dynamo.NewBase(s.db, s.dfePrefix, enrichedTable)
+	item, err := base.GetItem(ctx, m.CompanyID)
+	if err != nil {
+		return []mismatch{{enrichedTable, m.CompanyID, "reading the company record: " + err.Error()}}
+	}
+	if item == nil {
+		return []mismatch{{enrichedTable, m.CompanyID, "the company record was not copied"}}
+	}
+	var out []mismatch
+	for field, want := range map[string]string{
+		"organization_id": m.OrganizationID,
+		"tax_id":          m.TaxID,
+		"tax_id_kind":     m.TaxIDKind,
+	} {
+		if got := attrS(item, field); got != want {
+			out = append(out, mismatch{enrichedTable, m.CompanyID,
+				fmt.Sprintf("%s is %q on the copy, want %q", field, got, want)})
+		}
+	}
+	return out
 }

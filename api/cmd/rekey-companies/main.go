@@ -171,17 +171,19 @@ func verifyOne(ctx context.Context, s *store, m *mapping) error {
 	for _, t := range tables {
 		for i, from := range partitionsFor(t, m.LegacyPK) {
 			to := partitionsFor(t, m.CompanyID)[i]
-			source, err := s.readPartition(ctx, t.Name, from)
+			dropIdentity := t.Name == enrichedTable
+			source, err := s.readPartition(ctx, t.Name, from, dropIdentity)
 			if err != nil {
 				return err
 			}
-			copied, err := s.readPartition(ctx, t.Name, to)
+			copied, err := s.readPartition(ctx, t.Name, to, dropIdentity)
 			if err != nil {
 				return err
 			}
 			all = append(all, verify(t.Name, to, source, copied)...)
 		}
 	}
+	all = append(all, s.identityVerified(ctx, m)...)
 	if len(all) == 0 {
 		fmt.Printf("  %s → %s: verified\n", m.LegacyPK, m.CompanyID)
 		return nil
