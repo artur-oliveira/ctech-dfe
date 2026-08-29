@@ -190,6 +190,17 @@ export interface AuthorizedViewerOut {
 
 export interface OrganizationOut {
   pk: string
+  /**
+   * Canonical tax id — mask stripped, letters uppercased. Read this, never the
+   * pk: since ctech-billing ADR 0022 the pk is a company id and carries no
+   * document. A CNPJ is alphanumeric in its first twelve positions, so this is
+   * not digits either.
+   *
+   * Optional while the company re-key migration is in flight: a record that has
+   * not been migrated yet carries none, and the pk is still a legacy key.
+   */
+  tax_id?: string
+  tax_id_kind?: 'cnpj' | 'cpf'
   name: string
   description: string
   person: PersonOut

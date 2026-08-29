@@ -1,15 +1,15 @@
 import type {OrganizationOut} from '@/lib/types/api'
 import {type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity'
-import {unformatCpfCnpj} from "@/lib/utils/document";
+import {orgIsPJ, orgTaxId} from "@/lib/utils/document";
 
 export type {EntityFormData as OrganizationFormData}
 
 export function organizationOutToFormData(org: OrganizationOut): EntityFormData {
   const {crt, addresses, state_registrations, contacts, nfse, ...rest} = org.person
-  const isPJ = org.pk.startsWith('CNPJ_')
+  const isPJ = orgIsPJ(org)
   return {
     tipo: isPJ ? 'pj' : 'pf',
-    cpf_or_cnpj: unformatCpfCnpj(org.pk),
+    cpf_or_cnpj: orgTaxId(org),
     name: org.name,
     description: org.description ?? '',
     // Organização não tem papéis; o campo existe só na variante 'person'.

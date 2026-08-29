@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCpfCnpj, unformatCpfCnpj, docLabel } from '@/lib/utils/document'
+import { formatCpfCnpj, unformatCpfCnpj, docLabel, orgTaxId, orgIsPJ } from '@/lib/utils/document'
 
 describe('unformatCpfCnpj', () => {
   it('remove prefixo CPF_', () => {
@@ -49,5 +49,72 @@ describe('docLabel', () => {
 
   it('retorna CNPJ para qualquer pk sem prefixo CPF_', () => {
     expect(docLabel('11222333000181')).toBe('CNPJ')
+  })
+})
+
+// The regression the company re-key exists for. These helpers are document
+// formatters, and a company id is not a document: it must come back untouched
+// rather than silently reshaped into a value the API refuses.
+describe('a key that is not a document', () => {
+  const companyId = '0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70'
+
+  it('unformatCpfCnpj leaves a company id exactly as it is', () => {
+    // Stripping its hyphens and uppercasing its hex produced
+    // 0199F3A18C427C319D5E6A2B4C8E1F70, which the API's IsCompanyKey rejects —
+    // so every screen in the product would have answered "organização inválida".
+    expect(unformatCpfCnpj(companyId)).toBe(companyId)
+  })
+
+  it('formatCpfCnpj leaves a company id exactly as it is', () => {
+    expect(formatCpfCnpj(companyId)).toBe(companyId)
+  })
+
+  it('docLabel calls a company id neither CPF nor CNPJ', () => {
+    // Labelling it "CNPJ" would print a wrong word next to a value that is not
+    // one. Empty is the honest answer; the caller decides whether to render it.
+    expect(docLabel(companyId)).toBe('')
+  })
+
+  it('still recognizes uppercase hex as a company id', () => {
+    // The canonical form is lowercase, but a value that round-tripped through
+    // an uppercasing helper must not then be treated as a document.
+    expect(unformatCpfCnpj('0199F3A1-8C42-7C31-9D5E-6A2B4C8E1F70'))
+      .toBe('0199F3A1-8C42-7C31-9D5E-6A2B4C8E1F70')
+  })
+
+  it('does not mistake a real document for a key', () => {
+    expect(unformatCpfCnpj('CNPJ_11222333000181')).toBe('11222333000181')
+    expect(docLabel('CPF_52998224725')).toBe('CPF')
+    expect(docLabel('CNPJ_11222333000181')).toBe('CNPJ')
+  })
+})
+
+// Mirrors services.IssuerDoc in the API. The two must agree on both eras, or
+// the screen shows one document and the XML carries another.
+describe('orgTaxId / orgIsPJ', () => {
+  const companyId = '0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70'
+
+  it('reads the record after the migration', () => {
+    const org = {pk: companyId, tax_id: '11222333000181', tax_id_kind: 'cnpj' as const}
+    expect(orgTaxId(org)).toBe('11222333000181')
+    expect(orgIsPJ(org)).toBe(true)
+  })
+
+  it('falls back to the legacy key before it', () => {
+    expect(orgTaxId({pk: 'CNPJ_11222333000181'})).toBe('11222333000181')
+    expect(orgIsPJ({pk: 'CNPJ_11222333000181'})).toBe(true)
+    expect(orgTaxId({pk: 'CPF_52998224725'})).toBe('52998224725')
+    expect(orgIsPJ({pk: 'CPF_52998224725'})).toBe(false)
+  })
+
+  // The whole point: a company id with no record behind it yields nothing, not
+  // the id. Returning the id is what put a UUID where a CNPJ belonged.
+  it('never returns the company id as a document', () => {
+    expect(orgTaxId({pk: companyId})).toBe('')
+  })
+
+  it('keeps a natural person natural under a company id', () => {
+    const org = {pk: companyId, tax_id: '52998224725', tax_id_kind: 'cpf' as const}
+    expect(orgIsPJ(org)).toBe(false)
   })
 })

@@ -3,7 +3,7 @@
 import type {OrganizationOut} from '@/lib/types/api'
 import {Button} from '@/components/ui/button'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-import {formatCpfCnpj} from "@/lib/utils/document";
+import {formatCpfCnpj, orgTaxId} from "@/lib/utils/document";
 
 export type Organization = OrganizationOut
 
@@ -46,7 +46,7 @@ export function OrganizationsTable({
         <tr key={org.pk} className={TABLE_ROW}>
           <td data-label="Nome" className={`${TABLE_CELL} text-sm text-gray-900 font-medium`}>{org.name}</td>
           <td
-            data-label="CNPJ/CPF" className={`${TABLE_CELL} text-sm text-gray-600`}>{formatCpfCnpj(org.pk.replace('CNPJ_', '').replace('CPF_', ''))}</td>
+            data-label="CNPJ/CPF" className={`${TABLE_CELL} text-sm text-gray-600`}>{formatCpfCnpj(orgTaxId(org))}</td>
           <td data-label="Nome Fantasia" className={`${TABLE_CELL} text-sm text-gray-600`}>{org.person.fantasy_name}</td>
           <td data-label="Data de Criação" className={`${TABLE_CELL} text-sm text-gray-600`}>
             {new Date(org.created_at).toLocaleDateString('pt-BR')}

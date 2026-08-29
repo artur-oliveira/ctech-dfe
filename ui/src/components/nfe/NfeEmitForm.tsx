@@ -65,7 +65,7 @@ import {PersonPicker} from '@/components/persons/PersonPicker'
 import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {resolveCfopScope} from '@/lib/data/cfop'
-import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
+import {formatCpfCnpj, orgTaxId, unformatCpfCnpj} from "@/lib/utils/document"
 import {
   buildNatOpFromCfops,
   cfopDirection,
@@ -350,7 +350,11 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
             aria-label="Destinatários encontrados"
             className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover overflow-hidden">
             {suggestions.map((p) => {
-              const cpfCnpj = unformatCpfCnpj(p.pk)
+              // The person's own document is the SK; the PK is the organization
+              // that registered them. Reading the PK here showed the issuer's
+              // CNPJ under every suggestion — and once the PK is a company id it
+              // would have shown a UUID.
+              const cpfCnpj = unformatCpfCnpj(p.sk)
               return (
                 <button
                   key={p.sk}
@@ -896,7 +900,9 @@ export function NfeEmitForm() {
 
   const favoriteReceivers = useMemo((): Array<{ name: string; cpfCnpj: string; count: number }> => {
     if (!recentNfes?.items) return []
-    const orgDoc = selectedOrg ? unformatCpfCnpj(selectedOrg.pk) : null
+    // The emitter's document goes into the XML. Off the record: the pk is a
+    // company id since ADR 0022 and carries none.
+    const orgDoc = selectedOrg ? orgTaxId(selectedOrg) : null
     const counts = new Map<string, { name: string; cpfCnpj: string; count: number }>()
     for (const nfe of recentNfes.items as NfeListOut[]) {
       if (nfe.incoming || !nfe.dest_cpf_cnpj) continue
@@ -1225,7 +1231,7 @@ export function NfeEmitForm() {
       : (product.cfop_config[0]?.cfop ?? product.cfop_nfce ?? '')
     // NF-e: consumer-final price for CPF, resale price for CNPJ (self-issuance = org CNPJ).
     const recipientDoc = selfIssuance
-      ? unformatCpfCnpj(selectedOrg?.pk ?? '')
+      ? (selectedOrg ? orgTaxId(selectedOrg) : '')
       : unformatCpfCnpj(receiver?.sk ?? '')
     setProducts(prev => [...prev, {
       product, cfop: resolvedCfop, cfopSuffix: firstSuffix, qty: '1',

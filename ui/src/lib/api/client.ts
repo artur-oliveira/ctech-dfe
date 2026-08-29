@@ -101,6 +101,19 @@ import type {
 // the browser never makes a cross-origin request, so CORS never applies.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 export const ORG_HEADER = 'Dfe-Organization-Pk'
+
+/**
+ * The value of `Dfe-Organization-Pk`.
+ *
+ * Exported so the rule is testable: it was a line inside an interceptor, and it
+ * was wrong. `unformatCpfCnpj` strips a company id's hyphens and uppercases its
+ * hex, and the API's `IsCompanyKey` refuses that — so every request in the
+ * product would have failed with the cause three layers from the symptom.
+ *
+ * The header's NAME does not change. Renaming it is a coordinated two-app
+ * deploy for a word (see the constant's counterpart in middleware/rbac.go).
+ */
+export const orgHeaderValue = (org: {pk: string}): string => unformatCpfCnpj(org.pk)
 const OPEN_CNPJ_API_URL = 'https://open.cnpja.com'
 const OPEN_CNPJ_DOCUMENT_LENGTH = 14
 const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000
@@ -219,7 +232,7 @@ function createAxiosInstance(): AxiosInstance {
       if (orgRaw) {
         try {
           const org = JSON.parse(orgRaw) as { pk: string }
-          if (org?.pk) config.headers[ORG_HEADER] = unformatCpfCnpj(org.pk)
+          if (org?.pk) config.headers[ORG_HEADER] = orgHeaderValue(org)
         } catch {
           // ignore malformed storage
         }
@@ -383,6 +396,10 @@ class ApiClient {
     return this.del<void>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
   }
 
+  // The organization path segments below go through unformatCpfCnpj because a
+  // legacy key travels as a bare document; a company id passes through it
+  // untouched, so both eras address the right organization. The second argument
+  // on removeAuthorizedViewer is a person's document and is unrelated.
   async addAuthorizedViewer(orgPk: string, data: { cpf_or_cnpj: string; name: string }): Promise<OrganizationOut> {
     return this.post<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(orgPk)}/authorized-viewers`, data)
   }
