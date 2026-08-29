@@ -72,6 +72,12 @@ export default function GuideCadastros() {
                 <li><b>Valor de revenda</b> — preço sugerido, separado do valor de custo.</li>
               </GuideBullets>
               <p>
+                Na aba <b>Tipo Especial</b>, marque em <b>Este produto também tem</b> só o que se
+                aplica: origem importada, regime da reforma, selo do IPI ou classificação de produto
+                perigoso. O que não é marcado não aparece — um parafuso não precisa responder sobre
+                número ONU.
+              </p>
+              <p>
                 O catálogo de <b>serviços</b> é o equivalente para NFS-e: código de tributação
                 nacional, alíquota de ISS e valor padrão do serviço.
               </p>
@@ -105,6 +111,11 @@ export default function GuideCadastros() {
               <p>
                 A natureza marcada como padrão já vem selecionada em toda emissão nova. Sobrescrever
                 um campo na nota sempre vence o que veio do cadastro.
+              </p>
+              <p>
+                Com um perfil escolhido no produto, a aba <b>Tributação</b> mostra só um resumo — a
+                tributação já está respondida. O botão <b>Sobrescrever neste produto</b> abre a tabela
+                completa quando um item precisa fugir da regra do perfil.
               </p>
             </>
           ),
