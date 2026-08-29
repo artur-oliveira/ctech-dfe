@@ -1,6 +1,8 @@
 import {z} from 'zod'
 import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods'
 import {IPI_CENQ} from '@/lib/data/ipi_cenq'
+import {ANP_CODE_SET} from '@/lib/data/anp'
+import {isValidVehicleTypePair} from '@/lib/data/vehicle_type_pairs'
 
 export const conversionFactorSchema = z.object({
   origin_unit: z
@@ -486,6 +488,20 @@ export const productSchema = productSchemaBase.superRefine((data, ctx) => {
       code: 'custom',
       path: ['peri_gr_emb'],
       message: 'Esta classe de risco não recebe grupo de embalagem',
+    })
+  }
+
+  // cProdANP inexistente é rejeição de item; a tabela da ANP é fechada.
+  if (filled(data.comb_c_prod_anp) && !ANP_CODE_SET.has(data.comb_c_prod_anp as string)) {
+    ctx.addIssue({code: 'custom', path: ['comb_c_prod_anp'], message: 'Código não existe na tabela da ANP'})
+  }
+
+  // Tipo e espécie de veículo não são independentes: a SEFAZ publica os pares.
+  if (!isValidVehicleTypePair(data.veic_tp_veic, data.veic_esp_veic)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['veic_esp_veic'],
+      message: 'Esta espécie não existe para o tipo de veículo escolhido',
     })
   }
 

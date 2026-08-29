@@ -18,6 +18,9 @@ import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
+import {ANP_OPTIONS, anpMonoFuel} from '@/lib/data/anp'
+import {benefitOptionsForUf} from '@/lib/data/cbenef'
+import {especieOptionsForTipo} from '@/lib/data/vehicle_type_pairs'
 import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
@@ -793,6 +796,16 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const watchedProdType = useWatch({control: form.control, name: 'prod_type'})
   const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'})
   const watchedRiskClass = useWatch({control: form.control, name: 'peri_x_cla_risco'})
+  const watchedAnp = useWatch({control: form.control, name: 'comb_c_prod_anp'})
+  const selectedFuel = anpMonoFuel(watchedAnp)
+  // O código de benefício vale por UF e por CST; a linha de tributação em
+  // edição é quem sabe o CST.
+  const watchedTpVeic = useWatch({control: form.control, name: 'veic_tp_veic'})
+  const especieOptions = useMemo(() => especieOptionsForTipo(watchedTpVeic), [watchedTpVeic])
+  const benefitOptions = useMemo(
+    () => benefitOptionsForUf(uf, cfopRow.icms ?? cfopRow.csosn),
+    [uf, cfopRow.icms, cfopRow.csosn],
+  )
   // O CST do IPI decide a faixa de enquadramento aceita (RV W16-10).
   const cEnqOptions = useMemo(() => cEnqOptionsForCst(cfopRow.ipi_cst), [cfopRow.ipi_cst])
   const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit
@@ -1129,8 +1142,16 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               <FormField control={form.control} name="c_benef" render={({field}) => (
                 <FormItem>
                   <FormLabel>Código de benefício fiscal <GlossaryTerm term="c_benef"/></FormLabel>
-                  <Input {...field} id={field.name} value={field.value ?? ''}
-                         placeholder="Ex: SP123456 ou SEM CBENEF" maxLength={10}/>
+                  {/* A tabela é por UF: oferecer o código de outro estado é
+                      oferecer uma rejeição. Sem tabela publicada, segue livre. */}
+                  {benefitOptions.length > 0 ? (
+                    <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                              options={benefitOptions} placeholder={`Benefício de ${uf}`}
+                              searchPlaceholder="Código ou descrição..." fuzzySearch/>
+                  ) : (
+                    <Input {...field} id={field.name} value={field.value ?? ''}
+                           placeholder="Ex: SP123456 ou SEM CBENEF" maxLength={10}/>
+                  )}
                   <FormMessage/>
                 </FormItem>
               )}/>
@@ -1546,9 +1567,20 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="comb_c_prod_anp" render={({field}) => (
                     <FormItem>
-                      <FormLabel>Código ANP (9 dígitos) *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={9}
-                                    placeholder="Ex: 210203001" onChange={field.onChange}/>
+                      <FormLabel>Código ANP *</FormLabel>
+                      <Combobox id={field.name} value={field.value ?? ''}
+                                onValueChange={(v) => {
+                                  field.onChange(v)
+                                  // A SEFAZ publica descrição, unidade, pBio e
+                                  // ad rem dos monofásicos: pedir isso de novo ao
+                                  // operador é pedir que ele erre uma cópia.
+                                  const fuel = anpMonoFuel(v)
+                                  if (!fuel) return
+                                  form.setValue('comb_desc_anp', fuel.description, {shouldDirty: true})
+                                  form.setValue('comb_p_bio', fuel.bioPercent, {shouldDirty: true})
+                                }}
+                                options={ANP_OPTIONS} placeholder="Código ou combustível"
+                                searchPlaceholder="Código ou nome do combustível..." fuzzySearch/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1556,7 +1588,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormItem>
                       <FormLabel>Descrição ANP *</FormLabel>
                       <Input {...field} id={field.name} value={field.value ?? ''}
+                             readOnly={!!selectedFuel}
                              placeholder="Ex: GASOLINA COMUM" maxLength={95}/>
+                      {selectedFuel && (
+                        <p className="text-[0.8rem] text-gray-500">
+                          Publicada pela SEFAZ · unidade {selectedFuel.taxableUnit} · ad rem do ICMS
+                          R$ {selectedFuel.adRemIcms}
+                        </p>
+                      )}
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1957,8 +1996,13 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_esp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Espécie RENAVAM *</FormLabel>
+                      {/* A espécie depende do tipo: a SEFAZ publica os pares, e
+                          escolher os dois em selects independentes deixava
+                          passar "caminhão de passageiro". */}
                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={VEIC_ESP_VEIC_OPTIONS} placeholder="Espécie"/>
+                                     options={especieOptions.length > 0 ? especieOptions : VEIC_ESP_VEIC_OPTIONS}
+                                     disabled={!watchedTpVeic}
+                                     placeholder={watchedTpVeic ? 'Espécie' : 'Escolha o tipo primeiro'}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>

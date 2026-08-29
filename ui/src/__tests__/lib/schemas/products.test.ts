@@ -199,3 +199,26 @@ describe('productSchema — tabelas oficiais de produto perigoso e IPI', () => {
     expect(pathsOf({...base, ipi_c_enq: '101'})).not.toContain('ipi_c_enq')
   })
 })
+
+describe('productSchema — tabelas da ANP e de veículo', () => {
+  const base = {
+    code: 'PROD1', description: 'Produto de teste', ncm: '84713012', origin: '0',
+    unit: 'UN', value: '10.00', ind_tot: '1' as const, cfop_nfce: '5102',
+    cfop_config: [], conversion_factors: [],
+  }
+
+  const pathsOf = (data: Record<string, unknown>): string[] => {
+    const result = productSchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('recusa código ANP inexistente e aceita o do GLP', () => {
+    expect(pathsOf({...base, comb_c_prod_anp: '999999999'})).toContain('comb_c_prod_anp')
+    expect(pathsOf({...base, comb_c_prod_anp: '210203001'})).not.toContain('comb_c_prod_anp')
+  })
+
+  it('recusa espécie que não existe para o tipo de veículo', () => {
+    expect(pathsOf({...base, veic_tp_veic: '2', veic_esp_veic: '9'})).toContain('veic_esp_veic')
+    expect(pathsOf({...base, veic_tp_veic: '2', veic_esp_veic: '1'})).not.toContain('veic_esp_veic')
+  })
+})

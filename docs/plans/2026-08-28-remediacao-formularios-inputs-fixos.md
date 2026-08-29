@@ -77,17 +77,21 @@ contagem), e a troca do controle correspondente no mesmo commit.
   Não existe tabela para picker; o campo segue texto validado por `\d{6}`. Reavaliar quando a RFB publicar.
 - [x] **Task 14:** cEnq IPI — 132 códigos da NT 2020.002 v1.01, com a faixa filtrada pelo CST (RV W16-10).
   O código do selo não tem tabela pública: segue texto.
-- [ ] **Task 15:** ANP combustível — `cProdANP` vira Combobox e `descANP` vira derivado read-only. **Pendente:**
-  ~993 códigos; precisa do arquivo oficial da ANP/SIMP, não de raspagem de site de terceiro (a comparação feita
-  na Task 12 mostrou que os sites republicadores trocam códigos).
+- [x] **Task 15:** ANP — 1.031 códigos do arquivo oficial da SEFAZ, mais os 40 monofásicos com descrição, unidade
+  tributável, pBio e ad rem do ICMS, que o formulário preenche sozinho ao escolher o combustível.
 - [x] **Task 16:** classe de risco (25 entradas, Res. ANTT 5.998/2022) e grupo de embalagem I/II/III, com as
   classes que não recebem grupo desabilitando o campo. **A tabela ONU (~3.500 números) fica pendente** — não
   cabe numa pesquisa web confiável; precisa do anexo da própria resolução.
-- [ ] **Task 17:** cBenef por UF. **Pendente:** não há tabela nacional — cada UF publica a sua, e o campo só faz
-  sentido filtrado pela UF do emitente. Comece por SP, MG e RS, que concentram o uso.
-- [ ] **Task 18:** banco BACEN. **Pendente:** conferi `ctech-go-common`, `ctech-billing`, `ctech-wallet` e `ctech-ui`
-  — nenhum tem a tabela, então ela é nova e, por ser reutilizável, o lugar certo é um pacote compartilhado, não
-  `ctech-dfe/ui`.
+- [x] **Task 17:** cBenef — 1.891 códigos de RS, SP, RJ, PR e ES, filtrados pela UF do emitente e, no RS (que
+  publica o par código × CST), também pelo CST da linha. UF sem tabela mantém o campo livre.
+- [ ] **Task 18:** banco BACEN. **Pendente:** não está entre as tabelas do portal da SEFAZ (é do BACEN), e conferi
+  `ctech-go-common`, `ctech-billing`, `ctech-wallet` e `ctech-ui` — nenhum tem. Por ser reutilizável, o lugar certo
+  é um pacote compartilhado, não `ctech-dfe/ui`.
+
+## Extra: pares de tipo × espécie de veículo
+
+- [x] `vehicle_type_pairs.ts` — a SEFAZ publica quais espécies existem para cada tipo, e os dois campos eram selects
+  independentes: "caminhão de passageiro" passava no cadastro e só era recusado na emissão.
 - [x] **Task 19:** strings mágicas viram controle: `SEM GTIN` (checkbox), `ISENTO` ANVISA (radio + campo desabilitado).
 
 ## Fase 6 — visão simples e avançada
