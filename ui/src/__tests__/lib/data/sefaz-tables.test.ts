@@ -4,6 +4,7 @@ import {benefitOptionsForUf, CBENEF_UFS, isKnownBenefit, SEM_CBENEF, ufHasBenefi
 import {especieOptionsForTipo, isValidVehicleTypePair, VEHICLE_TYPE_PAIRS} from '@/lib/data/vehicle_type_pairs'
 import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS, TPAG_LABELS, TPAG_TABLE} from '@/lib/data/payment-tables'
 import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CLASS_CODES, IBS_CBS_CST} from '@/lib/data/ibs_cbs_cst'
+import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit'
 
 describe('tabela da ANP', () => {
   it('traz os 1031 códigos oficiais, todos com 9 dígitos', () => {
@@ -122,5 +123,25 @@ describe('tabela de IBS/CBS', () => {
     expect(integral).toContain('000001')
     // 200002 é uma das 101 classificações ausentes antes desta tabela.
     expect(IBS_CBS_CLASS_CODES.has('200002')).toBe(true)
+  })
+})
+
+describe('unidade tributável por NCM', () => {
+  it('devolve a unidade publicada, com ou sem pontuação', () => {
+    // 0101.21.00 (cavalos reprodutores) é tributado em UN, não no KG default.
+    expect(taxableUnitForNcm('01012100')).toBe('UN')
+    expect(taxableUnitForNcm('0101.21.00')).toBe('UN')
+  })
+
+  it('cai no default para NCM sem exceção publicada', () => {
+    // 0201.10.00 (carcaças bovinas) usa o KG default; 8471.30.12 é UN.
+    expect(taxableUnitForNcm('02011000')).toBe('KG')
+    expect(taxableUnitForNcm('84713012')).toBe('UN')
+  })
+
+  it('devolve null para entrada que não é NCM', () => {
+    expect(taxableUnitForNcm('')).toBeNull()
+    expect(taxableUnitForNcm(null)).toBeNull()
+    expect(taxableUnitForNcm('123')).toBeNull()
   })
 })

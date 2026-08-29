@@ -122,3 +122,33 @@ contagem), e a troca do controle correspondente no mesmo commit.
 - [ ] Toda regra nova de schema tem teste que reprova o payload inválido.
 - [ ] Toda tabela nova tem fonte oficial citada e teste de integridade.
 - [ ] `DOCS.md` atualizado nos campos e controles que mudaram.
+
+
+## Conferência contra as tabelas do portal da SEFAZ (2026-08-28)
+
+O usuário baixou as tabelas do portal; conferi cada uma contra o que o código já tinha.
+
+**Divergências corrigidas:**
+
+- `cClassTrib` do IBS/CBS: o código tinha 63 das 164 classificações publicadas.
+- `tPag`: 12 e 13 (Vale Presente e Vale Combustível) eram tratados como PIX; faltavam 23, 24 e 91.
+- `tBand`: 8 das 28 bandeiras publicadas.
+- `cListServ`: derivava da tabela da NFS-e, que traz um 99.01 que o campo não aceita.
+
+**Conferidas e corretas, sem mudança:** NCM (10.515, cobertura exata), unidades de medida (61),
+`cCredPres` (13 — os rótulos são resumos deliberados), CST do IBS/CBS (18).
+
+**Tabelas novas geradas:** ANP (1.031 + 40 monofásicos com uTrib/pBio/adRem), cBenef (1.891 em
+RS/SP/RJ/PR/ES), pares tpVeic × espVeic (39), unidade tributável por NCM (10.515).
+
+### Pendente conhecido
+
+- [ ] **59 CFOPs vigentes ausentes de `cfop.ts`**, todos válidos em NF-e (`indNFe = 1`): 1131, 1132,
+  1135, 1159, 1213–1216, 1453–1456, 1657, 2131, 2132, 2135, 2159, 2213–2216, 2451–2456, 2657, 3552,
+  3667 e os equivalentes 5xxx/6xxx/7xxx. A tabela oficial (`IT_2023.002`) traz só código e flags,
+  **sem descrição** — e um CFOP sem descrição no dropdown é pior que ausente. Precisa da descrição do
+  Convênio SINIEF s/nº para entrar.
+- [ ] **Padrões de regime especial por UF** (`Tabela de Padrões de Regime Especial.xlsx`): traz a
+  expressão regular de `nProc` por UF; hoje o campo é livre. Só PR e SP publicam.
+- [ ] **Prefixo GS1**: útil para a mensagem de erro do GTIN dizer *qual* país/entidade emitiu o
+  código, não só que o dígito está errado.

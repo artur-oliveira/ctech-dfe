@@ -21,6 +21,7 @@ import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
 import {ANP_OPTIONS, anpMonoFuel} from '@/lib/data/anp'
 import {benefitOptionsForUf} from '@/lib/data/cbenef'
 import {especieOptionsForTipo} from '@/lib/data/vehicle_type_pairs'
+import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit'
 import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
@@ -802,6 +803,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   // edição é quem sabe o CST.
   const watchedTpVeic = useWatch({control: form.control, name: 'veic_tp_veic'})
   const especieOptions = useMemo(() => especieOptionsForTipo(watchedTpVeic), [watchedTpVeic])
+  // A SEFAZ publica a unidade em que cada NCM é tributado.
+  const ncmTaxableUnit = taxableUnitForNcm(watchedNcm)
   const benefitOptions = useMemo(
     () => benefitOptionsForUf(uf, cfopRow.icms ?? cfopRow.csosn),
     [uf, cfopRow.icms, cfopRow.csosn],
@@ -1304,8 +1307,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormItem>
                     <FormLabel>Un. Tributável</FormLabel>
                     <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                              options={UNIT_OPTIONS} placeholder="Igual à comercial"
+                              options={UNIT_OPTIONS}
+                              placeholder={ncmTaxableUnit ? `${ncmTaxableUnit} (do NCM)` : 'Igual à comercial'}
                               searchPlaceholder="Buscar unidade..."/>
+                    {ncmTaxableUnit && field.value && field.value !== ncmTaxableUnit && (
+                      <p className="text-[0.8rem] text-warning">
+                        A SEFAZ tributa este NCM em {ncmTaxableUnit}.
+                      </p>
+                    )}
                     <FormMessage/>
                   </FormItem>
                 )}/>
