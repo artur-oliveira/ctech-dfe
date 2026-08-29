@@ -64,7 +64,7 @@ re-keyed to `pk = {company_id}`:
 | Field | Source |
 |---|---|
 | `organization_id` | accounts; the workspace this company belongs to |
-| `tax_id`, `tax_id_kind`, `legal_name` | accounts; **a cache**, refreshed on read-through |
+| `tax_id`, `tax_id_kind`, `legal_name` | accounts; **a cache**, written once and never re-read (see below) |
 | every fiscal field | here; the DF-e is the authority |
 
 Two ids are stored, not one, because authorization needs both: the actor edge is
@@ -113,8 +113,25 @@ CNPJ, which is not ours to say — the person's own accountant is not our fact t
 
 ## What breaks when the key stops being a CNPJ
 
-Four places read the tax id back out of the partition key. Each fails silently under a UUID —
-no error, just wrong behaviour — so each is named here rather than left to be discovered.
+> **Corrected during implementation.** This section first said "four places", and the count was
+> taken from `internal/repositories` — where the claim is true, because no repository interprets
+> the key — then stated as if it covered the system. It did not. Two more groups were found by a
+> reader, not by this spec:
+>
+> - **The emission services read it 22 more times** (`StripPKPrefix(orgPK)`), and that value
+>   goes into signed XML. Worst of them: the chave de acesso, which embeds the issuer's CNPJ at
+>   positions 7–20 and truncates to fourteen characters — a company id would have put
+>   `0199f3a1-8c42-` inside a document's identity at SEFAZ. Two more are validations that fail
+>   *open*: the MDF-e's "the vehicle owner must differ from the issuer" never matches a UUID, so
+>   it silently stops refusing; and NF-e range invalidation tests the key for a `CPF_` prefix, so
+>   every issuer would look like a natural person and the whole path would refuse.
+> - **The browser reads it 7 more times**, one of which is the request header —
+>   `unformatCpfCnpj(org.pk)` strips a UUID's hyphens and uppercases its hex, which the API
+>   refuses, so every screen would have answered "organização inválida".
+>
+> Each fails silently under a UUID — no error, just wrong behaviour — which is what makes an
+> undercount here expensive. The four below are the original ones; the rest are in the plan as
+> Tasks 7 and 8.
 
 **1. `cnpjRoot` and matriz/filial certificate reuse.**
 `services/organizations.go:97` slices the raiz out of the PK, and `branchCertificate` uses it
