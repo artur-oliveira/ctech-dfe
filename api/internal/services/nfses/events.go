@@ -148,6 +148,13 @@ func (s *NfseService) resolveEventContext(ctx context.Context, orgPK, id string)
 	}
 	cert := certs[0]
 
+	// The issuer's federal registration comes off the record, not the key.
+	org, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	issuerDoc, _ := services.IssuerDocAV(org, orgPK)
+
 	pk := strAttr(item, "pk")
 	environment := 2
 	if strings.HasPrefix(pk, services.EnvProd+"#") {
@@ -162,7 +169,7 @@ func (s *NfseService) resolveEventContext(ctx context.Context, orgPK, id string)
 		item: item, pk: pk, idDPS: strAttr(item, "sk"), accessKey: accessKey,
 		provider: strAttr(item, "provider"), municipalityCode: strAttr(item, "c_loc_emi"),
 		environment: environment, sefazEnv: sefazEnv,
-		inscFederal: services.StripPKPrefix(orgPK),
+		inscFederal: issuerDoc,
 		certS3Key:   strAttr(cert, "s3_key"), certPass: strAttr(cert, "password"),
 	}, nil
 }

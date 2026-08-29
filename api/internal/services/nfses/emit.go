@@ -151,6 +151,13 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	// The issuer's document, off the record: the persisted row and the go-dfe
+	// envelope both need it.
+	emitDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	if emitDoc == "" {
+		return nil, problem.BadRequest("documento do emitente não encontrado")
+	}
+
 	if _, err := s.emitPreflight(orgItem, configItem); err != nil {
 		return nil, err
 	}
@@ -249,7 +256,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		"c_loc_emi":     doc.CLocEmi,
 		"year":          competence.Year(),
 		"month":         int(competence.Month()),
-		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
+		"emit_cpf_cnpj": emitDoc,
 		"emit_name":     strAttr(orgItem, "name"),
 		"dest_name":     strAttr(tomadorItem, "name"),
 		"dest_cpf_cnpj": personDoc(tomadorItem),
@@ -283,7 +290,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		TableName:        repositories.TableNfses,
 		S3Prefix:         S3PrefixNfse,
 		ExpectedFileName: idDPS,
-		CNPJ:             services.StripPKPrefix(orgPK),
+		CNPJ:             emitDoc,
 		UF:               "", // competência municipal: não há UF autorizadora
 		SefazEnvironment: sefazEnv,
 		CertS3Key:        strAttr(cert, "s3_key"),
@@ -328,7 +335,10 @@ func (s *NfseService) resolvePerson(ctx context.Context, orgPK string, id *strin
 	if id == nil {
 		return nil, nil
 	}
-	if services.StripPKPrefix(*id) == services.StripPKPrefix(orgPK) {
+	// The left side is a person's sort key, which really is a document. The
+	// right side is the issuer's, which the key no longer carries.
+	issuerDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	if issuerDoc != "" && services.StripPKPrefix(*id) == issuerDoc {
 		return orgItem, nil
 	}
 	item, err := s.personRepo.Get(ctx, orgPK, *id)

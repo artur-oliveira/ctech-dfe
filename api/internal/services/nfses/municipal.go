@@ -87,6 +87,14 @@ func (s *NfseService) callGoDfe(ctx context.Context, orgPK, service string, body
 	}
 	provider := strAttr(configItem, "provider")
 
+	// The issuer's document comes off the record: the key is a company id since
+	// ADR 0022 and carries none.
+	org, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nfse.Result{}, err
+	}
+	issuerDoc, _ := services.IssuerDocAV(org, orgPK)
+
 	certB64, certPassword, err := s.extSvc.CertificateB64(ctx, orgPK)
 	if err != nil {
 		return nfse.Result{}, err
@@ -101,7 +109,7 @@ func (s *NfseService) callGoDfe(ctx context.Context, orgPK, service string, body
 	}
 
 	resp, err := godfe.Call(ctx, godfe.Request{
-		CNPJ:                services.StripPKPrefix(orgPK),
+		CNPJ:                issuerDoc,
 		CertificateB64:      certB64,
 		CertificatePassword: certPassword,
 		UF:                  "", // competência municipal: não há UF autorizadora

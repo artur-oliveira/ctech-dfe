@@ -354,8 +354,8 @@ func newDistributionService(
 	)
 }
 
-func newExternalService(certRepo *repositories.CertificateRepository, clients *awsclient.Clients, cfg *config.Config) *services.ExternalService {
-	return services.NewExternalService(certRepo, clients, cfg.SefazFunctionName, cfg.S3BucketCerts)
+func newExternalService(certRepo *repositories.CertificateRepository, orgRepo *repositories.OrganizationRepository, clients *awsclient.Clients, cfg *config.Config) *services.ExternalService {
+	return services.NewExternalService(certRepo, orgRepo, clients, cfg.SefazFunctionName, cfg.S3BucketCerts)
 }
 
 func newWorkerService(clients *awsclient.Clients, cfg *config.Config) *services.WorkerService {

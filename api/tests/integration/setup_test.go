@@ -162,7 +162,7 @@ func TestMain(m *testing.M) {
 		repositories.NewDocumentEventRepository(db, cfg, nfses.DocTypeNfse),
 		repositories.NewNfseDistributionRepository(db, cfg),
 		services.NewWorkerService(&awsclient.Clients{}, "", tablePrefix),
-		services.NewExternalService(certRepo, &awsclient.Clients{}, "", "unused-test-bucket"),
+		services.NewExternalService(certRepo, orgRepo, &awsclient.Clients{}, "", "unused-test-bucket"),
 		billingSvc,
 		&awsclient.Clients{}, memCache, "unused-test-bucket",
 	)

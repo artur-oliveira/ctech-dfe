@@ -72,7 +72,10 @@ type LookupOrganizationResult struct {
 
 // ExternalService wraps SEFAZ external lookup operations (NfeConsultaCadastro).
 type ExternalService struct {
-	certRepo          *repositories.CertificateRepository
+	certRepo *repositories.CertificateRepository
+	// orgRepo resolves the issuer's document, which the partition key stopped
+	// carrying when it became a company id (ctech-billing ADR 0022).
+	orgRepo           *repositories.OrganizationRepository
 	clients           *awsclient.Clients
 	sefazFunctionName string
 	s3BucketCerts     string
@@ -81,12 +84,14 @@ type ExternalService struct {
 // NewExternalService constructs an ExternalService.
 func NewExternalService(
 	certRepo *repositories.CertificateRepository,
+	orgRepo *repositories.OrganizationRepository,
 	clients *awsclient.Clients,
 	sefazFunctionName string,
 	s3BucketCerts string,
 ) *ExternalService {
 	return &ExternalService{
 		certRepo:          certRepo,
+		orgRepo:           orgRepo,
 		clients:           clients,
 		sefazFunctionName: sefazFunctionName,
 		s3BucketCerts:     s3BucketCerts,
@@ -113,7 +118,11 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 		return nil, err
 	}
 
-	orgCNPJ := StripPKPrefix(orgPK)
+	org, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	orgCNPJ, _ := IssuerDocAV(org, orgPK)
 
 	isCNPJ := len(cpfCNPJ) == 14
 	docKey := "CPF"

@@ -133,8 +133,11 @@ func buildLocal(l *NfeLocalBody) map[string]any {
 	return m
 }
 
-// cnpjPrefix é o prefixo do sk/pk de pessoa jurídica no DynamoDB. Emitente,
-// destinatário, transportadora e intermediador decidem CNPJ vs CPF por ele.
+// cnpjPrefix é o prefixo do SK de pessoa jurídica no DynamoDB — destinatário,
+// transportadora e intermediador decidem CNPJ vs CPF por ele.
+//
+// Não vale para o emitente: desde a ADR 0022 a partition key da organização é
+// um company id e não carrega documento nenhum. Use services.IssuerDoc.
 const cnpjPrefix = "CNPJ_"
 
 func getPersonMap(entity map[string]any) map[string]any {

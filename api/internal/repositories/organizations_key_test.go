@@ -33,11 +33,11 @@ func TestParseOrgPKRefusesEverythingElse(t *testing.T) {
 	for _, in := range []string{
 		"",
 		"nope",
-		"0199f3a1-8c42-7c31-9d5e",               // short
-		"0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f7",   // one short
-		"0199f3a1_8c42_7c31_9d5e_6a2b4c8e1f70",  // wrong separators
+		"0199f3a1-8c42-7c31-9d5e",              // short
+		"0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f7",  // one short
+		"0199f3a1_8c42_7c31_9d5e_6a2b4c8e1f70", // wrong separators
 		"ORG#0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70",
-		"0199F3A1-8C42-7C31-9D5E-6A2B4C8E1F70",  // uppercase: not what uuid.String emits
+		"0199F3A1-8C42-7C31-9D5E-6A2B4C8E1F70", // uppercase: not what uuid.String emits
 	} {
 		if _, err := ParseOrgPK(in); err == nil {
 			t.Errorf("%q: accepted, want refused", in)

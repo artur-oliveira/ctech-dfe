@@ -328,7 +328,8 @@ func (s *DistributionService) orgContext(ctx context.Context, orgPK, docType str
 	if environment == 1 {
 		sefazEnv = SefazEnvProd
 	}
-	cnpj := StripPKPrefix(orgPK)
+	// Off the record: the key is a company id since ADR 0022.
+	cnpj, _ := IssuerDocAV(org, orgPK)
 	uf := distExtractUF(org)
 	cUF := UFCode[uf]
 	if cUF == "" {
