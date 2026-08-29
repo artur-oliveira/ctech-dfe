@@ -128,9 +128,45 @@ func (s *MembershipService) ListByUser(ctx context.Context, userID string) ([]Me
 	for _, it := range items {
 		out = append(out, *membershipFromItem(it))
 	}
+	out = preferCompanyKeys(out)
 
 	CacheSet(ctx, s.cache, userOrgsCacheKey(userID), out, userOrgsCacheTTL)
 	return out, nil
+}
+
+// preferCompanyKeys drops the legacy half of a re-keyed membership.
+//
+// ListByUser reads the user-index GSI by sk, which never touches the partition
+// key — so while the company re-key's old rows are still there it returns both
+// eras, and a person in two organizations comes back with four. That is not
+// cosmetic: ownedOrganizations counts this list, and the count IS the company
+// quota, so a plan for two would refuse the third at 4 of 2.
+//
+// The rule is all-or-nothing rather than per-row: if ANY membership is
+// company-keyed, this account has been through the re-key and its legacy rows
+// are the copies' source. A per-row pairing would need to know which legacy key
+// each company id came from, which is exactly the lookup the re-key removed.
+//
+// TEMPORARY. Once the legacy partitions are deleted this returns its input
+// unchanged, and the whole function can go with them.
+func preferCompanyKeys(memberships []Membership) []Membership {
+	var hasCompanyKey bool
+	for _, m := range memberships {
+		if repositories.IsCompanyKey(m.OrgPK) {
+			hasCompanyKey = true
+			break
+		}
+	}
+	if !hasCompanyKey {
+		return memberships
+	}
+	out := make([]Membership, 0, len(memberships))
+	for _, m := range memberships {
+		if repositories.IsCompanyKey(m.OrgPK) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // Create writes a membership and invalidates its caches. Idempotent.
