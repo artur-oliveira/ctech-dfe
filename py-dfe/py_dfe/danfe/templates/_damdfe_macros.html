@@ -107,6 +107,14 @@
     {{ fld("Nº VIAGEM", mi.aqua.nviag, "w10") }}
     {{ fld("PORTO EMB. / DEST.", mi.aqua.cprtemb ~ " / " ~ mi.aqua.cprtdest, "w20") }}
   </tr></table>
+  {% if mi.aqua.mmsi %}
+  <table class="grid rowtop"><tr>{{ fld("MMSI", mi.aqua.mmsi, "w20") }}</tr></table>
+  {% endif %}
+  {% if mi.aqua.balsas %}
+  <table class="grid rowtop"><tr>
+    {% for bl in mi.aqua.balsas %}{{ fld("BALSA " ~ loop.index, bl.nome ~ (" - " ~ bl.cod if bl.cod else "")) }}{% endfor %}
+  </tr></table>
+  {% endif %}
   {% elif mi.is_ferrov %}
   <table class="grid"><tr>
     {{ fld("PREFIXO TREM", mi.ferrov.xpref, "w20") }}

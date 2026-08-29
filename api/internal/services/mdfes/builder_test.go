@@ -198,3 +198,98 @@ func TestResolveOwner(t *testing.T) {
 		t.Errorf("CPF not normalised: %q", o.CPF)
 	}
 }
+
+func TestBuildMDFeLacres(t *testing.T) {
+	p := baseParams(nil)
+	p.seals = []string{"L1", "L2"}
+	p.rodoSeals = []string{"R1"}
+	p.portAgentCode = "AG-9"
+	inf := BuildMDFe(p)["MDFe"].(map[string]any)["infMDFe"].(map[string]any)
+	if len(inf["lacres"].([]map[string]any)) != 2 {
+		t.Fatalf("lacres da carga ausentes: %v", inf["lacres"])
+	}
+	rodo := inf["infModal"].(map[string]any)["rodo"].(map[string]any)
+	if len(rodo["lacRodo"].([]map[string]any)) != 1 {
+		t.Fatalf("lacRodo ausente: %v", rodo)
+	}
+	if rodo["codAgPorto"] != "AG-9" {
+		t.Fatalf("codAgPorto ausente: %v", rodo)
+	}
+}
+
+// Sem lacre nenhum os nós não existem — lista vazia o XSD recusa.
+func TestBuildMDFeSemLacres(t *testing.T) {
+	inf := BuildMDFe(baseParams(nil))["MDFe"].(map[string]any)["infMDFe"].(map[string]any)
+	if _, ok := inf["lacres"]; ok {
+		t.Fatalf("lacres não devia existir: %v", inf["lacres"])
+	}
+	rodo := inf["infModal"].(map[string]any)["rodo"].(map[string]any)
+	if _, ok := rodo["lacRodo"]; ok {
+		t.Fatalf("lacRodo não devia existir: %v", rodo)
+	}
+}
+
+// TestBuildIde_CanalVerdeECargaPosterior verifica os dois indicadores da
+// configuração: presentes só quando ligados, e sempre com o único valor que o
+// XSD aceita ("1").
+func TestBuildIde_CanalVerdeECargaPosterior(t *testing.T) {
+	p := baseParams(nil)
+	if got := ide(t, p); got["indCanalVerde"] != nil || got["indCarregaPosterior"] != nil {
+		t.Fatalf("indicadores desligados não devem sair: %v", got)
+	}
+
+	p.indCanalVerde = true
+	p.indCarregaPosterior = true
+	got := ide(t, p)
+	if got["indCanalVerde"] != "1" || got["indCarregaPosterior"] != "1" {
+		t.Fatalf("indicadores = %v/%v, want 1/1", got["indCanalVerde"], got["indCarregaPosterior"])
+	}
+}
+
+// TestBuildInfAdic_FiscoECpl confirma que a mensagem ao fisco (da configuração)
+// e a mensagem complementar (da viagem) convivem no mesmo infAdic.
+func TestBuildInfAdic_FiscoECpl(t *testing.T) {
+	p := baseParams(nil)
+	cpl := "CARGA CONSOLIDADA"
+	p.addInfo = &cpl
+	p.infAdFisco = "REGIME ESPECIAL 123"
+
+	out := BuildMDFe(p)
+	infAdic, ok := out["MDFe"].(map[string]any)["infMDFe"].(map[string]any)["infAdic"].(map[string]any)
+	if !ok {
+		t.Fatalf("infAdic ausente: %v", out)
+	}
+	if infAdic["infAdFisco"] != "REGIME ESPECIAL 123" || infAdic["infCpl"] != cpl {
+		t.Fatalf("infAdic = %v", infAdic)
+	}
+}
+
+// TestBuildInfAdic_SoFisco cobre a configuração com mensagem ao fisco e a
+// viagem sem observação: o grupo existe mesmo assim.
+func TestBuildInfAdic_SoFisco(t *testing.T) {
+	p := baseParams(nil)
+	p.infAdFisco = "REGIME ESPECIAL 123"
+	out := BuildMDFe(p)
+	infAdic, ok := out["MDFe"].(map[string]any)["infMDFe"].(map[string]any)["infAdic"].(map[string]any)
+	if !ok || infAdic["infAdFisco"] != "REGIME ESPECIAL 123" {
+		t.Fatalf("infAdic = %v", out["MDFe"])
+	}
+	if _, has := infAdic["infCpl"]; has {
+		t.Fatalf("infCpl não deveria existir: %v", infAdic)
+	}
+}
+
+// TestBuildProdPred_CEAN confirma que o GTIN do produto predominante é
+// derivado do documento referenciado, nunca perguntado por viagem.
+func TestBuildProdPred_CEAN(t *testing.T) {
+	p := baseParams(nil)
+	p.cargo.prodPred.CEAN = "7891234567895"
+	if got := p.buildProdPred()["cEAN"]; got != "7891234567895" {
+		t.Fatalf("cEAN = %v", got)
+	}
+
+	p.cargo.prodPred.CEAN = ""
+	if _, has := p.buildProdPred()["cEAN"]; has {
+		t.Fatal("sem GTIN no documento, cEAN não deve sair")
+	}
+}

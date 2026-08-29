@@ -5,6 +5,7 @@ import type {Resolver} from 'react-hook-form'
 import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {Input} from '@/components/ui/input'
+import {Textarea} from '@/components/ui/textarea'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {NumericInput} from '@/components/ui/numeric-input'
 import {OptionsSelect} from '@/components/ui/options-select'
@@ -63,6 +64,10 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
     prod_current_number: String(cfg?.prod_current_number ?? 1),
     hom_current_serie: String(cfg?.hom_current_serie ?? 0),
     hom_current_number: String(cfg?.hom_current_number ?? 1),
+    csrt_id: String(cfg?.csrt_id ?? ''),
+    // O CSRT nunca volta da API: o campo nasce vazio a cada abertura, e vazio
+    // no PUT significa "manter o que está gravado", não "apagar".
+    csrt: '',
   }
 
   if (variant === 'nfce') {
@@ -73,6 +78,16 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
       prod_csc_id: String(nfce?.prod_csc_id ?? ''),
       hom_csc: nfce?.hom_csc ?? '',
       hom_csc_id: String(nfce?.hom_csc_id ?? ''),
+    } as never;
+  }
+
+  if (variant === 'mdfe') {
+    const mdfe = data as MDFeConfigOut | undefined
+    return {
+      ...base,
+      ind_canal_verde: mdfe?.ind_canal_verde ?? false,
+      ind_carrega_posterior: mdfe?.ind_carrega_posterior ?? false,
+      inf_ad_fisco: mdfe?.inf_ad_fisco ?? '',
     } as never;
   }
 
@@ -88,6 +103,10 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
     prod_current_number: parseInt(d.prod_current_number, 10),
     hom_current_serie: parseInt(d.hom_current_serie, 10),
     hom_current_number: parseInt(d.hom_current_number, 10),
+    csrt_id: d.csrt_id || null,
+    // Chave ausente, não null: vazio significa "manter o gravado". Enviar null
+    // apagaria o segredo que a tela nunca chegou a exibir.
+    ...(d.csrt ? {csrt: d.csrt} : {}),
   }
 
   if (variant === 'nfce') {
@@ -97,6 +116,16 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
       prod_csc_id: parseInt(d.prod_csc_id, 10),
       hom_csc: d.hom_csc,
       hom_csc_id: parseInt(d.hom_csc_id, 10),
+    }
+  }
+
+  if (variant === 'mdfe') {
+    const m = data as unknown as MDFeConfigFormData
+    return {
+      ...base,
+      ind_canal_verde: m.ind_canal_verde,
+      ind_carrega_posterior: m.ind_carrega_posterior,
+      inf_ad_fisco: m.inf_ad_fisco || null,
     }
   }
 
@@ -139,6 +168,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
   }, [form, initialData, variant])
 
   const showCsc = variant === 'nfce'
+  const showMdfeFields = variant === 'mdfe'
   const showNsu = variant !== 'nfce'
   const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null
   const isProd = nsuConfig?.environment === 1
@@ -351,6 +381,110 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
             )}
           </section>
         </div>
+
+        {/* Campos que só existem no leiaute do MDF-e e recorrem em toda emissão. */}
+        {showMdfeFields && (
+          <section className="space-y-3 rounded-lg border border-gray-200 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Manifesto (MDF-e)
+            </p>
+            <p className="text-xs text-gray-500">
+              Valem para toda emissão da organização. A observação de uma viagem específica continua
+              sendo preenchida na emissão do manifesto.
+            </p>
+            <FormField
+              control={form.control}
+              name={'ind_canal_verde' as never}
+              render={({field}) => (
+                <FormItem>
+                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
+                    <input type="checkbox" checked={!!field.value}
+                           onChange={(e) => field.onChange(e.target.checked)}
+                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+                    <span className="text-sm text-gray-700">
+                      Participa do Canal Verde
+                      <span className="block text-xs text-gray-500">
+                        Programa de circulação simplificada de cargas nas fronteiras estaduais.
+                      </span>
+                    </span>
+                  </label>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={'ind_carrega_posterior' as never}
+              render={({field}) => (
+                <FormItem>
+                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
+                    <input type="checkbox" checked={!!field.value}
+                           onChange={(e) => field.onChange(e.target.checked)}
+                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+                    <span className="text-sm text-gray-700">
+                      Inclui carga depois de emitir
+                      <span className="block text-xs text-gray-500">
+                        Os documentos entram por evento de inclusão de DF-e após a autorização.
+                      </span>
+                    </span>
+                  </label>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={'inf_ad_fisco' as never}
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>Mensagem ao fisco</FormLabel>
+                  <Textarea {...field} value={(field.value as string) ?? ''} maxLength={2000} rows={3}
+                            className="w-full"
+                            placeholder="Ex.: regime especial concedido pelo processo nº …"/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+          </section>
+        )}
+
+        {/* Responsável técnico — CSRT (NT 2018.005). Vale para os dois ambientes. */}
+        <section className="space-y-3 rounded-lg border border-gray-200 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Responsável técnico (CSRT)
+          </p>
+          <p className="text-xs text-gray-500">
+            Algumas UFs exigem o CSRT. O código é secreto: ele nunca é devolvido pela API, então este
+            campo volta em branco a cada abertura — deixá-lo vazio mantém o que já está gravado.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="csrt_id"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>Identificador do CSRT</FormLabel>
+                  <NumericInput {...field} value={field.value ?? ''} integerPlaces={2} placeholder="01"
+                                onChange={field.onChange}/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="csrt"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>CSRT (36 caracteres)</FormLabel>
+                  <Input {...field} value={field.value ?? ''} maxLength={36}
+                         autoComplete="off" placeholder="Deixe vazio para manter"
+                         className="font-mono text-xs"/>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
+          </div>
+        </section>
 
         <div className="flex items-center justify-between pt-2">
           {savedAt ? (

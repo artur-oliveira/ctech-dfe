@@ -67,6 +67,10 @@ type MdfePayment struct {
 	// indPag: 0 = à vista, 1 = a prazo. A prazo exige ao menos uma parcela.
 	PaymentType string `json:"payment_type" validate:"required,oneof=0 1"`
 
+	// HighPerformance (indAltoDesemp) só existe no modal rodoviário; nos
+	// eventos de pagamento vem sempre nil.
+	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"`
+
 	AdvanceValue   *string `json:"advance_value" validate:"omitempty,decimalv"`    // vAdiant
 	AdvanceRequest *string `json:"advance_request" validate:"omitempty,oneof=0 1"` // indAntecipaAdiant
 	AdvanceKind    *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"`  // tpAntecip
@@ -121,6 +125,7 @@ func buildInfPag(payments []MdfePayment) ([]map[string]any, error) {
 		}
 		node["Comp"] = comps
 		node["vContrato"] = p.ContractValue
+		setIfPtr(node, "indAltoDesemp", p.HighPerformance)
 		node["indPag"] = p.PaymentType
 
 		setIfPtr(node, "vAdiant", p.AdvanceValue)

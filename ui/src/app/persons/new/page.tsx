@@ -39,9 +39,6 @@ function NewPersonContent() {
           }}
           loading={createMutation.isPending}
         />
-        {createMutation.error && (
-          <p className="mt-4 text-sm text-red-600">{createMutation.error.message}</p>
-        )}
       </div>
     </RootLayout>
   )

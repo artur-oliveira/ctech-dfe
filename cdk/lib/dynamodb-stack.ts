@@ -26,6 +26,13 @@ export type TableName = (
   'tax_profiles' |
   'operations' |
   'payment_terms' |
+  'payment_terminals' |
+  'toll_providers' |
+  'cargo_units' |
+  'import_declarations' |
+  'insurance_policies' |
+  'product_lots' |
+  'fuel_pumps' |
   'vehicle_sets' |
   'nfes' |
   'nfces' |
@@ -603,6 +610,20 @@ export class DynamoDBStack extends cdk.Stack {
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'operations'));
     this.tables.set('payment_terms', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'payment_terms'));
+    this.tables.set('payment_terminals', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'payment_terminals'));
+    this.tables.set('toll_providers', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'toll_providers'));
+    this.tables.set('cargo_units', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'cargo_units'));
+    this.tables.set('import_declarations', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'import_declarations'));
+    this.tables.set('insurance_policies', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'insurance_policies'));
+    this.tables.set('product_lots', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'product_lots'));
+    this.tables.set('fuel_pumps', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'fuel_pumps'));
     this.tables.set('vehicle_sets', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'vehicle_sets'));
 

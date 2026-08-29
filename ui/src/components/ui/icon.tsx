@@ -1,5 +1,11 @@
 import {
   CalendarClock,
+  Container,
+  Ship,
+  Umbrella,
+  Boxes,
+  Fuel,
+  CreditCard,
   ClipboardList,
   Combine,
   FileSignature,
@@ -53,6 +59,36 @@ export const PercentIcon = ({width = 16, height = 16}: IconProps) => (
 /** Condição de pagamento — parcelas e vencimentos reutilizáveis */
 export const CalendarClockIcon = ({width = 16, height = 16}: IconProps) => (
   <CalendarClock width={width} height={height}/>
+)
+
+/** Terminal de captura (POS) — CNPJ recebedor e id da maquininha */
+export const CreditCardIcon = ({width = 16, height = 16}: IconProps) => (
+  <CreditCard width={width} height={height}/>
+)
+
+/** Unidade de transporte/carga — carreta, vagão, contêiner, pallet */
+export const PackageIcon = ({width = 16, height = 16}: IconProps) => (
+  <Container width={width} height={height}/>
+)
+
+/** Declaração de importação — DI, adições e desembaraço */
+export const ImportIcon = ({width = 16, height = 16}: IconProps) => (
+  <Ship width={width} height={height}/>
+)
+
+/** Bomba de combustível — bico, tanque e encerrante */
+export const FuelPumpIcon = ({width = 16, height = 16}: IconProps) => (
+  <Fuel width={width} height={height}/>
+)
+
+/** Lote de produção — número, validade e rastreabilidade do item */
+export const LotIcon = ({width = 16, height = 16}: IconProps) => (
+  <Boxes width={width} height={height}/>
+)
+
+/** Apólice de seguro — responsável, seguradora e averbações da carga */
+export const InsuranceIcon = ({width = 16, height = 16}: IconProps) => (
+  <Umbrella width={width} height={height}/>
 )
 
 /** Composição veicular — cavalo, reboques e condutores que andam juntos */

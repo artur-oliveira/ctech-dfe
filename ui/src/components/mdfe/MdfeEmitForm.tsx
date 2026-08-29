@@ -13,6 +13,7 @@ import {useDebounce} from '@/lib/hooks/useDebounce'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {RowCheckbox} from '@/components/ui/table-shell'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Label} from '@/components/ui/label'
 import {NumericInput} from '@/components/ui/numeric-input'
@@ -36,10 +37,37 @@ import type {
   PersonItemOut,
   MdfeEmit,
   MdfeMunIn,
+  MdfeContractorIn,
+  MdfePaymentIn,
+  MdfeTransportUnitIn,
+  MdfeTollIn,
+  MdfeInsuranceIn,
+  MdfeAirModalIn,
+  MdfeRailModalIn,
+  MdfeWaterModalIn,
   NfeListOut,
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api'
+import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
+import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields'
+import {
+  AirModalFields,
+  RailModalFields,
+  WaterModalFields,
+  airComplete,
+  railComplete,
+  waterComplete,
+} from '@/components/mdfe/ModalFields'
+import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
+import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
+import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
+
+/** Lacres são digitados numa linha só; o leiaute quer uma lista de nLacre. */
+const splitSeals = (raw: string): string[] | undefined => {
+  const list = raw.split(',').map((s) => s.trim()).filter(Boolean)
+  return list.length ? list : undefined
+}
 import {Plane, Ship, TramFront, Truck} from 'lucide-react'
 
 // ─── steps ──────────────────────────────────────────────────────────────────
@@ -51,23 +79,57 @@ interface StepDef {
   label: string
 }
 
-const BASE_STEPS: StepDef[] = [
+// O último passo é o do modal escolhido: veículo/condutores no rodoviário,
+// dados do voo no aéreo, dados do trem no ferroviário.
+const MODAL_STEP_LABEL: Record<ModalId, string> = {
+  rodoviario: 'Veículo',
+  aereo: 'Voo',
+  aquaviario: 'Embarcação',
+  ferroviario: 'Trem',
+}
+
+const baseSteps = (modal: ModalId): StepDef[] => [
   {id: 'modal', label: 'Transporte'},
   {id: 'documentos', label: 'Documentos'},
   {id: 'carga', label: 'Carga'},
   {id: 'transporte', label: 'Trajeto'},
-  {id: 'veiculo', label: 'Veículo'},
+  {id: 'veiculo', label: MODAL_STEP_LABEL[modal]},
 ]
 
 // Seguro só aparece quando há CT-e (MDF-e de NF-e não exige seguro).
 const SEGURO_STEP: StepDef = {id: 'seguro', label: 'Seguro'}
 
-const MODAIS = [
+type ModalId = 'rodoviario' | 'aereo' | 'aquaviario' | 'ferroviario'
+
+const MODAIS: { id: ModalId; label: string; icon: React.ReactElement; enabled: boolean }[] = [
   {id: 'rodoviario', label: 'Rodoviário', icon: <Truck/>, enabled: true},
-  {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: false},
-  {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: false},
-  {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: false},
+  {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: true},
+  {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: true},
+  {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: true},
 ]
+
+const MODAL_BLOCKED_REASON: Record<ModalId, string> = {
+  rodoviario: 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.',
+  aereo: 'Preencha carga, trajeto e todos os dados do voo.',
+  aquaviario: 'Preencha carga, trajeto e os dados da embarcação.',
+  ferroviario: 'Preencha carga, trajeto, os dados do trem e ao menos um vagão completo.',
+}
+
+const EMPTY_AIR: MdfeAirModalIn = {
+  nationality: '', registration: '', flight_number: '',
+  origin_airport: '', dest_airport: '', flight_date: '',
+}
+
+const EMPTY_RAIL: MdfeRailModalIn = {
+  train_prefix: '', train_datetime: '', origin_station: '', dest_station: '', wagons: [],
+}
+
+const EMPTY_WATER: MdfeWaterModalIn = {
+  irin: '', vessel_type: '', vessel_code: '', vessel_name: '', voyage_number: '',
+  origin_port: '', dest_port: '', transit_port: '', navigation_type: '', mmsi: '',
+  loading_terminals: [], unloading_terminals: [], barges: [],
+  empty_cargo_unit_ids: [], empty_transport_unit_ids: [],
+}
 
 function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
   const idx = steps.findIndex((s) => s.id === current)
@@ -262,12 +324,15 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
 
 // ─── cargo step ───────────────────────────────────────────────────────────────
 
-function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange}: {
+function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, redelivery, onRedeliveryChange}: {
   preview: MdfeCargoPreview | undefined
   isLoading: boolean
   error: string | null
   weightOverrides: Record<string, string>
   onWeightChange: (key: string, weight: string) => void
+  /** Chaves marcadas como reentrega (infDoc/.../indReentrega). */
+  redelivery: Record<string, boolean>
+  onRedeliveryChange: (key: string) => void
 }) {
   if (isLoading) {
     return <LoadingSkeleton count={3} height="h-20" rounded="rounded-xl"/>
@@ -318,6 +383,12 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange}:
                 </p>
               </div>
             </div>
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <RowCheckbox checked={!!redelivery[d.access_key]}
+                           onChange={() => onRedeliveryChange(d.access_key)}
+                           ariaLabel={`Marcar ${d.access_key} como reentrega`}/>
+              Reentrega
+            </label>
             {d.has_weight ? (
               <p className="text-xs text-gray-500">Peso: {parseFloat(d.weight).toLocaleString('pt-BR')} kg</p>
             ) : (
@@ -358,6 +429,19 @@ export function MdfeEmitForm() {
   const [routeOverride, setRouteOverride] = useState<string[] | null>(null)
   const [newRouteUf, setNewRouteUf] = useState('')
   const [tripStart, setTripStart] = useState('')
+  const [modal, setModal] = useState<ModalId>('rodoviario')
+  const [air, setAir] = useState<MdfeAirModalIn>(EMPTY_AIR)
+  const [rail, setRail] = useState<MdfeRailModalIn>(EMPTY_RAIL)
+  const [water, setWater] = useState<MdfeWaterModalIn>(EMPTY_WATER)
+  const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
+  const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([])
+  const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
+  const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
+  const [redelivery, setRedelivery] = useState<Record<string, boolean>>({})
+  const [transportUnits, setTransportUnits] = useState<MdfeTransportUnitIn[]>([])
+  const [seals, setSeals] = useState('')
+  const [rodoSeals, setRodoSeals] = useState('')
+  const [portAgentCode, setPortAgentCode] = useState('')
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('')
@@ -455,10 +539,10 @@ export function MdfeEmitForm() {
   // Seguro só aparece com CT-e. O seletor de documentos é NF-e-only no MVP, logo
   // hasCte é sempre falso; mantido explícito para quando o CT-e for habilitado.
   const hasCte = false
-  const STEPS = useMemo(
-    () => (hasCte ? [...BASE_STEPS.slice(0, 4), SEGURO_STEP, BASE_STEPS[4]] : BASE_STEPS),
-    [hasCte],
-  )
+  const STEPS = useMemo(() => {
+    const base = baseSteps(modal)
+    return hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base
+  }, [hasCte, modal])
 
   // Cargo preview: fetched once documents are chosen and we reach the carga step.
   const docKeys = docs.map((d) => d.sk)
@@ -548,9 +632,15 @@ export function MdfeEmitForm() {
     if (stepIdx > 0) setStep(STEPS[stepIdx - 1].id)
   }
 
-  const canEmit = docs.length > 0 && !!vehicleSk && drivers.length > 0 && allWeightsKnown
+  // Cada modal fecha com o seu próprio conjunto obrigatório.
+  const modalReady = modal === 'rodoviario'
+    ? !!vehicleSk && drivers.length > 0
+    : modal === 'aereo' ? airComplete(air)
+      : modal === 'ferroviario' ? railComplete(rail)
+        : waterComplete(water)
+  const canEmit = docs.length > 0 && modalReady && allWeightsKnown
     && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8))
-  const emitBlockedReason = canEmit ? null : 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.'
+  const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal]
 
   const handleSubmit = async () => {
     setSubmitError(null)
@@ -558,8 +648,9 @@ export function MdfeEmitForm() {
       setSubmitError({message: emitBlockedReason})
       return
     }
+    const isRodo = modal === 'rodoviario'
     const payload: MdfeEmit = {
-      modal: 'rodoviario',
+      modal,
       documents: docs.map((d) => {
         const override = weightOverrides[d.sk]?.trim()
         return {type: 'nfe', access_key: d.sk, ...(override ? {weight: override} : {})}
@@ -569,11 +660,25 @@ export function MdfeEmitForm() {
       route: route.length ? route : undefined,
       loadings: loadings.length ? loadings : undefined,
       unloadings: unloadings.length ? unloadings : undefined,
-      drivers,
-      vehicle_set_id: vehicleSetId || null,
-      vehicle: {sk: vehicleSk},
-      trailers: trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
+      // Veículo, reboques e condutores são do rodoviário; os outros modais
+      // levam o payload do próprio grupo.
+      drivers: isRodo ? drivers : [],
+      vehicle_set_id: isRodo ? (vehicleSetId || null) : null,
+      vehicle: {sk: isRodo ? vehicleSk : null},
+      trailers: isRodo && trailerSks.length ? trailerSks.map((sk) => ({sk})) : undefined,
+      air: modal === 'aereo' ? air : undefined,
+      rail: modal === 'ferroviario' ? rail : undefined,
+      water: modal === 'aquaviario' ? water : undefined,
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
+      toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
+      insurance_policies: insurancePolicies.length ? insurancePolicies : undefined,
+      contractors: contractors.length ? contractors : undefined,
+      payments: freightPayments.length ? freightPayments : undefined,
+      redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
+      transport_units: transportUnits.length ? transportUnits : undefined,
+      seals: splitSeals(seals),
+      rodo_seals: splitSeals(rodoSeals),
+      port_agent_code: portAgentCode || undefined,
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
@@ -603,11 +708,14 @@ export function MdfeEmitForm() {
           <p className="text-sm text-gray-500">Selecione o tipo de transporte.</p>
           <div className="grid grid-cols-2 gap-3">
             {MODAIS.map((m) => (
-              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === 'rodoviario'}
+              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === modal}
+                      onClick={() => setModal(m.id)}
                       className={`relative rounded-xl border p-4 text-left transition-colors ${
-                        m.id === 'rodoviario'
+                        m.id === modal
                           ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
-                          : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
+                          : m.enabled
+                            ? 'border-gray-200 hover:border-brand-300'
+                            : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
                 {m.icon}
                 <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
                 {!m.enabled && <span
@@ -646,7 +754,9 @@ export function MdfeEmitForm() {
       {step === 'carga' && (
         <CargoStep preview={preview} isLoading={previewLoading} error={previewError}
                    weightOverrides={weightOverrides}
-                   onWeightChange={(k, w) => setWeightOverrides((p) => ({...p, [k]: w}))}/>
+                   onWeightChange={(k, w) => setWeightOverrides((p) => ({...p, [k]: w}))}
+                   redelivery={redelivery}
+                   onRedeliveryChange={(k) => setRedelivery((p) => ({...p, [k]: !p[k]}))}/>
       )}
 
       {/* Step 4 — transporte */}
@@ -710,6 +820,42 @@ export function MdfeEmitForm() {
                    className="w-full sm:w-64 h-11 rounded-md border border-gray-300 px-3 text-sm"/>
           </div>
 
+          <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
+
+          <ContractorsFields contractors={contractors} onChange={setContractors}/>
+
+          <FreightPaymentFields payments={freightPayments} onChange={setFreightPayments}
+                                required={contractors.length > 0}/>
+
+          <TransportUnitsFields units={transportUnits} onChange={setTransportUnits} documentKeys={docKeys}/>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Lacres (opcional)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-seals" className="text-xs font-medium text-gray-600">
+                  Lacres da carga
+                </Label>
+                <Input id="mdfe-seals" value={seals} placeholder="Separados por vírgula"
+                       onChange={(e) => setSeals(e.target.value)}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-rodo-seals" className="text-xs font-medium text-gray-600">
+                  Lacres da unidade de transporte
+                </Label>
+                <Input id="mdfe-rodo-seals" value={rodoSeals} placeholder="Separados por vírgula"
+                       onChange={(e) => setRodoSeals(e.target.value)}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="mdfe-port-agent" className="text-xs font-medium text-gray-600">
+                  Agente portuário
+                </Label>
+                <Input id="mdfe-port-agent" value={portAgentCode} maxLength={16}
+                       onChange={(e) => setPortAgentCode(e.target.value)}/>
+              </div>
+            </div>
+          </div>
+
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Carga lotação (documento
@@ -735,16 +881,33 @@ export function MdfeEmitForm() {
 
       {/* Step (optional) — seguro */}
       {step === 'seguro' && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-          <p className="text-sm font-medium text-gray-900">Seguro — em breve</p>
-          <p className="mt-1.5 text-sm text-gray-500">
-            Os dados de seguro são exigidos para MDF-e de CT-e. O suporte completo será disponibilizado em breve.
-          </p>
+        <InsurancePoliciesFields policies={insurancePolicies} onChange={setInsurancePolicies}/>
+      )}
+
+      {/* Step final — dados do modal escolhido */}
+      {step === 'veiculo' && modal === 'aereo' && (
+        <div className="space-y-4">
+          <AirModalFields value={air} onChange={setAir}/>
+          <EmitError failure={submitError}/>
         </div>
       )}
 
-      {/* Step — veículo / condutor */}
-      {step === 'veiculo' && (
+      {step === 'veiculo' && modal === 'aquaviario' && (
+        <div className="space-y-4">
+          <WaterModalFields value={water} onChange={setWater}/>
+          <EmitError failure={submitError}/>
+        </div>
+      )}
+
+      {step === 'veiculo' && modal === 'ferroviario' && (
+        <div className="space-y-4">
+          <RailModalFields value={rail} onChange={setRail}/>
+          <EmitError failure={submitError}/>
+        </div>
+      )}
+
+      {/* Step — veículo / condutor (rodoviário) */}
+      {step === 'veiculo' && modal === 'rodoviario' && (
         <div className="space-y-4">
           {vehicleSets.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-2">
@@ -885,7 +1048,14 @@ export function MdfeEmitForm() {
         docLabel="MDF-e"
         summary={[
           {label: 'Documentos', value: `${docs.length} documento(s)`},
-          {label: 'Veículo', value: tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—'},
+          {
+            label: MODAL_STEP_LABEL[modal],
+            value: modal === 'rodoviario'
+              ? (tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—')
+              : modal === 'aereo' ? `${air.flight_number} · ${air.origin_airport} → ${air.dest_airport}`
+                : modal === 'aquaviario' ? `${water.vessel_name} · ${water.origin_port} → ${water.dest_port}`
+                  : `${rail.train_prefix} · ${rail.wagons.length} vagão(ões)`,
+          },
           {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '—'},
         ]}
       />

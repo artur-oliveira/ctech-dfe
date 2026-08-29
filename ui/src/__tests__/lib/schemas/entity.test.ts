@@ -24,6 +24,8 @@ const basePF: EntityFormData = {
     }],
     contacts: {emails: ['carvalholarissa_@hotmail.com'], phones: ['86995373408']},
     nfse: {im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''},
+    bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
+    freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
   },
 }
 
@@ -63,7 +65,7 @@ describe('entitySchema — PF edit', () => {
   })
 })
 
-describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected', () => {
+describe('organizationSchema — IE obrigatória para PJ, UFs duplicadas rejeitadas', () => {
   const pj: EntityFormData = {
     ...basePF,
     tipo: 'pj',
@@ -71,8 +73,15 @@ describe('organizationSchema — IE is optional for PJ, duplicate UFs rejected',
     person: {...basePF.person, fantasy_name: 'Loja', crt: '1', state_registrations: []},
   }
 
-  it('organizationSchema aceita PJ sem inscrição estadual', () => {
-    expect(organizationSchema.safeParse(pj).success).toBe(true)
+  it('organizationSchema rejeita PJ sem inscrição estadual', () => {
+    const result = organizationSchema.safeParse(pj)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(expect.objectContaining({
+        path: ['person', 'state_registrations'],
+        message: 'Adicione ao menos uma inscrição estadual',
+      }))
+    }
   })
 
   it('organizationSchema aceita PJ com ao menos uma inscrição estadual', () => {
@@ -106,5 +115,65 @@ describe('entitySchema — grupo NFS-e', () => {
   it('aceita inscrição municipal com regime simples informado', () => {
     const data = {...basePF, person: {...basePF.person, nfse: {im: '123456', op_simp_nac: '1' as const, reg_ap_trib_sn: '' as const, reg_esp_trib: '0' as const}}}
     expect(entitySchema.safeParse(data).success).toBe(true)
+  })
+})
+
+describe('entitySchema — CNAE e retenção do frete', () => {
+  const pathsOf = (data: EntityFormData): string[] => {
+    const result = entitySchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('aceita CNAE existente e recusa código inexistente', () => {
+    const valido = {...basePF, person: {...basePF.person, cnae: '0111301'}}
+    expect(entitySchema.safeParse(valido).success).toBe(true)
+    const invalido = {...basePF, person: {...basePF.person, cnae: '9999999'}}
+    expect(pathsOf(invalido)).toContain('person.cnae')
+  })
+
+  it('retenção do frete é grupo: metade preenchida é recusada', () => {
+    const meio = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {v_serv: '150.00', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
+      },
+    }
+    const paths = pathsOf(meio)
+    expect(paths).toEqual(expect.arrayContaining([
+      'person.freight_retention.v_bc_ret',
+      'person.freight_retention.p_icms_ret',
+      'person.freight_retention.cfop',
+      'person.freight_retention.c_mun_fg',
+    ]))
+  })
+
+  it('aceita a retenção do frete completa e o grupo inteiro vazio', () => {
+    const completo = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {
+          v_serv: '150.00', v_bc_ret: '150.00', p_icms_ret: '12.0000',
+          cfop: '5353', c_mun_fg: '2211001',
+        },
+      },
+    }
+    expect(entitySchema.safeParse(completo).success).toBe(true)
+    expect(entitySchema.safeParse(basePF).success).toBe(true)
+  })
+
+  it('recusa valor de serviço fora do formato decimal', () => {
+    const errado = {
+      ...basePF,
+      person: {
+        ...basePF.person,
+        freight_retention: {
+          v_serv: 'cento e cinquenta', v_bc_ret: '150.00', p_icms_ret: '12.0000',
+          cfop: '5353', c_mun_fg: '2211001',
+        },
+      },
+    }
+    expect(pathsOf(errado)).toContain('person.freight_retention.v_serv')
   })
 })

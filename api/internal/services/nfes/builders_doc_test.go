@@ -41,6 +41,7 @@ func TestBuildEnviNFe_EntregaPresent(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, &NfeLocalBody{XLgr: "Rua Entrega", Nro: "1", XBairro: "B", CMun: "3550308", XMun: "SP", UF: "SP"},
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	entrega, ok := infNFe["entrega"].(map[string]any)
@@ -71,6 +72,7 @@ func TestBuildEnviNFe_AutXMLPresentWhenOrgHasAuthorizedViewers(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	autXML, ok := infNFe["autXML"].([]map[string]any)
@@ -95,6 +97,7 @@ func TestBuildEnviNFe_NoAutXMLWhenOrgHasNoAuthorizedViewers(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	infNFe := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)
 	if _, hasAutXML := infNFe["autXML"]; hasAutXML {
@@ -160,5 +163,48 @@ func TestBuildLocal_OmitsEmptyOptionalFields(t *testing.T) {
 		if _, ok := got[k]; ok {
 			t.Fatalf("expected %s omitted when empty, got %+v", k, got)
 		}
+	}
+}
+
+func TestBuildPagComTerminal(t *testing.T) {
+	payments := []map[string]any{{
+		"payment_type": "03", "value": "50.00", "terminal_id": "TERMINAL_abc",
+		"card": map[string]any{"tp_integra": "1", "cnpj": "11111111111111", "c_aut": "999"},
+	}}
+	terminals := map[string]map[string]any{"TERMINAL_abc": {
+		"cnpj_receb": "22222222222222", "id_term_pag": "POS-01",
+		"cnpj_pag": "33333333333333", "uf_pag": "PI", "t_band": "01",
+	}}
+	pag := buildPag(payments, nil, terminals)
+	dp := pag["detPag"].([]map[string]any)[0]
+	if dp["CNPJPag"] != "33333333333333" || dp["UFPag"] != "PI" {
+		t.Fatalf("CNPJPag/UFPag ausentes: %v", dp)
+	}
+	card := dp["card"].(map[string]any)
+	if card["CNPJReceb"] != "22222222222222" || card["idTermPag"] != "POS-01" || card["tBand"] != "01" {
+		t.Fatalf("card incompleto: %v", card)
+	}
+}
+
+// Sem terminal, o pagamento continua exatamente como era.
+func TestBuildPagSemTerminalNaoInventaCampos(t *testing.T) {
+	pag := buildPag([]map[string]any{{"payment_type": "01", "value": "10.00"}}, nil, nil)
+	dp := pag["detPag"].([]map[string]any)[0]
+	for _, k := range []string{"CNPJPag", "UFPag", "xPag", "card"} {
+		if _, ok := dp[k]; ok {
+			t.Fatalf("%s não deveria estar presente: %v", k, dp)
+		}
+	}
+}
+
+// tBand explícito na emissão vence a bandeira default do terminal.
+func TestBuildPagTBandDaEmissaoVence(t *testing.T) {
+	pag := buildPag([]map[string]any{{
+		"payment_type": "03", "value": "50.00", "terminal_id": "TERMINAL_abc",
+		"card": map[string]any{"tp_integra": "1", "t_band": "02"},
+	}}, nil, map[string]map[string]any{"TERMINAL_abc": {"t_band": "01"}})
+	card := pag["detPag"].([]map[string]any)[0]["card"].(map[string]any)
+	if card["tBand"] != "02" {
+		t.Fatalf("tBand da emissão deveria vencer: %v", card["tBand"])
 	}
 }

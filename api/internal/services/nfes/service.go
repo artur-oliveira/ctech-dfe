@@ -58,23 +58,34 @@ var ErrNFCeNotFound = problem.NotFound("NFC-e não encontrada")
 
 // NfeService manages NF-e lifecycle.
 type NfeService struct {
-	orgRepo         *repositories.OrganizationRepository
-	certRepo        *repositories.CertificateRepository
-	personRepo      *repositories.PersonRepository
-	configRepo      *repositories.NfeConfigRepository
-	productRepo     *repositories.ProductRepository
-	taxProfileRepo  *repositories.TaxProfileRepository
-	operationRepo   *repositories.OperationRepository
-	paymentTermRepo *repositories.PaymentTermRepository
-	nfeRepo         *repositories.NfeRepository
-	eventRepo       *repositories.DocumentEventRepository
-	vehicleRepo     *repositories.VehicleRepository
-	clients         *awsclient.Clients
-	workerSvc       *services.WorkerService
-	extSvc          *services.ExternalService
-	billingSvc      *services.BillingService
-	bucketDocs      string
-	tech            TechData
+	orgRepo     *repositories.OrganizationRepository
+	certRepo    *repositories.CertificateRepository
+	personRepo  *repositories.PersonRepository
+	configRepo  *repositories.NfeConfigRepository
+	productRepo *repositories.ProductRepository
+	// serviceRepo é o catálogo de serviços da NFS-e, reusado pela NF-e mista:
+	// código, item da lista e alíquota do ISS vivem lá, não num segundo cadastro.
+	serviceRepo *repositories.ServiceRepository
+	// importDIRepo traz as declarações de importação citadas pelos itens.
+	importDIRepo *repositories.ImportDeclarationRepository
+	// productLotRepo traz os lotes de produção citados pelos itens (prod/rastro).
+	productLotRepo *repositories.ProductLotRepository
+	// fuelPumpRepo traz as bombas citadas pelos itens e guarda a leitura do
+	// encerrante entre uma venda e a seguinte.
+	fuelPumpRepo        *repositories.FuelPumpRepository
+	taxProfileRepo      *repositories.TaxProfileRepository
+	operationRepo       *repositories.OperationRepository
+	paymentTermRepo     *repositories.PaymentTermRepository
+	paymentTerminalRepo *repositories.PaymentTerminalRepository
+	nfeRepo             *repositories.NfeRepository
+	eventRepo           *repositories.DocumentEventRepository
+	vehicleRepo         *repositories.VehicleRepository
+	clients             *awsclient.Clients
+	workerSvc           *services.WorkerService
+	extSvc              *services.ExternalService
+	billingSvc          *services.BillingService
+	bucketDocs          string
+	tech                TechData
 }
 
 func NewNfeService(
@@ -83,9 +94,14 @@ func NewNfeService(
 	personRepo *repositories.PersonRepository,
 	configRepo *repositories.NfeConfigRepository,
 	productRepo *repositories.ProductRepository,
+	serviceRepo *repositories.ServiceRepository,
+	importDIRepo *repositories.ImportDeclarationRepository,
+	productLotRepo *repositories.ProductLotRepository,
+	fuelPumpRepo *repositories.FuelPumpRepository,
 	taxProfileRepo *repositories.TaxProfileRepository,
 	operationRepo *repositories.OperationRepository,
 	paymentTermRepo *repositories.PaymentTermRepository,
+	paymentTerminalRepo *repositories.PaymentTerminalRepository,
 	nfeRepo *repositories.NfeRepository,
 	eventRepo *repositories.DocumentEventRepository,
 	vehicleRepo *repositories.VehicleRepository,
@@ -97,23 +113,28 @@ func NewNfeService(
 	tech TechData,
 ) *NfeService {
 	return &NfeService{
-		orgRepo:         orgRepo,
-		certRepo:        certRepo,
-		personRepo:      personRepo,
-		configRepo:      configRepo,
-		productRepo:     productRepo,
-		taxProfileRepo:  taxProfileRepo,
-		operationRepo:   operationRepo,
-		paymentTermRepo: paymentTermRepo,
-		nfeRepo:         nfeRepo,
-		eventRepo:       eventRepo,
-		vehicleRepo:     vehicleRepo,
-		clients:         clients,
-		workerSvc:       workerSvc,
-		billingSvc:      billingSvc,
-		extSvc:          extSvc,
-		bucketDocs:      bucketDocs,
-		tech:            tech,
+		orgRepo:             orgRepo,
+		certRepo:            certRepo,
+		personRepo:          personRepo,
+		configRepo:          configRepo,
+		productRepo:         productRepo,
+		serviceRepo:         serviceRepo,
+		importDIRepo:        importDIRepo,
+		productLotRepo:      productLotRepo,
+		fuelPumpRepo:        fuelPumpRepo,
+		taxProfileRepo:      taxProfileRepo,
+		operationRepo:       operationRepo,
+		paymentTermRepo:     paymentTermRepo,
+		paymentTerminalRepo: paymentTerminalRepo,
+		nfeRepo:             nfeRepo,
+		eventRepo:           eventRepo,
+		vehicleRepo:         vehicleRepo,
+		clients:             clients,
+		workerSvc:           workerSvc,
+		billingSvc:          billingSvc,
+		extSvc:              extSvc,
+		bucketDocs:          bucketDocs,
+		tech:                tech,
 	}
 }
 

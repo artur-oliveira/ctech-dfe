@@ -14,7 +14,7 @@ already exists elsewhere in the repo (the `ConditionExpression` idempotency guar
 `isProduction ? ... : ...` conditional already used in `s3-stack.ts`, the mockable-interface-over-package-var pattern
 already used for `snsClient`).
 
-**Tech Stack:** Go 1.26 (`aws-sdk-go-v2`), AWS CDK v2.258 (TypeScript, `jest` + `ts-jest`).
+**Tech Stack:** go 1.27 (`aws-sdk-go-v2`), AWS CDK v2.258 (TypeScript, `jest` + `ts-jest`).
 
 ## Global Constraints
 

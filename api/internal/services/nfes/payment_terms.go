@@ -2,7 +2,6 @@ package nfes
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -10,6 +9,7 @@ import (
 
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 // Campos da condição de pagamento lidos na expansão.
@@ -95,21 +95,12 @@ func ExpandPaymentTerm(
 		return []NfePaymentItem{payment}, nil, nil, nil
 	}
 
-	base := total.Div(decimal.NewFromInt(int64(installments))).RoundBank(2)
+	// O parcelamento é o mesmo do MDF-e (infPrazo): um algoritmo só, em
+	// services.ExpandInstallments.
 	dups := make([]NfeDuplicataItem, 0, installments)
-	accumulated := decimal.Zero
-	for i := 0; i < installments; i++ {
-		value := base
-		if i == installments-1 {
-			// A última parcela absorve o resíduo: R$ 100,00 em 3× vira
-			// 33,33 + 33,33 + 33,34, e não 33,33 × 3 = 99,99.
-			value = total.Sub(accumulated)
-		}
-		accumulated = accumulated.Add(value)
-
-		due := issueDate.AddDate(0, 0, firstDueDays+i*intervalDays).Format(dueDateLayout)
-		number := fmt.Sprintf("%03d", i+1)
-		dups = append(dups, NfeDuplicataItem{NDup: &number, DVenc: &due, VDup: q2(value)})
+	for _, inst := range services.ExpandInstallments(total, installments, intervalDays, firstDueDays, issueDate) {
+		number, due := inst.Number, inst.DueDate.Format(dueDateLayout)
+		dups = append(dups, NfeDuplicataItem{NDup: &number, DVenc: &due, VDup: q2(inst.Value)})
 	}
 
 	totalStr := q2(total)

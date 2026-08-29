@@ -46,6 +46,13 @@ PITR: enabled in production only.
 | 33 | `organization_operations`   | `{org_pk}`                   | `OPERATION_{uuid}`                       | `name-index`                                       |
 | 34 | `organization_payment_terms`| `{org_pk}`                   | `PAYMENTTERM_{uuid}`                     | `name-index`                                       |
 | 35 | `organization_vehicle_sets` | `{org_pk}`                   | `VEHICLESET_{uuid}`                      | `name-index`                                       |
+| 37 | `organization_payment_terminals` | `{org_pk}`              | `TERMINAL_{uuid}`                        | `name-index`                                       |
+| 38 | `organization_toll_providers`| `{org_pk}`                   | `TOLLPROVIDER_{uuid}`                    | `name-index`                                       |
+| 39 | `organization_cargo_units`  | `{org_pk}`                   | `CARGOUNIT_{uuid}`                       | `name-index`                                       |
+| 40 | `organization_import_declarations` | `{org_pk}`            | `IMPORTDI_{uuid}`                        | `name-index`                                       |
+| 41 | `organization_insurance_policies` | `{org_pk}`             | `INSURANCE_{uuid}`                       | `name-index`                                       |
+| 42 | `organization_product_lots` | `{org_pk}`                   | `PRODUCTLOT_{uuid}`                      | `name-index`                                       |
+| 43 | `organization_fuel_pumps`   | `{org_pk}`                   | `FUELPUMP_{uuid}`                        | `name-index`                                       |
 
 ---
 
@@ -92,10 +99,13 @@ these aren't optional the way they can be for a `organization_persons` record.
 | `description`                | S    | Apelido interno (optional)                                                                                                                                                                                          |
 | `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                                                                                            |
 | `person.crt`                 | N    | `1` Simples / `2` Simples c/ excesso / `3` Real / `4` MEI — required for CNPJ                                                                                                                                       |
-| `person.state_registrations` | L    | List of `{uf, state_registration}` — ≥1 entry required for CNPJ                                                                                                                                                     |
+| `person.state_registrations` | L    | List of `{uf, state_registration, ie_st}` — ≥1 entry required for CNPJ. `ie_st` é a inscrição de substituto tributário naquela UF (NF-e `emit/IEST`), opcional                                                                                                                                                     |
 | `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1                                                                                                   |
 | `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                                                                                                             |
 | `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — NFS-e identity fields, optional, shared verbatim with `organization_persons.person.nfse` (see below) |
+| `person.cnae`                | S    | CNAE principal (7 dígitos, opcional). NF-e `emit/CNAE` — o leiaute o exige quando `person.nfse.im` está presente (nota mista mercadoria + serviço)                                                                   |
+| `person.isuf_emit`           | S    | Inscrição Suframa do emitente (≤9 dígitos, opcional). NF-e `emit/ISUFEmit`                                                                                                                                          |
+| `person.technical_manager_cpf` | S  | CPF do responsável técnico agronômico (opcional). NF-e `agropecuario/defensivo/CPFRespTec` — é o mesmo agrônomo em toda nota de defensivo, então mora aqui e não na emissão                                          |
 | `pickup_locations`           | L    | List of TLocal-shaped saved "local de retirada" (org = remetente), cap 5. See `api/internal/services/nfes/emit.go`, `appendPickupLocation`                                                                          |
 | `authorized_xml_viewers`     | L    | List of `{cpf_cnpj, name}` — SEFAZ autXML, cap 10, no duplicate CPF/CNPJ. See `services.OrganizationService.AddAuthorizedViewer`                                                                                    |
 | `owner_user_id`              | S    | Bare `sub` of the account whose subscription pays for this organization. Written at creation in the same `TransactWrite` as the single OWNER membership it mirrors — the membership grants access, this gets billed, and they cannot disagree. A **field, not a lookup**: it is read on the issuance path, and deriving it would mean listing every member. Rewritten only by an explicit ownership transfer (not implemented). Rows created before the field existed are repaired on first read (`BillingService.OwnerOf`) |
@@ -139,10 +149,21 @@ Product catalog per org. Includes ICMS/IBS-CBS tax config per CFOP.
 | `icms_aliq_override` | S    | Optional: overrides UF rate table                             |
 | `fcp_aliq_override`  | S    | Optional: overrides FCP rate                                  |
 | `prod_type`          | S    | `comb` (fuel) or `med` (medicine) — optional                  |
+| `peri_n_onu`         | S    | Número ONU do produto perigoso (MDF-e `peri/nONU`) — optional |
+| `peri_x_nome_ae`     | S    | Nome apropriado para embarque (`xNomeAE`)                     |
+| `peri_x_cla_risco`   | S    | Classe de risco (`xClaRisco`)                                 |
+| `peri_gr_emb`        | S    | Grupo de embalagem (`grEmb`) — optional                       |
+| `peri_q_vol_tipo`    | S    | Tipo de volume transportado (`qVolTipo`)                      |
+| `n_recopi`           | S    | RECOPI do papel imune (20 dígitos, `prod/nRECOPI`) — último ramo do choice de `prod` |
+| `gcred`              | L    | Créditos presumidos da UF (`prod/gCred`, máx. 4): `{c_cred_presumido, p_cred_presumido}`. O `vCredPresumido` é derivado do percentual sobre o valor do item |
+| `tp_cred_pres_ibs_zfm` | S  | Classificação da subapuração do IBS na ZFM (0–4, `prod/tpCredPresIBSZFM`) |
+| `ind_bem_movel_usado`  | S  | `1` = bem móvel usado (`prod/indBemMovelUsado`). O XSD enumera esse valor só |
 | `created_at`         | S    | ISO-8601 UTC                                                  |
 | `updated_at`         | S    | ISO-8601 UTC                                                  |
 
-**GSIs:** `code-index` (PK: `pk`, SK: `code`), `description-index` (PK: `pk`, SK: `description`).
+**GSIs:** `code-index` (PK: `pk`, SK: `code`), `description-index` (PK: `pk`, SK: `description`). O MDF-e usa
+`code-index` para reencontrar o produto pelo `cProd` que sai na NF-e referenciada e derivar dele o grupo `peri`
+(`ProductRepository.GetByCode`).
 
 ---
 
@@ -188,12 +209,13 @@ cadastro requirement.
 | Attribute                    | Type | Notes                                                                                                                                                                                                                                            |
 |------------------------------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `pk`                         | S    | `{org_pk}` — partition key                                                                                                                                                                                                                       |
-| `sk`                         | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}` — sort key                                                                                                                                                                                               |
+| `sk`                         | S    | `CNPJ_{14 digits}`, `CPF_{11 digits}` ou `IDEST_{documento}` — sort key. `IDEST_` identifica pessoa no exterior sem CPF/CNPJ (NF-e `dest/idEstrangeiro`); o documento estrangeiro não tem formato fixo, então a própria string é a chave           |
 | `name`                       | S    | Full name / razão social. GSI: `org-name-index`                                                                                                                                                                                                  |
-| `roles`                      | L    | Lista de papéis: `customer`, `supplier`, `carrier`, `driver`, `provider`. A mesma pessoa costuma ter mais de um. Filtrada por `contains(roles, :v)` sobre `org-name-index` (projeção ALL). É filtro de cadastro — **nenhuma emissão valida papel** |
+| `roles`                      | L    | Lista de papéis: `customer`, `supplier`, `carrier`, `driver`, `provider`, `freight_contractor`, `intermediary`. A mesma pessoa costuma ter mais de um. Filtrada por `contains(roles, :v)` sobre `org-name-index` (projeção ALL). É filtro de cadastro — **nenhuma emissão valida papel** |
 | `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                                                                                                                         |
+| `person.intermediary_id`     | S    | Identificador do emitente no cadastro deste intermediador (2–60, opcional; papel `intermediary`). NF-e `infIntermed/idCadIntTran` — o "seller id" do marketplace, invariante do par emitente↔plataforma                                          |
 | `person.crt`                 | N    | Required for CNPJ (see `services.RequirePJFields`) — not required to have an IE                                                                                                                                                                  |
-| `person.state_registrations` | L    | List of `{uf, state_registration}` (optional)                                                                                                                                                                                                    |
+| `person.state_registrations` | L    | List of `{uf, state_registration, ie_st}` (optional); `ie_st` = inscrição de substituto tributário na UF                                                                                                                                                                                                    |
 | `person.addresses`           | L    | List of `{street, number, complement, neighborhood, city, state_federation, postal_code, city_ibge_code}` — min 1                                                                                                                                |
 | `person.contacts`            | M    | `{emails: [...], phones: [...]}` (optional, max 5 each)                                                                                                                                                                                          |
 | `person.nfse`                | M    | `{im, caepf, nif, c_nao_nif, reg_trib: {op_simp_nac, reg_ap_trib_sn, reg_esp_trib}, foreign_address: {...}}` — same shape as `organizations.person.nfse` above; needed when this person is used as prestador/intermediário in a DPS (tpEmit 2/3) |
@@ -222,6 +244,9 @@ Fiscal configuration per org per document type. PK only (no SK). Table names use
 | `improper_usage_until`    | S    | ISO-8601 UTC — consumo indevido block expiry           |
 | `cons_quota_calls`        | N    | Rolling consNSU/consChNFe counter (reset hourly)       |
 | `cons_quota_window_start` | S    | ISO-8601 UTC — start of current 1-hour quota window    |
+| `ind_canal_verde`         | BOOL | MDF-e only: participação no Canal Verde → `ide/indCanalVerde` |
+| `ind_carrega_posterior`   | BOOL | MDF-e only: inclusão de DF-e por evento → `ide/indCarregaPosterior` |
+| `inf_ad_fisco`            | S    | MDF-e only: mensagem ao fisco → `infAdic/infAdFisco`   |
 | `updated_at`              | S    | ISO-8601 UTC                                           |
 
 ---
@@ -677,7 +702,16 @@ Campos próprios (schemas completos em `DOCS.md § Cadastros reutilizáveis`):
   (ICMS/IPI/PIS/COFINS/IBS/CBS) idêntico ao de `organization_products.cfop_config`.
 - **`organization_operations`** — `doc_types` (L), `is_default` (BOOL, **no máximo uma por org**,
   garantida por `TransactWrite` que desmarca a anterior), `nat_op`, `cfop_suffix` (3 dígitos),
-  `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `payment_term_id`, `additional_info`.
+  `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `vol_esp`, `vol_marca`,
+  `obs_cont` / `obs_fisco` (L de `{x_campo, x_texto}`, máx. 10 cada — viram `infAdic/obsCont`
+  e `infAdic/obsFisco`), `payment_term_id`, `additional_info`, `ret_trib` (M, percentuais de
+  `total/retTrib`), `export_uf_saida_pais` / `export_loc_despacho_index` (`infNFe/exporta`),
+  `compra_x_n_emp` (nota de empenho, `infNFe/compra/xNEmp`), `cana_safra`
+  (safra da aquisição de cana, `infNFe/cana/safra`), `intermediary_person_id` + `ind_intermed`
+  (canal de venda, `ide/indIntermed` + `infNFe/infIntermed`), `dh_sai_ent_offset_days` (N, prazo
+  padrão de saída da mercadoria em dias corridos, `ide/dhSaiEnt`) e os campos de `ide` da reforma:
+  `c_ind_op`, `c_mun_fg_ibs`, `tp_nf_debito`, `tp_nf_credito` e o trio de compras governamentais
+  `compra_gov_tp_ente` / `compra_gov_p_redutor` / `compra_gov_tp_oper` (`ide/gCompraGov`).
 - **`organization_payment_terms`** — `payment_type`, `ind_pag`, `installments` (N),
   `interval_days` (N), `first_due_days` (N), `card` (M).
 - **`organization_vehicle_sets`** — `tractor_sk`, `trailer_sks` (L, máx. 3), `driver_docs` (L de
@@ -726,3 +760,177 @@ rather than `org_pk`, since events can arrive before the access key exists.
 | List persons by role                | `query_gsi`      | `organization_persons` / `org-name-index` + `contains(roles, :v)` |
 | Marcar operação padrão              | `transact_write` | `organization_operations` (desmarca a anterior) |
 | Carregar perfis fiscais de um item  | `batch_get`      | `organization_tax_profiles`            |
+
+---
+
+## 37. `organization_payment_terminals`
+
+Terminais de captura (POS). Mesma forma dos outros cadastros reutilizáveis (`pk` = org, `sk` =
+`TERMINAL_{uuid}`, GSI `name-index`, projeção ALL) — ver `OrgEntityRepository`.
+
+Um posto com quatro maquininhas emite mil notas por dia: o CNPJ recebedor e o identificador do
+terminal são invariantes por maquininha, então digitá-los por nota é o erro que este cadastro existe
+para evitar. Na emissão, o pagamento só aponta `terminal_id`.
+
+| Attribute     | Type | Notes                                                                                       |
+|---------------|------|----------------------------------------------------------------------------------------------|
+| `pk`          | S    | `{org_pk}`                                                                                   |
+| `sk`          | S    | `TERMINAL_{uuid}`                                                                            |
+| `name`        | S    | Nome do terminal ("POS Caixa 1"). GSI: `name-index`                                          |
+| `cnpj_receb`  | S    | CNPJ do estabelecimento credenciado que recebe o pagamento → NF-e `card/CNPJReceb`           |
+| `id_term_pag` | S    | Identificador do terminal, atribuído pela adquirente → `card/idTermPag`                      |
+| `cnpj_pag`    | S    | Pagador institucional, quando o pagamento ocorre fora do estabelecimento → `detPag/CNPJPag`  |
+| `uf_pag`      | S    | UF do pagador. Só válido acompanhado de `cnpj_pag` → `detPag/UFPag`                          |
+| `t_band`      | S    | Bandeira default (`card/tBand`). A bandeira informada na emissão sempre vence                |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                                 |
+
+---
+
+## 38. `organization_toll_providers`
+
+Fornecedoras de vale-pedágio. Mesma forma dos demais cadastros reutilizáveis (`pk` = org, `sk` =
+`TOLLPROVIDER_{uuid}`, GSI `name-index`).
+
+O vale-pedágio é obrigatório no transporte rodoviário de carga por conta de terceiros (Lei 10.209).
+A fornecedora e o pagador não mudam entre viagens: por viagem, o corpo da emissão do MDF-e traz só
+`toll_vouchers[] = {toll_provider_id, n_compra, v_vale_ped}`. `categCombVeic` nunca é gravado nem
+perguntado — é derivado do número de reboques do próprio manifesto.
+
+| Attribute     | Type | Notes                                                                  |
+|---------------|------|-------------------------------------------------------------------------|
+| `pk`          | S    | `{org_pk}`                                                              |
+| `sk`          | S    | `TOLLPROVIDER_{uuid}`                                                   |
+| `name`        | S    | Nome da fornecedora ("Sem Parar"). GSI: `name-index`                    |
+| `cnpj_forn`   | S    | CNPJ da fornecedora → MDF-e `valePed/disp/CNPJForn`                     |
+| `cnpj_pg`     | S    | Pagador do vale quando não é o emitente → `disp/CNPJPg`. Choice com `cpf_pg` |
+| `cpf_pg`      | S    | Idem, pessoa física → `disp/CPFPg`                                      |
+| `tp_vale_ped` | S    | `01` TAG · `02` cupom · `03` cartão → `disp/tpValePed`                  |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                              |
+
+---
+
+## 39. `organization_cargo_units`
+
+Unidades de transporte (carreta, vagão) e de carga (contêiner, pallet). Mesma forma dos demais
+cadastros reutilizáveis (`pk` = org, `sk` = `CARGOUNIT_{uuid}`, GSI `name-index`).
+
+A unidade recorre entre viagens, então tipo, identificação e lacres fixos vivem aqui. O **rateio**
+(`qtdRat`) nunca é gravado nem perguntado: a emissão do MDF-e o calcula a partir dos pesos dos
+documentos que cada unidade leva (`rateCargo`, em `api/internal/services/mdfes/rateio.go`), com a
+última chave absorvendo o resíduo para o somatório fechar em 100,00.
+
+| Attribute   | Type | Notes                                                                              |
+|-------------|------|--------------------------------------------------------------------------------------|
+| `pk`        | S    | `{org_pk}`                                                                           |
+| `sk`        | S    | `CARGOUNIT_{uuid}`                                                                   |
+| `name`      | S    | Nome de uso ("Carreta 1"). GSI: `name-index`                                         |
+| `kind`      | S    | `transport` → `infUnidTransp` · `cargo` → `infUnidCarga`                             |
+| `tp_unid`   | S    | `tpUnidTransp` (1–7) ou `tpUnidCarga` (1–4), conforme `kind`                          |
+| `id_unid`   | S    | Identificação → `idUnidTransp` / `idUnidCarga` (placa, contêiner, vagão)              |
+| `seals`     | L    | Lacres fixos → `lacUnidTransp` / `lacUnidCarga`                                       |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                          |
+
+---
+
+## 40. `organization_import_declarations`
+
+Declarações de importação (NF-e `prod/DI`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `IMPORTDI_{uuid}`, GSI `name-index`).
+
+Uma DI cobre várias notas e vários itens, então ela é cadastro e não campo de emissão: o item da
+nota só aponta **qual adição** o representa (`products[].import_declarations[] =
+{import_declaration_id, addition_index, n_draw?}`), e `nAdicao`/`nSeqAdic` saem desse vínculo.
+`v_afrmm` é obrigatório quando `tp_via_transp = 01` (marítima) — recusado no cadastro, não na SEFAZ.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `IMPORTDI_{uuid}`                                                        |
+| `name`           | S    | Nome de uso ("DI 2026/0000001 — Itaqui"). GSI: `name-index`              |
+| `n_di`           | S    | → `DI/nDI`                                                               |
+| `d_di`           | S    | → `DI/dDI` (AAAA-MM-DD)                                                  |
+| `x_loc_desemb`   | S    | → `DI/xLocDesemb`                                                        |
+| `uf_desemb`      | S    | → `DI/UFDesemb`                                                          |
+| `d_desemb`       | S    | → `DI/dDesemb`                                                           |
+| `tp_via_transp`  | S    | `01`–`12` (TViaTransp) → `DI/tpViaTransp`                                |
+| `v_afrmm`        | S    | → `DI/vAFRMM`. Obrigatório na via `01`                                   |
+| `tp_intermedio`  | S    | `1` conta própria · `2` conta e ordem · `3` encomenda                    |
+| `cnpj`           | S    | Adquirente/encomendante → `DI/CNPJ`                                      |
+| `uf_terceiro`    | S    | → `DI/UFTerceiro`                                                        |
+| `c_exportador`   | S    | → `DI/cExportador`                                                       |
+| `additions`      | L    | `{n_adicao, c_fabricante, v_desc_di?, n_draw?}` → `DI/adi`               |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 41. `organization_insurance_policies`
+
+Apólices de seguro da carga (MDF-e `infMDFe/seg`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `INSURANCE_{uuid}`, GSI `name-index`).
+
+Responsável, seguradora e número da apólice recorrem entre viagens; só as averbações (`nAver`) são
+da viagem e entram no corpo da emissão (`insurance_policies[] = {insurance_policy_id, n_aver[]}`).
+O documento do responsável (`cnpj`/`cpf`) só é informado quando ele não é o emitente do MDF-e —
+logo, obrigatório quando `resp_seg = 2`, recusado no cadastro e não na SEFAZ. `x_seg` e `cnpj_seg`
+andam juntos: meia seguradora o XSD recusa.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `INSURANCE_{uuid}`                                                       |
+| `name`           | S    | Nome de uso ("Apólice frota 2026"). GSI: `name-index`                     |
+| `resp_seg`       | S    | `1` emitente do MDF-e · `2` contratante → `seg/infResp/respSeg`          |
+| `cnpj` / `cpf`   | S    | Responsável, quando não é o emitente → `seg/infResp/CNPJ\|CPF`           |
+| `x_seg`          | S    | Nome da seguradora → `seg/infSeg/xSeg`                                    |
+| `cnpj_seg`       | S    | CNPJ da seguradora → `seg/infSeg/CNPJ`                                    |
+| `n_apol`         | S    | → `seg/nApol`                                                            |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 42. `organization_product_lots`
+
+Lotes de produção (NF-e `prod/rastro`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `PRODUCTLOT_{uuid}`, GSI `name-index`).
+
+O lote é do produto e reaparece em várias notas até acabar, então é cadastro e não campo de emissão:
+o item da nota só aponta **de quais lotes** ele saiu (`products[].lots[] = {lot_id, quantity?}`), e a
+`qLote` de cada um é **rateada** da quantidade vendida — a última parte absorve o resíduo, para o
+somatório fechar exatamente na quantidade do item. `d_val` anterior a `d_fab` é recusado no cadastro.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `PRODUCTLOT_{uuid}`                                                      |
+| `name`           | S    | Nome de uso ("Lote 2026/001"). GSI: `name-index`                         |
+| `product_id`     | S    | Produto que fabricou o lote; um lote não sai no item de outro produto    |
+| `n_lote`         | S    | → `rastro/nLote`                                                         |
+| `q_lote`         | S    | Quantidade produzida (saldo do lote)                                     |
+| `d_fab`          | S    | → `rastro/dFab` (AAAA-MM-DD)                                             |
+| `d_val`          | S    | → `rastro/dVal` (AAAA-MM-DD)                                             |
+| `c_agreg`        | S    | → `rastro/cAgreg`                                                        |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 43. `organization_fuel_pumps`
+
+Bicos, bombas e tanques do posto (NF-e `prod/comb/encerrante`). Mesma forma dos demais cadastros
+reutilizáveis (`pk` = org, `sk` = `FUELPUMP_{uuid}`, GSI `name-index`).
+
+`last_v_enc_fin` é o único atributo que **a emissão escreve e o usuário não**: ele guarda onde o
+marcador da bomba parou na última venda, e é o `vEncIni` da venda seguinte. A gravação acontece na
+**mesma `TransactWriteItems`** que reserva o número da nota — gravar depois deixaria a próxima venda
+partir de uma leitura velha se o processo caísse no meio. Uma leitura final menor que a anterior é
+recusada com 400: encerrante é totalizador mecânico, não anda para trás.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `FUELPUMP_{uuid}`                                                        |
+| `name`           | S    | Nome de uso ("Bico 1 — Gasolina comum"). GSI: `name-index`               |
+| `n_bico`         | S    | → `encerrante/nBico`                                                     |
+| `n_bomba`        | S    | → `encerrante/nBomba`                                                    |
+| `n_tanque`       | S    | → `encerrante/nTanque`                                                   |
+| `last_v_enc_fin` | S    | Última leitura final. **Escrito pela emissão**, na transação da nota      |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |

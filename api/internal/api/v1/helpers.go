@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/observability"
@@ -386,7 +387,7 @@ func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, sv
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendItem(c, item)
+		return sendItem(c, redactFiscalSecrets(item))
 	})
 	scoped.Put(path, perm.Require(putPerm), func(c fiber.Ctx) error {
 		av, p := bind(c)
@@ -398,6 +399,26 @@ func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, sv
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendItem(c, item)
+		return sendItem(c, redactFiscalSecrets(item))
 	})
+}
+
+// fiscalConfigSecrets são os campos da configuração fiscal que a API nunca
+// devolve. O CSRT e o CSC identificam o emitente perante a SEFAZ: quem os tem
+// assina no lugar dele. O que sai no XML é sempre o hash derivado, não o
+// segredo — ver services.HashCSRT e o QR Code da NFC-e.
+var fiscalConfigSecrets = []string{"csrt", "prod_csc", "hom_csc"}
+
+// redactFiscalSecrets devolve uma cópia sem os segredos. Cópia, e não deleção
+// no lugar, porque o mesmo item pode estar no cache compartilhado.
+func redactFiscalSecrets(item map[string]types.AttributeValue) map[string]types.AttributeValue {
+	if item == nil {
+		return nil
+	}
+	out := make(map[string]types.AttributeValue, len(item))
+	maps.Copy(out, item)
+	for _, k := range fiscalConfigSecrets {
+		delete(out, k)
+	}
+	return out
 }

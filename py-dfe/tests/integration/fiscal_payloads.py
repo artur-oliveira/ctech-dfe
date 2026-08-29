@@ -88,9 +88,21 @@ def build_nfe(
         serie: int = 1,
         nnf: int | None = None,
         uf: str = "PI",
-        mod: str = '55'
+        mod: str = '55',
+        fin_nfe: str = "1",
+        nfref: list[dict] | None = None,
+        vols: list[dict] | None = None,
+        reboques: list[dict] | None = None,
+        inf_adic: dict | None = None,
+        resp_tec: dict | None = None,
+        prod_extra: dict | None = None,
+        inf_nfe_extra: dict | None = None,
 ) -> tuple[dict, str]:
     """Minimal NF-e (mod=55). Pass uf= to target a specific authorizer's cUF.
+    fin_nfe/nfref cobrem devolução e complementar (ide/NFref).
+    prod_extra acrescenta grupos ao nó prod do item (veicProd, med...).
+    inf_nfe_extra acrescenta grupos ao nível de infNFe (compra, cana,
+    agropecuario...).
     Returns (payload, chave_44)."""
     cuf, cmunfg, xmun, uf_sig = UF_PARAMS.get(uf, UF_PARAMS["PI"])
     if nnf is None:
@@ -125,7 +137,7 @@ def build_nfe(
                         "tpEmis": "1",
                         "cDV": cdv,
                         "tpAmb": _ENV,
-                        "finNFe": "1",
+                        "finNFe": fin_nfe,
                         "indFinal": "0",
                         "indPres": "0",
                         "procEmi": "0",
@@ -189,6 +201,22 @@ def build_nfe(
             },
         }
     }
+    if prod_extra:
+        payload["enviNFe"]["NFe"]["infNFe"]["det"]["prod"].update(prod_extra)
+    if inf_nfe_extra:
+        payload["enviNFe"]["NFe"]["infNFe"].update(inf_nfe_extra)
+    if nfref:
+        payload["enviNFe"]["NFe"]["infNFe"]["ide"]["NFref"] = nfref
+    if resp_tec:
+        payload["enviNFe"]["NFe"]["infNFe"].setdefault("infRespTec", {}).update(resp_tec)
+    if inf_adic:
+        payload["enviNFe"]["NFe"]["infNFe"]["infAdic"].update(inf_adic)
+    if vols or reboques:
+        transp = payload["enviNFe"]["NFe"]["infNFe"].setdefault("transp", {"modFrete": "9"})
+        if reboques:
+            transp["reboque"] = reboques
+        if vols:
+            transp["vol"] = vols
     return payload, chave
 
 
@@ -580,8 +608,17 @@ def build_cte_cancelamento(chave: str, nprot: str) -> dict:
     }
 
 
-def build_mdfe(serie: int = 1, nmdf: int | None = None) -> tuple[dict, str]:
-    """Minimal MDF-e (mod=58) for SVRS/SP HOMOLOGAÇÃO. Returns (payload, chave_44)."""
+def build_mdfe(
+    serie: int = 1,
+    nmdf: int | None = None,
+    inf_antt: dict | None = None,
+    seg: list[dict] | None = None,
+) -> tuple[dict, str]:
+    """Minimal MDF-e (mod=58) for SVRS/SP HOMOLOGAÇÃO. Returns (payload, chave_44).
+
+    inf_antt estende infANTT (valePed, infContratante, infPag).
+    seg é o grupo do seguro da carga (infMDFe/seg).
+    """
     if nmdf is None:
         nmdf = random.randint(800_000_001, 899_999_999)
     chave, cnf, cdv = _chave(_CUF_PI, "58", serie, nmdf)
@@ -665,6 +702,11 @@ def build_mdfe(serie: int = 1, nmdf: int | None = None) -> tuple[dict, str]:
             },
         }
     }
+    if inf_antt:
+        rodo = payload["MDFe"]["infMDFe"]["infModal"]["rodo"]
+        rodo.setdefault("infANTT", {}).update(inf_antt)
+    if seg:
+        payload["MDFe"]["infMDFe"]["seg"] = seg
     return payload, chave
 
 

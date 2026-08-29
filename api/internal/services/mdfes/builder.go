@@ -3,6 +3,7 @@ package mdfes
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ const (
 
 	// tpProp (veicTracao/prop): 0=TAC Agregado, 1=TAC Independente, 2=Outros.
 	tpPropOutros = "2"
+
+	// indSim é o único valor que indCanalVerde e indCarregaPosterior aceitam.
+	indSim = "1"
 )
 
 // buildParams carries everything BuildMDFe needs.
@@ -66,7 +70,49 @@ type buildParams struct {
 	// tpEmis é a forma de emissão (1 normal, 2 contingência, 3 Regime Especial
 	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
 	tpEmis string
+	// tolls são os vales-pedágio da viagem, já cruzados com o cadastro.
+	tolls []resolvedToll
+	// contractors são os contratantes do frete (infANTT/infContratante), já
+	// resolvidos contra organization_persons.
+	contractors []resolvedContractor
+	// redelivery marca por chave os documentos que são reentrega.
+	redelivery map[string]bool
+	// partial traz, por chave de CT-e, a entrega parcial e as NF-e já entregues.
+	partial map[string]partialDelivery
+	// transportedMdfes são os MDF-e transportados por este (infMDFeTransp).
+	transportedMdfes []MdfeTransportedBody
+	// unidTransp traz, por chave de documento, as unidades de transporte que o
+	// levam, já com o rateio calculado.
+	unidTransp map[string][]map[string]any
+	// peri traz, por chave de documento, o produto perigoso derivado do
+	// cadastro dos itens da nota referenciada.
+	peri map[string][]map[string]any
+	// seals são os lacres da carga (infMDFe/lacres); rodoSeals, os lacres da
+	// unidade de transporte (rodo/lacRodo); portAgentCode é o agente portuário.
+	seals         []string
+	rodoSeals     []string
+	portAgentCode string
+	// indCanalVerde e indCarregaPosterior são indicadores da configuração do
+	// MDF-e: participação no Canal Verde e inclusão de DF-e por evento depois
+	// da emissão. O XSD só aceita o valor "1", então aqui eles são booleanos.
+	indCanalVerde       bool
+	indCarregaPosterior bool
+	// infAdFisco é a mensagem ao fisco da configuração; addInfo é a observação
+	// da viagem. As duas convivem no mesmo infAdic.
+	infAdFisco string
+	// emptyUnits são as unidades de carga e de transporte que viajam vazias no
+	// modal aquaviário, já resolvidas contra organization_cargo_units.
+	emptyUnits emptyUnitNodes
+	// policies são as apólices de seguro da carga, já cruzadas com o cadastro.
+	policies []resolvedPolicy
+	// infPag é o pagamento ao transportador autônomo, já montado por
+	// buildInfPag a partir do cadastro e do prazo da viagem.
+	infPag []map[string]any
 	tech   TechData
+	// csrtID/csrt são o Código de Segurança do Responsável Técnico. Só o hash
+	// derivado entra no XML.
+	csrtID string
+	csrt   string
 }
 
 // BuildMDFe constructs the MDFe dict sent to the py-dfe Lambda. SEFAZ no longer
@@ -89,10 +135,16 @@ func BuildMDFe(p buildParams) map[string]any {
 		"prodPred": p.buildProdPred(),
 		"tot":      p.buildTot(),
 	}
-	if p.addInfo != nil && *p.addInfo != "" {
-		infMDFe["infAdic"] = map[string]any{"infCpl": *p.addInfo}
+	if seg := buildSeg(p.policies); seg != nil {
+		infMDFe["seg"] = seg
 	}
-	if rt := buildRespTec(p.tech); rt != nil {
+	if lac := services.SealNodes(p.seals); lac != nil {
+		infMDFe["lacres"] = lac
+	}
+	if infAdic := p.buildInfAdic(); infAdic != nil {
+		infMDFe["infAdic"] = infAdic
+	}
+	if rt := buildRespTec(p.tech, p.csrtID, p.csrt, p.accessKey); rt != nil {
 		infMDFe["infRespTec"] = rt
 	}
 
@@ -107,6 +159,22 @@ func BuildMDFe(p buildParams) map[string]any {
 			"infMDFeSupl": infMDFeSupl,
 		},
 	}
+}
+
+// buildInfAdic junta a mensagem ao fisco (configuração) e a observação da
+// viagem. O MDF-e só tem esses dois filhos — nada de obsCont/obsFisco/procRef.
+func (p buildParams) buildInfAdic() map[string]any {
+	infAdic := map[string]any{}
+	if p.infAdFisco != "" {
+		infAdic["infAdFisco"] = p.infAdFisco
+	}
+	if p.addInfo != nil && *p.addInfo != "" {
+		infAdic["infCpl"] = *p.addInfo
+	}
+	if len(infAdic) == 0 {
+		return nil
+	}
+	return infAdic
 }
 
 func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
@@ -154,6 +222,14 @@ func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
 	if p.tripStart != nil && *p.tripStart != "" {
 		ide["dhIniViagem"] = *p.tripStart
 	}
+	// Os dois indicadores são enumerações de um valor só: existir já quer dizer
+	// "sim", e o XSD não aceita "0".
+	if p.indCanalVerde {
+		ide["indCanalVerde"] = indSim
+	}
+	if p.indCarregaPosterior {
+		ide["indCarregaPosterior"] = indSim
+	}
 	return ide
 }
 
@@ -166,7 +242,7 @@ func (p buildParams) buildInfModal() map[string]any {
 	case ModalAereo:
 		modal["aereo"] = buildAereo(p.air)
 	case ModalAquaviario:
-		modal["aquav"] = buildAquav(p.water)
+		modal["aquav"] = buildAquav(p.water, p.emptyUnits)
 	case ModalFerroviario:
 		modal["ferrov"] = buildFerrov(p.rail)
 	default:
@@ -184,11 +260,17 @@ func (p buildParams) buildRodo() map[string]any {
 		"tpCar": p.vehicle.TpCar,
 		"UF":    p.vehicle.UF,
 	}
+	if p.vehicle.CInt != "" {
+		veic["cInt"] = p.vehicle.CInt
+	}
 	if p.vehicle.RENAVAM != "" {
 		veic["RENAVAM"] = p.vehicle.RENAVAM
 	}
 	if p.vehicle.CapKG != "" {
 		veic["capKG"] = p.vehicle.CapKG
+	}
+	if p.vehicle.CapM3 != "" {
+		veic["capM3"] = p.vehicle.CapM3
 	}
 	if prop := buildProp(p.owner); prop != nil {
 		veic["prop"] = prop
@@ -205,11 +287,17 @@ func (p buildParams) buildRodo() map[string]any {
 		reboques := make([]map[string]any, 0, len(p.trailers))
 		for _, t := range p.trailers {
 			reboque := map[string]any{"placa": t.Placa, "tara": t.Tara, "tpCar": t.TpCar}
+			if t.CInt != "" {
+				reboque["cInt"] = t.CInt
+			}
 			if t.RENAVAM != "" {
 				reboque["RENAVAM"] = t.RENAVAM
 			}
 			if t.CapKG != "" {
 				reboque["capKG"] = t.CapKG
+			}
+			if t.CapM3 != "" {
+				reboque["capM3"] = t.CapM3
 			}
 			if t.UF != "" {
 				reboque["UF"] = t.UF
@@ -221,19 +309,13 @@ func (p buildParams) buildRodo() map[string]any {
 	if infANTT := p.buildInfANTT(); len(infANTT) > 0 {
 		rodo["infANTT"] = infANTT
 	}
+	if p.portAgentCode != "" {
+		rodo["codAgPorto"] = p.portAgentCode
+	}
+	if lac := services.SealNodes(p.rodoSeals); lac != nil {
+		rodo["lacRodo"] = lac
+	}
 	return rodo
-}
-
-// buildInfANTT assembles the ANTT regulatory group (RNTRC + optional CIOT).
-func (p buildParams) buildInfANTT() map[string]any {
-	infANTT := map[string]any{}
-	if rntrc := p.resolveRNTRC(); rntrc != "" {
-		infANTT["RNTRC"] = rntrc
-	}
-	if p.ciot != nil && *p.ciot != "" {
-		infANTT["infCIOT"] = map[string]any{"CIOT": *p.ciot, "CPF": onlyDigits(p.firstCondutorCPF())}
-	}
-	return infANTT
 }
 
 // resolveRNTRC picks the request override, then the registered-vehicle owner RNTRC.
@@ -284,36 +366,13 @@ func tpTranspFor(o *resolvedOwner) string {
 	return tpTranspETC
 }
 
-func (p buildParams) buildInfDoc() map[string]any {
-	munDescarga := make([]map[string]any, 0, len(p.cargo.descarga))
-	for _, g := range p.cargo.descarga {
-		node := map[string]any{
-			"cMunDescarga": g.mun.IBGECode,
-			"xMunDescarga": g.mun.City,
-		}
-		if len(g.nfeKeys) > 0 {
-			nfes := make([]map[string]any, 0, len(g.nfeKeys))
-			for _, k := range g.nfeKeys {
-				nfes = append(nfes, map[string]any{"chNFe": k})
-			}
-			node["infNFe"] = nfes
-		}
-		if len(g.cteKeys) > 0 {
-			ctes := make([]map[string]any, 0, len(g.cteKeys))
-			for _, k := range g.cteKeys {
-				ctes = append(ctes, map[string]any{"chCTe": k})
-			}
-			node["infCTe"] = ctes
-		}
-		munDescarga = append(munDescarga, node)
-	}
-	return map[string]any{"infMunDescarga": munDescarga}
-}
-
 func (p buildParams) buildProdPred() map[string]any {
 	pred := map[string]any{
 		"tpCarga": p.cargo.prodPred.TpCarga,
 		"xProd":   p.cargo.prodPred.XProd,
+	}
+	if p.cargo.prodPred.CEAN != "" {
+		pred["cEAN"] = p.cargo.prodPred.CEAN
 	}
 	if p.cargo.prodPred.NCM != "" {
 		pred["NCM"] = p.cargo.prodPred.NCM
@@ -338,6 +397,10 @@ func (p buildParams) buildTot() map[string]any {
 		"vCarga": p.cargo.totalValue.StringFixed(2),
 		"cUnid":  cUnidKG,
 		"qCarga": p.cargo.totalWeight.StringFixed(4),
+	}
+	// qMDFe é contagem: quantos MDF-e este manifesto transporta.
+	if n := len(p.transportedMdfes); n > 0 {
+		tot["qMDFe"] = strconv.Itoa(n)
 	}
 	n := fmt.Sprintf("%d", len(p.cargo.docs))
 	if len(p.cargo.docs) > 0 && p.cargo.docs[0].docType == docTypeCTe {
@@ -397,6 +460,9 @@ func buildEnderMDFe(person map[string]any) map[string]any {
 		"CEP":     onlyDigits(anyStr(addr, "postal_code")),
 		"UF":      anyStr(addr, "state_federation"),
 	}
+	if cpl := anyStr(addr, "complement"); cpl != "" {
+		ender["xCpl"] = cpl
+	}
 	if email := services.FirstEmail(person); email != "" {
 		ender["email"] = email
 	}
@@ -406,16 +472,13 @@ func buildEnderMDFe(person map[string]any) map[string]any {
 	return ender
 }
 
-func buildRespTec(t TechData) map[string]any {
+// buildRespTec delega ao nó compartilhado: infRespTec é literalmente o mesmo
+// grupo na NF-e, no CT-e e no MDF-e (ver a tabela de ordem XSD).
+func buildRespTec(t TechData, csrtID, csrt, accessKey string) map[string]any {
 	if t.CNPJ == "" {
 		return nil
 	}
-	return map[string]any{
-		"CNPJ":     t.CNPJ,
-		"xContato": t.Name,
-		"email":    t.Email,
-		"fone":     onlyDigits(t.Phone),
-	}
+	return services.BuildRespTec(t.CNPJ, t.Name, t.Email, onlyDigits(t.Phone), csrtID, csrt, accessKey)
 }
 
 func verProc(t TechData) string {

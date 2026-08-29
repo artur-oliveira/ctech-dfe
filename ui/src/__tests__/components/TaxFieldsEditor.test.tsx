@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {render, screen} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import {EMPTY_TAX_GROUPS, TaxFieldsEditor} from '@/components/tax/TaxFieldsEditor'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 
@@ -38,5 +39,59 @@ describe('TaxFieldsEditor — grupos opcionais novos', () => {
                             groups={{...EMPTY_TAX_GROUPS, pisCofinsSt: true}} onGroupsChange={() => {}}/>)
     expect(screen.getByText(/PIS\/COFINS-ST/)).toBeInTheDocument()
     expect(screen.getByText('Alíquota PIS-ST %')).toBeInTheDocument()
+  })
+})
+
+describe('TaxFieldsEditor — rótulos ligados ao controle', () => {
+  const groupsWithMono = {...EMPTY_TAX_GROUPS, icmsMono: true}
+
+  it('associa cada rótulo ao seu campo (clicar no rótulo foca o controle)', () => {
+    render(<TaxFieldsEditor value={{...baseValue, icms_mod_bc: '1'}} onChange={() => {}} simples={false}
+                            groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>)
+    expect(screen.getByLabelText('CFOP *')).toBeInTheDocument()
+    expect(screen.getByLabelText('PIS *')).toBeInTheDocument()
+    expect(screen.getByLabelText('COFINS *')).toBeInTheDocument()
+    expect(screen.getByLabelText('Alíquota ICMS %')).toBeInTheDocument()
+    expect(screen.getByLabelText('Valor da pauta fiscal (R$)')).toBeInTheDocument()
+  })
+
+  it('não repete id entre dois editores na mesma tela', () => {
+    const {container} = render(
+      <div>
+        <TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                         groups={groupsWithMono} onGroupsChange={() => {}}/>
+        <TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                         groups={groupsWithMono} onGroupsChange={() => {}}/>
+      </div>,
+    )
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('TaxFieldsEditor — visão simples e avançada', () => {
+  it('mostra só CFOP, CST, PIS e COFINS quando nenhum grupo está configurado', () => {
+    render(<TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                            groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>)
+    expect(screen.getByLabelText('CFOP *')).toBeInTheDocument()
+    expect(screen.getByLabelText('PIS *')).toBeInTheDocument()
+    expect(screen.queryByText('IPI — Imposto sobre Produtos Industrializados')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', {name: /Outros impostos e regimes/})).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('abre a seção avançada ao clicar', async () => {
+    const user = userEvent.setup()
+    render(<TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                            groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>)
+    await user.click(screen.getByRole('button', {name: /Outros impostos e regimes/}))
+    expect(screen.getByText(/PIS\/COFINS-ST/)).toBeInTheDocument()
+  })
+
+  it('nasce aberta, com contador, quando já há grupo configurado', () => {
+    render(<TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
+                            groups={{...EMPTY_TAX_GROUPS, ipi: true, issqn: true}} onGroupsChange={() => {}}/>)
+    const toggle = screen.getByRole('button', {name: /Outros impostos e regimes/})
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByLabelText('2 grupo(s) configurado(s)')).toHaveTextContent('2')
   })
 })

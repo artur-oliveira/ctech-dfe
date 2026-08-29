@@ -13,12 +13,16 @@ export function CollapsibleSection({
   title,
   description,
   defaultOpen = false,
+  badge,
   children,
   className,
 }: {
   title: string
   description?: string
   defaultOpen?: boolean
+  /** Marca fechada: quantos campos com erro ou preenchidos há aqui dentro. Sem
+   *  ela, uma seção colapsada esconde o erro que impede o formulário de salvar. */
+  badge?: React.ReactNode
   children: React.ReactNode
   className?: string
 }) {
@@ -35,7 +39,10 @@ export function CollapsibleSection({
         className="flex w-full items-center justify-between gap-2 px-5 py-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
       >
         <span className="min-w-0">
-          <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500">{title}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500">{title}</span>
+            {badge}
+          </span>
           {description && <span className="mt-0.5 block text-xs text-gray-400">{description}</span>}
         </span>
         <svg

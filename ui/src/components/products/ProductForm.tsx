@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import {useState} from 'react'
+import {useMemo, useState} from 'react'
 import {generateEntityCode} from '@/lib/utils/code'
-import {useForm, useWatch} from 'react-hook-form'
+import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
 import {useQuery} from '@tanstack/react-query'
 import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -16,14 +16,25 @@ import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
+import {GlossaryTerm} from '@/components/ui/glossary-term'
+import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
+import {ANP_OPTIONS, anpMonoFuel} from '@/lib/data/anp'
+import {benefitOptionsForUf} from '@/lib/data/cbenef'
+import {especieOptionsForTipo} from '@/lib/data/vehicle_type_pairs'
+import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit'
+import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
+import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
+import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {Button} from '@/components/ui/button'
+import {Label} from '@/components/ui/label'
 import {
   type CfopConfigFormData,
+  cfopConfigSchema,
   type ConversionFactorFormData,
   type ProductFormData,
   productSchema
 } from '@/lib/schemas/products'
-import type {ProductCreate, ProductOut} from '@/lib/types/api'
+import type {CombOrigIn, ProductCreate, ProductOut} from '@/lib/types/api'
 import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
 import {
   CSOSN_ST,
@@ -38,7 +49,20 @@ import {
 import {isRegimeSimples} from '@/lib/constants/tax'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
+import {TP_CRED_PRES_IBS_ZFM_OPTIONS} from '@/lib/data/ibs_cbs_reform'
 import {ORIGIN_OPTIONS} from '@/lib/data/origin'
+import {
+  VEIC_COND_OPTIONS,
+  VEIC_COR_DENATRAN_OPTIONS,
+  VEIC_ESP_VEIC_OPTIONS,
+  VEIC_TP_COMB_OPTIONS,
+  VEIC_TP_OP_OPTIONS,
+  VEIC_TP_PINT_OPTIONS,
+  VEIC_TP_REST_OPTIONS,
+  VEIC_TP_VEIC_OPTIONS,
+  VEIC_VIN_OPTIONS,
+  vehicleYearOptions,
+} from '@/lib/data/vehicle'
 import {UfOverridesEditor, type UfOverrideFormData} from '@/components/tax/UfOverridesEditor'
 import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
 
@@ -56,9 +80,85 @@ interface ProductFormProps {
   loading?: boolean
 }
 
+// indBemMovelUsado (prod/indBemMovelUsado) enumera um valor só no XSD.
+const IND_BEM_MOVEL_USADO_SIM = '1'
+
+/** Limite de gCred no leiaute (maxOccurs=4). */
+const MAX_GCRED = 4
+
+/**
+ * Créditos presumidos da UF aplicados ao item (prod/gCred). O `vCredPresumido`
+ * não aparece: é o percentual sobre o valor do item, calculado na emissão —
+ * pedir os três seria pedir que o operador feche uma conta que o sistema faz.
+ */
+function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
+  const {fields, append, remove} = useFieldArray({control: form.control, name: 'gcred'})
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <FormLabel>Créditos presumidos da UF</FormLabel>
+        <Button type="button" variant="ghost" size="xs" disabled={fields.length >= MAX_GCRED}
+                onClick={() => append({c_cred_presumido: '', p_cred_presumido: ''})}>
+          + Crédito
+        </Button>
+      </div>
+      {fields.length === 0 && (
+        <p className="text-xs text-gray-500">
+          Nenhum. O valor de cada crédito é calculado do percentual na emissão.
+        </p>
+      )}
+      {fields.map((row, index) => (
+        <div key={row.id}
+             className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] gap-2 items-end">
+          <FormField control={form.control} name={`gcred.${index}.c_cred_presumido`} render={({field}) => (
+            <FormItem>
+              <FormLabel>Código do benefício</FormLabel>
+              <Input {...field} id={field.name} value={field.value ?? ''} maxLength={10}
+                     className="w-full" placeholder="8 ou 10 caracteres"/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+          <FormField control={form.control} name={`gcred.${index}.p_cred_presumido`} render={({field}) => (
+            <FormItem>
+              <FormLabel>% Crédito</FormLabel>
+              <NumericInput id={field.name} decimal integerPlaces={3} decimalPlaces={4}
+                            value={field.value ?? ''} placeholder="0.0000" onChange={field.onChange}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+          <Button type="button" variant="ghost" size="xs" className="min-h-11" onClick={() => remove(index)}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const IS_SIMPLES = isRegimeSimples
+
+// Calculada uma vez por carga do módulo: a lista não muda durante a sessão.
+const VEHICLE_YEAR_OPTIONS = vehicleYearOptions()
+
+/** Grupos que não seguem o tipo do produto — qualquer produto pode ter qualquer um. */
+const EXTRA_GROUP_OPTIONS = [
+  {key: 'importacao', label: 'Origem importada, NVE ou código de barras próprio'},
+  {key: 'reforma', label: 'Crédito presumido ou regime da reforma (IBS/CBS)'},
+  {key: 'selo', label: 'Selo de controle do IPI'},
+  {key: 'perigoso', label: 'Classificação de produto perigoso'},
+] as const
+
+type ExtraGroupKey = typeof EXTRA_GROUP_OPTIONS[number]['key']
+type ExtraGroups = Record<ExtraGroupKey, boolean>
+
+/** Literais do leiaute — nunca digitados, sempre escritos por um controle. */
+const SEM_GTIN = 'SEM GTIN'
+const ANVISA_ISENTO = 'ISENTO'
+
+/** Tabela estática: recriar o array por render invalidava o memo do Combobox. */
+const NFCE_CFOP_OPTIONS = getCfopOptionsForNfce()
 
 const TABS: { id: ProductTab; label: string }[] = [
   {id: 'produto', label: 'Produto'},
@@ -67,43 +167,30 @@ const TABS: { id: ProductTab; label: string }[] = [
   {id: 'especial', label: 'Tipo Especial'},
 ]
 
-const VEIC_TP_OP_OPTIONS = [
-  {value: '0', label: '0 – Outros'},
-  {value: '1', label: '1 – Venda concessionária'},
-  {value: '2', label: '2 – Faturamento direto'},
-  {value: '3', label: '3 – Venda direta'},
-]
-const VEIC_TP_COMB_OPTIONS = [
-  {value: '01', label: '01 – Álcool'},
-  {value: '02', label: '02 – Gasolina'},
-  {value: '03', label: '03 – Diesel'},
-  {value: '16', label: '16 – Álcool/Gasolina'},
-  {value: '17', label: '17 – Gas./Álcool/GNV'},
-  {value: '18', label: '18 – Gasolina/Elétrico'},
-]
-const VEIC_COND_OPTIONS = [
-  {value: '1', label: '1 – Acabado'},
-  {value: '2', label: '2 – Inacabado'},
-  {value: '3', label: '3 – Semi-acabado'},
-]
-const VEIC_TP_REST_OPTIONS = [
-  {value: '0', label: '0 – Sem restrição'},
-  {value: '1', label: '1 – Alienação Fiduciária'},
-  {value: '2', label: '2 – Arrendamento Mercantil'},
-  {value: '3', label: '3 – Reserva de Domínio'},
-  {value: '4', label: '4 – Penhor de Veículos'},
-  {value: '9', label: '9 – Outras'},
-]
-const VEIC_COR_DENATRAN_OPTIONS = [
-  {value: '01', label: '01 – Amarelo'}, {value: '02', label: '02 – Azul'},
-  {value: '03', label: '03 – Bege'}, {value: '04', label: '04 – Branca'},
-  {value: '05', label: '05 – Cinza'}, {value: '06', label: '06 – Dourada'},
-  {value: '07', label: '07 – Grena'}, {value: '08', label: '08 – Laranja'},
-  {value: '09', label: '09 – Marrom'}, {value: '10', label: '10 – Prata'},
-  {value: '11', label: '11 – Preta'}, {value: '12', label: '12 – Rosa'},
-  {value: '13', label: '13 – Roxa'}, {value: '14', label: '14 – Verde'},
-  {value: '15', label: '15 – Vermelha'}, {value: '16', label: '16 – Fantasia'},
-]
+/**
+ * Em que aba mora cada campo. Sem isso, um erro de validação numa aba inativa é
+ * invisível: o submit falha, nada muda na tela e o operador procura às cegas.
+ */
+const TAB_FIELDS: Record<Exclude<ProductTab, 'especial'>, readonly string[]> = {
+  produto: [
+    'code', 'description', 'brand', 'ncm', 'cest', 'origin', 'c_benef', 'ext_ipi',
+    'ind_escala', 'cnpj_fab', 'ind_tot', 'inf_ad_prod',
+  ],
+  unidades: [
+    'unit', 'taxable_unit', 'cean', 'taxable_cean', 'value', 'value_resale',
+    'net_weight', 'gross_weight', 'conversion_factors',
+  ],
+  tributacao: ['cfop_nfce', 'cfop_config', 'icms_aliq_override', 'fcp_aliq_override'],
+}
+
+/** A aba "Tipo Especial" é o resto: tudo que não é identificação, preço ou tributação. */
+function tabOfField(field: string): ProductTab {
+  for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
+    if (fields.includes(field)) return tab as ProductTab
+  }
+  return 'especial'
+}
+
 
 
 const EMPTY_CFOP_ROW: CfopConfigFormData = {
@@ -136,6 +223,15 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   icms_p_st: '',
   icms_fcp_v_bc_st_ret: '',
   icms_fcp_st_ret_aliq: '',
+  icms_v_bc_st_dest: '',
+  icms_v_icms_st_dest: '',
+  icms_p_red_bc_efet: '',
+  icms_p_icms_efet: '',
+  icms_part_p_bc_op: '',
+  icms_part_uf_st: '',
+  icms_mot_des_st: '',
+  icms_p_fcp_dif: '',
+  ipi_v_unid: '',
   pis: '',
   cofins: '',
   pis_aliq: '',
@@ -165,6 +261,15 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   ibs_mun_p_dif: '',
   cbs_p_dif: '',
   ibs_ind_doacao: '',
+  ibs_ad_rem_reten: '', cbs_ad_rem_reten: '',
+  ibs_ad_rem_ret: '', cbs_ad_rem_ret: '',
+  ibs_p_dif_mono: '', cbs_p_dif_mono: '',
+  ibs_reg_cst: '', ibs_reg_class_trib: '',
+  ibs_reg_uf_aliq: '', ibs_reg_mun_aliq: '', cbs_reg_aliq: '',
+  ibs_gov_uf_aliq: '', ibs_gov_mun_aliq: '', cbs_gov_aliq: '',
+  ibs_cbs_c_cred_pres: '', ibs_p_cred_pres: '', cbs_p_cred_pres: '',
+  ibs_cbs_cred_pres_cond_sus: '', ibs_zfm_p_cred_pres: '',
+  alc_zfm_tp_cbs: '', alc_zfm_n_proc_suframa: '',
   ibs_ad_rem: '',
   cbs_ad_rem: '',
   ibs_cbs_p_dev_trib: '',
@@ -175,6 +280,16 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   issqn_aliq: '',
   issqn_v_deducao: '',
   issqn_v_iss_ret: '',
+  issqn_v_outro: '',
+  issqn_v_desc_incond: '',
+  issqn_v_desc_cond: '',
+  issqn_c_servico: '',
+  issqn_c_mun: '',
+  issqn_c_pais: '',
+  issqn_n_processo: '',
+  issqn_ind_incentivo: '',
+  obs_item_x_campo: '',
+  obs_item_x_texto: '',
   uf_overrides: [],
 }
 
@@ -240,6 +355,15 @@ function toFormData(p: ProductOut): ProductFormData {
       icms_p_st: c.icms_p_st ?? '',
       icms_fcp_v_bc_st_ret: c.icms_fcp_v_bc_st_ret ?? '',
       icms_fcp_st_ret_aliq: c.icms_fcp_st_ret_aliq ?? '',
+      icms_v_bc_st_dest: c.icms_v_bc_st_dest ?? '',
+      icms_v_icms_st_dest: c.icms_v_icms_st_dest ?? '',
+      icms_p_red_bc_efet: c.icms_p_red_bc_efet ?? '',
+      icms_p_icms_efet: c.icms_p_icms_efet ?? '',
+      icms_part_p_bc_op: c.icms_part_p_bc_op ?? '',
+      icms_part_uf_st: c.icms_part_uf_st ?? '',
+      icms_mot_des_st: c.icms_mot_des_st ?? '',
+      icms_p_fcp_dif: c.icms_p_fcp_dif ?? '',
+      ipi_v_unid: c.ipi_v_unid ?? '',
       pis_aliq: c.pis_aliq ?? '',
       cofins_aliq: c.cofins_aliq ?? '',
       pis_aliq_unid: c.pis_aliq_unid ?? '',
@@ -266,16 +390,48 @@ function toFormData(p: ProductOut): ProductFormData {
       ibs_uf_p_dif: c.ibs_uf_p_dif ?? '',
       ibs_mun_p_dif: c.ibs_mun_p_dif ?? '',
       cbs_p_dif: c.cbs_p_dif ?? '',
-      ibs_ind_doacao: c.ibs_ind_doacao ?? '',
+      ibs_ind_doacao: (c.ibs_ind_doacao ?? '') as CfopConfigFormData['ibs_ind_doacao'],
       ibs_ad_rem: c.ibs_ad_rem ?? '',
       cbs_ad_rem: c.cbs_ad_rem ?? '',
+      ibs_ad_rem_reten: c.ibs_ad_rem_reten ?? '',
+      cbs_ad_rem_reten: c.cbs_ad_rem_reten ?? '',
+      ibs_ad_rem_ret: c.ibs_ad_rem_ret ?? '',
+      cbs_ad_rem_ret: c.cbs_ad_rem_ret ?? '',
+      ibs_p_dif_mono: c.ibs_p_dif_mono ?? '',
+      cbs_p_dif_mono: c.cbs_p_dif_mono ?? '',
       ibs_cbs_p_dev_trib: c.ibs_cbs_p_dev_trib ?? '',
+      ibs_reg_cst: c.ibs_reg_cst ?? '',
+      ibs_reg_class_trib: c.ibs_reg_class_trib ?? '',
+      ibs_reg_uf_aliq: c.ibs_reg_uf_aliq ?? '',
+      ibs_reg_mun_aliq: c.ibs_reg_mun_aliq ?? '',
+      cbs_reg_aliq: c.cbs_reg_aliq ?? '',
+      ibs_gov_uf_aliq: c.ibs_gov_uf_aliq ?? '',
+      ibs_gov_mun_aliq: c.ibs_gov_mun_aliq ?? '',
+      cbs_gov_aliq: c.cbs_gov_aliq ?? '',
+      ibs_cbs_c_cred_pres: c.ibs_cbs_c_cred_pres ?? '',
+      ibs_p_cred_pres: c.ibs_p_cred_pres ?? '',
+      cbs_p_cred_pres: c.cbs_p_cred_pres ?? '',
+      ibs_cbs_cred_pres_cond_sus:
+        (c.ibs_cbs_cred_pres_cond_sus ?? '') as CfopConfigFormData['ibs_cbs_cred_pres_cond_sus'],
+      ibs_zfm_p_cred_pres: c.ibs_zfm_p_cred_pres ?? '',
+      alc_zfm_tp_cbs: (c.alc_zfm_tp_cbs ?? '') as CfopConfigFormData['alc_zfm_tp_cbs'],
+      alc_zfm_n_proc_suframa: c.alc_zfm_n_proc_suframa ?? '',
       issqn_ind_iss: c.issqn_ind_iss ?? '',
       issqn_c_list_serv: c.issqn_c_list_serv ?? '',
       issqn_c_mun_fg: c.issqn_c_mun_fg ?? '',
       issqn_aliq: c.issqn_aliq ?? '',
       issqn_v_deducao: c.issqn_v_deducao ?? '',
       issqn_v_iss_ret: c.issqn_v_iss_ret ?? '',
+      issqn_v_outro: c.issqn_v_outro ?? '',
+      issqn_v_desc_incond: c.issqn_v_desc_incond ?? '',
+      issqn_v_desc_cond: c.issqn_v_desc_cond ?? '',
+      issqn_c_servico: c.issqn_c_servico ?? '',
+      issqn_c_mun: c.issqn_c_mun ?? '',
+      issqn_c_pais: c.issqn_c_pais ?? '',
+      issqn_n_processo: c.issqn_n_processo ?? '',
+      issqn_ind_incentivo: c.issqn_ind_incentivo ?? '',
+      obs_item_x_campo: c.obs_item_x_campo ?? '',
+      obs_item_x_texto: c.obs_item_x_texto ?? '',
       uf_overrides: c.uf_overrides ?? [],
     })),
     conversion_factors: (p.conversion_factors ?? []).map((f) => ({
@@ -293,9 +449,28 @@ function toFormData(p: ProductOut): ProductFormData {
     comb_p_gni: p.comb_p_gni ?? '',
     comb_v_part: p.comb_v_part ?? '',
     comb_p_bio: p.comb_p_bio ?? '',
+    comb_cide_v_aliq_prod: p.comb_cide_v_aliq_prod ?? '',
+    comb_orig: Array.isArray(p.comb_orig) ? (p.comb_orig as ProductFormData['comb_orig']) : [],
     med_c_prod_anvisa: p.med_c_prod_anvisa ?? '',
     med_x_motivo_isencao: p.med_x_motivo_isencao ?? '',
     med_v_pmc: p.med_v_pmc ?? '',
+    nve: Array.isArray(p.nve) ? (p.nve as string[]) : [],
+    n_fci: p.n_fci ?? '',
+    c_barra: p.c_barra ?? '',
+    c_barra_trib: p.c_barra_trib ?? '',
+    n_recopi: p.n_recopi ?? '',
+    gcred: Array.isArray(p.gcred) ? (p.gcred as ProductFormData['gcred']) : [],
+    tp_cred_pres_ibs_zfm: (p.tp_cred_pres_ibs_zfm ?? '') as ProductFormData['tp_cred_pres_ibs_zfm'],
+    ind_bem_movel_usado: (p.ind_bem_movel_usado ?? '') as ProductFormData['ind_bem_movel_usado'],
+    ipi_cnpj_prod: p.ipi_cnpj_prod ?? '',
+    ipi_c_selo: p.ipi_c_selo ?? '',
+    ipi_q_selo: p.ipi_q_selo ?? '',
+    ipi_c_enq: p.ipi_c_enq ?? '',
+    peri_n_onu: p.peri_n_onu ?? '',
+    peri_x_nome_ae: p.peri_x_nome_ae ?? '',
+    peri_x_cla_risco: p.peri_x_cla_risco ?? '',
+    peri_gr_emb: p.peri_gr_emb ?? '',
+    peri_q_vol_tipo: p.peri_q_vol_tipo ?? '',
     veic_tp_op: p.veic_tp_op ?? '',
     veic_tp_comb: p.veic_tp_comb ?? '',
     veic_tp_pint: p.veic_tp_pint ?? '',
@@ -387,6 +562,27 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       ibs_mun_p_dif: nullify(c.ibs_mun_p_dif),
       cbs_p_dif: nullify(c.cbs_p_dif),
       ibs_ind_doacao: nullify(c.ibs_ind_doacao),
+      ibs_ad_rem_reten: nullify(c.ibs_ad_rem_reten),
+      cbs_ad_rem_reten: nullify(c.cbs_ad_rem_reten),
+      ibs_ad_rem_ret: nullify(c.ibs_ad_rem_ret),
+      cbs_ad_rem_ret: nullify(c.cbs_ad_rem_ret),
+      ibs_p_dif_mono: nullify(c.ibs_p_dif_mono),
+      cbs_p_dif_mono: nullify(c.cbs_p_dif_mono),
+      ibs_reg_cst: nullify(c.ibs_reg_cst),
+      ibs_reg_class_trib: nullify(c.ibs_reg_class_trib),
+      ibs_reg_uf_aliq: nullify(c.ibs_reg_uf_aliq),
+      ibs_reg_mun_aliq: nullify(c.ibs_reg_mun_aliq),
+      cbs_reg_aliq: nullify(c.cbs_reg_aliq),
+      ibs_gov_uf_aliq: nullify(c.ibs_gov_uf_aliq),
+      ibs_gov_mun_aliq: nullify(c.ibs_gov_mun_aliq),
+      cbs_gov_aliq: nullify(c.cbs_gov_aliq),
+      ibs_cbs_c_cred_pres: nullify(c.ibs_cbs_c_cred_pres),
+      ibs_p_cred_pres: nullify(c.ibs_p_cred_pres),
+      cbs_p_cred_pres: nullify(c.cbs_p_cred_pres),
+      ibs_cbs_cred_pres_cond_sus: nullify(c.ibs_cbs_cred_pres_cond_sus),
+      ibs_zfm_p_cred_pres: nullify(c.ibs_zfm_p_cred_pres),
+      alc_zfm_tp_cbs: nullify(c.alc_zfm_tp_cbs),
+      alc_zfm_n_proc_suframa: nullify(c.alc_zfm_n_proc_suframa),
       ibs_ad_rem: nullify(c.ibs_ad_rem),
       cbs_ad_rem: nullify(c.cbs_ad_rem),
       ibs_cbs_p_dev_trib: nullify(c.ibs_cbs_p_dev_trib),
@@ -409,6 +605,15 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       icms_p_st: nullify(c.icms_p_st),
       icms_fcp_v_bc_st_ret: nullify(c.icms_fcp_v_bc_st_ret),
       icms_fcp_st_ret_aliq: nullify(c.icms_fcp_st_ret_aliq),
+      icms_v_bc_st_dest: nullify(c.icms_v_bc_st_dest),
+      icms_v_icms_st_dest: nullify(c.icms_v_icms_st_dest),
+      icms_p_red_bc_efet: nullify(c.icms_p_red_bc_efet),
+      icms_p_icms_efet: nullify(c.icms_p_icms_efet),
+      icms_part_p_bc_op: nullify(c.icms_part_p_bc_op),
+      icms_part_uf_st: nullify(c.icms_part_uf_st),
+      icms_mot_des_st: nullify(c.icms_mot_des_st),
+      icms_p_fcp_dif: nullify(c.icms_p_fcp_dif),
+      ipi_v_unid: nullify(c.ipi_v_unid),
       // ISSQN
       issqn_ind_iss: nullify(c.issqn_ind_iss),
       issqn_c_list_serv: nullify(c.issqn_c_list_serv),
@@ -416,6 +621,16 @@ function toApiPayload(data: ProductFormData): ProductCreate {
       issqn_aliq: nullify(c.issqn_aliq),
       issqn_v_deducao: nullify(c.issqn_v_deducao),
       issqn_v_iss_ret: nullify(c.issqn_v_iss_ret),
+      issqn_v_outro: nullify(c.issqn_v_outro),
+      issqn_v_desc_incond: nullify(c.issqn_v_desc_incond),
+      issqn_v_desc_cond: nullify(c.issqn_v_desc_cond),
+      issqn_c_servico: nullify(c.issqn_c_servico),
+      issqn_c_mun: nullify(c.issqn_c_mun),
+      issqn_c_pais: nullify(c.issqn_c_pais),
+      issqn_n_processo: nullify(c.issqn_n_processo),
+      issqn_ind_incentivo: nullify(c.issqn_ind_incentivo),
+      obs_item_x_campo: nullify(c.obs_item_x_campo),
+      obs_item_x_texto: nullify(c.obs_item_x_texto),
     })),
     conversion_factors: hasDifferentUnits && data.conversion_factors.length > 0
       ? data.conversion_factors.map((f) => ({
@@ -434,9 +649,28 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     comb_p_gni: nullify(data.comb_p_gni),
     comb_v_part: nullify(data.comb_v_part),
     comb_p_bio: nullify(data.comb_p_bio),
+    comb_cide_v_aliq_prod: nullify(data.comb_cide_v_aliq_prod),
+    comb_orig: data.comb_orig?.length ? data.comb_orig : null,
     med_c_prod_anvisa: nullify(data.med_c_prod_anvisa),
     med_x_motivo_isencao: nullify(data.med_x_motivo_isencao),
     med_v_pmc: nullify(data.med_v_pmc),
+    nve: data.nve?.length ? data.nve : null,
+    gcred: data.gcred?.length ? data.gcred : null,
+    tp_cred_pres_ibs_zfm: nullify(data.tp_cred_pres_ibs_zfm),
+    ind_bem_movel_usado: nullify(data.ind_bem_movel_usado),
+    n_fci: nullify(data.n_fci),
+    c_barra: nullify(data.c_barra),
+    c_barra_trib: nullify(data.c_barra_trib),
+    n_recopi: nullify(data.n_recopi),
+    ipi_cnpj_prod: nullify(data.ipi_cnpj_prod),
+    ipi_c_selo: nullify(data.ipi_c_selo),
+    ipi_q_selo: nullify(data.ipi_q_selo),
+    ipi_c_enq: nullify(data.ipi_c_enq),
+    peri_n_onu: nullify(data.peri_n_onu),
+    peri_x_nome_ae: nullify(data.peri_x_nome_ae),
+    peri_x_cla_risco: nullify(data.peri_x_cla_risco),
+    peri_gr_emb: nullify(data.peri_gr_emb),
+    peri_q_vol_tipo: nullify(data.peri_q_vol_tipo),
     veic_tp_op: nullify(data.veic_tp_op),
     veic_tp_comb: nullify(data.veic_tp_comb),
     veic_tp_pint: nullify(data.veic_tp_pint),
@@ -471,6 +705,18 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   // Remonta o TaxFieldsEditor para zerar seus toggles internos quando
   // uma linha de CFOP é adicionada à lista.
   const [taxEditorKey, setTaxEditorKey] = useState(0)
+  const [taxOverrideOpen, setTaxOverrideOpen] = useState(false)
+  // Nasce marcado o grupo que já tem dado, senão editar um produto existente
+  // esconderia campos preenchidos.
+  const [extraGroups, setExtraGroups] = useState<ExtraGroups>(() => {
+    const p = initialData
+    return {
+      importacao: !!(p?.nve?.length || p?.n_fci || p?.c_barra || p?.c_barra_trib),
+      reforma: !!(p?.gcred?.length || p?.tp_cred_pres_ibs_zfm || p?.ind_bem_movel_usado),
+      selo: !!(p?.ipi_c_selo || p?.ipi_q_selo || p?.ipi_c_enq || p?.ipi_cnpj_prod),
+      perigoso: !!(p?.peri_n_onu || p?.peri_x_nome_ae || p?.peri_x_cla_risco || p?.peri_gr_emb),
+    }
+  })
   const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
   // Perfis fiscais vinculados. Fora do zod de propósito: o productSchema já é
   // grande o bastante para que mais um array aninhado estoure a inferência do
@@ -507,8 +753,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       origin: '0',
       unit: 'UN',
       taxable_unit: 'UN',
-      cean: 'SEM GTIN',
-      taxable_cean: 'SEM GTIN',
+      cean: SEM_GTIN,
+      taxable_cean: SEM_GTIN,
       value: '',
       value_resale: '',
       net_weight: '',
@@ -527,7 +773,12 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       prod_type: '',
       comb_c_prod_anp: '', comb_desc_anp: '', comb_uf_cons: '', comb_codif: '',
       comb_p_glp: '', comb_p_gnn: '', comb_p_gni: '', comb_v_part: '', comb_p_bio: '',
+      comb_cide_v_aliq_prod: '', comb_orig: [],
       med_c_prod_anvisa: '', med_x_motivo_isencao: '', med_v_pmc: '',
+      nve: [], n_fci: '', c_barra: '', c_barra_trib: '', n_recopi: '',
+      gcred: [], tp_cred_pres_ibs_zfm: '', ind_bem_movel_usado: '',
+      ipi_cnpj_prod: '', ipi_c_selo: '', ipi_q_selo: '', ipi_c_enq: '',
+      peri_n_onu: '', peri_x_nome_ae: '', peri_x_cla_risco: '', peri_gr_emb: '', peri_q_vol_tipo: '',
       veic_tp_op: '', veic_tp_comb: '', veic_tp_pint: '', veic_tp_veic: '',
       veic_esp_veic: '', veic_vin: '', veic_cond_veic: '', veic_c_mod: '',
       veic_c_cor_denatran: '', veic_lota: '', veic_tp_rest: '', veic_ano_mod: '',
@@ -544,6 +795,22 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const watchedCest = useWatch({control: form.control, name: 'cest'})
   const watchedNcm = useWatch({control: form.control, name: 'ncm'})
   const watchedProdType = useWatch({control: form.control, name: 'prod_type'})
+  const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'})
+  const watchedRiskClass = useWatch({control: form.control, name: 'peri_x_cla_risco'})
+  const watchedAnp = useWatch({control: form.control, name: 'comb_c_prod_anp'})
+  const selectedFuel = anpMonoFuel(watchedAnp)
+  // O código de benefício vale por UF e por CST; a linha de tributação em
+  // edição é quem sabe o CST.
+  const watchedTpVeic = useWatch({control: form.control, name: 'veic_tp_veic'})
+  const especieOptions = useMemo(() => especieOptionsForTipo(watchedTpVeic), [watchedTpVeic])
+  // A SEFAZ publica a unidade em que cada NCM é tributado.
+  const ncmTaxableUnit = taxableUnitForNcm(watchedNcm)
+  const benefitOptions = useMemo(
+    () => benefitOptionsForUf(uf, cfopRow.icms ?? cfopRow.csosn),
+    [uf, cfopRow.icms, cfopRow.csosn],
+  )
+  // O CST do IPI decide a faixa de enquadramento aceita (RV W16-10).
+  const cEnqOptions = useMemo(() => cEnqOptionsForCst(cfopRow.ipi_cst), [cfopRow.ipi_cst])
   const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit
 
   const [prevShowConvFact, setPrevShowConvFact] = useState(showConversionFactors)
@@ -566,7 +833,6 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const productAliqDiverges = !!productSystemAliq && !!watchedIcmsOverride &&
     watchedIcmsOverride !== productSystemAliq.icms_aliq
 
-  const nfceCfopOptions = getCfopOptionsForNfce()
 
   const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '')
 
@@ -604,6 +870,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     }
     if (taxGroups.issqn && !cfopRow.issqn_ind_iss) {
       setCfopError('Exigibilidade ISS obrigatória quando ISSQN está habilitado')
+      return
+    }
+
+    // Regras de grupo do leiaute (IPI, ICMSPart, pauta, ALC/ZFM, obsItem) vivem
+    // no schema, para valerem também no perfil fiscal e no salvamento.
+    const groupCheck = cfopConfigSchema.safeParse({...cfopRow, cfop: cfopRow.cfop})
+    if (!groupCheck.success) {
+      setCfopError(groupCheck.error.issues[0].message)
       return
     }
 
@@ -656,6 +930,28 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         ibs_ind_doacao: taxGroups.ibsCbs ? cfopRow.ibs_ind_doacao : '',
         ibs_ad_rem: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem : '',
         cbs_ad_rem: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem : '',
+        // clear IBS/CBS advanced reform groups if IBS/CBS itself is off
+        ibs_ad_rem_reten: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem_reten : '',
+        cbs_ad_rem_reten: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem_reten : '',
+        ibs_ad_rem_ret: taxGroups.ibsCbs ? cfopRow.ibs_ad_rem_ret : '',
+        cbs_ad_rem_ret: taxGroups.ibsCbs ? cfopRow.cbs_ad_rem_ret : '',
+        ibs_p_dif_mono: taxGroups.ibsCbs ? cfopRow.ibs_p_dif_mono : '',
+        cbs_p_dif_mono: taxGroups.ibsCbs ? cfopRow.cbs_p_dif_mono : '',
+        ibs_reg_cst: taxGroups.ibsCbs ? cfopRow.ibs_reg_cst : '',
+        ibs_reg_class_trib: taxGroups.ibsCbs ? cfopRow.ibs_reg_class_trib : '',
+        ibs_reg_uf_aliq: taxGroups.ibsCbs ? cfopRow.ibs_reg_uf_aliq : '',
+        ibs_reg_mun_aliq: taxGroups.ibsCbs ? cfopRow.ibs_reg_mun_aliq : '',
+        cbs_reg_aliq: taxGroups.ibsCbs ? cfopRow.cbs_reg_aliq : '',
+        ibs_gov_uf_aliq: taxGroups.ibsCbs ? cfopRow.ibs_gov_uf_aliq : '',
+        ibs_gov_mun_aliq: taxGroups.ibsCbs ? cfopRow.ibs_gov_mun_aliq : '',
+        cbs_gov_aliq: taxGroups.ibsCbs ? cfopRow.cbs_gov_aliq : '',
+        ibs_cbs_c_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_cbs_c_cred_pres : '',
+        ibs_p_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_p_cred_pres : '',
+        cbs_p_cred_pres: taxGroups.ibsCbs ? cfopRow.cbs_p_cred_pres : '',
+        ibs_cbs_cred_pres_cond_sus: taxGroups.ibsCbs ? cfopRow.ibs_cbs_cred_pres_cond_sus : '',
+        ibs_zfm_p_cred_pres: taxGroups.ibsCbs ? cfopRow.ibs_zfm_p_cred_pres : '',
+        alc_zfm_tp_cbs: taxGroups.ibsCbs ? cfopRow.alc_zfm_tp_cbs : '',
+        alc_zfm_n_proc_suframa: taxGroups.ibsCbs ? cfopRow.alc_zfm_n_proc_suframa : '',
         // clear IBS/CBS reduction/deferral if not enabled
         ibs_uf_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_uf_p_red : '',
         ibs_mun_p_red: taxGroups.ibsCbs && taxGroups.ibsRed ? cfopRow.ibs_mun_p_red : '',
@@ -734,13 +1030,25 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     }
   })
 
+  // Quantos campos com erro cada aba tem — o badge é o que faz o submit falho
+  // apontar para onde o operador precisa ir.
+  // O editor completo fica recolhido enquanto um perfil fiscal responder pela
+  // tributação e não houver linha própria nem intenção explícita de sobrescrever.
+  const taxOverrideCollapsed = taxProfileIds.length > 0 && cfopConfig.length === 0 && !taxOverrideOpen
+
+  const errorsByTab = Object.keys(form.formState.errors).reduce<Record<string, number>>((acc, field) => {
+    const tab = tabOfField(field)
+    acc[tab] = (acc[tab] ?? 0) + 1
+    return acc
+  }, {})
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
             {submitError}
           </div>
         )}
@@ -764,6 +1072,12 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   {cfopConfig.length}
                 </span>
               )}
+              {(errorsByTab[tab.id] ?? 0) > 0 && (
+                <span aria-label={`${errorsByTab[tab.id]} campo(s) com erro`}
+                      className="ml-1.5 rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+                  {errorsByTab[tab.id]}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -771,7 +1085,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {/* ── Tab: Produto ──────────────────────────────────────────────── */}
         {activeTab === 'produto' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Identificação</p>
+            <p className="text-sm font-medium text-gray-600">Identificação</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField control={form.control} name="code" render={({field}) => (
@@ -830,9 +1144,17 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
               <FormField control={form.control} name="c_benef" render={({field}) => (
                 <FormItem>
-                  <FormLabel>Código de benefício fiscal</FormLabel>
-                  <Input {...field} id={field.name} value={field.value ?? ''}
-                         placeholder="Ex: SP123456 ou SEM CBENEF" maxLength={10}/>
+                  <FormLabel>Código de benefício fiscal <GlossaryTerm term="c_benef"/></FormLabel>
+                  {/* A tabela é por UF: oferecer o código de outro estado é
+                      oferecer uma rejeição. Sem tabela publicada, segue livre. */}
+                  {benefitOptions.length > 0 ? (
+                    <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                              options={benefitOptions} placeholder={`Benefício de ${uf}`}
+                              searchPlaceholder="Código ou descrição..." fuzzySearch/>
+                  ) : (
+                    <Input {...field} id={field.name} value={field.value ?? ''}
+                           placeholder="Ex: SP123456 ou SEM CBENEF" maxLength={10}/>
+                  )}
                   <FormMessage/>
                 </FormItem>
               )}/>
@@ -851,7 +1173,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* Override de alíquota ICMS/FCP */}
             <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-3 space-y-2">
-              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+              <p className="text-sm font-medium text-warning">
                 Alíquota específica de ICMS (opcional)
               </p>
               <p className="text-xs text-gray-500">
@@ -889,7 +1211,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {cfopConfig.some(c => c.ipi_cst) && (
               <FormField control={form.control} name="ext_ipi" render={({field}) => (
                 <FormItem>
-                  <FormLabel>Código EX TIPI</FormLabel>
+                  <FormLabel>Código EX TIPI <GlossaryTerm term="ext_ipi"/></FormLabel>
                   <NumericInput {...field} id={field.name} value={field.value ?? ''}
                                 placeholder="001" maxLength={3} onChange={field.onChange}/>
                   <FormMessage/>
@@ -939,7 +1261,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
           <div className="space-y-4">
             {/* Preços */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Preço e NFC-e</p>
+              <p className="text-sm font-medium text-gray-600">Preço e NFC-e</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="value" render={({field}) => (
                   <FormItem>
@@ -961,7 +1283,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormItem>
                     <FormLabel>CFOP NFC-e *</FormLabel>
                     <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                              options={nfceCfopOptions} placeholder="Buscar CFOP"
+                              options={NFCE_CFOP_OPTIONS} placeholder="Buscar CFOP"
                               searchPlaceholder="Código ou descrição..."/>
                     <FormMessage/>
                   </FormItem>
@@ -971,7 +1293,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* Unidades */}
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Unidades</p>
+              <p className="text-sm font-medium text-gray-600">Unidades</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="unit" render={({field}) => (
                   <FormItem>
@@ -985,8 +1307,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormItem>
                     <FormLabel>Un. Tributável</FormLabel>
                     <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                              options={UNIT_OPTIONS} placeholder="Igual à comercial"
+                              options={UNIT_OPTIONS}
+                              placeholder={ncmTaxableUnit ? `${ncmTaxableUnit} (do NCM)` : 'Igual à comercial'}
                               searchPlaceholder="Buscar unidade..."/>
+                    {ncmTaxableUnit && field.value && field.value !== ncmTaxableUnit && (
+                      <p className="text-[0.8rem] text-warning">
+                        A SEFAZ tributa este NCM em {ncmTaxableUnit}.
+                      </p>
+                    )}
                     <FormMessage/>
                   </FormItem>
                 )}/>
@@ -994,20 +1322,31 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
               {/* GTIN */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
-                <FormField control={form.control} name="cean" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>EAN comercial</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} placeholder="EAN-13 ou SEM GTIN"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="taxable_cean" render={({field}) => (
-                  <FormItem>
-                    <FormLabel>EAN tributável</FormLabel>
-                    <Input {...field} id={field.name} value={field.value ?? ''} placeholder="EAN-13 ou SEM GTIN"/>
-                    <FormMessage/>
-                  </FormItem>
-                )}/>
+                {/* "SEM GTIN" é literal do leiaute: digitado à mão vira "sem gtin"
+                    e o produto é recusado. O checkbox escreve o valor exato. */}
+                {([
+                  ['cean', 'EAN comercial'],
+                  ['taxable_cean', 'EAN tributável'],
+                ] as const).map(([name, label]) => (
+                  <FormField key={name} control={form.control} name={name} render={({field}) => {
+                    const semGtin = field.value === SEM_GTIN
+                    return (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <Input {...field} id={field.name} value={semGtin ? '' : (field.value ?? '')}
+                               disabled={semGtin} inputMode="numeric" maxLength={14}
+                               placeholder={semGtin ? SEM_GTIN : 'EAN-13'}
+                               onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 sm:min-h-0">
+                          <input type="checkbox" className="size-4" checked={semGtin}
+                                 onChange={(e) => field.onChange(e.target.checked ? SEM_GTIN : '')}/>
+                          Produto sem código de barras
+                        </label>
+                        <FormMessage/>
+                      </FormItem>
+                    )
+                  }}/>
+                ))}
               </div>
 
               {/* Pesos */}
@@ -1034,7 +1373,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* Fatores de conversão */}
             {showConversionFactors && (
               <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-5 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <p className="text-sm font-medium text-gray-600">
                   Fatores de conversão ({watchedUnit} ↔ {watchedTaxableUnit})
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-lg">
@@ -1084,7 +1423,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {activeTab === 'tributacao' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <p className="text-sm font-medium text-gray-600">
                 Configuração CFOP / Tributação
               </p>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -1096,7 +1435,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
 
             {/* ── Perfis fiscais ───────────────────────────────────────── */}
             <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Perfis fiscais</p>
+              <p className="text-sm font-medium text-gray-600">Perfis fiscais</p>
               <p className="text-xs text-gray-500">
                 Escolher um perfil dispensa preencher a tributação aqui. Para sobrescrever um CFOP só
                 neste produto, adicione a linha abaixo — ele tem prioridade sobre o perfil fiscal.
@@ -1135,32 +1474,48 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               )}
             </div>
 
-            {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
-            <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
-                             groups={taxGroups} onGroupsChange={setTaxGroups}
-                             emitUf={uf} destUf={uf} ncm={watchedNcm}/>
+            {/* Com um perfil escolhido, a tributação já está respondida: manter os
+                ~60 campos abertos embaixo faz o perfil parecer meia solução. */}
+            {taxOverrideCollapsed ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
+                <p className="text-sm text-gray-600">
+                  Tributação definida pelo{taxProfileIds.length > 1 ? 's' : ''} perfil
+                  {taxProfileIds.length > 1 ? 's' : ''} selecionado{taxProfileIds.length > 1 ? 's' : ''}.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={() => setTaxOverrideOpen(true)}>
+                  Sobrescrever neste produto
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
+                <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
+                                 groups={taxGroups} onGroupsChange={setTaxGroups}
+                                 emitUf={uf} destUf={uf} ncm={watchedNcm}/>
 
-            {/* Overrides por UF de destino — só preenche o que diverge */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Overrides por UF de destino (opcional)
-              </p>
-              <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
-                                 simples={simples}/>
-            </div>
+                {/* Overrides por UF de destino — só preenche o que diverge */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-600">
+                    Overrides por UF de destino (opcional)
+                  </p>
+                  <UfOverridesEditor key={taxEditorKey} value={ufOverrideRows} onChange={setUfOverrideRows}
+                                     simples={simples}/>
+                </div>
 
-            {/* ── Erros + botão ────────────────────────────────────────── */}
-            {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}
-            {form.formState.errors.cfop_config && (
-              <p className="text-[0.8rem] font-medium text-destructive">
-                {form.formState.errors.cfop_config.message ?? form.formState.errors.cfop_config.root?.message}
-              </p>
+                {/* ── Erros + botão ────────────────────────────────────── */}
+                {cfopError && <p className="text-[0.8rem] font-medium text-destructive">{cfopError}</p>}
+                {form.formState.errors.cfop_config && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {form.formState.errors.cfop_config.message ?? form.formState.errors.cfop_config.root?.message}
+                  </p>
+                )}
+
+                <Button type="button" variant="ghost" size="sm" onClick={addCfop}
+                        className="text-brand-600 hover:text-brand-700 px-0">
+                  + Adicionar CFOP
+                </Button>
+              </>
             )}
-
-            <Button type="button" variant="ghost" size="sm" onClick={addCfop}
-                    className="text-brand-600 hover:text-brand-700 px-0">
-              + Adicionar CFOP
-            </Button>
 
             {/* ── Lista de CFOPs configurados ──────────────────────────── */}
             {cfopConfig.length > 0 && (
@@ -1193,7 +1548,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         {activeTab === 'especial' && (
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Tipo específico</p>
+              <p className="text-sm font-medium text-gray-600">Tipo específico</p>
               <p className="text-xs text-gray-400">Opcional — preencher apenas para combustíveis ou medicamentos</p>
             </div>
 
@@ -1215,15 +1570,26 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Combustível ────────────────────────────────────────── */}
             {watchedProdType === 'comb' && (
               <div className="rounded-lg border border-orange-100 bg-orange-50/30 p-4 space-y-3">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-orange-700">
                   Combustível — Dados ANP
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="comb_c_prod_anp" render={({field}) => (
                     <FormItem>
-                      <FormLabel>Código ANP (9 dígitos) *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={9}
-                                    placeholder="Ex: 210203001" onChange={field.onChange}/>
+                      <FormLabel>Código ANP *</FormLabel>
+                      <Combobox id={field.name} value={field.value ?? ''}
+                                onValueChange={(v) => {
+                                  field.onChange(v)
+                                  // A SEFAZ publica descrição, unidade, pBio e
+                                  // ad rem dos monofásicos: pedir isso de novo ao
+                                  // operador é pedir que ele erre uma cópia.
+                                  const fuel = anpMonoFuel(v)
+                                  if (!fuel) return
+                                  form.setValue('comb_desc_anp', fuel.description, {shouldDirty: true})
+                                  form.setValue('comb_p_bio', fuel.bioPercent, {shouldDirty: true})
+                                }}
+                                options={ANP_OPTIONS} placeholder="Código ou combustível"
+                                searchPlaceholder="Código ou nome do combustível..." fuzzySearch/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1231,16 +1597,23 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormItem>
                       <FormLabel>Descrição ANP *</FormLabel>
                       <Input {...field} id={field.name} value={field.value ?? ''}
+                             readOnly={!!selectedFuel}
                              placeholder="Ex: GASOLINA COMUM" maxLength={95}/>
+                      {selectedFuel && (
+                        <p className="text-[0.8rem] text-gray-500">
+                          Publicada pela SEFAZ · unidade {selectedFuel.taxableUnit} · ad rem do ICMS
+                          R$ {selectedFuel.adRemIcms}
+                        </p>
+                      )}
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="comb_uf_cons" render={({field}) => (
                     <FormItem>
                       <FormLabel>UF de consumo *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''}
-                             placeholder="Ex: SP" maxLength={2}
-                             onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''}
+                                     onValueChange={field.onChange} options={UF_OPTIONS}
+                                     placeholder="UF"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1260,9 +1633,21 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <FormMessage/>
                     </FormItem>
                   )}/>
+                  <FormField control={form.control} name="comb_cide_v_aliq_prod" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Alíquota da CIDE (R$ por unidade)</FormLabel>
+                      <NumericInput {...field} id={field.name} decimal integerPlaces={9} decimalPlaces={4}
+                                    value={field.value ?? ''} placeholder="0.0000" onChange={field.onChange}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
                 </div>
+                <CombOrigFields
+                  value={watchedCombOrig ?? []}
+                  onChange={(v) => form.setValue('comb_orig', v, {shouldDirty: true})}/>
                 <p className="text-xs text-gray-400">
                   Para GLP (ANP 210203001): preencha também pGLP, pGNn, pGNi e vPart nas configurações avançadas.
+                  A base e o valor da CIDE saem da quantidade vendida — só a alíquota é cadastrada.
                 </p>
               </div>
             )}
@@ -1270,18 +1655,28 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Medicamento ─────────────────────────────────────────── */}
             {watchedProdType === 'med' && (
               <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-4 space-y-3">
-                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-teal-700">
                   Medicamento — Dados ANVISA
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => (
-                    <FormItem>
-                      <FormLabel>Registro ANVISA *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''}
-                             placeholder="11 ou 13 dígitos, ou 'ISENTO'"/>
-                      <FormMessage/>
-                    </FormItem>
-                  )}/>
+                  <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => {
+                    const isento = field.value === ANVISA_ISENTO
+                    return (
+                      <FormItem>
+                        <FormLabel>Registro ANVISA *</FormLabel>
+                        <Input {...field} id={field.name} value={isento ? '' : (field.value ?? '')}
+                               disabled={isento} inputMode="numeric" maxLength={13}
+                               placeholder={isento ? ANVISA_ISENTO : '11 ou 13 dígitos'}
+                               onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 sm:min-h-0">
+                          <input type="checkbox" className="size-4" checked={isento}
+                                 onChange={(e) => field.onChange(e.target.checked ? ANVISA_ISENTO : '')}/>
+                          Medicamento isento de registro
+                        </label>
+                        <FormMessage/>
+                      </FormItem>
+                    )
+                  }}/>
                   <FormField control={form.control} name="med_v_pmc" render={({field}) => (
                     <FormItem>
                       <FormLabel>Preço Máximo ao Consumidor (R$) *</FormLabel>
@@ -1302,10 +1697,232 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               </div>
             )}
 
+            {/* Checklist do que este produto tem. Sem ele, um parafuso genérico
+                pedia importação, reforma, selo de IPI e produto perigoso. */}
+            <div className="rounded-lg border border-gray-100 p-4 space-y-2">
+              <p className="text-sm font-medium text-gray-700">Este produto também tem:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                {EXTRA_GROUP_OPTIONS.map(({key, label}) => (
+                  <label key={key} htmlFor={`extra-${key}`}
+                         className="flex min-h-11 items-center gap-2 text-sm text-gray-700 sm:min-h-0 sm:py-1">
+                    <input type="checkbox" id={`extra-${key}`} className="size-4"
+                           checked={extraGroups[key]}
+                           onChange={(e) => setExtraGroups((g) => ({...g, [key]: e.target.checked}))}/>
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {extraGroups.importacao && (<>
+              {/* ── Importação e códigos próprios ───────────────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-sm font-medium text-gray-600">
+                  Importação e códigos próprios
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="nve" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>NVE <GlossaryTerm term="nve"/></FormLabel>
+                      <Input id={field.name} value={(field.value ?? []).join(', ')}
+                             placeholder="AA0001, BB0002"
+                             onChange={(e) => field.onChange(
+                               e.target.value.split(',').map((v) => v.trim().toUpperCase()).filter(Boolean),
+                             )}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="n_fci" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Número da FCI <GlossaryTerm term="n_fci"/></FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={36}
+                             placeholder="UUID da Ficha de Conteúdo de Importação"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="n_recopi" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>RECOPI <GlossaryTerm term="n_recopi"/></FormLabel>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={20}
+                                    placeholder="20 dígitos" onChange={field.onChange}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="c_barra" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código de barras próprio</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="c_barra_trib" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código de barras da unidade tributável</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={30}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+              </div>
+            </>)}
+
+            {extraGroups.reforma && (<>
+              {/* ── Reforma tributária — nível produto ──────────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-sm font-medium text-gray-600">
+                  Reforma tributária (IBS/CBS) — produto
+                </p>
+                <p className="text-xs text-gray-500">
+                  Crédito presumido da UF, subapuração na ZFM e bem móvel usado. As alíquotas e os CSTs
+                  do IBS/CBS ficam na aba Tributação, por CFOP.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="tp_cred_pres_ibs_zfm" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Subapuração do IBS na ZFM</FormLabel>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={TP_CRED_PRES_IBS_ZFM_OPTIONS} placeholder="Não se aplica"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ind_bem_movel_usado" render={({field}) => (
+                    <FormItem>
+                      <label htmlFor={field.name}
+                             className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" id={field.name}
+                               checked={field.value === IND_BEM_MOVEL_USADO_SIM}
+                               onChange={(e) => field.onChange(e.target.checked ? IND_BEM_MOVEL_USADO_SIM : '')}
+                               className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
+                        Fornecimento de bem móvel usado
+                      </label>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+                <GCredEditor form={form}/>
+              </div>
+            </>)}
+
+            {extraGroups.selo && (<>
+              {/* ── IPI — selo de controle e enquadramento ──────────────── */}
+              <div className="rounded-lg border border-gray-100 p-4 space-y-3">
+                <p className="text-sm font-medium text-gray-600">
+                  IPI — selo de controle
+                </p>
+                <p className="text-xs text-gray-500">
+                  Só para produto com selo (bebidas, cigarros). O enquadramento legal (cEnq) sai como
+                  <span className="font-medium"> 999</span> quando não informado.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="ipi_cnpj_prod" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>CNPJ do produtor</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={18}
+                             placeholder="Somente números"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Enquadramento legal <GlossaryTerm term="c_enq"/></FormLabel>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={cEnqOptions} placeholder={IPI_CENQ_DEFAULT}
+                                searchPlaceholder="Código ou norma..." fuzzySearch/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_c_selo" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Código do selo</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="ipi_q_selo" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Quantidade de selos</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={12}
+                             inputMode="numeric"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+              </div>
+            </>)}
+
+            {extraGroups.perigoso && (<>
+              {/* ── Produto perigoso (MDF-e peri) ───────────────────────── */}
+              <div className="rounded-lg border border-amber-100 bg-amber-50/30 p-4 space-y-3">
+                <p className="text-sm font-medium text-warning">
+                  Produto perigoso (MDF-e)
+                </p>
+                <p className="text-xs text-gray-500">
+                  Preencha só se o produto for classificado como perigoso. O MDF-e monta o grupo
+                  <span className="font-medium"> peri</span> sozinho a partir daqui — nunca é perguntado por viagem.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField control={form.control} name="peri_n_onu" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Número ONU</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                             inputMode="numeric" placeholder="Ex: 1203"
+                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_x_nome_ae" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Nome apropriado para embarque</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={150}
+                             placeholder="Ex: GASOLINA"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_x_cla_risco" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Classe de risco</FormLabel>
+                      <Combobox id={field.name} value={field.value ?? ''}
+                                onValueChange={(v) => {
+                                  field.onChange(v)
+                                  // Classe sem grupo de embalagem limpa o campo:
+                                  // é regra da ANTT, não memória do operador.
+                                  if (!packingGroupApplies(v)) form.setValue('peri_gr_emb', '')
+                                }}
+                                options={RISK_CLASS_OPTIONS} placeholder="Classe ANTT"
+                                searchPlaceholder="Classe ou descrição..." fuzzySearch/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_gr_emb" render={({field}) => (
+                    <FormItem>
+                      <FormLabel>Grupo de embalagem</FormLabel>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={PACKING_GROUP_OPTIONS}
+                                     disabled={!packingGroupApplies(watchedRiskClass)}
+                                     placeholder={packingGroupApplies(watchedRiskClass)
+                                       ? 'Grupo'
+                                       : 'Não se aplica a esta classe'}/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="peri_q_vol_tipo" render={({field}) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Tipo de volume transportado</FormLabel>
+                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={60}
+                             placeholder="Ex: TAMBOR"/>
+                      <FormMessage/>
+                    </FormItem>
+                  )}/>
+                </div>
+              </div>
+            </>)}
+
             {/* ── Veículo novo (veicProd) ─────────────────────────────── */}
             {watchedProdType === 'veiculo' && (
               <div className="rounded-lg border border-indigo-100 bg-indigo-50/30 p-4 space-y-4">
-                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-indigo-700">
                   Veículo Novo — Dados do Modelo (RENAVAM)
                 </p>
                 <p className="text-xs text-gray-400">
@@ -1339,16 +1956,16 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_ano_mod" render={({field}) => (
                     <FormItem>
                       <FormLabel>Ano modelo *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
-                                    placeholder="2025" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEHICLE_YEAR_OPTIONS} placeholder="Ano"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_ano_fab" render={({field}) => (
                     <FormItem>
                       <FormLabel>Ano fabricação *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
-                                    placeholder="2024" onChange={field.onChange}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEHICLE_YEAR_OPTIONS} placeholder="Ano"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1363,30 +1980,38 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_pot" render={({field}) => (
                     <FormItem>
                       <FormLabel>Potência (CV) *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="130" maxLength={4}/>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                                    placeholder="130" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_cilin" render={({field}) => (
                     <FormItem>
                       <FormLabel>Cilindradas (CC) *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="1599" maxLength={4}/>
+                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={4}
+                                    placeholder="1599" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_tp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Tipo veículo RENAVAM *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={2}
-                                    placeholder="06" onChange={field.onChange}/>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={VEIC_TP_VEIC_OPTIONS} placeholder="Tipo RENAVAM"
+                                searchPlaceholder="Código ou descrição..."/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_esp_veic" render={({field}) => (
                     <FormItem>
                       <FormLabel>Espécie RENAVAM *</FormLabel>
-                      <NumericInput {...field} id={field.name} value={field.value ?? ''} maxLength={1}
-                                    placeholder="1" onChange={field.onChange}/>
+                      {/* A espécie depende do tipo: a SEFAZ publica os pares, e
+                          escolher os dois em selects independentes deixava
+                          passar "caminhão de passageiro". */}
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={especieOptions.length > 0 ? especieOptions : VEIC_ESP_VEIC_OPTIONS}
+                                     disabled={!watchedTpVeic}
+                                     placeholder={watchedTpVeic ? 'Espécie' : 'Escolha o tipo primeiro'}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1402,16 +2027,16 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormItem>
                       <FormLabel>VIN remarcado *</FormLabel>
                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={[{value: 'N', label: 'N – Normal'}, {value: 'R', label: 'R – Remarcado'}]}
-                                     placeholder="VIN"/>
+                                     options={VEIC_VIN_OPTIONS} placeholder="VIN"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="veic_c_cor_denatran" render={({field}) => (
                     <FormItem>
                       <FormLabel>Cor DENATRAN *</FormLabel>
-                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
-                                     options={VEIC_COR_DENATRAN_OPTIONS} placeholder="Cor"/>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={VEIC_COR_DENATRAN_OPTIONS} placeholder="Cor"
+                                searchPlaceholder="Cor..."/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1441,7 +2066,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="veic_tp_pint" render={({field}) => (
                     <FormItem>
                       <FormLabel>Tipo pintura *</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} placeholder="S" maxLength={1}/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={VEIC_TP_PINT_OPTIONS} placeholder="Pintura"/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1467,7 +2093,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {/* ── Armamento ───────────────────────────────────────────── */}
             {watchedProdType === 'arma' && (
               <div className="rounded-lg border border-red-100 bg-red-50/20 p-4 space-y-3">
-                <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
+                <p className="text-sm font-medium text-danger">
                   Armamento — Dados do Tipo
                 </p>
                 <p className="text-xs text-gray-400">
@@ -1507,5 +2133,56 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         </div>
       </form>
     </Form>
+  )
+}
+/**
+ * Origem do combustível (comb/origComb): de onde veio e em que proporção. É do
+ * produto porque a mistura não muda por venda — muda quando o posto troca de
+ * fornecedor, e aí o cadastro é atualizado uma vez.
+ */
+function CombOrigFields({value, onChange}: {
+  value: NonNullable<ProductFormData['comb_orig']>
+  onChange: (v: NonNullable<ProductFormData['comb_orig']>) => void
+}) {
+  const patch = (i: number, p: Partial<CombOrigIn>) =>
+    onChange(value.map((o, k) => (k === i ? {...o, ...p} : o)))
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-gray-600">Origem do combustível (até 30)</p>
+        <Button type="button" variant="ghost" size="xs" disabled={value.length >= 30}
+                onClick={() => onChange([...value, {ind_import: '0', c_uf_orig: '', p_orig: ''}])}>
+          + Origem
+        </Button>
+      </div>
+      {value.map((o, i) => (
+        <div key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-imp-${i}`} className="text-xs font-medium text-gray-600">Procedência</Label>
+            <OptionsSelect id={`orig-imp-${i}`} value={o.ind_import}
+                           onValueChange={(v: string) => patch(i, {ind_import: v as CombOrigIn['ind_import']})}
+                           options={[
+                             {value: '0', label: '0 – Nacional'},
+                             {value: '1', label: '1 – Importado'},
+                           ]}/>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-uf-${i}`} className="text-xs font-medium text-gray-600">UF de origem</Label>
+            <OptionsSelect id={`orig-uf-${i}`} value={o.c_uf_orig} options={UF_IBGE_OPTIONS}
+                           onValueChange={(v: string) => patch(i, {c_uf_orig: v})} placeholder="UF"/>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`orig-p-${i}`} className="text-xs font-medium text-gray-600">% da mistura</Label>
+            <NumericInput id={`orig-p-${i}`} value={o.p_orig} decimal integerPlaces={3} decimalPlaces={4}
+                          className="w-full" placeholder="70.0000" onChange={(v) => patch(i, {p_orig: v})}/>
+          </div>
+          <Button type="button" variant="ghost" size="xs"
+                  onClick={() => onChange(value.filter((_, k) => k !== i))}>
+            Remover
+          </Button>
+        </div>
+      ))}
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 package nfes
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -23,7 +24,7 @@ func transpNode(t *testing.T, modFrete string) map[string]any {
 		"transporta_cnpj": "55555555000155",
 		"transporta_nome": "Carrier Req",
 	}
-	return buildTransp(false, false, decimal.Zero, decimal.Zero, transport, emitParty(), destParty())
+	return buildTransp(false, false, decimal.Zero, decimal.Zero, transport, emitParty(), destParty(), nil, nil)
 }
 
 func TestBuildTransp_ModFrete3_UsesEmit(t *testing.T) {
@@ -53,5 +54,75 @@ func TestBuildTransp_OtherModFrete_UsesRequest(t *testing.T) {
 	transporta := mapKey(t, transp, "transporta")
 	if transporta["CNPJ"] != "55555555000155" || transporta["xNome"] != "Carrier Req" {
 		t.Fatalf("modFrete 1 expected request transporta, got %v", transporta)
+	}
+}
+
+func TestBuildTranspVolumesELacres(t *testing.T) {
+	transport := map[string]any{"mod_frete": "1", "veiculo_placa": "ABC1D23", "veiculo_uf": "PI", "veiculo_rntrc": "12345678"}
+	vols := []map[string]any{{
+		"qVol": "2", "esp": "CAIXA", "marca": "ACME", "nVol": "001/002",
+		"pesoL": "10.000", "pesoB": "12.000",
+		"lacres": []map[string]any{{"nLacre": "L1"}, {"nLacre": "L2"}},
+	}}
+	reboques := []map[string]any{{"placa": "XYZ9Z99", "UF": "PI", "RNTC": "87654321"}}
+
+	got := buildTransp(false, false, decimal.Zero, decimal.Zero, transport, nil, nil, vols, reboques)
+
+	if got["veicTransp"].(map[string]any)["RNTC"] != "12345678" {
+		t.Fatalf("RNTC ausente: %v", got["veicTransp"])
+	}
+	if _, ok := got["veicTransp"].(map[string]any)["RNTRC"]; ok {
+		t.Fatal("RNTRC não existe no leiaute da NF-e — a tag é RNTC")
+	}
+	if !reflect.DeepEqual(got["reboque"], reboques) {
+		t.Fatalf("reboque errado: %v", got["reboque"])
+	}
+	v := got["vol"].([]map[string]any)[0]
+	if v["esp"] != "CAIXA" || v["nVol"] != "001/002" || len(v["lacres"].([]map[string]any)) != 2 {
+		t.Fatalf("vol incompleto: %v", v)
+	}
+}
+
+// Sem volume explícito, o comportamento antigo continua: um volume só, com peso.
+func TestBuildTranspVolumeDerivadoDosPesos(t *testing.T) {
+	got := buildTransp(true, true, decimal.RequireFromString("3.5"), decimal.RequireFromString("4.0"),
+		map[string]any{"mod_frete": "0"}, nil, nil, nil, nil)
+	vols := got["vol"].([]map[string]any)
+	if len(vols) != 1 || vols[0]["qVol"] != qVolPadrao || vols[0]["pesoL"] != "3.500" {
+		t.Fatalf("volume derivado errado: %v", vols)
+	}
+}
+
+func TestBuildRetTranspCalculaICMSRetido(t *testing.T) {
+	got := buildRetTransp(map[string]any{"freight_retention": map[string]any{
+		"v_serv": "500.00", "v_bc_ret": "500.00", "p_icms_ret": "12.00",
+		"cfop": "5352", "c_mun_fg": "2211001",
+	}})
+	if got["vICMSRet"] != "60.00" || got["vServ"] != "500.00" || got["CFOP"] != "5352" {
+		t.Fatalf("retTransp errado: %v", got)
+	}
+}
+
+// O grupo é tudo-ou-nada: meio preenchido não vira nó.
+func TestBuildRetTranspIncompleto(t *testing.T) {
+	if buildRetTransp(map[string]any{"freight_retention": map[string]any{"v_serv": "500.00"}}) != nil {
+		t.Fatal("perfil incompleto não pode virar retTransp")
+	}
+	if buildRetTransp(map[string]any{}) != nil {
+		t.Fatal("sem perfil não há retTransp")
+	}
+}
+
+func TestBuildObsItemTributacaoVenceProduto(t *testing.T) {
+	got := buildObsItem(
+		map[string]any{"obs_item_x_campo": "CFOP", "obs_item_x_texto": "Venda interna"},
+		map[string]any{"obs_item_x_campo": "PROD", "obs_item_x_texto": "Do produto"},
+	)
+	obs := got["obsCont"].(map[string]any)
+	if obs["@xCampo"] != "CFOP" || obs["xTexto"] != "Venda interna" {
+		t.Fatalf("obsItem errado: %v", obs)
+	}
+	if buildObsItem(map[string]any{}, map[string]any{"obs_item_x_campo": "PROD"}) != nil {
+		t.Fatal("campo sem texto não vira observação")
 	}
 }

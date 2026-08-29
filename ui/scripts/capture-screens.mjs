@@ -123,6 +123,7 @@ const CAPTURES = [
   // ── Cadastros e configuração ─────────────────────────────────────────────
   {slug: 'products', route: '/products', waitText: 'Notebook 15 polegadas'},
   {slug: 'persons', route: '/persons', waitText: 'Cliente Exemplo LTDA'},
+  {slug: 'persons-form', route: '/persons/new', waitText: 'Dados complementares e fiscais'},
   {slug: 'tax-profiles', route: '/tax-profiles', waitText: 'Simples Nacional'},
   {slug: 'vehicles', route: '/vehicles', waitText: 'ABC1D23'},
   {slug: 'fiscal-config', route: '/fiscal-config', waitText: 'Ambiente ativo'},

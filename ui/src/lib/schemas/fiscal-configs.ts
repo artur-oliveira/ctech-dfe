@@ -42,11 +42,25 @@ const baseFields = {
   prod_current_number: numberField,
   hom_current_serie: serieField,
   hom_current_number: numberField,
+  /**
+   * CSRT do responsável técnico (NT 2018.005). Segredo: a API nunca o devolve,
+   * então o campo volta vazio ao reabrir a tela — em branco significa "manter",
+   * não "apagar".
+   */
+  csrt_id: z.string().regex(/^\d{1,2}$/, 'ID do CSRT: 1 ou 2 dígitos').optional().or(z.literal('')),
+  csrt: z.string().length(36, 'O CSRT tem 36 caracteres').optional().or(z.literal('')),
 }
 
 export const nfeConfigSchema = z.object({ ...baseFields })
 export const cteConfigSchema = nfeConfigSchema
-export const mdfeConfigSchema = z.object({ ...baseFields })
+// O MDF-e acrescenta três campos que só existem no leiaute dele e recorrem em
+// toda emissão da organização — a observação da viagem continua na emissão.
+export const mdfeConfigSchema = z.object({
+  ...baseFields,
+  ind_canal_verde: z.boolean(),
+  ind_carrega_posterior: z.boolean(),
+  inf_ad_fisco: z.string().max(2000).optional().or(z.literal('')),
+})
 
 export const nfceConfigSchema = z.object({
   ...baseFields,

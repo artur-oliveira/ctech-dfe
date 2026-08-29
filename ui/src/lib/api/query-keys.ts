@@ -36,6 +36,34 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['payment-terms', orgPk] as const,
     detail: (id: string) => ['payment-term', id] as const,
   },
+  paymentTerminals: {
+    list: (orgPk: string | undefined) => ['payment-terminals', orgPk] as const,
+    detail: (id: string) => ['payment-terminal', id] as const,
+  },
+  tollProviders: {
+    list: (orgPk: string | undefined) => ['toll-providers', orgPk] as const,
+    detail: (id: string) => ['toll-provider', id] as const,
+  },
+  cargoUnits: {
+    list: (orgPk: string | undefined) => ['cargo-units', orgPk] as const,
+    detail: (id: string) => ['cargo-unit', id] as const,
+  },
+  importDeclarations: {
+    list: (orgPk: string | undefined) => ['import-declarations', orgPk] as const,
+    detail: (id: string) => ['import-declaration', id] as const,
+  },
+  fuelPumps: {
+    list: (orgPk: string | undefined) => ['fuel-pumps', orgPk] as const,
+    detail: (id: string) => ['fuel-pump', id] as const,
+  },
+  productLots: {
+    list: (orgPk: string | undefined) => ['product-lots', orgPk] as const,
+    detail: (id: string) => ['product-lot', id] as const,
+  },
+  insurancePolicies: {
+    list: (orgPk: string | undefined) => ['insurance-policies', orgPk] as const,
+    detail: (id: string) => ['insurance-policy', id] as const,
+  },
   vehicleSets: {
     list: (orgPk: string | undefined) => ['vehicle-sets', orgPk] as const,
     detail: (id: string) => ['vehicle-set', id] as const,
@@ -46,7 +74,10 @@ export const queryKeys = {
     requirements: (id: string, docType: string, role: string) => ['vehicle-requirements', id, docType, role] as const,
   },
   persons: {
-    list: (orgPk: string | undefined) => ['persons', orgPk] as const,
+    // role separa o cache da listagem geral do cache de cada papel: são
+    // respostas diferentes da mesma rota.
+    list: (orgPk: string | undefined, role?: string) =>
+      role ? (['persons', orgPk, role] as const) : (['persons', orgPk] as const),
     detail: (cpfCnpj: string) => ['person', cpfCnpj] as const,
     search: (query: string) => ['persons-search', query] as const,
   },

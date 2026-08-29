@@ -67,9 +67,6 @@ function EditPersonContent() {
             loading={updateMutation.isPending}
           />
         )}
-        {updateMutation.error && (
-          <p className="mt-4 text-sm text-red-600">{updateMutation.error.message}</p>
-        )}
       </div>
     </RootLayout>
   )

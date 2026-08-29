@@ -55,6 +55,29 @@ export function useFormField() {
   }
 }
 
+
+/**
+ * Props ARIA do campo, quando ele vive dentro de um formulário react-hook-form.
+ * O `FormMessage` já renderiza um id de mensagem desde sempre, e nenhum controle
+ * o consumia: o erro pintava em vermelho para quem enxerga e não existia para
+ * quem usa leitor de tela. Fora de um formulário, devolve {} e o controle segue
+ * igual.
+ */
+export function useFieldAria(name?: string): {
+  'aria-invalid'?: true
+  'aria-describedby'?: string
+} {
+  const form = useFormContext()
+  const errors = form?.formState.errors
+  if (!form || !name || !errors) return {}
+  const hasError = name.split('.').reduce<unknown>(
+    (node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined),
+    errors,
+  )
+  if (!hasError) return {}
+  return {'aria-invalid': true, 'aria-describedby': `${name}-form-item-message`}
+}
+
 export function FormItem({className, ...props}: React.ComponentProps<'div'>) {
   const id = React.useId()
   return (
@@ -104,7 +127,10 @@ export function FormMessage({
                               children,
                               ...props
                             }: React.ComponentProps<'p'>) {
-  const {error, formMessageId} = useFormField()
+  const {error, name} = useFormField()
+  // O id vem do nome do campo, não do useId do FormItem: é assim que o controle
+  // consegue apontar para a mensagem sem precisar de um wrapper por campo.
+  const formMessageId = name ? `${name}-form-item-message` : undefined
   const body = error ? String(error.message ?? '') : children
   if (!body) return null
   return (

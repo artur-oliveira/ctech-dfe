@@ -21,6 +21,27 @@ const (
 	opFieldModFrete   = "mod_frete"
 	opFieldInfAdFisco = "inf_ad_fisco"
 	opFieldInfCpl     = "inf_cpl"
+	opFieldVolEsp     = "vol_esp"
+	opFieldVolMarca   = "vol_marca"
+	opFieldObsCont    = "obs_cont"
+	opFieldObsFisco   = "obs_fisco"
+	// opFieldRetTrib é o perfil de retenções federais da operação: os
+	// percentuais são invariantes do cenário, os valores saem da base da nota.
+	opFieldRetTrib = "ret_trib"
+	// Grupos de nicho: nota de empenho da venda a órgão público e safra da
+	// aquisição de cana. Pedido, contrato e mês de referência são da nota.
+	opFieldCompraXNEmp = "compra_x_n_emp"
+	opFieldCanaSafra   = "cana_safra"
+	// Canal de venda: marketplace do cenário e o indicador de ide.
+	opFieldIntermediaryPersonID = "intermediary_person_id"
+	opFieldIndIntermed          = "ind_intermed"
+	// Reforma tributária no ide: local da operação, município do fato gerador
+	// do IBS/CBS e o par nota de débito / nota de crédito. Todos são do
+	// cenário, não da nota.
+	opFieldCIndOp      = "c_ind_op"
+	opFieldCMunFGIBS   = "c_mun_fg_ibs"
+	opFieldTpNFDebito  = "tp_nf_debito"
+	opFieldTpNFCredito = "tp_nf_credito"
 )
 
 // loadOperation carrega a natureza de operação referenciada na emissão.
@@ -128,4 +149,34 @@ func (s *NfceService) resolveNfceOperation(ctx context.Context, orgPK string, op
 		return nil, problem.InternalServer("failed to decode default operation")
 	}
 	return op, nil
+}
+
+// operationObs traduz obs_cont / obs_fisco da operação para os nós de infAdic,
+// interpolando os mesmos placeholders de inf_cpl. Uma observação cujo texto não
+// interpola é descartada — texto vazio é rejeição no XSD.
+// operationGroup devolve um grupo aninhado da operação (ret_trib, por exemplo).
+func operationGroup(op map[string]any, field string) map[string]any {
+	m, _ := op[field].(map[string]any)
+	return m
+}
+
+func operationObs(op map[string]any, field string, vars map[string]string) []map[string]any {
+	raw, _ := op[field].([]any)
+	out := make([]map[string]any, 0, len(raw))
+	for _, entry := range raw {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		campo := anyStr(m, "x_campo", "")
+		texto, err := services.Interpolate(anyStr(m, "x_texto", ""), vars)
+		if err != nil || campo == "" || texto == "" {
+			continue
+		}
+		out = append(out, map[string]any{"@xCampo": campo, "xTexto": texto})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

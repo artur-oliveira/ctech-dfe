@@ -27,21 +27,28 @@ const (
 // too: `read` grants list/get across the family, `write` grants
 // create/update/delete across it (including the config).
 var scopeFamilies = map[string][]string{
-	"nfes":                       {"nfes", "nfe_events", "nfe_distributions", "organization_nfe_configs"},
-	"nfces":                      {"nfces", "nfce_events", "organization_nfce_configs"},
-	"ctes":                       {"ctes", "cte_events", "cte_distributions", "organization_cte_configs"},
-	"mdfes":                      {"mdfes", "mdfe_events", "mdfe_distributions", "organization_mdfe_configs"},
-	"nfses":                      {"nfses", "nfse_events", "nfse_distributions", "organization_nfse_configs"},
-	"organization_services":      {"organization_services"},
-	"organization_products":      {"organization_products"},
-	"organization_vehicles":      {"organization_vehicles"},
-	"organization_vehicle_sets":  {"organization_vehicle_sets"},
-	"organization_payment_terms": {"organization_payment_terms"},
-	"organization_tax_profiles":  {"organization_tax_profiles"},
-	"organization_operations":    {"organization_operations"},
-	"organization_persons":       {"organization_persons"},
-	"organizations":              {"organizations"},
-	"organization_certificates":  {"organization_certificates"},
+	"nfes":                             {"nfes", "nfe_events", "nfe_distributions", "organization_nfe_configs"},
+	"nfces":                            {"nfces", "nfce_events", "organization_nfce_configs"},
+	"ctes":                             {"ctes", "cte_events", "cte_distributions", "organization_cte_configs"},
+	"mdfes":                            {"mdfes", "mdfe_events", "mdfe_distributions", "organization_mdfe_configs"},
+	"nfses":                            {"nfses", "nfse_events", "nfse_distributions", "organization_nfse_configs"},
+	"organization_services":            {"organization_services"},
+	"organization_products":            {"organization_products"},
+	"organization_vehicles":            {"organization_vehicles"},
+	"organization_vehicle_sets":        {"organization_vehicle_sets"},
+	"organization_payment_terms":       {"organization_payment_terms"},
+	"organization_payment_terminals":   {"organization_payment_terminals"},
+	"organization_toll_providers":      {"organization_toll_providers"},
+	"organization_cargo_units":         {"organization_cargo_units"},
+	"organization_import_declarations": {"organization_import_declarations"},
+	"organization_insurance_policies":  {"organization_insurance_policies"},
+	"organization_product_lots":        {"organization_product_lots"},
+	"organization_fuel_pumps":          {"organization_fuel_pumps"},
+	"organization_tax_profiles":        {"organization_tax_profiles"},
+	"organization_operations":          {"organization_operations"},
+	"organization_persons":             {"organization_persons"},
+	"organizations":                    {"organizations"},
+	"organization_certificates":        {"organization_certificates"},
 }
 
 // readActions / writeActions map a scope access level to RBAC actions.
@@ -109,4 +116,14 @@ func scopeGrantsPermission(scope, action, resource string) bool {
 func splitPermission(permission string) (action, resource string, ok bool) {
 	action, resource, ok = strings.Cut(permission, ".")
 	return action, resource, ok
+}
+
+// ScopeFamilies devolve o mapa de famílias de escopo. Cópia rasa pela mesma
+// razão de AllResources.
+func ScopeFamilies() map[string][]string {
+	out := make(map[string][]string, len(scopeFamilies))
+	for k, v := range scopeFamilies {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
 }

@@ -920,6 +920,60 @@ components:
           type: array
           description: Dados de armas, quando o produto é dessa natureza.
           items: { type: object, additionalProperties: true }
+        x_ped:
+          type: [ string, 'null' ]
+          minLength: 1
+          maxLength: 15
+          description: Pedido de compra do cliente (`prod/xPed`) — controle B2B do emissor.
+        n_item_ped:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,6}$'
+          description: |
+            Item dentro do pedido (`prod/nItemPed`). Só é emitido acompanhado de
+            `x_ped` — número de item sem pedido não identifica nada.
+        transf_cred: { $ref: '#/components/schemas/NfeIBSCBSPairBody' }
+        ajuste_compet: { $ref: '#/components/schemas/NfeIBSCBSPairBody' }
+        estorno_cred: { $ref: '#/components/schemas/NfeIBSCBSPairBody' }
+        alc_zfm_n_proc_suframa:
+          type: [ string, 'null' ]
+          minLength: 8
+          maxLength: 12
+          description: |
+            Processo Suframa deste embarque (`gALCZFMCBS/nProcSuframa`). Vence o
+            cadastrado no perfil tributário.
+        lots:
+          type: array
+          maxItems: 500
+          description: |
+            Lotes de `organization_product_lots` de onde o item saiu
+            (`prod/rastro`). A `qLote` de cada um é **rateada** da quantidade
+            vendida quando `quantity` vem em branco.
+          items: { $ref: '#/components/schemas/NfeItemLot' }
+        fuel_pump_id:
+          type: [ string, 'null' ]
+          description: |
+            Bico de `organization_fuel_pumps` por onde a venda saiu
+            (`prod/comb/encerrante`).
+        v_enc_fin:
+          type: [ string, 'null' ]
+          description: |
+            Leitura final do encerrante. O `vEncIni` **não** é informado: é a
+            leitura final da venda anterior da mesma bomba. Uma leitura menor
+            que a anterior é 400.
+        q_temp:
+          type: [ string, 'null' ]
+          description: Quantidade a 20 °C (`comb/qTemp`) — muda a cada venda.
+
+    NfeItemLot:
+      type: object
+      required: [ lot_id ]
+      properties:
+        lot_id: { type: string }
+        quantity:
+          type: [ string, 'null' ]
+          description: |
+            Só quando o item sai de vários lotes em proporções diferentes. Em
+            branco, o rateio pela quantidade vendida resolve.
 
     NfePaymentItem:
       type: object
@@ -1068,6 +1122,134 @@ components:
         save_entrega_location:
           type: boolean
           description: Guarda o local de entrega no cadastro para reuso.
+        compra_x_ped:
+          type: [ string, 'null' ]
+          maxLength: 60
+          description: |
+            Pedido desta nota (`infNFe/compra/xPed`). A nota de empenho
+            (`xNEmp`) é da natureza de operação, não da nota.
+        compra_x_cont:
+          type: [ string, 'null' ]
+          maxLength: 60
+          description: Contrato desta nota (`infNFe/compra/xCont`).
+        cana: { $ref: '#/components/schemas/NfeCanaBody' }
+        agro: { $ref: '#/components/schemas/NfeAgroBody' }
+        dh_sai_ent:
+          type: [ string, 'null' ]
+          format: date-time
+          description: |
+            Data-hora da saída da mercadoria (`ide/dhSaiEnt`). **Vence** o
+            `dh_sai_ent_offset_days` da natureza de operação, que é o caminho
+            normal — só o despacho fora do padrão informa a data.
+        d_prev_entrega:
+          type: [ string, 'null' ]
+          format: date
+          description: Previsão de entrega ou disponibilização do bem (`ide/dPrevEntrega`).
+        compra_gov_refs:
+          type: array
+          maxItems: 99
+          description: |
+            Chaves dos documentos fiscais anteriores da compra governamental
+            (`ide/gCompraGov/refDFeAnt`). Obrigatório com `tp_oper_gov` 2 e 3,
+            vedado em 1 e 4; no tipo 2, **uma** chave só.
+          items: { type: string, pattern: '^\d{44}$' }
+        pag_antecipado_refs:
+          type: array
+          maxItems: 99
+          description: |
+            Chaves das NF-e de antecipação de pagamento a abater
+            (`ide/gPagAntecipado/refNFe`).
+          items: { type: string, pattern: '^\d{44}$' }
+
+    NfeIBSCBSPairBody:
+      type: object
+      description: |
+        Par de valores IBS/CBS apurados por nota. `transf_cred` e
+        `ajuste_compet` **substituem** a apuração normal do item (o choice
+        `gIBSCBS` | `gIBSCBSMono` | `gTransfCred` | `gAjusteCompet` do XSD);
+        `estorno_cred` convive com ela. Um lado sozinho é aceito e o outro vale
+        zero — a apuração pode atingir só um dos tributos.
+      properties:
+        v_ibs: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        v_cbs: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+
+    NfeCanaBody:
+      type: object
+      description: |
+        Registro mensal de aquisição de cana (`infNFe/cana`). A **safra** vem da
+        natureza de operação (`cana_safra`); sem ela a emissão é 400.
+
+        Quatro valores são **derivados** e não existem neste body: `qTotMes` é a
+        soma dos fornecimentos diários, `qTotGer` é ela mais `q_tot_ant`,
+        `vTotDed` é a soma das deduções e `vLiqFor` é o fornecimento menos elas.
+        O `vFor` é a base da própria nota (produtos − desconto).
+      required: [ ref, deliveries ]
+      properties:
+        ref:
+          type: string
+          pattern: '^(0[1-9]|1[0-2])/2\d{3}$'
+          description: Mês/ano de referência, `MM/AAAA`.
+        deliveries:
+          type: array
+          minItems: 1
+          maxItems: 31
+          description: Fornecimentos diários. Dois lançamentos no mesmo dia são 400.
+          items: { $ref: '#/components/schemas/NfeCanaDeliveryBody' }
+        deducoes:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/NfeCanaDeducBody' }
+        q_tot_ant:
+          type: [ string, 'null' ]
+          pattern: '^\d+(\.\d+)?$'
+          description: |
+            Acumulado dos meses anteriores, do razão do fornecedor — a única
+            quantidade da cana que não sai desta nota. Ausente, é zero.
+
+    NfeCanaDeliveryBody:
+      type: object
+      required: [ dia, qtde ]
+      properties:
+        dia:
+          type: string
+          pattern: '^([1-9]|[12]\d|3[01])$'
+          description: Dia do mês, **sem zero à esquerda** (padrão do XSD).
+        qtde: { type: string, pattern: '^\d+(\.\d+)?$' }
+
+    NfeCanaDeducBody:
+      type: object
+      required: [ x_ded, v_ded ]
+      properties:
+        x_ded: { type: string, maxLength: 60 }
+        v_ded: { type: string, pattern: '^\d+(\.\d{1,2})?$' }
+
+    NfeAgroBody:
+      type: object
+      description: |
+        Grupo `infNFe/agropecuario`. O XSD é um **choice**: receituários de
+        defensivo **ou** guia de trânsito, nunca os dois — informar ambos é 400.
+
+        O CPF do responsável técnico agronômico acompanha cada receituário mas
+        vem do cadastro da organização (`person.technical_manager_cpf`); sem ele
+        o receituário é 400.
+      properties:
+        receituarios:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 30 }
+        guia: { $ref: '#/components/schemas/NfeAgroGuiaBody' }
+
+    NfeAgroGuiaBody:
+      type: object
+      required: [ tp_guia, uf_guia, n_guia ]
+      properties:
+        tp_guia:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7' ]
+          description: '`1` GTA · `2` TTA · `3` DTA · `4` ATV · `5` PTV · `6` GTV · `7` Guia Florestal.'
+        uf_guia: { $ref: '#/components/schemas/Uf' }
+        serie_guia: { type: [ string, 'null' ], minLength: 1, maxLength: 9 }
+        n_guia: { type: string, pattern: '^\d{1,9}$' }
 
     NfceEmitBody:
       type: object

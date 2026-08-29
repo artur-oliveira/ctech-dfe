@@ -111,6 +111,13 @@ export default function GuideNfe() {
                 <b>Processando</b> até a SEFAZ responder e muda para <b>Autorizada</b> ou{' '}
                 <b>Rejeitada</b> sem você precisar atualizar a tela.
               </p>
+              <p>
+                A soma dos pagamentos tem que fechar com o total da nota para o passo avançar: a
+                diferença aparece ao lado do botão <b>Próximo</b>, e <b>Ajustar última parcela</b>{' '}
+                absorve o centavo de arredondamento. O mesmo vale para as parcelas da fatura quando
+                há pagamento a prazo. É a rejeição mais comum da NF-e, e é conta — o sistema fecha,
+                não você.
+              </p>
               <GuideCallout kind="tip" title="Rascunho automático">
                 A emissão em andamento é salva no seu navegador. Se você fechar a aba, a próxima
                 visita à tela de emissão oferece retomar de onde parou — ou descartar.

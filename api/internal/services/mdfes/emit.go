@@ -49,10 +49,178 @@ type MdfeEmitBody struct {
 	CIOT           *string `json:"ciot" validate:"omitempty"`
 	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=5000"`
 
+	// TollVouchers são os vales-pedágio da viagem (infANTT/valePed). O
+	// fornecedor vem do cadastro; aqui só o que muda a cada viagem.
+	TollVouchers []MdfeTollBody `json:"toll_vouchers" validate:"omitempty,dive"`
+
+	// Contractors são os contratantes do frete (infANTT/infContratante, máx 10).
+	// person_doc aponta para organization_persons; o contrato é da viagem.
+	Contractors []MdfeContractorBody `json:"contractors" validate:"omitempty,max=10,dive"`
+
+	// Payments é o pagamento ao transportador autônomo (infANTT/infPag).
+	// Obrigatório quando há contratante.
+	Payments []MdfePaymentBody `json:"payments" validate:"omitempty,dive"`
+
+	// PartialDeliveries declara a entrega parcial (corte de voo) e a prestação
+	// parcial de um CT-e transportado.
+	PartialDeliveries []MdfePartialDeliveryBody `json:"partial_deliveries" validate:"omitempty,dive"`
+
+	// TransportedMdfes são os MDF-e que este manifesto transporta.
+	TransportedMdfes []MdfeTransportedBody `json:"transported_mdfes" validate:"omitempty,dive"`
+
+	// TransportUnits associa unidades do cadastro aos documentos que elas
+	// levam (infUnidTransp/infUnidCarga). O rateio é calculado dos pesos.
+	TransportUnits []MdfeTransportUnitBody `json:"transport_units" validate:"omitempty,dive"`
+
+	// RedeliveryKeys são as chaves dos documentos que estão em reentrega
+	// (infDoc/.../indReentrega).
+	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,len=44,numeric"`
+
+	// InsurancePolicies são as apólices de seguro da carga (infMDFe/seg). A
+	// apólice vem do cadastro; a averbação é por viagem.
+	InsurancePolicies []MdfeInsuranceBody `json:"insurance_policies" validate:"omitempty,dive"`
+
+	// Seals são os lacres da carga (infMDFe/lacres); RodoSeals, os lacres da
+	// unidade de transporte (rodo/lacRodo); PortAgentCode é o código do agente
+	// portuário, exigido no transporte de contêiner para porto.
+	Seals         []string `json:"seals" validate:"omitempty,dive,max=60"`
+	RodoSeals     []string `json:"rodo_seals" validate:"omitempty,dive,max=60"`
+	PortAgentCode *string  `json:"port_agent_code" validate:"omitempty,max=16"`
+
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
 	Water *MdfeWaterModal `json:"water" validate:"omitempty"`
 	Rail  *MdfeRailModal  `json:"rail" validate:"omitempty"`
+}
+
+// MdfeTollBody é um vale-pedágio da viagem. O fornecedor vem do cadastro;
+// aqui só o que muda a cada viagem.
+type MdfeTollBody struct {
+	TollProviderID string `json:"toll_provider_id" validate:"required"`
+	NCompra        string `json:"n_compra" validate:"required,max=20"`
+	VValePed       string `json:"v_vale_ped" validate:"required,money"`
+}
+
+// MdfeContractorBody é um contratante do frete. Nome e identidade vêm do
+// cadastro de pessoas; só o contrato muda a cada viagem.
+type MdfeContractorBody struct {
+	PersonDoc      string `json:"person_doc" validate:"required"`
+	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
+	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+}
+
+// MdfeInsuranceBody aponta uma apólice do cadastro e traz as averbações desta
+// viagem — o único dado do grupo seg que não recorre.
+type MdfeInsuranceBody struct {
+	InsurancePolicyID string   `json:"insurance_policy_id" validate:"required"`
+	NAver             []string `json:"n_aver" validate:"omitempty,dive,max=40"`
+}
+
+// partialByKey indexa as entregas parciais pela chave do CT-e.
+func partialByKey(items []MdfePartialDeliveryBody) map[string]partialDelivery {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make(map[string]partialDelivery, len(items))
+	for _, p := range items {
+		out[p.AccessKey] = partialDelivery{QtdTotal: p.QtdTotal, QtdParcial: p.QtdParcial, NFeKeys: p.NFeKeys}
+	}
+	return out
+}
+
+// keySet indexa as chaves marcadas para consulta O(1) no builder.
+func keySet(keys []string) map[string]bool {
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		out[k] = true
+	}
+	return out
+}
+
+// validateModalPayload recusa o manifesto que escolhe um modal e não manda os
+// dados dele. Sem isso o builder emitiria um <aereo/> vazio e a rejeição só
+// viria da SEFAZ, com uma mensagem que não diz o que faltou.
+func validateModalPayload(modal string, req MdfeEmitBody) error {
+	switch modal {
+	case ModalAereo:
+		if req.Air == nil {
+			return problem.BadRequest("modal aéreo exige os dados do voo (air)")
+		}
+	case ModalFerroviario:
+		if req.Rail == nil {
+			return problem.BadRequest("modal ferroviário exige os dados do trem (rail)")
+		}
+	case ModalAquaviario:
+		if req.Water == nil {
+			return problem.BadRequest("modal aquaviário exige os dados da embarcação (water)")
+		}
+	}
+	return nil
+}
+
+// validateFreightDeclaration recusa o manifesto que declara contratante mas não
+// declara pagamento: quem contrata frete de terceiro paga alguém por ele, e o
+// infANTT sem infPag é o MDF-e incompleto que só a SEFAZ recusaria.
+func validateFreightDeclaration(req MdfeEmitBody) error {
+	if len(req.Contractors) > 0 && len(req.Payments) == 0 {
+		return problem.BadRequest("MDF-e com contratante exige o grupo de pagamento (infPag)")
+	}
+	return nil
+}
+
+// MdfePaymentBody é o pagamento do frete a um transportador autônomo na
+// emissão. Nome, documento e dados de recebimento vêm do cadastro da pessoa;
+// aqui fica o que é da viagem: componentes, valor e prazo. As parcelas
+// (infPrazo) são derivadas do prazo, nunca digitadas uma a uma — por isso este
+// corpo não é o MdfePayment dos eventos de pagamento, que declaram parcelas já
+// acordadas.
+type MdfePaymentBody struct {
+	PersonDoc  string                 `json:"person_doc" validate:"required"`
+	Components []MdfePaymentComponent `json:"components" validate:"required,min=1,dive"`
+	// ContractValue é vContrato; PaymentType é indPag (0 à vista, 1 a prazo).
+	ContractValue string `json:"contract_value" validate:"required,decimalv"`
+	PaymentType   string `json:"payment_type" validate:"required,oneof=0 1"`
+
+	AdvanceValue    *string `json:"advance_value" validate:"omitempty,decimalv"`    // vAdiant
+	AdvanceRequest  *string `json:"advance_request" validate:"omitempty,oneof=0 1"` // indAntecipaAdiant
+	AdvanceKind     *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"`  // tpAntecip
+	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"`  // indAltoDesemp
+
+	// Prazo: quantas parcelas, de quantos em quantos dias, a primeira quantos
+	// dias depois da emissão.
+	Installments int `json:"installments" validate:"omitempty,min=1,max=120"`
+	IntervalDays int `json:"interval_days" validate:"omitempty,min=0"`
+	FirstDueDays int `json:"first_due_days" validate:"omitempty,min=0"`
+}
+
+// MdfePartialDeliveryBody é a entrega parcial de um CT-e transportado. O XSD só
+// prevê o grupo em infCTe: um chNFe aqui é ignorado pelo builder.
+type MdfePartialDeliveryBody struct {
+	AccessKey  string `json:"access_key" validate:"required,len=44,numeric"`
+	QtdTotal   string `json:"qtd_total" validate:"required,decimalv"`
+	QtdParcial string `json:"qtd_parcial" validate:"required,decimalv"`
+	// NFeKeys são as NF-e já entregues do CT-e (indPrestacaoParcial).
+	NFeKeys []string `json:"nfe_keys" validate:"omitempty,dive,len=44,numeric"`
+}
+
+// MdfeTransportedBody é um MDF-e transportado por este (infMDFeTransp), com o
+// município onde ele é descarregado.
+type MdfeTransportedBody struct {
+	AccessKey  string  `json:"access_key" validate:"required,len=44,numeric"`
+	Unloading  MdfeMun `json:"unloading" validate:"required"`
+	Redelivery bool    `json:"redelivery"`
+}
+
+// MdfeTransportUnitBody é uma unidade de transporte da viagem: qual unidade do
+// cadastro, quais documentos ela leva e quais unidades de carga vão dentro.
+type MdfeTransportUnitBody struct {
+	CargoUnitID  string   `json:"cargo_unit_id" validate:"required"`
+	DocumentKeys []string `json:"document_keys" validate:"required,min=1,dive,len=44,numeric"`
+	// CargoUnitIDs são as unidades de carga (contêiner, pallet) dentro desta.
+	CargoUnitIDs []string `json:"cargo_unit_ids" validate:"omitempty,dive,required"`
 }
 
 // MdfeDocRef references an NF-e or CT-e to be transported.
@@ -112,6 +280,9 @@ type MdfeProdPred struct {
 	TpCarga string `json:"tp_carga" validate:"omitempty"`
 	XProd   string `json:"x_prod" validate:"omitempty,max=120"`
 	NCM     string `json:"ncm" validate:"omitempty,ncm"`
+	// CEAN é o GTIN do produto predominante. Derivado do documento
+	// referenciado; o override da emissão pode informá-lo, mas ninguém precisa.
+	CEAN string `json:"cean" validate:"omitempty"`
 }
 
 // MdfeBulkCargo carries the single-document (carga lotação) loading/unloading CEPs.
@@ -150,6 +321,16 @@ type resolvedCargo struct {
 	ufFim       string
 }
 
+// weightByDoc indexa o peso bruto por chave de acesso — a base do rateio das
+// unidades de transporte.
+func (c *resolvedCargo) weightByDoc() map[string]decimal.Decimal {
+	out := make(map[string]decimal.Decimal, len(c.docs))
+	for _, d := range c.docs {
+		out[d.accessKey] = d.weightKG
+	}
+	return out
+}
+
 // descargaGroup is one infMunDescarga node: a municipality and the access keys
 // destined there, split by document type.
 type descargaGroup struct {
@@ -171,6 +352,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 	if !enabledModals[modal] {
 		return nil, problem.BadRequest("modal " + modal + " ainda não disponível para emissão")
+	}
+	if err := validateModalPayload(modal, req); err != nil {
+		return nil, err
 	}
 	if len(req.Documents) == 0 {
 		return nil, problem.BadRequest("informe ao menos um documento (NF-e ou CT-e)")
@@ -199,6 +383,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	}
 	if len(req.Drivers) == 0 {
 		return nil, problem.BadRequest("informe ao menos um condutor")
+	}
+	if err := validateFreightDeclaration(req); err != nil {
+		return nil, err
 	}
 
 	orgItem, err := s.orgRepo.GetOrganization(ctx, orgPK)
@@ -241,6 +428,21 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
+	tolls, err := s.resolveTolls(ctx, orgPK, req.TollVouchers)
+	if err != nil {
+		return nil, err
+	}
+
+	contractors, err := s.resolveContractors(ctx, orgPK, req.Contractors)
+	if err != nil {
+		return nil, err
+	}
+
+	policies, err := s.resolvePolicies(ctx, orgPK, req.InsurancePolicies)
+	if err != nil {
+		return nil, err
+	}
+
 	resolvedVehicle, err := s.resolveVehicle(ctx, orgPK, req.Vehicle)
 	if err != nil {
 		return nil, err
@@ -260,7 +462,27 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	// Hoje sempre normal; a contingência do MDF-e entra na fase C6 do plano.
 	tpEmis := tpEmisNormal
 
+	docPeri, err := s.resolveDocPeri(ctx, orgPK, cargo.docs)
+	if err != nil {
+		return nil, err
+	}
+
+	unidTransp, err := s.resolveTransportUnits(ctx, orgPK, req.TransportUnits, cargo.weightByDoc())
+	if err != nil {
+		return nil, err
+	}
+
+	emptyUnits, err := s.resolveEmptyUnits(ctx, orgPK, req.Water)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
+
+	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
+	if err != nil {
+		return nil, err
+	}
 	cnpj := services.StripPKPrefix(orgPK)
 	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now, tpEmis)
 	if accessKey == "" {
@@ -287,11 +509,31 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		rntrc:       req.RNTRC,
 		ciot:        req.CIOT,
 		addInfo:     req.AdditionalInfo,
-		air:         req.Air,
-		water:       req.Water,
-		rail:        req.Rail,
-		tpEmis:      tpEmis,
-		tech:        s.tech,
+		// Canal Verde, carregamento posterior e mensagem ao fisco são da
+		// configuração do MDF-e: recorrem em toda emissão da organização.
+		indCanalVerde:       boolAttr(configItem, "ind_canal_verde"),
+		indCarregaPosterior: boolAttr(configItem, "ind_carrega_posterior"),
+		infAdFisco:          strAttr(configItem, "inf_ad_fisco"),
+		air:                 req.Air,
+		water:               req.Water,
+		rail:                req.Rail,
+		tpEmis:              tpEmis,
+		tolls:               tolls,
+		contractors:         contractors,
+		policies:            policies,
+		emptyUnits:          emptyUnits,
+		infPag:              infPag,
+		redelivery:          keySet(req.RedeliveryKeys),
+		partial:             partialByKey(req.PartialDeliveries),
+		transportedMdfes:    req.TransportedMdfes,
+		peri:                docPeri,
+		unidTransp:          unidTransp,
+		seals:               req.Seals,
+		rodoSeals:           req.RodoSeals,
+		portAgentCode:       valueOr(req.PortAgentCode, ""),
+		tech:                s.tech,
+		csrtID:              strAttr(configItem, csrtIDField),
+		csrt:                strAttr(configItem, csrtField),
 	})
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)
@@ -435,7 +677,7 @@ func (s *MdfeService) resolveCargo(ctx context.Context, orgPK, envPrefix, docTyp
 		}
 		if cargo.totalValue.GreaterThan(predValue) {
 			predValue = cargo.totalValue
-			res.prodPred = MdfeProdPred{TpCarga: defaultTpCarga, XProd: cargo.predProd, NCM: cargo.predNCM}
+			res.prodPred = MdfeProdPred{TpCarga: defaultTpCarga, XProd: cargo.predProd, NCM: cargo.predNCM, CEAN: cargo.predEAN}
 		}
 	}
 
@@ -542,13 +784,153 @@ type resolvedVehicle struct {
 	UF      string
 	RENAVAM string
 	CapKG   string
-	TpRod   string
-	TpCar   string
-	RNTRC   string // owner RNTRC, when the vehicle is registered with an owner
+	// CInt e CapM3 já vivem no cadastro do veículo — o builder só não os lia.
+	CInt  string
+	CapM3 string
+	TpRod string
+	TpCar string
+	RNTRC string // owner RNTRC, when the vehicle is registered with an owner
 	// Owner é o proprietário cadastrado no veículo (VehicleOwnerBody). Serve de
 	// default para veicTracao/prop quando a emissão não traz um proprietário —
 	// antes este dado era cadastrado e depois redigitado a cada emissão.
 	Owner *MdfeOwner
+}
+
+// resolvedToll é um vale-pedágio da viagem já cruzado com o cadastro: o que é
+// invariante veio de organization_toll_providers, o que muda por viagem veio do
+// corpo da emissão.
+type resolvedToll struct {
+	CNPJForn  string
+	CNPJPg    string
+	CPFPg     string
+	TpValePed string
+	NCompra   string
+	VValePed  string
+}
+
+// resolveTolls lê num BatchGet só as fornecedoras citadas. Um id inexistente é
+// erro de request, não silêncio.
+func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []MdfeTollBody) ([]resolvedToll, error) {
+	if len(tolls) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(tolls))
+	for _, t := range tolls {
+		ids = append(ids, t.TollProviderID)
+	}
+	raw, err := s.tollProviderRepo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]resolvedToll, 0, len(tolls))
+	for _, t := range tolls {
+		provider, ok := raw[t.TollProviderID]
+		if !ok {
+			return nil, problem.NotFound("fornecedora de vale-pedágio não encontrada: " + t.TollProviderID)
+		}
+		out = append(out, resolvedToll{
+			CNPJForn:  strAttr(provider, "cnpj_forn"),
+			CNPJPg:    strAttr(provider, "cnpj_pg"),
+			CPFPg:     strAttr(provider, "cpf_pg"),
+			TpValePed: strAttr(provider, "tp_vale_ped"),
+			NCompra:   t.NCompra,
+			VValePed:  t.VValePed,
+		})
+	}
+	return out, nil
+}
+
+// resolvePolicies lê num BatchGet só as apólices citadas. Um id inexistente é
+// erro de request, não silêncio.
+func (s *MdfeService) resolvePolicies(ctx context.Context, orgPK string, items []MdfeInsuranceBody) ([]resolvedPolicy, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, i := range items {
+		ids = append(ids, i.InsurancePolicyID)
+	}
+	raw, err := s.insurancePolicyRepo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]resolvedPolicy, 0, len(items))
+	for _, i := range items {
+		policy, ok := raw[i.InsurancePolicyID]
+		if !ok {
+			return nil, problem.NotFound("apólice de seguro não encontrada: " + i.InsurancePolicyID)
+		}
+		out = append(out, resolvedPolicy{
+			RespSeg: strAttr(policy, "resp_seg"),
+			CNPJ:    strAttr(policy, "cnpj"),
+			CPF:     strAttr(policy, "cpf"),
+			XSeg:    strAttr(policy, "x_seg"),
+			CNPJSeg: strAttr(policy, "cnpj_seg"),
+			NApol:   strAttr(policy, "n_apol"),
+			NAver:   i.NAver,
+		})
+	}
+	return out, nil
+}
+
+// cnpjLen distingue CNPJ de CPF num documento já sem prefixo.
+const cnpjLen = 14
+
+// personDocChoice traduz o SK do cadastro no choice CPF | CNPJ | idEstrangeiro
+// do XSD: o prefixo estrangeiro é explícito e o resto se distingue pelo
+// tamanho do documento. Vale para infContratante e infPag.
+func personDocChoice(sk string) (cpf, cnpj, foreign string) {
+	if rest, ok := strings.CutPrefix(sk, repositories.SKPrefixForeign); ok {
+		return "", "", rest
+	}
+	if doc := services.StripPKPrefix(sk); len(doc) == cnpjLen {
+		return "", doc, ""
+	} else {
+		return doc, "", ""
+	}
+}
+
+// resolvedContractor é um contratante do frete já cruzado com o cadastro.
+type resolvedContractor struct {
+	Name           string
+	CPF            string
+	CNPJ           string
+	Foreign        string
+	ContractNumber string
+	ContractValue  string
+}
+
+// resolveContractors lê cada contratante do cadastro de pessoas. São no máximo
+// 10 por manifesto e a emissão de MDF-e é rara comparada à de NF-e, então um
+// Get por contratante custa menos que manter um BatchGet só para isto.
+func (s *MdfeService) resolveContractors(
+	ctx context.Context, orgPK string, contractors []MdfeContractorBody,
+) ([]resolvedContractor, error) {
+	if len(contractors) == 0 {
+		return nil, nil
+	}
+	out := make([]resolvedContractor, 0, len(contractors))
+	for _, c := range contractors {
+		sk, err := services.BuildPersonSK(c.PersonDoc)
+		if err != nil {
+			return nil, err
+		}
+		person, err := s.personRepo.Get(ctx, orgPK, sk)
+		if err != nil {
+			return nil, err
+		}
+		if person == nil {
+			return nil, problem.NotFound("contratante do frete não encontrado no cadastro: " + c.PersonDoc)
+		}
+		rc := resolvedContractor{
+			Name:           strAttr(person, "name"),
+			ContractNumber: c.ContractNumber,
+			ContractValue:  c.ContractValue,
+		}
+		rc.CPF, rc.CNPJ, rc.Foreign = personDocChoice(sk)
+		out = append(out, rc)
+	}
+	return out, nil
 }
 
 // resolveVehicle merges a registered vehicle (by SK) with the request
@@ -601,6 +983,14 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 		}
 		if out.RENAVAM == "" {
 			out.RENAVAM = strAttr(vehicle, "renavam")
+		}
+		if out.CInt == "" {
+			out.CInt = strAttr(vehicle, "cint")
+		}
+		if out.CapM3 == "" {
+			if m3 := intAttr(vehicle, "cap_m3", 0); m3 > 0 {
+				out.CapM3 = strconv.Itoa(m3)
+			}
 		}
 		if owner, ok := vehicle["owner"].(*types.AttributeValueMemberM); ok {
 			if r, ok := owner.Value["rntrc"].(*types.AttributeValueMemberS); ok {

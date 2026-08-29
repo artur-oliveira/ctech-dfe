@@ -205,7 +205,7 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		h.CteConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc)
 	registerFiscalConfig(scoped, "/mdfe-config",
 		"get.organization_mdfe_configs", "update.organization_mdfe_configs",
-		h.MdfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc)
+		h.MdfeConfig, perm, bindAVValidated[MdfeConfigBody], h.UserSvc)
 	registerFiscalConfig(scoped, "/nfse-config",
 		"get.organization_nfse_configs", "update.organization_nfse_configs",
 		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc)

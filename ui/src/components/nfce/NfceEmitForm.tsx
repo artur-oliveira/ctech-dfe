@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
+import {paymentBalanceGap} from '@/lib/utils/emit-guards'
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {useAuth} from '@/lib/hooks/useAuth'
 import {useDebounce} from '@/lib/hooks/useDebounce'
@@ -56,6 +57,8 @@ interface EmitPayment {
   payment_type: string
   value: string
   card: NfeCardIn | null
+  /** Terminal de captura que processou o pagamento, quando houver. */
+  terminal_id: string | null
 }
 
 /** NFC-e is always an internal consumer sale — only 5xxx saída CFOPs apply. */
@@ -267,6 +270,7 @@ export function NfceEmitForm() {
   const [newPaymentType, setNewPaymentType] = useState(QUICK_PAYMENT_TYPES[0] as string)
   const [newPaymentValue, setNewPaymentValue] = useState('')
   const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
+  const [newPaymentTerminal, setNewPaymentTerminal] = useState('')
   const [showCardToggle, setShowCardToggle] = useState(false)
   const paymentLocked = useRef(false)
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
@@ -337,7 +341,11 @@ export function NfceEmitForm() {
   /** A typed-but-not-yet-added payment still counts towards emission. */
   const pendingPayment = (): EmitPayment | null => {
     if (!newPaymentValue || parseFloat(newPaymentValue) <= 0) return null
-    return {payment_type: newPaymentType, value: newPaymentValue, card: showCardToggle ? newPaymentCard : null}
+    return {
+      payment_type: newPaymentType, value: newPaymentValue,
+      card: showCardToggle ? newPaymentCard : null,
+      terminal_id: showCardToggle ? (newPaymentTerminal || null) : null,
+    }
   }
 
   const addPayment = () => {
@@ -346,6 +354,7 @@ export function NfceEmitForm() {
     setPayments((prev) => [...prev, p])
     paymentLocked.current = false
     setNewPaymentCard(null)
+    setNewPaymentTerminal('')
     setShowCardToggle(false)
   }
   const removePayment = (i: number) => {
@@ -364,7 +373,9 @@ export function NfceEmitForm() {
       ? 'Há produtos sem CFOP de saída (5xxx).'
       : effectivePayments().length === 0
         ? 'Informe pelo menos uma forma de pagamento.'
-        : null
+        // Excedente aqui é troco legítimo (vTroco); falta continua sendo a
+        // rejeição de somatório, e é o computador que tem que fechar a conta.
+        : paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), true)
   const canEmit = !emitBlockedReason
 
   // ─── submit ───────────────────────────────────────────────────────────────
@@ -389,6 +400,7 @@ export function NfceEmitForm() {
       })),
       payments: allPayments.map((p) => ({
         payment_type: p.payment_type, value: p.value, card: p.card ?? undefined,
+        terminal_id: p.terminal_id ?? undefined,
       })),
       additional_info: additionalInfo.trim() || null,
       nat_op: natOp || null,
@@ -573,7 +585,8 @@ export function NfceEmitForm() {
                 </span>
               </label>
               {showCardToggle && (
-                <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
+                <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}
+                                   terminalId={newPaymentTerminal} onTerminalChange={setNewPaymentTerminal}/>
               )}
             </div>
           )}

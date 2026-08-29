@@ -3,6 +3,8 @@ package nfes
 import (
 	"strings"
 	"testing"
+
+	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 func operationMap(fields map[string]any) map[string]any {
@@ -85,5 +87,25 @@ func TestInterpolateOperationText(t *testing.T) {
 	// Operação sem o campo não gera texto — nada de campo em branco no XML.
 	if got, err := interpolateOperationText(operationMap(nil), opFieldInfCpl, nil); err != nil || got != nil {
 		t.Errorf("got %v, err %v — esperado nil", got, err)
+	}
+}
+
+func TestOperationObsInterpola(t *testing.T) {
+	op := map[string]any{"obs_cont": []any{
+		map[string]any{"x_campo": "Cliente", "x_texto": "Venda para {{cliente}}"},
+		map[string]any{"x_campo": "Vazio", "x_texto": ""},
+	}}
+	got := operationObs(op, opFieldObsCont, map[string]string{services.PlaceholderCliente: "ACME"})
+	if len(got) != 1 {
+		t.Fatalf("observação vazia deveria ser descartada: %v", got)
+	}
+	if got[0]["@xCampo"] != "Cliente" || got[0]["xTexto"] != "Venda para ACME" {
+		t.Fatalf("interpolação errada: %v", got[0])
+	}
+}
+
+func TestOperationObsSemOperacaoDevolveNil(t *testing.T) {
+	if got := operationObs(nil, opFieldObsCont, nil); got != nil {
+		t.Fatalf("want nil, got %v", got)
 	}
 }

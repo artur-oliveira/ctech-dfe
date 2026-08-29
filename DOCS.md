@@ -200,7 +200,8 @@ MOC 3.00b Anexo II). Same pure-local contract (no certificate, no SEFAZ).
 - **CODE-128 barcode** of the 44-digit chave + **QR Code** from
   `infMDFeSupl/qrCodMDFe` (segno). All four **modais** rendered from
   `ide/modal`: **1 rodoviário** (RNTRC, veículo tração/reboques, condutores,
-  CIOT), **2 aéreo**, **3 aquaviário**, **4 ferroviário**.
+  CIOT), **2 aéreo**, **3 aquaviário** (embarcação, MMSI e balsas do comboio),
+  **4 ferroviário**.
 - Variants via `layout`: **retrato** (default) / **paisagem**, both fixed A4
   multi-page (long document-key lists paginate naturally, `fit_height=False`).
 - **Contingência** from `ide/tpEmis==2` (prints "EMISSÃO EM CONTINGÊNCIA",
@@ -258,7 +259,7 @@ segno          # QR Code generation
 
 ### go-dfe — In-Process Go Migration (New)
 
-**Location:** `/go-dfe/` (module `gopkg.aoctech.app/dfe/go-dfe`, go 1.26; sibling of `worker/`/`api/`,
+**Location:** `/go-dfe/` (module `gopkg.aoctech.app/dfe/go-dfe`, go 1.27; sibling of `worker/`/`api/`,
 linked via root `go.work`). See `docs/plans/2026-07-17-go-dfe-migration.md` and `MIGRATION.md` (2026-07-18
 entry) for the full rationale and phasing.
 
@@ -577,7 +578,7 @@ Profile and password management are handled by ctech-account directly.
 | PUT    | `/v1.0/organizations/{pk}/nfe-config`         | Configure NF-e        |
 | PUT    | `/v1.0/organizations/{pk}/nfce-config`        | Configure NFC-e       |
 | PUT    | `/v1.0/organizations/{pk}/cte-config`         | Configure CT-e        |
-| PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e       |
+| PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e (`MdfeConfigBody`: base + `ind_canal_verde`, `ind_carrega_posterior`, `inf_ad_fisco`) |
 | POST   | `/v1.0/organizations/{pk}/certificates`       | Upload A1 certificate |
 | GET    | `/v1.0/organizations/{pk}/certificates`       | List certificates     |
 | DELETE | `/v1.0/organizations/{pk}/certificates/{md5}` | Remove certificate    |
@@ -915,21 +916,90 @@ the frontend's divergence warning.
 | Taxed IS (CST 000)                             | `is_aliq`, `is_class_trib` required                                                                        |
 | IBS/CBS with reduction (CST 010/011)           | `ibs_uf_p_red`, `ibs_mun_p_red`, `cbs_p_red`                                                               |
 | IBS/CBS with deferral (CST 200/220)            | `ibs_uf_p_dif`, `ibs_mun_p_dif`, `cbs_p_dif`                                                               |
-| IBS/CBS monophase (CST 620)                    | `ibs_ad_rem`, `cbs_ad_rem`                                                                                 |
-| IBS/CBS cashback fiscal (NT 2025.002)          | `ibs_cbs_p_dev_trib`                                                                                       |
+| IBS/CBS monophase (CST 620)                    | `ibs_ad_rem`, `cbs_ad_rem` (`gMonoPadrao`); `ibs_ad_rem_reten`/`cbs_ad_rem_reten` (`gMonoReten`), `ibs_ad_rem_ret`/`cbs_ad_rem_ret` (`gMonoRet`), `ibs_p_dif_mono`/`cbs_p_dif_mono` (`gMonoDif`) — cada par é tudo-ou-nada |
+| IBS/CBS cashback fiscal (NT 2025.002)          | `ibs_cbs_p_dev_trib` — um percentual só, aplicado nas **três** esferas (`gIBSUF`/`gIBSMun`/`gCBS`/`gDevTrib`) |
+| IBS/CBS reference taxation (`gTribRegular`)    | `ibs_reg_cst` (habilita o bloco), `ibs_reg_class_trib`, `ibs_reg_uf_aliq`, `ibs_reg_mun_aliq`, `cbs_reg_aliq` |
+| IBS/CBS government purchase (`gTribCompraGov`) | `ibs_gov_uf_aliq`, `ibs_gov_mun_aliq`, `cbs_gov_aliq` — sem CST próprio no XSD                              |
+| IBS/CBS presumed credit (`gCredPresOper`)      | `ibs_cbs_c_cred_pres` (habilita), `ibs_p_cred_pres`, `cbs_p_cred_pres`; `ibs_cbs_cred_pres_cond_sus=1` troca `vCredPres` por `vCredPresCondSus` |
+| IBS presumed credit ZFM (`gCredPresIBSZFM`)    | `ibs_zfm_p_cred_pres` + `tp_cred_pres_ibs_zfm` do produto. **Choice** com `gCredPresOper`: o da operação vence |
+| CBS zero rate ALC/ZFM (`gALCZFMCBS`)           | `alc_zfm_tp_cbs` (habilita), `alc_zfm_n_proc_suframa`, e `cbs_reg_aliq` como alíquota de referência         |
 | Monophase ICMS fuel (CST 02)                   | `icms_ad_rem` (ad rem, R$/unit)                                                                            |
 | Monophase ICMS with retention (CST 15)         | `icms_ad_rem`, `icms_ad_rem_reten`, `icms_p_red_ad_rem`, `icms_mot_red_ad_rem`                             |
 | Monophase ICMS with deferral (CST 53)          | `icms_ad_rem`, `icms_p_dif_mono`                                                                           |
 | Monophase ICMS previously collected (CST 61)   | `icms_ad_rem` (adRemICMSRet)                                                                               |
-| ICMS ST previously withheld (CST 60, optional) | `icms_v_bc_st_ret`, `icms_v_icms_st_ret`, `icms_p_st`, `icms_fcp_v_bc_st_ret`, `icms_fcp_st_ret_aliq`      |
-| ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret` |
+| ICMS ST previously withheld (CST 41/60, CSOSN 500) | `icms_v_bc_st_ret`, `icms_v_icms_st_ret`, `icms_p_st`, `icms_fcp_v_bc_st_ret`, `icms_fcp_st_ret_aliq` — o mesmo grupo nos três (`addSTRetida`) |
+| ICMS ST repassed interstate (CST 41 → `ICMSST`) | `icms_v_bc_st_dest`, `icms_v_icms_st_dest`. CST 41 **com** ST retida vira `ICMSST`; sem ela continua `ICMS40` (não tributada) |
+| ICMS efetivo (`ICMS60`, `ICMSST`, `ICMSSN500`)  | `icms_p_red_bc_efet`, `icms_p_icms_efet` — `vBCEfet`/`vICMSEfet` são **calculados** (`addICMSEfetivo`) |
+| ST desonerada (ICMS10/70/90)                   | `icms_mot_des_st` — `vICMSSTDeson` é o próprio ICMS-ST calculado |
+| FCP diferido (ICMS51/90)                       | `icms_p_fcp_dif` — `vFCPDif` e `vFCPEfet` são calculados |
+| Partilha do ICMS entre UFs (`ICMSPart`)        | `icms_part_p_bc_op` + `icms_part_uf_st`. Não há CST próprio: com o par presente, CST 10/90 emite `ICMSPart` no lugar de `ICMS10`/`ICMS90` |
+| IPI por unidade (bebidas, cigarros)            | `ipi_v_unid` — troca `vBC`+`pIPI` por `qUnid`+`vUnid` (choice no XSD) |
+| IPI com selo de controle                       | produto: `ipi_cnpj_prod`, `ipi_c_selo`, `ipi_q_selo`, `ipi_c_enq` (default `999`) |
+| PIS-ST / COFINS-ST (combustíveis, farmacêutico) | `pis_st_aliq`/`pis_st_v_bc`, `cofins_st_aliq`/`cofins_st_v_bc` — grupos `PISST`/`COFINSST`, irmãos de PIS/COFINS. Sem base própria, a base é o valor do produto |
+| ISSQN (services)                               | `issqn_ind_iss`, `issqn_c_list_serv`, `issqn_c_mun_fg`, `issqn_aliq`, `issqn_v_deducao`, `issqn_v_iss_ret`, `issqn_v_outro`, `issqn_v_desc_incond`, `issqn_v_desc_cond`, `issqn_c_servico`, `issqn_c_mun`, `issqn_c_pais`, `issqn_n_processo`, `issqn_ind_incentivo`. Um item com `service_id` puxa item da lista, código e alíquota de `organization_services` — o catálogo da NFS-e, não um segundo cadastro |
+| Observação fiscal do item (`det/obsItem`)      | `obs_item_x_campo` + `obs_item_x_texto`, na tributação (vence) ou no produto |
+
+**Combustível (nível item):** `products[].fuel_pump_id` aponta o bico de `organization_fuel_pumps`,
+`v_enc_fin` é onde o marcador parou e `q_temp` é a quantidade a 20 °C. Três valores do grupo `comb`
+**não** são digitados: o `vEncIni` (é o `vEncFin` da venda anterior da mesma bomba), o `qBCProd` da
+CIDE (é a quantidade vendida) e o `vCIDE` (é base × alíquota — só `comb_cide_v_aliq_prod` é
+cadastrado no produto, junto de `comb_orig[]`). A leitura final menor que a anterior é 400, e o
+avanço de `last_v_enc_fin` entra na mesma transação que reserva o número da nota. Vale para NF-e e
+NFC-e — o posto emite NFC-e.
+
+**Rastreabilidade (nível item):** `products[].lots[] = {lot_id, quantity?}` monta `prod/rastro`.
+Número, fabricação, validade e código de agregação vêm de `organization_product_lots`; a `qLote` é
+**rateada** da quantidade vendida quando `quantity` vem em branco (a última parte absorve o resíduo,
+mesma regra do `qtdRat` do MDF-e — ver `services.SplitProportional`). Uma `quantity` informada vence,
+e os lotes em branco dividem o que sobrou. Um lote de outro produto é 400.
+
+**Importação (nível item):** `products[].import_declarations[] = {import_declaration_id,
+addition_index, n_draw?}` monta `prod/DI`. Número da DI, desembaraço, via de transporte e adições
+vêm de `organization_import_declarations`; `nAdicao` sai da adição escolhida e `nSeqAdic` é a ordem
+do vínculo no item — nenhum dos dois é digitado. O `n_draw` da emissão vence o da adição (o drawback
+é do embarque). DI inexistente é 404. `NVE`, `nFCI`, `cBarra` e `cBarraTrib` são do cadastro do
+produto (`nve[]`, `n_fci`, `c_barra`, `c_barra_trib`).
+
+**Exportação:** a operação de exportação guarda `export_uf_saida_pais` e
+`export_loc_despacho_index` — um **índice** em `organizations.pickup_locations`, para referenciar o
+recinto de despacho já salvo em vez de recopiar o endereço; `infNFe/exporta` sai daí
+(`UFSaidaPais`, `xLocExporta` = município do local, `xLocDespacho` = logradouro). No item,
+`products[].exports[] = {n_draw?, n_re?, ch_nfe?, q_export?}` vira `prod/detExport`; `exportInd`
+só sai com o trio `nRE`+`chNFe`+`qExport` completo.
+
+**Imposto de importação:** `products[].ii_v_desp_adu` / `ii_v_ii` / `ii_v_iof` viram `imposto/II`
+(a base é o valor do item) e `vII` passa a somar no `ICMSTot` e no `vNF`. Sem valores declarados, o
+grupo não existe — item importado que não recolheu II não declara II.
+
+**Retenções e devolução (nível documento):**
+
+- `total/retTrib` é **derivado**: o perfil de percentuais fica na operação (`ret_trib`:
+  `p_ret_pis`, `p_ret_cofins`, `p_ret_csll`, `p_ret_irrf`, `p_ret_prev_inss`) e os valores saem da
+  base (produtos − desconto). `vBCIRRF`/`vBCRetPrev` só aparecem acompanhados do respectivo valor.
+- `det/impostoDevol` exige `fin_nfe = 4` (devolução): `products[].p_devol` fora disso é **400**.
+  `vIPIDevol` é calculado do IPI do item e somado no `ICMSTot`.
+- `transp/retTransp` sai do perfil `person.freight_retention` da transportadora
+  (`v_serv`, `v_bc_ret`, `p_icms_ret`, `cfop`, `c_mun_fg`); `vICMSRet` é calculado. O grupo é
+  tudo-ou-nada: perfil incompleto não emite nada.
 
 **Specific product types** (`prod_type`):
 
 | `prod_type` | XML node | Required fields                                    | Optional fields                                                                     |
 |-------------|----------|----------------------------------------------------|-------------------------------------------------------------------------------------|
 | `comb`      | `comb`   | `comb_c_prod_anp`, `comb_desc_anp`, `comb_uf_cons` | `comb_codif`, `comb_p_glp`, `comb_p_gnn`, `comb_p_gni`, `comb_v_part`, `comb_p_bio` |
-| `med`       | `med`    | `med_c_prod_anvisa`, `med_v_pmc`                   | `med_x_motivo_isencao` (required when `ISENTO`)                                     |
+| `med`       | `med`    | `med_c_prod_anvisa`, `med_v_pmc`                   | `med_x_motivo_isencao` (required when `ISENTO`, forbidden otherwise)                |
+| `veiculo`   | `veicProd` | as **24** tags do grupo (ver abaixo)             | —                                                                                   |
+| `arma`      | `arma`   | `arma_tp_arma`; por unidade `n_serie`, `n_cano`     | `arma_descr`                                                                        |
+
+**Grupos sem default (`veicProd` e `med`):** as 24 tags de `veicProd` são todas obrigatórias no XSD,
+e nenhuma ganha valor inventado. Vinte e duas vêm do cadastro do produto (`veic_tp_op`, `veic_pot`,
+`veic_cilin`, `net_weight`, `gross_weight`, `veic_tp_comb`, `veic_cmt`, `veic_dist`, `veic_ano_mod`,
+`veic_ano_fab`, `veic_tp_pint`, `veic_tp_veic`, `veic_esp_veic`, `veic_vin`, `veic_cond_veic`,
+`veic_c_mod`, `veic_c_cor_denatran`, `veic_lota`, `veic_tp_rest`, `veic_c_cor`, `veic_x_cor`) e
+quatro são do veículo vendido, informadas na emissão: `veic_chassi` (é ele que diz que o item é
+veículo novo), `veic_n_serie`, `veic_n_motor` e o par de cor `veic_c_cor`/`veic_x_cor`, que **vence**
+o cadastro do modelo. Qualquer tag em branco é **400 nomeando a tag** na resolução dos produtos —
+antes de chegar à SEFAZ. Em `med`, `vPMC` ausente também é 400: `0.00` inventado é rejeição adiada.
 
 **Automatic DIFAL** (`app/services/nfes._build_icms_uf_dest`):
 
@@ -1163,7 +1233,7 @@ tractor.
 
 | Method | Endpoint                   | Description                        |
 |--------|----------------------------|------------------------------------|
-| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider`, `?cursor=`, `?limit=` |
+| GET    | `/v1.0/persons`            | List — `?q=` (name prefix or CPF/CNPJ digits), `?role=customer\|supplier\|carrier\|driver\|provider\|freight_contractor\|intermediary`, `?cursor=`, `?limit=` |
 | POST   | `/v1.0/persons`            | Register — 400 if `person.crt` missing for CNPJ; 409 if CPF/CNPJ already registered in this org |
 | PUT    | `/v1.0/persons/{cpf_cnpj}` | Update                             |
 | DELETE | `/v1.0/persons/{cpf_cnpj}` | Remove                             |
@@ -1173,15 +1243,41 @@ CRT is required for a CNPJ person (same rule as organizations), but IE (`state_r
 and whether they're an ICMS contributor is a per-emission choice (`indIEDest`), not a cadastro
 requirement. See `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`.
 
+**Pessoa no exterior (`id_estrangeiro`).** `POST /persons` aceita `id_estrangeiro` no lugar de
+`cpf_or_cnpj` — exatamente um dos dois, nunca ambos (400 caso contrário), porque o `dest` da NF-e é
+um *choice* entre `CPF`, `CNPJ` e `idEstrangeiro`. A pessoa é gravada com `sk` =
+`IDEST_{documento}`, e a emissão que a escolhe como destinatário sai com `dest/idEstrangeiro`, sem
+`IE` e com `indIEDest = 9` (não contribuinte).
+
 `POST /persons` and `PUT /persons/{cpf_cnpj}` accept the same optional `person.nfse` object
 described under Organizations above (`im`, `caepf`, `nif`, `c_nao_nif`, `reg_trib`,
 `foreign_address`) — used when this person is the prestador/tomador of a DPS.
 
+`POST /persons` e `PUT /persons/{cpf_cnpj}` aceitam ainda `person.bank`
+(`{pix_key?, bank_code?, branch_code?, cnpj_ipef?}`) — o recebimento do condutor/TAC usado no
+`infANTT/infPag/infBanc` do MDF-e. Fica na pessoa porque é invariante dela: a emissão nunca
+pergunta chave PIX nem agência.
+
 **`roles` (multi-papel).** A person carries a `roles` list (`customer`, `supplier`, `carrier`,
-`driver`, `provider`) — the same CNPJ is often customer *and* carrier, so a single-value field would
+`driver`, `provider`, `freight_contractor`, `intermediary`) — the same CNPJ is often customer *and* carrier, so a single-value field would
 force duplicate records. `?role=` filters the listing via `contains(roles, :v)` on `org-name-index`.
 No `PUT`, `roles` só é tocado quando o corpo traz a chave: ausente = papéis preservados, `[]` = limpa
 todos. Na UI o campo se chama **Tipo de cadastro** (`roles` continua sendo o nome na API).
+
+**Formulário progressivo e consulta de CNPJ.** Pessoas e organizações usam o mesmo formulário de
+uma página. Identificação, papel e endereço ficam no fluxo básico; `carrier`/`driver` revelam os
+grupos bancário e de frete, e `provider` revela NFS-e em **Dados complementares e fiscais**. Dados
+avançados já persistidos sempre reabrem na edição, mesmo quando o papel legado está ausente.
+
+Ao completar um CNPJ, a UI consulta primeiro `GET https://open.cnpja.com/office/{cnpj}` diretamente
+do browser e depois, quando existe organização ativa, valida na SEFAZ por
+`GET /v1.0/external/lookup-organizations`. É uma única ação para o usuário: o CNPJá fornece a base
+cadastral (nome fantasia, endereço, CNAE, contato, Simples/MEI e data de atualização), e a SEFAZ
+prevalece em razão social, IE, CRT e endereço fiscal. Divergências são mostradas para revisão e um
+campo já editado nunca é sobrescrito pela resposta tardia. O cliente público é uma instância Axios
+isolada, sem `Authorization` nem `Dfe-Organization-Pk`, sem retry automático e com deduplicação/cache
+em memória por 30 minutos para respeitar o limite por IP do CNPJá. O origin público está declarado
+em `.github/workflows/frontend.yml` (`extra-connect-src`) para entrar no CSP gerado.
 
 **Papel é filtro de cadastro, não regra de emissão.** Nenhuma emissão valida o papel: escolher como
 transportador alguém sem `carrier` na lista funciona. O filtro existe para encurtar a busca na UI —
@@ -1189,7 +1285,7 @@ transformá-lo em validação quebraria emissões legítimas de quem nunca preen
 
 #### Cadastros reutilizáveis (perfis, operações, condições, composições)
 
-Quatro entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
+Seis entidades com o mesmo formato de rota, o mesmo repositório genérico (`OrgEntityRepository`) e
 a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-index`):
 
 | Entidade                | Rota base                 | Prefixo do `sk` | Tabela                        |
@@ -1198,6 +1294,13 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Natureza de operação    | `/v1.0/operations`        | `OPERATION_`    | `organization_operations`     |
 | Condição de pagamento   | `/v1.0/payment-terms`     | `PAYMENTTERM_`  | `organization_payment_terms`  |
 | Composição veicular     | `/v1.0/vehicle-sets`      | `VEHICLESET_`   | `organization_vehicle_sets`   |
+| Terminal de pagamento   | `/v1.0/payment-terminals` | `TERMINAL_`     | `organization_payment_terminals` |
+| Fornecedora de vale-pedágio | `/v1.0/toll-providers` | `TOLLPROVIDER_` | `organization_toll_providers` |
+| Unidade de transporte/carga | `/v1.0/cargo-units` | `CARGOUNIT_` | `organization_cargo_units` |
+| Declaração de importação | `/v1.0/import-declarations` | `IMPORTDI_` | `organization_import_declarations` |
+| Apólice de seguro | `/v1.0/insurance-policies` | `INSURANCE_` | `organization_insurance_policies` |
+| Lote de produção | `/v1.0/product-lots` | `PRODUCTLOT_` | `organization_product_lots` |
+| Bomba de combustível | `/v1.0/fuel-pumps` | `FUELPUMP_` | `organization_fuel_pumps` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -1216,9 +1319,28 @@ dos campos já preenchidos (`deriveTaxGroups`), senão o toggle nasce desligado 
 **Natureza de operação** (`OperationBody`): `name`, `doc_types` (`nfe`/`nfce`), `is_default`
 (no máximo uma por organização, garantida por `TransactWrite`), `nat_op`, `cfop_suffix` (3 dígitos —
 o escopo 5/6/7 é derivado na emissão), `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`,
-`payment_term_id`, `additional_info`. Os campos de texto aceitam os placeholders
-`{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um placeholder
-desconhecido é 400 no cadastro, não erro na emissão.
+`vol_esp`, `vol_marca` (espécie e marca padrão dos volumes de `transp/vol`),
+`obs_cont` e `obs_fisco` (listas de `{x_campo, x_texto}`, máx. 10 cada, que viram
+`infAdic/obsCont` e `infAdic/obsFisco` — o texto aceita os mesmos placeholders),
+`payment_term_id`, `additional_info`, `ret_trib` (percentuais de `total/retTrib`),
+`export_uf_saida_pais` e `export_loc_despacho_index` (`infNFe/exporta`),
+`compra_x_n_emp` (nota de empenho da venda a órgão público, `infNFe/compra/xNEmp`),
+`cana_safra` (safra da aquisição de cana, `infNFe/cana/safra`), `intermediary_person_id` +
+`ind_intermed` (canal de venda — ver abaixo) e `dh_sai_ent_offset_days` (prazo padrão de saída da
+mercadoria, em dias corridos a partir da emissão). Os campos de texto aceitam os
+placeholders `{{v_nf}}`, `{{v_icms_st}}`, `{{cliente}}`, `{{nat_op}}`, `{{competencia}}` — um
+placeholder desconhecido é 400 no cadastro, não erro na emissão.
+
+**Terminal de pagamento** (`PaymentTerminalBody`): `name`, `cnpj_receb`, `id_term_pag`, `cnpj_pag`,
+`uf_pag`, `t_band`. Um posto com quatro maquininhas não redigita CNPJ recebedor e identificador a
+cada NFC-e: o pagamento aponta `terminal_id` e o builder preenche `detPag/CNPJPag`, `detPag/UFPag`,
+`card/CNPJReceb` e `card/idTermPag`. `uf_pag` só é válido acompanhado de `cnpj_pag`; a bandeira
+informada na emissão vence `t_band`. Um `terminal_id` inexistente é 404, nunca silêncio.
+
+**Fornecedora de vale-pedágio** (`TollProviderBody`): `name`, `cnpj_forn`, `cnpj_pg`, `cpf_pg`,
+`tp_vale_ped`. O vale é obrigatório no transporte rodoviário de carga (Lei 10.209) e a fornecedora
+não muda entre viagens; a emissão do MDF-e só aponta `toll_vouchers[] = {toll_provider_id, n_compra,
+v_vale_ped}`. `cnpj_pg` e `cpf_pg` são choice — nunca os dois.
 
 **Condição de pagamento** (`PaymentTermBody`): `name`, `payment_type` (tPag), `ind_pag`
 (vazio = derivado), `installments`, `interval_days`, `first_due_days`, `card`. Na emissão expande
@@ -1325,14 +1447,143 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `ind_final`       | "0"/"1"     | End consumer (default "1")                                 |
 | `ind_pres`        | "1"–"4","9" | Presence: 1=In-person (default), 2=Internet, 9=Other       |
 | `tp_nf`           | "0"/"1"     | Type: 0=Inbound, 1=Outbound (default)                      |
-| `transport`       | object      | Carrier and vehicle (modFrete, CNPJ/CPF, plate)            |
+| `transport`       | object      | Carrier and vehicle (modFrete, CNPJ/CPF, plate), mais `vols[]` e `reboques[]` — ver abaixo |
 | `cobr_fat`        | object      | Invoice: nFat, vOrig, vDesc, vLiq                          |
 | `cobr_duplicatas` | list        | Installments: nDup, dVenc, vDup (max 120)                  |
 | `v_troco`         | decimal     | Change amount in BRL                                       |
+| `payments[].terminal_id` | string | Terminal de captura do cadastro. Preenche `detPag/CNPJPag`, `detPag/UFPag`, `card/CNPJReceb`, `card/idTermPag` e a bandeira default. |
+| `payments[].x_pag` | string     | Descrição da forma de pagamento quando `payment_type` é `99` (outros). |
 | `retirada`        | object      | Local de retirada (TLocal — no CEP, unlike an `AddressBody`): `cnpj`/`cpf`, `x_nome`, `x_lgr`, `nro`, `x_cpl`, `x_bairro`, `c_mun`, `x_mun`, `uf`, `fone`, `email`. Free-form per emission — org itself is the remetente for this purpose. |
 | `entrega`         | object      | Local de entrega, same TLocal shape as `retirada`, scoped to the selected `receiver_id`. |
 | `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
 | `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
+| `nf_refs`         | list        | Documentos referenciados (`ide/NFref`, máx. 500). **Obrigatório quando `fin_nfe` é 2, 3 ou 4** — sem ele a emissão devolve 400. Cada entrada é ou `{"nfe_id": "<chave>"}`, uma nota da própria organização de onde chave e tipo são derivados (vira `refNFe`), ou um documento de fora do sistema com `kind` + os campos do grupo. |
+
+**Canal de venda (`ide/indIntermed` + `infNFe/infIntermed`).** É a operação que diz o canal, não a
+nota: `operations.ind_intermed` (`0` plataforma própria, `1` plataforma de terceiros) e
+`operations.intermediary_person_id`, que aponta uma pessoa com o papel **`intermediary`**. O `CNPJ`
+do grupo sai do sk dessa pessoa e o `idCadIntTran` de `person.intermediary_id` — o "seller id" é
+invariante do par emitente↔plataforma, então mora no cadastro da pessoa. Uma operação por canal
+("venda no site", "venda no marketplace X"). Intermediador com CPF não vira grupo: o XSD exige
+`TCnpj`. Pessoa inexistente é 404.
+
+**Saída e previsão de entrega (`ide/dhSaiEnt`, `ide/dPrevEntrega`).** `operations.dh_sai_ent_offset_days`
+é o prazo padrão em dias corridos contados da emissão — quem despacha sempre no dia seguinte cadastra
+`1` e nunca mais digita a data. `dh_sai_ent` e `d_prev_entrega` no request vencem o offset. Sem
+offset nem valor explícito, as tags não existem: data inventada mentiria sobre quando a mercadoria
+circulou.
+
+**Pedido do cliente (`prod/xPed`, `prod/nItemPed`).** `products[].x_ped` (≤15) e
+`products[].n_item_ped` (≤6 dígitos) são controle B2B do emissor, informados por item na emissão.
+`nItemPed` só sai acompanhado de `xPed` — número de item sem pedido não identifica nada.
+
+**Papel imune (`prod/nRECOPI`).** `n_recopi` (20 dígitos) é do cadastro do produto e é o último ramo
+do **choice** de `prod`: item com `comb`, `med`, `veicProd` ou `arma` não emite RECOPI — o grupo já
+presente vence, porque emitir os dois é rejeição.
+
+**Reforma tributária (IBS/CBS/IS) — o que é derivado.** Todo `v*` do bloco sai de `p*` × base e
+toda `pAliqEfet` sai de alíquota × (1 − redução): nenhum valor é digitado ao lado do percentual que
+o produz. Em concreto:
+
+- `gDif/vDif` e `gDevTrib/vDevTrib` são percentuais sobre o **tributo daquela esfera**, não sobre a
+  base — diferir 30% do IBS-UF é 30% do `vIBSUF`, não da `vBC`.
+- `gRed/pAliqEfet` é alíquota × (1 − `pRed`/100), com as 4 casas do leiaute.
+- Na monofasia (`gIBSCBSMono`), a base é a **quantidade** (`qBCMono`), não o valor, e cada `v*` é
+  quantidade × alíquota específica. `vTotIBSMonoItem`/`vTotCBSMonoItem` somam o padrão e a retenção;
+  o já retido (`gMonoRet`) **não** entra, porque foi recolhido por outro.
+- `gCred/vCredPresumido` (nível produto) é o percentual sobre o valor do item.
+- `competApur` é o mês da emissão (`AAAA-MM`), nunca um campo.
+
+**Choices do XSD que o backend fecha (400 antes da SEFAZ, não rejeição depois):**
+`gIBSCBS` | `gIBSCBSMono` | `gTransfCred` | `gAjusteCompet` são alternativos — transferência de
+crédito e ajuste de competência **substituem** a apuração do item. `gEstornoCred` convive com
+qualquer um. `gCredPresOper` | `gCredPresIBSZFM` são alternativos. `vCredPres` | `vCredPresCondSus`
+também. E `indDoacao` aceita **`1` e nada mais** (`TIndDoacao`) — `S`/`N` era o domínio de uma NT
+anterior e hoje é rejeição.
+
+**Grupos apurados por nota (não são cadastro).** `products[].transf_cred`, `products[].ajuste_compet`
+e `products[].estorno_cred`, cada um `{v_ibs?, v_cbs?}`: são valores de apuração, que não existem
+antes da nota. Um lado sozinho é aceito e o outro vale zero.
+`products[].alc_zfm_n_proc_suframa` é o processo Suframa do embarque e vence o do perfil.
+
+**`ide` da reforma.** Da natureza de operação: `c_ind_op` (local da operação de fornecimento, 6
+dígitos), `c_mun_fg_ibs` (município do fato gerador do IBS/CBS — só quando `ind_pres` é 5 e não há
+endereço de destinatário nem local de entrega), `tp_nf_debito` e `tp_nf_credito`, mais o trio de
+compras governamentais `compra_gov_tp_ente` / `compra_gov_p_redutor` / `compra_gov_tp_oper`. Da nota:
+`compra_gov_refs[]` (`refDFeAnt`) e `pag_antecipado_refs[]` (`gPagAntecipado/refNFe`).
+A regra do `refDFeAnt` é validada aqui: **obrigatório** em `tp_oper_gov` 2 e 3, **vedado** em 1 e 4, e
+no tipo 2 aceita **uma** chave só.
+
+**Totais da reforma (`total/ISTot`, `total/IBSCBSTot`, `total/vNFTot`).** Todo acumulador do
+`IBSCBSTot` é a **soma dos nós já emitidos** — lida de volta do XML montado, nunca um segundo
+cálculo sobre a mesma base. É o que `TestTotaisDaReformaConservamASomaDosItens` trava. `gMono` e
+`gEstornoCred` só existem quando algum item os trouxe; `ISTot` só quando há IS; e `vNFTot` (vNF +
+IBS + CBS + monofásico + IS) só quando a reforma incide — repetir o `vNF` numa tag nova não informa
+nada.
+
+**Grupos de nicho (`compra`, `cana`, `agropecuario`).** Todos opcionais e todos alocados pela régua:
+
+- **`compra`** — `compra_x_ped` e `compra_x_cont` no request (`xPed`/`xCont`, o pedido e o contrato
+  desta nota); `xNEmp` vem de `operations.compra_x_n_emp`, porque quem vende por empenho vende
+  sempre por empenho. Sem nenhum dos três o grupo não é emitido.
+- **`cana`** — `cana = {ref, deliveries[], deducoes[], q_tot_ant}`. A **safra** vem de
+  `operations.cana_safra`; sem ela a emissão é **400**. `ref` é `MM/AAAA`; `deliveries[]` são até
+  31 lançamentos `{dia, qtde}` e **dois no mesmo dia são 400** (`@dia` é chave única no XSD).
+  Quatro valores são **derivados** e não existem no request: `qTotMes` é a soma dos dias,
+  `qTotGer` é ela mais `q_tot_ant`, `vTotDed` é a soma das deduções e `vLiqFor` é `vFor` menos
+  elas — sendo `vFor` a própria base da nota (produtos − desconto).
+- **`agropecuario`** — `agro = {receituarios[], guia}`, um **choice** no XSD: informar os dois é
+  **400**. O `CPFRespTec` de cada receituário vem de
+  `organizations.person.technical_manager_cpf` (é o mesmo agrônomo em toda nota); sem ele o
+  receituário é 400. `guia` é `{tp_guia, uf_guia, serie_guia?, n_guia}`, com `tp_guia`
+  `1` GTA · `2` TTA · `3` DTA · `4` ATV · `5` PTV · `6` GTV · `7` Guia Florestal.
+
+**`proc_ref[]` (infAdic/procRef).** Processos referenciados: `{n_proc, ind_proc, tp_ato}`, máx. 100.
+`ind_proc`: `0` SEFAZ, `1` Justiça Federal, `2` Justiça Estadual, `3` Secex/RFB, `9` outros.
+`infAdic` sai completo — `infAdFisco` e `obsCont`/`obsFisco` vêm da operação (interpolados como
+`inf_cpl`), `infCpl` vem de `additional_info`, `procRef` vem daqui. Nó vazio nunca é emitido.
+
+**`transport.vols[]` (transp/vol) e `transport.reboques[]` (transp/reboque):**
+
+| Campo                | Descrição                                                                        |
+|----------------------|-----------------------------------------------------------------------------------|
+| `vols[].q_vol`       | Quantidade de volumes                                                              |
+| `vols[].esp`         | Espécie. Vazio ⇒ `operations.vol_esp` da operação escolhida                        |
+| `vols[].marca`       | Marca. Vazio ⇒ `operations.vol_marca`                                              |
+| `vols[].n_vol`       | Numeração dos volumes                                                              |
+| `vols[].peso_l` / `peso_b` | Pesos líquido e bruto (3 casas)                                              |
+| `vols[].lacres`      | Lista de números de lacre (viram `lacres/nLacre`)                                   |
+| `reboques[]`         | `{placa, uf, rntc}` — máx. 5 pelo XSD                                              |
+
+Sem `vols`, o comportamento antigo é preservado: um volume único com o peso somado dos itens.
+A tag do RNTC em `veicTransp`/`reboque` da NF-e é **`RNTC`** — `RNTRC` é do CT-e/MDF-e; o campo do
+request continua se chamando `veiculo_rntrc`.
+
+**`nf_refs[]` — documento de fora do sistema:**
+
+| `kind`   | Nó XML      | Campos exigidos                                            |
+|----------|-------------|------------------------------------------------------------|
+| `nfe`    | `refNFe`    | `access_key` (44 dígitos)                                   |
+| `nfesig` | `refNFeSig` | `access_key` (44 dígitos) — NF-e com destinatário em sigilo |
+| `cte`    | `refCTe`    | `access_key` (44 dígitos)                                   |
+| `nf`     | `refNF`     | `c_uf`, `aamm`, `cnpj`, `mod`, `serie`, `n_nf`              |
+| `nfp`    | `refNFP`    | `c_uf`, `aamm`, `cnpj` **ou** `cpf`, `ie`, `mod`, `serie`, `n_nf` |
+| `ecf`    | `refECF`    | `mod`, `n_ecf`, `n_coo`                                     |
+
+**CSRT (`infRespTec/idCSRT` + `hashCSRT`).** A configuração fiscal de cada documento aceita
+`csrt_id` e `csrt` (NT 2018.005). Quando os dois estão presentes, o `infRespTec` da NF-e, da NFC-e e
+do MDF-e sai com `idCSRT` e `hashCSRT = Base64(SHA1(CSRT + chave de acesso))` — o par é tudo-ou-nada.
+**O `csrt` nunca volta numa resposta**, nem no PUT que acabou de gravá-lo; o mesmo vale para
+`prod_csc`/`hom_csc` da NFC-e. Ver `CONDUCT.md` §6.
+
+**Grupo `emit` — derivado do cadastro, nunca do request:**
+
+| Tag        | Origem                                                                                     |
+|------------|--------------------------------------------------------------------------------------------|
+| `IEST`     | `person.state_registrations[uf == UF do destinatário].ie_st` — só sai na operação em que o emitente é substituto tributário na UF de destino |
+| `IM`       | `person.nfse.im` — o mesmo campo que a NFS-e já usa                                          |
+| `CNAE`     | `person.cnae` — só sai junto de `IM`, como o leiaute exige                                   |
+| `ISUFEmit` | `person.isuf_emit` — Suframa do emitente                                                     |
 
 Neither `retirada`/`entrega` nor `autXML` (see Organizations §) require any py-dfe change —
 `xsd_order.py` already orders both. `autXML` is not a field on this body at all: it's always
@@ -1487,7 +1738,7 @@ frontend precisa desambiguar por `event_type`:
 
 Authorization is **synchronous** (`MDFeRecepcaoSinc`): SEFAZ returns `protMDFe` inline, so the worker
 persists the authorized status in a single pass. All MDF-e services route to **SVRS** for every UF.
-Modal is **rodoviário only** in the MVP; other modais are reserved.
+Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 
 | Method | Endpoint                                            | Description                                       |
 |--------|-----------------------------------------------------|---------------------------------------------------|
@@ -1524,8 +1775,23 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
 > `condutores`), `loadings`/`unloadings` (not `carregamento`/`descarregamento`), `route` (not
 > `percurso`), `predominant` (not `prod_pred`), `bulk_cargo` (not `lotacao`), `trip_start` (dhIniViagem).
 
-- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. Only `rodoviario` is enabled for emission
-  (others are modelled and dispatched but gated). Non-rodoviário payloads go in `air`/`water`/`rail`.
+- `modal` — `"rodoviario"|"aereo"|"aquaviario"|"ferroviario"`. Os quatro emitem. O modal escolhido
+  **exige** o payload dele: `air` no aéreo, `water` no aquaviário, `rail` no ferroviário — sem ele a
+  emissão é 400, não um nó vazio que a SEFAZ rejeitaria depois. O
+  rodoviário não tem payload de modal: ele é montado do cadastro de veículos e dos condutores.
+  No aéreo e no ferroviário, `vehicle`, `trailers` e `drivers` são ignorados.
+  - `air` — `{nationality, registration, flight_number, origin_airport, dest_airport, flight_date}`.
+    Os seis são obrigatórios: o `mdfeModalAereo_v3.00` não tem campo opcional.
+  - `rail` — `{train_prefix, train_datetime?, origin_station, dest_station, wagons[]}`, com
+    `wagons[] = {weight_bc, weight_real, series, number, tu, wagon_type?, sequence?}`. O `qVag` do XML
+    é **derivado** do tamanho de `wagons`, nunca informado.
+  - `water` — `{irin, vessel_type, vessel_code, vessel_name, voyage_number, origin_port, dest_port}`
+    obrigatórios, mais `transit_port?`, `navigation_type?` (`0` interior, `1` cabotagem), `mmsi?`,
+    `loading_terminals[]`/`unloading_terminals[]` (até 5 cada) e `barges[]` (`infEmbComb`, até 30 —
+    apesar da tag, são as **balsas do comboio**, não combustível). As unidades que viajam vazias não
+    são redigitadas: `empty_cargo_unit_ids[]` e `empty_transport_unit_ids[]` apontam para
+    `organization_cargo_units` (`kind = cargo` e `kind = transport`), e o XSD só aceita unidades de
+    transporte rodoviárias (`tp_unid` `1` ou `2`) — as demais são 400.
 - `documents[]` — `{type: "nfe"|"cte", access_key, weight?}`. **Single type only** (NF-e and CT-e cannot be
   mixed). Each referenced document must already exist in the `nfes`/`ctes` table with an `xml_s3_key`.
   `weight` (kg, decimal string) is an optional gross-weight override used when the document XML carries
@@ -1551,11 +1817,65 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   própria: não vira `prop` e `ide/tpTransp` fica como está (F18/F19/F25).
 - `trailers[]?` — up to 3 `{sk}` (registered vehicles with `role=trailer`), emitted as
   `veicReboque`. Same completeness gating as `vehicle.sk` (`weight`/`cap_kg`/`bodywork` required).
+  `cint` e `cap_m3` do cadastro do veículo saem como `cInt`/`capM3` tanto em `veicTracao` quanto em
+  `veicReboque` — nunca são perguntados na emissão, porque já estão no cadastro. Da mesma forma,
+  `complement` do endereço do emitente vira `enderEmit/xCpl`, e `valePed/categCombVeic` é **derivado**
+  do número de reboques (0⇒`02`, 1⇒`04`, 2⇒`06`, 3+⇒`07`) — o manifesto já diz a composição.
 - `drivers[]` — `{name, cpf}` (≥ 1 required).
+- `toll_vouchers[]?` — vales-pedágio da viagem (`infANTT/valePed`):
+  `{toll_provider_id, n_compra, v_vale_ped}`. CNPJ da fornecedora, pagador e `tpValePed` vêm de
+  `organization_toll_providers`; `valePed/categCombVeic` é derivado do número de reboques. Um
+  `toll_provider_id` inexistente é 404, nunca silêncio.
+- `contractors[]?` — contratantes do frete (`infANTT/infContratante`, máx 10):
+  `{person_doc, contract_number?, contract_value?}`. Nome e o choice `CPF|CNPJ|idEstrangeiro` vêm de
+  `organization_persons` (papel `freight_contractor`); só o contrato é da viagem, e sem
+  `contract_number` o grupo `infContrato` inteiro fica de fora (`NroContrato` é obrigatório dentro
+  dele). Um `person_doc` fora do cadastro é 404.
+- `payments[]?` — pagamento ao transportador autônomo (`infANTT/infPag`), **obrigatório quando há
+  contratante**: `{person_doc, components[], contract_value, payment_type, advance_value?,
+  advance_request?, advance_kind?, high_performance?, installments?, interval_days?, first_due_days?}`.
+  Nome, o choice `CPF|CNPJ|idEstrangeiro` e o `infBanc` (PIX, banco+agência ou CNPJIPEF) vêm de
+  `organization_persons.person.bank` — um beneficiário sem dado de recebimento no cadastro é 400. As
+  parcelas (`infPrazo`) são **derivadas** do prazo pelo mesmo `services.ExpandInstallments` que gera as
+  duplicatas da NF-e, sobre o saldo (`contract_value − advance_value`); nunca são digitadas uma a uma.
+  O nó é montado pelo mesmo `buildInfPag` dos eventos de pagamento (110116/110118).
+O grupo **`peri`** (produto perigoso) é **derivado**: a emissão lê os itens (`det/prod/cProd`) de cada NF-e
+referenciada, reencontra cada produto pelo `code-index` de `organization_products` e monta `peri` a partir
+dos campos `peri_*` do cadastro, agrupando por número ONU e somando as quantidades. Produto sem `peri_n_onu`
+não gera grupo; item que não existe no cadastro é ignorado (a NF-e já foi autorizada com ele). Nada de
+produto perigoso é perguntado por viagem.
+
+- `partial_deliveries[]?` — entrega parcial (corte de voo) de um CT-e transportado:
+  `{access_key, qtd_total, qtd_parcial, nfe_keys[]?}`. `nfe_keys` liga `indPrestacaoParcial` +
+  `infNFePrestParcial` (NF-e já entregues do CT-e). O XSD só prevê o grupo em `infCTe`: uma chave de
+  NF-e informada aqui é ignorada pelo builder, não vira XML inválido.
+- `transported_mdfes[]?` — MDF-e transportados por este (`infMDFeTransp`): `{access_key, unloading}`.
+  O município de descarga entra no grupo `infMunDescarga` que já existir, ou cria um novo.
+  `tot/qMDFe` é **derivado**: é a contagem deles.
+- `transport_units[]?` — unidades de transporte da viagem (`infUnidTransp`):
+  `{cargo_unit_id, document_keys[], cargo_unit_ids[]?}`. Tipo, identificação e lacres vêm de
+  `organization_cargo_units`; `cargo_unit_ids` são as unidades de carga (contêiner, pallet) dentro
+  dela. O **rateio (`qtdRat`) é calculado**, nunca digitado: proporcional ao peso de cada documento
+  na unidade, com a última chave absorvendo o resíduo para fechar em 100,00. Usar uma unidade
+  `kind=cargo` onde o leiaute quer `transport` (ou o contrário) é 400.
+- `redelivery_keys[]?` — chaves dos documentos em reentrega (`infDoc/.../indReentrega`). O
+  `SegCodBarra` de cada NF-e/CT-e **não** é pedido: o código de barras do documento é a própria
+  chave, que a emissão já referenciou.
+- `insurance_policies[]?` — seguro da carga (`infMDFe/seg`): `{insurance_policy_id, n_aver[]?}`.
+  Responsável (`infResp`), seguradora (`infSeg`) e `nApol` vêm de `organization_insurance_policies`;
+  só as averbações são da viagem. O documento do responsável só sai no XML quando ele não é o
+  emitente, e a seguradora é nome + CNPJ ou nada — as duas regras são recusadas no cadastro.
+- `seals[]?`, `rodo_seals[]?`, `port_agent_code?` — lacres da carga (`infMDFe/lacres`), lacres da
+  unidade de transporte (`rodo/lacRodo`) e código do agente portuário (`rodo/codAgPorto`). Os dois
+  grupos de lacre saem do mesmo `services.SealNodes` que monta `transp/vol/lacres` na NF-e.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).
-- `rntrc?`, `ciot?`, `additional_info?`.
+- `rntrc?`, `ciot?`, `additional_info?` — `additional_info` é o `infAdic/infCpl` da viagem. A
+  mensagem ao fisco (`infAdFisco`) **não** entra aqui: é da configuração (`inf_ad_fisco` em
+  `mdfe-config`), assim como `ind_canal_verde` e `ind_carrega_posterior`, que recorrem em toda
+  emissão. O `prodPred/cEAN` também não é perguntado: sai do documento referenciado, junto de
+  `xProd` e `NCM` do item de maior valor.
 
 **`POST /v1.0/mdfes/cargo-preview`** (`{documents: [{type, access_key}]}`) returns the parsed cargo
 without persisting: per-doc `{emit_name, dest_name, loading, unloading, uf_start, uf_end, weight,
@@ -1805,6 +2125,7 @@ Key services:
 | `PersonService`       | person CRUD, SK generation (CPF_/CNPJ_), cache (TTL=300s)                          |
 | `NfeService`          | NF-e issuance, cancellation, CCe, manifestation, XML/DANFE download, event listing |
 | `ExternalService`     | SEFAZ NfeConsultaCadastro via Lambda, CPF/CNPJ + UF validation                     |
+| `ApiClient.lookupOpenCnpjOffice` | consulta cadastral pública ao CNPJá no browser; cliente sem autenticação, cache e deduplicação em memória |
 
 ### DynamoDB storage policy — null omission
 
@@ -2258,6 +2579,41 @@ background revalidations rather than overwriting it with the backend fallback.
 ### Form Validation
 
 React Hook Form + Zod. Zod schemas in `lib/schemas/` mirror the backend Pydantic schemas.
+
+**Regra de controle (vale para todo formulário fiscal).** Domínio fechado nunca é campo de texto:
+tabela SEFAZ, enum, UF, município, país, unidade, CFOP, NCM, CEST, CST, `cClassTrib`, data — tudo é
+`OptionsSelect` (até ~12 opções) ou `Combobox` (acima disso, com busca). Literal de leiaute como
+`SEM GTIN` e `ISENTO` é escrito por checkbox, nunca digitado. Tabela de opções estática vive em escopo
+de módulo: recriar o array a cada render invalida o memo do `Combobox` e refaz o filtro da lista
+inteira.
+
+**Regras cruzadas moram no schema, não no componente.** Uma dependência do leiaute explicada como
+texto de ajuda ao lado do campo é uma rejeição adiada. `products.ts` (`superRefine`) cobre combustível,
+veículo, arma, ANVISA ISENTO, `indEscala`, selo do IPI, grupo `peri`, rateio de origem em 100%, peso
+bruto ≥ líquido e dígito verificador do GTIN. `applyTaxGroupRules` é compartilhada por
+`cfopConfigSchema` e `taxProfileSchema` (IPI tributado, `ICMSPart`, `modBC` por pauta, ALC/ZFM,
+`obsItem`). `entity.ts` valida CNAE contra a tabela e trata `retTransp` como grupo all-or-nothing.
+`operations.ts` confere o sufixo de CFOP contra a tabela — um sufixo inexistente envenena toda nota
+emitida sob aquela operação.
+
+**Guardas de emissão** (`lib/utils/emit-guards.ts`): soma de pagamentos e de duplicatas têm que fechar
+com tolerância de R$ 0,01 antes de avançar o passo — na NF-e o excedente é rejeição, na NFC-e é
+`vTroco`. Dados por unidade (chassi de 17 caracteres sem I/O/Q, série, motor, ao menos uma arma) são
+exigidos antes da emissão, não depois. As regras são puras e testadas fora do componente porque as duas
+telas de emissão as compartilham.
+
+**Acessibilidade.** `useFieldAria` (`components/ui/form.tsx`) liga `aria-invalid`/`aria-describedby` do
+controle à mensagem do `FormMessage`, cujo id deriva do nome do campo; `Input` e `NumericInput` o
+consomem sozinhos dentro de um formulário RHF. Fora de RHF, o `TaxField` do `TaxFieldsEditor` gera o id
+com `useId` e liga o rótulo — id literal colidia quando dois editores conviviam na mesma tela.
+Container fechado que esconde erro recebe badge com a contagem: por aba no `ProductForm`, por seção no
+`OperationForm` e no bloco avançado do `EntityForm`.
+
+**Simples e avançado.** O default é a visão simples. `TaxFieldsEditor` mostra CFOP, CST, PIS e COFINS e
+esconde os 11 grupos opcionais atrás de uma dobra que nasce aberta com contador quando já há grupo
+configurado. `ProductForm` recolhe o editor de tributação enquanto um perfil fiscal responder por ela, e
+gateia importação, reforma, selo do IPI e produto perigoso num checklist "este produto também tem".
+`NfeEmitForm` divide o avançado em Transporte / Documentos e datas / Grupos setoriais.
 
 ### NFS-e no front (F4)
 

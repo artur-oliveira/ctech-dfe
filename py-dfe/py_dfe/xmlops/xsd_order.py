@@ -177,39 +177,86 @@ _ENVINFE: dict[str, list[str]] = {
         "gIBSMun",
         "vIBS",
         "gCBS",
+        "gTribRegular",
+        "gTribCompraGov",
     ],
 
     # Subgrupos IBS estadual / municipal / CBS
     "gIBSUF":  ["pIBSUF",  "gDif", "gDevTrib", "gRed", "vIBSUF"],
     "gIBSMun": ["pIBSMun", "gDif", "gDevTrib", "gRed", "vIBSMun"],
-    "gCBS":    ["pCBS",    "gDif", "gDevTrib", "gRed", "vCBS"],
+    "gCBS":    ["pCBS",    "gDif", "gDevTrib", "gRed", "gALCZFMCBS", "vCBS"],
 
-    # IS — Imposto Seletivo (NT 2024.001)
+    # Subgrupos genéricos de diferimento, devolução e redução — compartilhados
+    # por gIBSUF, gIBSMun e gCBS.
+    "gDif":     ["pDif", "vDif"],
+    "gDevTrib": ["pDevTrib", "vDevTrib"],
+    "gRed":     ["pRedAliq", "pAliqEfet"],
+
+    # gALCZFMCBS — alíquota zero da CBS em ALC/ZFM (dentro de gCBS)
+    "gALCZFMCBS": ["tpALCZFMCBS", "nProcSuframa", "pAliqEfetRegCBS", "vTribRegCBS"],
+
+    # Tributação de referência do item (dentro de gIBSCBS)
+    "gTribRegular": [
+        "CSTReg", "cClassTribReg",
+        "pAliqEfetRegIBSUF", "vTribRegIBSUF",
+        "pAliqEfetRegIBSMun", "vTribRegIBSMun",
+        "pAliqEfetRegCBS", "vTribRegCBS",
+    ],
+    "gTribCompraGov": [
+        "pAliqIBSUF", "vTribIBSUF",
+        "pAliqIBSMun", "vTribIBSMun",
+        "pAliqCBS", "vTribCBS",
+    ],
+
+    # gIBSCBSMono — monofasia de IBS/CBS no item (type TMonofasia)
+    "gIBSCBSMono": ["gMonoPadrao", "gMonoReten", "gMonoRet", "gMonoDif", "vTotIBSMonoItem", "vTotCBSMonoItem"],
+    "gMonoPadrao": ["qBCMono", "adRemIBS", "adRemCBS", "vIBSMono", "vCBSMono"],
+    "gMonoReten":  ["qBCMonoReten", "adRemIBSReten", "vIBSMonoReten", "adRemCBSReten", "vCBSMonoReten"],
+    "gMonoRet":    ["qBCMonoRet", "adRemIBSRet", "vIBSMonoRet", "adRemCBSRet", "vCBSMonoRet"],
+    "gMonoDif":    ["pDifIBS", "vIBSMonoDif", "pDifCBS", "vCBSMonoDif"],
+
+    # Transferência de crédito, ajuste de competência e estorno no item
+    "gTransfCred":   ["vIBS", "vCBS"],
+    "gAjusteCompet": ["competApur", "vIBS", "vCBS"],
+    "gEstornoCred":  ["vIBSEstCred", "vCBSEstCred"],
+
+    # Créditos presumidos no item
+    "gCredPresOper":   ["vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"],
+    "gIBSCredPres":    ["pCredPres", "vCredPres", "vCredPresCondSus"],
+    "gCBSCredPres":    ["pCredPres", "vCredPres", "vCredPresCondSus"],
+    "gCredPresIBSZFM": ["competApur", "tpCredPresIBSZFM", "vCredPresIBSZFM"],
+
+    # Compras governamentais e antecipação de pagamento (dentro de ide)
+    "gCompraGov":     ["tpEnteGov", "pRedutor", "tpOperGov", "refDFeAnt"],
+    "gPagAntecipado": ["refNFe"],
+
+    # IS — Imposto Seletivo (PL_010e_v1.02)
     "IS": [
-        "CST", "cClassTrib", "vBC", "qBCIS",
-        "pAliq", "vAliqEspIS", "vIS",
+        "CSTIS", "cClassTribIS", "vBCIS", "pIS",
+        "adRemIS", "uTrib", "qTrib", "vIS",
     ],
 
     # Grupos ICMS
-    "ICMS00":    ["orig", "CST", "modBC", "vBC", "pICMS", "vICMS"],
+    "ICMS00":    ["orig", "CST", "modBC", "vBC", "pICMS", "vICMS", "pFCP", "vFCP"],
     "ICMS02":    ["orig", "CST", "qBCMono", "adRemICMS", "vICMSMono"],
-    "ICMS10":    ["orig", "CST", "modBC", "vBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCP", "pFCP", "vFCP", "vBCFCPST", "pFCPST", "vFCPST", "vICMSSTDeson", "motDesICMSST"],
+    "ICMS10":    ["orig", "CST", "modBC", "vBC", "pICMS", "vICMS", "vBCFCP", "pFCP", "vFCP", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSSTDeson", "motDesICMSST"],
     "ICMS15":    ["orig", "CST", "qBCMono", "adRemICMS", "vICMSMono", "qBCMonoReten", "adRemICMSReten", "vICMSMonoReten", "pRedAdRem", "motRedAdRem"],
-    "ICMS20":    ["orig", "CST", "modBC", "pRedBC", "vBC", "pICMS", "vICMS", "vICMSDeson", "motDesICMS"],
-    "ICMS30":    ["orig", "CST", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS"],
-    "ICMS40":    ["orig", "CST", "vICMSDeson", "motDesICMS"],
+    "ICMS20":    ["orig", "CST", "modBC", "pRedBC", "vBC", "pICMS", "vICMS", "vBCFCP", "pFCP", "vFCP", "vICMSDeson", "motDesICMS", "indDeduzDeson"],
+    "ICMS30":    ["orig", "CST", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS", "indDeduzDeson"],
+    "ICMS40":    ["orig", "CST", "vICMSDeson", "motDesICMS", "indDeduzDeson"],
     "ICMS51":    ["orig", "CST", "modBC", "pRedBC", "cBenefRBC", "vBC", "pICMS", "vICMSOp", "pDif", "vICMSDif", "vICMS", "vBCFCP", "pFCP", "vFCP", "pFCPDif", "vFCPDif", "vFCPEfet"],
     "ICMS53":    ["orig", "CST", "qBCMono", "adRemICMS", "vICMSMonoOp", "pDif", "vICMSMonoDif", "vICMSMono", "qBCMonoDif", "adRemICMSDif"],
-    "ICMS60":    ["orig", "CST", "vBCSTRet", "pST", "vICMSSTRet", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet", "pRedBCEfet", "vBCEfet", "pICMSEfet", "vICMSEfet"],
-    "ICMS70":    ["orig", "CST", "modBC", "pRedBC", "vBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS"],
-    "ICMS90":    ["orig", "CST", "modBC", "vBC", "pRedBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS"],
-    "ICMSPart":  ["orig", "CST", "modBC", "vBC", "pRedBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "pBCOp", "UFST"],
-    "ICMSST":    ["orig", "CST", "vBCSTRet", "vICMSSTRet", "vBCSTDest", "vICMSSTDest", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet"],
+    "ICMS60":    ["orig", "CST", "vBCSTRet", "pST", "vICMSSubstituto", "vICMSSTRet", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet", "pRedBCEfet", "vBCEfet", "pICMSEfet", "vICMSEfet"],
+    "ICMS61": ["orig", "CST", "qBCMonoRet", "adRemICMSRet", "vICMSMonoRet"],
+    "ICMS70":    ["orig", "CST", "modBC", "pRedBC", "vBC", "pICMS", "vICMS", "vBCFCP", "pFCP", "vFCP", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS", "indDeduzDeson", "vICMSSTDeson", "motDesICMSST"],
+    "ICMS90":    ["orig", "CST", "modBC", "vBC", "pRedBC", "cBenefRBC", "pICMS", "vICMSOp", "pDif", "vICMSDif", "vICMS", "vBCFCP", "pFCP", "vFCP", "pFCPDif", "vFCPDif", "vFCPEfet", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "vICMSDeson", "motDesICMS", "indDeduzDeson", "vICMSSTDeson", "motDesICMSST"],
+    "ICMSPart":  ["orig", "CST", "modBC", "vBC", "pRedBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "pBCOp", "UFST", "vICMSDeson", "motDesICMS", "indDeduzDeson"],
+    "ICMSST":    ["orig", "CST", "vBCSTRet", "pST", "vICMSSubstituto", "vICMSSTRet", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet", "vBCSTDest", "vICMSSTDest", "pRedBCEfet", "vBCEfet", "pICMSEfet", "vICMSEfet"],
     "ICMSSN101": ["orig", "CSOSN", "pCredSN", "vCredICMSSN"],
     "ICMSSN102": ["orig", "CSOSN"],
     "ICMSSN201": ["orig", "CSOSN", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "pCredSN", "vCredICMSSN"],
     "ICMSSN202": ["orig", "CSOSN", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST"],
-    "ICMSSN500": ["orig", "CSOSN", "vBCSTRet", "pST", "vICMSSTRet", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet"],
+    "ICMSSN500": ["orig", "CSOSN", "vBCSTRet", "pST", "vICMSSubstituto", "vICMSSTRet", "vBCFCPSTRet", "pFCPSTRet", "vFCPSTRet", "pRedBCEfet", "vBCEfet", "pICMSEfet", "vICMSEfet"],
     "ICMSSN900": ["orig", "CSOSN", "modBC", "vBC", "pRedBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "pCredSN", "vCredICMSSN"],
     "ICMSUFDest": ["vBCUFDest", "vBCFCPUFDest", "pFCPUFDest", "pICMSUFDest", "pICMSInter", "pICMSInterPart", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet"],
 
@@ -233,6 +280,11 @@ _ENVINFE: dict[str, list[str]] = {
     # total — NF-e (com IBS/CBS/IS — NT 2024.001)
     # Ordem conforme leiauteNFe_v4.00.xsd: ISTot precede IBSCBSTot
     "total": ["ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"],
+    "ISSQN": ["vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"],
+    "ISSQNtot": ["vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"],
+    "obsItem": ["obsCont", "obsFisco"],
+    "II": ["vBC", "vDespAdu", "vII", "vIOF"],
+    "retTrib": ["vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"],
 
     # IBSCBSTot — totais IBS/CBS por nota (type TIBSCBSMonoTot)
     "IBSCBSTot": ["vBCIBSCBS", "gIBS", "gCBS", "gMono", "gEstornoCred"],
@@ -244,6 +296,13 @@ _ENVINFE: dict[str, list[str]] = {
 
     # gCBS dentro de IBSCBSTot
     "IBSCBSTot:gCBS": ["vDif", "vDevTrib", "vCBS", "vCredPres", "vCredPresCondSus"],
+
+    # gMono dentro de IBSCBSTot — totais da monofasia da reforma
+    "IBSCBSTot:gMono": [
+        "vIBSMono", "vCBSMono",
+        "vIBSMonoReten", "vCBSMonoReten",
+        "vIBSMonoRet", "vCBSMonoRet",
+    ],
 
     "ICMSTot": [
         "vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
@@ -335,6 +394,7 @@ _ENV_EVENTO_NFE: dict[str, list[str]] = {
         "descEvento",
         "xCorrecao", "xCondUso",               # CC-e (110110)
         "cOrgaoAutor", "tpAutor", "verAplic",  # cancel-subst (110112), EPEC (110140)
+        "tpEventoAut", "nProtEvento",          # cancelamento de evento (110001)
         "dhEmi", "tpNF", "IE", "dest",         # EPEC (110140)
         "vNF", "vICMS",                        # EPEC (110140) — filhos diretos de detEvento
         "idPedidoCancelado",                   # cancel-prorrogação (111502/111503)
@@ -486,9 +546,18 @@ _ENVIMDFE: dict[str, list[str]] = {
     "infPercurso":    ["UFPer"],
 
     # infMunDescarga items com contexto específico
-    "infMunDescarga:infCTe": ["chCTe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri", "infEntregaParcial"],
+    "infMunDescarga:infCTe": [
+        "chCTe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri",
+        "infEntregaParcial", "indPrestacaoParcial", "infNFePrestParcial",
+    ],
+    "infEntregaParcial": ["qtdTotal", "qtdParcial"],
+    "infNFePrestParcial": ["chNFe"],
     "infMunDescarga:infNFe": ["chNFe", "SegCodBarra", "indReentrega", "infUnidTransp", "peri"],
     "infMDFeTransp":         ["chMDFe", "indReentrega", "infUnidTransp", "peri"],
+    "infUnidTransp": ["tpUnidTransp", "idUnidTransp", "lacUnidTransp", "infUnidCarga", "qtdRat"],
+    "infUnidCarga": ["tpUnidCarga", "idUnidCarga", "lacUnidCarga", "qtdRat"],
+    "lacUnidTransp": ["nLacre"],
+    "lacUnidCarga": ["nLacre"],
 
     # peri
     "peri": ["nONU", "xNomeAE", "xClaRisco", "grEmb", "qTotProd", "qVolTipo"],
@@ -521,8 +590,9 @@ _ENVIMDFE: dict[str, list[str]] = {
     "infANTT":    ["RNTRC", "infCIOT", "valePed", "infContratante", "infPag"],
     "infCIOT":    ["CIOT", "CPF", "CNPJ"],
     "valePed":    ["disp", "categCombVeic"],
-    "disp":       ["CNPJForn", "CNPJPg", "nCompra", "vValePed", "tpValePed"],
+    "disp":       ["CNPJForn", "CNPJPg", "CPFPg", "nCompra", "vValePed", "tpValePed"],
     "infContratante": ["xNome", "CPF", "CNPJ", "idEstrangeiro", "infContrato"],
+    "infContrato": ["NroContrato", "vContratoGlobal"],
     "veicTracao": ["cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "condutor", "tpRod", "tpCar", "UF"],
     "veicReboque": ["cInt", "placa", "RENAVAM", "tara", "capKG", "capM3", "prop", "tpCar", "UF"],
     "prop":       ["CPF", "CNPJ", "RNTRC", "xNome", "IE", "UF", "tpProp"],

@@ -133,6 +133,15 @@ type party struct {
 	uf   string
 }
 
+// parsedItem é um item (det/prod) da NF-e referenciada. Serve para reencontrar
+// o produto no cadastro e derivar dele o que o MDF-e precisa declarar.
+type parsedItem struct {
+	CProd string
+	XProd string
+	QCom  string
+	UCom  string
+}
+
 // docCargo is the cargo data extracted from one referenced NF-e or CT-e XML.
 type docCargo struct {
 	accessKey  string
@@ -143,6 +152,8 @@ type docCargo struct {
 	totalValue decimal.Decimal
 	predNCM    string // NCM of the highest-value line item
 	predProd   string // description of the highest-value line item
+	predEAN    string // GTIN of the highest-value line item (may be "SEM GTIN")
+	items      []parsedItem
 }
 
 // extractCargo parses a referenced document's XML and returns its cargo data.
@@ -192,10 +203,17 @@ func extractCargoNFe(accessKey string, root *xnode) (*docCargo, error) {
 		}
 		v := parseDec(prod.txt("vProd"))
 		c.totalValue = c.totalValue.Add(v)
+		c.items = append(c.items, parsedItem{
+			CProd: prod.txt("cProd"),
+			XProd: prod.txt("xProd"),
+			QCom:  prod.txt("qCom"),
+			UCom:  prod.txt("uCom"),
+		})
 		if v.GreaterThan(maxVal) {
 			maxVal = v
 			c.predNCM = prod.txt("NCM")
 			c.predProd = prod.txt("xProd")
+			c.predEAN = prod.txt("cEAN")
 		}
 	}
 	return c, nil

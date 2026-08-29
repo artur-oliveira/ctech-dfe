@@ -432,12 +432,19 @@ func TestPersonRolesTagMatchesAllPersonRoles(t *testing.T) {
 	if personRolesValidation != want {
 		t.Fatalf("personRolesValidation = %q, want %q", personRolesValidation, want)
 	}
-	for _, f := range []string{
-		reflect.TypeOf(PersonCreateBody{}).Field(2).Tag.Get("validate"),
-		reflect.TypeOf(PersonUpdateBody{}).Field(1).Tag.Get("validate"),
+	// Busca por nome, não por índice: campo novo no meio da struct não pode
+	// quebrar este teste.
+	for _, typ := range []reflect.Type{
+		reflect.TypeOf(PersonCreateBody{}),
+		reflect.TypeOf(PersonUpdateBody{}),
 	} {
+		field, ok := typ.FieldByName("Roles")
+		if !ok {
+			t.Fatalf("%s sem campo Roles", typ.Name())
+		}
+		f := field.Tag.Get("validate")
 		if f != personRolesValidation {
-			t.Errorf("struct tag = %q, want %q", f, personRolesValidation)
+			t.Errorf("%s.Roles tag = %q, want %q", typ.Name(), f, personRolesValidation)
 		}
 	}
 }

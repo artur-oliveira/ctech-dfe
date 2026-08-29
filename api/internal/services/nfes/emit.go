@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -51,11 +52,126 @@ type NfeEmitBody struct {
 	Entrega              *NfeLocalBody `json:"entrega" validate:"omitempty"`
 	SaveRetiradaLocation bool          `json:"save_retirada_location"`
 	SaveEntregaLocation  bool          `json:"save_entrega_location"`
+
+	// ProcRef são processos referenciados (infAdic/procRef): nº do processo e
+	// sua origem. indProc: 0 SEFAZ, 1 Justiça Federal, 2 Justiça Estadual,
+	// 3 Secex/RFB, 9 outros.
+	ProcRef []NfeProcRefBody `json:"proc_ref" validate:"omitempty,max=100,dive"`
+
+	// NFRefs são os documentos referenciados (ide/NFref). finNFe 2/3/4 é
+	// rejeitado sem pelo menos um. `nfe_id` referencia uma nota da própria base
+	// e dispensa o resto: chave e tipo saem do registro.
+	NFRefs []NfeRefBody `json:"nf_refs" validate:"omitempty,max=500,dive"`
+
+	// CompraXPed/CompraXCont são o pedido e o contrato desta nota
+	// (infNFe/compra). A nota de empenho é da natureza de operação.
+	CompraXPed  *string `json:"compra_x_ped" validate:"omitempty,max=60"`
+	CompraXCont *string `json:"compra_x_cont" validate:"omitempty,max=60"`
+
+	// Cana é o registro de aquisição de cana do mês (infNFe/cana). A safra é da
+	// natureza de operação; aqui vêm o mês de referência e os lançamentos.
+	Cana *NfeCanaBody `json:"cana" validate:"omitempty"`
+
+	// Agro é o grupo agropecuario: receituários de defensivo **ou** guia de
+	// trânsito, nunca os dois (choice do XSD).
+	Agro *NfeAgroBody `json:"agro" validate:"omitempty"`
+
+	// DhSaiEnt e DPrevEntrega vencem o offset cadastrado na operação — é o
+	// despacho fora do padrão que precisa de data explícita.
+	DhSaiEnt     *string `json:"dh_sai_ent" validate:"omitempty,datetime=2006-01-02T15:04:05-07:00"`
+	DPrevEntrega *string `json:"d_prev_entrega" validate:"omitempty,isodate"`
+
+	// CompraGovRefs são as chaves dos documentos fiscais anteriores da compra
+	// governamental (ide/gCompraGov/refDFeAnt). O tipo de ente, o redutor e o
+	// tipo de operação são da natureza de operação.
+	CompraGovRefs []string `json:"compra_gov_refs" validate:"omitempty,max=99,dive,len=44,number"`
+	// PagAntecipadoRefs são as chaves das NF-e de antecipação de pagamento a
+	// abater nesta nota (ide/gPagAntecipado).
+	PagAntecipadoRefs []string `json:"pag_antecipado_refs" validate:"omitempty,max=99,dive,len=44,number"`
+}
+
+// NfeCanaBody é o registro mensal de aquisição de cana (infNFe/cana).
+//
+// Só o que varia por nota está aqui: o mês de referência, os fornecimentos
+// diários e as deduções. qTotMes, qTotGer, vTotDed e vLiqFor são derivados em
+// buildCana; a safra vem da natureza de operação.
+type NfeCanaBody struct {
+	// Ref é o mês/ano de referência no formato MM/AAAA (padrão do XSD).
+	Ref string `json:"ref" validate:"required,canaref"`
+	// Deliveries são os fornecimentos diários (máx. 31, um por dia).
+	Deliveries []NfeCanaDeliveryBody `json:"deliveries" validate:"required,min=1,max=31,dive"`
+	// Deducoes são as deduções do fornecimento (máx. 10 pelo leiaute).
+	Deducoes []NfeCanaDeducBody `json:"deducoes" validate:"omitempty,max=10,dive"`
+	// QTotAnt é o acumulado das safras/meses anteriores, que vem do razão do
+	// fornecedor — é a única quantidade da cana que não sai desta nota.
+	QTotAnt *string `json:"q_tot_ant" validate:"omitempty,decimalv"`
+}
+
+// NfeCanaDeliveryBody é um fornecimento diário (cana/forDia).
+type NfeCanaDeliveryBody struct {
+	// Dia é o dia do mês, 1 a 31 (atributo @dia, sem zero à esquerda).
+	Dia  string `json:"dia" validate:"required,canadia"`
+	Qtde string `json:"qtde" validate:"required,decimalv"`
+}
+
+// NfeCanaDeducBody é uma dedução do fornecimento (cana/deduc).
+type NfeCanaDeducBody struct {
+	XDed string `json:"x_ded" validate:"required,max=60"`
+	VDed string `json:"v_ded" validate:"required,money2"`
+}
+
+// NfeAgroBody é o grupo infNFe/agropecuario — um choice no XSD.
+type NfeAgroBody struct {
+	// Receituarios são os números dos receituários de defensivo (máx. 20). O
+	// CPF do responsável técnico acompanha cada um e vem da organização.
+	Receituarios []string `json:"receituarios" validate:"omitempty,max=20,dive,min=1,max=30"`
+	// Guia é a guia de trânsito animal/vegetal, alternativa aos receituários.
+	Guia *NfeAgroGuiaBody `json:"guia" validate:"omitempty"`
+}
+
+// NfeAgroGuiaBody é agropecuario/guiaTransito.
+type NfeAgroGuiaBody struct {
+	// TpGuia: 1 GTA, 2 TTA, 3 DTA, 4 ATV, 5 PTV, 6 GTV, 7 Guia Florestal.
+	TpGuia    string  `json:"tp_guia" validate:"required,oneof=1 2 3 4 5 6 7"`
+	UFGuia    string  `json:"uf_guia" validate:"required,uf"`
+	SerieGuia *string `json:"serie_guia" validate:"omitempty,min=1,max=9"`
+	NGuia     string  `json:"n_guia" validate:"required,max=9,number"`
+}
+
+// NfeProcRefBody é um processo referenciado (infAdic/procRef).
+type NfeProcRefBody struct {
+	NProc   string  `json:"n_proc" validate:"required,max=60"`
+	IndProc string  `json:"ind_proc" validate:"required,oneof=0 1 2 3 9"`
+	TpAto   *string `json:"tp_ato" validate:"omitempty,len=2,number"`
+}
+
+// NfeRefBody é uma referência de documento em ide/NFref. Ou `nfe_id` (uma nota
+// desta organização, de onde chave e tipo são derivados), ou os campos do
+// documento de fora do sistema.
+type NfeRefBody struct {
+	NfeID *string `json:"nfe_id" validate:"omitempty"`
+	Kind  *string `json:"kind" validate:"omitempty,oneof=nfe nfesig nf nfp cte ecf"`
+	// Chave de 44 dígitos, para kind nfe/nfesig/cte informados manualmente.
+	AccessKey *string `json:"access_key" validate:"omitempty,len=44,number"`
+	CUF       *string `json:"c_uf" validate:"omitempty,len=2,number"`
+	AAMM      *string `json:"aamm" validate:"omitempty,len=4,number"`
+	CNPJ      *string `json:"cnpj" validate:"omitempty,cnpj"`
+	CPF       *string `json:"cpf" validate:"omitempty,cpf"`
+	IE        *string `json:"ie" validate:"omitempty,max=14"`
+	Mod       *string `json:"mod" validate:"omitempty,max=2"`
+	Serie     *string `json:"serie" validate:"omitempty,max=3,number"`
+	NNF       *string `json:"n_nf" validate:"omitempty,max=9,number"`
+	NECF      *string `json:"n_ecf" validate:"omitempty,max=3,number"`
+	NCOO      *string `json:"n_coo" validate:"omitempty,max=6,number"`
 }
 
 // NfeProductItem is a line item in an NF-e emission request.
 type NfeProductItem struct {
-	ProductID string `json:"product_id" validate:"required"`
+	// ProductID é obrigatório; ServiceID é opcional e aponta para o catálogo de
+	// serviços da NFS-e (organization_services), reusado na NF-e mista: item da
+	// lista, código e alíquota do ISS saem de lá, nunca de um segundo cadastro.
+	ProductID string  `json:"product_id" validate:"required"`
+	ServiceID *string `json:"service_id" validate:"omitempty"`
 	// Vazio é aceito quando a emissão informa uma operação com cfop_suffix —
 	// aí o CFOP é resolvido pelas UFs de emitente e destinatário.
 	CFOP       string           `json:"cfop" validate:"omitempty,cfop"`
@@ -71,6 +187,77 @@ type NfeProductItem struct {
 	VeicCCor   *string          `json:"veic_c_cor" validate:"omitempty"`
 	VeicXCor   *string          `json:"veic_x_cor" validate:"omitempty"`
 	Armas      []map[string]any `json:"armas" validate:"omitempty"`
+	// ImportDeclarations liga o item às adições da DI que o representam
+	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
+	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
+	// FuelPumpID é o bico por onde a venda saiu (prod/comb/encerrante); VEncFin
+	// é onde o marcador parou. O vEncIni vem do cadastro da bomba.
+	FuelPumpID *string `json:"fuel_pump_id" validate:"omitempty"`
+	VEncFin    *string `json:"v_enc_fin" validate:"omitempty,decimalv"`
+	// QTemp é a quantidade a 20 °C: muda a cada venda, não é do cadastro.
+	QTemp *string `json:"q_temp" validate:"omitempty,decimalv"`
+	// Lots são os lotes de produção que saíram neste item (prod/rastro). O lote
+	// vem do cadastro; a quantidade em branco é rateada da quantidade vendida.
+	Lots []NfeItemLotBody `json:"lots" validate:"omitempty,max=500,dive"`
+	// Exports são as exportações indiretas do item (prod/detExport).
+	Exports []NfeDetExportBody `json:"exports" validate:"omitempty,max=500,dive"`
+	// II é o imposto de importação do item: as despesas aduaneiras e o imposto
+	// são do lote importado, não do cadastro do produto.
+	IIVDespAdu *string `json:"ii_v_desp_adu" validate:"omitempty,money2"`
+	IIVII      *string `json:"ii_v_ii" validate:"omitempty,money2"`
+	IIVIOF     *string `json:"ii_v_iof" validate:"omitempty,money2"`
+	// PDevol é o percentual devolvido do item (impostoDevol). Só vale em nota
+	// de devolução (finNFe=4).
+	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
+	// XPed e NItemPed são o pedido de compra do cliente e o item dentro dele
+	// (prod/xPed, prod/nItemPed) — controle B2B, muda a cada nota.
+	XPed     *string `json:"x_ped" validate:"omitempty,min=1,max=15"`
+	NItemPed *string `json:"n_item_ped" validate:"omitempty,max=6,number"`
+
+	// Grupos da reforma que só existem por nota, porque são valores apurados e
+	// não configuração: transferência de crédito, ajuste de competência e
+	// estorno de crédito. Transferência e ajuste **substituem** a apuração
+	// normal do item (choice do XSD); o estorno convive com ela.
+	TransfCred   *NfeIBSCBSPairBody `json:"transf_cred" validate:"omitempty"`
+	AjusteCompet *NfeIBSCBSPairBody `json:"ajuste_compet" validate:"omitempty"`
+	EstornoCred  *NfeIBSCBSPairBody `json:"estorno_cred" validate:"omitempty"`
+	// AlcZfmNProcSuframa é o processo Suframa deste item (gALCZFMCBS). É do
+	// embarque, não do cadastro do produto — quando ausente, vale o do perfil.
+	AlcZfmNProcSuframa *string `json:"alc_zfm_n_proc_suframa" validate:"omitempty,min=8,max=12"`
+}
+
+// NfeIBSCBSPairBody é o par de valores IBS/CBS que a transferência de crédito, o
+// ajuste de competência e o estorno de crédito repetem. Um lado sozinho é
+// aceito e o outro vale zero — a apuração pode atingir só um dos tributos.
+type NfeIBSCBSPairBody struct {
+	VIBS *string `json:"v_ibs" validate:"omitempty,money2"`
+	VCBS *string `json:"v_cbs" validate:"omitempty,money2"`
+}
+
+// NfeItemDIBody aponta uma adição de uma declaração de importação cadastrada.
+type NfeItemDIBody struct {
+	ImportDeclarationID string `json:"import_declaration_id" validate:"required"`
+	// AdditionIndex é a posição (base 1) da adição no cadastro da DI.
+	AdditionIndex int `json:"addition_index" validate:"required,min=1"`
+	// NDraw do embarque, quando difere do cadastrado na adição.
+	NDraw *string `json:"n_draw" validate:"omitempty,max=20"`
+}
+
+// NfeItemLotBody aponta um lote cadastrado. Quantity só é informada quando o
+// item sai de vários lotes em proporções diferentes — em branco, o rateio pela
+// quantidade vendida resolve.
+type NfeItemLotBody struct {
+	LotID    string  `json:"lot_id" validate:"required"`
+	Quantity *string `json:"quantity" validate:"omitempty,decimalv"`
+}
+
+// NfeDetExportBody é uma exportação indireta do item (prod/detExport). O trio
+// nRE + chNFe + qExport é tudo-ou-nada: exportInd sem um deles é XML inválido.
+type NfeDetExportBody struct {
+	NDraw   *string `json:"n_draw" validate:"omitempty,max=20"`
+	NRE     *string `json:"n_re" validate:"omitempty,max=12,number"`
+	ChNFe   *string `json:"ch_nfe" validate:"omitempty,len=44,numeric"`
+	QExport *string `json:"q_export" validate:"omitempty,decimalv"`
 }
 
 // NfePaymentItem is a payment method in an NF-e emission request.
@@ -80,6 +267,11 @@ type NfePaymentItem struct {
 	IndPag      *string        `json:"ind_pag" validate:"omitempty,oneof=0 1"`
 	DPag        *string        `json:"d_pag" validate:"omitempty"`
 	Card        map[string]any `json:"card" validate:"omitempty"`
+	// TerminalID aponta um organization_payment_terminals: CNPJReceb, idTermPag,
+	// CNPJPag/UFPag e a bandeira default saem do cadastro.
+	TerminalID *string `json:"terminal_id" validate:"omitempty"`
+	// XPag descreve a forma de pagamento quando tPag é 99 (outros).
+	XPag *string `json:"x_pag" validate:"omitempty,max=60"`
 }
 
 // NfeTransportItem holds transport data for an NF-e emission request.
@@ -97,6 +289,29 @@ type NfeTransportItem struct {
 	VeiculoPlaca    *string `json:"veiculo_placa" validate:"omitempty,placa"`
 	VeiculoUF       *string `json:"veiculo_uf" validate:"omitempty,uf"`
 	VeiculoRNTRC    *string `json:"veiculo_rntrc" validate:"omitempty,rntrc"`
+	// Vols são os volumes transportados (transp/vol). Ausente, o builder deriva
+	// um volume único com o peso somado dos itens.
+	Vols []NfeVolBody `json:"vols" validate:"omitempty,max=5000,dive"`
+	// Reboques do veículo transportador (transp/reboque, máx 5 pelo XSD).
+	Reboques []NfeReboqueBody `json:"reboques" validate:"omitempty,max=5,dive"`
+}
+
+// NfeVolBody é um volume transportado (transp/vol).
+type NfeVolBody struct {
+	QVol   *string  `json:"q_vol" validate:"omitempty,max=15,number"`
+	Esp    *string  `json:"esp" validate:"omitempty,max=60"`
+	Marca  *string  `json:"marca" validate:"omitempty,max=60"`
+	NVol   *string  `json:"n_vol" validate:"omitempty,max=60"`
+	PesoL  *string  `json:"peso_l" validate:"omitempty,weight3"`
+	PesoB  *string  `json:"peso_b" validate:"omitempty,weight3"`
+	Lacres []string `json:"lacres" validate:"omitempty,max=5000,dive,max=60"`
+}
+
+// NfeReboqueBody é um reboque do veículo transportador (transp/reboque).
+type NfeReboqueBody struct {
+	Placa string  `json:"placa" validate:"required,placa"`
+	UF    string  `json:"uf" validate:"required,uf"`
+	RNTC  *string `json:"rntc" validate:"omitempty,max=20"`
 }
 
 // NfeFatItem is the invoice header (cobr.fat) in an NF-e emission request.
@@ -210,6 +425,19 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 
 	productItems, totalProducts, totalDiscount, err := resolveProducts(ctx, s.productRepo, s.taxProfileRepo, orgPK, destUF, items)
+	if err == nil {
+		err = applyServiceDefaults(ctx, s.serviceRepo, orgPK, items, productItems)
+	}
+	if err == nil {
+		err = applyImportDeclarations(ctx, s.importDIRepo, orgPK, items, productItems)
+	}
+	if err == nil {
+		err = applyProductLots(ctx, s.productLotRepo, orgPK, items, productItems)
+	}
+	pumpReadings, err2 := applyFuelPumps(ctx, s.fuelPumpRepo, orgPK, items, productItems)
+	if err == nil {
+		err = err2
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +457,16 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 
 	resolvedTransport, err := s.resolveTransport(ctx, orgPK, req.Transport)
+	if err != nil {
+		return nil, err
+	}
+
+	nfRefs, err := s.resolveNFRefs(ctx, orgPK, envPrefix, req.NFRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	terminals, err := resolvePaymentTerminals(ctx, s.paymentTerminalRepo, orgPK, req.Payments)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +541,12 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		if p.DPag != nil {
 			pm["d_pag"] = *p.DPag
 		}
+		if p.TerminalID != nil {
+			pm["terminal_id"] = terminalSK(*p.TerminalID)
+		}
+		if p.XPag != nil {
+			pm["x_pag"] = *p.XPag
+		}
 		if p.Card != nil {
 			pm["card"] = p.Card
 		}
@@ -313,12 +557,44 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		})
 	}
 
+	// Compras governamentais: tipo de ente, redutor e tipo de operação vêm da
+	// operação; as chaves referenciadas, da nota. A regra do refDFeAnt por
+	// tpOperGov é validada aqui, não pela SEFAZ.
+	compraGovNode, err := buildCompraGov(operation, req.CompraGovRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Canal de venda: a operação diz se a venda passou por marketplace e qual.
+	intermediary, err := s.resolveIntermediary(ctx, orgPK, operationDefault(operation, opFieldIntermediaryPersonID))
+	if err != nil {
+		return nil, err
+	}
+
+	// Grupos de nicho: cana usa o total do fornecimento como vFor, e
+	// agropecuario lê o CPF do responsável técnico agronômico do emitente.
+	canaNode, err := buildCana(operation, req.Cana, totalProducts.Sub(totalDiscount))
+	if err != nil {
+		return nil, err
+	}
+	agroNode, err := buildAgropecuario(getPersonMap(orgAny), req.Agro)
+	if err != nil {
+		return nil, err
+	}
+
 	// Escada: valor no request → operação → default do leiaute.
 	finNFe := strOrDefault(ptrStr(firstNonNil(req.FinNFe, operationDefault(operation, opFieldFinNFe))), "1")
 	indFinal := strOrDefault(ptrStr(firstNonNil(req.IndFinal, operationDefault(operation, opFieldIndFinal))), "1")
 	indPres := strOrDefault(ptrStr(firstNonNil(req.IndPres, operationDefault(operation, opFieldIndPres))), "1")
 	tpNF := strOrDefault(ptrStr(firstNonNil(req.TpNF, operationDefault(operation, opFieldTpNF))), "1")
 	natOp := firstNonNil(req.NatOp, operationDefault(operation, opFieldNatOp))
+
+	if finNFeExigeRef[finNFe] && len(nfRefs) == 0 {
+		return nil, problem.BadRequest("finNFe " + finNFe + " exige pelo menos um documento em nf_refs")
+	}
+	if err := validateDevolucao(finNFe, req.Products); err != nil {
+		return nil, err
+	}
 
 	// Mensagens fiscais da operação, com os placeholders já interpolados.
 	interpVars := map[string]string{
@@ -332,6 +608,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 	additionalInfo := firstNonNil(req.AdditionalInfo, infCpl)
 
+	infAdFisco, err := interpolateOperationText(operation, opFieldInfAdFisco, interpVars)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build full enviNFe structure
 	enviNFe := BuildEnviNFe(
 		orgAny, receiverAny, orgPK,
@@ -344,6 +625,36 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		s.tech, nfModel55, nil,
 		req.Retirada, req.Entrega,
 		mode,
+		docExtras{
+			NFRefs: nfRefs,
+			Vols: buildVols(transportVols(req.Transport),
+				ptrStr(operationDefault(operation, opFieldVolEsp)),
+				ptrStr(operationDefault(operation, opFieldVolMarca))),
+			Reboques:         buildReboques(transportReboques(req.Transport)),
+			InfAdFisco:       ptrStr(infAdFisco),
+			ObsCont:          operationObs(operation, opFieldObsCont, interpVars),
+			ObsFisco:         operationObs(operation, opFieldObsFisco, interpVars),
+			ProcRef:          buildProcRef(req.ProcRef),
+			PaymentTerminals: terminals,
+			RetTrib:          operationGroup(operation, opFieldRetTrib),
+			Exporta:          buildExporta(operation, orgPickupLocations(orgItem)),
+			FinNFe4:          finNFe == finNFeDevolucao,
+			CsrtID:           strAttr(configItem, csrtIDField),
+			Csrt:             strAttr(configItem, csrtField),
+			Compra:           buildCompra(operation, ptrStr(req.CompraXPed), ptrStr(req.CompraXCont)),
+			Cana:             canaNode,
+			Agropecuario:     agroNode,
+			DhSaiEnt:         resolveDhSaiEnt(operation, req.DhSaiEnt, now),
+			DPrevEntrega:     ptrStr(req.DPrevEntrega),
+			IndIntermed:      ptrStr(operationDefault(operation, opFieldIndIntermed)),
+			InfIntermed:      buildInfIntermed(intermediary),
+			CIndOp:           ptrStr(operationDefault(operation, opFieldCIndOp)),
+			CMunFGIBS:        ptrStr(operationDefault(operation, opFieldCMunFGIBS)),
+			TpNFDebito:       ptrStr(operationDefault(operation, opFieldTpNFDebito)),
+			TpNFCredito:      ptrStr(operationDefault(operation, opFieldTpNFCredito)),
+			CompraGov:        compraGovNode,
+			PagAntecipado:    req.PagAntecipadoRefs,
+		},
 	)
 
 	// Summary products for DynamoDB record
@@ -430,8 +741,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
+	// O encerrante avança na MESMA transação da emissão: gravar depois deixaria
+	// a próxima venda partir de uma leitura antiga se o processo caísse aqui.
+	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if err := s.nfeRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfeEncoded, txItems...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número da NF-e. Tente novamente.")
@@ -617,6 +931,345 @@ func extractEmitUFFromItem(org map[string]types.AttributeValue) string {
 // resolveProducts resolves emission line items against the product catalog,
 // validates each CFOP is configured on the product, and computes totals.
 // Shared by NF-e and NFC-e emission.
+// finNFeDevolucao é a finalidade "devolução de mercadoria" — o único caso em
+// que o item pode declarar impostoDevol.
+const finNFeDevolucao = "4"
+
+// validateDevolucao recusa p_devol fora da nota de devolução: impostoDevol em
+// nota normal é XML que só a SEFAZ rejeitaria.
+func validateDevolucao(finNFe string, items []NfeProductItem) error {
+	if finNFe == finNFeDevolucao {
+		return nil
+	}
+	for _, it := range items {
+		if it.PDevol != nil && *it.PDevol != "" {
+			return problem.BadRequest("p_devol só é aceito em nota de devolução (fin_nfe = 4)")
+		}
+	}
+	return nil
+}
+
+// applyImportDeclarations resolve as DIs citadas pelos itens num BatchGet só e
+// monta prod/DI de cada um. Uma DI inexistente é erro de request.
+func applyImportDeclarations(
+	ctx context.Context, repo *repositories.ImportDeclarationRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	if repo == nil {
+		return nil
+	}
+	var ids []string
+	for _, item := range items {
+		for _, ref := range item.ImportDeclarations {
+			ids = append(ids, ref.ImportDeclarationID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return err
+	}
+	decoded := make(map[string]map[string]any, len(rows))
+	for id, row := range rows {
+		var m map[string]any
+		if err := attributevalue.UnmarshalMap(row, &m); err != nil {
+			return problem.InternalServer("failed to decode import declaration " + id)
+		}
+		decoded[id] = m
+	}
+	for i, item := range items {
+		if len(item.ImportDeclarations) == 0 {
+			continue
+		}
+		nodes := make([]map[string]any, 0, len(item.ImportDeclarations))
+		for seq, ref := range item.ImportDeclarations {
+			di, ok := decoded[ref.ImportDeclarationID]
+			if !ok {
+				return problem.NotFound("declaração de importação não encontrada: " + ref.ImportDeclarationID)
+			}
+			nodes = append(nodes, buildDI(di, ref.AdditionIndex, seq+1, ptrStr(ref.NDraw)))
+		}
+		productItems[i]["import_declarations"] = nodes
+	}
+	return nil
+}
+
+// applyProductLots resolve os lotes citados pelos itens num BatchGet só e monta
+// prod/rastro de cada um. Um lote inexistente é erro de request; um lote de
+// outro produto também — o lote pertence ao produto que o fabricou.
+func applyProductLots(
+	ctx context.Context, repo *repositories.ProductLotRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	if repo == nil {
+		return nil
+	}
+	var ids []string
+	for _, item := range items {
+		for _, ref := range item.Lots {
+			ids = append(ids, ref.LotID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return err
+	}
+	decoded := make(map[string]map[string]any, len(rows))
+	for id, row := range rows {
+		var m map[string]any
+		if err := attributevalue.UnmarshalMap(row, &m); err != nil {
+			return problem.InternalServer("failed to decode product lot " + id)
+		}
+		decoded[id] = m
+	}
+	for i, item := range items {
+		if len(item.Lots) == 0 {
+			continue
+		}
+		lots := make([]resolvedLot, 0, len(item.Lots))
+		for _, ref := range item.Lots {
+			row, ok := decoded[ref.LotID]
+			if !ok {
+				return problem.NotFound("lote não encontrado: " + ref.LotID)
+			}
+			if pid := anyStr(row, "product_id", ""); pid != "" && item.ProductID != "" && !sameEntityID(pid, item.ProductID) {
+				return problem.BadRequest("lote " + ref.LotID + " não pertence ao produto do item")
+			}
+			lots = append(lots, resolvedLot{
+				NLote:    anyStr(row, "n_lote", ""),
+				DFab:     anyStr(row, "d_fab", ""),
+				DVal:     anyStr(row, "d_val", ""),
+				CAgreg:   anyStr(row, "c_agreg", ""),
+				Quantity: ptrStr(ref.Quantity),
+			})
+		}
+		productItems[i]["lots"] = buildRastro(lots, d(item.Quantity))
+	}
+	return nil
+}
+
+// applyFuelPumps resolve as bombas citadas pelos itens, valida a leitura do
+// encerrante e injeta a bomba no item para o builder. Devolve, por bomba, a
+// leitura final a gravar — o avanço em si acontece na transação da emissão.
+func applyFuelPumps(
+	ctx context.Context, repo *repositories.FuelPumpRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) (map[string]string, error) {
+	if repo == nil {
+		return nil, nil
+	}
+	var ids []string
+	for _, item := range items {
+		if item.FuelPumpID != nil && *item.FuelPumpID != "" {
+			ids = append(ids, *item.FuelPumpID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	readings := map[string]string{}
+	for i, item := range items {
+		if item.QTemp != nil && *item.QTemp != "" {
+			productItems[i]["comb_q_temp"] = *item.QTemp
+		}
+		if item.FuelPumpID == nil || *item.FuelPumpID == "" {
+			continue
+		}
+		row, ok := rows[*item.FuelPumpID]
+		if !ok {
+			return nil, problem.NotFound("bomba não encontrada: " + *item.FuelPumpID)
+		}
+		var pump map[string]any
+		if err := attributevalue.UnmarshalMap(row, &pump); err != nil {
+			return nil, problem.InternalServer("failed to decode fuel pump " + *item.FuelPumpID)
+		}
+		// Uma nota com duas vendas do mesmo bico: a segunda parte de onde a
+		// primeira terminou, senão as duas gravariam o mesmo vEncIni.
+		if prev, ok := readings[*item.FuelPumpID]; ok {
+			pump["last_v_enc_fin"] = prev
+		}
+		vEncFin := ptrStr(item.VEncFin)
+		if err := validateEncerrante(pump, vEncFin); err != nil {
+			return nil, err
+		}
+		productItems[i]["fuel_pump"] = pump
+		productItems[i]["comb_v_enc_fin"] = vEncFin
+		if vEncFin != "" {
+			readings[*item.FuelPumpID] = vEncFin
+		}
+	}
+	return readings, nil
+}
+
+// encerranteTx monta o avanço de last_v_enc_fin de cada bomba usada, para
+// entrar na transação que reserva o número e grava a nota.
+func encerranteTx(repo *repositories.FuelPumpRepository, orgPK string, readings map[string]string) []types.TransactWriteItem {
+	if repo == nil || len(readings) == 0 {
+		return nil
+	}
+	out := make([]types.TransactWriteItem, 0, len(readings))
+	for id, vEncFin := range readings {
+		out = append(out, types.TransactWriteItem{
+			Update: &types.Update{
+				TableName: aws.String(repo.TableName),
+				Key: map[string]types.AttributeValue{
+					"pk": &types.AttributeValueMemberS{Value: orgPK},
+					"sk": &types.AttributeValueMemberS{Value: repo.SK(id)},
+				},
+				UpdateExpression: aws.String("SET last_v_enc_fin = :v, updated_at = :ts"),
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":v":  &types.AttributeValueMemberS{Value: vEncFin},
+					":ts": &types.AttributeValueMemberS{Value: repositories.NowStr()},
+				},
+			},
+		})
+	}
+	return out
+}
+
+// pairValue lê um lado do par IBS/CBS de um grupo apurado da reforma. Devolve
+// string vazia quando o grupo não veio, para que o builder não o monte.
+func pairValue(pair *NfeIBSCBSPairBody, ibs bool) string {
+	if pair == nil {
+		return ""
+	}
+	if ibs {
+		return ptrStr(pair.VIBS)
+	}
+	return ptrStr(pair.VCBS)
+}
+
+// resolveIntermediary carrega a pessoa cadastrada como intermediador da
+// operação e devolve o mapa que buildInfIntermed lê: sk (de onde sai o CNPJ) e
+// o identificador do emitente no cadastro da plataforma.
+//
+// Devolve (nil, nil) quando a operação não aponta intermediador — a venda em
+// canal próprio não tem grupo nenhum.
+func (s *NfeService) resolveIntermediary(
+	ctx context.Context, orgPK string, personID *string,
+) (map[string]any, error) {
+	if personID == nil || *personID == "" {
+		return nil, nil
+	}
+	item, err := s.personRepo.Get(ctx, orgPK, *personID)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, problem.NotFound("intermediador não encontrado: " + *personID)
+	}
+	var row map[string]any
+	if err := attributevalue.UnmarshalMap(item, &row); err != nil {
+		return nil, problem.InternalServer("failed to decode intermediary")
+	}
+	return map[string]any{
+		"sk":                      *personID,
+		personIntermediaryIDField: anyStr(getPersonMap(row), personIntermediaryIDField, ""),
+	}, nil
+}
+
+// sameEntityID compara ids de cadastro aceitando um com prefixo e outro sem —
+// as rotas de cadastro aceitam as duas formas, e o vínculo gravado pode ter
+// vindo de qualquer uma delas.
+func sameEntityID(a, b string) bool {
+	return services.StripPKPrefix(a) == services.StripPKPrefix(b)
+}
+
+// applyServiceDefaults completa a tributação do item de serviço com o que já
+// está no catálogo da NFS-e: item da lista de serviços, alíquota do ISS e
+// código do serviço. O que a tributação do produto já define vence — o catálogo
+// é default, não override.
+func applyServiceDefaults(
+	ctx context.Context, serviceRepo *repositories.ServiceRepository, orgPK string,
+	items []NfeProductItem, productItems []map[string]any,
+) error {
+	for i, item := range items {
+		if item.ServiceID == nil || *item.ServiceID == "" || serviceRepo == nil {
+			continue
+		}
+		svcAttr, err := serviceRepo.Get(ctx, orgPK, *item.ServiceID)
+		if err != nil {
+			return err
+		}
+		if svcAttr == nil {
+			return problem.NotFound("serviço não encontrado: " + *item.ServiceID)
+		}
+		var svc map[string]any
+		if err := attributevalue.UnmarshalMap(svcAttr, &svc); err != nil {
+			return problem.InternalServer("failed to decode service")
+		}
+		cfgs, _ := productItems[i]["cfop_config"].([]any)
+		if len(cfgs) == 0 {
+			continue
+		}
+		cfg, _ := cfgs[0].(map[string]any)
+		if cfg == nil {
+			continue
+		}
+		setDefault(cfg, "issqn_c_list_serv", anyStr(svc, "trib_nacional_code", ""))
+		setDefault(cfg, "issqn_c_servico", anyStr(svc, "code", ""))
+		if iss, ok := svc["iss"].(map[string]any); ok {
+			setDefault(cfg, "issqn_aliq", anyStr(iss, "tax_rate", ""))
+		}
+		// Sem indISS declarado, o item de serviço é exigível: é o caso normal,
+		// e sem ele o grupo ISSQN inteiro não sairia.
+		setDefault(cfg, "issqn_ind_iss", issqnIndISSExigivel)
+	}
+	return nil
+}
+
+// issqnIndISSExigivel é indISS=1 (exigível), o default do item de serviço.
+const issqnIndISSExigivel = "1"
+
+// setDefault só preenche o que ainda não foi decidido pela tributação.
+func setDefault(cfg map[string]any, key, value string) {
+	if value == "" {
+		return
+	}
+	if cur, ok := cfg[key].(string); ok && cur != "" {
+		return
+	}
+	cfg[key] = value
+}
+
+// detExportMaps traduz as exportações do request para o mapa que o builder lê.
+// orgPickupLocations lê os locais de retirada já salvos na organização — a
+// exportação reusa o recinto de despacho de emissões anteriores.
+func orgPickupLocations(org map[string]types.AttributeValue) []any {
+	plain, err := unmarshalToAny(org)
+	if err != nil {
+		return nil
+	}
+	locs, _ := plain["pickup_locations"].([]any)
+	return locs
+}
+
+// detExportMaps traduz as exportações do request para o mapa que o builder lê.
+func detExportMaps(exports []NfeDetExportBody) []map[string]any {
+	if len(exports) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(exports))
+	for _, e := range exports {
+		out = append(out, map[string]any{
+			"n_draw":   ptrStr(e.NDraw),
+			"n_re":     ptrStr(e.NRE),
+			"ch_nfe":   ptrStr(e.ChNFe),
+			"q_export": ptrStr(e.QExport),
+		})
+	}
+	return out
+}
+
 func resolveProducts(
 	ctx context.Context, productRepo *repositories.ProductRepository,
 	taxProfileRepo *repositories.TaxProfileRepository, orgPK, destUF string, items []NfeProductItem,
@@ -695,65 +1348,111 @@ func resolveProducts(
 			// Uma única entrada, já resolvida para o CFOP deste item — os
 			// construtores do XML continuam lendo cfop_config exatamente como
 			// antes (findCFOPEntry), sem saber que perfis existem.
-			"cfop_config":          []any{resolvedTax},
-			"conversion_factors":   product["conversion_factors"],
-			"net_weight":           product["net_weight"],
-			"gross_weight":         product["gross_weight"],
-			"c_benef":              product["c_benef"],
-			"ext_ipi":              product["ext_ipi"],
-			"ind_escala":           product["ind_escala"],
-			"cnpj_fab":             product["cnpj_fab"],
-			"ind_tot":              product["ind_tot"],
-			"icms_aliq_override":   product["icms_aliq_override"],
-			"fcp_aliq_override":    product["fcp_aliq_override"],
-			"inf_ad_prod":          product["inf_ad_prod"],
-			"comb_c_prod_anp":      product["comb_c_prod_anp"],
-			"comb_desc_anp":        product["comb_desc_anp"],
-			"comb_uf_cons":         product["comb_uf_cons"],
-			"comb_codif":           product["comb_codif"],
-			"comb_p_glp":           product["comb_p_glp"],
-			"comb_p_gnn":           product["comb_p_gnn"],
-			"comb_p_gni":           product["comb_p_gni"],
-			"comb_v_part":          product["comb_v_part"],
-			"comb_p_bio":           product["comb_p_bio"],
-			"med_c_prod_anvisa":    product["med_c_prod_anvisa"],
-			"med_x_motivo_isencao": product["med_x_motivo_isencao"],
-			"med_v_pmc":            product["med_v_pmc"],
-			"veic_tp_op":           product["veic_tp_op"],
-			"veic_tp_comb":         product["veic_tp_comb"],
-			"veic_tp_pint":         product["veic_tp_pint"],
-			"veic_tp_veic":         product["veic_tp_veic"],
-			"veic_esp_veic":        product["veic_esp_veic"],
-			"veic_vin":             product["veic_vin"],
-			"veic_cond_veic":       product["veic_cond_veic"],
-			"veic_c_mod":           product["veic_c_mod"],
-			"veic_c_cor_denatran":  product["veic_c_cor_denatran"],
-			"veic_lota":            product["veic_lota"],
-			"veic_tp_rest":         product["veic_tp_rest"],
-			"veic_ano_mod":         product["veic_ano_mod"],
-			"veic_ano_fab":         product["veic_ano_fab"],
-			"veic_pot":             product["veic_pot"],
-			"veic_cilin":           product["veic_cilin"],
-			"veic_cmt":             product["veic_cmt"],
-			"veic_dist":            product["veic_dist"],
-			"veic_c_cor":           product["veic_c_cor"],
-			"veic_x_cor":           product["veic_x_cor"],
-			"veic_chassi":          ptrStr(item.VeicChassi),
-			"veic_n_serie":         ptrStr(item.VeicNSerie),
-			"veic_n_motor":         ptrStr(item.VeicNMotor),
-			"veic_c_cor_override":  ptrStr(item.VeicCCor),
-			"veic_x_cor_override":  ptrStr(item.VeicXCor),
-			"arma_tp_arma":         product["arma_tp_arma"],
-			"arma_descr":           product["arma_descr"],
-			"armas":                item.Armas,
-			"quantity":             item.Quantity,
-			"unit_value":           unitVal.String(),
-			"discount":             item.Discount,
-			"v_frete":              ptrStr(item.VFrete),
-			"v_seg":                ptrStr(item.VSeg),
-			"v_outro":              ptrStr(item.VOutro),
-			"total":                q2(itemTotal.RoundBank(2)),
+			"cfop_config":           []any{resolvedTax},
+			"conversion_factors":    product["conversion_factors"],
+			"net_weight":            product["net_weight"],
+			"gross_weight":          product["gross_weight"],
+			"c_benef":               product["c_benef"],
+			"ext_ipi":               product["ext_ipi"],
+			"ind_escala":            product["ind_escala"],
+			"cnpj_fab":              product["cnpj_fab"],
+			"ind_tot":               product["ind_tot"],
+			"icms_aliq_override":    product["icms_aliq_override"],
+			"fcp_aliq_override":     product["fcp_aliq_override"],
+			"inf_ad_prod":           product["inf_ad_prod"],
+			"comb_c_prod_anp":       product["comb_c_prod_anp"],
+			"comb_desc_anp":         product["comb_desc_anp"],
+			"comb_uf_cons":          product["comb_uf_cons"],
+			"comb_codif":            product["comb_codif"],
+			"comb_p_glp":            product["comb_p_glp"],
+			"comb_p_gnn":            product["comb_p_gnn"],
+			"comb_p_gni":            product["comb_p_gni"],
+			"comb_v_part":           product["comb_v_part"],
+			"comb_p_bio":            product["comb_p_bio"],
+			"comb_cide_v_aliq_prod": product["comb_cide_v_aliq_prod"],
+			"comb_orig":             product["comb_orig"],
+			"med_c_prod_anvisa":     product["med_c_prod_anvisa"],
+			"med_x_motivo_isencao":  product["med_x_motivo_isencao"],
+			"med_v_pmc":             product["med_v_pmc"],
+			"veic_tp_op":            product["veic_tp_op"],
+			"veic_tp_comb":          product["veic_tp_comb"],
+			"veic_tp_pint":          product["veic_tp_pint"],
+			"veic_tp_veic":          product["veic_tp_veic"],
+			"veic_esp_veic":         product["veic_esp_veic"],
+			"veic_vin":              product["veic_vin"],
+			"veic_cond_veic":        product["veic_cond_veic"],
+			"veic_c_mod":            product["veic_c_mod"],
+			"veic_c_cor_denatran":   product["veic_c_cor_denatran"],
+			"veic_lota":             product["veic_lota"],
+			"veic_tp_rest":          product["veic_tp_rest"],
+			"veic_ano_mod":          product["veic_ano_mod"],
+			"veic_ano_fab":          product["veic_ano_fab"],
+			"veic_pot":              product["veic_pot"],
+			"veic_cilin":            product["veic_cilin"],
+			"veic_cmt":              product["veic_cmt"],
+			"veic_dist":             product["veic_dist"],
+			"veic_c_cor":            product["veic_c_cor"],
+			"veic_x_cor":            product["veic_x_cor"],
+			"veic_chassi":           ptrStr(item.VeicChassi),
+			"veic_n_serie":          ptrStr(item.VeicNSerie),
+			"veic_n_motor":          ptrStr(item.VeicNMotor),
+			"veic_c_cor_override":   ptrStr(item.VeicCCor),
+			"veic_x_cor_override":   ptrStr(item.VeicXCor),
+			"arma_tp_arma":          product["arma_tp_arma"],
+			"arma_descr":            product["arma_descr"],
+			"armas":                 item.Armas,
+			"quantity":              item.Quantity,
+			"unit_value":            unitVal.String(),
+			"discount":              item.Discount,
+			"v_frete":               ptrStr(item.VFrete),
+			"v_seg":                 ptrStr(item.VSeg),
+			"v_outro":               ptrStr(item.VOutro),
+			"total":                 q2(itemTotal.RoundBank(2)),
+			"p_devol":               ptrStr(item.PDevol),
+			"ii_v_desp_adu":         ptrStr(item.IIVDespAdu),
+			"ii_v_ii":               ptrStr(item.IIVII),
+			"ii_v_iof":              ptrStr(item.IIVIOF),
+			"exports":               detExportMaps(item.Exports),
+			// Selo e enquadramento do IPI vêm do cadastro do produto.
+			"ipi_cnpj_prod": product["ipi_cnpj_prod"],
+			"ipi_c_selo":    product["ipi_c_selo"],
+			"ipi_q_selo":    product["ipi_q_selo"],
+			"ipi_c_enq":     product["ipi_c_enq"],
+			// Observação fiscal padrão do produto (det/obsItem).
+			"obs_item_x_campo": product["obs_item_x_campo"],
+			"obs_item_x_texto": product["obs_item_x_texto"],
+			// NVE, nFCI e códigos de barra próprios — nível produto.
+			"x_ped":      ptrStr(item.XPed),
+			"n_item_ped": ptrStr(item.NItemPed),
+			"n_recopi":   product["n_recopi"],
+			// Reforma tributária: os grupos apurados por nota e o processo
+			// Suframa do embarque.
+			"transf_cred_v_ibs":      pairValue(item.TransfCred, true),
+			"transf_cred_v_cbs":      pairValue(item.TransfCred, false),
+			"ajuste_compet_v_ibs":    pairValue(item.AjusteCompet, true),
+			"ajuste_compet_v_cbs":    pairValue(item.AjusteCompet, false),
+			"estorno_cred_v_ibs":     pairValue(item.EstornoCred, true),
+			"estorno_cred_v_cbs":     pairValue(item.EstornoCred, false),
+			"alc_zfm_n_proc_suframa": ptrStr(item.AlcZfmNProcSuframa),
+			// Reforma tributária no produto.
+			"gcred":                product["gcred"],
+			"tp_cred_pres_ibs_zfm": product["tp_cred_pres_ibs_zfm"],
+			"ind_bem_movel_usado":  product["ind_bem_movel_usado"],
+			"nve":                  product["nve"],
+			"n_fci":                product["n_fci"],
+			"c_barra":              product["c_barra"],
+			"c_barra_trib":         product["c_barra_trib"],
 		}
+		// Grupos de produto que não têm default: veículo novo e medicamento são
+		// recusados aqui, nomeando o campo que falta no cadastro, em vez de
+		// virarem rejeição da SEFAZ sobre uma tag inventada.
+		if _, err := buildVeicProd(pi); err != nil {
+			return nil, decimal.Zero, decimal.Zero, err
+		}
+		if _, err := buildMed(pi); err != nil {
+			return nil, decimal.Zero, decimal.Zero, err
+		}
+
 		productItems = append(productItems, pi)
 	}
 
@@ -786,7 +1485,7 @@ func (s *NfeService) resolveTransport(ctx context.Context, orgPK string, t *NfeT
 			return nil, err
 		}
 		if carrier != nil {
-			isPJ := strings.HasPrefix(*t.TransportaPK, "CNPJ_")
+			isPJ := strings.HasPrefix(*t.TransportaPK, cnpjPrefix)
 			doc := services.StripPKPrefix(*t.TransportaPK)
 			if isPJ {
 				td["transporta_cnpj"] = doc
@@ -806,6 +1505,11 @@ func (s *NfeService) resolveTransport(ctx context.Context, orgPK string, t *NfeT
 						if reg, ok := regs[0].(map[string]any); ok {
 							td["transporta_ie"] = reg["state_registration"]
 						}
+					}
+					// Perfil de ICMS retido pelo remetente (transp/retTransp):
+					// é invariante da transportadora, não da nota.
+					if ret, ok := person["freight_retention"].(map[string]any); ok {
+						td["freight_retention"] = ret
 					}
 				}
 			}
@@ -848,4 +1552,62 @@ func ptrStr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// transportVols / transportReboques leem as listas do transporte sem forçar o
+// chamador a checar nil — transport é opcional na emissão.
+func transportVols(t *NfeTransportItem) []NfeVolBody {
+	if t == nil {
+		return nil
+	}
+	return t.Vols
+}
+
+func transportReboques(t *NfeTransportItem) []NfeReboqueBody {
+	if t == nil {
+		return nil
+	}
+	return t.Reboques
+}
+
+// terminalSK normaliza o id do terminal para o SK do cadastro, aceitando tanto
+// o uuid quanto o SK completo vindo da UI.
+func terminalSK(id string) string {
+	if strings.HasPrefix(id, repositories.SKPrefixPaymentTerminal) {
+		return id
+	}
+	return repositories.SKPrefixPaymentTerminal + id
+}
+
+// resolvePaymentTerminals lê num BatchGet só todos os terminais citados pelos
+// pagamentos. Um id inexistente é erro de request, não silêncio. Função livre e
+// não método: NF-e e NFC-e usam a mesma resolução.
+func resolvePaymentTerminals(ctx context.Context, repo *repositories.PaymentTerminalRepository, orgPK string, payments []NfePaymentItem) (map[string]map[string]any, error) {
+	var ids []string
+	for _, p := range payments {
+		if p.TerminalID != nil && *p.TerminalID != "" {
+			ids = append(ids, strings.TrimPrefix(*p.TerminalID, repositories.SKPrefixPaymentTerminal))
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	raw, err := repo.BatchGet(ctx, orgPK, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]map[string]any, len(raw))
+	for id, item := range raw {
+		m, err := unmarshalToAny(item)
+		if err != nil {
+			return nil, problem.InternalServer("failed to decode payment terminal")
+		}
+		out[repo.SK(id)] = m
+	}
+	for _, id := range ids {
+		if _, ok := out[repo.SK(id)]; !ok {
+			return nil, problem.NotFound("terminal de pagamento não encontrado: " + id)
+		}
+	}
+	return out, nil
 }

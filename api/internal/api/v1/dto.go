@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/go-playground/validator/v10"
 
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
@@ -34,6 +35,10 @@ type AddressBody struct {
 type StateRegistrationBody struct {
 	UF                string `json:"uf" validate:"required,uf"`
 	StateRegistration string `json:"state_registration" validate:"required,max=20"`
+	// IeSt é a inscrição de substituto tributário nesta UF (emit/IEST). Mora
+	// aqui, e não numa lista à parte, porque é a mesma inscrição na mesma UF
+	// com outro papel.
+	IeSt *string `json:"ie_st" validate:"omitempty,max=20"`
 }
 
 // ContactsBody holds e-mail and phone contact lists.
@@ -96,6 +101,46 @@ type PersonObjectBody struct {
 	Addresses          []AddressBody           `json:"addresses" validate:"required,min=1,dive"`
 	Contacts           *ContactsBody           `json:"contacts" validate:"omitempty"`
 	Nfse               *NfseInfoBody           `json:"nfse" validate:"omitempty"`
+	// CNAE do emitente. Exigido pelo leiaute quando IM está presente (NF-e
+	// mista mercadoria + serviço).
+	Cnae *string `json:"cnae" validate:"omitempty,len=7,number"`
+	// IDEstrangeiro repetido no objeto person para que o builder da NF-e o
+	// encontre onde já lê o resto da identidade.
+	IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
+	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
+	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
+	// FreightRetention é o perfil de ICMS retido pelo remetente sobre o frete
+	// (NF-e transp/retTransp). Fica na pessoa porque é da transportadora.
+	FreightRetention *FreightRetentionBody `json:"freight_retention" validate:"omitempty"`
+	// Bank são os dados de recebimento do condutor/TAC (MDF-e infANTT/infBanc).
+	// Ficam na pessoa porque são invariantes dela, não da viagem.
+	Bank *PersonBankBody `json:"bank" validate:"omitempty"`
+	// IntermediaryID é o identificador do emitente no cadastro do intermediador
+	// (NF-e infIntermed/idCadIntTran) — o "seller id" do marketplace. É
+	// invariante do par emitente↔plataforma, então mora na pessoa.
+	IntermediaryID *string `json:"intermediary_id" validate:"omitempty,min=2,max=60"`
+	// TechnicalManagerCpf é o CPF do responsável técnico agronômico
+	// (NF-e agropecuario/defensivo/CPFRespTec). É o mesmo agrônomo em toda nota
+	// de defensivo do emitente, então mora no cadastro, não na emissão.
+	TechnicalManagerCpf *string `json:"technical_manager_cpf" validate:"omitempty,cpf"`
+}
+
+// FreightRetentionBody é o grupo retTransp: serviço, base, alíquota, CFOP e
+// município do fato gerador. vICMSRet é calculado na emissão.
+type FreightRetentionBody struct {
+	VServ    *string `json:"v_serv" validate:"omitempty,money2"`
+	VBcRet   *string `json:"v_bc_ret" validate:"omitempty,money2"`
+	PIcmsRet *string `json:"p_icms_ret" validate:"omitempty,percent"`
+	CFOP     *string `json:"cfop" validate:"omitempty,cfop"`
+	CMunFG   *string `json:"c_mun_fg" validate:"omitempty,ibge"`
+}
+
+// PersonBankBody é o choice de infBanc: PIX, ou banco+agência, ou CNPJ do IPEF.
+type PersonBankBody struct {
+	PixKey     *string `json:"pix_key" validate:"omitempty,max=250"`
+	BankCode   *string `json:"bank_code" validate:"omitempty,len=3,number"`
+	BranchCode *string `json:"branch_code" validate:"omitempty,max=10,number"`
+	CNPJIPEF   *string `json:"cnpj_ipef" validate:"omitempty,cnpj"`
 }
 
 // ── Persons ──────────────────────────────────────────────────────────────────
@@ -103,7 +148,7 @@ type PersonObjectBody struct {
 // personRolesValidation is the shared `validate` tag for the person role list.
 // The accepted values mirror services.AllPersonRoles; TestPersonRolesTagMatchesAllPersonRoles
 // fails if the two drift apart.
-const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider"
+const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"
 
 // PersonCreateBody is the body for POST /persons.
 //
@@ -111,10 +156,14 @@ const personRolesValidation = "omitempty,dive,oneof=customer supplier carrier dr
 // fiscal rule — a person may hold several at once, and an absent list is valid:
 // that person simply never shows up in a role-filtered listing.
 type PersonCreateBody struct {
-	CpfOrCnpj string           `json:"cpf_or_cnpj" validate:"required,cpfcnpj"`
-	Name      string           `json:"name" validate:"required,min=2,max=255"`
-	Roles     []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
-	Person    PersonObjectBody `json:"person" validate:"required"`
+	// CpfOrCnpj e IDEstrangeiro são alternativos: o XSD de dest é um choice
+	// entre CPF, CNPJ e idEstrangeiro. Exatamente um dos dois é obrigatório.
+	CpfOrCnpj string `json:"cpf_or_cnpj" validate:"omitempty,cpfcnpj"`
+	// IDEstrangeiro é o documento de pessoa no exterior (dest/idEstrangeiro).
+	IDEstrangeiro *string          `json:"id_estrangeiro" validate:"omitempty,max=20"`
+	Name          string           `json:"name" validate:"required,min=2,max=255"`
+	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
+	Person        PersonObjectBody `json:"person" validate:"required"`
 }
 
 // PersonUpdateBody is the body for PUT /persons/:cpf_cnpj (partial; the document
@@ -125,7 +174,7 @@ type PersonCreateBody struct {
 // continua sendo a forma de limpar todos os papéis.
 type PersonUpdateBody struct {
 	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
-	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider"`
+	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
 
@@ -202,6 +251,20 @@ type TaxFieldsBody struct {
 	IcmsPSt          *string `json:"icms_p_st" validate:"omitempty,percent"`
 	IcmsFcpVBcStRet  *string `json:"icms_fcp_v_bc_st_ret" validate:"omitempty"`
 	IcmsFcpStRetAliq *string `json:"icms_fcp_st_ret_aliq" validate:"omitempty,percent"`
+	// ICMSST (CST 41) — repasse, na operação interestadual, da ST já retida.
+	IcmsVBcStDest   *string `json:"icms_v_bc_st_dest" validate:"omitempty,money2"`
+	IcmsVIcmsStDest *string `json:"icms_v_icms_st_dest" validate:"omitempty,money2"`
+	// ICMS efetivo (ICMS60, ICMSST e ICMSSN500) — exigido por algumas UFs na
+	// revenda de mercadoria com ST retida.
+	IcmsPRedBcEfet *string `json:"icms_p_red_bc_efet" validate:"omitempty,percent"`
+	IcmsPIcmsEfet  *string `json:"icms_p_icms_efet" validate:"omitempty,percent"`
+	// ICMSPart — partilha do ICMS entre a UF de origem e a de destino. Não há
+	// CST próprio: é o par abaixo que troca ICMS10/ICMS90 por ICMSPart.
+	IcmsPartPBCOp *string `json:"icms_part_p_bc_op" validate:"omitempty,percent"`
+	IcmsPartUFST  *string `json:"icms_part_uf_st" validate:"omitempty,uf"`
+	// ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90).
+	IcmsMotDesSt *string `json:"icms_mot_des_st" validate:"omitempty"`
+	IcmsPFcpDif  *string `json:"icms_p_fcp_dif" validate:"omitempty,percent"`
 	// PIS / COFINS
 	Pis            string  `json:"pis" validate:"required,digits2"`
 	Cofins         string  `json:"cofins" validate:"required,digits2"`
@@ -214,6 +277,13 @@ type TaxFieldsBody struct {
 	CofinsStAliq *string `json:"cofins_st_aliq" validate:"omitempty,percent"`
 	PisStVBc     *string `json:"pis_st_v_bc" validate:"omitempty,money2"`
 	CofinsStVBc  *string `json:"cofins_st_v_bc" validate:"omitempty,money2"`
+	// IPI por unidade (bebidas, cigarros): vUnid presente troca vBC+pIPI por
+	// qUnid+vUnid — são choice no XSD.
+	IpiVUnid *string `json:"ipi_v_unid" validate:"omitempty,money"`
+	// Observação fiscal do item (det/obsItem). Pode vir da tributação ou do
+	// produto; a tributação vence por ser a mais específica do cenário.
+	ObsItemXCampo *string `json:"obs_item_x_campo" validate:"omitempty,max=20"`
+	ObsItemXTexto *string `json:"obs_item_x_texto" validate:"omitempty,max=60"`
 	// IBS / CBS (Reforma Tributária) — opcional, tudo-ou-nada (ver validateIbsCbsGroup).
 	// Vigência obrigatória: 2026-08-03 (não-Simples) / 2027-01-04 (Simples/MEI) —
 	// até lá, e mesmo depois para quem ainda não migrou, o grupo pode ficar ausente.
@@ -228,10 +298,51 @@ type TaxFieldsBody struct {
 	IbsUfPDif       *string `json:"ibs_uf_p_dif" validate:"omitempty,percent"`
 	IbsMunPDif      *string `json:"ibs_mun_p_dif" validate:"omitempty,percent"`
 	CbsPDif         *string `json:"cbs_p_dif" validate:"omitempty,percent"`
-	IbsIndDoacao    *string `json:"ibs_ind_doacao" validate:"omitempty"`
-	IbsAdRem        *string `json:"ibs_ad_rem" validate:"omitempty,percent"`
-	CbsAdRem        *string `json:"cbs_ad_rem" validate:"omitempty,percent"`
-	IbsCbsPDevTrib  *string `json:"ibs_cbs_p_dev_trib" validate:"omitempty,percent"`
+	// IbsIndDoacao: o XSD (TIndDoacao) enumera um valor só, "1". "S"/"N" era o
+	// domínio de uma NT anterior e hoje é rejeição.
+	IbsIndDoacao *string `json:"ibs_ind_doacao" validate:"omitempty,oneof=1"`
+	IbsAdRem     *string `json:"ibs_ad_rem" validate:"omitempty,percent"`
+	CbsAdRem     *string `json:"cbs_ad_rem" validate:"omitempty,percent"`
+	// IbsCbsPDevTrib é o percentual de devolução de tributo ao adquirente. Vale
+	// nas três esferas (gIBSUF/gDevTrib, gIBSMun/gDevTrib, gCBS/gDevTrib): o
+	// vDevTrib de cada uma é este percentual sobre o tributo daquela esfera.
+	IbsCbsPDevTrib *string `json:"ibs_cbs_p_dev_trib" validate:"omitempty,percent"`
+	// Monofasia da reforma (gIBSCBSMono). A alíquota específica é por unidade,
+	// não percentual: a base é a quantidade. ibs_ad_rem/cbs_ad_rem são o
+	// gMonoPadrao; *_reten é a retenção, *_ret o já retido e *_p_dif_mono o
+	// diferimento — cada par é tudo-ou-nada.
+	IbsAdRemReten *string `json:"ibs_ad_rem_reten" validate:"omitempty,money"`
+	CbsAdRemReten *string `json:"cbs_ad_rem_reten" validate:"omitempty,money"`
+	IbsAdRemRet   *string `json:"ibs_ad_rem_ret" validate:"omitempty,money"`
+	CbsAdRemRet   *string `json:"cbs_ad_rem_ret" validate:"omitempty,money"`
+	IbsPDifMono   *string `json:"ibs_p_dif_mono" validate:"omitempty,percent"`
+	CbsPDifMono   *string `json:"cbs_p_dif_mono" validate:"omitempty,percent"`
+	// Tributação de referência (gTribRegular): quanto o item pagaria fora do
+	// regime ou benefício. Sem ibs_reg_cst, o bloco não é emitido.
+	IbsRegCst       *string `json:"ibs_reg_cst" validate:"omitempty,ibscst"`
+	IbsRegClassTrib *string `json:"ibs_reg_class_trib" validate:"omitempty,class6"`
+	IbsRegUfAliq    *string `json:"ibs_reg_uf_aliq" validate:"omitempty,percent"`
+	IbsRegMunAliq   *string `json:"ibs_reg_mun_aliq" validate:"omitempty,percent"`
+	CbsRegAliq      *string `json:"cbs_reg_aliq" validate:"omitempty,percent"`
+	// Tributação de compra governamental (gTribCompraGov): quanto o item
+	// pagaria se o comprador não fosse ente público. Não tem CST próprio.
+	IbsGovUfAliq  *string `json:"ibs_gov_uf_aliq" validate:"omitempty,percent"`
+	IbsGovMunAliq *string `json:"ibs_gov_mun_aliq" validate:"omitempty,percent"`
+	CbsGovAliq    *string `json:"cbs_gov_aliq" validate:"omitempty,percent"`
+	// Crédito presumido da operação (gCredPresOper). O valor de cada esfera é o
+	// percentual sobre a base; cond_sus só muda a tag de destino (o choice
+	// vCredPres | vCredPresCondSus), nunca a conta.
+	IbsCbsCCredPres       *string `json:"ibs_cbs_c_cred_pres" validate:"omitempty,len=2,number"`
+	IbsPCredPres          *string `json:"ibs_p_cred_pres" validate:"omitempty,percent"`
+	CbsPCredPres          *string `json:"cbs_p_cred_pres" validate:"omitempty,percent"`
+	IbsCbsCredPresCondSus *string `json:"ibs_cbs_cred_pres_cond_sus" validate:"omitempty,oneof=1"`
+	// Crédito presumido do IBS na ZFM (gCredPresIBSZFM). A classificação vem do
+	// produto (tp_cred_pres_ibs_zfm); aqui só o percentual.
+	IbsZfmPCredPres *string `json:"ibs_zfm_p_cred_pres" validate:"omitempty,percent"`
+	// Alíquota zero da CBS em ALC/ZFM (gCBS/gALCZFMCBS). tp: 1 ou 2; a alíquota
+	// de referência é cbs_reg_aliq.
+	AlcZfmTpCbs        *string `json:"alc_zfm_tp_cbs" validate:"omitempty,oneof=1 2"`
+	AlcZfmNProcSuframa *string `json:"alc_zfm_n_proc_suframa" validate:"omitempty,min=8,max=12"`
 	// IPI
 	IpiCst  *string `json:"ipi_cst" validate:"omitempty"`
 	IpiAliq *string `json:"ipi_aliq" validate:"omitempty,percent"`
@@ -248,6 +359,15 @@ type TaxFieldsBody struct {
 	IssqnAliq      *string `json:"issqn_aliq" validate:"omitempty,percent"`
 	IssqnVDeducao  *string `json:"issqn_v_deducao" validate:"omitempty"`
 	IssqnVIssRet   *string `json:"issqn_v_iss_ret" validate:"omitempty"`
+	// Restante do grupo ISSQN do leiaute.
+	IssqnVOutro       *string `json:"issqn_v_outro" validate:"omitempty,money2"`
+	IssqnVDescIncond  *string `json:"issqn_v_desc_incond" validate:"omitempty,money2"`
+	IssqnVDescCond    *string `json:"issqn_v_desc_cond" validate:"omitempty,money2"`
+	IssqnCServico     *string `json:"issqn_c_servico" validate:"omitempty,max=20"`
+	IssqnCMun         *string `json:"issqn_c_mun" validate:"omitempty,ibge"`
+	IssqnCPais        *string `json:"issqn_c_pais" validate:"omitempty,max=4,number"`
+	IssqnNProcesso    *string `json:"issqn_n_processo" validate:"omitempty,max=30"`
+	IssqnIndIncentivo *string `json:"issqn_ind_incentivo" validate:"omitempty,oneof=1 2"`
 }
 
 // UfTaxOverride is a partial TaxFieldsBody override applied only when the
@@ -336,16 +456,279 @@ type OperationBody struct {
 	PaymentTermID *string `json:"payment_term_id" validate:"omitempty"`
 	ModFrete      *string `json:"mod_frete" validate:"omitempty,oneof=0 1 2 3 4 9"`
 
+	// Espécie e marca padrão dos volumes (transp/vol). São característica da
+	// operação, não da nota — quem sempre despacha em caixa não redigita.
+	VolEsp   *string `json:"vol_esp" validate:"omitempty,max=60"`
+	VolMarca *string `json:"vol_marca" validate:"omitempty,max=60"`
+
 	// Aceitam placeholders {{chave}} — ver services.AllPlaceholders. Chave
 	// desconhecida é erro aqui, no cadastro, nunca silêncio no XML.
 	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
 	InfCpl     *string `json:"inf_cpl" validate:"omitempty,max=5000"`
+
+	// ObsCont/ObsFisco são observações de campo livre do leiaute (máx 10 cada).
+	// Aceitam os mesmos placeholders de inf_cpl.
+	ObsCont  []ObsBody `json:"obs_cont" validate:"omitempty,max=10,dive"`
+	ObsFisco []ObsBody `json:"obs_fisco" validate:"omitempty,max=10,dive"`
+
+	// ExportUFSaidaPais e ExportLocDespachoIndex montam infNFe/exporta. O local
+	// aponta um índice em organizations.pickup_locations — o endereço não é
+	// copiado, é referenciado.
+	ExportUFSaidaPais      *string `json:"export_uf_saida_pais" validate:"omitempty,uf"`
+	ExportLocDespachoIndex *int    `json:"export_loc_despacho_index" validate:"omitempty,min=0"`
+
+	// RetTrib é o perfil de retenções federais do cenário (total/retTrib). Os
+	// percentuais são invariantes da operação; os valores saem da base da nota.
+	RetTrib *RetTribBody `json:"ret_trib" validate:"omitempty"`
+
+	// CompraXNEmp é a nota de empenho do cenário de venda a órgão público
+	// (infNFe/compra/xNEmp). Quem vende por empenho vende sempre por empenho;
+	// pedido e contrato variam por nota e vão no request de emissão.
+	CompraXNEmp *string `json:"compra_x_n_emp" validate:"omitempty,min=1,max=22"`
+
+	// IntermediaryPersonID é o marketplace/plataforma do cenário
+	// (infNFe/infIntermed) e IndIntermed marca ide/indIntermed. Uma operação
+	// por canal de venda: "venda no site próprio" é 0, "venda no marketplace X"
+	// é 1 mais a pessoa da plataforma.
+	IntermediaryPersonID *string `json:"intermediary_person_id" validate:"omitempty"`
+	IndIntermed          *string `json:"ind_intermed" validate:"omitempty,oneof=0 1"`
+
+	// Reforma tributária no ide. Todos são do cenário, não da nota: o local da
+	// operação de fornecimento, o município do fato gerador do IBS/CBS (só
+	// quando ind_pres é 5 e não há endereço de destinatário nem de entrega) e o
+	// par nota de débito / nota de crédito.
+	// TpNFDebito (01–08) e TpNFCredito (01–06) são os motivos da nota de débito
+	// e da nota de crédito da reforma (TTpNFDebito / TTpNFCredito). São códigos
+	// de dois dígitos, não o 0/1 de entrada/saída do tpNF.
+	CIndOp      *string `json:"c_ind_op" validate:"omitempty,len=6,number"`
+	CMunFGIBS   *string `json:"c_mun_fg_ibs" validate:"omitempty,ibge"`
+	TpNFDebito  *string `json:"tp_nf_debito" validate:"omitempty,oneof=01 02 03 04 05 06 07 08"`
+	TpNFCredito *string `json:"tp_nf_credito" validate:"omitempty,oneof=01 02 03 04 05 06"`
+
+	// Compras governamentais (ide/gCompraGov). tp_ente_gov: 1 União, 2 Estados,
+	// 3 DF, 4 Municípios, 5 Consórcio Público, 6 Comitê Gestor do IBS.
+	// tp_oper_gov: 1 fornecimento com pagamento posterior, 2 recebimento do
+	// pagamento com fornecimento já realizado, 3 fornecimento com pagamento já
+	// realizado, 4 recebimento do pagamento com fornecimento posterior. As
+	// chaves de refDFeAnt são da nota, não do cadastro.
+	CompraGovTpEnte   *string `json:"compra_gov_tp_ente" validate:"omitempty,oneof=1 2 3 4 5 6"`
+	CompraGovPRedutor *string `json:"compra_gov_p_redutor" validate:"omitempty,percent"`
+	CompraGovTpOper   *string `json:"compra_gov_tp_oper" validate:"omitempty,oneof=1 2 3 4"`
+
+	// DhSaiEntOffsetDays é o prazo padrão de saída da mercadoria, em dias
+	// corridos a partir da emissão (ide/dhSaiEnt). Quem despacha sempre no dia
+	// seguinte cadastra 1 e nunca mais digita a data.
+	DhSaiEntOffsetDays *int `json:"dh_sai_ent_offset_days" validate:"omitempty,min=0,max=365"`
+
+	// CanaSafra é a safra do registro de aquisição de cana (infNFe/cana/safra),
+	// ex. "2025/2026". O mês de referência e os fornecimentos diários variam
+	// por nota e vão no request.
+	CanaSafra *string `json:"cana_safra" validate:"omitempty,min=4,max=9"`
 
 	// RequiresReceiver falso habilita emissão sem destinatário (self_issuance).
 	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
 	// IsDefault marca a operação pré-selecionada da organização. Só uma pode
 	// estar marcada; marcar uma desmarca a anterior no mesmo TransactWrite.
 	IsDefault bool `json:"is_default"`
+}
+
+// PaymentTerminalBody é o body de POST/PUT /payment-terminals.
+//
+// Um terminal de captura (POS) tem CNPJ recebedor e identificador próprios,
+// invariantes por maquininha. Ficam aqui para que a NFC-e só aponte o terminal.
+type PaymentTerminalBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// CNPJReceb — CNPJ do estabelecimento credenciado que recebe o pagamento.
+	CNPJReceb string `json:"cnpj_receb" validate:"required,cnpj"`
+	// IdTermPag — identificador do terminal, atribuído pela adquirente.
+	IdTermPag string `json:"id_term_pag" validate:"required,max=40"`
+	// CNPJPag/UFPag identificam o pagador institucional quando a operação de
+	// pagamento ocorre fora do estabelecimento emitente (detPag/CNPJPag).
+	CNPJPag *string `json:"cnpj_pag" validate:"omitempty,cnpj"`
+	UFPag   *string `json:"uf_pag" validate:"omitempty,uf"`
+	// TBand é a bandeira default (card/tBand). Sobrescrevível na emissão.
+	TBand *string `json:"t_band" validate:"omitempty,max=2"`
+}
+
+// TollProviderBody é o body de POST/PUT /toll-providers.
+//
+// Vale-pedágio é obrigatório no transporte rodoviário de carga (Lei 10.209). A
+// fornecedora e o pagador são invariantes; por viagem muda só o número da
+// compra e o valor, que vão no corpo da emissão.
+type TollProviderBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// CNPJForn — CNPJ da fornecedora do vale-pedágio.
+	CNPJForn string `json:"cnpj_forn" validate:"required,cnpj"`
+	// Pagador do vale, quando não é o emitente. Um dos dois, nunca ambos.
+	CNPJPg *string `json:"cnpj_pg" validate:"omitempty,cnpj,excluded_with=CPFPg"`
+	CPFPg  *string `json:"cpf_pg" validate:"omitempty,cpf,excluded_with=CNPJPg"`
+	// TpValePed: 01 TAG, 02 cupom, 03 cartão.
+	TpValePed *string `json:"tp_vale_ped" validate:"omitempty,oneof=01 02 03"`
+}
+
+// CargoUnitBody é o body de POST/PUT /cargo-units.
+//
+// Uma unidade de transporte (carreta, vagão) ou de carga (contêiner, pallet)
+// recorre entre viagens e tem identificação própria. O rateio (qtdRat) não vive
+// aqui: é calculado dos pesos dos documentos a cada manifesto.
+type CargoUnitBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// Kind separa infUnidTransp de infUnidCarga — a estrutura é a mesma, o nó não.
+	Kind string `json:"kind" validate:"required,oneof=transport cargo"`
+	// TpUnidTransp: 1 rodoviário tração, 2 rodoviário reboque, 3 navio, 4 balsa,
+	// 5 aeronave, 6 vagão, 7 outros. TpUnidCarga: 1 contêiner, 2 ULD, 3 pallet, 4 outros.
+	TpUnid string `json:"tp_unid" validate:"required,oneof=1 2 3 4 5 6 7"`
+	// IdUnid é a identificação (placa, número do contêiner, número do vagão).
+	IdUnid string `json:"id_unid" validate:"required,max=20"`
+	// Seals são os lacres fixos da unidade, quando houver.
+	Seals []string `json:"seals" validate:"omitempty,dive,max=60"`
+}
+
+// RetTribBody são os percentuais de retenção federal da operação. O que sai no
+// XML (vRetPIS, vRetCOFINS, vRetCSLL, vIRRF, vRetPrev) é calculado da base.
+type RetTribBody struct {
+	PRetPis      *string `json:"p_ret_pis" validate:"omitempty,percent"`
+	PRetCofins   *string `json:"p_ret_cofins" validate:"omitempty,percent"`
+	PRetCsll     *string `json:"p_ret_csll" validate:"omitempty,percent"`
+	PRetIrrf     *string `json:"p_ret_irrf" validate:"omitempty,percent"`
+	PRetPrevInss *string `json:"p_ret_prev_inss" validate:"omitempty,percent"`
+}
+
+// ImportDeclarationBody é o body de POST/PUT /import-declarations.
+//
+// Uma DI cobre várias notas e vários itens. Ela é cadastrada uma vez, com suas
+// adições; na emissão o item só aponta qual adição o representa, e nAdicao /
+// nSeqAdic saem desse vínculo.
+type ImportDeclarationBody struct {
+	Name       string `json:"name" validate:"required,min=2,max=120"`
+	NDI        string `json:"n_di" validate:"required,max=15"`
+	DDI        string `json:"d_di" validate:"required,isodate"`
+	XLocDesemb string `json:"x_loc_desemb" validate:"required,max=60"`
+	UFDesemb   string `json:"uf_desemb" validate:"required,uf"`
+	DDesemb    string `json:"d_desemb" validate:"required,isodate"`
+	// tpViaTransp: 01 marítima … 12 por reboque (TViaTransp do XSD).
+	TpViaTransp string `json:"tp_via_transp" validate:"required,len=2,number"`
+	// vAFRMM é obrigatório quando tpViaTransp = 01 (marítima).
+	VAFRMM *string `json:"v_afrmm" validate:"omitempty,money2"`
+	// tpIntermedio: 1 conta própria, 2 conta e ordem, 3 encomenda.
+	TpIntermedio string               `json:"tp_intermedio" validate:"required,oneof=1 2 3"`
+	CNPJ         *string              `json:"cnpj" validate:"omitempty,cnpj"`
+	UFTerceiro   *string              `json:"uf_terceiro" validate:"omitempty,uf"`
+	CExportador  string               `json:"c_exportador" validate:"required,max=60"`
+	Additions    []ImportAdditionBody `json:"additions" validate:"required,min=1,max=100,dive"`
+}
+
+// Validate cobre a regra que as tags não expressam: o AFRMM é obrigatório no
+// transporte marítimo, e uma DI sem ele seria recusada só lá na SEFAZ.
+func (b ImportDeclarationBody) Validate() error {
+	if b.TpViaTransp == tpViaTranspMaritima && (b.VAFRMM == nil || *b.VAFRMM == "") {
+		return problem.BadRequest("v_afrmm é obrigatório quando a via de transporte é marítima (01)")
+	}
+	return nil
+}
+
+// tpViaTranspMaritima é a via de transporte 01 (marítima), a única que exige AFRMM.
+const tpViaTranspMaritima = "01"
+
+// ImportAdditionBody é uma adição da DI (prod/DI/adi).
+type ImportAdditionBody struct {
+	NAdicao     string  `json:"n_adicao" validate:"required,max=3,number"`
+	CFabricante string  `json:"c_fabricante" validate:"required,max=60"`
+	VDescDI     *string `json:"v_desc_di" validate:"omitempty,money2"`
+	NDraw       *string `json:"n_draw" validate:"omitempty,max=20"`
+}
+
+// FuelPumpBody é o body de POST/PUT /fuel-pumps.
+//
+// Bico, bomba e tanque são físicos: recorrem em toda venda do posto. A leitura
+// do encerrante (`last_v_enc_fin`) **não** entra aqui — ela é escrita pela
+// emissão, na mesma transação que reserva o número da nota, e digitá-la à mão
+// quebraria a sequência que a SEFAZ confere.
+type FuelPumpBody struct {
+	Name    string `json:"name" validate:"required,min=2,max=120"`
+	NBico   string `json:"n_bico" validate:"required,max=3,number"`
+	NBomba  string `json:"n_bomba" validate:"omitempty,max=3,number"`
+	NTanque string `json:"n_tanque" validate:"omitempty,max=3,number"`
+}
+
+// ProductLotBody é o body de POST/PUT /product-lots.
+//
+// O lote é do produto e reaparece em várias notas até acabar, então é cadastro
+// e não campo de emissão: a nota só aponta qual lote saiu, e a quantidade é
+// rateada pela quantidade vendida.
+type ProductLotBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// ProductID amarra o lote ao produto — um lote de um produto não pode sair
+	// no item de outro.
+	ProductID string `json:"product_id" validate:"required"`
+	NLote     string `json:"n_lote" validate:"required,max=20"`
+	// QLote é a quantidade produzida no lote. Serve de saldo e de referência; a
+	// quantidade que sai em cada nota vem do item.
+	QLote  string  `json:"q_lote" validate:"required,decimalv"`
+	DFab   string  `json:"d_fab" validate:"required,isodate"`
+	DVal   string  `json:"d_val" validate:"required,isodate"`
+	CAgreg *string `json:"c_agreg" validate:"omitempty,max=20"`
+}
+
+// Validate cobre a regra que as tags não expressam: um lote que vence antes de
+// ser fabricado é erro de digitação, não dado.
+func (b ProductLotBody) Validate() error {
+	if b.DVal < b.DFab {
+		return problem.BadRequest("d_val não pode ser anterior a d_fab")
+	}
+	return nil
+}
+
+// InsurancePolicyBody é o body de POST/PUT /insurance-policies.
+//
+// A apólice e a seguradora recorrem entre viagens; por viagem muda só a
+// averbação, que vai no corpo da emissão do MDF-e.
+type InsurancePolicyBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	// RespSeg: 1 emitente do MDF-e, 2 contratante do serviço de transporte.
+	RespSeg string `json:"resp_seg" validate:"required,oneof=1 2"`
+	// Documento do responsável pelo seguro. Só é informado quando o responsável
+	// não é o emitente — logo, obrigatório quando resp_seg = 2.
+	CNPJ *string `json:"cnpj" validate:"omitempty,cnpj,excluded_with=CPF"`
+	CPF  *string `json:"cpf" validate:"omitempty,cpf,excluded_with=CNPJ"`
+	// Seguradora: nome e CNPJ (infSeg). Andam juntos ou nenhum dos dois.
+	XSeg    *string `json:"x_seg" validate:"omitempty,min=2,max=30"`
+	CNPJSeg *string `json:"cnpj_seg" validate:"omitempty,cnpj"`
+	NApol   *string `json:"n_apol" validate:"omitempty,max=20"`
+}
+
+// Validate cobre as duas regras que as tags não expressam: o responsável que
+// não é o emitente precisa se identificar, e a seguradora é nome + CNPJ ou
+// nada — meia seguradora o XSD recusa.
+func (b InsurancePolicyBody) Validate() error {
+	if b.RespSeg == respSegContratante && emptyStr(b.CNPJ) && emptyStr(b.CPF) {
+		return problem.BadRequest("cnpj ou cpf é obrigatório quando o responsável pelo seguro é o contratante (resp_seg = 2)")
+	}
+	if emptyStr(b.XSeg) != emptyStr(b.CNPJSeg) {
+		return problem.BadRequest("x_seg e cnpj_seg devem ser informados juntos")
+	}
+	return nil
+}
+
+// respSegContratante é o responsável pelo seguro = contratante do serviço.
+const respSegContratante = "2"
+
+func emptyStr(s *string) bool { return s == nil || *s == "" }
+
+// CombOrigBody é uma origem do combustível (comb/origComb): de onde veio e em
+// que proporção.
+type CombOrigBody struct {
+	// IndImport: 0 nacional, 1 importado.
+	IndImport string `json:"ind_import" validate:"required,oneof=0 1"`
+	// CUFOrig é o código IBGE da UF de origem (2 dígitos).
+	CUFOrig string `json:"c_uf_orig" validate:"required,len=2,number"`
+	POrig   string `json:"p_orig" validate:"required,percent"`
+}
+
+// ObsBody é um par campo/texto de infAdic (obsCont ou obsFisco).
+type ObsBody struct {
+	XCampo string `json:"x_campo" validate:"required,max=20"`
+	XTexto string `json:"x_texto" validate:"required,max=60"`
 }
 
 // ProductTaxProfileRef liga um produto a um perfil fiscal, opcionalmente
@@ -412,19 +795,57 @@ type ProductBody struct {
 	TaxProfiles       []ProductTaxProfileRef `json:"tax_profiles" validate:"required_without=CfopConfig,omitempty,dive"`
 	ConversionFactors []ConversionFactorBody `json:"conversion_factors" validate:"omitempty,dive"`
 	// Tipo específico e campos especiais
-	ProdType          *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`
-	CombCProdAnp      *string `json:"comb_c_prod_anp" validate:"omitempty,digits9"`
-	CombDescAnp       *string `json:"comb_desc_anp" validate:"omitempty,max=95"`
-	CombUfCons        *string `json:"comb_uf_cons" validate:"omitempty,letters2"`
-	CombCodif         *string `json:"comb_codif" validate:"omitempty,max=21"`
-	CombPGlp          *string `json:"comb_p_glp" validate:"omitempty,percent"`
-	CombPGnn          *string `json:"comb_p_gnn" validate:"omitempty,percent"`
-	CombPGni          *string `json:"comb_p_gni" validate:"omitempty,percent"`
-	CombVPart         *string `json:"comb_v_part" validate:"omitempty,money2"`
-	CombPBio          *string `json:"comb_p_bio" validate:"omitempty,percent"`
-	MedCProdAnvisa    *string `json:"med_c_prod_anvisa" validate:"omitempty,min=5"`
-	MedXMotivoIsencao *string `json:"med_x_motivo_isencao" validate:"omitempty,max=255"`
-	MedVPmc           *string `json:"med_v_pmc" validate:"omitempty,money2"`
+	ProdType     *string `json:"prod_type" validate:"omitempty,oneof=generic comb med veiculo arma"`
+	CombCProdAnp *string `json:"comb_c_prod_anp" validate:"omitempty,digits9"`
+	CombDescAnp  *string `json:"comb_desc_anp" validate:"omitempty,max=95"`
+	CombUfCons   *string `json:"comb_uf_cons" validate:"omitempty,letters2"`
+	CombCodif    *string `json:"comb_codif" validate:"omitempty,max=21"`
+	CombPGlp     *string `json:"comb_p_glp" validate:"omitempty,percent"`
+	CombPGnn     *string `json:"comb_p_gnn" validate:"omitempty,percent"`
+	CombPGni     *string `json:"comb_p_gni" validate:"omitempty,percent"`
+	CombVPart    *string `json:"comb_v_part" validate:"omitempty,money2"`
+	CombPBio     *string `json:"comb_p_bio" validate:"omitempty,percent"`
+	// CombCideVAliqProd é a alíquota da CIDE do produto. A base (qBCProd) é a
+	// quantidade vendida e o vCIDE é o produto dos dois — nenhum dos dois é
+	// digitado.
+	CombCideVAliqProd *string `json:"comb_cide_v_aliq_prod" validate:"omitempty,money"`
+	// CombOrig é a origem do combustível (prod/comb/origComb), até 30 entradas.
+	CombOrig          []CombOrigBody `json:"comb_orig" validate:"omitempty,max=30,dive"`
+	MedCProdAnvisa    *string        `json:"med_c_prod_anvisa" validate:"omitempty,min=5"`
+	MedXMotivoIsencao *string        `json:"med_x_motivo_isencao" validate:"omitempty,max=255"`
+	MedVPmc           *string        `json:"med_v_pmc" validate:"omitempty,money2"`
+	// Classificação de produto perigoso (MDF-e peri). Cadastrada uma vez; o
+	// MDF-e a encontra sozinho ao referenciar a NF-e que contém o item.
+	// NVE, FCI e códigos de barra próprios — nível produto.
+	// Reforma tributária no produto. GCred são os créditos presumidos da UF
+	// aplicados ao item (máx. 4 pelo leiaute): código e percentual são
+	// cadastrados; o valor é derivado do percentual sobre o valor do item.
+	GCred []GCredBody `json:"gcred" validate:"omitempty,max=4,dive"`
+	// TpCredPresIBSZFM é a classificação para subapuração do IBS na ZFM.
+	TpCredPresIBSZFM *string `json:"tp_cred_pres_ibs_zfm" validate:"omitempty,oneof=0 1 2 3 4"`
+	// IndBemMovelUsado marca fornecimento de bem móvel usado. O XSD enumera um
+	// valor só: 1.
+	IndBemMovelUsado *string `json:"ind_bem_movel_usado" validate:"omitempty,oneof=1"`
+	// NRecopi é o número do RECOPI do papel imune (prod/nRECOPI). É do produto,
+	// e o XSD o coloca no mesmo choice de comb/med/veicProd/arma.
+	NRecopi    *string  `json:"n_recopi" validate:"omitempty,len=20,number"`
+	Nve        []string `json:"nve" validate:"omitempty,max=8,dive,len=6"`
+	NFci       *string  `json:"n_fci" validate:"omitempty,uuid"`
+	CBarra     *string  `json:"c_barra" validate:"omitempty,max=30"`
+	CBarraTrib *string  `json:"c_barra_trib" validate:"omitempty,max=30"`
+	// Observação fiscal padrão do produto (det/obsItem).
+	ObsItemXCampo *string `json:"obs_item_x_campo" validate:"omitempty,max=20"`
+	ObsItemXTexto *string `json:"obs_item_x_texto" validate:"omitempty,max=60"`
+	// Selo de controle do IPI e enquadramento legal — nível produto.
+	IpiCnpjProd   *string `json:"ipi_cnpj_prod" validate:"omitempty,digits14"`
+	IpiCSelo      *string `json:"ipi_c_selo" validate:"omitempty,max=60"`
+	IpiQSelo      *string `json:"ipi_q_selo" validate:"omitempty,max=12,number"`
+	IpiCEnq       *string `json:"ipi_c_enq" validate:"omitempty,max=3,number"`
+	PeriNOnu      *string `json:"peri_n_onu" validate:"omitempty,max=4,number"`
+	PeriXNomeAE   *string `json:"peri_x_nome_ae" validate:"omitempty,max=150"`
+	PeriXClaRisco *string `json:"peri_x_cla_risco" validate:"omitempty,max=40"`
+	PeriGrEmb     *string `json:"peri_gr_emb" validate:"omitempty,max=6"`
+	PeriQVolTipo  *string `json:"peri_q_vol_tipo" validate:"omitempty,max=60"`
 	// veicProd — dados do modelo
 	VeicTpOp         *string `json:"veic_tp_op" validate:"omitempty,oneof=0 1 2 3"`
 	VeicTpComb       *string `json:"veic_tp_comb" validate:"omitempty,max=2"`
@@ -448,6 +869,15 @@ type ProductBody struct {
 	// arma
 	ArmaTpArma *string `json:"arma_tp_arma" validate:"omitempty,oneof=0 1"`
 	ArmaDescr  *string `json:"arma_descr" validate:"omitempty,max=256"`
+}
+
+// GCredBody é um crédito presumido da UF aplicado ao item (prod/gCred). O
+// vCredPresumido não está aqui: é o percentual sobre o valor do item, calculado
+// na emissão.
+type GCredBody struct {
+	// CCredPresumido é o código do benefício, de 8 ou 10 caracteres.
+	CCredPresumido string `json:"c_cred_presumido" validate:"required,ccredpres"`
+	PCredPresumido string `json:"p_cred_presumido" validate:"required,percent"`
 }
 
 // ── Serviços (catálogo NFS-e) ────────────────────────────────────────────────
@@ -625,11 +1055,31 @@ type fiscalConfigBase struct {
 	ProdCurrentNumber int    `json:"prod_current_number" validate:"gte=0"`
 	HomCurrentSerie   int    `json:"hom_current_serie" validate:"gte=0"`
 	HomCurrentNumber  int    `json:"hom_current_number" validate:"gte=0"`
+
+	// CSRT do responsável técnico (NT 2018.005). Segredo: a API nunca o devolve
+	// — ver redactFiscalSecrets em helpers.go.
+	CsrtID *string `json:"csrt_id" validate:"omitempty,max=2,number"`
+	Csrt   *string `json:"csrt" validate:"omitempty,len=36"`
 }
 
 // FiscalConfigBody is the body for PUT /…/nfe-config, cte-config, mdfe-config.
 type FiscalConfigBody struct {
 	fiscalConfigBase
+}
+
+// MdfeConfigBody is the body for PUT /…/mdfe-config. Os três campos extras
+// são do leiaute do MDF-e e não existem na NF-e/CT-e, por isso um body próprio
+// em vez de poluir o FiscalConfigBody compartilhado.
+type MdfeConfigBody struct {
+	fiscalConfigBase
+	// IndCanalVerde — participação da organização no Canal Verde (ide/indCanalVerde).
+	IndCanalVerde bool `json:"ind_canal_verde"`
+	// IndCarregaPosterior — a organização inclui DF-e por evento depois de
+	// emitir o manifesto (ide/indCarregaPosterior).
+	IndCarregaPosterior bool `json:"ind_carrega_posterior"`
+	// InfAdFisco — mensagem de interesse do fisco repetida em toda emissão
+	// (infAdic/infAdFisco). A observação da viagem continua no corpo da emissão.
+	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
 }
 
 // NfceConfigBody is the body for PUT /…/nfce-config (adds CSC fields).

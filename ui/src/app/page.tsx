@@ -92,7 +92,7 @@ const PLANS = [
       'Até 3 NF-e por mês',
       'Até 15 NFC-e por mês',
       'Até 3 MDF-e por mês (frota própria)',
-      'Até 3 NFS-e por mês (em breve)',
+      'Até 3 NFS-e por mês',
       'Sem CT-e',
     ],
     highlight: false,
@@ -108,7 +108,7 @@ const PLANS = [
       'Até 6.000 NFC-e por mês',
       'Até 1.200 CT-e por mês',
       'Até 1.200 MDF-e por mês',
-      'Até 1.200 NFS-e por mês (em breve)',
+      'Até 1.200 NFS-e por mês',
     ],
     highlight: true,
   },
@@ -122,7 +122,7 @@ const PLANS = [
       'R$ 0,01 por NFC-e',
       'R$ 0,50 por CT-e',
       'R$ 0,10 por MDF-e',
-      'R$ 0,05 por NFS-e (em breve)',
+      'R$ 0,05 por NFS-e',
     ],
     highlight: false,
   },
@@ -147,7 +147,8 @@ function LoadingScreen() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-login">
       <div className="text-center">
-        <Image src="/app.svg" alt="" aria-hidden="true" width={64} height={64} className="mx-auto mb-4" priority unoptimized/>
+        <Image src="/app.svg" alt="" aria-hidden="true" width={64} height={64} className="mx-auto mb-4" priority
+               unoptimized/>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">CTech DF-e</h1>
         <p className="text-gray-600 text-sm">Carregando...</p>
       </div>

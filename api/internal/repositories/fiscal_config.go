@@ -28,6 +28,11 @@ type FiscalConfigRepository struct {
 	preserve map[string]any
 }
 
+// writeOnceSecrets são os campos secretos da configuração fiscal: entram por
+// PUT, nunca saem por GET, e um PUT que os omite não os apaga. Deve espelhar
+// fiscalConfigSecrets em internal/api/v1/helpers.go.
+var writeOnceSecrets = []string{"csrt", "prod_csc", "hom_csc"}
+
 func newFiscalConfigBase(db *dynamodb.Client, cfg *config.Config, table string, preserve map[string]any) FiscalConfigRepository {
 	return FiscalConfigRepository{
 		Base:     NewBase(db, cfg, table),
@@ -67,6 +72,21 @@ func (r *FiscalConfigRepository) Upsert(ctx context.Context, orgPK string, field
 func (r *FiscalConfigRepository) BuildUpsertTxItem(orgPK string, fields map[string]types.AttributeValue, existing map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
 	fields["pk"] = &types.AttributeValueMemberS{Value: orgPK}
 	fields["updated_at"] = &types.AttributeValueMemberS{Value: NowStr()}
+
+	// Segredos write-only: o corpo que os omite mantém o que está gravado, em vez
+	// de apagá-los. A API nunca os devolve (redactFiscalSecrets), então um PUT
+	// feito a partir de um GET jamais os traria de volta — sem isto, salvar
+	// qualquer outro campo destruiria o CSRT.
+	for _, field := range writeOnceSecrets {
+		if _, sent := fields[field]; sent {
+			continue
+		}
+		if existing != nil {
+			if v, ok := existing[field]; ok {
+				fields[field] = v
+			}
+		}
+	}
 
 	for field, defVal := range r.preserve {
 		if existing != nil {

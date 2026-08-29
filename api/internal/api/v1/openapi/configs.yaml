@@ -111,7 +111,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/FiscalConfigBody' }
+            schema: { $ref: '#/components/schemas/MdfeConfigBody' }
       responses:
         '200': { $ref: '#/components/responses/FiscalConfig' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -171,9 +171,34 @@ components:
           description: '`1` produção · `2` homologação.'
         updated_at: { type: string, format: date-time }
 
+    MdfeConfigBody:
+      type: object
+      description: |
+        Configuração de MDF-e. É a `FiscalConfigBody` mais três campos que só
+        existem no leiaute do MDF-e e recorrem em toda emissão da organização.
+      allOf:
+        - $ref: '#/components/schemas/FiscalConfigBody'
+        - type: object
+          properties:
+            ind_canal_verde:
+              type: boolean
+              description: Participação no Canal Verde → `ide/indCanalVerde` (`1` quando ligado).
+            ind_carrega_posterior:
+              type: boolean
+              description: |
+                A organização inclui DF-e por evento depois de emitir o manifesto
+                → `ide/indCarregaPosterior` (`1` quando ligado).
+            inf_ad_fisco:
+              type: [ string, 'null' ]
+              maxLength: 2000
+              description: |
+                Mensagem de interesse do fisco repetida em toda emissão →
+                `infAdic/infAdFisco`. A observação da viagem continua em
+                `additional_info`, no corpo da emissão.
+
     FiscalConfigBody:
       type: object
-      description: Configuração de NF-e, CT-e e MDF-e.
+      description: Configuração de NF-e e CT-e (o MDF-e usa `MdfeConfigBody`).
       required: [ timezone, environment ]
       properties:
         timezone: { $ref: '#/components/schemas/Timezone' }
@@ -188,6 +213,19 @@ components:
           description: Último número emitido em produção. Reduzi-lo reemite números já usados.
         hom_current_serie: { type: integer, minimum: 0 }
         hom_current_number: { type: integer, minimum: 0 }
+        csrt_id:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Identificador do CSRT (NT 2018.005). Não é segredo — o XML o carrega em claro.
+        csrt:
+          type: [ string, 'null' ]
+          minLength: 36
+          maxLength: 36
+          description: |
+            Código de Segurança do Responsável Técnico. **Write-only**: nunca
+            aparece numa resposta, nem neste PUT. Omiti-lo mantém o valor
+            gravado; só um valor novo o substitui. O que vai no XML é
+            `hashCSRT = Base64(SHA1(CSRT + chave de acesso))`.
 
     NfceConfigBody:
       type: object
@@ -203,10 +241,25 @@ components:
         prod_csc:
           type: string
           maxLength: 36
-          description: Código de Segurança do Contribuinte de produção, usado no QR Code.
+          description: |
+            Código de Segurança do Contribuinte de produção, usado no QR Code.
+            **Write-only**, pelas mesmas regras de `csrt`.
         prod_csc_id: { type: integer, minimum: 1 }
         hom_csc: { type: string, maxLength: 36 }
         hom_csc_id: { type: integer, minimum: 1 }
+        csrt_id:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Identificador do CSRT (NT 2018.005). Não é segredo — o XML o carrega em claro.
+        csrt:
+          type: [ string, 'null' ]
+          minLength: 36
+          maxLength: 36
+          description: |
+            Código de Segurança do Responsável Técnico. **Write-only**: nunca
+            aparece numa resposta, nem neste PUT. Omiti-lo mantém o valor
+            gravado; só um valor novo o substitui. O que vai no XML é
+            `hashCSRT = Base64(SHA1(CSRT + chave de acesso))`.
 
     NfseAbrasfBody:
       type: object

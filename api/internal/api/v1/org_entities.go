@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
@@ -98,6 +99,37 @@ func bindEntityUpdate[T any](c fiber.Ctx) (map[string]any, error) {
 	return structToMap(dto)
 }
 
+// entityValidator é o corpo que tem uma regra que as tags de validação não
+// expressam (um campo obrigatório só em função de outro, por exemplo).
+type entityValidator interface{ Validate() error }
+
+// bindValidatedCreate/Update aplicam essa regra depois do bind genérico.
+func bindValidatedCreate[T entityValidator](c fiber.Ctx) (map[string]types.AttributeValue, error) {
+	var dto T
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := dto.Validate(); err != nil {
+		return nil, err
+	}
+	av, err := structToAV(dto)
+	if err != nil {
+		return nil, problem.InternalServer(err.Error())
+	}
+	return av, nil
+}
+
+func bindValidatedUpdate[T entityValidator](c fiber.Ctx) (map[string]any, error) {
+	var dto T
+	if p := bindJSON(c, &dto); p != nil {
+		return nil, p
+	}
+	if err := dto.Validate(); err != nil {
+		return nil, err
+	}
+	return structToMap(dto)
+}
+
 // RegisterVehicleSets mounts /vehicle-sets under a tenant-scoped group.
 func RegisterVehicleSets(router fiber.Router, svc *services.VehicleSetService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {
@@ -119,6 +151,90 @@ func RegisterPaymentTerms(router fiber.Router, svc *services.PaymentTermService,
 		resource:   "organization_payment_terms",
 		bindCreate: bindEntityCreate[PaymentTermBody],
 		bindUpdate: bindEntityUpdate[PaymentTermBody],
+	})
+}
+
+// RegisterPaymentTerminals mounts /payment-terminals under a tenant-scoped group.
+func RegisterPaymentTerminals(router fiber.Router, svc *services.PaymentTerminalService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/payment-terminals",
+		param:      "payment_terminal_id",
+		resource:   "organization_payment_terminals",
+		bindCreate: bindEntityCreate[PaymentTerminalBody],
+		bindUpdate: bindEntityUpdate[PaymentTerminalBody],
+	})
+}
+
+// RegisterTollProviders mounts /toll-providers under a tenant-scoped group.
+func RegisterTollProviders(router fiber.Router, svc *services.TollProviderService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/toll-providers",
+		param:      "toll_provider_id",
+		resource:   "organization_toll_providers",
+		bindCreate: bindEntityCreate[TollProviderBody],
+		bindUpdate: bindEntityUpdate[TollProviderBody],
+	})
+}
+
+// RegisterCargoUnits mounts /cargo-units under a tenant-scoped group.
+func RegisterCargoUnits(router fiber.Router, svc *services.CargoUnitService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/cargo-units",
+		param:      "cargo_unit_id",
+		resource:   "organization_cargo_units",
+		bindCreate: bindEntityCreate[CargoUnitBody],
+		bindUpdate: bindEntityUpdate[CargoUnitBody],
+	})
+}
+
+// RegisterImportDeclarations mounts /import-declarations under a tenant-scoped group.
+func RegisterImportDeclarations(router fiber.Router, svc *services.ImportDeclarationService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/import-declarations",
+		param:      "import_declaration_id",
+		resource:   "organization_import_declarations",
+		bindCreate: bindValidatedCreate[ImportDeclarationBody],
+		bindUpdate: bindValidatedUpdate[ImportDeclarationBody],
+	})
+}
+
+// RegisterFuelPumps mounts /fuel-pumps under a tenant-scoped group.
+func RegisterFuelPumps(router fiber.Router, svc *services.FuelPumpService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/fuel-pumps",
+		param:      "fuel_pump_id",
+		resource:   "organization_fuel_pumps",
+		bindCreate: bindEntityCreate[FuelPumpBody],
+		bindUpdate: bindEntityUpdate[FuelPumpBody],
+	})
+}
+
+// RegisterProductLots mounts /product-lots under a tenant-scoped group.
+func RegisterProductLots(router fiber.Router, svc *services.ProductLotService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/product-lots",
+		param:      "product_lot_id",
+		resource:   "organization_product_lots",
+		bindCreate: bindValidatedCreate[ProductLotBody],
+		bindUpdate: bindValidatedUpdate[ProductLotBody],
+	})
+}
+
+// RegisterInsurancePolicies mounts /insurance-policies under a tenant-scoped group.
+func RegisterInsurancePolicies(router fiber.Router, svc *services.InsurancePolicyService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/insurance-policies",
+		param:      "insurance_policy_id",
+		resource:   "organization_insurance_policies",
+		bindCreate: bindValidatedCreate[InsurancePolicyBody],
+		bindUpdate: bindValidatedUpdate[InsurancePolicyBody],
 	})
 }
 
@@ -165,6 +281,13 @@ func validateOperationPlaceholders(dto OperationBody) error {
 			continue
 		}
 		if err := services.ValidatePlaceholders(*tpl); err != nil {
+			return err
+		}
+	}
+	// obsCont/obsFisco aceitam os mesmos placeholders: chave desconhecida é 400
+	// aqui, no cadastro, nunca silêncio no XML.
+	for _, obs := range append(append([]ObsBody{}, dto.ObsCont...), dto.ObsFisco...) {
+		if err := services.ValidatePlaceholders(obs.XTexto); err != nil {
 			return err
 		}
 	}

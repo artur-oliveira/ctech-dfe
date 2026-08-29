@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
 	"gopkg.aoctech.app/api-commons/observability"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
@@ -18,7 +19,6 @@ import (
 
 	fws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 )
 
@@ -154,7 +154,7 @@ func RegisterWS(router fiber.Router, verifier *middleware.Verifier, memberSvc *s
 				return
 			}
 
-			connID := uuid.NewString()
+			connID := uuid.New().String()
 			reg.Register(orgPK, connID, safeConn)
 			defer reg.Unregister(orgPK, connID)
 

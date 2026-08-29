@@ -1,6 +1,20 @@
 import axios, {AxiosError, type AxiosAdapter, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse} from 'axios'
 import type {
   OperationCreate,
+  CargoUnitCreate,
+  ImportDeclarationCreate,
+  InsurancePolicyCreate,
+  InsurancePolicyItemOut,
+  ProductLotCreate,
+  ProductLotItemOut,
+  FuelPumpCreate,
+  FuelPumpItemOut,
+  ImportDeclarationItemOut,
+  CargoUnitItemOut,
+  TollProviderCreate,
+  TollProviderItemOut,
+  PaymentTerminalCreate,
+  PaymentTerminalItemOut,
   PaymentTermCreate,
   PaymentTermItemOut,
   VehicleSetCreate,
@@ -15,6 +29,7 @@ import type {
   InvitationOut,
   InvitationPreview,
   LookupOrganizationOut,
+  OpenCnpjOffice,
   MemberOut,
   MdfeCargoPreview,
   MDFeConfigOut,
@@ -84,7 +99,10 @@ import type {
 // environments, and `next dev` proxies it locally (next.config.ts). Either way
 // the browser never makes a cross-origin request, so CORS never applies.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
-const ORG_HEADER = 'Dfe-Organization-Pk'
+export const ORG_HEADER = 'Dfe-Organization-Pk'
+const OPEN_CNPJ_API_URL = 'https://open.cnpja.com'
+const OPEN_CNPJ_DOCUMENT_LENGTH = 14
+const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000
 
 // Retries live here rather than in TanStack: one bounded, jittered budget for
 // the whole app. Retrying in both layers turns three transport attempts into
@@ -267,11 +285,26 @@ function createAxiosInstance(): AxiosInstance {
   return instance
 }
 
+/** Isolado do cliente autenticado para nunca enviar token ou organização a um
+ * serviço público de terceiros. Também não aplica retry automático: o CNPJá
+ * limita cada IP e repetir 429 só consumiria ainda mais a janela. */
+function createOpenCnpjInstance(): AxiosInstance {
+  return axios.create({
+    baseURL: OPEN_CNPJ_API_URL,
+    timeout: HTTP_TIMEOUT_MS,
+    headers: {Accept: 'application/json'},
+  })
+}
+
 class ApiClient {
   private readonly http: AxiosInstance
+  private readonly openCnpjHttp: AxiosInstance
+  private readonly openCnpjCache = new Map<string, {expiresAt: number; value: OpenCnpjOffice}>()
+  private readonly openCnpjPending = new Map<string, Promise<OpenCnpjOffice>>()
 
   constructor() {
     this.http = createAxiosInstance()
+    this.openCnpjHttp = createOpenCnpjInstance()
   }
 
   setToken(token: string | null): void {
@@ -283,6 +316,13 @@ class ApiClient {
    *  in-memory fixture handler. Never call in production paths. */
   setAdapter(adapter: AxiosAdapter): void {
     this.http.defaults.adapter = adapter
+  }
+
+  /** Test seam for the isolated public client. */
+  setOpenCnpjAdapter(adapter: AxiosAdapter): void {
+    this.openCnpjHttp.defaults.adapter = adapter
+    this.openCnpjCache.clear()
+    this.openCnpjPending.clear()
   }
 
   // Auth
@@ -489,6 +529,160 @@ class ApiClient {
 
   async deletePaymentTerm(id: string): Promise<void> {
     return this.del(`/v1.0/payment-terms/${id}`)
+  }
+
+  // Payment terminals (terminais de captura / POS)
+
+  async getPaymentTerminals(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<PaymentTerminalItemOut>> {
+    return this.get('/v1.0/payment-terminals', {params})
+  }
+
+  async getPaymentTerminal(id: string): Promise<PaymentTerminalItemOut> {
+    return this.get(`/v1.0/payment-terminals/${id}`)
+  }
+
+  async createPaymentTerminal(data: PaymentTerminalCreate): Promise<PaymentTerminalItemOut> {
+    return this.post('/v1.0/payment-terminals', data)
+  }
+
+  async updatePaymentTerminal(id: string, data: PaymentTerminalCreate): Promise<PaymentTerminalItemOut> {
+    return this.put(`/v1.0/payment-terminals/${id}`, data)
+  }
+
+  async deletePaymentTerminal(id: string): Promise<void> {
+    return this.del(`/v1.0/payment-terminals/${id}`)
+  }
+
+  // Toll providers (fornecedoras de vale-pedágio)
+
+  async getTollProviders(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<TollProviderItemOut>> {
+    return this.get('/v1.0/toll-providers', {params})
+  }
+
+  async getTollProvider(id: string): Promise<TollProviderItemOut> {
+    return this.get(`/v1.0/toll-providers/${id}`)
+  }
+
+  async createTollProvider(data: TollProviderCreate): Promise<TollProviderItemOut> {
+    return this.post('/v1.0/toll-providers', data)
+  }
+
+  async updateTollProvider(id: string, data: TollProviderCreate): Promise<TollProviderItemOut> {
+    return this.put(`/v1.0/toll-providers/${id}`, data)
+  }
+
+  async deleteTollProvider(id: string): Promise<void> {
+    return this.del(`/v1.0/toll-providers/${id}`)
+  }
+
+  // Cargo units (unidades de transporte e de carga do MDF-e)
+
+  async getCargoUnits(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<CargoUnitItemOut>> {
+    return this.get('/v1.0/cargo-units', {params})
+  }
+
+  async getCargoUnit(id: string): Promise<CargoUnitItemOut> {
+    return this.get(`/v1.0/cargo-units/${id}`)
+  }
+
+  async createCargoUnit(data: CargoUnitCreate): Promise<CargoUnitItemOut> {
+    return this.post('/v1.0/cargo-units', data)
+  }
+
+  async updateCargoUnit(id: string, data: CargoUnitCreate): Promise<CargoUnitItemOut> {
+    return this.put(`/v1.0/cargo-units/${id}`, data)
+  }
+
+  async deleteCargoUnit(id: string): Promise<void> {
+    return this.del(`/v1.0/cargo-units/${id}`)
+  }
+
+  // Import declarations (declarações de importação — NF-e prod/DI)
+
+  async getImportDeclarations(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ImportDeclarationItemOut>> {
+    return this.get('/v1.0/import-declarations', {params})
+  }
+
+  async getImportDeclaration(id: string): Promise<ImportDeclarationItemOut> {
+    return this.get(`/v1.0/import-declarations/${id}`)
+  }
+
+  async createImportDeclaration(data: ImportDeclarationCreate): Promise<ImportDeclarationItemOut> {
+    return this.post('/v1.0/import-declarations', data)
+  }
+
+  async updateImportDeclaration(id: string, data: ImportDeclarationCreate): Promise<ImportDeclarationItemOut> {
+    return this.put(`/v1.0/import-declarations/${id}`, data)
+  }
+
+  async deleteImportDeclaration(id: string): Promise<void> {
+    return this.del(`/v1.0/import-declarations/${id}`)
+  }
+
+  // Insurance policies (apólices de seguro da carga — MDF-e infMDFe/seg)
+
+  async getInsurancePolicies(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<InsurancePolicyItemOut>> {
+    return this.get('/v1.0/insurance-policies', {params})
+  }
+
+  async getInsurancePolicy(id: string): Promise<InsurancePolicyItemOut> {
+    return this.get(`/v1.0/insurance-policies/${id}`)
+  }
+
+  async createInsurancePolicy(data: InsurancePolicyCreate): Promise<InsurancePolicyItemOut> {
+    return this.post('/v1.0/insurance-policies', data)
+  }
+
+  async updateInsurancePolicy(id: string, data: InsurancePolicyCreate): Promise<InsurancePolicyItemOut> {
+    return this.put(`/v1.0/insurance-policies/${id}`, data)
+  }
+
+  async deleteInsurancePolicy(id: string): Promise<void> {
+    return this.del(`/v1.0/insurance-policies/${id}`)
+  }
+
+  // Product lots (lotes de produção — NF-e prod/rastro)
+
+  async getProductLots(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ProductLotItemOut>> {
+    return this.get('/v1.0/product-lots', {params})
+  }
+
+  async getProductLot(id: string): Promise<ProductLotItemOut> {
+    return this.get(`/v1.0/product-lots/${id}`)
+  }
+
+  async createProductLot(data: ProductLotCreate): Promise<ProductLotItemOut> {
+    return this.post('/v1.0/product-lots', data)
+  }
+
+  async updateProductLot(id: string, data: ProductLotCreate): Promise<ProductLotItemOut> {
+    return this.put(`/v1.0/product-lots/${id}`, data)
+  }
+
+  async deleteProductLot(id: string): Promise<void> {
+    return this.del(`/v1.0/product-lots/${id}`)
+  }
+
+  // Fuel pumps (bicos, bombas e tanques — NF-e prod/comb/encerrante)
+
+  async getFuelPumps(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<FuelPumpItemOut>> {
+    return this.get('/v1.0/fuel-pumps', {params})
+  }
+
+  async getFuelPump(id: string): Promise<FuelPumpItemOut> {
+    return this.get(`/v1.0/fuel-pumps/${id}`)
+  }
+
+  async createFuelPump(data: FuelPumpCreate): Promise<FuelPumpItemOut> {
+    return this.post('/v1.0/fuel-pumps', data)
+  }
+
+  async updateFuelPump(id: string, data: FuelPumpCreate): Promise<FuelPumpItemOut> {
+    return this.put(`/v1.0/fuel-pumps/${id}`, data)
+  }
+
+  async deleteFuelPump(id: string): Promise<void> {
+    return this.del(`/v1.0/fuel-pumps/${id}`)
   }
 
   // Vehicle sets (composições veiculares)
@@ -999,6 +1193,45 @@ class ApiClient {
   // External lookups
   async lookupOrganization(cpf_cnpj: string, uf: string): Promise<LookupOrganizationOut> {
     return this.get<LookupOrganizationOut>('/v1.0/external/lookup-organizations', {params: {cpf_cnpj, uf}})
+  }
+
+  /** Consulta pública por CNPJ, com cache curto e deduplicação em memória para
+   * respeitar o limite do CNPJá sem persistir dados de terceiros no browser. */
+  async lookupOpenCnpjOffice(cnpj: string): Promise<OpenCnpjOffice> {
+    const clean = unformatCpfCnpj(cnpj)
+    if (clean.length !== OPEN_CNPJ_DOCUMENT_LENGTH) {
+      throw new ApiError(400, 'Informe um CNPJ válido para consultar o CNPJá.')
+    }
+
+    const cached = this.openCnpjCache.get(clean)
+    if (cached && cached.expiresAt > Date.now()) return cached.value
+
+    const pending = this.openCnpjPending.get(clean)
+    if (pending) return pending
+
+    const request = this.openCnpjHttp.get<OpenCnpjOffice>(`/office/${clean}`)
+      .then(({data}) => {
+        this.openCnpjCache.set(clean, {
+          expiresAt: Date.now() + OPEN_CNPJ_CACHE_TTL_MS,
+          value: data,
+        })
+        return data
+      })
+      .catch(async (error: unknown) => {
+        if (!axios.isAxiosError(error)) throw error
+        const data = error.response?.data as ErrorResponseBody | undefined
+        const status = error.response?.status ?? 0
+        const detail = status === 429
+          ? 'Limite público do CNPJá atingido. Tente novamente em alguns instantes.'
+          : status === 404
+            ? 'CNPJ não localizado no CNPJá.'
+            : data?.detail ?? data?.title ?? error.message ?? 'Erro ao consultar o CNPJá.'
+        throw new ApiError(status, detail, data)
+      })
+      .finally(() => this.openCnpjPending.delete(clean))
+
+    this.openCnpjPending.set(clean, request)
+    return request
   }
 
   async searchPersonsByName(name: string, role?: PersonRole): Promise<PaginatedResponse<PersonItemOut>> {

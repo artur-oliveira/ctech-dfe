@@ -120,6 +120,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	// O posto emite NFC-e: o encerrante da bomba vale aqui tanto quanto na NF-e.
+	pumpReadings, err := applyFuelPumps(ctx, s.fuelPumpRepo, orgPK, items, productItems)
+	if err != nil {
+		return nil, err
+	}
 	// C0: ver o comentário equivalente em emit.go.
 	mode := NormalEmission(nfModel65)
 	if err := mode.Validate(); err != nil {
@@ -156,6 +161,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		receiverAny = map[string]any{"sk": receiverSK, "name": destName}
 	}
 
+	terminals, err := resolvePaymentTerminals(ctx, s.paymentTerminalRepo, orgPK, req.Payments)
+	if err != nil {
+		return nil, err
+	}
+
 	// Payments + troco.
 	paymentsAny := make([]map[string]any, 0, len(req.Payments))
 	summaryPayments := make([]map[string]any, 0, len(req.Payments))
@@ -167,6 +177,12 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		}
 		if p.Card != nil {
 			pm["card"] = p.Card
+		}
+		if p.TerminalID != nil {
+			pm["terminal_id"] = terminalSK(*p.TerminalID)
+		}
+		if p.XPag != nil {
+			pm["x_pag"] = *p.XPag
 		}
 		paymentsAny = append(paymentsAny, pm)
 		summaryPayments = append(summaryPayments, map[string]any{"payment_type": p.PaymentType, "value": p.Value})
@@ -191,6 +207,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		s.tech, nfModel65, supl,
 		nil, nil,
 		mode,
+		docExtras{
+			PaymentTerminals: terminals,
+			CsrtID:           strAttr(configItem, csrtIDField),
+			Csrt:             strAttr(configItem, csrtField),
+		},
 	)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))
@@ -269,8 +290,9 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 
+	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if err := s.nfceRepo.TransactReserveAndCreate(
-		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded, outboxTx,
+		ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, nfceEncoded, txItems...,
 	); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número da NFC-e. Tente novamente.")

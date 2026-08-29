@@ -346,6 +346,706 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Terminais de pagamento ─────────────────────────────────────────────────
+
+  /v1.0/payment-terminals:
+    get:
+      tags: [ PaymentTerminals ]
+      summary: Lista terminais de pagamento
+      operationId: listPaymentTerminals
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de terminais de pagamento
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ PaymentTerminals ]
+      summary: Cria um terminal de pagamento
+      operationId: createPaymentTerminal
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTerminalBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/payment-terminals/{payment_terminal_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: payment_terminal_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ PaymentTerminals ]
+      summary: Detalha um terminal de pagamento
+      operationId: getPaymentTerminal
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ PaymentTerminals ]
+      summary: Atualiza um terminal de pagamento
+      operationId: updatePaymentTerminal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentTerminalBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentTerminalItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ PaymentTerminals ]
+      summary: Remove um terminal de pagamento
+      operationId: deletePaymentTerminal
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Fornecedoras de vale-pedágio ───────────────────────────────────────────
+
+  /v1.0/toll-providers:
+    get:
+      tags: [ TollProviders ]
+      summary: Lista fornecedoras de vale-pedágio
+      operationId: listTollProviders
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de fornecedoras de vale-pedágio
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ TollProviders ]
+      summary: Cria uma fornecedora de vale-pedágio
+      operationId: createTollProvider
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TollProviderBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/toll-providers/{toll_provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: toll_provider_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ TollProviders ]
+      summary: Detalha uma fornecedora de vale-pedágio
+      operationId: getTollProvider
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ TollProviders ]
+      summary: Atualiza uma fornecedora de vale-pedágio
+      operationId: updateTollProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TollProviderBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TollProviderItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ TollProviders ]
+      summary: Remove uma fornecedora de vale-pedágio
+      operationId: deleteTollProvider
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Unidades de transporte e de carga ──────────────────────────────────────
+
+  /v1.0/cargo-units:
+    get:
+      tags: [ CargoUnits ]
+      summary: Lista unidades de transporte e de carga
+      operationId: listCargoUnits
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de unidades
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ CargoUnits ]
+      summary: Cria uma unidade de transporte ou de carga
+      operationId: createCargoUnit
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CargoUnitBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/cargo-units/{cargo_unit_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: cargo_unit_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ CargoUnits ]
+      summary: Detalha uma unidade
+      operationId: getCargoUnit
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ CargoUnits ]
+      summary: Atualiza uma unidade
+      operationId: updateCargoUnit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CargoUnitBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CargoUnitItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ CargoUnits ]
+      summary: Remove uma unidade
+      operationId: deleteCargoUnit
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Declarações de importação ──────────────────────────────────────────────
+
+  /v1.0/import-declarations:
+    get:
+      tags: [ ImportDeclarations ]
+      summary: Lista declarações de importação
+      operationId: listImportDeclarations
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de declarações
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ImportDeclarations ]
+      summary: Cria uma declaração de importação
+      operationId: createImportDeclaration
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportDeclarationBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/import-declarations/{import_declaration_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: import_declaration_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ImportDeclarations ]
+      summary: Detalha uma declaração
+      operationId: getImportDeclaration
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ImportDeclarations ]
+      summary: Atualiza uma declaração
+      operationId: updateImportDeclaration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportDeclarationBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportDeclarationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ImportDeclarations ]
+      summary: Remove uma declaração
+      operationId: deleteImportDeclaration
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Bombas de combustível ──────────────────────────────────────────────────
+
+  /v1.0/fuel-pumps:
+    get:
+      tags: [ FuelPumps ]
+      summary: Lista bicos, bombas e tanques
+      operationId: listFuelPumps
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de bombas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ FuelPumps ]
+      summary: Cria uma bomba
+      operationId: createFuelPump
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuelPumpBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/fuel-pumps/{fuel_pump_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: fuel_pump_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ FuelPumps ]
+      summary: Detalha uma bomba
+      operationId: getFuelPump
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ FuelPumps ]
+      summary: Atualiza uma bomba
+      operationId: updateFuelPump
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuelPumpBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FuelPumpItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ FuelPumps ]
+      summary: Remove uma bomba
+      operationId: deleteFuelPump
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Lotes de produção ──────────────────────────────────────────────────────
+
+  /v1.0/product-lots:
+    get:
+      tags: [ ProductLots ]
+      summary: Lista lotes de produção
+      operationId: listProductLots
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de lotes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ProductLots ]
+      summary: Cria um lote de produção
+      operationId: createProductLot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductLotBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/product-lots/{product_lot_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: product_lot_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ProductLots ]
+      summary: Detalha um lote
+      operationId: getProductLot
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ProductLots ]
+      summary: Atualiza um lote
+      operationId: updateProductLot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductLotBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductLotItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ProductLots ]
+      summary: Remove um lote
+      operationId: deleteProductLot
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Apólices de seguro ─────────────────────────────────────────────────────
+
+  /v1.0/insurance-policies:
+    get:
+      tags: [ InsurancePolicies ]
+      summary: Lista apólices de seguro da carga
+      operationId: listInsurancePolicies
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de apólices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ InsurancePolicies ]
+      summary: Cria uma apólice de seguro
+      operationId: createInsurancePolicy
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InsurancePolicyBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/insurance-policies/{insurance_policy_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: insurance_policy_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ InsurancePolicies ]
+      summary: Detalha uma apólice
+      operationId: getInsurancePolicy
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ InsurancePolicies ]
+      summary: Atualiza uma apólice
+      operationId: updateInsurancePolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InsurancePolicyBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InsurancePolicyItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ InsurancePolicies ]
+      summary: Remove uma apólice
+      operationId: deleteInsurancePolicy
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Composições veiculares ─────────────────────────────────────────────────
 
   /v1.0/vehicle-sets:
@@ -531,6 +1231,114 @@ components:
             `{{cliente}}`, `{{nat_op}}`, `{{competencia}}`. Chave desconhecida é
             erro de validação **no cadastro**, nunca interpolação em branco no XML.
         inf_cpl: { type: [ string, 'null' ], maxLength: 5000 }
+        export_uf_saida_pais:
+          type: [ string, 'null' ]
+          description: UF de saída do país (`infNFe/exporta/UFSaidaPais`).
+        export_loc_despacho_index:
+          type: [ integer, 'null' ]
+          description: |
+            Índice em `organizations.pickup_locations` do recinto de despacho —
+            o endereço é referenciado, nunca recopiado.
+        ret_trib:
+          type: [ object, 'null' ]
+          description: |
+            Perfil de retenções federais do cenário (`total/retTrib`). Só os
+            percentuais ficam aqui; `vRetPIS`, `vRetCOFINS`, `vRetCSLL`,
+            `vIRRF` e `vRetPrev` são calculados sobre a base da nota.
+          properties:
+            p_ret_pis: { type: [ string, 'null' ] }
+            p_ret_cofins: { type: [ string, 'null' ] }
+            p_ret_csll: { type: [ string, 'null' ] }
+            p_ret_irrf: { type: [ string, 'null' ] }
+            p_ret_prev_inss: { type: [ string, 'null' ] }
+        intermediary_person_id:
+          type: [ string, 'null' ]
+          description: |
+            Pessoa (papel `intermediary`) do marketplace/plataforma do cenário.
+            Vira `infNFe/infIntermed` — `CNPJ` do sk e `idCadIntTran` de
+            `person.intermediary_id`. Uma operação por canal de venda.
+        ind_intermed:
+          type: [ string, 'null' ]
+          enum: [ '0', '1', null ]
+          description: '`0` site/plataforma própria · `1` plataforma de terceiros (`ide/indIntermed`).'
+        dh_sai_ent_offset_days:
+          type: [ integer, 'null' ]
+          minimum: 0
+          maximum: 365
+          description: |
+            Prazo padrão de saída da mercadoria, em dias corridos a partir da
+            emissão (`ide/dhSaiEnt`). Quem despacha sempre no dia seguinte
+            cadastra `1` e nunca mais digita a data; `dh_sai_ent` no request
+            vence.
+        c_ind_op:
+          type: [ string, 'null' ]
+          pattern: '^\d{6}$'
+          description: Código indicador do local da operação de fornecimento (`ide/cIndOp`).
+        c_mun_fg_ibs:
+          type: [ string, 'null' ]
+          pattern: '^\d{7}$'
+          description: |
+            Município do fato gerador do IBS/CBS (`ide/cMunFGIBS`). O leiaute só
+            o aceita quando `ind_pres` é 5 e não há endereço de destinatário nem
+            local de entrega.
+        tp_nf_debito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', '07', '08', null ]
+          description: |
+            Motivo da nota de débito (`ide/tpNFDebito`, `TTpNFDebito`):
+            `01` transferência de créditos para cooperativas ·
+            `02` anulação de crédito por saídas imunes/isentas ·
+            `03` débitos de notas não processadas na apuração ·
+            `04` multa e juros · `05` transferência de crédito na sucessão ·
+            `06` pagamento antecipado · `07` perda em estoque ·
+            `08` desenquadramento do Simples Nacional.
+        tp_nf_credito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', null ]
+          description: |
+            Motivo da nota de crédito (`ide/tpNFCredito`, `TTpNFCredito`):
+            `01` multa e juros ·
+            `02` crédito presumido de IBS sobre saldo devedor na ZFM ·
+            `03` retorno por recusa na entrega ou destinatário não localizado ·
+            `04` redução de valores · `05` transferência de crédito na sucessão ·
+            `06` retorno por recusa parcial na entrega.
+        compra_gov_tp_ente:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', '4', '5', '6', null ]
+          description: |
+            Ente governamental (`ide/gCompraGov/tpEnteGov`): `1` União ·
+            `2` Estados · `3` DF · `4` Municípios · `5` Consórcio Público ·
+            `6` Comitê Gestor do IBS. Presente, habilita o grupo.
+        compra_gov_p_redutor:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: Percentual de redução de alíquota em compra governamental.
+        compra_gov_tp_oper:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', '4', null ]
+          description: |
+            Tipo da operação (`tpOperGov`): `1` fornecimento com pagamento
+            posterior · `2` recebimento do pagamento com fornecimento já
+            realizado · `3` fornecimento com pagamento já realizado ·
+            `4` recebimento do pagamento com fornecimento posterior.
+
+            A regra do `refDFeAnt` é validada na emissão: **obrigatório** em 2 e
+            3, **vedado** em 1 e 4, e no tipo 2 aceita **uma** chave só.
+        compra_x_n_emp:
+          type: [ string, 'null' ]
+          minLength: 1
+          maxLength: 22
+          description: |
+            Nota de empenho da venda a órgão público (`infNFe/compra/xNEmp`).
+            Quem vende por empenho vende sempre por empenho; pedido e contrato
+            variam por nota e vão no request de emissão.
+        cana_safra:
+          type: [ string, 'null' ]
+          minLength: 4
+          maxLength: 9
+          description: |
+            Safra do registro de aquisição de cana (`infNFe/cana/safra`), ex.
+            `2025/2026`. Sem ela cadastrada, a emissão com `cana` é 400.
         requires_receiver:
           type: [ boolean, 'null' ]
           description: '`false` habilita emissão sem destinatário (self_issuance).'
@@ -590,6 +1398,282 @@ components:
         name: { type: string }
         payment_type: { type: string }
         installments: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PaymentTerminalBody:
+      type: object
+      description: |
+        Terminal de captura (POS). CNPJ recebedor e identificador do terminal são
+        invariantes por maquininha: a NFC-e só aponta `terminal_id` no pagamento
+        e o builder preenche `detPag/CNPJPag`, `detPag/UFPag`, `card/CNPJReceb`
+        e `card/idTermPag`.
+      required: [ name, cnpj_receb, id_term_pag ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cnpj_receb:
+          type: string
+          description: CNPJ do estabelecimento credenciado que recebe o pagamento.
+        id_term_pag:
+          type: string
+          maxLength: 40
+          description: Identificador do terminal, atribuído pela adquirente.
+        cnpj_pag:
+          type: [ string, 'null' ]
+          description: |
+            Pagador institucional, quando a operação de pagamento ocorre fora do
+            estabelecimento emitente. `uf_pag` só é válido acompanhado dele.
+        uf_pag: { type: [ string, 'null' ] }
+        t_band:
+          type: [ string, 'null' ]
+          maxLength: 2
+          description: Bandeira default (`card/tBand`). Sobrescrevível na emissão.
+
+    PaymentTerminalItem:
+      type: object
+      description: Terminal de pagamento persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        cnpj_receb: { type: string }
+        id_term_pag: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TollProviderBody:
+      type: object
+      description: |
+        Fornecedora de vale-pedágio. O vale é obrigatório no transporte
+        rodoviário de carga (Lei 10.209); a fornecedora e o pagador são
+        invariantes, então por viagem só entram `n_compra` e `v_vale_ped` no
+        corpo da emissão do MDF-e (`toll_vouchers[]`).
+      required: [ name, cnpj_forn ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cnpj_forn: { type: string, description: CNPJ da fornecedora do vale-pedágio. }
+        cnpj_pg:
+          type: [ string, 'null' ]
+          description: Pagador do vale quando não é o emitente. Choice com `cpf_pg` — nunca os dois.
+        cpf_pg: { type: [ string, 'null' ] }
+        tp_vale_ped:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', null ]
+          description: '`01` TAG · `02` cupom · `03` cartão.'
+
+    TollProviderItem:
+      type: object
+      description: Fornecedora de vale-pedágio persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        cnpj_forn: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CargoUnitBody:
+      type: object
+      description: |
+        Unidade de transporte (carreta, vagão) ou de carga (contêiner, pallet).
+        Recorre entre viagens, então identificação, tipo e lacres fixos ficam no
+        cadastro. O rateio (`qtdRat`) **não** vive aqui: é calculado dos pesos
+        dos documentos a cada manifesto.
+      required: [ name, kind, tp_unid, id_unid ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        kind:
+          type: string
+          enum: [ transport, cargo ]
+          description: Separa `infUnidTransp` de `infUnidCarga` — mesma estrutura, nó diferente.
+        tp_unid:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7' ]
+          description: |
+            `tpUnidTransp`: 1 rodoviário tração · 2 rodoviário reboque · 3 navio ·
+            4 balsa · 5 aeronave · 6 vagão · 7 outros.
+            `tpUnidCarga`: 1 contêiner · 2 ULD · 3 pallet · 4 outros.
+        id_unid: { type: string, maxLength: 20, description: Placa, número do contêiner ou do vagão. }
+        seals:
+          type: array
+          description: Lacres fixos da unidade (`lacUnidTransp` / `lacUnidCarga`).
+          items: { type: string, maxLength: 60 }
+
+    CargoUnitItem:
+      type: object
+      description: Unidade de transporte ou de carga persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        tp_unid: { type: string }
+        id_unid: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FuelPumpBody:
+      type: object
+      description: |
+        Bico, bomba e tanque do posto. A leitura do encerrante
+        (`last_v_enc_fin`) **não** entra aqui: ela é escrita pela emissão, na
+        mesma transação que reserva o número da nota. O `vEncIni` de cada venda
+        é o `vEncFin` da venda anterior da mesma bomba.
+      required: [ name, n_bico ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        n_bico: { type: string, maxLength: 3, description: '`encerrante/nBico`.' }
+        n_bomba: { type: string, maxLength: 3, description: '`encerrante/nBomba`.' }
+        n_tanque: { type: string, maxLength: 3, description: '`encerrante/nTanque`.' }
+
+    FuelPumpItem:
+      type: object
+      description: Bomba persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        n_bico: { type: string }
+        last_v_enc_fin:
+          type: string
+          description: |
+            Última leitura final gravada pela emissão. Somente leitura — o PUT
+            não a altera.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ProductLotBody:
+      type: object
+      description: |
+        Lote de produção (`prod/rastro`). O lote é do produto e reaparece em
+        várias notas até acabar, por isso é cadastro: a emissão só aponta qual
+        lote saiu no item, e a quantidade (`qLote`) é rateada da quantidade
+        vendida.
+      required: [ name, product_id, n_lote, q_lote, d_fab, d_val ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        product_id:
+          type: string
+          description: Produto que fabricou o lote. Um lote não sai no item de outro produto (400).
+        n_lote: { type: string, maxLength: 20 }
+        q_lote:
+          type: string
+          description: Quantidade produzida no lote. A quantidade que sai por nota vem do item.
+        d_fab: { type: string, format: date }
+        d_val:
+          type: string
+          format: date
+          description: Não pode ser anterior a `d_fab` — validado no cadastro.
+        c_agreg: { type: [ string, 'null' ], maxLength: 20 }
+
+    ProductLotItem:
+      type: object
+      description: Lote de produção persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        product_id: { type: string }
+        n_lote: { type: string }
+        d_val: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    InsurancePolicyBody:
+      type: object
+      description: |
+        Apólice de seguro da carga (`infMDFe/seg`). A apólice e a seguradora
+        recorrem entre viagens; por viagem muda só a averbação, que vai no
+        corpo da emissão do MDF-e.
+      required: [ name, resp_seg ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        resp_seg:
+          type: string
+          enum: [ '1', '2' ]
+          description: '`1` emitente do MDF-e · `2` contratante do serviço de transporte.'
+        cnpj:
+          type: [ string, 'null' ]
+          description: Documento do responsável, obrigatório quando `resp_seg = 2`. Exclusivo com `cpf`.
+        cpf: { type: [ string, 'null' ] }
+        x_seg:
+          type: [ string, 'null' ]
+          minLength: 2
+          maxLength: 30
+          description: Nome da seguradora. Informado junto com `cnpj_seg` ou nenhum dos dois.
+        cnpj_seg: { type: [ string, 'null' ] }
+        n_apol: { type: [ string, 'null' ], maxLength: 20 }
+
+    InsurancePolicyItem:
+      type: object
+      description: Apólice de seguro persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        resp_seg: { type: string }
+        n_apol: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ImportDeclarationBody:
+      type: object
+      description: |
+        Declaração de importação. Uma DI cobre várias notas e vários itens, por
+        isso é cadastro e não campo de emissão: o item só aponta qual adição o
+        representa, e `nAdicao`/`nSeqAdic` saem desse vínculo.
+      required: [ name, n_di, d_di, x_loc_desemb, uf_desemb, d_desemb, tp_via_transp, tp_intermedio, c_exportador, additions ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        n_di: { type: string, maxLength: 15 }
+        d_di: { type: string, format: date }
+        x_loc_desemb: { type: string, maxLength: 60 }
+        uf_desemb: { $ref: '#/components/schemas/Uf' }
+        d_desemb: { type: string, format: date }
+        tp_via_transp:
+          type: string
+          pattern: '^\d{2}$'
+          description: '`01` marítima … `12` por reboque (TViaTransp).'
+        v_afrmm:
+          type: [ string, 'null' ]
+          description: Obrigatório quando `tp_via_transp = 01` (marítima) — validado no cadastro.
+        tp_intermedio:
+          type: string
+          enum: [ '1', '2', '3' ]
+          description: '`1` conta própria · `2` conta e ordem · `3` encomenda.'
+        cnpj: { type: [ string, 'null' ] }
+        uf_terceiro: { type: [ string, 'null' ] }
+        c_exportador: { type: string, maxLength: 60 }
+        additions:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ImportAdditionBody' }
+
+    ImportAdditionBody:
+      type: object
+      required: [ n_adicao, c_fabricante ]
+      properties:
+        n_adicao: { type: string, maxLength: 3 }
+        c_fabricante: { type: string, maxLength: 60 }
+        v_desc_di: { type: [ string, 'null' ] }
+        n_draw: { type: [ string, 'null' ], maxLength: 20 }
+
+    ImportDeclarationItem:
+      type: object
+      description: Declaração de importação persistida.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        name: { type: string }
+        n_di: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

@@ -12,7 +12,7 @@ reserva do contador + item em `nfses` + comando em `worker_outbox`). A diferenç
 de 44 dígitos que geramos; NFS-e usa `id_dps`, porque a chave da NFS-e só existe depois da resposta do fisco (spec
 §3.4). No worker, `docType == "nfse"` roteia para `dfe.Call` in-process — nunca `invokePyDfe`, que não tem NFS-e.
 
-**Tech Stack:** Go 1.26, Fiber v3, aws-sdk-go-v2, `go.uber.org/fx`, DynamoDB, S3, SNS/SQS, Valkey (cache).
+**Tech Stack:** go 1.27, Fiber v3, aws-sdk-go-v2, `go.uber.org/fx`, DynamoDB, S3, SNS/SQS, Valkey (cache).
 
 **Spec:** `docs/specs/2026-08-04-nfse-design.md` §5, §6, §3.4, §3.5, §3.6.
 

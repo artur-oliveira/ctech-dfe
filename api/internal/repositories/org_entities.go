@@ -22,11 +22,39 @@ const (
 	TableOperations   = "organization_operations"
 	TablePaymentTerms = "organization_payment_terms"
 	TableVehicleSets  = "organization_vehicle_sets"
+	// TablePaymentTerminals guarda os terminais de captura (POS): CNPJ recebedor
+	// e identificador do terminal são invariantes por maquininha.
+	TablePaymentTerminals = "organization_payment_terminals"
+	// TableTollProviders guarda as fornecedoras de vale-pedágio: CNPJ da
+	// fornecedora e do pagador são invariantes; por viagem muda só nº e valor.
+	TableTollProviders = "organization_toll_providers"
+	// TableCargoUnits guarda as unidades de transporte e de carga (carreta,
+	// vagão, contêiner, pallet): identificação e tipo recorrem entre viagens.
+	TableCargoUnits = "organization_cargo_units"
+	// TableImportDeclarations guarda as declarações de importação: uma DI cobre
+	// várias notas e vários itens, então ela é cadastro, não campo de emissão.
+	TableImportDeclarations = "organization_import_declarations"
+	// TableInsurancePolicies guarda as apólices de seguro da carga: a apólice e
+	// a seguradora recorrem entre viagens; por viagem muda só a averbação.
+	TableInsurancePolicies = "organization_insurance_policies"
+	// TableProductLots guarda os lotes de produção (prod/rastro): o lote é do
+	// produto e reaparece em várias notas até acabar.
+	TableProductLots = "organization_product_lots"
+	// TableFuelPumps guarda bicos, bombas e tanques do posto, mais a última
+	// leitura do encerrante — que a emissão escreve, não o usuário.
+	TableFuelPumps = "organization_fuel_pumps"
 
-	SKPrefixTaxProfile  = "TAXPROFILE_"
-	SKPrefixOperation   = "OPERATION_"
-	SKPrefixPaymentTerm = "PAYMENTTERM_"
-	SKPrefixVehicleSet  = "VEHICLESET_"
+	SKPrefixTaxProfile      = "TAXPROFILE_"
+	SKPrefixOperation       = "OPERATION_"
+	SKPrefixPaymentTerm     = "PAYMENTTERM_"
+	SKPrefixVehicleSet      = "VEHICLESET_"
+	SKPrefixPaymentTerminal = "TERMINAL_"
+	SKPrefixTollProvider    = "TOLLPROVIDER_"
+	SKPrefixCargoUnit       = "CARGOUNIT_"
+	SKPrefixImportDI        = "IMPORTDI_"
+	SKPrefixInsurance       = "INSURANCE_"
+	SKPrefixProductLot      = "PRODUCTLOT_"
+	SKPrefixFuelPump        = "FUELPUMP_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -182,6 +210,56 @@ type VehicleSetRepository struct{ OrgEntityRepository }
 
 func NewVehicleSetRepository(db *dynamodb.Client, cfg *config.Config) *VehicleSetRepository {
 	return &VehicleSetRepository{newOrgEntityRepository(db, cfg, TableVehicleSets, SKPrefixVehicleSet)}
+}
+
+// PaymentTerminalRepository — organization_payment_terminals. Um terminal de
+// captura tem CNPJ recebedor e id próprios, invariantes por maquininha.
+type PaymentTerminalRepository struct{ OrgEntityRepository }
+
+func NewPaymentTerminalRepository(db *dynamodb.Client, cfg *config.Config) *PaymentTerminalRepository {
+	return &PaymentTerminalRepository{newOrgEntityRepository(db, cfg, TablePaymentTerminals, SKPrefixPaymentTerminal)}
+}
+
+// TollProviderRepository — organization_toll_providers.
+type TollProviderRepository struct{ OrgEntityRepository }
+
+func NewTollProviderRepository(db *dynamodb.Client, cfg *config.Config) *TollProviderRepository {
+	return &TollProviderRepository{newOrgEntityRepository(db, cfg, TableTollProviders, SKPrefixTollProvider)}
+}
+
+// CargoUnitRepository — organization_cargo_units.
+type CargoUnitRepository struct{ OrgEntityRepository }
+
+func NewCargoUnitRepository(db *dynamodb.Client, cfg *config.Config) *CargoUnitRepository {
+	return &CargoUnitRepository{newOrgEntityRepository(db, cfg, TableCargoUnits, SKPrefixCargoUnit)}
+}
+
+// ImportDeclarationRepository — organization_import_declarations.
+type ImportDeclarationRepository struct{ OrgEntityRepository }
+
+func NewImportDeclarationRepository(db *dynamodb.Client, cfg *config.Config) *ImportDeclarationRepository {
+	return &ImportDeclarationRepository{newOrgEntityRepository(db, cfg, TableImportDeclarations, SKPrefixImportDI)}
+}
+
+// FuelPumpRepository — organization_fuel_pumps.
+type FuelPumpRepository struct{ OrgEntityRepository }
+
+func NewFuelPumpRepository(db *dynamodb.Client, cfg *config.Config) *FuelPumpRepository {
+	return &FuelPumpRepository{newOrgEntityRepository(db, cfg, TableFuelPumps, SKPrefixFuelPump)}
+}
+
+// ProductLotRepository — organization_product_lots.
+type ProductLotRepository struct{ OrgEntityRepository }
+
+func NewProductLotRepository(db *dynamodb.Client, cfg *config.Config) *ProductLotRepository {
+	return &ProductLotRepository{newOrgEntityRepository(db, cfg, TableProductLots, SKPrefixProductLot)}
+}
+
+// InsurancePolicyRepository — organization_insurance_policies.
+type InsurancePolicyRepository struct{ OrgEntityRepository }
+
+func NewInsurancePolicyRepository(db *dynamodb.Client, cfg *config.Config) *InsurancePolicyRepository {
+	return &InsurancePolicyRepository{newOrgEntityRepository(db, cfg, TableInsurancePolicies, SKPrefixInsurance)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

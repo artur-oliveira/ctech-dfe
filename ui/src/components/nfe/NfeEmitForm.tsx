@@ -6,16 +6,30 @@ import {useRouter} from 'next/navigation'
 import {useQuery} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {apiClient} from '@/lib/api/client'
+import {duplicataSumGap, paymentBalanceGap, SUM_TOLERANCE, unitDataGap} from '@/lib/utils/emit-guards'
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
 import {Textarea} from '@/components/ui/textarea'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
 import {NumericInput} from '@/components/ui/numeric-input'
+import {Combobox} from '@/components/ui/combobox'
+import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {CurrencyInput} from '@/components/ui/currency-input'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {CollapsibleSection} from '@/components/ui/collapsible-section'
+import {datetimeLocalToOffset} from '@/lib/utils/datetime'
+import {AccessKeyPicker} from '@/components/nfe/AccessKeyPicker'
+import {
+  COMPRA_GOV_TP_OPER_COM_REFERENCIA,
+  COMPRA_GOV_TP_OPER_REFERENCIA_UNICA,
+} from '@/lib/data/ibs_cbs_reform'
+import {
+  EMPTY_NICHE_GROUPS,
+  NicheGroupsFields,
+  type NicheGroupsValue,
+} from '@/components/nfe/NicheGroupsFields'
 import {Modal} from '@/components/ui/modal'
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
 import {EmitError} from '@/components/ui/emit-error'
@@ -26,13 +40,18 @@ import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {StepIndicator} from '@/components/ui/step-indicator'
 import type {
   NfeArmaIn,
+  NfeIBSCBSPairIn,
   NfeCardIn,
   NfeDuplicataIn,
   NfeEmit,
   NfeFatIn,
   NfeListOut,
   NfeLocalIn,
+  NfeProcRefIn,
+  NfeRefIn,
+  NfeReboqueIn,
   NfeTransportIn,
+  NfeVolIn,
   PersonCreate,
   PersonItemOut,
   ProductOut,
@@ -43,7 +62,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {queryKeys} from '@/lib/api/query-keys'
 import {PersonForm} from '@/components/persons/PersonForm'
 import {PersonPicker} from '@/components/persons/PersonPicker'
-import {MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
+import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {resolveCfopScope} from '@/lib/data/cfop'
 import {formatCpfCnpj, unformatCpfCnpj} from "@/lib/utils/document"
@@ -53,6 +72,7 @@ import {
   cfopGroupCodes,
   cfopSuffix,
   cfopTpNf,
+  getAllCfopOptions,
   groupCfopConfigBySuffix,
   NO_PAYMENT_CFOPS,
   resolveCfopForUf
@@ -65,6 +85,9 @@ import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options"
 import {previewInstallments} from "@/lib/schemas/payment-terms"
 import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
 import {LocationPicker} from "@/components/nfe/LocationPicker"
+import {NfeRefsPicker} from "@/components/nfe/NfeRefsPicker"
+import {VolumesFields} from "@/components/nfe/VolumesFields"
+import {finNFeRequiresRef} from "@/lib/schemas/nfe-refs"
 
 // ─── Local state types ────────────────────────────────────────────────────────
 
@@ -83,6 +106,42 @@ interface EmitProduct {
   veic_x_cor?: string
   // arma — por unidade (list)
   armas?: NfeArmaIn[]
+  // Pedido de compra do cliente (prod/xPed, prod/nItemPed) — controle B2B.
+  x_ped?: string
+  n_item_ped?: string
+  // Grupos apurados da reforma. transf_cred e ajuste_compet substituem a
+  // apuração normal do item (choice do XSD); estorno_cred convive com ela.
+  reform_mode?: ReformItemMode
+  reform_v_ibs?: string
+  reform_v_cbs?: string
+  estorno_v_ibs?: string
+  estorno_v_cbs?: string
+}
+
+/**
+ * Ramo escolhido do choice de apuração da reforma no item. O radio existe para
+ * que o operador não possa marcar dois — o XSD os declara alternativos, e a
+ * alternativa seria descobrir isso na rejeição.
+ */
+type ReformItemMode = 'none' | 'transf_cred' | 'ajuste_compet'
+
+const REFORM_ITEM_MODE_OPTIONS: { value: ReformItemMode; label: string }[] = [
+  {value: 'none', label: 'Apuração normal'},
+  {value: 'transf_cred', label: 'Transferência de crédito'},
+  {value: 'ajuste_compet', label: 'Ajuste de competência'},
+]
+
+/** Par IBS/CBS do ramo escolhido; null quando o item não usa aquele ramo. */
+function reformPair(item: EmitProduct, mode: ReformItemMode): NfeIBSCBSPairIn | null {
+  if ((item.reform_mode ?? 'none') !== mode) return null
+  if (!item.reform_v_ibs && !item.reform_v_cbs) return null
+  return {v_ibs: item.reform_v_ibs || null, v_cbs: item.reform_v_cbs || null}
+}
+
+/** Estorno de crédito do item — convive com qualquer ramo da apuração. */
+function estornoPair(item: EmitProduct): NfeIBSCBSPairIn | null {
+  if (!item.estorno_v_ibs && !item.estorno_v_cbs) return null
+  return {v_ibs: item.estorno_v_ibs || null, v_cbs: item.estorno_v_cbs || null}
 }
 
 interface EmitPayment {
@@ -90,6 +149,8 @@ interface EmitPayment {
   value: string
   ind_pag: '0' | '1'
   card: NfeCardIn | null
+  /** Terminal de captura que processou o pagamento, quando houver. */
+  terminal_id: string | null
 }
 
 interface EmitTransport {
@@ -119,6 +180,34 @@ function computeTotal(p: EmitProduct): number {
 
 function fmt(n: number): string {
   return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+}
+
+/** Tabela estática: recriar por render invalida o memo do Combobox. */
+const ALL_CFOP_OPTIONS = getAllCfopOptions()
+
+/** Placa Mercosul (ABC1D23) ou o padrão antigo (ABC1234) — nada mais entra no XML. */
+const PLATE_RE = /^[A-Z]{3}\d[A-Z0-9]\d{2}$/
+
+/** Data de hoje em ISO — piso de vencimento: duplicata vencida antes da emissão é rejeição. */
+function todayIso(): string {
+  return localIso().slice(0, 10)
+}
+
+/** Agora no formato do input datetime-local (hora local, não UTC). */
+function localIso(): string {
+  const now = new Date()
+  const offsetMs = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function itemUnitDataGap(item: EmitProduct): string | null {
+  return unitDataGap({
+    prodType: item.product.prod_type,
+    chassi: item.veic_chassi,
+    nSerie: item.veic_n_serie,
+    nMotor: item.veic_n_motor,
+    armaCount: (item.armas ?? []).length,
+  })
 }
 
 // ─── Receiver search ──────────────────────────────────────────────────────────
@@ -408,6 +497,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
   const total = computeTotal(item)
   const isVeiculo = item.product.prod_type === 'veiculo'
   const isArma = item.product.prod_type === 'arma'
+  const unitDataGap = itemUnitDataGap(item)
 
   const [newArma, setNewArma] = useState<NfeArmaIn>({n_serie: '', n_cano: '', descr: ''})
 
@@ -451,11 +541,12 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
               }}
               options={cfopOptions} placeholder="CFOP"/>
           ) : (
-            <Input id={`nfe-item-${index}-cfop`} type="text" value={item.cfop} onChange={(e) => onChange(index, {cfop: e.target.value})}
-                   maxLength={4} placeholder="5102"/>
+            <Combobox id={`nfe-item-${index}-cfop`} value={item.cfop} options={ALL_CFOP_OPTIONS}
+                      onValueChange={(v) => onChange(index, {cfop: v})}
+                      placeholder="CFOP" searchPlaceholder="Código ou descrição..."/>
           )}
           {cfopUfUnknown && (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-danger">
               Selecione um destinatário com UF para definir o CFOP.
             </span>
           )}
@@ -467,6 +558,10 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         </>
       }
     >
+
+      {unitDataGap && (
+        <p role="alert" className="text-[0.8rem] text-danger">{unitDataGap}</p>
+      )}
 
       {/* ── Veículo — dados por unidade ───────────────────────────── */}
       {isVeiculo && (
@@ -506,6 +601,91 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
           </div>
         </div>
       )}
+
+      {/* ── Reforma: apuração do item (choice do XSD) ─────────────── */}
+      <details className="rounded-md border border-gray-200 p-3">
+        <summary className="cursor-pointer text-sm font-medium text-gray-700">
+          Apuração de IBS/CBS deste item (opcional)
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-gray-500">
+            Transferência de crédito e ajuste de competência <strong>substituem</strong> a apuração
+            normal do item — por isso a escolha é exclusiva. O estorno de crédito convive com ela.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            {REFORM_ITEM_MODE_OPTIONS.map((opt) => (
+              <label key={opt.value} htmlFor={`item-reform-${index}-${opt.value}`}
+                     className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">
+                <input type="radio" id={`item-reform-${index}-${opt.value}`}
+                       name={`item-reform-${index}`} value={opt.value}
+                       checked={(item.reform_mode ?? 'none') === opt.value}
+                       onChange={() => onChange(index, {
+                         reform_mode: opt.value,
+                         // Trocar de modo zera os valores: eles significam
+                         // coisas diferentes em cada ramo.
+                         reform_v_ibs: '', reform_v_cbs: '',
+                       })}
+                       className="h-4 w-4 border-gray-300 text-brand-600"/>
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          {(item.reform_mode ?? 'none') !== 'none' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`item-reform-ibs-${index}`} className="text-xs font-medium text-gray-600">
+                  Valor de IBS
+                </Label>
+                <CurrencyInput id={`item-reform-ibs-${index}`} value={item.reform_v_ibs ?? ''}
+                               onChange={(v) => onChange(index, {reform_v_ibs: v})}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`item-reform-cbs-${index}`} className="text-xs font-medium text-gray-600">
+                  Valor de CBS
+                </Label>
+                <CurrencyInput id={`item-reform-cbs-${index}`} value={item.reform_v_cbs ?? ''}
+                               onChange={(v) => onChange(index, {reform_v_cbs: v})}/>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`item-estorno-ibs-${index}`} className="text-xs font-medium text-gray-600">
+                Estorno de crédito — IBS
+              </Label>
+              <CurrencyInput id={`item-estorno-ibs-${index}`} value={item.estorno_v_ibs ?? ''}
+                             onChange={(v) => onChange(index, {estorno_v_ibs: v})}/>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`item-estorno-cbs-${index}`} className="text-xs font-medium text-gray-600">
+                Estorno de crédito — CBS
+              </Label>
+              <CurrencyInput id={`item-estorno-cbs-${index}`} value={item.estorno_v_cbs ?? ''}
+                             onChange={(v) => onChange(index, {estorno_v_cbs: v})}/>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      {/* ── Pedido de compra do cliente (prod/xPed, prod/nItemPed) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`item-xped-${index}`} className="text-xs font-medium text-gray-600">
+            Pedido do cliente
+          </Label>
+          <Input id={`item-xped-${index}`} value={item.x_ped ?? ''} maxLength={15} className="w-full"
+                 placeholder="Opcional — controle B2B"
+                 onChange={(e) => onChange(index, {x_ped: e.target.value})}/>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`item-nitemped-${index}`} className="text-xs font-medium text-gray-600">
+            Item do pedido
+          </Label>
+          <NumericInput id={`item-nitemped-${index}`} value={item.n_item_ped ?? ''} maxLength={6}
+                        disabled={!item.x_ped} placeholder="Só com pedido informado"
+                        onChange={(v) => onChange(index, {n_item_ped: v})}/>
+        </div>
+      </div>
 
       {/* ── Armamento — dados por unidade ─────────────────────────── */}
       {isArma && (
@@ -642,9 +822,23 @@ export function NfeEmitForm() {
   const [rawProducts, setProducts] = useState<EmitProduct[]>([])
   const [payments, setPayments] = useState<EmitPayment[]>([])
   const [additionalInfo, setAdditionalInfo] = useState('')
+  const [nfRefs, setNfRefs] = useState<NfeRefIn[]>([])
+  const [vols, setVols] = useState<NfeVolIn[]>([])
+  const [reboques, setReboques] = useState<NfeReboqueIn[]>([])
+  const [procRef, setProcRef] = useState<NfeProcRefIn[]>([])
   const [natOpManual, setNatOpManual] = useState<string | null>(null)
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null)
+  // Grupos de nicho (compra, cana, agropecuario) — todos opcionais.
+  const [nicheGroups, setNicheGroups] = useState<NicheGroupsValue>(EMPTY_NICHE_GROUPS)
+  // Saída da mercadoria e previsão de entrega. Em branco, valem o prazo padrão
+  // da natureza de operação (ou nenhuma tag, se ela não define prazo).
+  const [dhSaiEnt, setDhSaiEnt] = useState('')
+  const [dPrevEntrega, setDPrevEntrega] = useState('')
+  // Chaves referenciadas da reforma: documentos anteriores da compra
+  // governamental e NF-e de antecipação de pagamento a abater.
+  const [compraGovRefs, setCompraGovRefs] = useState<string[]>([])
+  const [pagAntecipadoRefs, setPagAntecipadoRefs] = useState<string[]>([])
   // '' = pagamento manual (comportamento de sempre).
   const [paymentTermId, setPaymentTermId] = useState('')
   const [showProductPicker, setShowProductPicker] = useState(false)
@@ -653,6 +847,7 @@ export function NfeEmitForm() {
   const paymentValueLockedRef = useRef(false)
   const [newPaymentIndPag, setNewPaymentIndPag] = useState<'0' | '1'>('0')
   const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
+  const [newPaymentTerminal, setNewPaymentTerminal] = useState('')
   const [showCardToggle, setShowCardToggle] = useState(false)
   // Cobrança
   const [cobrFat, setCobrFat] = useState<NfeFatIn>({n_fat: '', v_orig: '', v_desc: '', v_liq: ''})
@@ -747,6 +942,34 @@ export function NfeEmitForm() {
     ? selectedOperation.cfop_suffix
     : ''
 
+  // Complementar, ajuste e devolução só existem contra um documento anterior:
+  // a seção de referências aparece exatamente nessas finalidades.
+  const operationFinNFe = typeof selectedOperation?.fin_nfe === 'string'
+    ? selectedOperation.fin_nfe
+    : null
+  const requiresNfRefs = finNFeRequiresRef(operationFinNFe)
+
+  // Safra da cana e CPF do responsável técnico agronômico: os dois vêm do
+  // cadastro (operação e organização) e habilitam os grupos de nicho.
+  const operationCanaSafra = typeof selectedOperation?.cana_safra === 'string'
+    ? selectedOperation.cana_safra
+    : null
+  const orgTechnicalManagerCpf = typeof orgData?.person?.technical_manager_cpf === 'string'
+    ? orgData.person.technical_manager_cpf
+    : null
+  const operationDhSaiEntOffsetDays = typeof selectedOperation?.dh_sai_ent_offset_days === 'number'
+    ? selectedOperation.dh_sai_ent_offset_days
+    : null
+
+  // A regra do refDFeAnt é do leiaute: obrigatório nos tipos 2 e 3, vedado em 1
+  // e 4, e no tipo 2 uma chave só. O formulário só mostra o campo quando ele é
+  // aceito — assim a rejeição não é a primeira notícia da regra.
+  const operationCompraGovTpOper = typeof selectedOperation?.compra_gov_tp_oper === 'string'
+    ? selectedOperation.compra_gov_tp_oper
+    : ''
+  const compraGovNeedsRef = COMPRA_GOV_TP_OPER_COM_REFERENCIA.has(operationCompraGovTpOper)
+  const compraGovRefMax = operationCompraGovTpOper === COMPRA_GOV_TP_OPER_REFERENCIA_UNICA ? 1 : undefined
+
 
   // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
   const issuerUf = selectedOrg?.state_federation ?? null
@@ -824,6 +1047,14 @@ export function NfeEmitForm() {
   // (sameUf === null) AND a same-scope variant is resolved (non-empty cfop).
   const cfopUnresolvedError = products.some(p => p.cfopSuffix && (!p.cfop || sameUf === null))
 
+  // Dados por unidade (chassi, motor, arma) que a SEFAZ só cobra na emissão.
+  const itemGaps = useMemo(
+    () => products
+      .map((item, index) => ({index, reason: itemUnitDataGap(item)}))
+      .filter((g): g is {index: number; reason: string} => g.reason !== null),
+    [products],
+  )
+
   // Re-resolve CFOPs when sameUf changes (same-render pattern to avoid effect setState warning)
   if (sameUf !== prevSameUf) {
     setPrevSameUf(sameUf)
@@ -846,12 +1077,32 @@ export function NfeEmitForm() {
     setPrevHasNoPaymentCfop(hasNoPaymentCfop)
     if (hasNoPaymentCfop) {
       setNewPaymentType(NO_PAYMENT_TYPE)
-      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null}])
+      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null, terminal_id: null}])
     }
   }
 
   // Derived — cobrança only shown when there's an "a prazo" payment
+  const plateInvalid = transport.veiculo_placa !== '' && !PLATE_RE.test(transport.veiculo_placa)
   const hasPrazoPayment = payments.some(p => p.ind_pag === '1')
+
+  // A fatura e suas parcelas também têm que fechar: "somatório das duplicatas
+  // difere do valor da fatura" é rejeição, não aviso.
+  const faturaTotal = parseFloat(cobrFat.v_liq || cobrFat.v_orig || '') || totalNfe
+  const duplicataGap: string | null = !hasPrazoPayment || duplicatas.length === 0
+    ? null
+    : duplicataSumGap(faturaTotal, duplicatas.reduce((sum, d) => sum + (parseFloat(d.v_dup) || 0), 0))
+
+  // Saída anterior à emissão e entrega no passado são rejeições da SEFAZ; o
+  // `min` do input cobre o caminho do calendário, esta regra cobre o resto.
+  const dateGap: string | null = (() => {
+    if (dhSaiEnt && dhSaiEnt < localIso().slice(0, 10)) {
+      return 'A saída da mercadoria não pode ser anterior à emissão.'
+    }
+    if (dPrevEntrega && dPrevEntrega < todayIso()) {
+      return 'A previsão de entrega não pode ser anterior à emissão.'
+    }
+    return null
+  })()
   const isPix = isPixPaymentType(newPaymentType)
   const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
 
@@ -892,16 +1143,58 @@ export function NfeEmitForm() {
 
   // ─── Step navigation ──────────────────────────────────────────────────────
 
-  function canGoNext(step: EmitStep): boolean {
-    if (step === 'destinatario') return selfIssuance || receiver !== null
-    if (step === 'produtos') return products.length > 0 && !cfopMixError && !cfopUnresolvedError
-    if (step === 'pagamento') {
-      if (paymentTermId) return true
-      if (payments.length > 0) return true
-      if (newPaymentType === NO_PAYMENT_TYPE) return true
-      return !!newPaymentValue && parseFloat(newPaymentValue) > 0
+  /**
+   * Motivo pelo qual o passo ainda não pode avançar, ou null quando pode. É uma
+   * frase, não um booleano, porque um botão desabilitado sem explicação faz o
+   * operador procurar o problema no lugar errado.
+   */
+  function stepBlockReason(step: EmitStep): string | null {
+    if (step === 'destinatario') {
+      return selfIssuance || receiver !== null ? null : 'Selecione o destinatário da nota.'
     }
-    return true
+    if (step === 'produtos') {
+      if (products.length === 0) return 'Adicione ao menos um produto.'
+      if (cfopMixError) return 'A nota mistura CFOP de entrada e de saída.'
+      if (cfopUnresolvedError) return 'Há item sem CFOP resolvido para a UF de destino.'
+      const gap = itemGaps[0]
+      if (gap) return `Item ${gap.index + 1}: ${gap.reason}`
+      return null
+    }
+    if (step === 'pagamento') {
+      // O prazo gera parcelas, fatura e duplicatas a partir do total na emissão:
+      // por construção a soma fecha.
+      if (paymentTermId) return null
+      if (newPaymentType === NO_PAYMENT_TYPE) return null
+      if (payments.some(p => p.payment_type === NO_PAYMENT_TYPE)) return null
+      if (payments.length === 0 && !(parseFloat(newPaymentValue) > 0)) {
+        return 'Informe o pagamento da nota.'
+      }
+      // O valor ainda não adicionado conta: handleNext o adiciona ao avançar.
+      const balanceGap = paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), false)
+      if (balanceGap !== null) return balanceGap
+      if (duplicataGap !== null) return duplicataGap
+      return null
+    }
+    return null
+  }
+
+  function canGoNext(step: EmitStep): boolean {
+    return stepBlockReason(step) === null
+  }
+
+  /**
+   * Joga a diferença na última parcela. O resíduo quase sempre é arredondamento
+   * de rateio, e refazer a conta à mão é exatamente o trabalho que o produto
+   * existe para tirar do operador.
+   */
+  function handleAbsorbRemainder() {
+    setPayments(prev => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      const adjusted = (parseFloat(last.value) || 0) + remaining
+      if (adjusted <= 0) return prev
+      return [...prev.slice(0, -1), {...last, value: adjusted.toFixed(2)}]
+    })
   }
 
   function handleNext() {
@@ -959,9 +1252,11 @@ export function NfeEmitForm() {
       value,
       ind_pag: newPaymentIndPag,
       card: showCardToggle ? newPaymentCard : null,
+      terminal_id: showCardToggle ? (newPaymentTerminal || null) : null,
     }])
     paymentValueLockedRef.current = false
     setNewPaymentCard(null)
+    setNewPaymentTerminal('')
     setShowCardToggle(false)
     setNewPaymentIndPag('0')
   }
@@ -1001,6 +1296,10 @@ export function NfeEmitForm() {
       setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'})
       return
     }
+    if (requiresNfRefs && nfRefs.length === 0) {
+      setSubmitError({message: 'Esta finalidade exige ao menos um documento referenciado. Adicione a nota de origem em "Documentos referenciados".'})
+      return
+    }
     const vTroco = totalPaid > totalNfe + 0.005 ? (totalPaid - totalNfe).toFixed(2) : null
     const hasCobr = hasPrazoPayment && (cobrFat.v_liq || duplicatas.length > 0)
 
@@ -1015,10 +1314,16 @@ export function NfeEmitForm() {
         veic_n_motor: p.veic_n_motor || null, veic_c_cor: p.veic_c_cor || null,
         veic_x_cor: p.veic_x_cor || null,
         armas: p.armas && p.armas.length > 0 ? p.armas : null,
+        x_ped: p.x_ped || null,
+        n_item_ped: p.x_ped ? (p.n_item_ped || null) : null,
+        transf_cred: reformPair(p, 'transf_cred'),
+        ajuste_compet: reformPair(p, 'ajuste_compet'),
+        estorno_cred: estornoPair(p),
       })),
       payments: payments.map(p => ({
         payment_type: p.payment_type, value: p.value,
         ind_pag: p.ind_pag || undefined, card: p.card || undefined,
+        terminal_id: p.terminal_id || undefined,
       })),
       additional_info: additionalInfo.trim() || null,
       nat_op: natOp || null,
@@ -1033,6 +1338,8 @@ export function NfeEmitForm() {
           veiculo_placa: !selectedVehicle ? (transport.veiculo_placa || null) : null,
           veiculo_uf: !selectedVehicle ? (transport.veiculo_uf || null) : null,
           veiculo_rntrc: !selectedVehicle ? (transport.veiculo_rntrc || null) : null,
+          vols: vols.length > 0 ? vols : null,
+          reboques: reboques.length > 0 ? reboques : null,
         } as NfeTransportIn
       })() : null,
       cobr_fat: hasCobr ? {
@@ -1047,6 +1354,16 @@ export function NfeEmitForm() {
       entrega: entrega,
       save_retirada_location: retirada ? saveRetiradaLocation : false,
       save_entrega_location: entrega ? saveEntregaLocation : false,
+      nf_refs: nfRefs.length > 0 ? nfRefs : null,
+      proc_ref: procRef.length > 0 ? procRef : null,
+      compra_x_ped: nicheGroups.compraXPed.trim() || null,
+      compra_x_cont: nicheGroups.compraXCont.trim() || null,
+      cana: nicheGroups.cana,
+      agro: nicheGroups.agro,
+      dh_sai_ent: datetimeLocalToOffset(dhSaiEnt) || null,
+      d_prev_entrega: dPrevEntrega || null,
+      compra_gov_refs: compraGovRefs.length > 0 ? compraGovRefs : null,
+      pag_antecipado_refs: pagAntecipadoRefs.length > 0 ? pagAntecipadoRefs : null,
     }
 
     setIsSubmitting(true)
@@ -1220,7 +1537,7 @@ export function NfeEmitForm() {
             </div>
           )}
           {cfopMixError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-danger">
               Não é possível misturar CFOPs de entrada (1/2/3) e de saída (5/6/7) na mesma NF-e.
               O tipo da nota é definido pelo CFOP do primeiro produto
               ({noteDirection === 'in' ? 'entrada' : 'saída'}).
@@ -1317,12 +1634,20 @@ export function NfeEmitForm() {
                   </div>
                 </div>
               ))}
-              <p
-                className={`text-sm pt-1 ${Math.abs(remaining) < 0.01 ? 'text-success' : remaining < 0 ? 'text-blue-700' : 'text-warning'}`}>
-                {Math.abs(remaining) < 0.01
-                  ? '✓ Total confere.'
-                  : remaining > 0 ? `⌛ Restam ${fmt(remaining)}.` : `↩ Troco: ${fmt(-remaining)}`}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <p className={`text-sm ${Math.abs(remaining) < SUM_TOLERANCE ? 'text-success' : 'text-warning'}`}>
+                  {Math.abs(remaining) < SUM_TOLERANCE
+                    ? '✓ Total confere.'
+                    : remaining > 0
+                      ? `⌛ Restam ${fmt(remaining)} para fechar o total.`
+                      : `⚠ Pagamentos excedem o total em ${fmt(-remaining)}.`}
+                </p>
+                {Math.abs(remaining) >= SUM_TOLERANCE && (
+                  <Button type="button" variant="outline" size="xs" onClick={handleAbsorbRemainder}>
+                    Ajustar última parcela
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1383,7 +1708,8 @@ export function NfeEmitForm() {
                   </label>
                 </div>
                 {showCardToggle && (
-                  <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}/>
+                  <PaymentCardFields card={newPaymentCard} onChange={setNewPaymentCard} isPix={isPix}
+                                   terminalId={newPaymentTerminal} onTerminalChange={setNewPaymentTerminal}/>
                 )}
               </div>
             )}
@@ -1460,7 +1786,8 @@ export function NfeEmitForm() {
                     </div>
                     <div className="flex flex-col gap-1 w-40">
                       <Label className="text-xs font-medium text-gray-600 whitespace-nowrap">1º vencimento</Label>
-                      <Input type="date" value={dupFirstDate} onChange={e => setDupFirstDate(e.target.value)}/>
+                      <Input type="date" min={todayIso()} value={dupFirstDate}
+                             onChange={e => setDupFirstDate(e.target.value)}/>
                     </div>
                     <Button type="button" variant="brand" size="sm" onClick={handleGenerateDuplicatas}>
                       Gerar parcelas
@@ -1479,7 +1806,7 @@ export function NfeEmitForm() {
                       <div key={i}
                            className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0 border-gray-50">
                         <span className="font-mono text-xs text-gray-400 w-7 shrink-0">{d.n_dup}</span>
-                        <Input type="date" value={d.d_venc}
+                        <Input type="date" min={todayIso()} value={d.d_venc}
                                onChange={e => {
                                  const newDate = e.target.value
                                  setDuplicatas(prev => {
@@ -1603,9 +1930,21 @@ export function NfeEmitForm() {
         </div>
       )}
 
+      {/* Documentos referenciados (ide/NFref) — obrigatório na finalidade
+          escolhida, então fica à vista e não dentro do grupo opcional. */}
+      {currentStep === 'pagamento' && requiresNfRefs && (
+        <div className="mt-4 space-y-2 rounded-lg border border-gray-200 p-3">
+          <Label className="text-sm font-medium text-gray-700">Documentos referenciados</Label>
+          <p className="text-xs text-gray-500">Esta finalidade de emissão exige a nota de origem.</p>
+          <NfeRefsPicker value={nfRefs} onChange={setNfRefs}/>
+        </div>
+      )}
+
       {/* Optional groups — collected before the review that shows them */}
       {currentStep === 'pagamento' && (
-        <CollapsibleSection title="Configurações avançadas" description="Transporte e informações adicionais (opcional)"
+        <>
+        <CollapsibleSection title="Transporte"
+                            description="Frete, transportadora, veículo, volumes e reboques"
                             className="mt-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -1653,7 +1992,7 @@ export function NfeEmitForm() {
                             className="font-mono text-sm font-medium">{selectedVehicle.plate}</p><p
                             className="text-xs text-gray-500">{selectedVehicle.plate_uf}</p></div>
                           <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedVehicle(null)}
-                                  className="text-red-600">Trocar</Button>
+                                  className="text-danger">Trocar</Button>
                         </div>
                       ) : (
                         <VehicleSelect vehicles={vehiclesData?.items ?? []} onSelect={setSelectedVehicle}
@@ -1662,22 +2001,32 @@ export function NfeEmitForm() {
                       {!selectedVehicle && (
                         <details className="text-xs">
                           <summary className="cursor-pointer text-gray-400">Informar manualmente</summary>
-                          <div className="grid grid-cols-3 gap-2 mt-2">
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">Placa</Label><Input
-                              value={transport.veiculo_placa}
-                              onChange={e => setTransport(t => ({...t, veiculo_placa: e.target.value.toUpperCase()}))}
-                              placeholder="ABC1D23" maxLength={8}/></div>
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">UF</Label><Input
-                              value={transport.veiculo_uf}
-                              onChange={e => setTransport(t => ({...t, veiculo_uf: e.target.value.toUpperCase()}))}
-                              placeholder="SP" maxLength={2}/></div>
-                            <div className="flex flex-col gap-1"><Label
-                              className="text-xs font-medium text-gray-600">RNTRC</Label><Input
-                              value={transport.veiculo_rntrc}
-                              onChange={e => setTransport(t => ({...t, veiculo_rntrc: e.target.value}))}
-                              placeholder="Opcional"/></div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-placa" className="text-xs font-medium text-gray-600">Placa</Label>
+                              <Input id="nfe-veiculo-placa" value={transport.veiculo_placa}
+                                     onChange={e => setTransport(t => ({...t, veiculo_placa: e.target.value.toUpperCase()}))}
+                                     placeholder="ABC1D23" maxLength={8}
+                                     aria-invalid={plateInvalid || undefined}
+                                     aria-describedby={plateInvalid ? 'nfe-veiculo-placa-erro' : undefined}/>
+                              {plateInvalid && (
+                                <span id="nfe-veiculo-placa-erro" className="text-[0.8rem] text-danger">
+                                  Placa no formato ABC1234 ou ABC1D23.
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-uf" className="text-xs font-medium text-gray-600">UF</Label>
+                              <OptionsSelect id="nfe-veiculo-uf" value={transport.veiculo_uf}
+                                             onValueChange={v => setTransport(t => ({...t, veiculo_uf: v}))}
+                                             options={UF_OPTIONS} placeholder="UF"/>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="nfe-veiculo-rntc" className="text-xs font-medium text-gray-600">RNTC</Label>
+                              <Input id="nfe-veiculo-rntc" value={transport.veiculo_rntrc}
+                                     onChange={e => setTransport(t => ({...t, veiculo_rntrc: e.target.value}))}
+                                     placeholder="Opcional"/>
+                            </div>
                           </div>
                         </details>
                       )}
@@ -1686,6 +2035,104 @@ export function NfeEmitForm() {
                 )}
               </div>
             )}
+            {showTransport && (
+              <div className="pt-3 border-t border-gray-100">
+                <VolumesFields vols={vols} onVolsChange={setVols}
+                               reboques={reboques} onReboquesChange={setReboques}/>
+              </div>
+            )}
+          </div>
+        </CollapsibleSection>
+        <CollapsibleSection title="Documentos e datas"
+                            description="Processos referenciados, chaves da reforma, saída e entrega"
+                            className="mt-4">
+          {/* Processos referenciados (infAdic/procRef) */}
+          <div className="space-y-2 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-700">Processos referenciados</Label>
+              <Button type="button" variant="ghost" size="xs"
+                      onClick={() => setProcRef(p => [...p, {n_proc: '', ind_proc: '0'}])}>
+                + Processo
+              </Button>
+            </div>
+            {procRef.map((proc, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] gap-2 items-end">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`proc-nproc-${i}`} className="text-xs font-medium text-gray-600">Número</Label>
+                  <Input id={`proc-nproc-${i}`} maxLength={60} value={proc.n_proc} placeholder="0001/2026"
+                         onChange={e => setProcRef(p => p.map((v, k) => k === i ? {...v, n_proc: e.target.value} : v))}/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`proc-indproc-${i}`} className="text-xs font-medium text-gray-600">Origem</Label>
+                  <OptionsSelect id={`proc-indproc-${i}`} value={proc.ind_proc}
+                                 options={[...IND_PROC_OPTIONS]}
+                                 onValueChange={(v: string) => setProcRef(p => p.map((x, k) => k === i ? {...x, ind_proc: v as NfeProcRefIn['ind_proc']} : x))}/>
+                </div>
+                <Button type="button" variant="ghost" size="xs"
+                        onClick={() => setProcRef(p => p.filter((_, k) => k !== i))}>
+                  Remover
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Compra governamental e antecipação de pagamento (ide da reforma) */}
+          {(compraGovNeedsRef || pagAntecipadoRefs.length > 0 || compraGovRefs.length > 0) && (
+            <div className="space-y-3 pt-3 border-t border-gray-100">
+              {compraGovNeedsRef && (
+                <AccessKeyPicker
+                  id="nfe-compra-gov-refs"
+                  label="Documentos anteriores da compra governamental"
+                  value={compraGovRefs}
+                  onChange={setCompraGovRefs}
+                  max={compraGovRefMax}
+                  hint={compraGovRefMax === 1
+                    ? 'A operação escolhida na natureza aceita uma chave só.'
+                    : 'Obrigatório para o tipo de operação governamental cadastrado.'}/>
+              )}
+              <AccessKeyPicker
+                id="nfe-pag-antecipado-refs"
+                label="NF-e de antecipação de pagamento a abater"
+                value={pagAntecipadoRefs}
+                onChange={setPagAntecipadoRefs}
+                hint="Opcional. Abate as parcelas já recebidas por antecipação."/>
+            </div>
+          )}
+
+          {/* Saída da mercadoria e previsão de entrega (ide) */}
+          <div className="space-y-2 pt-3 border-t border-gray-100">
+            <Label className="text-sm font-medium text-gray-700">Saída e entrega</Label>
+            <p className="text-xs text-gray-500">
+              {operationDhSaiEntOffsetDays === null
+                ? 'Em branco, a nota não declara data de saída.'
+                : `Em branco, a saída é ${operationDhSaiEntOffsetDays} dia(s) após a emissão (prazo da operação).`}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="nfe-dh-sai-ent" className="text-xs font-medium text-gray-600">
+                  Saída da mercadoria
+                </Label>
+                <Input id="nfe-dh-sai-ent" type="datetime-local" min={localIso()} value={dhSaiEnt}
+                       onChange={(e) => setDhSaiEnt(e.target.value)}/>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="nfe-d-prev-entrega" className="text-xs font-medium text-gray-600">
+                  Previsão de entrega
+                </Label>
+                <Input id="nfe-d-prev-entrega" type="date" min={todayIso()} value={dPrevEntrega}
+                       onChange={(e) => setDPrevEntrega(e.target.value)}/>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+        <CollapsibleSection title="Grupos setoriais e observações"
+                            description="Compra pública, cana, agropecuário e informações adicionais"
+                            className="mt-4">
+          {/* Grupos de nicho: compra pública, cana e agropecuário */}
+          <div className="pt-3 border-t border-gray-100">
+            <NicheGroupsFields value={nicheGroups} onChange={setNicheGroups}
+                               canaSafra={operationCanaSafra}
+                               technicalManagerCpf={orgTechnicalManagerCpf}/>
           </div>
 
           {/* Additional info */}
@@ -1698,6 +2145,7 @@ export function NfeEmitForm() {
                       placeholder="Observações, dados ao fisco, pedido, etc. (opcional)" rows={3}/>
           </div>
         </CollapsibleSection>
+        </>
       )}
 
       {/* Emission failure — rendered next to the action bar that triggers it */}
@@ -1715,7 +2163,7 @@ export function NfeEmitForm() {
               <span className="text-gray-500 hidden sm:inline">Produtos: <span
                 className="font-medium text-gray-900">{fmt(totalProducts)}</span></span>
               {totalDiscount > 0 && <span className="text-gray-500 hidden sm:inline">Desc: <span
-                  className="font-medium text-red-600">-{fmt(totalDiscount)}</span></span>}
+                  className="font-medium text-danger">-{fmt(totalDiscount)}</span></span>}
               <span className="text-gray-700 font-semibold">Total: <span
                 className="text-gray-900">{fmt(totalNfe)}</span></span>
             </>
@@ -1729,14 +2177,22 @@ export function NfeEmitForm() {
           )}
 
           {currentStep !== 'revisao' ? (
-            <Button type="button" variant="brand" disabled={!canGoNext(currentStep)} onClick={handleNext}>
-              Próximo
-            </Button>
+            <div className="flex items-center gap-3">
+              {stepBlockReason(currentStep) && (
+                <span className="text-right text-[0.8rem] text-warning">{stepBlockReason(currentStep)}</span>
+              )}
+              <Button type="button" variant="brand" disabled={!canGoNext(currentStep)} onClick={handleNext}>
+                Próximo
+              </Button>
+            </div>
           ) : (
-            <Button type="button" variant="brand" disabled={isSubmitting}
-                    onClick={() => setShowEmitConfirm(true)}>
-              {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
-            </Button>
+            <div className="flex items-center gap-3">
+              {dateGap && <span className="text-right text-[0.8rem] text-warning">{dateGap}</span>}
+              <Button type="button" variant="brand" disabled={isSubmitting || dateGap !== null}
+                      onClick={() => setShowEmitConfirm(true)}>
+                {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
+              </Button>
+            </div>
           )}
         </div>
       </div>

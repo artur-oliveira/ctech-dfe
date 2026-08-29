@@ -6,9 +6,9 @@
  * parte.
  */
 import {z} from 'zod'
-import {cfopConfigSchema} from '@/lib/schemas/products'
+import {applyTaxGroupRules, cfopConfigBase} from '@/lib/schemas/products'
 
-export const taxProfileSchema = cfopConfigSchema
+export const taxProfileSchema = cfopConfigBase
   .omit({cfop: true})
   .extend({
     name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -16,5 +16,6 @@ export const taxProfileSchema = cfopConfigSchema
     cfops: z.array(z.string().regex(/^\d{4}$/, 'CFOP deve ter 4 dígitos'))
       .min(1, 'Escolha ao menos um CFOP'),
   })
+  .superRefine(applyTaxGroupRules)
 
 export type TaxProfileFormData = z.infer<typeof taxProfileSchema>

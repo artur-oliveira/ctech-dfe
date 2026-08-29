@@ -30,7 +30,13 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	if body.Resource != "https://api.example.test" || len(body.AuthorizationServers) != 1 || body.AuthorizationServers[0] != "https://accounts.example.test" {
 		t.Fatalf("unexpected metadata: %#v", body)
 	}
-	if len(body.Scopes) != 30 {
-		t.Fatalf("scopes_supported = %d, want 30", len(body.Scopes))
+	// Contado a partir do manifesto, não fixo: um escopo novo não pode quebrar
+	// este teste, mas um escopo que some do metadata tem que quebrar.
+	manifest, err := ManifestDocument()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Scopes) != len(manifest.Scopes) {
+		t.Fatalf("scopes_supported = %d, want %d", len(body.Scopes), len(manifest.Scopes))
 	}
 }

@@ -181,6 +181,76 @@ func NewPaymentTermService(repo *repositories.PaymentTermRepository, auditRepo *
 	)}
 }
 
+// PaymentTerminalService owns organization_payment_terminals.
+type PaymentTerminalService struct{ OrgEntityService }
+
+func NewPaymentTerminalService(repo *repositories.PaymentTerminalRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *PaymentTerminalService {
+	return &PaymentTerminalService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopePaymentTerminals, repositories.AuditResourcePaymentTerminal, "payment terminal not found",
+	)}
+}
+
+// TollProviderService owns organization_toll_providers.
+type TollProviderService struct{ OrgEntityService }
+
+func NewTollProviderService(repo *repositories.TollProviderRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *TollProviderService {
+	return &TollProviderService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeTollProviders, repositories.AuditResourceTollProvider, "toll provider not found",
+	)}
+}
+
+// CargoUnitService owns organization_cargo_units.
+type CargoUnitService struct{ OrgEntityService }
+
+func NewCargoUnitService(repo *repositories.CargoUnitRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *CargoUnitService {
+	return &CargoUnitService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeCargoUnits, repositories.AuditResourceCargoUnit, "cargo unit not found",
+	)}
+}
+
+// ImportDeclarationService owns organization_import_declarations.
+type ImportDeclarationService struct{ OrgEntityService }
+
+func NewImportDeclarationService(repo *repositories.ImportDeclarationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ImportDeclarationService {
+	return &ImportDeclarationService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeImportDIs, repositories.AuditResourceImportDI, "import declaration not found",
+	)}
+}
+
+// FuelPumpService owns organization_fuel_pumps.
+type FuelPumpService struct{ OrgEntityService }
+
+func NewFuelPumpService(repo *repositories.FuelPumpRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *FuelPumpService {
+	return &FuelPumpService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeFuelPumps, repositories.AuditResourceFuelPump, "fuel pump not found",
+	)}
+}
+
+// ProductLotService owns organization_product_lots.
+type ProductLotService struct{ OrgEntityService }
+
+func NewProductLotService(repo *repositories.ProductLotRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ProductLotService {
+	return &ProductLotService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeProductLots, repositories.AuditResourceProductLot, "product lot not found",
+	)}
+}
+
+// InsurancePolicyService owns organization_insurance_policies.
+type InsurancePolicyService struct{ OrgEntityService }
+
+func NewInsurancePolicyService(repo *repositories.InsurancePolicyRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *InsurancePolicyService {
+	return &InsurancePolicyService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeInsurancePolicies, repositories.AuditResourceInsurance, "insurance policy not found",
+	)}
+}
+
 // OperationService owns organization_operations, e é a única das quatro
 // entidades com uma regra própria: no máximo uma operação padrão por
 // organização.
@@ -267,8 +337,15 @@ func (s *OperationService) transactWith(extra []types.TransactWriteItem) func(co
 
 // Cache scopes for the registry entities (segment of the cache key).
 const (
-	CacheScopeTaxProfiles  = "tax_profiles"
-	CacheScopeOperations   = "operations"
-	CacheScopePaymentTerms = "payment_terms"
-	CacheScopeVehicleSets  = "vehicle_sets"
+	CacheScopeTaxProfiles       = "tax_profiles"
+	CacheScopeOperations        = "operations"
+	CacheScopePaymentTerms      = "payment_terms"
+	CacheScopeVehicleSets       = "vehicle_sets"
+	CacheScopePaymentTerminals  = "payment_terminals"
+	CacheScopeTollProviders     = "toll_providers"
+	CacheScopeCargoUnits        = "cargo_units"
+	CacheScopeImportDIs         = "import_declarations"
+	CacheScopeInsurancePolicies = "insurance_policies"
+	CacheScopeProductLots       = "product_lots"
+	CacheScopeFuelPumps         = "fuel_pumps"
 )

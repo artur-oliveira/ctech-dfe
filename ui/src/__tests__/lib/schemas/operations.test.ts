@@ -15,6 +15,9 @@ const base = {
   mod_frete: '' as const,
   inf_ad_fisco: '',
   inf_cpl: '',
+  obs_cont: [],
+  obs_fisco: [],
+  ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true,
   is_default: false,
 }
@@ -63,5 +66,36 @@ describe('placeholders das mensagens fiscais', () => {
 
   it('texto sem placeholder nenhum é válido', () => {
     expect(unknownPlaceholder('Documento emitido em regime especial.')).toBeNull()
+  })
+})
+
+describe('operationSchema — natureza fiscal e compra governamental', () => {
+  const base = {
+    name: 'Venda de mercadoria',
+    doc_types: ['nfe' as const],
+    obs_cont: [],
+    obs_fisco: [],
+    ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
+    requires_receiver: true,
+    is_default: false,
+  }
+
+  const pathsOf = (data: Record<string, unknown>): string[] => {
+    const result = operationSchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('aceita um sufixo que existe na tabela CFOP', () => {
+    expect(operationSchema.safeParse({...base, cfop_suffix: '102'}).success).toBe(true)
+  })
+
+  it('recusa três dígitos que não são natureza fiscal', () => {
+    expect(pathsOf({...base, cfop_suffix: '999'})).toContain('cfop_suffix')
+  })
+
+  it('compra governamental exige ente e tipo de operação juntos', () => {
+    expect(pathsOf({...base, compra_gov_tp_ente: '1'})).toContain('compra_gov_tp_oper')
+    expect(pathsOf({...base, compra_gov_tp_oper: '2'})).toContain('compra_gov_tp_ente')
+    expect(operationSchema.safeParse({...base, compra_gov_tp_ente: '1', compra_gov_tp_oper: '2'}).success).toBe(true)
   })
 })

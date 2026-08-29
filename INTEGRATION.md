@@ -129,6 +129,20 @@ await apiClient.createInutilization('nfe', body) // POST /v1.0/nfes/inutilizatio
 await apiClient.getAuditLogs(params)       // GET /v1.0/audit-logs (OWNER/ADMIN only)
 ```
 
+### Public CNPJ lookup
+
+`apiClient.lookupOpenCnpjOffice(cnpj)` calls `https://open.cnpja.com/office/{cnpj}` directly from
+the browser. It deliberately uses a separate Axios instance: the bearer token and
+`Dfe-Organization-Pk` interceptor belong only to the Ctech API and must never reach the public
+provider. The public client does not retry, and deduplicates/caches results in memory for 30 minutes
+because CNPJá limits requests per browser IP.
+
+The person/organization form orchestrates the public result with the existing authenticated SEFAZ
+lookup. CNPJá supplies the first-registration baseline; when an active organization with certificate
+exists, SEFAZ validates fiscal identity and registrations. The feature remains usable before the
+first organization exists. `https://open.cnpja.com` must stay in the frontend workflow's
+`extra-connect-src`, alongside ViaCEP, because the deployed CSP is generated from that input.
+
 **`ORG_HEADER`** (`'Dfe-Organization-Pk'`) is defined once in `client.ts`. Never hardcode this string elsewhere.
 
 The active org PK is read from localStorage (`pydfe_org`) on every request — no need to pass it explicitly.

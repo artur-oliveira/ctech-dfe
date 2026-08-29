@@ -93,6 +93,35 @@ export interface LookupOrganizationOut {
   state_registrations: LookupStateRegistrationOut[]
 }
 
+/** Resposta pública de `GET https://open.cnpja.com/office/:cnpj`.
+ * Os campos são opcionais porque a cobertura varia conforme a empresa. */
+export interface OpenCnpjOffice {
+  taxId: string
+  updated?: string | null
+  alias?: string | null
+  founded?: string | null
+  company?: {
+    name?: string | null
+    simples?: {optant?: boolean | null} | null
+    simei?: {optant?: boolean | null} | null
+  } | null
+  status?: {id?: number | string | null; text?: string | null} | null
+  address?: {
+    municipality?: number | string | null
+    street?: string | null
+    number?: string | null
+    details?: string | null
+    district?: string | null
+    city?: string | null
+    state?: string | null
+    zip?: string | null
+  } | null
+  phones?: Array<{area?: string | null; number?: string | null}> | null
+  emails?: Array<{address?: string | null}> | null
+  mainActivity?: {id?: number | string | null; text?: string | null} | null
+  suframa?: Array<{number?: string | null; active?: boolean | null}> | null
+}
+
 // Organizations
 export interface AddressOut {
   city_ibge_code: string
@@ -133,6 +162,14 @@ export interface PersonOut {
   addresses: AddressOut[]
   contacts: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
+  bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
+  /** Identificador do emitente no cadastro do intermediador (infIntermed/idCadIntTran). */
+  intermediary_id?: string | null
+  /** CPF do responsável técnico agronômico (NF-e agropecuario/CPFRespTec). */
+  technical_manager_cpf?: string | null
 }
 
 export interface ContactsOut {
@@ -195,6 +232,8 @@ export interface NFeConfigOut {
   prod_last_dist_nsu_at: string | null
   hom_nsu: number
   hom_last_dist_nsu_at: string | null
+  /** Identificador do CSRT (NT 2018.005). O `csrt` em si nunca volta da API. */
+  csrt_id?: string | null
   updated_at: string
 }
 
@@ -214,7 +253,15 @@ export interface NFCeConfigOut {
 }
 
 export type CTeConfigOut = NFeConfigOut
-export type MDFeConfigOut = NFeConfigOut
+/** O MDF-e tem três campos de leiaute que a NF-e/CT-e não têm. */
+export interface MDFeConfigOut extends NFeConfigOut {
+  /** Participação no Canal Verde → `ide/indCanalVerde`. */
+  ind_canal_verde?: boolean
+  /** Inclusão de DF-e por evento após a emissão → `ide/indCarregaPosterior`. */
+  ind_carrega_posterior?: boolean
+  /** Mensagem ao fisco repetida em toda emissão → `infAdic/infAdFisco`. */
+  inf_ad_fisco?: string | null
+}
 
 // NFS-e usa uma única série para os dois ambientes.
 export interface NfseAbrasfBody {
@@ -285,6 +332,32 @@ export interface CfopConfigItem {
   icms_p_st?: string | null
   icms_fcp_v_bc_st_ret?: string | null
   icms_fcp_st_ret_aliq?: string | null
+  /** ICMSST (CST 41) — repasse da ST retida na operação interestadual. */
+  icms_v_bc_st_dest?: string | null
+  icms_v_icms_st_dest?: string | null
+  /** ICMS efetivo — ICMS60, ICMSST e ICMSSN500. */
+  icms_p_red_bc_efet?: string | null
+  icms_p_icms_efet?: string | null
+  /** ICMSPart — partilha do ICMS entre UF de origem e destino. */
+  icms_part_p_bc_op?: string | null
+  icms_part_uf_st?: string | null
+  /** ST desonerada (ICMS10/70/90) e FCP diferido (ICMS51/90). */
+  icms_mot_des_st?: string | null
+  icms_p_fcp_dif?: string | null
+  /** Restante do grupo ISSQN do leiaute. */
+  issqn_v_outro?: string | null
+  issqn_v_desc_incond?: string | null
+  issqn_v_desc_cond?: string | null
+  issqn_c_servico?: string | null
+  issqn_c_mun?: string | null
+  issqn_c_pais?: string | null
+  issqn_n_processo?: string | null
+  issqn_ind_incentivo?: string | null
+  /** Observação fiscal do item (det/obsItem). */
+  obs_item_x_campo?: string | null
+  obs_item_x_texto?: string | null
+  /** IPI por unidade (bebidas, cigarros) — choice com vBC+pIPI. */
+  ipi_v_unid?: string | null
   pis: string
   cofins: string
   pis_aliq?: string | null
@@ -314,6 +387,30 @@ export interface CfopConfigItem {
   ibs_ad_rem?: string | null
   cbs_ad_rem?: string | null
   ibs_cbs_p_dev_trib?: string | null
+  // Monofasia da reforma (gIBSCBSMono): retenção, já retido e diferimento.
+  ibs_ad_rem_reten?: string | null
+  cbs_ad_rem_reten?: string | null
+  ibs_ad_rem_ret?: string | null
+  cbs_ad_rem_ret?: string | null
+  ibs_p_dif_mono?: string | null
+  cbs_p_dif_mono?: string | null
+  // Tributação de referência (gTribRegular) e de compra governamental.
+  ibs_reg_cst?: string | null
+  ibs_reg_class_trib?: string | null
+  ibs_reg_uf_aliq?: string | null
+  ibs_reg_mun_aliq?: string | null
+  cbs_reg_aliq?: string | null
+  ibs_gov_uf_aliq?: string | null
+  ibs_gov_mun_aliq?: string | null
+  cbs_gov_aliq?: string | null
+  // Créditos presumidos e alíquota zero da CBS em ALC/ZFM.
+  ibs_cbs_c_cred_pres?: string | null
+  ibs_p_cred_pres?: string | null
+  cbs_p_cred_pres?: string | null
+  ibs_cbs_cred_pres_cond_sus?: string | null
+  ibs_zfm_p_cred_pres?: string | null
+  alc_zfm_tp_cbs?: string | null
+  alc_zfm_n_proc_suframa?: string | null
   // IPI
   ipi_cst?: string | null
   ipi_aliq?: string | null
@@ -380,9 +477,38 @@ export interface ProductOut {
   comb_p_gni?: string | null
   comb_v_part?: string | null
   comb_p_bio?: string | null
+  /** Alíquota da CIDE; base e valor saem da quantidade vendida. */
+  comb_cide_v_aliq_prod?: string | null
+  /** Origem do combustível (comb/origComb), até 30 entradas. */
+  comb_orig?: CombOrigIn[] | null
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** NVE, FCI e códigos de barra próprios do produto. */
+  nve?: string[] | null
+  n_fci?: string | null
+  c_barra?: string | null
+  c_barra_trib?: string | null
+  /** RECOPI do papel imune (prod/nRECOPI), 20 dígitos. */
+  n_recopi?: string | null
+  /** Créditos presumidos da UF (prod/gCred, máx. 4). O vCredPresumido é
+   *  derivado do percentual sobre o valor do item na emissão. */
+  gcred?: GCredIn[] | null
+  /** Classificação da subapuração do IBS na ZFM (prod/tpCredPresIBSZFM). */
+  tp_cred_pres_ibs_zfm?: string | null
+  /** prod/indBemMovelUsado. O XSD enumera um valor só: 1. */
+  ind_bem_movel_usado?: string | null
+  /** Selo de controle do IPI e enquadramento legal. */
+  ipi_cnpj_prod?: string | null
+  ipi_c_selo?: string | null
+  ipi_q_selo?: string | null
+  ipi_c_enq?: string | null
+  /** Classificação de produto perigoso (MDF-e peri). */
+  peri_n_onu?: string | null
+  peri_x_nome_ae?: string | null
+  peri_x_cla_risco?: string | null
+  peri_gr_emb?: string | null
+  peri_q_vol_tipo?: string | null
   // veicProd — dados do modelo
   veic_tp_op?: string | null
   veic_tp_comb?: string | null
@@ -449,9 +575,38 @@ export interface ProductCreate {
   comb_p_gni?: string | null
   comb_v_part?: string | null
   comb_p_bio?: string | null
+  /** Alíquota da CIDE; base e valor saem da quantidade vendida. */
+  comb_cide_v_aliq_prod?: string | null
+  /** Origem do combustível (comb/origComb), até 30 entradas. */
+  comb_orig?: CombOrigIn[] | null
   med_c_prod_anvisa?: string | null
   med_x_motivo_isencao?: string | null
   med_v_pmc?: string | null
+  /** NVE, FCI e códigos de barra próprios do produto. */
+  nve?: string[] | null
+  n_fci?: string | null
+  c_barra?: string | null
+  c_barra_trib?: string | null
+  /** RECOPI do papel imune (prod/nRECOPI), 20 dígitos. */
+  n_recopi?: string | null
+  /** Créditos presumidos da UF (prod/gCred, máx. 4). O vCredPresumido é
+   *  derivado do percentual sobre o valor do item na emissão. */
+  gcred?: GCredIn[] | null
+  /** Classificação da subapuração do IBS na ZFM (prod/tpCredPresIBSZFM). */
+  tp_cred_pres_ibs_zfm?: string | null
+  /** prod/indBemMovelUsado. O XSD enumera um valor só: 1. */
+  ind_bem_movel_usado?: string | null
+  /** Selo de controle do IPI e enquadramento legal. */
+  ipi_cnpj_prod?: string | null
+  ipi_c_selo?: string | null
+  ipi_q_selo?: string | null
+  ipi_c_enq?: string | null
+  /** Classificação de produto perigoso (MDF-e peri). */
+  peri_n_onu?: string | null
+  peri_x_nome_ae?: string | null
+  peri_x_cla_risco?: string | null
+  peri_gr_emb?: string | null
+  peri_q_vol_tipo?: string | null
   veic_tp_op?: string | null
   veic_tp_comb?: string | null
   veic_tp_pint?: string | null
@@ -645,8 +800,30 @@ export interface PersonDetailsOut {
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
   /** Locais de entrega salvos de emissões de NF-e anteriores a este destinatário. */
   delivery_locations?: NfeLocalOut[]
+  bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
+}
+
+/** Perfil de ICMS retido pelo remetente sobre o frete (NF-e transp/retTransp). */
+export interface PersonFreightRetention {
+  v_serv?: string | null
+  v_bc_ret?: string | null
+  p_icms_ret?: string | null
+  cfop?: string | null
+  c_mun_fg?: string | null
+}
+
+/** Recebimento do condutor/TAC (MDF-e infANTT/infPag/infBanc). Choice: PIX, ou
+ *  banco + agência, ou CNPJ da instituição de pagamento. */
+export interface PersonBank {
+  pix_key?: string | null
+  bank_code?: string | null
+  branch_code?: string | null
+  cnpj_ipef?: string | null
 }
 
 export interface PersonItemOut {
@@ -668,10 +845,17 @@ export interface PersonObject {
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
   nfse?: NfseInfo | null
+  cnae?: string | null
+  isuf_emit?: string | null
+  bank?: PersonBank | null
+  freight_retention?: PersonFreightRetention | null
 }
 
 export interface PersonCreate {
+  /** CPF/CNPJ, ou vazio quando `id_estrangeiro` identifica a pessoa. */
   cpf_or_cnpj: string
+  /** Documento de pessoa no exterior (dest/idEstrangeiro). Exclusivo com cpf_or_cnpj. */
+  id_estrangeiro?: string | null
   name: string
   roles?: PersonRole[]
   person: PersonObject
@@ -726,6 +910,202 @@ export interface OperationItemOut {
   updated_at: string
 
   [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — terminais de pagamento (POS)
+export interface PaymentTerminalCreate extends Record<string, unknown> {
+  name: string
+  cnpj_receb: string
+  id_term_pag: string
+  cnpj_pag?: string | null
+  uf_pag?: string | null
+  t_band?: string | null
+}
+
+export interface PaymentTerminalItemOut {
+  pk: string
+  sk: string
+  name: string
+  cnpj_receb: string
+  id_term_pag: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — fornecedoras de vale-pedágio
+export interface TollProviderCreate extends Record<string, unknown> {
+  name: string
+  cnpj_forn: string
+  cnpj_pg?: string | null
+  cpf_pg?: string | null
+  tp_vale_ped?: string | null
+}
+
+export interface TollProviderItemOut {
+  pk: string
+  sk: string
+  name: string
+  cnpj_forn: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+/** Uma origem do combustível (comb/origComb). */
+export interface CombOrigIn {
+  /** `0` nacional · `1` importado. */
+  ind_import: '0' | '1'
+  /** Código IBGE da UF de origem (2 dígitos). */
+  c_uf_orig: string
+  p_orig: string
+}
+
+// Cadastros reutilizáveis — bicos, bombas e tanques (NF-e prod/comb/encerrante)
+export interface FuelPumpCreate extends Record<string, unknown> {
+  name: string
+  n_bico: string
+  n_bomba?: string
+  n_tanque?: string
+}
+
+export interface FuelPumpItemOut {
+  pk: string
+  sk: string
+  name: string
+  n_bico: string
+  /** Última leitura final, escrita pela emissão. Somente leitura. */
+  last_v_enc_fin?: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — lotes de produção (NF-e prod/rastro)
+export interface ProductLotCreate extends Record<string, unknown> {
+  name: string
+  /** Produto que fabricou o lote. */
+  product_id: string
+  n_lote: string
+  /** Quantidade produzida no lote; a de cada nota é rateada da quantidade vendida. */
+  q_lote: string
+  d_fab: string
+  d_val: string
+  c_agreg?: string | null
+}
+
+export interface ProductLotItemOut {
+  pk: string
+  sk: string
+  name: string
+  product_id: string
+  n_lote: string
+  d_val: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — apólices de seguro da carga (MDF-e infMDFe/seg)
+export interface InsurancePolicyCreate extends Record<string, unknown> {
+  name: string
+  /** 1 = emitente do MDF-e; 2 = contratante do serviço de transporte. */
+  resp_seg: string
+  cnpj?: string | null
+  cpf?: string | null
+  x_seg?: string | null
+  cnpj_seg?: string | null
+  n_apol?: string | null
+}
+
+export interface InsurancePolicyItemOut {
+  pk: string
+  sk: string
+  name: string
+  resp_seg: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — unidades de transporte e de carga (MDF-e)
+export interface CargoUnitCreate extends Record<string, unknown> {
+  name: string
+  /** transport = infUnidTransp (carreta, vagão); cargo = infUnidCarga (contêiner, pallet). */
+  kind: 'transport' | 'cargo'
+  tp_unid: string
+  id_unid: string
+  seals?: string[] | null
+}
+
+export interface CargoUnitItemOut {
+  pk: string
+  sk: string
+  name: string
+  kind: 'transport' | 'cargo'
+  tp_unid: string
+  id_unid: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — declarações de importação (NF-e prod/DI)
+export interface ImportAdditionIn {
+  n_adicao: string
+  c_fabricante: string
+  v_desc_di?: string | null
+  n_draw?: string | null
+}
+
+export interface ImportDeclarationCreate extends Record<string, unknown> {
+  name: string
+  n_di: string
+  d_di: string
+  x_loc_desemb: string
+  uf_desemb: string
+  d_desemb: string
+  tp_via_transp: string
+  v_afrmm?: string | null
+  tp_intermedio: string
+  cnpj?: string | null
+  uf_terceiro?: string | null
+  c_exportador: string
+  additions: ImportAdditionIn[]
+}
+
+export interface ImportDeclarationItemOut {
+  pk: string
+  sk: string
+  name: string
+  n_di: string
+  additions?: ImportAdditionIn[]
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+/** Exportação indireta do item (prod/detExport). O trio nRE+chNFe+qExport é
+ *  tudo-ou-nada. */
+export interface NfeDetExportIn {
+  n_draw?: string
+  n_re?: string
+  ch_nfe?: string
+  q_export?: string
+}
+
+/** Vínculo item↔adição da DI na emissão. nAdicao/nSeqAdic são derivados. */
+export interface NfeItemDIIn {
+  import_declaration_id: string
+  addition_index: number
+  n_draw?: string
 }
 
 // Cadastros reutilizáveis — condições de pagamento e composições veiculares
@@ -790,6 +1170,28 @@ export interface NfeTransportIn {
   veiculo_placa?: string | null
   veiculo_uf?: string | null
   veiculo_rntrc?: string | null
+  /** Volumes transportados (transp/vol). Vazio ⇒ backend deriva um volume com o peso dos itens. */
+  vols?: NfeVolIn[] | null
+  /** Reboques do veículo transportador (transp/reboque, máx 5). */
+  reboques?: NfeReboqueIn[] | null
+}
+
+/** Volume transportado (transp/vol). */
+export interface NfeVolIn {
+  q_vol?: string | null
+  esp?: string | null
+  marca?: string | null
+  n_vol?: string | null
+  peso_l?: string | null
+  peso_b?: string | null
+  lacres?: string[] | null
+}
+
+/** Reboque do veículo transportador (transp/reboque). */
+export interface NfeReboqueIn {
+  placa: string
+  uf: string
+  rntc?: string | null
 }
 
 /** TLocal-shaped address (local de retirada/entrega) — lighter than
@@ -857,7 +1259,10 @@ export const NF_PAYMENT_TYPES: Record<string, string> = {
   '20': 'PIX (Estático)',
   '21': 'Crédito em Loja',
   '22': 'Pagamento Eletrônico não Informado - falha de hardware do sistema emissor',
+  '23': 'Pagamento Instantâneo (PIX) - Automático',
+  '24': 'TEF - "Book Transfer"',
   '90': 'Sem pagamento',
+  '91': 'Pagamento Posterior',
   '99': 'Outros',
 }
 
@@ -888,6 +1293,28 @@ export interface NfeProductIn {
   veic_x_cor?: string | null
   // arma — por unidade
   armas?: NfeArmaIn[] | null
+  /** Pedido de compra do cliente (prod/xPed, ≤15) e o item dentro dele. */
+  x_ped?: string | null
+  n_item_ped?: string | null
+  /** Grupos apurados da reforma. transf_cred e ajuste_compet substituem a
+   *  apuração normal do item (choice do XSD); estorno_cred convive com ela. */
+  transf_cred?: NfeIBSCBSPairIn | null
+  ajuste_compet?: NfeIBSCBSPairIn | null
+  estorno_cred?: NfeIBSCBSPairIn | null
+  /** Processo Suframa deste embarque (gALCZFMCBS/nProcSuframa). */
+  alc_zfm_n_proc_suframa?: string | null
+}
+
+/** Crédito presumido da UF aplicado ao item (prod/gCred). */
+export interface GCredIn {
+  c_cred_presumido: string
+  p_cred_presumido: string
+}
+
+/** Par de valores IBS/CBS apurados por nota. Um lado sozinho vale zero no outro. */
+export interface NfeIBSCBSPairIn {
+  v_ibs?: string | null
+  v_cbs?: string | null
 }
 
 export interface NfePaymentIn {
@@ -896,6 +1323,27 @@ export interface NfePaymentIn {
   ind_pag?: '0' | '1' | null
   d_pag?: string | null
   card?: NfeCardIn | null
+  /** Terminal de captura (organization_payment_terminals) que processou o pagamento. */
+  terminal_id?: string | null
+  /** Descrição da forma de pagamento quando tPag é 99 (outros). */
+  x_pag?: string | null
+}
+
+/** Documento referenciado em ide/NFref. Espelha `NfeRefBody` do backend. */
+export interface NfeRefIn {
+  nfe_id?: string | null
+  kind?: 'nfe' | 'nfesig' | 'nf' | 'nfp' | 'cte' | 'ecf' | null
+  access_key?: string | null
+  c_uf?: string | null
+  aamm?: string | null
+  cnpj?: string | null
+  cpf?: string | null
+  ie?: string | null
+  mod?: string | null
+  serie?: string | null
+  n_nf?: string | null
+  n_ecf?: string | null
+  n_coo?: string | null
 }
 
 export interface NfeEmit {
@@ -922,6 +1370,75 @@ export interface NfeEmit {
   entrega?: NfeLocalIn | null
   save_retirada_location?: boolean
   save_entrega_location?: boolean
+  /** Documentos referenciados. Obrigatório para fin_nfe 2, 3 e 4. */
+  nf_refs?: NfeRefIn[] | null
+  /** Processos referenciados (infAdic/procRef). */
+  proc_ref?: NfeProcRefIn[] | null
+  /** Pedido e contrato desta nota (infNFe/compra). A nota de empenho é da operação. */
+  compra_x_ped?: string | null
+  compra_x_cont?: string | null
+  /** Registro mensal de aquisição de cana (infNFe/cana). A safra é da operação. */
+  cana?: NfeCanaIn | null
+  /** Grupo agropecuario: receituários **ou** guia de trânsito, nunca os dois. */
+  agro?: NfeAgroIn | null
+  /** Saída da mercadoria (ide/dhSaiEnt). Vence o prazo padrão da operação. */
+  dh_sai_ent?: string | null
+  /** Previsão de entrega ou disponibilização do bem (ide/dPrevEntrega). */
+  d_prev_entrega?: string | null
+  /** Chaves dos documentos fiscais anteriores da compra governamental
+   *  (ide/gCompraGov/refDFeAnt). Obrigatório com tp_oper_gov 2 e 3, vedado em
+   *  1 e 4; no tipo 2, uma chave só. */
+  compra_gov_refs?: string[] | null
+  /** Chaves das NF-e de antecipação de pagamento a abater (ide/gPagAntecipado). */
+  pag_antecipado_refs?: string[] | null
+}
+
+/** Registro mensal de aquisição de cana. Espelha `NfeCanaBody` do backend. */
+export interface NfeCanaIn {
+  /** Mês/ano de referência no formato MM/AAAA. */
+  ref: string
+  deliveries: NfeCanaDeliveryIn[]
+  deducoes?: NfeCanaDeducIn[] | null
+  /** Acumulado dos meses anteriores; qTotMes e qTotGer são derivados no backend. */
+  q_tot_ant?: string | null
+}
+
+/** Fornecimento diário de cana (cana/forDia). */
+export interface NfeCanaDeliveryIn {
+  /** Dia do mês, 1 a 31, sem zero à esquerda. */
+  dia: string
+  qtde: string
+}
+
+/** Dedução do fornecimento de cana (cana/deduc). */
+export interface NfeCanaDeducIn {
+  x_ded: string
+  v_ded: string
+}
+
+/** Grupo infNFe/agropecuario — choice entre defensivo e guia de trânsito. */
+export interface NfeAgroIn {
+  /** Números dos receituários de defensivo (máx. 20). O CPF do responsável
+   *  técnico vem do cadastro da organização. */
+  receituarios?: string[] | null
+  guia?: NfeAgroGuiaIn | null
+}
+
+/** Guia de trânsito animal/vegetal (agropecuario/guiaTransito). */
+export interface NfeAgroGuiaIn {
+  /** 1 GTA, 2 TTA, 3 DTA, 4 ATV, 5 PTV, 6 GTV, 7 Guia Florestal. */
+  tp_guia: '1' | '2' | '3' | '4' | '5' | '6' | '7'
+  uf_guia: string
+  serie_guia?: string | null
+  n_guia: string
+}
+
+/** Processo referenciado em infAdic/procRef. */
+export interface NfeProcRefIn {
+  n_proc: string
+  /** 0 SEFAZ, 1 Justiça Federal, 2 Justiça Estadual, 3 Secex/RFB, 9 outros. */
+  ind_proc: '0' | '1' | '2' | '3' | '9'
+  tp_ato?: string | null
 }
 
 // NFC-e (modelo 65) — no recipient address, transport, or billing.
@@ -1076,6 +1593,141 @@ export interface MdfeEmit {
   rntrc?: string | null
   ciot?: string | null
   additional_info?: string | null
+  /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
+  toll_vouchers?: MdfeTollIn[] | null
+  /** Apólices de seguro da carga desta viagem (infMDFe/seg). */
+  insurance_policies?: MdfeInsuranceIn[] | null
+  contractors?: MdfeContractorIn[] | null
+  payments?: MdfePaymentIn[] | null
+  /** Unidades de transporte da viagem (infUnidTransp). */
+  transport_units?: MdfeTransportUnitIn[] | null
+  /** Chaves dos documentos em reentrega (infDoc/.../indReentrega). */
+  redelivery_keys?: string[] | null
+  /** Lacres da carga (infMDFe/lacres). */
+  seals?: string[] | null
+  /** Lacres da unidade de transporte (rodo/lacRodo). */
+  rodo_seals?: string[] | null
+  /** Código do agente portuário (rodo/codAgPorto). */
+  port_agent_code?: string | null
+  /** Dados do voo — obrigatório quando `modal = aereo` (grupo `aereo`). */
+  air?: MdfeAirModalIn | null
+  /** Dados do trem — obrigatório quando `modal = ferroviario` (grupo `ferrov`). */
+  rail?: MdfeRailModalIn | null
+  /** Dados da embarcação — obrigatório quando `modal = aquaviario` (grupo `aquav`). */
+  water?: MdfeWaterModalIn | null
+}
+
+/** Terminal de carregamento/descarregamento (`infTermCarreg`/`infTermDescarreg`). */
+export interface MdfeWaterTerminalIn {
+  code: string
+  name: string
+}
+
+/** Balsa do comboio (`infEmbComb`) — apesar da tag, não tem nada de combustível. */
+export interface MdfeWaterBargeIn {
+  code: string
+  name: string
+}
+
+/** Grupo `aquav`. As unidades vazias apontam para `organization_cargo_units`. */
+export interface MdfeWaterModalIn {
+  irin: string
+  vessel_type: string
+  vessel_code: string
+  vessel_name: string
+  voyage_number: string
+  origin_port: string
+  dest_port: string
+  transit_port?: string
+  /** `0` interior · `1` cabotagem. */
+  navigation_type?: string
+  loading_terminals?: MdfeWaterTerminalIn[]
+  unloading_terminals?: MdfeWaterTerminalIn[]
+  barges?: MdfeWaterBargeIn[]
+  empty_cargo_unit_ids?: string[]
+  empty_transport_unit_ids?: string[]
+  mmsi?: string
+}
+
+/** Grupo `aereo`. Os seis campos são obrigatórios no XSD. */
+export interface MdfeAirModalIn {
+  nationality: string
+  registration: string
+  flight_number: string
+  origin_airport: string
+  dest_airport: string
+  flight_date: string
+}
+
+/** Um vagão do grupo `ferrov/vag`. */
+export interface MdfeRailWagonIn {
+  weight_bc: string
+  weight_real: string
+  wagon_type?: string
+  series: string
+  number: string
+  sequence?: string
+  /** Tonelada útil. */
+  tu: string
+}
+
+/** Grupo `ferrov`. O `qVag` do XML sai do tamanho de `wagons`. */
+export interface MdfeRailModalIn {
+  train_prefix: string
+  train_datetime?: string
+  origin_station: string
+  dest_station: string
+  wagons: MdfeRailWagonIn[]
+}
+
+/** Unidade de transporte da viagem: unidade do cadastro, documentos que ela
+ *  leva e unidades de carga dentro dela. O rateio é calculado no backend. */
+export interface MdfeTransportUnitIn {
+  cargo_unit_id: string
+  document_keys: string[]
+  cargo_unit_ids?: string[]
+}
+
+/** Componente do valor do frete (`infPag/Comp`). */
+export interface MdfePaymentComponentIn {
+  type: string
+  value: string
+  description?: string
+}
+
+/** Pagamento ao transportador autônomo na emissão (`infANTT/infPag`). As
+ *  parcelas são derivadas do prazo pelo backend, nunca enviadas. */
+export interface MdfePaymentIn {
+  person_doc: string
+  components: MdfePaymentComponentIn[]
+  contract_value: string
+  /** indPag: 0 à vista, 1 a prazo. */
+  payment_type: string
+  advance_value?: string
+  high_performance?: string
+  installments?: number
+  interval_days?: number
+  first_due_days?: number
+}
+
+/** Contratante do frete. Identidade vem do cadastro; o contrato é da viagem. */
+export interface MdfeContractorIn {
+  person_doc: string
+  contract_number?: string
+  contract_value?: string
+}
+
+/** Vale-pedágio de uma viagem. Só o que muda entre viagens. */
+export interface MdfeInsuranceIn {
+  insurance_policy_id: string
+  /** Averbações desta viagem (nAver). */
+  n_aver?: string[]
+}
+
+export interface MdfeTollIn {
+  toll_provider_id: string
+  n_compra: string
+  v_vale_ped: string
 }
 
 // ── cargo preview (POST /mdfes/cargo-preview) ──

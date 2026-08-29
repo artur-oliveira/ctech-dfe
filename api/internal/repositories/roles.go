@@ -76,6 +76,10 @@ var resources = []string{
 	"organization_services",
 	"organization_tax_profiles", "organization_operations",
 	"organization_payment_terms", "organization_vehicle_sets",
+	"organization_payment_terminals", "organization_toll_providers",
+	"organization_cargo_units", "organization_import_declarations",
+	"organization_insurance_policies", "organization_product_lots",
+	"organization_fuel_pumps",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
 	"organization_nfse_configs",
@@ -199,3 +203,7 @@ func (r *RoleRepository) Upsert(ctx context.Context, name, description string, p
 
 	return item, r.PutItem(ctx, item)
 }
+
+// AllResources devolve os resources RBAC conhecidos. Cópia: a lista é global e
+// mutá-la de fora reescreveria as permissões do processo inteiro.
+func AllResources() []string { return append([]string(nil), resources...) }

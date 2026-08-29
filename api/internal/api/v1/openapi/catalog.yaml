@@ -231,7 +231,7 @@ paths:
             nenhuma listagem filtrada — comportamento correto, não omissão.
           schema:
             type: string
-            enum: [ customer, supplier, carrier, driver, provider ]
+            enum: [ customer, supplier, carrier, driver, provider, freight_contractor, intermediary ]
         - name: q
           in: query
           required: false
@@ -530,6 +530,29 @@ components:
         icms_p_st: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         icms_fcp_v_bc_st_ret: { type: [ string, 'null' ] }
         icms_fcp_st_ret_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_v_bc_st_dest:
+          type: [ string, 'null' ]
+          description: '`ICMSST/vBCSTDest` — repasse da ST retida na operação interestadual (CST 41).'
+        icms_v_icms_st_dest: { type: [ string, 'null' ] }
+        icms_p_red_bc_efet:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: ICMS efetivo (`ICMS60`, `ICMSST`, `ICMSSN500`) — exigido por algumas UFs na revenda com ST.
+        icms_p_icms_efet: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        icms_part_p_bc_op:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: |
+            Partilha do ICMS (`ICMSPart`). Junto de `icms_part_uf_st`, troca
+            `ICMS10`/`ICMS90` por `ICMSPart` — não há CST próprio para a partilha.
+        icms_part_uf_st: { type: [ string, 'null' ] }
+        icms_mot_des_st:
+          type: [ string, 'null' ]
+          description: Motivo da desoneração da ST (`vICMSSTDeson`/`motDesICMSST` em ICMS10/70/90).
+        icms_p_fcp_dif:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: '% do FCP diferido (`pFCPDif`/`vFCPDif`/`vFCPEfet` em ICMS51/90).'
         pis: { type: string, pattern: '^\d{2}$', description: CST do PIS. }
         cofins: { type: string, pattern: '^\d{2}$', description: CST da COFINS. }
         pis_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
@@ -550,11 +573,83 @@ components:
         ibs_uf_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         ibs_mun_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         cbs_p_dif: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        ibs_ind_doacao: { type: [ string, 'null' ] }
+        ibs_ind_doacao:
+          type: [ string, 'null' ]
+          enum: [ '1', null ]
+          description: |
+            `TIndDoacao` enumera **um** valor: `1`. `S`/`N` era o domínio de uma
+            NT anterior e hoje é rejeição.
+        ibs_cbs_p_dev_trib:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: |
+            Percentual de devolução de tributo ao adquirente (cashback fiscal).
+            Um percentual só, aplicado nas **três** esferas: o `vDevTrib` de
+            cada `gDevTrib` é este percentual sobre o tributo daquela esfera —
+            não sobre a base.
         ibs_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         cbs_ad_rem: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_ad_rem_reten: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_ad_rem_reten: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_ad_rem_ret: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_ad_rem_ret: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_p_dif_mono: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_p_dif_mono: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_reg_cst:
+          type: [ string, 'null' ]
+          description: |
+            CST da tributação de **referência** (`gTribRegular`) — quanto o item
+            pagaria fora do regime ou benefício. Presente, habilita o bloco.
+        ibs_reg_class_trib: { type: [ string, 'null' ], pattern: '^\d{6}$' }
+        ibs_reg_uf_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_reg_mun_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_reg_aliq:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: |
+            Alíquota de referência da CBS. Serve a `gTribRegular` e também ao
+            `pAliqEfetRegCBS` de `gALCZFMCBS`.
+        ibs_gov_uf_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_gov_mun_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_gov_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_cbs_c_cred_pres:
+          type: [ string, 'null' ]
+          pattern: '^\d{2}$'
+          description: |
+            Código do crédito presumido (`gCredPresOper/cCredPres`). Presente,
+            habilita o bloco; é **choice** com `gCredPresIBSZFM` e vence.
+        ibs_p_cred_pres: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        cbs_p_cred_pres: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ibs_cbs_cred_pres_cond_sus:
+          type: [ string, 'null' ]
+          enum: [ '1', null ]
+          description: |
+            `1` troca `vCredPres` por `vCredPresCondSus` (o choice do XSD). É um
+            flag: a conta é a mesma, só o destino muda.
+        ibs_zfm_p_cred_pres:
+          type: [ string, 'null' ]
+          pattern: '^\d{1,3}(\.\d{1,4})?$'
+          description: |
+            Percentual do crédito presumido do IBS na ZFM. O grupo só sai com
+            `tp_cred_pres_ibs_zfm` no produto.
+        alc_zfm_tp_cbs:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', null ]
+          description: Tipo de aplicação da alíquota zero da CBS em ALC/ZFM. Habilita `gALCZFMCBS`.
+        alc_zfm_n_proc_suframa:
+          type: [ string, 'null' ]
+          minLength: 8
+          maxLength: 12
+          description: |
+            Processo Suframa padrão do item. O `alc_zfm_n_proc_suframa` do
+            request de emissão (nível item) vence este.
         ipi_cst: { type: [ string, 'null' ] }
         ipi_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ipi_v_unid:
+          type: [ string, 'null' ]
+          description: |
+            IPI por unidade (bebidas, cigarros). Presente, o item sai com
+            `qUnid`+`vUnid` no lugar de `vBC`+`pIPI` — são choice no XSD.
         is_cst: { type: [ string, 'null' ], description: CST do Imposto Seletivo. }
         is_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         is_class_trib: { type: [ string, 'null' ], pattern: '^\d{6}$' }
@@ -566,6 +661,14 @@ components:
         issqn_aliq: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         issqn_v_deducao: { type: [ string, 'null' ] }
         issqn_v_iss_ret: { type: [ string, 'null' ] }
+        issqn_v_outro: { type: [ string, 'null' ] }
+        issqn_v_desc_incond: { type: [ string, 'null' ] }
+        issqn_v_desc_cond: { type: [ string, 'null' ] }
+        issqn_c_servico: { type: [ string, 'null' ], maxLength: 20 }
+        issqn_c_mun: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        issqn_c_pais: { type: [ string, 'null' ] }
+        issqn_n_processo: { type: [ string, 'null' ], maxLength: 30 }
+        issqn_ind_incentivo: { type: [ string, 'null' ], enum: [ '1', '2', null ] }
 
 
     ProductTaxProfileRef:
@@ -652,9 +755,60 @@ components:
         comb_p_gni: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
         comb_v_part: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
         comb_p_bio: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
-        med_c_prod_anvisa: { type: [ string, 'null' ], minLength: 5 }
+        comb_cide_v_aliq_prod:
+          type: [ string, 'null' ]
+          pattern: '^\d+(\.\d{1,4})?$'
+          description: |
+            Alíquota da CIDE. A base (`qBCProd`) é a quantidade vendida e o
+            `vCIDE` é o produto dos dois — nenhum dos dois é digitado.
+        comb_orig:
+          type: array
+          maxItems: 30
+          description: Origem do combustível (`comb/origComb`).
+          items:
+            type: object
+            required: [ ind_import, c_uf_orig, p_orig ]
+            properties:
+              ind_import:
+                type: string
+                enum: [ '0', '1' ]
+                description: '`0` nacional · `1` importado.'
+              c_uf_orig: { type: string, pattern: '^\d{2}$', description: Código IBGE da UF de origem. }
+              p_orig: { type: string, pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        med_c_prod_anvisa:
+          type: [ string, 'null' ]
+          minLength: 5
+          description: |
+            Registro ANVISA (11 ou 13 dígitos) ou o literal `ISENTO`. Presente,
+            **exige** `med_v_pmc`; `ISENTO` **exige** `med_x_motivo_isencao` e
+            registro numérico o **proíbe** — as três regras são 400 na emissão.
         med_x_motivo_isencao: { type: [ string, 'null' ], maxLength: 255 }
         med_v_pmc: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        n_recopi:
+          type: [ string, 'null' ]
+          pattern: '^\d{20}$'
+          description: |
+            Número do RECOPI do papel imune (`prod/nRECOPI`). É o último ramo do
+            **choice** de `prod`: com `comb`, `med`, `veicProd` ou `arma` no
+            item, o RECOPI não é emitido.
+        obs_item_x_campo: { type: [ string, 'null' ], maxLength: 20 }
+        obs_item_x_texto: { type: [ string, 'null' ], maxLength: 60 }
+        ipi_cnpj_prod: { type: [ string, 'null' ], pattern: '^\d{14}$' }
+        ipi_c_selo: { type: [ string, 'null' ], maxLength: 60 }
+        ipi_q_selo: { type: [ string, 'null' ] }
+        ipi_c_enq:
+          type: [ string, 'null' ]
+          description: Enquadramento legal do IPI (`cEnq`); `999` quando ausente.
+        peri_n_onu:
+          type: [ string, 'null' ]
+          maxLength: 4
+          description: |
+            Número ONU do produto perigoso. Classificado uma vez aqui; o MDF-e
+            deriva o grupo `peri` sozinho ao referenciar a NF-e com este item.
+        peri_x_nome_ae: { type: [ string, 'null' ], maxLength: 150 }
+        peri_x_cla_risco: { type: [ string, 'null' ], maxLength: 40 }
+        peri_gr_emb: { type: [ string, 'null' ], maxLength: 6 }
+        peri_q_vol_tipo: { type: [ string, 'null' ], maxLength: 60 }
         veic_tp_op: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', null ] }
         veic_tp_comb: { type: [ string, 'null' ], maxLength: 2 }
         veic_tp_pint: { type: [ string, 'null' ], maxLength: 1 }

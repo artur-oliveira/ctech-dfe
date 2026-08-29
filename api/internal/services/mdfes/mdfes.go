@@ -82,6 +82,17 @@ const (
 	// indEncPorTerceiro (evEncMDFe): único valor aceito pelo XSD — encerramento
 	// feito por terceiro. Ausente significa encerrado pelo emitente.
 	indEncPorTerceiroSim = "1"
+
+	// categCombVeic (valePed) — categoria da combinação veicular, derivada do
+	// número de reboques do próprio manifesto.
+	categCombCaminhao             = "02" // caminhão simples
+	categCombCaminhaoReboque      = "04" // caminhão + 1 reboque
+	categCombCaminhaoDoisReboques = "06" // caminhão + 2 reboques
+	categCombCaminhaoTresReboques = "07" // caminhão + 3 ou mais reboques
+
+	// Campos do CSRT na configuração fiscal (organization_mdfe_configs).
+	csrtIDField = "csrt_id"
+	csrtField   = "csrt"
 )
 
 // modalCodes maps an API modal value to its ide/modal code.
@@ -92,11 +103,13 @@ var modalCodes = map[string]string{
 	ModalFerroviario: modalCodeFerroviario,
 }
 
-// enabledModals are the modals the Emit service accepts. Rodoviário is the only
-// one wired end-to-end (vehicle/owner data + DAMDFE); the remaining modals are
-// modelled in the builder but not yet exposed for emission.
+// enabledModals are the modals the Emit service accepts. Os quatro estão
+// modelados campo a campo contra os XSDs de modal.
 var enabledModals = map[string]bool{
-	ModalRodoviario: true,
+	ModalRodoviario:  true,
+	ModalAereo:       true,
+	ModalAquaviario:  true,
+	ModalFerroviario: true,
 }
 
 // ErrMDFeNotFound is returned when an MDF-e cannot be found in any partition.
@@ -116,13 +129,21 @@ type MdfeService struct {
 	eventRepo   *repositories.DocumentEventRepository
 	vehicleRepo *repositories.VehicleRepository
 	// personRepo resolve os CPFs dos condutores de uma composição veicular.
-	personRepo     *repositories.PersonRepository
-	vehicleSetRepo *repositories.VehicleSetRepository
-	clients        *awsclient.Clients
-	workerSvc      *services.WorkerService
-	billingSvc     *services.BillingService
-	bucketDocs     string
-	tech           TechData
+	personRepo       *repositories.PersonRepository
+	vehicleSetRepo   *repositories.VehicleSetRepository
+	tollProviderRepo *repositories.TollProviderRepository
+	// cargoUnitRepo traz as unidades de transporte e de carga do cadastro.
+	cargoUnitRepo *repositories.CargoUnitRepository
+	// insurancePolicyRepo traz as apólices de seguro da carga do cadastro.
+	insurancePolicyRepo *repositories.InsurancePolicyRepository
+	// productRepo reencontra no cadastro o produto que a NF-e referenciada
+	// declarou, para derivar dele o grupo peri (produto perigoso).
+	productRepo *repositories.ProductRepository
+	clients     *awsclient.Clients
+	workerSvc   *services.WorkerService
+	billingSvc  *services.BillingService
+	bucketDocs  string
+	tech        TechData
 }
 
 // TechData carries the technical-responsible (infRespTec) information.
@@ -145,6 +166,10 @@ func NewMdfeService(
 	vehicleRepo *repositories.VehicleRepository,
 	personRepo *repositories.PersonRepository,
 	vehicleSetRepo *repositories.VehicleSetRepository,
+	tollProviderRepo *repositories.TollProviderRepository,
+	productRepo *repositories.ProductRepository,
+	cargoUnitRepo *repositories.CargoUnitRepository,
+	insurancePolicyRepo *repositories.InsurancePolicyRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -152,21 +177,25 @@ func NewMdfeService(
 	tech TechData,
 ) *MdfeService {
 	return &MdfeService{
-		orgRepo:        orgRepo,
-		billingSvc:     billingSvc,
-		certRepo:       certRepo,
-		configRepo:     configRepo,
-		mdfeRepo:       mdfeRepo,
-		nfeRepo:        nfeRepo,
-		cteRepo:        cteRepo,
-		eventRepo:      eventRepo,
-		vehicleRepo:    vehicleRepo,
-		personRepo:     personRepo,
-		vehicleSetRepo: vehicleSetRepo,
-		clients:        clients,
-		workerSvc:      workerSvc,
-		bucketDocs:     bucketDocs,
-		tech:           tech,
+		orgRepo:             orgRepo,
+		billingSvc:          billingSvc,
+		certRepo:            certRepo,
+		configRepo:          configRepo,
+		mdfeRepo:            mdfeRepo,
+		nfeRepo:             nfeRepo,
+		cteRepo:             cteRepo,
+		eventRepo:           eventRepo,
+		vehicleRepo:         vehicleRepo,
+		personRepo:          personRepo,
+		vehicleSetRepo:      vehicleSetRepo,
+		tollProviderRepo:    tollProviderRepo,
+		productRepo:         productRepo,
+		cargoUnitRepo:       cargoUnitRepo,
+		insurancePolicyRepo: insurancePolicyRepo,
+		clients:             clients,
+		workerSvc:           workerSvc,
+		bucketDocs:          bucketDocs,
+		tech:                tech,
 	}
 }
 
@@ -254,6 +283,19 @@ func sefazEnvFor(environment int) string {
 		return SefazEnvProd
 	}
 	return SefazEnvHom
+}
+
+// indReentregaSim e indPrestacaoParcialSim são os únicos valores aceitos por
+// indReentrega e indPrestacaoParcial no leiaute.
+const (
+	indReentregaSim        = "1"
+	indPrestacaoParcialSim = "1"
+)
+
+// boolAttr lê um BOOL da configuração; ausente é falso.
+func boolAttr(item map[string]types.AttributeValue, key string) bool {
+	v, ok := item[key].(*types.AttributeValueMemberBOOL)
+	return ok && v.Value
 }
 
 func strAttr(item map[string]types.AttributeValue, key string) string {

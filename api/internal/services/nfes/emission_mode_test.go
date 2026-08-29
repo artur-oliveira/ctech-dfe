@@ -67,6 +67,7 @@ func TestBuildEnviNFeEmitsContingencyGroup(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		mode,
+		docExtras{},
 	)
 	ide := result["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)["ide"].(map[string]any)
 
@@ -91,6 +92,7 @@ func TestBuildEnviNFeEmitsContingencyGroup(t *testing.T) {
 		TechData{}, nfModel55, nil,
 		nil, nil,
 		NormalEmission(nfModel55),
+		docExtras{},
 	)
 	normalIde := normal["enviNFe"].(map[string]any)["NFe"].(map[string]any)["infNFe"].(map[string]any)["ide"].(map[string]any)
 	if _, ok := normalIde["dhCont"]; ok {

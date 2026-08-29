@@ -1,42 +1,60 @@
 'use client'
 
+import {useQuery} from '@tanstack/react-query'
+import {apiClient} from '@/lib/api/client'
+import {queryKeys} from '@/lib/api/query-keys'
+import {useAuth} from '@/lib/hooks/useAuth'
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import {OptionsSelect} from '@/components/ui/options-select'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {maskCnpj} from '@/lib/utils/masks'
 import type {NfeCardIn} from '@/lib/types/api'
+import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS} from '@/lib/data/payment-tables'
 
-// Card brand codes (cartao de crédito/débito). Shared by NF-e and NFC-e.
-export const CARD_BAND_OPTIONS = [
-  {value: '01', label: '01 – Visa'},
-  {value: '02', label: '02 – Mastercard'},
-  {value: '03', label: '03 – American Express'},
-  {value: '04', label: '04 – Sorocred'},
-  {value: '05', label: '05 – Diners Club'},
-  {value: '06', label: '06 – Elo'},
-  {value: '07', label: '07 – Hipercard'},
-  {value: '99', label: '99 – Outros'},
-]
+// Bandeiras e classificação dos meios de pagamento vivem na tabela oficial
+// (lib/data/payment-tables.ts). Reexportadas aqui porque é onde os formulários
+// já as importam.
+export const CARD_BAND_OPTIONS = TBAND_OPTIONS
 
-// Payment method codes that carry card/PIX transaction data (tpIntegra/tBand/…).
-// 03=Crédito, 04=Débito, 10/11=Vale, 12=PIX dinâmico, 13=PIX, 17=PIX estático.
-export const CARD_PAYMENT_TYPES = new Set(['03', '04', '10', '11', '12', '13', '17'])
-
-export const isPixPaymentType = (paymentType: string): boolean =>
-  paymentType === '17' || paymentType === '12' || paymentType === '13'
+export {CARD_PAYMENT_TYPES, isPixPaymentType}
 
 /**
  * Card / PIX transaction fields (tpIntegra, bandeira, NSU/autorização, CNPJ).
  * Used identically by the NF-e and NFC-e issuance forms.
  */
-export function PaymentCardFields({card, onChange, isPix}: {
+export function PaymentCardFields({card, onChange, isPix, terminalId, onTerminalChange}: {
   card: NfeCardIn | null
   onChange: (card: NfeCardIn) => void
   isPix: boolean
+  /** Terminal de captura que processou o pagamento (organization_payment_terminals). */
+  terminalId?: string | null
+  onTerminalChange?: (terminalId: string) => void
 }) {
+  const {selectedOrg} = useAuth()
   const set = (patch: Partial<NfeCardIn>) => onChange({...(card ?? {tp_integra: '2'}), ...patch})
+
+  // O cadastro traz CNPJReceb e idTermPag; aqui só se escolhe qual maquininha.
+  const {data: terminalPage} = useQuery({
+    queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk),
+    queryFn: () => apiClient.getPaymentTerminals({limit: 100}),
+    enabled: !!selectedOrg && !!onTerminalChange,
+  })
+  const terminals = terminalPage?.items ?? []
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {onTerminalChange && terminals.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs font-medium text-gray-600">Terminal</Label>
+          <OptionsSelect value={terminalId ?? ''} onValueChange={onTerminalChange}
+                         placeholder="Nenhum"
+                         options={terminals.map((t) => ({
+                           value: extractId(t.sk, SK_PREFIX.PAYMENT_TERMINAL),
+                           label: t.name,
+                         }))}/>
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <Label className="text-xs font-medium text-gray-600">Integração</Label>
         <OptionsSelect value={card?.tp_integra ?? '2'}

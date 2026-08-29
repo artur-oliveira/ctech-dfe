@@ -128,6 +128,17 @@ Never commit or expose:
 - Real customer data (CPF/CNPJ, names, tax identifiers)
 - External API tokens
 
+## CSRT e CSC nunca saem da API
+
+O CSRT (Código de Segurança do Responsável Técnico, NT 2018.005) e o CSC da NFC-e identificam o emitente perante a
+SEFAZ: quem os tem assina no lugar dele. Eles entram por `PUT /…/nfe-config` e afins, mas **nunca aparecem em resposta
+de API nem em log** — `redactFiscalSecrets` (`internal/api/v1/helpers.go`) os apaga no GET e no próprio PUT que os
+gravou. O que viaja no XML é só o derivado: `hashCSRT = Base64(SHA1(CSRT + chave))` no `infRespTec`, e o hash do CSC no
+QR Code da NFC-e — nenhum dos dois é reversível.
+
+Ao acrescentar um segredo novo à configuração fiscal, acrescente o nome do campo a `fiscalConfigSecrets` no mesmo
+commit.
+
 ## Secret management
 
 - Production/Staging: AWS SSM Parameter Store (with decryption)
@@ -249,6 +260,12 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 - **autXML é configuração de organização, não de emissão** — `organizations.authorized_xml_viewers`
   (cap 10, sem CPF/CNPJ duplicado) é sempre incluído no XML de NF-e quando não-vazio
   (`buildAutXML`), não é um campo do payload de `POST /nfes`.
+- **Consulta pública de CNPJ roda no browser e isolada da autenticação.** O CNPJá é a base cadastral
+  do primeiro cadastro; a SEFAZ continua sendo a fonte fiscal quando há organização/certificado.
+  Nunca use o Axios autenticado nem envie `Authorization`/`Dfe-Organization-Pk` ao origin público,
+  nunca faça retry automático sob 429 e mantenha deduplicação/cache apenas em memória. Campos já
+  editados não podem ser sobrescritos por nenhuma das fontes; conflitos precisam de revisão visível.
+  Todo origin público novo também entra como literal em `extra-connect-src` no workflow do frontend.
 - **Struct sem `dynamodbav` tags escrita direto via `attributevalue.Marshal` usa os nomes de campo
   Go (PascalCase), não as tags `json`.** Pegadinha real (já corrigida uma vez em
   `AuthorizedViewerEntry`/`toAuthorizedViewerMaps`): ao gravar uma lista de structs internos
@@ -942,6 +959,25 @@ Must follow Conventional Commits:
   grant (login), not on refresh — acceptable because `refresh_token` is session-scoped, so each new
   session re-logs in.
 - UI validation duplicates backend validation intentionally (UX vs security).
+- **Domínio fechado nunca é campo de texto.** Toda tabela SEFAZ, enum, UF, município, país, unidade,
+  CFOP, NCM, CEST, CST, `cClassTrib` e data é `OptionsSelect` (até ~12 opções) ou `Combobox` (acima
+  disso, buscável). Literal do leiaute (`SEM GTIN`, `ISENTO`) é escrito por checkbox, nunca digitado.
+  Antes de criar uma tabela de opções nova, procure em `lib/data/` — várias já existem e derivam umas
+  das outras (`UF_IBGE_OPTIONS` das cidades, `LC116_SERVICE_OPTIONS` da tabela nacional da NFS-e,
+  `cfopSuffixOptions()` da tabela de CFOP). Tabela de opções estática vai para escopo de módulo: um
+  array recriado por render invalida o memo do `Combobox`.
+- **Regra do leiaute que você sabe explicar em português vira `superRefine`, não texto de ajuda.**
+  Uma dependência condicional documentada só ao lado do campo é rejeição adiada — o cadastro salva e
+  detona semanas depois, na emissão, em outra tela. As regras de grupo tributário são compartilhadas
+  por `applyTaxGroupRules` (produto e perfil fiscal), e as de emissão por
+  `lib/utils/emit-guards.ts` (NF-e e NFC-e).
+- **Soma que não fecha bloqueia, não avisa.** Pagamentos e duplicatas conferem contra o total com
+  tolerância de R$ 0,01 antes de o passo avançar; excedente é `vTroco` só na NFC-e. Aritmética é
+  responsabilidade do sistema, não do operador.
+- **Container que pode esconder erro carrega badge de contagem.** Aba, `CollapsibleSection` e bloco
+  colapsado: submit que falha sem nada mudar na tela é o pior caso do formulário grande.
+- **Toda tela tem visão simples por padrão e avançada sob demanda.** O simples resolve o caso comum;
+  o avançado nasce aberto quando já tem dado, com contador, para fechado nunca virar escondido.
 - All UI must use shared component library unless explicitly justified otherwise.
 - Responsiveness across mobile/tablet/desktop is mandatory.
 - **All API calls must always show a loading state.** Use skeletons for initial/inline content

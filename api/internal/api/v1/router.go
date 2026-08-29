@@ -18,33 +18,40 @@ import (
 
 // Services bundles all service-layer dependencies for route registration.
 type Services struct {
-	Org          *services.OrganizationService
-	User         *services.UserService
-	Member       *services.MembershipService
-	Invitation   *services.InvitationService
-	Cert         *services.CertificateService
-	Product      *services.ProductService
-	Service      *services.ServiceService
-	TaxProfile   *services.TaxProfileService
-	Operation    *services.OperationService
-	PaymentTerm  *services.PaymentTermService
-	VehicleSet   *services.VehicleSetService
-	Person       *services.PersonService
-	Vehicle      *services.VehicleService
-	NFe          *nfesvc.NfeService
-	NFCe         *nfesvc.NfceService
-	MDFe         *mdfesvc.MdfeService
-	Nfse         *nfsesvc.NfseService
-	NfeConfig    *services.NfeConfigService
-	NfceConfig   *services.NfceConfigService
-	CteConfig    *services.CteConfigService
-	MdfeConfig   *services.MdfeConfigService
-	NfseConfig   *services.NfseConfigService
-	Distribution *services.DistributionService
-	External     *services.ExternalService
-	AuditLog     *services.AuditLogService
-	Billing      *services.BillingService
-	RoleRepo     *repositories.RoleRepository
+	Org             *services.OrganizationService
+	User            *services.UserService
+	Member          *services.MembershipService
+	Invitation      *services.InvitationService
+	Cert            *services.CertificateService
+	Product         *services.ProductService
+	Service         *services.ServiceService
+	TaxProfile      *services.TaxProfileService
+	Operation       *services.OperationService
+	PaymentTerm     *services.PaymentTermService
+	PaymentTerminal *services.PaymentTerminalService
+	TollProvider    *services.TollProviderService
+	CargoUnit       *services.CargoUnitService
+	ImportDI        *services.ImportDeclarationService
+	InsurancePolicy *services.InsurancePolicyService
+	ProductLot      *services.ProductLotService
+	FuelPump        *services.FuelPumpService
+	VehicleSet      *services.VehicleSetService
+	Person          *services.PersonService
+	Vehicle         *services.VehicleService
+	NFe             *nfesvc.NfeService
+	NFCe            *nfesvc.NfceService
+	MDFe            *mdfesvc.MdfeService
+	Nfse            *nfsesvc.NfseService
+	NfeConfig       *services.NfeConfigService
+	NfceConfig      *services.NfceConfigService
+	CteConfig       *services.CteConfigService
+	MdfeConfig      *services.MdfeConfigService
+	NfseConfig      *services.NfseConfigService
+	Distribution    *services.DistributionService
+	External        *services.ExternalService
+	AuditLog        *services.AuditLogService
+	Billing         *services.BillingService
+	RoleRepo        *repositories.RoleRepository
 }
 
 // Register mounts all /v1.0 routes onto the Fiber app.
@@ -86,6 +93,13 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterTaxTables(v1, authMw)
 	RegisterOperations(v1, svcs.Operation, svcs.User, authMw, perm)
 	RegisterPaymentTerms(v1, svcs.PaymentTerm, svcs.User, authMw, perm)
+	RegisterPaymentTerminals(v1, svcs.PaymentTerminal, svcs.User, authMw, perm)
+	RegisterTollProviders(v1, svcs.TollProvider, svcs.User, authMw, perm)
+	RegisterCargoUnits(v1, svcs.CargoUnit, svcs.User, authMw, perm)
+	RegisterImportDeclarations(v1, svcs.ImportDI, svcs.User, authMw, perm)
+	RegisterInsurancePolicies(v1, svcs.InsurancePolicy, svcs.User, authMw, perm)
+	RegisterProductLots(v1, svcs.ProductLot, svcs.User, authMw, perm)
+	RegisterFuelPumps(v1, svcs.FuelPump, svcs.User, authMw, perm)
 	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)
 	RegisterVehicles(v1, svcs.Vehicle, svcs.User, authMw, perm)

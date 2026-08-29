@@ -23,7 +23,7 @@ Decisões confirmadas com usuário:
 ## Arquitetura
 
 **Novo módulo Go** `go-dfe/` na raiz do monorepo (irmão de `worker/`, `api/`), module path
-`gopkg.aoctech.app/dfe/go-dfe`, `go 1.26`.
+`gopkg.aoctech.app/dfe/go-dfe`, `go 1.27`.
 
 ```
 go-dfe/

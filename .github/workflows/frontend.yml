@@ -54,6 +54,6 @@ jobs:
         NEXT_PUBLIC_CTECH_URL=https://accounts-api.aoctech.app
         NEXT_PUBLIC_CTECH_CLIENT_URL=https://accounts.aoctech.app
         NEXT_PUBLIC_CTECH_CLIENT_ID=dfe
-      # CEP lookup, called straight from the browser. Not a NEXT_PUBLIC_* value,
-      # so it cannot be derived.
-      extra-connect-src: https://viacep.com.br
+      # CEP and public CNPJ lookups, called straight from the browser. These are
+      # not NEXT_PUBLIC_* values, so their origins cannot be derived.
+      extra-connect-src: https://viacep.com.br https://open.cnpja.com

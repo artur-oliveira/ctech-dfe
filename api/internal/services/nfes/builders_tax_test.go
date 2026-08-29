@@ -136,14 +136,14 @@ func TestBuildICMSNormal_ICMSCalculationCST00(t *testing.T) {
 // ─── buildIPI ─────────────────────────────────────────────────────────────────
 
 func TestBuildIPI_EmptyCSTReturnsNil(t *testing.T) {
-	result := buildIPI("", dec("100.00"), nil)
+	result := buildIPI("", dec("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
 	if result != nil {
 		t.Errorf("empty CST should return nil, got %v", result)
 	}
 }
 
 func TestBuildIPI_TributadoCST50(t *testing.T) {
-	result := buildIPI("50", dec("100.00"), new("10.00"))
+	result := buildIPI("50", dec("100.00"), decimal.NewFromInt(1), map[string]any{"ipi_aliq": "10.00"}, map[string]any{})
 	ipi := mapKey(t, result, "IPI")
 	trib := mapKey(t, ipi, "IPITrib")
 	strField(t, trib, "CST", "50")
@@ -153,7 +153,7 @@ func TestBuildIPI_TributadoCST50(t *testing.T) {
 }
 
 func TestBuildIPI_NaoTributadoCST03(t *testing.T) {
-	result := buildIPI("03", dec("100.00"), nil)
+	result := buildIPI("03", dec("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
 	ipi := mapKey(t, result, "IPI")
 	nt := mapKey(t, ipi, "IPINT")
 	strField(t, nt, "CST", "03")
@@ -241,4 +241,234 @@ func TestApplyUFRules_NilWhenNoRule(t *testing.T) {
 	// Most UF/CST combos return nil (no override needed)
 	result := applyUFRules("SP", "00", map[string]any{}, "18.00")
 	_ = result // nil is valid — means no override
+}
+
+func TestBuildICMSPart(t *testing.T) {
+	cfg := map[string]any{
+		"icms_mod_bc": "3", "icms_st_aliq": "18.00", "icms_st_mva": "40.00",
+		"icms_part_p_bc_op": "60.00", "icms_part_uf_st": "SP",
+	}
+	got := buildICMSNormal("0", "10", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	node, ok := got["ICMSPart"].(map[string]any)
+	if !ok {
+		t.Fatalf("esperava ICMSPart, veio %v", got)
+	}
+	if node["pBCOp"] != "60.00" || node["UFST"] != "SP" || node["CST"] != "10" {
+		t.Fatalf("ICMSPart errado: %v", node)
+	}
+	if _, ok := got["ICMS10"]; ok {
+		t.Fatal("ICMSPart substitui ICMS10, não convive")
+	}
+}
+
+// Sem o par pBCOp+UFST, CST 10 continua sendo ICMS10.
+func TestBuildICMSPartExigeOPar(t *testing.T) {
+	got := buildICMSNormal("0", "10", decimal.RequireFromString("100.00"),
+		map[string]any{"icms_part_p_bc_op": "60.00"}, "12.00", "0.00", decimal.NewFromInt(1))
+	if _, ok := got["ICMS10"]; !ok {
+		t.Fatalf("esperava ICMS10, veio %v", got)
+	}
+}
+
+func TestBuildICMSSTRepasse(t *testing.T) {
+	cfg := map[string]any{
+		"icms_v_bc_st_ret": "200.00", "icms_v_icms_st_ret": "36.00",
+		"icms_v_bc_st_dest": "150.00", "icms_v_icms_st_dest": "27.00",
+	}
+	got := buildICMSNormal("0", "41", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	node, ok := got["ICMSST"].(map[string]any)
+	if !ok {
+		t.Fatalf("CST 41 com ST retida tem que virar ICMSST, veio %v", got)
+	}
+	if node["vBCSTDest"] != "150.00" || node["vICMSSTDest"] != "27.00" {
+		t.Fatalf("ICMSST errado: %v", node)
+	}
+	if node["vBCSTRet"] != "200.00" || node["vICMSSTRet"] != "36.00" {
+		t.Fatalf("ST retida perdida: %v", node)
+	}
+}
+
+// Sem os valores de ST, 41 continua sendo não tributada (ICMS40).
+func TestBuildICMS41SemSTContinuaICMS40(t *testing.T) {
+	got := buildICMSNormal("0", "41", decimal.RequireFromString("100.00"), map[string]any{}, "12.00", "0.00", decimal.NewFromInt(1))
+	if _, ok := got["ICMS40"]; !ok {
+		t.Fatalf("esperava ICMS40, veio %v", got)
+	}
+}
+
+func TestAddICMSEfetivoCalculaBaseEValor(t *testing.T) {
+	node := map[string]any{}
+	addICMSEfetivo(node, decimal.RequireFromString("100.00"),
+		map[string]any{"icms_p_red_bc_efet": "20.00", "icms_p_icms_efet": "18.00"})
+	if node["pRedBCEfet"] != "20.00" || node["vBCEfet"] != "80.00" ||
+		node["pICMSEfet"] != "18.00" || node["vICMSEfet"] != "14.40" {
+		t.Fatalf("efetivo errado: %v", node)
+	}
+}
+
+func TestAddICMSEfetivoAusenteNaoPoluiONo(t *testing.T) {
+	node := map[string]any{"CST": "60"}
+	addICMSEfetivo(node, decimal.RequireFromString("100.00"), map[string]any{})
+	if len(node) != 1 {
+		t.Fatalf("sem configuração, nada pode ser acrescentado: %v", node)
+	}
+}
+
+// ICMS60 e CSOSN 500 são o mesmo caso em regimes diferentes: os dois trazem a
+// ST retida e o ICMS efetivo.
+func TestICMS60ECSOSN500TrazemSTRetidaEEfetivo(t *testing.T) {
+	cfg := map[string]any{
+		"icms_v_bc_st_ret": "200.00", "icms_v_icms_st_ret": "36.00", "icms_p_st": "18.00",
+		"icms_p_icms_efet": "18.00", "icms_p_red_bc_efet": "20.00",
+	}
+	vProd := decimal.RequireFromString("100.00")
+	normal := buildICMSNormal("0", "60", vProd, cfg, "12.00", "0.00", decimal.NewFromInt(1))["ICMS60"].(map[string]any)
+	sn := buildICMSSN("0", "500", vProd, cfg)["ICMSSN500"].(map[string]any)
+	for _, node := range []map[string]any{normal, sn} {
+		if node["vBCSTRet"] != "200.00" || node["pST"] != "18.00" || node["vICMSSTRet"] != "36.00" {
+			t.Fatalf("ST retida ausente: %v", node)
+		}
+		if node["vBCEfet"] != "80.00" || node["vICMSEfet"] != "14.40" {
+			t.Fatalf("ICMS efetivo ausente: %v", node)
+		}
+	}
+}
+
+func TestICMS70ComSTDesonerada(t *testing.T) {
+	cfg := map[string]any{"icms_st_aliq": "18.00", "icms_mot_des_st": "9"}
+	got := buildICMSNormal("0", "70", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS70"].(map[string]any)
+	if n["motDesICMSST"] != "9" || n["vICMSSTDeson"] == nil {
+		t.Fatalf("ST desonerada ausente: %v", n)
+	}
+}
+
+func TestICMS51ComFCPDiferido(t *testing.T) {
+	cfg := map[string]any{"icms_p_dif": "50.00", "icms_fcp_override": "2.00", "icms_p_fcp_dif": "100.00"}
+	got := buildICMSNormal("0", "51", decimal.RequireFromString("100.00"), cfg, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS51"].(map[string]any)
+	if n["pFCPDif"] != "100.00" || n["vFCPDif"] != "2.00" || n["vFCPEfet"] != "0.00" {
+		t.Fatalf("FCP diferido errado: %v", n)
+	}
+}
+
+// O leiaute não tem vBCFCP em ICMS00: a base do FCP ali é o próprio vBC.
+func TestICMS00FCPSemVBCFCP(t *testing.T) {
+	got := buildICMSNormal("0", "00", decimal.RequireFromString("100.00"),
+		map[string]any{"icms_fcp_override": "2.00"}, "12.00", "0.00", decimal.NewFromInt(1))
+	n := got["ICMS00"].(map[string]any)
+	if n["pFCP"] != "2.00" || n["vFCP"] != "2.00" {
+		t.Fatalf("FCP ausente: %v", n)
+	}
+	if _, ok := n["vBCFCP"]; ok {
+		t.Fatalf("vBCFCP não existe em ICMS00: %v", n)
+	}
+}
+
+func TestBuildIPIPorUnidade(t *testing.T) {
+	got := buildIPI("50", decimal.RequireFromString("100.00"), decimal.RequireFromString("3"),
+		map[string]any{"ipi_v_unid": "1.5000"}, map[string]any{"ipi_c_enq": "999"})
+	trib := got["IPI"].(map[string]any)["IPITrib"].(map[string]any)
+	if trib["qUnid"] != "3.0000" || trib["vUnid"] != "1.5000" || trib["vIPI"] != "4.50" {
+		t.Fatalf("IPI por unidade errado: %v", trib)
+	}
+	if _, ok := trib["pIPI"]; ok {
+		t.Fatal("qUnid/vUnid e vBC/pIPI são choice — não coexistem")
+	}
+}
+
+func TestBuildIPISelo(t *testing.T) {
+	got := buildIPI("50", decimal.RequireFromString("100.00"), decimal.NewFromInt(1),
+		map[string]any{"ipi_aliq": "10.00"},
+		map[string]any{"ipi_cnpj_prod": "11111111111111", "ipi_c_selo": "S1", "ipi_q_selo": "10"})
+	ipi := got["IPI"].(map[string]any)
+	if ipi["CNPJProd"] != "11111111111111" || ipi["cSelo"] != "S1" || ipi["qSelo"] != "10" {
+		t.Fatalf("selo ausente: %v", ipi)
+	}
+	trib := ipi["IPITrib"].(map[string]any)
+	if trib["pIPI"] != "10.00" || trib["vIPI"] != "10.00" {
+		t.Fatalf("IPI ad valorem errado: %v", trib)
+	}
+}
+
+// cEnq vem do produto; 999 é o default de quem não tem enquadramento.
+func TestBuildIPICEnqDoProduto(t *testing.T) {
+	got := buildIPI("53", decimal.RequireFromString("100.00"), decimal.NewFromInt(1),
+		map[string]any{}, map[string]any{"ipi_c_enq": "101"})
+	if got["IPI"].(map[string]any)["cEnq"] != "101" {
+		t.Fatalf("cEnq do produto ignorado: %v", got)
+	}
+	def := buildIPI("53", decimal.RequireFromString("100.00"), decimal.NewFromInt(1), map[string]any{}, map[string]any{})
+	if def["IPI"].(map[string]any)["cEnq"] != "999" {
+		t.Fatalf("default de cEnq errado: %v", def)
+	}
+}
+
+func TestBuildPISST(t *testing.T) {
+	got := buildPISST(map[string]any{"pis_st_v_bc": "120.00", "pis_st_aliq": "1.65"}, decimal.RequireFromString("100.00"))
+	if got["vBC"] != "120.00" || got["pPIS"] != "1.65" || got["vPIS"] != "1.98" {
+		t.Fatalf("PISST errado: %v", got)
+	}
+}
+
+func TestBuildPISSTAusente(t *testing.T) {
+	if buildPISST(map[string]any{}, decimal.RequireFromString("100.00")) != nil {
+		t.Fatal("sem configuração de ST, o grupo não existe")
+	}
+}
+
+// Sem base própria, a base é o valor do produto.
+func TestBuildCOFINSSTUsaVProdSemBase(t *testing.T) {
+	got := buildCOFINSST(map[string]any{"cofins_st_aliq": "7.60"}, decimal.RequireFromString("100.00"))
+	if got["vBC"] != "100.00" || got["vCOFINS"] != "7.60" {
+		t.Fatalf("COFINSST errado: %v", got)
+	}
+}
+
+func TestBuildISSQNCompleto(t *testing.T) {
+	cfg := map[string]any{
+		"issqn_ind_iss": "1", "issqn_aliq": "5.00", "issqn_c_list_serv": "01.01",
+		"issqn_c_mun_fg": "2211001", "issqn_v_deducao": "100.00", "issqn_v_outro": "10.00",
+		"issqn_v_desc_incond": "5.00", "issqn_v_desc_cond": "2.00", "issqn_v_iss_ret": "1.00",
+		"issqn_c_servico": "S-1", "issqn_c_mun": "2211001", "issqn_c_pais": "1058",
+		"issqn_n_processo": "PROC-9", "issqn_ind_incentivo": "2",
+	}
+	node := buildISSQN(decimal.RequireFromString("1000.00"), cfg)["ISSQN"].(map[string]any)
+	// A dedução sai da base antes da alíquota: (1000 - 100) × 5%.
+	if node["vISSQN"] != "45.00" || node["vBC"] != "1000.00" {
+		t.Fatalf("ISS errado: %v", node)
+	}
+	for tag, want := range map[string]string{
+		"vDeducao": "100.00", "vOutro": "10.00", "vDescIncond": "5.00", "vDescCond": "2.00",
+		"vISSRet": "1.00", "cServico": "S-1", "cMun": "2211001", "cPais": "1058",
+		"nProcesso": "PROC-9", "indIncentivo": "2",
+	} {
+		if node[tag] != want {
+			t.Fatalf("%s: want %q, got %v", tag, want, node[tag])
+		}
+	}
+}
+
+// Campo ausente não vira nó vazio.
+func TestBuildISSQNMinimo(t *testing.T) {
+	node := buildISSQN(decimal.RequireFromString("100.00"),
+		map[string]any{"issqn_ind_iss": "1", "issqn_aliq": "2.00"})["ISSQN"].(map[string]any)
+	for _, tag := range []string{"vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cServico"} {
+		if _, ok := node[tag]; ok {
+			t.Fatalf("%s não devia existir: %v", tag, node)
+		}
+	}
+}
+
+func TestSetDefaultNaoSobrescreve(t *testing.T) {
+	cfg := map[string]any{"issqn_aliq": "3.00"}
+	setDefault(cfg, "issqn_aliq", "5.00")
+	setDefault(cfg, "issqn_c_servico", "S-1")
+	setDefault(cfg, "issqn_c_mun", "")
+	if cfg["issqn_aliq"] != "3.00" || cfg["issqn_c_servico"] != "S-1" {
+		t.Fatalf("default sobrescreveu a tributação: %v", cfg)
+	}
+	if _, ok := cfg["issqn_c_mun"]; ok {
+		t.Fatalf("valor vazio não pode virar chave: %v", cfg)
+	}
 }
