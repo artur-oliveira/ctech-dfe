@@ -369,6 +369,14 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, problem.NotFound("organização não encontrada")
 	}
 
+	// The issuer's document, off the record. Resolved once here because three
+	// things downstream need it: the persisted row, the worker payload (which
+	// is also the S3 path), and the chave de acesso.
+	emitDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	if emitDoc == "" {
+		return nil, problem.BadRequest("documento do emitente não encontrado")
+	}
+
 	certs, err := s.certRepo.List(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -686,7 +694,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		"status":        StatusPending,
 		"sefaz_status":  nil,
 		"sefaz_motive":  nil,
-		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
+		"emit_cpf_cnpj": emitDoc,
 		"emit_name":     strAttr(orgItem, "name"),
 		"dest_cpf_cnpj": services.StripPKPrefix(receiverSK),
 		"dest_name":     strAttr(receiverItem, "name"),
@@ -721,7 +729,12 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		TableName:        "nfes",
 		S3Prefix:         "nfe",
 		ExpectedFileName: accessKey,
-		CNPJ:             services.StripPKPrefix(orgPK),
+		// Also the S3 path segment the worker writes under. Documents group by
+		// the issuing CNPJ, so two organizations sharing one share a prefix —
+		// deliberate: objects are addressed individually by the stored key, and
+		// nothing lists by prefix. Adding prefix listing would make this need
+		// revisiting.
+		CNPJ:             emitDoc,
 		UF:               emitUF,
 		SefazEnvironment: sefazEnv,
 		CertS3Key:        strAttr(cert, "s3_key"),
@@ -884,7 +897,14 @@ func generateAccessKey(orgPK string, org map[string]types.AttributeValue, serie,
 		return "", problem.BadRequest("UF do emitente não configurada ou inválida: " + uf)
 	}
 	aamm := now.Format("0601") // Go "06"=2-digit year, "01"=2-digit month
-	cnpj := services.StripPKPrefix(orgPK)
+	// Positions 7-20 of the chave de acesso are the issuer's CNPJ. It comes off
+	// the record, never the key: a company id truncated to fourteen characters
+	// would put "0199f3a1-8c42-" — hyphens included — inside the document's
+	// identity at SEFAZ, where it can never be corrected.
+	cnpj, _ := services.IssuerDocAV(org, orgPK)
+	if cnpj == "" {
+		return "", problem.BadRequest("documento do emitente não encontrado")
+	}
 	if len(cnpj) > 14 {
 		cnpj = cnpj[:14]
 	}

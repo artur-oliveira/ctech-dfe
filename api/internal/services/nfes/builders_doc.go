@@ -222,8 +222,9 @@ func BuildEnviNFe(
 		cUF = "35"
 	}
 
-	emitDoc := services.StripPKPrefix(orgPK)
-	isEmitPJ := strings.HasPrefix(orgPK, cnpjPrefix)
+	// The issuer's document comes off the record; the receiver's still comes
+	// off its own sort key, which really is a document.
+	emitDoc, isEmitPJ := services.IssuerDocMap(org, orgPK)
 
 	receiverSK := anyStr(receiver, "sk", "")
 	destDoc := services.StripPKPrefix(receiverSK)

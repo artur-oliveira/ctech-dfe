@@ -65,6 +65,13 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, problem.NotFound("organização não encontrada")
 	}
 
+	// The issuer's document, off the record: the persisted row, the worker
+	// payload and the chave de acesso all need it.
+	emitDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	if emitDoc == "" {
+		return nil, problem.BadRequest("documento do emitente não encontrado")
+	}
+
 	certs, err := s.certRepo.List(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -235,7 +242,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		"status":        StatusPending,
 		"sefaz_status":  nil,
 		"sefaz_motive":  nil,
-		"emit_cpf_cnpj": services.StripPKPrefix(orgPK),
+		"emit_cpf_cnpj": emitDoc,
 		"emit_name":     strAttr(orgItem, "name"),
 		"dest_cpf_cnpj": destDoc,
 		"dest_name":     destName,
@@ -270,7 +277,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		TableName:        "nfces",
 		S3Prefix:         "nfce",
 		ExpectedFileName: accessKey,
-		CNPJ:             services.StripPKPrefix(orgPK),
+		CNPJ:             emitDoc,
 		UF:               emitUF,
 		SefazEnvironment: sefazEnv,
 		CertS3Key:        strAttr(cert, "s3_key"),

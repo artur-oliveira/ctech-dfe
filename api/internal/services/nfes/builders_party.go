@@ -146,12 +146,15 @@ func getPersonMap(entity map[string]any) map[string]any {
 
 // buildEmit monta o nó emit (emitente) a partir da organização.
 func buildEmit(org, orgPerson map[string]any, orgPK, emitUF, destUF string, orgCRT int) map[string]any {
-	emitKey := "CPF"
-	if strings.HasPrefix(orgPK, cnpjPrefix) {
-		emitKey = "CNPJ"
+	// The issuer's document comes off the record, never off the key: since ADR
+	// 0022 the key is a company id and carries none.
+	emitDoc, isEmitPJ := services.IssuerDocMap(org, orgPK)
+	emitKey := services.TagCPF
+	if isEmitPJ {
+		emitKey = services.TagCNPJ
 	}
 	emit := map[string]any{
-		emitKey:     services.StripPKPrefix(orgPK),
+		emitKey:     emitDoc,
 		"xNome":     anyStr(org, "name", ""),
 		"xFant":     anyStr(orgPerson, "fantasy_name", ""),
 		"enderEmit": buildEnder(orgPerson),

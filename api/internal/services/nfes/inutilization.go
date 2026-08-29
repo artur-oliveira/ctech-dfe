@@ -167,8 +167,15 @@ func inutilize(ctx context.Context, d inutDeps, orgPK string, body Inutilization
 	if !ok {
 		return nil, problem.BadRequest("UF do emitente inválida ou não configurada")
 	}
-	cnpj := services.StripPKPrefix(orgPK)
-	if strings.HasPrefix(orgPK, services.TagCPF+"_") {
+	// Both the document and the PJ test come off the record. Reading them off
+	// the key would make every issuer a natural person once the key is a company
+	// id, and this whole path would refuse — for a range invalidation that
+	// cannot be undone once it is accepted.
+	cnpj, isPJ := services.IssuerDocAV(org, orgPK)
+	if cnpj == "" {
+		return nil, problem.BadRequest("documento do emitente não encontrado")
+	}
+	if !isPJ {
 		return nil, problem.BadRequest("o layout de inutilização da SEFAZ aceita apenas emitente pessoa jurídica (CNPJ)")
 	}
 
