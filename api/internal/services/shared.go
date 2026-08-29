@@ -17,6 +17,8 @@ import (
 
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // Environment and SEFAZ string constants shared across all DFe services.
@@ -126,6 +128,12 @@ func attrStrAV(item map[string]types.AttributeValue, key string) string {
 const TpEmisNormal = "1"
 
 // StripPKPrefix removes "CNPJ_" or "CPF_" prefix from a DynamoDB PK.
+// StripPKPrefix removes a CNPJ_/CPF_ prefix from a PERSON or ENTITY sort key.
+//
+// Never pass an organization key. Since ctech-billing ADR 0022 that key is a
+// company id, and this returns an unrecognized value unchanged — which is how a
+// UUID reached the issuer field of a signed XML. Use IssuerDoc, which reads the
+// record.
 func StripPKPrefix(pk string) string {
 	for _, p := range []string{"CNPJ_", "CPF_"} {
 		if after, ok := strings.CutPrefix(pk, p); ok {
@@ -142,15 +150,79 @@ const (
 	TagCPF  = "CPF"
 )
 
-// IssuerDocTag returns the XSD element name for the issuer's document, derived
-// from the organization PK prefix. Natural-person issuers (produtor rural, MEI
-// pessoa física) carry a CPF and would otherwise be emitted as CNPJ, which
-// SEFAZ rejects.
-func IssuerDocTag(orgPK string) string {
-	if strings.HasPrefix(orgPK, TagCPF+"_") {
-		return TagCPF
+// IssuerDoc returns the issuer's document and whether it is a legal person.
+//
+// The document comes off the organization RECORD, never off the partition key:
+// since ctech-billing ADR 0022 that key is a company id and carries no
+// document. It reads both eras on purpose — the legacy CNPJ_/CPF_ key is still
+// the only source before the migration runs and during a rollback, so one
+// function is correct on either side of the flip.
+//
+// An unknown issuer answers ("", false) rather than guessing. What this
+// replaced sliced the key with StripPKPrefix, which finds no prefix on a
+// company id and returns the UUID unchanged — and that value travelled into a
+// signed XML as <CPF>0199f3a1-…</CPF>, because the same missing prefix also
+// made every issuer a natural person. An empty document fails at the caller,
+// loudly, where somebody can still see it.
+func IssuerDoc(taxID, taxIDKind, orgPK string) (string, bool) {
+	if taxID != "" {
+		return taxID, taxIDKind == repositories.TaxKindCNPJ
 	}
-	return TagCNPJ
+	if after, ok := strings.CutPrefix(orgPK, TagCNPJ+"_"); ok {
+		return after, true
+	}
+	if after, ok := strings.CutPrefix(orgPK, TagCPF+"_"); ok {
+		return after, false
+	}
+	return "", false
+}
+
+// IssuerDocAV and IssuerDocMap adapt the two shapes an organization item takes
+// in this codebase: raw DynamoDB attributes in the service layer, and an
+// unmarshalled map in the XML builders. Two adapters over one rule, rather than
+// a conversion at each of the twenty-odd call sites.
+func IssuerDocAV(org map[string]types.AttributeValue, orgPK string) (string, bool) {
+	return IssuerDoc(avAttr(org, repositories.AttrTaxID), avAttr(org, repositories.AttrTaxIDKind), orgPK)
+}
+
+func IssuerDocMap(org map[string]any, orgPK string) (string, bool) {
+	return IssuerDoc(mapAttr(org, repositories.AttrTaxID), mapAttr(org, repositories.AttrTaxIDKind), orgPK)
+}
+
+// IssuerDocTag returns the XSD element name for the issuer's document
+// (CNPJ | CPF) in infEvento, infInut, emit and dest.
+//
+// It delegates rather than deciding again: two spellings of "is this issuer a
+// legal person" is how one of them ends up wrong, and this one picks the
+// element a natural-person issuer (produtor rural, MEI pessoa física) is
+// emitted under. Getting it wrong is a SEFAZ rejection.
+func IssuerDocTag(taxID, taxIDKind, orgPK string) string {
+	if _, isPJ := IssuerDoc(taxID, taxIDKind, orgPK); isPJ {
+		return TagCNPJ
+	}
+	return TagCPF
+}
+
+func IssuerDocTagAV(org map[string]types.AttributeValue, orgPK string) string {
+	return IssuerDocTag(avAttr(org, repositories.AttrTaxID), avAttr(org, repositories.AttrTaxIDKind), orgPK)
+}
+
+func IssuerDocTagMap(org map[string]any, orgPK string) string {
+	return IssuerDocTag(mapAttr(org, repositories.AttrTaxID), mapAttr(org, repositories.AttrTaxIDKind), orgPK)
+}
+
+func avAttr(org map[string]types.AttributeValue, key string) string {
+	if v, ok := org[key].(*types.AttributeValueMemberS); ok {
+		return v.Value
+	}
+	return ""
+}
+
+func mapAttr(org map[string]any, key string) string {
+	if v, ok := org[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // CalcMod11DV computes the mod-11 check digit for a 43-char DFe access key.

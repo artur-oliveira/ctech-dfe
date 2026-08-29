@@ -410,7 +410,9 @@ func resolveEventContext(ctx context.Context, orgRepo *repositories.Organization
 		sefazEnv = SefazEnvProd
 	}
 
-	cnpj := services.StripPKPrefix(orgPK)
+	// The issuer's document comes off the record: the partition key is a
+	// company id since ADR 0022 and carries none.
+	cnpj, _ := services.IssuerDocAV(org, orgPK)
 	emitUF := extractEmitUF(org)
 
 	cert := certs[0]
@@ -420,7 +422,7 @@ func resolveEventContext(ctx context.Context, orgRepo *repositories.Organization
 			password: strAttr(cert, "password"),
 		},
 		now: time.Now().UTC(), pk: pk, envPrefix: envPrefix,
-		environment: environment, cnpj: cnpj, docTag: services.IssuerDocTag(orgPK),
+		environment: environment, cnpj: cnpj, docTag: services.IssuerDocTagAV(org, orgPK),
 		emitUF: emitUF, sefazEnv: sefazEnv,
 	}, nil
 }

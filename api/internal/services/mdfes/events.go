@@ -61,6 +61,15 @@ func (s *MdfeService) resolveEventContext(ctx context.Context, orgPK, accessKey 
 	}
 	cert := certs[0]
 
+	// The issuer's document comes off the organization record, not the key:
+	// since ADR 0022 the key is a company id and carries none.
+	org, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+
+	issuerDoc, _ := services.IssuerDocAV(org, orgPK)
+
 	pk := strAttr(mdfe, "pk")
 	environment := 2
 	if envPrefixFromPK(pk) == EnvProd {
@@ -71,8 +80,8 @@ func (s *MdfeService) resolveEventContext(ctx context.Context, orgPK, accessKey 
 		mdfe:        mdfe,
 		pk:          pk,
 		environment: environment,
-		cnpj:        services.StripPKPrefix(orgPK),
-		docTag:      services.IssuerDocTag(orgPK),
+		cnpj:        issuerDoc,
+		docTag:      services.IssuerDocTagAV(org, orgPK),
 		emitUF:      emitUFFromAccessKey(accessKey),
 		sefazEnv:    sefazEnvFor(environment),
 		certS3Key:   strAttr(cert, "s3_key"),
