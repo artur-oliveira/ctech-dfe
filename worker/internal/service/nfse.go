@@ -141,7 +141,7 @@ func (s *DfeService) putXML(ctx context.Context, msg WorkerMessage, suffix, xml 
 		return nil, nil
 	}
 	key, err := s.putObject(ctx,
-		s.documentS3Key(msg.DocPK, msg.S3Prefix, msg.ExpectedFileName+suffix, extXML),
+		s.documentS3Key(msg.DocPK, msg.S3Prefix, msg.CNPJ, msg.ExpectedFileName+suffix, extXML),
 		[]byte(xml), contentTypeXML)
 	if err != nil {
 		return nil, fmt.Errorf("putXML %s: %w", suffix, err)

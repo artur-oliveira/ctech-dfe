@@ -311,7 +311,7 @@ const importOrgPK = "CNPJ_11647612000197"
 
 func TestRunImportXML_Happy_NfeProc_PersistsAsEmitida(t *testing.T) {
 	dynm := &mockDistDynamo{
-		gets: []getResult{{item: configItem(2, "hom", "", "")}}, // loadConfig; existing-doc check falls through to default (not found)
+		gets:    []getResult{{item: configItem(2, "hom", "", "")}}, // loadConfig; existing-doc check falls through to default (not found)
 		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
 	}
 	s3m := &mockS3{objects: map[string][]byte{
@@ -413,7 +413,7 @@ func TestRunImportXML_NoOrgMatch_RejectsWithoutRetry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("business rejection must return nil, not error: %v", err)
 	}
-	if dynm.lastPutItem(distCfg.TablePrefix + "_nfes") != nil {
+	if dynm.lastPutItem(distCfg.TablePrefix+"_nfes") != nil {
 		t.Fatal("no document should be persisted when no party matches the org")
 	}
 }
@@ -440,7 +440,7 @@ func TestRunImportXML_DigestMismatch_RejectsWithoutRetry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("business rejection must return nil, not error: %v", err)
 	}
-	if dynm.lastPutItem(distCfg.TablePrefix + "_nfes") != nil {
+	if dynm.lastPutItem(distCfg.TablePrefix+"_nfes") != nil {
 		t.Fatal("no document should be persisted on digest mismatch")
 	}
 }

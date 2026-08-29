@@ -78,10 +78,14 @@ func New(clients Clients, cfg *config.Config) *DfeService {
 
 // WorkerMessage is the SQS message body for a DFe SEFAZ operation.
 type WorkerMessage struct {
-	DocPK                 string         `json:"doc_pk"`
-	AccessKey             string         `json:"access_key"`
-	TableName             string         `json:"table_name"`
-	S3Prefix              string         `json:"s3_prefix"`
+	DocPK     string `json:"doc_pk"`
+	AccessKey string `json:"access_key"`
+	TableName string `json:"table_name"`
+	S3Prefix  string `json:"s3_prefix"`
+	// S3Tenant is the folder a document's XML goes under, sent by the API so a
+	// company's history stays in one prefix across the company re-key. Empty on
+	// a message queued before this field existed; documentS3Key falls back.
+	S3Tenant              string         `json:"s3_tenant,omitempty"`
 	ExpectedFileName      string         `json:"expected_file_name"`
 	CNPJ                  string         `json:"cnpj"`
 	UF                    string         `json:"uf"`
@@ -394,7 +398,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 
 	switch {
 	case cStat != nil && authorizedStats[*cStat]:
-		key, err := s.saveResponse(ctx, msg.DocPK, msg.S3Prefix, msg.ExpectedFileName, respBody)
+		key, err := s.saveResponse(ctx, msg.DocPK, msg.S3Prefix, msg.CNPJ, msg.ExpectedFileName, respBody)
 		if err != nil {
 			return fmt.Errorf("saveResponse: %w", err)
 		}
@@ -584,8 +588,48 @@ const (
 
 // documentS3Key builds the object key for a document artifact. The docPK's "#"
 // separators become path segments so the bucket mirrors the tenant hierarchy.
-func (s *DfeService) documentS3Key(docPK, s3Prefix, fileName, ext string) string {
-	return fmt.Sprintf("%s/%s/%s.%s", s3Prefix, strings.ReplaceAll(docPK, "#", "/"), fileName, ext)
+// documentS3Key builds where a document's XML lives.
+//
+// The tenant segment is CNPJ_{document} — derived from the issuer document the
+// message already carries, NOT from the partition key. Since ctech-billing ADR
+// 0022 that key is a company id, and using it would split a company's history
+// into an old folder and a new one at the moment of the re-key. Documents group
+// by the CNPJ that issued them, so the prefix stays continuous.
+//
+// It falls back to the DocPK's own tenant half when the message carries no
+// document. That is not decoration: messages queued before the issuer document
+// was read off the record are still in flight, and a path that changed under
+// them would write their XML somewhere their row does not point to.
+//
+// Two organizations sharing a CNPJ therefore share a prefix. Safe and
+// deliberate: every object is addressed by the xml_s3_key stored on its own
+// row, the série claim keeps their access keys apart, and nothing lists by
+// prefix. Adding prefix listing is what would make this need revisiting.
+func (s *DfeService) documentS3Key(docPK, s3Prefix, issuerDoc, fileName, ext string) string {
+	path := strings.ReplaceAll(docPK, "#", "/")
+	if segment := tenantSegment(issuerDoc); segment != "" {
+		if env, _, found := strings.Cut(docPK, "#"); found {
+			path = env + "/" + segment
+		}
+	}
+	return fmt.Sprintf("%s/%s/%s.%s", s3Prefix, path, fileName, ext)
+}
+
+// tenantSegment names a document's folder the way the retired partition key
+// did. Length is what tells the two apart, and it is the same rule the old key
+// encoded: eleven is a CPF, fourteen a CNPJ.
+//
+// Anything else returns "" and the caller falls back rather than inventing a
+// folder — a wrong prefix is an XML nobody finds by browsing.
+func tenantSegment(issuerDoc string) string {
+	switch len(issuerDoc) {
+	case 11:
+		return "CPF_" + issuerDoc
+	case 14:
+		return "CNPJ_" + issuerDoc
+	default:
+		return ""
+	}
 }
 
 func (s *DfeService) putObject(ctx context.Context, key string, data []byte, contentType string) (string, error) {
@@ -600,16 +644,16 @@ func (s *DfeService) putObject(ctx context.Context, key string, data []byte, con
 	return key, nil
 }
 
-func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, expectedFileName string, respBody map[string]any) (string, error) {
+func (s *DfeService) saveResponse(ctx context.Context, docPK, s3Prefix, issuerDoc, expectedFileName string, respBody map[string]any) (string, error) {
 	if xmlRaw, ok := respBody["@xml"].(string); ok && xmlRaw != "" {
-		return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, expectedFileName, extXML), []byte(xmlRaw), contentTypeXML)
+		return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, issuerDoc, expectedFileName, extXML), []byte(xmlRaw), contentTypeXML)
 	}
 
 	data, err := json.Marshal(respBody)
 	if err != nil {
 		return "", err
 	}
-	return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, expectedFileName, extJSON), data, contentTypeJSON)
+	return s.putObject(ctx, s.documentS3Key(docPK, s3Prefix, issuerDoc, expectedFileName, extJSON), data, contentTypeJSON)
 }
 
 // updateStatus updates a document's status in DynamoDB. When notify is true a
