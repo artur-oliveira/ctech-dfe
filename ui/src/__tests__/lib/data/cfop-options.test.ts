@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {CFOP_SUFFIXES, cfopSuffixOptions, getAllCfopOptions} from '@/lib/data/cfop'
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
-import {LC116_SERVICE_OPTIONS} from '@/lib/data/nfse_trib_nacional'
+import {LC116_SERVICE_CODES, LC116_SERVICE_OPTIONS} from '@/lib/data/lc116_services'
 import {BACEN_COUNTRIES, BACEN_COUNTRY_BRAZIL, BACEN_COUNTRY_CODES} from '@/lib/data/bacen_countries'
 import {cEnqOptionsForCst, IPI_CENQ, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
 import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
@@ -46,14 +46,18 @@ describe('UF_IBGE_OPTIONS', () => {
 })
 
 describe('LC116_SERVICE_OPTIONS', () => {
-  it('usa o formato NN.NN do cListServ, sem repetir', () => {
-    expect(LC116_SERVICE_OPTIONS.length).toBeGreaterThan(100)
+  it('traz os 200 itens oficiais no formato NN.NN, sem repetir', () => {
+    expect(LC116_SERVICE_OPTIONS).toHaveLength(200)
     expect(LC116_SERVICE_OPTIONS.every((o) => /^\d{2}\.\d{2}$/.test(o.value))).toBe(true)
-    expect(new Set(LC116_SERVICE_OPTIONS.map((o) => o.value)).size).toBe(LC116_SERVICE_OPTIONS.length)
+    expect(new Set(LC116_SERVICE_OPTIONS.map((o) => o.value)).size).toBe(200)
   })
 
   it('traz análise e desenvolvimento de sistemas como 01.01', () => {
     expect(LC116_SERVICE_OPTIONS[0].value).toBe('01.01')
+  })
+
+  it('não inclui o 99.01 da tabela da NFS-e, que o cListServ não aceita', () => {
+    expect(LC116_SERVICE_CODES.has('99.01')).toBe(false)
   })
 })
 

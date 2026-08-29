@@ -1259,7 +1259,10 @@ export const NF_PAYMENT_TYPES: Record<string, string> = {
   '20': 'PIX (Estático)',
   '21': 'Crédito em Loja',
   '22': 'Pagamento Eletrônico não Informado - falha de hardware do sistema emissor',
+  '23': 'Pagamento Instantâneo (PIX) - Automático',
+  '24': 'TEF - "Book Transfer"',
   '90': 'Sem pagamento',
+  '91': 'Pagamento Posterior',
   '99': 'Outros',
 }
 

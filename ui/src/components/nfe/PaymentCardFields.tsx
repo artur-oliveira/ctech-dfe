@@ -10,25 +10,14 @@ import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {maskCnpj} from '@/lib/utils/masks'
 import type {NfeCardIn} from '@/lib/types/api'
+import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS} from '@/lib/data/payment-tables'
 
-// Card brand codes (cartao de crédito/débito). Shared by NF-e and NFC-e.
-export const CARD_BAND_OPTIONS = [
-  {value: '01', label: '01 – Visa'},
-  {value: '02', label: '02 – Mastercard'},
-  {value: '03', label: '03 – American Express'},
-  {value: '04', label: '04 – Sorocred'},
-  {value: '05', label: '05 – Diners Club'},
-  {value: '06', label: '06 – Elo'},
-  {value: '07', label: '07 – Hipercard'},
-  {value: '99', label: '99 – Outros'},
-]
+// Bandeiras e classificação dos meios de pagamento vivem na tabela oficial
+// (lib/data/payment-tables.ts). Reexportadas aqui porque é onde os formulários
+// já as importam.
+export const CARD_BAND_OPTIONS = TBAND_OPTIONS
 
-// Payment method codes that carry card/PIX transaction data (tpIntegra/tBand/…).
-// 03=Crédito, 04=Débito, 10/11=Vale, 12=PIX dinâmico, 13=PIX, 17=PIX estático.
-export const CARD_PAYMENT_TYPES = new Set(['03', '04', '10', '11', '12', '13', '17'])
-
-export const isPixPaymentType = (paymentType: string): boolean =>
-  paymentType === '17' || paymentType === '12' || paymentType === '13'
+export {CARD_PAYMENT_TYPES, isPixPaymentType}
 
 /**
  * Card / PIX transaction fields (tpIntegra, bandeira, NSU/autorização, CNPJ).

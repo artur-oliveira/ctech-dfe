@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {ANP_CODE_SET, ANP_MONO_FUELS, anpMonoFuel, ANP_OPTIONS} from '@/lib/data/anp'
 import {benefitOptionsForUf, CBENEF_UFS, isKnownBenefit, SEM_CBENEF, ufHasBenefitTable} from '@/lib/data/cbenef'
 import {especieOptionsForTipo, isValidVehicleTypePair, VEHICLE_TYPE_PAIRS} from '@/lib/data/vehicle_type_pairs'
+import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS, TPAG_LABELS, TPAG_TABLE} from '@/lib/data/payment-tables'
 
 describe('tabela da ANP', () => {
   it('traz os 1031 códigos oficiais, todos com 9 dígitos', () => {
@@ -70,5 +71,35 @@ describe('pares de tipo e espécie de veículo', () => {
     expect(isValidVehicleTypePair('2', '9')).toBe(false)
     // Campo vazio não é erro de par — é o superRefine de obrigatoriedade que cobra.
     expect(isValidVehicleTypePair('', '')).toBe(true)
+  })
+})
+
+describe('tabelas de pagamento', () => {
+  it('traz os 23 meios de pagamento e as 28 bandeiras vigentes', () => {
+    expect(TPAG_TABLE).toHaveLength(23)
+    expect(TBAND_OPTIONS).toHaveLength(28)
+  })
+
+  it('classifica como PIX só 17, 20 e 23', () => {
+    // Regressão: 12 e 13 são Vale Presente e Vale Combustível, e eram tratados
+    // como PIX — abriam campos de transação PIX no meio de pagamento errado.
+    expect(isPixPaymentType('17')).toBe(true)
+    expect(isPixPaymentType('20')).toBe(true)
+    expect(isPixPaymentType('23')).toBe(true)
+    expect(isPixPaymentType('12')).toBe(false)
+    expect(isPixPaymentType('13')).toBe(false)
+  })
+
+  it('rotula 12 e 13 como vale, conforme a tabela oficial', () => {
+    expect(TPAG_LABELS['12']).toBe('Vale Presente')
+    expect(TPAG_LABELS['13']).toBe('Vale Combustível')
+    expect(TPAG_LABELS['20']).toContain('Estático')
+  })
+
+  it('pede dados de transação nos meios que os têm', () => {
+    expect(CARD_PAYMENT_TYPES.has('03')).toBe(true)
+    expect(CARD_PAYMENT_TYPES.has('20')).toBe(true)
+    expect(CARD_PAYMENT_TYPES.has('01')).toBe(false)
+    expect(CARD_PAYMENT_TYPES.has('90')).toBe(false)
   })
 })
