@@ -41,11 +41,70 @@ func NewOrganizationRepository(db *dynamodb.Client, cfg *config.Config) *Organiz
 	return &OrganizationRepository{Base: NewBase(db, cfg, "organizations")}
 }
 
-// ParseOrgPK converts a raw CPF/CNPJ (or already-prefixed PK) to the DynamoDB PK format.
-// Mirrors OrganizationRepository.parse_pk in Python.
+// companyKeyLength is a UUID in its canonical 8-4-4-4-12 form.
+const companyKeyLength = 36
+
+// IsCompanyKey reports whether pk is a platform company id rather than a legacy
+// CNPJ_/CPF_ key.
+//
+// One predicate, because "has this row been re-keyed" is asked from several
+// places and two spellings of the question drift apart.
+func IsCompanyKey(pk string) bool {
+	// The shape is checked rather than parsed: this runs on every request, and
+	// the only question is which key era the value belongs to. Lowercase hex
+	// only — uuid.String() emits lowercase, and accepting both cases would let
+	// one company hold two partitions.
+	if len(pk) != companyKeyLength {
+		return false
+	}
+	for i := 0; i < len(pk); i++ {
+		c := pk[i]
+		switch i {
+		case 8, 13, 18, 23:
+			if c != '-' {
+				return false
+			}
+		default:
+			if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ParseOrgPK canonicalizes a partition key.
+//
+// Three accepted shapes, and the two legacy ones are not deprecation debt: the
+// old partitions are the re-key migration's rollback, and a build that cannot
+// read them cannot roll back.
+//
+//   - a platform company id (UUIDv7) — the key from ctech-billing ADR 0022 on
+//   - an already-prefixed CNPJ_/CPF_ key — legacy, still readable
+//   - a bare or masked CPF/CNPJ — normalized to the legacy prefix form
+//
+// Note what is deliberately absent: nothing reads a tax id back out of the
+// result. A CNPJ has been alphanumeric in its first twelve positions since the
+// Receita Federal's 2026 change, and the canonical tax id lives on the company
+// record, not in the key.
 func ParseOrgPK(cpfOrCNPJ string) (string, error) {
+	if IsCompanyKey(cpfOrCNPJ) {
+		return cpfOrCNPJ, nil
+	}
 	if strings.HasPrefix(cpfOrCNPJ, "CNPJ_") || strings.HasPrefix(cpfOrCNPJ, "CPF_") {
 		return cpfOrCNPJ, nil
+	}
+	// Only a typed document reaches the legacy path, and a typed document holds
+	// digits and mask punctuation and nothing else. Without this guard a
+	// truncated company id falls through: "0199f3a1-8c42-7c31-9d5e" happens to
+	// carry exactly fourteen digits, and stripping the rest turned it into
+	// CNPJ_01993184273195 — a partition nobody meant to address.
+	//
+	// Refusing letters here is right even though a CNPJ is alphanumeric now:
+	// this path only ever produced CNPJ_{digits} keys, so an alphanumeric CNPJ
+	// has no legacy partition to name.
+	if !isTypedDocument(cpfOrCNPJ) {
+		return "", problem.BadRequest("organização inválida")
 	}
 	digits := stripNonDigits(cpfOrCNPJ)
 	switch len(digits) {
@@ -54,8 +113,26 @@ func ParseOrgPK(cpfOrCNPJ string) (string, error) {
 	case 14:
 		return fmt.Sprintf("CNPJ_%s", digits), nil
 	default:
-		return "", problem.BadRequest("invalid CPF or CNPJ")
+		// No longer "deve começar com CNPJ_ ou CPF_": that is user-facing and
+		// describes a shape the product no longer issues.
+		return "", problem.BadRequest("organização inválida")
 	}
+}
+
+// isTypedDocument reports whether raw is a CPF/CNPJ as somebody would type it:
+// digits, and the punctuation a mask is made of.
+func isTypedDocument(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, r := range raw {
+		switch {
+		case r >= '0' && r <= '9', r == '.', r == '/', r == '-', r == ' ':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // GetOrganization fetches an organization by its PK (prefixed or raw CNPJ/CPF).

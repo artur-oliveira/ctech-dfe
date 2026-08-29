@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -12,11 +13,17 @@ func GetOrgPK(c fiber.Ctx) string {
 	return v
 }
 
-// ParseOrgPK validates and returns an org PK string.
-// Org PKs must start with CNPJ_ or CPF_.
+// ParseOrgPK validates a tenant key from the WebSocket handshake, where there is
+// no repository to hand.
+//
+// It delegates rather than checking the shape itself. The version this replaced
+// tested for the CNPJ_/CPF_ prefixes by hand — a second spelling of a rule that
+// already existed, and one that would have rejected every platform company id
+// while the HTTP path accepted them.
 func ParseOrgPK(raw string) (string, error) {
-	if len(raw) > 0 && (len(raw) >= 5 && (raw[:5] == "CNPJ_" || raw[:4] == "CPF_")) {
-		return raw, nil
+	pk, err := repositories.ParseOrgPK(raw)
+	if err != nil {
+		return "", problem.BadRequest("organização inválida")
 	}
-	return "", problem.BadRequest("org_pk inválido: deve começar com CNPJ_ ou CPF_")
+	return pk, nil
 }
