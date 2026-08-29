@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/observability"
@@ -415,9 +416,7 @@ func redactFiscalSecrets(item map[string]types.AttributeValue) map[string]types.
 		return nil
 	}
 	out := make(map[string]types.AttributeValue, len(item))
-	for k, v := range item {
-		out[k] = v
-	}
+	maps.Copy(out, item)
 	for _, k := range fiscalConfigSecrets {
 		delete(out, k)
 	}

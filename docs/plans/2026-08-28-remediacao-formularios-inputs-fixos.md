@@ -70,11 +70,17 @@ Scores de partida: **Design 24/40**, **Audit 7/20**.
 Cada uma: fonte oficial citada no cabeçalho do arquivo, teste de integridade (sem duplicata, formato do código,
 contagem), e a troca do controle correspondente no mesmo commit.
 
-- [ ] **Task 12:** BACEN país (`issqn_c_pais`, endereço estrangeiro) — `nfse_countries.ts` é ISO alpha-2, sistema errado.
-- [ ] **Task 13:** `cClassTribIS` (NT 2025.002) — irmão do `ibs_cbs_class_trib`, que já é select.
-- [ ] **Task 14:** cEnq IPI (default 999) e código do selo.
+- [x] **Task 12:** BACEN país — 249 códigos vigentes, do .ods oficial da NT 2018.003 v1.01. Endereço estrangeiro
+  (`c_pais` em `address-fields`) fica pendente: o campo não existe no schema hoje.
+- [~] **Task 13:** `cClassTribIS` — **bloqueada na fonte**. A NT 2025.002 v1.51, p. 95, diz literalmente
+  "ANEXO II - CÓDIGO DE CLASSIFICAÇÃO TRIBUTÁRIA DO IMPOSTO SELETIVO (cClassTribIS) — Tabela a ser publicada".
+  Não existe tabela para picker; o campo segue texto validado por `\d{6}`. Reavaliar quando a RFB publicar.
+- [x] **Task 14:** cEnq IPI — 132 códigos da NT 2020.002 v1.01, com a faixa filtrada pelo CST (RV W16-10).
+  O código do selo não tem tabela pública: segue texto.
 - [ ] **Task 15:** ANP combustível — `cProdANP` vira Combobox e `descANP` vira derivado read-only.
-- [ ] **Task 16:** ONU + classe de risco + grupo de embalagem (I/II/III); `xNomeAE` derivado do ONU.
+- [x] **Task 16:** classe de risco (25 entradas, Res. ANTT 5.998/2022) e grupo de embalagem I/II/III, com as
+  classes que não recebem grupo desabilitando o campo. **A tabela ONU (~3.500 números) fica pendente** — não
+  cabe numa pesquisa web confiável; precisa do anexo da própria resolução.
 - [ ] **Task 17:** cBenef por UF (inclui `SEM CBENEF` como opção explícita, não string mágica).
 - [ ] **Task 18:** banco BACEN — **checar antes `ctech-go-common` e `ctech-billing`**, pode já existir.
 - [x] **Task 19:** strings mágicas viram controle: `SEM GTIN` (checkbox), `ISENTO` ANVISA (radio + campo desabilitado).

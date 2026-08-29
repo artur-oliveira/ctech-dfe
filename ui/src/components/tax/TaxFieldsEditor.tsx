@@ -9,6 +9,7 @@ import {NumericInput} from '@/components/ui/numeric-input'
 import {Input} from '@/components/ui/input'
 import type {CfopConfigFormData} from '@/lib/schemas/products'
 import {getAllCfopOptions} from '@/lib/data/cfop'
+import {BACEN_COUNTRY_OPTIONS} from '@/lib/data/bacen_countries'
 import {CITY_OPTIONS} from '@/lib/data/cities'
 import {LC116_SERVICE_OPTIONS} from '@/lib/data/nfse_trib_nacional'
 import {UNIT_OPTIONS} from '@/lib/data/unit'
@@ -815,8 +816,9 @@ export function TaxFieldsEditor({
                             placeholder="Município" searchPlaceholder="Nome ou UF..." fuzzySearch/>
                 </TaxField>
                 <TaxField label="País do serviço">
-                  <Input value={value.issqn_c_pais ?? ''} maxLength={4} inputMode="numeric" placeholder="1058"
-                         onChange={(e) => onChange((r) => ({...r, issqn_c_pais: e.target.value.replace(/\D/g, '')}))}/>
+                  <Combobox value={value.issqn_c_pais ?? ''} options={BACEN_COUNTRY_OPTIONS}
+                            onValueChange={(v) => onChange((r) => ({...r, issqn_c_pais: v}))}
+                            placeholder="Brasil (1058)" searchPlaceholder="Nome ou código..." fuzzySearch/>
                 </TaxField>
                 <TaxField label="Nº do processo">
                   <Input value={value.issqn_n_processo ?? ''} maxLength={30}

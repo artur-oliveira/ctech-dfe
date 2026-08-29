@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {useState} from 'react'
+import {useMemo, useState} from 'react'
 import {generateEntityCode} from '@/lib/utils/code'
 import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
 import {useQuery} from '@tanstack/react-query'
@@ -17,6 +17,8 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Combobox} from '@/components/ui/combobox'
 import {NcmCombobox} from '@/components/ui/ncm-combobox'
 import {GlossaryTerm} from '@/components/ui/glossary-term'
+import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
+import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
 import {UF_OPTIONS} from '@/lib/schemas/entity'
 import {Button} from '@/components/ui/button'
@@ -790,6 +792,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   const watchedNcm = useWatch({control: form.control, name: 'ncm'})
   const watchedProdType = useWatch({control: form.control, name: 'prod_type'})
   const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'})
+  const watchedRiskClass = useWatch({control: form.control, name: 'peri_x_cla_risco'})
+  // O CST do IPI decide a faixa de enquadramento aceita (RV W16-10).
+  const cEnqOptions = useMemo(() => cEnqOptionsForCst(cfopRow.ipi_cst), [cfopRow.ipi_cst])
   const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit
 
   const [prevShowConvFact, setPrevShowConvFact] = useState(showConversionFactors)
@@ -1773,9 +1778,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="ipi_c_enq" render={({field}) => (
                     <FormItem>
                       <FormLabel>Enquadramento legal <GlossaryTerm term="c_enq"/></FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={3}
-                             inputMode="numeric" placeholder="999"
-                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}/>
+                      <Combobox id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                options={cEnqOptions} placeholder={IPI_CENQ_DEFAULT}
+                                searchPlaceholder="Código ou norma..." fuzzySearch/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
@@ -1830,16 +1835,27 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   <FormField control={form.control} name="peri_x_cla_risco" render={({field}) => (
                     <FormItem>
                       <FormLabel>Classe de risco</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={40}
-                             placeholder="Ex: 3"/>
+                      <Combobox id={field.name} value={field.value ?? ''}
+                                onValueChange={(v) => {
+                                  field.onChange(v)
+                                  // Classe sem grupo de embalagem limpa o campo:
+                                  // é regra da ANTT, não memória do operador.
+                                  if (!packingGroupApplies(v)) form.setValue('peri_gr_emb', '')
+                                }}
+                                options={RISK_CLASS_OPTIONS} placeholder="Classe ANTT"
+                                searchPlaceholder="Classe ou descrição..." fuzzySearch/>
                       <FormMessage/>
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="peri_gr_emb" render={({field}) => (
                     <FormItem>
                       <FormLabel>Grupo de embalagem</FormLabel>
-                      <Input {...field} id={field.name} value={field.value ?? ''} maxLength={6}
-                             placeholder="Ex: II"/>
+                      <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
+                                     options={PACKING_GROUP_OPTIONS}
+                                     disabled={!packingGroupApplies(watchedRiskClass)}
+                                     placeholder={packingGroupApplies(watchedRiskClass)
+                                       ? 'Grupo'
+                                       : 'Não se aplica a esta classe'}/>
                       <FormMessage/>
                     </FormItem>
                   )}/>

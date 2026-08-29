@@ -99,9 +99,11 @@ describe('productSchema — regras cruzadas do leiaute', () => {
     expect(productSchema.safeParse({...base, ipi_c_selo: 'ABC', ipi_q_selo: '10'}).success).toBe(true)
   })
 
-  it('número ONU arrasta nome, classe de risco e grupo de embalagem', () => {
+  it('número ONU arrasta nome e classe de risco', () => {
+    // O grupo de embalagem só é cobrado depois que a classe é conhecida: há
+    // classes da ANTT que não recebem grupo nenhum.
     expect(pathsOf({...base, peri_n_onu: '1203'})).toEqual(
-      expect.arrayContaining(['peri_x_nome_ae', 'peri_x_cla_risco', 'peri_gr_emb']),
+      expect.arrayContaining(['peri_x_nome_ae', 'peri_x_cla_risco']),
     )
   })
 
@@ -154,5 +156,46 @@ describe('cfopConfigSchema — grupos do tratamento tributário', () => {
   it('ALC/ZFM e observação do item são grupos completos', () => {
     expect(pathsOf({...base, alc_zfm_tp_cbs: '1'})).toContain('alc_zfm_n_proc_suframa')
     expect(pathsOf({...base, obs_item_x_campo: 'Beneficio'})).toContain('obs_item_x_texto')
+  })
+})
+
+describe('productSchema — tabelas oficiais de produto perigoso e IPI', () => {
+  const base = {
+    code: 'PROD1', description: 'Produto de teste', ncm: '84713012', origin: '0',
+    unit: 'UN', value: '10.00', ind_tot: '1' as const, cfop_nfce: '5102',
+    cfop_config: [], conversion_factors: [],
+  }
+
+  const pathsOf = (data: Record<string, unknown>): string[] => {
+    const result = productSchema.safeParse(data)
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
+  }
+
+  it('recusa classe de risco fora da tabela da ANTT', () => {
+    expect(pathsOf({...base, peri_x_cla_risco: '13'})).toContain('peri_x_cla_risco')
+    expect(pathsOf({...base, peri_x_cla_risco: '3'})).not.toContain('peri_x_cla_risco')
+  })
+
+  it('não cobra grupo de embalagem nas classes que não o recebem', () => {
+    // Classe 2.1 (gás inflamável) não tem grupo de embalagem.
+    const gas = {...base, peri_n_onu: '1978', peri_x_nome_ae: 'PROPANO', peri_x_cla_risco: '2.1'}
+    expect(pathsOf(gas)).not.toContain('peri_gr_emb')
+    // Classe 3 (líquido inflamável) tem.
+    const liquido = {...base, peri_n_onu: '1203', peri_x_nome_ae: 'GASOLINA', peri_x_cla_risco: '3'}
+    expect(pathsOf(liquido)).toContain('peri_gr_emb')
+  })
+
+  it('recusa grupo de embalagem numa classe que não o admite', () => {
+    const errado = {
+      ...base, peri_n_onu: '1978', peri_x_nome_ae: 'PROPANO',
+      peri_x_cla_risco: '2.1', peri_gr_emb: 'II',
+    }
+    expect(pathsOf(errado)).toContain('peri_gr_emb')
+  })
+
+  it('recusa enquadramento de IPI fora da tabela e aceita o genérico', () => {
+    expect(pathsOf({...base, ipi_c_enq: '888'})).toContain('ipi_c_enq')
+    expect(pathsOf({...base, ipi_c_enq: '999'})).not.toContain('ipi_c_enq')
+    expect(pathsOf({...base, ipi_c_enq: '101'})).not.toContain('ipi_c_enq')
   })
 })

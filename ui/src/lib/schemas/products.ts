@@ -1,4 +1,6 @@
 import {z} from 'zod'
+import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods'
+import {IPI_CENQ} from '@/lib/data/ipi_cenq'
 
 export const conversionFactorSchema = z.object({
   origin_unit: z
@@ -165,7 +167,7 @@ export const cfopConfigBase = z.object({
   issqn_v_desc_cond: optionalStr,
   issqn_c_servico: optionalStr,
   issqn_c_mun: optionalStr,
-  issqn_c_pais: optionalStr,
+  issqn_c_pais: z.string().regex(/^\d{4}$/, 'Código de país tem 4 dígitos').optional().or(z.literal('')),
   issqn_n_processo: optionalStr,
   issqn_ind_incentivo: optionalStr,
   issqn_v_iss_ret: optionalStr,
@@ -277,6 +279,10 @@ const VEICULO_REQUIRED: {field: keyof ProductFormData; label: string}[] = [
 ]
 
 const ANVISA_ISENTO = 'ISENTO'
+
+/** Índices das tabelas oficiais, para a validação não varrê-las por tecla. */
+const RISK_CLASS_CODES = new Set(RISK_CLASSES.filter((c) => !c.parentOnly).map((c) => c.code))
+const IPI_CENQ_CODES = new Set(IPI_CENQ.map((e) => e.code))
 const SEM_GTIN = 'SEM GTIN'
 
 const productSchemaBase = z.object({
@@ -465,7 +471,26 @@ export const productSchema = productSchemaBase.superRefine((data, ctx) => {
   if (filled(data.peri_n_onu)) {
     require('peri_x_nome_ae', 'Obrigatório quando há número ONU')
     require('peri_x_cla_risco', 'Obrigatório quando há número ONU')
-    require('peri_gr_emb', 'Obrigatório quando há número ONU')
+    // Classe 1, 2, 5.2, 6.2 e 7 não recebem grupo de embalagem (Res. ANTT 5.998/2022).
+    if (packingGroupApplies(data.peri_x_cla_risco)) {
+      require('peri_gr_emb', 'Obrigatório quando há número ONU')
+    }
+  }
+
+  if (filled(data.peri_x_cla_risco) && !RISK_CLASS_CODES.has(data.peri_x_cla_risco as string)) {
+    ctx.addIssue({code: 'custom', path: ['peri_x_cla_risco'], message: 'Classe de risco não existe na tabela da ANTT'})
+  }
+
+  if (filled(data.peri_gr_emb) && !packingGroupApplies(data.peri_x_cla_risco)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['peri_gr_emb'],
+      message: 'Esta classe de risco não recebe grupo de embalagem',
+    })
+  }
+
+  if (filled(data.ipi_c_enq) && !IPI_CENQ_CODES.has(data.ipi_c_enq as string)) {
+    ctx.addIssue({code: 'custom', path: ['ipi_c_enq'], message: 'Enquadramento legal do IPI não existe na tabela'})
   }
 
   // Origem do combustível: o rateio tem que fechar em 100%.
