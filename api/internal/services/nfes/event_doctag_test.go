@@ -14,11 +14,23 @@ func TestEventBuildersUseIssuerDocTag(t *testing.T) {
 		key = "35240611222333000181550010000000011000000017"
 		doc = "12345678901"
 	)
-	if got := services.IssuerDocTag("CPF_" + doc); got != services.TagCPF {
+	// The legacy keys, which every organization still carries until the
+	// company re-key migration runs.
+	if got := services.IssuerDocTag("", "", "CPF_"+doc); got != services.TagCPF {
 		t.Fatalf("IssuerDocTag(CPF_) = %q, want CPF", got)
 	}
-	if got := services.IssuerDocTag("CNPJ_11222333000181"); got != services.TagCNPJ {
+	if got := services.IssuerDocTag("", "", "CNPJ_11222333000181"); got != services.TagCNPJ {
 		t.Fatalf("IssuerDocTag(CNPJ_) = %q, want CNPJ", got)
+	}
+	// And after it: the key is a company id and says nothing, so the tag has to
+	// come from the record. A natural-person issuer read as CNPJ here is a
+	// SEFAZ rejection on a choice element.
+	const companyKey = "0199f3a1-8c42-7c31-9d5e-6a2b4c8e1f70"
+	if got := services.IssuerDocTag(doc, "cpf", companyKey); got != services.TagCPF {
+		t.Fatalf("IssuerDocTag(record cpf) = %q, want CPF", got)
+	}
+	if got := services.IssuerDocTag("11222333000181", "cnpj", companyKey); got != services.TagCNPJ {
+		t.Fatalf("IssuerDocTag(record cnpj) = %q, want CNPJ", got)
 	}
 
 	bodies := map[string]map[string]any{
