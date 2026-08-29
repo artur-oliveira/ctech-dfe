@@ -79,11 +79,11 @@ func (s *MembershipService) EffectivePermissions(ctx context.Context, m *Members
 }
 
 func memberCacheKey(orgPK, userID string) string {
-	return fmt.Sprintf("member:%s:%s", orgPK, repositories.RawUserID(userID))
+	return fmt.Sprintf("dfe:member:%s:%s", orgPK, repositories.RawUserID(userID))
 }
 
 func userOrgsCacheKey(userID string) string {
-	return fmt.Sprintf("user_orgs:%s", repositories.RawUserID(userID))
+	return fmt.Sprintf("dfe:user_orgs:%s", repositories.RawUserID(userID))
 }
 
 // Get returns the caller's membership in orgPK, or nil if they are not a member.

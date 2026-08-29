@@ -92,10 +92,10 @@ const (
 )
 
 func accountBillingCacheKey(userID string) string {
-	return fmt.Sprintf("billing:%s", repositories.RawUserID(userID))
+	return fmt.Sprintf("dfe:billing:%s", repositories.RawUserID(userID))
 }
 
-const catalogCacheKey = "billing:catalog"
+const catalogCacheKey = "dfe:billing:catalog"
 
 // BillingService is the DF-e's view of ctech-billing.
 type BillingService struct {

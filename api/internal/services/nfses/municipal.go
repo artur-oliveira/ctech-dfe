@@ -19,7 +19,7 @@ import (
 // formulário de emissão (spec §5.4).
 const municipalParamsTTL = 6 * 60 * 60
 
-const cacheKeyMunicipalPrefix = "nfse:munparams:"
+const cacheKeyMunicipalPrefix = "dfe:nfse:munparams:"
 
 // cacheKeyMunicipalParams NÃO inclui a organização: os parâmetros são públicos
 // por município/competência. Incluir o tenant faria cada organização pagar a

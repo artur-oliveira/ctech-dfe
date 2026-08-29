@@ -25,11 +25,11 @@ const userCacheTTL = 300
 // prefixed id (e.g. membership management) hit the same entry. Shared with
 // MembershipService, which must evict "me:" when membership changes.
 func userItemCacheKey(userID string) string {
-	return fmt.Sprintf("user:%s", repositories.RawUserID(userID))
+	return fmt.Sprintf("dfe:user:%s", repositories.RawUserID(userID))
 }
 
 func userMeCacheKey(userID string) string {
-	return fmt.Sprintf("me:%s", repositories.RawUserID(userID))
+	return fmt.Sprintf("dfe:me:%s", repositories.RawUserID(userID))
 }
 
 // CurrentTermsAddendumVersion is the dfe-specific ToS/Privacy addendum version

@@ -151,7 +151,7 @@ func (p *PermChecker) check(c fiber.Ctx, permission string) error {
 }
 
 func (p *PermChecker) hasPermission(ctx context.Context, roleName, permission string) bool {
-	cacheKey := fmt.Sprintf("role:%s", roleName)
+	cacheKey := fmt.Sprintf("dfe:role:%s", roleName)
 
 	if data, ok, err := p.c.Get(ctx, cacheKey); err == nil && ok {
 		var perms []string

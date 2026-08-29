@@ -46,7 +46,7 @@ func NewOrganizationService(
 }
 
 func (s *OrganizationService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
-	cacheKey := "org:" + orgPK
+	cacheKey := "dfe:org:" + orgPK
 	if v, ok := cacheGetItem(ctx, s.cache, cacheKey); ok {
 		return v, nil
 	}
@@ -91,7 +91,7 @@ func (s *OrganizationService) SetOwnerUserID(ctx context.Context, orgPK, userID 
 	}); err != nil {
 		return err
 	}
-	cacheDelete(ctx, s.cache, "org:"+orgPK)
+	cacheDelete(ctx, s.cache, "dfe:org:"+orgPK)
 	return nil
 }
 
@@ -414,7 +414,7 @@ func (s *OrganizationService) Update(ctx context.Context, orgPK string, updates 
 	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{orgTx, auditTx}); err != nil {
 		return nil, err
 	}
-	cacheDelete(ctx, s.cache, "org:"+orgPK)
+	cacheDelete(ctx, s.cache, "dfe:org:"+orgPK)
 	return s.repo.GetOrganization(ctx, orgPK)
 }
 

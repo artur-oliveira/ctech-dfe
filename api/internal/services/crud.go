@@ -26,27 +26,27 @@ type QueryResultJSON struct {
 func BuildListCacheKey[T any](orgPK, resourceType string, opts T) string {
 	data, err := json.Marshal(opts)
 	if err != nil {
-		return fmt.Sprintf("res:%s:%s:list:default", orgPK, resourceType)
+		return fmt.Sprintf("dfe:res:%s:%s:list:default", orgPK, resourceType)
 	}
 	hasher := md5.New()
 	hasher.Write(data)
 	hash := hex.EncodeToString(hasher.Sum(nil))
-	return fmt.Sprintf("res:%s:%s:list:%s", orgPK, resourceType, hash)
+	return fmt.Sprintf("dfe:res:%s:%s:list:%s", orgPK, resourceType, hash)
 }
 
 // BuildItemCacheKey returns the cache key for a single item.
 func BuildItemCacheKey(orgPK, resourceType, sk string) string {
-	return fmt.Sprintf("res:%s:%s:%s", orgPK, resourceType, sk)
+	return fmt.Sprintf("dfe:res:%s:%s:%s", orgPK, resourceType, sk)
 }
 
 // BuildListCachePrefix returns the prefix to evict all list cache keys for a resource type.
 func BuildListCachePrefix(orgPK, resourceType string) string {
-	return fmt.Sprintf("res:%s:%s:list:", orgPK, resourceType)
+	return fmt.Sprintf("dfe:res:%s:%s:list:", orgPK, resourceType)
 }
 
 // BuildContextCachePrefix returns the prefix to evict all cache keys (items and lists) in the org context.
 func BuildContextCachePrefix(orgPK, resourceType string) string {
-	return fmt.Sprintf("res:%s:%s:", orgPK, resourceType)
+	return fmt.Sprintf("dfe:res:%s:%s:", orgPK, resourceType)
 }
 
 // CacheGetQueryResult retrieves a QueryResult from the cache.
