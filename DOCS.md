@@ -168,10 +168,17 @@ The first request performs `HeadObject`, renders on a miss, and stores the PDF a
 tagged current versions after 30 days and noncurrent versions after one day.
 Later requests only check S3 and return a 15-minute presigned URL.
 
-The three endpoints return JSON
-`{"url":"…","expires_at":"…","cached":true|false}`; the browser downloads the
-PDF directly from S3. Active and canceled variants have distinct keys, and the
+The endpoints return the shared `SignedFileDownload` JSON contract
+`{"url":"…","expires_at":"…","filename":"…","content_type":"…","cached":true|false}`;
+the browser downloads the PDF directly from S3. Active and canceled variants have distinct keys, and the
 `v1` path component is the renderer/template invalidation boundary.
+
+Public XML endpoints use the same contract and never stream the S3 object through
+the API. This includes authorized NF-e/NFC-e/MDF-e/NFS-e XMLs, DPS, events,
+inutilizations, and distribution NSUs. `cached` is omitted for source XMLs. Each
+service validates tenant ownership and object metadata before asking the shared
+signer for a 15-minute URL with safe `Content-Disposition` and the correct MIME type.
+Internal processing paths that parse fiscal XMLs continue to read S3 through the SDK.
 
 Resource guards: source XML 20 MiB, rendered HTML 32 MiB, embedded assets 16 MiB,
 100,000 HTML elements, depth 128, and a detached 8-second generation deadline so
@@ -304,6 +311,41 @@ go-dfe/nfse/
   go-dfe registra `id_dps`, `dpsXmlGZipB64` e o erro no CloudWatch. O payload logado contém dados
   fiscais, assinatura e certificado público e deve ter acesso/retenção restritos; remova o log assim
   que o diagnóstico terminar.
+- **Catálogo de domínios fechados (um dado, dois consumidores):**
+  `parse_enums` lê todo `xs:simpleType` com enumeração de `tiposSimples_v1.01.xsd` e grava
+  `go-dfe/nfse/tables/enums.go` (`enumTables`, acessado por `tables.Enum`/`IsValidEnum`/`EnumLabel`,
+  com o nome do tipo em constante — 48 domínios, 246 entradas) e `ui/src/lib/data/nfse_enums.ts`
+  (`NFSE_ENUMS` por nome de tipo + aliases legíveis como `NFSE_MEC_AF_COMEX_PRESTADOR`).
+  Cobre comércio exterior, ISSQN/imunidade/retenção, benefício municipal, dedução/redução,
+  CST e retenção PIS/COFINS, IBS/CBS, ente governamental, tipo de chave de documento referenciado
+  e motivos de evento. `nfse_motives.ts` deixou de conter dado: agora reexporta do catálogo.
+  Rótulos saem da própria `xs:documentation`, casados **pelo código** e não pela posição
+  (a pontuação do XSD é inconsistente entre tipos); só `TSCodJustAnaliseFiscalCanc` usa o modo
+  posicional, porque o texto documenta `3 - Outros` mas a enumeração traz `9`. `TSUF` e
+  `TSCodigoEventoNFSe` ficam fora — já têm fonte de verdade em `openapi/common.yaml` e
+  `nfse/constants.go`. `TestEnumCatalogMatchesTypeScript` (`nfse/tables/enums_test.go`) lê o `.ts`
+  gerado e falha se os dois lados divergirem; `TestEnumAliasesResolve` pega alias órfão, que em
+  TypeScript viraria `undefined` sem erro de compilação.
+- **Seções do gerador:** `python3 go-dfe/nfse/tables/gen/generate.py [countries|trib|nbs|indop|enums]`
+  — sem argumento roda tudo. Os anexos e o pacote de XSDs são baixados separadamente para `tmp/`
+  (busca recursiva), então rodar só a seção cujo insumo está presente é o modo normal de uso.
+- **Gate de cobertura da DPS (sem porcentagem manual):**
+  `go-dfe/nfse/tables/gen/dps_manifest.py` expande `TCDPS` do `DPS_v1.01.xsd` e grava o inventário
+  canônico versionado em `go-dfe/nfse/nacional/testdata/dps_paths_v1.01.json` (caminho, ocorrência,
+  tipo e rótulo de `xs:choice`). `TestDPSCoverageMatchesSchema` percorre por reflexão as structs de
+  marshalling a partir de `xmlDPS` e falha com a lista exata de caminhos **ausentes** (no XSD, sem
+  campo) e **inesperados** (emitidos fora do XSD); `TestDPSChoiceAlternativesCovered` prova que toda
+  alternativa de escolha tem campo próprio, não só a primeira. `DPS/Signature` fica fora do
+  inventário porque é conteúdo do assinador XML-DSig, não do montador. Regerar o manifesto
+  (`python3 go-dfe/nfse/tables/gen/dps_manifest.py`, com os XSDs oficiais em `tmp/nfse/`) é
+  obrigatório em qualquer troca de leiaute — o script não roda em produção.
+- **`gReeRepRes` (reembolso/repasse/ressarcimento de terceiros)** é emitido:
+  `nfse.IBSCBSValores.ReeRepRes` (`[]nfse.ReeRepResDoc`, até 1000) vira `IBSCBS/valores/gReeRepRes`
+  antes de `trib`, e cada `documentos` traz exatamente um ramo da escolha
+  `dFeNacional|docFiscalOutro|docOutro`, `fornec?` (só identificação + nome, sem endereço/CAEPF/IM),
+  datas, tipo e valor. Lista vazia omite o grupo inteiro, porque `documentos` é obrigatório dentro
+  dele.
+
 - **`Body` de `dfe.Request` para NFS-e** (chaves lidas por `nfse.Dispatch`,
   `go-dfe/nfse/dispatch.go`):
 
@@ -337,8 +379,9 @@ go-dfe/nfse/
 - **`dfe.Implements(nfse, ...)`:** os 8 serviços acima estão promovidos sem shadow-mode — py-dfe
   nunca implementou NFS-e, então não há autoridade anterior para comparar. O portão aplicável é a
   homologação em produção restrita (F6), não a comparação de paridade normal.
-- **Não implementado nesta fase:** ABRASF 2.04 (F5), persistência (F3), geração própria de DANFSE
-  (fora de escopo — `DANFSE` baixa o PDF pronto do ADN).
+- **Não implementado nesta fase:** ABRASF 2.04 (F5), persistência (F3). O serviço `NFSeDANFSE` do
+  go-dfe continua existindo (o ADN ainda publica a operação), mas a api não o chama mais: o DANFSe
+  é gerado localmente pelo renderer de documentos auxiliares.
 
 ---
 
@@ -1159,9 +1202,9 @@ transactional is a cross-doc-type change, not an NFS-e-only one.
 | Method | What it returns | Source |
 |---|---|---|
 | `ListNfses` | Page of `nfses` rows for the configured environment | `NfseRepository.ListNfses` |
-| `GetNfseXML` | Authorized NFS-e XML | `xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}.xml`) |
-| `GetDPSXML` | The DPS we signed and submitted | `dps_xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}_dps.xml`) |
-| `GetDANFSE` | PDF proxied from the ADN | `dfe.Call` with `nfse.ServiceDANFSE`; never stored by us |
+| `GetNfseXML` | Signed URL for the authorized NFS-e XML | `xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}.xml`) |
+| `GetDPSXML` | Signed URL for the DPS we signed and submitted | `dps_xml_s3_key` → S3 (`nfse/{env}/{org_pk}/{id_dps}_dps.xml`) |
+| `GetDANFSE` | Signed URL for the DANFSe v2.0 we generate | `xml_s3_key` → S3 → `documents.Service.GetURL` (`DocTypeNFSe`), PDF cacheado no bucket de documentos |
 | `MunicipalParameters` | ADN municipal parametrization | `dfe.Call` with `nfse.ServiceParametrosMunicipais`, cached 6h |
 | `ListDistributions` | Documents received through ADN distribution | `NfseDistributionRepository` |
 
@@ -1178,6 +1221,30 @@ Uma resposta de sucesso sem `nfse_xml` ou sem `dps_xml`, ou uma falha em qualque
 interrompe o processamento e jamais atualiza a linha para `authorized`: a NFS-e retornada é o
 documento fiscal válido e a DPS assinada é a declaração que originou esse documento.
 
+**DANFSe v2.0 é gerado por nós, não mais pelo ADN.** A API de DANFSE do ADN foi suspensa, então
+`GetDANFSE` lê o XML autorizado do S3, renderiza o PDF com o renderer Folio compartilhado
+(`documents.DocTypeNFSe`, template `templates/danfse_v2.html`, contexto em
+`api/internal/services/documents/nfse.go`) e devolve o mesmo `SignedFileDownload` de
+DANFE/DANFC-e/DAMDFE — em cache hit não há `GetObject`, só assinatura. O contexto lê exclusivamente
+o XML `NFSe`: nenhuma informação inexistente no documento é impressa, e todo domínio fechado é
+traduzido pelo catálogo gerado (`go-dfe/nfse/tables`), nunca por rótulo redigitado. O QR aponta para
+`https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave={chave}` (NT 008 v1.02).
+
+Três diferenças estruturais em relação aos demais auxiliares, todas nomeadas em
+`documents/constants.go`:
+
+1. `accessKeyLengthByDocType` — a chave da NFS-e tem **50** dígitos, não 44; validar com um 44 fixo
+   rejeitaria todo pedido de DANFSe.
+2. `DocumentState` (`active|cancelled|substituted`) substituiu o antigo `canceled bool`. NFS-e pode
+   ser substituída, o que imprime **SUBSTITUÍDA** em vez de **CANCELADA**. `documents.CancelledWhen`
+   converte o par booleano de NF-e/NFC-e/MDF-e, que nunca chegam a `substituted`.
+3. A chave de cache inclui o estado, então um PDF ativo nunca é servido depois de um evento.
+   `nfses.danfseState` resolve o estado: cancelada com `substituted_by_access_key` preenchido é
+   substituída.
+
+A face embarcada é a **DejaVu Sans**: Arial/Microsoft Sans Serif exigidas pela NT não são
+redistribuíveis, e depender da fonte instalada na máquina produziria PDF diferente por ambiente.
+
 `GetDANFSE` returns **501** for `provider == abrasf204`: the ABRASF 2.04 layout defines no
 standard DANFSE PDF, so this is a real capability gap in the municipality's standard, not a missing
 implementation on our side (`problem.NotImplemented`, type `/problems/not-implemented`).
@@ -1188,8 +1255,8 @@ implementation on our side (`problem.NotImplemented`, type `/problems/not-implem
 (`municipalParamsTTL`). Argument arity is validated against `nacional.ParamArity`, the same table the
 provider uses to build the request path.
 
-`MunicipalParameters` and `GetDANFSE` call `dfe.Call` **synchronously from the service**, not through
-the worker: both are public reads with no write and no long-timeout risk. The certificate pair comes
+`MunicipalParameters` calls `dfe.Call` **synchronously from the service**, not through
+the worker: é leitura pública, sem escrita e sem risco de timeout longo. The certificate pair comes
 from `ExternalService.CertificateB64` (org's first certificate, S3 read + base64), shared with the
 NF-e cadastre lookup rather than re-implemented. A non-200 from go-dfe is translated by
 `problemFromDfeBody`, preserving the fisco's status and detail instead of collapsing to a 500.
@@ -1396,10 +1463,10 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | POST   | `/v1.0/nfes/{access_key}/prorrogation`    | Pedido de prorrogação do ICMS suspenso (111500/111501) |
 | POST   | `/v1.0/nfes/{access_key}/prorrogation-cancel` | Cancela o pedido de prorrogação (111502/111503) |
 | POST   | `/v1.0/nfes/{access_key}/cancel-event`    | Cancelamento de evento (110001)             |
-| GET    | `/v1.0/nfes/{access_key}/xml`             | Download XML                                |
+| GET    | `/v1.0/nfes/{access_key}/xml`             | Presigned S3 XML URL                        |
 | GET    | `/v1.0/nfes/{access_key}/danfe`           | Presigned cached DANFE PDF URL              |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
-| GET    | `/v1.0/nfes/{access_key}/events/{sk}/xml` | Event XML                                   |
+| GET    | `/v1.0/nfes/{access_key}/events/{sk}/xml` | Presigned S3 event XML URL                  |
 | POST   | `/v1.0/nfes/inutilizations`               | Inutiliza faixa de numeração não utilizada  |
 | GET    | `/v1.0/nfes/inutilizations`               | Lista as inutilizações da organização       |
 | GET    | `/v1.0/nfes/inutilizations/gaps`          | Lacunas de numeração ainda em aberto        |
@@ -1606,10 +1673,10 @@ online, SHA-1 with the CSC stored in `organization_nfce_configs` as
 | GET    | `/v1.0/nfces/{access_key}`                  | Detail                                              |
 | POST   | `/v1.0/nfces/{access_key}/cancel`           | Cancel (event 110111)                              |
 | POST   | `/v1.0/nfces/{access_key}/substitute`       | Cancel by substitution (event 110112, `chNFeRef`) |
-| GET    | `/v1.0/nfces/{access_key}/xml`              | Download XML                                        |
+| GET    | `/v1.0/nfces/{access_key}/xml`              | Presigned S3 XML URL                                |
 | GET    | `/v1.0/nfces/{access_key}/danfce`           | Presigned cached DANFC-e PDF URL (API/Folio)       |
 | GET    | `/v1.0/nfces/{access_key}/events`           | List events                                         |
-| GET    | `/v1.0/nfces/{access_key}/events/{sk}/xml`  | Event XML                                           |
+| GET    | `/v1.0/nfces/{access_key}/events/{sk}/xml`  | Presigned S3 event XML URL                          |
 | POST   | `/v1.0/nfces/inutilizations`                | Inutiliza faixa de numeração não utilizada          |
 | GET    | `/v1.0/nfces/inutilizations`                | Lista as inutilizações da organização               |
 | GET    | `/v1.0/nfces/inutilizations/gaps`           | Lacunas de numeração ainda em aberto                |
@@ -1728,7 +1795,7 @@ Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 | POST   | `/v1.0/mdfes`                                        | Issue MDF-e                                        |
 | POST   | `/v1.0/mdfes/cargo-preview`                          | Parse referenced docs → cargo preview (no persist) |
 | GET    | `/v1.0/mdfes/{access_key}`                           | Detail                                             |
-| GET    | `/v1.0/mdfes/{access_key}/xml`                       | Download XML                                       |
+| GET    | `/v1.0/mdfes/{access_key}/xml`                       | Presigned S3 XML URL                               |
 | GET    | `/v1.0/mdfes/{access_key}/damdfe`                    | Presigned cached DAMDFE PDF URL (API/Folio)        |
 | POST   | `/v1.0/mdfes/{access_key}/cancel`                    | Cancel (event 110111, `justification` ≥ 15 chars) |
 | POST   | `/v1.0/mdfes/{access_key}/close`                     | Encerramento (110112, `ibge_code`, `uf?`, `by_third_party?`) |
@@ -1897,7 +1964,7 @@ dois. Toda chave JSON é em inglês; as exceções são os códigos do leiaute d
 | GET    | `/v1.0/nfses/{id}`                                | `get.nfses`          | Detalhe                                          |
 | GET    | `/v1.0/nfses/{id}/xml`                            | `get.nfses`          | XML da NFS-e autorizada (`xml_s3_key`)          |
 | GET    | `/v1.0/nfses/{id}/dps-xml`                        | `get.nfses`          | XML da DPS assinada (`dps_xml_s3_key`)          |
-| GET    | `/v1.0/nfses/{id}/danfse`                         | `get.nfses`          | PDF da DANFSE (proxy do ADN; 501 em abrasf204)  |
+| GET    | `/v1.0/nfses/{id}/danfse`                         | `get.nfses`          | URL assinada do DANFSe v2.0 (501 em abrasf204)  |
 | POST   | `/v1.0/nfses/{id}/cancel`                         | `delete.nfses`       | Cancelamento (evento 101101)                     |
 | POST   | `/v1.0/nfses/{id}/substitute`                     | `create.nfses`       | Substituição — nova emissão, não evento (201)   |
 | POST   | `/v1.0/nfses/{id}/events`                         | `create.nfse_events` | Evento genérico do contribuinte                  |
@@ -2610,14 +2677,14 @@ dedicada já exposta pela API.
 | `/nfse` e `/nfse/detail` navegam sempre por `id_dps` (`?id={id_dps}`), nunca por `access_key` | Documentos em `processing`/`pending` não têm chave de acesso ainda — link por chave quebraria no estado em que o usuário mais clica. `NfseListOut.sk`/`NfseDetailOut.sk` é o `id_dps`. |
 | `/nfse` separa **Emitidas** e **Recebidas via ADN** por `?tab=` | NFS-e não tem `incoming`; recebidos são registros da distribuição ADN, reunidos na mesma superfície sem inventar um segundo cadastro |
 | `/nfse/emit` bloqueia o envio com aviso explícito quando `nfseConfig.provider === 'abrasf204'` | Emissão por ABRASF 2.04 (SOAP municipal) fica para F5; o front não tenta montar um corpo que a API rejeitaria |
-| DANFSE só é oferecido quando `status === 'authorized' && provider === 'nacional'` | O PDF é proxy do ADN (nacional); ABRASF 2.04 não tem endpoint de DANFSE ainda |
+| DANFSE só é oferecido quando `status === 'authorized' && provider === 'nacional'` | O DANFSe v2.0 é gerado do XML autorizado; ABRASF 2.04 não tem leiaute padronizado de DANFSE |
 | Cancelamento de NFS-e usa `NfseCancelModal` (código do motivo + descrição), não `CancelDfeModal` | TE101101 exige `cMotivo` (código) **e** `xMotivo` (descrição) — os outros documentos usam só uma justificativa |
 | O seletor de evento genérico em `/nfse/detail` oferece somente `CONTRIBUINTE_EVENTS` (`lib/schemas/nfse.ts`) | Espelha `nfse.ContribuinteEvents` (go-dfe) menos `105102`, que a API rejeita em `POST /events` (gerado pelo fisco na substituição) |
 | Substituição não é evento: o botão "Substituir" leva a `/nfse/emit?substitute={id_dps}`, muda título/modo, carrega a chave da origem e chama `POST /nfses/{id}/substitute` | O fisco gera o `105102` e cancela a original por conta própria — não existe corpo de evento para isso |
 | Duplicação leva a `/nfse/emit?duplicate={id_dps}` somente quando há `emit_input` | O formulário reidrata referências reais, limpa semântica de substituição e avança a competência por um mês civil; documentos legados sem snapshot não são copiados por aproximação |
 | O cancelamento informa que o prazo depende do município, sem contador global | O ADN não fornece uma regra uniforme no contrato atual; o fisco continua sendo a autoridade que aceita ou rejeita o pedido |
 | `useRealtimeUpdates` ganhou `nfses` em `DOC_QUERY_KEYS` | O worker publica `table_name: "nfses"` e `access_key: <id_dps>` (a SK da linha) — o mesmo campo genérico que o hook já usava para invalidar NF-e/NFC-e/MDF-e |
-| Catálogo e emissão usam tabelas geradas para NBS, países e motivos normativos | Códigos fechados não aceitam texto livre; `go-dfe/nfse/tables/gen/generate.py` gera os dados TypeScript a partir dos anexos/XSD oficiais versionados localmente |
+| Catálogo e emissão usam tabelas geradas para NBS, países e todo domínio fechado do XSD | Códigos fechados não aceitam texto livre; `go-dfe/nfse/tables/gen/generate.py` gera os dados TypeScript a partir dos anexos/XSD oficiais versionados localmente. Enums vêm de `ui/src/lib/data/nfse_enums.ts` (`NFSE_ENUMS` + aliases legíveis); `nfse_motives.ts` é só reexport |
 
 **Deliberadamente fora do escopo F4:** manifestação sobre documentos recebidos (tela de distribuição é só
 leitura — a API ainda não expõe a ação); IBS/CBS na emissão (o contrato real de `NfseServiceItem`

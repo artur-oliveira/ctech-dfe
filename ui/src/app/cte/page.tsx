@@ -22,7 +22,7 @@ import type {NFeDistributionOut} from '@/lib/types/api'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {cteSchemaLabel} from '@/lib/constants/distributions'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 
@@ -34,8 +34,8 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      const blob = await apiClient.downloadDistributionXml('cte', item.nsu)
-      triggerDownload(blob, `NSU_${formatNsu(item.nsu)}.xml`)
+		const download = await apiClient.downloadDistributionXml('cte', item.nsu)
+		triggerRemoteDownload(download.url)
     } catch {
       toast.error('Erro ao baixar XML.')
     } finally {

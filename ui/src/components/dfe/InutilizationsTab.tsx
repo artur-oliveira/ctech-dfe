@@ -16,7 +16,7 @@ import {Pagination} from '@/components/ui/pagination'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
-import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import type {InutilizationOut, NumberGapOut} from '@/lib/types/api'
 
 /** SEFAZ exige no mínimo 15 caracteres na justificativa da inutilização. */
@@ -53,8 +53,8 @@ function InutilizationXmlButton({docType, item}: { docType: DocType; item: Inuti
   const handleDownload = async () => {
     setLoading(true)
     try {
-      const blob = await apiClient.downloadInutilizationXml(docType, item.sk)
-      triggerDownload(blob, `inutilizacao_${item.year}_${item.serie}_${item.number_start}-${item.number_end}.xml`)
+		const download = await apiClient.downloadInutilizationXml(docType, item.sk)
+		triggerRemoteDownload(download.url)
     } catch {
       toast.error('Erro ao baixar o XML da inutilização.')
     } finally {

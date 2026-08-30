@@ -26,10 +26,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 )
 
 const (
@@ -435,7 +435,7 @@ func (s *NfceService) NumberGaps(ctx context.Context, orgPK string) ([]NumberGap
 }
 
 // inutilizationXML downloads the stored ProcInutNFe of one inutilization.
-func inutilizationXML(ctx context.Context, d inutDeps, clients *awsclient.Clients, bucket, orgPK, sk string) ([]byte, error) {
+func inutilizationXML(ctx context.Context, d inutDeps, signer *documents.Service, orgPK, sk string) (*documents.SignedFileDownload, error) {
 	item, err := d.eventRepo.GetEvent(ctx, inutEventPK(d.envPrefix(), orgPK), sk)
 	if err != nil {
 		return nil, err
@@ -447,25 +447,25 @@ func inutilizationXML(ctx context.Context, d inutDeps, clients *awsclient.Client
 	if s3Key == "" {
 		return nil, problem.NotFound("XML da inutilização ainda não disponível")
 	}
-	return services.DownloadS3(ctx, clients, bucket, s3Key)
+	return signer.SignFile(ctx, s3Key, documents.XMLFilename("inutilizacao-"+sk), documents.ContentTypeXML)
 }
 
-// GetInutilizationXML returns the ProcInutNFe of an NF-e inutilization.
-func (s *NfeService) GetInutilizationXML(ctx context.Context, orgPK, sk string) ([]byte, error) {
+// GetInutilizationXML returns a direct URL for an NF-e ProcInutNFe.
+func (s *NfeService) GetInutilizationXML(ctx context.Context, orgPK, sk string) (*documents.SignedFileDownload, error) {
 	env, err := s.GetEnvironment(ctx, orgPK)
 	if err != nil {
 		return nil, err
 	}
-	return inutilizationXML(ctx, s.inutDeps(env), s.clients, s.bucketDocs, orgPK, sk)
+	return inutilizationXML(ctx, s.inutDeps(env), s.documentSvc, orgPK, sk)
 }
 
-// GetInutilizationXML returns the ProcInutNFe of an NFC-e inutilization.
-func (s *NfceService) GetInutilizationXML(ctx context.Context, orgPK, sk string) ([]byte, error) {
+// GetInutilizationXML returns a direct URL for an NFC-e ProcInutNFe.
+func (s *NfceService) GetInutilizationXML(ctx context.Context, orgPK, sk string) (*documents.SignedFileDownload, error) {
 	env, err := s.GetEnvironment(ctx, orgPK)
 	if err != nil {
 		return nil, err
 	}
-	return inutilizationXML(ctx, s.inutDeps(env), s.clients, s.bucketDocs, orgPK, sk)
+	return inutilizationXML(ctx, s.inutDeps(env), s.documentSvc, orgPK, sk)
 }
 
 // numberGaps resolves the active series/counter from the fiscal config and runs

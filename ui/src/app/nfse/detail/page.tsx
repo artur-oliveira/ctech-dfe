@@ -30,7 +30,7 @@ import {
 } from '@/lib/data/nfse_motives'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatISODateBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import {toast} from 'sonner'
 
@@ -150,9 +150,9 @@ function NfseDetail({idDps}: { idDps: string }) {
   const handleDownload = async (kind: 'xml' | 'dps' | 'danfse') => {
     setXmlLoading(kind)
     try {
-      if (kind === 'xml') triggerDownload(await apiClient.downloadNfseXml(idDps), `${idDps}.xml`)
-      if (kind === 'dps') triggerDownload(await apiClient.downloadNfseDpsXml(idDps), `${idDps}_dps.xml`)
-      if (kind === 'danfse') triggerDownload(await apiClient.downloadDanfse(idDps), `${idDps}.pdf`)
+      if (kind === 'xml') triggerRemoteDownload((await apiClient.downloadNfseXml(idDps)).url)
+      if (kind === 'dps') triggerRemoteDownload((await apiClient.downloadNfseDpsXml(idDps)).url)
+      if (kind === 'danfse') triggerRemoteDownload((await apiClient.downloadDanfse(idDps)).url)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : 'Erro ao baixar arquivo.')
     } finally {
@@ -160,10 +160,10 @@ function NfseDetail({idDps}: { idDps: string }) {
     }
   }
 
-  const handleDownloadEventXml = async (eventSk: string, eventType: string) => {
+  const handleDownloadEventXml = async (eventSk: string) => {
     setEventXmlLoading(eventSk)
     try {
-      triggerDownload(await apiClient.downloadNfseEventXml(idDps, eventSk), `${eventType}-${idDps}.xml`)
+      triggerRemoteDownload((await apiClient.downloadNfseEventXml(idDps, eventSk)).url)
     } finally {
       setEventXmlLoading(null)
     }
@@ -232,7 +232,7 @@ function NfseDetail({idDps}: { idDps: string }) {
                 </Button>
               )}
               {doc.status === 'authorized' && doc.provider === 'nacional' && (
-                <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(idDps)} filename={idDps} label="Baixar DANFSE"
+                <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(idDps)} label="Baixar DANFSE"
                                     variant="ghost" size="sm" className="justify-start text-brand-700"/>
               )}
               <Button variant="ghost" size="sm" onClick={() => setShowEventModal(true)} className="justify-start">
@@ -317,7 +317,7 @@ function NfseDetail({idDps}: { idDps: string }) {
               <td data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
               <td className={`${TABLE_CELL} text-right`} data-label="Ações">
                 {evt.xml_s3_key && (
-                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt.sk, evt.event_type)}
+                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt.sk)}
                           disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
                     {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
                   </Button>

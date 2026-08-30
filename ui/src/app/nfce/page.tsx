@@ -185,7 +185,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                   {(nfce.status === 'authorized' || nfce.status === 'cancelled') && (
                     <DownloadPdfButton
                       fetchPdf={() => apiClient.downloadNfceDanfe(nfce.sk)}
-                      filename={nfce.sk} label="DANFE"/>
+                      label="DANFE"/>
                   )}
                   {nfce.status === 'authorized' && (
                     <>

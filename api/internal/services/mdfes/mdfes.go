@@ -240,8 +240,8 @@ func (s *MdfeService) ListMDFes(ctx context.Context, orgPK string, opts reposito
 	return s.mdfeRepo.ListNFes(ctx, pk, opts)
 }
 
-// GetMDFeXML downloads the authorized MDF-e XML from S3.
-func (s *MdfeService) GetMDFeXML(ctx context.Context, orgPK, accessKey string) ([]byte, error) {
+// GetMDFeXML returns a direct URL for the authorized MDF-e XML in S3.
+func (s *MdfeService) GetMDFeXML(ctx context.Context, orgPK, accessKey string) (*documents.SignedFileDownload, error) {
 	mdfe, err := s.GetMDFe(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err
@@ -253,7 +253,7 @@ func (s *MdfeService) GetMDFeXML(ctx context.Context, orgPK, accessKey string) (
 	if s3Key == "" {
 		return nil, problem.NotFound("XML do MDF-e ainda não disponível")
 	}
-	return downloadS3(ctx, s.clients, s.bucketDocs, s3Key)
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(accessKey), documents.ContentTypeXML)
 }
 
 // ListMDFeEvents lists all events for a document.
@@ -261,21 +261,28 @@ func (s *MdfeService) ListMDFeEvents(ctx context.Context, accessKey string, limi
 	return s.eventRepo.GetDocumentEvents(ctx, accessKey, limit, startKey)
 }
 
-// GetEventXML downloads the event XML from S3 and returns the event_type.
-func (s *MdfeService) GetEventXML(ctx context.Context, accessKey, eventSK string) ([]byte, string, error) {
+// GetEventXML returns a direct URL for an MDF-e event XML after validating the tenant.
+func (s *MdfeService) GetEventXML(ctx context.Context, orgPK, accessKey, eventSK string) (*documents.SignedFileDownload, error) {
+	mdfe, err := s.GetMDFe(ctx, orgPK, accessKey)
+	if err != nil {
+		return nil, err
+	}
+	if mdfe == nil {
+		return nil, ErrMDFeNotFound
+	}
 	event, err := s.eventRepo.GetEvent(ctx, accessKey, eventSK)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if event == nil {
-		return nil, "", problem.NotFound("evento não encontrado")
+		return nil, problem.NotFound("evento não encontrado")
 	}
 	s3Key := strAttr(event, "xml_s3_key")
 	if s3Key == "" {
-		return nil, "", problem.NotFound("XML do evento ainda não disponível")
+		return nil, problem.NotFound("XML do evento ainda não disponível")
 	}
-	data, err := downloadS3(ctx, s.clients, s.bucketDocs, s3Key)
-	return data, strAttr(event, "event_type"), err
+	filename := strAttr(event, "event_type") + "-" + accessKey
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filename), documents.ContentTypeXML)
 }
 
 // --- internal helpers ---

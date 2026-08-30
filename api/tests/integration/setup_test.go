@@ -164,7 +164,7 @@ func TestMain(m *testing.M) {
 		services.NewWorkerService(&awsclient.Clients{}, "", tablePrefix),
 		services.NewExternalService(certRepo, orgRepo, &awsclient.Clients{}, "", "unused-test-bucket"),
 		billingSvc,
-		&awsclient.Clients{}, memCache, "unused-test-bucket",
+		nil, &awsclient.Clients{}, memCache, "unused-test-bucket",
 	)
 
 	code := m.Run()

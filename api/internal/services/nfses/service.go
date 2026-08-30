@@ -16,6 +16,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
@@ -43,6 +44,10 @@ const (
 const (
 	attrXMLS3Key    = "xml_s3_key"
 	attrDPSXMLS3Key = "dps_xml_s3_key"
+
+	// attrSubstitutedBy guarda a chave da NFS-e que substituiu esta. Distingue
+	// cancelamento comum de cancelamento por substituição.
+	attrSubstitutedBy = "substituted_by_access_key"
 )
 
 // Erros reusados pelas rotas. Detalhe em português: chega ao usuário.
@@ -67,6 +72,7 @@ type NfseService struct {
 	workerSvc    *services.WorkerService
 	extSvc       *services.ExternalService
 	billingSvc   *services.BillingService
+	documentSvc  *documents.Service
 	clients      *awsclient.Clients
 	cacheBackend cache.Backend
 	bucketDocs   string
@@ -84,6 +90,7 @@ func NewNfseService(
 	workerSvc *services.WorkerService,
 	extSvc *services.ExternalService,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 	clients *awsclient.Clients,
 	cacheBackend cache.Backend,
 	bucketDocs string,
@@ -100,6 +107,7 @@ func NewNfseService(
 		distRepo:     distRepo,
 		workerSvc:    workerSvc,
 		extSvc:       extSvc,
+		documentSvc:  documentSvc,
 		clients:      clients,
 		cacheBackend: cacheBackend,
 		bucketDocs:   bucketDocs,
@@ -190,19 +198,19 @@ func (s *NfseService) ListDistributions(ctx context.Context, orgPK string, opts 
 	return s.distRepo.ListDistributions(ctx, pk, opts)
 }
 
-// GetNfseXML devolve o XML da NFS-e autorizada, gravado pelo worker em
+// GetNfseXML devolve uma URL direta para o XML da NFS-e autorizada, gravado pelo worker em
 // {org_pk}/nfse/{id_dps}.xml (spec §6).
-func (s *NfseService) GetNfseXML(ctx context.Context, orgPK, id string) ([]byte, error) {
-	return s.documentXML(ctx, orgPK, id, attrXMLS3Key, "XML da NFS-e ainda não disponível")
+func (s *NfseService) GetNfseXML(ctx context.Context, orgPK, id string) (*documents.SignedFileDownload, error) {
+	return s.documentXML(ctx, orgPK, id, attrXMLS3Key, "XML da NFS-e ainda não disponível", "nfse-")
 }
 
 // GetDPSXML devolve a DPS enviada, gravada em {org_pk}/nfse/{id_dps}/dps.xml.
 // É o documento que assinamos — útil para auditoria de uma rejeição.
-func (s *NfseService) GetDPSXML(ctx context.Context, orgPK, id string) ([]byte, error) {
-	return s.documentXML(ctx, orgPK, id, attrDPSXMLS3Key, "XML da DPS ainda não disponível")
+func (s *NfseService) GetDPSXML(ctx context.Context, orgPK, id string) (*documents.SignedFileDownload, error) {
+	return s.documentXML(ctx, orgPK, id, attrDPSXMLS3Key, "XML da DPS ainda não disponível", "DPS-")
 }
 
-func (s *NfseService) documentXML(ctx context.Context, orgPK, id, attr, missing string) ([]byte, error) {
+func (s *NfseService) documentXML(ctx context.Context, orgPK, id, attr, missing, filenamePrefix string) (*documents.SignedFileDownload, error) {
 	item, err := s.GetNfse(ctx, orgPK, id)
 	if err != nil {
 		return nil, err
@@ -211,12 +219,17 @@ func (s *NfseService) documentXML(ctx context.Context, orgPK, id, attr, missing 
 	if s3Key == "" {
 		return nil, problem.NotFound(missing)
 	}
-	return services.DownloadS3(ctx, s.clients, s.bucketDocs, s3Key)
+	identifier := strAttr(item, "access_key")
+	if identifier == "" {
+		identifier = strAttr(item, "sk")
+	}
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filenamePrefix+identifier), documents.ContentTypeXML)
 }
 
-// GetDANFSE é proxy da DANFSE do ADN: o PDF não é gerado nem armazenado por
-// nós. Depende do provider — ABRASF 2.04 não tem PDF padronizado.
-func (s *NfseService) GetDANFSE(ctx context.Context, orgPK, id string) ([]byte, error) {
+// GetDANFSE devolve uma URL direta do DANFSe v2.0 gerado por nós a partir do
+// XML autorizado. O proxy do ADN foi descontinuado; o PDF é renderizado e
+// cacheado no bucket de documentos, como DANFE/DANFC-e/DAMDFE.
+func (s *NfseService) GetDANFSE(ctx context.Context, orgPK, id string) (*documents.SignedFileDownload, error) {
 	item, err := s.GetNfse(ctx, orgPK, id)
 	if err != nil {
 		return nil, err
@@ -228,14 +241,26 @@ func (s *NfseService) GetDANFSE(ctx context.Context, orgPK, id string) ([]byte, 
 	if accessKey == "" {
 		return nil, ErrNfseNotAuthorized
 	}
-	result, err := s.callGoDfe(ctx, orgPK, nfse.ServiceDANFSE, map[string]any{
-		nfse.BodyKeyAccessKey: accessKey,
-	})
+	xmlKey := strAttr(item, attrXMLS3Key)
+	if xmlKey == "" {
+		return nil, problem.NotFound("XML da NFS-e ainda não disponível")
+	}
+	xmlBytes, err := services.DownloadS3(ctx, s.clients, s.bucketDocs, xmlKey)
 	if err != nil {
 		return nil, err
 	}
-	if len(result.PDF) == 0 {
-		return nil, problem.NotFound("DANFSE não disponível para esta NFS-e")
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFSe, accessKey, xmlBytes, danfseState(item))
+}
+
+// danfseState traduz o estado persistido da NFS-e no watermark do DANFSe. Uma
+// nota cancelada por substituição carrega a chave da substituta, e a NT exige
+// "SUBSTITUÍDA" em vez de "CANCELADA" nesse caso.
+func danfseState(item map[string]types.AttributeValue) documents.DocumentState {
+	if strAttr(item, "status") != StatusCancelled {
+		return documents.StateActive
 	}
-	return result.PDF, nil
+	if strAttr(item, attrSubstitutedBy) != "" {
+		return documents.StateSubstituted
+	}
+	return documents.StateCancelled
 }

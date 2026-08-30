@@ -322,8 +322,8 @@ func (s *NfeService) Manifestation(ctx context.Context, orgPK, accessKey, eventT
 	return nfe, nil
 }
 
-// GetNFeXML downloads the authorized NF-e XML from S3.
-func (s *NfeService) GetNFeXML(ctx context.Context, orgPK, accessKey string) ([]byte, error) {
+// GetNFeXML returns a direct URL for the authorized NF-e XML in S3.
+func (s *NfeService) GetNFeXML(ctx context.Context, orgPK, accessKey string) (*documents.SignedFileDownload, error) {
 	nfe, err := s.GetNFe(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err
@@ -335,24 +335,32 @@ func (s *NfeService) GetNFeXML(ctx context.Context, orgPK, accessKey string) ([]
 	if s3Key == "" {
 		return nil, problem.NotFound("XML da NF-e ainda não disponível")
 	}
-	return downloadS3(ctx, s.clients, s.bucketDocs, s3Key)
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(accessKey), documents.ContentTypeXML)
 }
 
-// GetEventXML downloads the event XML from S3 and returns the event_type.
-func (s *NfeService) GetEventXML(ctx context.Context, accessKey, eventSK string) ([]byte, string, error) {
+// GetEventXML returns a direct URL for an event XML after proving the document
+// belongs to the requesting organization.
+func (s *NfeService) GetEventXML(ctx context.Context, orgPK, accessKey, eventSK string) (*documents.SignedFileDownload, error) {
+	nfe, err := s.GetNFe(ctx, orgPK, accessKey)
+	if err != nil {
+		return nil, err
+	}
+	if nfe == nil {
+		return nil, problem.NotFound("NF-e não encontrada")
+	}
 	event, err := s.eventRepo.GetEvent(ctx, accessKey, eventSK)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if event == nil {
-		return nil, "", problem.NotFound("evento não encontrado")
+		return nil, problem.NotFound("evento não encontrado")
 	}
 	s3Key := strAttr(event, "xml_s3_key")
 	if s3Key == "" {
-		return nil, "", problem.NotFound("XML do evento ainda não disponível")
+		return nil, problem.NotFound("XML do evento ainda não disponível")
 	}
-	data, err := downloadS3(ctx, s.clients, s.bucketDocs, s3Key)
-	return data, strAttr(event, "event_type"), err
+	filename := strAttr(event, "event_type") + "-" + accessKey
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filename), documents.ContentTypeXML)
 }
 
 // ListNFeEvents lists all events for a document.

@@ -8,7 +8,7 @@ const listNumberGaps = vi.fn()
 const listInutilizations = vi.fn()
 const createInutilization = vi.fn()
 const downloadInutilizationXml = vi.fn()
-const triggerDownload = vi.fn()
+const triggerRemoteDownload = vi.fn()
 
 vi.mock('@/lib/api/client', () => ({
   apiClient: {
@@ -24,7 +24,7 @@ vi.mock('@/lib/api/client', () => ({
 vi.mock('sonner', () => ({toast: {info: vi.fn(), error: vi.fn()}}))
 vi.mock('@/lib/utils/dfe', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/utils/dfe')>()),
-  triggerDownload: (...a: unknown[]) => triggerDownload(...a),
+  triggerRemoteDownload: (...a: unknown[]) => triggerRemoteDownload(...a),
 }))
 
 function renderTab() {
@@ -42,7 +42,7 @@ describe('InutilizationsTab', () => {
     listInutilizations.mockReset()
     createInutilization.mockReset()
     downloadInutilizationXml.mockReset()
-    triggerDownload.mockReset()
+    triggerRemoteDownload.mockReset()
     listInutilizations.mockResolvedValue({items: [], next_cursor: null})
   })
 
@@ -108,20 +108,20 @@ describe('InutilizationsTab XML download', () => {
   beforeEach(() => {
     listNumberGaps.mockReset()
     downloadInutilizationXml.mockReset()
-    triggerDownload.mockReset()
+    triggerRemoteDownload.mockReset()
     listNumberGaps.mockResolvedValue({items: []})
   })
 
   it('downloads the ProcInutNFe of a homologated range', async () => {
     listInutilizations.mockResolvedValue({items: [homologated], next_cursor: null})
-    const blob = new Blob(['<ProcInutNFe/>'], {type: 'application/xml'})
-    downloadInutilizationXml.mockResolvedValue(blob)
+    const download = {url: 'https://s3.invalid/inut.xml', expires_at: '2026-08-30T18:00:00Z', filename: 'inut.xml', content_type: 'application/xml'}
+    downloadInutilizationXml.mockResolvedValue(download)
     renderTab()
 
     await userEvent.click(await screen.findByRole('button', {name: 'XML'}))
 
     await waitFor(() => expect(downloadInutilizationXml).toHaveBeenCalledWith('nfe', 'inut-1'))
-    expect(triggerDownload).toHaveBeenCalledWith(blob, 'inutilizacao_2026_1_118-120.xml')
+    expect(triggerRemoteDownload).toHaveBeenCalledWith(download.url)
   })
 
   // Antes da homologação não existe documento nenhum — o botão não deve aparecer.

@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"strconv"
 
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
@@ -48,13 +47,11 @@ func RegisterDistributions(router fiber.Router, svc *services.DistributionServic
 		if err != nil {
 			return sendProblem(c, problem.BadRequest("nsu inválido"))
 		}
-		xmlBytes, err := svc.GetDistributionXML(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), nsu)
+		download, err := svc.GetDistributionXML(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), nsu)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		c.Set("Content-Type", "application/xml")
-		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="NSU_%015d.xml"`, nsu))
-		return c.Send(xmlBytes)
+		return c.JSON(download)
 	})
 
 	// GET /distributions/{doc_type}/nsu/{nsu}

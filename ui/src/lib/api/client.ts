@@ -24,6 +24,7 @@ import type {
   TaxProfileItemOut,
   AuditLogOut,
   AuxiliaryDocumentDownload,
+  SignedFileDownload,
   CertificateOut,
   CTeConfigOut,
   DistributionLookupOut,
@@ -903,12 +904,12 @@ class ApiClient {
     return this.get(`/v1.0/nfes/${accessKey}/events`, {params: {limit: 50}})
   }
 
-  async downloadNfeEventXml(accessKey: string, eventSk: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  async downloadNfeEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`)
   }
 
-  async downloadNfeXml(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfes/${accessKey}/xml`, {responseType: 'blob'})).data
+  async downloadNfeXml(accessKey: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfes/${accessKey}/xml`)
   }
 
   async downloadNfeDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
@@ -952,12 +953,12 @@ class ApiClient {
     return this.get(`/v1.0/nfces/${accessKey}/events`, {params: {limit: 50}})
   }
 
-  async downloadNfceXml(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/xml`, {responseType: 'blob'})).data
+  async downloadNfceXml(accessKey: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfces/${accessKey}/xml`)
   }
 
-  async downloadNfceEventXml(accessKey: string, eventSk: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfces/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  async downloadNfceEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfces/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`)
   }
 
   async downloadNfceDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
@@ -1014,12 +1015,12 @@ class ApiClient {
     return this.get(`/v1.0/mdfes/${accessKey}/events`, {params: {limit: 50}})
   }
 
-  async downloadMdfeXml(accessKey: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/xml`, {responseType: 'blob'})).data
+  async downloadMdfeXml(accessKey: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/mdfes/${accessKey}/xml`)
   }
 
-  async downloadMdfeEventXml(accessKey: string, eventSk: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/mdfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  async downloadMdfeEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/mdfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`)
   }
 
   async downloadMdfeDamdfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
@@ -1065,20 +1066,20 @@ class ApiClient {
     return this.get(`/v1.0/nfses/${id}/events`, {params: {limit: 50}})
   }
 
-  async downloadNfseXml(id: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/xml`, {responseType: 'blob'})).data
+  async downloadNfseXml(id: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfses/${id}/xml`)
   }
 
-  async downloadNfseDpsXml(id: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/dps-xml`, {responseType: 'blob'})).data
+  async downloadNfseDpsXml(id: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfses/${id}/dps-xml`)
   }
 
-  async downloadNfseEventXml(id: string, eventSk: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/events/${encodeURIComponent(eventSk)}/xml`, {responseType: 'blob'})).data
+  async downloadNfseEventXml(id: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfses/${id}/events/${encodeURIComponent(eventSk)}/xml`)
   }
 
-  async downloadDanfse(id: string): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/nfses/${id}/danfse`, {responseType: 'blob'})).data
+  async downloadDanfse(id: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfses/${id}/danfse`, {timeout: 12_000})
   }
 
   async getMunicipalParameters(city: string, kind: string, params?: {
@@ -1111,9 +1112,8 @@ class ApiClient {
   }
 
   /** Baixa o ProcInutNFe — request assinado + retorno da SEFAZ. */
-  async downloadInutilizationXml(docType: 'nfe' | 'nfce', sk: string): Promise<Blob> {
-    return (await this.http.get<Blob>(
-      `/v1.0/${docType}s/inutilizations/${encodeURIComponent(sk)}/xml`, {responseType: 'blob'})).data
+  async downloadInutilizationXml(docType: 'nfe' | 'nfce', sk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/${docType}s/inutilizations/${encodeURIComponent(sk)}/xml`)
   }
 
   /** Envia uma faixa não utilizada para inutilização na SEFAZ (201). */
@@ -1121,8 +1121,8 @@ class ApiClient {
     return this.post(`/v1.0/${docType}s/inutilizations`, body)
   }
 
-  async downloadDistributionXml(docType: string, nsu: number): Promise<Blob> {
-    return (await this.http.get<Blob>(`/v1.0/distributions/${docType}/history/${nsu}/xml`, {responseType: 'blob'})).data
+  async downloadDistributionXml(docType: string, nsu: number): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/distributions/${docType}/history/${nsu}/xml`)
   }
 
   async listDistributions<T extends NFeDistributionOut | NfseDistributionOut = NFeDistributionOut>(docType: string, params?: {

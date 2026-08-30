@@ -26,7 +26,7 @@ var (
 )
 
 type pdfRenderer interface {
-	Render(context.Context, string, []byte, bool) ([]byte, error)
+	Render(context.Context, string, []byte, DocumentState) ([]byte, error)
 }
 
 type folioRenderer struct {
@@ -98,7 +98,7 @@ func splitTemplateArguments(value string) []string {
 	return append(args, strings.TrimSpace(value[start:]))
 }
 
-func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []byte, canceled bool) ([]byte, error) {
+func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []byte, state DocumentState) ([]byte, error) {
 	templateName, ok := templateByDocType[docType]
 	if !ok {
 		return nil, fmt.Errorf("unsupported auxiliary document type %q", docType)
@@ -110,11 +110,13 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 	var data map[string]any
 	switch docType {
 	case DocTypeNFe:
-		data, err = buildNFeContext(root, canceled)
+		data, err = buildNFeContext(root, state == StateCancelled)
 	case DocTypeNFCe:
-		data, err = buildNFCeContext(root, canceled)
+		data, err = buildNFCeContext(root, state == StateCancelled)
 	case DocTypeMDFe:
-		data, err = buildMDFeContext(root, canceled)
+		data, err = buildMDFeContext(root, state == StateCancelled)
+	case DocTypeNFSe:
+		data, err = buildNFSeContext(root, state)
 	}
 	if err != nil {
 		return nil, err

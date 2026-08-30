@@ -60,11 +60,15 @@ export interface InvitationOut {
   token?: string
 }
 
-export interface AuxiliaryDocumentDownload {
+export interface SignedFileDownload {
   url: string
   expires_at: string
-  cached: boolean
+  filename: string
+  content_type: string
+  cached?: boolean
 }
+
+export type AuxiliaryDocumentDownload = SignedFileDownload
 
 export interface InvitationPreview {
   org_pk: string

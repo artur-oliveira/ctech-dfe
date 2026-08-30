@@ -26,7 +26,7 @@ func (s *NfeService) GetDANFeURL(ctx context.Context, orgPK, accessKey string) (
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFe, accessKey, xmlBytes, documentAttr(doc, "status") == services.StatusCancelled)
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFe, accessKey, xmlBytes, documents.CancelledWhen(documentAttr(doc, "status") == services.StatusCancelled))
 }
 
 // GetDANFCeURL validates tenant ownership and returns a direct cached PDF download.
@@ -46,7 +46,7 @@ func (s *NfceService) GetDANFCeURL(ctx context.Context, orgPK, accessKey string)
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFCe, accessKey, xmlBytes, documentAttr(doc, "status") == services.StatusCancelled)
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFCe, accessKey, xmlBytes, documents.CancelledWhen(documentAttr(doc, "status") == services.StatusCancelled))
 }
 
 func documentAttr(item map[string]types.AttributeValue, key string) string {

@@ -14,9 +14,6 @@ import (
 // acesso — GetNfse resolve os dois, porque a chave só existe após autorização.
 const paramID = "id"
 
-// mimeApplicationPDF é o Content-Type do DANFSE devolvido pelo ADN.
-const mimeApplicationPDF = "application/pdf"
-
 // municipalParamArgs monta os argumentos posicionais da consulta de
 // parametrização municipal na ordem do path do ADN (nacional.MunicipalParameters).
 // A aridade é validada no serviço contra nacional.ParamArity; aqui só se
@@ -85,29 +82,29 @@ func RegisterNfses(router fiber.Router, svc *nfsesvc.NfseService, userSvc *servi
 
 	// GET /nfses/:id/xml — XML da NFS-e autorizada
 	g.Get("/:id/xml", perm.Require("get.nfses"), func(c fiber.Ctx) error {
-		data, err := svc.GetNfseXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
+		download, err := svc.GetNfseXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, c.Params(paramID))
+		return c.JSON(download)
 	})
 
 	// GET /nfses/:id/dps-xml — a DPS assinada por nós
 	g.Get("/:id/dps-xml", perm.Require("get.nfses"), func(c fiber.Ctx) error {
-		data, err := svc.GetDPSXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
+		download, err := svc.GetDPSXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, "DPS-"+c.Params(paramID))
+		return c.JSON(download)
 	})
 
-	// GET /nfses/:id/danfse — proxy do PDF do ADN
+	// GET /nfses/:id/danfse — URL direta do DANFSe v2.0 gerado por nós
 	g.Get("/:id/danfse", perm.Require("get.nfses"), func(c fiber.Ctx) error {
-		pdf, err := svc.GetDANFSE(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
+		download, err := svc.GetDANFSE(c.Context(), middleware.GetOrgPK(c), c.Params(paramID))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendAttachment(c, pdf, mimeApplicationPDF, c.Params(paramID), ".pdf")
+		return c.JSON(download)
 	})
 
 	// POST /nfses/:id/cancel
@@ -175,11 +172,11 @@ func RegisterNfses(router fiber.Router, svc *nfsesvc.NfseService, userSvc *servi
 
 	// GET /nfses/:id/events/:event_sk/xml
 	g.Get("/:id/events/:event_sk/xml", perm.Require("get.nfse_events"), func(c fiber.Ctx) error {
-		data, eventType, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID), c.Params("event_sk"))
+		download, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params(paramID), c.Params("event_sk"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, eventType+"-"+c.Params(paramID))
+		return c.JSON(download)
 	})
 
 	// Consultas que não pendem de um documento.

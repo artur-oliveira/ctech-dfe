@@ -14,7 +14,7 @@ import {PenaltyBanner} from '@/components/ui/penalty-banner'
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
 import type {NfseDistributionOut} from '@/lib/types/api'
-import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {EVENT_LABELS} from '@/lib/schemas/nfse'
 
 interface NfseDistributionTabProps {
@@ -28,7 +28,7 @@ function DistributionRow({item, docType}: { item: NfseDistributionOut; docType: 
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      triggerDownload(await apiClient.downloadDistributionXml(docType, item.nsu), `NSU_${formatNsu(item.nsu)}.xml`)
+		triggerRemoteDownload((await apiClient.downloadDistributionXml(docType, item.nsu)).url)
     } catch {
       toast.error('Não foi possível baixar o XML.')
     } finally {

@@ -10,10 +10,6 @@ const priv = apiClient as unknown as {
   put: (url: string, body?: unknown) => Promise<unknown>
   del: (url: string) => Promise<unknown>
 }
-const http = (apiClient as unknown as {
-  http: { get: (url: string, config?: unknown) => Promise<{ data: Blob }> }
-}).http
-
 describe('nfse api client', () => {
   beforeEach(() => vi.restoreAllMocks())
 
@@ -57,12 +53,12 @@ describe('nfse api client', () => {
     })
   })
 
-  it('downloadNfseXml requests a blob from /v1.0/nfses/:id/xml', async () => {
-    const blob = new Blob(['<xml/>'], {type: 'application/xml'})
-    const spy = vi.spyOn(http, 'get').mockResolvedValue({data: blob})
+  it('downloadNfseXml requests a signed URL from /v1.0/nfses/:id/xml', async () => {
+    const download = {url: 'https://s3.invalid/nfse.xml', expires_at: '2026-08-30T18:00:00Z', filename: 'nfse.xml', content_type: 'application/xml'}
+    const spy = vi.spyOn(priv, 'get').mockResolvedValue(download)
     const result = await apiClient.downloadNfseXml('DPS123')
-    expect(spy).toHaveBeenCalledWith('/v1.0/nfses/DPS123/xml', {responseType: 'blob'})
-    expect(result).toBe(blob)
+    expect(spy).toHaveBeenCalledWith('/v1.0/nfses/DPS123/xml')
+    expect(result).toBe(download)
   })
 
   it('createService posts to /v1.0/services (org header injected, not path-scoped)', async () => {

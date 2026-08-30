@@ -78,11 +78,11 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *servi
 
 	// GET /mdfes/:access_key/xml
 	g.Get("/:access_key/xml", perm.Require("get.mdfes"), func(c fiber.Ctx) error {
-		data, err := svc.GetMDFeXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		download, err := svc.GetMDFeXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, c.Params("access_key"))
+		return c.JSON(download)
 	})
 
 	// GET /mdfes/:access_key/damdfe — cached DAMDFE PDF URL rendered in-process
@@ -232,11 +232,11 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *servi
 
 	// GET /mdfes/:access_key/events/:event_sk/xml
 	g.Get("/:access_key/events/:event_sk/xml", perm.Require("get.mdfe_events"), func(c fiber.Ctx) error {
-		data, eventType, err := svc.GetEventXML(c.Context(), c.Params("access_key"), c.Params("event_sk"))
+		download, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Params("event_sk"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, eventType+"-"+c.Params("access_key"))
+		return c.JSON(download)
 	})
 }
 

@@ -16,7 +16,7 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import type {NfeEventOut} from '@/lib/types/api'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
@@ -51,7 +51,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      triggerDownload(await apiClient.downloadMdfeXml(accessKey), `${accessKey}.xml`)
+		triggerRemoteDownload((await apiClient.downloadMdfeXml(accessKey)).url)
     } finally {
       setXmlLoading(false)
     }
@@ -60,8 +60,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
   const handleDownloadEventXml = async (event: NfeEventOut) => {
     setEventXmlLoading(event.sk)
     try {
-      triggerDownload(await apiClient.downloadMdfeEventXml(accessKey, event.sk),
-        `${event.event_type}-${event.sequence_number || 1}-${accessKey}.xml`)
+		triggerRemoteDownload((await apiClient.downloadMdfeEventXml(accessKey, event.sk)).url)
     } finally {
       setEventXmlLoading(null)
     }
@@ -103,7 +102,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           )}
           {(doc.status === 'authorized' || doc.status === 'closed' || doc.status === 'cancelled') && (
             <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(accessKey)}
-                               filename={accessKey} label="DAMDFE" variant="outline" size="sm"
+                               label="DAMDFE" variant="outline" size="sm"
                                className="text-brand-600 border-brand-200 hover:bg-brand-50"/>
           )}
           {doc.status === 'authorized' && (

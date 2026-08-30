@@ -16,7 +16,7 @@ func TestIntegrationXMLTemplatesAndFolio(t *testing.T) {
 	for docType, xml := range map[string]string{
 		DocTypeNFe: sampleNFeXML(), DocTypeNFCe: sampleNFCeXML(), DocTypeMDFe: sampleMDFeXML(),
 	} {
-		pdf, err := renderer.Render(context.Background(), docType, []byte(xml), true)
+		pdf, err := renderer.Render(context.Background(), docType, []byte(xml), StateCancelled)
 		if err != nil {
 			t.Fatalf("render %s: %v", docType, err)
 		}

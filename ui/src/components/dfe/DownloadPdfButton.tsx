@@ -3,16 +3,12 @@
 import {useState} from 'react'
 import {toast} from 'sonner'
 import {Button} from '@/components/ui/button'
-import {triggerDownload, triggerRemoteDownload} from '@/lib/utils/dfe'
-import type {AuxiliaryDocumentDownload} from '@/lib/types/api'
-
-type PdfDownload = Blob | AuxiliaryDocumentDownload
+import {triggerRemoteDownload} from '@/lib/utils/dfe'
+import type {SignedFileDownload} from '@/lib/types/api'
 
 interface DownloadPdfButtonProps {
-  /** Fetches either a legacy PDF blob or a cached auxiliary-document URL. */
-  fetchPdf: () => Promise<PdfDownload>
-  /** Downloaded filename without extension (e.g. the access key). */
-  filename: string
+  /** Fetches the presigned URL of the generated auxiliary document. */
+  fetchPdf: () => Promise<SignedFileDownload>
   /** Button text when idle. Defaults to "DANFE". */
   label?: string
   variant?: 'outline' | 'ghost'
@@ -21,12 +17,12 @@ interface DownloadPdfButtonProps {
 }
 
 /**
- * Shared button that downloads a generated PDF (DANFC-e / DAMDFE) with an inline
- * loading state. Used in both list rows and detail headers across doc types.
+ * Shared button that downloads a generated PDF (DANFE / DANFC-e / DAMDFE /
+ * DANFSe) from its presigned S3 URL, with an inline loading state. The API
+ * never streams the file, so there is no Blob path here.
  */
 export function DownloadPdfButton({
                                     fetchPdf,
-                                    filename,
                                     label = 'DANFE',
                                     variant = 'ghost',
                                     size = 'xs',
@@ -37,12 +33,7 @@ export function DownloadPdfButton({
   const handleClick = async () => {
     setLoading(true)
     try {
-      const download = await fetchPdf()
-      if (download instanceof Blob) {
-        triggerDownload(download, `${filename}.pdf`)
-      } else {
-        triggerRemoteDownload(download.url)
-      }
+      triggerRemoteDownload((await fetchPdf()).url)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao gerar o PDF.')
     } finally {

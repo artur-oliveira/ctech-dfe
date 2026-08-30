@@ -304,11 +304,56 @@ type Imovel struct {
 	End          *EnderecoSimples `json:"endereco,omitempty"`
 }
 
-// IBSCBSValores espelha TCRTCInfoValoresIBSCBS. gReeRepRes (reembolso/
-// repasse/ressarcimento de terceiros) não é suportado nesta fase — é um
-// grupo opcional e nenhum campo do modelo neutro o alimenta ainda.
+// IBSCBSValores espelha TCRTCInfoValoresIBSCBS.
 type IBSCBSValores struct {
-	Trib TribIBSCBS `json:"trib"`
+	// ReeRepRes é o grupo gReeRepRes (reembolso/repasse/ressarcimento de
+	// terceiros): opcional, até 1000 documentos.
+	ReeRepRes []ReeRepResDoc `json:"ree_rep_res,omitempty"`
+	Trib      TribIBSCBS     `json:"trib"`
+}
+
+// ReeRepResDoc espelha TCRTCListaDoc: escolha obrigatória
+// dFeNacional|docFiscalOutro|docOutro, fornec?, datas, tipo e valor.
+type ReeRepResDoc struct {
+	DFeNacional    *ReeRepResDFe        `json:"dfe_nacional,omitempty"`
+	DocFiscalOutro *ReeRepResDocFiscal  `json:"doc_fiscal_outro,omitempty"`
+	DocOutro       *ReeRepResDocOutro   `json:"doc_outro,omitempty"`
+	Fornec         *ReeRepResFornecedor `json:"fornec,omitempty"`
+	DtEmiDoc       string               `json:"dt_emi_doc"`
+	DtCompDoc      string               `json:"dt_comp_doc"`
+	TpReeRepRes    string               `json:"tp_ree_rep_res"`
+	XTpReeRepRes   string               `json:"x_tp_ree_rep_res,omitempty"`
+	VlrReeRepRes   string               `json:"vlr_ree_rep_res"`
+}
+
+// ReeRepResDFe espelha TCRTCListaDocDFe — DF-e nacional pela chave de acesso.
+type ReeRepResDFe struct {
+	TipoChaveDFe  string `json:"tipo_chave_dfe"`
+	XTipoChaveDFe string `json:"x_tipo_chave_dfe,omitempty"`
+	ChaveDFe      string `json:"chave_dfe"`
+}
+
+// ReeRepResDocFiscal espelha TCRTCListaDocFiscalOutro — documento fiscal não DF-e.
+type ReeRepResDocFiscal struct {
+	CMunDocFiscal string `json:"c_mun_doc_fiscal"`
+	NDocFiscal    string `json:"n_doc_fiscal"`
+	XDocFiscal    string `json:"x_doc_fiscal"`
+}
+
+// ReeRepResDocOutro espelha TCRTCListaDocOutro — documento não fiscal.
+type ReeRepResDocOutro struct {
+	NDoc string `json:"n_doc"`
+	XDoc string `json:"x_doc"`
+}
+
+// ReeRepResFornecedor espelha TCRTCListaDocFornec: escolha
+// CNPJ|CPF|NIF|cNaoNIF e xNome — sem endereço, CAEPF ou IM.
+type ReeRepResFornecedor struct {
+	CNPJ    string `json:"cnpj,omitempty"`
+	CPF     string `json:"cpf,omitempty"`
+	NIF     string `json:"nif,omitempty"`
+	CNaoNIF *int   `json:"c_nao_nif,omitempty"`
+	XNome   string `json:"x_nome"`
 }
 
 // TribIBSCBS espelha TCRTCInfoTributosSitClas (dentro de trib>gIBSCBS).

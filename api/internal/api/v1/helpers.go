@@ -274,11 +274,6 @@ func sendAttachment(c fiber.Ctx, data []byte, contentType, filename, ext string)
 	return c.Send(data)
 }
 
-// sendXML replies with an XML attachment named filename.xml.
-func sendXML(c fiber.Ctx, data []byte, filename string) error {
-	return sendAttachment(c, data, fiber.MIMEApplicationXML, filename, ".xml")
-}
-
 // bindJSON strictly decodes the JSON request body into dst, rejecting unknown
 // fields, then runs struct validation. Returns nil on success, or a
 // *problem.Problem (400 for malformed JSON, 422 for validation failures) ready

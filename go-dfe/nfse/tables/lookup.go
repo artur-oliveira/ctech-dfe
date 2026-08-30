@@ -7,6 +7,8 @@
 //	python3 go-dfe/nfse/tables/gen/generate.py
 package tables
 
+import "sort"
+
 // TribNacionalEntry é uma linha da lista de serviços nacional (Anexo B).
 // Code tem 6 dígitos: item(2) + subitem(2) + desdobro(2) — formato TSCodTribNac do XSD
 // oficial (tiposSimples_v1.01.xsd). O gerador reconstrói Code a partir das colunas
@@ -73,4 +75,85 @@ func IndOp(code string) (IndOpEntry, bool) {
 func IsValidIndOp(code string) bool {
 	_, ok := indOpTable[code]
 	return ok
+}
+
+// EnumEntry é um valor de domínio fechado do XSD com o rótulo oficial extraído
+// da própria documentação do tipo (`xs:documentation`).
+type EnumEntry struct {
+	Value string
+	Label string
+}
+
+// Nomes dos tipos XSD usados como chave do catálogo. Todo domínio fechado da
+// NFS-e é referenciado por estas constantes — nunca por literal solto.
+const (
+	EnumMotivoEmisTI         = "TSMotivoEmisTI"
+	EnumEmitenteDPS          = "TSEmitenteDPS"
+	EnumCodNaoNIF            = "TSCodNaoNIF"
+	EnumCodJustCanc          = "TSCodJustCanc"
+	EnumCodJustSubst         = "TSCodJustSubst"
+	EnumCodJustAnaliseFiscal = "TSCodJustAnaliseFiscalCanc"
+	EnumCodMotivoRejeicao    = "TSCodMotivoRejeicao"
+	EnumCodAutorManifestacao = "TSCodAutorManifestacao"
+	EnumModoPrestacao        = "TSModoPrestacao"
+	EnumVincPrest            = "TSVincPrest"
+	EnumMecAFComExPrestador  = "TSMecAFComExPrest"
+	EnumMecAFComExTomador    = "TSMecAFComExToma"
+	EnumMovTempBens          = "TSMovTempBens"
+	EnumEnvMDIC              = "TSEnvMDIC"
+	EnumTribISSQN            = "TSTribISSQN"
+	EnumTipoImunidadeISSQN   = "TSTipoImunidadeISSQN"
+	EnumTipoRetISSQN         = "TSTipoRetISSQN"
+	EnumOpExigSuspensa       = "TSOpExigSuspensa"
+	EnumBeneficioMunicipal   = "TBMISSQN"
+	EnumOpSimpNac            = "TSOpSimpNac"
+	EnumRegApuracaoSimpNac   = "TSRegimeApuracaoSimpNac"
+	EnumRegEspTrib           = "TSRegEspTrib"
+	EnumIdeDedRed            = "TSIdeDedRed"
+	EnumCSTPISCofins         = "TSTipoCST"
+	EnumTipoRetPISCofins     = "TSTipoRetPISCofins"
+	EnumRTCTpOper            = "TSRTCTpOper"
+	EnumRTCTpEnteGov         = "TSRTCTpEnteGov"
+	EnumRTCIndDest           = "TSRTCIndDest"
+	EnumRTCIndFinal          = "TSRTCIndFinal"
+	EnumRTCTpReeRepRes       = "TSRTCTpReeRepRes"
+	EnumRTCTipoChaveDFe      = "TSRTCTipoChaveDFe"
+)
+
+// Enum devolve as opções de um domínio fechado pelo nome do tipo XSD.
+func Enum(typeName string) ([]EnumEntry, bool) {
+	entries, ok := enumTables[typeName]
+	return entries, ok
+}
+
+// IsValidEnum informa se value pertence ao domínio fechado typeName. Um tipo
+// desconhecido devolve false: validar contra um catálogo inexistente nunca pode
+// passar silenciosamente.
+func IsValidEnum(typeName, value string) bool {
+	for _, entry := range enumTables[typeName] {
+		if entry.Value == value {
+			return true
+		}
+	}
+	return false
+}
+
+// EnumLabel devolve o rótulo oficial de um valor do domínio fechado.
+func EnumLabel(typeName, value string) (string, bool) {
+	for _, entry := range enumTables[typeName] {
+		if entry.Value == value {
+			return entry.Label, true
+		}
+	}
+	return "", false
+}
+
+// EnumTypes devolve todos os nomes de tipo do catálogo, em ordem.
+func EnumTypes() []string {
+	names := make([]string, 0, len(enumTables))
+	for name := range enumTables {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

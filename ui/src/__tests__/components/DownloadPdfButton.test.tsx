@@ -3,12 +3,10 @@ import {render, screen, waitFor} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 
-const triggerDownload = vi.fn()
 const triggerRemoteDownload = vi.fn()
 const toastError = vi.fn()
 
 vi.mock('@/lib/utils/dfe', () => ({
-  triggerDownload: (...args: unknown[]) => triggerDownload(...args),
   triggerRemoteDownload: (...args: unknown[]) => triggerRemoteDownload(...args),
 }))
 vi.mock('sonner', () => ({
@@ -17,44 +15,48 @@ vi.mock('sonner', () => ({
 
 describe('DownloadPdfButton', () => {
   beforeEach(() => {
-    triggerDownload.mockClear()
     triggerRemoteDownload.mockClear()
     toastError.mockClear()
   })
 
-  it('opens a cached auxiliary-document URL', async () => {
+  it('opens the presigned URL of the generated document', async () => {
     const fetchPdf = vi.fn().mockResolvedValue({
       url: 'https://s3.example/ABC.pdf',
       expires_at: '2026-08-29T12:00:00Z',
+      filename: 'ABC.pdf',
+      content_type: 'application/pdf',
       cached: true,
     })
-    render(<DownloadPdfButton fetchPdf={fetchPdf} filename="ABC"/>)
+    render(<DownloadPdfButton fetchPdf={fetchPdf}/>)
 
     await userEvent.click(screen.getByRole('button', {name: 'DANFE'}))
 
     await waitFor(() => expect(triggerRemoteDownload).toHaveBeenCalledWith('https://s3.example/ABC.pdf'))
-    expect(triggerDownload).not.toHaveBeenCalled()
-  })
-
-  it('downloads the fetched PDF with a .pdf filename', async () => {
-    const blob = new Blob(['%PDF'], {type: 'application/pdf'})
-    const fetchPdf = vi.fn().mockResolvedValue(blob)
-    render(<DownloadPdfButton fetchPdf={fetchPdf} filename="ABC" label="DAMDFE"/>)
-
-    await userEvent.click(screen.getByRole('button', {name: 'DAMDFE'}))
-
-    await waitFor(() => expect(triggerDownload).toHaveBeenCalledWith(blob, 'ABC.pdf'))
     expect(fetchPdf).toHaveBeenCalledOnce()
     expect(toastError).not.toHaveBeenCalled()
   })
 
+  it('keeps the custom label while idle', async () => {
+    const fetchPdf = vi.fn().mockResolvedValue({
+      url: 'https://s3.example/MDFE.pdf',
+      expires_at: '2026-08-29T12:00:00Z',
+      filename: 'MDFE.pdf',
+      content_type: 'application/pdf',
+    })
+    render(<DownloadPdfButton fetchPdf={fetchPdf} label="DAMDFE"/>)
+
+    await userEvent.click(screen.getByRole('button', {name: 'DAMDFE'}))
+
+    await waitFor(() => expect(triggerRemoteDownload).toHaveBeenCalledWith('https://s3.example/MDFE.pdf'))
+  })
+
   it('shows an error toast when generation fails', async () => {
     const fetchPdf = vi.fn().mockRejectedValue(new Error('boom'))
-    render(<DownloadPdfButton fetchPdf={fetchPdf} filename="ABC"/>)
+    render(<DownloadPdfButton fetchPdf={fetchPdf}/>)
 
     await userEvent.click(screen.getByRole('button', {name: 'DANFE'}))
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('boom'))
-    expect(triggerDownload).not.toHaveBeenCalled()
+    expect(triggerRemoteDownload).not.toHaveBeenCalled()
   })
 })

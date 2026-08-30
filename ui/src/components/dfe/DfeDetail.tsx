@@ -5,10 +5,10 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
 import {Button} from '@/components/ui/button'
-import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse} from '@/lib/types/api'
+import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse, type SignedFileDownload} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerDownload, triggerRemoteDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
@@ -29,8 +29,8 @@ export interface DfeDetailProps {
   fetchDoc: () => Promise<NfeDetailOut>
   fetchEvents: () => Promise<PaginatedResponse<NfeEventOut>>
   cancelFn: (justification: string) => Promise<unknown>
-  downloadXml: () => Promise<Blob>
-  downloadEventXml: (eventSk: string) => Promise<Blob>
+  downloadXml: () => Promise<SignedFileDownload>
+  downloadEventXml: (eventSk: string) => Promise<SignedFileDownload>
   downloadDanfe?: () => Promise<AuxiliaryDocumentDownload>
   /** Doc-specific header buttons (e.g. CC-e for NF-e, Substituir for NFC-e). */
   headerActions?: (doc: NfeDetailOut) => ReactNode
@@ -76,7 +76,7 @@ export function DfeDetail({
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      triggerDownload(await downloadXml(), `${accessKey}.xml`)
+      triggerRemoteDownload((await downloadXml()).url)
     } finally {
       setXmlLoading(false)
     }
@@ -85,7 +85,7 @@ export function DfeDetail({
   const handleDownloadEventXml = async (event: NfeEventOut) => {
     setEventXmlLoading(event.sk)
     try {
-      triggerDownload(await downloadEventXml(event.sk), `${event.event_type}-${event.sequence_number || 1}-${accessKey}.xml`)
+      triggerRemoteDownload((await downloadEventXml(event.sk)).url)
     } finally {
       setEventXmlLoading(null)
     }

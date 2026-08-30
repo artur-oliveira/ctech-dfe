@@ -176,48 +176,40 @@ components:
           schema: { $ref: '#/components/schemas/FiscalConfig' }
 
     XmlDownload:
-      description: XML do documento, como anexo
-      headers:
-        Content-Disposition:
-          description: '`attachment; filename="<nome>.xml"`'
-          schema: { type: string }
+      description: URL temporária para baixar o XML diretamente do S3
       content:
-        application/xml:
-          schema: { type: string, format: binary }
-
-    PdfDownload:
-      description: PDF do documento auxiliar, como anexo
-      headers:
-        Content-Disposition:
-          description: '`attachment; filename="<nome>.pdf"`'
-          schema: { type: string }
-      content:
-        application/pdf:
-          schema: { type: string, format: binary }
+        application/json:
+          schema: { $ref: '#/components/schemas/SignedFileDownload' }
 
     CachedPdfDownload:
       description: URL temporária do PDF do documento auxiliar armazenado no S3
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/AuxiliaryDocumentDownload' }
+          schema: { $ref: '#/components/schemas/SignedFileDownload' }
 
   schemas:
 
-    AuxiliaryDocumentDownload:
+    SignedFileDownload:
       type: object
-      required: [url, expires_at, cached]
+      required: [url, expires_at, filename, content_type]
       properties:
         url:
           type: string
           format: uri
-          description: URL pré-assinada para baixar o PDF diretamente do S3.
+          description: URL pré-assinada para baixar o arquivo diretamente do S3.
         expires_at:
           type: string
           format: date-time
           description: Expiração da URL pré-assinada, não do objeto em cache.
+        filename:
+          type: string
+          description: Nome seguro definido no Content-Disposition da URL assinada.
+        content_type:
+          type: string
+          description: MIME type definido na resposta assinada do S3.
         cached:
           type: boolean
-          description: Indica se o PDF já existia no cache antes desta requisição.
+          description: Para artefatos gerados, indica se já existiam no cache antes da requisição.
 
     # -- Tipos escalares com formato fiscal --------------------------------
 

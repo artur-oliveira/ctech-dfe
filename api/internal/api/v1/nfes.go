@@ -96,11 +96,11 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services
 
 	// GET /nfes/inutilizations/:sk/xml — ProcInutNFe (request assinado + retorno)
 	g.Get("/inutilizations/:sk/xml", perm.Require("list.nfe_events"), func(c fiber.Ctx) error {
-		data, err := svc.GetInutilizationXML(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
+		download, err := svc.GetInutilizationXML(c.Context(), middleware.GetOrgPK(c), c.Params("sk"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, "inutilizacao-"+c.Params("sk"))
+		return c.JSON(download)
 	})
 
 	// GET /nfes/:access_key
@@ -127,11 +127,11 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services
 
 	// GET /nfes/:access_key/xml
 	g.Get("/:access_key/xml", perm.Require("get.nfes"), func(c fiber.Ctx) error {
-		data, err := svc.GetNFeXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		download, err := svc.GetNFeXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, c.Params("access_key"))
+		return c.JSON(download)
 	})
 
 	// POST /nfes/:access_key/cancel
@@ -257,10 +257,10 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services
 
 	// GET /nfes/:access_key/events/:event_sk/xml
 	g.Get("/:access_key/events/:event_sk/xml", perm.Require("get.nfe_events"), func(c fiber.Ctx) error {
-		data, eventType, err := svc.GetEventXML(c.Context(), c.Params("access_key"), c.Params("event_sk"))
+		download, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Params("event_sk"))
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		return sendXML(c, data, eventType+"-"+c.Params("access_key"))
+		return c.JSON(download)
 	})
 }

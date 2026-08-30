@@ -344,13 +344,14 @@ func newDistributionService(
 	mdfeDist *repositories.MDFeDistributionRepository,
 	nfseDist *repositories.NfseDistributionRepository,
 	clients *awsclient.Clients,
+	documentSvc *documents.Service,
 	cfg *config.Config,
 ) *services.DistributionService {
 	return services.NewDistributionService(
 		orgRepo, certRepo,
 		NfeConfig, NfceConfig, CteConfig, MdfeConfig, NfseConfig,
 		nfeDist, cteDist, mdfeDist, nfseDist,
-		clients,
+		clients, documentSvc,
 		cfg.DistributionQueueURL,
 		cfg.S3BucketDocuments,
 		cfg.S3BucketCerts,
@@ -496,12 +497,13 @@ func newNfseService(
 	db *dynamodb.Client,
 	cfg *config.Config,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 ) *nfsesvc.NfseService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfse")
 	return nfsesvc.NewNfseService(
 		orgRepo, certRepo, personRepo, configRepo, serviceRepo,
 		nfseRepo, eventRepo, distRepo, workerSvc, extSvc, billingSvc,
-		clients, cacheBackend, cfg.S3BucketDocuments,
+		documentSvc, clients, cacheBackend, cfg.S3BucketDocuments,
 	)
 }
 

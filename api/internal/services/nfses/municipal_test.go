@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 )
 
@@ -60,5 +63,36 @@ func TestGetDANFSE_AbrasfNotImplemented(t *testing.T) {
 	}
 	if danfseSupported("nacional") != nil {
 		t.Error("provider nacional rejeitado para DANFSE")
+	}
+}
+
+func TestDanfseStateFollowsLifecycle(t *testing.T) {
+	item := func(pairs map[string]string) map[string]types.AttributeValue {
+		out := map[string]types.AttributeValue{}
+		for key, value := range pairs {
+			out[key] = &types.AttributeValueMemberS{Value: value}
+		}
+		return out
+	}
+	tests := []struct {
+		name string
+		item map[string]types.AttributeValue
+		want documents.DocumentState
+	}{
+		{"autorizada", item(map[string]string{"status": StatusAuthorized}), documents.StateActive},
+		{"cancelada", item(map[string]string{"status": StatusCancelled}), documents.StateCancelled},
+		{"substituída", item(map[string]string{
+			"status": StatusCancelled, attrSubstitutedBy: "1234",
+		}), documents.StateSubstituted},
+		// A chave da substituta sozinha não muda o watermark: só o cancelamento
+		// tira a nota de circulação.
+		{"substituta registrada sem cancelamento", item(map[string]string{
+			"status": StatusAuthorized, attrSubstitutedBy: "1234",
+		}), documents.StateActive},
+	}
+	for _, test := range tests {
+		if got := danfseState(test.item); got != test.want {
+			t.Errorf("%s: danfseState = %q, esperado %q", test.name, got, test.want)
+		}
 	}
 }

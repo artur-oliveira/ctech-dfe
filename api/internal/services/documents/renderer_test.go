@@ -33,7 +33,7 @@ func TestFolioRendererGeneratesAuxiliaryDocuments(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pdf, err := renderer.Render(context.Background(), test.docType, []byte(test.xml), false)
+			pdf, err := renderer.Render(context.Background(), test.docType, []byte(test.xml), StateActive)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,7 +80,7 @@ func TestNFCeOfflineContingencyGeneratesTwoVias(t *testing.T) {
 		t.Fatal(err)
 	}
 	xml := strings.Replace(sampleNFCeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>9</tpEmis>", 1)
-	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), false)
+	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), StateActive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestFolioRendererRejectsWrongModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := renderer.Render(context.Background(), DocTypeNFe, []byte(sampleNFCeXML()), false); err == nil {
+	if _, err := renderer.Render(context.Background(), DocTypeNFe, []byte(sampleNFCeXML()), StateActive); err == nil {
 		t.Fatal("expected model mismatch error")
 	}
 }

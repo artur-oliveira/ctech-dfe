@@ -33,12 +33,19 @@ type objectPresigner interface {
 	PresignGetObject(context.Context, *s3.GetObjectInput, ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
-// Download describes the short-lived direct S3 download returned by the API.
-type Download struct {
-	URL       string    `json:"url"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Cached    bool      `json:"cached"`
+// SignedFileDownload describes a short-lived direct S3 download returned by
+// the API for both source XMLs and generated auxiliary documents.
+type SignedFileDownload struct {
+	URL         string    `json:"url"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Filename    string    `json:"filename"`
+	ContentType string    `json:"content_type"`
+	Cached      *bool     `json:"cached,omitempty"`
 }
+
+// Download is kept as an alias while auxiliary-document callers migrate to
+// the generic signed-file name.
+type Download = SignedFileDownload
 
 // Service renders and caches auxiliary fiscal documents in the documents bucket.
 type Service struct {
@@ -69,18 +76,21 @@ func newService(store objectStore, presigner objectPresigner, renderer pdfRender
 }
 
 // GetURL returns a presigned S3 URL, generating the PDF only on a cache miss.
-func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, xmlBytes []byte, canceled bool) (*Download, error) {
+func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, xmlBytes []byte, state DocumentState) (*Download, error) {
 	if _, ok := templateByDocType[docType]; !ok {
 		return nil, problem.BadRequest("tipo de documento auxiliar não suportado")
 	}
-	if len(digits(accessKey)) != 44 || digits(accessKey) != accessKey {
+	if !documentStates[state] {
+		return nil, problem.BadRequest("estado do documento auxiliar não suportado")
+	}
+	if digits(accessKey) != accessKey || len(accessKey) != accessKeyLengthByDocType[docType] {
 		return nil, problem.BadRequest("chave de acesso inválida")
 	}
-	objectKey := cacheKey(orgPK, docType, accessKey, canceled)
+	objectKey := cacheKey(orgPK, docType, accessKey, state)
 	if exists, err := s.exists(ctx, objectKey); err != nil {
 		return nil, problem.InternalServer("falha ao consultar cache do PDF").WithCause(err)
 	} else if exists {
-		return s.presign(ctx, objectKey, accessKey, true)
+		return s.presignPDF(ctx, objectKey, accessKey, true)
 	}
 
 	value, err, _ := s.requests.Do(objectKey, func() (any, error) {
@@ -91,7 +101,7 @@ func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, 
 		} else if exists {
 			return true, nil
 		}
-		pdf, err := s.renderer.Render(generationCtx, docType, xmlBytes, canceled)
+		pdf, err := s.renderer.Render(generationCtx, docType, xmlBytes, state)
 		if err != nil {
 			return nil, fmt.Errorf("render %s: %w", docType, err)
 		}
@@ -112,7 +122,7 @@ func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, 
 		return nil, problem.InternalServer("falha ao gerar documento auxiliar").WithCause(err)
 	}
 	wasCached, _ := value.(bool)
-	return s.presign(ctx, objectKey, accessKey, wasCached)
+	return s.presignPDF(ctx, objectKey, accessKey, wasCached)
 }
 
 func (s *Service) exists(ctx context.Context, objectKey string) (bool, error) {
@@ -126,25 +136,18 @@ func (s *Service) exists(ctx context.Context, objectKey string) (bool, error) {
 	return false, err
 }
 
-func (s *Service) presign(ctx context.Context, objectKey, accessKey string, cached bool) (*Download, error) {
+func (s *Service) presignPDF(ctx context.Context, objectKey, accessKey string, cached bool) (*Download, error) {
 	filename := accessKey + fileExtensionPDF
-	disposition := fmt.Sprintf(`attachment; filename="%s"`, filename)
-	request, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket), Key: aws.String(objectKey), ResponseContentType: aws.String(contentTypePDF),
-		ResponseContentDisposition: aws.String(disposition),
-	}, func(options *s3.PresignOptions) { options.Expires = presignedURLTTL })
+	download, err := s.SignFile(ctx, objectKey, filename, contentTypePDF)
 	if err != nil {
-		return nil, problem.InternalServer("falha ao criar URL de download do PDF").WithCause(err)
+		return nil, err
 	}
-	return &Download{URL: request.URL, ExpiresAt: s.now().UTC().Add(presignedURLTTL), Cached: cached}, nil
+	download.Cached = aws.Bool(cached)
+	return download, nil
 }
 
-func cacheKey(orgPK, docType, accessKey string, canceled bool) string {
-	state := cacheStateActive
-	if canceled {
-		state = cacheStateCanceled
-	}
-	return path.Join("pdfs", docType, orgPK, cacheSchemaVersion, accessKey+"-"+state+fileExtensionPDF)
+func cacheKey(orgPK, docType, accessKey string, state DocumentState) string {
+	return path.Join("pdfs", docType, orgPK, cacheSchemaVersion, accessKey+"-"+string(state)+fileExtensionPDF)
 }
 
 func hasS3Code(err error, code string) bool {

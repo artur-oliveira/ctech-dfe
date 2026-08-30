@@ -25,5 +25,5 @@ func (s *MdfeService) GetDAMDFEURL(ctx context.Context, orgPK, accessKey string)
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, xmlBytes, avStr(doc, "status") == services.StatusCancelled)
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, xmlBytes, documents.CancelledWhen(avStr(doc, "status") == services.StatusCancelled))
 }

@@ -1,0 +1,2228 @@
+{
+  "schema": "DPS_v1.01.xsd",
+  "root": "DPS",
+  "excluded_prefixes": [
+    "DPS/Signature"
+  ],
+  "paths": [
+    {
+      "path": "DPS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/@versao",
+      "kind": "attribute",
+      "occurrence": "1..1",
+      "type": "TVerNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCInfDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/@Id",
+      "kind": "attribute",
+      "occurrence": "1..1",
+      "type": "TSIdDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoIBSCBS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/cIndOp",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCCodIndOp",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoDest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/IBSCBS/dest#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/IBSCBS/dest#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/IBSCBS/dest#choice2"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/IBSCBS/dest#choice3"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/email",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSEmail",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExt",
+      "choice": "DPS/infDPS/IBSCBS/dest/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endExt/cPais",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderNac",
+      "choice": "DPS/infDPS/IBSCBS/dest/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endNac/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/endNac/cMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/fone",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTelefone",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/dest/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc150",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/finNFSe",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCFinNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/gRefNFSe",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoRefNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/gRefNFSe/refNFSe",
+      "kind": "element",
+      "occurrence": "1..99",
+      "type": "TSChaveNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoImovel",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/cCIB",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodCIB",
+      "choice": "DPS/infDPS/IBSCBS/imovel#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderObraEvento",
+      "choice": "DPS/infDPS/IBSCBS/imovel#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": "DPS/infDPS/IBSCBS/imovel/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExtSimples",
+      "choice": "DPS/infDPS/IBSCBS/imovel/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/imovel/inscImobFisc",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscImobFisc",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/indDest",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCIndDest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/indFinal",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSRTCIndFinal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/tpEnteGov",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSRTCTpEnteGov",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/tpOper",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSRTCTpOper",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCInfoValoresIBSCBS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoReeRepRes",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos",
+      "kind": "element",
+      "occurrence": "1..1000",
+      "type": "TCRTCListaDoc",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dFeNacional",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCListaDocDFe",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dFeNacional/chaveDFe",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCChaveDFe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dFeNacional/tipoChaveDFe",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCTipoChaveDFe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dFeNacional/xTipoChaveDFe",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docFiscalOutro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCListaDocFiscalOutro",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docFiscalOutro/cMunDocFiscal",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNum7Dig",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docFiscalOutro/nDocFiscal",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docFiscalOutro/xDocFiscal",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docOutro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCListaDocOutro",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos#choice2"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docOutro/nDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/docOutro/xDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dtCompDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSData",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/dtEmiDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSData",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCListaDocFornec",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec#choice0"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec#choice1"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec#choice2"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec#choice3"
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/fornec/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc150",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/tpReeRepRes",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCTpReeRepRes",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/vlrReeRepRes",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/gReeRepRes/documentos/xTpReeRepRes",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDesc150",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCInfoTributosIBSCBS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRTCInfoTributosSitClas",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/CST",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCCodSitTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/cClassTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCCodClassTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/cCredPres",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSRTCCodCredPres",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gDif",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoTributosDif",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gDif/pDifCBS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gDif/pDifMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gDif/pDifUF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gTribRegular",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCRTCInfoTributosTribRegular",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gTribRegular/CSTReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCCodSitTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/IBSCBS/valores/trib/gIBSCBS/gTribRegular/cClassTribReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRTCCodClassTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/cLocEmi",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/cMotivoEmisTI",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSMotivoEmisTI",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/chNFSeRej",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSChaveNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/dCompet",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSData",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/dhEmi",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDateTimeUTC",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoPessoa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/CAEPF",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCAEPF",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/interm#choice0"
+    },
+    {
+      "path": "DPS/infDPS/interm/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/interm#choice1"
+    },
+    {
+      "path": "DPS/infDPS/interm/IM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscMun",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/interm#choice2"
+    },
+    {
+      "path": "DPS/infDPS/interm/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/interm#choice3"
+    },
+    {
+      "path": "DPS/infDPS/interm/email",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSEmail",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExt",
+      "choice": "DPS/infDPS/interm/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endExt/cPais",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderNac",
+      "choice": "DPS/infDPS/interm/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endNac/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/endNac/cMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/fone",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTelefone",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/interm/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNomeRazaoSocial",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/nDPS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCInfoPrestador",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/CAEPF",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCAEPF",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/prest#choice0"
+    },
+    {
+      "path": "DPS/infDPS/prest/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/prest#choice1"
+    },
+    {
+      "path": "DPS/infDPS/prest/IM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscMun",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/prest#choice2"
+    },
+    {
+      "path": "DPS/infDPS/prest/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/prest#choice3"
+    },
+    {
+      "path": "DPS/infDPS/prest/email",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSEmail",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExt",
+      "choice": "DPS/infDPS/prest/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endExt/cPais",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderNac",
+      "choice": "DPS/infDPS/prest/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endNac/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/endNac/cMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/fone",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTelefone",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/regTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCRegTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/regTrib/opSimpNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSOpSimpNac",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/regTrib/regApTribSN",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSRegimeApuracaoSimpNac",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/regTrib/regEspTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSRegEspTrib",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/prest/xNome",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSNomeRazaoSocial",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serie",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSSerieDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCServ",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCAtvEvento",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/dtFim",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSData",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/dtIni",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSData",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderecoSimples",
+      "choice": "DPS/infDPS/serv/atvEvento#choice1"
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": "DPS/infDPS/serv/atvEvento/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExtSimples",
+      "choice": "DPS/infDPS/serv/atvEvento/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/idAtvEvt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSIdeEvento",
+      "choice": "DPS/infDPS/serv/atvEvento#choice0"
+    },
+    {
+      "path": "DPS/infDPS/serv/atvEvento/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCCServ",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ/cIntContrib",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCodigoInternoContribuinte",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ/cNBS",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCodNBS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ/cTribMun",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCCodTribMun",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ/cTribNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodTribNac",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/cServ/xDescServ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc2000",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCComExterior",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/mdPrestacao",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSModoPrestacao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/mdic",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEnvMDIC",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/mecAFComexP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSMecAFComExPrest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/mecAFComexT",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSMecAFComExToma",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/movTempBens",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSMovTempBens",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/nDI",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSNumDocImport",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/nRE",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSNumRegExport",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/tpMoeda",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMoeda",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/vServMoeda",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/comExt/vincPrest",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSVincPrest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoCompl",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/docRef",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDesc255",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/gItemPed",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoItemPed",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/gItemPed/xItemPed",
+      "kind": "element",
+      "occurrence": "1..99",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/idDocTec",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDRT",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/xInfComp",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDescInfCompl",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/infoCompl/xPed",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/locPrest",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCLocPrest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/locPrest/cLocPrestacao",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/locPrest/cPaisPrestacao",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoObra",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/cCIB",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodCIB",
+      "choice": "DPS/infDPS/serv/obra#choice1"
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/cObra",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodObra",
+      "choice": "DPS/infDPS/serv/obra#choice0"
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderObraEvento",
+      "choice": "DPS/infDPS/serv/obra#choice2"
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": "DPS/infDPS/serv/obra/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExtSimples",
+      "choice": "DPS/infDPS/serv/obra/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/serv/obra/inscImobFisc",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscImobFisc",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/subst",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCSubstituicao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/subst/cMotivo",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodJustSubst",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/subst/chSubstda",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSChaveNFSe",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/subst/xMotivo",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSMotivo",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoPessoa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/CAEPF",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCAEPF",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/toma#choice0"
+    },
+    {
+      "path": "DPS/infDPS/toma/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/toma#choice1"
+    },
+    {
+      "path": "DPS/infDPS/toma/IM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscMun",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/toma#choice2"
+    },
+    {
+      "path": "DPS/infDPS/toma/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/toma#choice3"
+    },
+    {
+      "path": "DPS/infDPS/toma/email",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSEmail",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExt",
+      "choice": "DPS/infDPS/toma/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endExt/cPais",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderNac",
+      "choice": "DPS/infDPS/toma/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endNac/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/endNac/cMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/fone",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTelefone",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/toma/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNomeRazaoSocial",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/tpAmb",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSTipoAmbiente",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/tpEmit",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEmitenteDPS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCInfoValores",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCInfoTributacao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCTribTotal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/indTotTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSTipoIndTotTrib",
+      "choice": "DPS/infDPS/valores/trib/totTrib#choice2"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/pTotTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCTribTotalPercent",
+      "choice": "DPS/infDPS/valores/trib/totTrib#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/pTotTrib/pTotTribEst",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/pTotTrib/pTotTribFed",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/pTotTrib/pTotTribMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/pTotTribSN",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec2V2",
+      "choice": "DPS/infDPS/valores/trib/totTrib#choice3"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/vTotTrib",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCTribTotalMonet",
+      "choice": "DPS/infDPS/valores/trib/totTrib#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/vTotTrib/vTotTribEst",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/vTotTrib/vTotTribFed",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/totTrib/vTotTrib/vTotTribMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCTribFederal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCTribOutrosPisCofins",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/CST",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSTipoCST",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/pAliqCofins",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec2V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/pAliqPis",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec2V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/tpRetPisCofins",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTipoRetPISCofins",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/vBCPisCofins",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/vCofins",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/piscofins/vPis",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/vRetCP",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/vRetCSLL",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribFed/vRetIRRF",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCTribMunicipal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/BM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCBeneficioMunicipal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/BM/nBM",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumBeneficioMunicipal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/BM/pRedBCBM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec3V2",
+      "choice": "DPS/infDPS/valores/trib/tribMun/BM#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/BM/vRedBCBM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": "DPS/infDPS/valores/trib/tribMun/BM#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/cPaisResult",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/exigSusp",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCExigSuspensa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/exigSusp/nProcesso",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumProcExigSuspensa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/exigSusp/tpSusp",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSOpExigSuspensa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/pAliq",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec1V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/tpImunidade",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTipoImunidadeISSQN",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/tpRetISSQN",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSTipoRetISSQN",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/trib/tribMun/tribISSQN",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSTribISSQN",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoDedRed",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCListaDocDedRed",
+      "choice": "DPS/infDPS/valores/vDedRed#choice2"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed",
+      "kind": "element",
+      "occurrence": "1..1000",
+      "type": "TCDocDedRed",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFNFS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCDocNFNFS",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice3"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFNFS/modNFS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNum15Dig",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFNFS/nNFS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNum7Dig",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFNFS/serieNFS",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSSerieNFNFS",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFSeMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCDocOutNFSe",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice2"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFSeMun/cMunNFSeMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFSeMun/cVerifNFSeMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodVerificacao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFSeMun/nNFSeMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNum15Dig",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/chNFSe",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSChaveNFSe",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/chNFe",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSChaveNFe",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/dtEmiDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "date",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCInfoPessoa",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/CAEPF",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSCAEPF",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/CNPJ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCNPJ",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/CPF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCPF",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/IM",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSInscMun",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/NIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNIF",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec#choice2"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/cNaoNIF",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodNaoNIF",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec#choice3"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/email",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSEmail",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endExt",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderExt",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endExt/cEndPost",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodigoEndPostal",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endExt/cPais",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodPaisISO",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endExt/xCidade",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCidade",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endExt/xEstProvReg",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSEstadoProvRegiao",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endNac",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCEnderNac",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endNac/CEP",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCEP",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/endNac/cMun",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSCodMunIBGE",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/nro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNumeroEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/xBairro",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSBairro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/xCpl",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSComplementoEndereco",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/end/xLgr",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSLogradouro",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/fone",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSTelefone",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/fornec/xNome",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSNomeRazaoSocial",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/nDoc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice5"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/nDocFisc",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDesc255",
+      "choice": "DPS/infDPS/valores/vDedRed/documentos/docDedRed#choice4"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/tpDedRed",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSIdeDedRed",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/vDeducaoReducao",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/vDedutivelRedutivel",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/documentos/docDedRed/xDescOutDed",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDescOutDedRed",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/pDR",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec3V2",
+      "choice": "DPS/infDPS/valores/vDedRed#choice0"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDedRed/vDR",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": "DPS/infDPS/valores/vDedRed#choice1"
+    },
+    {
+      "path": "DPS/infDPS/valores/vDescCondIncond",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TCVDescCondIncond",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDescCondIncond/vDescCond",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vDescCondIncond/vDescIncond",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vServPrest",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TCVServPrest",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vServPrest/vReceb",
+      "kind": "element",
+      "occurrence": "0..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/valores/vServPrest/vServ",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSDec15V2",
+      "choice": ""
+    },
+    {
+      "path": "DPS/infDPS/verAplic",
+      "kind": "element",
+      "occurrence": "1..1",
+      "type": "TSVerAplic",
+      "choice": ""
+    }
+  ]
+}

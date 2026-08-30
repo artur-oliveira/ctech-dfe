@@ -35,6 +35,20 @@ func moneyBR(value string) string {
 	return integer + "," + parts[1]
 }
 
+// percentBR formata um percentual fiscal no padrão pt-BR, preservando as casas
+// decimais que vieram no XML — o XSD usa de 2 a 3 casas conforme o campo, e
+// arredondar aqui mudaria o número impresso em relação ao documento assinado.
+func percentBR(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if _, err := decimal.NewFromString(value); err != nil {
+		return value
+	}
+	return strings.Replace(value, ".", ",", 1)
+}
+
 func cents(value string) string {
 	amount, err := decimal.NewFromString(strings.TrimSpace(value))
 	if err != nil {

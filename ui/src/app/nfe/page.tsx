@@ -25,7 +25,7 @@ import {Modal} from '@/components/ui/modal'
 import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatNsu, parseAccessKey, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatNsu, parseAccessKey, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {maskAccessKey} from '@/lib/utils/masks'
 import {type AccessKeyField, validateAccessKey} from '@/lib/utils/access-key'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
@@ -116,8 +116,8 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      const blob = await apiClient.downloadDistributionXml(docType, item.nsu)
-      triggerDownload(blob, `NSU_${formatNsu(item.nsu)}.xml`)
+		const download = await apiClient.downloadDistributionXml(docType, item.nsu)
+		triggerRemoteDownload(download.url)
     } catch {
       toast.error('Erro ao baixar XML.')
     } finally {
@@ -543,7 +543,7 @@ function NfeListTab({
                   {(nfe.status === 'authorized' || nfe.status === 'cancelled') && (
                     <DownloadPdfButton
                       fetchPdf={() => apiClient.downloadNfeDanfe(nfe.sk)}
-                      filename={nfe.sk} label="DANFE"/>
+                      label="DANFE"/>
                   )}
                   {nfe.status === 'authorized' && tab.incoming === 0 && (
                     <Button variant="ghost" size="default" onClick={() => onCancelRequest(nfe)}
@@ -694,4 +694,3 @@ export default function NfesPage() {
     </ProtectedRoute>
   )
 }
-

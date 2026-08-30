@@ -319,3 +319,81 @@ func TestBuildDPS_IBSCBSDestRejectsCAEPFAndIM(t *testing.T) {
 		t.Fatal("esperado erro: TCRTCInfoDest não suporta CAEPF")
 	}
 }
+
+func TestBuildDPS_ReeRepResEmitsChoiceAndOrder(t *testing.T) {
+	doc := minimalDoc()
+	cNaoNIF := 1
+	doc.IBSCBS = &nfse.IBSCBS{
+		FinNFSe: 1, CIndOp: "020101", IndDest: 1,
+		Valores: nfse.IBSCBSValores{
+			ReeRepRes: []nfse.ReeRepResDoc{
+				{
+					DFeNacional:  &nfse.ReeRepResDFe{TipoChaveDFe: "1", ChaveDFe: strings.Repeat("1", 44)},
+					Fornec:       &nfse.ReeRepResFornecedor{CNPJ: "11222333000181", XNome: "Fornecedor A"},
+					DtEmiDoc:     "2026-08-01",
+					DtCompDoc:    "2026-08-01",
+					TpReeRepRes:  "01",
+					VlrReeRepRes: "10.00",
+				},
+				{
+					DocFiscalOutro: &nfse.ReeRepResDocFiscal{
+						CMunDocFiscal: "2211001", NDocFiscal: "123", XDocFiscal: "Nota municipal"},
+					DtEmiDoc: "2026-08-02", DtCompDoc: "2026-08-02",
+					TpReeRepRes: "99", XTpReeRepRes: "Outro repasse", VlrReeRepRes: "20.00",
+				},
+				{
+					DocOutro: &nfse.ReeRepResDocOutro{NDoc: "REC-1", XDoc: "Recibo"},
+					Fornec:   &nfse.ReeRepResFornecedor{CNaoNIF: &cNaoNIF, XNome: "Fornecedor B"},
+					DtEmiDoc: "2026-08-03", DtCompDoc: "2026-08-03",
+					TpReeRepRes: "02", VlrReeRepRes: "30.00",
+				},
+			},
+			Trib: nfse.TribIBSCBS{CST: "000", CClassTrib: "000001"},
+		},
+	}
+
+	xmlBytes, _, err := BuildDPS(doc, time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	s := string(xmlBytes)
+
+	// gReeRepRes precede trib dentro de valores (ordem normativa de
+	// TCRTCInfoValoresIBSCBS).
+	if !strings.Contains(s, "<gReeRepRes>") {
+		t.Fatalf("gReeRepRes ausente:\n%s", s)
+	}
+	if strings.Index(s, "<gReeRepRes>") > strings.Index(s, "<gIBSCBS>") {
+		t.Error("gReeRepRes emitido depois de trib")
+	}
+	if got := strings.Count(s, "<documentos>"); got != 3 {
+		t.Errorf("documentos = %d, esperado 3", got)
+	}
+	// Cada documento traz exatamente um ramo da escolha.
+	for _, branch := range []string{"<dFeNacional>", "<docFiscalOutro>", "<docOutro>"} {
+		if got := strings.Count(s, branch); got != 1 {
+			t.Errorf("%s = %d, esperado 1", branch, got)
+		}
+	}
+	if !strings.Contains(s, "<xTpReeRepRes>Outro repasse</xTpReeRepRes>") {
+		t.Error("xTpReeRepRes não emitido quando informado")
+	}
+	if !strings.Contains(s, "<cNaoNIF>1</cNaoNIF>") {
+		t.Error("fornec/cNaoNIF não emitido")
+	}
+}
+
+func TestBuildDPS_ReeRepResOmittedWhenEmpty(t *testing.T) {
+	doc := minimalDoc()
+	doc.IBSCBS = &nfse.IBSCBS{
+		FinNFSe: 1, CIndOp: "020101", IndDest: 1,
+		Valores: nfse.IBSCBSValores{Trib: nfse.TribIBSCBS{CST: "000", CClassTrib: "000001"}},
+	}
+	xmlBytes, _, err := BuildDPS(doc, time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("BuildDPS: %v", err)
+	}
+	if strings.Contains(string(xmlBytes), "gReeRepRes") {
+		t.Error("gReeRepRes emitido vazio — documentos é obrigatório dentro do grupo")
+	}
+}

@@ -120,11 +120,13 @@ paths:
       - $ref: '#/components/parameters/NfseId'
     get:
       tags: [ NFS-e ]
-      summary: Baixa o DANFSe em PDF
-      description: O PDF é obtido no Ambiente de Dados Nacional e repassado ao cliente.
+      summary: Baixa o DANFSe v2.0 em PDF
+      description: >-
+        O DANFSe é gerado localmente a partir do XML autorizado (NT 008 v1.02), cacheado no S3 e
+        devolvido como URL pré-assinada. Não depende da API de DANFSE do ADN, que foi suspensa.
       operationId: getNfseDanfse
       responses:
-        '200': { $ref: '#/components/responses/PdfDownload' }
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

@@ -141,13 +141,13 @@ emission route in this API** (inbound/distribution only).
 | POST   | `/nfes`                                  | `create.nfes`       | Emit; body `nfesvc.NfeEmitBody`                        |
 | GET    | `/nfes`                                  | `list.nfes`         | Filters `incoming`,`number`,`year`,`month`,`day`       |
 | GET    | `/nfes/:access_key`                      | `get.nfes`          | 404 → `ErrNFeNotFound`                                 |
-| GET    | `/nfes/:access_key/xml`                  | `get.nfes`          | Signed XML download                                    |
+| GET    | `/nfes/:access_key/xml`                  | `get.nfes`          | Presigned S3 XML URL                                   |
 | GET    | `/nfes/:access_key/danfe`                | `get.nfes`          | JSON with 15-minute presigned cached DANFE URL         |
 | POST   | `/nfes/:access_key/cancel`               | `delete.nfes`       | Body `CancelEventBody{justification, sequence_number}` |
 | POST   | `/nfes/:access_key/correction-letter`    | `create.nfe_events` | CC-e; `correction_text` 15–1000 chars                  |
 | POST   | `/nfes/:access_key/manifestation`        | `create.nfe_events` | `event_type ∈ {210200,210210,210220,210240}`           |
 | GET    | `/nfes/:access_key/events`               | `get.nfe_events`    | Event history                                          |
-| GET    | `/nfes/:access_key/events/:event_sk/xml` | `get.nfe_events`    | Event XML                                              |
+| GET    | `/nfes/:access_key/events/:event_sk/xml` | `get.nfe_events`    | Presigned S3 event XML URL                             |
 
 #### NFC-e — `/nfces` (`nfces.go`)
 
@@ -183,7 +183,7 @@ Inbound DFe from SEFAZ (NFe/CTe/MDFe **Distribuição DF-e**). Triggered by
 |--------|---------------------------------------------|-----------------------------------|--------------------------------------------------------------------------------------------------------|
 | GET    | `/distributions/:doc_type/history`          | `list.{doc_type}_distributions`   | Paginated incoming DFe                                                                                 |
 | POST   | `/distributions/:doc_type/sync`             | `create.{doc_type}_distributions` | Enqueues a sync job to `DistributionQueueURL` (SQS); returns `202 Accepted` (`distributions.go:32-38`) |
-| GET    | `/distributions/:doc_type/history/:nsu/xml` | `get.{doc_type}_distributions`    | XML download, `Content-Disposition NSU_*.xml`                                                          |
+| GET    | `/distributions/:doc_type/history/:nsu/xml` | `get.{doc_type}_distributions`    | Presigned S3 XML URL, `Content-Disposition NSU_*.xml`                                                  |
 | GET    | `/distributions/:doc_type/nsu/:nsu`         | `get.{doc_type}_distributions`    | Lookup by NSU                                                                                          |
 | GET    | `/distributions/:doc_type/key/:access_key`  | `get.{doc_type}_distributions`    | Lookup by access key                                                                                   |
 

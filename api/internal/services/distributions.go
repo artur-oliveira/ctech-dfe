@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -53,6 +54,7 @@ type DistributionService struct {
 	mdfeDist          *repositories.MDFeDistributionRepository
 	nfseDist          *repositories.NfseDistributionRepository
 	clients           *awsclient.Clients
+	documentSvc       *documents.Service
 	queueURL          string
 	bucketDocs        string
 	bucketCerts       string
@@ -72,6 +74,7 @@ func NewDistributionService(
 	mdfeDist *repositories.MDFeDistributionRepository,
 	nfseDist *repositories.NfseDistributionRepository,
 	clients *awsclient.Clients,
+	documentSvc *documents.Service,
 	queueURL, bucketDocs, bucketCerts, sefazFunctionName string,
 ) *DistributionService {
 	return &DistributionService{
@@ -79,6 +82,7 @@ func NewDistributionService(
 		NfeConfig: NfeConfig, NfceConfig: NfceConfig, CteConfig: CteConfig, MdfeConfig: MdfeConfig, NfseConfig: NfseConfig,
 		nfeDist: nfeDist, cteDist: cteDist, mdfeDist: mdfeDist, nfseDist: nfseDist,
 		clients:           clients,
+		documentSvc:       documentSvc,
 		queueURL:          queueURL,
 		bucketDocs:        bucketDocs,
 		bucketCerts:       bucketCerts,
@@ -210,8 +214,8 @@ func (s *DistributionService) ListDistributions(ctx context.Context, orgPK, docT
 	return s.distRepo(docType).ListDistributions(ctx, pk, opts)
 }
 
-// GetDistributionXML downloads the stored XML for a specific NSU.
-func (s *DistributionService) GetDistributionXML(ctx context.Context, orgPK, docType string, nsu int) ([]byte, error) {
+// GetDistributionXML returns a direct URL for the stored XML of a specific NSU.
+func (s *DistributionService) GetDistributionXML(ctx context.Context, orgPK, docType string, nsu int) (*documents.SignedFileDownload, error) {
 	if err := validateDistDocType(docType); err != nil {
 		return nil, err
 	}
@@ -235,7 +239,8 @@ func (s *DistributionService) GetDistributionXML(ctx context.Context, orgPK, doc
 	if s3Key == "" {
 		return nil, problem.NotFound("XML do NSU ainda não disponível")
 	}
-	return s.downloadDocs(ctx, s3Key)
+	filename := fmt.Sprintf("NSU_%015d", nsu)
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filename), documents.ContentTypeXML)
 }
 
 // LookupByNSU performs a synchronous consNSU against SEFAZ via the py-dfe Lambda.

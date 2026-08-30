@@ -22,7 +22,7 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import type {NfseListOut} from '@/lib/types/api'
 import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatISODateBR, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
@@ -121,7 +121,7 @@ function NfsesContent() {
   const handleDownloadXml = async (item: NfseListOut) => {
     setXmlLoading(item.sk)
     try {
-      triggerDownload(await apiClient.downloadNfseXml(item.sk), `${item.sk}.xml`)
+		triggerRemoteDownload((await apiClient.downloadNfseXml(item.sk)).url)
     } catch {
       toast.error('Erro ao baixar XML.')
     } finally {
@@ -288,7 +288,7 @@ function NfsesContent() {
                           </Button>
                         )}
                         {nfse.status === 'authorized' && nfse.provider === 'nacional' && (
-                          <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(nfse.sk)} filename={nfse.sk} label="DANFSE"/>
+                          <DownloadPdfButton fetchPdf={() => apiClient.downloadDanfse(nfse.sk)} label="DANFSE"/>
                         )}
                         {nfse.status === 'authorized' && (
                           <Button variant="ghost" size="default" onClick={() => setCancelTarget(nfse)}

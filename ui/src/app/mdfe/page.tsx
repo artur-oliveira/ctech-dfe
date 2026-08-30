@@ -22,7 +22,7 @@ import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {HomologationBanner} from '@/components/ui/homologation-banner'
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {formatDatetimeBR, formatNsu, triggerDownload} from '@/lib/utils/dfe'
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {mdfeSchemaLabel} from '@/lib/constants/distributions'
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
@@ -96,7 +96,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
                 </Link>
                 {(mdfe.status === 'authorized' || mdfe.status === 'closed' || mdfe.status === 'cancelled') && (
                   <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(mdfe.sk)}
-                                     filename={mdfe.sk} label="DAMDFE"/>
+                                     label="DAMDFE"/>
                 )}
                 {mdfe.status === 'authorized' && (
                   <>
@@ -125,8 +125,8 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
   const handleDownloadXml = async () => {
     setXmlLoading(true)
     try {
-      const blob = await apiClient.downloadDistributionXml('mdfe', item.nsu)
-      triggerDownload(blob, `NSU_${formatNsu(item.nsu)}.xml`)
+		const download = await apiClient.downloadDistributionXml('mdfe', item.nsu)
+		triggerRemoteDownload(download.url)
     } catch {
       toast.error('Erro ao baixar XML.')
     } finally {

@@ -13,6 +13,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
@@ -266,24 +267,27 @@ func (s *NfseService) ListEvents(ctx context.Context, orgPK, id string, limit in
 	return s.eventRepo.GetDocumentEvents(ctx, strAttr(item, "sk"), limit, startKey)
 }
 
-// GetEventXML baixa o XML do evento do S3 e devolve também o event_type, que a
-// rota usa para nomear o arquivo.
-func (s *NfseService) GetEventXML(ctx context.Context, orgPK, id, eventSK string) ([]byte, string, error) {
+// GetEventXML devolve uma URL direta para o XML de evento após validar o tenant.
+func (s *NfseService) GetEventXML(ctx context.Context, orgPK, id, eventSK string) (*documents.SignedFileDownload, error) {
 	item, err := s.GetNfse(ctx, orgPK, id)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	event, err := s.eventRepo.GetEvent(ctx, strAttr(item, "sk"), eventSK)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if event == nil {
-		return nil, "", ErrNfseEventNotFound
+		return nil, ErrNfseEventNotFound
 	}
 	s3Key := strAttr(event, "xml_s3_key")
 	if s3Key == "" {
-		return nil, "", ErrNfseEventNoXML
+		return nil, ErrNfseEventNoXML
 	}
-	data, err := services.DownloadS3(ctx, s.clients, s.bucketDocs, s3Key)
-	return data, strAttr(event, "event_type"), err
+	identifier := strAttr(item, "access_key")
+	if identifier == "" {
+		identifier = strAttr(item, "sk")
+	}
+	filename := strAttr(event, "event_type") + "-" + identifier
+	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filename), documents.ContentTypeXML)
 }
