@@ -210,18 +210,20 @@ export const entitySchema = z.object({
   }
 })
 
-// Organização CNPJ é sempre emitente fiscal, então o backend exige ao menos uma
-// IE. Pessoas continuam podendo ser cadastradas sem IE: a obrigatoriedade do
-// destinatário depende da operação, não do cadastro.
-export const organizationSchema = entitySchema.superRefine((data, ctx) => {
-  if (data.tipo === 'pj' && data.person.state_registrations.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Adicione ao menos uma inscrição estadual',
-      path: ['person', 'state_registrations'],
-    })
-  }
-})
+/**
+ * A organização não tem regra própria hoje — e a ausência é a decisão.
+ *
+ * Este schema já exigiu ao menos uma inscrição estadual, na premissa de que
+ * uma organização é sempre emitente fiscal. Empresa de serviço não tem IE:
+ * ela é contribuinte do município, emite NFS-e e nunca vai ter uma inscrição
+ * para digitar. A regra transformava um cadastro legítimo em um formulário
+ * impossível de enviar, e a API sempre aceitou a lista vazia (`omitempty`).
+ *
+ * A IE continua sendo necessária para emitir NF-e/NFC-e, e é lá — na
+ * configuração do documento e na emissão — que a falta dela é um erro, com o
+ * contexto de qual documento a exige.
+ */
+export const organizationSchema = entitySchema
 
 export type EntityFormData = z.infer<typeof entitySchema>
 export type NfseInfoData = z.infer<typeof nfseInfoSchema>

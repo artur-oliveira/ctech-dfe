@@ -33,6 +33,7 @@ import {
   UF_OPTIONS,
 } from '@/lib/schemas/entity'
 import {organizationSchema} from '@/lib/schemas/organizations'
+import {advancedErrorLabels, listPtBR} from '@/lib/utils/advanced-errors'
 import {maskCnpj, maskCpf, maskPhone} from '@/lib/utils/masks'
 import {useCnpjLookup} from '@/lib/hooks/useCnpjLookup'
 import {useAuth} from '@/lib/hooks/useAuth'
@@ -60,7 +61,26 @@ export interface EntityFormProps {
    * document value so callers (org creation) can react to it — e.g. show the
    * A1 certificate fields and query whether it's required.
    */
+  /**
+   * Consulta a Receita mesmo em modo edição, e preenche o que estiver vazio.
+   *
+   * Existe para um caso só: a empresa que acabou de ser vinculada da conta
+   * CTech chega com CNPJ, razão social e nada mais — sem endereço, sem CNAE,
+   * sem inscrição — e com o CNPJ travado, porque a identidade é de lá. Sem
+   * isto a pessoa digita à mão o que o CNPJ já responde.
+   *
+   * Não vale para todo edit: uma consulta em cima de um cadastro que alguém já
+   * ajustou reescreve escolhas deliberadas com dados públicos.
+   */
+  autoLookup?: boolean
   extraSection?: (ctx: { cpfCnpj: string }) => ReactNode
+  /**
+   * Rendered as the last subsection INSIDE "dados complementares".
+   *
+   * For things that belong to the entity and are optional fiscal detail —
+   * autXML is the one — rather than a second panel competing with the form.
+   */
+  advancedSection?: ReactNode
 }
 
 /* ── Icons ───────────────────────────────────────────────────────────── */
@@ -182,7 +202,9 @@ export function EntityForm({
                              initialRoles,
                              onSubmit,
                              loading = false,
+                             autoLookup = false,
                              extraSection,
+                             advancedSection,
                            }: EntityFormProps) {
   const isEdit = !!initialData
   const isOrg = variant === 'organization'
@@ -240,19 +262,23 @@ export function EntityForm({
   const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'})
 
   useEffect(() => {
-    if (isEdit || isForeign) return
+    if ((isEdit && !autoLookup) || isForeign) return
     const clean = debouncedDoc.replace(/\D/g, '')
     const expectedLength = isPJ ? 14 : 11
     if (clean.length === expectedLength) void lookup(clean, orgUf)
     else resetLookup()
-  }, [debouncedDoc, isEdit, isForeign, isPJ, lookup, orgUf, resetLookup])
+  }, [debouncedDoc, isEdit, autoLookup, isForeign, isPJ, lookup, orgUf, resetLookup])
 
   // Preenche só campos ainda não editados: a consulta nunca apaga uma escolha
   // que o usuário fez enquanto as duas fontes respondiam.
   useEffect(() => {
     if (lookupState.status !== 'found' || !lookupState.result) return
     const r = lookupState.result
-    if (!form.getFieldState('name').isDirty && r.name) {
+    // O nome é o único campo que a consulta não sobrescreve quando já tem
+    // valor: numa empresa vinculada ele vem da conta CTech, que é quem manda na
+    // identidade (ADR 0022) — trocá-lo pela razão social da Receita seria este
+    // formulário decidindo algo que não é dele.
+    if (!form.getFieldState('name').isDirty && r.name && !form.getValues('name')?.trim()) {
       form.setValue('name', r.name, {shouldValidate: true})
     }
     if (!form.getFieldState('person.fantasy_name').isDirty && r.fantasyName) {
@@ -336,11 +362,12 @@ export function EntityForm({
     () => setAdvancedOpen(true),
   )
 
-  // Erros dentro do bloco avançado. Ele já reabre no submit falho; o número diz
-  // quantos campos procurar, em vez de deixar o operador varrer a seção inteira.
-  const advancedErrorCount = Object.keys(form.formState.errors.person ?? {}).length
-    + (form.formState.errors.roles ? 1 : 0)
-    + (form.formState.errors.description ? 1 : 0)
+  // Erros dentro do bloco avançado. Ele já reabre no submit falho; isto diz
+  // QUAIS campos procurar, em vez de deixar o operador varrer a seção inteira.
+  const advancedErrors = advancedErrorLabels(
+    form.formState.errors.person as Record<string, unknown> | undefined,
+    isOrg,
+  )
 
   const hasBankData = watchedBank ? Object.values(watchedBank).some(Boolean) : false
   const hasFreightData = watchedFreight ? Object.values(watchedFreight).some(Boolean) : false
@@ -362,9 +389,15 @@ export function EntityForm({
       ? [{value: CRT_NONE_VALUE, label: 'Não especificar'}, ...CRT_OPTIONS_ORG_PF]
       : CRT_OPTIONS_ORG_PF
 
-  // Inscrições Estaduais — required (and always visible) for a PJ organization
-  // since it's always the fiscal emitter; optional (and tucked into "advanced")
-  // for a PJ person, since IE-when-contribuinte is a per-emission choice.
+  // Inscrições Estaduais — visible up front for a PJ organization, because the
+  // emitter usually has one; tucked into "advanced" for a PJ person, since
+  // IE-when-contribuinte is a per-emission choice.
+  //
+  // Optional in both. A service company is a municipal taxpayer with no state
+  // registration to type, and requiring one made its cadastro impossible to
+  // submit. NF-e/NFC-e still need it, and say so where the document is
+  // configured.
+  //
   // Array-level custom errors (e.g. duplicate UF) live at person.state_registrations
   // and have no per-item FormField, so render them explicitly here.
   const ieRootError = form.formState.errors.person?.state_registrations?.message
@@ -387,7 +420,12 @@ export function EntityForm({
         </Button>
       </div>
       {ieRootError && <p role="alert" className="mb-2 text-xs text-danger">{ieRootError}</p>}
-      {ieFields.length === 0 && <p className="text-xs text-gray-400">Nenhuma IE cadastrada.</p>}
+      {ieFields.length === 0 && (
+        <p className="text-[0.8rem] text-gray-500 text-pretty">
+          Nenhuma inscrição cadastrada — o que está certo para quem só presta serviço.
+          NF-e e NFC-e precisam de uma; NFS-e, não.
+        </p>
+      )}
       {ieFields.map((field, index) => {
         const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
         return (
@@ -831,7 +869,7 @@ export function EntityForm({
               </div>
             )}
 
-            {/* Inscrições Estaduais — sempre visível pra organização PJ (obrigatória) */}
+            {/* Inscrições Estaduais — sempre visível pra organização PJ */}
             {isOrg && ieSection}
 
           </SectionCard>
@@ -854,11 +892,10 @@ export function EntityForm({
                     className="px-0 text-brand-700 hover:text-brand-800">
               {advancedOpen ? '− Ocultar dados complementares' : '+ Dados complementares e fiscais'}
             </Button>
-            {advancedErrorCount > 0 && (
-              <span aria-label={`${advancedErrorCount} campo(s) com erro nos dados complementares`}
-                    className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
-                {advancedErrorCount}
-              </span>
+            {advancedErrors.length > 0 && (
+              <p role="alert" className="text-[0.8rem] font-medium text-danger">
+                Revise {listPtBR(advancedErrors)}.
+              </p>
             )}
             {!advancedOpen && (
               <span className="text-xs text-gray-500">Contatos, outros endereços e campos conforme os papéis escolhidos.</span>
@@ -993,6 +1030,8 @@ export function EntityForm({
                   </div>
                 </div>
               </SectionCard>
+
+              {advancedSection}
             </div>
           )}
         </section>

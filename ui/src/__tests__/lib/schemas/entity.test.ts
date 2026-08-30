@@ -73,15 +73,11 @@ describe('organizationSchema — IE obrigatória para PJ, UFs duplicadas rejeita
     person: {...basePF.person, fantasy_name: 'Loja', crt: '1', state_registrations: []},
   }
 
-  it('organizationSchema rejeita PJ sem inscrição estadual', () => {
-    const result = organizationSchema.safeParse(pj)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues).toContainEqual(expect.objectContaining({
-        path: ['person', 'state_registrations'],
-        message: 'Adicione ao menos uma inscrição estadual',
-      }))
-    }
+  // Empresa de serviço é contribuinte do município, emite NFS-e e não tem
+  // inscrição estadual nenhuma para digitar. Exigir uma tornava o cadastro
+  // impossível de enviar.
+  it('organizationSchema aceita PJ sem inscrição estadual', () => {
+    expect(organizationSchema.safeParse(pj).success).toBe(true)
   })
 
   it('organizationSchema aceita PJ com ao menos uma inscrição estadual', () => {

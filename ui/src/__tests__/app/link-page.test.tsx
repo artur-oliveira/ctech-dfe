@@ -55,7 +55,7 @@ describe('a empresa criada na conta CTech volta para o DF-e', () => {
       expect(apiClient.linkCompany).toHaveBeenCalledWith('org_1', 'cmp_1'),
     )
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith('/organizations/edit?pk=cmp_1'),
+      expect(replace).toHaveBeenCalledWith('/organizations/edit?pk=cmp_1&from=link'),
     )
   })
 

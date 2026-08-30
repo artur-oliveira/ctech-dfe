@@ -4,9 +4,17 @@ import type {DocVariant} from '@/lib/schemas/fiscal-configs'
  * The first-run flow, in layers.
  *
  * Onboarding is ordered because setup genuinely is: there is no company to
- * configure before a plan grants one, no document numbering before a company,
- * and no product catalogue before a document type that consumes it. The numbers
- * carry that dependency — they are not decoration.
+ * configure before a plan grants one, no certificate before the company it
+ * belongs to, no document numbering before a company, and no product catalogue
+ * before a document type that consumes it. The numbers carry that dependency —
+ * they are not decoration.
+ *
+ * The certificate is its own layer rather than a field on the company step. It
+ * is the thing that signs every document — without it the SEFAZ refuses every
+ * emission — so an account that reached the end of setup without one is set up
+ * and cannot work. Folding it into the company form hid that: a company created
+ * through the ctech-account handoff never passes through a form that asks for
+ * one.
  *
  * The last two layers are conditional: a carrier that only moves freight never
  * sees the product step, and a clinic never sees it either. Asking everyone
@@ -17,6 +25,7 @@ export const ONBOARDING_ROOT = '/onboarding'
 
 export const STEP_PLAN = 'plano'
 export const STEP_COMPANY = 'empresa'
+export const STEP_CERTIFICATE = 'certificado'
 export const STEP_DOCUMENTS = 'documentos'
 export const STEP_PRODUCTS = 'produtos'
 export const STEP_SERVICES = 'servicos'
@@ -28,6 +37,7 @@ export const STEP_CHECKOUT_RETURN = 'retorno'
 export type OnboardingStep =
   | typeof STEP_PLAN
   | typeof STEP_COMPANY
+  | typeof STEP_CERTIFICATE
   | typeof STEP_DOCUMENTS
   | typeof STEP_PRODUCTS
   | typeof STEP_SERVICES
@@ -54,6 +64,12 @@ export const ONBOARDING_STEPS: StepDefinition[] = [
     label: 'Empresa',
     title: 'Cadastre sua empresa',
     path: `${ONBOARDING_ROOT}/${STEP_COMPANY}`,
+  },
+  {
+    id: STEP_CERTIFICATE,
+    label: 'Certificado',
+    title: 'Envie o certificado A1',
+    path: `${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`,
   },
   {
     id: STEP_DOCUMENTS,

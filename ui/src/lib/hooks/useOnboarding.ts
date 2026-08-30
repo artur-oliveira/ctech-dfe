@@ -5,6 +5,7 @@ import {useQuery} from '@tanstack/react-query'
 import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {useAuth} from '@/lib/hooks/useAuth'
+import {orgTaxId} from '@/lib/utils/document'
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
 import {useSubscription} from '@/lib/hooks/useSubscription'
 import {STORAGE_KEY_ONBOARDING_SKIPPED_PREFIX} from '@/lib/constants/storage'
@@ -12,6 +13,7 @@ import {
   ONBOARDING_STEPS,
   PRODUCT_DOC_VARIANTS,
   SERVICE_DOC_VARIANTS,
+  STEP_CERTIFICATE,
   STEP_COMPANY,
   STEP_DOCUMENTS,
   STEP_DONE,
@@ -127,6 +129,32 @@ export function useOnboarding() {
   const needsProducts = PRODUCT_DOC_VARIANTS.some((v) => configured[v])
   const needsServices = SERVICE_DOC_VARIANTS.some((v) => configured[v])
 
+  // The certificate layer. `enabled` on the org because the endpoint is scoped
+  // to one, and a company is the thing a certificate belongs to.
+  const certificatesQuery = useQuery({
+    queryKey: queryKeys.certificates(orgPk ?? ''),
+    queryFn: () => apiClient.getCertificates(orgPk as string),
+    enabled: !!orgPk,
+    // The expiry is compared in `select`, not in render: reading the clock
+    // during a render is impure, and the answer only changes when the list does.
+    select: (items) => items.some((c) => new Date(c.expires_at).getTime() > Date.now()),
+  })
+
+  /**
+   * A filial that can sign with the matriz's certificate.
+   *
+   * Without this the certificate layer would never close for a branch: it has
+   * no certificate of its own, by design, and would sit unfinished on the
+   * dashboard forever asking for a file it must not upload.
+   */
+  const orgTaxID = selectedOrg ? orgTaxId(selectedOrg) : ''
+  const certRequirementQuery = useQuery({
+    queryKey: queryKeys.certificateRequirement(orgTaxID),
+    queryFn: () => apiClient.certificateRequirement(orgTaxID),
+    enabled: !!orgTaxID,
+    staleTime: 60_000,
+  })
+
   const productsQuery = useQuery({
     queryKey: queryKeys.products.probe(orgPk),
     queryFn: () => apiClient.getProducts({limit: EXISTENCE_PROBE_LIMIT}),
@@ -142,12 +170,23 @@ export function useOnboarding() {
   // forever, and gating the checklist on that would hide it permanently for
   // anyone whose documents do not need a catalogue.
   const probesPending =
-    (needsProducts && productsQuery.isLoading) || (needsServices && servicesQuery.isLoading)
-  const probesFailed = !!productsQuery.error || !!servicesQuery.error
+    (needsProducts && productsQuery.isLoading) ||
+    (needsServices && servicesQuery.isLoading) ||
+    (!!orgPk && certificatesQuery.isLoading)
+  const probesFailed = !!productsQuery.error || !!servicesQuery.error || !!certificatesQuery.error
 
   const hasSubscription = !!subscription?.has_subscription || !!subscription?.no_charge
   const hasCompany = (user?.organizations.length ?? 0) > 0
   const hasAnyConfig = Object.values(configured).some(Boolean)
+  // An expired certificate is not a certificate: the SEFAZ refuses the
+  // signature, so the layer is unanswered and the step has to say so rather
+  // than tick itself off because a file was uploaded once.
+  const hasOwnCertificate = certificatesQuery.data === true
+  // `required === false` means a matriz certificate covers this CNPJ root. The
+  // default is `true`: until the answer arrives, a company with no certificate
+  // needs one.
+  const certificateInherited = certRequirementQuery.data?.required === false
+  const hasCertificate = hasOwnCertificate || certificateInherited
   const hasProducts = (productsQuery.data?.items.length ?? 0) > 0
   const hasServices = (servicesQuery.data?.items.length ?? 0) > 0
 
@@ -155,6 +194,7 @@ export function useOnboarding() {
     const doneById: Record<OnboardingStep, boolean> = {
       [STEP_PLAN]: hasSubscription,
       [STEP_COMPANY]: hasCompany,
+      [STEP_CERTIFICATE]: hasCertificate,
       [STEP_DOCUMENTS]: hasAnyConfig,
       [STEP_PRODUCTS]: hasProducts || skippedSteps.includes(STEP_PRODUCTS),
       [STEP_SERVICES]: hasServices || skippedSteps.includes(STEP_SERVICES),
@@ -163,6 +203,8 @@ export function useOnboarding() {
     const applicableById: Record<OnboardingStep, boolean> = {
       [STEP_PLAN]: true,
       [STEP_COMPANY]: true,
+      // Nothing to send a certificate to before there is a company.
+      [STEP_CERTIFICATE]: hasCompany,
       [STEP_DOCUMENTS]: true,
       [STEP_PRODUCTS]: needsProducts,
       [STEP_SERVICES]: needsServices,
@@ -171,6 +213,7 @@ export function useOnboarding() {
     const optionalById: Record<OnboardingStep, boolean> = {
       [STEP_PLAN]: false,
       [STEP_COMPANY]: false,
+      [STEP_CERTIFICATE]: false,
       [STEP_DOCUMENTS]: false,
       [STEP_PRODUCTS]: true,
       [STEP_SERVICES]: true,
@@ -182,7 +225,7 @@ export function useOnboarding() {
       applicable: applicableById[s.id],
       optional: optionalById[s.id],
     }))
-  }, [hasSubscription, hasCompany, hasAnyConfig, hasProducts, hasServices, needsProducts, needsServices, skippedSteps])
+  }, [hasSubscription, hasCompany, hasCertificate, hasAnyConfig, hasProducts, hasServices, needsProducts, needsServices, skippedSteps])
 
   const visibleSteps = useMemo(() => steps.filter((s) => s.applicable), [steps])
   const nextStep = useMemo(() => visibleSteps.find((s) => !s.done), [visibleSteps])
@@ -196,6 +239,9 @@ export function useOnboarding() {
     configured,
     hasSubscription,
     hasCompany,
+    hasCertificate,
+    /** The certificate is the matriz's — this company must not upload one. */
+    certificateInherited,
     /**
      * True until every layer has a real answer. The checklist is derived from
      * five queries, and a half-loaded derivation reads as "nothing is set up" —

@@ -4,7 +4,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import type {ReactNode} from 'react'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {STEP_DOCUMENTS, STEP_PRODUCTS, STEP_SERVICES} from '@/lib/constants/onboarding'
+import {STEP_CERTIFICATE, STEP_DOCUMENTS, STEP_PRODUCTS, STEP_SERVICES} from '@/lib/constants/onboarding'
 import type {AccountSubscription} from '@/lib/types/billing'
 import type {DocVariant} from '@/lib/schemas/fiscal-configs'
 
@@ -62,6 +62,45 @@ describe('useOnboarding', () => {
     vi.spyOn(apiClient, 'getSubscription').mockResolvedValue(SUBSCRIBED)
     vi.spyOn(apiClient, 'getProducts').mockResolvedValue({items: [], next_cursor: null, has_next: false, previous_cursor: null, has_previous: false} as never)
     vi.spyOn(apiClient, 'getServices').mockResolvedValue({items: [], next_cursor: null, has_next: false, previous_cursor: null, has_previous: false} as never)
+    // A live certificate by default, so the layers under test are the ones the
+    // test names. The certificate layer has its own cases below.
+    vi.spyOn(apiClient, 'getCertificates').mockResolvedValue([
+      {expires_at: '2099-01-01T00:00:00Z'} as never,
+    ])
+    vi.spyOn(apiClient, 'certificateRequirement').mockResolvedValue({required: true})
+  })
+
+  // O certificado A1 é o que assina cada documento: sem ele a conta termina a
+  // configuração inteira e não consegue emitir nada.
+  it('pede o certificado quando a empresa não tem nenhum válido', async () => {
+    mockConfigs([])
+    vi.spyOn(apiClient, 'getCertificates').mockResolvedValue([])
+    const {result} = renderHook(() => useOnboarding(), {wrapper})
+
+    await waitFor(() => expect(result.current.nextStep?.id).toBe(STEP_CERTIFICATE))
+  })
+
+  // Um certificado expirado não assina, então a etapa continua sem resposta.
+  it('não aceita um certificado expirado como resposta', async () => {
+    mockConfigs([])
+    vi.spyOn(apiClient, 'getCertificates').mockResolvedValue([
+      {expires_at: '2020-01-01T00:00:00Z'} as never,
+    ])
+    const {result} = renderHook(() => useOnboarding(), {wrapper})
+
+    await waitFor(() => expect(result.current.nextStep?.id).toBe(STEP_CERTIFICATE))
+  })
+
+  // Filial assina com o certificado da matriz, e não tem nenhum próprio para
+  // enviar: exigir um deixaria a etapa aberta para sempre.
+  it('considera a etapa respondida quando o certificado é da matriz', async () => {
+    mockConfigs([])
+    vi.spyOn(apiClient, 'getCertificates').mockResolvedValue([])
+    vi.spyOn(apiClient, 'certificateRequirement').mockResolvedValue({required: false})
+    const {result} = renderHook(() => useOnboarding(), {wrapper})
+
+    await waitFor(() => expect(result.current.nextStep?.id).toBe(STEP_DOCUMENTS))
+    expect(result.current.certificateInherited).toBe(true)
   })
 
   it('hides the product and service layers when no document consumes them', async () => {

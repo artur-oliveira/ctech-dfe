@@ -11,6 +11,8 @@ export const queryKeys = {
   mdfeConfig: (pk: string) => ['mdfe-config', pk] as const,
   nfseConfig: (pk: string) => ['nfse-config', pk] as const,
   certificates: (pk: string) => ['certificates', pk] as const,
+  /** Keyed by tax id, not by pk: the answer is about the CNPJ root. */
+  certificateRequirement: (taxID: string) => ['certificates', 'requirement', taxID] as const,
   products: {
     list: (orgPk: string | undefined) => ['products', orgPk] as const,
     /** "Is there at least one?" — a separate key so the onboarding probe never

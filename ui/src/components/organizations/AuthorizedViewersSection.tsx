@@ -6,7 +6,6 @@ import {apiClient} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
 import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
-import {SectionCard} from '@/components/ui/section-card'
 import {authorizedViewerSchema, hasDuplicateViewer, MAX_AUTHORIZED_VIEWERS} from '@/lib/schemas/authorized-viewers'
 import {maskCpfCnpj} from '@/lib/utils/masks'
 import type {AuthorizedViewerOut} from '@/lib/types/api'
@@ -16,9 +15,17 @@ interface AuthorizedViewersSectionProps {
   viewers: AuthorizedViewerOut[]
 }
 
-/** SEFAZ allows up to 10 CPF/CNPJ+name pairs authorized to view an
+/**
+ * SEFAZ allows up to 10 CPF/CNPJ+name pairs authorized to view an
  * organization's NF-e XML (autXML) — this is org-level config, applied
- * automatically to every NF-e that org issues (not a per-emission choice). */
+ * automatically to every NF-e that org issues (not a per-emission choice).
+ *
+ * Rendered as a subsection inside the company form's "dados complementares",
+ * not as a card of its own. It used to sit below the form as a peer of it,
+ * which read as a second thing to do on the screen — and it is not: it is one
+ * more optional fiscal detail of the same company, and almost nobody fills it.
+ * Its own writes are immediate, so it is not part of the form's submit.
+ */
 export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSectionProps) {
   const qc = useQueryClient()
   const [cpfCnpj, setCpfCnpj] = useState('')
@@ -61,14 +68,15 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
   }
 
   return (
-    <SectionCard title="Pessoas autorizadas a ver o XML (autXML)">
-      <p className="text-xs text-gray-500">
+    <div className="border-t border-gray-200 pt-4">
+      <h3 className="mb-1 text-sm font-semibold text-gray-900">Pessoas autorizadas a ver o XML (autXML)</h3>
+      <p className="text-[0.8rem] text-gray-500 text-pretty">
         A SEFAZ permite autorizar até {MAX_AUTHORIZED_VIEWERS} pessoas (CPF ou CNPJ) a visualizar o XML
         das NF-e emitidas por esta organização.
       </p>
 
       {viewers.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="mt-3 space-y-2">
           {viewers.map((v) => (
             <li key={v.cpf_cnpj}
                 className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
@@ -87,19 +95,19 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
         </ul>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Adicionar ({viewers.length}/{MAX_AUTHORIZED_VIEWERS})
         </p>
       </div>
 
       {formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {formError}
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input placeholder="CPF ou CNPJ" value={maskCpfCnpj(cpfCnpj)} maxLength={18} disabled={atLimit}
                onChange={(e) => setCpfCnpj(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
         <Input placeholder="Nome" value={name} maxLength={60} disabled={atLimit}
@@ -107,9 +115,9 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
       </div>
       <Button type="button" variant="outline" size="sm" onClick={handleAdd}
               disabled={atLimit || addMutation.isPending || !cpfCnpj || !name}
-              className="min-h-11 sm:min-h-0">
+              className="mt-2 min-h-11 sm:min-h-0">
         {addMutation.isPending ? 'Adicionando...' : atLimit ? 'Limite atingido' : 'Adicionar'}
       </Button>
-    </SectionCard>
+    </div>
   )
 }

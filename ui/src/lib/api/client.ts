@@ -380,28 +380,16 @@ class ApiClient {
     })
   }
 
-  // createOrganization sends multipart: the org JSON in `data`, plus the A1
-  // certificate (PFX + password) unless it can be inherited from a matriz org
-  // sharing the same CNPJ root (filial).
-  async createOrganization(
-    data: unknown,
-    cert?: { file: File; password: string },
-  ): Promise<OrganizationOut> {
-    const formData = new FormData()
-    formData.append('data', JSON.stringify(data))
-    if (cert) {
-      formData.append('file', cert.file)
-      formData.append('password', cert.password)
-    }
-    return (await this.http.post<OrganizationOut>(
-      '/v1.0/organizations',
-      formData,
-      {headers: {'Content-Type': undefined}},
-    )).data
-  }
+  // No createOrganization: a company is registered in ctech-account and adopted
+  // here by linkCompany (ctech-billing ADR 0022). The route still exists on the
+  // API for the migration's sake, and calling it from the browser is what the
+  // handoff was built to stop — it produces a company the platform never heard
+  // of, with no company id and no reach edge.
 
-  // certificateRequirement reports whether creating the given org requires an
-  // A1 upload (false when a matriz certificate can be inherited).
+  // certificateRequirement reports whether this company needs an A1 upload of
+  // its own — false when a matriz certificate for the same CNPJ root can be
+  // inherited, which is how the onboarding certificate step closes for a filial
+  // that must not upload one.
   async certificateRequirement(cpfOrCnpj: string): Promise<{ required: boolean }> {
     return this.get(`/v1.0/organizations/certificate-requirement?cpf_or_cnpj=${unformatCpfCnpj(cpfOrCnpj)}`)
   }

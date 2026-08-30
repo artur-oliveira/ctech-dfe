@@ -10,6 +10,7 @@ import {useAuth} from '@/lib/hooks/useAuth'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {Button} from '@/components/ui/button'
+import {HANDOFF_STATE_KEY} from '@/lib/handoff'
 
 /**
  * The handoff's return leg: the person created a company in the CTech account
@@ -70,7 +71,7 @@ function LinkCompanyContent() {
       }
       // The state we sent must be the state that came back. It is what tells a
       // real return apart from somebody opening this URL with ids they typed.
-      const expected = sessionStorage.getItem('dfe:handoff-state')
+      const expected = sessionStorage.getItem(HANDOFF_STATE_KEY)
       if (expected && params.get('state') !== expected) {
         setError('Este retorno não corresponde ao cadastro iniciado aqui. Comece novamente.')
         return
@@ -78,7 +79,7 @@ function LinkCompanyContent() {
 
       try {
         const org = await apiClient.linkCompany(organizationId, companyId)
-        sessionStorage.removeItem('dfe:handoff-state')
+        sessionStorage.removeItem(HANDOFF_STATE_KEY)
         void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
         const me = await refreshUser()
         const linked = me?.organizations.find((o) => o.pk === org.pk)
@@ -92,8 +93,10 @@ function LinkCompanyContent() {
         }
         setSelectedOrg(linked)
         // Straight to the company's own screen: the fiscal side is empty, and
-        // that is the next thing the person has to do.
-        router.replace(`/organizations/edit?pk=${encodeURIComponent(org.pk)}`)
+        // that is the next thing the person has to do. `from=link` says this
+        // edit is the tail of the handoff, which is what lets that screen fill
+        // the blanks from the CNPJ and then continue the setup flow.
+        router.replace(`/organizations/edit?pk=${encodeURIComponent(org.pk)}&from=link`)
       } catch (e) {
         setError(e instanceof ApiError ? e.detail : 'Não foi possível vincular a empresa.')
       }
