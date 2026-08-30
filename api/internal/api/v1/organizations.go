@@ -23,10 +23,13 @@ type OrgHandlers struct {
 	MdfeConfig  *services.MdfeConfigService
 	NfseConfig  *services.NfseConfigService
 	SerieClaims *repositories.SerieClaimRepository
-	UserSvc     *services.UserService
-	MemberSvc   *services.MembershipService
-	InvSvc      *services.InvitationService
-	BillingSvc  *services.BillingService
+	// LinkSvc adopts a company created in ctech-account (the handoff's return
+	// leg). Nil where the ctech-account credential is not configured.
+	LinkSvc    *services.LinkService
+	UserSvc    *services.UserService
+	MemberSvc  *services.MembershipService
+	InvSvc     *services.InvitationService
+	BillingSvc *services.BillingService
 }
 
 // RegisterOrganizations mounts all /organizations routes.
@@ -203,6 +206,38 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 			return sendProblem(c, err)
 		}
 		return sendItem(c, org)
+	})
+
+	// POST /organizations/link — the handoff's return leg.
+	//
+	// Outside the org-scoped group on purpose: there is no local organization
+	// yet, so RBAC has nothing to resolve. Authorization is the reach check
+	// against ctech-account, which is the only thing that knows whether this
+	// person may act for the company they were just handed.
+	router.Post("/organizations/link", authMw, func(c fiber.Ctx) error {
+		if h.LinkSvc == nil || !h.LinkSvc.Enabled() {
+			return sendProblem(c, problem.BadRequest("a integração com a conta CTech não está configurada nesta instalação"))
+		}
+		var body struct {
+			OrganizationID string `json:"organization_id"`
+			CompanyID      string `json:"company_id"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, h.UserSvc)
+		org, err := h.LinkSvc.Link(c.Context(), body.OrganizationID, body.CompanyID, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		m, err := unmarshal(org)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		// 200 rather than 201: a refresh replays the same ids and finds the
+		// company already linked, and answering "created" the second time would
+		// be a lie the browser has no way to check.
+		return c.JSON(m)
 	})
 
 	// ── Fiscal configs ───────────────────────────────────────────────────────

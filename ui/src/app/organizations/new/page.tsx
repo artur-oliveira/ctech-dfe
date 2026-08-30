@@ -1,51 +1,47 @@
 'use client'
 
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
+import {useEffect} from 'react'
 import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
-import {type CertificateInput, OrganizationForm} from '@/components/organizations/OrganizationForm'
-import type {OrganizationCreate} from '@/lib/types/api'
 
-function NewOrganizationContent() {
-  const router = useRouter()
-  const qc = useQueryClient()
-  const {refreshUser, setSelectedOrg} = useAuth()
+/**
+ * Creating a company starts in the CTech account.
+ *
+ * Not a form here any more. A company's identity — its CNPJ and legal name —
+ * belongs to ctech-account (ctech-billing ADR 0022), and creating it locally
+ * produced a record the platform never heard of: no company id, no reach edge,
+ * and a next migration to go and find it.
+ *
+ * So this redirects, carrying `return_to` so the account can send the person
+ * back with both ids. The DF-e then asks only for what is its own: the A1
+ * certificate, the inscrição estadual, the série.
+ */
+function NewOrganizationRedirect() {
+  useEffect(() => {
+    const accountUrl = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? ''
+    const returnTo = `${window.location.origin}/organizations/vincular`
+    // state is ours and opaque to the account: it echoes it back untouched, and
+    // it is what tells a return apart from somebody opening the landing URL by
+    // hand.
+    const state = crypto.randomUUID()
+    sessionStorage.setItem('dfe:handoff-state', state)
 
-  const createMutation = useMutation({
-    mutationFn: ({data, cert}: { data: OrganizationCreate; cert?: CertificateInput }) =>
-      apiClient.createOrganization(data, cert),
-    onSuccess: async (created) => {
-      void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
-      // Refetch /auth/me so the new org appears in the membership list, then make
-      // it the active org. refreshUser prioritizes the previously-saved org, so we
-      // override with the freshly-created one here.
-      const me = await refreshUser()
-      const newOrg = me?.organizations.find((o) => o.pk === created.pk)
-      if (newOrg) setSelectedOrg(newOrg)
-      router.push('/organizations')
-    },
-  })
-  
+    const url = new URL(`${accountUrl}/account/organizations/new`)
+    url.searchParams.set('client_id', 'dfe')
+    url.searchParams.set('return_to', returnTo)
+    url.searchParams.set('state', state)
+    // replace, not assign: the person must not land back here with the browser
+    // Back button and start a second handoff.
+    window.location.replace(url.toString())
+  }, [])
+
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-          <Link href="/organizations" className="hover:text-brand-600">Organizações</Link>
-          <span>/</span>
-          <span className="text-gray-600">Nova organização</span>
-        </div>
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">Nova organização</h1>
-        <OrganizationForm
-          onSubmit={async (data, cert) => {
-            await createMutation.mutateAsync({data, cert})
-          }}
-          loading={createMutation.isPending}
-        />
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Nova empresa</h1>
+        <p className="text-gray-500 text-sm">
+          Levando você para a conta CTech, onde a empresa é cadastrada…
+        </p>
       </div>
     </RootLayout>
   )
@@ -54,7 +50,7 @@ function NewOrganizationContent() {
 export default function NewOrganizationPage() {
   return (
     <ProtectedRoute>
-      <NewOrganizationContent/>
+      <NewOrganizationRedirect/>
     </ProtectedRoute>
   )
 }

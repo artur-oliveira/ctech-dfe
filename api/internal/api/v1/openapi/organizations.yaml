@@ -62,6 +62,58 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /v1.0/organizations/link:
+    post:
+      tags: [ Organizations ]
+      summary: Adota uma empresa criada na conta CTech
+      description: |
+        A volta do handoff: a pessoa foi enviada à conta CTech para criar a
+        empresa e retornou com `organization_id` e `company_id`. Isto transforma
+        os dois ids num registro local — a identidade em cache, a parte fiscal
+        vazia e aguardando certificado e série.
+
+        Não cria a empresa: ela já existe, e este produto não decide se deveria.
+        O que ele decide é se quem pediu pode agir por ela, perguntando à conta
+        CTech — os ids chegam numa URL que a pessoa controla, então confiar neles
+        deixaria qualquer um adotar qualquer `company_id` que soubesse digitar.
+
+        Idempotente: um F5 na página de retorno repete os mesmos ids e encontra a
+        empresa já vinculada. Responde `200`, nunca `201`, porque na segunda
+        chamada "criado" seria mentira que o navegador não tem como verificar.
+
+        Toda recusa responde a mesma mensagem. Distinguir "sem acesso" de
+        "organização errada" transformaria a rota numa sonda de quais empresas
+        pertencem a quais organizações.
+      operationId: linkCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ organization_id, company_id ]
+              properties:
+                organization_id:
+                  type: string
+                  description: A organização, como devolvida pelo handoff.
+                company_id:
+                  type: string
+                  description: A empresa, como devolvida pelo handoff.
+      responses:
+        '200':
+          description: Empresa vinculada (ou já vinculada)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1.0/organizations/certificate-requirement:
     get:
       tags: [ Organizations ]

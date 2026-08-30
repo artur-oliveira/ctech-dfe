@@ -362,6 +362,19 @@ class ApiClient {
     return this.get<OrganizationOut>(`/v1.0/organizations/${unformatCpfCnpj(pk)}`)
   }
 
+  // linkCompany adopts a company created in the CTech account — the return leg
+  // of the handoff.
+  //
+  // Idempotent by design on the server, which matters here: this is called from
+  // a landing page, and a refresh replays the same ids. The caller does not have
+  // to guard against it.
+  async linkCompany(organizationId: string, companyId: string): Promise<OrganizationOut> {
+    return this.post<OrganizationOut>('/v1.0/organizations/link', {
+      organization_id: organizationId,
+      company_id: companyId,
+    })
+  }
+
   // createOrganization sends multipart: the org JSON in `data`, plus the A1
   // certificate (PFX + password) unless it can be inherited from a matriz org
   // sharing the same CNPJ root (filial).

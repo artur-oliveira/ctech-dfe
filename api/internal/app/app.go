@@ -91,6 +91,7 @@ var Module = fx.Options(
 		services.NewInvitationService,
 		newBillingClient,
 		newReachService,
+		newLinkService,
 		newBillingService,
 		newCertificateService,
 		newProductService,
@@ -541,6 +542,7 @@ type Services struct {
 	NfseConf        *services.NfseConfigService
 	SerieClaims     *repositories.SerieClaimRepository
 	ReachSvc        *services.ReachService
+	LinkSvc         *services.LinkService
 	DistSvc         *services.DistributionService
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
@@ -585,6 +587,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NfseConfig:      svcs.NfseConf,
 		SerieClaims:     svcs.SerieClaims,
 		Reach:           svcs.ReachSvc,
+		Link:            svcs.LinkSvc,
 		Distribution:    svcs.DistSvc,
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,
@@ -650,6 +653,37 @@ func errorHandler(c fiber.Ctx, err error) error {
 // separately. It is ctech-account's, this service already holds that base URL
 // for userinfo, and a second env var naming the same host is a second thing that
 // can point somewhere else.
+// newLinkService builds the handoff's return leg, or nil when ctech-account has
+// not issued this service a credential.
+//
+// Nil means the link route answers "not configured" rather than linking on
+// trust: the ids arrive on a URL the person controls, and without the reach
+// check anybody could adopt any company id they can type.
+func newLinkService(
+	cfg *config.Config,
+	orgRepo *repositories.OrganizationRepository,
+	orgUserRepo *repositories.OrgUserRepository,
+	reach *services.ReachService,
+	userSvc *services.UserService,
+	c cache.Backend,
+) *services.LinkService {
+	if reach == nil {
+		slog.Warn("the ctech-account link route is off — a company created in the account cannot be adopted here")
+		return nil
+	}
+	client := accountclient.New(accountclient.Config{
+		BaseURL:      cfg.CtechURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.AccountClientID,
+		ClientSecret: cfg.AccountClientSecret,
+		Cache:        c,
+	})
+	if client == nil {
+		return nil
+	}
+	return services.NewLinkService(orgRepo, orgUserRepo, reach, client, userSvc)
+}
+
 // newBillingService builds the billing service with the company quota counting
 // what is ENABLED rather than what is owned (ctech-billing ADR 0021).
 //

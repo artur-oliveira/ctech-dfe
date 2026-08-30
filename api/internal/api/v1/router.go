@@ -54,6 +54,7 @@ type Services struct {
 	// Reach answers whether a person may act for a company, from ctech-account.
 	// Nil keeps the product's own row as the access record.
 	Reach        *services.ReachService
+	Link         *services.LinkService
 	Distribution *services.DistributionService
 	External     *services.ExternalService
 	AuditLog     *services.AuditLogService
@@ -94,6 +95,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		MdfeConfig:  svcs.MdfeConfig,
 		NfseConfig:  svcs.NfseConfig,
 		SerieClaims: svcs.SerieClaims,
+		LinkSvc:     svcs.Link,
 		UserSvc:     svcs.User,
 		MemberSvc:   svcs.Member,
 		InvSvc:      svcs.Invitation,
