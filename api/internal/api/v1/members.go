@@ -7,8 +7,10 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
-// MemberRoleBody is the payload for changing a member's role or creating an
-// invitation.
+// MemberRoleBody is the payload for changing a member's role.
+//
+// It used to serve invitation creation too; that route is retired in favour of
+// ctech-account's (ctech-billing ADR 0023).
 //
 // Which roles are allowed is **not** listed here. It used to be, as
 // `oneof=ADMIN USER VIEWER`, and that made this tag a third copy of a list that
@@ -70,19 +72,20 @@ func registerMemberRoutes(scoped fiber.Router, h OrgHandlers, perm *middleware.P
 		return c.JSON(items)
 	})
 
-	// POST /invitations — create an invitation; the raw token is returned only here
+	// POST /invitations — retired.
+	//
+	// Invitations are ctech-account's (ctech-billing ADR 0023). Two invitation
+	// flows for one workspace is two e-mails, two tokens and two ways to be
+	// half-invited — and only the platform's can say WHICH COMPANIES the
+	// invitation grants, which is the case this product is for: an accountant
+	// inviting a junior to five of forty CNPJs.
+	//
+	// It answers rather than disappearing. Somebody with this call in a script
+	// deserves to be told where it moved, and a 404 would send them looking for
+	// a typo in their own integration.
 	scoped.Post("/invitations", perm.RequireOwnerOrAdmin(), func(c fiber.Ctx) error {
-		var body MemberRoleBody
-		if p := bindJSON(c, &body); p != nil {
-			return sendProblem(c, p)
-		}
-		userID, userName := resolveActor(c, h.UserSvc)
-		token, item, err := h.InvSvc.Create(c.Context(), middleware.GetOrgPK(c), body.Role, userID, userName)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		item["token"] = token
-		return c.Status(fiber.StatusCreated).JSON(item)
+		return sendProblem(c, problem.Retired(
+			"os convites agora são criados na sua conta CTech, em Organizações — lá é possível escolher as empresas que a pessoa poderá usar"))
 	})
 
 	// DELETE /invitations/:id — revoke a pending invitation (id is its pk)

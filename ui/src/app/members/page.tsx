@@ -1,6 +1,6 @@
 'use client'
 
-import {useMemo, useState} from 'react'
+import {useState} from 'react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -12,7 +12,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {OptionsSelect} from '@/components/ui/options-select'
-import type {InvitationOut, MemberOut} from '@/lib/types/api'
+import type {MemberOut} from '@/lib/types/api'
 import {ASSIGNABLE_ROLES, ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
 
@@ -207,28 +207,15 @@ function MemberRow({
     )
 }
 
-function ShareModal({orgPk, onClose}: { orgPk: string; onClose: () => void }) {
-    const [role, setRole] = useState('')
-    const [invite, setInvite] = useState<InvitationOut | null>(null)
-    const [copied, setCopied] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-
-    const inviteUrl = useMemo(
-        () => (invite?.token ? `${window.location.origin}/invite?token=${invite.token}` : ''),
-        [invite],
-    )
-
-    const createMutation = useMutation({
-        mutationFn: () => apiClient.createInvitation(orgPk, role),
-        onSuccess: (data) => setInvite(data),
-        onError: (e) => setError(e instanceof ApiError ? e.detail : 'Erro ao gerar convite'),
-    })
-
-    const copy = async () => {
-        await navigator.clipboard.writeText(inviteUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-    }
+// Where invitations live now.
+//
+// Not a form here any more. Invitations are ctech-account's (ctech-billing ADR
+// 0023), and only the platform's can say WHICH COMPANIES the invitation grants
+// — the case this product is for, an accountant inviting a junior to five of
+// forty CNPJs. Keeping a second form would be two e-mails, two tokens and two
+// ways to be half-invited.
+function ShareModal({onClose}: { orgPk: string; onClose: () => void }) {
+    const accountUrl = (process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? '') + '/account/organizations'
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -238,55 +225,16 @@ function ShareModal({orgPk, onClose}: { orgPk: string; onClose: () => void }) {
                     <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">✕</Button>
                 </div>
                 <div className="p-6 space-y-4">
-                    {error && (
-                        <div
-                            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                            {error}
-                        </div>
-                    )}
-                    {!invite ? (
-                        <>
-                            <p className="text-sm text-gray-600">
-                                Gere um link de convite. Quem abrir poderá entrar na organização com a função escolhida.
-                            </p>
-                            <div className="space-y-1">
-                                <label htmlFor="invite-role"
-                                       className="block text-sm font-medium text-gray-700">Função</label>
-                                <OptionsSelect
-                                    id="invite-role"
-                                    value={role}
-                                    onValueChange={(v) => {
-                                        setRole(v);
-                                        setError(null)
-                                    }}
-                                    options={ASSIGNABLE_ROLES}
-                                    placeholder="Selecione uma função"
-                                    className="h-11"
-                                />
-                            </div>
-                            <Button className="w-full h-11"
-                                    disabled={!role || createMutation.isPending}
-                                    onClick={() => {
-                                        setError(null);
-                                        createMutation.mutate()
-                                    }}>
-                                {createMutation.isPending ? 'Gerando…' : 'Gerar link'}
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <div
-                                className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                                Copie o link agora — ele é exibido uma única vez e permite um único uso.
-                            </div>
-                            <div className="flex gap-2">
-                                <input readOnly value={inviteUrl}
-                                       className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-mono"/>
-                                <Button className="h-auto" onClick={copy}>{copied ? 'Copiado!' : 'Copiar'}</Button>
-                            </div>
-                            <Button variant="outline" className="w-full h-11" onClick={onClose}>Concluir</Button>
-                        </>
-                    )}
+                    <p className="text-sm text-gray-600">
+                        Os convites agora são feitos na sua conta CTech, onde você também escolhe
+                        <strong> quais empresas</strong> a pessoa poderá usar.
+                    </p>
+                    <Button
+                        className="w-full h-11"
+                        onClick={() => window.open(accountUrl, '_blank', 'noopener,noreferrer')}>
+                        Convidar na conta CTech
+                    </Button>
+                    <Button variant="outline" className="w-full h-11" onClick={onClose}>Fechar</Button>
                 </div>
             </div>
         </div>

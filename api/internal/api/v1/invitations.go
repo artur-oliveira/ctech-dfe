@@ -7,9 +7,16 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// RegisterInvitations mounts the token-addressed invitation endpoints. These
-// sit outside the org-scoped RBAC group — the invitee is not yet a member — so
-// they are guarded only by authentication.
+// RegisterInvitations mounts the token-addressed invitation endpoints. These sit
+// outside the org-scoped RBAC group — the invitee is not yet a member — so they
+// are guarded only by authentication.
+//
+// CREATING an invitation is retired in favour of ctech-account's (see
+// members.go). Reading, accepting and declining one are NOT: a token minted
+// before the retirement is a promise somebody made, and breaking it would strand
+// whoever holds the link with no way to join and nobody to ask. They go when the
+// last pending invitation has expired, which is a decision with a date on it
+// rather than a deploy.
 func RegisterInvitations(router fiber.Router, invSvc *services.InvitationService, userSvc *services.UserService, authMw fiber.Handler) {
 	g := router.Group("/invitations", authMw)
 

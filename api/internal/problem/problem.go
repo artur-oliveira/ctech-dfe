@@ -20,6 +20,7 @@ const ContentType = "application/problem+json"
 const (
 	TypeBadRequest      = "/problems/bad-request"
 	TypeNoCertificate   = "/problems/no-certificate"
+	TypeRetired         = "/problems/retired"
 	TypeSefazRejection  = "/problems/sefaz-rejection"
 	TypeUnauthorized    = "/problems/unauthorized"
 	TypeForbidden       = "/problems/forbidden"
@@ -152,6 +153,17 @@ func FromFiber(err *fiber.Error) *Problem {
 	default:
 		return InternalServer("erro interno").WithCause(err)
 	}
+}
+
+// Retired answers a route that existed and is gone, naming where it moved.
+//
+// 410 rather than 404. A 404 says "there is nothing here", which sends an
+// integrator looking for a typo in their own code; 410 says "this existed and is
+// gone", which is true and is what makes them read the detail. The type is
+// machine-readable so a client branches on "retired" rather than on prose that
+// will be rewritten.
+func Retired(detail string) *Problem {
+	return wrap(commonproblem.New(http.StatusGone, TypeRetired, "Endpoint Retired", detail))
 }
 
 func Conflict(detail string) *Problem {

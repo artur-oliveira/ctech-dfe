@@ -51,6 +51,16 @@ func NewInvitationService(
 
 // Create issues a new invitation and returns the raw token (shown only once, in
 // the link) plus the stored item.
+// Create mints an invitation.
+//
+// **No route calls this any more**: creating an invitation is ctech-account's
+// (ctech-billing ADR 0023), and POST /organizations/{}/invitations answers 410.
+//
+// It is kept rather than deleted because Accept and Preview still serve tokens
+// minted before the retirement, and their tests build one through here — a
+// fixture that wrote the rows by hand would stop agreeing with what production
+// holds. It goes when those routes go, which is when the last pending
+// invitation has expired.
 func (s *InvitationService) Create(ctx context.Context, orgPK, role, invitedBy, invitedByName string) (string, map[string]any, error) {
 	// OWNER is not on this list, which is what stops a leaked link from being a
 	// privilege escalation — and, since an organization has exactly one OWNER,
