@@ -96,6 +96,14 @@ export class ApiStack extends cdk.Stack {
     const billingBaseUrlParameter = `/ctech-billing/${environment}/internal-base-url`;
     const billingClientIdParameter = `/ctech-dfe/${environment}/billing/client-id`;
     const billingClientSecretParameter = `/ctech-dfe/${environment}/billing/client-secret`;
+    // The reach check's own credential: whether a person may act for a company
+    // (ctech-billing ADR 0023). Separate from the billing pair because it
+    // carries a different scope, and one being wrong must not disable the other.
+    //
+    // Absent means the check is OFF and ctech-dfe's own membership row remains
+    // the access record — the pre-flip behaviour, and a deliberate default.
+    const accountClientIdParameter = `/ctech-dfe/${environment}/account-client-id`;
+    const accountClientSecretParameter = `/ctech-dfe/${environment}/account-client-secret`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
     // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
@@ -185,6 +193,8 @@ export class ApiStack extends cdk.Stack {
       `BILLING_API_URL=${billingBaseUrlParameter}`,
       `BILLING_CLIENT_ID=${billingClientIdParameter}`,
       `BILLING_CLIENT_SECRET=${billingClientSecretParameter}`,
+      `ACCOUNT_CLIENT_ID=${accountClientIdParameter}`,
+      `ACCOUNT_CLIENT_SECRET=${accountClientSecretParameter}`,
     ];
     if (isAlpine) {
       const quoted = ssmEnvArgs.map((a) => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');
