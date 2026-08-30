@@ -105,6 +105,22 @@ type BillingService struct {
 	members *MembershipService
 	orgs    *OrganizationService
 	cache   cache.Backend
+	// enablement reports which companies can actually emit, which is what the
+	// company quota applies to (ctech-billing ADR 0021). Optional: without it
+	// the quota falls back to counting owned companies, which is what it always
+	// did and what ADR 0021 says is wrong.
+	enablement enablementSource
+}
+
+// WithEnablement makes the company quota count what is enabled rather than what
+// is owned.
+//
+// Wired rather than required so the change is one line to turn off if it
+// misbehaves in production — the previous count is stricter, never looser, so
+// falling back cannot let somebody past a limit.
+func (s *BillingService) WithEnablement(e enablementSource) *BillingService {
+	s.enablement = e
+	return s
 }
 
 func NewBillingService(
@@ -881,11 +897,11 @@ func (s *BillingService) Usage(ctx context.Context, userID string) (map[string]U
 	}
 
 	if limit, ok := Quota(snap, MeterCompanies); ok {
-		owned, err := s.ownedOrganizations(ctx, raw)
+		used, err := s.companiesUsed(ctx, raw)
 		if err != nil {
 			return nil, err
 		}
-		out[MeterCompanies] = UsageMeter{Used: int64(len(owned)), Limit: limit}
+		out[MeterCompanies] = UsageMeter{Used: used, Limit: limit}
 	}
 	return out, nil
 }
@@ -911,13 +927,13 @@ func (s *BillingService) CheckCompanyQuota(ctx context.Context, userID string) e
 	if limit < 0 {
 		return nil
 	}
-	owned, err := s.ownedOrganizations(ctx, raw)
+	used, err := s.companiesUsed(ctx, raw)
 	if err != nil {
 		return err
 	}
-	if int64(len(owned)) >= limit {
-		return problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, int64(len(owned)),
-			fmt.Sprintf("seu plano permite %d empresa(s) e você já tem %d", limit, len(owned)))
+	if used >= limit {
+		return problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
+			fmt.Sprintf("seu plano permite %d empresa(s) e você já tem %d em uso", limit, used))
 	}
 	return nil
 }
@@ -985,6 +1001,31 @@ func (s *BillingService) ownedOrganizations(ctx context.Context, userID string) 
 		}
 	}
 	return out, nil
+}
+
+// companiesUsed is how many companies count against the plan.
+//
+// Enabled ones when this service knows how to tell — a company with a fiscal
+// configuration, which is a company that can emit. ADR 0021: two counters, never
+// one, and the quota applies to the second. Counting owned companies refuses the
+// accountant with forty CNPJs and one issuing at forty while they use one.
+//
+// Without an enablement source it falls back to counting what is owned, which is
+// the older and stricter answer. Stricter is the right direction for a fallback:
+// it can annoy somebody, and it cannot let them past a limit.
+func (s *BillingService) companiesUsed(ctx context.Context, userID string) (int64, error) {
+	owned, err := s.ownedOrganizations(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if s.enablement == nil {
+		return int64(len(owned)), nil
+	}
+	enabled, err := countEnabled(ctx, s.enablement, owned)
+	if err != nil {
+		return 0, err
+	}
+	return int64(enabled), nil
 }
 
 // BlockedProblem turns a snapshot that grants nothing into the 402 that says

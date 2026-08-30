@@ -91,7 +91,7 @@ var Module = fx.Options(
 		services.NewInvitationService,
 		newBillingClient,
 		newReachService,
-		services.NewBillingService,
+		newBillingService,
 		newCertificateService,
 		newProductService,
 		newServiceService,
@@ -650,6 +650,29 @@ func errorHandler(c fiber.Ctx, err error) error {
 // separately. It is ctech-account's, this service already holds that base URL
 // for userinfo, and a second env var naming the same host is a second thing that
 // can point somewhere else.
+// newBillingService builds the billing service with the company quota counting
+// what is ENABLED rather than what is owned (ctech-billing ADR 0021).
+//
+// A wrapper rather than a longer constructor: the enablement is one concern with
+// one wiring, and threading five config repositories through
+// services.NewBillingService would put "what enabled means" in its signature.
+func newBillingService(
+	repo *repositories.AccountBillingRepository,
+	client *billingclient.Client,
+	users *services.UserService,
+	members *services.MembershipService,
+	orgs *services.OrganizationService,
+	nfe *repositories.NfeConfigRepository,
+	nfce *repositories.NfceConfigRepository,
+	cte *repositories.CteConfigRepository,
+	mdfe *repositories.MdfeConfigRepository,
+	nfse *repositories.NfseConfigRepository,
+	c cache.Backend,
+) *services.BillingService {
+	return services.NewBillingService(repo, client, users, members, orgs, c).
+		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse))
+}
+
 // newReachService builds the reach check, or nil when ctech-account has not
 // issued this service a credential for it.
 //
