@@ -47,7 +47,9 @@ export function OrganizationsTable({
           <td data-label="Nome" className={`${TABLE_CELL} text-sm text-gray-900 font-medium`}>{org.name}</td>
           <td
             data-label="CNPJ/CPF" className={`${TABLE_CELL} text-sm text-gray-600`}>{formatCpfCnpj(orgTaxId(org))}</td>
-          <td data-label="Nome Fantasia" className={`${TABLE_CELL} text-sm text-gray-600`}>{org.person.fantasy_name}</td>
+          {/* A linked company has no fiscal side until somebody fills it in. */}
+          <td data-label="Nome Fantasia"
+              className={`${TABLE_CELL} text-sm text-gray-600`}>{org.person?.fantasy_name ?? '—'}</td>
           <td data-label="Data de Criação" className={`${TABLE_CELL} text-sm text-gray-600`}>
             {new Date(org.created_at).toLocaleDateString('pt-BR')}
           </td>

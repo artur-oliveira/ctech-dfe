@@ -21,6 +21,7 @@ import {
   CRT_NONE_VALUE,
   CRT_OPTIONS_ORG_PF,
   CRT_OPTIONS_PJ,
+  EMPTY_ADDRESS,
   type EntityFormData,
   entitySchema,
   OP_SIMP_NAC_OPTIONS,
@@ -113,11 +114,6 @@ const XIcon = () => (
     <line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 )
-
-const EMPTY_ADDRESS: EntityFormData['person']['addresses'][number] = {
-  city_ibge_code: '', street: '', neighborhood: '', number: '',
-  city: '', state_federation: 'SP', postal_code: '', complement: '',
-}
 
 const DEFAULT_VALUES: EntityFormData = {
   tipo: 'pj',

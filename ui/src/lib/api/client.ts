@@ -87,6 +87,7 @@ import {
   requireApiLiveness,
   type ApiUnavailableError,
 } from '@/lib/network/liveness'
+import {redirectOnMaintenance} from '@/lib/network/maintenance'
 import type {PersonRole} from '@/lib/schemas/entity'
 import type {
   AccountSubscription,
@@ -284,6 +285,11 @@ function createAxiosInstance(): AxiosInstance {
         await wait(httpRetryDelay(attempt, retryAfter))
         return instance(original)
       }
+
+      // A 503 that survived its retries is the server saying it is in
+      // maintenance — an answer, not a hiccup — so the person gets a screen
+      // instead of a failed query behind a banner that polls forever.
+      redirectOnMaintenance(error.response?.status)
 
       if (error.name === 'ApiUnavailableError') {
         const unavailable = error as unknown as ApiUnavailableError

@@ -203,7 +203,16 @@ export interface OrganizationOut {
   tax_id_kind?: 'cnpj' | 'cpf'
   name: string
   description: string
-  person: PersonOut
+  /**
+   * The fiscal side, ABSENT until somebody fills it in.
+   *
+   * A company linked from the ctech-account handoff is created with its
+   * identity and nothing else — the addresses, CRT and inscrições are what
+   * this product asks for next, on its own screens. Typing this as required
+   * is what crashed the organization list on the first linked company:
+   * `org.person.fantasy_name` on undefined.
+   */
+  person?: PersonOut
   created_at: string
   updated_at: string
   /** Locais de retirada salvos de emissões de NF-e anteriores (org = remetente). */

@@ -294,3 +294,11 @@ export const CRT_OPTIONS_ORG_PF = [
   {value: '3', label: 'Regime Normal'},
   {value: '4', label: 'MEI – Microempreendedor Individual'},
 ]
+
+/** One blank address, which every entity form starts with. Lives here rather
+ * than in EntityForm so the converters can build the same empty shape for a
+ * company that was linked and has no fiscal side yet. */
+export const EMPTY_ADDRESS: EntityFormData['person']['addresses'][number] = {
+  city_ibge_code: '', street: '', neighborhood: '', number: '',
+  city: '', state_federation: 'SP', postal_code: '', complement: '',
+}
