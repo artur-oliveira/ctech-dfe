@@ -77,16 +77,6 @@ func registerMemberRoutes(scoped fiber.Router, h OrgHandlers, perm *middleware.P
 			return sendProblem(c, p)
 		}
 		userID, userName := resolveActor(c, h.UserSvc)
-		// Checked at the invitation rather than at acceptance. Both would work,
-		// but refusing when the link is created tells the person who can fix it
-		// — the owner, who is standing right there — instead of the invitee, who
-		// cannot do anything about somebody else's plan.
-		//
-		// It is not the whole guard: acceptance re-checks, because a plan can
-		// shrink between issuing a link and using it.
-		if err := h.BillingSvc.CheckUserQuota(c.Context(), middleware.GetOrgPK(c), ""); err != nil {
-			return sendProblem(c, err)
-		}
 		token, item, err := h.InvSvc.Create(c.Context(), middleware.GetOrgPK(c), body.Role, userID, userName)
 		if err != nil {
 			return sendProblem(c, err)

@@ -160,16 +160,6 @@ func (s *InvitationService) Accept(ctx context.Context, rawToken, userID, userNa
 	if m, mErr := s.memberSvc.Get(ctx, orgPK, userID); mErr == nil && m != nil {
 		return nil, problem.Conflict("Você já faz parte desta organização")
 	}
-	// Re-checked here and not only when the link was issued: a plan can shrink
-	// between the two, and an invitation is a promise the owner made that the
-	// owner may no longer be able to keep. The candidate is passed so somebody
-	// who already belongs to another of this account's organizations does not
-	// count twice — one person is one person (D5).
-	quotaGuard, err := s.billingSvc.UserQuotaGuard(ctx, orgPK, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	auditTx, err := s.auditRepo.BuildLogTxItem(
 		orgPK, repositories.AuditResourceMember, repositories.RawUserID(userID), repositories.AuditActionCreate,
 		userID, userName, Diff(nil, map[string]any{"role": role, "invited_by": invitedBy}),
@@ -182,9 +172,6 @@ func (s *InvitationService) Accept(ctx context.Context, rawToken, userID, userNa
 		s.invRepo.BuildAcceptTxItem(attrStrAV(inv, "pk"), repositories.RawUserID(userID)),
 		s.orgUserRepo.BuildCreateTxItem(orgPK, userID, role, invitedBy, userName, nil),
 		auditTx,
-	}
-	if quotaGuard != nil {
-		txItems = append(txItems, *quotaGuard)
 	}
 	if err := s.invRepo.TransactWrite(ctx, txItems); err != nil {
 		if repositories.IsConditionFailed(err) {

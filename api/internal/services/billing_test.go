@@ -359,3 +359,27 @@ func TestPricesFromDifferentPlansAreRefused(t *testing.T) {
 		t.Fatal("a subscription mixing two plans was accepted")
 	}
 }
+
+// A plan may still declare quota_users — billing carries plan metadata opaquely
+// (ctech-billing ADR 0008) and nothing coordinates its removal with this repo.
+// The snapshot keeps it, and nothing enforces it.
+//
+// Kept in the fixture rather than deleted: a plan in production still carries
+// the key, and a fixture that pretends otherwise would let somebody re-add the
+// meter without noticing the value was already there and already ignored.
+func TestAUsersQuotaIsCarriedAndNotEnforced(t *testing.T) {
+	snap := SnapshotFrom("user-1", &billingclient.Entitlements{
+		CustomerID:    "cus_1",
+		Entitled:      true,
+		Subscriptions: []billingclient.EntitlementSubscription{proSubscription()},
+	})
+	limit, ok := Quota(snap, "users")
+	if !ok || limit != 25 {
+		t.Fatalf("the declared limit stopped being read: %d %v", limit, ok)
+	}
+	// And nothing acts on it. People are not metered here: after the membership
+	// unification organization_users becomes an authorization overlay, so
+	// counting it would count who holds a ROLE rather than who has access.
+	// Where the quota belongs is still open (ctech-billing ADR 0023), and
+	// metering the wrong set while it is open is worse than not metering.
+}

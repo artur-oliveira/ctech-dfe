@@ -626,7 +626,6 @@ const (
 	MeterMDFe      = "mdfe"
 	MeterNFSe      = "nfse"
 	MeterCompanies = "companies"
-	MeterUsers     = "users"
 )
 
 // DocumentMeters are the meters counted per issuance. `companies` and `users`
@@ -888,13 +887,6 @@ func (s *BillingService) Usage(ctx context.Context, userID string) (map[string]U
 		}
 		out[MeterCompanies] = UsageMeter{Used: int64(len(owned)), Limit: limit}
 	}
-	if limit, ok := Quota(snap, MeterUsers); ok {
-		people, err := s.distinctMembers(ctx, raw)
-		if err != nil {
-			return nil, err
-		}
-		out[MeterUsers] = UsageMeter{Used: int64(len(people)), Limit: limit}
-	}
 	return out, nil
 }
 
@@ -941,63 +933,19 @@ func (s *BillingService) CompanyQuotaGuard(ctx context.Context, userID string) (
 	return &tx, err
 }
 
-// CheckUserQuota refuses admitting one more person than the plan allows.
+// People are not metered. ctech-dfe counted distinct members across the
+// account's organizations and refused an invitation past the plan's limit.
 //
-// It counts **distinct people across the account's organizations**, not members
-// of one of them (D5). Somebody who helps with two of the same customer's
-// companies is one person, and billing them twice is the kind of arithmetic a
-// customer checks. The owner counts.
+// It is gone rather than raised to a large number, because the count was about
+// to become wrong rather than merely strict: after the membership unification
+// (ctech-billing ADR 0023) organization_users stops being the access record and
+// becomes an authorization overlay, so counting it would count who holds a ROLE
+// rather than who has access. Somebody invited and not yet given a role would
+// not count; somebody whose reach was revoked still would.
 //
-// `candidate` is the person about to be admitted; already being a member of
-// another of the account's organizations means the count does not grow, so the
-// invitation is free.
-func (s *BillingService) CheckUserQuota(ctx context.Context, orgPK, candidate string) error {
-	if !s.Enabled() {
-		return nil
-	}
-	owner, err := s.OwnerOf(ctx, orgPK)
-	if err != nil || owner == "" {
-		return err
-	}
-	snap, err := s.Snapshot(ctx, owner)
-	if err != nil {
-		return err
-	}
-	limit, ok := Quota(snap, MeterUsers)
-	if !ok || limit < 0 {
-		// Absent here means the plan predates the quota rather than "no users
-		// allowed" — an organization with no members cannot be operated at all,
-		// so refusing every invitation would be a worse reading than allowing.
-		return nil
-	}
-	people, err := s.distinctMembers(ctx, owner)
-	if err != nil {
-		return err
-	}
-	if candidate != "" && people[repositories.RawUserID(candidate)] {
-		return nil
-	}
-	if int64(len(people)) >= limit {
-		return problem.QuotaExceeded(MeterUsers, snap.Plan, limit, int64(len(people)),
-			fmt.Sprintf("seu plano permite %d usuário(s) e você já tem %d", limit, len(people)))
-	}
-	return nil
-}
-
-func (s *BillingService) UserQuotaGuard(ctx context.Context, orgPK, candidate string) (*types.TransactWriteItem, error) {
-	if err := s.CheckUserQuota(ctx, orgPK, candidate); err != nil {
-		return nil, err
-	}
-	if !s.Enabled() {
-		return nil, nil
-	}
-	owner, err := s.OwnerOf(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := s.repo.BuildQuotaGuardTx(ctx, owner, MeterUsers)
-	return &tx, err
-}
+// Where the quota belongs — the workspace in ctech-account, or reach in the
+// product — is an open question, and metering the wrong set while it is open is
+// worse than not metering. Companies are still metered; see CheckCompanyQuota.
 
 // CheckMDFEScope enforces non-numeric MDF-e constraints carried by the plan.
 // The Free plan permits MDF-e only with the issuer's own traction vehicle; in
@@ -1037,26 +985,6 @@ func (s *BillingService) ownedOrganizations(ctx context.Context, userID string) 
 		}
 	}
 	return out, nil
-}
-
-// distinctMembers is the set of people across every organization the account
-// owns, the owner included.
-func (s *BillingService) distinctMembers(ctx context.Context, userID string) (map[string]bool, error) {
-	orgs, err := s.ownedOrganizations(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	people := map[string]bool{repositories.RawUserID(userID): true}
-	for _, orgPK := range orgs {
-		members, err := s.members.ListByOrg(ctx, orgPK)
-		if err != nil {
-			return nil, err
-		}
-		for _, m := range members {
-			people[repositories.RawUserID(m.UserID)] = true
-		}
-	}
-	return people, nil
 }
 
 // BlockedProblem turns a snapshot that grants nothing into the 402 that says
