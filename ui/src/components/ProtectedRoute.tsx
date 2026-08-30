@@ -2,7 +2,7 @@
 
 import {ReactNode, startTransition, useEffect, useState} from 'react'
 import {useAuth} from '@/lib/hooks/useAuth'
-import {startOAuthFlow} from '@/lib/auth/oauth'
+import {currentReturnTo, startOAuthFlow} from '@/lib/auth/oauth'
 import {TermsAddendumGate} from '@/components/terms-addendum-gate'
 import {OnboardingGate} from '@/components/onboarding/OnboardingGate'
 
@@ -21,7 +21,7 @@ export function ProtectedRoute({children}: { children: ReactNode }) {
         return
       }
       sessionStorage.setItem(OAUTH_ATTEMPT_KEY, String(Date.now()))
-      void startOAuthFlow(window.location.pathname)
+      void startOAuthFlow(currentReturnTo())
     }
   }, [user, loading])
 
@@ -47,7 +47,7 @@ export function ProtectedRoute({children}: { children: ReactNode }) {
               className="text-primary-600 underline text-sm"
               onClick={() => {
                 sessionStorage.removeItem(OAUTH_ATTEMPT_KEY)
-                void startOAuthFlow(window.location.pathname)
+                void startOAuthFlow(currentReturnTo())
               }}
             >
               Tentar novamente

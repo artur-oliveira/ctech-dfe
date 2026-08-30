@@ -76,6 +76,26 @@ export async function startOAuthFlow(returnTo = '/'): Promise<void> {
   await client.startOAuthFlow(returnTo)
 }
 
+/**
+ * Where to come back to after signing in: the URL the browser is on, QUERY
+ * INCLUDED.
+ *
+ * `window.location.pathname` alone is what every caller used to pass, and it
+ * silently dropped the query. A person arriving from the ctech-account handoff
+ * lands on `/organizations/link?organization_id=…&company_id=…&state=…` with
+ * no session; the OAuth round-trip brought them back to a bare
+ * `/organizations/link`, and the page — correctly — refused a return with no
+ * ids in it. The identifiers of a company somebody just registered were gone,
+ * and starting over creates a second workspace.
+ *
+ * `/callback` is never a destination: returning there re-enters the code
+ * exchange with a spent code.
+ */
+export function currentReturnTo(): string {
+  const {pathname, search} = window.location
+  return pathname === '/callback' ? '/' : `${pathname}${search}`
+}
+
 export async function exchangeCode(
   code: string,
   state: string,

@@ -4,7 +4,7 @@ import {createContext, ReactNode, useCallback, useEffect, useState} from 'react'
 import {apiClient, ApiError, registerRefreshFn} from '@/lib/api/client'
 import type {MeResponse, UserOrganization} from '@/lib/types/api'
 import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage'
-import {decodeIdToken, doRefresh, endSessionRedirect, UnverifiedIdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
+import {currentReturnTo, decodeIdToken, doRefresh, endSessionRedirect, UnverifiedIdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth'
 import {MOCK_ENABLED} from '@/lib/mock/env'
 import {mockDoRefresh} from '@/lib/mock/auth'
 
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [tryRefresh])
 
   const login = useCallback(() => {
-    void startOAuthFlow(window.location.pathname)
+    void startOAuthFlow(currentReturnTo())
   }, [])
 
   const logout = useCallback(async (returnTo = '/'): Promise<void> => {

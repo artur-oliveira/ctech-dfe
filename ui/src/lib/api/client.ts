@@ -267,9 +267,8 @@ function createAxiosInstance(): AxiosInstance {
         // Refresh failed — start OAuth flow (imported lazily to avoid SSR issues).
         // Never use /callback as returnTo; that would loop back into the callback handler.
         if (typeof window !== 'undefined') {
-          const {startOAuthFlow} = await import('@/lib/auth/oauth')
-          const returnTo = window.location.pathname === '/callback' ? '/' : window.location.pathname
-          await startOAuthFlow(returnTo)
+          const {startOAuthFlow, currentReturnTo} = await import('@/lib/auth/oauth')
+          await startOAuthFlow(currentReturnTo())
         }
         return
       }
