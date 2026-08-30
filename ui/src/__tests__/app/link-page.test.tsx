@@ -114,4 +114,16 @@ describe('a empresa criada na conta CTech volta para o DF-e', () => {
     expect(screen.queryByText(/Comece novamente/i)).toBeNull()
     expect(apiClient.linkCompany).not.toHaveBeenCalled()
   })
+
+  // Navegar sem a empresa na lista deixaria a empresa ANTERIOR selecionada, e a
+  // tela da empresa mandaria o pk dela em cada requisição — a pessoa edita uma
+  // empresa e escreve em outra.
+  it('não navega quando a empresa vinculada ainda não aparece em /auth/me', async () => {
+    refreshUser.mockResolvedValue({organizations: [{pk: 'outra', name: 'Antiga'}]})
+    renderPage('organization_id=org_1&company_id=cmp_1&state=abc')
+
+    expect(await screen.findByText(/ainda não apareceu na sua lista/i)).toBeInTheDocument()
+    expect(setSelectedOrg).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+  })
 })

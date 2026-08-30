@@ -82,7 +82,15 @@ function LinkCompanyContent() {
         void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
         const me = await refreshUser()
         const linked = me?.organizations.find((o) => o.pk === org.pk)
-        if (linked) setSelectedOrg(linked)
+        // Navigating without it would leave the PREVIOUS company selected, and
+        // every request from the company's own screen would carry that
+        // company's pk — the person edits one company and writes to another.
+        // The link itself already succeeded, so this says so.
+        if (!linked) {
+          setError('A empresa foi vinculada, mas ainda não apareceu na sua lista. Recarregue a página em instantes.')
+          return
+        }
+        setSelectedOrg(linked)
         // Straight to the company's own screen: the fiscal side is empty, and
         // that is the next thing the person has to do.
         router.replace(`/organizations/edit?pk=${encodeURIComponent(org.pk)}`)

@@ -296,8 +296,17 @@ func (s *UserService) GetUserInfo(ctx context.Context, accessToken string) (*Cte
 	return &info, nil
 }
 
-// InvalidateCache drops cached user and me entries.
+// InvalidateCache drops everything GET /auth/me is built from.
+//
+// The org list is the third key, and leaving it out was a bug with a long
+// fuse: GetMeData rebuilds from memberSvc.ListByUser, which caches its own
+// answer under "userorgs:{userID}" for five minutes. Dropping "me:" alone
+// rebuilt the response out of the stale list, so a company somebody had just
+// linked (or an organization they had just created) did not appear for up to
+// five minutes — and the browser, finding no such organization in /auth/me,
+// kept the previously selected one and sent ITS pk on every request.
 func (s *UserService) InvalidateCache(ctx context.Context, userID string) {
 	cacheDelete(ctx, s.cache, userItemCacheKey(userID))
 	cacheDelete(ctx, s.cache, userMeCacheKey(userID))
+	cacheDelete(ctx, s.cache, userOrgsCacheKey(userID))
 }
