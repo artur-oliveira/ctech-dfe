@@ -74,6 +74,7 @@ func get() *validator.Validate {
 		register("tribnac", tribNacionalValidator)
 		register("nbs", nbsValidator)
 		register("indop", indOpValidator)
+		register("nfseenum", nfseEnumValidator)
 
 		instance = v
 	})
@@ -231,6 +232,8 @@ func message(fe validator.FieldError) string {
 		return "código NBS inexistente (informe sem pontos)"
 	case "indop":
 		return "código indOp inexistente na tabela do Anexo C"
+	case "nfseenum":
+		return "valor fora do domínio " + fe.Param() + " do leiaute da NFS-e"
 	default:
 		return "valor inválido para a regra '" + fe.Tag() + "'"
 	}

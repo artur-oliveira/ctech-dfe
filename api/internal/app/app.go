@@ -64,6 +64,8 @@ var Module = fx.Options(
 		repositories.NewImportDeclarationRepository,
 		repositories.NewInsurancePolicyRepository,
 		repositories.NewProductLotRepository,
+		repositories.NewServiceLocationRepository,
+		repositories.NewReferenceDocumentRepository,
 		repositories.NewFuelPumpRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
@@ -105,6 +107,8 @@ var Module = fx.Options(
 		newImportDeclarationService,
 		newInsurancePolicyService,
 		newProductLotService,
+		newServiceLocationService,
+		newReferenceDocumentService,
 		newFuelPumpService,
 		newVehicleSetService,
 		newPersonService,
@@ -306,6 +310,14 @@ func newInsurancePolicyService(repo *repositories.InsurancePolicyRepository, aud
 
 func newProductLotService(repo *repositories.ProductLotRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.ProductLotService {
 	return services.NewProductLotService(repo, auditRepo, c)
+}
+
+func newServiceLocationService(repo *repositories.ServiceLocationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.ServiceLocationService {
+	return services.NewServiceLocationService(repo, auditRepo, c)
+}
+
+func newReferenceDocumentService(repo *repositories.ReferenceDocumentRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.ReferenceDocumentService {
+	return services.NewReferenceDocumentService(repo, auditRepo, c)
 }
 
 func newFuelPumpService(repo *repositories.FuelPumpRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.FuelPumpService {
@@ -529,6 +541,8 @@ type Services struct {
 	ImportDISvc     *services.ImportDeclarationService
 	InsurancePolSvc *services.InsurancePolicyService
 	ProductLotSvc   *services.ProductLotService
+	SvcLocationSvc  *services.ServiceLocationService
+	RefDocSvc       *services.ReferenceDocumentService
 	FuelPumpSvc     *services.FuelPumpService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
@@ -574,6 +588,8 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		ImportDI:        svcs.ImportDISvc,
 		InsurancePolicy: svcs.InsurancePolSvc,
 		ProductLot:      svcs.ProductLotSvc,
+		ServiceLocation: svcs.SvcLocationSvc,
+		ReferenceDoc:    svcs.RefDocSvc,
 		FuelPump:        svcs.FuelPumpSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,

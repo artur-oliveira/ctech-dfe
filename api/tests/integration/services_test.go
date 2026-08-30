@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	v1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
@@ -25,7 +26,7 @@ func TestService_CreateAndGet(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
 
-	item, err := serviceSvc.Create(ctx, orgPK, serviceFields("SRV001", "Desenvolvimento de sistemas"), "test-user", "Test User")
+	item, err := serviceSvc.Create(ctx, orgPK, serviceFields("SRV001", "Desenvolvimento de sistemas"), "test-user", "Test User", v1.ServiceSchemaVersion)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestService_ListByCodePrefix(t *testing.T) {
 	orgPK := "CNPJ_" + randomCNPJ()
 
 	for _, code := range []string{"CONS001", "CONS002", "DEV001"} {
-		if _, err := serviceSvc.Create(ctx, orgPK, serviceFields(code, "Serviço "+code), "test-user", "Test User"); err != nil {
+		if _, err := serviceSvc.Create(ctx, orgPK, serviceFields(code, "Serviço "+code), "test-user", "Test User", v1.ServiceSchemaVersion); err != nil {
 			t.Fatalf("Create(%s): %v", code, err)
 		}
 	}
@@ -79,13 +80,13 @@ func TestService_UpdateAndDelete(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
 
-	item, err := serviceSvc.Create(ctx, orgPK, serviceFields("SRV009", "Antes"), "test-user", "Test User")
+	item, err := serviceSvc.Create(ctx, orgPK, serviceFields("SRV009", "Antes"), "test-user", "Test User", v1.ServiceSchemaVersion)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	sk := item["sk"].(*types.AttributeValueMemberS).Value
 
-	if _, err := serviceSvc.Update(ctx, orgPK, sk, map[string]any{"description": "Depois"}, "test-user", "Test User"); err != nil {
+	if _, err := serviceSvc.Update(ctx, orgPK, sk, map[string]any{"description": "Depois"}, "test-user", "Test User", v1.ServiceSchemaVersion); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	got, err := serviceSvc.Get(ctx, orgPK, sk)

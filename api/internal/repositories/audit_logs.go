@@ -41,6 +41,8 @@ const (
 	AuditResourceInsurance       = "INSURANCE_POLICY"
 	AuditResourceProductLot      = "PRODUCT_LOT"
 	AuditResourceFuelPump        = "FUEL_PUMP"
+	AuditResourceServiceLocation = "SERVICE_LOCATION"
+	AuditResourceReferenceDoc    = "REFERENCE_DOCUMENT"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"
 	AuditResourceInvitation      = "INVITATION"

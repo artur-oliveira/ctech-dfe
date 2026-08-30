@@ -7,6 +7,10 @@ import type {
   InsurancePolicyItemOut,
   ProductLotCreate,
   ProductLotItemOut,
+  ReferenceDocumentCreate,
+  ReferenceDocumentItemOut,
+  ServiceLocationCreate,
+  ServiceLocationItemOut,
   FuelPumpCreate,
   FuelPumpItemOut,
   ImportDeclarationItemOut,
@@ -687,6 +691,50 @@ class ApiClient {
 
   async deleteProductLot(id: string): Promise<void> {
     return this.del(`/v1.0/product-lots/${id}`)
+  }
+
+  // Service locations (obra, imóvel e local de evento — NFS-e)
+
+  async getServiceLocations(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ServiceLocationItemOut>> {
+    return this.get('/v1.0/service-locations', {params})
+  }
+
+  async getServiceLocation(id: string): Promise<ServiceLocationItemOut> {
+    return this.get(`/v1.0/service-locations/${id}`)
+  }
+
+  async createServiceLocation(data: ServiceLocationCreate): Promise<ServiceLocationItemOut> {
+    return this.post('/v1.0/service-locations', data)
+  }
+
+  async updateServiceLocation(id: string, data: ServiceLocationCreate): Promise<ServiceLocationItemOut> {
+    return this.put(`/v1.0/service-locations/${id}`, data)
+  }
+
+  async deleteServiceLocation(id: string): Promise<void> {
+    return this.del(`/v1.0/service-locations/${id}`)
+  }
+
+  // Reference documents (dedução/redução e reembolso/repasse — NFS-e)
+
+  async getReferenceDocuments(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<ReferenceDocumentItemOut>> {
+    return this.get('/v1.0/reference-documents', {params})
+  }
+
+  async getReferenceDocument(id: string): Promise<ReferenceDocumentItemOut> {
+    return this.get(`/v1.0/reference-documents/${id}`)
+  }
+
+  async createReferenceDocument(data: ReferenceDocumentCreate): Promise<ReferenceDocumentItemOut> {
+    return this.post('/v1.0/reference-documents', data)
+  }
+
+  async updateReferenceDocument(id: string, data: ReferenceDocumentCreate): Promise<ReferenceDocumentItemOut> {
+    return this.put(`/v1.0/reference-documents/${id}`, data)
+  }
+
+  async deleteReferenceDocument(id: string): Promise<void> {
+    return this.del(`/v1.0/reference-documents/${id}`)
   }
 
   // Fuel pumps (bicos, bombas e tanques — NF-e prod/comb/encerrante)

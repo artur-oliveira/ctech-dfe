@@ -868,6 +868,65 @@ components:
           maximum: 5
           description: Só para `trib_issqn = 2`. `0` não informado; `1`–`5` hipóteses do art. 150, VI da CF.
         c_pais_resultado: { type: [ string, 'null' ], minLength: 2, maxLength: 2 }
+        exig_susp: { $ref: '#/components/schemas/ServiceIssSuspensionBody' }
+        bm: { $ref: '#/components/schemas/ServiceIssBenefitBody' }
+
+    ServiceIssSuspensionBody:
+      type: object
+      description: >-
+        Grupo `exigSusp`. Os dois campos são obrigatórios juntos no leiaute, então o subobjeto
+        inteiro é opcional e, quando presente, vem completo.
+      required: [ tp_susp, n_processo ]
+      properties:
+        tp_susp:
+          type: string
+          description: Domínio `TSOpExigSuspensa` do XSD (validado contra o catálogo gerado).
+        n_processo: { type: string, pattern: '^\d{30}$' }
+
+    ServiceIssBenefitBody:
+      type: object
+      description: >-
+        Grupo `BM` (benefício municipal). Exatamente uma forma de redução: valor OU percentual —
+        nenhuma torna o benefício inócuo, e as duas juntas não têm regra de precedência no leiaute.
+      required: [ n_bm ]
+      properties:
+        n_bm: { type: string, pattern: '^\d{14}$' }
+        v_red_bc_bm: { type: [ string, 'null' ], pattern: '^\d+(\.\d{1,2})?$' }
+        p_red_bc_bm: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+
+    ServiceLocationDefaultsBody:
+      type: object
+      description: >-
+        Default de local de prestação. `TCLocPrest` é escolha exclusiva no XSD: município OU país,
+        nunca os dois.
+      properties:
+        c_loc_prestacao: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        c_pais_prestacao: { type: [ string, 'null' ], minLength: 2, maxLength: 2 }
+
+    ServiceForeignTradeDefaultsBody:
+      type: object
+      description: >-
+        Defaults de `comExt`. Todos os campos são domínios fechados do XSD, validados contra o
+        catálogo gerado. Valor em moeda, DI e RE nascem na emissão e não têm default.
+      properties:
+        md_prestacao: { type: [ string, 'null' ], description: Domínio `TSModoPrestacao`. }
+        vinc_prest: { type: [ string, 'null' ], description: Domínio `TSVincPrest`. }
+        tp_moeda: { type: [ string, 'null' ], pattern: '^\d{3}$' }
+        mec_af_comex_p: { type: [ string, 'null' ], description: Domínio `TSMecAFComExPrest`. }
+        mec_af_comex_t: { type: [ string, 'null' ], description: Domínio `TSMecAFComExToma`. }
+        mov_temp_bens: { type: [ string, 'null' ], description: Domínio `TSMovTempBens`. }
+        mdic: { type: [ string, 'null' ], description: Domínio `TSEnvMDIC`. }
+
+    ServiceRequirementsBody:
+      type: object
+      description: >-
+        O que o serviço exige ou permite na emissão. São flags de UX e validação, não campos do XML:
+        a emissão usa para decidir quais grupos pedir em vez de mostrar todos sempre.
+      properties:
+        requires_work: { type: boolean }
+        requires_event: { type: boolean }
+        allows_deductions: { type: boolean }
+        allows_reimbursements: { type: boolean }
 
     ServiceFederalBody:
       type: object
@@ -903,6 +962,35 @@ components:
           type: integer
           enum: [ 0 ]
           description: Valor fixo `0` — o leiaute só admite NFS-e regular.
+        ind_final: { type: [ string, 'null' ], description: Domínio `TSRTCIndFinal`. }
+        tp_ente_gov:
+          type: [ string, 'null' ]
+          description: Domínio `TSRTCTpEnteGov`. Só em fornecimento à administração pública.
+        c_cred_pres:
+          type: [ string, 'null' ]
+          pattern: '^\d{2}$'
+          description: '`cCredPres` tem 2 dígitos (`TSRTCCodCredPres`), não 6 como `cClassTrib`.'
+        trib_regular: { $ref: '#/components/schemas/ServiceIbsCbsRegularBody' }
+        dif: { $ref: '#/components/schemas/ServiceIbsCbsDifBody' }
+
+    ServiceIbsCbsRegularBody:
+      type: object
+      description: >-
+        `gTribRegular` — a tributação que existiria sem o benefício, exigida quando a operação usa
+        CST desonerado.
+      required: [ cst_reg, c_class_trib_reg ]
+      properties:
+        cst_reg: { type: string, pattern: '^\d{3}$' }
+        c_class_trib_reg: { type: string, pattern: '^\d{6}$' }
+
+    ServiceIbsCbsDifBody:
+      type: object
+      description: '`gDif` — os três percentuais de diferimento são obrigatórios juntos no XSD.'
+      required: [ p_dif_uf, p_dif_mun, p_dif_cbs ]
+      properties:
+        p_dif_uf: { type: string, pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        p_dif_mun: { type: string, pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        p_dif_cbs: { type: string, pattern: '^\d{1,3}(\.\d{1,4})?$' }
 
     ServiceTotTribBody:
       type: object
@@ -933,6 +1021,9 @@ components:
         federal: { $ref: '#/components/schemas/ServiceFederalBody' }
         ibs_cbs: { $ref: '#/components/schemas/ServiceIbsCbsBody' }
         tot_trib: { $ref: '#/components/schemas/ServiceTotTribBody' }
+        location_defaults: { $ref: '#/components/schemas/ServiceLocationDefaultsBody' }
+        foreign_trade_defaults: { $ref: '#/components/schemas/ServiceForeignTradeDefaultsBody' }
+        requirements: { $ref: '#/components/schemas/ServiceRequirementsBody' }
 
     ServiceItem:
       type: object
@@ -944,6 +1035,20 @@ components:
         code: { type: string }
         description: { type: string }
         value: { $ref: '#/components/schemas/Money' }
+        schema_version:
+          type: integer
+          description: >-
+            Versão dos subgrupos gravada pelo servidor. Registro anterior aos subgrupos não tem o
+            atributo e responde `1`; ganha o carimbo na primeira atualização, sem migração destrutiva.
+        completeness:
+          type: object
+          description: >-
+            Diagnóstico calculado a cada leitura (nunca persistido): por cenário de emissão, os
+            campos ainda não preenchidos. Cenário sem pendência vem com lista vazia — a chave
+            permanece para distinguir "sem pendência" de "não avaliado".
+          additionalProperties:
+            type: array
+            items: { type: string, description: Caminho pontilhado do campo no contrato. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

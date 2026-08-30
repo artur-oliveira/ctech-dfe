@@ -50,6 +50,8 @@ var (
 	taxProfileSvc   *services.TaxProfileService
 	operationSvc    *services.OperationService
 	paymentTermSvc  *services.PaymentTermService
+	svcLocationSvc  *services.ServiceLocationService
+	refDocSvc       *services.ReferenceDocumentService
 	vehicleSetSvc   *services.VehicleSetService
 	personSvc       *services.PersonService
 	vehicleSvc      *services.VehicleService
@@ -142,6 +144,10 @@ func TestMain(m *testing.M) {
 	operationSvc = services.NewOperationService(operationRepo, auditRepo, memCache)
 	paymentTermRepo = repositories.NewPaymentTermRepository(db, cfg)
 	paymentTermSvc = services.NewPaymentTermService(paymentTermRepo, auditRepo, memCache)
+	svcLocationSvc = services.NewServiceLocationService(
+		repositories.NewServiceLocationRepository(db, cfg), auditRepo, memCache)
+	refDocSvc = services.NewReferenceDocumentService(
+		repositories.NewReferenceDocumentRepository(db, cfg), auditRepo, memCache)
 	vehicleSetRepo = repositories.NewVehicleSetRepository(db, cfg)
 	vehicleSetSvc = services.NewVehicleSetService(vehicleSetRepo, vehicleRepo, auditRepo, memCache)
 	personSvc = services.NewPersonService(personRepo, auditRepo, memCache)
@@ -566,6 +572,8 @@ var orgEntityTables = []string{
 	repositories.TableOperations,
 	repositories.TablePaymentTerms,
 	repositories.TableVehicleSets,
+	repositories.TableServiceLocations,
+	repositories.TableReferenceDocuments,
 }
 
 func dropTables(ctx context.Context, db *dynamodb.Client) {
@@ -577,6 +585,8 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_" + repositories.TableOperations,
 		tablePrefix + "_" + repositories.TablePaymentTerms,
 		tablePrefix + "_" + repositories.TableVehicleSets,
+		tablePrefix + "_" + repositories.TableServiceLocations,
+		tablePrefix + "_" + repositories.TableReferenceDocuments,
 		tablePrefix + "_organization_persons",
 		tablePrefix + "_organization_vehicles",
 		tablePrefix + "_organization_certificates",

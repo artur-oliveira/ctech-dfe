@@ -87,6 +87,8 @@ type EnumEntry struct {
 // Nomes dos tipos XSD usados como chave do catálogo. Todo domínio fechado da
 // NFS-e é referenciado por estas constantes — nunca por literal solto.
 const (
+	EnumTipoAmbiente         = "TSTipoAmbiente"
+	EnumAmbGeradorNFSe       = "TSAmbGeradorNFSe"
 	EnumMotivoEmisTI         = "TSMotivoEmisTI"
 	EnumEmitenteDPS          = "TSEmitenteDPS"
 	EnumCodNaoNIF            = "TSCodNaoNIF"

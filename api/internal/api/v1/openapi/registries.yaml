@@ -946,6 +946,206 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── Locais de prestação de serviço ─────────────────────────────────────────────────────────
+
+  /v1.0/service-locations:
+    get:
+      tags: [ ServiceLocations ]
+      summary: Lista locais de prestação de serviço
+      operationId: listServiceLocations
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de locais de prestação de serviço
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ServiceLocationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ServiceLocations ]
+      summary: Cria um local de prestação
+      operationId: createServiceLocation
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceLocationBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceLocationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/service-locations/{service_location_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: service_location_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ServiceLocations ]
+      summary: Detalha um local de prestação
+      operationId: getServiceLocation
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceLocationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ServiceLocations ]
+      summary: Atualiza um local de prestação
+      operationId: updateServiceLocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceLocationBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceLocationItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ServiceLocations ]
+      summary: Remove um local de prestação
+      operationId: deleteServiceLocation
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Documentos referenciados ─────────────────────────────────────────────────────────
+
+  /v1.0/reference-documents:
+    get:
+      tags: [ ReferenceDocuments ]
+      summary: Lista documentos referenciados
+      operationId: listReferenceDocuments
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de documentos referenciados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ReferenceDocumentItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ ReferenceDocuments ]
+      summary: Cria um documento referenciado
+      operationId: createReferenceDocument
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReferenceDocumentBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferenceDocumentItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/reference-documents/{reference_document_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: reference_document_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ ReferenceDocuments ]
+      summary: Detalha um documento referenciado
+      operationId: getReferenceDocument
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferenceDocumentItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ ReferenceDocuments ]
+      summary: Atualiza um documento referenciado
+      operationId: updateReferenceDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReferenceDocumentBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferenceDocumentItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ ReferenceDocuments ]
+      summary: Remove um documento referenciado
+      operationId: deleteReferenceDocument
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Apólices de seguro ─────────────────────────────────────────────────────
 
   /v1.0/insurance-policies:
@@ -1194,6 +1394,155 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    ServiceLocationAddressBody:
+      type: object
+      description: >-
+        Endereço do local. Nacional usa `postal_code` + `city_ibge_code`; exterior usa
+        `foreign_postal_code` + `foreign_city` + `foreign_region`. É a mesma escolha exclusiva de
+        `TCEnderecoSimples`: um endereço pela metade só falharia na emissão, longe de quem digitou.
+      required: [ street, number, neighborhood ]
+      properties:
+        street: { type: string, maxLength: 255 }
+        number: { type: string, maxLength: 60 }
+        complement: { type: [ string, 'null' ], maxLength: 156 }
+        neighborhood: { type: string, maxLength: 60 }
+        postal_code: { type: [ string, 'null' ], pattern: '^\d{8}$' }
+        city_ibge_code: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        foreign_postal_code: { type: [ string, 'null' ], maxLength: 11 }
+        foreign_city: { type: [ string, 'null' ], maxLength: 60 }
+        foreign_region: { type: [ string, 'null' ], maxLength: 60 }
+
+    ServiceLocationBody:
+      type: object
+      description: |
+        Local de prestação de serviço: obra, imóvel e local de evento num cadastro só.
+
+        Os papéis são **combináveis** porque o XSD repete o mesmo endereço em `serv/obra`,
+        `serv/atvEvento` e `IBSCBS/imovel` — um canteiro que também é o endereço do imóvel tributado
+        seria dois cadastros idênticos se os papéis fossem exclusivos.
+
+        `c_obra` e `cib` são mutuamente exclusivos: `serv/obra` é a escolha `cObra|cCIB|end`, e
+        guardar os dois deixaria a emissão decidir em silêncio qual ramo gerar. CNO, CIB e inscrição
+        imobiliária são registros brasileiros e são recusados num endereço no exterior.
+      required: [ name, roles, address ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        roles:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [ work, property, event_venue ] }
+        address: { $ref: '#/components/schemas/ServiceLocationAddressBody' }
+        insc_imob_fisc: { type: [ string, 'null' ], minLength: 1, maxLength: 30 }
+        c_obra: { type: [ string, 'null' ], minLength: 1, maxLength: 30 }
+        cib: { type: [ string, 'null' ], minLength: 8, maxLength: 8 }
+        id_atv_evt:
+          type: [ string, 'null' ]
+          minLength: 1
+          maxLength: 30
+          description: Nome e período do evento variam por nota e vão no request de emissão.
+
+    ServiceLocationItem:
+      type: object
+      description: Local de prestação persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador do local. }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ReferenceDocumentDFeBody:
+      type: object
+      description: >-
+        Documento do Repositório Nacional pela chave. Em `vDedRed`, `tipo_chave_dfe` decide entre
+        `chNFSe` (NFS-e, 50 dígitos) e `chNFe` (NF-e, 44) — tipo e comprimento têm de concordar.
+      required: [ tipo_chave_dfe, chave_dfe ]
+      properties:
+        tipo_chave_dfe: { type: string, description: Domínio `TSRTCTipoChaveDFe`. }
+        chave_dfe: { type: string, minLength: 1, maxLength: 50, pattern: '^\d+$' }
+        x_tipo_chave_dfe: { type: [ string, 'null' ], minLength: 1, maxLength: 255 }
+
+    ReferenceDocumentNFSeMunBody:
+      type: object
+      description: NFS-e municipal anterior ao Sistema Nacional (`TCDocOutNFSe`).
+      required: [ c_mun_nfse_mun, n_nfse_mun, c_verif_nfse_mun ]
+      properties:
+        c_mun_nfse_mun: { type: string, pattern: '^\d{7}$' }
+        n_nfse_mun: { type: string, pattern: '^\d{15}$' }
+        c_verif_nfse_mun: { type: string, minLength: 1, maxLength: 9 }
+
+    ReferenceDocumentNFNFSBody:
+      type: object
+      description: Nota fiscal ou nota fiscal de serviço não eletrônica (`TCDocNFNFS`).
+      required: [ n_nfs, mod_nfs, serie_nfs ]
+      properties:
+        n_nfs: { type: string, pattern: '^\d{7}$' }
+        mod_nfs: { type: string, pattern: '^\d{15}$' }
+        serie_nfs: { type: string, minLength: 1, maxLength: 15 }
+
+    ReferenceDocumentTaxOtherBody:
+      type: object
+      description: >-
+        Outro documento fiscal. Município e descrição só existem em `gReeRepRes`; em `vDedRed` o
+        leiaute pede apenas o número, que sai daqui sem cadastro extra.
+      required: [ n_doc_fiscal ]
+      properties:
+        n_doc_fiscal: { type: string, minLength: 1, maxLength: 255 }
+        c_mun_doc_fiscal: { type: [ string, 'null' ], pattern: '^\d{7}$' }
+        x_doc_fiscal: { type: [ string, 'null' ], minLength: 1, maxLength: 255 }
+
+    ReferenceDocumentNonFiscalBody:
+      type: object
+      description: Documento não fiscal (recibo, contrato).
+      required: [ n_doc ]
+      properties:
+        n_doc: { type: string, minLength: 1, maxLength: 255 }
+        x_doc: { type: [ string, 'null' ], minLength: 1, maxLength: 255 }
+
+    ReferenceDocumentBody:
+      type: object
+      description: |
+        Documento referenciado em dedução/redução (`vDedRed/documentos`) e em reembolso, repasse ou
+        ressarcimento (`gReeRepRes/documentos`). O leiaute pede formas diferentes do mesmo documento
+        nos dois grupos; cadastrar duas vezes convidaria a divergência.
+
+        União tipada: `kind` decide qual subobjeto é **obrigatório**, e os demais têm de estar
+        **ausentes** — com dois preenchidos, a emissão escolheria em silêncio qual ramo do
+        `xs:choice` gerar.
+
+        `supplier_person_id` aponta o fornecedor no cadastro de pessoas; nunca é copiado.
+      required: [ name, kind, issued_at ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        kind:
+          type: string
+          enum: [ dfe, nfse_municipal, nf_nfs, doc_fiscal_outro, doc_nao_fiscal ]
+        dfe: { $ref: '#/components/schemas/ReferenceDocumentDFeBody' }
+        nfse_municipal: { $ref: '#/components/schemas/ReferenceDocumentNFSeMunBody' }
+        nf_nfs: { $ref: '#/components/schemas/ReferenceDocumentNFNFSBody' }
+        doc_fiscal_outro: { $ref: '#/components/schemas/ReferenceDocumentTaxOtherBody' }
+        doc_nao_fiscal: { $ref: '#/components/schemas/ReferenceDocumentNonFiscalBody' }
+        supplier_person_id: { type: [ string, 'null' ] }
+        issued_at: { type: string, format: date }
+        competence_at:
+          type: [ string, 'null' ]
+          format: date
+          description: Não pode ser anterior a `issued_at`.
+        description: { type: [ string, 'null' ], minLength: 1, maxLength: 150 }
+
+    ReferenceDocumentItem:
+      type: object
+      description: Documento referenciado persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador do documento. }
+        name: { type: string }
+        kind: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     OperationBody:
       type: object
       description: |
@@ -1206,7 +1555,7 @@ components:
         name: { type: string, minLength: 2, maxLength: 120 }
         doc_types:
           type: array
-          items: { type: string, enum: [ nfe, nfce, cte, mdfe ] }
+          items: { type: string, enum: [ nfe, nfce, cte, mdfe, nfse ] }
         nat_op: { type: [ string, 'null' ], maxLength: 60 }
         tp_nf: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
         fin_nfe: { type: [ string, 'null' ], enum: [ '1', '2', '3', '4', null ] }
@@ -1346,7 +1695,40 @@ components:
           type: boolean
           description: |
             Operação pré-selecionada da organização. Só uma pode estar marcada:
-            marcar uma desmarca a anterior no mesmo `TransactWrite`.
+            marcar uma desmarca a anterior no mesmo `TransactWrite`. Vale para NFS-e apenas quando
+            `doc_types` inclui `nfse` — não existe um segundo default implícito.
+        nfse: { $ref: '#/components/schemas/OperationNfseBody' }
+
+    OperationNfseBody:
+      type: object
+      description: |
+        Defaults de NFS-e da natureza de operação, usados quando `doc_types` inclui `nfse`.
+        Fica num subobjeto porque quase nada do resto da operação se aplica à NFS-e: a competência
+        é municipal e não há CFOP, `tpNF` nem volume.
+
+        A ordem de resolução na emissão é **operação → serviço → request**: o request sempre vence,
+        e o serviço vence a operação, porque o serviço descreve a atividade e a operação é só o
+        cenário de negócio.
+      properties:
+        c_loc_prestacao:
+          type: [ string, 'null' ]
+          pattern: '^\d{7}$'
+          description: Escolha exclusiva com `c_pais_prestacao`, como `TCLocPrest` no XSD.
+        c_pais_prestacao: { type: [ string, 'null' ], minLength: 2, maxLength: 2 }
+        foreign_trade: { $ref: '#/components/schemas/ServiceForeignTradeDefaultsBody' }
+        id_doc_tec: { type: [ string, 'null' ], maxLength: 20 }
+        doc_ref: { type: [ string, 'null' ], maxLength: 255 }
+        x_ped: { type: [ string, 'null' ], maxLength: 20 }
+        p_desc_incond: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        p_desc_cond: { type: [ string, 'null' ], pattern: '^\d{1,3}(\.\d{1,4})?$' }
+        ind_final: { type: [ string, 'null' ], description: Domínio `TSRTCIndFinal`. }
+        tp_oper: { type: [ string, 'null' ], description: Domínio `TSRTCTpOper`. }
+        ind_dest: { type: [ string, 'null' ], description: Domínio `TSRTCIndDest`. }
+        tp_ente_gov: { type: [ string, 'null' ], description: Domínio `TSRTCTpEnteGov`. }
+        x_inf_comp:
+          type: [ string, 'null' ]
+          maxLength: 2000
+          description: Aceita os mesmos placeholders de `inf_cpl`; vira `serv/infoCompl/xInfComp`.
 
     OperationItem:
       type: object

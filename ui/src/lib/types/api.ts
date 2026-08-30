@@ -1047,6 +1047,107 @@ export interface ProductLotItemOut {
   [field: string]: unknown
 }
 
+// Cadastros reutilizáveis — locais de prestação de serviço (NFS-e)
+
+/** Papéis combináveis: o mesmo endereço serve obra, imóvel e local de evento. */
+export type ServiceLocationRole = 'work' | 'property' | 'event_venue'
+
+export interface ServiceLocationAddress extends Record<string, unknown> {
+  street: string
+  number: string
+  complement?: string | null
+  neighborhood: string
+  /** Nacional: CEP + município IBGE. */
+  postal_code?: string | null
+  city_ibge_code?: string | null
+  /** Exterior: código postal livre, cidade e região. */
+  foreign_postal_code?: string | null
+  foreign_city?: string | null
+  foreign_region?: string | null
+}
+
+export interface ServiceLocationCreate extends Record<string, unknown> {
+  name: string
+  roles: ServiceLocationRole[]
+  address: ServiceLocationAddress
+  insc_imob_fisc?: string | null
+  c_obra?: string | null
+  cib?: string | null
+  id_atv_evt?: string | null
+}
+
+export interface ServiceLocationItemOut {
+  pk: string
+  sk: string
+  name: string
+  roles: ServiceLocationRole[]
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
+// Cadastros reutilizáveis — documentos referenciados (NFS-e)
+
+/** Família documental; decide qual subobjeto é obrigatório. */
+export type ReferenceDocumentKind =
+  'dfe' | 'nfse_municipal' | 'nf_nfs' | 'doc_fiscal_outro' | 'doc_nao_fiscal'
+
+export interface ReferenceDocumentDFe extends Record<string, unknown> {
+  tipo_chave_dfe: string
+  chave_dfe: string
+  x_tipo_chave_dfe?: string | null
+}
+
+export interface ReferenceDocumentNFSeMun extends Record<string, unknown> {
+  c_mun_nfse_mun: string
+  n_nfse_mun: string
+  c_verif_nfse_mun: string
+}
+
+export interface ReferenceDocumentNFNFS extends Record<string, unknown> {
+  n_nfs: string
+  mod_nfs: string
+  serie_nfs: string
+}
+
+export interface ReferenceDocumentTaxOther extends Record<string, unknown> {
+  n_doc_fiscal: string
+  c_mun_doc_fiscal?: string | null
+  x_doc_fiscal?: string | null
+}
+
+export interface ReferenceDocumentNonFiscal extends Record<string, unknown> {
+  n_doc: string
+  x_doc?: string | null
+}
+
+export interface ReferenceDocumentCreate extends Record<string, unknown> {
+  name: string
+  kind: ReferenceDocumentKind
+  dfe?: ReferenceDocumentDFe | null
+  nfse_municipal?: ReferenceDocumentNFSeMun | null
+  nf_nfs?: ReferenceDocumentNFNFS | null
+  doc_fiscal_outro?: ReferenceDocumentTaxOther | null
+  doc_nao_fiscal?: ReferenceDocumentNonFiscal | null
+  supplier_person_id?: string | null
+  issued_at: string
+  competence_at?: string | null
+  description?: string | null
+}
+
+export interface ReferenceDocumentItemOut {
+  pk: string
+  sk: string
+  name: string
+  kind: ReferenceDocumentKind
+  issued_at: string
+  created_at: string
+  updated_at: string
+
+  [field: string]: unknown
+}
+
 // Cadastros reutilizáveis — apólices de seguro da carga (MDF-e infMDFe/seg)
 export interface InsurancePolicyCreate extends Record<string, unknown> {
   name: string

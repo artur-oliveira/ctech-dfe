@@ -238,6 +238,30 @@ func RegisterInsurancePolicies(router fiber.Router, svc *services.InsurancePolic
 	})
 }
 
+// RegisterServiceLocations mounts /service-locations under a tenant-scoped group.
+func RegisterServiceLocations(router fiber.Router, svc *services.ServiceLocationService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/service-locations",
+		param:      "service_location_id",
+		resource:   "organization_service_locations",
+		bindCreate: bindValidatedCreate[ServiceLocationBody],
+		bindUpdate: bindValidatedUpdate[ServiceLocationBody],
+	})
+}
+
+// RegisterReferenceDocuments mounts /reference-documents under a tenant-scoped group.
+func RegisterReferenceDocuments(router fiber.Router, svc *services.ReferenceDocumentService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/reference-documents",
+		param:      "reference_document_id",
+		resource:   "organization_reference_documents",
+		bindCreate: bindValidatedCreate[ReferenceDocumentBody],
+		bindUpdate: bindValidatedUpdate[ReferenceDocumentBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

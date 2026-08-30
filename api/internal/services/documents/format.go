@@ -57,6 +57,24 @@ func cents(value string) string {
 	return amount.Mul(decimal.NewFromInt(100)).Round(0).StringFixed(0)
 }
 
+// sumDecimals soma dois valores decimais do XML preservando duas casas. Um
+// operando ausente ou ilegível conta como zero; se ambos faltarem devolve
+// vazio, para o campo cair no traço da NT em vez de imprimir "0,00" inventado.
+func sumDecimals(values ...string) string {
+	total, seen := decimal.Zero, false
+	for _, value := range values {
+		amount, err := decimal.NewFromString(strings.TrimSpace(value))
+		if err != nil {
+			continue
+		}
+		total, seen = total.Add(amount), true
+	}
+	if !seen {
+		return ""
+	}
+	return total.StringFixed(2)
+}
+
 func nonzero(value string) bool {
 	amount, err := decimal.NewFromString(strings.TrimSpace(value))
 	return err == nil && !amount.IsZero()

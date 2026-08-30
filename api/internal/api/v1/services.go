@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"strconv"
+
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -8,6 +10,28 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
+
+// withServiceDiagnostics acrescenta os campos derivados da leitura: a versão do
+// contrato (registro legado responde 1) e o que falta por cenário de emissão.
+// Nada disso é persistido — é diagnóstico calculado a cada leitura.
+func withServiceDiagnostics(item map[string]types.AttributeValue) map[string]types.AttributeValue {
+	if item == nil {
+		return nil
+	}
+	item[services.AttrServiceSchemaVersion] = &types.AttributeValueMemberN{
+		Value: strconv.Itoa(services.ServiceSchemaVersionOf(item)),
+	}
+	scenarios := map[string]types.AttributeValue{}
+	for scenario, missing := range services.ServiceCompleteness(item) {
+		values := make([]types.AttributeValue, 0, len(missing))
+		for _, field := range missing {
+			values = append(values, &types.AttributeValueMemberS{Value: field})
+		}
+		scenarios[scenario] = &types.AttributeValueMemberL{Value: values}
+	}
+	item["completeness"] = &types.AttributeValueMemberM{Value: scenarios}
+	return item
+}
 
 // RegisterServices mounts /services routes under a tenant-scoped group.
 func RegisterServices(router fiber.Router, svc *services.ServiceService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
@@ -32,10 +56,14 @@ func RegisterServices(router fiber.Router, svc *services.ServiceService, userSvc
 			if p != nil {
 				return nil, p
 			}
-			return svc.Create(c.Context(), orgPK, av, userID, userName)
+			return svc.Create(c.Context(), orgPK, av, userID, userName, ServiceSchemaVersion)
 		},
 		get: func(c fiber.Ctx, orgPK, id string) (map[string]types.AttributeValue, error) {
-			return svc.Get(c.Context(), orgPK, id)
+			item, err := svc.Get(c.Context(), orgPK, id)
+			if err != nil {
+				return nil, err
+			}
+			return withServiceDiagnostics(item), nil
 		},
 		update: func(c fiber.Ctx, orgPK, id, userID, userName string) (map[string]types.AttributeValue, error) {
 			var dto ServiceBody
@@ -46,7 +74,7 @@ func RegisterServices(router fiber.Router, svc *services.ServiceService, userSvc
 			if err != nil {
 				return nil, err
 			}
-			return svc.Update(c.Context(), orgPK, id, body, userID, userName)
+			return svc.Update(c.Context(), orgPK, id, body, userID, userName, ServiceSchemaVersion)
 		},
 		del: func(c fiber.Ctx, orgPK, id, userID, userName string) error {
 			return svc.Delete(c.Context(), orgPK, id, userID, userName)

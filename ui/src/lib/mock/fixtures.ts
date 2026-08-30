@@ -879,6 +879,59 @@ export const taxProfilesFixture = [
   },
 ]
 
+export const serviceLocationsFixture = [
+  {
+    pk: `${ORG_PK}#service-location#1`,
+    sk: 'SERVICELOCATION_1',
+    name: 'Obra Centro',
+    roles: ['work', 'property'],
+    address: {
+      street: 'Rua C', number: '300', neighborhood: 'Centro',
+      postal_code: '64000000', city_ibge_code: '2211001',
+    },
+    c_obra: 'CNO-1234567',
+    created_at: '2026-02-10T09:00:00Z',
+    updated_at: '2026-04-20T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#service-location#2`,
+    sk: 'SERVICELOCATION_2',
+    name: 'Centro de Convenções',
+    roles: ['event_venue'],
+    address: {
+      street: 'Av. Marechal Castelo Branco', number: '900', neighborhood: 'Cabral',
+      postal_code: '64000200', city_ibge_code: '2211001',
+    },
+    id_atv_evt: 'EVT-2026-001',
+    created_at: '2026-03-02T09:00:00Z',
+    updated_at: '2026-04-20T09:00:00Z',
+  },
+]
+
+export const referenceDocumentsFixture = [
+  {
+    pk: `${ORG_PK}#reference-document#1`,
+    sk: 'REFERENCEDOC_1',
+    name: 'NF-e de materiais',
+    kind: 'dfe',
+    dfe: {tipo_chave_dfe: '2', chave_dfe: '35260812345678000190550010000000011000000010'},
+    issued_at: '2026-07-15',
+    competence_at: '2026-08-01',
+    created_at: '2026-07-16T09:00:00Z',
+    updated_at: '2026-07-16T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#reference-document#2`,
+    sk: 'REFERENCEDOC_2',
+    name: 'Recibo de produção externa',
+    kind: 'doc_nao_fiscal',
+    doc_nao_fiscal: {n_doc: 'REC-2026-045', x_doc: 'Produção externa por conta e ordem'},
+    issued_at: '2026-07-20',
+    created_at: '2026-07-21T09:00:00Z',
+    updated_at: '2026-07-21T09:00:00Z',
+  },
+]
+
 export const operationsFixture = [
   {
     pk: `${ORG_PK}#operation#1`,

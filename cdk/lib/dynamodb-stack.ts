@@ -35,6 +35,8 @@ export type TableName = (
   'product_lots' |
   'fuel_pumps' |
   'vehicle_sets' |
+  'service_locations' |
+  'reference_documents' |
   'nfes' |
   'nfces' |
   'ctes' |
@@ -627,6 +629,12 @@ export class DynamoDBStack extends cdk.Stack {
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'fuel_pumps'));
     this.tables.set('vehicle_sets', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'vehicle_sets'));
+    // Locais de prestação (obra/imóvel/evento) e documentos referenciados da
+    // NFS-e. Sem TTL: o vínculo do documento integra a escrituração.
+    this.tables.set('service_locations', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'service_locations'));
+    this.tables.set('reference_documents', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'reference_documents'));
 
     // ============== CONFIGURATION TABLES ==============
 

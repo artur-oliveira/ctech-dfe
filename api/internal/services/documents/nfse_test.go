@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/carlos7ags/folio/reader"
+
+	"gopkg.aoctech.app/dfe/go-dfe/nfse/tables"
 )
 
 // testNFSeKey tem os 50 dígitos da chave da NFS-e nacional; o conteúdo não
@@ -49,12 +51,12 @@ func TestBuildNFSeContextReadsAuthorizedXML(t *testing.T) {
 		t.Errorf("emitente_tipo = %v", got)
 	}
 	tribMun := ctx["trib_mun"].(map[string]any)
-	if got, _ := tribMun["tributacao"].(string); !strings.HasPrefix(got, "1 - ") {
+	if got, _ := tribMun["tipo_tributacao"].(string); !strings.HasPrefix(got, "1 - ") {
 		t.Errorf("tributação ISSQN sem rótulo do catálogo: %q", got)
 	}
 
 	totais := ctx["totais"].(map[string]any)
-	if totais["valor_servico"] != "1.000,00" || totais["valor_liquido"] != "980,00" {
+	if totais["valor_operacao"] != "1.000,00" || totais["valor_liquido"] != "980,00" {
 		t.Errorf("totais = %+v", totais)
 	}
 	// Percentuais também saem em pt-BR, sem arredondar as casas do XML.
@@ -67,6 +69,29 @@ func TestBuildNFSeContextReadsAuthorizedXML(t *testing.T) {
 	}
 	if ctx["tomador"] == nil {
 		t.Error("tomador presente no XML não pode sumir")
+	}
+	// O prestador funde emitente (nome/endereço resolvidos pelo fisco) com o
+	// regime tributário declarado na DPS.
+	prestador := ctx["prestador"].(map[string]any)
+	if prestador["nome"] != "PRESTADOR TESTE LTDA" || prestador["simples_nacional"] == "" {
+		t.Errorf("prestador = %+v", prestador)
+	}
+	// Total do IBS/CBS não existe pronto no XML: é IBS + CBS apurados.
+	if totais["total_ibscbs"] != "10,50" || totais["liquido_ibscbs"] != "990,50" {
+		t.Errorf("totais IBS/CBS = %v / %v", totais["total_ibscbs"], totais["liquido_ibscbs"])
+	}
+	// O canhoto do pé da folha repete número e chave.
+	if ctx["canhoto"].(map[string]any)["numero"] != "1" {
+		t.Errorf("canhoto = %+v", ctx["canhoto"])
+	}
+	// A classificação IBS/CBS vem da DPS; os valores apurados, do bloco IBSCBS
+	// da NFS-e. O DANFSe imprime os dois lado a lado.
+	ibscbs := ctx["ibscbs"].(map[string]any)
+	if ibscbs["cst_class_trib"] != "000 / 000001" || ibscbs["indicador_operacao"] != "020101" {
+		t.Errorf("classificação IBS/CBS = %+v", ibscbs)
+	}
+	if ctx["destinatario"] == nil {
+		t.Error("destinatário presente no grupo IBSCBS da DPS não pode sumir")
 	}
 }
 
@@ -208,6 +233,15 @@ func sampleNFSeXML() string {
 <pTotTrib><pTotTribFed>3.65</pTotTribFed><pTotTribEst>0.00</pTotTribEst>
 <pTotTribMun>1.98</pTotTribMun></pTotTrib>
 <indTotTrib>0</indTotTrib><pTotTribSN>0.00</pTotTribSN></totTrib></trib></valores>
+<IBSCBS><finNFSe>0</finNFSe><indFinal>1</indFinal><cIndOp>020101</cIndOp><tpOper>1</tpOper>
+<tpEnteGov>4</tpEnteGov><indDest>1</indDest>
+<dest><CNPJ>77888999000155</CNPJ><xNome>DESTINATARIO TESTE SA</xNome>
+<end><endNac><cMun>2211001</cMun><CEP>64000222</CEP></endNac>
+<xLgr>Av. E</xLgr><nro>500</nro><xBairro>Centro</xBairro></end>
+<fone>8632222222</fone><email>dest@example.invalid</email></dest>
+<imovel><inscImobFisc>123456789</inscImobFisc><cCIB>12345678</cCIB></imovel>
+<valores><trib><gIBSCBS><CST>000</CST><cClassTrib>000001</cClassTrib></gIBSCBS></trib></valores>
+</IBSCBS>
 </infDPS></DPS></infNFSe></NFSe>`
 }
 
@@ -239,4 +273,42 @@ func minimalNFSeXML() string {
 <pTotTribMun>0.00</pTotTribMun></pTotTrib>
 <indTotTrib>0</indTotTrib><pTotTribSN>0.00</pTotTribSN></totTrib></trib></valores>
 </infDPS></DPS></infNFSe></NFSe>`
+}
+
+// TestNFSeTribISSQNCodesMatchCatalog prova que as constantes de TSTribISSQN
+// batem com o catálogo gerado do XSD: trocar 2 por 3 aqui esconderia a alíquota
+// na nota errada, e nenhum teste de renderização pegaria isso.
+func TestNFSeTribISSQNCodesMatchCatalog(t *testing.T) {
+	for code, want := range map[string]string{
+		tribISSQNImune:      "Imunidade",
+		tribISSQNExportacao: "Exportação de serviço",
+		tribISSQNNaoIncid:   "Não Incidência",
+	} {
+		label, ok := tables.EnumLabel(tables.EnumTribISSQN, code)
+		if !ok || label != want {
+			t.Errorf("TSTribISSQN %q = %q (%v), esperado %q", code, label, ok, want)
+		}
+	}
+}
+
+func TestNFSeSuppressesAliquotaWithoutISSQNDue(t *testing.T) {
+	for _, code := range []string{tribISSQNImune, tribISSQNExportacao, tribISSQNNaoIncid} {
+		xml := strings.Replace(sampleNFSeXML(), "<tribISSQN>1</tribISSQN>", "<tribISSQN>"+code+"</tribISSQN>", 1)
+		root, err := parseXML([]byte(xml))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, err := buildNFSeContext(root, StateActive)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ctx["trib_mun"].(map[string]any)["sem_issqn_devido"] != true {
+			t.Errorf("tribISSQN %s deveria suprimir a alíquota", code)
+		}
+	}
+	root, _ := parseXML([]byte(sampleNFSeXML()))
+	ctx, _ := buildNFSeContext(root, StateActive)
+	if ctx["trib_mun"].(map[string]any)["sem_issqn_devido"] != false {
+		t.Error("operação tributável deve imprimir a alíquota")
+	}
 }

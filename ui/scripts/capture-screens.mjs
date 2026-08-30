@@ -125,6 +125,8 @@ const CAPTURES = [
   {slug: 'persons', route: '/persons', waitText: 'Cliente Exemplo LTDA'},
   {slug: 'persons-form', route: '/persons/new', waitText: 'Dados complementares e fiscais'},
   {slug: 'tax-profiles', route: '/tax-profiles', waitText: 'Simples Nacional'},
+  {slug: 'service-locations', route: '/service-locations', waitText: 'Obra Centro'},
+  {slug: 'reference-documents', route: '/reference-documents', waitText: 'NF-e de materiais'},
   {slug: 'vehicles', route: '/vehicles', waitText: 'ABC1D23'},
   {slug: 'fiscal-config', route: '/fiscal-config', waitText: 'Ambiente ativo'},
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},

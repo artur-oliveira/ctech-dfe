@@ -241,6 +241,8 @@ def write_enums_go(catalog):
 # para a mesma entrada do catálogo.
 TS_ENUM_ALIASES = {
     # Emissão e identificação
+    "NFSE_TIPO_AMBIENTE": "TSTipoAmbiente",
+    "NFSE_AMB_GERADOR": "TSAmbGeradorNFSe",
     "NFSE_THIRD_PARTY_MOTIVES": "TSMotivoEmisTI",
     "NFSE_EMITENTE_DPS": "TSEmitenteDPS",
     "NFSE_NAO_NIF_REASONS": "TSCodNaoNIF",

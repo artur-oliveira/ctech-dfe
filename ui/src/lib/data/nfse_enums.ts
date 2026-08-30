@@ -1086,6 +1086,8 @@ export const NFSE_ENUMS: Record<string, readonly NfseEnumOption[]> = {
   ]
 } as const;
 
+export const NFSE_TIPO_AMBIENTE: readonly NfseEnumOption[] = NFSE_ENUMS.TSTipoAmbiente;
+export const NFSE_AMB_GERADOR: readonly NfseEnumOption[] = NFSE_ENUMS.TSAmbGeradorNFSe;
 export const NFSE_THIRD_PARTY_MOTIVES: readonly NfseEnumOption[] = NFSE_ENUMS.TSMotivoEmisTI;
 export const NFSE_EMITENTE_DPS: readonly NfseEnumOption[] = NFSE_ENUMS.TSEmitenteDPS;
 export const NFSE_NAO_NIF_REASONS: readonly NfseEnumOption[] = NFSE_ENUMS.TSCodNaoNIF;

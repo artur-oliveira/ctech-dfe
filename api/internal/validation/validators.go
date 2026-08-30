@@ -223,3 +223,11 @@ func nbsValidator(fl validator.FieldLevel) bool {
 func indOpValidator(fl validator.FieldLevel) bool {
 	return tables.IsValidIndOp(fl.Field().String())
 }
+
+// nfseEnumValidator valida um valor contra um domínio fechado do XSD da NFS-e
+// pelo nome do tipo: `validate:"nfseenum=TSModoPrestacao"`. Evita reescrever a
+// enumeração como `oneof=...` em cada DTO, que divergiria do XSD na primeira
+// nota técnica. Um tipo inexistente reprova sempre — nunca passa em silêncio.
+func nfseEnumValidator(fl validator.FieldLevel) bool {
+	return tables.IsValidEnum(fl.Param(), fl.Field().String())
+}

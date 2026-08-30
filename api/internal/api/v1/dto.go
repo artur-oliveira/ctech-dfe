@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"strconv"
+
 	"github.com/go-playground/validator/v10"
 
 	"gopkg.aoctech.app/dfe/api/internal/problem"
@@ -440,7 +442,7 @@ type PaymentTermBody struct {
 // default, não prisão.
 type OperationBody struct {
 	Name     string   `json:"name" validate:"required,min=2,max=120"`
-	DocTypes []string `json:"doc_types" validate:"omitempty,dive,oneof=nfe nfce cte mdfe"`
+	DocTypes []string `json:"doc_types" validate:"omitempty,dive,oneof=nfe nfce cte mdfe nfse"`
 
 	NatOp    *string `json:"nat_op" validate:"omitempty,max=60"`
 	TpNF     *string `json:"tp_nf" validate:"omitempty,oneof=0 1"`
@@ -529,7 +531,227 @@ type OperationBody struct {
 	RequiresReceiver *bool `json:"requires_receiver" validate:"omitempty"`
 	// IsDefault marca a operação pré-selecionada da organização. Só uma pode
 	// estar marcada; marcar uma desmarca a anterior no mesmo TransactWrite.
+	// Vale para NFS-e apenas quando doc_types inclui "nfse": este contrato não
+	// cria um segundo default implícito nem muda o default dos demais.
 	IsDefault bool `json:"is_default"`
+
+	// Nfse são os defaults da natureza de operação quando doc_types inclui
+	// "nfse". Fica num subobjeto porque quase nada acima se aplica à NFS-e: a
+	// competência é municipal, não há CFOP, tpNF nem volume.
+	Nfse *OperationNfseBody `json:"nfse" validate:"omitempty"`
+}
+
+// OperationNfseBody são os defaults de NFS-e de uma natureza de operação.
+//
+// A ordem de resolução na emissão é **operação → serviço → request**: o valor
+// do request sempre vence, e o serviço vence a operação, porque o serviço é o
+// que descreve a atividade e a operação é só o cenário de negócio.
+type OperationNfseBody struct {
+	// Local de prestação: escolha exclusiva município OU país, como no XSD.
+	CLocPrestacao  *string `json:"c_loc_prestacao" validate:"omitempty,ibge"`
+	CPaisPrestacao *string `json:"c_pais_prestacao" validate:"omitempty,len=2,alpha"`
+
+	// Defaults de comércio exterior do cenário. O valor em moeda, a DI e o RE
+	// nascem por emissão e não têm default.
+	ForeignTrade *ServiceForeignTradeDefaultsBody `json:"foreign_trade" validate:"omitempty"`
+
+	// Pedido e documento técnico do cenário (serv/infoCompl). As referências de
+	// item do pedido variam por nota e vão no request.
+	IdDocTec *string `json:"id_doc_tec" validate:"omitempty,max=20"`
+	DocRef   *string `json:"doc_ref" validate:"omitempty,max=255"`
+	XPed     *string `json:"x_ped" validate:"omitempty,max=20"`
+
+	// Descontos padrão do cenário, em percentual do valor do serviço. Valor
+	// absoluto varia por nota e vai no request.
+	PDescIncond *string `json:"p_desc_incond" validate:"omitempty,percent"`
+	PDescCond   *string `json:"p_desc_cond" validate:"omitempty,percent"`
+
+	// Finalidade e ente governamental do IBS/CBS. tp_ente_gov só se aplica a
+	// fornecimento para a administração pública.
+	IndFinal  *string `json:"ind_final" validate:"omitempty,nfseenum=TSRTCIndFinal"`
+	TpOper    *string `json:"tp_oper" validate:"omitempty,nfseenum=TSRTCTpOper"`
+	IndDest   *string `json:"ind_dest" validate:"omitempty,nfseenum=TSRTCIndDest"`
+	TpEnteGov *string `json:"tp_ente_gov" validate:"omitempty,nfseenum=TSRTCTpEnteGov"`
+
+	// Aceita os mesmos placeholders de inf_cpl (services.AllPlaceholders).
+	// Vira serv/infoCompl/xInfComp na DPS.
+	XInfComp *string `json:"x_inf_comp" validate:"omitempty,max=2000"`
+}
+
+// ── Locais de prestação de serviço (NFS-e) ───────────────────────────────────
+
+// Papéis combináveis de um local de prestação. O XSD repete o mesmo endereço em
+// `serv/obra`, `serv/atvEvento` e `IBSCBS/imovel`; um canteiro que também é o
+// endereço do imóvel tributado seria dois cadastros idênticos se os papéis
+// fossem exclusivos.
+const (
+	ServiceLocationRoleWork       = "work"
+	ServiceLocationRoleProperty   = "property"
+	ServiceLocationRoleEventVenue = "event_venue"
+)
+
+// ServiceLocationBody é o body de POST/PUT /service-locations.
+//
+// Um endereço só, com os identificadores fiscais que cada papel exige. Os
+// campos são opcionais aqui porque um mesmo local pode ter só o CIB (imóvel já
+// cadastrado no fisco) ou só o endereço (obra sem CNO ainda); a emissão é que
+// exige o identificador do papel que a nota usa.
+type ServiceLocationBody struct {
+	Name  string   `json:"name" validate:"required,min=2,max=120"`
+	Roles []string `json:"roles" validate:"required,min=1,dive,oneof=work property event_venue"`
+
+	Address ServiceLocationAddressBody `json:"address" validate:"required"`
+
+	// InscImobFisc é a inscrição imobiliária fiscal do município (até 30).
+	InscImobFisc *string `json:"insc_imob_fisc" validate:"omitempty,min=1,max=30"`
+	// CObra é o código da obra (CNO/CEI), até 30 caracteres.
+	CObra *string `json:"c_obra" validate:"omitempty,min=1,max=30"`
+	// CIB é o Cadastro Imobiliário Brasileiro: exatamente 8 caracteres.
+	CIB *string `json:"cib" validate:"omitempty,len=8"`
+	// IDAtvEvt identifica a atividade de evento (até 30). Nome e período do
+	// evento variam por nota e vão no request de emissão, não aqui.
+	IDAtvEvt *string `json:"id_atv_evt" validate:"omitempty,min=1,max=30"`
+}
+
+// ServiceLocationAddressBody é o endereço do local. Nacional usa CEP; exterior
+// usa código postal, cidade e região — a mesma escolha de TCEnderecoSimples.
+type ServiceLocationAddressBody struct {
+	Street       string  `json:"street" validate:"required,max=255"`
+	Number       string  `json:"number" validate:"required,max=60"`
+	Complement   *string `json:"complement" validate:"omitempty,max=156"`
+	Neighborhood string  `json:"neighborhood" validate:"required,max=60"`
+
+	// Nacional: CEP e município IBGE.
+	PostalCode   *string `json:"postal_code" validate:"omitempty,cep"`
+	CityIBGECode *string `json:"city_ibge_code" validate:"omitempty,ibge"`
+
+	// Exterior: código postal livre, cidade e estado/província/região.
+	ForeignPostalCode *string `json:"foreign_postal_code" validate:"omitempty,max=11"`
+	ForeignCity       *string `json:"foreign_city" validate:"omitempty,max=60"`
+	ForeignRegion     *string `json:"foreign_region" validate:"omitempty,max=60"`
+}
+
+// Validate cobre a regra que as tags não expressam: CNO, CIB e inscrição
+// imobiliária são registros fiscais brasileiros. Num endereço no exterior eles
+// não existem, e aceitá-los aqui produziria um cadastro que a emissão só
+// conseguiria usar gerando uma DPS inválida.
+func (b ServiceLocationBody) Validate() error {
+	if b.Address.ForeignPostalCode == nil || *b.Address.ForeignPostalCode == "" {
+		return nil
+	}
+	for field, value := range map[string]*string{
+		"c_obra": b.CObra, "cib": b.CIB, "insc_imob_fisc": b.InscImobFisc,
+	} {
+		if value != nil && *value != "" {
+			return problem.BadRequest(field + " não se aplica a um local no exterior")
+		}
+	}
+	return nil
+}
+
+// ── Documentos referenciados (NFS-e) ─────────────────────────────────────────
+
+// Famílias documentais aceitas. A mesma entidade alimenta `vDedRed/documentos`
+// e `gReeRepRes/documentos`: o leiaute pede formas diferentes do mesmo
+// documento nos dois grupos, e cadastrar duas vezes convidaria a divergência.
+const (
+	ReferenceDocumentKindDFe       = "dfe"
+	ReferenceDocumentKindNFSeMun   = "nfse_municipal"
+	ReferenceDocumentKindNFNFS     = "nf_nfs"
+	ReferenceDocumentKindTaxOther  = "doc_fiscal_outro"
+	ReferenceDocumentKindNonFiscal = "doc_nao_fiscal"
+)
+
+// ReferenceDocumentBody é o body de POST/PUT /reference-documents.
+//
+// União tipada: `kind` decide qual subobjeto é obrigatório, e os demais têm de
+// estar ausentes. Um documento com dois subobjetos preenchidos deixaria a
+// emissão escolher em silêncio qual ramo do `xs:choice` gerar.
+type ReferenceDocumentBody struct {
+	Name string `json:"name" validate:"required,min=2,max=120"`
+	Kind string `json:"kind" validate:"required,oneof=dfe nfse_municipal nf_nfs doc_fiscal_outro doc_nao_fiscal"`
+
+	DFe       *ReferenceDocumentDFeBody       `json:"dfe" validate:"omitempty"`
+	NFSeMun   *ReferenceDocumentNFSeMunBody   `json:"nfse_municipal" validate:"omitempty"`
+	NFNFS     *ReferenceDocumentNFNFSBody     `json:"nf_nfs" validate:"omitempty"`
+	TaxOther  *ReferenceDocumentTaxOtherBody  `json:"doc_fiscal_outro" validate:"omitempty"`
+	NonFiscal *ReferenceDocumentNonFiscalBody `json:"doc_nao_fiscal" validate:"omitempty"`
+
+	// SupplierPersonID aponta o fornecedor no cadastro de pessoas. Nunca é
+	// copiado: o documento referencia a pessoa, como no resto do produto.
+	SupplierPersonID *string `json:"supplier_person_id" validate:"omitempty"`
+
+	IssuedAt     string  `json:"issued_at" validate:"required,isodate"`
+	CompetenceAt *string `json:"competence_at" validate:"omitempty,isodate"`
+	Description  *string `json:"description" validate:"omitempty,min=1,max=150"`
+}
+
+// Validate cobre as duas regras que as tags não expressam: a competência não
+// pode ser anterior à emissão do documento, e a descrição livre só existe para
+// as famílias em que o leiaute não traz um campo descritivo próprio.
+func (b ReferenceDocumentBody) Validate() error {
+	if b.CompetenceAt != nil && *b.CompetenceAt != "" && *b.CompetenceAt < b.IssuedAt {
+		return problem.BadRequest("competence_at não pode ser anterior a issued_at")
+	}
+	if b.Kind == ReferenceDocumentKindDFe && b.DFe != nil {
+		// chNFSe tem 50 dígitos e chNFe tem 44: o tipo declarado e o
+		// comprimento da chave têm de concordar, ou a dedução aponta para um
+		// documento que não existe.
+		want, ok := referenceDFeKeyLength[b.DFe.TipoChaveDFe]
+		if ok && len(b.DFe.ChaveDFe) != want {
+			return problem.BadRequest("chave_dfe deve ter " + strconv.Itoa(want) +
+				" dígitos para tipo_chave_dfe " + b.DFe.TipoChaveDFe)
+		}
+	}
+	return nil
+}
+
+// referenceDFeKeyLength é o comprimento da chave por tipo de DF-e. CT-e e
+// "outro" não entram: o RTC aceita chave de até 50 caracteres sem fixar o
+// tamanho, e inventar um limite recusaria documento válido.
+var referenceDFeKeyLength = map[string]int{
+	"1": 50, // NFS-e
+	"2": 44, // NF-e
+}
+
+// ReferenceDocumentDFeBody é um documento do Repositório Nacional pela chave.
+// `tipo_chave_dfe` é o domínio do RTC; em `vDedRed` ele decide entre `chNFSe`
+// (NFS-e, 50 dígitos) e `chNFe` (NF-e, 44).
+type ReferenceDocumentDFeBody struct {
+	TipoChaveDFe  string  `json:"tipo_chave_dfe" validate:"required,nfseenum=TSRTCTipoChaveDFe"`
+	ChaveDFe      string  `json:"chave_dfe" validate:"required,min=1,max=50,number"`
+	XTipoChaveDFe *string `json:"x_tipo_chave_dfe" validate:"omitempty,min=1,max=255"`
+}
+
+// ReferenceDocumentNFSeMunBody é a NFS-e municipal anterior ao Sistema
+// Nacional (TCDocOutNFSe).
+type ReferenceDocumentNFSeMunBody struct {
+	CMunNFSeMun   string `json:"c_mun_nfse_mun" validate:"required,ibge"`
+	NNFSeMun      string `json:"n_nfse_mun" validate:"required,len=15,number"`
+	CVerifNFSeMun string `json:"c_verif_nfse_mun" validate:"required,min=1,max=9,alphanum"`
+}
+
+// ReferenceDocumentNFNFSBody é a nota fiscal ou nota fiscal de serviço não
+// eletrônica (TCDocNFNFS).
+type ReferenceDocumentNFNFSBody struct {
+	NNFS     string `json:"n_nfs" validate:"required,len=7,number"`
+	ModNFS   string `json:"mod_nfs" validate:"required,len=15,number"`
+	SerieNFS string `json:"serie_nfs" validate:"required,min=1,max=15,alphanum"`
+}
+
+// ReferenceDocumentTaxOtherBody é outro documento fiscal. Município e descrição
+// só existem em `gReeRepRes`; em `vDedRed` o leiaute pede apenas o número, que
+// sai daqui sem cadastro extra.
+type ReferenceDocumentTaxOtherBody struct {
+	NDocFiscal    string  `json:"n_doc_fiscal" validate:"required,min=1,max=255"`
+	CMunDocFiscal *string `json:"c_mun_doc_fiscal" validate:"omitempty,ibge"`
+	XDocFiscal    *string `json:"x_doc_fiscal" validate:"omitempty,min=1,max=255"`
+}
+
+// ReferenceDocumentNonFiscalBody é um documento não fiscal (recibo, contrato).
+type ReferenceDocumentNonFiscalBody struct {
+	NDoc string  `json:"n_doc" validate:"required,min=1,max=255"`
+	XDoc *string `json:"x_doc" validate:"omitempty,min=1,max=255"`
 }
 
 // PaymentTerminalBody é o body de POST/PUT /payment-terminals.
@@ -883,6 +1105,70 @@ type GCredBody struct {
 // ── Serviços (catálogo NFS-e) ────────────────────────────────────────────────
 
 // ServiceIssBody são os defaults de ISSQN do serviço (grupo tribMun do DPS).
+// ServiceSchemaVersion é a versão dos subgrupos de organization_services. É
+// gravada pelo servidor, nunca enviada pelo cliente: registro legado sem o
+// campo continua legível e responde como versão 1, sem migração destrutiva.
+const ServiceSchemaVersion = 2
+
+// ServiceLocationDefaultsBody é o default de local de prestação do serviço.
+// TCLocPrest é uma escolha exclusiva no XSD: município OU país, nunca os dois.
+type ServiceLocationDefaultsBody struct {
+	CLocPrestacao  *string `json:"c_loc_prestacao" validate:"omitempty,ibge"`
+	CPaisPrestacao *string `json:"c_pais_prestacao" validate:"omitempty,len=2,alpha"`
+}
+
+// ServiceForeignTradeDefaultsBody são os defaults de comExt. O valor em moeda,
+// a DI e o RE nascem na emissão e por isso não ficam aqui.
+type ServiceForeignTradeDefaultsBody struct {
+	MdPrestacao *string `json:"md_prestacao" validate:"omitempty,nfseenum=TSModoPrestacao"`
+	VincPrest   *string `json:"vinc_prest" validate:"omitempty,nfseenum=TSVincPrest"`
+	TpMoeda     *string `json:"tp_moeda" validate:"omitempty,len=3,number"`
+	MecAFComexP *string `json:"mec_af_comex_p" validate:"omitempty,nfseenum=TSMecAFComExPrest"`
+	MecAFComexT *string `json:"mec_af_comex_t" validate:"omitempty,nfseenum=TSMecAFComExToma"`
+	MovTempBens *string `json:"mov_temp_bens" validate:"omitempty,nfseenum=TSMovTempBens"`
+	Mdic        *string `json:"mdic" validate:"omitempty,nfseenum=TSEnvMDIC"`
+}
+
+// ServiceIssSuspensionBody é o grupo exigSusp: os dois campos são obrigatórios
+// juntos no XSD, então o subobjeto inteiro é opcional e, presente, é completo.
+type ServiceIssSuspensionBody struct {
+	TpSusp    string `json:"tp_susp" validate:"required,nfseenum=TSOpExigSuspensa"`
+	NProcesso string `json:"n_processo" validate:"required,len=30,number"`
+}
+
+// ServiceIssBenefitBody é o grupo BM (benefício municipal). A redução vem em
+// valor OU percentual, conforme o tipo de benefício declarado pelo município.
+type ServiceIssBenefitBody struct {
+	NBM      string  `json:"n_bm" validate:"required,len=14,number"`
+	VRedBCBM *string `json:"v_red_bc_bm" validate:"omitempty,money2"`
+	PRedBCBM *string `json:"p_red_bc_bm" validate:"omitempty,percent"`
+}
+
+// ServiceIbsCbsRegularBody é gTribRegular: a tributação que existiria sem o
+// benefício, exigida quando a operação usa CST desonerado.
+type ServiceIbsCbsRegularBody struct {
+	CSTReg        string `json:"cst_reg" validate:"required,len=3,number"`
+	CClassTribReg string `json:"c_class_trib_reg" validate:"required,class6"`
+}
+
+// ServiceIbsCbsDifBody é gDif: os três percentuais de diferimento são
+// obrigatórios juntos no XSD.
+type ServiceIbsCbsDifBody struct {
+	PDifUF  string `json:"p_dif_uf" validate:"required,percent"`
+	PDifMun string `json:"p_dif_mun" validate:"required,percent"`
+	PDifCBS string `json:"p_dif_cbs" validate:"required,percent"`
+}
+
+// ServiceRequirementsBody declara o que este serviço exige ou permite na
+// emissão. São flags de UX e de validação, não campos do XML: a emissão usa
+// para decidir quais grupos pedir em vez de mostrar todos sempre.
+type ServiceRequirementsBody struct {
+	RequiresWork         bool `json:"requires_work"`
+	RequiresEvent        bool `json:"requires_event"`
+	AllowsDeductions     bool `json:"allows_deductions"`
+	AllowsReimbursements bool `json:"allows_reimbursements"`
+}
+
 type ServiceIssBody struct {
 	// 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
 	TribISSQN int    `json:"trib_issqn" validate:"required,oneof=1 2 3 4"`
@@ -893,6 +1179,9 @@ type ServiceIssBody struct {
 	// constitucionais específicas (CF88 Art 150, VI) — ver TSTipoImunidadeISSQN.
 	TpImunidade    *int    `json:"tp_imunidade" validate:"omitempty,gte=0,lte=5"`
 	CPaisResultado *string `json:"c_pais_resultado" validate:"omitempty,len=2,alpha"`
+	// Grupos opcionais do XSD; presentes, vêm completos.
+	ExigSusp *ServiceIssSuspensionBody `json:"exig_susp" validate:"omitempty"`
+	BM       *ServiceIssBenefitBody    `json:"bm" validate:"omitempty"`
 }
 
 // ServiceFederalBody são os defaults de tributos federais do serviço.
@@ -923,6 +1212,14 @@ type ServiceIbsCbsBody struct {
 	TpOper *int `json:"tp_oper" validate:"omitempty,oneof=1 2 3 4 5"`
 	// Valor fixo — TSRTCFinNFSe só admite 0 (NFS-e regular).
 	FinNFSe *int `json:"fin_nfse" validate:"required,oneof=0"`
+	// 0 consumidor não final | 1 consumidor final
+	IndFinal *string `json:"ind_final" validate:"omitempty,nfseenum=TSRTCIndFinal"`
+	// Ente governamental adquirente: só é preenchido em compra governamental.
+	TpEnteGov *string `json:"tp_ente_gov" validate:"omitempty,nfseenum=TSRTCTpEnteGov"`
+	// cCredPres tem 2 dígitos (TSRTCCodCredPres), não 6 como cClassTrib.
+	CCredPres   *string                   `json:"c_cred_pres" validate:"omitempty,digits2"`
+	TribRegular *ServiceIbsCbsRegularBody `json:"trib_regular" validate:"omitempty"`
+	Dif         *ServiceIbsCbsDifBody     `json:"dif" validate:"omitempty"`
 }
 
 // ServiceTotTribBody é a Lei da Transparência (grupo totTrib do DPS).
@@ -948,6 +1245,10 @@ type ServiceBody struct {
 	Federal           *ServiceFederalBody `json:"federal" validate:"omitempty"`
 	IbsCbs            *ServiceIbsCbsBody  `json:"ibs_cbs" validate:"required"`
 	TotTrib           *ServiceTotTribBody `json:"tot_trib" validate:"omitempty"`
+
+	LocationDefaults     *ServiceLocationDefaultsBody     `json:"location_defaults" validate:"omitempty"`
+	ForeignTradeDefaults *ServiceForeignTradeDefaultsBody `json:"foreign_trade_defaults" validate:"omitempty"`
+	Requirements         *ServiceRequirementsBody         `json:"requirements" validate:"omitempty"`
 }
 
 // ── Config NFS-e ─────────────────────────────────────────────────────────────
@@ -1093,6 +1394,131 @@ type NfceConfigBody struct {
 
 func init() {
 	validation.RegisterStructRule(validateIbsCbsGroup, TaxFieldsBody{})
+	validation.RegisterStructRule(validateServiceLocationDefaults, ServiceLocationDefaultsBody{})
+	validation.RegisterStructRule(validateServiceIssBenefit, ServiceIssBenefitBody{})
+	validation.RegisterStructRule(validateOperationNfseLocation, OperationNfseBody{})
+	validation.RegisterStructRule(validateServiceLocationAddress, ServiceLocationAddressBody{})
+	validation.RegisterStructRule(validateServiceLocationRoles, ServiceLocationBody{})
+	validation.RegisterStructRule(validateReferenceDocumentUnion, ReferenceDocumentBody{})
+}
+
+// validateServiceLocationAddress exige um endereço nacional OU um do exterior,
+// nunca os dois nem nenhum: TCEnderecoSimples é a mesma escolha, e um endereço
+// pela metade só falharia na emissão, longe de quem digitou.
+func validateServiceLocationAddress(sl validator.StructLevel) {
+	f := sl.Current().Interface().(ServiceLocationAddressBody)
+	national := f.PostalCode != nil && *f.PostalCode != ""
+	foreign := f.ForeignPostalCode != nil && *f.ForeignPostalCode != ""
+	switch {
+	case national && foreign:
+		sl.ReportError(f.ForeignPostalCode, "foreign_postal_code", "ForeignPostalCode", "excluded_with", "postal_code")
+	case !national && !foreign:
+		sl.ReportError(f.PostalCode, "postal_code", "PostalCode", "required_without", "foreign_postal_code")
+	case foreign:
+		if f.ForeignCity == nil || *f.ForeignCity == "" {
+			sl.ReportError(f.ForeignCity, "foreign_city", "ForeignCity", "required_with", "foreign_postal_code")
+		}
+		if f.ForeignRegion == nil || *f.ForeignRegion == "" {
+			sl.ReportError(f.ForeignRegion, "foreign_region", "ForeignRegion", "required_with", "foreign_postal_code")
+		}
+	case national:
+		if f.CityIBGECode == nil || *f.CityIBGECode == "" {
+			sl.ReportError(f.CityIBGECode, "city_ibge_code", "CityIBGECode", "required_with", "postal_code")
+		}
+	}
+}
+
+// validateServiceLocationRoles impede guardar `c_obra` e `cib` no mesmo local.
+// `serv/obra` é a escolha cObra|cCIB|end: com os dois gravados, a emissão
+// decidiria em silêncio qual ramo gerar. O endereço é sempre obrigatório aqui,
+// então o terceiro ramo da escolha nunca falta.
+func validateServiceLocationRoles(sl validator.StructLevel) {
+	f := sl.Current().Interface().(ServiceLocationBody)
+	if f.CIB != nil && *f.CIB != "" && f.CObra != nil && *f.CObra != "" {
+		sl.ReportError(f.CIB, "cib", "CIB", "excluded_with", "c_obra")
+	}
+}
+
+// referenceDocumentSubobjects mapeia cada família ao seu subobjeto. Manter o
+// mapa aqui é o que garante que uma família nova não passe sem regra.
+func referenceDocumentSubobjects(f ReferenceDocumentBody) map[string]any {
+	return map[string]any{
+		ReferenceDocumentKindDFe:       f.DFe,
+		ReferenceDocumentKindNFSeMun:   f.NFSeMun,
+		ReferenceDocumentKindNFNFS:     f.NFNFS,
+		ReferenceDocumentKindTaxOther:  f.TaxOther,
+		ReferenceDocumentKindNonFiscal: f.NonFiscal,
+	}
+}
+
+// validateReferenceDocumentUnion exige exatamente o subobjeto de `kind` e
+// nenhum outro.
+func validateReferenceDocumentUnion(sl validator.StructLevel) {
+	f := sl.Current().Interface().(ReferenceDocumentBody)
+	for kind, value := range referenceDocumentSubobjects(f) {
+		present := !isNilSubobject(value)
+		switch {
+		case kind == f.Kind && !present:
+			sl.ReportError(value, kind, kind, "required_with", "kind")
+		case kind != f.Kind && present:
+			sl.ReportError(value, kind, kind, "excluded_with", "kind")
+		}
+	}
+}
+
+// isNilSubobject trata o ponteiro tipado nulo guardado numa interface, que
+// nunca é igual a nil por comparação direta.
+func isNilSubobject(value any) bool {
+	switch typed := value.(type) {
+	case *ReferenceDocumentDFeBody:
+		return typed == nil
+	case *ReferenceDocumentNFSeMunBody:
+		return typed == nil
+	case *ReferenceDocumentNFNFSBody:
+		return typed == nil
+	case *ReferenceDocumentTaxOtherBody:
+		return typed == nil
+	case *ReferenceDocumentNonFiscalBody:
+		return typed == nil
+	default:
+		return value == nil
+	}
+}
+
+// validateOperationNfseLocation repete na operação a escolha exclusiva de
+// TCLocPrest. A regra é a mesma do serviço, mas os campos são outros: um
+// struct rule por tipo é o que o validator suporta.
+func validateOperationNfseLocation(sl validator.StructLevel) {
+	f := sl.Current().Interface().(OperationNfseBody)
+	city, country := f.CLocPrestacao != nil && *f.CLocPrestacao != "", f.CPaisPrestacao != nil && *f.CPaisPrestacao != ""
+	if city && country {
+		sl.ReportError(f.CPaisPrestacao, "c_pais_prestacao", "CPaisPrestacao", "excluded_with", "c_loc_prestacao")
+	}
+}
+
+// validateServiceLocationDefaults enforces TCLocPrest as the exclusive choice
+// it is in the XSD: município OU país. Aceitar os dois deixaria a emissão
+// escolher em silêncio, e a DPS sairia com o local errado.
+func validateServiceLocationDefaults(sl validator.StructLevel) {
+	f := sl.Current().Interface().(ServiceLocationDefaultsBody)
+	city, country := f.CLocPrestacao != nil && *f.CLocPrestacao != "", f.CPaisPrestacao != nil && *f.CPaisPrestacao != ""
+	if city && country {
+		sl.ReportError(f.CPaisPrestacao, "c_pais_prestacao", "CPaisPrestacao", "excluded_with", "c_loc_prestacao")
+	}
+}
+
+// validateServiceIssBenefit exige exatamente uma forma de redução: valor ou
+// percentual. Nenhuma das duas torna o benefício inócuo; as duas juntas não
+// têm regra de precedência no leiaute.
+func validateServiceIssBenefit(sl validator.StructLevel) {
+	f := sl.Current().Interface().(ServiceIssBenefitBody)
+	value, percent := f.VRedBCBM != nil && *f.VRedBCBM != "", f.PRedBCBM != nil && *f.PRedBCBM != ""
+	switch {
+	case value && percent:
+		sl.ReportError(f.PRedBCBM, "p_red_bc_bm", "PRedBCBM", "excluded_with", "v_red_bc_bm")
+	case !value && !percent:
+		sl.ReportError(f.VRedBCBM, "v_red_bc_bm", "VRedBCBM", "required_without", "p_red_bc_bm")
+	}
 }
 
 // validateIbsCbsGroup enforces the IBS/CBS group as all-or-nothing: if any of

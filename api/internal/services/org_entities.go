@@ -251,6 +251,28 @@ func NewInsurancePolicyService(repo *repositories.InsurancePolicyRepository, aud
 	)}
 }
 
+// ServiceLocationService owns organization_service_locations — obra, imóvel e
+// local de evento da NFS-e num cadastro só.
+type ServiceLocationService struct{ OrgEntityService }
+
+func NewServiceLocationService(repo *repositories.ServiceLocationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ServiceLocationService {
+	return &ServiceLocationService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeServiceLocations, repositories.AuditResourceServiceLocation, "service location not found",
+	)}
+}
+
+// ReferenceDocumentService owns organization_reference_documents — os
+// documentos citados em dedução/redução e em reembolso/repasse/ressarcimento.
+type ReferenceDocumentService struct{ OrgEntityService }
+
+func NewReferenceDocumentService(repo *repositories.ReferenceDocumentRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *ReferenceDocumentService {
+	return &ReferenceDocumentService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeReferenceDocs, repositories.AuditResourceReferenceDoc, "reference document not found",
+	)}
+}
+
 // OperationService owns organization_operations, e é a única das quatro
 // entidades com uma regra própria: no máximo uma operação padrão por
 // organização.
@@ -348,4 +370,6 @@ const (
 	CacheScopeInsurancePolicies = "insurance_policies"
 	CacheScopeProductLots       = "product_lots"
 	CacheScopeFuelPumps         = "fuel_pumps"
+	CacheScopeServiceLocations  = "service_locations"
+	CacheScopeReferenceDocs     = "reference_documents"
 )

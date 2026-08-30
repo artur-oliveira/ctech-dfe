@@ -18,6 +18,8 @@ export const SK_PREFIX = {
   PRODUCT_LOT: 'PRODUCTLOT_',
   FUEL_PUMP: 'FUELPUMP_',
   VEHICLE_SET: 'VEHICLESET_',
+  SERVICE_LOCATION: 'SERVICELOCATION_',
+  REFERENCE_DOCUMENT: 'REFERENCEDOC_',
 } as const
 
 export function extractId(sk: string, prefix: string): string {

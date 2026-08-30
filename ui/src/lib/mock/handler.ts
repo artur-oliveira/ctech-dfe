@@ -36,6 +36,8 @@ import {
   nfseEventsFixture,
   nfsesFixture,
   operationsFixture,
+  referenceDocumentsFixture,
+  serviceLocationsFixture,
   organizationsFixture,
   paymentTermsFixture,
   personsFixture,
@@ -59,6 +61,8 @@ const REUSABLE_REGISTRIES: [string, unknown[], string][] = [
   ['operations', operationsFixture, 'operation'],
   ['payment-terms', paymentTermsFixture, 'payment-term'],
   ['vehicle-sets', vehicleSetsFixture, 'vehicle-set'],
+  ['service-locations', serviceLocationsFixture, 'service-location'],
+  ['reference-documents', referenceDocumentsFixture, 'reference-document'],
 ]
 
 function paginated<T>(items: T[]): { items: T[]; next_cursor: string | null; has_next: boolean; previous_cursor: string | null; has_previous: boolean } {

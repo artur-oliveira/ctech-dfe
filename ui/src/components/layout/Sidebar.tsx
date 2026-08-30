@@ -108,6 +108,8 @@ const navGroups: NavGroup[] = [
       {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
       {href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>},
       {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
+      {href: '/service-locations', label: 'Locais de prestação', icon: <BriefcaseIcon/>},
+      {href: '/reference-documents', label: 'Documentos referenciados', icon: <ImportIcon/>},
       {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
       {href: '/operations', label: 'Naturezas de operação', icon: <RouteIcon/>},
       {href: '/payment-terms', label: 'Condições de pagamento', icon: <CalendarClockIcon/>},

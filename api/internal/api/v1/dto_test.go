@@ -540,3 +540,111 @@ func TestOperation_MinimalIsValid(t *testing.T) {
 		t.Fatalf("uma operação só com nome tem que ser válida: %v", p)
 	}
 }
+
+// baseServiceBody é o mínimo aceito pelo contrato, usado para isolar cada
+// subgrupo novo sem repetir o corpo inteiro em cada caso.
+func baseServiceBody() ServiceBody {
+	zero := 0
+	cIndOp, cst, cClassTrib := "100301", "000", "000001"
+	return ServiceBody{
+		Code:             "SRV001",
+		Description:      "Análise e desenvolvimento de sistemas",
+		TribNacionalCode: "010101",
+		Unit:             "UN",
+		Value:            "1500.00",
+		Iss:              ServiceIssBody{TribISSQN: 1, TaxRate: "5.00"},
+		IbsCbs: &ServiceIbsCbsBody{
+			CIndOp: &cIndOp, Cst: &cst, CClassTrib: &cClassTrib,
+			IndDest: &zero, FinNFSe: &zero,
+		},
+	}
+}
+
+func TestServiceBody_LocationDefaultsAreExclusive(t *testing.T) {
+	city, country := "2211001", "US"
+
+	only := baseServiceBody()
+	only.LocationDefaults = &ServiceLocationDefaultsBody{CLocPrestacao: &city}
+	if p := validation.Struct(only); p != nil {
+		t.Fatalf("município sozinho rejeitado: %+v", p)
+	}
+
+	both := baseServiceBody()
+	both.LocationDefaults = &ServiceLocationDefaultsBody{CLocPrestacao: &city, CPaisPrestacao: &country}
+	if validation.Struct(both) == nil {
+		t.Error("município e país juntos aceitos — TCLocPrest é escolha exclusiva")
+	}
+}
+
+func TestServiceBody_ForeignTradeUsesGeneratedEnums(t *testing.T) {
+	valid, invalid, moeda := "1", "7", "790"
+	body := baseServiceBody()
+	body.ForeignTradeDefaults = &ServiceForeignTradeDefaultsBody{
+		MdPrestacao: &valid, TpMoeda: &moeda,
+	}
+	if p := validation.Struct(body); p != nil {
+		t.Fatalf("modo de prestação válido rejeitado: %+v", p)
+	}
+
+	// 7 não existe em TSModoPrestacao (0..4). O validador consulta o catálogo
+	// gerado do XSD, então uma nota técnica que mude a enumeração não exige
+	// reescrever este DTO.
+	body.ForeignTradeDefaults = &ServiceForeignTradeDefaultsBody{MdPrestacao: &invalid}
+	if validation.Struct(body) == nil {
+		t.Error("modo de prestação fora do domínio aceito")
+	}
+}
+
+func TestServiceBody_IssBenefitRequiresExactlyOneReduction(t *testing.T) {
+	value, percent := "100.00", "10.00"
+	for name, benefit := range map[string]*ServiceIssBenefitBody{
+		"sem redução":   {NBM: "12345678901234"},
+		"duas reduções": {NBM: "12345678901234", VRedBCBM: &value, PRedBCBM: &percent},
+	} {
+		body := baseServiceBody()
+		body.Iss.BM = benefit
+		if validation.Struct(body) == nil {
+			t.Errorf("%s: benefício aceito", name)
+		}
+	}
+
+	body := baseServiceBody()
+	body.Iss.BM = &ServiceIssBenefitBody{NBM: "12345678901234", PRedBCBM: &percent}
+	if p := validation.Struct(body); p != nil {
+		t.Fatalf("benefício com uma redução rejeitado: %+v", p)
+	}
+}
+
+func TestServiceBody_IssSuspensionIsAllOrNothing(t *testing.T) {
+	body := baseServiceBody()
+	// nProcesso tem exatamente 30 dígitos no XSD (TSNumProcExigSuspensa).
+	body.Iss.ExigSusp = &ServiceIssSuspensionBody{TpSusp: "1", NProcesso: strings.Repeat("0", 30)}
+	if p := validation.Struct(body); p != nil {
+		t.Fatalf("suspensão completa rejeitada: %+v", p)
+	}
+
+	body.Iss.ExigSusp = &ServiceIssSuspensionBody{TpSusp: "1", NProcesso: "123"}
+	if validation.Struct(body) == nil {
+		t.Error("número de processo curto aceito")
+	}
+}
+
+func TestOperationBody_AcceptsNfseDefaults(t *testing.T) {
+	city, indFinal, tpEnteGov := "2211001", "1", "4"
+	body := OperationBody{
+		Name:     "Serviço prestado a órgão público",
+		DocTypes: []string{"nfse"},
+		Nfse: &OperationNfseBody{
+			CLocPrestacao: &city, IndFinal: &indFinal, TpEnteGov: &tpEnteGov,
+		},
+	}
+	if p := validation.Struct(body); p != nil {
+		t.Fatalf("operação de NFS-e rejeitada: %+v", p)
+	}
+
+	country := "US"
+	body.Nfse.CPaisPrestacao = &country
+	if validation.Struct(body) == nil {
+		t.Error("município e país juntos aceitos na operação")
+	}
+}

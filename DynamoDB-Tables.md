@@ -53,6 +53,8 @@ PITR: enabled in production only.
 | 41 | `organization_insurance_policies` | `{org_pk}`             | `INSURANCE_{uuid}`                       | `name-index`                                       |
 | 42 | `organization_product_lots` | `{org_pk}`                   | `PRODUCTLOT_{uuid}`                      | `name-index`                                       |
 | 43 | `organization_fuel_pumps`   | `{org_pk}`                   | `FUELPUMP_{uuid}`                        | `name-index`                                       |
+| 44 | `organization_service_locations` | `{org_pk}`              | `SERVICELOCATION_{uuid}`                 | `name-index`                                       |
+| 45 | `organization_reference_documents` | `{org_pk}`            | `REFERENCEDOC_{uuid}`                    | `name-index`                                       |
 
 ---
 
@@ -954,3 +956,65 @@ recusada com 400: encerrante é totalizador mecânico, não anda para trás.
 | `n_tanque`       | S    | → `encerrante/nTanque`                                                   |
 | `last_v_enc_fin` | S    | Última leitura final. **Escrito pela emissão**, na transação da nota      |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 44. `organization_service_locations`
+
+Locais de prestação de serviço da NFS-e. Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `SERVICELOCATION_{uuid}`, GSI `name-index`), on-demand, sem TTL.
+
+Os papéis são **combináveis** porque o XSD repete o mesmo endereço em `serv/obra`,
+`serv/atvEvento` e `IBSCBS/imovel`: um canteiro que também é o endereço do imóvel tributado seria
+dois cadastros idênticos se os papéis fossem exclusivos.
+
+`c_obra` e `cib` são mutuamente exclusivos — `serv/obra` é a escolha `cObra|cCIB|end`, e guardar os
+dois deixaria a emissão decidir em silêncio qual ramo gerar. CNO, CIB e inscrição imobiliária são
+registros brasileiros e são recusados num endereço no exterior.
+
+| Attribute        | Type | Notes                                                                    |
+|------------------|------|--------------------------------------------------------------------------|
+| `pk`             | S    | `{org_pk}`                                                               |
+| `sk`             | S    | `SERVICELOCATION_{uuid}`                                                 |
+| `name`           | S    | Nome de uso ("Obra Centro"). GSI: `name-index`                           |
+| `roles`          | L    | `work` / `property` / `event_venue`, combináveis                          |
+| `address`        | M    | Endereço único; nacional (`postal_code` + `city_ibge_code`) ou exterior   |
+| `insc_imob_fisc` | S    | → `inscImobFisc` (até 30)                                                |
+| `c_obra`         | S    | → `serv/obra/cObra` (CNO, até 30). Exclusivo com `cib`                    |
+| `cib`            | S    | → `cCIB` (8 caracteres). Exclusivo com `c_obra`                           |
+| `id_atv_evt`     | S    | → `serv/atvEvento/idAtvEvt`. Nome e período do evento são por emissão      |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                                |
+
+---
+
+## 45. `organization_reference_documents`
+
+Documentos referenciados em dedução/redução (`vDedRed/documentos`) e em reembolso, repasse ou
+ressarcimento (`gReeRepRes/documentos`). Mesma forma dos demais cadastros reutilizáveis
+(`pk` = org, `sk` = `REFERENCEDOC_{uuid}`, GSI `name-index`), on-demand.
+
+**Sem TTL**: o vínculo do documento integra a escrituração. O volume esperado é de poucas dezenas a
+centenas de itens por organização, e o lifecycle do XML continua no bucket existente — nenhum bucket
+novo.
+
+O mesmo cadastro alimenta os dois grupos porque o leiaute pede formas diferentes do mesmo documento
+em cada um; cadastrar duas vezes convidaria a divergência. `kind` decide qual subobjeto é
+**obrigatório**, e os demais têm de estar **ausentes**: com dois preenchidos, a emissão escolheria em
+silêncio qual ramo do `xs:choice` gerar.
+
+| Attribute            | Type | Notes                                                                |
+|----------------------|------|----------------------------------------------------------------------|
+| `pk`                 | S    | `{org_pk}`                                                           |
+| `sk`                 | S    | `REFERENCEDOC_{uuid}`                                                |
+| `name`               | S    | Nome de uso. GSI: `name-index`                                       |
+| `kind`               | S    | `dfe`, `nfse_municipal`, `nf_nfs`, `doc_fiscal_outro`, `doc_nao_fiscal` |
+| `dfe`                | M    | `tipo_chave_dfe` + `chave_dfe` (NFS-e 50 dígitos, NF-e 44)            |
+| `nfse_municipal`     | M    | `TCDocOutNFSe`: município, número e código de verificação             |
+| `nf_nfs`             | M    | `TCDocNFNFS`: número, modelo e série                                  |
+| `doc_fiscal_outro`   | M    | Número; município e descrição só existem em `gReeRepRes`              |
+| `doc_nao_fiscal`     | M    | Número e descrição                                                   |
+| `supplier_person_id` | S    | Fornecedor em `organization_persons`; referência, nunca cópia         |
+| `issued_at`          | S    | → `dtEmiDoc` (AAAA-MM-DD)                                            |
+| `competence_at`      | S    | → `dtCompDoc`. Nunca anterior a `issued_at`                          |
+| `description`        | S    | → `xDescOutDed` / `xTpReeRepRes` (até 150)                            |
+| `created_at` / `updated_at` | S | ISO-8601 UTC                                              |

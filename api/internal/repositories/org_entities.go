@@ -43,6 +43,15 @@ const (
 	// TableFuelPumps guarda bicos, bombas e tanques do posto, mais a última
 	// leitura do encerrante — que a emissão escreve, não o usuário.
 	TableFuelPumps = "organization_fuel_pumps"
+	// TableServiceLocations guarda os locais de prestação de serviço: obra,
+	// imóvel e local de evento. Um mesmo endereço reaparece em várias NFS-e, e
+	// os três papéis compartilham a mesma entidade porque o XSD repete o mesmo
+	// endereço em serv/obra, serv/atvEvento e IBSCBS/imovel.
+	TableServiceLocations = "organization_service_locations"
+	// TableReferenceDocuments guarda os documentos referenciados em dedução,
+	// redução, reembolso, repasse e ressarcimento. O vínculo integra a
+	// escrituração, então o registro não tem TTL.
+	TableReferenceDocuments = "organization_reference_documents"
 
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
@@ -55,6 +64,8 @@ const (
 	SKPrefixInsurance       = "INSURANCE_"
 	SKPrefixProductLot      = "PRODUCTLOT_"
 	SKPrefixFuelPump        = "FUELPUMP_"
+	SKPrefixServiceLocation = "SERVICELOCATION_"
+	SKPrefixReferenceDoc    = "REFERENCEDOC_"
 
 	// OrgEntityNameIndex is the GSI created for every registry table (see
 	// getOrgEntityTable in cdk/lib/dynamodb-stack.ts).
@@ -260,6 +271,20 @@ type InsurancePolicyRepository struct{ OrgEntityRepository }
 
 func NewInsurancePolicyRepository(db *dynamodb.Client, cfg *config.Config) *InsurancePolicyRepository {
 	return &InsurancePolicyRepository{newOrgEntityRepository(db, cfg, TableInsurancePolicies, SKPrefixInsurance)}
+}
+
+// ServiceLocationRepository — organization_service_locations.
+type ServiceLocationRepository struct{ OrgEntityRepository }
+
+func NewServiceLocationRepository(db *dynamodb.Client, cfg *config.Config) *ServiceLocationRepository {
+	return &ServiceLocationRepository{newOrgEntityRepository(db, cfg, TableServiceLocations, SKPrefixServiceLocation)}
+}
+
+// ReferenceDocumentRepository — organization_reference_documents.
+type ReferenceDocumentRepository struct{ OrgEntityRepository }
+
+func NewReferenceDocumentRepository(db *dynamodb.Client, cfg *config.Config) *ReferenceDocumentRepository {
+	return &ReferenceDocumentRepository{newOrgEntityRepository(db, cfg, TableReferenceDocuments, SKPrefixReferenceDoc)}
 }
 
 // OperationRepository — organization_operations. Uma natureza de operação junta

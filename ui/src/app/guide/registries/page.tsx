@@ -121,6 +121,60 @@ export default function GuideCadastros() {
           ),
         },
         {
+          id: 'service-locations',
+          title: 'Locais de prestação',
+          summary:
+            'Obra, imóvel e local de evento no mesmo cadastro — os papéis são combináveis.',
+          image: {
+            src: '/guide/service-locations.webp',
+            alt: 'Lista de locais de prestação com nome, papéis, endereço e município',
+          },
+          body: (
+            <>
+              <p>
+                A NFS-e pede o mesmo endereço em três lugares do leiaute: obra, atividade de evento
+                e imóvel do IBS/CBS. Aqui ele é <b>um cadastro só</b>, com os papéis marcados —
+                um canteiro que também é o imóvel tributado não vira dois registros iguais.
+              </p>
+              <GuideBullets>
+                <li>Informe o código da obra (CNO) <b>ou</b> o CIB, nunca os dois: o leiaute escolhe um dos dois, ou o endereço.</li>
+                <li>Locais no exterior não aceitam CNO, CIB nem inscrição imobiliária — são registros brasileiros.</li>
+                <li>Nome e período do evento mudam a cada nota e continuam sendo pedidos na emissão.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'reference-documents',
+          title: 'Documentos referenciados',
+          summary:
+            'Os documentos citados em dedução, redução, reembolso, repasse e ressarcimento.',
+          image: {
+            src: '/guide/reference-documents.webp',
+            alt: 'Lista de documentos referenciados com nome, tipo, emissão e competência',
+          },
+          body: (
+            <>
+              <p>
+                Escolha a família do documento e o formulário pede só o que aquela família exige:
+                chave de acesso de um DF-e nacional, número e código de verificação de uma NFS-e
+                municipal antiga, número/modelo/série de uma nota não eletrônica, ou o número de um
+                documento fiscal ou não fiscal.
+              </p>
+              <GuideCallout kind="tip" title="Um cadastro, dois grupos do leiaute">
+                O mesmo documento alimenta a dedução/redução e o reembolso/repasse/ressarcimento. O
+                leiaute pede formas diferentes dele em cada grupo — cadastrar duas vezes seria
+                convite à divergência.
+              </GuideCallout>
+              <GuideBullets>
+                <li>A chave de NFS-e tem 50 dígitos e a de NF-e tem 44; o tipo escolhido valida o tamanho.</li>
+                <li>O fornecedor aponta uma pessoa do cadastro — o documento referencia, nunca copia CNPJ e nome.</li>
+                <li>A competência não pode ser anterior à emissão do documento.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
           id: 'vehicles',
           title: 'Veículos e composições',
           summary:

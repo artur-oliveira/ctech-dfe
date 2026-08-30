@@ -329,6 +329,10 @@ go-dfe/nfse/
 - **Seções do gerador:** `python3 go-dfe/nfse/tables/gen/generate.py [countries|trib|nbs|indop|enums]`
   — sem argumento roda tudo. Os anexos e o pacote de XSDs são baixados separadamente para `tmp/`
   (busca recursiva), então rodar só a seção cujo insumo está presente é o modo normal de uso.
+- **Validador genérico de domínio fechado:** `validate:"nfseenum=TSModoPrestacao"`
+  (`api/internal/validation/validators.go`) consulta `tables.IsValidEnum` no catálogo gerado. Evita
+  reescrever a enumeração como `oneof=…` em cada DTO, o que divergiria do XSD na primeira nota
+  técnica. Tipo inexistente reprova sempre — nunca passa em silêncio.
 - **Gate de cobertura da DPS (sem porcentagem manual):**
   `go-dfe/nfse/tables/gen/dps_manifest.py` expande `TCDPS` do `DPS_v1.01.xsd` e grava o inventário
   canônico versionado em `go-dfe/nfse/nacional/testdata/dps_paths_v1.01.json` (caminho, ocorrência,
@@ -1242,8 +1246,24 @@ Três diferenças estruturais em relação aos demais auxiliares, todas nomeadas
    `nfses.danfseState` resolve o estado: cancelada com `substituted_by_access_key` preenchido é
    substituída.
 
+O leiaute segue o modelo oficial da NT, na ordem: cabeçalho (marca, título, município e ambiente);
+chave de acesso com QR e a legenda de autenticidade; PRESTADOR/FORNECEDOR, TOMADOR/ADQUIRENTE,
+DESTINATÁRIO DA OPERAÇÃO e INTERMEDIÁRIO DA OPERAÇÃO (cada parte ausente suprime o quadro inteiro);
+SERVIÇO PRESTADO; TRIBUTAÇÃO MUNICIPAL (ISSQN); TRIBUTAÇÃO FEDERAL (EXCETO CBS); TRIBUTAÇÃO IBS/CBS;
+VALOR TOTAL DA NFS-E; INFORMAÇÕES COMPLEMENTARES; e o canhoto
+(DATA CIENTIFICAÇÃO / IDENTIFICAÇÃO E ASSINATURA / Nº NFS-e / CHAVE), ancorado no pé da folha por um
+absoluto em `top: 274mm` — folio não tem elemento corrido, e a margem de `@page` mantém o fluxo longe
+da faixa. A linha "Gerado por … em …" fecha o rodapé, abaixo do canhoto.
+
+Dois campos não existem prontos em nenhum nó do XML e são derivados, nunca inventados:
+`Total do IBS/CBS` é `vIBSTot + vCBS` (`sumDecimals`) e `VALOR LÍQUIDO DA NFS-e + IBS/CBS` soma esse
+total ao `vLiq`. Já `Município / Sigla UF` das partes da DPS fica vazio quando o XML só traz o código
+IBGE: o nome do município é resolvido pelo fisco e só aparece no emitente.
+
 A face embarcada é a **DejaVu Sans**: Arial/Microsoft Sans Serif exigidas pela NT não são
-redistribuíveis, e depender da fonte instalada na máquina produziria PDF diferente por ambiente.
+redistribuíveis, e depender da fonte instalada na máquina produziria PDF diferente por ambiente. A
+marca do topo é o wordmark textual "NFS-e / Nota Fiscal de Serviço eletrônica" — a logomarca oficial
+ainda não é um asset versionado no repositório e nenhum fetch em runtime é feito.
 
 `GetDANFSE` returns **501** for `provider == abrasf204`: the ABRASF 2.04 layout defines no
 standard DANFSE PDF, so this is a real capability gap in the municipality's standard, not a missing
@@ -1350,6 +1370,8 @@ a mesma tabela por entidade (`pk` = org, `sk` = `{PREFIX}{uuid}`, GSI `name-inde
 | Apólice de seguro | `/v1.0/insurance-policies` | `INSURANCE_` | `organization_insurance_policies` |
 | Lote de produção | `/v1.0/product-lots` | `PRODUCTLOT_` | `organization_product_lots` |
 | Bomba de combustível | `/v1.0/fuel-pumps` | `FUELPUMP_` | `organization_fuel_pumps` |
+| Local de prestação (NFS-e) | `/v1.0/service-locations` | `SERVICELOCATION_` | `organization_service_locations` |
+| Documento referenciado (NFS-e) | `/v1.0/reference-documents` | `REFERENCEDOC_` | `organization_reference_documents` |
 
 Cada uma expõe `GET` (lista, `?name=`/`?cursor=`/`?limit=`), `POST`, `GET /{id}`, `PUT /{id}`,
 `DELETE /{id}`. O `{id}` é aceito com ou sem prefixo.
@@ -2690,6 +2712,71 @@ dedicada já exposta pela API.
 leitura — a API ainda não expõe a ação); IBS/CBS na emissão (o contrato real de `NfseServiceItem`
 (`api/internal/services/nfses/emit.go`) não tem campos de reforma tributária); desconto/dedução na emissão (mesmo
 motivo — `NfseServiceItem` só tem `service_id/description/value/tax_rate/c_trib_mun`).
+
+### Cadastro de serviços (`organization_services`) — subgrupos versionados
+
+O catálogo de serviços ganhou os subgrupos que a emissão de NFS-e consome, todos opcionais e
+validados contra o XSD:
+
+| Subgrupo                 | Conteúdo                                                                 |
+|--------------------------|--------------------------------------------------------------------------|
+| `location_defaults`      | `c_loc_prestacao` **ou** `c_pais_prestacao` — escolha exclusiva (`TCLocPrest`) |
+| `foreign_trade_defaults` | `comExt` sem os campos que nascem na emissão (valor em moeda, DI, RE)     |
+| `iss.exig_susp`          | `tp_susp` + `n_processo` (30 dígitos), obrigatórios juntos                 |
+| `iss.bm`                 | `n_bm` (14 dígitos) + **exatamente uma** redução: valor ou percentual      |
+| `ibs_cbs`                | `ind_final`, `tp_ente_gov`, `c_cred_pres` (2 dígitos), `trib_regular`, `dif` |
+| `requirements`           | `requires_work`, `requires_event`, `allows_deductions`, `allows_reimbursements` |
+
+`requirements` são flags de UX e validação, não campos do XML: a emissão usa para decidir quais
+grupos pedir em vez de mostrar todos sempre.
+
+**Versionamento sem migração destrutiva.** O servidor carimba `schema_version`
+(`ServiceSchemaVersion`, hoje `2`) em toda escrita. Registro anterior aos subgrupos não tem o
+atributo, continua legível e responde `1` — ganha o carimbo na primeira atualização. O `GET` também
+devolve `completeness`, calculado a cada leitura e nunca persistido: por cenário de emissão
+(`prestacao_nacional`, `prestacao_exterior`, `tributacao_federal`, `ibs_cbs`, `compra_governamental`,
+`lei_da_transparencia`), a lista de campos que faltam. Cenário sem pendência vem com lista vazia — a
+chave permanece para o cliente distinguir "sem pendência" de "não avaliado". O serviço só precisa
+dos grupos do cenário que ele realmente atende; exigir tudo de todos tornaria o cadastro impossível
+de preencher.
+
+### Locais de prestação e documentos referenciados (NFS-e)
+
+Dois cadastros novos, pelo mesmo recipe de `OrgEntityService` (`pk` = org, `sk` = `{PREFIX}{uuid}`,
+GSI `name-index`, RBAC, escopo OAuth e rotas CRUD idênticas às demais entidades reutilizáveis).
+
+**`organization_service_locations`** — obra, imóvel e local de evento num cadastro só. Os papéis
+(`work`, `property`, `event_venue`) são **combináveis** porque o XSD repete o mesmo endereço em
+`serv/obra`, `serv/atvEvento` e `IBSCBS/imovel`: um canteiro que também é o endereço do imóvel
+tributado seria dois cadastros idênticos se fossem exclusivos. `c_obra` e `cib` são mutuamente
+exclusivos (`serv/obra` é a escolha `cObra|cCIB|end`), e CNO, CIB e inscrição imobiliária são
+recusados num endereço no exterior — são registros brasileiros.
+
+**`organization_reference_documents`** — união tipada por `kind`
+(`dfe`, `nfse_municipal`, `nf_nfs`, `doc_fiscal_outro`, `doc_nao_fiscal`): o subobjeto da família é
+obrigatório e os demais têm de estar ausentes, senão a emissão escolheria em silêncio qual ramo do
+`xs:choice` gerar. O mesmo cadastro alimenta `vDedRed/documentos` e `gReeRepRes/documentos`, porque o
+leiaute pede formas diferentes do mesmo documento nos dois grupos. `tipo_chave_dfe` e o comprimento
+da chave têm de concordar (NFS-e 50, NF-e 44), e `competence_at` nunca precede `issued_at`. O
+fornecedor aponta `organization_persons` — referência, nunca cópia.
+
+Telas em `/service-locations` e `/reference-documents`, com o formulário mostrando apenas os campos
+da família/escopo escolhidos. Sem TTL em nenhuma das duas: o vínculo do documento integra a
+escrituração.
+
+### NFS-e em `organization_operations`
+
+`doc_types` passou a aceitar `nfse`, e a operação ganhou o subobjeto `nfse` com os defaults do
+cenário: local de prestação (mesma escolha exclusiva), defaults de comércio exterior, pedido e
+documento técnico, percentuais de desconto, finalidade/`tp_oper`/`ind_dest`/ente governamental do
+IBS/CBS e `x_inf_comp` com os mesmos placeholders de `inf_cpl`.
+
+Fica num subobjeto porque quase nada do resto da operação se aplica à NFS-e: a competência é
+municipal e não há CFOP, `tpNF` nem volume. A ordem de resolução na emissão é
+**operação → serviço → request** — o request sempre vence, e o serviço vence a operação, porque o
+serviço descreve a atividade e a operação é só o cenário de negócio. O `is_default` global existente
+vale para NFS-e apenas quando `doc_types` inclui `nfse`: não existe um segundo default implícito, e
+o default dos demais documentos não muda.
 
 ### Status de DF-e no front — vocabulário único
 
