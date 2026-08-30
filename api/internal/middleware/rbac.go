@@ -39,6 +39,18 @@ type PermChecker struct {
 	memberSvc *services.MembershipService
 	roleRepo  *repositories.RoleRepository
 	c         cache.Backend
+	// reach asks ctech-account whether the caller may act for this company.
+	// Optional: nil keeps the pre-unification behaviour, where the product's own
+	// row is the access record. Wiring it is the flip (ctech-billing ADR 0023).
+	reach reachChecker
+}
+
+// WithReach turns on the edge check. Off by default and on by wiring, because
+// this is a live authorization change with no dry run: the only rehearsal
+// available is enabling it and watching one account.
+func (p *PermChecker) WithReach(r reachChecker) *PermChecker {
+	p.reach = r
+	return p
 }
 
 // NewPermChecker constructs a PermChecker with the required dependencies.
@@ -81,10 +93,28 @@ func (p *PermChecker) parseUserOrganizationRole(c fiber.Ctx) (string, *services.
 	}
 	m, err := p.memberSvc.Get(c.Context(), orgPK, userID)
 	if err != nil {
-		return "", nil, problem.Forbidden("Acesso negado")
+		return "", nil, problem.Forbidden(accessDenied)
 	}
+
+	// Reach from the edge, verbs from the row. Before the flip p.reach is nil
+	// and the row is still the access record.
+	if p.reach != nil {
+		m, prob := authorize(c.Context(), p.reach, orgPK, userID, m)
+		if prob != nil {
+			return "", nil, prob
+		}
+		if m == nil {
+			// Reach without a role: nothing to check verbs against.
+			return "", nil, problem.Forbidden(accessDenied)
+		}
+		return orgPK, m, nil
+	}
+
 	if m == nil {
-		return "", nil, problem.Forbidden("Acesso negado a esta organização")
+		// One message with the branch above, not two: "not a member" and
+		// "unknown organization" were distinguishable here, which made the API
+		// a probe for which organizations exist.
+		return "", nil, problem.Forbidden(accessDenied)
 	}
 	return orgPK, m, nil
 }

@@ -50,7 +50,10 @@ type Services struct {
 	// SerieClaims enforces ADR 0022's rule that two companies sharing a CNPJ
 	// must not emit on the same série. A repository rather than a service: the
 	// rule is one conditional write and has nothing else to decide.
-	SerieClaims  *repositories.SerieClaimRepository
+	SerieClaims *repositories.SerieClaimRepository
+	// Reach answers whether a person may act for a company, from ctech-account.
+	// Nil keeps the product's own row as the access record.
+	Reach        *services.ReachService
 	Distribution *services.DistributionService
 	External     *services.ExternalService
 	AuditLog     *services.AuditLogService
@@ -64,6 +67,12 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechIssuerURL, cacheBackend)
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
+	// The flip. Off unless ctech-account issued this service a credential:
+	// reach is an authorization check, and an unconfigured one must leave the
+	// previous behaviour in place rather than refuse everybody.
+	if svcs.Reach != nil {
+		perm = perm.WithReach(svcs.Reach)
+	}
 
 	RegisterDocs(app)
 	oauthresource.Register(app, cfg.ServiceAudience, cfg.CtechIssuerURL)

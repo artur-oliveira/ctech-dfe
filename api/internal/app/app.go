@@ -13,6 +13,7 @@ import (
 	"gopkg.aoctech.app/api-commons/cache"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
 	"gopkg.aoctech.app/api-commons/ws"
+	"gopkg.aoctech.app/dfe/api/internal/accountclient"
 	apiv1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
@@ -89,6 +90,7 @@ var Module = fx.Options(
 		services.NewMembershipService,
 		services.NewInvitationService,
 		newBillingClient,
+		newReachService,
 		services.NewBillingService,
 		newCertificateService,
 		newProductService,
@@ -538,6 +540,7 @@ type Services struct {
 	MdfeConf        *services.MdfeConfigService
 	NfseConf        *services.NfseConfigService
 	SerieClaims     *repositories.SerieClaimRepository
+	ReachSvc        *services.ReachService
 	DistSvc         *services.DistributionService
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
@@ -581,6 +584,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		MdfeConfig:      svcs.MdfeConf,
 		NfseConfig:      svcs.NfseConf,
 		SerieClaims:     svcs.SerieClaims,
+		Reach:           svcs.ReachSvc,
 		Distribution:    svcs.DistSvc,
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,
@@ -646,6 +650,35 @@ func errorHandler(c fiber.Ctx, err error) error {
 // separately. It is ctech-account's, this service already holds that base URL
 // for userinfo, and a second env var naming the same host is a second thing that
 // can point somewhere else.
+// newReachService builds the reach check, or nil when ctech-account has not
+// issued this service a credential for it.
+//
+// Nil means OFF: the product's own membership row stays the access record, which
+// is the pre-flip behaviour. That default is deliberate — turning reach on is a
+// live authorization change with no dry run, and an unconfigured deployment must
+// leave the previous behaviour in place rather than refuse everybody.
+//
+// The token endpoint is derived from CTECH_URL, like billing's, for the same
+// reason: a second env var naming the same host is a second thing that can point
+// somewhere else.
+func newReachService(cfg *config.Config, c cache.Backend) *services.ReachService {
+	client := accountclient.New(accountclient.Config{
+		BaseURL:      cfg.CtechURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.AccountClientID,
+		ClientSecret: cfg.AccountClientSecret,
+		Cache:        c,
+	})
+	if client == nil {
+		slog.Warn("the ctech-account reach check is not configured — the product's own membership row remains the access record",
+			"account_client_id_set", cfg.AccountClientID != "",
+			"account_client_secret_set", cfg.AccountClientSecret != "")
+		return nil
+	}
+	slog.Info("the ctech-account reach check is ON — a membership row with no company edge grants nothing")
+	return services.NewReachService(client, c)
+}
+
 func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client {
 	client := billingclient.New(billingclient.Config{
 		BaseURL:      cfg.BillingAPIURL,

@@ -56,6 +56,18 @@ type Config struct {
 	// at another client and every call is a 403, not a wrong tenant.
 	BillingClientID     string `env:"BILLING_CLIENT_ID"`
 	BillingClientSecret string `env:"BILLING_CLIENT_SECRET"`
+	// AccountClientID/Secret are the client-credentials client ctech-account
+	// issued for the reach check — whether a person may act for a company
+	// (ctech-billing ADR 0023). Separate from the billing credentials because
+	// they carry a different scope and one being wrong must not disable the
+	// other.
+	//
+	// Absent means the reach check is OFF and the product's own membership row
+	// is still the access record. That is the pre-flip state, and it is a
+	// deliberate default: turning this on is a live authorization change.
+	AccountClientID     string `env:"ACCOUNT_CLIENT_ID"`
+	AccountClientSecret string `env:"ACCOUNT_CLIENT_SECRET"`
+
 	// BillingWebhookSecret verifies billing's outbound deliveries. It is separate
 	// from the client credentials because it authenticates the opposite
 	// direction, and holding one says nothing about holding the other.
