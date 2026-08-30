@@ -391,7 +391,7 @@ components:
         provider_person_id:
           type: [ string, 'null' ]
           description: Prestador do cadastro — exigido quando `tp_emit` não é `1`.
-        customer_id: { type: [ string, 'null' ], description: Tomador do cadastro. }
+        customer_id: { type: [ string, 'null' ], description: Tomador do cadastro; aceita o UUID ou CPF/CNPJ da própria organização. }
         intermediary_id: { type: [ string, 'null' ], description: Intermediário do cadastro. }
         service: { $ref: '#/components/schemas/NfseServiceItem' }
         substitutes_access_key:

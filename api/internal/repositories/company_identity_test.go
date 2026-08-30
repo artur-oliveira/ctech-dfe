@@ -29,6 +29,15 @@ func TestCompanyFromItemReadsTheIdentity(t *testing.T) {
 	}
 }
 
+func TestCompanyFromItemReadsCanonicalCompatibilityAlias(t *testing.T) {
+	got := CompanyFromItem("01900000-0000-7000-8000-000000000001", map[string]types.AttributeValue{
+		AttrCpfOrCNPJ: &types.AttributeValueMemberS{Value: "12.abc.345/01de-35"},
+	})
+	if got.TaxID != "12ABC34501DE35" {
+		t.Errorf("TaxID = %q, want canonical compatibility alias", got.TaxID)
+	}
+}
+
 // A record that predates the migration reads as empty, not as garbage. The
 // callers fall back to the legacy key, and a half-read record would make that
 // fallback unreachable.

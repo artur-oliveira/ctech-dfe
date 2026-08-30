@@ -27,6 +27,9 @@ export interface MeResponse {
 
 export interface UserOrganization {
   pk: string
+  tax_id?: string | null
+  tax_id_kind?: 'cnpj' | 'cpf' | null
+  cpf_or_cnpj?: string | null
   name: string
   description: string | null
   role: string
@@ -201,6 +204,8 @@ export interface OrganizationOut {
    */
   tax_id?: string
   tax_id_kind?: 'cnpj' | 'cpf'
+  /** Compatibility alias returned by organization records during the re-key. */
+  cpf_or_cnpj?: string
   name: string
   description: string
   /**
@@ -855,6 +860,8 @@ export interface PersonBank {
 export interface PersonItemOut {
   pk: string
   sk: string
+  /** Presentation-only document when `sk` is an internal organization id. */
+  cpf_or_cnpj?: string
   name: string
   /** Papéis de cadastro (cliente/fornecedor/transportadora/condutor/prestador).
    *  Ausente em pessoas cadastradas antes dos papéis existirem. */

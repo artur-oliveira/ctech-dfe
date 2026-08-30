@@ -41,11 +41,13 @@ const (
 
 	// organization_persons table — counterparties (suppliers/customers) persisted
 	// from received documents to speed up future issuances.
-	personsTableSuffix = "organization_persons"
-	personSKCNPJ       = "CNPJ_"
-	personSKCPF        = "CPF_"
-	cnpjDigits         = 14
-	cpfDigits          = 11
+	personsTableSuffix         = "organization_persons"
+	personSKCNPJ               = "CNPJ_"
+	personSKCPF                = "CPF_"
+	cnpjDigits                 = 14
+	cpfDigits                  = 11
+	organizationTaxIDAttr      = "tax_id"
+	organizationTaxIDAliasAttr = "cpf_or_cnpj"
 )
 
 // docTypeConfig mirrors _DOC_TYPE_CONFIG from distribution.py.
@@ -243,7 +245,10 @@ func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, 
 		return nil
 	}
 
-	cnpj := extractCNPJ(orgPK)
+	_, cnpj, err := s.loadOrgIdentity(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	class, ok := classifyImportXML(root, cnpj)
 	if !ok {
 		s.notifyImportFailure(ctx, orgPK, docType, class.AccessKey, "XML não pertence à organização")
@@ -448,9 +453,10 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 		return nil
 	}
 
-	org, _ := s.loadOrg(ctx, orgPK)
-
-	cnpj := extractCNPJ(orgPK)
+	org, cnpj, err := s.loadOrgIdentity(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	environment := attrN(cfg, "environment", 2)
 	uf := extractUF(org)
 	sefazEnv := sefazEnvHom
@@ -583,8 +589,10 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 	if err != nil || cert == nil {
 		return nil
 	}
-	org, _ := s.loadOrg(ctx, orgPK)
-	cnpj := extractCNPJ(orgPK)
+	org, cnpj, err := s.loadOrgIdentity(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	environment := attrN(cfg, "environment", 2)
 	uf := extractUF(org)
 	sefazEnv := sefazEnvHom
@@ -651,8 +659,10 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 	if err != nil || cert == nil {
 		return nil
 	}
-	org, _ := s.loadOrg(ctx, orgPK)
-	cnpj := extractCNPJ(orgPK)
+	org, cnpj, err := s.loadOrgIdentity(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	uf := extractUF(org)
 	sefazEnv := sefazEnvHom
 	if environment == 1 {
@@ -1370,6 +1380,18 @@ func (s *DistributionService) loadOrg(ctx context.Context, orgPK string) (map[st
 	return out.Item, nil
 }
 
+func (s *DistributionService) loadOrgIdentity(ctx context.Context, orgPK string) (map[string]types.AttributeValue, string, error) {
+	org, err := s.loadOrg(ctx, orgPK)
+	if err != nil {
+		return nil, "", fmt.Errorf("load organization identity: %w", err)
+	}
+	taxID := organizationTaxID(org, orgPK)
+	if taxID == "" {
+		return nil, "", fmt.Errorf("organization tax id not found: %s", orgPK)
+	}
+	return org, taxID, nil
+}
+
 func (s *DistributionService) getCertB64(ctx context.Context, s3Key string) (string, error) {
 	if cached, ok := certCache.get(s3Key); ok {
 		return cached, nil
@@ -1500,11 +1522,32 @@ func buildPersonSK(digits string) (string, bool) {
 	return "", false
 }
 
-func extractCNPJ(orgPK string) string {
-	if idx := strings.Index(orgPK, "_"); idx >= 0 {
-		return orgPK[idx+1:]
+func organizationTaxID(org map[string]types.AttributeValue, orgPK string) string {
+	if taxID := attrS(org, organizationTaxIDAttr); taxID != "" {
+		return canonicalTaxID(taxID)
 	}
-	return orgPK
+	if taxID := attrS(org, organizationTaxIDAliasAttr); taxID != "" {
+		return canonicalTaxID(taxID)
+	}
+	for _, prefix := range []string{personSKCNPJ, personSKCPF} {
+		if taxID, ok := strings.CutPrefix(orgPK, prefix); ok {
+			return canonicalTaxID(taxID)
+		}
+	}
+	return ""
+}
+
+func canonicalTaxID(raw string) string {
+	var canonical strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z':
+			canonical.WriteRune(r)
+		case r >= 'a' && r <= 'z':
+			canonical.WriteRune(r - 'a' + 'A')
+		}
+	}
+	return canonical.String()
 }
 
 func extractUF(org map[string]types.AttributeValue) string {

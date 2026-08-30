@@ -139,7 +139,10 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 	}
 	certPassword := attrS(cert, "password")
 
-	cnpj := extractCNPJ(orgPK)
+	_, cnpj, err := s.loadOrgIdentity(ctx, orgPK)
+	if err != nil {
+		return err
+	}
 	sefazEnv, envPrefix := sefazEnvHom, envHom
 	if attrN(cfg, "environment", 2) == 1 {
 		sefazEnv, envPrefix = sefazEnvProd, envProd

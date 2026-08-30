@@ -172,7 +172,12 @@ const (
 // loudly, where somebody can still see it.
 func IssuerDoc(taxID, taxIDKind, orgPK string) (string, bool) {
 	if taxID != "" {
-		return taxID, taxIDKind == repositories.TaxKindCNPJ
+		taxID = repositories.CanonicalTaxID(taxID)
+		isPJ := taxIDKind == repositories.TaxKindCNPJ
+		if taxIDKind == "" {
+			isPJ = len(taxID) == repositories.CNPJLength
+		}
+		return taxID, isPJ
 	}
 	if after, ok := strings.CutPrefix(orgPK, TagCNPJ+"_"); ok {
 		return after, true
@@ -188,11 +193,19 @@ func IssuerDoc(taxID, taxIDKind, orgPK string) (string, bool) {
 // unmarshalled map in the XML builders. Two adapters over one rule, rather than
 // a conversion at each of the twenty-odd call sites.
 func IssuerDocAV(org map[string]types.AttributeValue, orgPK string) (string, bool) {
-	return IssuerDoc(avAttr(org, repositories.AttrTaxID), avAttr(org, repositories.AttrTaxIDKind), orgPK)
+	taxID := avAttr(org, repositories.AttrTaxID)
+	if taxID == "" {
+		taxID = avAttr(org, repositories.AttrCpfOrCNPJ)
+	}
+	return IssuerDoc(taxID, avAttr(org, repositories.AttrTaxIDKind), orgPK)
 }
 
 func IssuerDocMap(org map[string]any, orgPK string) (string, bool) {
-	return IssuerDoc(mapAttr(org, repositories.AttrTaxID), mapAttr(org, repositories.AttrTaxIDKind), orgPK)
+	taxID := mapAttr(org, repositories.AttrTaxID)
+	if taxID == "" {
+		taxID = mapAttr(org, repositories.AttrCpfOrCNPJ)
+	}
+	return IssuerDoc(taxID, mapAttr(org, repositories.AttrTaxIDKind), orgPK)
 }
 
 // IssuerDocTag returns the XSD element name for the issuer's document

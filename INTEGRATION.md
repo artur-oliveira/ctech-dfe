@@ -191,6 +191,11 @@ Every API call to api that requires an org scope sends the `Dfe-Organization-Pk`
 If the user belongs to only one org, it is auto-selected on login. If multiple orgs exist, the stored org is
 re-validated against the current `GET /auth/me` response.
 
+`organizations[].pk` is a company UUIDv7 and is used only as the tenant/reference identifier. For display and fiscal
+forms, the UI reads `tax_id`, then the compatibility alias `cpf_or_cnpj`; only legacy `CNPJ_...`/`CPF_...` keys may be
+used as a final fallback. Shared document formatters deliberately leave UUIDs untouched so an internal key cannot be
+mislabelled as CPF/CNPJ.
+
 ---
 
 ## WebSocket (real-time updates)

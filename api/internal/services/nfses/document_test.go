@@ -24,7 +24,9 @@ func minimalInput() documentInput {
 	// Mesma forma que organizations/organization_persons gravam: identidade na
 	// raiz, endereços/contatos/grupo nfse dentro de `person`.
 	org := map[string]types.AttributeValue{
-		"pk":          &types.AttributeValueMemberS{Value: "CNPJ_11222333000181"},
+		"pk":          &types.AttributeValueMemberS{Value: "01900000-0000-7000-8000-000000000001"},
+		"tax_id":      &types.AttributeValueMemberS{Value: "11222333000181"},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: "cnpj"},
 		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: "11222333000181"},
 		"name":        &types.AttributeValueMemberS{Value: "Prestador LTDA"},
 		"person": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
@@ -96,6 +98,16 @@ func minimalInput() documentInput {
 				ServiceID: "SERVICE_x",
 			},
 		},
+	}
+}
+
+func TestPersonDocNeverReturnsOrganizationCompanyID(t *testing.T) {
+	item := attrs(map[string]string{
+		"pk":          "01900000-0000-7000-8000-000000000001",
+		"cpf_or_cnpj": "11.222.333/0001-81",
+	})
+	if got := personDoc(item); got != "11222333000181" {
+		t.Errorf("personDoc = %q, esperado documento da organização", got)
 	}
 }
 

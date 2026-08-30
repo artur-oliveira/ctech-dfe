@@ -536,11 +536,15 @@ components:
 
     Organization:
       type: object
-      description: Organização emitente.
+      description: Organização emitente. `pk` é o UUIDv7 da empresa; documento fiscal vem de `tax_id`.
       additionalProperties: true
       properties:
-        pk: { type: string }
+        pk: { type: string, format: uuid, description: Identificador estável da empresa; não é CPF/CNPJ. }
         sk: { type: string }
+        organization_id: { type: string, format: uuid }
+        tax_id: { $ref: '#/components/schemas/CpfCnpj' }
+        tax_id_kind: { type: string, enum: [ cnpj, cpf ] }
+        cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj', description: Alias de compatibilidade de `tax_id`. }
         name: { type: string }
         description: { type: [ string, 'null' ] }
         person: { $ref: '#/components/schemas/PersonObjectBody' }

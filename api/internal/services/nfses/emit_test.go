@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
@@ -101,3 +102,23 @@ func TestEmit_RejectsAbrasfWithoutEndpoint(t *testing.T) {
 		t.Fatalf("esperado erro de config ABRASF incompleta, veio: %v", err)
 	}
 }
+
+func TestResolvePersonAcceptsOrganizationCompanyID(t *testing.T) {
+	const companyID = "01a04fc3-b6f7-7bb9-8cfe-6e19b66019f6"
+	org := map[string]types.AttributeValue{
+		"pk":          &types.AttributeValueMemberS{Value: companyID},
+		"tax_id":      &types.AttributeValueMemberS{Value: "11222333000181"},
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: "11222333000181"},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: "cnpj"},
+	}
+
+	got, err := (&NfseService{}).resolvePerson(t.Context(), companyID, stringPointer(companyID), org)
+	if err != nil {
+		t.Fatalf("resolvePerson: %v", err)
+	}
+	if got["pk"] != org["pk"] {
+		t.Fatal("company id did not resolve to the organization item")
+	}
+}
+
+func stringPointer(value string) *string { return &value }

@@ -10,7 +10,7 @@ import {Button} from '@/components/ui/button'
 import {Modal} from '@/components/ui/modal'
 import {PersonForm} from '@/components/persons/PersonForm'
 import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+import {formatCpfCnpj, personTaxId} from '@/lib/utils/document'
 import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
 
 /** Mínimo de caracteres antes de consultar a API. Não é preferência de UX: a
@@ -107,7 +107,7 @@ export function PersonPicker({
   }
 
   if (value) {
-    const cpfCnpj = unformatCpfCnpj(value.sk)
+    const cpfCnpj = personTaxId(value)
     return (
       <div className="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3">
         <div className="flex-1 min-w-0">
@@ -226,7 +226,7 @@ export function PersonPicker({
                   className="block min-h-11 w-full text-left px-4 py-2 text-sm hover:bg-gray-50 aria-selected:bg-brand-50"
                 >
                   <span className="font-medium text-gray-900">{p.name}</span>
-                  <span className="ml-2 text-xs text-gray-400 font-mono">{formatCpfCnpj(unformatCpfCnpj(p.sk))}</span>
+                  <span className="ml-2 text-xs text-gray-400 font-mono">{formatCpfCnpj(personTaxId(p))}</span>
                 </button>
               ))
             )}

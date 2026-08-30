@@ -121,24 +121,28 @@ export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; `Fron
 | Table                       | PK                       | SK               |
 |-----------------------------|--------------------------|------------------|
 | users                       | USER_{uuid}              | —                |
-| organizations               | CNPJ_{cnpj} or CPF_{cpf} | —                |
+| organizations               | company UUIDv7           | —                |
 | organization_users          | {org_pk}                 | USER_{sub}       |
 | organization_invitations    | INVITE_{sha256(token)}   | —                |
 | organization_products       | {org_pk}                 | PRODUCT_{uuid}   |
 | organization_vehicles       | {org_pk}                 | VEHICLE_{id}     |
 | organization_persons        | {cpf_cnpj}               | PERSON_{id}      |
 | organization_certificates   | {org_pk}                 | CERT_{timestamp} |
-| nfes / nfces / ctes / mdfes | {env}#{CNPJ}             | {access_key}     |
+| nfes / nfces / ctes / mdfes | {env}#{org_pk}            | {access_key}     |
 | nfe_events / ...            | {access_key}             | {ulid}         |
 | organization_nfe_configs    | {org_pk}                 | —                |
 | organization_services       | {org_pk}                 | SERVICE_{uuid}   |
 | organization_nfse_configs   | {org_pk}                 | —                |
-| nfses                       | {env}#{CNPJ}             | id_dps           |
+| nfses                       | {env}#{org_pk}            | id_dps           |
 | nfse_events                 | {id_dps}                 | {ulid}         |
 | organization_tax_profiles   | {org_pk}                 | TAXPROFILE_{uuid}  |
 | organization_operations     | {org_pk}                 | OPERATION_{uuid}   |
 | organization_payment_terms  | {org_pk}                 | PAYMENTTERM_{uuid} |
 | organization_vehicle_sets   | {org_pk}                 | VEHICLESET_{uuid}  |
+
+Organization identity is intentionally split: `pk` is the stable company UUIDv7 used for tenancy and references;
+`tax_id` is the canonical fiscal document, with `cpf_or_cnpj` accepted as a compatibility alias while older records
+are migrated. User-facing surfaces and fiscal XML must never derive a CPF/CNPJ from `pk`.
 
 **S3:**
 

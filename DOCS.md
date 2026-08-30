@@ -520,6 +520,11 @@ Profile and password management are handled by ctech-account directly.
 
 #### Organizations
 
+Organization identity has two separate fields: `{pk}` and `Dfe-Organization-Pk` carry the stable company UUIDv7;
+`tax_id` carries the canonical CPF/CNPJ used in fiscal documents and UI. `cpf_or_cnpj` is accepted as a compatibility
+alias for records written before/during the re-key. Consumers must prefer `tax_id`, fall back to `cpf_or_cnpj`, and
+only fall back to a legacy `CNPJ_...`/`CPF_...` key. A UUID must never be formatted or emitted as a tax document.
+
 | Method | Endpoint                                      | Description           |
 |--------|-----------------------------------------------|-----------------------|
 | POST   | `/v1.0/organizations`                         | Create organization (**multipart** — KYC, see below) |
@@ -561,13 +566,19 @@ profissionais`}`), and `foreign_address` for a prestador/tomador without a natio
 optional at cadastro; required only when this person/org is used as prestador in a DPS emission
 (F2+), enforced at emission time, not here.
 
+On NFS-e issuance, `provider_person_id`, `customer_id`, and `intermediary_id` normally identify rows in
+`organization_persons`. When one of them names the issuing company itself, the API accepts either the company UUIDv7
+or its canonical CPF/CNPJ and resolves it to the organization item. This permits the organization to be its own
+tomador/intermediary without duplicating it in the persons table.
+
 `im` e `reg_trib` são editáveis na UI (bloco **NFS-e** do formulário de pessoa/organização,
 `EntityForm.tsx`); `caepf`, `nif`, `c_nao_nif` e `foreign_address` continuam só na API.
 
-**Forma do item de cadastro.** `organizations` e `organization_persons` gravam o DTO como veio da
-API: identidade (`name`, `cpf_or_cnpj`) na raiz e `addresses`, `contacts` e `nfse` **dentro de
-`person`**. Todo builder de DFe lê nesse formato (`getPersonMap` na NF-e, `nfseGroup`/`personDoc`
-em `services/nfses/document.go`) — nunca na raiz do item.
+**Forma do item de cadastro.** `organizations` grava a identidade da empresa (`name`, `tax_id`,
+`tax_id_kind`, com `cpf_or_cnpj` como alias de compatibilidade) na raiz; `organization_persons` grava
+`name`/`cpf_or_cnpj` na raiz. Nos dois casos, `addresses`, `contacts` e `nfse` ficam **dentro de `person`**.
+Todo builder de DFe lê nesse formato (`getPersonMap` na NF-e, `nfseGroup`/`personDoc` em
+`services/nfses/document.go`) — nunca deriva documento da PK da organização.
 
 #### Members & invitations
 
@@ -2959,7 +2970,8 @@ cdk destroy --all  # Deletes EVERYTHING including data in dev/staging with DESTR
 
 ### Key Conventions
 
-- `PK`: `USER_{uuid}`, `CNPJ_{cnpj}`, `CPF_{cpf}`, `{org_pk}`, `{access_key}`
+- `PK`: `USER_{uuid}`, company UUIDv7 (`organizations`), `CNPJ_{cnpj}`/`CPF_{cpf}` (person SKs and legacy
+  organization rows), `{org_pk}`, `{access_key}`
 - `SK` for documents: 44-digit access key
 - `SK` for events: `{ulid}` (time-sortable)
 - `SK` for products: `PRODUCT_{uuid}`

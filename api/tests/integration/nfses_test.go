@@ -47,8 +47,14 @@ func problemType(err error) string {
 // grupo `nfse` (reg_trib) não faz parte da superfície CRUD dos serviços.
 func seedNfseOrg(t *testing.T, withRegTrib bool) (orgPK, serviceID string) {
 	t.Helper()
+	taxID := randomCNPJ()
+	orgPK = "CNPJ_" + taxID
+	return orgPK, seedNfseOrgAt(t, orgPK, taxID, withRegTrib)
+}
+
+func seedNfseOrgAt(t *testing.T, orgPK, taxID string, withRegTrib bool) (serviceID string) {
+	t.Helper()
 	ctx := context.Background()
-	orgPK = "CNPJ_" + randomCNPJ()
 
 	person := map[string]types.AttributeValue{
 		"addresses": &types.AttributeValueMemberL{Value: []types.AttributeValue{
@@ -73,7 +79,9 @@ func seedNfseOrg(t *testing.T, withRegTrib bool) (orgPK, serviceID string) {
 	org := map[string]types.AttributeValue{
 		"pk":          &types.AttributeValueMemberS{Value: orgPK},
 		"name":        &types.AttributeValueMemberS{Value: "Prestador Teste LTDA"},
-		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: services.StripPKPrefix(orgPK)},
+		"tax_id":      &types.AttributeValueMemberS{Value: taxID},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: repositories.TaxKindCNPJ},
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: taxID},
 		"person":      &types.AttributeValueMemberM{Value: person},
 	}
 	putItem(t, tablePrefix+"_organizations", org)
@@ -110,7 +118,7 @@ func seedNfseOrg(t *testing.T, withRegTrib bool) (orgPK, serviceID string) {
 	if err != nil {
 		t.Fatalf("Create service: %v", err)
 	}
-	return orgPK, svc["sk"].(*types.AttributeValueMemberS).Value
+	return svc["sk"].(*types.AttributeValueMemberS).Value
 }
 
 func putItem(t *testing.T, table string, item map[string]types.AttributeValue) {
@@ -246,6 +254,24 @@ func TestNfse(t *testing.T) {
 		}
 		if got := item["dest_cpf_cnpj"].(*types.AttributeValueMemberS).Value; got != services.StripPKPrefix(orgPK) {
 			t.Errorf("dest_cpf_cnpj = %s, esperado %s", got, services.StripPKPrefix(orgPK))
+		}
+	})
+
+	t.Run("EmitAceitaUUIDDaPropriaEmpresaComoTomadora", func(t *testing.T) {
+		const companyID = "01900000-0000-7000-8000-000000000001"
+		taxID := randomCNPJ()
+		serviceID := seedNfseOrgAt(t, companyID, taxID, true)
+
+		body := emitBody(serviceID)
+		customerID := companyID
+		body.CustomerID = &customerID
+
+		item, err := nfseSvc.Emit(ctx, companyID, body, testUserID, testUserName)
+		if err != nil {
+			t.Fatalf("Emit: %v", err)
+		}
+		if got := item["dest_cpf_cnpj"].(*types.AttributeValueMemberS).Value; got != taxID {
+			t.Errorf("dest_cpf_cnpj = %s, esperado %s", got, taxID)
 		}
 	})
 

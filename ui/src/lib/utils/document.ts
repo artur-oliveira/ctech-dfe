@@ -37,7 +37,12 @@ export const docLabel = (pk: string): string => {
 }
 
 /** What an organization's document reader needs. */
-type OrgLike = {pk: string; tax_id?: string; tax_id_kind?: 'cnpj' | 'cpf'}
+type OrgLike = {
+  pk: string
+  tax_id?: string | null
+  tax_id_kind?: 'cnpj' | 'cpf' | null
+  cpf_or_cnpj?: string | null
+}
 
 /**
  * An organization's tax id, from the record and never from the key.
@@ -52,6 +57,7 @@ type OrgLike = {pk: string; tax_id?: string; tax_id_kind?: 'cnpj' | 'cpf'}
  */
 export const orgTaxId = (org: OrgLike): string => {
   if (org.tax_id) return org.tax_id
+  if (org.cpf_or_cnpj) return unformatCpfCnpj(org.cpf_or_cnpj)
   if (isCompanyKey(org.pk)) return ''
   return unformatCpfCnpj(org.pk)
 }
@@ -59,5 +65,11 @@ export const orgTaxId = (org: OrgLike): string => {
 /** Whether the organization issues as a legal person. Same fallback as above. */
 export const orgIsPJ = (org: OrgLike): boolean => {
   if (org.tax_id_kind) return org.tax_id_kind === 'cnpj'
-  return org.pk.startsWith('CNPJ_')
+  return orgTaxId(org).length === 14
 }
+
+type PersonLike = {sk: string; cpf_or_cnpj?: string | null}
+
+/** A person's display document without confusing an organization UUID for one. */
+export const personTaxId = (person: PersonLike): string =>
+  person.cpf_or_cnpj ? unformatCpfCnpj(person.cpf_or_cnpj) : unformatCpfCnpj(person.sk)

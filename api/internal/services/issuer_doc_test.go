@@ -17,6 +17,20 @@ func TestIssuerDocReadsTheRecord(t *testing.T) {
 	}
 }
 
+func TestIssuerDocReadsCpfOrCnpjCompatibilityAlias(t *testing.T) {
+	av := map[string]types.AttributeValue{
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: "11.222.333/0001-81"},
+	}
+	plain := map[string]any{"cpf_or_cnpj": "11.222.333/0001-81"}
+
+	if doc, isPJ := IssuerDocAV(av, testCompanyKey); doc != "11222333000181" || !isPJ {
+		t.Errorf("IssuerDocAV compatibility alias = %q/%v", doc, isPJ)
+	}
+	if doc, isPJ := IssuerDocMap(plain, testCompanyKey); doc != "11222333000181" || !isPJ {
+		t.Errorf("IssuerDocMap compatibility alias = %q/%v", doc, isPJ)
+	}
+}
+
 // A natural-person issuer — produtor rural, MEI pessoa física — must pick the
 // CPF tag. Emitting them as CNPJ is what SEFAZ rejects.
 func TestIssuerDocKeepsANaturalPersonNatural(t *testing.T) {

@@ -335,6 +335,9 @@ func (s *NfseService) resolvePerson(ctx context.Context, orgPK string, id *strin
 	if id == nil {
 		return nil, nil
 	}
+	if *id == orgPK {
+		return orgItem, nil
+	}
 	// The left side is a person's sort key, which really is a document. The
 	// right side is the issuer's, which the key no longer carries.
 	issuerDoc, _ := services.IssuerDocAV(orgItem, orgPK)

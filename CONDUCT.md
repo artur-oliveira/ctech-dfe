@@ -173,6 +173,15 @@ Nenhum campo novo foi acrescentado ao `WorkerMessage`, porque o campo já signif
 todos os tipos. Em NFS-e essa SK é o `id_dps`. `updateClaimedDocument` depende disso; trocar por `out.AccessKey`
 produziria um item órfão.
 
+## PK de organização não é documento fiscal
+
+Depois do re-key do ctech-account, `organizations.pk` é o UUIDv7 estável da empresa. CPF/CNPJ vem de `tax_id`, com
+fallback temporário para `cpf_or_cnpj` e, apenas em linhas legadas, para a chave `CNPJ_...`/`CPF_...`. Frontend,
+builders fiscais e mensagens ao worker nunca devem formatar, exibir ou inserir a PK em XML como documento. Em NFS-e,
+os campos de participante aceitam tanto o UUID da própria empresa quanto seu CPF/CNPJ, mas ambos resolvem para o mesmo
+item da organização; não crie uma cópia em `organization_persons`. A distribuição no worker carrega `tax_id` (ou
+`cpf_or_cnpj`) da tabela `organizations`; nunca recupere o CNPJ separando `org_pk`.
+
 ## `DocFields.Incoming == 0` é ambíguo — sempre setar `IncomingSet` junto
 
 `Incoming == 0` significa tanto "não informado" (todo caller pré-existente, tratado como `1`/destinada por

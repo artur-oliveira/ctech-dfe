@@ -137,7 +137,9 @@ func nfseDistResp(items []map[string]any) []byte {
 }
 
 func TestRunNfseDistNSU_PersisteLoteEAvancaCursor(t *testing.T) {
-	dynm := &mockDistDynamo{gets: []getResult{{item: nfseConfigItem("nacional", 10)}}}
+	dynm := &mockDistDynamo{gets: []getResult{
+		{item: nfseConfigItem("nacional", 10)}, {item: orgItemWithUF("SP")},
+	}}
 	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
 	s3m := certS3()
 	lamm := &mockLambda{payloads: [][]byte{
@@ -224,7 +226,9 @@ func TestRunNfseDistNSU_ProviderAbrasf_NoOp(t *testing.T) {
 // error so the cycle aborts before writing the distribution record or
 // moving the cursor; the next cycle retries the same NSU.
 func TestRunNfseDistNSU_S3UploadFailure_DoesNotAdvanceCursor(t *testing.T) {
-	dynm := &mockDistDynamo{gets: []getResult{{item: nfseConfigItem("nacional", 10)}}}
+	dynm := &mockDistDynamo{gets: []getResult{
+		{item: nfseConfigItem("nacional", 10)}, {item: orgItemWithUF("SP")},
+	}}
 	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
 	s3m := certS3()
 	s3m.putErr = errors.New("s3 unavailable")
@@ -258,7 +262,9 @@ func TestRunNfseDistNSU_S3UploadFailure_DoesNotAdvanceCursor(t *testing.T) {
 // persisted cursor silently stayed behind.
 func TestRunNfseDistNSU_UpdateNSUFailure_Propagates(t *testing.T) {
 	dynm := &mockDistDynamo{
-		gets:       []getResult{{item: nfseConfigItem("nacional", 10)}},
+		gets: []getResult{
+			{item: nfseConfigItem("nacional", 10)}, {item: orgItemWithUF("SP")},
+		},
 		updateErrs: []error{nil, errors.New("dynamodb unavailable")}, // [0]=claim ok, [1]=cursor update fails
 	}
 	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
@@ -299,7 +305,9 @@ func TestRunNfseDistNSU_RealInProcessPath(t *testing.T) {
 		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
 	}
 
-	dynm := &mockDistDynamo{gets: []getResult{{item: nfseConfigItem("nacional", 10)}}}
+	dynm := &mockDistDynamo{gets: []getResult{
+		{item: nfseConfigItem("nacional", 10)}, {item: orgItemWithUF("SP")},
+	}}
 	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
 	lam := &mockLambda{}
 	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)

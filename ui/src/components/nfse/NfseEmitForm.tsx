@@ -29,7 +29,7 @@ import {NfseServicePicker} from '@/components/nfse/NfseServicePicker'
 import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse'
 import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api'
 import {NFSE_SUBSTITUTION_MOTIVES, NFSE_THIRD_PARTY_MOTIVES} from '@/lib/data/nfse_motives'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+import {formatCpfCnpj, orgTaxId, personTaxId} from '@/lib/utils/document'
 import {formatCurrency} from '@/lib/utils/helpers'
 import {formatISODateBR} from '@/lib/utils/dfe'
 
@@ -94,6 +94,7 @@ function orgAsPerson(org: OrganizationOut): PersonItemOut {
   return {
     pk: org.pk,
     sk: org.pk,
+    cpf_or_cnpj: orgTaxId(org),
     name: org.name,
     person: org.person as unknown as PersonItemOut['person'],
     created_at: org.created_at,
@@ -584,7 +585,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
             {nfseConfig?.serie && <span className="text-xs text-gray-500">Série {nfseConfig.serie}</span>}
           </div>
           <dl className="divide-y divide-gray-100 text-sm">
-            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tomador</dt><dd className="font-medium text-gray-900">{selectedCustomer ? `${selectedCustomer.name} · ${formatCpfCnpj(unformatCpfCnpj(selectedCustomer.sk))}` : '—'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tomador</dt><dd className="font-medium text-gray-900">{selectedCustomer ? `${selectedCustomer.name} · ${formatCpfCnpj(personTaxId(selectedCustomer))}` : '—'}</dd></div>
             <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Serviço</dt><dd className="font-medium text-gray-900 wrap-break-word">{selectedService?.description ?? values.service?.description ?? '—'}</dd></div>
             <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tributação nacional</dt><dd className="font-mono text-gray-900">{selectedService?.trib_nacional_code ?? '—'}</dd></div>
             <div className="grid grid-cols-2 gap-4 py-2 sm:grid-cols-4">

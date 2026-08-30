@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -14,6 +15,7 @@ const (
 	AttrOrganizationID   = "organization_id"
 	AttrTaxID            = "tax_id"
 	AttrTaxIDKind        = "tax_id_kind"
+	AttrCpfOrCNPJ        = "cpf_or_cnpj"
 	AttrLegalName        = "legal_name"
 	AttrIdentitySyncedAt = "identity_synced_at"
 )
@@ -89,6 +91,21 @@ func (c *LocalCompany) CNPJRoot() string {
 	return c.TaxID[:CNPJRootLength]
 }
 
+// CanonicalTaxID removes mask punctuation and uppercases letters while
+// preserving the alphanumeric CNPJ format introduced in 2026.
+func CanonicalTaxID(raw string) string {
+	var canonical strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z':
+			canonical.WriteRune(r)
+		case r >= 'a' && r <= 'z':
+			canonical.WriteRune(r - 'a' + 'A')
+		}
+	}
+	return canonical.String()
+}
+
 // GetCompany reads the local record. A legacy CNPJ_/CPF_ key still resolves, so
 // this works either side of the flip — and during a rollback.
 func (r *OrganizationRepository) GetCompany(ctx context.Context, orgPK string) (*LocalCompany, error) {
@@ -106,10 +123,15 @@ func (r *OrganizationRepository) GetCompany(ctx context.Context, orgPK string) (
 // CompanyFromItem reads a company off an already-fetched item, so a caller that
 // has one (from the organization cache, say) does not fetch it twice.
 func CompanyFromItem(pk string, item map[string]types.AttributeValue) *LocalCompany {
+	taxID := itemString(item, AttrTaxID)
+	if taxID == "" {
+		taxID = itemString(item, AttrCpfOrCNPJ)
+	}
+	taxID = CanonicalTaxID(taxID)
 	return &LocalCompany{
 		CompanyID:        pk,
 		OrganizationID:   itemString(item, AttrOrganizationID),
-		TaxID:            itemString(item, AttrTaxID),
+		TaxID:            taxID,
 		TaxIDKind:        itemString(item, AttrTaxIDKind),
 		LegalName:        itemString(item, AttrLegalName),
 		IdentitySyncedAt: itemString(item, AttrIdentitySyncedAt),

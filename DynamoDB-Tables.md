@@ -12,7 +12,7 @@ PITR: enabled in production only.
 | #  | Table (without prefix)      | PK                           | SK                                       | GSIs                                               |
 |----|-----------------------------|------------------------------|------------------------------------------|----------------------------------------------------|
 | 1  | `users`                     | `USER_{uuid}`                | —                                        | `email-index`, `username-index`                    |
-| 2  | `organizations`             | `CNPJ_{cnpj}` or `CPF_{cpf}` | —                                        | —                                                  |
+| 2  | `organizations`             | company UUIDv7               | —                                        | —                                                  |
 | 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | —                                                  |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`                         | `code-index`, `description-index`                  |
 | 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`                           | `plate-index`, `role-index`                        |
@@ -21,10 +21,10 @@ PITR: enabled in production only.
 | 8  | `organization_nfce_configs` | `{org_pk}`                   | —                                        | —                                                  |
 | 9  | `organization_cte_configs`  | `{org_pk}`                   | —                                        | —                                                  |
 | 10 | `organization_mdfe_configs` | `{org_pk}`                   | —                                        | —                                                  |
-| 11 | `nfes`                      | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
-| 12 | `nfces`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
-| 13 | `ctes`                      | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
-| 14 | `mdfes`                     | `{env}#{CNPJ}`               | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
+| 11 | `nfes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
+| 12 | `nfces`                     | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
+| 13 | `ctes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
+| 14 | `mdfes`                     | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 15 | `nfe_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 16 | `nfce_events`               | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 17 | `cte_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
@@ -40,7 +40,7 @@ PITR: enabled in production only.
 | 27 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                                  |
 | 28 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index`                  |
 | 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
-| 30 | `nfses`                     | `{env}#{CNPJ}`               | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
+| 30 | `nfses`                     | `{env}#{org_pk}`             | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
 | 31 | `nfse_events`               | `{id_dps}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 32 | `organization_tax_profiles` | `{org_pk}`                   | `TAXPROFILE_{uuid}`                      | `name-index`                                       |
 | 33 | `organization_operations`   | `{org_pk}`                   | `OPERATION_{uuid}`                       | `name-index`                                       |
@@ -86,7 +86,9 @@ Stores user identity. Membership data (`organizations`) embeds org PKs, role, an
 
 ## 2. `organizations`
 
-One item per org. PK is the tax document number. Only `name`/`cpf_or_cnpj`/1 endereço are required at cadastro (see
+One item per company linked from ctech-account. The PK is its stable UUIDv7 and is not a fiscal document. `tax_id`
+is the canonical CPF/CNPJ; `cpf_or_cnpj` remains a read-compatible alias during migration. Only
+`name`/`cpf_or_cnpj`/1 endereço are required at cadastro (see
 `docs/superpowers/specs/2026-07-11-pessoas-organizacoes-cadastro-design.md`); a PJ organization additionally requires
 `crt` and ≥1 `state_registrations` entry (enforced in
 `services.RequirePJFields`/`RequireOrgIE`, not just the frontend) — organizations are always the fiscal emitter, so
@@ -94,7 +96,11 @@ these aren't optional the way they can be for a `organization_persons` record.
 
 | Attribute                    | Type | Notes                                                                                                                                                                                                               |
 |------------------------------|------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `pk`                         | S    | `CNPJ_{14 digits}` or `CPF_{11 digits}`                                                                                                                                                                             |
+| `pk`                         | S    | Company UUIDv7 from ctech-account. Used for tenancy and references; never rendered as CPF/CNPJ                                                                                                                      |
+| `organization_id`            | S    | Parent organization UUID in ctech-account                                                                                                                                                                           |
+| `tax_id`                      | S    | Canonical CPF/CNPJ (mask removed, letters uppercased); authoritative display/fiscal identity                                                                                                                        |
+| `tax_id_kind`                 | S    | `cnpj` or `cpf`                                                                                                                                                                                                      |
+| `cpf_or_cnpj`                 | S    | Compatibility alias accepted on reads while pre-re-key records remain; `tax_id` takes precedence                                                                                                                    |
 | `name`                       | S    | Razão social                                                                                                                                                                                                        |
 | `description`                | S    | Apelido interno (optional)                                                                                                                                                                                          |
 | `person.fantasy_name`        | S    | Nome fantasia (optional)                                                                                                                                                                                            |

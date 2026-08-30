@@ -356,12 +356,15 @@ func mapAttr(item map[string]types.AttributeValue, key string) map[string]types.
 	return v.Value
 }
 
-// personDoc devolve o CPF/CNPJ só com dígitos do item de cadastro. pk
-// (organizations) e sk (organization_persons) já são "CNPJ_…"/"CPF_…"
-// normalizados; cpf_or_cnpj é o campo do DTO e pode vir formatado.
+// personDoc devolve o CPF/CNPJ normalizado do item de cadastro. A organização
+// usa UUID em pk, então sua identidade vem de tax_id/cpf_or_cnpj; pessoas
+// legadas sem o alias ainda caem na sk CNPJ_…/CPF_….
 func personDoc(item map[string]types.AttributeValue) string {
-	return docPunct.Replace(services.StripPKPrefix(firstNonEmpty(
-		strAttr(item, "sk"), strAttr(item, "pk"), strAttr(item, "cpf_or_cnpj"))))
+	doc, _ := services.IssuerDocAV(item, strAttr(item, "pk"))
+	if doc == "" {
+		doc = services.StripPKPrefix(strAttr(item, "sk"))
+	}
+	return docPunct.Replace(doc)
 }
 
 // firstNonEmpty devolve o primeiro valor não vazio.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCpfCnpj, unformatCpfCnpj, docLabel, orgTaxId, orgIsPJ } from '@/lib/utils/document'
+import { formatCpfCnpj, unformatCpfCnpj, docLabel, orgTaxId, orgIsPJ, personTaxId } from '@/lib/utils/document'
 
 describe('unformatCpfCnpj', () => {
   it('remove prefixo CPF_', () => {
@@ -100,6 +100,12 @@ describe('orgTaxId / orgIsPJ', () => {
     expect(orgIsPJ(org)).toBe(true)
   })
 
+  it('reads cpf_or_cnpj while compatibility records are still present', () => {
+    const org = {pk: companyId, cpf_or_cnpj: '11.222.333/0001-81'}
+    expect(orgTaxId(org)).toBe('11222333000181')
+    expect(orgIsPJ(org)).toBe(true)
+  })
+
   it('falls back to the legacy key before it', () => {
     expect(orgTaxId({pk: 'CNPJ_11222333000181'})).toBe('11222333000181')
     expect(orgIsPJ({pk: 'CNPJ_11222333000181'})).toBe(true)
@@ -116,5 +122,18 @@ describe('orgTaxId / orgIsPJ', () => {
   it('keeps a natural person natural under a company id', () => {
     const org = {pk: companyId, tax_id: '52998224725', tax_id_kind: 'cpf' as const}
     expect(orgIsPJ(org)).toBe(false)
+  })
+})
+
+describe('personTaxId', () => {
+  it('uses the explicit document when the item is the organization itself', () => {
+    expect(personTaxId({
+      sk: '01a04fc3-b6f7-7bb9-8cfe-6e19b66019f6',
+      cpf_or_cnpj: '11222333000181',
+    })).toBe('11222333000181')
+  })
+
+  it('keeps using the sort key for regular people', () => {
+    expect(personTaxId({sk: 'CPF_52998224725'})).toBe('52998224725')
   })
 })

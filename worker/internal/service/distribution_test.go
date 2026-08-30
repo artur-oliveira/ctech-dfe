@@ -195,8 +195,11 @@ func orgItemWithUF(uf string) map[string]types.AttributeValue {
 		"state_federation": &types.AttributeValueMemberS{Value: uf},
 	}}
 	return map[string]types.AttributeValue{
-		"pk":   &types.AttributeValueMemberS{Value: testOrgPK},
-		"name": &types.AttributeValueMemberS{Value: "Empresa Teste LTDA"},
+		"pk":          &types.AttributeValueMemberS{Value: testOrgPK},
+		"name":        &types.AttributeValueMemberS{Value: "Empresa Teste LTDA"},
+		"tax_id":      &types.AttributeValueMemberS{Value: "12345678000195"},
+		"tax_id_kind": &types.AttributeValueMemberS{Value: "cnpj"},
+		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: "12345678000195"},
 		"person": &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
 			"addresses": &types.AttributeValueMemberL{Value: []types.AttributeValue{addr}},
 		}},
@@ -1217,17 +1220,30 @@ func TestDistConsChNFe_Happy_ProcessesDocZips(t *testing.T) {
 // Distribution small helpers
 // ---------------------------------------------------------------------------
 
-func TestExtractCNPJ_StripCNPJPrefix(t *testing.T) {
-	// OrgPK format is "CNPJ_<cnpj>"; extractCNPJ splits on the first "_".
-	if got := extractCNPJ("CNPJ_12345678000195"); got != "12345678000195" {
-		t.Errorf("extractCNPJ = %q, want 12345678000195", got)
+func TestOrganizationTaxIDReadsRecordForCompanyKey(t *testing.T) {
+	org := map[string]types.AttributeValue{
+		organizationTaxIDAttr: &types.AttributeValueMemberS{Value: "12345678000195"},
+	}
+	if got := organizationTaxID(org, "01900000-0000-7000-8000-000000000001"); got != "12345678000195" {
+		t.Errorf("organizationTaxID = %q, want 12345678000195", got)
 	}
 }
 
-func TestExtractCNPJ_NoPrefixPassthrough(t *testing.T) {
-	// When there is no "_", the whole string is returned as-is.
-	if got := extractCNPJ("12345678000195"); got != "12345678000195" {
-		t.Errorf("extractCNPJ no prefix = %q", got)
+func TestOrganizationTaxIDReadsCompatibilityAlias(t *testing.T) {
+	org := map[string]types.AttributeValue{
+		organizationTaxIDAliasAttr: &types.AttributeValueMemberS{Value: "12.345.678/0001-95"},
+	}
+	if got := organizationTaxID(org, "01900000-0000-7000-8000-000000000001"); got != "12345678000195" {
+		t.Errorf("organizationTaxID compatibility alias = %q", got)
+	}
+}
+
+func TestOrganizationTaxIDFallsBackOnlyToLegacyKey(t *testing.T) {
+	if got := organizationTaxID(nil, "CNPJ_12345678000195"); got != "12345678000195" {
+		t.Errorf("organizationTaxID legacy key = %q", got)
+	}
+	if got := organizationTaxID(nil, "01900000-0000-7000-8000-000000000001"); got != "" {
+		t.Errorf("organizationTaxID treated company id as a document: %q", got)
 	}
 }
 

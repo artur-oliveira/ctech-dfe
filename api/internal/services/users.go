@@ -159,6 +159,7 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 			// is why orgTaxId in the browser falls back to the legacy key.
 			"tax_id":      nil,
 			"tax_id_kind": nil,
+			"cpf_or_cnpj": nil,
 		}
 		if pk != "" && s.orgSvc != nil {
 			if org, orgErr := s.orgSvc.Get(ctx, pk); orgErr == nil && org != nil {
@@ -166,9 +167,14 @@ func (s *UserService) GetMeData(ctx context.Context, userID, accessToken string)
 				if attributevalue.UnmarshalMap(org, &orgMap) == nil {
 					enriched["name"] = orgMap["name"]
 					enriched["description"] = orgMap["description"]
-					if v, ok := orgMap[repositories.AttrTaxID].(string); ok && v != "" {
-						enriched[repositories.AttrTaxID] = v
-						enriched[repositories.AttrTaxIDKind] = orgMap[repositories.AttrTaxIDKind]
+					if taxID, isPJ := IssuerDocMap(orgMap, pk); taxID != "" {
+						enriched[repositories.AttrTaxID] = taxID
+						enriched[repositories.AttrCpfOrCNPJ] = taxID
+						if isPJ {
+							enriched[repositories.AttrTaxIDKind] = repositories.TaxKindCNPJ
+						} else {
+							enriched[repositories.AttrTaxIDKind] = repositories.TaxKindCPF
+						}
 					}
 					if person, ok := orgMap["person"].(map[string]any); ok {
 						addrs, _ := person["addresses"].([]any)

@@ -12,8 +12,9 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
-// Organization is the DynamoDB item for an organization.
-// PK format: CNPJ_{cnpj} or CPF_{cpf} — matches Python OrganizationRepository.parse_pk.
+// Organization is the DynamoDB item for an organization. Current rows use the
+// ctech-account company UUIDv7 as PK; CNPJ_/CPF_ keys remain readable for
+// migration rollback.
 type Organization struct {
 	PK        string `dynamodbav:"pk"`
 	Name      string `dynamodbav:"name"`
