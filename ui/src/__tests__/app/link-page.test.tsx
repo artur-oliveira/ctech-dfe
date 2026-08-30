@@ -1,15 +1,13 @@
 import {cleanup, render, screen, waitFor} from '@testing-library/react'
 import {QueryClientProvider, QueryClient} from '@tanstack/react-query'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import VincularPage from '@/app/organizations/vincular/page'
+import LinkCompanyPage from '@/app/organizations/link/page'
 import {apiClient} from '@/lib/api/client'
 
 const replace = vi.fn()
-let search = new URLSearchParams()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({replace, push: vi.fn()}),
-  useSearchParams: () => search,
 }))
 
 vi.mock('@/components/ProtectedRoute', () => ({
@@ -28,11 +26,15 @@ vi.mock('@/lib/hooks/useAuth', () => ({
 
 afterEach(cleanup)
 
+// The real URL, not a mocked hook. This app builds with `output: 'export'`,
+// where useSearchParams() answers empty on the hydrating render — the page read
+// that empty set and refused a complete return. Driving the test through
+// window.location is what makes it fail on that bug.
 function renderPage(query: string) {
-  search = new URLSearchParams(query)
+  window.history.replaceState({}, '', `/organizations/link?${query}`)
   return render(
     <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-      <VincularPage/>
+      <LinkCompanyPage/>
     </QueryClientProvider>,
   )
 }

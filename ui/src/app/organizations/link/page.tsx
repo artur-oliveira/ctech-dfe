@@ -1,8 +1,8 @@
 'use client'
 
-import {Suspense, useEffect, useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
+import {useRouter} from 'next/navigation'
 import {useQueryClient} from '@tanstack/react-query'
 import {apiClient, ApiError} from '@/lib/api/client'
 import {queryKeys} from '@/lib/api/query-keys'
@@ -18,32 +18,44 @@ import {Button} from '@/components/ui/button'
  * It links and then leaves. There is no form and no confirmation step — the
  * decision was made on the other side, and asking again here would be asking
  * somebody to confirm what they just did.
+ *
+ * The query is read from `window.location`, NOT from `useSearchParams`. This
+ * app builds with `output: 'export'`, so this route is a static file with no
+ * query at build time, and on the hydrating render `useSearchParams()` answers
+ * with an empty set before the real one arrives. This page acts once on mount,
+ * so it read that empty set and refused a return that was perfectly complete —
+ * which is exactly the bug this comment exists to stop somebody reintroducing.
+ * `window.location.search` is the URL the browser is actually on.
  */
-function VincularContent() {
+function LinkCompanyContent() {
   const router = useRouter()
-  const params = useSearchParams()
   const qc = useQueryClient()
   const {refreshUser, setSelectedOrg} = useAuth()
   const [error, setError] = useState<string | null>(null)
   // An organization came back without a company: recoverable, and not by
   // starting over.
   const [incompleteOrg, setIncompleteOrg] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
   // A React 18 dev double-mount would otherwise link twice. The server is
   // idempotent, so this is about not showing two errors, not about correctness.
   const started = useRef(false)
 
-  const cancelled = params.get('cancelled') === '1'
-  const organizationId = params.get('organization_id') ?? ''
-  const companyId = params.get('company_id') ?? ''
-
   useEffect(() => {
-    if (cancelled || started.current) return
+    if (started.current) return
     started.current = true
 
     // Everything, including the validation, runs inside the async continuation.
     // A synchronous setState in an effect is both a lint error and a wasted
     // render, and there is nothing here the first paint needs.
     void (async () => {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('cancelled') === '1') {
+        setCancelled(true)
+        return
+      }
+      const organizationId = params.get('organization_id') ?? ''
+      const companyId = params.get('company_id') ?? ''
+
       // An organization with no company is its own case, and telling somebody
       // to "start over" here would be wrong twice: the workspace they just
       // created still exists, and starting over creates a second one. The way
@@ -78,7 +90,7 @@ function VincularContent() {
         setError(e instanceof ApiError ? e.detail : 'Não foi possível vincular a empresa.')
       }
     })()
-  }, [cancelled, organizationId, companyId, params, qc, refreshUser, setSelectedOrg, router])
+  }, [qc, refreshUser, setSelectedOrg, router])
 
   if (cancelled) {
     return (
@@ -145,12 +157,10 @@ function Shell({title, children}: { title: string; children: React.ReactNode }) 
   )
 }
 
-export default function VincularPage() {
+export default function LinkCompanyPage() {
   return (
     <ProtectedRoute>
-      <Suspense fallback={null}>
-        <VincularContent/>
-      </Suspense>
+      <LinkCompanyContent/>
     </ProtectedRoute>
   )
 }

@@ -19,7 +19,7 @@ import {RootLayout} from '@/components/layout/RootLayout'
 function NewOrganizationRedirect() {
   useEffect(() => {
     const accountUrl = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? ''
-    const returnTo = `${window.location.origin}/organizations/vincular`
+    const returnTo = `${window.location.origin}/organizations/link`
     // state is ours and opaque to the account: it echoes it back untouched, and
     // it is what tells a return apart from somebody opening the landing URL by
     // hand.
