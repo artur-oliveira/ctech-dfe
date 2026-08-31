@@ -1,4 +1,4 @@
-# CLAUDE.md — ctech-dfe (monorepo root)
+# AGENTS.md — ctech-dfe (monorepo root)
 
 Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via SOAP + mTLS.
 
@@ -8,13 +8,14 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via
 
 ## Projects
 
-| Project   | Role                                           | Full guidelines    |
-|-----------|------------------------------------------------|--------------------|
-| `api/`    | Go REST API — Fiber v3, multi-tenant, DynamoDB | `api/CLAUDE.md`    |
-| `worker/` | Go Lambda — standard SQS consumer, DFe pipeline | `worker/CLAUDE.md` |
-| `ui/`     | Next.js 16 frontend — TypeScript, ShadCN       | `ui/CLAUDE.md`     |
-| `cdk/`    | AWS CDK infrastructure — TypeScript            | `cdk/CLAUDE.md`    |
-| `py-dfe/` | Python Lambda — XML-DSig + SEFAZ SOAP + mTLS   | `py-dfe/CLAUDE.md` |
+| Project   | Role                                                   | Full guidelines    |
+|-----------|--------------------------------------------------------|--------------------|
+| `api/`    | Go REST API — Fiber v3, multi-tenant, DynamoDB         | `api/CLAUDE.md`    |
+| `worker/` | Go Lambda — standard SQS consumer, DFe pipeline        | `worker/CLAUDE.md` |
+| `ui/`     | Next.js 16 frontend — TypeScript, ShadCN               | `ui/CLAUDE.md`     |
+| `cdk/`    | AWS CDK infrastructure — TypeScript                    | `cdk/CLAUDE.md`    |
+| `py-dfe/` | Python Lambda — XML-DSig + SEFAZ SOAP + mTLS           | `py-dfe/CLAUDE.md` |
+| `go-dfe/` | Go lib — in-process SEFAZ SOAP+mTLS (py-dfe migration) | `go-dfe/CLAUDE.md` |
 
 **Always read the relevant subproject CLAUDE.md before making any change.**
 
@@ -47,6 +48,18 @@ literals across files.
 ### Frontend quality gate
 
 - **ui:** `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before any commit.
+
+### UI — guia, busca e navegação (regras inegociáveis)
+
+Aplicam-se a toda alteração em `ui/`. Detalhe completo em `ui/CLAUDE.md`.
+
+1. Toda feature nova voltada ao usuário — e toda mudança visual/de estilo — é documentada no guia
+   (`/guide`) na mesma alteração.
+2. Captura de tela adicionada/atualizada sempre que a mudança visual exigir
+   (`npm run screens:capture`).
+3. Toda página nova é registrada em `ui/src/lib/navigation/nav.tsx` — é isso que a coloca na
+   navegação e na busca global (⌘K).
+4. A documentação acompanha a UI: guia desatualizado conta como bug.
 
 ### Testing — core functions need integration tests
 

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
 
 export default function GuideCadastros() {
@@ -9,6 +10,30 @@ export default function GuideCadastros() {
       title="Cadastros que a emissão usa"
       description="Cada cadastro existe para tirar uma decisão da hora da emissão. Quanto mais completo o cadastro, menos campo você preenche por nota — e menos rejeição você toma."
       sections={[
+        {
+          id: 'where',
+          title: 'Onde cada cadastro fica',
+          summary:
+            'Compartilhado fica em Cadastros; exclusivo mora dentro do documento que o usa.',
+          image: {
+            src: '/guide/nav-sidebar.webp',
+            alt: 'Barra lateral com NFS-e aberta, mostrando Serviços, Locais de prestação e Documentos referenciados aninhados',
+          },
+          body: (
+            <>
+              <p>
+                O bloco <b>Cadastros</b> da barra lateral guarda só o que vários documentos usam:
+                <b> Pessoas</b> e <b>Produtos</b>. Todo cadastro que existe por causa de um único
+                tipo de documento fica aninhado nele — <b>Serviços</b> dentro da NFS-e,
+                <b> Veículos</b> dentro do MDF-e, <b>Naturezas de operação</b> dentro da NF-e.
+              </p>
+              <GuideCallout kind="tip" title="Não procure na barra: busque">
+                <b>⌘K</b> (ou <b>Ctrl+K</b>) acha qualquer cadastro pelo nome ou pelo termo fiscal —
+                <i> CFOP</i>, <i>placa</i>, <i>CST</i>. Ver <b>Navegação</b> no guia.
+              </GuideCallout>
+            </>
+          ),
+        },
         {
           id: 'persons',
           title: 'Pessoas',
@@ -194,6 +219,56 @@ export default function GuideCadastros() {
                 Uma <b>composição veicular</b> junta tração, reboques, condutor e RNTRC sob um nome.
                 Na emissão do MDF-e, escolher a composição preenche o passo do veículo inteiro.
               </p>
+            </>
+          ),
+        },
+        {
+          id: 'support',
+          title: 'Os cadastros de apoio',
+          summary:
+            'Menos usados, mas cada um evita um campo repetido — ou uma rejeição — na emissão.',
+          body: (
+            <>
+              <p>
+                Todos vivem dentro do documento que os usa, na barra lateral. Nenhum é obrigatório
+                para começar a emitir: cadastre quando a sua operação pedir.
+              </p>
+              <GuideTerms>
+                <GuideTerm term="Condições de pagamento (NF-e)">
+                  Prazo, número de parcelas e intervalo. Escolher a condição na emissão gera as
+                  duplicatas com vencimento calculado.
+                </GuideTerm>
+                <GuideTerm term="Declarações de importação (NF-e)">
+                  Número da DI, data, local de desembaraço e adições. Item importado sem DI é
+                  rejeição certa.
+                </GuideTerm>
+                <GuideTerm term="Lotes de produção (NF-e)">
+                  Lote, fabricação e validade dos produtos rastreados — medicamentos e itens sob
+                  rastreabilidade obrigatória.
+                </GuideTerm>
+                <GuideTerm term="Terminais de pagamento (NFC-e)">
+                  Maquininha, credenciadora e CNPJ. Identifica a transação de cartão no cupom.
+                </GuideTerm>
+                <GuideTerm term="Bombas de combustível (NFC-e)">
+                  Bico, tanque e encerrante — os dados que o posto informa a cada abastecimento.
+                </GuideTerm>
+                <GuideTerm term="Unidades de carga (MDF-e)">
+                  Contêiner, pallet ou vagão, com os lacres. Entra no manifesto junto com a carga.
+                </GuideTerm>
+                <GuideTerm term="Vale-pedágio (MDF-e)">
+                  Fornecedor, CNPJ e comprovante. Obrigatório no transporte rodoviário de carga
+                  quando há pedágio.
+                </GuideTerm>
+                <GuideTerm term="Apólices de seguro (MDF-e)">
+                  Seguradora, apólice e averbação da carga transportada.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="info" title="Serviços da NFS-e ficam no tópico da NFS-e">
+                O catálogo de serviços, com item da LC 116 e tributação do ISS, é explicado em{' '}
+                <Link href="/guide/nfse" className="font-medium text-primary-700 underline underline-offset-2">
+                  Emitir NFS-e
+                </Link>.
+              </GuideCallout>
             </>
           ),
         },

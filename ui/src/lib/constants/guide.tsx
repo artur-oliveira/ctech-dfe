@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react'
+import {Compass} from 'lucide-react'
 import {
   BriefcaseIcon,
   CteIcon,
@@ -40,6 +41,16 @@ export const GUIDE_TOPICS: GuideTopic[] = [
       'Do cadastro da empresa ao certificado digital: o que precisa estar pronto antes da primeira emissão, e por que homologação vem antes de produção.',
     tags: ['Onboarding', 'Certificado', 'Homologação'],
     icon: <SettingsIcon width={20} height={20}/>,
+  },
+  {
+    href: '/guide/navigation',
+    label: 'Navegação',
+    title: 'Como circular pelo sistema',
+    time: '3 min',
+    description:
+      'Barra lateral por contexto, busca global em ⌘K, navegação inferior no celular e os atalhos de teclado que cortam cliques.',
+    tags: ['Busca', 'Atalhos', 'Mobile'],
+    icon: <Compass size={20}/>,
   },
   {
     href: '/guide/nfe',
@@ -111,7 +122,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     title: 'Cadastros que a emissão usa',
     time: '6 min',
     description:
-      'Pessoas, produtos, serviços, perfis fiscais, naturezas de operação, condições de pagamento e veículos — cada um preenche um pedaço da emissão.',
+      'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa — cada um preenche um pedaço da emissão.',
     tags: ['Produtos', 'Perfis fiscais', 'Operações'],
     icon: <BriefcaseIcon width={20} height={20}/>,
   },

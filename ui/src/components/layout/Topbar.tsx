@@ -2,8 +2,8 @@
 
 import {useRouter} from 'next/navigation'
 import {Menu} from '@base-ui/react/menu'
+import {Search} from 'lucide-react'
 import {useAuth} from '@/lib/hooks/useAuth'
-import {Button} from '@/components/ui/button'
 import {SettingsIcon} from '@/components/ui/icon'
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
@@ -46,20 +46,11 @@ const LogOutIcon = () => (
     </svg>
 )
 
-const MenuIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round">
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <line x1="3" y1="12" x2="21" y2="12"/>
-        <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-)
-
 interface TopbarProps {
-    onMenuClick: () => void
+    onSearchClick: () => void
 }
 
-export function Topbar({onMenuClick}: TopbarProps) {
+export function Topbar({onSearchClick}: TopbarProps) {
     const {user, selectedOrg, setSelectedOrg, logout} = useAuth()
     const router = useRouter()
 
@@ -76,17 +67,6 @@ export function Topbar({onMenuClick}: TopbarProps) {
             className="fixed top-0 right-0 left-0 md:left-(--sidebar-width) flex items-center justify-between bg-white border-b border-gray-200 px-4 md:px-6 z-10"
             style={{height: 'var(--topbar-height)'}}
         >
-            {/* Hamburger — mobile only */}
-            <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onMenuClick}
-                className="md:hidden mr-3 shrink-0 min-h-11 min-w-11 text-gray-500 hover:text-gray-700"
-                aria-label="Abrir menu"
-            >
-                <MenuIcon/>
-            </Button>
-
             {/* Org selector */}
             <div className="relative flex-1 min-w-0">
                 {user?.organizations && user.organizations.length > 0 ? (
@@ -126,6 +106,20 @@ export function Topbar({onMenuClick}: TopbarProps) {
                 )}
             </div>
 
+            {/* Busca global. No mobile ela mora na navegação inferior. */}
+            <button
+                type="button"
+                onClick={onSearchClick}
+                aria-label="Buscar páginas e cadastros"
+                aria-keyshortcuts="Meta+K Control+K"
+                className="hidden md:flex items-center gap-2 mx-4 w-56 lg:w-72 shrink-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            >
+                <Search size={16} aria-hidden="true" className="shrink-0 text-gray-400"/>
+                <span className="flex-1 text-left">Buscar…</span>
+                <kbd className="shrink-0 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                    ⌘K
+                </kbd>
+            </button>
             {/* User menu */}
             <div className="relative shrink-0">
                 <Menu.Root>

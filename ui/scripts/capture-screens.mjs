@@ -143,9 +143,33 @@ const CAPTURES = [
   },
   {slug: 'empty-state', route: '/nfe?tab=transportadas', waitText: 'Transportadas'},
 
+  // ── Navegação ────────────────────────────────────────────────────────────
+  // O contexto da rota abre sozinho na barra lateral — a captura mostra NFS-e
+  // com a emissão e os cadastros exclusivos aninhados.
+  {slug: 'nav-sidebar', route: '/nfse', waitText: 'Locais de prestação'},
+  {
+    slug: 'nav-search',
+    route: '/nfe',
+    steps: [
+      {waitAt: '[aria-label="Buscar páginas e cadastros"]'},
+      {clickAt: '[aria-label="Buscar páginas e cadastros"]'},
+      {waitAt: '#global-search-results'},
+    ],
+  },
+
   // ── Mobile ───────────────────────────────────────────────────────────────
   {slug: 'mobile-dashboard', route: '/dashboard', viewport: MOBILE, waitText: 'Acesso rápido'},
   {slug: 'mobile-nfe-list', route: '/nfe', viewport: MOBILE, waitText: 'Nota Fiscal Eletrônica'},
+  {
+    slug: 'mobile-nav',
+    route: '/mdfe',
+    viewport: MOBILE,
+    steps: [
+      {waitAt: '[aria-controls="bottomnav-docs"]'},
+      {clickAt: '[aria-controls="bottomnav-docs"]'},
+      {waitAt: '#bottomnav-docs'},
+    ],
+  },
 ]
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms))

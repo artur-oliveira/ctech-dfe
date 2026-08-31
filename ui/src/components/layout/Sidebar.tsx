@@ -1,156 +1,111 @@
 'use client'
 
+import {useState} from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {usePathname} from 'next/navigation'
-import {BookOpen} from 'lucide-react'
-import type {ReactNode} from 'react'
-import {
-  BriefcaseIcon,
-  CalendarClockIcon,
-  CreditCardIcon,
-  CteIcon,
-  MdfeIcon,
-  NfceIcon,
-  NfeIcon,
-  NfseIcon,
-  PercentIcon,
-  ImportIcon,
-  InsuranceIcon,
-  LotIcon,
-  FuelPumpIcon,
-  PackageIcon,
-  RouteIcon,
-  SettingsIcon,
-  ShieldIcon,
-  ShoppingBagIcon,
-  TruckIcon,
-  UsersIcon,
-  VehicleSetIcon,
-} from "@/components/ui/icon"
+import {ChevronDown} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {useAuth} from '@/lib/hooks/useAuth'
-import {ROLE_ADMIN, ROLE_OWNER} from '@/lib/data/roles'
-import {SUBSCRIPTION_PATH} from '@/lib/billing/notice'
+import {
+  contextForPath,
+  DOC_CONTEXTS,
+  isItemActive,
+  NAV_GROUPS,
+  type DocContext,
+  type NavItem,
+} from '@/lib/navigation/nav'
 
-interface NavItem {
-  href: string
-  label: string
-  icon: ReactNode
-  sub?: boolean
-  /** When set, the item is shown only to members with one of these roles. */
-  roles?: string[]
+const DOC_GROUP_LABEL = 'Documentos Fiscais'
+
+const ITEM_BASE =
+  'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors'
+const ITEM_ACTIVE = 'bg-brand-50 text-brand-700 font-medium'
+const ITEM_IDLE = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+
+function NavLink(
+  {item, active, sub, onNavigate}:
+  {item: NavItem; active: boolean; sub?: boolean; onNavigate: () => void},
+) {
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={[ITEM_BASE, sub ? 'pl-2.5' : '', active ? ITEM_ACTIVE : ITEM_IDLE].join(' ')}
+    >
+      {/* Aninhado, o trilho à esquerda já dá a estrutura — o ícone só roubaria
+          a largura de que os rótulos longos precisam. */}
+      {!sub && (
+        <span className={['shrink-0', active ? 'text-brand-600' : 'text-gray-400'].join(' ')}>
+          {item.icon}
+        </span>
+      )}
+      <span className="truncate">{item.label}</span>
+    </Link>
+  )
 }
 
-interface NavGroup {
-  label: string
-  items: NavItem[]
-}
+/**
+ * Um tipo de documento e, aninhados, a emissão e os cadastros que só existem
+ * por causa dele. O contexto da rota atual abre sozinho; os outros abrem no
+ * chevron, sem navegar.
+ */
+function ContextItem(
+  {ctx, pathname, onNavigate}:
+  {ctx: DocContext; pathname: string; onNavigate: () => void},
+) {
+  const inContext = contextForPath(pathname)?.key === ctx.key
+  const [expanded, setExpanded] = useState(false)
+  const open = inContext || expanded
+  const children: NavItem[] = [...(ctx.emit ? [ctx.emit] : []), ...ctx.items]
+  const active = isItemActive(ctx.href, pathname)
+  const panelId = `nav-context-${ctx.key}`
 
-const ClipboardIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-    <rect x="8" y="2" width="8" height="4" rx="1"/>
-    <line x1="9" y1="12" x2="15" y2="12"/>
-    <line x1="9" y1="16" x2="15" y2="16"/>
-  </svg>
-)
-
-const BuildingIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="9" width="18" height="13"/>
-    <path d="M9 22V12h6v10"/>
-    <path d="M3 9l9-7 9 7"/>
-  </svg>
-)
-
-const CardIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="5" width="20" height="14" rx="2"/>
-    <line x1="2" y1="10" x2="22" y2="10"/>
-  </svg>
-)
-
-const GridIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7"/>
-    <rect x="14" y="3" width="7" height="7"/>
-    <rect x="14" y="14" width="7" height="7"/>
-    <rect x="3" y="14" width="7" height="7"/>
-  </svg>
-)
-
-const navGroups: NavGroup[] = [
-  {
-    label: 'Visão Geral',
-    items: [
-      {href: '/dashboard', label: 'Painel', icon: <GridIcon/>},
-      {href: '/guide', label: 'Guia', icon: <BookOpen size={16}/>},
-    ],
-  },
-  {
-    label: 'Documentos Fiscais',
-    items: [
-      {href: '/nfe', label: 'NF-e', icon: <NfeIcon/>},
-      {href: '/nfce', label: 'NFC-e', icon: <NfceIcon/>},
-      {href: '/cte', label: 'CT-e', icon: <CteIcon/>},
-      {href: '/mdfe', label: 'MDF-e', icon: <MdfeIcon/>},
-      {href: '/nfse', label: 'NFS-e', icon: <NfseIcon/>},
-    ],
-  },
-  {
-    label: 'Cadastros',
-    items: [
-      {href: '/persons', label: 'Pessoas', icon: <UsersIcon/>},
-      {href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>},
-      {href: '/services', label: 'Serviços', icon: <BriefcaseIcon/>},
-      {href: '/service-locations', label: 'Locais de prestação', icon: <BriefcaseIcon/>},
-      {href: '/reference-documents', label: 'Documentos referenciados', icon: <ImportIcon/>},
-      {href: '/tax-profiles', label: 'Perfis fiscais', icon: <PercentIcon/>},
-      {href: '/operations', label: 'Naturezas de operação', icon: <RouteIcon/>},
-      {href: '/payment-terms', label: 'Condições de pagamento', icon: <CalendarClockIcon/>},
-      {href: '/payment-terminals', label: 'Terminais de pagamento', icon: <CreditCardIcon/>},
-      {href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>},
-      {href: '/vehicle-sets', label: 'Composições veiculares', icon: <VehicleSetIcon/>},
-      {href: '/toll-providers', label: 'Vale-pedágio', icon: <RouteIcon/>},
-      {href: '/cargo-units', label: 'Unidades de carga', icon: <PackageIcon/>},
-      {href: '/import-declarations', label: 'Declarações de importação', icon: <ImportIcon/>},
-      {href: '/insurance-policies', label: 'Apólices de seguro', icon: <InsuranceIcon/>},
-      {href: '/product-lots', label: 'Lotes de produção', icon: <LotIcon/>},
-      {href: '/fuel-pumps', label: 'Bombas de combustível', icon: <FuelPumpIcon/>},
-    ],
-  },
-  {
-    label: 'Configurações',
-    items: [
-      {href: '/organizations', label: 'Organizações', icon: <BuildingIcon/>},
-      {href: '/members', label: 'Usuários', icon: <UsersIcon/>, roles: [ROLE_OWNER, ROLE_ADMIN]},
-      // USER and VIEWER never see it: they cannot act on the plan and cannot read
-      // it either — `GET /organizations/{pk}/plan` is OWNER/ADMIN only.
-      {href: SUBSCRIPTION_PATH, label: 'Assinatura', icon: <CardIcon/>, roles: [ROLE_OWNER, ROLE_ADMIN]},
-      {href: '/fiscal-config', label: 'Configuração Fiscal', icon: <SettingsIcon/>},
-      {href: '/certificates', label: 'Certificados', icon: <ShieldIcon/>},
-      {href: '/audit-logs', label: 'Log de Auditoria', icon: <ClipboardIcon/>},
-    ],
-  },
-]
-
-// All hrefs in the nav — used to resolve the most specific active match.
-const allHrefs = navGroups.flatMap(g => g.items.map(i => i.href))
-
-function isItemActive(href: string, pathname: string): boolean {
-  if (pathname === href) return true
-  if (!pathname.startsWith(href + '/')) return false
-  // A deeper nav item takes precedence — don't mark the parent active.
-  return !allHrefs.some(
-    other =>
-      other !== href &&
-      other.startsWith(href + '/') &&
-      (pathname === other || pathname.startsWith(other + '/')),
+  return (
+    <li>
+      <div className={[
+        'flex items-center gap-1 rounded-md',
+        active ? ITEM_ACTIVE : 'text-gray-600 hover:bg-gray-50',
+      ].join(' ')}>
+        <Link
+          href={ctx.href}
+          onClick={onNavigate}
+          aria-current={active ? 'page' : undefined}
+          className={[ITEM_BASE, 'flex-1 min-w-0 hover:text-gray-900', active ? 'text-brand-700 font-medium' : ''].join(' ')}
+        >
+          <span className={['shrink-0', active ? 'text-brand-600' : 'text-gray-400'].join(' ')}>
+            {ctx.icon}
+          </span>
+          <span className="truncate">{ctx.label}</span>
+        </Link>
+        {children.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={`${open ? 'Recolher' : 'Expandir'} ${ctx.label}`}
+            className="shrink-0 flex items-center justify-center size-11 sm:size-7 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <ChevronDown
+              size={14}
+              aria-hidden="true"
+              className={['transition-transform duration-150 motion-reduce:transition-none', open ? 'rotate-180' : ''].join(' ')}
+            />
+          </button>
+        )}
+      </div>
+      {open && children.length > 0 && (
+        <ul id={panelId} className="mt-0.5 ml-2 space-y-0.5 border-l border-gray-200 pl-1">
+          {children.map(item => (
+            <li key={item.href}>
+              <NavLink item={item} active={isItemActive(item.href, pathname)} sub onNavigate={onNavigate}/>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
@@ -167,8 +122,9 @@ export function Sidebar({open, onClose}: SidebarProps) {
   return (
     <aside
       className={[
-        'fixed left-0 top-0 bottom-0 flex flex-col bg-white border-r border-gray-200 z-20',
-        'transition-transform duration-200 ease-in-out',
+        // Acima da navegação inferior (z-30): com o drawer aberto, uma navegação por vez.
+        'fixed left-0 top-0 bottom-0 flex flex-col bg-white border-r border-gray-200 z-40',
+        'transition-transform duration-200 ease-in-out motion-reduce:transition-none',
         'md:translate-x-0',
         open ? 'translate-x-0' : '-translate-x-full',
       ].join(' ')}
@@ -198,45 +154,26 @@ export function Sidebar({open, onClose}: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {navGroups.map((group) => {
+      <nav className="flex-1 overflow-y-auto py-4 px-3 pb-24 md:pb-4" aria-label="Navegação principal">
+        {NAV_GROUPS.map((group) => {
           const items = group.items.filter((item) => !item.roles || (role != null && item.roles.includes(role)))
           if (items.length === 0) return null
+          const isDocGroup = group.label === DOC_GROUP_LABEL
           return (
             <div key={group.label} className="mb-5">
               <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
                 {group.label}
               </p>
               <ul className="space-y-0.5">
-                {items.map((item) => {
-                  const active = isItemActive(item.href, pathname)
-                  return (
+                {isDocGroup
+                  ? DOC_CONTEXTS.map(ctx => (
+                    <ContextItem key={ctx.key} ctx={ctx} pathname={pathname} onNavigate={onClose}/>
+                  ))
+                  : items.map(item => (
                     <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
-                        className={[
-                          'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors',
-                          item.sub ? 'ml-4' : '',
-                          active
-                            ? 'bg-brand-50 text-brand-700 font-medium'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                        ].join(' ')}
-                      >
-                      <span className={[
-                        'shrink-0',
-                        active ? 'text-brand-600' : 'text-gray-400',
-                        item.sub ? 'opacity-75' : '',
-                      ].join(' ')}>
-                        {item.icon}
-                      </span>
-                        <span className={item.sub ? 'text-sm' : ''}>
-                        {item.label}
-                      </span>
-                      </Link>
+                      <NavLink item={item} active={isItemActive(item.href, pathname)} onNavigate={onClose}/>
                     </li>
-                  )
-                })}
+                  ))}
               </ul>
             </div>
           )

@@ -14,7 +14,7 @@ export default function GuideNfe() {
           id: 'list',
           title: 'A lista de notas',
           summary:
-            'Quatro abas, quatro papéis seus na operação. A primeira, Emitidas, é a que você usa todo dia.',
+            'Cinco abas, cinco recortes da mesma operação. A primeira, Emitidas, é a que você usa todo dia.',
           image: {
             src: '/guide/nfe-list.webp',
             alt: 'Lista de NF-e emitidas com número, destinatário, total, status e data de emissão',
@@ -30,6 +30,10 @@ export default function GuideNfe() {
                   <Link href="/guide/distributions" className="font-medium text-primary-700 underline underline-offset-2">
                     ver distribuições
                   </Link>.
+                </GuideTerm>
+                <GuideTerm term="Inutilizações">
+                  As lacunas de numeração já inutilizadas, e as que a SEFAZ ainda espera que você
+                  justifique.
                 </GuideTerm>
               </GuideTerms>
               <p>

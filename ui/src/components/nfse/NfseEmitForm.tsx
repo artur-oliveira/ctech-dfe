@@ -600,7 +600,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
 
         <EmitError failure={submitError}/>
 
-        <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
+        <div className="sticky bottom-(--bottomnav-height) -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
           <p className="text-sm text-gray-600">{serviceValue ? `Total ${formatCurrency(serviceValue)}` : 'Selecione um serviço para emitir'}</p>
           <Button type="button" variant="brand" disabled={isSubmitting || sourceUnavailable}
                   onClick={() => setShowEmitConfirm(true)}>

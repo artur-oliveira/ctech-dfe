@@ -2161,7 +2161,7 @@ export function NfeEmitForm() {
 
       {/* ── Navigation bar ────────────────────────────────────────────────── */}
       <div
-        className="sticky bottom-0 bg-gray-50 border-t border-gray-200 -mx-4 px-4 md:mx-0 md:px-0 py-3 md:py-4 flex items-center justify-between gap-2">
+        className="sticky bottom-(--bottomnav-height) bg-gray-50 border-t border-gray-200 -mx-4 px-4 md:mx-0 md:px-0 py-3 md:py-4 flex items-center justify-between gap-2">
         {/* Left: totals (steps 2+) */}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm min-w-0">
           {currentStep !== 'destinatario' && totalProducts > 0 && (

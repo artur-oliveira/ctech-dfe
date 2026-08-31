@@ -1027,7 +1027,7 @@ export function MdfeEmitForm() {
 
       {/* Action bar */}
       <div
-        className="sticky bottom-0 -mx-4 px-4 md:-mx-8 md:px-8 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
+        className="sticky bottom-(--bottomnav-height) -mx-4 px-4 md:-mx-8 md:px-8 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-2">
         <Button type="button" variant="outline" onClick={goBack} disabled={stepIdx === 0}>Voltar</Button>
         {step !== 'veiculo' ? (
           <Button type="button" variant="brand" onClick={goNext} disabled={!canNext(step)}>Próximo</Button>

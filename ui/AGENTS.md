@@ -125,6 +125,52 @@ unless the rule genuinely does not apply and the reason is commented.
   or `POST /v1.0/distributions/{doc_type}/sync`.
 - Always check `../DOCS.md` for current endpoint list before adding any new API call.
 
+### Navegação e busca global (fonte única)
+
+`src/lib/navigation/nav.tsx` é a **única** fonte da navegação: barra lateral, contextos por
+documento, tema DF-e por rota (`lib/theme/dfe-theme`) e o índice da busca global (⌘K). Nunca
+declare uma rota de navegação em outro lugar.
+
+- **Cadastro compartilhado fica global; cadastro exclusivo mora no contexto.** Só entra em
+  `SHARED_REGISTRIES` o que mais de um tipo de documento usa (hoje: Pessoas e Produtos). Cadastro
+  usado por um único documento entra em `items` do `DocContext` correspondente.
+- **Toda página nova entra em `nav.tsx`** — em `NAV_GROUPS`, num `DocContext` ou em
+  `EXTRA_SEARCHABLE`. O índice da busca (`SEARCH_ENTRIES`) é derivado daí, então isso é o que a
+  torna pesquisável. `src/__tests__/lib/nav.test.ts` falha se uma rota de primeiro nível ficar
+  de fora.
+- **Dê `keywords` ao item**: sinônimos e jargão fiscal (`cfop`, `placa`, `cst`). É por eles que o
+  Fuse.js acha a tela quando o usuário não lembra o rótulo.
+- Rótulo de item aninhado cabe em ~174px a 14px. Mais que isso, encurte o rótulo — não o indente
+  menos.
+- A navegação inferior do mobile (`BottomNav`) reserva `--bottomnav-height`. Barra de ação fixa
+  usa `sticky bottom-(--bottomnav-height)`, nunca `bottom-0`.
+
+### Guia do produto e documentação (obrigatório em toda feature nova)
+
+Regras inegociáveis:
+
+1. **Toda feature nova voltada ao usuário — e toda mudança visual/de estilo — vai para o guia**
+   (`/guide`) na mesma alteração.
+2. **Captura de tela nova ou atualizada** sempre que a mudança visual exigir: entrada em `CAPTURES`
+   (`scripts/capture-screens.mjs`), depois `NEXT_PUBLIC_MOCK_API=true npm run dev` num terminal e
+   `npm run screens:capture -- <slug>` noutro.
+3. **Toda página nova entra na busca global** via `src/lib/navigation/nav.tsx` (ver acima).
+4. **A documentação acompanha a UI.** Mudou a tela, o rótulo ou o fluxo: a seção do guia que fala
+   dele muda junto, e a captura correspondente é regerada. Guia desatualizado conta como bug.
+
+Como fazer:
+
+1. Entrada em `CAPTURES` (`scripts/capture-screens.mjs`) + `NEXT_PUBLIC_MOCK_API=true npm run dev`
+   em um terminal e `npm run screens:capture` em outro.
+2. Seção no tópico correspondente de `src/app/guide/<slug>/page.tsx` — ou tópico novo em
+   `src/lib/constants/guide.tsx` com o diretório de rota junto.
+3. Se a feature toca uma tela que o mock ainda não modela, adicione a rota em
+   `src/lib/mock/handler.ts` — rota faltando cai em lista vazia e a captura sai vazia, sem erro.
+
+Toda captura precisa de espera explícita (`waitText` ou `steps`). Slugs em inglês
+(`nfe-emit-review`, `subscription`); siglas de documento fiscal ficam como são. Texto do guia em pt-BR.
+Detalhes em `../DOCS.md §5`.
+
 ### Layer Rules
 
 - All API calls go through `ApiClient` — never use `fetch` or raw axios directly.
@@ -156,10 +202,61 @@ Run: `npm test` from `ui/`.
 
 ---
 
+## Mobile-First (MANDATORY — treat the same as ESLint)
+
+**Every screen and component MUST provide a mobile experience equal to desktop.**
+
+### Rules (no exceptions)
+
+- **Design for 375px first.** Add `md:` / `lg:` breakpoints to enhance, not to fix.
+- **Touch targets ≥ 44px.** Buttons, links, selectable rows — all min `h-11` (44px) on mobile.
+  Use `size="sm"` only where context makes touch precision reasonable (inside dense tables/cards on desktop).
+- **No horizontal overflow.** Every container must be `w-full` or `max-w-full`. Test at 375px before committing.
+- **Stacked layouts on mobile.** Replace multi-column grids with `grid-cols-1 md:grid-cols-N` or `flex-col md:flex-row`.
+- **Readable text.** Body text minimum `text-sm` (14px). Labels minimum `text-xs` (12px).
+- **Inputs fill their container.** Use `w-full` on every `<Input>`, `<Select>`, `<CurrencyInput>`.
+- **Modals.** Use `w-full sm:max-w-lg` — never fixed-pixel widths that overflow on mobile.
+- **Sticky chrome.** Navigation bars, step bars, action bars: use `-mx-4 px-4 md:-mx-8 md:px-8` to bleed edge-to-edge on mobile.
+- **Tables.** On mobile, prefer card/list layout over horizontal-scroll tables. If scroll is unavoidable, wrap in `overflow-x-auto`.
+- **No `whitespace-nowrap` on content that can wrap** — only for labels/codes/monospace data.
+
+### Approved responsive patterns
+
+```tsx
+// Grid: 1 col mobile → 2/4 cols desktop
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+
+// Action row: stacked mobile → inline desktop
+<div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+
+// Show/hide by breakpoint
+<span className="hidden sm:inline">Long label</span>
+<span className="sm:hidden">Short</span>
+
+// Edge-to-edge sticky bar
+<div className="sticky bottom-0 -mx-4 px-4 md:-mx-8 md:px-8 py-3 bg-gray-50 border-t border-gray-200">
+```
+
+### Monetary inputs
+
+Use `CurrencyInput` (`@/components/ui/currency-input`) for all monetary fields.
+- Props: `decimalPlaces` (min decimals on blur), `maxDecimalPlaces` (typing limit), `allowZero`
+- Displays Brazilian format (`R$ 1.234,56`) when blurred; raw comma-decimal while editing
+- `onChange` always emits raw decimal string (`"1234.56"`) for backend
+
+### Checklist (add to every PR touching UI)
+
+- [ ] Tested at 375px viewport (Chrome DevTools → iPhone SE)
+- [ ] No horizontal overflow at 375px
+- [ ] Touch targets ≥ 44px for primary actions
+- [ ] Inputs are full-width and usable on mobile keyboard
+
+---
+
 ## Theme
 
 Primary color: `#50ba95` (soft green). Full palette in `../THEME.md`. Use ShadCN components and
-Tailwind CSS 4 — do not add custom CSS frameworks. Responsive design (mobile/tablet/desktop) is mandatory.
+Tailwind CSS 4 — do not add custom CSS frameworks.
 
 ---
 
@@ -195,6 +292,8 @@ Before touching: identify risks + side effects, verify backward compatibility.
 - [ ] No deprecated endpoints called
 - [ ] `access_token` never written to localStorage/sessionStorage
 - [ ] Docs updated (`../DOCS.md`, `../INTEGRATION.md`, or `../CONDUCT.md`)
+- [ ] Guia atualizado: captura em `public/guide/` + seção em `src/app/guide/`
+- [ ] Página nova registrada em `src/lib/navigation/nav.tsx` (navegação + busca global)
 - [ ] Cross-project impact reviewed (ui ↔ api)
 
 ## Mandatory Documentation Policy
@@ -204,13 +303,3 @@ Before touching: identify risks + side effects, verify backward compatibility.
 There are NO exceptions.
 
 Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
-
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->

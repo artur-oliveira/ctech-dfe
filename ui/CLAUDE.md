@@ -125,9 +125,40 @@ unless the rule genuinely does not apply and the reason is commented.
   or `POST /v1.0/distributions/{doc_type}/sync`.
 - Always check `../DOCS.md` for current endpoint list before adding any new API call.
 
-### Guia do produto (obrigatório em toda feature nova)
+### Navegação e busca global (fonte única)
 
-Feature nova só está pronta quando aparece no guia (`/guide`) com captura de tela real:
+`src/lib/navigation/nav.tsx` é a **única** fonte da navegação: barra lateral, contextos por
+documento, tema DF-e por rota (`lib/theme/dfe-theme`) e o índice da busca global (⌘K). Nunca
+declare uma rota de navegação em outro lugar.
+
+- **Cadastro compartilhado fica global; cadastro exclusivo mora no contexto.** Só entra em
+  `SHARED_REGISTRIES` o que mais de um tipo de documento usa (hoje: Pessoas e Produtos). Cadastro
+  usado por um único documento entra em `items` do `DocContext` correspondente.
+- **Toda página nova entra em `nav.tsx`** — em `NAV_GROUPS`, num `DocContext` ou em
+  `EXTRA_SEARCHABLE`. O índice da busca (`SEARCH_ENTRIES`) é derivado daí, então isso é o que a
+  torna pesquisável. `src/__tests__/lib/nav.test.ts` falha se uma rota de primeiro nível ficar
+  de fora.
+- **Dê `keywords` ao item**: sinônimos e jargão fiscal (`cfop`, `placa`, `cst`). É por eles que o
+  Fuse.js acha a tela quando o usuário não lembra o rótulo.
+- Rótulo de item aninhado cabe em ~174px a 14px. Mais que isso, encurte o rótulo — não o indente
+  menos.
+- A navegação inferior do mobile (`BottomNav`) reserva `--bottomnav-height`. Barra de ação fixa
+  usa `sticky bottom-(--bottomnav-height)`, nunca `bottom-0`.
+
+### Guia do produto e documentação (obrigatório em toda feature nova)
+
+Regras inegociáveis:
+
+1. **Toda feature nova voltada ao usuário — e toda mudança visual/de estilo — vai para o guia**
+   (`/guide`) na mesma alteração.
+2. **Captura de tela nova ou atualizada** sempre que a mudança visual exigir: entrada em `CAPTURES`
+   (`scripts/capture-screens.mjs`), depois `NEXT_PUBLIC_MOCK_API=true npm run dev` num terminal e
+   `npm run screens:capture -- <slug>` noutro.
+3. **Toda página nova entra na busca global** via `src/lib/navigation/nav.tsx` (ver acima).
+4. **A documentação acompanha a UI.** Mudou a tela, o rótulo ou o fluxo: a seção do guia que fala
+   dele muda junto, e a captura correspondente é regerada. Guia desatualizado conta como bug.
+
+Como fazer:
 
 1. Entrada em `CAPTURES` (`scripts/capture-screens.mjs`) + `NEXT_PUBLIC_MOCK_API=true npm run dev`
    em um terminal e `npm run screens:capture` em outro.
@@ -262,6 +293,7 @@ Before touching: identify risks + side effects, verify backward compatibility.
 - [ ] `access_token` never written to localStorage/sessionStorage
 - [ ] Docs updated (`../DOCS.md`, `../INTEGRATION.md`, or `../CONDUCT.md`)
 - [ ] Guia atualizado: captura em `public/guide/` + seção em `src/app/guide/`
+- [ ] Página nova registrada em `src/lib/navigation/nav.tsx` (navegação + busca global)
 - [ ] Cross-project impact reviewed (ui ↔ api)
 
 ## Mandatory Documentation Policy

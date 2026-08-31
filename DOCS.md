@@ -2279,6 +2279,51 @@ app/
     └── pronto/      # fim, com o atalho para a primeira emissão
 ```
 
+### Navegação, contextos e busca global
+
+`lib/navigation/nav.tsx` é a **fonte única** da navegação do app. Dela saem quatro
+consumidores, para que rota, tema e busca nunca divirjam:
+
+| Consumidor | Arquivo | O que consome |
+|------------|---------|---------------|
+| Barra lateral (desktop e drawer mobile) | `components/layout/Sidebar.tsx` | `NAV_GROUPS` + `DOC_CONTEXTS` |
+| Navegação inferior (mobile) | `components/layout/BottomNav.tsx` | `DOC_CONTEXTS` + `contextForPath` |
+| Busca global (⌘K) | `components/layout/GlobalSearch.tsx` | `SEARCH_ENTRIES` |
+| Tema DF-e por rota | `lib/theme/dfe-theme.ts` | `contextForPath` |
+
+**Regra de colocação.** Cadastro usado por mais de um documento é global
+(`SHARED_REGISTRIES`: Pessoas e Produtos). Cadastro usado por um único documento
+vive dentro do `DocContext` daquele documento, e herda o acento dele:
+
+| Contexto | Emissão | Cadastros exclusivos |
+|----------|---------|----------------------|
+| NF-e | `/nfe/emit` | naturezas de operação, condições de pagamento, perfis fiscais, declarações de importação, lotes de produção |
+| NFC-e | `/nfce/emit` | terminais de pagamento, bombas de combustível |
+| CT-e | — (em breve) | — |
+| MDF-e | `/mdfe/emit` | veículos, composições veiculares, unidades de carga, vale-pedágio, apólices de seguro |
+| NFS-e | `/nfse/emit` | serviços, locais de prestação, documentos referenciados |
+
+Como o tema sai de `contextForPath`, `/services` renderiza no teal da NFS-e e
+`/vehicles` no âmbar do MDF-e, sem atributo manual em página nenhuma.
+
+**Busca global.** `SEARCH_ENTRIES` é derivado de `NAV_GROUPS`, dos `DOC_CONTEXTS`,
+de `EXTRA_SEARCHABLE` e de `GUIDE_TOPICS`; o `GlobalSearch` roda Fuse.js sobre
+`label` (peso 3), `keywords` (2) e `context` (1), com `threshold: 0.4` — daí a
+tolerância a erro de digitação. O filtro por `roles` é o mesmo da barra lateral,
+então a busca nunca revela uma tela que o papel não pode abrir. Abre em ⌘K/Ctrl+K,
+em `/`, no botão da topbar (desktop) e na aba **Buscar** (mobile).
+
+`src/__tests__/lib/nav.test.ts` reprova rota de primeiro nível em `app/` que não
+esteja indexada — é o que garante que "toda página nova é pesquisável" não dependa
+de disciplina.
+
+**Layout responsivo.** No desktop a barra lateral fica fixa e os contextos
+expandem inline. Abaixo de `md` (768px) a barra vira drawer e a navegação primária
+passa para `BottomNav` (Painel · documento atual · Emitir · Buscar · Menu). A
+variável `--bottomnav-height` (0 no desktop, 3.5rem no mobile) reserva o espaço:
+`main` usa `pb-(--bottomnav-height)` e toda barra de ação fixa usa
+`sticky bottom-(--bottomnav-height)`.
+
 ### Guia do produto (`/guide`) e capturas de tela
 
 O guia é público (não passa por `ProtectedRoute`) e é servido pelo mesmo export
@@ -2314,8 +2359,11 @@ para que tela quebrada não vire imagem publicada.
 1. Adicione a entrada em `CAPTURES` (`scripts/capture-screens.mjs`) e rode a captura.
 2. Adicione a seção ao tópico do guia que cobre aquela área — ou um tópico novo em
    `GUIDE_TOPICS`, com o diretório correspondente em `app/guide/`.
-3. Rode `npm test`: `src/__tests__/lib/guide-assets.test.ts` reprova imagem
-   referenciada que não existe, captura gerada que ninguém usa e tópico sem rota.
+3. Registre a página em `lib/navigation/nav.tsx` — é o que a coloca na navegação e
+   na busca global.
+4. Rode `npm test`: `src/__tests__/lib/guide-assets.test.ts` reprova imagem
+   referenciada que não existe, captura gerada que ninguém usa e tópico sem rota;
+   `src/__tests__/lib/nav.test.ts` reprova página fora da busca.
 
 Slugs de captura e de rota seguem convenção em inglês (`nfe-emit-review`,
 `fiscal-config`, `subscription`); nomes próprios de documento fiscal ficam como

@@ -6,7 +6,7 @@ const push = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({push}),
-  usePathname: () => '/cte',
+  usePathname: () => '/mdfe',
 }))
 
 describe('KeyboardShortcuts', () => {
@@ -15,13 +15,13 @@ describe('KeyboardShortcuts', () => {
   })
 
   it("routes 'n' to the emit page of the current doc type", () => {
-    render(<KeyboardShortcuts/>)
+    render(<KeyboardShortcuts onOpenSearch={() => {}}/>)
     fireEvent.keyDown(document.body, {key: 'n'})
-    expect(push).toHaveBeenCalledWith('/cte/emit')
+    expect(push).toHaveBeenCalledWith('/mdfe/emit')
   })
 
   it("does not fire 'n' while typing in a field", () => {
-    render(<KeyboardShortcuts/>)
+    render(<KeyboardShortcuts onOpenSearch={() => {}}/>)
     const input = document.createElement('input')
     document.body.appendChild(input)
     input.focus()
@@ -31,7 +31,7 @@ describe('KeyboardShortcuts', () => {
   })
 
   it("toggles the help dialog on '?' and closes on Escape", () => {
-    render(<KeyboardShortcuts/>)
+    render(<KeyboardShortcuts onOpenSearch={() => {}}/>)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     fireEvent.keyDown(document.body, {key: '?', shiftKey: true})
@@ -44,7 +44,7 @@ describe('KeyboardShortcuts', () => {
   })
 
   it('cleans up after unmount (no listener leak)', () => {
-    const {unmount} = render(<KeyboardShortcuts/>)
+    const {unmount} = render(<KeyboardShortcuts onOpenSearch={() => {}}/>)
     unmount()
     cleanup()
     fireEvent.keyDown(document.body, {key: 'n'})

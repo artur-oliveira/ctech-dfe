@@ -45,7 +45,7 @@ export function MockDevPanel() {
       // Âncora estável para o script de captura removê-lo antes do screenshot
       // (scripts/capture-screens.mjs). Sem isso a barra aparece em toda imagem.
       data-mock-panel=""
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:left-3 md:right-auto md:bottom-3 md:rounded-lg md:border">
+      className="fixed bottom-(--bottomnav-height) left-0 right-0 z-50 flex items-center gap-2 border-t border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:left-3 md:right-auto md:bottom-3 md:rounded-lg md:border">
       <span className="font-semibold uppercase tracking-wide">Mock API</span>
       <span className="rounded bg-amber-200 px-1.5 py-0.5 font-mono">{mode}</span>
       <button

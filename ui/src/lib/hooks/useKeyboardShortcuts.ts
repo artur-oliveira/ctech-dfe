@@ -10,6 +10,8 @@ export type ShortcutSpec = {
   global?: boolean
   /** Require a modifier (shift/ctrl/meta/alt). Default: handled by key string. */
   shift?: boolean
+  /** Require Ctrl (Windows/Linux) or Cmd (macOS) — e.g. the ⌘K palette. */
+  mod?: boolean
 }
 
 function isTypingTarget(el: EventTarget | null): boolean {
@@ -32,7 +34,11 @@ export function useKeyboardShortcuts(shortcuts: ShortcutSpec[], deps: unknown[] 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       for (const s of shortcuts) {
-        const modOk = s.shift ? e.shiftKey : !e.ctrlKey && !e.metaKey && !e.altKey
+        const modOk = s.mod
+          ? e.ctrlKey || e.metaKey
+          : s.shift
+            ? e.shiftKey
+            : !e.ctrlKey && !e.metaKey && !e.altKey
         if (e.key.toLowerCase() !== s.key.toLowerCase()) continue
         if (!modOk) continue
         if (!s.global && isTypingTarget(e.target)) return

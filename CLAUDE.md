@@ -49,6 +49,18 @@ literals across files.
 
 - **ui:** `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before any commit.
 
+### UI — guia, busca e navegação (regras inegociáveis)
+
+Aplicam-se a toda alteração em `ui/`. Detalhe completo em `ui/CLAUDE.md`.
+
+1. Toda feature nova voltada ao usuário — e toda mudança visual/de estilo — é documentada no guia
+   (`/guide`) na mesma alteração.
+2. Captura de tela adicionada/atualizada sempre que a mudança visual exigir
+   (`npm run screens:capture`).
+3. Toda página nova é registrada em `ui/src/lib/navigation/nav.tsx` — é isso que a coloca na
+   navegação e na busca global (⌘K).
+4. A documentação acompanha a UI: guia desatualizado conta como bug.
+
 ### Testing — core functions need integration tests
 
 Every core function must be covered by an integration test in addition to unit tests.

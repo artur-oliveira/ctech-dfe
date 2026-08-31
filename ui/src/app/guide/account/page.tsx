@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
 
 export default function GuideConta() {
@@ -107,9 +108,13 @@ export default function GuideConta() {
           },
           body: (
             <p>
-              O menu lateral vira menu deslizante, as tabelas viram cartões e os botões respeitam
-              área de toque. A emissão completa também funciona no celular, embora o preenchimento de
-              muitos itens seja mais confortável no desktop.
+              A navegação principal desce para a barra inferior — Painel, documento atual, Emitir,
+              Buscar e Menu —, as tabelas viram cartões e os botões respeitam área de toque. A
+              emissão completa também funciona no celular, embora o preenchimento de muitos itens
+              seja mais confortável no desktop. Detalhes em{' '}
+              <Link href="/guide/navigation" className="font-medium text-primary-700 underline underline-offset-2">
+                Navegação
+              </Link>.
             </p>
           ),
         },

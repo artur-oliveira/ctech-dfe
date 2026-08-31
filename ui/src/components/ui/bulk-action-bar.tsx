@@ -20,7 +20,7 @@ export function BulkActionBar({
   if (count === 0) return null
 
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
+    <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-gray-900">
           {count} {count === 1 ? 'selecionado' : 'selecionados'}

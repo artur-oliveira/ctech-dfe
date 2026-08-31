@@ -627,7 +627,7 @@ export function NfceEmitForm() {
 
       {/* Action bar — the total never leaves the screen */}
       <div
-        className="sticky bottom-0 -mx-4 px-4 md:mx-0 md:px-0 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+        className="sticky bottom-(--bottomnav-height) -mx-4 px-4 md:mx-0 md:px-0 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs text-gray-500">Total{products.length > 0 && ` · ${products.length} item(s)`}</p>
           <p className="text-lg font-semibold text-gray-900 leading-tight">{fmt(totalNfce)}</p>
