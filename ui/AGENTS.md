@@ -145,6 +145,18 @@ declare uma rota de navegação em outro lugar.
 - A navegação inferior do mobile (`BottomNav`) reserva `--bottomnav-height`. Barra de ação fixa
   usa `sticky bottom-(--bottomnav-height)`, nunca `bottom-0`.
 
+### SEO e título de página
+
+- Só a landing (`/`) e o guia (`/guide/*`) são indexáveis. O layout raiz marca
+  `noindex` para todo o resto — **nunca** libere indexação numa rota de app.
+- `app/robots.ts` bloqueia tudo e libera as exceções; `app/sitemap.ts` sai de
+  `GUIDE_TOPICS`. Rota nova nasce fechada, sem lista para atualizar.
+- Tópico novo do guia precisa do seu `layout.tsx` com `title`, `description`,
+  `alternates.canonical` e o JSON-LD de `lib/seo/json-ld`.
+- **Nunca** chame `document.title` numa página. O título das telas de app sai de
+  `lib/navigation/page-title`, derivado de `nav.tsx`. Tela que precisa de um nome
+  fora do padrão entra em `SEGMENT_LABELS` ou `STANDALONE_TITLES` ali.
+
 ### Guia do produto e documentação (obrigatório em toda feature nova)
 
 Regras inegociáveis:
@@ -157,6 +169,13 @@ Regras inegociáveis:
 3. **Toda página nova entra na busca global** via `src/lib/navigation/nav.tsx` (ver acima).
 4. **A documentação acompanha a UI.** Mudou a tela, o rótulo ou o fluxo: a seção do guia que fala
    dele muda junto, e a captura correspondente é regerada. Guia desatualizado conta como bug.
+5. **Cobertura é obrigatória, não opcional.** Toda tela de cadastro e de configuração tem seção no
+   guia com captura de slug igual ao da rota (`/vehicles` -> `/guide/vehicles.webp`), explicando o
+   que a tela é, para que serve, o que é obrigatório e o que é restrito.
+   `src/__tests__/lib/guide-assets.test.ts` reprova tela sem captura.
+6. **Tela nova precisa de fixture no mock.** Sem ela a rota cai em lista vazia e a captura sai em
+   branco, sem erro — `src/__tests__/lib/mock-handler.test.ts` reprova cadastro da navegação sem
+   itens no mock.
 
 Como fazer:
 
@@ -293,7 +312,9 @@ Before touching: identify risks + side effects, verify backward compatibility.
 - [ ] `access_token` never written to localStorage/sessionStorage
 - [ ] Docs updated (`../DOCS.md`, `../INTEGRATION.md`, or `../CONDUCT.md`)
 - [ ] Guia atualizado: captura em `public/guide/` + seção em `src/app/guide/`
-- [ ] Página nova registrada em `src/lib/navigation/nav.tsx` (navegação + busca global)
+- [ ] Página nova registrada em `src/lib/navigation/nav.tsx` (navegação + busca global + título)
+- [ ] Tela de cadastro/configuração nova: fixture no mock + captura + seção no guia
+- [ ] Rota de app permanece `noindex`; só landing e guia são indexáveis
 - [ ] Cross-project impact reviewed (ui ↔ api)
 
 ## Mandatory Documentation Policy

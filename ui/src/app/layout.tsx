@@ -5,6 +5,7 @@ import {QueryProvider} from "@/lib/providers/QueryProvider";
 import {RealtimeProvider} from "@/lib/providers/RealtimeProvider";
 import {Toaster} from "sonner";
 import {MOCK_ENABLED, MockDevPanel} from "@/lib/mock";
+import {PageTitle} from "@/components/layout/PageTitle";
 import "./globals.css";
 import React from "react";
 
@@ -91,6 +92,9 @@ export default function RootLayout({
       </AuthProvider>
     </QueryProvider>
     <Toaster richColors position="top-right"/>
+    {/* Por último no corpo: o efeito roda depois do commit do `metadata` do
+        Next, que na primeira carga também escreve o título. */}
+    <PageTitle/>
     </body>
     </html>
   );

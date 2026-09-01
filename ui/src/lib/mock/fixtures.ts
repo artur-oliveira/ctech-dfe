@@ -1061,3 +1061,151 @@ export const nfseDistributionsFixture = [
     created_at: '2026-07-02T08:30:00Z',
   },
 ]
+
+// ── Cadastros de apoio (um por contexto de documento) ──────────────────────
+// Alimentam as listagens do guia; os campos são os mesmos que a tela mostra.
+
+export const paymentTerminalsFixture = [
+  {
+    pk: `${ORG_PK}#payment-terminal#1`,
+    sk: 'PAYMENTTERMINAL#1',
+    name: 'Maquininha do caixa 1',
+    cnpj_receb: '11222333000181',
+    id_term_pag: 'POS-0001',
+    cnpj_pag: '01027058000191',
+    uf_pag: 'SP',
+    t_band: '01',
+    created_at: '2026-02-10T09:00:00Z',
+    updated_at: '2026-05-02T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#payment-terminal#2`,
+    sk: 'PAYMENTTERMINAL#2',
+    name: 'Maquininha do delivery',
+    cnpj_receb: '11222333000181',
+    id_term_pag: 'POS-0002',
+    cnpj_pag: '01027058000191',
+    uf_pag: 'SP',
+    t_band: '03',
+    created_at: '2026-02-10T09:05:00Z',
+    updated_at: '2026-05-02T09:05:00Z',
+  },
+]
+
+export const fuelPumpsFixture = [
+  {
+    pk: `${ORG_PK}#fuel-pump#1`,
+    sk: 'FUELPUMP#1',
+    name: 'Bico 1 — gasolina comum',
+    n_bico: '1',
+    n_bomba: '1',
+    n_tanque: '1',
+    last_v_enc_fin: '148920.480',
+    created_at: '2026-01-15T09:00:00Z',
+    updated_at: '2026-07-01T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#fuel-pump#2`,
+    sk: 'FUELPUMP#2',
+    name: 'Bico 4 — etanol',
+    n_bico: '4',
+    n_bomba: '2',
+    n_tanque: '3',
+    last_v_enc_fin: '92310.115',
+    created_at: '2026-01-15T09:05:00Z',
+    updated_at: '2026-07-01T09:05:00Z',
+  },
+]
+
+export const cargoUnitsFixture = [
+  {
+    pk: `${ORG_PK}#cargo-unit#1`,
+    sk: 'CARGOUNIT#1',
+    name: 'Contêiner 20 pés — exportação',
+    kind: 'cargo' as const,
+    tp_unid: '1',
+    id_unid: 'MSKU1234567',
+    seals: ['SL-889201'],
+    created_at: '2026-03-01T09:00:00Z',
+    updated_at: '2026-06-01T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#cargo-unit#2`,
+    sk: 'CARGOUNIT#2',
+    name: 'Carreta baú — rota Sudeste',
+    kind: 'transport' as const,
+    tp_unid: '2',
+    id_unid: 'DEF4G56',
+    seals: [],
+    created_at: '2026-03-01T09:05:00Z',
+    updated_at: '2026-06-01T09:05:00Z',
+  },
+]
+
+export const tollProvidersFixture = [
+  {
+    pk: `${ORG_PK}#toll-provider#1`,
+    sk: 'TOLLPROVIDER#1',
+    name: 'Vale-pedágio Rodovia SP',
+    cnpj_forn: '01027058000191',
+    cnpj_pg: '11222333000181',
+    cpf_pg: null,
+    tp_vale_ped: '01',
+    created_at: '2026-03-10T09:00:00Z',
+    updated_at: '2026-06-10T09:00:00Z',
+  },
+]
+
+export const insurancePoliciesFixture = [
+  {
+    pk: `${ORG_PK}#insurance-policy#1`,
+    sk: 'INSURANCEPOLICY#1',
+    name: 'RCTR-C — carga geral',
+    resp_seg: '1',
+    cnpj: '11222333000181',
+    cpf: null,
+    x_seg: 'Seguradora Exemplo S.A.',
+    cnpj_seg: '01027058000191',
+    n_apol: 'AP-2026-004512',
+    created_at: '2026-03-12T09:00:00Z',
+    updated_at: '2026-06-12T09:00:00Z',
+  },
+]
+
+export const productLotsFixture = [
+  {
+    pk: `${ORG_PK}#product-lot#1`,
+    sk: 'PRODUCTLOT#1',
+    name: 'Lote 2026-A — Notebook 15 polegadas',
+    product_id: '1',
+    n_lote: '2026A',
+    q_lote: '250.0000',
+    d_fab: '2026-02-01',
+    d_val: '2029-02-01',
+    c_agreg: null,
+    created_at: '2026-02-02T09:00:00Z',
+    updated_at: '2026-05-02T09:00:00Z',
+  },
+]
+
+export const importDeclarationsFixture = [
+  {
+    pk: `${ORG_PK}#import-declaration#1`,
+    sk: 'IMPORTDECLARATION#1',
+    name: 'DI 26/0004512-0 — Santos',
+    n_di: '2600045120',
+    d_di: '2026-04-02',
+    x_loc_desemb: 'Porto de Santos',
+    uf_desemb: 'SP',
+    d_desemb: '2026-04-08',
+    tp_via_transp: '01',
+    v_afrmm: '1240.00',
+    tp_intermedio: '1',
+    cnpj: null,
+    uf_terceiro: null,
+    c_exportador: 'EXP-CN-0091',
+    additions: [{n_adicao: '1', c_fabricante: 'FAB-CN-0091', v_desc_di: null, n_draw: null}],
+    created_at: '2026-04-09T09:00:00Z',
+    updated_at: '2026-06-09T09:00:00Z',
+  },
+]

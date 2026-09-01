@@ -12,9 +12,13 @@ export default function GuideConta() {
       sections={[
         {
           id: 'organizations',
-          title: 'Empresas e usuários',
+          title: 'Empresas e papéis',
           summary:
             'A empresa selecionada no topo é o contexto de tudo: documentos, cadastros e configuração pertencem a ela.',
+          image: {
+            src: '/guide/organizations.webp',
+            alt: 'Lista de organizações da conta, com razão social, CNPJ e papel do usuário em cada uma',
+          },
           body: (
             <>
               <GuideTerms>
@@ -32,6 +36,78 @@ export default function GuideConta() {
                 Convites são por e-mail e por empresa — quem aceita entra só naquela organização, com
                 o papel escolhido no convite. Trocar de empresa não exige sair da conta.
               </p>
+            </>
+          ),
+        },
+        {
+          id: 'organizations-manage',
+          title: 'Criar, editar e vincular empresa',
+          summary:
+            'Empresa nova entra pelo CNPJ; empresa que já existe na conta de outra pessoa entra por vínculo.',
+          body: (
+            <>
+              <p>
+                <b>Nova organização</b> pede o CNPJ e consulta os dados públicos: razão social, nome
+                fantasia, endereço e regime tributário chegam preenchidos, e você revisa. <b>Vincular
+                organização</b> serve para o caso oposto — a empresa já está cadastrada por outra
+                conta e você recebeu acesso a ela.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> CNPJ, razão social, endereço completo e regime tributário (CRT).</li>
+                <li>A inscrição estadual determina se a empresa emite com destaque de ICMS; sem ela, só operações que dispensam IE.</li>
+                <li>Criar e excluir empresa é ação de <b>proprietário</b>; editar é de proprietário ou administrador.</li>
+                <li>O CNPJ não muda depois de criado — empresa errada se exclui e se recria.</li>
+              </GuideBullets>
+              <GuideCallout kind="warning" title="Excluir empresa apaga o histórico dela">
+                Documentos, cadastros e certificados da empresa vão junto. Baixe os XML que precisa
+                guardar antes — a guarda fiscal de cinco anos é sua responsabilidade.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'members',
+          title: 'Usuários e convites',
+          summary: 'Quem entra, com que papel, e como tirar acesso.',
+          image: {
+            src: '/guide/members.webp',
+            alt: 'Lista de usuários da organização com nome, e-mail, papel e situação do convite',
+          },
+          body: (
+            <>
+              <p>
+                A tela lista quem tem acesso à empresa selecionada e o papel de cada um. O convite é
+                por e-mail: enquanto não for aceito, aparece como <b>pendente</b> e pode ser
+                cancelado.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios no convite:</b> e-mail e papel.</li>
+                <li>Só <b>proprietário</b> e <b>administrador</b> veem esta tela e enviam convites.</li>
+                <li>O papel pode ser alterado depois; remover o acesso não apaga o que a pessoa emitiu.</li>
+                <li>Toda empresa precisa de pelo menos um proprietário — o último não pode ser removido nem rebaixado.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'profile',
+          title: 'Meu perfil',
+          summary: 'Seus dados pessoais, separados dos dados da empresa.',
+          image: {
+            src: '/guide/profile.webp',
+            alt: 'Tela de perfil do usuário com nome, sobrenome e e-mail da conta',
+          },
+          body: (
+            <>
+              <p>
+                Nome e sobrenome são o que aparece no log de auditoria e para os colegas de equipe.
+                A conta é da pessoa, não da empresa: o mesmo login atende todas as organizações em
+                que você foi convidado.
+              </p>
+              <GuideBullets>
+                <li>O e-mail identifica a conta e é o endereço dos convites — trocá-lo é feito na conta CTech, não aqui.</li>
+                <li>Senha e sessão também moram na conta CTech; sair encerra a sessão em todas as empresas.</li>
+              </GuideBullets>
             </>
           ),
         },

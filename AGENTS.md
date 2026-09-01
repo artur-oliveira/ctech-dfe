@@ -59,7 +59,9 @@ Aplicam-se a toda alteração em `ui/`. Detalhe completo em `ui/CLAUDE.md`.
    (`npm run screens:capture`).
 3. Toda página nova é registrada em `ui/src/lib/navigation/nav.tsx` — é isso que a coloca na
    navegação e na busca global (⌘K).
-4. A documentação acompanha a UI: guia desatualizado conta como bug.
+4. A documentação acompanha a UI: guia desatualizado conta como bug. Toda tela de cadastro ou
+   configuração tem seção no guia com captura própria.
+5. Só a landing (`/`) e o guia (`/guide/*`) são indexáveis; toda rota de app permanece `noindex`.
 
 ### Testing — core functions need integration tests
 

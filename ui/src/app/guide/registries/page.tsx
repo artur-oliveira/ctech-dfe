@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
 
 export default function GuideCadastros() {
@@ -223,52 +222,270 @@ export default function GuideCadastros() {
           ),
         },
         {
-          id: 'support',
-          title: 'Os cadastros de apoio',
+          id: 'services',
+          title: 'Serviços',
           summary:
-            'Menos usados, mas cada um evita um campo repetido — ou uma rejeição — na emissão.',
+            'O catálogo que responde item da LC 116, tributação do ISS e valor antes da emissão da NFS-e.',
+          image: {
+            src: '/guide/services.webp',
+            alt: 'Lista de serviços com código, descrição, código de tributação nacional, incidência, retenção, alíquota e valor',
+          },
           body: (
             <>
               <p>
-                Todos vivem dentro do documento que os usa, na barra lateral. Nenhum é obrigatório
-                para começar a emitir: cadastre quando a sua operação pedir.
+                Cada serviço guarda o <b>código de tributação nacional</b> (o item da LC 116 em seis
+                dígitos), a incidência do ISS, se há retenção pelo tomador e o valor padrão. Na
+                emissão você escolhe o serviço e a tributação vem junto.
               </p>
-              <GuideTerms>
-                <GuideTerm term="Condições de pagamento (NF-e)">
-                  Prazo, número de parcelas e intervalo. Escolher a condição na emissão gera as
-                  duplicatas com vencimento calculado.
-                </GuideTerm>
-                <GuideTerm term="Declarações de importação (NF-e)">
-                  Número da DI, data, local de desembaraço e adições. Item importado sem DI é
-                  rejeição certa.
-                </GuideTerm>
-                <GuideTerm term="Lotes de produção (NF-e)">
-                  Lote, fabricação e validade dos produtos rastreados — medicamentos e itens sob
-                  rastreabilidade obrigatória.
-                </GuideTerm>
-                <GuideTerm term="Terminais de pagamento (NFC-e)">
-                  Maquininha, credenciadora e CNPJ. Identifica a transação de cartão no cupom.
-                </GuideTerm>
-                <GuideTerm term="Bombas de combustível (NFC-e)">
-                  Bico, tanque e encerrante — os dados que o posto informa a cada abastecimento.
-                </GuideTerm>
-                <GuideTerm term="Unidades de carga (MDF-e)">
-                  Contêiner, pallet ou vagão, com os lacres. Entra no manifesto junto com a carga.
-                </GuideTerm>
-                <GuideTerm term="Vale-pedágio (MDF-e)">
-                  Fornecedor, CNPJ e comprovante. Obrigatório no transporte rodoviário de carga
-                  quando há pedágio.
-                </GuideTerm>
-                <GuideTerm term="Apólices de seguro (MDF-e)">
-                  Seguradora, apólice e averbação da carga transportada.
-                </GuideTerm>
-              </GuideTerms>
-              <GuideCallout kind="info" title="Serviços da NFS-e ficam no tópico da NFS-e">
-                O catálogo de serviços, com item da LC 116 e tributação do ISS, é explicado em{' '}
-                <Link href="/guide/nfse" className="font-medium text-primary-700 underline underline-offset-2">
-                  Emitir NFS-e
-                </Link>.
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> código interno, descrição e código de tributação nacional.</li>
+                <li>Serviço <b>tributável</b> exige alíquota do ISS; <b>imune</b>, <b>isento</b> e <b>não incidente</b> exigem o motivo, que vai no XML.</li>
+                <li>Marcar <b>ISS retido</b> transfere o recolhimento ao tomador — a nota sai com o valor líquido destacado.</li>
+                <li>O valor do cadastro é um padrão: a emissão aceita outro sem alterar o catálogo.</li>
+              </GuideBullets>
+              <GuideCallout kind="warning" title="O município valida o código, não nós">
+                Código de tributação incompatível com a atividade do prestador é rejeitado pelo
+                ambiente nacional. Na dúvida, confira o item da LC 116 no CNAE da empresa antes de
+                cadastrar.
               </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'operations',
+          title: 'Naturezas de operação',
+          summary:
+            'O motivo da nota — venda, devolução, remessa — e o CFOP que ele determina.',
+          image: {
+            src: '/guide/operations.webp',
+            alt: 'Lista de naturezas de operação com nome, finalidade, tipo e CFOP padrão',
+          },
+          body: (
+            <>
+              <p>
+                A natureza responde três campos da NF-e de uma vez: o texto da natureza da operação,
+                a finalidade (normal, complementar, ajuste ou devolução) e o sufixo do CFOP dos
+                itens. O prefixo do CFOP sai do destino — mesma natureza, CFOP diferente para dentro
+                e fora do estado.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome, finalidade e tipo de operação (entrada ou saída).</li>
+                <li>Uma natureza pode ser marcada como <b>padrão</b> — vem selecionada em toda emissão nova.</li>
+                <li>Devolução exige a nota referenciada na emissão; a natureza sozinha não basta.</li>
+                <li>Sobrescrever o CFOP direto no item sempre vence o que veio da natureza.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'payment-terms',
+          title: 'Condições de pagamento',
+          summary: 'Forma, parcelas e vencimentos calculados — sem digitar duplicata a duplicata.',
+          image: {
+            src: '/guide/payment-terms.webp',
+            alt: 'Lista de condições de pagamento com nome, forma, parcelas e intervalo entre vencimentos',
+          },
+          body: (
+            <>
+              <p>
+                Escolher a condição na emissão gera as parcelas com vencimento calculado a partir da
+                data de emissão: <i>À vista — Pix</i> fecha em uma parcela no dia; <i>30/60/90</i>
+                {' '}gera três, espaçadas pelo intervalo cadastrado.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome, forma de pagamento e número de parcelas.</li>
+                <li>Forma <b>a prazo</b> exige intervalo entre parcelas; à vista ignora o campo.</li>
+                <li>A soma das parcelas tem de bater com o total da nota — a emissão avisa antes de enviar.</li>
+                <li>Pagamento em cartão pede o terminal (ver <b>Terminais de pagamento</b>) para identificar a transação.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'import-declarations',
+          title: 'Declarações de importação',
+          summary: 'A DI que todo item importado precisa citar na NF-e.',
+          image: {
+            src: '/guide/import-declarations.webp',
+            alt: 'Lista de declarações de importação com número da DI, data, local de desembaraço e UF',
+          },
+          body: (
+            <>
+              <p>
+                Produto de origem estrangeira exige o grupo <b>DI</b> no item da nota. Cadastrar a
+                declaração uma vez evita redigitar número, datas e adições em cada venda daquele
+                lote importado.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> número da DI, data de registro, local e UF de desembaraço, data do desembaraço, via de transporte, forma de intermediação e código do exportador.</li>
+                <li>Pelo menos <b>uma adição</b>, com número e código do fabricante.</li>
+                <li>Intermediação <b>por conta e ordem</b> ou <b>por encomenda</b> exige o CNPJ do adquirente e a UF do terceiro.</li>
+                <li>AFRMM só se aplica a transporte marítimo.</li>
+              </GuideBullets>
+              <GuideCallout kind="warning" title="Origem do produto tem de combinar">
+                Item com origem nacional apontando para uma DI é rejeitado. Ajuste a origem no
+                cadastro do produto antes de vincular a declaração.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'product-lots',
+          title: 'Lotes de produção',
+          summary: 'Rastreabilidade de medicamentos e afins: lote, fabricação e validade.',
+          image: {
+            src: '/guide/product-lots.webp',
+            alt: 'Lista de lotes de produção com nome, produto, número do lote e validade',
+          },
+          body: (
+            <>
+              <p>
+                Produtos sujeitos a rastreabilidade levam o grupo <b>rastro</b> na NF-e. O lote
+                guarda número, quantidade produzida, fabricação e validade; a quantidade de cada
+                nota é rateada da quantidade vendida.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> produto, número do lote, quantidade, data de fabricação e data de validade.</li>
+                <li>A validade não pode ser anterior à fabricação.</li>
+                <li>O código de agregação (ANVISA) é opcional e só se aplica a medicamentos.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'payment-terminals',
+          title: 'Terminais de pagamento',
+          summary: 'A maquininha que identifica a transação de cartão no cupom.',
+          image: {
+            src: '/guide/payment-terminals.webp',
+            alt: 'Lista de terminais de pagamento com nome, CNPJ da credenciadora e identificador do terminal',
+          },
+          body: (
+            <>
+              <p>
+                Pagamento em cartão na NFC-e leva o grupo <b>cartão</b>, com a credenciadora e o
+                identificador do terminal. Cadastrar cada maquininha deixa a emissão em um clique.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome, CNPJ da credenciadora e identificador do terminal.</li>
+                <li>Bandeira e UF são opcionais, mas algumas UFs as exigem em contingência.</li>
+                <li>O identificador tem de ser o mesmo que a maquininha imprime no comprovante — é por ele que a SEFAZ concilia.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'fuel-pumps',
+          title: 'Bombas de combustível',
+          summary: 'Bico, bomba, tanque e o encerrante que a venda de posto exige.',
+          image: {
+            src: '/guide/fuel-pumps.webp',
+            alt: 'Lista de bombas de combustível com nome, bico, bomba, tanque e última leitura do encerrante',
+          },
+          body: (
+            <>
+              <p>
+                Venda de combustível a consumidor final exige o grupo <b>encerrante</b>: a leitura
+                do bico antes e depois do abastecimento. O sistema guarda a última leitura final de
+                cada bico e propõe a inicial da venda seguinte.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome e número do bico. Bomba e tanque são opcionais, mas a maioria dos estados os exige.</li>
+                <li>A leitura final tem de ser maior que a inicial — encerrante que anda para trás é rejeitado.</li>
+                <li>A última leitura é escrita pela emissão, não editável à mão.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'vehicle-sets',
+          title: 'Composições veiculares',
+          summary: 'Tração, reboques, condutor e RNTRC salvos sob um nome só.',
+          image: {
+            src: '/guide/vehicle-sets.webp',
+            alt: 'Lista de composições veiculares com nome, veículo de tração, reboques e RNTRC',
+          },
+          body: (
+            <>
+              <p>
+                Quem repete a mesma configuração de frota em toda viagem cadastra a composição uma
+                vez: escolher a composição no MDF-e preenche o passo do veículo inteiro — tração,
+                reboques e condutor.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome e veículo de tração.</li>
+                <li>Reboques e condutores saem dos cadastros de <b>Veículos</b> e <b>Pessoas</b> — a composição referencia, não duplica.</li>
+                <li>O RNTRC é obrigatório no transporte rodoviário de carga por conta de terceiros.</li>
+                <li>Excluir um veículo usado por uma composição quebra a composição; ajuste-a antes.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'cargo-units',
+          title: 'Unidades de transporte e de carga',
+          summary: 'Contêineres, pallets, carretas e vagões, com os lacres.',
+          image: {
+            src: '/guide/cargo-units.webp',
+            alt: 'Lista de unidades de transporte e de carga com nome, tipo, classificação e identificação',
+          },
+          body: (
+            <>
+              <p>
+                O MDF-e separa <b>unidade de transporte</b> (a carreta ou o vagão que leva a carga) de
+                <b> unidade de carga</b> (o contêiner ou pallet dentro dela). O mesmo cadastro atende
+                os dois, com o tipo escolhido na criação.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome, classificação (transporte ou carga), tipo e identificação.</li>
+                <li>Lacres são opcionais e podem ser vários — carga lacrada normalmente exige pelo menos um.</li>
+                <li>O rateio da carga entre unidades é calculado na emissão, não no cadastro.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'toll-providers',
+          title: 'Vale-pedágio',
+          summary: 'A fornecedora do vale e quem paga por ele.',
+          image: {
+            src: '/guide/toll-providers.webp',
+            alt: 'Lista de fornecedoras de vale-pedágio com nome, CNPJ da fornecedora e responsável pelo pagamento',
+          },
+          body: (
+            <>
+              <p>
+                No transporte rodoviário de carga por conta de terceiros, o vale-pedágio é
+                obrigatório e vai no manifesto com fornecedora, pagador e comprovante.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome e CNPJ da fornecedora.</li>
+                <li>O pagador é CNPJ <b>ou</b> CPF, nunca os dois.</li>
+                <li>O número do comprovante muda a cada viagem e continua sendo pedido na emissão.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
+          id: 'insurance-policies',
+          title: 'Apólices de seguro',
+          summary: 'Seguradora, apólice e quem responde pelo seguro da carga.',
+          image: {
+            src: '/guide/insurance-policies.webp',
+            alt: 'Lista de apólices de seguro com nome, responsável pelo seguro, seguradora e número da apólice',
+          },
+          body: (
+            <>
+              <p>
+                O manifesto declara quem contratou o seguro da carga: o emitente do MDF-e ou o
+                contratante do transporte. Cadastrar a apólice evita redigitar seguradora e número a
+                cada viagem.
+              </p>
+              <GuideBullets>
+                <li><b>Obrigatórios:</b> nome e responsável pelo seguro.</li>
+                <li>Responsável identificado por CNPJ <b>ou</b> CPF, nunca os dois.</li>
+                <li>Informar a apólice exige informar a seguradora; averbações são adicionadas na emissão.</li>
+              </GuideBullets>
             </>
           ),
         },

@@ -7,6 +7,7 @@ import {
   servicesFixture,
   taxProfilesFixture,
 } from '@/lib/mock/fixtures'
+import {DOC_CONTEXTS, SHARED_REGISTRIES} from '@/lib/navigation/nav'
 import type {InternalAxiosRequestConfig} from 'axios'
 
 /**
@@ -32,6 +33,23 @@ describe('mock handler', () => {
     const profiles = await get('/v1.0/tax-profiles')
     expect(services.items).toHaveLength(servicesFixture.length)
     expect(profiles.items).toHaveLength(taxProfilesFixture.length)
+  })
+
+  /**
+   * Todo cadastro que aparece na navegação vira captura do guia. Sem fixture, a
+   * rota cai no fallback de lista vazia e a imagem sai em branco — sem erro.
+   */
+  it('serve itens para todo cadastro da navegação', async () => {
+    const hrefs = [
+      ...SHARED_REGISTRIES.map(i => i.href),
+      ...DOC_CONTEXTS.flatMap(ctx => ctx.items.map(i => i.href)),
+    ]
+    const empty: string[] = []
+    for (const href of hrefs) {
+      const data = await get(`/v1.0${href}`)
+      if (!Array.isArray(data.items) || data.items.length === 0) empty.push(href)
+    }
+    expect(empty).toEqual([])
   })
 
   it('distingue a rota de eventos da rota de detalhe', async () => {

@@ -127,13 +127,27 @@ const CAPTURES = [
   {slug: 'tax-profiles', route: '/tax-profiles', waitText: 'Simples Nacional'},
   {slug: 'service-locations', route: '/service-locations', waitText: 'Obra Centro'},
   {slug: 'reference-documents', route: '/reference-documents', waitText: 'NF-e de materiais'},
+  {slug: 'services', route: '/services', waitText: 'Desenvolvimento de software'},
+  {slug: 'operations', route: '/operations', waitText: 'Venda'},
+  {slug: 'payment-terms', route: '/payment-terms', waitText: 'À vista'},
+  {slug: 'import-declarations', route: '/import-declarations', waitText: 'Santos'},
+  {slug: 'product-lots', route: '/product-lots', waitText: '2026A'},
+  {slug: 'payment-terminals', route: '/payment-terminals', waitText: 'POS-0001'},
+  {slug: 'fuel-pumps', route: '/fuel-pumps', waitText: 'Bico 1'},
   {slug: 'vehicles', route: '/vehicles', waitText: 'ABC1D23'},
+  {slug: 'vehicle-sets', route: '/vehicle-sets', waitText: 'Cavalo + carreta'},
+  {slug: 'cargo-units', route: '/cargo-units', waitText: 'MSKU1234567'},
+  {slug: 'toll-providers', route: '/toll-providers', waitText: 'Vale-pedágio Rodovia SP'},
+  {slug: 'insurance-policies', route: '/insurance-policies', waitText: 'RCTR-C'},
   {slug: 'fiscal-config', route: '/fiscal-config', waitText: 'Ambiente ativo'},
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},
 
   // ── Conta ────────────────────────────────────────────────────────────────
   {slug: 'subscription', route: '/assinatura', waitText: 'Assinatura'},
   {slug: 'audit-logs', route: '/audit-logs', waitText: 'Mock User'},
+  {slug: 'organizations', route: '/organizations', waitText: 'EMPRESA MOCK'},
+  {slug: 'members', route: '/members', waitText: 'Mock User'},
+  {slug: 'profile', route: '/profile', waitText: 'Mock'},
 
   // ── Estados ──────────────────────────────────────────────────────────────
   {

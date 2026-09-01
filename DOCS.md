@@ -2324,6 +2324,34 @@ variável `--bottomnav-height` (0 no desktop, 3.5rem no mobile) reserva o espaç
 `main` usa `pb-(--bottomnav-height)` e toda barra de ação fixa usa
 `sticky bottom-(--bottomnav-height)`.
 
+### SEO, títulos de página e robots
+
+O produto é privado; só a **landing** (`/`) e o **guia** (`/guide/*`) devem ser
+indexados. A regra é sempre pelo avesso, para que rota nova nasça fechada:
+
+| Peça | Arquivo | Comportamento |
+|------|---------|---------------|
+| Padrão | `app/layout.tsx` | `robots: {index: false, follow: false}` + `title.template` `%s | CTech DF-e` |
+| Landing | `app/(public)/layout.tsx` | libera indexação, canonical e JSON-LD `SoftwareApplication` |
+| Guia | `app/guide/layout.tsx` | libera indexação e repassa o template aos tópicos |
+| Tópico do guia | `app/guide/<slug>/layout.tsx` | título, descrição e canonical do tópico + JSON-LD `TechArticle` e `BreadcrumbList` |
+| `robots.txt` | `app/robots.ts` | `Disallow: /` com `Allow: /$` e `Allow: /guide` |
+| `sitemap.xml` | `app/sitemap.ts` | landing + índice do guia + um item por `GUIDE_TOPICS` |
+
+A landing vive num route group `(public)` **porque o layout raiz é o único lugar
+onde o `noindex` global cabe**: sem o grupo, não haveria onde sobrescrevê-lo só
+para `/`. `robots.ts` e `sitemap.ts` declaram `export const dynamic = 'force-static'`,
+exigência do `output: 'export'`.
+
+**Títulos das telas de app.** As páginas autenticadas são client components e não
+podem exportar `metadata`. `components/layout/PageTitle` (montado no layout raiz)
+escreve `document.title` a partir de `lib/navigation/page-title`, que deriva o
+nome da mesma configuração da navegação: rótulo da rota mais específica, com o
+segmento extra na frente — `/persons/new` vira "Novo · Pessoas". Rotas públicas
+são ignoradas ali, porque nelas quem manda é o `metadata` do Next. Página nova
+registrada em `nav.tsx` ganha título sozinha; `src/__tests__/lib/seo.test.ts`
+reprova rota de primeiro nível sem nome.
+
 ### Guia do produto (`/guide`) e capturas de tela
 
 O guia é público (não passa por `ProtectedRoute`) e é servido pelo mesmo export

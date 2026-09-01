@@ -10,6 +10,38 @@ export default function PrimeirosPassos() {
       description="Antes da primeira nota, três coisas precisam estar no lugar: a empresa cadastrada, o certificado digital enviado e a numeração definida. O onboarding cuida das três."
       sections={[
         {
+          id: 'access',
+          title: 'Entrar, convite e telas de sistema',
+          summary:
+            'O login é a conta CTech; o convite entra por e-mail; e há duas telas que aparecem só quando algo sai do normal.',
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Entrar">
+                  A tela de login manda você para a conta CTech e volta autenticado. A sessão é
+                  renovada sozinha — não é preciso entrar de novo a cada dia.
+                </GuideTerm>
+                <GuideTerm term="Convite">
+                  O link do convite abre a tela de aceite. Se você ainda não tem conta, cria na hora;
+                  se já tem, a empresa passa a aparecer no seletor do topo.
+                </GuideTerm>
+                <GuideTerm term="Termos de uso">
+                  Mudança nos termos abre um aceite antes de continuar. É registrado com data e
+                  versão.
+                </GuideTerm>
+                <GuideTerm term="Fora do ar">
+                  Quando a API não responde, o app mostra esta tela em vez de falhar em silêncio.
+                  Ela tenta reconectar sozinha.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="info" title="A conta é sua, as empresas são separadas">
+                Um login atende todas as organizações em que você foi convidado. Sair encerra a
+                sessão em todas elas.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
           id: 'onboarding',
           title: 'Onboarding em seis etapas',
           summary:

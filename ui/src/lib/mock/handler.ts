@@ -36,7 +36,14 @@ import {
   nfseEventsFixture,
   nfsesFixture,
   operationsFixture,
+  cargoUnitsFixture,
+  fuelPumpsFixture,
+  importDeclarationsFixture,
+  insurancePoliciesFixture,
+  paymentTerminalsFixture,
+  productLotsFixture,
   referenceDocumentsFixture,
+  tollProvidersFixture,
   serviceLocationsFixture,
   organizationsFixture,
   paymentTermsFixture,
@@ -63,6 +70,13 @@ const REUSABLE_REGISTRIES: [string, unknown[], string][] = [
   ['vehicle-sets', vehicleSetsFixture, 'vehicle-set'],
   ['service-locations', serviceLocationsFixture, 'service-location'],
   ['reference-documents', referenceDocumentsFixture, 'reference-document'],
+  ['payment-terminals', paymentTerminalsFixture, 'payment-terminal'],
+  ['fuel-pumps', fuelPumpsFixture, 'fuel-pump'],
+  ['cargo-units', cargoUnitsFixture, 'cargo-unit'],
+  ['toll-providers', tollProvidersFixture, 'toll-provider'],
+  ['insurance-policies', insurancePoliciesFixture, 'insurance-policy'],
+  ['product-lots', productLotsFixture, 'product-lot'],
+  ['import-declarations', importDeclarationsFixture, 'import-declaration'],
 ]
 
 function paginated<T>(items: T[]): { items: T[]; next_cursor: string | null; has_next: boolean; previous_cursor: string | null; has_previous: boolean } {
