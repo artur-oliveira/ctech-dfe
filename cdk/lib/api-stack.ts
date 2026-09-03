@@ -8,6 +8,8 @@ import {Construct} from 'constructs';
 import {Ec2ScriptRunner, HaproxyEc2Service, SSM as CtechSSM} from '@aoctech/cdk';
 import {Environment} from './types';
 
+const API_SPOT_INSTANCE_TYPES = ['t4g.nano', 't4g.micro'] as const;
+
 /** Emits `cat > /etc/nginx/conf.d/<name> << 'DELIM' … DELIM` for a checked-in file. */
 function nginxFragment(name: string, delimiter: string): string[] {
   const body = readFileSync(path.join(__dirname, '..', 'scripts', 'api', name), 'utf8');
@@ -330,7 +332,9 @@ export class ApiStack extends cdk.Stack {
       // webhooks fail and nothing is reachable. Deliberate for a development
       // environment on a single t4g.nano.
       // schedule: {enableCron: '55 11 * * *', disableCron: '15 13 * * *'},
-      spot: {},
+      spot: {
+        instanceTypes: API_SPOT_INSTANCE_TYPES.map((type) => new ec2.InstanceType(type)),
+      },
     });
 
     // ── Outputs ───────────────────────────────────────────────────────────────

@@ -5,7 +5,10 @@ import { ApiStack } from '../lib/api-stack'
 /** EC2's hard cap on user data, which a deploy discovers and not a review. */
 const USER_DATA_LIMIT_BYTES = 16384
 
+let cachedTemplate: Template | undefined
+
 function synth() {
+  if (cachedTemplate) return cachedTemplate
   const app = new cdk.App()
   const stack = new ApiStack(app, 'TestApiStack', {
     env: { account: '868899309401', region: 'us-east-1' },
@@ -21,7 +24,8 @@ function synth() {
     distributionQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-dfe-distribution',
     valkeyUrlSsmPath: '/ctech-dfe/prod/valkey-url',
   })
-  return Template.fromStack(stack)
+  cachedTemplate = Template.fromStack(stack)
+  return cachedTemplate
 }
 
 /** The rendered user data, with unresolved tokens standing in for their values. */
@@ -50,10 +54,10 @@ test('user data only fetches and runs the shared scripts', () => {
   // Downloaded to a file and then executed: a pipe truncated mid-transfer runs a
   // partial script and reports success.
   expect(text).not.toMatch(/aws s3 cp [^\n]*\| *bash/)
-  // Nothing is written inline any more except app-static.env, service-env.sh,
-  // the three nginx fragments and the CloudWatch agent config.
+  // Nothing service-specific is written inline any more except the bounded
+  // environment/nginx fragments. The shared agent adds its own config file.
   const heredocs = text.match(/cat > /g) ?? []
-  expect(heredocs.length).toBeLessThanOrEqual(6)
+  expect(heredocs.length).toBeLessThanOrEqual(7)
 })
 
 test('no secret value is written into the launch template', () => {
@@ -65,15 +69,11 @@ test('no secret value is written into the launch template', () => {
   expect(text).not.toMatch(/BILLING_CLIENT_SECRET=(?!\/|\$)/)
 })
 
-test('the CloudWatch agent ships logs only, and the ASG stays at one instance', () => {
+test('the shared EC2 agent is installed, and the ASG stays bounded', () => {
   const template = synth()
 
-  // No `metrics` block and no custom namespace: EC2 already publishes
-  // CPUUtilization and CPUCreditBalance for free.
   const userData = userDataText(template)
-  expect(userData).toContain('"logs_collected"')
-  expect(userData).not.toContain('CtechDfe/prod/Host')
-  expect(userData).not.toContain('"metrics"')
+  expect(userData).toContain('ctech-ec2-agent')
 
   template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
   template.hasResourceProperties('AWS::AutoScaling::AutoScalingGroup', {
@@ -86,5 +86,17 @@ test('the SSM agent is disabled by default', () => {
   // Deploys replace the instances through an ASG instance refresh, so nothing
   // runs over RunCommand any more and the agent's ~70 MiB is pure overhead on a
   // t4g.nano. enableSsmAgent: true is the escape hatch for a debugging shell.
-  expect(userDataText(synth())).toContain('disable --now amazon-ssm-agent')
+  const text = userDataText(synth())
+  expect(text).toContain('rc-service amazon-ssm-agent stop')
+  expect(text).toContain('rc-update del amazon-ssm-agent')
+})
+
+test('the Spot policy can launch both nano and micro Graviton instances', () => {
+  synth().hasResourceProperties('AWS::AutoScaling::AutoScalingGroup', {
+    MixedInstancesPolicy: {
+      LaunchTemplate: {
+        Overrides: [{ InstanceType: 't4g.nano' }, { InstanceType: 't4g.micro' }],
+      },
+    },
+  })
 })
