@@ -60,7 +60,7 @@ ui                   ctech-account                   api
      │     code_verifier=...         │                               │
      │──────────────────────────────>│                               │
      │  access_token (RS256, 15m)    │                               │
-     │  Set-Cookie: ctech_rt         │  HttpOnly refresh cookie      │
+     │  Set-Cookie: ctech_rt_<client>│  HttpOnly per-client cookie   │
      │<──────────────────────────────│                               │
      │                               │                               │
      │  4. GET /v1.0/auth/me         │                               │

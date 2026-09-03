@@ -68,7 +68,7 @@ describe('auth state gate (revoked / no hint → skip /token)', () => {
   it('a network error during refresh does not mark revoked (may be transient)', async () => {
     setAuthHintCookie()
     fetchMock.mockRejectedValueOnce(new Error('network'))
-    expect(await doRefresh()).toBeNull()
+    await expect(doRefresh()).rejects.toMatchObject({name: 'OAuthTransientError'})
 
     fetchMock.mockResolvedValueOnce({ok: true, json: async () => ({access_token: 'at2'})})
     expect(await doRefresh()).toEqual({accessToken: 'at2'})
