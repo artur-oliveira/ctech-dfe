@@ -27,7 +27,7 @@ require (
 	github.com/valyala/fasthttp v1.73.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/sync v0.22.0
-	gopkg.aoctech.app/api-commons v1.8.0
+	gopkg.aoctech.app/api-commons v1.9.1
 	gopkg.aoctech.app/dfe/go-dfe v0.0.0
 	gopkg.in/yaml.v3 v3.0.1
 	software.sslmate.com/src/go-pkcs12 v0.7.3
