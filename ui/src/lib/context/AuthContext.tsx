@@ -127,7 +127,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       const cached = localStorage.getItem(STORAGE_KEY_USER)
-      const result = MOCK_ENABLED ? await mockDoRefresh() : await doRefresh()
+      let result
+      try {
+        result = MOCK_ENABLED ? await mockDoRefresh() : await doRefresh()
+      } catch {
+        // A transient Accounts/network failure is not proof of logout. Keep
+        // cached identity and finish boot; later API activity can retry.
+        setLoading(false)
+        return
+      }
       if (!result) {
         if (cached) localStorage.removeItem(STORAGE_KEY_USER)
         setLoading(false)
