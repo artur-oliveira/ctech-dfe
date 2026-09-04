@@ -10,6 +10,12 @@
         "type": "Public",
         "subnets": [
           {
+            "subnetId": "subnet-0c0e19f510a6081f7",
+            "cidr": "10.0.48.0/20",
+            "availabilityZone": "us-east-1a",
+            "routeTableId": "rtb-06fcfc4c472c8d51f"
+          },
+          {
             "subnetId": "subnet-0410e8b73c187f334",
             "cidr": "10.0.0.0/20",
             "availabilityZone": "us-east-1b",
@@ -26,6 +32,12 @@
             "cidr": "10.0.32.0/20",
             "availabilityZone": "us-east-1d",
             "routeTableId": "rtb-07f77a34d4ff7b2b2"
+          },
+          {
+            "subnetId": "subnet-0f027115bc32a1bcc",
+            "cidr": "10.0.80.0/20",
+            "availabilityZone": "us-east-1f",
+            "routeTableId": "rtb-023519923b4c4ff0d"
           }
         ]
       }
