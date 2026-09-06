@@ -300,12 +300,14 @@ export class WorkerStack extends cdk.Stack {
         },
       })
 
-      // reportBatchItemFailures: false — the handler must not re-raise; all messages consumed.
+      // reportBatchItemFailures: true — a poison message (e.g. attribute_exists(pk)
+      // permanently false) redelivers on its own instead of forcing the whole
+      // batch, including already-succeeded messages, to redeliver.
       dlqProcessor.addEventSource(
         new lambdaEvents.SqsEventSource(workerDlq, {
           batchSize: 10,
           maxBatchingWindow: Duration.seconds(30),
-          reportBatchItemFailures: false
+          reportBatchItemFailures: true
         })
       )
     }

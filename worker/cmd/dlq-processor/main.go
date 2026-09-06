@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"os"
 	"time"
@@ -51,6 +50,17 @@ type sqsRecord struct {
 	Body      string `json:"body"`
 }
 
+// batchResponse/batchItemFailure mirror the shape cmd/worker/main.go returns
+// for partial batch failure — only the records named here get redelivered by
+// SQS; the rest of the batch is acked even when one record fails.
+type batchResponse struct {
+	BatchItemFailures []batchItemFailure `json:"batchItemFailures"`
+}
+
+type batchItemFailure struct {
+	ItemIdentifier string `json:"itemIdentifier"`
+}
+
 const dlqFailureMotive = "Falha após todas as tentativas de reprocessamento"
 
 // terminalUpdateTarget resolves which table/key/status to write for a message
@@ -88,8 +98,8 @@ func writeTerminalStatus(ctx context.Context, msg service.WorkerMessage) error {
 	return err
 }
 
-func handler(ctx context.Context, event sqsEvent) error {
-	var failures []error
+func handler(ctx context.Context, event sqsEvent) (batchResponse, error) {
+	var failures []batchItemFailure
 	for _, record := range event.Records {
 		var msg service.WorkerMessage
 		if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
@@ -105,7 +115,7 @@ func handler(ctx context.Context, event sqsEvent) error {
 
 		if err := writeTerminalStatus(ctx, msg); err != nil {
 			slog.Error("DLQ: failed to write terminal status", "id", record.MessageID, "access_key", msg.AccessKey, "err", err)
-			failures = append(failures, err)
+			failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
 			continue
 		}
 
@@ -145,10 +155,10 @@ func handler(ctx context.Context, event sqsEvent) error {
 			Message:  aws.String(string(msgJSON)),
 		}); err != nil {
 			slog.Error("failed to publish DLQ result", "id", record.MessageID, "err", err)
-			failures = append(failures, err)
+			failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
 		}
 	}
-	return errors.Join(failures...)
+	return batchResponse{BatchItemFailures: failures}, nil
 }
 
 func main() {
