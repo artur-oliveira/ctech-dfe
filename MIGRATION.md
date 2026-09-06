@@ -2,6 +2,11 @@
 
 > Persistent architecture reference for the py-dfe → ctech-dfe migration.
 > Updated: 2026-06-09. Owner: Artur.
+>
+> **Status: migration complete.** `worker/` is Go (Lambda), SQS is standard (no FIFO) everywhere, and the API
+> deploys on EC2 ASG (spot) — not the ECS Fargate target sketched below (see `cdk/CLAUDE.md`, `cdk/README.md`).
+> py-dfe remains the SOAP/XML-DSig fallback behind `go-dfe` (primary), per `README.md`. This document is kept as
+> a historical decision record; for current architecture see `OVERVIEW.md` and `cdk/README.md`.
 
 ---
 
@@ -216,8 +221,8 @@ graph TD
     APIGW --> API[api\nFastAPI / ECS]
     API -->|Custom SigV4| DDB[(DynamoDB\n21 tables)]
     API -->|Custom SigV4| S3[(S3\ncerts + xmls)]
-    API -->|Custom SigV4 FIFO| SQS[SQS FIFO]
-    SQS --> Worker[worker\nLambda Python]
+    API -->|Custom SigV4| SQS[SQS standard]
+    SQS --> Worker[worker\nLambda Go]
     Worker -->|InvokeFunction| PyDfe[py-dfe\nLambda Python]
     PyDfe -->|mTLS SOAP| SEFAZ[SEFAZ]
     Worker -->|Custom SigV4| DDB
