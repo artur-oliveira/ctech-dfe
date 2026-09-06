@@ -108,16 +108,14 @@ export class WorkerStack extends cdk.Stack {
     new sns.Topic(this, 'ops-alerts-topic', {
       topicName: `${environment}-dfe-ops-alerts`,
     })
+    const workerDlq = new sqs.Queue(this, 'worker-dlq', {
+      queueName: `${environment}-dfe-dlq`,
+      retentionPeriod: Duration.days(14),
+      receiveMessageWaitTime: Duration.seconds(20),
+    })
+    const workerDlqTableNames = [...new Set(workers.flatMap(worker => worker.dynamoTables ?? []))]
 
     for (const worker of workers) {
-
-      const dlq = new sqs.Queue(this, `${worker.id}-dlq`, {
-        queueName: `${environment}-${worker.queueName}-dlq`,
-        retentionPeriod: Duration.days(14),
-        // Long polling: without this the Lambda poller short-polls continuously,
-        // burning SQS free-tier requests even on an idle queue.
-        receiveMessageWaitTime: Duration.seconds(20),
-      })
 
       const queue = new sqs.Queue(this, `${worker.id}-queue`, {
         queueName: `${environment}-${worker.queueName}`,
@@ -125,7 +123,7 @@ export class WorkerStack extends cdk.Stack {
         visibilityTimeout: Duration.seconds((worker.timeoutSeconds ?? 300) * 6 + 300),
         receiveMessageWaitTime: Duration.seconds(20),
         deadLetterQueue: {
-          queue: dlq,
+          queue: workerDlq,
           maxReceiveCount: 3,
         },
       })
@@ -257,9 +255,11 @@ export class WorkerStack extends cdk.Stack {
         fn.addEnvironment('EVENT_BUS_TOPIC_ARN', eventBus.topicArn)
       }
 
+      if (worker !== workers[0]) continue
+
       // DLQ processor — publishes status=failed to Results SNS after 3 failed attempts.
       const dlqRole = new iam.Role(this, `${worker.id}-dlq-role`, {
-        roleName: `${environment}-${worker.id}-dlq-processor-role`,
+        roleName: `${environment}-dfe-dlq-processor-role`,
         assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
         managedPolicies: [
           iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
@@ -271,11 +271,10 @@ export class WorkerStack extends cdk.Stack {
         resources: [resultsTopicArn],
       }))
 
-      if (worker.dynamoTables?.length) {
-        const dlqTableArns = worker.dynamoTables.flatMap(t => [
-          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`,
-          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/*`,
-        ])
+      if (workerDlqTableNames.length) {
+        const dlqTableArns = workerDlqTableNames.map(t =>
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`
+        )
         dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
           actions: ['dynamodb:UpdateItem'],
           resources: dlqTableArns,
@@ -283,7 +282,7 @@ export class WorkerStack extends cdk.Stack {
       }
 
       const dlqProcessor = new lambda.Function(this, `${worker.id}-dlq-processor`, {
-        functionName: `${environment}-${worker.name}-dlq-processor`,
+        functionName: `${environment}-dfe-dlq-processor`,
         runtime: lambda.Runtime.PROVIDED_AL2023,
         handler: 'bootstrap',
         code: goCode('dlq-processor'),
@@ -303,7 +302,7 @@ export class WorkerStack extends cdk.Stack {
 
       // reportBatchItemFailures: false — the handler must not re-raise; all messages consumed.
       dlqProcessor.addEventSource(
-        new lambdaEvents.SqsEventSource(dlq, {
+        new lambdaEvents.SqsEventSource(workerDlq, {
           batchSize: 10,
           maxBatchingWindow: Duration.seconds(30),
           reportBatchItemFailures: false

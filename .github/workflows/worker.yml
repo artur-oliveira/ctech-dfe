@@ -122,16 +122,7 @@ jobs:
         run: |
           ENV="${{ steps.env.outputs.name }}"
           FUNCTIONS=(
-            "${ENV}-nfe-emission-worker-dlq-processor"
-            "${ENV}-nfe-event-worker-dlq-processor"
-            "${ENV}-nfe-inutilization-worker-dlq-processor"
-            "${ENV}-cte-emission-worker-dlq-processor"
-            "${ENV}-cte-event-worker-dlq-processor"
-            "${ENV}-mdfe-emission-worker-dlq-processor"
-            "${ENV}-mdfe-event-worker-dlq-processor"
-            "${ENV}-nfse-emission-worker-dlq-processor"
-            "${ENV}-nfse-event-worker-dlq-processor"
-            "${ENV}-distribution-worker-dlq-processor"
+            "${ENV}-dfe-dlq-processor"
           )
           for fn in "${FUNCTIONS[@]}"; do
             aws lambda update-function-code \
@@ -165,16 +156,7 @@ jobs:
             "${ENV}-nfse-emission-worker"
             "${ENV}-nfse-event-worker"
             "${ENV}-distribution-worker"
-            "${ENV}-nfe-emission-worker-dlq-processor"
-            "${ENV}-nfe-event-worker-dlq-processor"
-            "${ENV}-nfe-inutilization-worker-dlq-processor"
-            "${ENV}-cte-emission-worker-dlq-processor"
-            "${ENV}-cte-event-worker-dlq-processor"
-            "${ENV}-mdfe-emission-worker-dlq-processor"
-            "${ENV}-mdfe-event-worker-dlq-processor"
-            "${ENV}-nfse-emission-worker-dlq-processor"
-            "${ENV}-nfse-event-worker-dlq-processor"
-            "${ENV}-distribution-worker-dlq-processor"
+            "${ENV}-dfe-dlq-processor"
             "${ENV}-distribution-dispatcher"
           )
           for fn in "${FUNCTIONS[@]}"; do
