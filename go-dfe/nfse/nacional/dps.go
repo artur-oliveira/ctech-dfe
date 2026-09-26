@@ -1,7 +1,6 @@
 package nacional
 
 import (
-	"bytes"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -37,10 +36,24 @@ type xmlDPS struct {
 	InfDPS  xmlInfDPS `xml:"infDPS"`
 }
 
+// tpAmbXML serializa tpAmb; valor 0 emite a tag vazia (<tpAmb></tpAmb>) —
+// usado só para teste pontual pedido pela prefeitura de Teresina-PI, que
+// reportou aceitar a tag sem valor. Não usar em produção: doc.Ambiente=0
+// é apenas o sentinela de teste, nunca um ambiente real (1=produção,
+// 2=homologação).
+type tpAmbXML int
+
+func (t tpAmbXML) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if t == 0 {
+		return e.EncodeElement("", start)
+	}
+	return e.EncodeElement(int(t), start)
+}
+
 // xmlInfDPS espelha TCInfDPS — a ordem dos campos É a ordem do XSD.
 type xmlInfDPS struct {
 	ID        string       `xml:"Id,attr"`
-	TpAmb     int          `xml:"tpAmb"`
+	TpAmb     tpAmbXML     `xml:"tpAmb"`
 	DhEmi     string       `xml:"dhEmi"`
 	VerAplic  string       `xml:"verAplic"`
 	Serie     string       `xml:"serie"`
@@ -371,7 +384,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 	}
 
 	inf := xmlInfDPS{
-		ID: idDPS, TpAmb: doc.Ambiente, DhEmi: dhEmi, VerAplic: doc.VerAplic,
+		ID: idDPS, TpAmb: tpAmbXML(doc.Ambiente), DhEmi: dhEmi, VerAplic: doc.VerAplic,
 		Serie: doc.Serie, NDPS: doc.Numero, DCompet: doc.Competencia,
 		TpEmit: doc.TpEmit, CMotivo: doc.MotivoEmisTI, ChNFSeRej: doc.ChNFSeRej,
 		CLocEmi: doc.CLocEmi,
@@ -393,14 +406,6 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 	out, err := xml.Marshal(xmlDPS{Xmlns: nfse.Namespace, Versao: nfse.LayoutVersion, InfDPS: inf})
 	if err != nil {
 		return nil, "", fmt.Errorf("nacional: serializar DPS: %w", err)
-	}
-	// Sentinela de teste (doc.Ambiente=0, pedido pela prefeitura de Teresina-PI
-	// — homologação travada há semanas): encoding/xml sempre emite elemento
-	// vazio como self-closing (<tpAmb/>), sem suporte a forçar <tpAmb></tpAmb>.
-	// Remover junto com o sentinela em api/internal/services/nfses/document.go
-	// assim que confirmado.
-	if doc.Ambiente == 0 {
-		out = bytes.Replace(out, []byte("<tpAmb>0</tpAmb>"), []byte("<tpAmb></tpAmb>"), 1)
 	}
 	return out, idDPS, nil
 }

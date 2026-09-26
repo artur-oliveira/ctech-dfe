@@ -22,12 +22,6 @@ const (
 	appVersion        = "ctech-dfe-1.0"
 	defaultTimezone   = "America/Sao_Paulo" // compatibilidade com configs NFS-e anteriores ao campo timezone
 	dfeDateTimeLayout = "2006-01-02T15:04:05-07:00"
-
-	// municipioTesteTpAmbVazio (IBGE Teresina-PI) é um flag de teste TEMPORÁRIO:
-	// a prefeitura pediu para tentar <tpAmb></tpAmb> vazio, já que a emissão em
-	// homologação está travada há semanas. Remover assim que confirmado (veio
-	// junto com go-dfe/nfse/nacional/dps.go's tpAmbXML). Só afeta este município.
-	municipioTesteTpAmbVazio = "2211001"
 )
 
 // documentInput reúne tudo que a montagem precisa. Os map[string]AttributeValue
@@ -100,9 +94,6 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 		doc.Substituicao = &nfse.Substituicao{
 			ChSubstda: *in.Body.SubstitutesAccessKey, CMotivo: motivo,
 		}
-	}
-	if cLocEmi == municipioTesteTpAmbVazio {
-		doc.Ambiente = 0
 	}
 	return doc, nil
 }
