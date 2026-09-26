@@ -503,7 +503,7 @@ func TestBuildPersonDetails_FullParty(t *testing.T) {
 	addr := addrs[0].(map[string]any)
 	for k, want := range map[string]string{
 		"street": "RUA TESTE", "number": "100", "complement": "SALA 1",
-		"neighborhood": "CENTRO", "city_ibge_code": "3550308", "city": "SAO PAULO",
+		"neighborhood": "CENTRO", "city_ibge_code": "3550308", "city": "Sao Paulo",
 		"state_federation": "SP", "postal_code": "01001000",
 	} {
 		if addr[k] != want {
@@ -1151,5 +1151,21 @@ func TestClassifyImportXML_BareNFe_ExtractsAccessKeyFromIdAttribute(t *testing.T
 	}
 	if got.AccessKey != "22260811647612000197550000000000501454670090" {
 		t.Fatalf("expected access key from infNFe/@Id (NFe prefix stripped), got %q", got.AccessKey)
+	}
+}
+
+func TestTitleCaseCity(t *testing.T) {
+	cases := map[string]string{
+		"TERESINA":          "Teresina",
+		"MIGUEL LEAO":       "Miguel Leao",
+		"RIO DE JANEIRO":    "Rio de Janeiro",
+		"SAO JOSE DO EGITO": "Sao Jose do Egito",
+		"são paulo":         "São Paulo",
+		"":                  "",
+	}
+	for in, want := range cases {
+		if got := titleCaseCity(in); got != want {
+			t.Errorf("titleCaseCity(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
