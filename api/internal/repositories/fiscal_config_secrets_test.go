@@ -41,3 +41,39 @@ func TestUpsertSobrescreveSegredoInformado(t *testing.T) {
 		t.Fatalf("want novo, got %v", final["csrt"])
 	}
 }
+
+// prod_current_number/hom_current_number do NfseConfigRepository não são
+// campos "preserve" (diferente de prod_nsu/hom_nsu): um PUT que os informa
+// tem que sobrescrever o valor já gravado, senão o usuário nunca consegue
+// ajustar a numeração da DPS/RPS pela config. Regressão do bug em que
+// current_number entrou por engano no preserve map e o PUT era silenciosamente
+// ignorado.
+func TestUpsertNfseSobrescreveCurrentNumberInformado(t *testing.T) {
+	repo := &FiscalConfigRepository{preserve: map[string]any{
+		"prod_nsu":              0,
+		"hom_nsu":               0,
+		"prod_last_dist_nsu_at": nil,
+		"hom_last_dist_nsu_at":  nil,
+	}}
+	fields := map[string]types.AttributeValue{
+		"prod_current_number": &types.AttributeValueMemberN{Value: "1"},
+		"hom_current_number":  &types.AttributeValueMemberN{Value: "2"},
+	}
+	existing := map[string]types.AttributeValue{
+		"prod_current_number": &types.AttributeValueMemberN{Value: "0"},
+		"hom_current_number":  &types.AttributeValueMemberN{Value: "1"},
+	}
+
+	_, final, err := repo.BuildUpsertTxItem("CNPJ_1", fields, existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotProd, _ := final["prod_current_number"].(*types.AttributeValueMemberN)
+	gotHom, _ := final["hom_current_number"].(*types.AttributeValueMemberN)
+	if gotProd == nil || gotProd.Value != "1" {
+		t.Fatalf("prod_current_number: want 1, got %v", final["prod_current_number"])
+	}
+	if gotHom == nil || gotHom.Value != "2" {
+		t.Fatalf("hom_current_number: want 2, got %v", final["hom_current_number"])
+	}
+}
