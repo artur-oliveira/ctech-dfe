@@ -1074,6 +1074,10 @@ deliberately does NOT carry the prestador's inscrição municipal or regime trib
 the organization's own `person.nfse` group instead (see Organizations above and
 `docs/specs/2026-08-04-nfse-design.md` §3.2–§3.3).
 
+**Numbering counters:** `PUT /nfse-config` persists `prod_current_number` and `hom_current_number` exactly as
+sent. Only the NSU cursor fields (`prod_nsu`, `hom_nsu`, `*_last_dist_nsu_at`) are carried forward from the stored
+item; emission advances the counters through `IncrementNumber` (atomic update, outside the upsert).
+
 **RBAC permissions:** the routes above are gated on `{list,get,create,update,delete}.organization_services`
 and `{get,update}.organization_nfse_configs`. `seedRoles` grants the full
 `{list,get,create,update,delete}` set for both resources (same as every resource in `roles.go`'s
@@ -2067,6 +2071,10 @@ NF-e/CT-e document (`procNFe`, `cteProc`), it persists the document's emitter an
 nested `person` object — `addresses`, `contacts` (`phones`/`emails`), `state_registrations`,
 `fantasy_name`, `crt` — is extracted from the XML party (`enderEmit`/`enderDest`/`enderToma`, `IE`,
 `fone`, `email`, `CRT`) and stored when present (`if they exist`), mirroring the api person model.
+The emitter is stored with `roles: ["supplier"]` and the recipient with `roles: ["customer"]`
+(constants mirrored from `api/internal/services/person_roles.go`). `addresses[].city` is normalized to
+Title Case (`TERESINA` becomes `Teresina`, connectors like `de`/`da`/`do` stay lowercase) and
+`state_federation` is uppercased, matching manually registered persons.
 A party whose CPF/CNPJ equals the org's own is skipped. Records are written create-if-absent
 (`attribute_not_exists(pk)`) — a manually curated person is never overwritten. MDF-e is excluded
 (transport manifest, no fiscal supplier/customer). See `worker/internal/service/distribution.go`

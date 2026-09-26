@@ -18,6 +18,7 @@ import {OptionsSelect} from '@/components/ui/options-select'
 import {Textarea} from '@/components/ui/textarea'
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
+import {CopyableCode} from '@/components/ui/copyable-code'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
 import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
@@ -36,7 +37,7 @@ import {toast} from 'sonner'
 
 const TP_EMIT_LABELS: Record<number, string> = {1: 'Prestador', 2: 'Tomador', 3: 'Intermediário'}
 
-const EVENT_TYPE_OPTIONS = CONTRIBUINTE_EVENTS.map((code) => ({value: code, label: `${code} — ${EVENT_LABELS[code]}`}))
+const EVENT_TYPE_OPTIONS = CONTRIBUINTE_EVENTS.map((code) => ({value: code, label: `${code}; ${EVENT_LABELS[code]}`}))
 
 function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boolean; onClose: () => void }) {
   const qc = useQueryClient()
@@ -193,8 +194,8 @@ function NfseDetail({idDps}: { idDps: string }) {
             NFS-e {doc.number}
             <span className="ml-2 text-base font-normal text-gray-400">série {doc.serie}</span>
           </h1>
-          {doc.access_key && <p className="text-xs text-gray-400 font-mono mt-1 break-all">Chave: {doc.access_key}</p>}
-          <p className="text-xs text-gray-400 font-mono mt-0.5 break-all">id_dps: {doc.sk}</p>
+          {doc.access_key && <CopyableCode value={doc.access_key}/>}
+          <CopyableCode value={doc.sk} className="text-xs text-gray-400 font-mono mt-0.5"/>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -261,14 +262,14 @@ function NfseDetail({idDps}: { idDps: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
           <p className="text-sm font-semibold text-gray-600">
-            Organização emitente <span className="font-normal">— {TP_EMIT_LABELS[doc.tp_emit] ?? doc.tp_emit} emite</span>
+            Organização emitente <span className="font-normal">: {TP_EMIT_LABELS[doc.tp_emit] ?? doc.tp_emit} emite</span>
           </p>
           <p className="font-medium text-gray-900">{doc.emit_name}</p>
           <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.emit_cpf_cnpj)}</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
           <p className="text-sm font-semibold text-gray-600">Tomador</p>
-          <p className="font-medium text-gray-900">{doc.dest_name || <span className="text-gray-500">—</span>}</p>
+          <p className="font-medium text-gray-900">{doc.dest_name || <span className="text-gray-500">-</span>}</p>
           {doc.dest_cpf_cnpj && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.dest_cpf_cnpj)}</p>}
         </div>
       </div>

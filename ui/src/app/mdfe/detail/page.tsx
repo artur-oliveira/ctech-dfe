@@ -11,6 +11,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute'
 import {RootLayout} from '@/components/layout/RootLayout'
 import {Button} from '@/components/ui/button'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
+import {CopyableCode} from '@/components/ui/copyable-code'
 import {useMdfeActions} from '@/components/mdfe/MdfeActions'
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
@@ -90,7 +91,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
             MDF-e {doc.number}
             <span className="ml-2 text-base font-normal text-gray-400">série {doc.serie}</span>
           </p>
-          <p className="text-xs text-gray-400 font-mono mt-1 break-all">{accessKey}</p>
+          <CopyableCode value={accessKey}/>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DfeStatusBadge status={doc.status} gender="m" size="md"/>

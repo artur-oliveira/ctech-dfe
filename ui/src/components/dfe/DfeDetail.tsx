@@ -10,6 +10,7 @@ import {formatCpfCnpj} from '@/lib/utils/document'
 import {formatCurrency, formatDate} from '@/lib/utils/helpers'
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
+import {CopyableCode} from '@/components/ui/copyable-code'
 import {ApiError} from '@/lib/api/client'
 import {toast} from 'sonner'
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
@@ -131,7 +132,7 @@ export function DfeDetail({
             {docLabel} {doc.number}
             <span className="ml-2 text-base font-normal text-gray-400">série {doc.serie}</span>
           </p>
-          <p className="text-xs text-gray-400 font-mono mt-1 break-all">{accessKey}</p>
+          <CopyableCode value={accessKey}/>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -216,7 +217,7 @@ export function DfeDetail({
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{destLabel}</p>
           <p
-            className="font-medium text-gray-900">{doc.dest_name || (doc.dest_cpf_cnpj ? '—' : 'Consumidor não identificado')}</p>
+            className="font-medium text-gray-900">{doc.dest_name || (doc.dest_cpf_cnpj ? '-' : 'Consumidor não identificado')}</p>
           {doc.dest_cpf_cnpj && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.dest_cpf_cnpj)}</p>}
         </div>
       </div>
