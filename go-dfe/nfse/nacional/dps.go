@@ -36,24 +36,10 @@ type xmlDPS struct {
 	InfDPS  xmlInfDPS `xml:"infDPS"`
 }
 
-// tpAmbXML serializa tpAmb; valor 0 emite a tag vazia (<tpAmb></tpAmb>) —
-// usado só para teste pontual pedido pela prefeitura de Teresina-PI, que
-// reportou aceitar a tag sem valor. Não usar em produção: doc.Ambiente=0
-// é apenas o sentinela de teste, nunca um ambiente real (1=produção,
-// 2=homologação).
-type tpAmbXML int
-
-func (t tpAmbXML) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	if t == 0 {
-		return e.EncodeElement("", start)
-	}
-	return e.EncodeElement(int(t), start)
-}
-
 // xmlInfDPS espelha TCInfDPS — a ordem dos campos É a ordem do XSD.
 type xmlInfDPS struct {
 	ID        string       `xml:"Id,attr"`
-	TpAmb     tpAmbXML     `xml:"tpAmb"`
+	TpAmb     int          `xml:"tpAmb"`
 	DhEmi     string       `xml:"dhEmi"`
 	VerAplic  string       `xml:"verAplic"`
 	Serie     string       `xml:"serie"`
@@ -384,7 +370,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 	}
 
 	inf := xmlInfDPS{
-		ID: idDPS, TpAmb: tpAmbXML(doc.Ambiente), DhEmi: dhEmi, VerAplic: doc.VerAplic,
+		ID: idDPS, TpAmb: doc.Ambiente, DhEmi: dhEmi, VerAplic: doc.VerAplic,
 		Serie: doc.Serie, NDPS: doc.Numero, DCompet: doc.Competencia,
 		TpEmit: doc.TpEmit, CMotivo: doc.MotivoEmisTI, ChNFSeRej: doc.ChNFSeRej,
 		CLocEmi: doc.CLocEmi,
