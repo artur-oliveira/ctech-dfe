@@ -48,7 +48,7 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
             )}
           </>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-xs text-gray-400">-</span>
         )}
       </td>
       <td data-label="Situação" className="px-4 py-3">
@@ -57,7 +57,7 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
             {item.sefaz_motive}
           </p>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-xs text-gray-400">-</span>
         )}
       </td>
       <td data-label="Recebido em" className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
@@ -131,7 +131,7 @@ function MDFeDistributionsContent() {
             </p>
             {config && (
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
-                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '—'}</span>
+                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '-'}</span>
                 {lastAt && <span>Última consulta: {formatDatetimeBR(lastAt)}</span>}
                 {nextAt && <span>Próxima estimada: {formatDatetimeBR(nextAt.toISOString())}</span>}
               </div>

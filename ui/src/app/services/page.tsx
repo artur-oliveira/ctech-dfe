@@ -124,10 +124,10 @@ function ServicesContent() {
                 <td data-label="Descrição" className={`${TABLE_CELL} text-gray-700`}>{s.description}</td>
                 <td data-label="Cód. tributação nacional" className={`${TABLE_CELL} text-gray-700`}>{s.trib_nacional_code}</td>
                 <td data-label="Incidência" className={`${TABLE_CELL} text-gray-700`}>
-                  {ISS_INCIDENCE_LABELS[s.iss.trib_issqn] ?? '—'}
+                  {ISS_INCIDENCE_LABELS[s.iss.trib_issqn] ?? '-'}
                 </td>
                 <td data-label="Retenção" className={`${TABLE_CELL} text-gray-700`}>
-                  {s.iss.tp_ret_issqn ? (ISS_RETENTION_LABELS[s.iss.tp_ret_issqn] ?? '—') : 'Não informada'}
+                  {s.iss.tp_ret_issqn ? (ISS_RETENTION_LABELS[s.iss.tp_ret_issqn] ?? '-') : 'Não informada'}
                 </td>
                 <td data-label="Alíquota ISS" className={`${TABLE_CELL} text-gray-700`}>{s.iss.tax_rate}%</td>
                 <td data-label="Valor" className={`${TABLE_CELL} text-gray-700`}>{formatCurrency(s.value)}</td>

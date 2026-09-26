@@ -128,7 +128,7 @@ export function TollProviderForm({initialData, onSubmit, loading}: TollProviderF
             />
           </div>
           <p className="sm:col-span-2 text-xs text-gray-500">
-            Preencha o pagador só quando o vale não é pago pelo próprio emitente — CNPJ ou CPF,
+            Preencha o pagador só quando o vale não é pago pelo próprio emitente: CNPJ ou CPF,
             nunca os dois.
           </p>
         </div>

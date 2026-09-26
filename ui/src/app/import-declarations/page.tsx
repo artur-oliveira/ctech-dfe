@@ -22,7 +22,7 @@ import {TP_VIA_TRANSP_OPTIONS} from '@/lib/schemas/import-declarations'
 import type {ImportDeclarationItemOut} from '@/lib/types/api'
 
 const viaLabel = (code: unknown) =>
-  TP_VIA_TRANSP_OPTIONS.find((o) => o.value === code)?.label ?? '—'
+  TP_VIA_TRANSP_OPTIONS.find((o) => o.value === code)?.label ?? '-'
 
 function ImportDeclarationsContent() {
   const {selectedOrg} = useAuth()

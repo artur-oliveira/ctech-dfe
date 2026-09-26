@@ -142,7 +142,7 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
         {item.parse_error && <p className="text-xs text-red-600 mt-0.5">Erro ao processar documento</p>}
       </td>
       <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="Chave">
-        {item.access_key ?? <span className="text-gray-300">—</span>}
+        {item.access_key ?? <span className="text-gray-300">-</span>}
       </td>
       <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">{formatDatetimeBR(item.created_at)}</td>
       <td className={`${TABLE_CELL} text-right`}>
@@ -196,7 +196,7 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
             <p className="text-sm text-gray-500">MDF-es recebidos via distribuição SEFAZ</p>
             {config && (
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
-                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '—'}</span>
+                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '-'}</span>
                 {lastAt && <span>Última consulta: {formatDatetimeBR(lastAt)}</span>}
                 {nextAt && <span>Próxima estimada: {formatDatetimeBR(nextAt.toISOString())}</span>}
               </div>

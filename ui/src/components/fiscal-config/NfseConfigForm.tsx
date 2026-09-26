@@ -140,7 +140,7 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
 
         {isAbrasf && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            O módulo web ainda não emite DANFSE nem consulta parâmetros municipais para ABRASF 2.04 — essas ações
+            O módulo web ainda não emite DANFSE nem consulta parâmetros municipais para ABRASF 2.04; essas ações
             ficam desabilitadas nas telas de NFS-e enquanto este provedor estiver ativo.
           </div>
         )}

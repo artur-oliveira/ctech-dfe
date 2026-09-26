@@ -38,7 +38,7 @@ function VehicleSetsContent() {
     queryFn: () => apiClient.getVehicles({limit: 100}),
     enabled: !!selectedOrg,
   })
-  const plateOf = (sk: string) => vehiclePage?.items.find((v) => v.sk === sk)?.plate ?? '—'
+  const plateOf = (sk: string) => vehiclePage?.items.find((v) => v.sk === sk)?.plate ?? '-'
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<VehicleSetItemOut>({
     mutationFn: (id) => apiClient.deleteVehicleSet(id),
@@ -72,7 +72,7 @@ function VehicleSetsContent() {
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhuma composição veicular"
-            description="Uma composição guarda o veículo de tração, os reboques, os condutores, o RNTRC e o CIOT. No MDF-e, escolher a composição preenche tudo isso de uma vez — e cada campo continua editável."
+            description="Uma composição guarda o veículo de tração, os reboques, os condutores, o RNTRC e o CIOT. No MDF-e, escolher a composição preenche tudo isso de uma vez; e cada campo continua editável."
             action={{label: 'Nova composição', onClick: () => router.push('/vehicle-sets/new')}}
             icon={<VehicleSetIcon width={20} height={20}/>}
           />
@@ -89,10 +89,10 @@ function VehicleSetsContent() {
                   {plateOf(p.tractor_sk)}
                 </td>
                 <td data-label="Reboques" className={`${TABLE_CELL} font-mono text-xs text-gray-600`}>
-                  {(p.trailer_sks ?? []).map(plateOf).join(', ') || '—'}
+                  {(p.trailer_sks ?? []).map(plateOf).join(', ') || '-'}
                 </td>
                 <td data-label="Condutores" className={`${TABLE_CELL} text-gray-600`}>
-                  {(p.driver_docs ?? []).length || '—'}
+                  {(p.driver_docs ?? []).length || '-'}
                 </td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">

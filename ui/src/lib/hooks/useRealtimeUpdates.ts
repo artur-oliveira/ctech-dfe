@@ -100,7 +100,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     if (msg.type === 'new_distribution_nfe') {
       void qc.invalidateQueries({queryKey: queryKeys.distributions.history('nfe', selectedOrg?.pk)})
       const label = msg.emit_name ? ` de ${msg.emit_name}` : ''
-      const value = msg.total ? ` — R$ ${parseFloat(msg.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : ''
+      const value = msg.total ? `: R$ ${parseFloat(msg.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : ''
       toast.info(`Nova NF-e recebida${label}${value}`)
     }
 

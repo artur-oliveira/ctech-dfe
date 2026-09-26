@@ -22,12 +22,12 @@ import {formatISODateBR} from '@/lib/utils/dfe'
 import type {ProductLotItemOut} from '@/lib/types/api'
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '-'
 }
 
 /** Data ISO do cadastro no formato brasileiro; em branco quando ausente. */
 function date(v: unknown): string {
-  return typeof v === 'string' && v ? formatISODateBR(v) : '—'
+  return typeof v === 'string' && v ? formatISODateBR(v) : '-'
 }
 
 function ProductLotsContent() {

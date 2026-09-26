@@ -236,7 +236,7 @@ export function Combobox({
             ))}
             {hasMore && (
               <p className="px-2 py-2 text-center text-xs text-muted-foreground">
-                {filtered.length - visibleCount} resultado{filtered.length - visibleCount !== 1 ? 's' : ''} a mais —
+                {filtered.length - visibleCount} resultado{filtered.length - visibleCount !== 1 ? 's' : ''} a mais;
                 continue rolando
               </p>
             )}

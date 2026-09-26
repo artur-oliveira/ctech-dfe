@@ -61,7 +61,7 @@ function EditOrganizationContent() {
         </h1>
         {fromHandoff && (
           <p className="mb-6 max-w-prose text-sm leading-relaxed text-gray-600 text-pretty">
-            A empresa já está vinculada. O que puder ser lido do CNPJ vem preenchido — confira o
+            A empresa já está vinculada. O que puder ser lido do CNPJ vem preenchido; confira o
             endereço e o regime, e ajuste o que estiver diferente.
           </p>
         )}

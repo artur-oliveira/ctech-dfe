@@ -8,7 +8,7 @@ export default function GuideNfce() {
     <GuidePage
       currentHref="/guide/nfce"
       title="Emitir NFC-e"
-      description="A nota do balcão, modelo 65. Venda a consumidor final, emissão em uma tela só e sem passo de destinatário — o CPF é opcional."
+      description="A nota do balcão, modelo 65. Venda a consumidor final, emissão em uma tela só e sem passo de destinatário; o CPF é opcional."
       sections={[
         {
           id: 'emit',
@@ -23,12 +23,12 @@ export default function GuideNfce() {
             <>
               <GuideBullets>
                 <li>O campo de busca aceita código de barras (GTIN), código interno ou descrição.</li>
-                <li><b>Enter</b> adiciona o item destacado — dá para operar sem tirar a mão do teclado.</li>
+                <li><b>Enter</b> adiciona o item destacado; dá para operar sem tirar a mão do teclado.</li>
                 <li>O CPF do consumidor é opcional; informe só quando o cliente pedir na nota.</li>
               </GuideBullets>
               <p>
                 O total é recalculado a cada item, e a emissão só libera com pelo menos um produto na
-                venda. O restante — CFOP, tributação, numeração — sai do cadastro do produto e da
+                venda. O restante (CFOP, tributação, numeração) sai do cadastro do produto e da
                 configuração fiscal da NFC-e.
               </p>
             </>
@@ -36,7 +36,7 @@ export default function GuideNfce() {
         },
         {
           id: 'csc',
-          title: 'CSC — o código que valida o QR Code',
+          title: 'CSC: o código que valida o QR Code',
           summary:
             'A NFC-e carrega um QR Code que o consumidor consulta na SEFAZ. Quem assina esse código é o CSC, e ele é por ambiente.',
           image: {
@@ -62,7 +62,7 @@ export default function GuideNfce() {
           id: 'after',
           title: 'Cancelar ou substituir',
           summary:
-            'Duas saídas diferentes para dois problemas diferentes — e o prazo da NFC-e é curto.',
+            'Duas saídas diferentes para dois problemas diferentes; e o prazo da NFC-e é curto.',
           image: {
             src: '/guide/nfce-detail.webp',
             alt: 'Detalhe de uma NFC-e autorizada, com protocolo, itens e pagamentos',
@@ -71,16 +71,16 @@ export default function GuideNfce() {
             <>
               <GuideBullets>
                 <li>
-                  <b>Cancelar</b> — a venda não aconteceu. Exige justificativa e só vale dentro do
+                  <b>Cancelar</b>: a venda não aconteceu. Exige justificativa e só vale dentro do
                   prazo legal, bem mais curto que o da NF-e.
                 </li>
                 <li>
-                  <b>Substituir</b> — a venda aconteceu, mas a nota saiu errada. Você emite a nota
+                  <b>Substituir</b>: a venda aconteceu, mas a nota saiu errada. Você emite a nota
                   correta e informa a chave da substituída, amarrando as duas.
                 </li>
               </GuideBullets>
               <p>
-                Os dois são eventos e ficam registrados na linha do tempo do documento —{' '}
+                Os dois são eventos e ficam registrados na linha do tempo do documento:{' '}
                 <Link href="/guide/events" className="font-medium text-primary-700 underline underline-offset-2">
                   ver eventos
                 </Link>.

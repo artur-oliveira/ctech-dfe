@@ -24,7 +24,7 @@ export default function ErrorPage({error, reset}: { error: Error & {digest?: str
     <SystemState
       code="500"
       title="Algo quebrou nesta tela"
-      description="Nada foi enviado à SEFAZ por causa disso — o erro aconteceu aqui, no navegador."
+      description="Nada foi enviado à SEFAZ por causa disso; o erro aconteceu aqui, no navegador."
       detail={error.digest ? `Referência do erro: ${error.digest}` : 'Se acontecer de novo, avise o suporte.'}
     >
       <SystemStateRetry onRetry={reset} label="Carregar novamente"/>

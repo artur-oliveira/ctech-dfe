@@ -121,7 +121,7 @@ function LinkCompanyContent() {
     return (
       <Shell title="Falta a empresa">
         <p className="text-sm text-gray-600">
-          O espaço de trabalho foi criado, mas nenhuma empresa foi cadastrada nele — e é a
+          O espaço de trabalho foi criado, mas nenhuma empresa foi cadastrada nele; e é a
           empresa (o CNPJ) que emite os documentos. Cadastre a empresa na conta CTech e volte.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">

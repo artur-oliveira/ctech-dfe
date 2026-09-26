@@ -7,7 +7,7 @@ export default function GuideCadastros() {
     <GuidePage
       currentHref="/guide/registries"
       title="Cadastros que a emissão usa"
-      description="Cada cadastro existe para tirar uma decisão da hora da emissão. Quanto mais completo o cadastro, menos campo você preenche por nota — e menos rejeição você toma."
+      description="Cada cadastro existe para tirar uma decisão da hora da emissão. Quanto mais completo o cadastro, menos campo você preenche por nota; e menos rejeição você toma."
       sections={[
         {
           id: 'where',
@@ -23,11 +23,11 @@ export default function GuideCadastros() {
               <p>
                 O bloco <b>Cadastros</b> da barra lateral guarda só o que vários documentos usam:
                 <b> Pessoas</b> e <b>Produtos</b>. Todo cadastro que existe por causa de um único
-                tipo de documento fica aninhado nele — <b>Serviços</b> dentro da NFS-e,
+                tipo de documento fica aninhado nele; <b>Serviços</b> dentro da NFS-e,
                 <b> Veículos</b> dentro do MDF-e, <b>Naturezas de operação</b> dentro da NF-e.
               </p>
               <GuideCallout kind="tip" title="Não procure na barra: busque">
-                <b>⌘K</b> (ou <b>Ctrl+K</b>) acha qualquer cadastro pelo nome ou pelo termo fiscal —
+                <b>⌘K</b> (ou <b>Ctrl+K</b>) acha qualquer cadastro pelo nome ou pelo termo fiscal;
                 <i> CFOP</i>, <i>placa</i>, <i>CST</i>. Ver <b>Navegação</b> no guia.
               </GuideCallout>
             </>
@@ -57,7 +57,7 @@ export default function GuideCadastros() {
               </GuideBullets>
               <GuideCallout kind="tip" title="Inscrição estadual não é detalhe">
                 É a IE do destinatário que define se a operação é para contribuinte ou consumidor
-                final — e isso muda CFOP e tributação. Uma IE errada no cadastro vira rejeição na
+                final; e isso muda CFOP e tributação. Uma IE errada no cadastro vira rejeição na
                 emissão.
               </GuideCallout>
             </>
@@ -90,15 +90,15 @@ export default function GuideCadastros() {
           body: (
             <>
               <GuideBullets>
-                <li><b>NCM</b> — a classificação fiscal da mercadoria; define boa parte dos impostos.</li>
-                <li><b>GTIN</b> — o código de barras, o que faz a busca por leitor funcionar na NFC-e.</li>
-                <li><b>Unidade tributável e fatores de conversão</b> — para quem vende em caixa e tributa em unidade.</li>
-                <li><b>Valor de revenda</b> — preço sugerido, separado do valor de custo.</li>
+                <li><b>NCM:</b> a classificação fiscal da mercadoria; define boa parte dos impostos.</li>
+                <li><b>GTIN:</b> o código de barras, o que faz a busca por leitor funcionar na NFC-e.</li>
+                <li><b>Unidade tributável e fatores de conversão:</b> para quem vende em caixa e tributa em unidade.</li>
+                <li><b>Valor de revenda:</b> preço sugerido, separado do valor de custo.</li>
               </GuideBullets>
               <p>
                 Na aba <b>Tipo Especial</b>, marque em <b>Este produto também tem</b> só o que se
                 aplica: origem importada, regime da reforma, selo do IPI ou classificação de produto
-                perigoso. O que não é marcado não aparece — um parafuso não precisa responder sobre
+                perigoso. O que não é marcado não aparece; um parafuso não precisa responder sobre
                 número ONU.
               </p>
               <p>
@@ -125,7 +125,7 @@ export default function GuideCadastros() {
                   destino. Um produto aponta para um perfil e herda tudo.
                 </GuideTerm>
                 <GuideTerm term="Natureza de operação">
-                  O motivo da nota — venda, remessa para conserto, devolução. Define natureza,
+                  O motivo da nota, como venda, remessa para conserto ou devolução. Define natureza,
                   finalidade e o sufixo do CFOP dos itens.
                 </GuideTerm>
                 <GuideTerm term="Condição de pagamento">
@@ -137,7 +137,7 @@ export default function GuideCadastros() {
                 um campo na nota sempre vence o que veio do cadastro.
               </p>
               <p>
-                Com um perfil escolhido no produto, a aba <b>Tributação</b> mostra só um resumo — a
+                Com um perfil escolhido no produto, a aba <b>Tributação</b> mostra só um resumo; a
                 tributação já está respondida. O botão <b>Sobrescrever neste produto</b> abre a tabela
                 completa quando um item precisa fugir da regra do perfil.
               </p>
@@ -148,7 +148,7 @@ export default function GuideCadastros() {
           id: 'service-locations',
           title: 'Locais de prestação',
           summary:
-            'Obra, imóvel e local de evento no mesmo cadastro — os papéis são combináveis.',
+            'Obra, imóvel e local de evento no mesmo cadastro; os papéis são combináveis.',
           image: {
             src: '/guide/service-locations.webp',
             alt: 'Lista de locais de prestação com nome, papéis, endereço e município',
@@ -157,12 +157,12 @@ export default function GuideCadastros() {
             <>
               <p>
                 A NFS-e pede o mesmo endereço em três lugares do leiaute: obra, atividade de evento
-                e imóvel do IBS/CBS. Aqui ele é <b>um cadastro só</b>, com os papéis marcados —
+                e imóvel do IBS/CBS. Aqui ele é <b>um cadastro só</b>, com os papéis marcados;
                 um canteiro que também é o imóvel tributado não vira dois registros iguais.
               </p>
               <GuideBullets>
                 <li>Informe o código da obra (CNO) <b>ou</b> o CIB, nunca os dois: o leiaute escolhe um dos dois, ou o endereço.</li>
-                <li>Locais no exterior não aceitam CNO, CIB nem inscrição imobiliária — são registros brasileiros.</li>
+                <li>Locais no exterior não aceitam CNO, CIB nem inscrição imobiliária; são registros brasileiros.</li>
                 <li>Nome e período do evento mudam a cada nota e continuam sendo pedidos na emissão.</li>
               </GuideBullets>
             </>
@@ -187,12 +187,12 @@ export default function GuideCadastros() {
               </p>
               <GuideCallout kind="tip" title="Um cadastro, dois grupos do leiaute">
                 O mesmo documento alimenta a dedução/redução e o reembolso/repasse/ressarcimento. O
-                leiaute pede formas diferentes dele em cada grupo — cadastrar duas vezes seria
+                leiaute pede formas diferentes dele em cada grupo; cadastrar duas vezes seria
                 convite à divergência.
               </GuideCallout>
               <GuideBullets>
                 <li>A chave de NFS-e tem 50 dígitos e a de NF-e tem 44; o tipo escolhido valida o tamanho.</li>
-                <li>O fornecedor aponta uma pessoa do cadastro — o documento referencia, nunca copia CNPJ e nome.</li>
+                <li>O fornecedor aponta uma pessoa do cadastro; o documento referencia, nunca copia CNPJ e nome.</li>
                 <li>A competência não pode ser anterior à emissão do documento.</li>
               </GuideBullets>
             </>
@@ -211,7 +211,7 @@ export default function GuideCadastros() {
             <>
               <p>
                 Cada veículo guarda placa, UF, RENAVAM, tara, capacidade e tipo de rodado e
-                carroceria — os campos que o manifesto exige. Reboques são cadastrados como veículos
+                carroceria; os campos que o manifesto exige. Reboques são cadastrados como veículos
                 próprios e depois amarrados a uma tração.
               </p>
               <p>
@@ -240,7 +240,7 @@ export default function GuideCadastros() {
               <GuideBullets>
                 <li><b>Obrigatórios:</b> código interno, descrição e código de tributação nacional.</li>
                 <li>Serviço <b>tributável</b> exige alíquota do ISS; <b>imune</b>, <b>isento</b> e <b>não incidente</b> exigem o motivo, que vai no XML.</li>
-                <li>Marcar <b>ISS retido</b> transfere o recolhimento ao tomador — a nota sai com o valor líquido destacado.</li>
+                <li>Marcar <b>ISS retido</b> transfere o recolhimento ao tomador; a nota sai com o valor líquido destacado.</li>
                 <li>O valor do cadastro é um padrão: a emissão aceita outro sem alterar o catálogo.</li>
               </GuideBullets>
               <GuideCallout kind="warning" title="O município valida o código, não nós">
@@ -255,7 +255,7 @@ export default function GuideCadastros() {
           id: 'operations',
           title: 'Naturezas de operação',
           summary:
-            'O motivo da nota — venda, devolução, remessa — e o CFOP que ele determina.',
+            'O motivo da nota, como venda, devolução ou remessa, e o CFOP que ele determina.',
           image: {
             src: '/guide/operations.webp',
             alt: 'Lista de naturezas de operação com nome, finalidade, tipo e CFOP padrão',
@@ -265,12 +265,12 @@ export default function GuideCadastros() {
               <p>
                 A natureza responde três campos da NF-e de uma vez: o texto da natureza da operação,
                 a finalidade (normal, complementar, ajuste ou devolução) e o sufixo do CFOP dos
-                itens. O prefixo do CFOP sai do destino — mesma natureza, CFOP diferente para dentro
+                itens. O prefixo do CFOP sai do destino; mesma natureza, CFOP diferente para dentro
                 e fora do estado.
               </p>
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome, finalidade e tipo de operação (entrada ou saída).</li>
-                <li>Uma natureza pode ser marcada como <b>padrão</b> — vem selecionada em toda emissão nova.</li>
+                <li>Uma natureza pode ser marcada como <b>padrão</b>; vem selecionada em toda emissão nova.</li>
                 <li>Devolução exige a nota referenciada na emissão; a natureza sozinha não basta.</li>
                 <li>Sobrescrever o CFOP direto no item sempre vence o que veio da natureza.</li>
               </GuideBullets>
@@ -280,7 +280,7 @@ export default function GuideCadastros() {
         {
           id: 'payment-terms',
           title: 'Condições de pagamento',
-          summary: 'Forma, parcelas e vencimentos calculados — sem digitar duplicata a duplicata.',
+          summary: 'Forma, parcelas e vencimentos calculados; sem digitar duplicata a duplicata.',
           image: {
             src: '/guide/payment-terms.webp',
             alt: 'Lista de condições de pagamento com nome, forma, parcelas e intervalo entre vencimentos',
@@ -289,13 +289,13 @@ export default function GuideCadastros() {
             <>
               <p>
                 Escolher a condição na emissão gera as parcelas com vencimento calculado a partir da
-                data de emissão: <i>À vista — Pix</i> fecha em uma parcela no dia; <i>30/60/90</i>
+                data de emissão: <i>À vista, via Pix,</i> fecha em uma parcela no dia; <i>30/60/90</i>
                 {' '}gera três, espaçadas pelo intervalo cadastrado.
               </p>
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome, forma de pagamento e número de parcelas.</li>
                 <li>Forma <b>a prazo</b> exige intervalo entre parcelas; à vista ignora o campo.</li>
-                <li>A soma das parcelas tem de bater com o total da nota — a emissão avisa antes de enviar.</li>
+                <li>A soma das parcelas tem de bater com o total da nota; a emissão avisa antes de enviar.</li>
                 <li>Pagamento em cartão pede o terminal (ver <b>Terminais de pagamento</b>) para identificar a transação.</li>
               </GuideBullets>
             </>
@@ -369,7 +369,7 @@ export default function GuideCadastros() {
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome, CNPJ da credenciadora e identificador do terminal.</li>
                 <li>Bandeira e UF são opcionais, mas algumas UFs as exigem em contingência.</li>
-                <li>O identificador tem de ser o mesmo que a maquininha imprime no comprovante — é por ele que a SEFAZ concilia.</li>
+                <li>O identificador tem de ser o mesmo que a maquininha imprime no comprovante; é por ele que a SEFAZ concilia.</li>
               </GuideBullets>
             </>
           ),
@@ -391,7 +391,7 @@ export default function GuideCadastros() {
               </p>
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome e número do bico. Bomba e tanque são opcionais, mas a maioria dos estados os exige.</li>
-                <li>A leitura final tem de ser maior que a inicial — encerrante que anda para trás é rejeitado.</li>
+                <li>A leitura final tem de ser maior que a inicial; encerrante que anda para trás é rejeitado.</li>
                 <li>A última leitura é escrita pela emissão, não editável à mão.</li>
               </GuideBullets>
             </>
@@ -409,12 +409,12 @@ export default function GuideCadastros() {
             <>
               <p>
                 Quem repete a mesma configuração de frota em toda viagem cadastra a composição uma
-                vez: escolher a composição no MDF-e preenche o passo do veículo inteiro — tração,
+                vez: escolher a composição no MDF-e preenche o passo do veículo inteiro, com tração,
                 reboques e condutor.
               </p>
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome e veículo de tração.</li>
-                <li>Reboques e condutores saem dos cadastros de <b>Veículos</b> e <b>Pessoas</b> — a composição referencia, não duplica.</li>
+                <li>Reboques e condutores saem dos cadastros de <b>Veículos</b> e <b>Pessoas</b>; a composição referencia, não duplica.</li>
                 <li>O RNTRC é obrigatório no transporte rodoviário de carga por conta de terceiros.</li>
                 <li>Excluir um veículo usado por uma composição quebra a composição; ajuste-a antes.</li>
               </GuideBullets>
@@ -438,7 +438,7 @@ export default function GuideCadastros() {
               </p>
               <GuideBullets>
                 <li><b>Obrigatórios:</b> nome, classificação (transporte ou carga), tipo e identificação.</li>
-                <li>Lacres são opcionais e podem ser vários — carga lacrada normalmente exige pelo menos um.</li>
+                <li>Lacres são opcionais e podem ser vários; carga lacrada normalmente exige pelo menos um.</li>
                 <li>O rateio da carga entre unidades é calculado na emissão, não no cadastro.</li>
               </GuideBullets>
             </>

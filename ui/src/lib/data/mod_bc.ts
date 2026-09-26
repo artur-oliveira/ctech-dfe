@@ -6,7 +6,7 @@ export const MOD_BC_OPTIONS = [
 ]
 
 export const MOD_BC_ST_OPTIONS = [
-  {value: '4', label: 'MVA — Margem de Valor Adicionado % (padrão)'},
+  {value: '4', label: 'MVA: Margem de Valor Adicionado % (padrão)'},
   {value: '0', label: 'Preço tabelado ou máximo sugerido'},
   {value: '1', label: 'Lista Negativa'},
   {value: '2', label: 'Lista Positiva'},

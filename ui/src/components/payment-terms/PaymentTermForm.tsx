@@ -165,7 +165,7 @@ export function PaymentTermForm({initialData, onSubmit, loading = false}: Paymen
             ))}
           </div>
           <p className="text-xs text-gray-500">
-            A última parcela absorve o resíduo do arredondamento — a soma sempre fecha com o total da nota.
+            A última parcela absorve o resíduo do arredondamento; a soma sempre fecha com o total da nota.
           </p>
         </div>
 

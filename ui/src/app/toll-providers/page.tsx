@@ -24,7 +24,7 @@ import type {TollProviderItemOut} from '@/lib/types/api'
 
 /** Rótulo do tipo do vale; em branco quando a fornecedora não define um. */
 function tpValeLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—'
+  if (typeof code !== 'string' || !code) return '-'
   return TP_VALE_PED_OPTIONS.find((o) => o.value === code)?.label ?? code
 }
 

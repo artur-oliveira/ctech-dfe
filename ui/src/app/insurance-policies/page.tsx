@@ -23,12 +23,12 @@ import type {InsurancePolicyItemOut} from '@/lib/types/api'
 
 /** Rótulo do responsável pelo seguro. */
 function respSegLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—'
+  if (typeof code !== 'string' || !code) return '-'
   return RESP_SEG_OPTIONS.find((o) => o.value === code)?.label ?? code
 }
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '-'
 }
 
 function InsurancePoliciesContent() {

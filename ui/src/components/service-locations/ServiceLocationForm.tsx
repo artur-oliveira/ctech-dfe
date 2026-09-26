@@ -292,8 +292,8 @@ export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLoc
                        )}
             />
             <p className="sm:col-span-3 text-xs text-gray-500">
-              Informe o código da obra <b>ou</b> o CIB, nunca os dois: o leiaute escolhe um dos dois
-              — ou o endereço — e guardar ambos deixaria a emissão decidir sozinha.
+              Informe o código da obra <b>ou</b> o CIB, nunca os dois: o leiaute escolhe um dos dois,
+              ou o endereço; guardar ambos deixaria a emissão decidir sozinha.
             </p>
           </div>
         )}

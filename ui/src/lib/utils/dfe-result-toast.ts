@@ -54,7 +54,7 @@ function docLabel(tableName?: string): string {
 }
 
 function motiveSuffix(motive?: string): string {
-  return motive ? ` — ${motive}` : ''
+  return motive ? `; ${motive}` : ''
 }
 
 function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
@@ -78,9 +78,9 @@ function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
     // Não terminal: o worker reprocessa sozinho na próxima entrega SQS, então o
     // usuário é informado sem ser mandado agir.
     case 'retryable_failed':
-      return {variant: 'info', message: `${doc} não pôde ser enviad${a} agora — tentando novamente${motive}`}
+      return {variant: 'info', message: `${doc} não pôde ser enviad${a} agora; tentando novamente${motive}`}
     default:
-      return {variant: 'info', message: `${doc} atualizad${a} — status: ${dfeStatusLabel(msg.status ?? '', a === 'o' ? 'm' : 'f')}`}
+      return {variant: 'info', message: `${doc} atualizad${a}; status: ${dfeStatusLabel(msg.status ?? '', a === 'o' ? 'm' : 'f')}`}
   }
 }
 
@@ -121,7 +121,7 @@ function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
     case STATUS_RETRYABLE_FAILED:
       return {
         variant: 'info',
-        message: `${wording.retry} — tentando novamente${motive}`,
+        message: `${wording.retry}; tentando novamente${motive}`,
       }
     default:
       // 'error' or any unexpected status — treat as a processing failure.

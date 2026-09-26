@@ -531,7 +531,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
                informação, não pergunta. É o ganho real do passo 2 — o operador
                deixa de precisar saber a natureza fiscal item a item. */
             <p id={`nfe-item-${index}-cfop`} className="font-mono text-sm text-gray-700">
-              {item.cfop || '—'}
+              {item.cfop || '-'}
               <span className="ml-2 font-sans text-xs text-gray-500">definido pela operação</span>
             </p>
           ) : cfopOptions.length > 0 ? (
@@ -655,14 +655,14 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
             <div className="flex flex-col gap-1">
               <Label htmlFor={`item-estorno-ibs-${index}`} className="text-xs font-medium text-gray-600">
-                Estorno de crédito — IBS
+                Estorno de crédito: IBS
               </Label>
               <CurrencyInput id={`item-estorno-ibs-${index}`} value={item.estorno_v_ibs ?? ''}
                              onChange={(v) => onChange(index, {estorno_v_ibs: v})}/>
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`item-estorno-cbs-${index}`} className="text-xs font-medium text-gray-600">
-                Estorno de crédito — CBS
+                Estorno de crédito: CBS
               </Label>
               <CurrencyInput id={`item-estorno-cbs-${index}`} value={item.estorno_v_cbs ?? ''}
                              onChange={(v) => onChange(index, {estorno_v_cbs: v})}/>
@@ -678,7 +678,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
             Pedido do cliente
           </Label>
           <Input id={`item-xped-${index}`} value={item.x_ped ?? ''} maxLength={15} className="w-full"
-                 placeholder="Opcional — controle B2B"
+                 placeholder="Opcional; controle B2B"
                  onChange={(e) => onChange(index, {x_ped: e.target.value})}/>
         </div>
         <div className="flex flex-col gap-1">
@@ -1439,7 +1439,7 @@ export function NfeEmitForm() {
                 value={effectiveOperationId}
                 onValueChange={setOperationId}
                 options={[
-                  {value: '', label: 'Sem operação — preencher manualmente'},
+                  {value: '', label: 'Sem operação; preencher manualmente'},
                   ...operations.map((op) => ({
                     value: extractId(op.sk, SK_PREFIX.OPERATION),
                     label: op.is_default ? `${op.name} (padrão)` : op.name,
@@ -1589,7 +1589,7 @@ export function NfeEmitForm() {
                   {value: '', label: 'Informar pagamento manualmente'},
                   ...paymentTerms.map((t) => ({
                     value: extractId(t.sk, SK_PREFIX.PAYMENT_TERM),
-                    label: `${t.name} — ${t.installments}×`,
+                    label: `${t.name} · ${t.installments}×`,
                   })),
                 ]}
               />
@@ -1866,7 +1866,7 @@ export function NfeEmitForm() {
                   <span className="min-w-0 text-gray-900">
                     <span className="font-mono text-xs text-gray-500 mr-1.5">{p.qty}×</span>
                     {p.product.description}
-                    <span className="ml-1.5 font-mono text-xs text-gray-500">CFOP {p.cfop || '—'}</span>
+                    <span className="ml-1.5 font-mono text-xs text-gray-500">CFOP {p.cfop || '-'}</span>
                   </span>
                   <span className="shrink-0 font-medium text-gray-900">{fmt(computeTotal(p))}</span>
                 </li>
@@ -1901,7 +1901,7 @@ export function NfeEmitForm() {
               <ul className="mt-2 space-y-0.5 text-xs text-gray-500">
                 {duplicatas.map((d, i) => (
                   <li key={i}>
-                    Parcela {d.n_dup} · vence {d.d_venc || '—'} · {fmt(parseFloat(d.v_dup) || 0)}
+                    Parcela {d.n_dup} · vence {d.d_venc || '-'} · {fmt(parseFloat(d.v_dup) || 0)}
                   </li>
                 ))}
               </ul>
@@ -1981,7 +1981,7 @@ export function NfeEmitForm() {
                       <p className="text-sm font-medium text-gray-600">Transportadora</p>
                       {(transport.mod_frete === '3' || transport.mod_frete === '4') && (
                         <p className="text-sm text-gray-500 rounded-lg bg-gray-50 border border-gray-100 px-4 py-2.5">
-                          Transporte próprio — sem transportadora externa.
+                          Transporte próprio; sem transportadora externa.
                         </p>
                       )}
                       {(transport.mod_frete === '0' || transport.mod_frete === '1' || transport.mod_frete === '2') && (
@@ -2213,7 +2213,7 @@ export function NfeEmitForm() {
         }}
         docLabel="NF-e"
         summary={[
-          {label: 'Destinatário', value: selfIssuance ? 'Emissão própria' : (receiver?.name ?? '—')},
+          {label: 'Destinatário', value: selfIssuance ? 'Emissão própria' : (receiver?.name ?? '-')},
           {label: 'Total', value: fmt(totalNfe)},
           {label: 'Produtos', value: `${products.length} item(s)`},
         ]}

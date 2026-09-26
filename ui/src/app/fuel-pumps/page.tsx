@@ -21,7 +21,7 @@ import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
 import type {FuelPumpItemOut} from '@/lib/types/api'
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '-'
 }
 
 function FuelPumpsContent() {
@@ -68,7 +68,7 @@ function FuelPumpsContent() {
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhuma bomba cadastrada"
-            description="A bomba guarda bico, bomba e tanque. Na emissão você informa só onde o marcador parou — a leitura inicial é a final da venda anterior."
+            description="A bomba guarda bico, bomba e tanque. Na emissão você informa só onde o marcador parou; a leitura inicial é a final da venda anterior."
             action={{label: 'Nova bomba', onClick: () => router.push('/fuel-pumps/new')}}
             icon={<FuelPumpIcon width={20} height={20}/>}
           />

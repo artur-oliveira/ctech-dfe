@@ -349,7 +349,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                            Operação padrão da organização
                          </label>
                          <p className="text-xs text-gray-500">
-                           Vem pré-selecionada na emissão. Só uma pode ser a padrão — marcar esta desmarca a anterior.
+                           Vem pré-selecionada na emissão. Só uma pode ser a padrão; marcar esta desmarca a anterior.
                          </p>
                        </FormItem>
                      )}
@@ -458,7 +458,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                   {`{{${ph.key}}}`}
                 </code>
               ))}
-              Uma chave fora dessa lista é recusada aqui — nunca vira um espaço em branco na nota.
+              Uma chave fora dessa lista é recusada aqui; nunca vira um espaço em branco na nota.
             </p>
 
             <FormField control={form.control} name="inf_ad_fisco"
@@ -611,7 +611,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                                               options={COMPRA_GOV_TP_OPER_OPTIONS}
                                               placeholder="Não se aplica"/>
                                <p className="text-xs text-gray-500">
-                                 O tipo decide se a emissão pede as chaves dos documentos anteriores —
+                                 O tipo decide se a emissão pede as chaves dos documentos anteriores;
                                  o formulário de emissão só mostra o campo quando ele é aceito.
                                </p>
                                <FormMessage/>

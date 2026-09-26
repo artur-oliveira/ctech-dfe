@@ -125,7 +125,7 @@ export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
         <div className="flex items-center gap-4 border-t border-gray-100 pt-3">
           <Field label="UF" value="PI"/>
           <Field label="Ambiente" value="Produção"/>
-          <Field label="Protocolo" value={stage === 'authorized' ? '999999999999999' : '—'}/>
+          <Field label="Protocolo" value={stage === 'authorized' ? '999999999999999' : '-'}/>
         </div>
       </div>
     </div>

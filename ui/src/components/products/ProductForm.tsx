@@ -1429,7 +1429,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 simples ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
               }`}>
-                {simples ? 'Simples Nacional — CSOSN' : 'Regime Normal — ICMS CST'}
+                {simples ? 'Simples Nacional; CSOSN' : 'Regime Normal; ICMS CST'}
               </span>
             </div>
 
@@ -1438,7 +1438,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               <p className="text-sm font-medium text-gray-600">Perfis fiscais</p>
               <p className="text-xs text-gray-500">
                 Escolher um perfil dispensa preencher a tributação aqui. Para sobrescrever um CFOP só
-                neste produto, adicione a linha abaixo — ele tem prioridade sobre o perfil fiscal.
+                neste produto, adicione a linha abaixo; ele tem prioridade sobre o perfil fiscal.
               </p>
               {taxProfiles.length === 0 ? (
                 <p className="text-xs text-gray-500">
@@ -1549,7 +1549,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-600">Tipo específico</p>
-              <p className="text-xs text-gray-400">Opcional — preencher apenas para combustíveis ou medicamentos</p>
+              <p className="text-xs text-gray-400">Opcional; preencher apenas para combustíveis ou medicamentos</p>
             </div>
 
             <FormField control={form.control} name="prod_type" render={({field}) => (
@@ -1571,7 +1571,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {watchedProdType === 'comb' && (
               <div className="rounded-lg border border-orange-100 bg-orange-50/30 p-4 space-y-3">
                 <p className="text-sm font-medium text-orange-700">
-                  Combustível — Dados ANP
+                  Combustível; Dados ANP
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="comb_c_prod_anp" render={({field}) => (
@@ -1647,7 +1647,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   onChange={(v) => form.setValue('comb_orig', v, {shouldDirty: true})}/>
                 <p className="text-xs text-gray-400">
                   Para GLP (ANP 210203001): preencha também pGLP, pGNn, pGNi e vPart nas configurações avançadas.
-                  A base e o valor da CIDE saem da quantidade vendida — só a alíquota é cadastrada.
+                  A base e o valor da CIDE saem da quantidade vendida; só a alíquota é cadastrada.
                 </p>
               </div>
             )}
@@ -1656,7 +1656,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {watchedProdType === 'med' && (
               <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-4 space-y-3">
                 <p className="text-sm font-medium text-teal-700">
-                  Medicamento — Dados ANVISA
+                  Medicamento; Dados ANVISA
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => {
@@ -1770,7 +1770,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               {/* ── Reforma tributária — nível produto ──────────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
                 <p className="text-sm font-medium text-gray-600">
-                  Reforma tributária (IBS/CBS) — produto
+                  Reforma tributária (IBS/CBS): produto
                 </p>
                 <p className="text-xs text-gray-500">
                   Crédito presumido da UF, subapuração na ZFM e bem móvel usado. As alíquotas e os CSTs
@@ -1804,10 +1804,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             </>)}
 
             {extraGroups.selo && (<>
-              {/* ── IPI — selo de controle e enquadramento ──────────────── */}
+              {/* ── IPI: selo de controle e enquadramento ──────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
                 <p className="text-sm font-medium text-gray-600">
-                  IPI — selo de controle
+                  IPI: selo de controle
                 </p>
                 <p className="text-xs text-gray-500">
                   Só para produto com selo (bebidas, cigarros). O enquadramento legal (cEnq) sai como
@@ -1860,7 +1860,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 </p>
                 <p className="text-xs text-gray-500">
                   Preencha só se o produto for classificado como perigoso. O MDF-e monta o grupo
-                  <span className="font-medium"> peri</span> sozinho a partir daqui — nunca é perguntado por viagem.
+                  <span className="font-medium"> peri</span> sozinho a partir daqui; nunca é perguntado por viagem.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="peri_n_onu" render={({field}) => (
@@ -1923,7 +1923,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {watchedProdType === 'veiculo' && (
               <div className="rounded-lg border border-indigo-100 bg-indigo-50/30 p-4 space-y-4">
                 <p className="text-sm font-medium text-indigo-700">
-                  Veículo Novo — Dados do Modelo (RENAVAM)
+                  Veículo Novo; Dados do Modelo (RENAVAM)
                 </p>
                 <p className="text-xs text-gray-400">
                   Campos por unidade (chassi, nSerie, nMotor) são preenchidos na emissão da NF-e.
@@ -2094,7 +2094,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             {watchedProdType === 'arma' && (
               <div className="rounded-lg border border-red-100 bg-red-50/20 p-4 space-y-3">
                 <p className="text-sm font-medium text-danger">
-                  Armamento — Dados do Tipo
+                  Armamento; Dados do Tipo
                 </p>
                 <p className="text-xs text-gray-400">
                   Números de série (nSerie, nCano) são preenchidos por unidade na emissão da NF-e.

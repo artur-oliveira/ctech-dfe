@@ -100,7 +100,7 @@ function OrganizationPlanView({orgPk}: { orgPk: string }) {
       <SectionCard title="Plano desta organização">
         <PlanSummary subscription={data}/>
         <p className="text-sm leading-relaxed text-gray-600">
-          A assinatura pertence ao proprietário da conta — só ele pode contratar, mudar ou cancelar
+          A assinatura pertence ao proprietário da conta; só ele pode contratar, mudar ou cancelar
           o plano. Fale com ele se um limite estiver atrapalhando a operação.
         </p>
       </SectionCard>

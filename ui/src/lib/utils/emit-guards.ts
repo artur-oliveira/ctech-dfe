@@ -53,7 +53,7 @@ export function unitDataGap(item: UnitDataItem): string | null {
 export function paymentBalanceGap(remaining: number, allowChange: boolean): string | null {
   if (remaining > SUM_TOLERANCE) return `Faltam ${fmtBRL(remaining)} em pagamentos.`
   if (remaining < -SUM_TOLERANCE && !allowChange) {
-    return `Pagamentos excedem o total em ${fmtBRL(-remaining)} — a NF-e não admite troco.`
+    return `Pagamentos excedem o total em ${fmtBRL(-remaining)}; a NF-e não admite troco.`
   }
   return null
 }

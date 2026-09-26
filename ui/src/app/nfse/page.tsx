@@ -259,7 +259,7 @@ function NfsesContent() {
                           {nfse.dest_cpf_cnpj && <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(nfse.dest_cpf_cnpj)}</p>}
                         </>
                       ) : (
-                        <span className="text-gray-500">—</span>
+                        <span className="text-gray-500">-</span>
                       )}
                     </td>
                     <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Valor">{formatCurrency(nfse.total)}</td>

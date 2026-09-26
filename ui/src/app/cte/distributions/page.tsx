@@ -50,11 +50,11 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
             )}
           </>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-xs text-gray-400">-</span>
         )}
       </td>
       <td data-label="Valor" className={`${TABLE_CELL} text-sm text-gray-700`}>
-        {item.total ? formatCurrency(item.total) : <span className="text-gray-400">—</span>}
+        {item.total ? formatCurrency(item.total) : <span className="text-gray-400">-</span>}
       </td>
       <td data-label="Situação" className={TABLE_CELL}>
         {item.sefaz_motive ? (
@@ -62,7 +62,7 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
             {item.sefaz_motive}
           </p>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-xs text-gray-400">-</span>
         )}
       </td>
       <td data-label="Recebido em" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>
@@ -146,7 +146,7 @@ function CTeDistributionsContent() {
             </p>
             {config && (
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
-                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '—'}</span>
+                <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '-'}</span>
                 {lastAt && <span>Última consulta: {formatDatetimeBR(lastAt)}</span>}
                 {nextAt && <span>Próxima estimada: {formatDatetimeBR(nextAt.toISOString())}</span>}
               </div>

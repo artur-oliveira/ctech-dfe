@@ -157,7 +157,7 @@ export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormP
           />
           <p className="sm:col-span-2 text-xs text-gray-500">
             A quantidade produzida é o saldo do lote. Na emissão, o item aponta de quais lotes ele
-            saiu — a quantidade de cada um é rateada da quantidade vendida, não digitada de novo.
+            saiu; a quantidade de cada um é rateada da quantidade vendida, não digitada de novo.
           </p>
         </div>
 

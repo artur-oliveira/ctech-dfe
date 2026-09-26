@@ -8,7 +8,7 @@ export default function GuideNfe() {
     <GuidePage
       currentHref="/guide/nfe"
       title="Emitir NF-e"
-      description="A Nota Fiscal Eletrônica de mercadoria, modelo 55. A emissão tem quatro passos e o sistema salva rascunho sozinho — dá para parar no meio e voltar."
+      description="A Nota Fiscal Eletrônica de mercadoria, modelo 55. A emissão tem quatro passos e o sistema salva rascunho sozinho; dá para parar no meio e voltar."
       sections={[
         {
           id: 'list',
@@ -26,7 +26,7 @@ export default function GuideNfe() {
                 <GuideTerm term="Recebidas">Notas emitidas contra o seu CNPJ como destinatário.</GuideTerm>
                 <GuideTerm term="Transportadas">Notas em que você aparece como transportador.</GuideTerm>
                 <GuideTerm term="Importação/Distribuição">
-                  O que a SEFAZ entregou por NSU e ainda não virou documento seu —{' '}
+                  O que a SEFAZ entregou por NSU e ainda não virou documento seu;{' '}
                   <Link href="/guide/distributions" className="font-medium text-primary-700 underline underline-offset-2">
                     ver distribuições
                   </Link>.
@@ -39,14 +39,14 @@ export default function GuideNfe() {
               <p>
                 Cada linha traz as ações possíveis para aquele status: <b>Detalhes</b> sempre,{' '}
                 <b>DANFE</b> quando há autorização, <b>Cancelar</b> enquanto o prazo permite. Uma
-                nota em processamento mostra só Detalhes — não há o que baixar ainda.
+                nota em processamento mostra só Detalhes; não há o que baixar ainda.
               </p>
             </>
           ),
         },
         {
           id: 'receiver',
-          title: 'Passo 1 — Destinatário',
+          title: 'Passo 1: Destinatário',
           summary:
             'Para quem é a nota e qual a natureza da operação. Os dois definem CFOP e finalidade do resto do preenchimento.',
           image: {
@@ -57,7 +57,7 @@ export default function GuideNfe() {
             <>
               <GuideBullets>
                 <li>
-                  <b>Recentes</b> traz os últimos destinatários — um clique substitui a busca.
+                  <b>Recentes</b> traz os últimos destinatários; um clique substitui a busca.
                 </li>
                 <li>
                   <b>Para si mesmo</b> emite contra a própria empresa (remessa, transferência,
@@ -77,7 +77,7 @@ export default function GuideNfe() {
         },
         {
           id: 'products',
-          title: 'Passo 2 — Produtos',
+          title: 'Passo 2: Produtos',
           summary:
             'Itens vêm do catálogo com NCM, unidade, valor e perfil fiscal já preenchidos. Você ajusta quantidade e desconto na linha.',
           image: {
@@ -88,7 +88,7 @@ export default function GuideNfe() {
             <>
               <p>
                 O CFOP de cada item sai do perfil fiscal do produto combinado com a UF do
-                destinatário — operação dentro do estado e interestadual não usam o mesmo código.
+                destinatário; operação dentro do estado e interestadual não usam o mesmo código.
               </p>
               <GuideCallout kind="warning" title="Entrada e saída não se misturam">
                 Uma NF-e é de entrada (CFOP 1/2/3) ou de saída (5/6/7), nunca das duas. O tipo é
@@ -100,7 +100,7 @@ export default function GuideNfe() {
         },
         {
           id: 'review',
-          title: 'Passos 3 e 4 — Pagamento e revisão',
+          title: 'Passos 3 e 4: Pagamento e revisão',
           summary:
             'A condição de pagamento vem do cadastro e já monta as parcelas. A revisão mostra a nota inteira antes do envio.',
           image: {
@@ -119,12 +119,12 @@ export default function GuideNfe() {
                 A soma dos pagamentos tem que fechar com o total da nota para o passo avançar: a
                 diferença aparece ao lado do botão <b>Próximo</b>, e <b>Ajustar última parcela</b>{' '}
                 absorve o centavo de arredondamento. O mesmo vale para as parcelas da fatura quando
-                há pagamento a prazo. É a rejeição mais comum da NF-e, e é conta — o sistema fecha,
+                há pagamento a prazo. É a rejeição mais comum da NF-e, e é conta; o sistema fecha,
                 não você.
               </p>
               <GuideCallout kind="tip" title="Rascunho automático">
                 A emissão em andamento é salva no seu navegador. Se você fechar a aba, a próxima
-                visita à tela de emissão oferece retomar de onde parou — ou descartar.
+                visita à tela de emissão oferece retomar de onde parou, ou descartar.
               </GuideCallout>
             </>
           ),
@@ -141,9 +141,9 @@ export default function GuideNfe() {
           body: (
             <>
               <GuideBullets>
-                <li><b>XML</b> — o arquivo assinado e autorizado, o documento fiscal de fato.</li>
-                <li><b>DANFE</b> — o PDF de acompanhamento da mercadoria.</li>
-                <li><b>Carta de Correção</b> e <b>Cancelar</b> — eventos, cada um com a sua regra.</li>
+                <li><b>XML</b>: o arquivo assinado e autorizado, o documento fiscal de fato.</li>
+                <li><b>DANFE</b>: o PDF de acompanhamento da mercadoria.</li>
+                <li><b>Carta de Correção</b> e <b>Cancelar</b>: eventos, cada um com a sua regra.</li>
               </GuideBullets>
               <p>
                 Código e protocolo de autorização são a prova de que a SEFAZ aceitou. Guarde o XML:
@@ -165,7 +165,7 @@ export default function GuideNfe() {
             <>
               <p>
                 O status <b>Rejeitada</b> vira botão: clicar abre o motivo exato devolvido pela
-                SEFAZ. Corrija o que a mensagem aponta — cadastro, CFOP, valor — e emita de novo. A
+                SEFAZ. Corrija o que a mensagem aponta (cadastro, CFOP, valor) e emita de novo. A
                 nota rejeitada não consome numeração autorizada.
               </p>
               <p>
@@ -179,7 +179,7 @@ export default function GuideNfe() {
           id: 'mobile',
           title: 'Consultando no celular',
           summary:
-            'A lista vira cartão em tela pequena, com as mesmas ações — é o caso de uso mais comum fora do escritório.',
+            'A lista vira cartão em tela pequena, com as mesmas ações; é o caso de uso mais comum fora do escritório.',
           image: {
             src: '/guide/mobile-nfe-list.webp',
             alt: 'Lista de NF-e em tela de celular, com cada nota em formato de cartão',

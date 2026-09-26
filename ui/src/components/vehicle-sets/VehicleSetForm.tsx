@@ -99,7 +99,7 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
                          <FormItem>
                            <FormLabel>Nome *</FormLabel>
                            <Input {...field} id={field.name} maxLength={120} className="w-full"
-                                  placeholder="Carreta 1 — ABC1D23"/>
+                                  placeholder="Carreta 1; ABC1D23"/>
                            <FormMessage/>
                          </FormItem>
                        )}

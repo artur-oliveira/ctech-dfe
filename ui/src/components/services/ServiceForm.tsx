@@ -249,12 +249,12 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
   const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
-      label: `${entry.municipalCode} · ${entry.nationalItem} — ${entry.description} · ${entry.taxRate}%`,
+      label: `${entry.municipalCode} · ${entry.nationalItem}; ${entry.description} · ${entry.taxRate}%`,
     }))
     if (currentMunicipalCode && !options.some(({value}) => value === currentMunicipalCode)) {
       options.unshift({
         value: currentMunicipalCode,
-        label: `${currentMunicipalCode} — código atual (fora do catálogo municipal)`,
+        label: `${currentMunicipalCode}; código atual (fora do catálogo municipal)`,
       })
     }
     return options
@@ -263,7 +263,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     if (!currentCnae || CNAE_OPTIONS.some(({value}) => value === currentCnae)) return CNAE_OPTIONS
     return [{
       value: currentCnae,
-      label: `${formatCnae(currentCnae)} — código atual (fora do catálogo CNAE)`,
+      label: `${formatCnae(currentCnae)}; código atual (fora do catálogo CNAE)`,
     }, ...CNAE_OPTIONS]
   }, [currentCnae])
 

@@ -143,7 +143,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
         <>
           <Modal
             isOpen={showCceModal}
-            title={`Carta de Correção — NF-e nº ${doc.number}`}
+            title={`Carta de Correção: NF-e nº ${doc.number}`}
             onClose={() => setShowCceModal(false)}
             onSubmit={() => {
               if (cceText.trim().length >= 15) cceMutation.mutate()
@@ -191,7 +191,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
 
           <Modal
             isOpen={showManifestModal}
-            title={`Manifestação — NF-e nº ${doc.number}`}
+            title={`Manifestação: NF-e nº ${doc.number}`}
             onClose={() => setShowManifestModal(false)}
             onSubmit={() => manifestMutation.mutate()}
             submitLabel="Manifestar"

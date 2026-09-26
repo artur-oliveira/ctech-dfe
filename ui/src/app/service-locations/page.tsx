@@ -23,12 +23,12 @@ import {SERVICE_LOCATION_ROLES} from '@/lib/schemas/service-locations'
 import type {ServiceLocationItemOut} from '@/lib/types/api'
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '-'
 }
 
 /** Rótulos dos papéis, na ordem do cadastro. */
 function roleLabels(roles: unknown): string {
-  if (!Array.isArray(roles) || roles.length === 0) return '—'
+  if (!Array.isArray(roles) || roles.length === 0) return '-'
   return SERVICE_LOCATION_ROLES
     .filter((r) => roles.includes(r.value))
     .map((r) => r.label)
@@ -40,7 +40,7 @@ function roleLabels(roles: unknown): string {
  * é resolvido para o nome: quem lê a lista não decora tabela do IBGE.
  */
 function where(address: unknown): string {
-  if (!address || typeof address !== 'object') return '—'
+  if (!address || typeof address !== 'object') return '-'
   const a = address as Record<string, unknown>
   if (typeof a.foreign_city === 'string' && a.foreign_city) {
     return [a.foreign_city, a.foreign_region].filter(Boolean).join(' / ')
@@ -93,7 +93,7 @@ function ServiceLocationsContent() {
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhum local de prestação"
-            description="O mesmo endereço serve obra, imóvel e local de evento — os papéis são combináveis, então um canteiro que também é o imóvel tributado é um cadastro só."
+            description="O mesmo endereço serve obra, imóvel e local de evento; os papéis são combináveis, então um canteiro que também é o imóvel tributado é um cadastro só."
             action={{label: 'Novo local', onClick: () => router.push('/service-locations/new')}}
             icon={<BriefcaseIcon width={20} height={20}/>}
           />

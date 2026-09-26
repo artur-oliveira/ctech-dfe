@@ -422,7 +422,7 @@ export function EntityForm({
       {ieRootError && <p role="alert" className="mb-2 text-xs text-danger">{ieRootError}</p>}
       {ieFields.length === 0 && (
         <p className="text-[0.8rem] text-gray-500 text-pretty">
-          Nenhuma inscrição cadastrada — o que está certo para quem só presta serviço.
+          Nenhuma inscrição cadastrada; o que está certo para quem só presta serviço.
           NF-e e NFC-e precisam de uma; NFS-e, não.
         </p>
       )}

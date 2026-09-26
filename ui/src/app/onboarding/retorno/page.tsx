@@ -66,7 +66,7 @@ function CheckoutReturnContent() {
       title={gaveUpWaiting ? 'Ainda não recebemos o pagamento' : 'Confirmando seu pagamento'}
       description={
         gaveUpWaiting
-          ? 'Um PIX pode levar alguns minutos para cair. Assim que cair, sua assinatura fica ativa e avisamos por e-mail — você não precisa esperar aqui.'
+          ? 'Um PIX pode levar alguns minutos para cair. Assim que cair, sua assinatura fica ativa e avisamos por e-mail; você não precisa esperar aqui.'
           : 'Assim que o pagamento cair, seguimos para o cadastro da empresa.'
       }
     >

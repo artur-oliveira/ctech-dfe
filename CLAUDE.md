@@ -34,6 +34,13 @@ Before writing any function, search the codebase (`rg "..."`):
 
 Two implementations that solve the same problem must be unified.
 
+### Sem travessão em texto visível
+
+Proibido usar travessão (—) em qualquer texto visível ao usuário: UI (labels, guia, toasts, mensagens de erro),
+copy de commit/PR, e nas respostas do Claude neste projeto. Prefira ponto e vírgula para pausa textual, ou lista
+com marcadores para separar termos. Isso não se aplica a comentários de código nem a docs técnicos internos
+(`OVERVIEW.md`, `DOCS.md`, `CONDUCT.md`).
+
 ### Constants — no magic variables
 
 Every string key, numeric code, URL, header name, or enum value must be a named constant. Never scatter raw string

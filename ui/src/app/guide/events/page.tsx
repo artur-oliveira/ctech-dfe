@@ -7,7 +7,7 @@ export default function GuideEventos() {
     <GuidePage
       currentHref="/guide/events"
       title="Eventos do documento"
-      description="Documento autorizado não se edita — se corrige por evento. Cancelamento, carta de correção, encerramento e manifestação são todos eventos, cada um com a sua regra e o seu prazo."
+      description="Documento autorizado não se edita; se corrige por evento. Cancelamento, carta de correção, encerramento e manifestação são todos eventos, cada um com a sua regra e o seu prazo."
       sections={[
         {
           id: 'timeline',
@@ -21,13 +21,13 @@ export default function GuideEventos() {
           body: (
             <>
               <p>
-                Cada linha traz o tipo do evento, a sequência, o status e o XML do próprio evento —
-                que também é documento fiscal e também deve ser guardado.
+                Cada linha traz o tipo do evento, a sequência, o status e o XML do próprio evento;
+                ele também é documento fiscal e também deve ser guardado.
               </p>
               <GuideBullets>
-                <li><b>Registrado</b> — a SEFAZ aceitou o evento.</li>
-                <li><b>Processando</b> — o pedido está em voo; a linha atualiza sozinha.</li>
-                <li><b>Rejeitado</b> — a SEFAZ recusou; o motivo abre no próprio status.</li>
+                <li><b>Registrado</b>; a SEFAZ aceitou o evento.</li>
+                <li><b>Processando</b>; o pedido está em voo, e a linha atualiza sozinha.</li>
+                <li><b>Rejeitado</b>; a SEFAZ recusou, e o motivo abre no próprio status.</li>
               </GuideBullets>
               <p>
                 A sequência importa em eventos que podem se repetir: uma segunda carta de correção
@@ -48,7 +48,7 @@ export default function GuideEventos() {
           body: (
             <>
               <p>
-                A justificativa tem mínimo de caracteres exigido pela SEFAZ e vai no XML do evento —
+                A justificativa tem mínimo de caracteres exigido pela SEFAZ e vai no XML do evento;
                 escreva o motivo real, não um texto de preenchimento.
               </p>
               <GuideCallout kind="warning" title="Prazo e mercadoria em trânsito">
@@ -63,7 +63,7 @@ export default function GuideEventos() {
           id: 'correction',
           title: 'Carta de Correção',
           summary:
-            'Corrige informação que não muda a essência da operação — e só isso.',
+            'Corrige informação que não muda a essência da operação; e só isso.',
           body: (
             <>
               <GuideBullets>
@@ -77,7 +77,7 @@ export default function GuideEventos() {
                 </li>
               </GuideBullets>
               <p>
-                Cada nova carta reenvia o texto completo da correção, não só a diferença — a última
+                Cada nova carta reenvia o texto completo da correção, não só a diferença; a última
                 sequência é a que a SEFAZ considera válida.
               </p>
             </>
@@ -129,7 +129,7 @@ export default function GuideEventos() {
             <p>
               O encerramento pede o município e a data em que a carga foi entregue. Manifesto
               autorizado que nunca é encerrado fica pendente na SEFAZ e trava a emissão do próximo
-              para o mesmo veículo — encerre assim que a viagem terminar.
+              para o mesmo veículo; encerre assim que a viagem terminar.
             </p>
           ),
         },
@@ -147,7 +147,7 @@ export default function GuideEventos() {
               <p>
                 A aba <b>Inutilizações</b>, em NF-e e NFC-e, abre pelas <b>lacunas detectadas</b>: as
                 faixas da série corrente que não produziram documento utilizável. Cada lacuna traz o
-                botão <b>Inutilizar</b> já com a faixa preenchida — você só escreve a justificativa.
+                botão <b>Inutilizar</b> já com a faixa preenchida; você só escreve a justificativa.
               </p>
               <GuideBullets>
                 <li>
@@ -155,7 +155,7 @@ export default function GuideEventos() {
                   é recusada antes de sair daqui.
                 </li>
                 <li>
-                  A justificativa tem no mínimo 15 caracteres, exigência da SEFAZ — a mesma regra do
+                  A justificativa tem no mínimo 15 caracteres, exigência da SEFAZ; a mesma regra do
                   cancelamento.
                 </li>
                 <li>
@@ -164,7 +164,7 @@ export default function GuideEventos() {
                 <li>
                   Depois que a SEFAZ homologa, a linha ganha o botão <b>XML</b>: é o
                   <b> ProcInutNFe</b>, o pedido assinado somado ao retorno da SEFAZ. É esse arquivo
-                  que comprova a inutilização — guarde-o como guarda um DANFE.
+                  que comprova a inutilização; guarde-o como guarda um DANFE.
                 </li>
               </GuideBullets>
               <GuideCallout kind="info" title="Só para pessoa jurídica">
