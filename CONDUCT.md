@@ -1105,6 +1105,22 @@ trusting a hop nothing routes through is inert rather than wrong.
 
 ---
 
+# go-dfe-egress (sa-east-1)
+
+- **Every SEFAZ/municipal call goes through the `go-dfe-egress` Lambda.** `worker`/`api` never call `dfe.Call` in
+  process and there is no fallback client; a failed `Invoke` or a `FunctionError` fails the call (the worker retries).
+- **The PFX and its password cross regions in the Invoke payload** (us-east-1 → sa-east-1, same account, IAM-only
+  `lambda:InvokeFunction`). The egress must **never log the request body**; it logs only `doc_type`, `service`, `uf`,
+  status and duration (`go-dfe-egress/handler.go`, covered by a test).
+- **Timeout chain:** workers that call SEFAZ (150 s) > egress Lambda (120 s) > go-dfe worst case (NFS-e: 4 attempts × 20 s
+  + backoff). Change one, change the others (`cdk/lib/egress.ts`, `cdk/lib/worker-definitions.ts`, `go-dfe/internal/constants`).
+- **Environment strings:** `worker`/`api` send `producao`/`homologacao`; the egress converts to `prod`/`hom`. NFS-e sends an
+  empty `uf` (municipal competence) and must not be rejected for it.
+- **Cross-region references are strings** (`egressFunctionName`/`egressFunctionArn`): never a CloudFormation reference.
+  `cdk bootstrap` of sa-east-1 is required before the first deploy.
+
+---
+
 # 12. Definition of Done
 
 A change is not complete until:

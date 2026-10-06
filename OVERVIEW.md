@@ -10,7 +10,9 @@ Supports: NF-e · NFC-e · CT-e · MDF-e
 
 ```
 ctech-dfe/
-├── py-dfe/     # Python Lambda — SEFAZ communication (XML-DSig + SOAP mTLS)
+├── py-dfe/     # Python Lambda — retired, no longer called (removal pending)
+├── go-dfe/     # Go library — SEFAZ SOAP/mTLS + NFS-e REST client
+├── go-dfe-egress/ # Go Lambda (sa-east-1) — runs go-dfe so SEFAZ/prefeitura calls leave from Brazil
 ├── api/        # REST backend — Go (Fiber v3), multi-tenant
 ├── ui/         # SaaS frontend — Next.js + TypeScript + ShadCN
 ├── worker/     # Async workers — Go Lambda, SQS consumers
@@ -54,15 +56,15 @@ LambdaRequest → CertificateManager → ServiceClient → SEFAZ SOAP → Lambda
 - `certificate_b64` (PFX in base64), `certificate_password`
 - `body` (dict that becomes XML), `max_retries` (0-10, default 3)
 
-### go-dfe — In-Process Go Migration (New)
+### go-dfe and go-dfe-egress — SEFAZ / NFS-e client
 
-In-process Go replacement for py-dfe's SEFAZ SOAP/mTLS calls, adopted operation-by-operation
-(`docs/plans/2026-07-17-go-dfe-migration.md`, `MIGRATION.md`). `worker`/`api` call `dfe.Call`
-directly (no Lambda Invoke) for any `(docType, service)` in `dfe.Implements()`; everything else still goes through the
-py-dfe Lambda — same request/response JSON contract either way. The compiled set currently includes all operations
-used by the workers, including signed emission/events; the Python path remains a compatibility fallback.
+`go-dfe` is the Go SEFAZ SOAP/mTLS and NFS-e REST client (a library). It runs inside the **go-dfe-egress** Lambda
+(`{env}-go-dfe-egress`, **sa-east-1**), which `worker` and `api` invoke synchronously with the same
+`Request`/`Response` JSON contract the retired py-dfe used. It lives in sa-east-1 because some authorities (Teresina,
+confirmed 2026-10-06) drop traffic from outside Brazil. There is no in-process path and no fallback client; see
+`docs/specs/2026-10-06-go-dfe-egress-design.md` and `MIGRATION.md`.
 
-Auxiliary documents do not use either SEFAZ path. The API renders DANFE, DANFC-e,
+Auxiliary documents do not use the SEFAZ path. The API renders DANFE, DANFC-e,
 and DAMDFE in-process with Folio and caches tagged PDFs in S3 for 30 days.
 
 ### api — REST Backend
@@ -109,7 +111,7 @@ Certificates · Fiscal Configuration
 
 14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
 
-**Main resources:** DynamoDB (35 tables) · S3 (2 buckets: certificates + documents) · Lambda (py-dfe, worker) · API
+**Main resources:** DynamoDB (35 tables) · S3 (2 buckets: certificates + documents) · Lambda (worker; go-dfe-egress in sa-east-1) · API
 Gateway · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
 export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; `FrontendStack`
 (S3 + CloudFront) is retired and awaiting teardown.
@@ -171,7 +173,7 @@ SQS → worker Lambda (Go)
   → Conditionally claim the document/event with owner + six-minute processing lease
   → Fail closed when the claim store is unavailable; only the owner may finalize
   → Fetch certificate from S3
-  → Call go-dfe in-process (py-dfe only for an unimplemented compatibility fallback)
+  → Invoke go-dfe-egress (sa-east-1)
       → Sign XML (XML-DSig) → SOAP/mTLS to SEFAZ → return result
   → Persist NF-e + events in DynamoDB
   → Save XML to S3
@@ -196,7 +198,7 @@ HTTP Client
 DynamoDB Stream → outbox-publisher Lambda → command SNS → SQS
 
 SQS → worker Lambda (Go)
-  → go-dfe IN-PROCESS (no py-dfe at any point in NFS-e)
+  → go-dfe-egress (sa-east-1; Teresina only answers Brazilian IPs)
       → Sign the DPS (XML-DSig) → gzip+base64 → REST/mTLS to Sefin Nacional
   → Persist the NFS-e row (status authorized/rejected — a rejection is terminal, never retried)
   → Save DPS + NFS-e XML to S3
