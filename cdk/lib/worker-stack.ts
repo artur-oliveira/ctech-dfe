@@ -13,6 +13,7 @@ import {WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
 import {goLambdaCode} from './go-code'
+import {egressFunctionArn} from './egress'
 
 const CTECH_WORKER_DIR = path.join(__dirname, '../../worker')
 
@@ -58,7 +59,7 @@ export class WorkerStack extends cdk.Stack {
       outboxStreamArn,
     } = props
 
-    const dfeLambdaArn = `arn:aws:lambda:${this.region}:${this.account}:function:${dfeLambdaName}`
+    const dfeLambdaArn = egressFunctionArn(environment, this.account)
 
     // =========================
     // LOOP DE WORKERS

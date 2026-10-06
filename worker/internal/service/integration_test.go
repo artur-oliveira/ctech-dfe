@@ -10,7 +10,8 @@
 //   - TABLE_PREFIX       — DynamoDB table prefix (e.g. dev)
 //   - DOCUMENTS_BUCKET  — S3 bucket for documents
 //   - CERTS_BUCKET      — S3 bucket for certificates
-//   - DFE_LAMBDA_NAME   — py-dfe Lambda function name
+//   - DFE_LAMBDA_NAME   — go-dfe-egress Lambda function name
+//   - DFE_EGRESS_REGION — region of the go-dfe-egress Lambda (sa-east-1)
 
 package service
 
@@ -41,7 +42,7 @@ func skipUnlessIntegEnv(t *testing.T, vars ...string) {
 
 func integCfg(t *testing.T) *config.Config {
 	t.Helper()
-	skipUnlessIntegEnv(t, "TABLE_PREFIX", "DOCUMENTS_BUCKET", "CERTS_BUCKET", "DFE_LAMBDA_NAME")
+	skipUnlessIntegEnv(t, "TABLE_PREFIX", "DOCUMENTS_BUCKET", "CERTS_BUCKET", "DFE_LAMBDA_NAME", "DFE_EGRESS_REGION")
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("config.Load: %v", err)
@@ -57,7 +58,7 @@ func integAWSClients(t *testing.T) (S3Client, LambdaClient, DistributionDynamoCl
 		t.Fatalf("aws config: %v", err)
 	}
 	return s3.NewFromConfig(ac),
-		lambdaSDK.NewFromConfig(ac),
+		lambdaSDK.NewFromConfig(ac, func(o *lambdaSDK.Options) { o.Region = os.Getenv("DFE_EGRESS_REGION") }),
 		dynamodb.NewFromConfig(ac),
 		sns.NewFromConfig(ac)
 }
@@ -67,10 +68,10 @@ func integAWSClients(t *testing.T) (S3Client, LambdaClient, DistributionDynamoCl
 // ---------------------------------------------------------------------------
 
 // TestInteg_NFeEmission_AuthorizedFlow verifies that a valid NF-e emission
-// call to py-dfe Lambda returns cStat=100 and that the document is marked
+// call to the go-dfe-egress Lambda returns cStat=100 and that the document is marked
 // authorized in DynamoDB.
 //
-// This test requires a real py-dfe Lambda and a valid NF-e XML + certificate
+// This test requires a real go-dfe-egress Lambda and a valid NF-e XML + certificate
 // configured via environment variables. The test DOES NOT submit a real NF-e
 // to SEFAZ; it expects the Lambda to be in homologação mode.
 func TestInteg_NFeEmission_AuthorizedFlow(t *testing.T) {

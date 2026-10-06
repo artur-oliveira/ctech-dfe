@@ -88,6 +88,24 @@ func (m *mockLambda) Invoke(_ context.Context, _ *lambdaSDK.InvokeInput, _ ...fu
 	return &lambdaSDK.InvokeOutput{Payload: payload}, nil
 }
 
+// fakeEgress is a Lambda client that decodes the go-dfe-egress request, hands
+// it to f and encodes the response in the Lambda envelope — so a test can
+// assert on exactly what the service sent to the egress.
+type fakeEgress func(ctx context.Context, req godfe.Request) (godfe.Response, error)
+
+func (f fakeEgress) Invoke(ctx context.Context, in *lambdaSDK.InvokeInput, _ ...func(*lambdaSDK.Options)) (*lambdaSDK.InvokeOutput, error) {
+	var req godfe.Request
+	if err := json.Unmarshal(in.Payload, &req); err != nil {
+		return nil, err
+	}
+	resp, err := f(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	payload, _ := json.Marshal(map[string]any{"statusCode": resp.StatusCode, "body": resp.Body})
+	return &lambdaSDK.InvokeOutput{Payload: payload}, nil
+}
+
 type capturedUpdate struct {
 	table     string
 	status    string
@@ -175,7 +193,7 @@ var testCfg = &config.Config{
 	TablePrefix:     "dev",
 	DocumentsBucket: "docs-bucket",
 	CertsBucket:     "certs-bucket",
-	DfeLambdaName:   "dev-py-dfe",
+	DfeLambdaName:   "dev-go-dfe-egress",
 }
 
 var baseMsg = WorkerMessage{
@@ -201,7 +219,7 @@ func invokeResp(cStat, xMotivo, nProt string) []byte {
 	return payload
 }
 
-// invokeRespStatus builds a mock error response from py-dfe.
+// invokeRespStatus builds a mock error response from the egress.
 func invokeRespStatus(statusCode int, detail string) []byte {
 	body, _ := json.Marshal(map[string]any{"detail": detail})
 	payload, _ := json.Marshal(map[string]any{"statusCode": statusCode, "body": string(body)})
@@ -237,37 +255,29 @@ func TestProcess_CStat100_SavesAndMarksAuthorized(t *testing.T) {
 	}
 }
 
-// TestProcess_GoDfeCutover_SkipsLambdaEntirely is the one test in this
-// package that actually exercises the 2026-07-18 hard-cutover branch (every
-// other test forces godfeImplements=false via distribution_test.go's init,
-// to keep testing Process()'s logic against a controllable fake response
-// without a real certificate/network call). It stubs godfeImplements/
-// godfeCall directly to prove: (a) the mock Lambda is never invoked when
-// go-dfe implements the operation, (b) go-dfe's response flows through the
-// exact same status-update path as a py-dfe response would.
-func TestProcess_GoDfeCutover_SkipsLambdaEntirely(t *testing.T) {
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NFeAutorizacao" }
-	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
-		if req.DocType != "nfe" || req.Service != "NFeAutorizacao" {
-			t.Errorf("unexpected godfe.Request: %+v", req)
-		}
+// TestProcess_SendsRequestToEgress asserts what the worker puts on the wire for
+// go-dfe-egress: the configured function name and the request fields (the
+// egress normalizes "producao" itself), and that the response flows through
+// the normal status-update path.
+func TestProcess_SendsRequestToEgress(t *testing.T) {
+	var gotReq godfe.Request
+	lam := fakeEgress(func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		gotReq = req
 		body, _ := json.Marshal(map[string]any{"cStat": "100", "xMotivo": "Autorizado", "nProt": "135"})
 		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
-	}
+	})
 
-	s3m := certS3()
 	dynm := &mockDynamo{}
-	lamm := &mockLambda{payload: invokeResp("999", "should never be read", "")}
-	svc := newSvc(s3m, lamm, dynm)
+	svc := New(Clients{S3: certS3(), Lambda: lam, Dynamo: dynm}, testCfg)
 
 	if err := svc.Process(context.Background(), baseMsg); err != nil {
 		t.Fatalf("Process: %v", err)
 	}
-	if lamm.calls != 0 {
-		t.Errorf("expected py-dfe Lambda to never be invoked, got %d calls", lamm.calls)
+	if gotReq.DocType != "nfe" || gotReq.Service != "NFeAutorizacao" {
+		t.Errorf("unexpected request: %+v", gotReq)
+	}
+	if gotReq.Environment != "producao" {
+		t.Errorf("environment = %q, want the raw worker value (egress normalizes it)", gotReq.Environment)
 	}
 	if len(dynm.updates) != 1 || dynm.updates[0].status != StatusAuthorized {
 		t.Fatalf("expected 1 update with status=%q, got %+v", StatusAuthorized, dynm.updates)
@@ -409,7 +419,7 @@ func TestProcess_UnknownCStat_MarksRejected(t *testing.T) {
 // Failed
 // ---------------------------------------------------------------------------
 
-func TestProcess_PyDfe422_MarksFailed(t *testing.T) {
+func TestProcess_Egress422_MarksFailed(t *testing.T) {
 	dynm := &mockDynamo{}
 	svc := newSvc(certS3(), &mockLambda{payload: invokeRespStatus(422, "cnpj invalido")}, dynm)
 
@@ -421,7 +431,7 @@ func TestProcess_PyDfe422_MarksFailed(t *testing.T) {
 	}
 }
 
-func TestProcess_PyDfe500_RemainsRetryable(t *testing.T) {
+func TestProcess_Egress500_RemainsRetryable(t *testing.T) {
 	dynm := &mockDynamo{}
 	svc := newSvc(certS3(), &mockLambda{payload: invokeRespStatus(503, "SEFAZ indisponível")}, dynm)
 
@@ -711,7 +721,7 @@ func TestProcess_PublishesToSNSWhenConfigured(t *testing.T) {
 		TablePrefix:     "dev",
 		DocumentsBucket: "docs",
 		CertsBucket:     "certs",
-		DfeLambdaName:   "dev-py-dfe",
+		DfeLambdaName:   "dev-go-dfe-egress",
 		ResultsTopicARN: "arn:aws:sns:us-east-1:123456789:results",
 	}
 	snsm := &mockSNS{}
@@ -793,7 +803,7 @@ func TestProcess_CancellationFailure_NotifiesEventNotDocument(t *testing.T) {
 		TablePrefix:     "dev",
 		DocumentsBucket: "docs",
 		CertsBucket:     "certs",
-		DfeLambdaName:   "dev-py-dfe",
+		DfeLambdaName:   "dev-go-dfe-egress",
 		ResultsTopicARN: "arn:aws:sns:us-east-1:123456789:results",
 	}
 	snsm := &mockSNS{}
@@ -870,7 +880,7 @@ func TestProcess_SkipsWhenDocumentAlreadyTerminal(t *testing.T) {
 		t.Fatalf("Process: %v", err)
 	}
 	if lamm.calls != 0 {
-		t.Errorf("expected invokePyDfe NOT to be called, got %d calls", lamm.calls)
+		t.Errorf("expected invokeEgress NOT to be called, got %d calls", lamm.calls)
 	}
 	if len(dynm.updates) != 0 {
 		t.Errorf("expected no UpdateItem calls, got %d", len(dynm.updates))
@@ -887,7 +897,7 @@ func TestProcess_SkipsWhenEventAlreadyTerminal(t *testing.T) {
 		t.Fatalf("Process: %v", err)
 	}
 	if lamm.calls != 0 {
-		t.Errorf("expected invokePyDfe NOT to be called, got %d calls", lamm.calls)
+		t.Errorf("expected invokeEgress NOT to be called, got %d calls", lamm.calls)
 	}
 }
 
@@ -913,7 +923,7 @@ func TestProcess_ProceedsWhenNotYetTerminal(t *testing.T) {
 		t.Fatalf("Process: %v", err)
 	}
 	if lamm.calls != 1 {
-		t.Errorf("expected invokePyDfe to be called once, got %d", lamm.calls)
+		t.Errorf("expected invokeEgress to be called once, got %d", lamm.calls)
 	}
 }
 

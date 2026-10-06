@@ -18,14 +18,8 @@ import (
 )
 
 // This file's tests exercise DistributionService's pagination/idempotency/
-// persistence logic against a fake Lambda client (mockLambda below) — they
-// predate go-dfe's in-process cutover (invokePyDfe now calls go-dfe directly
-// for every implemented service, see distribution.go). Force godfeImplements
-// to always report false here so invokePyDfe keeps taking the mockLambda
-// path these tests actually control; production code never touches this var.
-func init() {
-	godfeImplements = func(string, string) bool { return false }
-}
+// persistence logic against a fake Lambda client (mockLambda below, or
+// fakeEgress for tests that need to inspect the request).
 
 // ---------------------------------------------------------------------------
 // mockDistDynamo — implements DistributionDynamoClient with queued responses.
@@ -153,7 +147,7 @@ var distCfg = &config.Config{
 	TablePrefix:      "dev",
 	DocumentsBucket:  "docs-bucket",
 	CertsBucket:      "certs-bucket",
-	DfeLambdaName:    "dev-py-dfe",
+	DfeLambdaName:    "dev-go-dfe-egress",
 	EventBusTopicARN: "arn:aws:sns:us-east-1:123:event-bus",
 	ResultsTopicARN:  "arn:aws:sns:us-east-1:123:results",
 }
@@ -324,12 +318,9 @@ func TestRunImportXML_Happy_NfeProc_PersistsAsEmitida(t *testing.T) {
 	snsm := &mockSNS{}
 	svc := newDistSvc(dynm, s3m, lamm, snsm, distCfg)
 
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
-	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	svc.lam = fakeEgress(func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
 		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "cKFyNtF4cg+d63/SRv0ezXGoef8=", true))}, nil
-	}
+	})
 
 	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
 		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
@@ -345,7 +336,7 @@ func TestRunImportXML_Happy_NfeProc_PersistsAsEmitida(t *testing.T) {
 		t.Fatalf("expected incoming=0 (emitida — CNPJ do org bate com emit no fixture), got %s", got)
 	}
 	if lamm.calls != 0 {
-		t.Fatalf("expected py-dfe Lambda to never be invoked, go-dfe path should handle it, got %d calls", lamm.calls)
+		t.Fatalf("expected the mock Lambda to stay unused (the fakeEgress handles it), got %d calls", lamm.calls)
 	}
 	if len(snsm.calls) == 0 {
 		t.Fatal("expected notifyResult SNS publish on success")
@@ -393,7 +384,7 @@ func TestRunImportXML_EnvironmentMismatch_RejectsWithoutRetry(t *testing.T) {
 		t.Fatalf("business rejection must return nil, not error: %v", err)
 	}
 	if lamm.calls != 0 {
-		t.Fatalf("expected no SEFAZ call (py-dfe) when environment mismatches, got %d calls", lamm.calls)
+		t.Fatalf("expected no SEFAZ call (egress) when environment mismatches, got %d calls", lamm.calls)
 	}
 	if len(snsm.calls) == 0 {
 		t.Fatal("expected a failure notification to be published")
@@ -431,12 +422,9 @@ func TestRunImportXML_DigestMismatch_RejectsWithoutRetry(t *testing.T) {
 	}}
 	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
 
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
-	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	svc.lam = fakeEgress(func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
 		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "digest-que-nao-bate", true))}, nil
-	}
+	})
 
 	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
 		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
@@ -480,12 +468,9 @@ func TestRunImportXML_SefazBusinessRejection_NotRetried(t *testing.T) {
 	}}
 	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
 
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
-	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	svc.lam = fakeEgress(func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
 		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("217", "", false))}, nil // 217: NF-e não consta na SEFAZ
-	}
+	})
 
 	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
 		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
@@ -504,12 +489,9 @@ func TestRunImportXML_NetworkError_ReturnsErrorForRetry(t *testing.T) {
 	}}
 	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
 
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
-	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	svc.lam = fakeEgress(func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
 		return godfe.Response{}, errors.New("connection reset")
-	}
+	})
 
 	err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
 		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"])
@@ -540,12 +522,9 @@ func TestRunImportXML_DuplicateMessage_IsIdempotent(t *testing.T) {
 	dynm.queries = queries
 	svc := newDistSvc(dynm, s3m, &mockLambda{}, &mockSNS{}, distCfg)
 
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NfeConsultaProtocolo" }
-	godfeCall = func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	svc.lam = fakeEgress(func(ctx context.Context, req godfe.Request) (godfe.Response, error) {
 		return godfe.Response{StatusCode: 200, Body: string(consultaProtocoloResp("100", "cKFyNtF4cg+d63/SRv0ezXGoef8=", true))}, nil
-	}
+	})
 
 	if err := svc.runImportXML(context.Background(), importOrgPK, "nfe",
 		"nfe-import-staging/"+importOrgPK+"/abc.xml", docTypeConfigs["nfe"]); err != nil {
@@ -778,31 +757,23 @@ func TestDistNSU_NoDocs_cStat137_UpdatesNSU(t *testing.T) {
 	}
 }
 
-// TestDistNSU_GoDfeCutover_SkipsLambdaEntirely is the one distribution test
-// that actually exercises the 2026-07-18 hard-cutover branch (every other
-// test in this file forces godfeImplements=false, via this file's init, to
-// keep testing against a controllable fake py-dfe response). It stubs
-// godfeImplements/godfeCall directly to prove invokePyDfe skips the mock
-// Lambda entirely and routes go-dfe's response through the same
-// pagination/NSU-update path a py-dfe response would.
-func TestDistNSU_GoDfeCutover_SkipsLambdaEntirely(t *testing.T) {
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-
-	godfeImplements = func(docType, service string) bool { return docType == "nfe" && service == "NFeDistribuicaoDFe" }
-	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
-		body, _ := json.Marshal(map[string]any{
-			"retDistDFeInt": map[string]any{"cStat": cStatNoDocs, "ultNSU": "00000000000500", "maxNSU": "00000000000500"},
-		})
-		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
-	}
-
+// TestDistNSU_SendsDistributionRequestToEgress asserts the distribution call is
+// sent to go-dfe-egress as an NFeDistribuicaoDFe request and that its response
+// goes through the normal pagination/NSU-update path.
+func TestDistNSU_SendsDistributionRequestToEgress(t *testing.T) {
 	dynm := &mockDistDynamo{
 		gets:    []getResult{{item: configItem(2, "hom", "", "")}, {item: orgItemWithUF("SP")}},
 		queries: []queryResult{{items: []map[string]types.AttributeValue{certItem()}}},
 	}
-	lam := &mockLambda{payload: []byte(`{"statusCode":500,"body":"{}"}`)}
-	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+	var gotReq godfe.Request
+	svc.lam = fakeEgress(func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		gotReq = req
+		body, _ := json.Marshal(map[string]any{
+			"retDistDFeInt": map[string]any{"cStat": cStatNoDocs, "ultNSU": "00000000000500", "maxNSU": "00000000000500"},
+		})
+		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
+	})
 
 	err := svc.Process(context.Background(), DistributionMessage{
 		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
@@ -810,8 +781,8 @@ func TestDistNSU_GoDfeCutover_SkipsLambdaEntirely(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Process: %v", err)
 	}
-	if lam.calls != 0 {
-		t.Errorf("expected py-dfe Lambda to never be invoked, got %d calls", lam.calls)
+	if gotReq.DocType != "nfe" || gotReq.Service != "NFeDistribuicaoDFe" {
+		t.Errorf("unexpected request: %+v", gotReq)
 	}
 	if len(dynm.updateCalls) != 2 {
 		t.Errorf("expected 2 UpdateItem calls (claim + NSU), got %d", len(dynm.updateCalls))
@@ -861,7 +832,7 @@ func TestDistNSU_ConsumioIndebido_SetsImproperUsage(t *testing.T) {
 	}
 }
 
-func TestDistNSU_PyDfeError_ConsumioIndebidoInDetail(t *testing.T) {
+func TestDistNSU_EgressError_ConsumioIndebidoInDetail(t *testing.T) {
 	// Lambda returns non-200 with "consumo indevido" in detail.
 	dynm := &mockDistDynamo{
 		gets:    []getResult{{item: configItem(2, "hom", "", "")}, {item: orgItemWithUF("SP")}},

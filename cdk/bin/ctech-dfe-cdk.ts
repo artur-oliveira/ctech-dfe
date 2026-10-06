@@ -8,7 +8,7 @@ import {OidcStack} from '../lib/oidc-stack';
 import {WorkerStack} from '../lib/worker-stack';
 import {DfeStack} from '../lib/dfe-stack';
 import {GoDfeEgressStack} from '../lib/egress-stack';
-import {EGRESS_REGION} from '../lib/egress';
+import {EGRESS_REGION, egressFunctionName} from '../lib/egress';
 import {EventBusStack} from '../lib/event-bus-stack';
 import {ApiStack} from '../lib/api-stack';
 import {WORKERS} from '../lib/worker-definitions';
@@ -127,7 +127,7 @@ const workerStack = new WorkerStack(app, id('Worker'), {
   workers: WORKERS,
   certificatesBucketName: s3Stack.certificatesBucketName,
   documentsBucketName: s3Stack.documentsBucketName,
-  dfeLambdaName: `${ENVIRONMENT}-py-dfe`,
+  dfeLambdaName: egressFunctionName(ENVIRONMENT),
   dfeEgressRegion: EGRESS_REGION,
   resultsTopicArn: eventBusStack.resultsTopic.topicArn,
   outboxTableName: workerOutboxTable.tableName,
