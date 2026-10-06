@@ -1,10 +1,9 @@
 name: go-dfe
 
-# Called by deploy.yml. go-dfe is a library, not a deployable service — no
-# cmd/, no Lambda handler, nothing to ship — so this only tests it. worker
-# and api both import it in-process via the root go.work; deploy.yml gates
-# their deploy jobs on this one (see its `needs`) so a go-dfe regression
-# blocks both, the same way a worker regression already blocks api.
+# Called by deploy.yml. go-dfe is a library, not a deployable service, and
+# go-dfe-egress (the Lambda that runs it in sa-east-1) is deployed by the CDK
+# stack — so this only builds and tests both. deploy.yml gates the CDK, worker
+# and api jobs on this one (see its `needs`), so a go-dfe regression blocks them.
 on:
   workflow_call:
 
@@ -25,12 +24,22 @@ jobs:
           # go-dfe has no go.sum of its own: in workspace mode (go.work at
           # the repo root) its checksums live in the shared go.work.sum
           # instead — see go-dfe/CLAUDE.md's "Known Constraints".
-          cache-dependency-path: go.work.sum
+          cache-dependency-path: |
+            go.work.sum
+            go-dfe-egress/go.sum
 
       - name: Build (arm64, CGO disabled — matches the worker/api Lambda target)
         working-directory: go-dfe
-        run: CGO_ENABLED=0 GOARCH=arm64 go build ./...
+        run: CGO_ENABLED=0 GOARCH=arm64 go build -o /dev/null ./...
 
       - name: Run tests
         working-directory: go-dfe
+        run: go test ./... -race -count=1
+
+      - name: Build egress (arm64, CGO disabled)
+        working-directory: go-dfe-egress
+        run: CGO_ENABLED=0 GOARCH=arm64 go build -o /dev/null ./...
+
+      - name: Test egress
+        working-directory: go-dfe-egress
         run: go test ./... -race -count=1
