@@ -154,7 +154,7 @@ Run: `go test ./... -race` from `api/`.
 
 Lives in `internal/services/nfses/` (its own package, not `internal/services`): the row SK is the `id_dps`, not the
 access key; `WorkerMessage.UF` is empty (municipal competence); reads that hit the ADN (`municipal.go`) call go-dfe
-in-process, never py-dfe. See `../DOCS.md` → *Emissão de NFS-e* and `../CONDUCT.md`.
+through the go-dfe-egress Lambda (`ExternalService.CallDfe`, region `DFE_EGRESS_REGION`), never in process. See `../DOCS.md` → *Emissão de NFS-e* and `../CONDUCT.md`.
 
 ---
 

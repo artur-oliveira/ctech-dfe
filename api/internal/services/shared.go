@@ -76,7 +76,7 @@ const (
 	ModelMDFe = "58"
 )
 
-// py-dfe doc_type values (LambdaRequest.doc_type).
+// go-dfe doc_type values (Request.doc_type).
 const (
 	DocTypeNFe  = "nfe"
 	DocTypeNFCe = "nfce"

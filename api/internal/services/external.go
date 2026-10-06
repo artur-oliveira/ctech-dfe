@@ -1,6 +1,6 @@
 package services
 
-// ExternalService mirrors api/app/services/external.py.
+// ExternalService performs SEFAZ lookups through the go-dfe-egress Lambda.
 // It performs NfeConsultaCadastro queries against SEFAZ using the org's certificate.
 
 import (
@@ -21,6 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	godfe "gopkg.aoctech.app/dfe/go-dfe"
 )
 
 var (
@@ -276,13 +278,45 @@ func (s *ExternalService) downloadPFX(ctx context.Context, s3Key string) ([]byte
 	return buf.Bytes(), nil
 }
 
+// CallDfe sends req to the go-dfe-egress Lambda (SEFAZ_FUNCTION_NAME, region
+// DFE_EGRESS_REGION) and returns its typed response.
+func (s *ExternalService) CallDfe(ctx context.Context, req godfe.Request) (godfe.Response, error) {
+	return callDfe(ctx, s.clients.Lambda, s.sefazFunctionName, req)
+}
+
 func (s *ExternalService) invokeAndParse(ctx context.Context, payload map[string]any) (map[string]any, error) {
 	return invokeSefazLambda(ctx, s.clients.Lambda, s.sefazFunctionName, payload)
 }
 
-// invokeSefazLambda invokes a py-dfe Lambda, parses the response envelope,
+// lambdaInvoker is the Invoke subset used to reach the go-dfe-egress Lambda.
+type lambdaInvoker interface {
+	Invoke(ctx context.Context, in *lambda.InvokeInput, opts ...func(*lambda.Options)) (*lambda.InvokeOutput, error)
+}
+
+// callDfe invokes the go-dfe-egress Lambda with a typed request and returns its
+// typed response. A FunctionError (crash/timeout of the Lambda) is an error.
+func callDfe(ctx context.Context, lam lambdaInvoker, funcName string, req godfe.Request) (godfe.Response, error) {
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return godfe.Response{}, fmt.Errorf("encode egress request: %w", err)
+	}
+	out, err := lam.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(funcName), Payload: payload})
+	if err != nil {
+		return godfe.Response{}, fmt.Errorf("invoke egress: %w", err)
+	}
+	if out.FunctionError != nil {
+		return godfe.Response{}, fmt.Errorf("egress function error: %s", aws.ToString(out.FunctionError))
+	}
+	var resp godfe.Response
+	if err := json.Unmarshal(out.Payload, &resp); err != nil {
+		return godfe.Response{}, fmt.Errorf("decode egress response: %w", err)
+	}
+	return resp, nil
+}
+
+// invokeSefazLambda invokes the go-dfe-egress Lambda, parses the response envelope,
 // and returns the inner body map. Returns a *problem.Problem on non-200 responses.
-func invokeSefazLambda(ctx context.Context, lam *lambda.Client, funcName string, payload map[string]any) (map[string]any, error) {
+func invokeSefazLambda(ctx context.Context, lam lambdaInvoker, funcName string, payload map[string]any) (map[string]any, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode SEFAZ Lambda payload").WithCause(err)

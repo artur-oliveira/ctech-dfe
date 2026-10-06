@@ -194,7 +194,7 @@ Permissions use `RequireDynamic("list.%s_distributions", "doc_type")`
 
 | Method | Path                                           | Perm                       | Notes                                                     |
 |--------|------------------------------------------------|----------------------------|-----------------------------------------------------------|
-| GET    | `/external/lookup-organizations?cpf_cnpj=&uf=` | `get.organization_persons` | SEFAZ `ConsultaCadastro` via py-dfe; both params required |
+| GET    | `/external/lookup-organizations?cpf_cnpj=&uf=` | `get.organization_persons` | SEFAZ `ConsultaCadastro` via the go-dfe-egress Lambda; both params required |
 
 ### 3.8 Audit logs (`audit_logs.go`)
 
@@ -223,7 +223,7 @@ Overall `pass`/`warn`/`fail` (207 on warn, 503 on fail). This is the ALB/health-
    `outbox-publisher` → **SNS `${env}-ctech-dfe`**. A publish failure leaves the immutable outbox row pending and causes
    stream redelivery. **Cancel / event** messages currently publish directly with
    `WorkerService.PublishWorkerEvent`. Worker Lambda (s) conditionally claim the document/event with an owner and
-   six-minute lease, call SEFAZ (go-dfe in-process or py-dfe Lambda fallback), and allow only the lease owner to
+   six-minute lease, call SEFAZ (go-dfe-egress Lambda), and allow only the lease owner to
    finalize. Retryable infrastructure failures release the lease and return an SQS batch failure.
 2. **Distribution sync** → `DistributionService.EnqueueSync` sends to **SQS
    `DistributionQueueURL`** (`services/distributions.go:155`). The `distribution-dispatcher`

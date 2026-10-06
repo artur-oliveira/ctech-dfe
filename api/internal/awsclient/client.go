@@ -42,7 +42,7 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 		S3:            s3.NewFromConfig(awsCfg),
 		SQS:           sqs.NewFromConfig(awsCfg),
 		SNS:           sns.NewFromConfig(awsCfg),
-		Lambda:        lambda.NewFromConfig(awsCfg),
+		Lambda:        lambda.NewFromConfig(awsCfg, func(o *lambda.Options) { o.Region = cfg.DfeEgressRegion }),
 		SecretManager: secretsmanager.NewFromConfig(awsCfg),
 	}
 	return clients, nil

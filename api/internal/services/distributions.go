@@ -243,7 +243,7 @@ func (s *DistributionService) GetDistributionXML(ctx context.Context, orgPK, doc
 	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(filename), documents.ContentTypeXML)
 }
 
-// LookupByNSU performs a synchronous consNSU against SEFAZ via the py-dfe Lambda.
+// LookupByNSU performs a synchronous consNSU against SEFAZ via the go-dfe-egress Lambda.
 func (s *DistributionService) LookupByNSU(ctx context.Context, orgPK, docType string, nsu int) (map[string]any, error) {
 	if err := validateSefazDistDocType(docType); err != nil {
 		return nil, err
