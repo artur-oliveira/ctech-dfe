@@ -1,0 +1,3 @@
+# build output of `go build` run inside this module
+/go-dfe-egress
+/bootstrap

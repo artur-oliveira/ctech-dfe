@@ -15,7 +15,8 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via
 | `ui/`     | Next.js 16 frontend — TypeScript, ShadCN               | `ui/CLAUDE.md`     |
 | `cdk/`    | AWS CDK infrastructure — TypeScript                    | `cdk/CLAUDE.md`    |
 | `py-dfe/` | Python Lambda — XML-DSig + SEFAZ SOAP + mTLS           | `py-dfe/CLAUDE.md` |
-| `go-dfe/` | Go lib — in-process SEFAZ SOAP+mTLS (py-dfe migration) | `go-dfe/CLAUDE.md` |
+| `go-dfe/` | Go lib — SEFAZ SOAP+mTLS and NFS-e REST client | `go-dfe/CLAUDE.md` |
+| `go-dfe-egress/` | Go Lambda (sa-east-1) — runs `dfe.Call` so SEFAZ/prefeitura calls leave from Brazil | `go-dfe-egress/CLAUDE.md` |
 
 **Always read the relevant subproject CLAUDE.md before making any change.**
 
