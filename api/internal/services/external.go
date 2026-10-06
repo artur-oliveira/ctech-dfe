@@ -310,8 +310,6 @@ func invokeSefazLambda(ctx context.Context, lam *lambda.Client, funcName string,
 		}
 	}
 
-	shadowCallGoDfeFromMap(ctx, payload, statusCode, bodyStr)
-
 	if statusCode != 200 {
 		detail := "Erro na consulta à SEFAZ"
 		if respBody != nil {

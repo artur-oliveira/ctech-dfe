@@ -1,15 +1,13 @@
-// Package dfe is the entrypoint of go-dfe: in-process SEFAZ (Brazilian tax
-// authority) SOAP communication for NF-e/NFC-e/CT-e/MDF-e, called directly by
-// worker/api instead of invoking the py-dfe Lambda. Request/Response/Problem
-// mirror py-dfe's LambdaRequest/LambdaResponse/Problem (py-dfe/py_dfe/models/request.py,
-// py-dfe/py_dfe/exceptions.py) so worker/api's existing lambdaPayload/lambdaResponse
-// marshaling can be swapped for an in-process Call with no wire-format change.
+// Package dfe is the entrypoint of go-dfe: SEFAZ (Brazilian tax authority)
+// SOAP and NFS-e REST communication for NF-e/NFC-e/CT-e/MDF-e/NFS-e. It is
+// executed by the go-dfe-egress Lambda (sa-east-1), which receives a Request
+// as JSON and returns a Response. Request/Response/Problem are that Lambda's
+// wire contract; worker/api marshal them without any further translation.
 package dfe
 
-// Request mirrors py-dfe's LambdaRequest (py-dfe/py_dfe/models/request.py).
-// Environment must already be normalized to "prod"/"hom" (py-dfe accepts
-// "producao"/"homologacao" too and normalizes on the way in; go-dfe callers
-// are internal to this monorepo and always send the normalized form).
+// Request is the input of Call. Environment must already be normalized to
+// "prod"/"hom"; the go-dfe-egress handler converts the long forms
+// ("producao"/"homologacao") that worker/api send.
 type Request struct {
 	CNPJ                string         `json:"cnpj"`
 	CertificateB64      string         `json:"certificate_b64,omitempty"`
@@ -23,17 +21,15 @@ type Request struct {
 	MaxRetries          int            `json:"max_retries,omitempty"`
 }
 
-// Response mirrors py-dfe's LambdaResponse: Body is a JSON-encoded string,
-// not a nested object, matching the existing Lambda Invoke contract so
-// worker/api's response-parsing code needs no changes when switching from
-// invokePyDfe to dfe.Call.
+// Response is the output of Call. Body is a JSON-encoded string, not a nested
+// object, so callers keep one response-parsing path for every doc type.
 type Response struct {
 	StatusCode int               `json:"statusCode"`
 	Body       string            `json:"body"`
 	Headers    map[string]string `json:"headers"`
 }
 
-// Problem mirrors py-dfe's RFC7807-shaped Problem (py-dfe/py_dfe/exceptions.py).
+// Problem is the RFC 7807-shaped error body carried in Response.Body.
 type Problem struct {
 	Type   string `json:"type"`
 	Title  string `json:"title"`

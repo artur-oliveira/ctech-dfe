@@ -1,5 +1,5 @@
-// Package soap ports py-dfe's SOAP 1.2 envelope handling
-// (py-dfe/py_dfe/soap/envelope.py) to Go: wrapping a signed/unsigned fiscal
+// Package soap ports the original Python client's SOAP 1.2 envelope handling
+// to Go: wrapping a signed/unsigned fiscal
 // XML body for a specific SEFAZ service call (Build), and unwrapping SEFAZ's
 // SOAP response to get at the inner result XML (ParseResult).
 //
@@ -23,7 +23,7 @@ import (
 const soap12NS = "http://www.w3.org/2003/05/soap-envelope"
 
 // Builder builds SOAP 1.2 envelopes for one (docType, uf, service) call,
-// mirroring py-dfe's SOAPEnvelopeBuilder. All lookups happen once in
+// mirroring the original Python client's SOAPEnvelopeBuilder. All lookups happen once in
 // NewBuilder so Build/ContentType are pure formatting.
 type Builder struct {
 	wsdlNS    string
@@ -37,7 +37,7 @@ type Builder struct {
 
 // NewBuilder resolves the WSDL namespace/operation/element names for
 // (docType, uf, service). Returns an error if service is unknown for docType,
-// mirroring py-dfe's SOAPError("Unknown service ...").
+// mirroring the original Python client's SOAPError("Unknown service ...").
 func NewBuilder(docType, uf, service string) (*Builder, error) {
 	wsdlName, ok := constants.WSDLServiceByDocType[docType][service]
 	if !ok {
@@ -65,7 +65,7 @@ func NewBuilder(docType, uf, service string) (*Builder, error) {
 		wsdlNS:    fmt.Sprintf("%s/wsdl/%s", constants.DocNamespace[docType], wsdlName),
 		operation: operation,
 		version:   version,
-		cUF:       strconv.Itoa(constants.UFIBGE[uf]), // 0 for unknown uf, matching py-dfe's UF_IBGE.get(uf, 0)
+		cUF:       strconv.Itoa(constants.UFIBGE[uf]), // 0 for unknown uf, matching the original Python client's UF_IBGE.get(uf, 0)
 		wrapped:   wrapped,
 		headerEl:  elems.Header,
 		bodyEl:    elems.Body,
@@ -73,7 +73,7 @@ func NewBuilder(docType, uf, service string) (*Builder, error) {
 }
 
 // ContentType returns the Content-Type header value including the SOAP
-// action, matching py-dfe's SOAPEnvelopeBuilder.content_type.
+// action, matching the original Python client's SOAPEnvelopeBuilder.content_type.
 func (b *Builder) ContentType() string {
 	return fmt.Sprintf(`application/soap+xml; charset=utf-8; action="%s/%s"`, b.wsdlNS, b.operation)
 }
@@ -140,7 +140,7 @@ func (b *Builder) Build(payloadXML []byte, gzipPayload, includeHeader bool) ([]b
 // "nfeResultMsg") and returns that element's raw bytes.
 //
 // If no such element is found, it falls back to the Body's first child
-// element, mirroring py-dfe's extract_body (py-dfe/py_dfe/soap/envelope.py),
+// element, mirroring the original Python client's extract_body,
 // which does not check element names at all.
 func ParseResult(docType string, soapResponse []byte) ([]byte, error) {
 	elems, ok := constants.SOAPElements[docType]

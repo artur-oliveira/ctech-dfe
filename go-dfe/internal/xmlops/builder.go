@@ -1,11 +1,11 @@
-// Package xmlops ports py-dfe's dict<->XML conversion
-// (py-dfe/py_dfe/xmlops/builder.py) to Go: building the fiscal XML body from
+// Package xmlops ports the original Python client's dict<->XML conversion
+// to Go: building the fiscal XML body from
 // a JSON-shaped map (the same shape as Request.Body, see ../../request.go),
 // and parsing a SEFAZ XML response back into that same shape for callers
 // like worker/internal/service/distribution.go (asMap/asSlice on
 // respBody["retDistDFeInt"]["loteDistDFeInt"]["docZip"], etc).
 //
-// Convention (identical to py-dfe's docstring):
+// Convention (identical to the original Python client's docstring):
 //   - a "@attr" key becomes an XML attribute named "attr"
 //   - the "@xmlns" key sets the default namespace from that element down
 //   - the "#text" key becomes the element's text content
@@ -19,13 +19,13 @@
 // XML/XSD spec) so attributes are emitted alphabetically for determinism.
 // Child element order IS fiscally significant (XSD complexTypes are
 // xs:sequence), so BuildXML resolves it from xsdorder.Resolve — a 1:1 port
-// of py-dfe's XSD_ORDER table — exactly mirroring py-dfe's ancestor-scoped
+// of the original Python client's XSD_ORDER table — exactly mirroring the original Python client's ancestor-scoped
 // lookup. That table covers every real NF-e/NFC-e/CT-e/MDF-e element.
 //
 // ponytail: for a tag with no xsdorder entry (no real fiscal element should
 // hit this), children fall back to alphabetical key order for determinism,
 // since a plain Go map has no insertion order to fall back to the way
-// py-dfe's dict does. Upgrade path: add the tag's sequence to xsdorder.
+// the original Python client's dict does. Upgrade path: add the tag's sequence to xsdorder.
 package xmlops
 
 import (
@@ -43,7 +43,7 @@ import (
 // BuildXML converts body into an XML document with rootTag as its single
 // root element and xmlns as the element's default namespace (pass "" for
 // none). body may itself carry its own "@xmlns" (or a nested element may),
-// which overrides xmlns from that point down — mirroring py-dfe's
+// which overrides xmlns from that point down — mirroring the original Python client's
 // dict_to_xml/_build_element exactly.
 func BuildXML(body map[string]any, rootTag, xmlns string) ([]byte, error) {
 	var buf bytes.Buffer
@@ -55,11 +55,11 @@ func BuildXML(body map[string]any, rootTag, xmlns string) ([]byte, error) {
 
 // writeElement writes <tag>...</tag> (or a self-closed <tag/>) to buf.
 // inheritedNS is the default namespace value to use for tag absent a local
-// "@xmlns" override (mirrors py-dfe's inherited_ns parameter). declaredNS is
+// "@xmlns" override (mirrors the original Python client's inherited_ns parameter). declaredNS is
 // the namespace URI already emitted via xmlns= somewhere in the currently
 // open ancestor chain ("" if none yet) — used only to avoid redeclaring an
 // already-active default namespace, matching lxml's namespace reconciliation
-// (py-dfe never passes an explicit nsmap to sub-elements, only to the root;
+// (the original Python client never passes an explicit nsmap to sub-elements, only to the root;
 // libxml2 reuses an already-declared namespace instead of repeating it).
 // ancestorPath is the colon-joined tag path of tag's ancestors ("" at the
 // root), used for xsdorder.Resolve.
@@ -217,7 +217,7 @@ func asSliceAny(v any) ([]any, bool) {
 }
 
 // stringifyScalar renders v (an attribute, #text, or bare element value) as
-// its XML text, matching py-dfe's str(value) for str/int/float.
+// its XML text, matching the original Python client's str(value) for str/int/float.
 func stringifyScalar(v any) (string, error) {
 	switch x := v.(type) {
 	case string:
@@ -250,12 +250,12 @@ func escapeText(s string) string { return textEscaper.Replace(s) }
 func escapeAttr(s string) string { return attrEscaper.Replace(s) }
 
 // ParseXML parses an XML document (e.g. a SEFAZ SOAP response body) into a
-// map keyed by the root element's local name, mirroring py-dfe's
+// map keyed by the root element's local name, mirroring the original Python client's
 // parse_xml_bytes/xml_to_dict: "@attr" keys for attributes, "#text" for an
 // element's own text alongside attributes/children, repeated child tags
 // collapsed to a single value when there is exactly one (a list otherwise),
 // and a leaf element with neither attributes nor children returned as a
-// plain string. Namespace URIs are dropped, matching py-dfe (only the local
+// plain string. Namespace URIs are dropped, matching the original Python client (only the local
 // tag name survives).
 func ParseXML(xmlBytes []byte) (map[string]any, error) {
 	dec := xml.NewDecoder(bytes.NewReader(xmlBytes))

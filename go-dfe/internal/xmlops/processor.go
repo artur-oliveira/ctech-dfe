@@ -2,12 +2,12 @@ package xmlops
 
 import "strings"
 
-// emissionSpec/eventSpec mirror py-dfe's _EMISSION/_EVENT tuples
-// (py-dfe/py_dfe/xmlops/processor.py).
+// emissionSpec/eventSpec mirror the original Python client's _EMISSION/_EVENT tuples
+// .
 type emissionSpec struct{ procTag, docTag, protTag, versao string }
 type eventSpec struct{ procTag, versao, eventTag, retEventTag string }
 
-// emissionServices mirrors py-dfe's _EMISSION.
+// emissionServices mirrors the original Python client's _EMISSION.
 var emissionServices = map[string]emissionSpec{
 	"NFeAutorizacao":   {"nfeProc", "NFe", "protNFe", "4.00"},
 	"NfceAutorizacao":  {"nfeProc", "NFe", "protNFe", "4.00"},
@@ -24,13 +24,13 @@ var emissionServices = map[string]emissionSpec{
 	"NfeInutilizacao": {"ProcInutNFe", "inutNFe", "retInutNFe", "4.00"},
 }
 
-// eventServices mirrors py-dfe's _EVENT. py-dfe's own CTeRecepcaoEvento
+// eventServices mirrors the original Python client's _EVENT. the original Python client's own CTeRecepcaoEvento
 // entry has a latent bug there: adjacent string literals ("4.00" "eventoCTe")
 // concatenate in Python, collapsing what should be a 4-tuple into 3 elements
 // — the unpack (`proc_tag, versao, event_tag, ret_event_tag = _EVENT[service]`)
 // raises at runtime, which build_processed_xml's blanket try/except silently
 // swallows (logs at debug, returns None). CTeRecepcaoEvento functionally
-// never gets a processed XML in py-dfe today because of this. Ported here
+// never gets a processed XML in the original Python client today because of this. Ported here
 // with the obviously-intended 4 values instead of reproducing the crash —
 // matching an accidental typo helps no one — flagged here for awareness.
 var eventServices = map[string]eventSpec{
@@ -51,8 +51,8 @@ var docNamespaces = map[string]string{
 // mdfeProc/procEventoNFe/etc — the signed request document and SEFAZ's
 // protocol/event response combined into the single document SEFAZ
 // convention expects for storage), or ("", false) if service has no
-// processed form. Mirrors py-dfe's build_processed_xml
-// (py-dfe/py_dfe/xmlops/processor.py), including its behavior of silently
+// processed form. Mirrors the original Python client's build_processed_xml
+// , including its behavior of silently
 // returning false on any malformed input — a processed-XML failure must
 // never break the underlying SEFAZ call it's attached to.
 func BuildProcessedXML(docType, service string, requestXML, responseXML []byte) (result string, ok bool) {
@@ -130,7 +130,7 @@ func buildEvents(ns string, spec eventSpec, requestXML, responseXML []byte) (str
 	if len(results) == 1 {
 		return results[0], true
 	}
-	// Multiple events: py-dfe returns a JSON array of XML strings.
+	// Multiple events: the original Python client returns a JSON array of XML strings.
 	return jsonStringArray(results), true
 }
 

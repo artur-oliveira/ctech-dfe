@@ -16,34 +16,27 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 )
 
-// implemented is the compiled set of (docType, service) pairs go-dfe handles
-// in-process today. Every other (docType, service) falls back to the py-dfe
-// Lambda (see worker/internal/service/dfe.go's invokePyDfe seam,
-// distribution.go's variant, and api/internal/services/external.go).
+// implemented is the allowlist of (docType, service) pairs Call accepts; any
+// other pair is rejected rather than guessed at.
 //
-// Unsigned operations (status/consulta/distribuição) are here per the normal
-// plan gate (shadow-mode parity, see docs/plans/2026-07-17-go-dfe-migration.md).
+// Unsigned operations (status/consulta/distribuição) were validated in
+// shadow mode against the previous SEFAZ client before it was retired.
 //
 // Signed operations (autorização, eventos, inutilização) — everything the
-// worker's SNS-routed Lambdas actually process (nfe-emission/-event/
-// -inutilization, cte-emission/-event, mdfe-emission/-event, see
-// cdk/lib/worker-definitions.ts) — were added 2026-07-18 at explicit
-// operator direction to fully cut worker over from py-dfe, WITHOUT the
-// plan's byte-identical signature gate (no dedicated SEFAZ test certificate
-// exists in this repo to run it against). Decision was made deliberately for
-// a controlled zero-traffic window (no live users at the time), as an
-// accepted, explicit exception to the gate documented elsewhere in this
-// file/go-dfe/CLAUDE.md — not a silent skip. Re-tighten this (remove until
-// the gate passes) before any real fiscal traffic depends on it if that
-// tradeoff is ever reconsidered.
+// worker's SNS-routed Lambdas process (nfe-emission/-event/-inutilization,
+// cte-emission/-event, mdfe-emission/-event, see cdk/lib/worker-definitions.ts)
+// — were added 2026-07-18 WITHOUT the byte-identical signature gate (no
+// dedicated SEFAZ test certificate exists in this repo to run it against).
+// That was a deliberate, explicit exception made while no live users existed,
+// not a silent skip. Re-tighten it before real fiscal traffic depends on it if
+// that tradeoff is ever reconsidered.
 var implemented = map[string]map[string]bool{
 	constants.DocTypeNFE: {
 		"NfeStatusServico":     true,
 		"NfeConsultaProtocolo": true,
 		"NfeConsultaCadastro":  true,
 		"NFeDistribuicaoDFe":   true,
-		// NFeRetAutorizacao: async-batch-authorization poll, unsigned (not in
-		// NFE_CONFIG.services_requiring_signature/validation, py-dfe/py_dfe/services/config.py).
+		// NFeRetAutorizacao: async-batch-authorization poll, unsigned.
 		"NFeRetAutorizacao": true,
 		// Signed — worker's nfe-emission/-event/-inutilization workers. See
 		// doc comment above: promoted without the byte-identical gate.
@@ -53,8 +46,7 @@ var implemented = map[string]map[string]bool{
 	},
 	constants.DocTypeNFCE: {
 		"NfeStatusServico": true,
-		// nfce shares nfe's WSDL/config for these two (NfCeService enum,
-		// py-dfe/py_dfe/constants/enums.py) — both unsigned.
+		// nfce shares nfe's WSDL/config for these two — both unsigned.
 		"NfeConsultaProtocolo": true,
 		"NFeRetAutorizacao":    true,
 		// Signed — nfce shares nfe's emission/event/inutilization workers
@@ -84,11 +76,10 @@ var implemented = map[string]map[string]bool{
 		"MDFeRecepcaoSinc":   true,
 		"MDFeRecepcaoEvento": true,
 	},
-	// NFS-e não migra do py-dfe: py-dfe nunca implementou NFS-e, então não
-	// existe autoridade anterior contra a qual rodar shadow-mode nem corpus
-	// para o portão de assinatura byte-idêntica. O portão aplicável é a
-	// homologação em produção restrita (fase F6 do plano de NFS-e), não a
-	// comparação de paridade descrita acima.
+	// NFS-e nunca teve cliente anterior, então não existe autoridade contra a
+	// qual rodar shadow-mode nem corpus para o portão de assinatura
+	// byte-idêntica. O portão aplicável é a homologação em produção restrita
+	// (fase F6 do plano de NFS-e).
 	constants.DocTypeNFSE: {
 		constants.ServiceNFSeRecepcao:             true,
 		constants.ServiceNFSeConsulta:             true,
@@ -101,22 +92,18 @@ var implemented = map[string]map[string]bool{
 	},
 }
 
-// Implements reports whether go-dfe handles (docType, service) in-process.
-// Callers (worker/api) must check this before choosing between dfe.Call and
-// the py-dfe Lambda invoke path.
+// Implements reports whether (docType, service) is a supported operation.
 func Implements(docType, service string) bool {
 	return implemented[docType][service]
 }
 
-// Call executes req in-process against SEFAZ, mirroring py-dfe's Lambda
-// handler contract exactly (see request.go's Request/Response/Problem) so a
-// caller currently marshaling lambdaPayload/parsing lambdaResponse needs no
-// change beyond swapping the Lambda Invoke for this call. Callers MUST check
-// Implements(req.DocType, req.Service) first — Call returns an error for any
-// operation not in the implemented set rather than silently guessing.
+// Call executes req against SEFAZ / the municipal authority. Request, Response
+// and Problem (request.go) are the go-dfe-egress Lambda's wire contract. Call
+// returns an error for any (docType, service) outside the implemented set
+// rather than silently guessing.
 func Call(ctx context.Context, req Request) (Response, error) {
 	if !Implements(req.DocType, req.Service) {
-		return Response{}, fmt.Errorf("dfe: %s/%s not implemented in go-dfe — caller must use the py-dfe Lambda fallback", req.DocType, req.Service)
+		return Response{}, fmt.Errorf("dfe: %s/%s is not a supported operation", req.DocType, req.Service)
 	}
 
 	maxRetries := req.MaxRetries
@@ -208,10 +195,7 @@ func newNFSeProvider(name, environment, municipalityCode string, httpClient *htt
 }
 
 // problemResponse builds a Response carrying an RFC7807-shaped Problem body,
-// matching py-dfe's error responses exactly (see py-dfe/py_dfe/exceptions.py
-// to_problem / handler.py's DFeError branch) so callers parsing
-// lambdaResponse.Body as a Problem see no difference between py-dfe and
-// go-dfe error shapes.
+// so callers can parse Response.Body as a Problem for every error path.
 func problemResponse(status int, code, detail string) (Response, error) {
 	p := Problem{Type: "about:blank", Title: code, Detail: detail, Status: status}
 	body, err := json.Marshal(p)

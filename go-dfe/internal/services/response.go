@@ -11,10 +11,8 @@ import (
 // response-node-path tables below.
 type responseNodeKey struct{ authorizer, service string }
 
-// nfeNfceResponseNodePath mirrors py-dfe's _RESPONSE_NODE_PATH in
-// py-dfe/py_dfe/services/_nf.py — shared by both nfe.py and nfce.py (nfce.py
-// defines no override table of its own; both subclass _NFServiceClient and
-// use these same module-level tables).
+// nfeNfceResponseNodePath is the per-(authorizer,service) response node path
+// shared by nfe and nfce (nfce defines no override table of its own).
 var nfeNfceResponseNodePath = map[responseNodeKey][]string{
 	{"MG", "NfeConsultaCadastro"}: {"consultaCadastro4Result"},
 	{"AM", "NfeConsultaCadastro"}: {"consultaCadastro2Result"},
@@ -23,21 +21,21 @@ var nfeNfceResponseNodePath = map[responseNodeKey][]string{
 	{"AN", "RecepcaoEvento"}:      {"nfeRecepcaoEventoNFResult"},
 }
 
-// cteResponseNodePath mirrors py-dfe/py_dfe/services/cte.py's _RESPONSE_NODE_PATH.
+// cteResponseNodePath mirrors the original Python client's _RESPONSE_NODE_PATH.
 var cteResponseNodePath = map[responseNodeKey][]string{
 	{"AN", "CTeDistribuicaoDFe"}: {"cteDistDFeInteresseResponse", "cteDistDFeInteresseResult"},
 }
 
-// mdfeResponseNodePath mirrors py-dfe/py_dfe/services/mdfe.py's _RESPONSE_NODE_PATH.
+// mdfeResponseNodePath mirrors the original Python client's _RESPONSE_NODE_PATH.
 var mdfeResponseNodePath = map[responseNodeKey][]string{
 	{"SVRS", "MDFeDistribuicaoDFe"}: {"mdfeDistDFeInteresseResult"},
 	{"SVRS", "MDFeRecepcaoSinc"}:    {"mdfeRecepcaoResult"},
 	{"SVRS", "MDFeRecepcaoEvento"}:  {"mdfeRecepcaoEventoResult"},
 }
 
-// nfeNfceEnsureListPaths mirrors py-dfe's module-level _ENSURE_LIST_PATHS in
-// py-dfe/py_dfe/services/_nf.py, applied generically by _NFServiceClient.call()
-// (the method the actual py-dfe Lambda handler dispatches through for every
+// nfeNfceEnsureListPaths mirrors the original Python client's module-level _ENSURE_LIST_PATHS in
+// the original Python client, applied generically by _NFServiceClient.call()
+// (the method the original Lambda handler dispatches through for every
 // service — the doc-type-specific *convenience* methods like
 // perform_distribution/distribuicao_dfe that bypass this, e.g. NF-e's own
 // hand-rolled distribution ensure_list, are Python-API sugar the Lambda path
@@ -49,9 +47,9 @@ var nfeNfceEnsureListPaths = map[string][]string{
 	"RecepcaoEvento":      {"retEnvEvento/retEvento"},
 }
 
-// cteEnsureListPaths / mdfeEnsureListPaths mirror py-dfe's cte.py/mdfe.py
-// _ENSURE_LIST_PATHS, both empty in the current py-dfe source. Kept as
-// explicit (empty) maps rather than omitted, so a future py-dfe addition is
+// cteEnsureListPaths / mdfeEnsureListPaths mirror the original Python client's cte.py/mdfe.py
+// _ENSURE_LIST_PATHS, both empty in the original source. Kept as
+// explicit (empty) maps rather than omitted, so a future addition is
 // easy to spot and port here too.
 var cteEnsureListPaths = map[string][]string{}
 var mdfeEnsureListPaths = map[string][]string{}
@@ -84,8 +82,8 @@ func ensureListPathsFor(docType, service string) []string {
 
 // unwrapResponseNode navigates raw (the full parsed SOAP result, keyed by
 // whatever tag SEFAZ's response actually used — the SOAP Body's first
-// child, per py-dfe's extract_body) down the per-(authorizer,service) node
-// path, mirroring py-dfe's _parse_result_message. Defaults to a
+// child, per the original Python client's extract_body) down the per-(authorizer,service) node
+// path, mirroring the original Python client's _parse_result_message. Defaults to a
 // single-element path matching the doc type's normal SOAP result element
 // name (constants.SOAPElements[docType].Result) when no override applies —
 // this is NOT always "unwrap exactly one level": some authorizers
@@ -93,7 +91,7 @@ func ensureListPathsFor(docType, service string) []string {
 // default with an unrelated name (AN's distribution/event responses use
 // their own WSDL's element names, not the per-UF authorizer's nfeResultMsg).
 //
-// Returns an error if an expected node is missing, mirroring py-dfe's
+// Returns an error if an expected node is missing, mirroring the original Python client's
 // InvalidSefazResponseError — a missing node is a real SEFAZ response
 // shape mismatch, not something to silently paper over.
 func unwrapResponseNode(docType, uf, service string, raw map[string]any) (map[string]any, error) {
@@ -128,7 +126,7 @@ func unwrapResponseNode(docType, uf, service string, raw map[string]any) (map[st
 	return result, nil
 }
 
-// ensureList mirrors py-dfe's _ensure_list (py-dfe/py_dfe/services/base.py):
+// ensureList mirrors the original Python client's _ensure_list:
 // given a "/"-separated path into d, if the value at that path is a single
 // object (XML can't distinguish "one occurrence" from "a list of one"
 // without schema info), replace it with a one-element list in place, so

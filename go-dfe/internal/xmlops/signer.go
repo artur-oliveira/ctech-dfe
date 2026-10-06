@@ -1,11 +1,11 @@
-// Package xmlops ports py-dfe's XML-DSig signer (py-dfe/py_dfe/xmlops/signer.py)
+// Package xmlops ports the original Python client's XML-DSig signer
 // to Go. This is the highest-risk file in the go-dfe migration (see
 // docs/plans/2026-07-17-go-dfe-migration.md, "o arquivo mais arriscado de
 // todo o projeto"): SEFAZ requires a signature built from RSA-SHA1 + SHA1
 // digest + plain (non-exclusive) Canonical XML 1.0 (REC-xml-c14n-20010315),
 // which no maintained Go library implements (goxmldsig targets exclusive
 // C14N + modern algorithms and is a poor fit — see the migration plan for
-// why it was rejected). This file hand-ports the exact behavior of py-dfe's
+// why it was rejected). This file hand-ports the exact behavior of the original Python client's
 // `_SefazXMLSigner` (a subclass of the Python `signxml` library configured
 // with signature_algorithm="rsa-sha1", digest_algorithm="sha1",
 // c14n_algorithm=".../REC-xml-c14n-20010315") plus its `_fix_x509_newlines`
@@ -15,14 +15,14 @@
 //
 // Confidence note (see go-dfe migration plan, "Gate de assinatura"): this
 // implementation has been verified against the real `signxml` 5.1.0 Python
-// library (the version family pinned by py-dfe's pyproject.toml,
-// `signxml>=4.4.0`), configured identically to py-dfe's `_SefazXMLSigner`,
+// library (the version family pinned by the original Python client's pyproject.toml,
+// `signxml>=4.4.0`), configured identically to the original Python client's `_SefazXMLSigner`,
 // using a locally generated test RSA key/certificate — reproduced
 // independently while building this file and pinned as a fixture in
 // signer_test.go (TestSignByteIdenticalToSignxml). That is NOT the same as
-// the plan's official gate ("captura output assinado do py-dfe pra corpus
+// the plan's official gate ("captura output assinado do the original Python client pra corpus
 // de documentos reais... compara byte a byte"), which requires a captured
-// production py-dfe Lambda run against a dedicated test certificate and
+// production the original Lambda run against a dedicated test certificate and
 // does not exist yet. Treat this file as passing a strong independent
 // cross-check against the upstream signing library, not as having cleared
 // the plan's formal byte-identical gate.
@@ -40,8 +40,8 @@ import (
 	"strings"
 )
 
-// Namespace/algorithm URIs used by the signature, matching py-dfe's
-// _SefazXMLSigner configuration (py-dfe/py_dfe/xmlops/signer.py) exactly.
+// Namespace/algorithm URIs used by the signature, matching the original Python client's
+// _SefazXMLSigner configuration exactly.
 const (
 	dsigNS = "http://www.w3.org/2000/09/xmldsig#"
 
@@ -59,11 +59,10 @@ const (
 
 // Sign parses xmlDoc, locates every element matched by idXPath — a
 // restricted XPath subset in the ".//{namespaceURI}localName" form used by
-// py-dfe's ServiceConfig.sign_id_xpath (py-dfe/py_dfe/services/config.py,
-// e.g. ".//{http://www.portalfiscal.inf.br/nfe}infNFe") — and appends an
+// the original Python client's ServiceConfig.sign_id_xpath — and appends an
 // enveloped XML-DSig <Signature> as the last child of each matched
-// element's parent. This mirrors py-dfe's SefazClient._sign
-// (py-dfe/py_dfe/services/base.py): the Reference URI points at the
+// element's parent. This mirrors the original Python client's SefazClient._sign
+// : the Reference URI points at the
 // matched element's "Id" attribute, but the <Signature> itself is inserted
 // as a sibling of that element (under its parent), not inside it — this is
 // the standard NFe/CTe/MDFe convention
@@ -72,7 +71,7 @@ const (
 // placement, not assumed.
 //
 // If idXPath matches nothing (or is empty), the whole document element is
-// signed in place, matching py-dfe's fallback (`targets = [root]`).
+// signed in place, matching the original Python client's fallback (`targets = [root]`).
 func Sign(xmlDoc []byte, idXPath string, cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error) {
 	doc, err := parseDocument(xmlDoc)
 	if err != nil {
@@ -111,10 +110,10 @@ func Sign(xmlDoc []byte, idXPath string, cert *x509.Certificate, key *rsa.Privat
 // buildSignature builds the <Signature> element for the given target
 // element (the element whose "Id" attribute equals refID), matching the
 // structure produced by signxml's XMLSigner._build_sig + _add_key_info for
-// py-dfe's configuration: method=enveloped, signature_algorithm=rsa-sha1,
+// the original Python client's configuration: method=enveloped, signature_algorithm=rsa-sha1,
 // digest_algorithm=sha1, c14n_algorithm=REC-xml-c14n-20010315, with the
 // Signature/SignedInfo elements in the default (unprefixed) ds namespace
-// (py-dfe's _SefazXMLSigner.__init__ sets `self.namespaces = {None: ds}`).
+// (the original Python client's _SefazXMLSigner.__init__ sets `self.namespaces = {None: ds}`).
 func buildSignature(target *xNode, refID string, cert *x509.Certificate, key *rsa.PrivateKey) (*xNode, error) {
 	// Digest: C14N of the referenced element itself (not its parent), as an
 	// independent standalone tree — see materialize() doc comment for why
@@ -158,7 +157,7 @@ func buildSignature(target *xNode, refID string, cert *x509.Certificate, key *rs
 	signatureValue := newElem("SignatureValue")
 	signatureValue.appendChild(newText(base64.StdEncoding.EncodeToString(signature)))
 
-	// _fix_x509_newlines (py-dfe/py_dfe/xmlops/signer.py) strips embedded
+	// _fix_x509_newlines strips embedded
 	// newlines/spaces that signxml's PEM-derived X509Certificate text
 	// otherwise contains (cert.public_bytes(Encoding.PEM) wraps at 64
 	// chars). We never introduce them: base64-encode the raw DER cert
@@ -185,7 +184,7 @@ func algorithmElem(local, algorithm string) *xNode {
 	return el
 }
 
-// stripCertWhitespace mirrors py-dfe's _fix_x509_newlines regex
+// stripCertWhitespace mirrors the original Python client's _fix_x509_newlines regex
 // (`.replace("\n", "").replace(" ", "")` on the X509Certificate text node):
 // strips newlines and spaces from a base64 string. Applied defensively even
 // though our own base64 encoding never introduces them.
@@ -197,7 +196,7 @@ func stripCertWhitespace(s string) string {
 
 // findByClarkPath finds descendant elements of root matching xpath, a
 // restricted subset of the ".//{namespaceURI}localName" form used
-// throughout py-dfe/py_dfe/services/config.py (ServiceConfig.sign_id_xpath).
+// throughout the original Python client (ServiceConfig.sign_id_xpath).
 // Only descendants are matched (root itself is excluded), matching
 // Python's `root.findall(xpath)` semantics for this xpath shape.
 func findByClarkPath(root *xNode, xpath string) []*xNode {
@@ -850,7 +849,7 @@ func parseCharRef(digits string, base int) (rune, error) {
 // empirically against signxml/lxml directly (spurious `xmlns=""` on
 // descendants — a known lxml/libxml2 C14N quirk, see signxml's own comment
 // referencing https://github.com/XML-Security/signxml/issues/193). Skipping
-// this step would silently produce a signature py-dfe's SEFAZ-facing
+// this step would silently produce a signature the original Python client's SEFAZ-facing
 // counterpart does not produce.
 //
 // materialize reproduces the effect of that round trip directly on the
@@ -887,9 +886,9 @@ func materialize(el *xNode) *xNode {
 
 // ============================================================================
 // Canonical XML 1.0 (REC-xml-c14n-20010315), plain/non-exclusive,
-// without comments — matching py-dfe's c14n_algorithm and with_comments
+// without comments — matching the original Python client's c14n_algorithm and with_comments
 // configuration exactly (signxml._c14n: with_comments is only true if the
-// algorithm URI ends in "#WithComments", which py-dfe's does not).
+// algorithm URI ends in "#WithComments", which the original Python client's does not).
 //
 // canonicalizeElement treats el as a genuine, ancestor-free root (see
 // materialize above for how real document sub-elements get here).
@@ -1047,7 +1046,7 @@ func escapeC14NAttr(s string) string {
 
 // ============================================================================
 // Normal (non-canonical) serialization of the final signed document —
-// matching py-dfe's `etree.tostring(signed, xml_declaration=False)`:
+// matching the original Python client's `etree.tostring(signed, xml_declaration=False)`:
 // self-closing tags for empty elements, attributes kept in their original/
 // construction order (not sorted), namespace declarations only rendered
 // when new/changed relative to the nearest rendered ancestor (same

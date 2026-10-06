@@ -2,7 +2,7 @@ package endpoints
 
 import "testing"
 
-// NOTE on SVAN: py-dfe's constants/endpoints.py has no SVAN entries for any
+// NOTE on SVAN: the original Python client's constants/endpoints.py has no SVAN entries for any
 // doc type — every UF without its own authorizer redirects to SVRS only
 // (MDF-e in particular has *no* per-UF authorizers at all: every UF,
 // including RS, resolves to SVRS). So there is no "UF that redirects to
@@ -97,7 +97,7 @@ func TestResolve_MT_NFe_SpecialCase(t *testing.T) {
 func TestResolve_MT_CTe_SpecialCase_ThreePathPrefixes(t *testing.T) {
 	// MT CT-e splits services across three different path prefixes
 	// (ctews2, ctews, cte-ws) on the same domain — this is the
-	// "MT special case" py-dfe/CLAUDE.md calls out as critical.
+	// "MT special case" the original Python client calls out as critical.
 	cases := []struct {
 		env     string
 		service string

@@ -22,7 +22,7 @@ import (
 // expected output below are transcribed verbatim from the spec's own HTML
 // comments (the literal source text, not the display-formatted <code>
 // blocks with &nbsp;/<br/> markup). Only the "uncommented"/no-comments
-// canonical form is checked, since that's py-dfe's configuration
+// canonical form is checked, since that's the original Python client's configuration
 // (c14n_algorithm does not end in "#WithComments").
 //
 // 3.4 (Character Modifications), 3.5 (Entity References) and 3.7 (Document
@@ -196,7 +196,7 @@ func TestC14N_LiteralAttributeWhitespaceNormalized(t *testing.T) {
 }
 
 // ============================================================================
-// X509Certificate newline fix (py-dfe's _fix_x509_newlines): the Python
+// X509Certificate newline fix (the original Python client's _fix_x509_newlines): the Python
 // implementation regex-strips '\n' and ' ' from the X509Certificate text
 // node after the fact, because signxml sets that text to a PEM-derived
 // string that still contains the 64-column line wrapping. This Go port
@@ -225,17 +225,17 @@ func TestStripCertWhitespace(t *testing.T) {
 // Byte-identical cross-check against the real `signxml` Python library.
 //
 // The key/cert/input/expected-output below were produced once, outside this
-// test, by running py-dfe's *actual* signing code path — `_SefazXMLSigner`
+// test, by running the original Python client's *actual* signing code path — `_SefazXMLSigner`
 // (signature_algorithm="rsa-sha1", digest_algorithm="sha1",
 // c14n_algorithm=REC-xml-c14n-20010315) plus `_fix_x509_newlines`, copied
-// verbatim from py-dfe/py_dfe/xmlops/signer.py — against signxml 5.1.0 (the
-// version family pinned by py-dfe's pyproject.toml) and a locally generated
+// verbatim from the original Python client — against signxml 5.1.0 (the
+// version family pinned by the original Python client's pyproject.toml) and a locally generated
 // self-signed test RSA certificate/key (never a real customer certificate).
 //
 // This is a genuine cross-implementation check, not self-consistency: it
 // independently exercises the real upstream Python signing library this
 // port replaces. It is NOT the plan's official gate (a captured production
-// py-dfe Lambda run against a dedicated test certificate, compared
+// the original Lambda run against a dedicated test certificate, compared
 // byte-for-byte across a real document corpus) — that corpus does not exist
 // yet. See this file's package doc for the same caveat.
 // ============================================================================
@@ -289,7 +289,7 @@ apBtp4Zri+0lHp48btYLeZ9/1CrpZrZnqA==
 
 const fixtureSampleXML = `<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe35240114200166000187550010000000011000000015" versao="4.00"><ide><cUF>35</cUF><natOp>Venda</natOp></ide><emit><CNPJ>14200166000187</CNPJ><xNome>EMPRESA TESTE LTDA</xNome></emit></infNFe></NFe>`
 
-// Captured by running py-dfe's real _SefazXMLSigner (signxml 5.1.0) against
+// Captured by running the original Python client's real _SefazXMLSigner (signxml 5.1.0) against
 // fixtureSampleXML with fixtureKeyPEM/fixtureCertPEM and
 // reference_id="NFe35240114200166000187550010000000011000000015" — see
 // this file's doc comment above.
