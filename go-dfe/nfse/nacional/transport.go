@@ -9,9 +9,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -155,6 +157,12 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		if err != nil {
 			cancel()
 			lastErr = fmt.Errorf("nacional: %s %s: %w", method, url, err)
+			if method == http.MethodPost && !isDialError(err) {
+				// The request may have reached the authority (a timeout fires
+				// after it was sent). Re-POSTing the same DPS/evento could turn
+				// an authorized document into a duplicate rejection.
+				return 0, lastErr
+			}
 			continue
 		}
 		respBody, readErr := io.ReadAll(resp.Body)
@@ -162,6 +170,9 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		cancel()
 		if readErr != nil {
 			lastErr = fmt.Errorf("nacional: ler resposta: %w", readErr)
+			if method == http.MethodPost {
+				return 0, lastErr // the authority already processed the request
+			}
 			continue
 		}
 
@@ -195,6 +206,13 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		return resp.StatusCode, toFiscalError(resp.StatusCode, respBody)
 	}
 	return 0, lastErr
+}
+
+// isDialError reports whether err happened while connecting, i.e. before any
+// byte of the request was sent — the only failure a POST can safely retry.
+func isDialError(err error) bool {
+	var opErr *net.OpError
+	return errors.As(err, &opErr) && opErr.Op == "dial"
 }
 
 func toFiscalError(status int, body []byte) error {

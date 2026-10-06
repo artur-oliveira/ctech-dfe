@@ -289,6 +289,9 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   descarta o SYN custava ~80 s (timeout de connect do SO) antes de falhar — foi o que aconteceu em
   Teresina em 2026-10-06. A cadeia de timeouts do egress depende desses valores: o pior caso do
   NFS-e é 4 tentativas × 20 s + backoff (~90 s), abaixo dos 120 s do Lambda egress.
+- **POST do NFS-e nunca é reenviado após timeout ou falha de leitura da resposta** (`httpDo`): a requisição pode já ter
+  chegado ao fisco, e reenviar a mesma DPS viraria rejeição por duplicidade de uma nota autorizada. Só falha de
+  *connect* (`isDialError`) é retentada em POST; GET segue retentando.
 - **A SK de `nfses` é o `idDPS`, nunca a chave de acesso**, porque `nNFSe` e `cNum` são gerados
   pelo fisco e a chave de acesso de 50 dígitos só existe depois da resposta. Consulta por chave
   passa pela GSI `access-key-index`.

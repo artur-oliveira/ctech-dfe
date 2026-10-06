@@ -328,6 +328,10 @@ func invokeSefazLambda(ctx context.Context, lam lambdaInvoker, funcName string, 
 	if err != nil {
 		return nil, problem.InternalServer("failed to invoke SEFAZ Lambda: " + err.Error())
 	}
+	if out.FunctionError != nil {
+		// Crash or timeout of the egress itself: an infrastructure fault, not a SEFAZ rejection.
+		return nil, problem.InternalServer("SEFAZ Lambda function error: " + aws.ToString(out.FunctionError))
+	}
 	var resp map[string]any
 	if err := json.Unmarshal(out.Payload, &resp); err != nil {
 		return nil, problem.InternalServer("invalid Lambda response")

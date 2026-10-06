@@ -3,12 +3,15 @@ package services
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 
 	godfe "gopkg.aoctech.app/dfe/go-dfe"
+
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 type fakeInvoker struct {
@@ -47,5 +50,17 @@ func TestInvokeSefazLambdaUsesInvoker(t *testing.T) {
 	got, err := invokeSefazLambda(context.Background(), f, "dev-go-dfe-egress", map[string]any{"doc_type": "nfe"})
 	if err != nil || got["cStat"] != "111" {
 		t.Fatalf("got=%v err=%v", got, err)
+	}
+}
+
+// An egress crash/timeout is an infrastructure fault (5xx), not a user error:
+// it must not be reported as the 400 a SEFAZ rejection gets.
+func TestInvokeSefazLambdaFunctionErrorIsInternalServerError(t *testing.T) {
+	fe := "Unhandled"
+	f := &fakeInvoker{out: &lambda.InvokeOutput{FunctionError: &fe, Payload: []byte(`{"errorMessage":"Task timed out"}`)}}
+	_, err := invokeSefazLambda(context.Background(), f, "dev-go-dfe-egress", map[string]any{"doc_type": "nfe"})
+	var p *problem.Problem
+	if !errors.As(err, &p) || p.Status != 500 {
+		t.Fatalf("err = %#v, want a 500 problem", err)
 	}
 }
