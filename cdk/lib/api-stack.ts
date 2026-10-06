@@ -1,3 +1,4 @@
+import {EGRESS_REGION} from './egress'
 import {readFileSync} from 'node:fs';
 import * as path from 'node:path';
 import * as cdk from 'aws-cdk-lib';
@@ -179,6 +180,7 @@ export class ApiStack extends cdk.Stack {
       `DFE_RESULTS_QUEUE_URL=${resultsQueueUrl}`,
       `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`,
       `SEFAZ_FUNCTION_NAME=${environment}-py-dfe`,
+      `DFE_EGRESS_REGION=${EGRESS_REGION}`,
       `TRUSTED_PROXIES=127.0.0.1`,
       `ENV`,
     );

@@ -1,3 +1,4 @@
+import {egressFunctionArn} from './egress'
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import {Construct} from 'constructs';
@@ -248,6 +249,8 @@ export class IAMStack extends cdk.Stack {
           resources: [
             `arn:aws:lambda:${this.region}:${this.account}:function:${environment}-py-dfe`,
             `arn:aws:lambda:${this.region}:${this.account}:function:${environment}-py-dfe:*`,
+            egressFunctionArn(environment, this.account),
+            `${egressFunctionArn(environment, this.account)}:*`,
           ],
         }),
       ],

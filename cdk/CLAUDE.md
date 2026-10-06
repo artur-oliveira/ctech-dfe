@@ -120,7 +120,7 @@ cdk deploy --all                       # All stacks (dev)
 ENVIRONMENT=prod cdk deploy StackName  # Specific stack (prod)
 ```
 
-**AWS Account:** `868899309401` · **Region:** `us-east-1`
+**AWS Account:** `868899309401` · **Region:** `us-east-1` (except `GoDfeEgressStack`, which lives in `sa-east-1`; `cdk bootstrap` it once)
 
 See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 

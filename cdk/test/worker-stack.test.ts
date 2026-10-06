@@ -18,6 +18,7 @@ function buildTemplate(): Template {
     certificatesBucketName: 'dev-ctech-dfe-certificates',
     documentsBucketName: 'dev-ctech-dfe-documents',
     dfeLambdaName: 'dev-py-dfe',
+    dfeEgressRegion: 'sa-east-1',
     resultsTopicArn: resultsTopic.topicArn,
 	outboxTableName: 'dev_dfe_worker_outbox',
 	outboxTableArn: 'arn:aws:dynamodb:us-east-1:123456789012:table/dev_dfe_worker_outbox',
@@ -119,5 +120,14 @@ test('every worker has a keep-warm ping schedule invoking it directly with {"pin
         Input: JSON.stringify({ping: true}),
       }),
     })
+  }
+})
+
+test('every worker Lambda that invokes the DFE Lambda knows the egress region', () => {
+  const fns: any[] = Object.values(buildTemplate().findResources('AWS::Lambda::Function'))
+  const withDfe = fns.filter(f => f.Properties.Environment?.Variables?.DFE_LAMBDA_NAME)
+  expect(withDfe.length).toBeGreaterThan(0)
+  for (const f of withDfe) {
+    expect(f.Properties.Environment.Variables.DFE_EGRESS_REGION).toBe('sa-east-1')
   }
 })
