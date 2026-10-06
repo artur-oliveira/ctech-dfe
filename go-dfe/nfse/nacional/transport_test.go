@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
@@ -112,5 +113,25 @@ func TestHTTPDo_RetriesOn5xxNotOn4xx(t *testing.T) {
 	_, _ = httpDo(context.Background(), srv4.Client(), http.MethodGet, srv4.URL, nil, &out, 3)
 	if calls != 1 {
 		t.Errorf("4xx foi repetido %d vezes; rejeição de negócio nunca se repete", calls)
+	}
+}
+
+func TestHTTPDoAttemptTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // never answers
+	}))
+	defer srv.Close()
+
+	orig := attemptTimeout
+	attemptTimeout = 50 * time.Millisecond
+	defer func() { attemptTimeout = orig }()
+
+	start := time.Now()
+	_, err := httpDo(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, nil, 0)
+	if err == nil {
+		t.Fatal("expected a timeout error")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("took %v: per-attempt timeout not applied", elapsed)
 	}
 }

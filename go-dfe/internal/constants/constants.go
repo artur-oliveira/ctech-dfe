@@ -4,7 +4,10 @@
 // the source layout, since these are pure lookup tables with no logic.
 package constants
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Environment values, already normalized.
 const (
@@ -26,6 +29,14 @@ const (
 	DefaultMaxRetries = 3
 	MinMaxRetries     = 0
 	MaxMaxRetries     = 10
+)
+
+// Timeouts de rede do cliente HTTP mTLS. DialTimeout limita só o TCP connect:
+// uma prefeitura que descarta SYN deve falhar em segundos, não no timeout do
+// SO (~127 s no Linux). NFSeAttemptTimeout limita cada tentativa REST do NFS-e.
+const (
+	DialTimeout        = 10 * time.Second
+	NFSeAttemptTimeout = 20 * time.Second
 )
 
 // Serviços NFS-e. Diferente dos demais doc types, não existem operações de

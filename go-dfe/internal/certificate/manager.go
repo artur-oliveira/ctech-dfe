@@ -11,9 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
@@ -83,6 +85,7 @@ func Load(certificateB64, password string) (*http.Client, *x509.Certificate, *rs
 
 	client := &http.Client{
 		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: constants.DialTimeout}).DialContext,
 			TLSClientConfig: &tls.Config{
 				Certificates:       []tls.Certificate{tlsCert},
 				Renegotiation:      tls.RenegotiateOnceAsClient,

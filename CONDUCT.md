@@ -284,6 +284,11 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 
 ## NFS-e (F1 — modelo de dados e cadastros; F2 — go-dfe/nfse, provider nacional)
 
+- **O cliente HTTP mTLS tem connect timeout (`constants.DialTimeout`, 10 s) e cada tentativa REST do
+  NFS-e tem teto próprio (`constants.NFSeAttemptTimeout`, 20 s).** Sem isso, uma prefeitura que
+  descarta o SYN custava ~80 s (timeout de connect do SO) antes de falhar — foi o que aconteceu em
+  Teresina em 2026-10-06. A cadeia de timeouts do egress depende desses valores: o pior caso do
+  NFS-e é 4 tentativas × 20 s + backoff (~90 s), abaixo dos 120 s do Lambda egress.
 - **A SK de `nfses` é o `idDPS`, nunca a chave de acesso**, porque `nNFSe` e `cNum` são gerados
   pelo fisco e a chave de acesso de 50 dígitos só existe depois da resposta. Consulta por chave
   passa pela GSI `access-key-index`.

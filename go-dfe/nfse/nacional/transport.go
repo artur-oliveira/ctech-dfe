@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
@@ -108,6 +109,9 @@ type errorEnvelope struct {
 	Erros []nfse.Message `json:"erros"`
 }
 
+// attemptTimeout é var (não const) só para o teste reduzi-lo.
+var attemptTimeout = constants.NFSeAttemptTimeout
+
 // httpDo executa a requisição com retry apenas em falha de infraestrutura e
 // converte qualquer resposta não-2xx em *nfse.FiscalError com o código e a
 // descrição do fisco preservados. out pode ser nil (resposta binária).
@@ -135,8 +139,10 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		if payload != nil {
 			reader = bytes.NewReader(payload)
 		}
-		req, err := http.NewRequestWithContext(ctx, method, url, reader)
+		attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+		req, err := http.NewRequestWithContext(attemptCtx, method, url, reader)
 		if err != nil {
+			cancel()
 			return 0, fmt.Errorf("nacional: build request: %w", err)
 		}
 		req.Header.Set("Accept", "application/json")
@@ -147,11 +153,13 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 
 		resp, err := client.Do(req)
 		if err != nil {
+			cancel()
 			lastErr = fmt.Errorf("nacional: %s %s: %w", method, url, err)
 			continue
 		}
 		respBody, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		cancel()
 		if readErr != nil {
 			lastErr = fmt.Errorf("nacional: ler resposta: %w", readErr)
 			continue

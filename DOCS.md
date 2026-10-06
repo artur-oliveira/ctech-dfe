@@ -244,6 +244,9 @@ go-dfe/
     constants/constants.go       # enums, WSDL service/operation tables, retry defaults
 ```
 
+**Timeouts de rede:** o `http.Client` de `certificate.Load` usa `constants.DialTimeout` (10 s) no TCP
+connect, e `nfse/nacional`'s `httpDo` limita cada tentativa a `constants.NFSeAttemptTimeout` (20 s).
+
 **Dispatch/fallback mechanism** — no new feature-flag system, reuses the repo's existing
 dual-path-with-fallback precedent.
 
