@@ -1,6 +1,6 @@
-import {absoluteUrl, PUBLIC_ORIGIN} from '@/lib/seo/site'
+import {absoluteUrl, PUBLIC_ORIGIN} from '@/lib/seo/site';
 
-const PRODUCT_NAME = 'CTech DF-e'
+const PRODUCT_NAME = 'CTech DF-e';
 
 /**
  * Renderiza um bloco JSON-LD. O objeto é sempre constante deste repositório —
@@ -13,7 +13,7 @@ export function JsonLd({data}: { data: Record<string, unknown> }) {
       type="application/ld+json"
       dangerouslySetInnerHTML={{__html: JSON.stringify(data).replace(/</g, '\\u003c')}}
     />
-  )
+  );
 }
 
 /** Dados estruturados da landing: o que o produto é e quem o publica. */
@@ -48,7 +48,7 @@ export const softwareApplicationLd = {
     url: PUBLIC_ORIGIN,
     logo: absoluteUrl('/app.svg'),
   },
-}
+};
 
 /** Dados estruturados de um tópico do guia: artigo técnico + trilha. */
 export function guideTopicLd({href, title, description}: {
@@ -77,5 +77,5 @@ export function guideTopicLd({href, title, description}: {
         ],
       },
     ],
-  }
+  };
 }

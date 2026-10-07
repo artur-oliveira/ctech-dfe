@@ -103,6 +103,6 @@ export const GLOSSARY = {
     definition:
       'Número Sequencial Único. Identificador que a SEFAZ dá a cada documento na distribuição; usado para localizar notas emitidas contra o seu CNPJ.',
   },
-} as const
+} as const;
 
 export type GlossaryKey = keyof typeof GLOSSARY

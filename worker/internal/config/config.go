@@ -12,6 +12,7 @@ type Config struct {
 	DocumentsBucket      string
 	CertsBucket          string
 	DfeLambdaName        string
+	DfeEgressRegion      string // region of the go-dfe-egress Lambda (sa-east-1)
 	ResultsTopicARN      string
 	EventBusTopicARN     string // optional; distribution worker uses this for auto-Ciência
 	DistributionQueueURL string // optional; dispatcher uses this to enqueue jobs
@@ -25,6 +26,7 @@ func Load() (*Config, error) {
 		DocumentsBucket:      os.Getenv("DOCUMENTS_BUCKET"),
 		CertsBucket:          os.Getenv("CERTIFICATES_BUCKET"),
 		DfeLambdaName:        os.Getenv("DFE_LAMBDA_NAME"),
+		DfeEgressRegion:      os.Getenv("DFE_EGRESS_REGION"),
 		ResultsTopicARN:      os.Getenv("RESULTS_TOPIC_ARN"),
 		EventBusTopicARN:     os.Getenv("EVENT_BUS_TOPIC_ARN"),
 		DistributionQueueURL: os.Getenv("DISTRIBUTION_QUEUE_URL"),
@@ -37,6 +39,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.DfeLambdaName == "" {
 		return nil, fmt.Errorf("DFE_LAMBDA_NAME is required")
+	}
+	if cfg.DfeEgressRegion == "" {
+		return nil, fmt.Errorf("DFE_EGRESS_REGION is required")
 	}
 	return cfg, nil
 }

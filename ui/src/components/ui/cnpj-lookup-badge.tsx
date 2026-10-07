@@ -2,7 +2,7 @@ import {
   CNPJ_LOOKUP_SOURCE,
   type CnpjLookupState,
   type CnpjLookupSource,
-} from '@/lib/hooks/useCnpjLookup'
+} from '@/lib/hooks/useCnpjLookup';
 
 interface CnpjLookupBadgeProps {
   state: CnpjLookupState
@@ -11,32 +11,32 @@ interface CnpjLookupBadgeProps {
 const SOURCE_LABELS: Record<CnpjLookupSource, string> = {
   [CNPJ_LOOKUP_SOURCE.OPEN_CNPJ]: 'CNPJá',
   [CNPJ_LOOKUP_SOURCE.SEFAZ]: 'SEFAZ',
-}
+};
 
-const DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {dateStyle: 'short'})
+const DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {dateStyle: 'short'});
 
 function formattedDate(value: string | null): string | null {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : DATE_FORMAT.format(date)
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : DATE_FORMAT.format(date);
 }
 
 export function CnpjLookupBadge({state}: CnpjLookupBadgeProps) {
-  if (state.status === 'idle') return null
+  if (state.status === 'idle') return null;
 
   if (state.status === 'searching') {
-    const source = state.phase ? SOURCE_LABELS[state.phase] : 'bases cadastrais'
+    const source = state.phase ? SOURCE_LABELS[state.phase] : 'bases cadastrais';
     return (
       <p role="status" aria-live="polite" className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
         <span aria-hidden="true"
               className="inline-block size-3 rounded-full border-2 border-gray-400 border-t-transparent motion-safe:animate-spin"/>
         Consultando {source}{state.currentUf ? ` (${state.currentUf})` : ''}…
       </p>
-    )
+    );
   }
 
   if (state.status === 'found' && state.result) {
-    const updatedAt = formattedDate(state.result.updatedAt)
+    const updatedAt = formattedDate(state.result.updatedAt);
     return (
       <div role="status" aria-live="polite"
            className="mt-2 rounded-md border border-brand-200 bg-brand-50/60 px-3 py-2 text-xs text-gray-700">
@@ -61,7 +61,7 @@ export function CnpjLookupBadge({state}: CnpjLookupBadgeProps) {
           </ul>
         )}
       </div>
-    )
+    );
   }
 
   if (state.status === 'not_found') {
@@ -69,7 +69,7 @@ export function CnpjLookupBadge({state}: CnpjLookupBadgeProps) {
       <p role="status" aria-live="polite" className="mt-2 text-xs text-amber-700">
         {state.errorMessage ?? 'Cadastro não localizado nas bases consultadas.'}
       </p>
-    )
+    );
   }
 
   if (state.status === 'no_certificate') {
@@ -77,12 +77,12 @@ export function CnpjLookupBadge({state}: CnpjLookupBadgeProps) {
       <p role="alert" className="mt-2 text-xs text-red-700">
         Organização sem certificado digital; consulta SEFAZ indisponível.
       </p>
-    )
+    );
   }
 
   if (state.status === 'sefaz_rejection') {
-    return <p role="alert" className="mt-2 text-xs text-red-700">{state.errorMessage ?? 'Rejeição no serviço da SEFAZ.'}</p>
+    return <p role="alert" className="mt-2 text-xs text-red-700">{state.errorMessage ?? 'Rejeição no serviço da SEFAZ.'}</p>;
   }
 
-  return <p role="alert" className="mt-2 text-xs text-red-700">{state.errorMessage ?? 'Erro ao consultar os dados.'}</p>
+  return <p role="alert" className="mt-2 text-xs text-red-700">{state.errorMessage ?? 'Erro ao consultar os dados.'}</p>;
 }

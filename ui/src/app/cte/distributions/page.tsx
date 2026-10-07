@@ -1,33 +1,33 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useState, useEffect} from 'react'
-import {useMutation} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {CteIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-import {Button} from '@/components/ui/button'
-import {DebouncedInput} from '@/components/ui/debounced-input'
-import {SavedFilterViews} from '@/components/ui/saved-filter-views'
-import type {NFeDistributionOut} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatNsu} from '@/lib/utils/dfe'
-import {cteSchemaLabel} from '@/lib/constants/distributions'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
+import Link from 'next/link';
+import {useState, useEffect} from 'react';
+import {useMutation} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {CteIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PenaltyBanner} from '@/components/ui/penalty-banner';
+import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
+import {Button} from '@/components/ui/button';
+import {DebouncedInput} from '@/components/ui/debounced-input';
+import {SavedFilterViews} from '@/components/ui/saved-filter-views';
+import type {NFeDistributionOut} from '@/lib/types/api';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {formatDatetimeBR, formatNsu} from '@/lib/utils/dfe';
+import {cteSchemaLabel} from '@/lib/constants/distributions';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 
 function DistributionRow({item}: { item: NFeDistributionOut }) {
   return (
@@ -79,49 +79,49 @@ function DistributionRow({item}: { item: NFeDistributionOut }) {
         )}
       </td>
     </tr>
-  )
+  );
 }
 
 function CTeDistributionsContent() {
-  const {selectedOrg} = useAuth()
-  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null);
   
-  const {config, isMissing: configMissing} = useFiscalConfig('cte', selectedOrg?.pk)
+  const {config, isMissing: configMissing} = useFiscalConfig('cte', selectedOrg?.pk);
   
-  const [nsuFilter, setNsuFilter] = useState('')
-  const nsuQuery = nsuFilter.trim() || undefined
+  const [nsuFilter, setNsuFilter] = useState('');
+  const nsuQuery = nsuFilter.trim() || undefined;
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NFeDistributionOut>({
     queryKey: [...queryKeys.distributions.history('cte', selectedOrg?.pk), {nsu: nsuQuery}],
     queryFn: (cursor) => apiClient.listDistributions('cte', {limit: 10, cursor, nsu: nsuQuery}),
     enabled: !!selectedOrg,
-  })
+  });
 
   // Changing the NSU filter is a new result set — restart from the first page.
   useEffect(() => {
-    reset()
+    reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nsuQuery])
+  }, [nsuQuery]);
 
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('cte'),
     onSuccess: () => {
-      setPenaltyMessage(null)
-      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.')
+      setPenaltyMessage(null);
+      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.');
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) {
-        setPenaltyMessage(err.detail)
+        setPenaltyMessage(err.detail);
       } else {
-        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.')
+        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.');
       }
     },
-  })
+  });
   
-  const isProd = config?.environment === 1
-  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
-  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
-  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
+  const isProd = config?.environment === 1;
+  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null;
+  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null;
+  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null;
   
   if (!selectedOrg) {
     return (
@@ -130,7 +130,7 @@ function CTeDistributionsContent() {
           <NoOrgBanner/>
         </div>
       </RootLayout>
-    )
+    );
   }
   
   return (
@@ -218,7 +218,7 @@ function CTeDistributionsContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function CTeDistributionsPage() {
@@ -226,5 +226,5 @@ export default function CTeDistributionsPage() {
     <ProtectedRoute>
       <CTeDistributionsContent/>
     </ProtectedRoute>
-  )
+  );
 }

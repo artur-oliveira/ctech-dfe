@@ -100,3 +100,10 @@ test('the Spot policy can launch both nano and micro Graviton instances', () => 
     },
   })
 })
+
+test('API env points SEFAZ calls at the go-dfe-egress Lambda in sa-east-1', () => {
+  const text = userDataText(synth())
+  expect(text).toContain('SEFAZ_FUNCTION_NAME=prod-go-dfe-egress')
+  expect(text).toContain('DFE_EGRESS_REGION=sa-east-1')
+  expect(text).not.toContain('py-dfe')
+})

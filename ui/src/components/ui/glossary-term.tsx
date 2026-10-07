@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import React, {useId, useRef} from 'react'
-import {cn} from '@/lib/utils'
-import {GLOSSARY, type GlossaryKey} from '@/lib/constants/glossary'
+import React, {useId, useRef} from 'react';
+import {cn} from '@/lib/utils';
+import {GLOSSARY, type GlossaryKey} from '@/lib/constants/glossary';
 
 /**
  * Inline glossary hint for fiscal jargon. Renders `children` (usually the field
@@ -16,7 +16,7 @@ import {GLOSSARY, type GlossaryKey} from '@/lib/constants/glossary'
  * works in Firefox/Safari too. Top-layer coords are viewport-relative, so the
  * button's getBoundingClientRect maps directly to the panel's fixed position.
  */
-const GAP = 6 // px between button and panel
+const GAP = 6; // px between button and panel
 
 export function GlossaryTerm({
                                  term,
@@ -27,20 +27,20 @@ export function GlossaryTerm({
     children?: React.ReactNode
     className?: string
 }) {
-    const id = useId()
-    const btnRef = useRef<HTMLButtonElement>(null)
-    const popRef = useRef<HTMLSpanElement>(null)
-    const {label, definition} = GLOSSARY[term]
+    const id = useId();
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const popRef = useRef<HTMLSpanElement>(null);
+    const {label, definition} = GLOSSARY[term];
 
     function place() {
-        const btn = btnRef.current
-        const pop = popRef.current
-        if (!btn || !pop) return
-        const r = btn.getBoundingClientRect()
-        const left = Math.max(GAP, Math.min(r.left, window.innerWidth - pop.offsetWidth - GAP))
-        const top = Math.min(r.bottom + GAP, window.innerHeight - pop.offsetHeight - GAP)
-        pop.style.left = `${left}px`
-        pop.style.top = `${Math.max(GAP, top)}px`
+        const btn = btnRef.current;
+        const pop = popRef.current;
+        if (!btn || !pop) return;
+        const r = btn.getBoundingClientRect();
+        const left = Math.max(GAP, Math.min(r.left, window.innerWidth - pop.offsetWidth - GAP));
+        const top = Math.min(r.bottom + GAP, window.innerHeight - pop.offsetHeight - GAP);
+        pop.style.left = `${left}px`;
+        pop.style.top = `${Math.max(GAP, top)}px`;
     }
 
     return (
@@ -67,5 +67,5 @@ export function GlossaryTerm({
           {definition}
       </span>
     </span>
-    )
+    );
 }

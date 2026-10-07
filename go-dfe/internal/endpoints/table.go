@@ -1,10 +1,10 @@
-// Package endpoints is a 1:1 port of py-dfe's constants/endpoints.py: the
+// Package endpoints is a 1:1 port of the original Python client's constants/endpoints.py: the
 // SEFAZ endpoint URL registry per document type, authorizer (per-UF or
 // shared SVRS/AN), and environment. Kept as a single file mirroring the
 // source layout — pure lookup tables with one resolver function.
 //
 // Some UFs don't run their own SEFAZ webservice and redirect to a shared
-// regional authorizer (SVRS for the doc types below — py-dfe's source has
+// regional authorizer (SVRS for the doc types below — the original Python client's source has
 // no SVAN entries for any doc type, so none are ported here; see table_test.go
 // note). MT (Mato Grosso) is special-cased for NFe/NFCe/CTe: its CTe
 // endpoints in particular split across three different path prefixes
@@ -26,7 +26,7 @@ type envURLs map[string]serviceURLs
 type registry map[string]envURLs
 
 // ep builds an envURLs from base URLs + relative paths (same paths for both
-// prod/hom), mirroring py-dfe's _ep().
+// prod/hom), mirroring the original Python client's _ep().
 func ep(prod, hom string, paths map[string]string) envURLs {
 	return envURLs{
 		"prod": joinPaths(prod, paths),
@@ -44,20 +44,20 @@ func joinPaths(base string, paths map[string]string) serviceURLs {
 }
 
 // ep2 builds an envURLs from fully-formed URL maps per environment (used
-// when prod/hom don't share a simple base+path shape), mirroring py-dfe's
+// when prod/hom don't share a simple base+path shape), mirroring the original Python client's
 // _ep2().
 func ep2(prodURLs, homURLs map[string]string) envURLs {
 	return envURLs{"prod": serviceURLs(prodURLs), "hom": serviceURLs(homURLs)}
 }
 
-// asmxFrag mirrors py-dfe's _asmx_frag: given a relative path like
+// asmxFrag mirrors the original Python client's _asmx_frag: given a relative path like
 // "/NFeInutilizacao4", returns "/NFeInutilizacao4/NFeInutilizacao4.asmx".
 func asmxFrag(servicePath string) string {
 	name := strings.TrimPrefix(servicePath, "/")
 	return "/" + name + "/" + name + ".asmx"
 }
 
-// asmxFragMap applies asmxFrag to every value in paths, mirroring py-dfe's
+// asmxFragMap applies asmxFrag to every value in paths, mirroring the original Python client's
 // `{k: _asmx_frag(v) for k, v in paths.items()}` comprehensions.
 func asmxFragMap(paths map[string]string) map[string]string {
 	out := make(map[string]string, len(paths))
@@ -68,10 +68,10 @@ func asmxFragMap(paths map[string]string) map[string]string {
 }
 
 // uf codes catConsultaCadastro shares the same SVRS URL across RS and SVRS
-// authorizers, mirroring py-dfe's _CAD_SVRS constant.
+// authorizers, mirroring the original Python client's _CAD_SVRS constant.
 const catSVRS = "https://cad.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx"
 
-// nfFragPath mirrors py-dfe's _NF_FRAG_PATH: the common NF-e 4.00 service
+// nfFragPath mirrors the original Python client's _NF_FRAG_PATH: the common NF-e 4.00 service
 // paths shared by GO, MG, MS (as-is) and BA (via asmxFrag).
 var nfFragPath = map[string]string{
 	"NfeInutilizacao":      "/NFeInutilizacao4",
@@ -83,7 +83,7 @@ var nfFragPath = map[string]string{
 	"NFeRetAutorizacao":    "/NFeRetAutorizacao4",
 }
 
-// nfeRegistry mirrors py-dfe's _NFE.
+// nfeRegistry mirrors the original Python client's _NFE.
 var nfeRegistry = registry{
 	"AM": ep(
 		"https://nfe.sefaz.am.gov.br/services2/services",
@@ -119,7 +119,7 @@ var nfeRegistry = registry{
 		nfFragPath,
 	),
 	// MT: special-cased (own domain/path shape, not the shared nfFragPath
-	// literal) — mirrors py-dfe's explicit MT dict in _NFE. Do not remove.
+	// literal) — mirrors the original Python client's explicit MT dict in _NFE. Do not remove.
 	"MT": ep(
 		"https://nfe.sefaz.mt.gov.br/nfews/v2/services",
 		"https://homologacao.sefaz.mt.gov.br/nfews/v2/services",
@@ -208,7 +208,7 @@ var nfeRegistry = registry{
 	),
 }
 
-// nfeUFAuth mirrors py-dfe's _NFE_UF_AUTH.
+// nfeUFAuth mirrors the original Python client's _NFE_UF_AUTH.
 var nfeUFAuth = mergeUFAuth(
 	map[string]string{
 		"AM": "AM", "BA": "BA", "GO": "GO", "MG": "MG", "MS": "MS",
@@ -218,7 +218,7 @@ var nfeUFAuth = mergeUFAuth(
 	[]string{"AC", "AL", "AP", "CE", "DF", "ES", "MA", "PA", "PB", "PI", "RJ", "RN", "RO", "RR", "SC", "SE", "TO", "EX"},
 )
 
-// nfceRegistry mirrors py-dfe's _NFCE.
+// nfceRegistry mirrors the original Python client's _NFCE.
 var nfceRegistry = registry{
 	"AM": ep(
 		"https://nfce.sefaz.am.gov.br/nfce-services/services",
@@ -334,7 +334,7 @@ var nfceRegistry = registry{
 	),
 }
 
-// nfceUFAuth mirrors py-dfe's _NFCE_UF_AUTH.
+// nfceUFAuth mirrors the original Python client's _NFCE_UF_AUTH.
 var nfceUFAuth = mergeUFAuth(
 	map[string]string{
 		"AM": "AM", "GO": "GO", "MS": "MS", "MT": "MT",
@@ -344,7 +344,7 @@ var nfceUFAuth = mergeUFAuth(
 	[]string{"AC", "AL", "AP", "BA", "CE", "DF", "ES", "MA", "MG", "PA", "PB", "PE", "PI", "RJ", "RN", "RO", "RR", "SC", "SE", "TO", "EX"},
 )
 
-// cteFrag mirrors py-dfe's _CTE_FRAG.
+// cteFrag mirrors the original Python client's _CTE_FRAG.
 var cteFrag = map[string]string{
 	"CTeRecepcaoSinc":   "/CTeRecepcaoSincV4",
 	"CTeRecepcaoOS":     "/CTeRecepcaoOSV4",
@@ -355,7 +355,7 @@ var cteFrag = map[string]string{
 	"CTeRecepcaoEvento": "/CTeRecepcaoEventoV4",
 }
 
-// cteAsmxDoubled mirrors py-dfe's SVRS CTe comprehension:
+// cteAsmxDoubled mirrors the original Python client's SVRS CTe comprehension:
 // f"https://{host}{v}{v}.asmx" for k, v in _CTE_FRAG.items() — the relative
 // path is doubled (folder + file), e.g.
 // "https://cte.svrs.rs.gov.br/ws/CTeRecepcaoSincV4/CTeRecepcaoSincV4.asmx".
@@ -367,7 +367,7 @@ func cteAsmxDoubled(host string) map[string]string {
 	return out
 }
 
-// cteRegistry mirrors py-dfe's _CTE.
+// cteRegistry mirrors the original Python client's _CTE.
 var cteRegistry = registry{
 	"MG": ep(
 		"https://cte.fazenda.mg.gov.br/cte/services",
@@ -406,7 +406,7 @@ var cteRegistry = registry{
 		"https://homologacao.cte.fazenda.pr.gov.br/cte4",
 		cteFrag,
 	),
-	// SP: cteFrag paths with ".asmx" appended (py-dfe applies a v.replace('V4',
+	// SP: cteFrag paths with ".asmx" appended (the original Python client applies a v.replace('V4',
 	// 'V4') no-op before appending — kept here as a plain suffix, same result).
 	"SP": ep(
 		"https://nfe.fazenda.sp.gov.br/CTeWS/WS",
@@ -432,14 +432,14 @@ func suffixed(paths map[string]string, suffix string) map[string]string {
 	return out
 }
 
-// cteUFAuth mirrors py-dfe's _CTE_UF_AUTH.
+// cteUFAuth mirrors the original Python client's _CTE_UF_AUTH.
 var cteUFAuth = mergeUFAuth(
 	map[string]string{"MG": "MG", "MS": "MS", "MT": "MT", "PR": "PR", "SP": "SP"},
 	"SVRS",
 	[]string{"AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "PA", "PB", "PE", "PI", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "TO", "EX"},
 )
 
-// mdfeSVRSFrag mirrors py-dfe's _MDFE_SVRS_FRAG.
+// mdfeSVRSFrag mirrors the original Python client's _MDFE_SVRS_FRAG.
 var mdfeSVRSFrag = map[string]string{
 	"MDFeRecepcaoEvento":  "/MDFeRecepcaoEvento/MDFeRecepcaoEvento.asmx",
 	"MDFeConsulta":        "/MDFeConsulta/MDFeConsulta.asmx",
@@ -449,7 +449,7 @@ var mdfeSVRSFrag = map[string]string{
 	"MDFeRecepcaoSinc":    "/MDFeRecepcaoSinc/MDFeRecepcaoSinc.asmx",
 }
 
-// mdfeRegistry mirrors py-dfe's _MDFE. MDF-e has no per-UF authorizer at
+// mdfeRegistry mirrors the original Python client's _MDFE. MDF-e has no per-UF authorizer at
 // all — every UF redirects to SVRS.
 var mdfeRegistry = registry{
 	"SVRS": ep(
@@ -459,7 +459,7 @@ var mdfeRegistry = registry{
 	),
 }
 
-// mdfeUFAuth mirrors py-dfe's _MDFE_UF_AUTH: every UF -> SVRS.
+// mdfeUFAuth mirrors the original Python client's _MDFE_UF_AUTH: every UF -> SVRS.
 var mdfeUFAuth = mergeUFAuth(
 	nil,
 	"SVRS",
@@ -470,7 +470,7 @@ var mdfeUFAuth = mergeUFAuth(
 	},
 )
 
-// mergeUFAuth mirrors py-dfe's dict-merge idiom
+// mergeUFAuth mirrors the original Python client's dict-merge idiom
 // `{**direct, **{uf: shared for uf in ufs}}`: direct UF->authorizer entries
 // plus every uf in ufs mapped to the shared authorizer.
 func mergeUFAuth(direct map[string]string, shared string, ufs []string) map[string]string {
@@ -485,13 +485,13 @@ func mergeUFAuth(direct map[string]string, shared string, ufs []string) map[stri
 }
 
 // docTypeTable pairs a doc type's registry with its UF->authorizer map,
-// mirroring py-dfe's _REGISTRY.
+// mirroring the original Python client's _REGISTRY.
 type docTypeTable struct {
 	reg    registry
 	ufAuth map[string]string
 }
 
-// docTypeRegistry mirrors py-dfe's _REGISTRY. Doc type keys match
+// docTypeRegistry mirrors the original Python client's _REGISTRY. Doc type keys match
 // constants.DocTypeNFE/DocTypeNFCE/DocTypeCTE/DocTypeMDFE ("nfe", "nfce",
 // "cte", "mdfe").
 var docTypeRegistry = map[string]docTypeTable{
@@ -502,10 +502,10 @@ var docTypeRegistry = map[string]docTypeTable{
 }
 
 // Authorizer returns the SEFAZ authorizer for (docType, uf), mirroring
-// py-dfe's get_authorizer (py-dfe/py_dfe/constants/endpoints.py):
+// the original Python client's get_authorizer:
 // `_UF_AUTH.get(doc_type, {}).get(uf, uf)` — unlike Resolve, an unknown
 // doc_type or uf is NOT an error, it falls back to returning uf itself
-// (this is what py-dfe actually does; used for response-node-path lookups,
+// (this is what the original Python client actually does; used for response-node-path lookups,
 // not endpoint URL resolution — a raw fallback there just means "no
 // override applies", which is the correct default).
 func Authorizer(docType, uf string) string {
@@ -520,7 +520,7 @@ func Authorizer(docType, uf string) string {
 }
 
 // Resolve returns the SEFAZ endpoint URL for the given doc type, UF,
-// environment ("prod"/"hom") and service, mirroring py-dfe's get_endpoint().
+// environment ("prod"/"hom") and service, mirroring the original Python client's get_endpoint().
 //
 // For services that route to the Ambiente Nacional (NFeDistribuicaoDFe,
 // CTeDistribuicaoDFe), pass uf="AN" — this bypasses the per-UF authorizer

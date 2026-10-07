@@ -1,4 +1,4 @@
-// Package xsdorder is a 1:1 port of py-dfe's xmlops/xsd_order.py: XSD-defined
+// Package xsdorder is a 1:1 port of the original Python client's xmlops/xsd_order.py: XSD-defined
 // child element order for fiscal document XML nodes.
 //
 // Keys follow the convention:
@@ -740,7 +740,7 @@ func Lookup(key string) (order []string, ok bool) {
 
 // Resolve returns the XSD-mandated child element order for tag given its
 // ancestor path (colon-joined, outermost first, e.g. "infMDFe:emit" when
-// resolving the children of infMDFe/emit). It mirrors py-dfe's
+// resolving the children of infMDFe/emit). It mirrors the original Python client's
 // xmlops/builder.py _build_element lookup exactly: try the most-specific
 // ancestor-scoped key first ("<parentTag>:tag"), narrowing the path one
 // ancestor at a time, then fall back to the plain "tag". Pass "" for

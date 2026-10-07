@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {Button} from '@/components/ui/button'
-import {DfeDetail} from '@/components/dfe/DfeDetail'
-import {SubstituteModal} from '@/components/nfce/SubstituteModal'
+import {Suspense, useState} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {Button} from '@/components/ui/button';
+import {DfeDetail} from '@/components/dfe/DfeDetail';
+import {SubstituteModal} from '@/components/nfce/SubstituteModal';
 
 // ─── NFC-e detail (shared DfeDetail + the NFC-e-specific "Substituir" action) ───
 
 function NfceDetail({accessKey}: { accessKey: string }) {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const [showSubstitute, setShowSubstitute] = useState(false)
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const [showSubstitute, setShowSubstitute] = useState(false);
   
   const invalidate = () => {
-    void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)})
-    void qc.invalidateQueries({queryKey: queryKeys.nfces.lists(selectedOrg?.pk)})
-  }
+    void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)});
+    void qc.invalidateQueries({queryKey: queryKeys.nfces.lists(selectedOrg?.pk)});
+  };
   
   const substituteMutation = useMutation({
     mutationFn: ({substituteKey, justification}: { substituteKey: string; justification: string }) =>
       apiClient.substituteNfce(accessKey, substituteKey, justification),
     onSuccess: () => {
-      setShowSubstitute(false)
-      invalidate()
-      toast.success('Substituição enviada à SEFAZ.')
+      setShowSubstitute(false);
+      invalidate();
+      toast.success('Substituição enviada à SEFAZ.');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao substituir NFC-e.'),
-  })
+  });
   
   return (
     <DfeDetail
@@ -71,14 +71,14 @@ function NfceDetail({accessKey}: { accessKey: string }) {
         ) : null
       }
     />
-  )
+  );
 }
 
 // ─── Page wrapper ─────────────────────────────────────────────────────────────
 
 function NfceDetailContent() {
-  const params = useSearchParams()
-  const accessKey = params.get('key') ?? ''
+  const params = useSearchParams();
+  const accessKey = params.get('key') ?? '';
   
   return (
     <RootLayout>
@@ -95,7 +95,7 @@ function NfceDetailContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfceDetailPage() {
@@ -105,5 +105,5 @@ export default function NfceDetailPage() {
         <NfceDetailContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

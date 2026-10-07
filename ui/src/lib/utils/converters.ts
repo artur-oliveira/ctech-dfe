@@ -1,16 +1,16 @@
-import type {OrganizationOut, PersonOut} from '@/lib/types/api'
-import {EMPTY_ADDRESS, type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity'
+import type {OrganizationOut, PersonOut} from '@/lib/types/api';
+import {EMPTY_ADDRESS, type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity';
 import {orgIsPJ, orgTaxId} from "@/lib/utils/document";
 
-export type {EntityFormData as OrganizationFormData}
+export type {EntityFormData as OrganizationFormData};
 
 export function organizationOutToFormData(org: OrganizationOut): EntityFormData {
   // A company linked from the ctech-account handoff has no fiscal side yet —
   // this screen is where somebody fills it in, so an absent person is an empty
   // form and not a crash.
   const {crt, addresses, state_registrations, contacts, nfse, ...rest} =
-    org.person ?? ({} as Partial<PersonOut>)
-  const isPJ = orgIsPJ(org)
+    org.person ?? ({} as Partial<PersonOut>);
+  const isPJ = orgIsPJ(org);
   return {
     tipo: isPJ ? 'pj' : 'pf',
     cpf_or_cnpj: orgTaxId(org),
@@ -42,5 +42,5 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
       // satisfazer o schema compartilhado.
       freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
     },
-  }
+  };
 }

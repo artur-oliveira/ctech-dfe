@@ -1,22 +1,22 @@
-'use client'
+'use client';
 
-import {type ReactNode, useEffect, useState} from 'react'
-import type {Resolver} from 'react-hook-form'
-import {useFieldArray, useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox} from '@/components/ui/combobox'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {ALL_CNAES} from '@/lib/data/cnae'
-import {CITY_OPTIONS} from '@/lib/data/cities'
-import {getAllCfopOptions} from '@/lib/data/cfop'
-import {Button} from '@/components/ui/button'
-import {AddressFields} from '@/components/ui/address-fields'
-import {SectionCard} from '@/components/ui/section-card'
-import {CnpjLookupBadge} from '@/components/ui/cnpj-lookup-badge'
+import {type ReactNode, useEffect, useState} from 'react';
+import type {Resolver} from 'react-hook-form';
+import {useFieldArray, useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox} from '@/components/ui/combobox';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {ALL_CNAES} from '@/lib/data/cnae';
+import {CITY_OPTIONS} from '@/lib/data/cities';
+import {getAllCfopOptions} from '@/lib/data/cfop';
+import {Button} from '@/components/ui/button';
+import {AddressFields} from '@/components/ui/address-fields';
+import {SectionCard} from '@/components/ui/section-card';
+import {CnpjLookupBadge} from '@/components/ui/cnpj-lookup-badge';
 import {
   CRT_NONE_VALUE,
   CRT_OPTIONS_ORG_PF,
@@ -31,14 +31,14 @@ import {
   REG_AP_TRIB_SN_OPTIONS,
   REG_ESP_TRIB_OPTIONS,
   UF_OPTIONS,
-} from '@/lib/schemas/entity'
-import {organizationSchema} from '@/lib/schemas/organizations'
-import {advancedErrorLabels, listPtBR} from '@/lib/utils/advanced-errors'
-import {maskCnpj, maskCpf, maskPhone} from '@/lib/utils/masks'
-import {useCnpjLookup} from '@/lib/hooks/useCnpjLookup'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import type {Crt} from '@/lib/types/api'
+} from '@/lib/schemas/entity';
+import {organizationSchema} from '@/lib/schemas/organizations';
+import {advancedErrorLabels, listPtBR} from '@/lib/utils/advanced-errors';
+import {maskCnpj, maskCpf, maskPhone} from '@/lib/utils/masks';
+import {useCnpjLookup} from '@/lib/hooks/useCnpjLookup';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import type {Crt} from '@/lib/types/api';
 
 type Tipo = 'pf' | 'pj'
 
@@ -91,49 +91,49 @@ const BuildingIcon = () => (
     <path d="M9 22V12h6v10"/>
     <path d="M3 9l9-7 9 7"/>
   </svg>
-)
+);
 const UserIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
        strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
     <circle cx="12" cy="7" r="4"/>
   </svg>
-)
+);
 const MapPinIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
        strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
     <circle cx="12" cy="10" r="3"/>
   </svg>
-)
+);
 const MailIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
        strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="2"/>
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
   </svg>
-)
+);
 const PhoneIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
        strokeLinecap="round" strokeLinejoin="round">
     <path
       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.1 6.1l1.27-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
   </svg>
-)
+);
 const PlusIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
        strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19"/>
     <line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
-)
+);
 const XIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
        strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"/>
     <line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
-)
+);
 
 const DEFAULT_VALUES: EntityFormData = {
   tipo: 'pj',
@@ -156,42 +156,42 @@ const DEFAULT_VALUES: EntityFormData = {
     bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
     freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
   },
-}
+};
 
 function deriveTipo(entityPk?: string, data?: EntityFormData): Tipo {
-  if (entityPk) return entityPk.startsWith('CPF_') ? 'pf' : 'pj'
-  return data?.tipo ?? 'pj'
+  if (entityPk) return entityPk.startsWith('CPF_') ? 'pf' : 'pj';
+  return data?.tipo ?? 'pj';
 }
 
 /** Whether initialData already has data in fields that live behind the
  * "Informações adicionais" toggle — used to auto-expand it on edit so
  * existing data isn't hidden from the user. */
 function hasAdvancedData(data: EntityFormData | undefined, isOrg: boolean): boolean {
-  if (!data) return false
-  if (data.person.fantasy_name) return true
-  if (data.person.addresses.length > 1) return true
-  if (data.person.contacts.emails.length > 0) return true
-  if (data.person.contacts.phones.length > 0) return true
-  if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true
-  if (data.person.cnae || data.person.isuf_emit || data.person.technical_manager_cpf) return true
-  if (data.person.intermediary_id) return true
-  if (data.person.bank && Object.values(data.person.bank).some(Boolean)) return true
-  if (data.person.freight_retention && Object.values(data.person.freight_retention).some(Boolean)) return true
-  if (!isOrg && data.person.state_registrations.length > 0) return true
-  return false
+  if (!data) return false;
+  if (data.person.fantasy_name) return true;
+  if (data.person.addresses.length > 1) return true;
+  if (data.person.contacts.emails.length > 0) return true;
+  if (data.person.contacts.phones.length > 0) return true;
+  if (data.person.nfse?.im || data.person.nfse?.op_simp_nac) return true;
+  if (data.person.cnae || data.person.isuf_emit || data.person.technical_manager_cpf) return true;
+  if (data.person.intermediary_id) return true;
+  if (data.person.bank && Object.values(data.person.bank).some(Boolean)) return true;
+  if (data.person.freight_retention && Object.values(data.person.freight_retention).some(Boolean)) return true;
+  if (!isOrg && data.person.state_registrations.length > 0) return true;
+  return false;
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
 /** Tabelas estáticas: recriar por render invalida o memo do Combobox. */
-const CNAE_OPTIONS = ALL_CNAES.map((c) => ({value: c.code, label: `${c.code} - ${c.description}`}))
+const CNAE_OPTIONS = ALL_CNAES.map((c) => ({value: c.code, label: `${c.code} - ${c.description}`}));
 
 /**
  * CFOPs de prestação de serviço de transporte — o único conjunto que pode
  * aparecer em `retTransp`. Oferecer os 274 CFOPs aqui seria oferecer 260 erros.
  */
-const FREIGHT_CFOP_SUFFIXES = new Set(['351', '352', '353', '354', '355', '356', '357', '359', '360', '932'])
+const FREIGHT_CFOP_SUFFIXES = new Set(['351', '352', '353', '354', '355', '356', '357', '359', '360', '932']);
 const FREIGHT_CFOP_OPTIONS = getAllCfopOptions()
-  .filter((o) => FREIGHT_CFOP_SUFFIXES.has(o.value.slice(1)))
+  .filter((o) => FREIGHT_CFOP_SUFFIXES.has(o.value.slice(1)));
 
 export function EntityForm({
                              variant,
@@ -206,20 +206,20 @@ export function EntityForm({
                              extraSection,
                              advancedSection,
                            }: EntityFormProps) {
-  const isEdit = !!initialData
-  const isOrg = variant === 'organization'
-  const [tipo, setTipo] = useState<Tipo>(() => lockTipo ?? deriveTipo(entityPk, initialData))
-  const isPJ = tipo === 'pj'
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [advancedOpen, setAdvancedOpen] = useState(() => hasAdvancedData(initialData, isOrg))
+  const isEdit = !!initialData;
+  const isOrg = variant === 'organization';
+  const [tipo, setTipo] = useState<Tipo>(() => lockTipo ?? deriveTipo(entityPk, initialData));
+  const isPJ = tipo === 'pj';
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(() => hasAdvancedData(initialData, isOrg));
 
-  const {selectedOrg} = useAuth()
-  const orgUf = selectedOrg?.state_federation ?? 'SP'
-  const {state: lookupState, lookup, reset: resetLookup} = useCnpjLookup()
+  const {selectedOrg} = useAuth();
+  const orgUf = selectedOrg?.state_federation ?? 'SP';
+  const {state: lookupState, lookup, reset: resetLookup} = useCnpjLookup();
 
   // Contact state (only rendered for organizations)
-  const [emailInput, setEmailInput] = useState('')
-  const [phoneInput, setPhoneInput] = useState('')
+  const [emailInput, setEmailInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
 
   const form = useForm<EntityFormData>({
     resolver: zodResolver(isOrg ? organizationSchema : entitySchema) as Resolver<EntityFormData>,
@@ -236,158 +236,158 @@ export function EntityForm({
         crt: lockTipo === 'pf' ? '4' : DEFAULT_VALUES.person.crt,
       },
     },
-  })
+  });
 
   const {fields: addressFields, append: appendAddress, remove: removeAddress} = useFieldArray({
     control: form.control, name: 'person.addresses',
-  })
+  });
   const {fields: ieFields, append: appendIE, remove: removeIE} = useFieldArray({
     control: form.control, name: 'person.state_registrations',
-  })
+  });
 
-  const watchedIEs = useWatch({control: form.control, name: 'person.state_registrations'}) ?? []
-  const selectedUFs = watchedIEs.map((r) => r?.uf).filter(Boolean) as string[]
-  const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? []
-  const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? []
-  const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? ''
-  const selectedRoles = useWatch({control: form.control, name: 'roles'}) ?? []
-  const watchedBank = useWatch({control: form.control, name: 'person.bank'})
-  const watchedFreight = useWatch({control: form.control, name: 'person.freight_retention'})
-  const watchedNfse = useWatch({control: form.control, name: 'person.nfse'})
-  const watchedIntermediaryID = useWatch({control: form.control, name: 'person.intermediary_id'})
-  const debouncedDoc = useDebounce(watchedDoc, 300)
+  const watchedIEs = useWatch({control: form.control, name: 'person.state_registrations'}) ?? [];
+  const selectedUFs = watchedIEs.map((r) => r?.uf).filter(Boolean) as string[];
+  const emails = useWatch({control: form.control, name: 'person.contacts.emails'}) ?? [];
+  const phones = useWatch({control: form.control, name: 'person.contacts.phones'}) ?? [];
+  const watchedDoc = useWatch({control: form.control, name: 'cpf_or_cnpj'}) ?? '';
+  const selectedRoles = useWatch({control: form.control, name: 'roles'}) ?? [];
+  const watchedBank = useWatch({control: form.control, name: 'person.bank'});
+  const watchedFreight = useWatch({control: form.control, name: 'person.freight_retention'});
+  const watchedNfse = useWatch({control: form.control, name: 'person.nfse'});
+  const watchedIntermediaryID = useWatch({control: form.control, name: 'person.intermediary_id'});
+  const debouncedDoc = useDebounce(watchedDoc, 300);
   // Pessoa no exterior (dest/idEstrangeiro): sem CPF/CNPJ, sem consulta à
   // Receita, sem IE. Só a variante 'person' oferece — o emitente é sempre BR.
-  const [isForeign, setIsForeign] = useState(Boolean(form.getValues('id_estrangeiro')))
-  const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'})
+  const [isForeign, setIsForeign] = useState(Boolean(form.getValues('id_estrangeiro')));
+  const opSimpNac = useWatch({control: form.control, name: 'person.nfse.op_simp_nac'});
 
   useEffect(() => {
-    if ((isEdit && !autoLookup) || isForeign) return
-    const clean = debouncedDoc.replace(/\D/g, '')
-    const expectedLength = isPJ ? 14 : 11
-    if (clean.length === expectedLength) void lookup(clean, orgUf)
-    else resetLookup()
-  }, [debouncedDoc, isEdit, autoLookup, isForeign, isPJ, lookup, orgUf, resetLookup])
+    if ((isEdit && !autoLookup) || isForeign) return;
+    const clean = debouncedDoc.replace(/\D/g, '');
+    const expectedLength = isPJ ? 14 : 11;
+    if (clean.length === expectedLength) void lookup(clean, orgUf);
+    else resetLookup();
+  }, [debouncedDoc, isEdit, autoLookup, isForeign, isPJ, lookup, orgUf, resetLookup]);
 
   // Preenche só campos ainda não editados: a consulta nunca apaga uma escolha
   // que o usuário fez enquanto as duas fontes respondiam.
   useEffect(() => {
-    if (lookupState.status !== 'found' || !lookupState.result) return
-    const r = lookupState.result
+    if (lookupState.status !== 'found' || !lookupState.result) return;
+    const r = lookupState.result;
     // O nome é o único campo que a consulta não sobrescreve quando já tem
     // valor: numa empresa vinculada ele vem da conta CTech, que é quem manda na
     // identidade (ADR 0022) — trocá-lo pela razão social da Receita seria este
     // formulário decidindo algo que não é dele.
     if (!form.getFieldState('name').isDirty && r.name && !form.getValues('name')?.trim()) {
-      form.setValue('name', r.name, {shouldValidate: true})
+      form.setValue('name', r.name, {shouldValidate: true});
     }
     if (!form.getFieldState('person.fantasy_name').isDirty && r.fantasyName) {
-      form.setValue('person.fantasy_name', r.fantasyName, {shouldValidate: true})
+      form.setValue('person.fantasy_name', r.fantasyName, {shouldValidate: true});
     }
     if (!form.getFieldState('person.crt').isDirty && r.crt) {
-      form.setValue('person.crt', r.crt.toString() as Crt, {shouldValidate: true})
+      form.setValue('person.crt', r.crt.toString() as Crt, {shouldValidate: true});
     }
     if (!form.getFieldState('person.cnae').isDirty && r.cnae) {
-      form.setValue('person.cnae', r.cnae, {shouldValidate: true})
+      form.setValue('person.cnae', r.cnae, {shouldValidate: true});
     }
     if (!form.getFieldState('person.isuf_emit').isDirty && r.isufEmit) {
-      form.setValue('person.isuf_emit', r.isufEmit, {shouldValidate: true})
+      form.setValue('person.isuf_emit', r.isufEmit, {shouldValidate: true});
     }
     if (!form.getFieldState('person.nfse.op_simp_nac').isDirty && r.nfseSimpleOption) {
-      form.setValue('person.nfse.op_simp_nac', r.nfseSimpleOption, {shouldValidate: true})
+      form.setValue('person.nfse.op_simp_nac', r.nfseSimpleOption, {shouldValidate: true});
     }
     if (!form.getFieldState('person.state_registrations').isDirty && r.state_registrations.length > 0) {
       form.setValue('person.state_registrations', r.state_registrations.map((sr) => ({
         uf: sr.uf as EntityFormData['person']['state_registrations'][number]['uf'],
         state_registration: sr.state_registration,
-      })), {shouldValidate: true})
+      })), {shouldValidate: true});
     }
     if (r.contacts.emails.length > 0 && !form.getFieldState('person.contacts.emails').isDirty) {
-      form.setValue('person.contacts.emails', r.contacts.emails.slice(0, 5), {shouldValidate: true})
+      form.setValue('person.contacts.emails', r.contacts.emails.slice(0, 5), {shouldValidate: true});
     }
     if (r.contacts.phones.length > 0 && !form.getFieldState('person.contacts.phones').isDirty) {
-      form.setValue('person.contacts.phones', r.contacts.phones.slice(0, 5), {shouldValidate: true})
+      form.setValue('person.contacts.phones', r.contacts.phones.slice(0, 5), {shouldValidate: true});
     }
     if (r.addresses.length > 0 && !form.getFieldState('person.addresses.0').isDirty) {
-      const addr = r.addresses[0]
+      const addr = r.addresses[0];
       if (addr.state_federation) {
-        form.setValue('person.addresses.0.street', addr.street ?? '', {shouldValidate: true})
-        form.setValue('person.addresses.0.number', addr.number ?? '', {shouldValidate: true})
-        form.setValue('person.addresses.0.neighborhood', addr.neighborhood ?? '', {shouldValidate: true})
-        form.setValue('person.addresses.0.complement', addr.complement ?? '', {shouldValidate: true})
-        form.setValue('person.addresses.0.city', addr.city ?? '', {shouldValidate: true})
-        form.setValue('person.addresses.0.state_federation', addr.state_federation as EntityFormData['person']['addresses'][number]['state_federation'], {shouldValidate: true})
-        if (addr.postal_code) form.setValue('person.addresses.0.postal_code', addr.postal_code.replace(/\D/g, ''), {shouldValidate: true})
-        if (addr.city_ibge_code) form.setValue('person.addresses.0.city_ibge_code', addr.city_ibge_code, {shouldValidate: true})
+        form.setValue('person.addresses.0.street', addr.street ?? '', {shouldValidate: true});
+        form.setValue('person.addresses.0.number', addr.number ?? '', {shouldValidate: true});
+        form.setValue('person.addresses.0.neighborhood', addr.neighborhood ?? '', {shouldValidate: true});
+        form.setValue('person.addresses.0.complement', addr.complement ?? '', {shouldValidate: true});
+        form.setValue('person.addresses.0.city', addr.city ?? '', {shouldValidate: true});
+        form.setValue('person.addresses.0.state_federation', addr.state_federation as EntityFormData['person']['addresses'][number]['state_federation'], {shouldValidate: true});
+        if (addr.postal_code) form.setValue('person.addresses.0.postal_code', addr.postal_code.replace(/\D/g, ''), {shouldValidate: true});
+        if (addr.city_ibge_code) form.setValue('person.addresses.0.city_ibge_code', addr.city_ibge_code, {shouldValidate: true});
       }
     }
-  }, [lookupState.status, lookupState.result, form])
+  }, [lookupState.status, lookupState.result, form]);
 
   const switchTipo = (next: Tipo) => {
-    setTipo(next)
-    form.setValue('tipo', next)
-    form.setValue('cpf_or_cnpj', '')
-    form.setValue('person.state_registrations', [])
+    setTipo(next);
+    form.setValue('tipo', next);
+    form.setValue('cpf_or_cnpj', '');
+    form.setValue('person.state_registrations', []);
     // Person PF: CRT is optional ("Não especificar"). Org PF (MEI) keeps a default.
-    form.setValue('person.crt', next === 'pf' ? (isOrg ? '4' : CRT_NONE_VALUE) : '1')
-    resetLookup()
-  }
+    form.setValue('person.crt', next === 'pf' ? (isOrg ? '4' : CRT_NONE_VALUE) : '1');
+    resetLookup();
+  };
 
   const addEmail = () => {
-    if (!emailInput || emails.length >= 5) return
-    form.setValue('person.contacts.emails', [...emails, emailInput], {shouldValidate: true})
-    setEmailInput('')
-  }
+    if (!emailInput || emails.length >= 5) return;
+    form.setValue('person.contacts.emails', [...emails, emailInput], {shouldValidate: true});
+    setEmailInput('');
+  };
   const removeEmail = (i: number) =>
-    form.setValue('person.contacts.emails', emails.filter((_, idx) => idx !== i), {shouldValidate: true})
+    form.setValue('person.contacts.emails', emails.filter((_, idx) => idx !== i), {shouldValidate: true});
 
   const addPhone = () => {
-    const raw = phoneInput.replace(/\D/g, '')
-    if (raw.length < 10 || phones.length >= 5) return
-    form.setValue('person.contacts.phones', [...phones, raw], {shouldValidate: true})
-    setPhoneInput('')
-  }
+    const raw = phoneInput.replace(/\D/g, '');
+    if (raw.length < 10 || phones.length >= 5) return;
+    form.setValue('person.contacts.phones', [...phones, raw], {shouldValidate: true});
+    setPhoneInput('');
+  };
   const removePhone = (i: number) =>
-    form.setValue('person.contacts.phones', phones.filter((_, idx) => idx !== i), {shouldValidate: true})
+    form.setValue('person.contacts.phones', phones.filter((_, idx) => idx !== i), {shouldValidate: true});
 
   const handleSubmit = form.handleSubmit(
     async (data) => {
-      setSubmitError(null)
+      setSubmitError(null);
       try {
-        await onSubmit(data)
+        await onSubmit(data);
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+        setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
       }
     },
     () => setAdvancedOpen(true),
-  )
+  );
 
   // Erros dentro do bloco avançado. Ele já reabre no submit falho; isto diz
   // QUAIS campos procurar, em vez de deixar o operador varrer a seção inteira.
   const advancedErrors = advancedErrorLabels(
     form.formState.errors.person as Record<string, unknown> | undefined,
     isOrg,
-  )
+  );
 
-  const hasBankData = watchedBank ? Object.values(watchedBank).some(Boolean) : false
-  const hasFreightData = watchedFreight ? Object.values(watchedFreight).some(Boolean) : false
-  const hasNfseData = watchedNfse ? Object.values(watchedNfse).some(Boolean) : false
-  const showBankSection = !isOrg && (selectedRoles.includes('driver') || selectedRoles.includes('carrier') || hasBankData)
-  const showFreightSection = !isOrg && (selectedRoles.includes('carrier') || hasFreightData)
-  const showNfseSection = isOrg || selectedRoles.includes('provider') || hasNfseData
+  const hasBankData = watchedBank ? Object.values(watchedBank).some(Boolean) : false;
+  const hasFreightData = watchedFreight ? Object.values(watchedFreight).some(Boolean) : false;
+  const hasNfseData = watchedNfse ? Object.values(watchedNfse).some(Boolean) : false;
+  const showBankSection = !isOrg && (selectedRoles.includes('driver') || selectedRoles.includes('carrier') || hasBankData);
+  const showFreightSection = !isOrg && (selectedRoles.includes('carrier') || hasFreightData);
+  const showNfseSection = isOrg || selectedRoles.includes('provider') || hasNfseData;
   // O "seller id" só existe para quem é intermediador — perguntar a todo
   // cadastro seria mais um campo em branco em 99% das pessoas.
   const showIntermediarySection = !isOrg
-    && (selectedRoles.includes('intermediary') || !!watchedIntermediaryID)
+    && (selectedRoles.includes('intermediary') || !!watchedIntermediaryID);
 
   // Pessoa física (person variant) may leave CRT unspecified — backend omits it
   // and defaults to Simples Nacional on emission. Org PF (MEI) still picks a regime.
-  const allowNoCrt = variant === 'person' && !isPJ
+  const allowNoCrt = variant === 'person' && !isPJ;
   const crtOptions = isPJ
     ? CRT_OPTIONS_PJ
     : allowNoCrt
       ? [{value: CRT_NONE_VALUE, label: 'Não especificar'}, ...CRT_OPTIONS_ORG_PF]
-      : CRT_OPTIONS_ORG_PF
+      : CRT_OPTIONS_ORG_PF;
 
   // Inscrições Estaduais — visible up front for a PJ organization, because the
   // emitter usually has one; tucked into "advanced" for a PJ person, since
@@ -400,7 +400,7 @@ export function EntityForm({
   //
   // Array-level custom errors (e.g. duplicate UF) live at person.state_registrations
   // and have no per-item FormField, so render them explicitly here.
-  const ieRootError = form.formState.errors.person?.state_registrations?.message
+  const ieRootError = form.formState.errors.person?.state_registrations?.message;
 
   const ieSection = isPJ && (
     <div className="border-t border-gray-200 pt-4">
@@ -408,11 +408,11 @@ export function EntityForm({
         <h3 className="text-sm font-semibold text-gray-900">Inscrições estaduais</h3>
         <Button type="button" variant="ghost" size="xs"
                 onClick={() => {
-                  const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP'
+                  const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP';
                   appendIE({
                     uf: first as EntityFormData['person']['state_registrations'][number]['uf'],
                     state_registration: ''
-                  })
+                  });
                 }}
                 disabled={selectedUFs.length >= UF_OPTIONS.length}
                 className="gap-1 text-brand-600 hover:text-brand-700">
@@ -427,7 +427,7 @@ export function EntityForm({
         </p>
       )}
       {ieFields.map((field, index) => {
-        const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf)
+        const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf);
         return (
           <div key={field.id} className="flex items-end gap-2 mb-2">
             <FormField control={form.control as never} name={`person.state_registrations.${index}.uf`}
@@ -465,10 +465,10 @@ export function EntityForm({
               <XIcon/>
             </Button>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 
   // CNAE e Suframa do emitente: NF-e mista (mercadoria + serviço) exige o CNAE
   // junto da inscrição municipal, e ISUFEmit é a Suframa do próprio emitente.
@@ -511,7 +511,7 @@ export function EntityForm({
         />
       </div>
     </div>
-  )
+  );
 
   // Recebimento do condutor/TAC: o MDF-e declara em infBanc pra quem o frete
   // foi pago. É dado da pessoa, não da viagem — a emissão nunca pergunta.
@@ -566,7 +566,7 @@ export function EntityForm({
         />
       </div>
     </div>
-  )
+  );
 
   // ICMS retido pelo remetente sobre o frete: perfil da transportadora, usado
   // em transp/retTransp. O valor retido é calculado na emissão.
@@ -591,7 +591,7 @@ export function EntityForm({
                  )}
       />
     </div>
-  )
+  );
 
   const freightRetentionSection = (
     <div className="border-t border-gray-200 pt-4">
@@ -632,7 +632,7 @@ export function EntityForm({
         ))}
       </div>
     </div>
-  )
+  );
 
   // NFS-e: inscrição municipal + regime tributário do prestador. Ficam no
   // cadastro (e não na config da organização) porque quem presta pode ser uma
@@ -689,7 +689,7 @@ export function EntityForm({
         Obrigatório para emitir NFS-e como prestador.
       </p>
     </div>
-  )
+  );
 
   return (
     <Form {...form}>
@@ -705,17 +705,17 @@ export function EntityForm({
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isForeign}
                    onChange={(e) => {
-                     const checked = e.target.checked
-                     setIsForeign(checked)
-                     form.setValue('cpf_or_cnpj', '')
-                     form.setValue('id_estrangeiro', '')
+                     const checked = e.target.checked;
+                     setIsForeign(checked);
+                     form.setValue('cpf_or_cnpj', '');
+                     form.setValue('id_estrangeiro', '');
                      if (checked) {
-                       setTipo('pf')
-                       form.setValue('tipo', 'pf')
-                       form.setValue('person.crt', CRT_NONE_VALUE)
-                       form.setValue('person.state_registrations', [])
+                       setTipo('pf');
+                       form.setValue('tipo', 'pf');
+                       form.setValue('person.crt', CRT_NONE_VALUE);
+                       form.setValue('person.state_registrations', []);
                      }
-                     resetLookup()
+                     resetLookup();
                    }}
                    className="h-4 w-4 rounded border-gray-300 text-brand-600"/>
             Pessoa no exterior (sem CPF/CNPJ)
@@ -767,8 +767,8 @@ export function EntityForm({
                                onChange={(e) => {
                                  const raw = isPJ
                                    ? e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 14)
-                                   : e.target.value.replace(/\D/g, '').slice(0, 11)
-                                 field.onChange(raw)
+                                   : e.target.value.replace(/\D/g, '').slice(0, 11);
+                                 field.onChange(raw);
                                }}
                                onBlur={field.onBlur}
                                ref={field.ref}
@@ -804,12 +804,12 @@ export function EntityForm({
             {!isOrg && (
               <FormField control={form.control as never} name="roles"
                          render={({field}) => {
-                           const selected = (field.value ?? []) as PersonRole[]
+                           const selected = (field.value ?? []) as PersonRole[];
                            const toggle = (role: PersonRole) => field.onChange(
                              selected.includes(role)
                                ? selected.filter((r) => r !== role)
                                : [...selected, role],
-                           )
+                           );
                            return (
                              <fieldset className="space-y-2">
                                <legend className="text-sm font-medium text-gray-900">Papéis no cadastro</legend>
@@ -832,7 +832,7 @@ export function EntityForm({
                                </p>
                                <FormMessage/>
                              </fieldset>
-                           )
+                           );
                          }}
               />
             )}
@@ -964,8 +964,8 @@ export function EntityForm({
                              onChange={(e) => setEmailInput(e.target.value)}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter') {
-                                 e.preventDefault()
-                                 addEmail()
+                                 e.preventDefault();
+                                 addEmail();
                                }
                              }}
                              disabled={emails.length >= 5}/>
@@ -1001,8 +1001,8 @@ export function EntityForm({
                              onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter') {
-                                 e.preventDefault()
-                                 addPhone()
+                                 e.preventDefault();
+                                 addPhone();
                                }
                              }}
                              disabled={phones.length >= 5}/>
@@ -1045,5 +1045,5 @@ export function EntityForm({
         </div>
       </form>
     </Form>
-  )
+  );
 }

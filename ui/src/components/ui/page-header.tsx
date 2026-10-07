@@ -1,5 +1,5 @@
-import {ReactNode} from 'react'
-import {Button} from '@/components/ui/button'
+import {ReactNode} from 'react';
+import {Button} from '@/components/ui/button';
 
 interface PageHeaderProps {
   title: string
@@ -29,5 +29,5 @@ export function PageHeader({title, description, action}: PageHeaderProps) {
         </Button>
       )}
     </div>
-  )
+  );
 }

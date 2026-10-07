@@ -21,5 +21,5 @@ export function ComingSoon({title, description}: ComingSoonProps) {
         </p>
       </div>
     </div>
-  )
+  );
 }

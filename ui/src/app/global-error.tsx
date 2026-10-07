@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {useEffect} from 'react'
-import {SystemState, SystemStateRetry} from '@/components/SystemState'
+import {useEffect} from 'react';
+import {SystemState, SystemStateRetry} from '@/components/SystemState';
 
 /**
  * The last resort: an error in the root layout or the provider tree, where the
@@ -14,8 +14,8 @@ import {SystemState, SystemStateRetry} from '@/components/SystemState'
  */
 export default function GlobalError({error, reset}: { error: Error & {digest?: string}; reset: () => void }) {
   useEffect(() => {
-    console.error(error)
-  }, [error])
+    console.error(error);
+  }, [error]);
 
   return (
     <html lang="pt-BR">
@@ -30,5 +30,5 @@ export default function GlobalError({error, reset}: { error: Error & {digest?: s
         </SystemState>
       </body>
     </html>
-  )
+  );
 }

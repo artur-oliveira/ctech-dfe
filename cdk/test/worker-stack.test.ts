@@ -3,6 +3,7 @@ import { Match, Template } from 'aws-cdk-lib/assertions'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import { WorkerStack } from '../lib/worker-stack'
 import { WORKERS } from '../lib/worker-definitions'
+import { EGRESS_TIMEOUT_SECONDS } from '../lib/egress'
 
 function buildTemplate(): Template {
   const app = new cdk.App()
@@ -17,7 +18,8 @@ function buildTemplate(): Template {
     workers: WORKERS,
     certificatesBucketName: 'dev-ctech-dfe-certificates',
     documentsBucketName: 'dev-ctech-dfe-documents',
-    dfeLambdaName: 'dev-py-dfe',
+    dfeLambdaName: 'dev-go-dfe-egress',
+    dfeEgressRegion: 'sa-east-1',
     resultsTopicArn: resultsTopic.topicArn,
 	outboxTableName: 'dev_dfe_worker_outbox',
 	outboxTableArn: 'arn:aws:dynamodb:us-east-1:123456789012:table/dev_dfe_worker_outbox',
@@ -119,5 +121,31 @@ test('every worker has a keep-warm ping schedule invoking it directly with {"pin
         Input: JSON.stringify({ping: true}),
       }),
     })
+  }
+})
+
+test('every worker Lambda that invokes the DFE Lambda knows the egress region', () => {
+  const fns: any[] = Object.values(buildTemplate().findResources('AWS::Lambda::Function'))
+  const withDfe = fns.filter(f => f.Properties.Environment?.Variables?.DFE_LAMBDA_NAME)
+  expect(withDfe.length).toBeGreaterThan(0)
+  for (const f of withDfe) {
+    expect(f.Properties.Environment.Variables.DFE_EGRESS_REGION).toBe('sa-east-1')
+  }
+})
+
+test('worker roles may invoke the egress Lambda in sa-east-1', () => {
+  const policies = Object.values(buildTemplate().findResources('AWS::IAM::Policy')) as any[]
+  const egressArns = policies.flatMap(p => p.Properties.PolicyDocument.Statement
+    .filter((st: any) => ([] as any[]).concat(st.Action).includes('lambda:InvokeFunction'))
+    .flatMap((st: any) => ([] as any[]).concat(st.Resource)))
+    .map((arn: any) => JSON.stringify(arn))
+    .filter((arn: string) => arn.includes('go-dfe-egress'))
+  expect(egressArns.length).toBeGreaterThan(0)
+  for (const arn of egressArns) expect(arn).toContain('arn:aws:lambda:sa-east-1:')
+})
+
+test('every worker that calls SEFAZ outlives the egress Lambda', () => {
+  for (const w of WORKERS.filter(w => w.sefazServices.length > 0)) {
+    expect(w.timeoutSeconds).toBeGreaterThan(EGRESS_TIMEOUT_SECONDS)
   }
 })

@@ -1,5 +1,5 @@
-import React from 'react'
-import {Button} from '@/components/ui/button'
+import React from 'react';
+import {Button} from '@/components/ui/button';
 
 /**
  * The screen that shows when there is no screen: 404, an uncaught error, a
@@ -33,12 +33,12 @@ export function SystemState({code, title, description, detail, children}: {
         {children && <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{children}</div>}
       </div>
     </main>
-  )
+  );
 }
 
 /** The action every one of these screens ends with. */
 export function SystemStateRetry({onRetry, label = 'Tentar novamente'}: { onRetry: () => void; label?: string }) {
   return (
     <Button variant="brand" onClick={onRetry}>{label}</Button>
-  )
+  );
 }

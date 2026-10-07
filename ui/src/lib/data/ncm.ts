@@ -109311,9 +109311,9 @@ export const ALL_NCMS: NcmEntry[] = [
     ],
     "search": "Objetos de arte, de coleção e antiguidades. Antiguidades com mais de 100 anos. Outras"
   }
-]
+];
 
 export const NCM_OPTIONS = ALL_NCMS.map((it) => ({
   value: it.code.replace(/\D/g, ''),
   label: `${it.code} - ${it.search}`,
-}))
+}));

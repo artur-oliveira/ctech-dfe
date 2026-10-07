@@ -7,8 +7,8 @@ import {
   META_VISIBILITY,
   PLAN_PRESENTATION,
   VISIBILITY_INTERNAL,
-} from '@/lib/constants/billing'
-import type {BillingPrice, BillingProduct} from '@/lib/types/billing'
+} from '@/lib/constants/billing';
+import type {BillingPrice, BillingProduct} from '@/lib/types/billing';
 
 /** A plan as the chooser shows it: one product, all of its prices. */
 export interface PlanOption {
@@ -30,7 +30,7 @@ export interface PlanOption {
 }
 
 function isOffered(price: BillingPrice): boolean {
-  return !price.archived && price.metadata[META_VISIBILITY] !== VISIBILITY_INTERNAL
+  return !price.archived && price.metadata[META_VISIBILITY] !== VISIBILITY_INTERNAL;
 }
 
 /**
@@ -41,37 +41,37 @@ function isOffered(price: BillingPrice): boolean {
  * the invoice charges R$ 400.
  */
 export function buildPlanOptions(products: BillingProduct[]): PlanOption[] {
-  const options: PlanOption[] = []
+  const options: PlanOption[] = [];
 
   for (const product of products) {
-    if (!product.active) continue
-    const prices = product.prices.filter(isOffered)
-    if (prices.length === 0) continue
+    if (!product.active) continue;
+    const prices = product.prices.filter(isOffered);
+    if (prices.length === 0) continue;
 
-    const plan = prices.find((p) => p.metadata[META_PLAN])?.metadata[META_PLAN] ?? ''
-    if (!plan) continue
+    const plan = prices.find((p) => p.metadata[META_PLAN])?.metadata[META_PLAN] ?? '';
+    if (!plan) continue;
 
-    const quotas: Record<string, number> = {}
-    const metered: PlanOption['metered'] = []
-    let monthlyCents = 0
+    const quotas: Record<string, number> = {};
+    const metered: PlanOption['metered'] = [];
+    let monthlyCents = 0;
 
     for (const price of prices) {
       for (const [key, value] of Object.entries(price.metadata)) {
-        if (!key.startsWith(META_QUOTA_PREFIX)) continue
-        const parsed = Number(value)
+        if (!key.startsWith(META_QUOTA_PREFIX)) continue;
+        const parsed = Number(value);
         // An unreadable quota is not a quota of zero — dropping it shows
         // "não incluído", which is the honest reading of a broken value.
-        if (Number.isFinite(parsed)) quotas[key.slice(META_QUOTA_PREFIX.length)] = parsed
+        if (Number.isFinite(parsed)) quotas[key.slice(META_QUOTA_PREFIX.length)] = parsed;
       }
       if (price.type === 'metered') {
-        const meter = price.metadata[META_METER]
-        if (meter) metered.push({meter, unitAmount: price.unit_amount})
+        const meter = price.metadata[META_METER];
+        if (meter) metered.push({meter, unitAmount: price.unit_amount});
       } else {
-        monthlyCents += price.unit_amount
+        monthlyCents += price.unit_amount;
       }
     }
 
-    const presentation = PLAN_PRESENTATION[plan]
+    const presentation = PLAN_PRESENTATION[plan];
     options.push({
       plan,
       productId: product.id,
@@ -82,12 +82,12 @@ export function buildPlanOptions(products: BillingProduct[]): PlanOption[] {
       monthlyCents,
       metered,
       quotas,
-    })
+    });
   }
 
   return options.sort(
     (a, b) => (PLAN_PRESENTATION[a.plan]?.order ?? 99) - (PLAN_PRESENTATION[b.plan]?.order ?? 99),
-  )
+  );
 }
 
 /** The meters a plan grants, in the order the screens list them. */
@@ -95,5 +95,5 @@ export function grantedMeters(quotas: Record<string, number>): string[] {
   if (!quotas) {
     return [];
   }
-  return [...DOCUMENT_METERS, ...ACCOUNT_METERS].filter((m) => quotas[m] !== undefined && quotas[m] !== 0)
+  return [...DOCUMENT_METERS, ...ACCOUNT_METERS].filter((m) => quotas[m] !== undefined && quotas[m] !== 0);
 }

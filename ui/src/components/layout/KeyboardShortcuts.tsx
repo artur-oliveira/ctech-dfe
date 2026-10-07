@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import {useRouter, usePathname} from 'next/navigation'
-import {useState} from 'react'
-import {useKeyboardShortcuts} from '@/lib/hooks/useKeyboardShortcuts'
-import {contextForPath, DOC_CONTEXTS} from '@/lib/navigation/nav'
+import {useRouter, usePathname} from 'next/navigation';
+import {useState} from 'react';
+import {useKeyboardShortcuts} from '@/lib/hooks/useKeyboardShortcuts';
+import {contextForPath, DOC_CONTEXTS} from '@/lib/navigation/nav';
 
 /** New-issuance route for the doc-type implied by the current pathname. The
  *  route -> context map lives in `lib/navigation/nav`; CT-e has no issuance
  *  screen yet, so it falls back to the first type that does. */
 function newIssueRoute(pathname: string): string {
-  const ctx = contextForPath(pathname)
-  return (ctx?.emit ?? DOC_CONTEXTS.find(c => c.emit)!.emit!).href
+  const ctx = contextForPath(pathname);
+  return (ctx?.emit ?? DOC_CONTEXTS.find(c => c.emit)!.emit!).href;
 }
 
 const SHORTCUTS: {keys: string; desc: string}[] = [
@@ -19,7 +19,7 @@ const SHORTCUTS: {keys: string; desc: string}[] = [
   {keys: 'n', desc: 'Nova emissão (tipo da tela atual)'},
   {keys: '?', desc: 'Mostrar atalhos'},
   {keys: 'Esc', desc: 'Fechar diálogo / painel'},
-]
+];
 
 /**
  * Mounts the app-wide keyboard shortcuts once (in RootLayout). Power-user
@@ -27,9 +27,9 @@ const SHORTCUTS: {keys: string; desc: string}[] = [
  * modifiers — see useKeyboardShortcuts.
  */
 export function KeyboardShortcuts({onOpenSearch}: {onOpenSearch: () => void}) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [helpOpen, setHelpOpen] = useState(false)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useKeyboardShortcuts([
     {key: 'k', mod: true, global: true, handler: onOpenSearch},
@@ -37,9 +37,9 @@ export function KeyboardShortcuts({onOpenSearch}: {onOpenSearch: () => void}) {
     {key: 'n', handler: () => router.push(newIssueRoute(pathname))},
     {key: '?', shift: true, global: true, handler: () => setHelpOpen(v => !v)},
     {key: 'Escape', global: true, handler: () => setHelpOpen(false)},
-  ], [router, pathname, helpOpen, onOpenSearch])
+  ], [router, pathname, helpOpen, onOpenSearch]);
 
-  if (!helpOpen) return null
+  if (!helpOpen) return null;
 
   return (
     <div
@@ -72,5 +72,5 @@ export function KeyboardShortcuts({onOpenSearch}: {onOpenSearch: () => void}) {
         </button>
       </div>
     </div>
-  )
+  );
 }

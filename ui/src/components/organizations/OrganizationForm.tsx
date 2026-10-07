@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import type {ReactNode} from 'react'
-import {EntityForm} from '@/components/EntityForm'
-import {CRT_NONE_VALUE, type EntityFormData, nfseInfoToApi} from '@/lib/schemas/entity'
-import type {OrganizationFormData} from '@/lib/schemas/organizations'
-import type {OrganizationCreate} from '@/lib/types/api'
+import type {ReactNode} from 'react';
+import {EntityForm} from '@/components/EntityForm';
+import {CRT_NONE_VALUE, type EntityFormData, nfseInfoToApi} from '@/lib/schemas/entity';
+import type {OrganizationFormData} from '@/lib/schemas/organizations';
+import type {OrganizationCreate} from '@/lib/types/api';
 
 // Re-export for any existing code that imports from here
-export type {OrganizationFormData}
+export type {OrganizationFormData};
 
 interface OrganizationFormProps {
   initialData?: OrganizationFormData
@@ -42,7 +42,7 @@ export function OrganizationForm({initialData, orgPk, onSubmit, loading, advance
       autoLookup={autoLookup}
       advancedSection={advancedSection}
     />
-  )
+  );
 }
 
 export function organizationFormToApi(data: EntityFormData): OrganizationCreate {
@@ -50,9 +50,9 @@ export function organizationFormToApi(data: EntityFormData): OrganizationCreate 
     ...a,
     postal_code: a.postal_code.replace(/\D/g, ''),
     complement: a.complement || null,
-  }))
-  const crtRaw = data.person.crt
-  const crt = crtRaw && crtRaw !== CRT_NONE_VALUE ? parseInt(crtRaw, 10) : null
+  }));
+  const crtRaw = data.person.crt;
+  const crt = crtRaw && crtRaw !== CRT_NONE_VALUE ? parseInt(crtRaw, 10) : null;
   return {
     cpf_or_cnpj: data.cpf_or_cnpj,
     name: data.name,
@@ -67,5 +67,5 @@ export function organizationFormToApi(data: EntityFormData): OrganizationCreate 
       cnae: data.person.cnae || null,
       isuf_emit: data.person.isuf_emit || null,
     },
-  }
+  };
 }

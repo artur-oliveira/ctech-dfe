@@ -12,52 +12,14 @@ import {Construct} from 'constructs'
 import {WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
-import {spawnSync} from 'child_process'
+import {goLambdaCode} from './go-code'
+import {egressFunctionArn} from './egress'
 
 const CTECH_WORKER_DIR = path.join(__dirname, '../../worker')
 
-// resolveGo returns the absolute path to the go binary.
-// Checks PATH first, then falls back to ~/sdk/go*/bin/go (Google's default SDK dir).
-function resolveGo(): string {
-  const lookup = spawnSync('bash', ['-c',
-    'which go 2>/dev/null || ls "${HOME}/sdk/go"*/bin/go 2>/dev/null | sort -rV | head -1',
-  ], {stdio: 'pipe', env: process.env})
-  if (lookup.status === 0 && lookup.stdout) {
-    const found = lookup.stdout.toString().trim()
-    if (found) return found
-  }
-  return 'go'
-}
-
-// goCode builds a Go Lambda binary from the worker module.
-// Local bundling (no Docker) is attempted first; Docker is the fallback.
+// goCode builds a Go Lambda binary from the worker module (see go-code.ts).
 function goCode(cmd: string): lambda.AssetCode {
-  return lambda.Code.fromAsset(CTECH_WORKER_DIR, {
-    bundling: {
-      local: {
-        tryBundle(outputDir: string): boolean {
-          const r = spawnSync(
-            resolveGo(),
-            ['build', '-tags', 'lambda.norpc', '-ldflags', '-s -w', '-o', path.join(outputDir, 'bootstrap'), `./cmd/${cmd}`],
-            {
-              cwd: CTECH_WORKER_DIR,
-              env: {...process.env, GOOS: 'linux', GOARCH: 'arm64', CGO_ENABLED: '0'},
-              stdio: ['ignore', 'pipe', 'pipe'],
-            },
-          )
-          if (r.status !== 0) process.stderr.write(r.stderr ?? Buffer.alloc(0))
-          return r.status === 0
-        },
-      },
-      image: lambda.Runtime.PROVIDED_AL2023.bundlingImage,
-      // GOCACHE/GOPATH must be writable; Docker runs as uid 1000:1000 which has no HOME.
-      environment: {GOCACHE: '/tmp/go-build', GOPATH: '/tmp/go'},
-      command: [
-        'bash', '-c',
-        `GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -ldflags '-s -w' -o /asset-output/bootstrap ./cmd/${cmd}`,
-      ],
-    },
-  })
+  return goLambdaCode(CTECH_WORKER_DIR, `./cmd/${cmd}`)
 }
 
 interface WorkerStackProps extends cdk.StackProps {
@@ -71,6 +33,7 @@ interface WorkerStackProps extends cdk.StackProps {
   certificatesBucketName: string
   documentsBucketName: string
   dfeLambdaName: string
+  dfeEgressRegion: string
   resultsTopicArn: string
 }
 
@@ -89,13 +52,14 @@ export class WorkerStack extends cdk.Stack {
       certificatesBucketName,
       documentsBucketName,
       dfeLambdaName,
+      dfeEgressRegion,
       resultsTopicArn,
       outboxTableName,
       outboxTableArn,
       outboxStreamArn,
     } = props
 
-    const dfeLambdaArn = `arn:aws:lambda:${this.region}:${this.account}:function:${dfeLambdaName}`
+    const dfeLambdaArn = egressFunctionArn(environment, this.account)
 
     // =========================
     // LOOP DE WORKERS
@@ -219,6 +183,7 @@ export class WorkerStack extends cdk.Stack {
           CERTIFICATES_BUCKET: certificatesBucketName,
           DOCUMENTS_BUCKET: documentsBucketName,
           DFE_LAMBDA_NAME: dfeLambdaName,
+          DFE_EGRESS_REGION: dfeEgressRegion,
           RESULTS_TOPIC_ARN: resultsTopicArn,
           ...worker.environment,
         },
@@ -296,6 +261,7 @@ export class WorkerStack extends cdk.Stack {
           CERTIFICATES_BUCKET: certificatesBucketName,
           DOCUMENTS_BUCKET: documentsBucketName,
           DFE_LAMBDA_NAME: dfeLambdaName,
+          DFE_EGRESS_REGION: dfeEgressRegion,
           RESULTS_TOPIC_ARN: resultsTopicArn,
         },
       })

@@ -1,46 +1,46 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {render, screen, waitFor} from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import LoginPage from '@/app/login/page'
+import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {render, screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import LoginPage from '@/app/login/page';
 
-const startOAuthFlowMock = vi.fn()
+const startOAuthFlowMock = vi.fn();
 
 vi.mock('@/lib/auth/oauth', () => ({
   startOAuthFlow: (returnTo: string) => startOAuthFlowMock(returnTo),
-}))
+}));
 
 // Soft login page reads auth state but renders without an AuthProvider in the test tree.
 vi.mock('@/lib/hooks/useAuth', () => ({
   useAuth: () => ({user: null, loading: false}),
-}))
+}));
 
-let searchParams: URLSearchParams
+let searchParams: URLSearchParams;
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
   useRouter: () => ({replace: vi.fn()}),
-}))
+}));
 
 describe('LoginPage', () => {
   beforeEach(() => {
-    startOAuthFlowMock.mockReset()
-  })
+    startOAuthFlowMock.mockReset();
+  });
 
   it('defaults returnTo to /dashboard when no returnTo query param is present', async () => {
     // Regression: landing page and 404 page link to /login with no ?returnTo,
     // which used to default to '/' and strand the user back on the landing page after login.
-    searchParams = new URLSearchParams()
-    render(<LoginPage />)
+    searchParams = new URLSearchParams();
+    render(<LoginPage />);
 
-    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}))
-    await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/dashboard'))
-  })
+    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}));
+    await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/dashboard'));
+  });
 
   it('honors an explicit returnTo query param', async () => {
-    searchParams = new URLSearchParams({returnTo: '/nfe/123'})
-    render(<LoginPage />)
+    searchParams = new URLSearchParams({returnTo: '/nfe/123'});
+    render(<LoginPage />);
 
-    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}))
-    await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/nfe/123'))
-  })
-})
+    await userEvent.click(screen.getByRole('button', {name: 'Entrar'}));
+    await waitFor(() => expect(startOAuthFlowMock).toHaveBeenCalledWith('/nfe/123'));
+  });
+});

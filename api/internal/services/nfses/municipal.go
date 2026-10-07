@@ -63,7 +63,7 @@ func (s *NfseService) MunicipalParameters(ctx context.Context, orgPK, kind strin
 		return *cached, nil
 	}
 
-	result, err := s.callGoDfe(ctx, orgPK, nfse.ServiceParametrosMunicipais, map[string]any{
+	result, err := s.callEgress(ctx, orgPK, nfse.ServiceParametrosMunicipais, map[string]any{
 		nfse.BodyKeyParamKind: kind,
 		nfse.BodyKeyParamArgs: args,
 	})
@@ -74,10 +74,10 @@ func (s *NfseService) MunicipalParameters(ctx context.Context, orgPK, kind strin
 	return result.Parametros, nil
 }
 
-// callGoDfe executa uma operação NFS-e de leitura in-process. body recebe as
+// callEgress executa uma operação NFS-e de leitura no Lambda go-dfe-egress. body recebe as
 // chaves específicas da operação; provider e certificado saem da config e do
 // cadastro da organização.
-func (s *NfseService) callGoDfe(ctx context.Context, orgPK, service string, body map[string]any) (nfse.Result, error) {
+func (s *NfseService) callEgress(ctx context.Context, orgPK, service string, body map[string]any) (nfse.Result, error) {
 	configItem, err := s.configRepo.Get(ctx, orgPK)
 	if err != nil {
 		return nfse.Result{}, err
@@ -108,7 +108,7 @@ func (s *NfseService) callGoDfe(ctx context.Context, orgPK, service string, body
 		full[k] = v
 	}
 
-	resp, err := godfe.Call(ctx, godfe.Request{
+	resp, err := s.extSvc.CallDfe(ctx, godfe.Request{
 		CNPJ:                issuerDoc,
 		CertificateB64:      certB64,
 		CertificatePassword: certPassword,

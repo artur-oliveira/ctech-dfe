@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents'
-import {SetupChecklist} from '@/components/onboarding/SetupChecklist'
+import Link from 'next/link';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents';
+import {SetupChecklist} from '@/components/onboarding/SetupChecklist';
 
-const quickActions = DFE_DOCUMENTS
+const quickActions = DFE_DOCUMENTS;
 
 function DashboardContent() {
-  const {user, selectedOrg} = useAuth()
+  const {user, selectedOrg} = useAuth();
   
   return (
     <RootLayout>
@@ -61,7 +61,7 @@ function DashboardContent() {
         <SetupChecklist/>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function DashboardPage() {
@@ -69,5 +69,5 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <DashboardContent/>
     </ProtectedRoute>
-  )
+  );
 }

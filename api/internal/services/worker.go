@@ -13,7 +13,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
-// WorkerMessage is the SNS payload sent to py-dfe workers.
+// WorkerMessage is the SNS payload sent to the DFe workers.
 type WorkerMessage struct {
 	DocPK                 string `json:"doc_pk"`
 	AccessKey             string `json:"access_key"`

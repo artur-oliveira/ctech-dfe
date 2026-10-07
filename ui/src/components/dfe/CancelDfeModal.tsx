@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
+import {Modal} from '@/components/ui/modal';
+import {JustificationField} from '@/components/ui/justification-field';
 
-export const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
-export const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
+export const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
+export const CANCEL_JUSTIFICATION_MAX_LENGTH = 255;
 
 interface CancelDfeModalProps {
   isOpen: boolean
@@ -54,5 +54,5 @@ export function CancelDfeModal({
         )}
       </div>
     </Modal>
-  )
+  );
 }

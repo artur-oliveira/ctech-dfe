@@ -1,25 +1,25 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {buttonVariants} from '@/components/ui/button'
-import {cn} from '@/lib/utils'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {useSubscription} from '@/lib/hooks/useSubscription'
-import {DOCUMENT_METERS, METER_LABELS} from '@/lib/constants/billing'
-import {FIRST_ISSUANCE_PATH, STEP_DONE} from '@/lib/constants/onboarding'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+import Link from 'next/link';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {buttonVariants} from '@/components/ui/button';
+import {cn} from '@/lib/utils';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {useSubscription} from '@/lib/hooks/useSubscription';
+import {DOCUMENT_METERS, METER_LABELS} from '@/lib/constants/billing';
+import {FIRST_ISSUANCE_PATH, STEP_DONE} from '@/lib/constants/onboarding';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 function DoneStepContent() {
-  const {selectedOrg} = useAuth()
-  const {configured} = useOnboarding()
-  const {subscription} = useSubscription()
+  const {selectedOrg} = useAuth();
+  const {configured} = useOnboarding();
+  const {subscription} = useSubscription();
 
-  const ready = DOCUMENT_METERS.filter((m) => configured[m as DocVariant])
-  const primary = ready[0] as DocVariant | undefined
-  const blocked = subscription && !subscription.grants_service && !subscription.no_charge
+  const ready = DOCUMENT_METERS.filter((m) => configured[m as DocVariant]);
+  const primary = ready[0] as DocVariant | undefined;
+  const blocked = subscription && !subscription.grants_service && !subscription.no_charge;
 
   return (
     <OnboardingShell
@@ -74,7 +74,7 @@ function DoneStepContent() {
         </Link>
       </div>
     </OnboardingShell>
-  )
+  );
 }
 
 export default function DoneStepPage() {
@@ -82,5 +82,5 @@ export default function DoneStepPage() {
     <ProtectedRoute>
       <DoneStepContent/>
     </ProtectedRoute>
-  )
+  );
 }

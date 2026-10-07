@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import {EntityForm} from '@/components/EntityForm'
+import {EntityForm} from '@/components/EntityForm';
 import {
   CRT_NONE_VALUE,
   type EntityFormData,
@@ -10,13 +10,13 @@ import {
   PERSON_ROLES,
   personBankToApi,
   type PersonRole,
-} from '@/lib/schemas/entity'
-import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
-import {SK_PREFIX} from '@/lib/constants/entity-keys'
+} from '@/lib/schemas/entity';
+import type {PersonCreate, PersonItemOut} from '@/lib/types/api';
+import {SK_PREFIX} from '@/lib/constants/entity-keys';
 import {unformatCpfCnpj} from "@/lib/utils/document";
 
 // Re-export for any existing code that imports UF_OPTIONS from here
-export {UF_OPTIONS} from '@/lib/schemas/entity'
+export {UF_OPTIONS} from '@/lib/schemas/entity';
 
 interface PersonFormProps {
   initialData?: PersonItemOut
@@ -32,9 +32,9 @@ interface PersonFormProps {
 }
 
 function fromPersonOut(p: PersonItemOut): EntityFormData {
-  const isPJ = p.sk.startsWith('CNPJ_')
-  const crt = p.person.crt != null ? String(p.person.crt) : ''
-  const validCrt = ['1', '2', '3', '4'].includes(crt)
+  const isPJ = p.sk.startsWith('CNPJ_');
+  const crt = p.person.crt != null ? String(p.person.crt) : '';
+  const validCrt = ['1', '2', '3', '4'].includes(crt);
   return {
     tipo: isPJ ? 'pj' : 'pf',
     cpf_or_cnpj: p.sk.startsWith(SK_PREFIX.FOREIGN) ? '' : unformatCpfCnpj(p.sk),
@@ -75,19 +75,19 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
         cnpj_ipef: p.person.bank?.cnpj_ipef ?? '',
       },
     },
-  }
+  };
 }
 
 export function personFormToApi(data: EntityFormData): PersonCreate {
   // Payload shape follows the selected type, not just initialData — this lets a
   // brand-new PF be created correctly (e.g. NFC-e consumer).
-  const isPJ = data.tipo === 'pj'
+  const isPJ = data.tipo === 'pj';
   const addresses = data.person.addresses.map((a) => ({
     ...a,
     postal_code: a.postal_code.replace(/\D/g, ''),
     complement: a.complement || null,
-  }))
-  const nfse = nfseInfoToApi(data.person.nfse)
+  }));
+  const nfse = nfseInfoToApi(data.person.nfse);
   const personPayload: PersonCreate['person'] = isPJ
     ? {
         fantasy_name: data.person.fantasy_name ?? '',
@@ -113,7 +113,7 @@ export function personFormToApi(data: EntityFormData): PersonCreate {
         isuf_emit: data.person.isuf_emit || null,
         bank: personBankToApi(data.person.bank),
         freight_retention: freightRetentionToApi(data.person.freight_retention),
-    }
+    };
 
   return {
     cpf_or_cnpj: data.cpf_or_cnpj,
@@ -122,13 +122,13 @@ export function personFormToApi(data: EntityFormData): PersonCreate {
     name: data.name.toUpperCase(),
     roles: data.roles,
     person: personPayload,
-  }
+  };
 }
 
 export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpfCnpj, initialRoles}: PersonFormProps) {
   const handleSubmit = async (data: EntityFormData) => {
-    await onSubmit(personFormToApi(data))
-  }
+    await onSubmit(personFormToApi(data));
+  };
 
   return (
     <EntityForm
@@ -141,5 +141,5 @@ export function PersonForm({initialData, onSubmit, loading, lockTipo, initialCpf
       onSubmit={handleSubmit}
       loading={loading}
     />
-  )
+  );
 }

@@ -1,43 +1,43 @@
-'use client'
+'use client';
 
-import {Suspense, useEffect, useRef, useState} from 'react'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {exchangeCode} from '@/lib/auth/oauth'
+import {Suspense, useEffect, useRef, useState} from 'react';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {exchangeCode} from '@/lib/auth/oauth';
 
 function CallbackInner() {
-  const {handleCallback} = useAuth()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [asyncError, setAsyncError] = useState<string | null>(null)
-  const ran = useRef(false)
+  const {handleCallback} = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [asyncError, setAsyncError] = useState<string | null>(null);
+  const ran = useRef(false);
   
-  const code = searchParams.get('code')
-  const state = searchParams.get('state')
-  const errorParam = searchParams.get('error')
+  const code = searchParams.get('code');
+  const state = searchParams.get('state');
+  const errorParam = searchParams.get('error');
   
   const paramError = errorParam
     ? `Erro de autenticação: ${errorParam}`
     : !code || !state
       ? 'Parâmetros de callback inválidos.'
-      : null
+      : null;
   
-  const error = paramError ?? asyncError
+  const error = paramError ?? asyncError;
   
   useEffect(() => {
-    if (ran.current || paramError) return
-    ran.current = true
+    if (ran.current || paramError) return;
+    ran.current = true;
     
     void (async () => {
       try {
-        const {accessToken, idToken, returnTo} = await exchangeCode(code!, state!)
-        await handleCallback(accessToken, idToken)
-        router.replace(returnTo)
+        const {accessToken, idToken, returnTo} = await exchangeCode(code!, state!);
+        await handleCallback(accessToken, idToken);
+        router.replace(returnTo);
       } catch (err) {
-        setAsyncError(err instanceof Error ? err.message : 'Falha na autenticação.')
+        setAsyncError(err instanceof Error ? err.message : 'Falha na autenticação.');
       }
-    })()
-  }, [searchParams, handleCallback, router, paramError, code, state])
+    })();
+  }, [searchParams, handleCallback, router, paramError, code, state]);
   
   if (error) {
     return (
@@ -52,7 +52,7 @@ function CallbackInner() {
           </button>
         </div>
       </div>
-    )
+    );
   }
   
   return (
@@ -62,7 +62,7 @@ function CallbackInner() {
         <p className="text-gray-500 text-sm">Autenticando...</p>
       </div>
     </div>
-  )
+  );
 }
 
 export default function CallbackPage() {
@@ -70,5 +70,5 @@ export default function CallbackPage() {
     <Suspense>
       <CallbackInner/>
     </Suspense>
-  )
+  );
 }

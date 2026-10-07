@@ -1,39 +1,39 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {ProductLotForm} from '@/components/product-lots/ProductLotForm'
-import type {ProductLotCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {ProductLotForm} from '@/components/product-lots/ProductLotForm';
+import type {ProductLotCreate} from '@/lib/types/api';
 
 function EditProductLotContent() {
-  const params = useSearchParams()
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {data: lot, isLoading} = useQuery({
     queryKey: queryKeys.productLots.detail(id),
     queryFn: () => apiClient.getProductLot(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
 
   const updateMutation = useMutation({
     mutationFn: (d: ProductLotCreate) => apiClient.updateProductLot(id, d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.productLots.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.productLots.detail(id)})
-      router.push('/product-lots')
+      void qc.invalidateQueries({queryKey: queryKeys.productLots.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.productLots.detail(id)});
+      router.push('/product-lots');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -55,14 +55,14 @@ function EditProductLotContent() {
           <ProductLotForm
             initialData={lot}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditProductLotPage() {
@@ -72,5 +72,5 @@ export default function EditProductLotPage() {
         <EditProductLotContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

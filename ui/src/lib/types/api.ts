@@ -1,5 +1,5 @@
-import type {DfeStatus} from '@/lib/data/dfe_status'
-import type {PersonRole} from '@/lib/schemas/entity'
+import type {DfeStatus} from '@/lib/data/dfe_status';
+import type {PersonRole} from '@/lib/schemas/entity';
 
 // Auth
 export interface TokenResponse {
@@ -1402,11 +1402,11 @@ export const NF_PAYMENT_TYPES: Record<string, string> = {
   '90': 'Sem pagamento',
   '91': 'Pagamento Posterior',
   '99': 'Outros',
-}
+};
 
 export const displayPaymentTypeLabel = (code: string): string | undefined => {
-  return NF_PAYMENT_TYPES[code]
-}
+  return NF_PAYMENT_TYPES[code];
+};
 
 export interface NfeArmaIn {
   n_serie: string

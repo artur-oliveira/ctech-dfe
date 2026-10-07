@@ -8,7 +8,7 @@
  * é KG, então só as exceções são listadas; o resto cai no default.
  */
 
-const DEFAULT_TAXABLE_UNIT = 'KG'
+const DEFAULT_TAXABLE_UNIT = 'KG';
 
 /** NCMs cuja unidade tributável não é a default. */
 const TAXABLE_UNIT_EXCEPTIONS: Record<string, string> = {
@@ -497,15 +497,15 @@ const TAXABLE_UNIT_EXCEPTIONS: Record<string, string> = {
   "96035000": "UN", "96039000": "UN", "96040000": "UN", "96050000": "UN", "96081000": "UN", "96082000": "UN",
   "96083000": "UN", "96084000": "UN", "96085000": "UN", "96086000": "UN", "96089100": "UN", "96121000": "UN",
   "96122000": "UN", "96131000": "UN", "96132000": "UN", "96138000": "UN", "97012100": "UN", "97019100": "UN",
-  "97021000": "UN", "97029000": "UN", "97031000": "UN", "97039000": "UN",}
+  "97021000": "UN", "97029000": "UN", "97031000": "UN", "97039000": "UN",};
 
 /**
  * Unidade tributável publicada para o NCM, ou null quando o código não está na
  * tabela. Aceita o NCM com ou sem pontuação.
  */
 export function taxableUnitForNcm(ncm?: string | null): string | null {
-  if (!ncm) return null
-  const code = ncm.replace(/\D/g, '')
-  if (code.length !== 8) return null
-  return TAXABLE_UNIT_EXCEPTIONS[code] ?? DEFAULT_TAXABLE_UNIT
+  if (!ncm) return null;
+  const code = ncm.replace(/\D/g, '');
+  if (code.length !== 8) return null;
+  return TAXABLE_UNIT_EXCEPTIONS[code] ?? DEFAULT_TAXABLE_UNIT;
 }

@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {ApiError} from '@/lib/api/client'
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {ApiError} from '@/lib/api/client';
 import {
   TP_VALE_PED_OPTIONS,
   type TollProviderFormData,
   tollProviderSchema,
-} from '@/lib/schemas/toll-providers'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
-import type {TollProviderCreate, TollProviderItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/toll-providers';
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
+import type {TollProviderCreate, TollProviderItemOut} from '@/lib/types/api';
 
 const EMPTY: TollProviderFormData = {
   name: '', cnpj_forn: '', cnpj_pg: '', cpf_pg: '', tp_vale_ped: '',
-}
+};
 
 export interface TollProviderFormProps {
   initialData?: TollProviderItemOut
@@ -27,28 +27,28 @@ export interface TollProviderFormProps {
 }
 
 function toFormData(t: TollProviderItemOut): TollProviderFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
   return {
     name: t.name,
     cnpj_forn: str(t.cnpj_forn),
     cnpj_pg: str(t.cnpj_pg),
     cpf_pg: str(t.cpf_pg),
     tp_vale_ped: str(t.tp_vale_ped) as TollProviderFormData['tp_vale_ped'],
-  }
+  };
 }
 
 /** Campo vazio vira null: um "" gravado é um default silenciosamente vazio. */
-const nullify = (v: string | undefined) => (v ? v : null)
+const nullify = (v: string | undefined) => (v ? v : null);
 
 export function TollProviderForm({initialData, onSubmit, loading}: TollProviderFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<TollProviderFormData>({
     resolver: zodResolver(tollProviderSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
   const handleSubmit = async (data: TollProviderFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -56,11 +56,11 @@ export function TollProviderForm({initialData, onSubmit, loading}: TollProviderF
         cnpj_pg: data.cnpj_pg ? unformatCpfCnpj(data.cnpj_pg) : null,
         cpf_pg: data.cpf_pg ? unformatCpfCnpj(data.cpf_pg) : null,
         tp_vale_ped: nullify(data.tp_vale_ped),
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a fornecedora.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a fornecedora.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -146,5 +146,5 @@ export function TollProviderForm({initialData, onSubmit, loading}: TollProviderF
         </div>
       </form>
     </Form>
-  )
+  );
 }

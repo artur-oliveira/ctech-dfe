@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
 import {
   BODYWORK_OPTIONS,
   OWNER_TYPE_OPTIONS,
@@ -16,9 +16,9 @@ import {
   type VehicleFormData,
   vehicleSchema,
   WHEELSET_OPTIONS,
-} from '@/lib/schemas/vehicles'
-import type {VehicleCreate, VehicleOut} from '@/lib/types/api'
-import {maskCpfCnpj} from '@/lib/utils/masks'
+} from '@/lib/schemas/vehicles';
+import type {VehicleCreate, VehicleOut} from '@/lib/types/api';
+import {maskCpfCnpj} from '@/lib/utils/masks';
 
 interface VehicleFormProps {
   initialData?: VehicleOut
@@ -49,12 +49,12 @@ function fromOut(v: VehicleOut): VehicleFormData {
         type: v.owner.type as 'TAC' | 'ETC' | 'CTC'
       }
       : undefined,
-  }
+  };
 }
 
 export function VehicleForm({initialData, onSubmit, loading = false, highlightFields = []}: VehicleFormProps) {
-  const [advancedOpen, setAdvancedOpen] = useState(highlightFields.length > 0)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [advancedOpen, setAdvancedOpen] = useState(highlightFields.length > 0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
@@ -72,14 +72,14 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
         cap_m3: '',
         cint: '',
       },
-  })
+  });
 
-  const role = useWatch({control: form.control, name: 'role'})
-  const wantsOwner = useWatch({control: form.control, name: 'owner'})
-  const ownerCpf = useWatch({control: form.control, name: 'owner.cpf_cnpj'})
+  const role = useWatch({control: form.control, name: 'role'});
+  const wantsOwner = useWatch({control: form.control, name: 'owner'});
+  const ownerCpf = useWatch({control: form.control, name: 'owner.cpf_cnpj'});
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       const payload: VehicleCreate = {
         plate: data.plate,
@@ -93,14 +93,14 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
         cap_m3: data.cap_m3 ? Number(data.cap_m3) : undefined,
         cint: data.cint || undefined,
         owner: data.owner ? {...data.owner, cpf_cnpj: data.owner.cpf_cnpj.replace(/\D/g, '')} : undefined,
-      }
-      await onSubmit(payload)
+      };
+      await onSubmit(payload);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  })
+  });
 
-  const isMissing = (field: string) => highlightFields.includes(field)
+  const isMissing = (field: string) => highlightFields.includes(field);
 
   return (
     <Form {...form}>
@@ -341,5 +341,5 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
         </div>
       </form>
     </Form>
-  )
+  );
 }

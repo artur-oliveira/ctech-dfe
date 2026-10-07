@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import {useEffect} from 'react'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {startCompanyHandoff} from '@/lib/handoff'
+import {useEffect} from 'react';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {startCompanyHandoff} from '@/lib/handoff';
 
 /**
  * Creating a company starts in the CTech account.
@@ -15,8 +15,8 @@ import {startCompanyHandoff} from '@/lib/handoff'
  */
 function NewOrganizationRedirect() {
   useEffect(() => {
-    startCompanyHandoff()
-  }, [])
+    startCompanyHandoff();
+  }, []);
 
   return (
     <RootLayout>
@@ -27,7 +27,7 @@ function NewOrganizationRedirect() {
         </p>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NewOrganizationPage() {
@@ -35,5 +35,5 @@ export default function NewOrganizationPage() {
     <ProtectedRoute>
       <NewOrganizationRedirect/>
     </ProtectedRoute>
-  )
+  );
 }

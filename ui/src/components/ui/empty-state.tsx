@@ -1,5 +1,5 @@
-import type {ReactNode} from 'react'
-import {Button} from '@/components/ui/button'
+import type {ReactNode} from 'react';
+import {Button} from '@/components/ui/button';
 
 interface EmptyStateProps {
   title: string
@@ -17,7 +17,7 @@ const DEFAULT_ICON = (
     <rect x="14" y="14" width="7" height="7"/>
     <rect x="3" y="14" width="7" height="7"/>
   </svg>
-)
+);
 
 export function EmptyState({title, description, action, icon}: EmptyStateProps) {
   return (
@@ -37,5 +37,5 @@ export function EmptyState({title, description, action, icon}: EmptyStateProps) 
         </Button>
       )}
     </div>
-  )
+  );
 }

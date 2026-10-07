@@ -1,29 +1,29 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {DFE_TERMS_URL} from '@/lib/legal'
+import {useState} from 'react';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {DFE_TERMS_URL} from '@/lib/legal';
 
 // Blocks access until the user explicitly accepts the dfe-specific terms
 // addendum — shown once, right after first login, since Google/SSO sign-up
 // never presents a checkbox of its own for product-specific terms.
 export function TermsAddendumGate() {
-  const {refreshUser} = useAuth()
-  const [checked, setChecked] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const {refreshUser} = useAuth();
+  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleAccept() {
-    if (!checked) return
-    setError('')
-    setLoading(true)
+    if (!checked) return;
+    setError('');
+    setLoading(true);
     try {
-      await apiClient.acceptTermsAddendum()
-      await refreshUser()
+      await apiClient.acceptTermsAddendum();
+      await refreshUser();
     } catch {
-      setError('Não foi possível confirmar. Tente novamente.')
-      setLoading(false)
+      setError('Não foi possível confirmar. Tente novamente.');
+      setLoading(false);
     }
   }
 
@@ -65,5 +65,5 @@ export function TermsAddendumGate() {
         </button>
       </div>
     </div>
-  )
+  );
 }

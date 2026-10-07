@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useMemo, useState} from 'react'
-import {generateEntityCode} from '@/lib/utils/code'
-import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox} from '@/components/ui/combobox'
-import {NcmCombobox} from '@/components/ui/ncm-combobox'
-import {GlossaryTerm} from '@/components/ui/glossary-term'
-import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq'
-import {ANP_OPTIONS, anpMonoFuel} from '@/lib/data/anp'
-import {benefitOptionsForUf} from '@/lib/data/cbenef'
-import {especieOptionsForTipo} from '@/lib/data/vehicle_type_pairs'
-import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit'
-import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods'
-import {UF_IBGE_OPTIONS} from '@/lib/data/cities'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
+import Link from 'next/link';
+import {useMemo, useState} from 'react';
+import {generateEntityCode} from '@/lib/utils/code';
+import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox} from '@/components/ui/combobox';
+import {NcmCombobox} from '@/components/ui/ncm-combobox';
+import {GlossaryTerm} from '@/components/ui/glossary-term';
+import {cEnqOptionsForCst, IPI_CENQ_DEFAULT} from '@/lib/data/ipi_cenq';
+import {ANP_OPTIONS, anpMonoFuel} from '@/lib/data/anp';
+import {benefitOptionsForUf} from '@/lib/data/cbenef';
+import {especieOptionsForTipo} from '@/lib/data/vehicle_type_pairs';
+import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit';
+import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods';
+import {UF_IBGE_OPTIONS} from '@/lib/data/cities';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
 import {
   type CfopConfigFormData,
   cfopConfigSchema,
   type ConversionFactorFormData,
   type ProductFormData,
   productSchema
-} from '@/lib/schemas/products'
-import type {CombOrigIn, ProductCreate, ProductOut} from '@/lib/types/api'
-import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop'
+} from '@/lib/schemas/products';
+import type {CombOrigIn, ProductCreate, ProductOut} from '@/lib/types/api';
+import {getCfopOptionsForNfce, getCfopVariants} from '@/lib/data/cfop';
 import {
   CSOSN_ST,
   EMPTY_TAX_GROUPS,
@@ -45,12 +45,12 @@ import {
   PIS_COFINS_ALIQ_CSTS,
   TaxFieldsEditor,
   type TaxGroups,
-} from '@/components/tax/TaxFieldsEditor'
-import {isRegimeSimples} from '@/lib/constants/tax'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {UNIT_OPTIONS} from '@/lib/data/unit'
-import {TP_CRED_PRES_IBS_ZFM_OPTIONS} from '@/lib/data/ibs_cbs_reform'
-import {ORIGIN_OPTIONS} from '@/lib/data/origin'
+} from '@/components/tax/TaxFieldsEditor';
+import {isRegimeSimples} from '@/lib/constants/tax';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {UNIT_OPTIONS} from '@/lib/data/unit';
+import {TP_CRED_PRES_IBS_ZFM_OPTIONS} from '@/lib/data/ibs_cbs_reform';
+import {ORIGIN_OPTIONS} from '@/lib/data/origin';
 import {
   VEIC_COND_OPTIONS,
   VEIC_COR_DENATRAN_OPTIONS,
@@ -62,9 +62,9 @@ import {
   VEIC_TP_VEIC_OPTIONS,
   VEIC_VIN_OPTIONS,
   vehicleYearOptions,
-} from '@/lib/data/vehicle'
-import {UfOverridesEditor, type UfOverrideFormData} from '@/components/tax/UfOverridesEditor'
-import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
+} from '@/lib/data/vehicle';
+import {UfOverridesEditor, type UfOverrideFormData} from '@/components/tax/UfOverridesEditor';
+import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,10 +81,10 @@ interface ProductFormProps {
 }
 
 // indBemMovelUsado (prod/indBemMovelUsado) enumera um valor só no XSD.
-const IND_BEM_MOVEL_USADO_SIM = '1'
+const IND_BEM_MOVEL_USADO_SIM = '1';
 
 /** Limite de gCred no leiaute (maxOccurs=4). */
-const MAX_GCRED = 4
+const MAX_GCRED = 4;
 
 /**
  * Créditos presumidos da UF aplicados ao item (prod/gCred). O `vCredPresumido`
@@ -92,7 +92,7 @@ const MAX_GCRED = 4
  * pedir os três seria pedir que o operador feche uma conta que o sistema faz.
  */
 function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
-  const {fields, append, remove} = useFieldArray({control: form.control, name: 'gcred'})
+  const {fields, append, remove} = useFieldArray({control: form.control, name: 'gcred'});
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -132,15 +132,15 @@ function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const IS_SIMPLES = isRegimeSimples
+const IS_SIMPLES = isRegimeSimples;
 
 // Calculada uma vez por carga do módulo: a lista não muda durante a sessão.
-const VEHICLE_YEAR_OPTIONS = vehicleYearOptions()
+const VEHICLE_YEAR_OPTIONS = vehicleYearOptions();
 
 /** Grupos que não seguem o tipo do produto — qualquer produto pode ter qualquer um. */
 const EXTRA_GROUP_OPTIONS = [
@@ -148,24 +148,24 @@ const EXTRA_GROUP_OPTIONS = [
   {key: 'reforma', label: 'Crédito presumido ou regime da reforma (IBS/CBS)'},
   {key: 'selo', label: 'Selo de controle do IPI'},
   {key: 'perigoso', label: 'Classificação de produto perigoso'},
-] as const
+] as const;
 
 type ExtraGroupKey = typeof EXTRA_GROUP_OPTIONS[number]['key']
 type ExtraGroups = Record<ExtraGroupKey, boolean>
 
 /** Literais do leiaute — nunca digitados, sempre escritos por um controle. */
-const SEM_GTIN = 'SEM GTIN'
-const ANVISA_ISENTO = 'ISENTO'
+const SEM_GTIN = 'SEM GTIN';
+const ANVISA_ISENTO = 'ISENTO';
 
 /** Tabela estática: recriar o array por render invalidava o memo do Combobox. */
-const NFCE_CFOP_OPTIONS = getCfopOptionsForNfce()
+const NFCE_CFOP_OPTIONS = getCfopOptionsForNfce();
 
 const TABS: { id: ProductTab; label: string }[] = [
   {id: 'produto', label: 'Produto'},
   {id: 'unidades', label: 'Preços e Unidades'},
   {id: 'tributacao', label: 'Tributação'},
   {id: 'especial', label: 'Tipo Especial'},
-]
+];
 
 /**
  * Em que aba mora cada campo. Sem isso, um erro de validação numa aba inativa é
@@ -181,14 +181,14 @@ const TAB_FIELDS: Record<Exclude<ProductTab, 'especial'>, readonly string[]> = {
     'net_weight', 'gross_weight', 'conversion_factors',
   ],
   tributacao: ['cfop_nfce', 'cfop_config', 'icms_aliq_override', 'fcp_aliq_override'],
-}
+};
 
 /** A aba "Tipo Especial" é o resto: tudo que não é identificação, preço ou tributação. */
 function tabOfField(field: string): ProductTab {
   for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
-    if (fields.includes(field)) return tab as ProductTab
+    if (fields.includes(field)) return tab as ProductTab;
   }
-  return 'especial'
+  return 'especial';
 }
 
 
@@ -291,13 +291,13 @@ const EMPTY_CFOP_ROW: CfopConfigFormData = {
   obs_item_x_campo: '',
   obs_item_x_texto: '',
   uf_overrides: [],
-}
+};
 
 const EMPTY_CONVERSION_ROW: ConversionFactorFormData = {
   origin_unit: '',
   target_unit: '',
   factor: '',
-}
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -492,12 +492,12 @@ function toFormData(p: ProductOut): ProductFormData {
     veic_x_cor: p.veic_x_cor ?? '',
     arma_tp_arma: p.arma_tp_arma ?? '',
     arma_descr: p.arma_descr ?? '',
-  }
+  };
 }
 
 function toApiPayload(data: ProductFormData): ProductCreate {
-  const nullify = (v: string | undefined) => (v ? v : null)
-  const hasDifferentUnits = data.unit && data.taxable_unit && data.unit !== data.taxable_unit
+  const nullify = (v: string | undefined) => (v ? v : null);
+  const hasDifferentUnits = data.unit && data.taxable_unit && data.unit !== data.taxable_unit;
   return {
     code: data.code,
     description: data.description,
@@ -692,55 +692,55 @@ function toApiPayload(data: ProductFormData): ProductCreate {
     veic_x_cor: nullify(data.veic_x_cor),
     arma_tp_arma: nullify(data.arma_tp_arma),
     arma_descr: nullify(data.arma_descr),
-  }
+  };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false}: ProductFormProps) {
-  const {selectedOrg} = useAuth()
-  const [activeTab, setActiveTab] = useState<ProductTab>('produto')
-  const [cfopRow, setCfopRow] = useState<CfopConfigFormData>(EMPTY_CFOP_ROW)
-  const [cfopError, setCfopError] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const [activeTab, setActiveTab] = useState<ProductTab>('produto');
+  const [cfopRow, setCfopRow] = useState<CfopConfigFormData>(EMPTY_CFOP_ROW);
+  const [cfopError, setCfopError] = useState<string | null>(null);
   // Remonta o TaxFieldsEditor para zerar seus toggles internos quando
   // uma linha de CFOP é adicionada à lista.
-  const [taxEditorKey, setTaxEditorKey] = useState(0)
-  const [taxOverrideOpen, setTaxOverrideOpen] = useState(false)
+  const [taxEditorKey, setTaxEditorKey] = useState(0);
+  const [taxOverrideOpen, setTaxOverrideOpen] = useState(false);
   // Nasce marcado o grupo que já tem dado, senão editar um produto existente
   // esconderia campos preenchidos.
   const [extraGroups, setExtraGroups] = useState<ExtraGroups>(() => {
-    const p = initialData
+    const p = initialData;
     return {
       importacao: !!(p?.nve?.length || p?.n_fci || p?.c_barra || p?.c_barra_trib),
       reforma: !!(p?.gcred?.length || p?.tp_cred_pres_ibs_zfm || p?.ind_bem_movel_usado),
       selo: !!(p?.ipi_c_selo || p?.ipi_q_selo || p?.ipi_c_enq || p?.ipi_cnpj_prod),
       perigoso: !!(p?.peri_n_onu || p?.peri_x_nome_ae || p?.peri_x_cla_risco || p?.peri_gr_emb),
-    }
-  })
-  const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS)
+    };
+  });
+  const [taxGroups, setTaxGroups] = useState<TaxGroups>(EMPTY_TAX_GROUPS);
   // Perfis fiscais vinculados. Fora do zod de propósito: o productSchema já é
   // grande o bastante para que mais um array aninhado estoure a inferência do
   // resolver do react-hook-form. É só uma lista de ids — não há o que validar
   // aqui que o backend não valide.
   const [taxProfileIds, setTaxProfileIds] = useState<string[]>(
     () => (initialData?.tax_profiles ?? []).map((r) => r.tax_profile_id),
-  )
+  );
 
   const {data: taxProfilePage} = useQuery({
     queryKey: queryKeys.taxProfiles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getTaxProfiles({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const taxProfiles = taxProfilePage?.items ?? []
-  const [ufOverrideRows, setUfOverrideRows] = useState<UfOverrideFormData[]>([])
-  const [convRow, setConvRow] = useState<ConversionFactorFormData>(EMPTY_CONVERSION_ROW)
-  const [convError, setConvError] = useState<string | null>(null)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  });
+  const taxProfiles = taxProfilePage?.items ?? [];
+  const [ufOverrideRows, setUfOverrideRows] = useState<UfOverrideFormData[]>([]);
+  const [convRow, setConvRow] = useState<ConversionFactorFormData>(EMPTY_CONVERSION_ROW);
+  const [convError, setConvError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   // Código é identificação interna: gerado por padrão, editável (lib/utils/code.ts).
-  const [defaultCode] = useState(generateEntityCode)
+  const [defaultCode] = useState(generateEntityCode);
 
 
-  const simples = IS_SIMPLES(crt)
+  const simples = IS_SIMPLES(crt);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -786,40 +786,40 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       veic_c_cor: '', veic_x_cor: '',
       arma_tp_arma: '', arma_descr: '',
     },
-  })
+  });
 
-  const cfopConfig = useWatch({control: form.control, name: 'cfop_config'})
-  const conversionFactors = useWatch({control: form.control, name: 'conversion_factors'})
-  const watchedUnit = useWatch({control: form.control, name: 'unit'})
-  const watchedTaxableUnit = useWatch({control: form.control, name: 'taxable_unit'})
-  const watchedCest = useWatch({control: form.control, name: 'cest'})
-  const watchedNcm = useWatch({control: form.control, name: 'ncm'})
-  const watchedProdType = useWatch({control: form.control, name: 'prod_type'})
-  const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'})
-  const watchedRiskClass = useWatch({control: form.control, name: 'peri_x_cla_risco'})
-  const watchedAnp = useWatch({control: form.control, name: 'comb_c_prod_anp'})
-  const selectedFuel = anpMonoFuel(watchedAnp)
+  const cfopConfig = useWatch({control: form.control, name: 'cfop_config'});
+  const conversionFactors = useWatch({control: form.control, name: 'conversion_factors'});
+  const watchedUnit = useWatch({control: form.control, name: 'unit'});
+  const watchedTaxableUnit = useWatch({control: form.control, name: 'taxable_unit'});
+  const watchedCest = useWatch({control: form.control, name: 'cest'});
+  const watchedNcm = useWatch({control: form.control, name: 'ncm'});
+  const watchedProdType = useWatch({control: form.control, name: 'prod_type'});
+  const watchedCombOrig = useWatch({control: form.control, name: 'comb_orig'});
+  const watchedRiskClass = useWatch({control: form.control, name: 'peri_x_cla_risco'});
+  const watchedAnp = useWatch({control: form.control, name: 'comb_c_prod_anp'});
+  const selectedFuel = anpMonoFuel(watchedAnp);
   // O código de benefício vale por UF e por CST; a linha de tributação em
   // edição é quem sabe o CST.
-  const watchedTpVeic = useWatch({control: form.control, name: 'veic_tp_veic'})
-  const especieOptions = useMemo(() => especieOptionsForTipo(watchedTpVeic), [watchedTpVeic])
+  const watchedTpVeic = useWatch({control: form.control, name: 'veic_tp_veic'});
+  const especieOptions = useMemo(() => especieOptionsForTipo(watchedTpVeic), [watchedTpVeic]);
   // A SEFAZ publica a unidade em que cada NCM é tributado.
-  const ncmTaxableUnit = taxableUnitForNcm(watchedNcm)
+  const ncmTaxableUnit = taxableUnitForNcm(watchedNcm);
   const benefitOptions = useMemo(
     () => benefitOptionsForUf(uf, cfopRow.icms ?? cfopRow.csosn),
     [uf, cfopRow.icms, cfopRow.csosn],
-  )
+  );
   // O CST do IPI decide a faixa de enquadramento aceita (RV W16-10).
-  const cEnqOptions = useMemo(() => cEnqOptionsForCst(cfopRow.ipi_cst), [cfopRow.ipi_cst])
-  const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit
+  const cEnqOptions = useMemo(() => cEnqOptionsForCst(cfopRow.ipi_cst), [cfopRow.ipi_cst]);
+  const showConversionFactors = !!watchedUnit && !!watchedTaxableUnit && watchedUnit !== watchedTaxableUnit;
 
-  const [prevShowConvFact, setPrevShowConvFact] = useState(showConversionFactors)
+  const [prevShowConvFact, setPrevShowConvFact] = useState(showConversionFactors);
   if (prevShowConvFact !== showConversionFactors) {
-    setPrevShowConvFact(showConversionFactors)
+    setPrevShowConvFact(showConversionFactors);
     if (showConversionFactors) {
-      setConvRow(r => ({...r, origin_unit: watchedUnit ?? '', target_unit: watchedTaxableUnit ?? ''}))
+      setConvRow(r => ({...r, origin_unit: watchedUnit ?? '', target_unit: watchedTaxableUnit ?? ''}));
     } else {
-      setConvRow(EMPTY_CONVERSION_ROW)
+      setConvRow(EMPTY_CONVERSION_ROW);
     }
   }
 
@@ -828,62 +828,62 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
   // digitado diverge dele. Sem autopreenchimento: o campo fica vazio até o
   // usuário digitar algo (design spec 2026-08-09-tax-config-redesign
   // §Modelo de dados 6).
-  const productSystemAliq = useIcmsAliqPreview(uf, uf, watchedNcm)
-  const watchedIcmsOverride = useWatch({control: form.control, name: 'icms_aliq_override'})
+  const productSystemAliq = useIcmsAliqPreview(uf, uf, watchedNcm);
+  const watchedIcmsOverride = useWatch({control: form.control, name: 'icms_aliq_override'});
   const productAliqDiverges = !!productSystemAliq && !!watchedIcmsOverride &&
-    watchedIcmsOverride !== productSystemAliq.icms_aliq
+    watchedIcmsOverride !== productSystemAliq.icms_aliq;
 
 
-  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '')
+  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '');
 
 
   // ─── CFOP handlers ──────────────────────────────────────────────────────────
 
   const addCfop = () => {
     if (!cfopRow.cfop || !/^\d{4}$/.test(cfopRow.cfop)) {
-      setCfopError('CFOP deve ter 4 dígitos')
-      return
+      setCfopError('CFOP deve ter 4 dígitos');
+      return;
     }
     if (simples && !cfopRow.csosn) {
-      setCfopError('CSOSN obrigatório para Simples Nacional')
-      return
+      setCfopError('CSOSN obrigatório para Simples Nacional');
+      return;
     }
     if (!simples && !cfopRow.icms && !taxGroups.issqn) {
-      setCfopError('ICMS CST obrigatório para Regime Normal (ou habilite ISSQN)')
-      return
+      setCfopError('ICMS CST obrigatório para Regime Normal (ou habilite ISSQN)');
+      return;
     }
     if (!cfopRow.pis || !cfopRow.cofins) {
-      setCfopError('PIS e COFINS são obrigatórios')
-      return
+      setCfopError('PIS e COFINS são obrigatórios');
+      return;
     }
     if (!simples && showMotDeSon && !cfopRow.icms_mot_des) {
-      setCfopError('Motivo de desoneração obrigatório para este CST')
-      return
+      setCfopError('Motivo de desoneração obrigatório para este CST');
+      return;
     }
     if (taxGroups.ipi && !cfopRow.ipi_cst) {
-      setCfopError('CST IPI obrigatório quando IPI está habilitado')
-      return
+      setCfopError('CST IPI obrigatório quando IPI está habilitado');
+      return;
     }
     if (taxGroups.is && !cfopRow.is_cst) {
-      setCfopError('CST IS obrigatório quando IS está habilitado')
-      return
+      setCfopError('CST IS obrigatório quando IS está habilitado');
+      return;
     }
     if (taxGroups.issqn && !cfopRow.issqn_ind_iss) {
-      setCfopError('Exigibilidade ISS obrigatória quando ISSQN está habilitado')
-      return
+      setCfopError('Exigibilidade ISS obrigatória quando ISSQN está habilitado');
+      return;
     }
 
     // Regras de grupo do leiaute (IPI, ICMSPart, pauta, ALC/ZFM, obsItem) vivem
     // no schema, para valerem também no perfil fiscal e no salvamento.
-    const groupCheck = cfopConfigSchema.safeParse({...cfopRow, cfop: cfopRow.cfop})
+    const groupCheck = cfopConfigSchema.safeParse({...cfopRow, cfop: cfopRow.cfop});
     if (!groupCheck.success) {
-      setCfopError(groupCheck.error.issues[0].message)
-      return
+      setCfopError(groupCheck.error.issues[0].message);
+      return;
     }
 
     const hasSt = (!simples && ICMS_ST_CSTS.has(cfopRow.icms ?? '')) ||
-      (simples && CSOSN_ST.has(cfopRow.csosn ?? ''))
-    const isMono = !simples && ICMS_MONO_CSTS.has(cfopRow.icms ?? '')
+      (simples && CSOSN_ST.has(cfopRow.csosn ?? ''));
+    const isMono = !simples && ICMS_MONO_CSTS.has(cfopRow.icms ?? '');
 
     const newCfopConfigs = getCfopVariants(cfopRow.cfop as never).map(variant => {
       return {
@@ -972,75 +972,75 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         issqn_v_deducao: taxGroups.issqn ? cfopRow.issqn_v_deducao : '',
         issqn_v_iss_ret: taxGroups.issqn ? cfopRow.issqn_v_iss_ret : '',
         uf_overrides: ufOverrideRows,
-      }
-    })
+      };
+    });
 
-    setCfopError(null)
-    setTaxGroups(EMPTY_TAX_GROUPS)
-    setTaxEditorKey((k) => k + 1)
-    form.setValue('cfop_config', [...cfopConfig, ...newCfopConfigs])
-    setCfopRow(EMPTY_CFOP_ROW)
-    setUfOverrideRows([])
-  }
+    setCfopError(null);
+    setTaxGroups(EMPTY_TAX_GROUPS);
+    setTaxEditorKey((k) => k + 1);
+    form.setValue('cfop_config', [...cfopConfig, ...newCfopConfigs]);
+    setCfopRow(EMPTY_CFOP_ROW);
+    setUfOverrideRows([]);
+  };
 
   const removeCfop = (i: number) => {
-    form.setValue('cfop_config', cfopConfig.filter((_, idx) => idx !== i))
-  }
+    form.setValue('cfop_config', cfopConfig.filter((_, idx) => idx !== i));
+  };
 
   // ─── Conversion handlers ─────────────────────────────────────────────────
 
   const addConversion = () => {
     if (!convRow.origin_unit || !convRow.target_unit || !convRow.factor) {
-      setConvError('Preencha todos os campos')
-      return
+      setConvError('Preencha todos os campos');
+      return;
     }
     if (!/^[A-Z]{1,6}$/.test(convRow.origin_unit) || !/^[A-Z]{1,6}$/.test(convRow.target_unit)) {
-      setConvError('Unidade inválida (apenas A–Z)')
-      return
+      setConvError('Unidade inválida (apenas A–Z)');
+      return;
     }
     if (!/^\d+(\.\d+)?$/.test(convRow.factor) || parseFloat(convRow.factor) <= 0) {
-      setConvError('Fator deve ser um número positivo')
-      return
+      setConvError('Fator deve ser um número positivo');
+      return;
     }
-    setConvError(null)
-    form.setValue('conversion_factors', [...conversionFactors, convRow])
-    setConvRow(EMPTY_CONVERSION_ROW)
-  }
+    setConvError(null);
+    form.setValue('conversion_factors', [...conversionFactors, convRow]);
+    setConvRow(EMPTY_CONVERSION_ROW);
+  };
 
   const removeConversion = (i: number) => {
-    form.setValue('conversion_factors', conversionFactors.filter((_, idx) => idx !== i))
-  }
+    form.setValue('conversion_factors', conversionFactors.filter((_, idx) => idx !== i));
+  };
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = form.handleSubmit(async (data) => {
     if (data.cfop_config.length === 0 && taxProfileIds.length === 0) {
-      setActiveTab('tributacao')
-      setSubmitError('Escolha um perfil fiscal ou adicione uma configuração de CFOP na aba Tributação.')
-      return
+      setActiveTab('tributacao');
+      setSubmitError('Escolha um perfil fiscal ou adicione uma configuração de CFOP na aba Tributação.');
+      return;
     }
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         ...toApiPayload(data),
         tax_profiles: taxProfileIds.map((id) => ({tax_profile_id: id})),
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  })
+  });
 
   // Quantos campos com erro cada aba tem — o badge é o que faz o submit falho
   // apontar para onde o operador precisa ir.
   // O editor completo fica recolhido enquanto um perfil fiscal responder pela
   // tributação e não houver linha própria nem intenção explícita de sobrescrever.
-  const taxOverrideCollapsed = taxProfileIds.length > 0 && cfopConfig.length === 0 && !taxOverrideOpen
+  const taxOverrideCollapsed = taxProfileIds.length > 0 && cfopConfig.length === 0 && !taxOverrideOpen;
 
   const errorsByTab = Object.keys(form.formState.errors).reduce<Record<string, number>>((acc, field) => {
-    const tab = tabOfField(field)
-    acc[tab] = (acc[tab] ?? 0) + 1
-    return acc
-  }, {})
+    const tab = tabOfField(field);
+    acc[tab] = (acc[tab] ?? 0) + 1;
+    return acc;
+  }, {});
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -1329,7 +1329,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                   ['taxable_cean', 'EAN tributável'],
                 ] as const).map(([name, label]) => (
                   <FormField key={name} control={form.control} name={name} render={({field}) => {
-                    const semGtin = field.value === SEM_GTIN
+                    const semGtin = field.value === SEM_GTIN;
                     return (
                       <FormItem>
                         <FormLabel>{label}</FormLabel>
@@ -1344,7 +1344,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                         </label>
                         <FormMessage/>
                       </FormItem>
-                    )
+                    );
                   }}/>
                 ))}
               </div>
@@ -1451,8 +1451,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               ) : (
                 <div className="flex flex-col gap-2 pt-1">
                   {taxProfiles.map((profile) => {
-                    const id = extractId(profile.sk, SK_PREFIX.TAX_PROFILE)
-                    const checked = taxProfileIds.includes(id)
+                    const id = extractId(profile.sk, SK_PREFIX.TAX_PROFILE);
+                    const checked = taxProfileIds.includes(id);
                     return (
                       <label key={profile.sk}
                              className="flex min-h-11 sm:min-h-0 cursor-pointer items-start gap-2 text-sm text-gray-700">
@@ -1468,7 +1468,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                           </span>
                         </span>
                       </label>
-                    )
+                    );
                   })}
                 </div>
               )}
@@ -1523,10 +1523,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 {cfopConfig.map((c, i) => {
                   const icmsPart = simples
                     ? `CSOSN ${c.csosn}${c.icms_sn_cred_aliq ? ` cred.${c.icms_sn_cred_aliq}%` : ''}`
-                    : `ICMS ${c.icms}${c.icms_aliq_override ? ` ${c.icms_aliq_override}%` : ''}${c.icms_p_red_bc ? ` red.${c.icms_p_red_bc}%` : ''}${c.icms_mot_des ? ` mot.${c.icms_mot_des}` : ''}`
-                  const stPart = c.icms_st_aliq ? ` · ST ${c.icms_st_aliq}%` : ''
-                  const ipiPart = c.ipi_cst ? ` · IPI ${c.ipi_cst}${c.ipi_aliq ? `/${c.ipi_aliq}%` : ''}` : ''
-                  const isPart = c.is_cst ? ` · IS ${c.is_cst}` : ''
+                    : `ICMS ${c.icms}${c.icms_aliq_override ? ` ${c.icms_aliq_override}%` : ''}${c.icms_p_red_bc ? ` red.${c.icms_p_red_bc}%` : ''}${c.icms_mot_des ? ` mot.${c.icms_mot_des}` : ''}`;
+                  const stPart = c.icms_st_aliq ? ` · ST ${c.icms_st_aliq}%` : '';
+                  const ipiPart = c.ipi_cst ? ` · IPI ${c.ipi_cst}${c.ipi_aliq ? `/${c.ipi_aliq}%` : ''}` : '';
+                  const isPart = c.is_cst ? ` · IS ${c.is_cst}` : '';
                   return (
                     <div key={i}
                          className="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm">
@@ -1537,7 +1537,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                               className="ml-4 text-danger hover:text-red-700">remover
                       </Button>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
@@ -1579,14 +1579,14 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <FormLabel>Código ANP *</FormLabel>
                       <Combobox id={field.name} value={field.value ?? ''}
                                 onValueChange={(v) => {
-                                  field.onChange(v)
+                                  field.onChange(v);
                                   // A SEFAZ publica descrição, unidade, pBio e
                                   // ad rem dos monofásicos: pedir isso de novo ao
                                   // operador é pedir que ele erre uma cópia.
-                                  const fuel = anpMonoFuel(v)
-                                  if (!fuel) return
-                                  form.setValue('comb_desc_anp', fuel.description, {shouldDirty: true})
-                                  form.setValue('comb_p_bio', fuel.bioPercent, {shouldDirty: true})
+                                  const fuel = anpMonoFuel(v);
+                                  if (!fuel) return;
+                                  form.setValue('comb_desc_anp', fuel.description, {shouldDirty: true});
+                                  form.setValue('comb_p_bio', fuel.bioPercent, {shouldDirty: true});
                                 }}
                                 options={ANP_OPTIONS} placeholder="Código ou combustível"
                                 searchPlaceholder="Código ou nome do combustível..." fuzzySearch/>
@@ -1660,7 +1660,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField control={form.control} name="med_c_prod_anvisa" render={({field}) => {
-                    const isento = field.value === ANVISA_ISENTO
+                    const isento = field.value === ANVISA_ISENTO;
                     return (
                       <FormItem>
                         <FormLabel>Registro ANVISA *</FormLabel>
@@ -1675,7 +1675,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                         </label>
                         <FormMessage/>
                       </FormItem>
-                    )
+                    );
                   }}/>
                   <FormField control={form.control} name="med_v_pmc" render={({field}) => (
                     <FormItem>
@@ -1885,10 +1885,10 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <FormLabel>Classe de risco</FormLabel>
                       <Combobox id={field.name} value={field.value ?? ''}
                                 onValueChange={(v) => {
-                                  field.onChange(v)
+                                  field.onChange(v);
                                   // Classe sem grupo de embalagem limpa o campo:
                                   // é regra da ANTT, não memória do operador.
-                                  if (!packingGroupApplies(v)) form.setValue('peri_gr_emb', '')
+                                  if (!packingGroupApplies(v)) form.setValue('peri_gr_emb', '');
                                 }}
                                 options={RISK_CLASS_OPTIONS} placeholder="Classe ANTT"
                                 searchPlaceholder="Classe ou descrição..." fuzzySearch/>
@@ -2133,7 +2133,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
         </div>
       </form>
     </Form>
-  )
+  );
 }
 /**
  * Origem do combustível (comb/origComb): de onde veio e em que proporção. É do
@@ -2145,7 +2145,7 @@ function CombOrigFields({value, onChange}: {
   onChange: (v: NonNullable<ProductFormData['comb_orig']>) => void
 }) {
   const patch = (i: number, p: Partial<CombOrigIn>) =>
-    onChange(value.map((o, k) => (k === i ? {...o, ...p} : o)))
+    onChange(value.map((o, k) => (k === i ? {...o, ...p} : o)));
 
   return (
     <div className="space-y-2">
@@ -2184,5 +2184,5 @@ function CombOrigFields({value, onChange}: {
         </div>
       ))}
     </div>
-  )
+  );
 }

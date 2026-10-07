@@ -1,8 +1,7 @@
 # go-dfe
 
-In-process Go SEFAZ client (SOAP + XML-DSig + mTLS). A **library**, not a service: `worker`
-and `api` import it directly via the root `go.work` and call `dfe.Call` in-process (no Lambda Invoke, no network hop).
-It is the **primary** dispatch path; py-dfe is the fallback (see `worker/README.md` §3).
+Go SEFAZ client (SOAP + XML-DSig + mTLS) and NFS-e REST client. A **library**, not a service: it is executed by the
+`go-dfe-egress` Lambda (sa-east-1), which `worker` and `api` invoke. They import this module only for its types.
 
 Authoritative rules: [`CLAUDE.md`](CLAUDE.md) · root [`MIGRATION.md`](../MIGRATION.md)
 (2026-07-18 entry) · [`DOCS.md`](../DOCS.md) go-dfe section.
@@ -11,17 +10,11 @@ Authoritative rules: [`CLAUDE.md`](CLAUDE.md) · root [`MIGRATION.md`](../MIGRAT
 
 ## 1. Public API
 
-- `dfe.Implements(docType, service string) bool` — `dfe.go:86`. Callers MUST check this before choosing `dfe.Call` vs
-  the py-dfe Lambda.
-- `dfe.Call(ctx, Request) (Response, error)` — `dfe.go:96`. Single entry point; errors for any `(docType, service)` not
-  in `implemented`.
-- `Request` / `Response` / `Problem` (`request.go:9-42`) mirror py-dfe's
-  `LambdaRequest`/`LambdaResponse`/`Problem` — wire format unchanged. `Response.Body` is a **JSON-encoded string**
-  (Lambda Invoke contract preserved).
-- `shadow.ShadowCompare(ctx, req, pyDfeStatusCode, pyDfeBody)` — `shadow.go:21`. Runs
-  `dfe.Call` in parallel with an already-obtained py-dfe response, compares status+body (structurally), **logs only,
-  never affects the caller**, never returns an error. Migration shadow window; py-dfe stays authoritative until the
-  window is clean.
+- `dfe.Implements(docType, service string) bool` — whether `(docType, service)` is a supported operation.
+- `dfe.Call(ctx, Request) (Response, error)` — single entry point; errors for any `(docType, service)` not in
+  `implemented`.
+- `Request` / `Response` / `Problem` (`request.go`) are the go-dfe-egress Lambda's wire contract. `Response.Body` is a
+  **JSON-encoded string**.
 
 ## 2. `implemented` map (`dfe.go:33-81`)
 
@@ -34,15 +27,14 @@ Coverage by doc type / SEFAZ service category:
 | `cte`   | ✓     | ✓                  | ✓ (Sinc/OS/GTVe/Simp) | ✓                  | ✓           |
 | `mdfe`  | ✓     | ✓                  | ✓                     | ✓                  | ✓           |
 
-Cancelamento flows through `RecepcaoEvento` (event 110111). The map IS the promotion gate:
-removing a key silently falls back to py-dfe.
+Cancelamento flows through `RecepcaoEvento` (event 110111). The map is the allowlist `Call` enforces: a key
+that is absent is rejected.
 
 ## 3. mTLS (`internal/certificate/manager.go`)
 
 `certificate.Load(certB64, password)` → `pkcs12.DecodeChain` → leaf cert + RSA key + CA chain (`manager.go:34-53`).
 Builds `*http.Client` with the mTLS cert and
-`InsecureSkipVerify: true` (`manager.go:78-92`) — **deliberate** (matches py-dfe
-`CERT_NONE`); do not "fix". Password comes via `Request.CertificatePassword`, never logged.
+`InsecureSkipVerify: true` (`manager.go:78-92`) — **deliberate** (SEFAZ's chain is not validated by design); do not "fix". Password comes via `Request.CertificatePassword`, never logged.
 
 ## 4. SOAP + XML
 
@@ -54,7 +46,7 @@ Builds `*http.Client` with the mTLS cert and
   byte-identical gate.
 - `xmlops.BuildProcessedXML` — `nfeProc`/`cteProc`/`mdfeProc`/`procEvento*` for signed services (`processor.go:52`).
   go-dfe deliberately ports the **corrected** 4-value
-  `_EVENT["CTeRecepcaoEvento"]` form that py-dfe carries as a latent tuple-collapse bug (`processor.go:21-34`).
+  `_EVENT["CTeRecepcaoEvento"]` form that the original Python client carried as a latent tuple-collapse bug (`processor.go:21-34`).
 
 ## 5. Endpoints (`internal/endpoints/table.go`, `internal/constants/constants.go`)
 
@@ -69,8 +61,7 @@ Mato Grosso) 3-prefix special-casing** (`table.go:382-403`). Environment constan
   SEFAZ test certificate exists in-repo). The `signxml`
   cross-check is a strong but **not equivalent** gate (`dfe.go:21-32`, `CLAUDE.md` §Signer). Real fiscal risk until the
   formal gate passes.
-- **B12** — go-dfe **reproduces** py-dfe's full-XML INFO logging (`internal/services/client.go:116,131,145`); migrating
-  to go-dfe does not close the PII leak.
+- **B12** — go-dfe **reproduces** the full-XML INFO logging of the original client (`internal/services/client.go`); this does not close the PII leak.
 - XSD validation is intentionally absent (`CGO_ENABLED=0` rules out libxml2); `Call` fails loudly if `ValidateSchema` is
   requested for a service that requires it (`client.go:118-120`).
 - DANFE/DANFC-e/DAMDFE rendering is permanently out of scope here; the API-local

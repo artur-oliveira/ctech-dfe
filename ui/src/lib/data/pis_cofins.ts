@@ -8,4 +8,4 @@ export const PIS_COFINS_OPTIONS = [
   {value: '09', label: '09 – Operação com suspensão'},
   {value: '49', label: '49 – Outras operações de saída'},
   {value: '99', label: '99 – Outras operações'},
-]
+];

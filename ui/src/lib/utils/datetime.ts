@@ -11,12 +11,12 @@
 export function localTimezoneOffset(at: Date = new Date()): string {
   // getTimezoneOffset devolve minutos a somar para chegar ao UTC: a oeste de
   // Greenwich é positivo, e o offset ISO é o inverso disso.
-  const minutes = -at.getTimezoneOffset()
-  const sign = minutes < 0 ? '-' : '+'
-  const abs = Math.abs(minutes)
-  const hh = String(Math.floor(abs / 60)).padStart(2, '0')
-  const mm = String(abs % 60).padStart(2, '0')
-  return `${sign}${hh}:${mm}`
+  const minutes = -at.getTimezoneOffset();
+  const sign = minutes < 0 ? '-' : '+';
+  const abs = Math.abs(minutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${sign}${hh}:${mm}`;
 }
 
 /**
@@ -25,10 +25,10 @@ export function localTimezoneOffset(at: Date = new Date()): string {
  * simplesmente não sai.
  */
 export function datetimeLocalToOffset(value: string): string {
-  if (!value) return ''
+  if (!value) return '';
   // O input omite os segundos quando são zero; o leiaute os exige.
-  const withSeconds = value.length === 16 ? `${value}:00` : value
-  const parsed = new Date(withSeconds)
-  if (Number.isNaN(parsed.getTime())) return ''
-  return `${withSeconds}${localTimezoneOffset(parsed)}`
+  const withSeconds = value.length === 16 ? `${value}:00` : value;
+  const parsed = new Date(withSeconds);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${withSeconds}${localTimezoneOffset(parsed)}`;
 }

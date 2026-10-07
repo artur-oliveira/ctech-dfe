@@ -1,11 +1,11 @@
-import * as React from "react"
-import {Input as InputPrimitive} from "@base-ui/react/input"
+import * as React from "react";
+import {Input as InputPrimitive} from "@base-ui/react/input";
 
-import {useFieldAria} from "@/components/ui/form"
-import {cn} from "@/lib/utils"
+import {useFieldAria} from "@/components/ui/form";
+import {cn} from "@/lib/utils";
 
 function Input({className, type, id, name, ...props}: React.ComponentProps<"input">) {
-  const aria = useFieldAria(name)
+  const aria = useFieldAria(name);
   return (
     <InputPrimitive
       type={type}
@@ -21,7 +21,7 @@ function Input({className, type, id, name, ...props}: React.ComponentProps<"inpu
       {...aria}
       {...props}
     />
-  )
+  );
 }
 
-export {Input}
+export {Input};

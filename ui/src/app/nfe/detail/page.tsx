@@ -1,48 +1,48 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {DfeDetail} from '@/components/dfe/DfeDetail'
-import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event'
-import {EVENT_STATUS_SUCCESS} from '@/lib/utils/dfe-result-toast'
-import {toast} from 'sonner'
+import {Suspense, useState} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {Modal} from '@/components/ui/modal';
+import {JustificationField} from '@/components/ui/justification-field';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {DfeDetail} from '@/components/dfe/DfeDetail';
+import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
+import {EVENT_STATUS_SUCCESS} from '@/lib/utils/dfe-result-toast';
+import {toast} from 'sonner';
 
-const MANIFEST_EVENT_TYPES = ['210210', '210200', '210220', '210240'] as const
-const MANIFEST_JUSTIFICATION_REQUIRED_TYPE = '210240'
-const MANIFEST_JUSTIFICATION_MIN_LENGTH = 15
+const MANIFEST_EVENT_TYPES = ['210210', '210200', '210220', '210240'] as const;
+const MANIFEST_JUSTIFICATION_REQUIRED_TYPE = '210240';
+const MANIFEST_JUSTIFICATION_MIN_LENGTH = 15;
 
 // ─── NF-e detail (uses shared DfeDetail + the NF-e-specific CC-e action) ────────
 
 function NfeDetail({accessKey}: { accessKey: string }) {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const [showCceModal, setShowCceModal] = useState(false)
-  const [cceText, setCceText] = useState('')
-  const [cceSeq, setCceSeq] = useState(1)
-  const [showManifestModal, setShowManifestModal] = useState(false)
-  const [manifestEventType, setManifestEventType] = useState<string>('210210')
-  const [manifestJustification, setManifestJustification] = useState('')
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const [showCceModal, setShowCceModal] = useState(false);
+  const [cceText, setCceText] = useState('');
+  const [cceSeq, setCceSeq] = useState(1);
+  const [showManifestModal, setShowManifestModal] = useState(false);
+  const [manifestEventType, setManifestEventType] = useState<string>('210210');
+  const [manifestJustification, setManifestJustification] = useState('');
 
   const {data: eventsData} = useQuery({
     queryKey: queryKeys.nfes.events(accessKey),
     queryFn: () => apiClient.getNfeEvents(accessKey),
     enabled: !!accessKey && !!selectedOrg,
-  })
+  });
   const authorizedEventTypes = new Set(
     (eventsData?.items ?? []).filter((e) => e.status === EVENT_STATUS_SUCCESS).map((e) => e.event_type)
-  )
-  const availableManifestTypes = MANIFEST_EVENT_TYPES.filter((t) => !authorizedEventTypes.has(t))
+  );
+  const availableManifestTypes = MANIFEST_EVENT_TYPES.filter((t) => !authorizedEventTypes.has(t));
 
   const manifestMutation = useMutation({
     mutationFn: () =>
@@ -53,41 +53,41 @@ function NfeDetail({accessKey}: { accessKey: string }) {
         manifestEventType === MANIFEST_JUSTIFICATION_REQUIRED_TYPE ? manifestJustification.trim() : undefined,
       ),
     onSuccess: () => {
-      setShowManifestModal(false)
-      setManifestJustification('')
-      toast.info('Manifestação enfileirada.')
-      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)})
-      void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)})
+      setShowManifestModal(false);
+      setManifestJustification('');
+      toast.info('Manifestação enfileirada.');
+      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)});
+      void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)});
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao enviar manifestação.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao enviar manifestação.');
     },
-  })
+  });
 
   const importMutation = useMutation({
     mutationFn: () => apiClient.importNfeByKey(accessKey),
     onSuccess: () => {
-      toast.info('Importação enfileirada. A NF-e completa aparecerá automaticamente.')
+      toast.info('Importação enfileirada. A NF-e completa aparecerá automaticamente.');
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar NF-e.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar NF-e.');
     },
-  })
+  });
 
   const manifestJustificationOk =
     manifestEventType !== MANIFEST_JUSTIFICATION_REQUIRED_TYPE ||
-    manifestJustification.trim().length >= MANIFEST_JUSTIFICATION_MIN_LENGTH
+    manifestJustification.trim().length >= MANIFEST_JUSTIFICATION_MIN_LENGTH;
 
   const cceMutation = useMutation({
     mutationFn: () => apiClient.sendCorrectionLetter(accessKey, cceText.trim(), cceSeq),
     onSuccess: () => {
-      setShowCceModal(false)
-      setCceText('')
-      setCceSeq(1)
-      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)})
-      void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)})
+      setShowCceModal(false);
+      setCceText('');
+      setCceSeq(1);
+      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)});
+      void qc.invalidateQueries({queryKey: queryKeys.nfes.events(accessKey)});
     },
-  })
+  });
 
   return (
     <DfeDetail
@@ -109,9 +109,9 @@ function NfeDetail({accessKey}: { accessKey: string }) {
           {doc.status === 'authorized' && doc.incoming === 0 && (
             <Button variant="outline" size="sm"
                     onClick={() => {
-                      setCceText('')
-                      setCceSeq(1)
-                      setShowCceModal(true)
+                      setCceText('');
+                      setCceSeq(1);
+                      setShowCceModal(true);
                     }}
                     className="text-amber-600 border-amber-200 hover:bg-amber-50">
               Carta de Correção
@@ -120,9 +120,9 @@ function NfeDetail({accessKey}: { accessKey: string }) {
           {doc.incoming === 1 && (
             <Button variant="outline" size="sm"
                     onClick={() => {
-                      setManifestEventType(availableManifestTypes[0] ?? '210210')
-                      setManifestJustification('')
-                      setShowManifestModal(true)
+                      setManifestEventType(availableManifestTypes[0] ?? '210210');
+                      setManifestJustification('');
+                      setShowManifestModal(true);
                     }}
                     disabled={availableManifestTypes.length === 0 || doc.status === 'cancelled'}
                     className="text-brand-600 border-brand-200 hover:bg-brand-50">
@@ -146,7 +146,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
             title={`Carta de Correção: NF-e nº ${doc.number}`}
             onClose={() => setShowCceModal(false)}
             onSubmit={() => {
-              if (cceText.trim().length >= 15) cceMutation.mutate()
+              if (cceText.trim().length >= 15) cceMutation.mutate();
             }}
             submitLabel="Enviar CC-e"
             cancelLabel="Voltar"
@@ -225,27 +225,27 @@ function NfeDetail({accessKey}: { accessKey: string }) {
         </>
       )}
     />
-  )
+  );
 }
 
 // ─── Page wrapper ─────────────────────────────────────────────────────────────
 
 function NfeDetailContent() {
-  const params = useSearchParams()
-  const accessKey = params.get('key') ?? ''
+  const params = useSearchParams();
+  const accessKey = params.get('key') ?? '';
 
-  const backParams = new URLSearchParams()
-  const tab = params.get('tab')
-  if (tab) backParams.set('tab', tab)
-  const year = params.get('year')
-  if (year) backParams.set('year', year)
-  const month = params.get('month')
-  if (month) backParams.set('month', month)
-  const day = params.get('day')
-  if (day) backParams.set('day', day)
-  const number = params.get('number')
-  if (number) backParams.set('number', number)
-  const backHref = `/nfe${backParams.toString() ? `?${backParams.toString()}` : ''}`
+  const backParams = new URLSearchParams();
+  const tab = params.get('tab');
+  if (tab) backParams.set('tab', tab);
+  const year = params.get('year');
+  if (year) backParams.set('year', year);
+  const month = params.get('month');
+  if (month) backParams.set('month', month);
+  const day = params.get('day');
+  if (day) backParams.set('day', day);
+  const number = params.get('number');
+  if (number) backParams.set('number', number);
+  const backHref = `/nfe${backParams.toString() ? `?${backParams.toString()}` : ''}`;
 
   return (
     <RootLayout>
@@ -262,7 +262,7 @@ function NfeDetailContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfeDetailPage() {
@@ -272,5 +272,5 @@ export default function NfeDetailPage() {
         <NfeDetailContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

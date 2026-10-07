@@ -3,7 +3,7 @@ interface HomologationBannerProps {
 }
 
 export function HomologationBanner({environment}: HomologationBannerProps) {
-  if (environment !== 2) return null
+  if (environment !== 2) return null;
   return (
     <div
       className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6">
@@ -15,5 +15,5 @@ export function HomologationBanner({environment}: HomologationBannerProps) {
         Usar produção
       </a>
     </div>
-  )
+  );
 }

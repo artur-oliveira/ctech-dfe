@@ -6,18 +6,18 @@
  */
 export function stripNulls<T>(value: T, dropNull: boolean): T {
   if (Array.isArray(value)) {
-    return value.map((v) => stripNulls(v, dropNull)) as unknown as T
+    return value.map((v) => stripNulls(v, dropNull)) as unknown as T;
   }
   if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
+    const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (v === undefined) continue
-      if (v === null && dropNull) continue
-      out[k] = stripNulls(v, dropNull)
+      if (v === undefined) continue;
+      if (v === null && dropNull) continue;
+      out[k] = stripNulls(v, dropNull);
     }
-    return out as T
+    return out as T;
   }
-  return value
+  return value;
 }
 
 /**
@@ -27,6 +27,6 @@ export function stripNulls<T>(value: T, dropNull: boolean): T {
  * file upload would become `{}`).
  */
 export function isStrippableBody(data: unknown): boolean {
-  if (Array.isArray(data)) return true
-  return data != null && typeof data === 'object' && (data as object).constructor === Object
+  if (Array.isArray(data)) return true;
+  return data != null && typeof data === 'object' && (data as object).constructor === Object;
 }

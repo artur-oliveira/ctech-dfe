@@ -1,11 +1,11 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it} from 'vitest';
 import {
   entitySchema,
   PERSON_ROLE_DEFAULT,
   PERSON_ROLE_LABELS,
   PERSON_ROLE_OPTIONS,
   PERSON_ROLES,
-} from '@/lib/schemas/entity'
+} from '@/lib/schemas/entity';
 
 const baseEntity = {
   tipo: 'pj' as const,
@@ -29,34 +29,34 @@ const baseEntity = {
     contacts: {emails: [], phones: []},
     nfse: {im: '', op_simp_nac: '' as const, reg_ap_trib_sn: '' as const, reg_esp_trib: '' as const},
   },
-}
+};
 
 describe('papéis de pessoa', () => {
   it('aceita ausência de papéis e assume lista vazia', () => {
-    const parsed = entitySchema.parse(baseEntity)
-    expect(parsed.roles).toEqual([])
-  })
+    const parsed = entitySchema.parse(baseEntity);
+    expect(parsed.roles).toEqual([]);
+  });
 
   it('aceita múltiplos papéis ao mesmo tempo', () => {
-    const parsed = entitySchema.parse({...baseEntity, roles: ['customer', 'carrier']})
-    expect(parsed.roles).toEqual(['customer', 'carrier'])
-  })
+    const parsed = entitySchema.parse({...baseEntity, roles: ['customer', 'carrier']});
+    expect(parsed.roles).toEqual(['customer', 'carrier']);
+  });
 
   it('aceita todos os papéis conhecidos', () => {
-    const parsed = entitySchema.parse({...baseEntity, roles: [...PERSON_ROLES]})
-    expect(parsed.roles).toHaveLength(PERSON_ROLES.length)
-  })
+    const parsed = entitySchema.parse({...baseEntity, roles: [...PERSON_ROLES]});
+    expect(parsed.roles).toHaveLength(PERSON_ROLES.length);
+  });
 
   it('rejeita papel desconhecido', () => {
-    expect(entitySchema.safeParse({...baseEntity, roles: ['shareholder']}).success).toBe(false)
-  })
+    expect(entitySchema.safeParse({...baseEntity, roles: ['shareholder']}).success).toBe(false);
+  });
 
   it('todo papel tem rótulo e opção de seleção', () => {
-    expect(PERSON_ROLE_OPTIONS.map((o) => o.value)).toEqual([...PERSON_ROLES])
-    PERSON_ROLES.forEach((r) => expect(PERSON_ROLE_LABELS[r]).toBeTruthy())
-  })
+    expect(PERSON_ROLE_OPTIONS.map((o) => o.value)).toEqual([...PERSON_ROLES]);
+    PERSON_ROLES.forEach((r) => expect(PERSON_ROLE_LABELS[r]).toBeTruthy());
+  });
 
   it('o papel padrão de um cadastro novo é um papel válido', () => {
-    expect(PERSON_ROLES).toContain(PERSON_ROLE_DEFAULT)
-  })
-})
+    expect(PERSON_ROLES).toContain(PERSON_ROLE_DEFAULT);
+  });
+});

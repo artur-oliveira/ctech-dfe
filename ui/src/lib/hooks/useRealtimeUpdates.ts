@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import {useCallback} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {useAuth} from './useAuth'
-import {useWebSocket, type WSStatus} from '@aoctech/ws-client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {getAccessToken, subscribeAccessToken} from '@/lib/api/client'
-import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast} from '@/lib/utils/dfe-result-toast'
+import {useCallback} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {useAuth} from './useAuth';
+import {useWebSocket, type WSStatus} from '@aoctech/ws-client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {getAccessToken, subscribeAccessToken} from '@/lib/api/client';
+import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast} from '@/lib/utils/dfe-result-toast';
 
 // `next dev` rewrites do not proxy the WebSocket upgrade, so local development
 // points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments now set it
 // explicitly too: nothing is proxied at the edge, and the CSP connect-src is
 // built from these literals, so the wss:// origin has to appear as one.
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || ''
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '';
 
 function buildWsUrl(orgPk: string): string {
-  const origin = WS_BASE_URL || window.location.origin
-  const base = origin.replace(/^http/, 'ws')
-  return `${base}/v1.0/ws?org_pk=${encodeURIComponent(orgPk)}`
+  const origin = WS_BASE_URL || window.location.origin;
+  const base = origin.replace(/^http/, 'ws');
+  return `${base}/v1.0/ws?org_pk=${encodeURIComponent(orgPk)}`;
 }
 
 interface RealtimeMessage {
@@ -47,28 +47,28 @@ const DOC_QUERY_KEYS = {
   nfces: queryKeys.nfces,
   mdfes: queryKeys.mdfes,
   nfses: queryKeys.nfses,
-} as const
+} as const;
 
 // Inutilização queries are keyed by doc_type ('nfe'/'nfce'), not by the
 // DynamoDB table name the result message carries.
 const INUT_DOC_TYPE: Record<string, string> = {
   nfes: 'nfe',
   nfces: 'nfce',
-}
+};
 
 export function useRealtimeUpdates(): { wsStatus: WSStatus } {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
 
-  const token = getAccessToken()
+  const token = getAccessToken();
 
   const wsUrl = token && selectedOrg?.pk
     ? buildWsUrl(selectedOrg.pk)
-    : null
+    : null;
 
   const handleMessage = useCallback((data: unknown) => {
-    const msg = data as RealtimeMessage
-    if (!msg?.type || msg.type === 'ping' || msg.type === 'connected') return
+    const msg = data as RealtimeMessage;
+    if (!msg?.type || msg.type === 'ping' || msg.type === 'connected') return;
 
     if (msg.type === 'dfe_result' && msg.access_key) {
       // An inutilização is not an event on a document — its access_key is
@@ -76,49 +76,49 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
       // cache to refresh. Its own list and the detected-gaps list are what
       // must go stale, or the closed gap keeps showing after the toast.
       if (msg.event_type === EVENT_TYPE_INUTILIZACAO) {
-        const inutDocType = INUT_DOC_TYPE[msg.table_name ?? '']
+        const inutDocType = INUT_DOC_TYPE[msg.table_name ?? ''];
         if (inutDocType) {
-          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.list(inutDocType, selectedOrg?.pk)})
-          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.gaps(inutDocType, selectedOrg?.pk)})
+          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.list(inutDocType, selectedOrg?.pk)});
+          void qc.invalidateQueries({queryKey: queryKeys.inutilizations.gaps(inutDocType, selectedOrg?.pk)});
         }
       } else {
         // Route invalidation by document type so each document's updates reach
         // its own queries (detail, list, and event history).
-        const doc = DOC_QUERY_KEYS[msg.table_name as keyof typeof DOC_QUERY_KEYS]
+        const doc = DOC_QUERY_KEYS[msg.table_name as keyof typeof DOC_QUERY_KEYS];
         if (doc) {
-          void qc.invalidateQueries({queryKey: doc.detail(msg.access_key)})
-          void qc.invalidateQueries({queryKey: doc.lists(selectedOrg?.pk)})
-          void qc.invalidateQueries({queryKey: doc.events(msg.access_key)})
+          void qc.invalidateQueries({queryKey: doc.detail(msg.access_key)});
+          void qc.invalidateQueries({queryKey: doc.lists(selectedOrg?.pk)});
+          void qc.invalidateQueries({queryKey: doc.events(msg.access_key)});
         }
       }
       // Resolve the toast from the result — event results report the event
       // outcome, not the (possibly reverted) document status.
-      const {variant, message} = resolveDfeResultToast(msg)
-      toast[variant](message)
+      const {variant, message} = resolveDfeResultToast(msg);
+      toast[variant](message);
     }
 
     if (msg.type === 'new_distribution_nfe') {
-      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('nfe', selectedOrg?.pk)})
-      const label = msg.emit_name ? ` de ${msg.emit_name}` : ''
-      const value = msg.total ? `: R$ ${parseFloat(msg.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : ''
-      toast.info(`Nova NF-e recebida${label}${value}`)
+      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('nfe', selectedOrg?.pk)});
+      const label = msg.emit_name ? ` de ${msg.emit_name}` : '';
+      const value = msg.total ? `: R$ ${parseFloat(msg.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '';
+      toast.info(`Nova NF-e recebida${label}${value}`);
     }
 
     if (msg.type === 'new_distribution_cte') {
-      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('cte', selectedOrg?.pk)})
-      const label = msg.emit_name ? ` de ${msg.emit_name}` : ''
-      toast.info(`Novo CT-e recebido${label}`)
+      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('cte', selectedOrg?.pk)});
+      const label = msg.emit_name ? ` de ${msg.emit_name}` : '';
+      toast.info(`Novo CT-e recebido${label}`);
     }
 
     if (msg.type === 'new_distribution_mdfe') {
-      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('mdfe', selectedOrg?.pk)})
-      toast.info('Novo MDF-e recebido')
+      void qc.invalidateQueries({queryKey: queryKeys.distributions.history('mdfe', selectedOrg?.pk)});
+      toast.info('Novo MDF-e recebido');
     }
 
     if (msg.type === 'import_xml_failed') {
-      toast.error(msg.reason ? `Falha ao importar XML: ${msg.reason}` : 'Falha ao importar XML.')
+      toast.error(msg.reason ? `Falha ao importar XML: ${msg.reason}` : 'Falha ao importar XML.');
     }
-  }, [qc, selectedOrg?.pk])
+  }, [qc, selectedOrg?.pk]);
 
   const {status: wsStatus} = useWebSocket({
     url: wsUrl,
@@ -126,7 +126,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     enabled: !!wsUrl,
     authToken: token ?? undefined,
     subscribeToken: subscribeAccessToken,
-  })
+  });
 
-  return {wsStatus}
+  return {wsStatus};
 }

@@ -1,44 +1,44 @@
-'use client'
+'use client';
 
-import React, {Children, cloneElement, isValidElement, type ReactElement, useId, useState} from 'react'
+import React, {Children, cloneElement, isValidElement, type ReactElement, useId, useState} from 'react';
 
-import {Combobox} from '@/components/ui/combobox'
-import {GlossaryTerm} from '@/components/ui/glossary-term'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Input} from '@/components/ui/input'
-import type {CfopConfigFormData} from '@/lib/schemas/products'
-import {getAllCfopOptions} from '@/lib/data/cfop'
-import {BACEN_COUNTRY_OPTIONS} from '@/lib/data/bacen_countries'
-import {CITY_OPTIONS} from '@/lib/data/cities'
-import {LC116_SERVICE_OPTIONS} from '@/lib/data/lc116_services'
-import {UNIT_OPTIONS} from '@/lib/data/unit'
-import {getCfopHint} from '@/lib/data/cfop_rules'
-import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
+import {Combobox} from '@/components/ui/combobox';
+import {GlossaryTerm} from '@/components/ui/glossary-term';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Input} from '@/components/ui/input';
+import type {CfopConfigFormData} from '@/lib/schemas/products';
+import {getAllCfopOptions} from '@/lib/data/cfop';
+import {BACEN_COUNTRY_OPTIONS} from '@/lib/data/bacen_countries';
+import {CITY_OPTIONS} from '@/lib/data/cities';
+import {LC116_SERVICE_OPTIONS} from '@/lib/data/lc116_services';
+import {UNIT_OPTIONS} from '@/lib/data/unit';
+import {getCfopHint} from '@/lib/data/cfop_rules';
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst';
 import {
   ALC_ZFM_TP_CBS_OPTIONS,
   IBS_CBS_C_CRED_PRES_OPTIONS,
   IBS_IND_DOACAO_SIM,
-} from '@/lib/data/ibs_cbs_reform'
-import {IPI_CST_OPTIONS} from '@/lib/data/ipi'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is'
-import {CSOSN_OPTIONS} from '@/lib/data/csosn'
-import {ICMS_CST_OPTIONS} from '@/lib/data/icms'
-import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
-import {MOD_BC_OPTIONS, MOD_BC_ST_OPTIONS} from '@/lib/data/mod_bc'
-import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview'
+} from '@/lib/data/ibs_cbs_reform';
+import {IPI_CST_OPTIONS} from '@/lib/data/ipi';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is';
+import {CSOSN_OPTIONS} from '@/lib/data/csosn';
+import {ICMS_CST_OPTIONS} from '@/lib/data/icms';
+import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins';
+import {MOD_BC_OPTIONS, MOD_BC_ST_OPTIONS} from '@/lib/data/mod_bc';
+import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview';
 
 // Conjuntos de CST/CSOSN que decidem quais grupos de campos ficam visíveis.
 // Ficam aqui, junto do editor que os usa, e são reexportados para o ProductForm
 // (que ainda os consulta ao montar a linha de cfop_config).
-export const ICMS_MONO_CSTS = new Set(['02', '15', '53', '61'])
-export const ICMS_TAXED_CSTS = new Set(['00', '10', '20', '30', '51', '70', '90'])
-export const ICMS_ST_CSTS = new Set(['10', '30', '70'])
-export const CSOSN_CRED = new Set(['101', '201', '900'])
-export const CSOSN_ST = new Set(['201', '202', '203'])
-export const PIS_COFINS_ALIQ_CSTS = new Set(['01', '02'])
-export const PIS_COFINS_QTDE_CSTS = new Set(['03'])
+export const ICMS_MONO_CSTS = new Set(['02', '15', '53', '61']);
+export const ICMS_TAXED_CSTS = new Set(['00', '10', '20', '30', '51', '70', '90']);
+export const ICMS_ST_CSTS = new Set(['10', '30', '70']);
+export const CSOSN_CRED = new Set(['101', '201', '900']);
+export const CSOSN_ST = new Set(['201', '202', '203']);
+export const PIS_COFINS_ALIQ_CSTS = new Set(['01', '02']);
+export const PIS_COFINS_QTDE_CSTS = new Set(['03']);
 
 export const ISSQN_IND_ISS_OPTIONS = [
   {value: '1', label: '1 – Exigível'},
@@ -48,7 +48,7 @@ export const ISSQN_IND_ISS_OPTIONS = [
   {value: '5', label: '5 – Imunidade'},
   {value: '6', label: '6 – Exig. Susp. Judicial'},
   {value: '7', label: '7 – Exig. Susp. Administrativa'},
-]
+];
 
 /** Campos condicionais do ICMS por CST — espelha a tabela do leiaute. */
 export function icmsConditionalFields(cst: string) {
@@ -56,7 +56,7 @@ export function icmsConditionalFields(cst: string) {
     showPRedBC: ['20', '40', '70'].includes(cst),
     showMotDeSon: ['40', '41', '50', '51'].includes(cst),
     showPDif: cst === '51',
-  }
+  };
 }
 
 
@@ -75,20 +75,20 @@ function TaxField({label, className, children}: {
   className?: string
   children: React.ReactNode
 }) {
-  const id = useId()
-  const items = Children.toArray(children)
-  const firstElement = items.findIndex(isValidElement)
+  const id = useId();
+  const items = Children.toArray(children);
+  const firstElement = items.findIndex(isValidElement);
   const withId = items.map((child, i) => (
     i === firstElement && isValidElement(child)
       ? cloneElement(child as ReactElement<{id?: string}>, {id})
       : child
-  ))
+  ));
   return (
     <div className={className ? `grid gap-1 ${className}` : 'grid gap-1'}>
       <label htmlFor={id} className="text-sm font-medium text-gray-700">{label}</label>
       {withId}
     </div>
-  )
+  );
 }
 
 export interface TaxFieldsEditorProps {
@@ -133,7 +133,7 @@ export interface TaxGroups {
 export const EMPTY_TAX_GROUPS: TaxGroups = {
   ipi: false, is: false, ibsCbs: false, ibsRed: false, ibsDif: false, issqn: false,
   icmsMono: false, pisCofinsSt: false, ibsMono: false, ibsRef: false, ibsCred: false,
-}
+};
 
 /**
  * Deriva quais grupos opcionais já têm dado preenchido — usado ao abrir o editor com
@@ -152,14 +152,14 @@ export const deriveTaxGroups = (data: Partial<CfopConfigFormData>): TaxGroups =>
     || data.ibs_ad_rem_ret || data.cbs_ad_rem_ret || data.ibs_p_dif_mono || data.cbs_p_dif_mono),
   ibsRef: !!(data.ibs_reg_cst || data.ibs_gov_uf_aliq || data.ibs_gov_mun_aliq || data.cbs_gov_aliq),
   ibsCred: !!(data.ibs_cbs_c_cred_pres || data.ibs_zfm_p_cred_pres || data.alc_zfm_tp_cbs),
-})
+});
 
 /** icms_mod_bc cujo cálculo usa um valor fixo em vez do valor de venda. */
-const ICMS_MOD_BC_PAUTA = new Set(['1', '2'])
+const ICMS_MOD_BC_PAUTA = new Set(['1', '2']);
 
 /** A tabela de CFOP é estática: recriar o array a cada render invalidava o memo
  *  do Combobox e refazia o filtro sobre a lista inteira. */
-const CFOP_OPTIONS = getAllCfopOptions()
+const CFOP_OPTIONS = getAllCfopOptions();
 
 /**
  * Editor de tributação — ICMS/CSOSN, ST, PIS, COFINS, IBS/CBS, IPI, IS e ISSQN.
@@ -178,42 +178,42 @@ export function TaxFieldsEditor({
   const {ipi: showIpi, is: showIs, ibsCbs: showIbsCbs, ibsRed: showIbsCbsRed,
     ibsDif: showIbsCbsDif, issqn: showIssqn, icmsMono: showIcmsMono,
     pisCofinsSt: showPisCofinsSt, ibsMono: showIbsMono, ibsRef: showIbsRef,
-    ibsCred: showIbsCred} = groups
-  const setGroup = (key: keyof TaxGroups) => (on: boolean) => onGroupsChange({...groups, [key]: on})
-  const setShowIpi = setGroup('ipi')
-  const setShowIs = setGroup('is')
-  const setShowIbsCbs = setGroup('ibsCbs')
-  const setShowIbsCbsRed = setGroup('ibsRed')
-  const setShowIbsCbsDif = setGroup('ibsDif')
-  const setShowIssqn = setGroup('issqn')
-  const setShowIcmsMono = setGroup('icmsMono')
-  const setShowPisCofinsSt = setGroup('pisCofinsSt')
-  const setShowIbsMono = setGroup('ibsMono')
-  const setShowIbsRef = setGroup('ibsRef')
-  const setShowIbsCred = setGroup('ibsCred')
+    ibsCred: showIbsCred} = groups;
+  const setGroup = (key: keyof TaxGroups) => (on: boolean) => onGroupsChange({...groups, [key]: on});
+  const setShowIpi = setGroup('ipi');
+  const setShowIs = setGroup('is');
+  const setShowIbsCbs = setGroup('ibsCbs');
+  const setShowIbsCbsRed = setGroup('ibsRed');
+  const setShowIbsCbsDif = setGroup('ibsDif');
+  const setShowIssqn = setGroup('issqn');
+  const setShowIcmsMono = setGroup('icmsMono');
+  const setShowPisCofinsSt = setGroup('pisCofinsSt');
+  const setShowIbsMono = setGroup('ibsMono');
+  const setShowIbsRef = setGroup('ibsRef');
+  const setShowIbsCred = setGroup('ibsCred');
 
   // Prefixo dos ids dos toggles: dois editores na mesma tela (produto e perfil)
   // colidiam, e clicar num rótulo mexia no grupo do outro editor.
-  const uid = useId()
+  const uid = useId();
   // Quantos grupos opcionais já têm dado — abre sozinho quando há, senão o
   // operador salva sem ver o que está configurado.
-  const activeGroupCount = Object.values(groups).filter(Boolean).length
-  const [showOtherTaxes, setShowOtherTaxes] = useState(activeGroupCount > 0)
-  const systemAliq = useIcmsAliqPreview(emitUf, destUf, ncm)
+  const activeGroupCount = Object.values(groups).filter(Boolean).length;
+  const [showOtherTaxes, setShowOtherTaxes] = useState(activeGroupCount > 0);
+  const systemAliq = useIcmsAliqPreview(emitUf, destUf, ncm);
   const aliqDiverges = !!systemAliq && !!value.icms_aliq_override &&
-    value.icms_aliq_override !== systemAliq.icms_aliq
+    value.icms_aliq_override !== systemAliq.icms_aliq;
 
-  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(value.icms ?? '')
-  const cfopHint = getCfopHint(value.cfop)
+  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(value.icms ?? '');
+  const cfopHint = getCfopHint(value.cfop);
   const showSt = (!simples && !!value.icms && ICMS_ST_CSTS.has(value.icms)) ||
-    (simples && !!value.csosn && ICMS_ST_CSTS.has(value.csosn))
+    (simples && !!value.csosn && ICMS_ST_CSTS.has(value.csosn));
   // ST já retida + ICMS efetivo: revenda de mercadoria com ST (CST 41/60,
   // CSOSN 500). É o mesmo grupo de campos nos três casos.
   const showStRet = (!simples && ['41', '60'].includes(value.icms ?? '')) ||
-    (simples && value.csosn === '500')
+    (simples && value.csosn === '500');
   // Partilha do ICMS (ICMSPart): não tem CST próprio, o par pBCOp+UFST é que
   // troca ICMS10/ICMS90 pelo grupo.
-  const showPart = !simples && ['10', '90'].includes(value.icms ?? '')
+  const showPart = !simples && ['10', '90'].includes(value.icms ?? '');
 
   return (
     <div className="space-y-5">
@@ -547,10 +547,10 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-pis-cofins-st`} checked={showPisCofinsSt}
                    onChange={(e) => {
-                     setShowPisCofinsSt(e.target.checked)
+                     setShowPisCofinsSt(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, pis_st_aliq: '', cofins_st_aliq: '', pis_st_v_bc: '', cofins_st_v_bc: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-pis-cofins-st`}
@@ -589,8 +589,8 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ipi`} checked={showIpi}
                    onChange={(e) => {
-                     setShowIpi(e.target.checked)
-                     if (!e.target.checked) onChange((r) => ({...r, ipi_cst: '', ipi_aliq: ''}))
+                     setShowIpi(e.target.checked);
+                     if (!e.target.checked) onChange((r) => ({...r, ipi_cst: '', ipi_aliq: ''}));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ipi`}
@@ -630,10 +630,10 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-is`} checked={showIs}
                    onChange={(e) => {
-                     setShowIs(e.target.checked)
+                     setShowIs(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, is_cst: '', is_aliq: '', is_class_trib: '', is_aliq_espec: '', is_unid_trib: ''
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-is`}
@@ -679,11 +679,11 @@ export function TaxFieldsEditor({
             <div className="flex items-center gap-2">
               <input type="checkbox" id={`${uid}-toggle-mono`} checked={showIcmsMono}
                      onChange={(e) => {
-                       setShowIcmsMono(e.target.checked)
+                       setShowIcmsMono(e.target.checked);
                        if (!e.target.checked) onChange((r) => ({
                          ...r, icms_ad_rem: '', icms_ad_rem_reten: '',
                          icms_p_red_ad_rem: '', icms_mot_red_ad_rem: '', icms_p_dif_mono: '',
-                       }))
+                       }));
                      }}
                      className="size-4 rounded border-gray-300 text-brand-600"/>
               <label htmlFor={`${uid}-toggle-mono`}
@@ -743,11 +743,11 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-issqn`} checked={showIssqn}
                    onChange={(e) => {
-                     setShowIssqn(e.target.checked)
+                     setShowIssqn(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, issqn_ind_iss: '', issqn_c_list_serv: '',
                        issqn_c_mun_fg: '', issqn_aliq: '', issqn_v_deducao: '', issqn_v_iss_ret: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-issqn`}
@@ -857,12 +857,12 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-cbs`} checked={showIbsCbs}
                    onChange={(e) => {
-                     setShowIbsCbs(e.target.checked)
+                     setShowIbsCbs(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
                        ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: '',
                        ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-cbs`}
@@ -907,10 +907,10 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-red`} checked={showIbsCbsRed}
                    onChange={(e) => {
-                     setShowIbsCbsRed(e.target.checked)
+                     setShowIbsCbsRed(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: ''
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-red`} className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -938,10 +938,10 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-dif`} checked={showIbsCbsDif}
                    onChange={(e) => {
-                     setShowIbsCbsDif(e.target.checked)
+                     setShowIbsCbsDif(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: ''
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-dif`} className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -991,13 +991,13 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-mono`} checked={showIbsMono}
                    onChange={(e) => {
-                     setShowIbsMono(e.target.checked)
+                     setShowIbsMono(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_ad_rem: '', cbs_ad_rem: '',
                        ibs_ad_rem_reten: '', cbs_ad_rem_reten: '',
                        ibs_ad_rem_ret: '', cbs_ad_rem_ret: '',
                        ibs_p_dif_mono: '', cbs_p_dif_mono: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-mono`} className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -1043,12 +1043,12 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-ref`} checked={showIbsRef}
                    onChange={(e) => {
-                     setShowIbsRef(e.target.checked)
+                     setShowIbsRef(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_reg_cst: '', ibs_reg_class_trib: '',
                        ibs_reg_uf_aliq: '', ibs_reg_mun_aliq: '', cbs_reg_aliq: '',
                        ibs_gov_uf_aliq: '', ibs_gov_mun_aliq: '', cbs_gov_aliq: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-ref`} className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -1101,12 +1101,12 @@ export function TaxFieldsEditor({
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-ibs-cred`} checked={showIbsCred}
                    onChange={(e) => {
-                     setShowIbsCred(e.target.checked)
+                     setShowIbsCred(e.target.checked);
                      if (!e.target.checked) onChange((r) => ({
                        ...r, ibs_cbs_c_cred_pres: '', ibs_p_cred_pres: '', cbs_p_cred_pres: '',
                        ibs_cbs_cred_pres_cond_sus: '', ibs_zfm_p_cred_pres: '',
                        alc_zfm_tp_cbs: '', alc_zfm_n_proc_suframa: '',
-                     }))
+                     }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-cred`} className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -1171,5 +1171,5 @@ export function TaxFieldsEditor({
         )}
       </div>
     </div>
-  )
+  );
 }

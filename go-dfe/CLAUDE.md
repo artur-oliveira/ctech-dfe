@@ -1,6 +1,6 @@
 # CLAUDE.md — go-dfe
 
-Go library — in-process SEFAZ SOAP/mTLS communication, incremental replacement for the py-dfe Lambda.
+Go library — SEFAZ SOAP/mTLS and NFS-e REST communication, executed by the `go-dfe-egress` Lambda (sa-east-1).
 
 **Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md` (go-dfe section),
 `../MIGRATION.md` (2026-07-18 entry), and `../docs/plans/2026-07-17-go-dfe-migration.md`.
@@ -9,9 +9,10 @@ Go library — in-process SEFAZ SOAP/mTLS communication, incremental replacement
 
 ## Role
 
-A library, not a service: no `cmd/`, no Lambda handler, no HTTP server. `worker`/`api` import it directly
-(`gopkg.aoctech.app/dfe/go-dfe`, linked via the root `go.work`) and call `dfe.Call` in the same goroutine as their own
-request handling — no network hop, no AWS Lambda Invoke.
+A library, not a service: no `cmd/`, no Lambda handler, no HTTP server. The only binary that links it is
+`../go-dfe-egress` (a thin Lambda in sa-east-1 that calls `dfe.Call`); `worker`/`api` reach it through an `Invoke` of
+that Lambda, never in process. They import this module only for its types (`Request`/`Response`/`Problem`, the `nfse`
+document model and validators).
 
 **Flow:** `Request → certificate.Load (mTLS) → services.Client.Call → xmlops (build/sign) → soap
 (envelope) → endpoints.Resolve → HTTP POST with retry → xmlops.ParseXML → Response`
@@ -23,15 +24,14 @@ request handling — no network hop, no AWS Lambda Invoke.
 ```
 go-dfe/
 ├── dfe.go                      # Call(ctx, Request) (Response, error); Implements(docType, service) bool
-├── shadow.go                   # ShadowCompare — shared shadow-mode comparison for worker+api seams
-├── request.go                  # Request/Response/Problem — mirrors py-dfe's LambdaRequest/LambdaResponse/Problem
+├── request.go                  # Request/Response/Problem — wire contract of the go-dfe-egress Lambda
 ├── internal/
 │   ├── certificate/manager.go  # PKCS12 → tls.Certificate + http.Client (mTLS, InsecureSkipVerify — deliberate)
 │   ├── xmlops/
 │   │   ├── builder.go           # dict ↔ XML (@xmlns/@key/#text conventions)
 │   │   ├── signer.go            # XML-DSig: rsa-sha1 + sha1 + hand-written Canonical XML 1.0
 │   │   ├── processor.go         # "@xml" processed document (nfeProc/procEventoNFe/etc) for signed emission/event services
-│   │   └── xsdorder/table.go     # 1:1 port of py-dfe's xsd_order.py
+│   │   └── xsdorder/table.go     # 1:1 port of the original Python client's xsd_order.py
 │   ├── soap/envelope.go         # SOAP 1.2 envelope build/parse
 │   ├── services/
 │   │   ├── config.go             # ServiceConfig per doc_type (signature/validation sets, sign xpath)
@@ -46,26 +46,22 @@ go-dfe/
         endpoints.go, dps.go, dps_ibscbs.go, evento.go, transport.go, provider.go, adn.go
 ```
 
-No `nf.go`/`cte.go`/`mdfe.go` OOP facade *classes* (py-dfe's `NFeServiceClient`/`CTeServiceClient`/etc,
-`SefazClient.for_nfe`/`for_cte`) — `services.Client` is already generic over `docType` via
-`services.Config`. BUT those facades are not pure indirection: they own real per- (authorizer,service)
-response-shape logic (`_RESPONSE_NODE_PATH`, `_ensure_list`) that the Lambda handler's generic
-`.call()` dispatch actually depends on for every request — that logic is ported as data tables +
-`unwrapResponseNode`/`ensureList` in `response.go`, not skipped. Getting this wrong is silent and severe: the wrong node
-path returns a different (or extra-nested) shape than py-dfe's, which both defeats shadow-mode comparison (constant
-false divergences) and would corrupt real distribution processing if ever promoted — see `response.go`'s tests for the
-AN/SVRS override cases specifically.
+No `nf.go`/`cte.go`/`mdfe.go` per-doc-type facade classes — `services.Client` is generic over `docType` via
+`services.Config`. The per-(authorizer,service) response-shape logic (`_RESPONSE_NODE_PATH`, `_ensure_list` in the
+original Python client) lives in `response.go` as data tables + `unwrapResponseNode`/`ensureList`. Getting this wrong is
+silent and severe: a wrong node path returns a different (or extra-nested) shape and corrupts distribution
+processing — see `response.go`'s tests for the AN/SVRS override cases specifically.
 
 ---
 
 ## Mandatory Workflow
 
 1. Read relevant docs before starting (see above).
-2. `rg "..."` — search for existing implementations before creating new code, and check the equivalent py-dfe source
-   file first (this package's whole purpose is fidelity to it).
+2. `rg "..."` — search for existing implementations before creating new code, and check the git history of the ported file
+   (the original Python client was removed in 2026-10; this package's whole purpose is fidelity to it).
 3. Plan → Implement → Run affected tests.
 4. Update `../DOCS.md`/`../MIGRATION.md` for architectural changes; `../CONDUCT.md` for new constraints.
-5. State cross-project impact (go-dfe ↔ worker ↔ api ↔ py-dfe ↔ cdk).
+5. State cross-project impact (go-dfe ↔ go-dfe-egress ↔ worker ↔ api ↔ cdk).
 6. Suggest Conventional Commit.
 
 ---
@@ -74,11 +70,11 @@ AN/SVRS override cases specifically.
 
 ### Fidelity over Go idiom
 
-This package's entire value is behavioral parity with py-dfe for any operation in `dfe.Implements()`. When porting a
-py-dfe file (`xsd_order.py`, `endpoints.py`, `signer.py`, …), prefer a direct, line-by-line-diffable port over a
+This package's value is behavioral parity with the SEFAZ client it was ported from (removed from the repo in 2026-10; see git history) for any operation in `dfe.Implements()`. When changing a
+ported file (`xsd_order.py`, `endpoints.py`, `signer.py`, …), prefer a direct, line-by-line-diffable port over a
 "cleaner" Go restructuring — a data table that looks like it could be consolidated may encode a real SEFAZ federation
 quirk (e.g. MT's endpoint special-casing, per-UF WSDL operation overrides). Do not "clean up" apparent duplication in
-ported data without checking the Python source first.
+ported data without checking the git history of the ported source first.
 
 ### Constants — no magic strings
 
@@ -88,37 +84,27 @@ named constants/maps in `internal/constants` or `internal/endpoints` — never s
 ### Certificate handling (MUST NOT simplify)
 
 `internal/certificate/manager.go`'s `InsecureSkipVerify: true` is deliberate (SEFAZ's server certificate chain is not
-validated by design) — mirrors py-dfe's `ssl_context()`. Do not "fix" this.
+validated by design) — deliberate, as in the original Python client. Do not "fix" this.
 
 ### Signer / C14N (the highest-risk file)
 
 `internal/xmlops/signer.go` hand-implements Canonical XML 1.0 (`REC-xml-c14n-20010315`) because no maintained Go library
 does — `goxmldsig` was evaluated and rejected (exclusive C14N + modern algorithms, wrong fit for SEFAZ's legacy
 requirements). Any change here needs: the W3C C14N spec vectors in `signer_test.go` still passing byte-exact, and —
-before promoting any *signed* operation into `dfe.Implements()` — the plan's byte-identical gate against a captured
-py-dfe corpus (a dedicated test certificate, not yet available in this repo; see
+before relying on any *signed* operation in production — the plan's byte-identical gate against a captured
+corpus of the original Python client's signed output (a dedicated test certificate, not yet available in this repo; see
 `docs/plans/2026-07-17-go-dfe-migration.md`,
 "Gate de assinatura"). The current signer implementation has been verified byte-identical against the real upstream
 `signxml` library (see `signer.go`'s package doc), which is a strong independent cross-check but is explicitly **not**
 the same as that formal gate — do not conflate the two.
 
-### `dfe.Implements()` — the promotion gate
+### `dfe.Implements()` — the allowlist
 
-Promoting an operation = adding its `(docType, service)` key to the `implemented` map in `dfe.go`, after:
-
-- **Unsigned ops** (status/consulta/distribuição): a clean shadow-mode parity window in production (see `shadow.go`'s
-  `ShadowCompare`, wired into worker/api's seams — py-dfe stays authoritative, divergence only logged, until the window
-  is clean).
-- **Signed ops**: the byte-identical signature gate above, in addition to shadow mode.
-
-Reverting = removing the key (falls back to the py-dfe Lambda automatically, no other code change). Do not add a key to
-`implemented` without its gate having actually run — this is fiscal software talking to a government tax authority; a
-bad promotion produces real rejected/wrong tax documents.
-
-**Exception — NFS-e (`nfse/`, F2):** py-dfe never implemented NFS-e, so there is no prior authority to shadow-compare
-against and no py-dfe corpus for the byte-identical signature gate. The applicable gate instead is homologação against
-produção restrita (NFS-e plan's F6) — this is a documented exception to the promotion rule above, not a silent skip.
-See `dfe.go`'s `implemented` map doc comment on the `constants.DocTypeNFSE` entry.
+`implemented` in `dfe.go` is the set of `(docType, service)` pairs `Call` accepts; anything else is rejected. There is no
+fallback client: an operation missing from the map fails, it does not go elsewhere. Adding a key means the operation is
+supported end to end — this is fiscal software talking to a government tax authority; a bad addition produces real
+rejected/wrong tax documents. Signed operations were added 2026-07-18 without the byte-identical signature gate (see
+the Signer section), and NFS-e (`nfse/`) is gated by homologação against produção restrita (NFS-e plan's F6).
 
 ### XSD validation and DANFE — explicitly out of scope
 
@@ -130,10 +116,9 @@ See `dfe.go`'s `implemented` map doc comment on the `constants.DocTypeNFSE` entr
 
 ### Go Rules
 
-- `CGO_ENABLED=0 GOARCH=arm64` must build clean (`go-dfe` is linked into `provided.al2023` Lambdas via
-  `worker`/`api`, same constraint as those modules).
-- No goroutines that outlive a caller's request/invocation — `ShadowCompare` runs synchronously for this reason (see
-  `shadow.go`'s doc comment); do not make it fire-and-forget.
+- `CGO_ENABLED=0 GOARCH=arm64` must build clean (`go-dfe` is linked into the `provided.al2023` go-dfe-egress Lambda,
+  same constraint as the other Go modules).
+- No goroutines that outlive a caller's request/invocation (the egress Lambda freezes between invocations).
 
 ---
 
@@ -141,7 +126,7 @@ See `dfe.go`'s `implemented` map doc comment on the `constants.DocTypeNFSE` entr
 
 | Change                           | Required                                                             |
 |----------------------------------|----------------------------------------------------------------------|
-| Data port (xsd_order, endpoints) | Unit test, cross-checked against the py-dfe source values            |
+| Data port (xsd_order, endpoints) | Unit test, cross-checked against the original source values (git history)            |
 | Signer/C14N                      | Unit test against W3C C14N spec vectors + sign/verify round trip     |
 | SefazClient/retry                | Unit test (httptest server, verifies retry-on-5xx / no-retry-on-4xx) |
 | `dfe.Implements`/`Call`          | Unit test                                                            |
@@ -157,7 +142,7 @@ exists).
 
 - No dedicated SEFAZ test certificate exists in this repo yet — the byte-identical signature gate and any
   live-homologação integration test are blocked on obtaining one.
-- `go.work` at the repo root links `./api ./go-dfe ./worker` for local `go build`/`go test`. CDK's Lambda bundling
+- `go.work` at the repo root links `./api ./go-dfe ./go-dfe-egress ./worker` for local `go build`/`go test`. CDK's Lambda bundling
   (`cdk/lib/worker-stack.ts`'s `goCode`) tries local `go build` first (sees the workspace normally, since it runs with
   `cwd` inside `worker/`, a `go.work` ancestor); the Docker bundling fallback only mounts the single asset directory, so
   it would NOT see `go.work` or
@@ -180,22 +165,21 @@ exists).
 ## Critical Areas (require analysis before touching)
 
 - `internal/xmlops/signer.go` (C14N/XML-DSig) — see above.
-- `internal/xmlops/xsdorder/table.go`, `internal/endpoints/table.go` — data fidelity to py-dfe.
-- `dfe.go`'s `implemented` map — the promotion gate.
-- `shadow.go` — shared by both worker and api seams; a bug here affects both.
+- `internal/xmlops/xsdorder/table.go`, `internal/endpoints/table.go` — data fidelity to the ported source (git history).
+- `dfe.go`'s `implemented` map — the allowlist.
 
-Before touching: identify risks + side effects, verify parity with the equivalent py-dfe behavior.
+Before touching: identify risks + side effects, verify parity with the ported behavior (git history).
 
 ---
 
 ## Completion Checklist
 
 - [ ] `CGO_ENABLED=0 GOARCH=arm64 go build ./...` clean; `go test ./...` passes
-- [ ] Ported data/logic cross-checked against the actual py-dfe source (not assumed from memory)
-- [ ] No operation added to `dfe.Implements()` without its gate (shadow parity / byte-identical)
+- [ ] Ported data/logic cross-checked against the original source in git history (not assumed from memory)
+- [ ] No operation added to `dfe.Implements()` without its gate (byte-identical for signed ops; homologação for NFS-e)
 - [ ] All constants named (no magic strings)
 - [ ] Docs updated (`../DOCS.md`/`../MIGRATION.md` and/or `../CONDUCT.md`)
-- [ ] Cross-project impact reviewed (go-dfe ↔ worker ↔ api ↔ py-dfe ↔ cdk)
+- [ ] Cross-project impact reviewed (go-dfe ↔ go-dfe-egress ↔ worker ↔ api ↔ cdk)
 
 ## Mandatory Documentation Policy
 

@@ -1,4 +1,4 @@
-import {cn} from '@/lib/utils'
+import {cn} from '@/lib/utils';
 import React from "react";
 
 export type TableColumn =
@@ -67,7 +67,7 @@ export function TableShell({
                             align: 'left' as const,
                             className: undefined,
                             node: undefined
-                        } : h
+                        } : h;
                         return (
                             <th
                                 key={col.label || `col-${i}`}
@@ -79,20 +79,20 @@ export function TableShell({
                             >
                                 {col.node ?? col.label}
                             </th>
-                        )
+                        );
                     })}
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">{children}</tbody>
             </table>
         </div>
-    )
+    );
 }
 
 /** Standard hover row for TableShell bodies. */
-export const TABLE_ROW = 'hover:bg-gray-50 transition-colors'
+export const TABLE_ROW = 'hover:bg-gray-50 transition-colors';
 /** Standard cell padding for TableShell bodies. */
-export const TABLE_CELL = 'px-4 py-3'
+export const TABLE_CELL = 'px-4 py-3';
 
 /**
  * Row-select checkbox for a table cell. `indeterminate` renders the mixed state
@@ -115,10 +115,10 @@ export function RowCheckbox({
       checked={checked}
       aria-label={ariaLabel}
       ref={el => {
-        if (el) el.indeterminate = !!indeterminate && !checked
+        if (el) el.indeterminate = !!indeterminate && !checked;
       }}
       onChange={onChange}
       className="size-4 cursor-pointer rounded border-gray-300 text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     />
-  )
+  );
 }

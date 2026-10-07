@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {Button} from '@/components/ui/button'
-import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
-import {CopyableCode} from '@/components/ui/copyable-code'
-import {useMdfeActions} from '@/components/mdfe/MdfeActions'
-import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
-import type {NfeEventOut} from '@/lib/types/api'
+import {Suspense, useState} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {Button} from '@/components/ui/button';
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {CopyableCode} from '@/components/ui/copyable-code';
+import {useMdfeActions} from '@/components/mdfe/MdfeActions';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency, formatDate} from '@/lib/utils/helpers';
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import type {NfeEventOut} from '@/lib/types/api';
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 
 
@@ -28,58 +28,58 @@ function InfoCard({label, children}: { label: string; children: React.ReactNode 
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</p>
       {children}
     </div>
-  )
+  );
 }
 
 function MdfeDetail({accessKey}: { accessKey: string }) {
-  const {selectedOrg} = useAuth()
-  const [xmlLoading, setXmlLoading] = useState(false)
-  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null)
-  const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk)
+  const {selectedOrg} = useAuth();
+  const [xmlLoading, setXmlLoading] = useState(false);
+  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
+  const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk);
   
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.mdfes.detail(accessKey),
     queryFn: () => apiClient.getMdfe(accessKey),
     enabled: !!accessKey && !!selectedOrg,
-  })
+  });
   
   const {data: eventsData, isLoading: eventsLoading} = useQuery({
     queryKey: queryKeys.mdfes.events(accessKey),
     queryFn: () => apiClient.getMdfeEvents(accessKey),
     enabled: !!accessKey && !!selectedOrg,
-  })
+  });
   
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-		triggerRemoteDownload((await apiClient.downloadMdfeXml(accessKey)).url)
+		triggerRemoteDownload((await apiClient.downloadMdfeXml(accessKey)).url);
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
   
   const handleDownloadEventXml = async (event: NfeEventOut) => {
-    setEventXmlLoading(event.sk)
+    setEventXmlLoading(event.sk);
     try {
-		triggerRemoteDownload((await apiClient.downloadMdfeEventXml(accessKey, event.sk)).url)
+		triggerRemoteDownload((await apiClient.downloadMdfeEventXml(accessKey, event.sk)).url);
     } finally {
-      setEventXmlLoading(null)
+      setEventXmlLoading(null);
     }
-  }
+  };
   
   if (isLoading) {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse"/>)}
       </div>
-    )
+    );
   }
   if (error || !doc) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
         MDF-e não encontrado.
       </div>
-    )
+    );
   }
   
   return (
@@ -261,12 +261,12 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
       
       {modals}
     </div>
-  )
+  );
 }
 
 function MdfeDetailContent() {
-  const params = useSearchParams()
-  const accessKey = params.get('key') ?? ''
+  const params = useSearchParams();
+  const accessKey = params.get('key') ?? '';
   
   return (
     <RootLayout>
@@ -283,7 +283,7 @@ function MdfeDetailContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function MdfeDetailPage() {
@@ -293,5 +293,5 @@ export default function MdfeDetailPage() {
         <MdfeDetailContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

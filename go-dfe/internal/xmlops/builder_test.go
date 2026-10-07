@@ -6,7 +6,7 @@ import (
 )
 
 // TestBuildXML_SimpleFlat covers a flat element with no attributes/namespace
-// (e.g. consStatServ children), mirroring py-dfe's test_simple_element /
+// (e.g. consStatServ children), mirroring the original Python client's test_simple_element /
 // test_hash_text_key.
 func TestBuildXML_SimpleFlat(t *testing.T) {
 	body := map[string]any{
@@ -36,7 +36,7 @@ func TestBuildXML_SimpleFlat(t *testing.T) {
 }
 
 // TestBuildXML_AttributesAndNamespace covers @attr keys and the @xmlns
-// default-namespace convention, mirroring py-dfe's
+// default-namespace convention, mirroring the original Python client's
 // test_attributes_from_at_prefix / test_namespace_from_xmlns / test_roundtrip.
 func TestBuildXML_AttributesAndNamespace(t *testing.T) {
 	body := map[string]any{
@@ -76,7 +76,7 @@ func TestBuildXML_AttributesAndNamespace(t *testing.T) {
 
 // TestBuildXML_NestedRepeatedChildren covers nested dicts and a list value
 // producing repeated sibling elements (multiple NF-e "det" line items),
-// shaped after py-dfe/tests/integration/fiscal_payloads.py's build_nfe.
+// shaped after the original Python client's build_nfe.
 func TestBuildXML_NestedRepeatedChildren(t *testing.T) {
 	body := map[string]any{
 		"@versao": "4.00",

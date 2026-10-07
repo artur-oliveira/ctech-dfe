@@ -14,8 +14,8 @@ export const IPI_CST_OPTIONS = [
   {value: '54', label: '54 – Saída imune',},
   {value: '55', label: '55 – Saída com suspensão',},
   {value: '99', label: '99 – Outras saídas',},
-]
+];
 
 // Separados por direção para facilitar filtragem contextual
-export const IPI_CST_ENTRADA = IPI_CST_OPTIONS.filter((o) => parseInt(o.value) < 50)
-export const IPI_CST_SAIDA = IPI_CST_OPTIONS.filter((o) => parseInt(o.value) >= 50)
+export const IPI_CST_ENTRADA = IPI_CST_OPTIONS.filter((o) => parseInt(o.value) < 50);
+export const IPI_CST_SAIDA = IPI_CST_OPTIONS.filter((o) => parseInt(o.value) >= 50);

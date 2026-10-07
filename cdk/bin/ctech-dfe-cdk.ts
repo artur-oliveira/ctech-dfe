@@ -7,6 +7,8 @@ import {IAMStack} from '../lib/iam-stack';
 import {OidcStack} from '../lib/oidc-stack';
 import {WorkerStack} from '../lib/worker-stack';
 import {DfeStack} from '../lib/dfe-stack';
+import {GoDfeEgressStack} from '../lib/egress-stack';
+import {EGRESS_REGION, egressFunctionName} from '../lib/egress';
 import {EventBusStack} from '../lib/event-bus-stack';
 import {ApiStack} from '../lib/api-stack';
 import {WORKERS} from '../lib/worker-definitions';
@@ -106,6 +108,14 @@ new DfeStack(app, id('Dfe'), {
   description: `CTech DFe Lambda (PyDFe) (SEFAZ) - ${ENVIRONMENT}`,
 });
 
+// Egress Lambda (sa-east-1): every SEFAZ/municipal call leaves from a Brazilian IP.
+// Referenced from other stacks by name/ARN strings only (cross-region).
+new GoDfeEgressStack(app, id('GoDfeEgress'), {
+  env: {account: AWS_ACCOUNT, region: EGRESS_REGION},
+  environment: ENVIRONMENT,
+  description: `CTech DFe go-dfe-egress Lambda (sa-east-1) - ${ENVIRONMENT}`,
+});
+
 // WorkerStack is created before IAMStack so that distributionQueueArn is
 // available to grant sqs:SendMessage to the API v2 role.
 const workerOutboxTable = dynamodbStack.tables.get('worker_outbox')!;
@@ -117,7 +127,8 @@ const workerStack = new WorkerStack(app, id('Worker'), {
   workers: WORKERS,
   certificatesBucketName: s3Stack.certificatesBucketName,
   documentsBucketName: s3Stack.documentsBucketName,
-  dfeLambdaName: `${ENVIRONMENT}-py-dfe`,
+  dfeLambdaName: egressFunctionName(ENVIRONMENT),
+  dfeEgressRegion: EGRESS_REGION,
   resultsTopicArn: eventBusStack.resultsTopic.topicArn,
   outboxTableName: workerOutboxTable.tableName,
   outboxTableArn: workerOutboxTable.tableArn,

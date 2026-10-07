@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig'
-import {NfeEmitForm} from '@/components/nfe/NfeEmitForm'
+import Link from 'next/link';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig';
+import {NfeEmitForm} from '@/components/nfe/NfeEmitForm';
 
 function NfeEmitContent() {
   return (
@@ -26,7 +26,7 @@ function NfeEmitContent() {
         </RequireFiscalConfig>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfeEmitPage() {
@@ -34,5 +34,5 @@ export default function NfeEmitPage() {
     <ProtectedRoute>
       <NfeEmitContent/>
     </ProtectedRoute>
-  )
+  );
 }

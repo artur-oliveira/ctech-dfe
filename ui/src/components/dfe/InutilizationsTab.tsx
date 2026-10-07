@@ -1,27 +1,27 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {JustificationField} from '@/components/ui/justification-field'
-import {EmptyState} from '@/components/ui/empty-state'
-import {NfeIcon} from '@/components/ui/icon'
-import {Pagination} from '@/components/ui/pagination'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
-import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
-import type {InutilizationOut, NumberGapOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {JustificationField} from '@/components/ui/justification-field';
+import {EmptyState} from '@/components/ui/empty-state';
+import {NfeIcon} from '@/components/ui/icon';
+import {Pagination} from '@/components/ui/pagination';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import type {InutilizationOut, NumberGapOut} from '@/lib/types/api';
 
 /** SEFAZ exige no mínimo 15 caracteres na justificativa da inutilização. */
-export const INUT_JUSTIFICATION_MIN_LENGTH = 15
-export const INUT_JUSTIFICATION_MAX_LENGTH = 255
+export const INUT_JUSTIFICATION_MIN_LENGTH = 15;
+export const INUT_JUSTIFICATION_MAX_LENGTH = 255;
 
 type DocType = 'nfe' | 'nfce'
 
@@ -33,11 +33,11 @@ interface InutilizationsTabProps {
 }
 
 function rangeLabel(start: number, end: number): string {
-  return start === end ? `${start}` : `${start} – ${end}`
+  return start === end ? `${start}` : `${start} – ${end}`;
 }
 
 function rangeSize(start: number, end: number): number {
-  return end - start + 1
+  return end - start + 1;
 }
 
 /**
@@ -46,21 +46,21 @@ function rangeSize(start: number, end: number): number {
  * aparece em vez de aparecer quebrado.
  */
 function InutilizationXmlButton({docType, item}: { docType: DocType; item: InutilizationOut }) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
-  if (!item.xml_s3_key) return null
+  if (!item.xml_s3_key) return null;
 
   const handleDownload = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-		const download = await apiClient.downloadInutilizationXml(docType, item.sk)
-		triggerRemoteDownload(download.url)
+		const download = await apiClient.downloadInutilizationXml(docType, item.sk);
+		triggerRemoteDownload(download.url);
     } catch {
-      toast.error('Erro ao baixar o XML da inutilização.')
+      toast.error('Erro ao baixar o XML da inutilização.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Button
@@ -72,7 +72,7 @@ function InutilizationXmlButton({docType, item}: { docType: DocType; item: Inuti
     >
       {loading ? 'Baixando…' : 'XML'}
     </Button>
-  )
+  );
 }
 
 /**
@@ -84,20 +84,20 @@ function InutilizationXmlButton({docType, item}: { docType: DocType; item: Inuti
  * saiba o que precisa fechar antes de precisar perguntar.
  */
 export function InutilizationsTab({docType, docLabel, orgPk}: InutilizationsTabProps) {
-  const qc = useQueryClient()
-  const [draft, setDraft] = useState<{ serie: number; start: string; end: string } | null>(null)
-  const [justification, setJustification] = useState('')
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<{ serie: number; start: string; end: string } | null>(null);
+  const [justification, setJustification] = useState('');
 
   const gapsQuery = useQuery({
     queryKey: queryKeys.inutilizations.gaps(docType, orgPk),
     queryFn: () => apiClient.listNumberGaps(docType),
-  })
+  });
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} =
     usePagination<InutilizationOut>({
       queryKey: queryKeys.inutilizations.list(docType, orgPk),
       queryFn: (cursor) => apiClient.listInutilizations(docType, {limit: 10, cursor}),
-    })
+    });
 
   const mutation = useMutation({
     mutationFn: () => apiClient.createInutilization(docType, {
@@ -107,35 +107,35 @@ export function InutilizationsTab({docType, docLabel, orgPk}: InutilizationsTabP
       justification: justification.trim(),
     }),
     onSuccess: () => {
-      closeModal()
-      toast.info('Inutilização enviada à SEFAZ. O status é atualizado automaticamente.')
-      void qc.invalidateQueries({queryKey: queryKeys.inutilizations.list(docType, orgPk)})
-      void qc.invalidateQueries({queryKey: queryKeys.inutilizations.gaps(docType, orgPk)})
+      closeModal();
+      toast.info('Inutilização enviada à SEFAZ. O status é atualizado automaticamente.');
+      void qc.invalidateQueries({queryKey: queryKeys.inutilizations.list(docType, orgPk)});
+      void qc.invalidateQueries({queryKey: queryKeys.inutilizations.gaps(docType, orgPk)});
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao inutilizar a faixa.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao inutilizar a faixa.');
     },
-  })
+  });
 
   const openModal = (gap?: NumberGapOut) => {
-    setJustification('')
+    setJustification('');
     setDraft({
       serie: gap?.serie ?? 0,
       start: gap ? String(gap.number_start) : '',
       end: gap ? String(gap.number_end) : '',
-    })
-  }
+    });
+  };
 
   const closeModal = () => {
-    setDraft(null)
-    setJustification('')
-  }
+    setDraft(null);
+    setJustification('');
+  };
 
-  const gaps = gapsQuery.data?.items ?? []
-  const start = Number(draft?.start)
-  const end = Number(draft?.end)
-  const rangeValid = Number.isInteger(start) && Number.isInteger(end) && start >= 1 && end >= start
-  const canSubmit = rangeValid && justification.trim().length >= INUT_JUSTIFICATION_MIN_LENGTH
+  const gaps = gapsQuery.data?.items ?? [];
+  const start = Number(draft?.start);
+  const end = Number(draft?.end);
+  const rangeValid = Number.isInteger(start) && Number.isInteger(end) && start >= 1 && end >= start;
+  const canSubmit = rangeValid && justification.trim().length >= INUT_JUSTIFICATION_MIN_LENGTH;
 
   return (
     <div className="space-y-6">
@@ -339,5 +339,5 @@ export function InutilizationsTab({docType, docLabel, orgPk}: InutilizationsTabP
         </div>
       </Modal>
     </div>
-  )
+  );
 }

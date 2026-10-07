@@ -5,4 +5,4 @@
  * fixtures from `handler.ts` so authenticated surfaces can be exercised in the
  * browser without a backend or valid credentials.
  */
-export const MOCK_ENABLED = process.env.NEXT_PUBLIC_MOCK_API === 'true'
+export const MOCK_ENABLED = process.env.NEXT_PUBLIC_MOCK_API === 'true';

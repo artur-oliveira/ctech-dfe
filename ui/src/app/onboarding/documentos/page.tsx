@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useMemo, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {DocumentPicker} from '@/components/onboarding/DocumentPicker'
-import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm'
-import {Button} from '@/components/ui/button'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useFiscalConfigMutation} from '@/lib/hooks/useFiscalConfig'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {useSubscription} from '@/lib/hooks/useSubscription'
-import {METER_LABELS} from '@/lib/constants/billing'
+import {useMemo, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {DocumentPicker} from '@/components/onboarding/DocumentPicker';
+import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
+import {Button} from '@/components/ui/button';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useFiscalConfigMutation} from '@/lib/hooks/useFiscalConfig';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {useSubscription} from '@/lib/hooks/useSubscription';
+import {METER_LABELS} from '@/lib/constants/billing';
 import {
   DISTRIBUTION_DEPENDENT_VARIANTS,
   DISTRIBUTION_SOURCE_VARIANT,
@@ -22,8 +22,8 @@ import {
   STEP_DONE,
   STEP_PRODUCTS,
   STEP_SERVICES,
-} from '@/lib/constants/onboarding'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+} from '@/lib/constants/onboarding';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 /**
  * The numbering an organization that has never issued starts from.
@@ -32,10 +32,10 @@ import type {DocVariant} from '@/lib/schemas/fiscal-configs'
  * overwrites this with the last number it issued elsewhere, which is the whole
  * reason the step asks.
  */
-const FRESH_SERIE = '1'
-const FRESH_NUMBER = '0'
-const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
-const ENVIRONMENT_PRODUCTION = '1'
+const FRESH_SERIE = '1';
+const FRESH_NUMBER = '0';
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+const ENVIRONMENT_PRODUCTION = '1';
 
 /** The NF-e configuration a carrier gets without issuing a single NF-e. */
 function receiveOnlyNfeConfig(source: Record<string, unknown> | undefined) {
@@ -46,30 +46,30 @@ function receiveOnlyNfeConfig(source: Record<string, unknown> | undefined) {
     prod_current_number: FRESH_NUMBER,
     hom_current_serie: FRESH_SERIE,
     hom_current_number: FRESH_NUMBER,
-  }
+  };
 }
 
 function DocumentsStepContent() {
-  const router = useRouter()
-  const {selectedOrg} = useAuth()
-  const {subscription} = useSubscription()
-  const {configured} = useOnboarding()
+  const router = useRouter();
+  const {selectedOrg} = useAuth();
+  const {subscription} = useSubscription();
+  const {configured} = useOnboarding();
 
-  const [selected, setSelected] = useState<DocVariant[]>([])
-  const [queue, setQueue] = useState<DocVariant[] | null>(null)
-  const [queueIndex, setQueueIndex] = useState(0)
+  const [selected, setSelected] = useState<DocVariant[]>([]);
+  const [queue, setQueue] = useState<DocVariant[] | null>(null);
+  const [queueIndex, setQueueIndex] = useState(0);
 
-  const pk = selectedOrg?.pk
-  const current = queue?.[queueIndex]
-  const saveCurrent = useFiscalConfigMutation(current ?? DISTRIBUTION_SOURCE_VARIANT, pk)
-  const saveDistributionSource = useFiscalConfigMutation(DISTRIBUTION_SOURCE_VARIANT, pk)
+  const pk = selectedOrg?.pk;
+  const current = queue?.[queueIndex];
+  const saveCurrent = useFiscalConfigMutation(current ?? DISTRIBUTION_SOURCE_VARIANT, pk);
+  const saveDistributionSource = useFiscalConfigMutation(DISTRIBUTION_SOURCE_VARIANT, pk);
 
-  const quotas = subscription?.quotas ?? {}
+  const quotas = subscription?.quotas ?? {};
   // A no-charge installation grants everything; without quotas the picker would
   // claim nothing is included.
   const effectiveQuotas = subscription?.no_charge
     ? Object.fromEntries(Object.keys(METER_LABELS).map((m) => [m, -1]))
-    : quotas
+    : quotas;
 
   /**
    * Where the flow goes next, decided from what was just selected rather than
@@ -78,10 +78,10 @@ function DocumentsStepContent() {
    * settling.
    */
   const nextStepAfter = useMemo(() => {
-    if (selected.some((v) => PRODUCT_DOC_VARIANTS.includes(v))) return `${ONBOARDING_ROOT}/${STEP_PRODUCTS}`
-    if (selected.some((v) => SERVICE_DOC_VARIANTS.includes(v))) return `${ONBOARDING_ROOT}/${STEP_SERVICES}`
-    return `${ONBOARDING_ROOT}/${STEP_DONE}`
-  }, [selected])
+    if (selected.some((v) => PRODUCT_DOC_VARIANTS.includes(v))) return `${ONBOARDING_ROOT}/${STEP_PRODUCTS}`;
+    if (selected.some((v) => SERVICE_DOC_VARIANTS.includes(v))) return `${ONBOARDING_ROOT}/${STEP_SERVICES}`;
+    return `${ONBOARDING_ROOT}/${STEP_DONE}`;
+  }, [selected]);
 
   /**
    * A CT-e is written against the NF-e of the cargo and an MDF-e lists them,
@@ -92,22 +92,22 @@ function DocumentsStepContent() {
   const needsDistributionSource =
     selected.some((v) => DISTRIBUTION_DEPENDENT_VARIANTS.includes(v)) &&
     !configured[DISTRIBUTION_SOURCE_VARIANT] &&
-    !selected.includes(DISTRIBUTION_SOURCE_VARIANT)
+    !selected.includes(DISTRIBUTION_SOURCE_VARIANT);
 
   async function finish(lastSaved: Record<string, unknown> | undefined) {
     if (needsDistributionSource) {
-      await saveDistributionSource.mutateAsync(receiveOnlyNfeConfig(lastSaved))
+      await saveDistributionSource.mutateAsync(receiveOnlyNfeConfig(lastSaved));
     }
-    router.push(nextStepAfter)
+    router.push(nextStepAfter);
   }
 
   async function handleSave(data: Record<string, unknown>) {
-    await saveCurrent.mutateAsync(data)
+    await saveCurrent.mutateAsync(data);
     if (queue && queueIndex < queue.length - 1) {
-      setQueueIndex(queueIndex + 1)
-      return
+      setQueueIndex(queueIndex + 1);
+      return;
     }
-    await finish(data)
+    await finish(data);
   }
 
   // Phase 1 — which documents does this company issue?
@@ -138,19 +138,19 @@ function DocumentsStepContent() {
             className="w-full sm:w-auto"
             disabled={selected.length === 0}
             onClick={() => {
-              setQueue(selected)
-              setQueueIndex(0)
+              setQueue(selected);
+              setQueueIndex(0);
             }}
           >
             Continuar
           </Button>
         </div>
       </OnboardingShell>
-    )
+    );
   }
 
   // Phase 2 — numbering, one document at a time.
-  const position = `${queueIndex + 1} de ${queue.length}`
+  const position = `${queueIndex + 1} de ${queue.length}`;
   return (
     <OnboardingShell
       current={STEP_DOCUMENTS}
@@ -178,7 +178,7 @@ function DocumentsStepContent() {
         </p>
       )}
     </OnboardingShell>
-  )
+  );
 }
 
 export default function DocumentsStepPage() {
@@ -186,5 +186,5 @@ export default function DocumentsStepPage() {
     <ProtectedRoute>
       <DocumentsStepContent/>
     </ProtectedRoute>
-  )
+  );
 }

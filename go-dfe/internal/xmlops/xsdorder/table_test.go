@@ -1,4 +1,4 @@
-// Tests for the xsdorder table — ported from py-dfe's
+// Tests for the xsdorder table — ported from the original Python client's
 // tests/unit/test_xsd_order.py and tests/unit/test_xsd_order_comprehensive.py.
 //
 // The Python tests build a dict with keys in WRONG order and assert the
@@ -676,7 +676,7 @@ func TestTotalDaMonofasia(t *testing.T) {
 
 // O IS do PL_010e_v1.02 usa CSTIS/cClassTribIS/vBCIS/pIS — os nomes da
 // NT 2024.001 (CST/cClassTrib/vBC) não valem mais. A tabela Python ficou para
-// trás uma vez; TestXsdOrderParity (py-dfe) é o guarda permanente disso.
+// trás uma vez; TestXsdOrderParity (the original Python client) é o guarda permanente disso.
 func TestISUsaOsNomesDoPL010e(t *testing.T) {
 	assertOrderIsCorrect(t, mustResolve(t, "", "IS"), []string{
 		"CSTIS", "cClassTribIS", "vBCIS", "pIS", "adRemIS", "uTrib", "qTrib", "vIS",

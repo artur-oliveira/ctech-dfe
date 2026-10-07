@@ -1,28 +1,28 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {CargoUnitForm} from '@/components/cargo-units/CargoUnitForm'
-import type {CargoUnitCreate} from '@/lib/types/api'
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {CargoUnitForm} from '@/components/cargo-units/CargoUnitForm';
+import type {CargoUnitCreate} from '@/lib/types/api';
 
 function NewCargoUnitContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (d: CargoUnitCreate) => apiClient.createCargoUnit(d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk)})
-      router.push('/cargo-units')
+      void qc.invalidateQueries({queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk)});
+      router.push('/cargo-units');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -35,13 +35,13 @@ function NewCargoUnitContent() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Nova unidade</h1>
         <CargoUnitForm
           onSubmit={async (d) => {
-            await createMutation.mutateAsync(d)
+            await createMutation.mutateAsync(d);
           }}
           loading={createMutation.isPending}
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NewCargoUnitPage() {
@@ -49,5 +49,5 @@ export default function NewCargoUnitPage() {
     <ProtectedRoute>
       <NewCargoUnitContent/>
     </ProtectedRoute>
-  )
+  );
 }

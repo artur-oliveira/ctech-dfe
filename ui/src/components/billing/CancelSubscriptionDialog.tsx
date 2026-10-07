@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Modal} from '@/components/ui/modal'
-import {formatISODateBR} from '@/lib/utils/dfe'
-import type {AccountSubscription} from '@/lib/types/billing'
+import {useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Modal} from '@/components/ui/modal';
+import {formatISODateBR} from '@/lib/utils/dfe';
+import type {AccountSubscription} from '@/lib/types/billing';
 
 interface CancelSubscriptionDialogProps {
   isOpen: boolean
@@ -14,8 +14,8 @@ interface CancelSubscriptionDialogProps {
   subscription: AccountSubscription
 }
 
-const WHEN_PERIOD_END = 'period_end'
-const WHEN_IMMEDIATE = 'immediate'
+const WHEN_PERIOD_END = 'period_end';
+const WHEN_IMMEDIATE = 'immediate';
 
 /**
  * Cancellation, with the two kinds kept apart.
@@ -27,21 +27,21 @@ const WHEN_IMMEDIATE = 'immediate'
  * issuance by accident.
  */
 export function CancelSubscriptionDialog({isOpen, onClose, subscription}: CancelSubscriptionDialogProps) {
-  const qc = useQueryClient()
-  const [when, setWhen] = useState<string>(WHEN_PERIOD_END)
-  const [acknowledged, setAcknowledged] = useState(false)
+  const qc = useQueryClient();
+  const [when, setWhen] = useState<string>(WHEN_PERIOD_END);
+  const [acknowledged, setAcknowledged] = useState(false);
 
-  const immediate = when === WHEN_IMMEDIATE
+  const immediate = when === WHEN_IMMEDIATE;
 
   const cancel = useMutation({
     mutationFn: () => apiClient.cancelBillingSubscription(!immediate),
     onSuccess: async () => {
-      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()})
-      onClose()
+      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()});
+      onClose();
     },
-  })
+  });
 
-  const periodEnd = subscription.period_end ? formatISODateBR(subscription.period_end) : null
+  const periodEnd = subscription.period_end ? formatISODateBR(subscription.period_end) : null;
 
   return (
     <Modal
@@ -82,8 +82,8 @@ export function CancelSubscriptionDialog({isOpen, onClose, subscription}: Cancel
               value={option.value}
               checked={when === option.value}
               onChange={() => {
-                setWhen(option.value)
-                setAcknowledged(false)
+                setWhen(option.value);
+                setAcknowledged(false);
               }}
               className="mt-1 size-4 shrink-0 accent-gray-900"
             />
@@ -115,5 +115,5 @@ export function CancelSubscriptionDialog({isOpen, onClose, subscription}: Cancel
         </p>
       )}
     </Modal>
-  )
+  );
 }

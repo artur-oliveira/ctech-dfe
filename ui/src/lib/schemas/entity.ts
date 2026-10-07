@@ -2,16 +2,16 @@
  * Unified schema for both persons and organizations.
  * Organizations additionally use the `description` and `person.contacts` fields.
  */
-import {z} from 'zod'
-import {validateCNPJ, validateCPF} from '@/lib/utils/validators'
-import type {NfseInfo, PersonBank, PersonFreightRetention} from '@/lib/types/api'
-import {ALL_CNAES} from '@/lib/data/cnae'
+import {z} from 'zod';
+import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
+import type {NfseInfo, PersonBank, PersonFreightRetention} from '@/lib/types/api';
+import {ALL_CNAES} from '@/lib/data/cnae';
 
 export const UF_LIST = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
   'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN',
   'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',
-] as const
+] as const;
 
 export const addressSchema = z.object({
   city_ibge_code: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),
@@ -22,20 +22,20 @@ export const addressSchema = z.object({
   state_federation: z.enum(UF_LIST, {error: 'UF inválida'}),
   postal_code: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
   complement: z.string().max(120).optional().or(z.literal('')),
-})
+});
 
 export const stateRegistrationSchema = z.object({
   uf: z.enum(UF_LIST, {error: 'UF inválida'}),
   state_registration: z.string().min(1, 'IE obrigatória').max(20),
   /** Inscrição de substituto tributário nesta UF (emit/IEST). */
   ie_st: z.string().max(20).optional().or(z.literal('')),
-})
+});
 
 // Papéis de pessoa (services.AllPersonRoles em api/internal/services/person_roles.go).
 // Papel é filtro de cadastro, não regra fiscal: a emissão nunca valida papel, e
 // uma pessoa acumula quantos papéis forem verdade ao mesmo tempo — transportadora
 // que também é cliente é o caso normal, não a exceção.
-export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider', 'freight_contractor', 'intermediary'] as const
+export const PERSON_ROLES = ['customer', 'supplier', 'carrier', 'driver', 'provider', 'freight_contractor', 'intermediary'] as const;
 export type PersonRole = typeof PERSON_ROLES[number]
 
 export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
@@ -46,22 +46,22 @@ export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
   provider: 'Prestador',
   freight_contractor: 'Contratante de frete',
   intermediary: 'Intermediador / marketplace',
-}
+};
 
 /** Papel do intermediador da transação — quem a NF-e declara em infIntermed. */
-export const PERSON_ROLE_INTERMEDIARY: PersonRole = 'intermediary'
+export const PERSON_ROLE_INTERMEDIARY: PersonRole = 'intermediary';
 
 // Papel pré-marcado num cadastro novo de pessoa.
-export const PERSON_ROLE_DEFAULT: PersonRole = 'customer'
+export const PERSON_ROLE_DEFAULT: PersonRole = 'customer';
 
 export const PERSON_ROLE_OPTIONS = PERSON_ROLES.map((value) => ({
   value,
   label: PERSON_ROLE_LABELS[value],
-}))
+}));
 
 // Sentinel select value meaning "no CRT" for pessoa física. Lives in form state so
 // the Radix Select stays controlled; converted to null on submit (CLAUDE: no magic strings).
-export const CRT_NONE_VALUE = '__none__'
+export const CRT_NONE_VALUE = '__none__';
 
 // Grupo `nfse` do cadastro (NfseInfoBody em api/internal/api/v1/dto.go). É o
 // que a emissão de NFS-e exige e o cadastro de NF-e não tem: inscrição
@@ -79,21 +79,21 @@ export const nfseInfoSchema = z.object({
       code: 'custom',
       message: 'Obrigatório para optante do Simples (ME/EPP)',
       path: ['reg_ap_trib_sn'],
-    })
+    });
   }
-})
+});
 
 export const OP_SIMP_NAC_OPTIONS = [
   {value: '1', label: '1 – Não optante pelo Simples Nacional'},
   {value: '2', label: '2 – Optante; MEI'},
   {value: '3', label: '3 – Optante; Microempresa ou EPP'},
-]
+];
 
 export const REG_AP_TRIB_SN_OPTIONS = [
   {value: '1', label: '1 – Federais e municipal pelo Simples'},
   {value: '2', label: '2 – Federais pelo Simples, ISSQN por fora'},
   {value: '3', label: '3 – Federais e municipal por fora do Simples'},
-]
+];
 
 export const REG_ESP_TRIB_OPTIONS = [
   {value: '0', label: '0 – Nenhum'},
@@ -104,10 +104,10 @@ export const REG_ESP_TRIB_OPTIONS = [
   {value: '5', label: '5 – Profissional autônomo'},
   {value: '6', label: '6 – Sociedade de profissionais'},
   {value: '9', label: '9 – Outros'},
-]
+];
 
 /** Índice dos códigos CNAE, para a validação não varrer 1.300 entradas por tecla. */
-const CNAE_CODES = new Set(ALL_CNAES.map((c) => c.code))
+const CNAE_CODES = new Set(ALL_CNAES.map((c) => c.code));
 
 export const entitySchema = z.object({
   tipo: z.enum(['pf', 'pj']),
@@ -162,41 +162,41 @@ export const entitySchema = z.object({
   // Pessoa no exterior não tem CPF/CNPJ: os dois campos são exclusivos.
   if (data.id_estrangeiro) {
     if (data.cpf_or_cnpj) {
-      ctx.addIssue({code: 'custom', message: 'Informe CPF/CNPJ ou documento estrangeiro, nunca os dois', path: ['id_estrangeiro']})
+      ctx.addIssue({code: 'custom', message: 'Informe CPF/CNPJ ou documento estrangeiro, nunca os dois', path: ['id_estrangeiro']});
     }
-    return
+    return;
   }
   if (!data.cpf_or_cnpj) {
-    ctx.addIssue({code: 'custom', message: 'CPF/CNPJ obrigatório', path: ['cpf_or_cnpj']})
-    return
+    ctx.addIssue({code: 'custom', message: 'CPF/CNPJ obrigatório', path: ['cpf_or_cnpj']});
+    return;
   }
-  const raw = data.cpf_or_cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const raw = data.cpf_or_cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase();
   if (data.tipo === 'pf' && !validateCPF(raw)) {
-    ctx.addIssue({code: 'custom', message: 'CPF inválido', path: ['cpf_or_cnpj']})
+    ctx.addIssue({code: 'custom', message: 'CPF inválido', path: ['cpf_or_cnpj']});
   }
   if (data.tipo === 'pj' && !validateCNPJ(raw)) {
-    ctx.addIssue({code: 'custom', message: 'CNPJ inválido', path: ['cpf_or_cnpj']})
+    ctx.addIssue({code: 'custom', message: 'CNPJ inválido', path: ['cpf_or_cnpj']});
   }
   if (data.tipo === 'pj' && (!data.person.crt || data.person.crt === CRT_NONE_VALUE)) {
-    ctx.addIssue({code: 'custom', message: 'CRT obrigatório', path: ['person', 'crt']})
+    ctx.addIssue({code: 'custom', message: 'CRT obrigatório', path: ['person', 'crt']});
   }
-  const ufs = data.person.state_registrations.map((r) => r.uf)
-  const dup = ufs.find((uf, i) => ufs.indexOf(uf) !== i)
+  const ufs = data.person.state_registrations.map((r) => r.uf);
+  const dup = ufs.find((uf, i) => ufs.indexOf(uf) !== i);
   if (dup) {
-    ctx.addIssue({code: 'custom', message: `UF duplicada: ${dup}`, path: ['person', 'state_registrations']})
+    ctx.addIssue({code: 'custom', message: `UF duplicada: ${dup}`, path: ['person', 'state_registrations']});
   }
 
   // O CNAE tem formato de 7 dígitos e uma tabela fechada: passar no regex e não
   // existir na tabela é o erro que o município devolve depois.
   if (data.person.cnae && !CNAE_CODES.has(data.person.cnae)) {
-    ctx.addIssue({code: 'custom', message: 'CNAE não existe na tabela', path: ['person', 'cnae']})
+    ctx.addIssue({code: 'custom', message: 'CNAE não existe na tabela', path: ['person', 'cnae']});
   }
 
   // retTransp é um grupo do leiaute: ou os cinco campos vêm, ou nenhum. Meio
   // preenchido é "retTransp incompleto" na emissão de quem contratar o frete.
-  const ret = data.person.freight_retention
-  const retFields = ['v_serv', 'v_bc_ret', 'p_icms_ret', 'cfop', 'c_mun_fg'] as const
-  const retFilled = retFields.filter((f) => (ret?.[f] ?? '') !== '')
+  const ret = data.person.freight_retention;
+  const retFields = ['v_serv', 'v_bc_ret', 'p_icms_ret', 'cfop', 'c_mun_fg'] as const;
+  const retFilled = retFields.filter((f) => (ret?.[f] ?? '') !== '');
   if (retFilled.length > 0 && retFilled.length < retFields.length) {
     for (const field of retFields) {
       if ((ret?.[field] ?? '') === '') {
@@ -204,11 +204,11 @@ export const entitySchema = z.object({
           code: 'custom',
           message: 'A retenção do frete é um grupo: preencha todos os campos ou nenhum',
           path: ['person', 'freight_retention', field],
-        })
+        });
       }
     }
   }
-})
+});
 
 /**
  * A organização não tem regra própria hoje — e a ausência é a decisão.
@@ -223,26 +223,26 @@ export const entitySchema = z.object({
  * configuração do documento e na emissão — que a falta dela é um erro, com o
  * contexto de qual documento a exige.
  */
-export const organizationSchema = entitySchema
+export const organizationSchema = entitySchema;
 
 export type EntityFormData = z.infer<typeof entitySchema>
 export type NfseInfoData = z.infer<typeof nfseInfoSchema>
 export type AddressData = z.infer<typeof addressSchema>
 export type StateRegistrationData = z.infer<typeof stateRegistrationSchema>
 
-export const UF_OPTIONS = UF_LIST.map((uf) => ({value: uf, label: uf}))
+export const UF_OPTIONS = UF_LIST.map((uf) => ({value: uf, label: uf}));
 
 export const CRT_OPTIONS_PJ = [
   {value: '1', label: 'Simples Nacional'},
   {value: '2', label: 'Simples Nacional (excesso de sublimite)'},
   {value: '3', label: 'Regime Normal'},
   {value: '4', label: 'MEI – Microempreendedor Individual'},
-]
+];
 
 /** Estado do formulário → grupo `nfse` da API. Devolve null quando nada foi
  *  preenchido, para não gravar um grupo vazio no cadastro. */
 export function nfseInfoToApi(v: NfseInfoData | undefined): NfseInfo | null {
-  if (!v || (!v.im && !v.op_simp_nac)) return null
+  if (!v || (!v.im && !v.op_simp_nac)) return null;
   return {
     im: v.im || null,
     reg_trib: v.op_simp_nac
@@ -252,50 +252,50 @@ export function nfseInfoToApi(v: NfseInfoData | undefined): NfseInfo | null {
         reg_esp_trib: Number(v.reg_esp_trib || '0'),
       }
       : null,
-  }
+  };
 }
 
 /** Estado do formulário → choice bancário do cadastro. Grupo vazio vira null
  * para não persistir um mapa de strings vazias no DynamoDB. */
 export function personBankToApi(v: EntityFormData['person']['bank']): PersonBank | null {
-  if (!v || (!v.pix_key && !v.bank_code && !v.branch_code && !v.cnpj_ipef)) return null
+  if (!v || (!v.pix_key && !v.bank_code && !v.branch_code && !v.cnpj_ipef)) return null;
   return {
     pix_key: v.pix_key || null,
     bank_code: v.bank_code || null,
     branch_code: v.branch_code || null,
     cnpj_ipef: v.cnpj_ipef || null,
-  }
+  };
 }
 
 /** Estado do formulário → perfil de retenção do frete. */
 export function freightRetentionToApi(
   v: EntityFormData['person']['freight_retention'],
 ): PersonFreightRetention | null {
-  if (!v || (!v.v_serv && !v.v_bc_ret && !v.p_icms_ret && !v.cfop && !v.c_mun_fg)) return null
+  if (!v || (!v.v_serv && !v.v_bc_ret && !v.p_icms_ret && !v.cfop && !v.c_mun_fg)) return null;
   return {
     v_serv: v.v_serv || null,
     v_bc_ret: v.v_bc_ret || null,
     p_icms_ret: v.p_icms_ret || null,
     cfop: v.cfop || null,
     c_mun_fg: v.c_mun_fg || null,
-  }
+  };
 }
 
 /** Grupo `nfse` da API → estado do formulário (selects sempre controlados). */
 export function nfseInfoFromApi(v: NfseInfo | null | undefined): NfseInfoData {
-  const reg = v?.reg_trib
+  const reg = v?.reg_trib;
   return {
     im: v?.im ?? '',
     op_simp_nac: (reg?.op_simp_nac != null ? String(reg.op_simp_nac) : '') as NfseInfoData['op_simp_nac'],
     reg_ap_trib_sn: (reg?.reg_ap_trib_sn != null ? String(reg.reg_ap_trib_sn) : '') as NfseInfoData['reg_ap_trib_sn'],
     reg_esp_trib: (reg?.reg_esp_trib != null ? String(reg.reg_esp_trib) : '') as NfseInfoData['reg_esp_trib'],
-  }
+  };
 }
 
 export const CRT_OPTIONS_ORG_PF = [
   {value: '3', label: 'Regime Normal'},
   {value: '4', label: 'MEI – Microempreendedor Individual'},
-]
+];
 
 /** One blank address, which every entity form starts with. Lives here rather
  * than in EntityForm so the converters can build the same empty shape for a
@@ -303,4 +303,4 @@ export const CRT_OPTIONS_ORG_PF = [
 export const EMPTY_ADDRESS: EntityFormData['person']['addresses'][number] = {
   city_ibge_code: '', street: '', neighborhood: '', number: '',
   city: '', state_federation: 'SP', postal_code: '', complement: '',
-}
+};

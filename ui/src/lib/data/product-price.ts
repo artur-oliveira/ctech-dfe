@@ -1,7 +1,7 @@
-import type {ProductOut} from '@/lib/types/api'
+import type {ProductOut} from '@/lib/types/api';
 
 /** CNPJ has 14 digits; CPF has 11. */
-const CNPJ_DIGITS = 14
+const CNPJ_DIGITS = 14;
 
 /**
  * Resolve the unit price to prefill for an emission item.
@@ -17,8 +17,8 @@ export function resolveUnitPrice(
   product: Pick<ProductOut, 'value' | 'value_resale'>,
   recipientDoc: string,
 ): string {
-  const digits = (recipientDoc ?? '').replace(/\D/g, '')
-  const isCnpj = digits.length === CNPJ_DIGITS
-  if (isCnpj && product.value_resale) return product.value_resale
-  return product.value
+  const digits = (recipientDoc ?? '').replace(/\D/g, '');
+  const isCnpj = digits.length === CNPJ_DIGITS;
+  if (isCnpj && product.value_resale) return product.value_resale;
+  return product.value;
 }

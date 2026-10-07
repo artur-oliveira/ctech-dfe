@@ -74,6 +74,19 @@ distribuição → signed operations), with automatic fallback to the py-dfe Lam
 - **DANFE/DAMDFE rendering** is excluded from `go-dfe`'s scope permanently — no certificate, signature, SOAP, or mTLS
   involved. The original decision to leave it in py-dfe was superseded by the 2026-08-29 API/Folio migration below.
 
+### 2026-10-06 Update — go-dfe-egress (sa-east-1); py-dfe no longer called
+
+Teresina's NFS-e authority (`nfseapi.teresina.pi.gov.br`) drops TCP connections that originate outside Brazil: a
+Lambda in us-east-1 timed out on the connect (80 s invocation), the same code in sa-east-1 connected in 24 ms. Every
+SEFAZ/municipal call now goes through the **go-dfe-egress** Lambda in sa-east-1 (`docs/specs/2026-10-06-go-dfe-egress-design.md`):
+
+- This **reverses the 2026-07-18 in-process cutover** for fiscal documents: `worker` and `api` no longer call
+  `dfe.Call` in process; they `Invoke` the egress (client region `DFE_EGRESS_REGION`). There is no fallback client.
+- The shadow comparison (`ShadowCompare`) and the py-dfe fallback path were removed from `go-dfe`, `worker` and `api`.
+- The py-dfe Lambda is no longer called by any code; removing its directory, stack, roles and CI is a separate, later
+  step (plan Task 10).
+- Timeouts: connect 10 s, NFS-e 20 s per attempt, egress 120 s, SEFAZ-calling workers 150 s.
+
 See `go-dfe/CLAUDE.md` for the module's own conventions and current `Implements()` set.
 
 ### 2026-08-08 Update — Compatibilidade textual por autorizador

@@ -171,7 +171,7 @@ func buildTestRSACert(t *testing.T) (*x509.Certificate, *rsa.PrivateKey) {
 // TestCall_SignedService_EndToEnd proves the full pipeline for a *signed*
 // service through Client.Call — build XML, sign it (internal/xmlops.Sign),
 // wrap in a SOAP envelope, POST, parse the response — composes correctly.
-// This is NOT the plan's byte-identical py-dfe gate (see
+// This is NOT the plan's byte-identical the original Python client gate (see
 // docs/plans/2026-07-17-go-dfe-migration.md and go-dfe/CLAUDE.md); it only
 // proves the Go-side machinery works end-to-end, independent of whether
 // NFeAutorizacao is ever promoted into dfe.Implements().
@@ -242,7 +242,7 @@ func TestCall_SignedService_EndToEnd(t *testing.T) {
 	retEnviNFe, _ := result["retEnviNFe"].(map[string]any)
 	// ensureList("retEnviNFe/protNFe") normalizes the single protNFe
 	// occurrence into a one-element list (NFeAutorizacao's
-	// nfeNfceEnsureListPaths entry, response.go) — matching py-dfe's
+	// nfeNfceEnsureListPaths entry, response.go) — matching the original Python client's
 	// _ensure_list, exercised here rather than assumed.
 	protNFeList, ok := retEnviNFe["protNFe"].([]any)
 	if !ok || len(protNFeList) != 1 {

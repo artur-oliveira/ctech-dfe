@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {cn} from '@/lib/utils'
-import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,} from './select'
+import {cn} from '@/lib/utils';
+import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,} from './select';
 
 interface OptionsSelectProps {
   value?: string | null
@@ -24,25 +24,25 @@ export function OptionsSelect({
                                 id,
                                 ariaLabel,
                               }: OptionsSelectProps) {
-  const selected = value ? options.find((o) => o.value === value) : undefined
-  const selectedLabel = selected?.label
+  const selected = value ? options.find((o) => o.value === value) : undefined;
+  const selectedLabel = selected?.label;
 
   // Group options by their `group` field, preserving first-seen group order.
   // Falls back to one ungrouped list when no option declares a group.
-  const groups = new Map<string | undefined, typeof options>()
+  const groups = new Map<string | undefined, typeof options>();
   for (const opt of options) {
-    const key = opt.group
-    const bucket = groups.get(key)
-    if (bucket) bucket.push(opt)
-    else groups.set(key, [opt])
+    const key = opt.group;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(opt);
+    else groups.set(key, [opt]);
   }
-  const isGrouped = groups.size > 1 || (groups.size === 1 && [...groups.keys()][0] !== undefined)
+  const isGrouped = groups.size > 1 || (groups.size === 1 && [...groups.keys()][0] !== undefined);
 
   return (
     <Select
       value={value ?? null}
       onValueChange={(v) => {
-        if (v !== null) onValueChange?.(v)
+        if (v !== null) onValueChange?.(v);
       }}
     >
       <SelectTrigger
@@ -74,5 +74,5 @@ export function OptionsSelect({
           ))}
       </SelectContent>
     </Select>
-  )
+  );
 }

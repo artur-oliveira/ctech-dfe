@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useSubscription} from '@/lib/hooks/useSubscription'
-import {useSubscriptionNotice} from '@/lib/hooks/useSubscriptionNotice'
-import {buttonVariants} from '@/components/ui/button'
-import {cn} from '@/lib/utils'
-import {formatCents} from '@/lib/constants/billing'
-import {formatISODateBR} from '@/lib/utils/dfe'
+import Link from 'next/link';
+import {useSubscription} from '@/lib/hooks/useSubscription';
+import {useSubscriptionNotice} from '@/lib/hooks/useSubscriptionNotice';
+import {buttonVariants} from '@/components/ui/button';
+import {cn} from '@/lib/utils';
+import {formatCents} from '@/lib/constants/billing';
+import {formatISODateBR} from '@/lib/utils/dfe';
 
 /**
  * The persistent strip that says the account cannot issue and why.
@@ -16,11 +16,11 @@ import {formatISODateBR} from '@/lib/utils/dfe'
  * emission fails, and then calls support about.
  */
 export function SubscriptionBanner() {
-  const {notice} = useSubscriptionNotice()
-  const {subscription} = useSubscription()
-  if (!notice) return null
+  const {notice} = useSubscriptionNotice();
+  const {subscription} = useSubscription();
+  if (!notice) return null;
 
-  const invoice = subscription?.open_invoice
+  const invoice = subscription?.open_invoice;
 
   return (
     <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 md:px-8">
@@ -45,7 +45,7 @@ export function SubscriptionBanner() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 /**
@@ -56,8 +56,8 @@ export function SubscriptionBanner() {
  * cannot issue is the worst possible moment to say it.
  */
 export function SubscriptionBlocked() {
-  const {notice} = useSubscriptionNotice()
-  if (!notice) return null
+  const {notice} = useSubscriptionNotice();
+  if (!notice) return null;
 
   return (
     <div className="mx-auto max-w-md rounded-xl border border-gray-200 bg-white p-6 text-center">
@@ -67,5 +67,5 @@ export function SubscriptionBlocked() {
         {notice.actionLabel}
       </Link>
     </div>
-  )
+  );
 }

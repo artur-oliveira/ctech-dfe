@@ -11,7 +11,7 @@ export function LoadingSkeleton({count = 4, height = 'h-12', rounded = 'rounded-
         <div key={i} className={`${height} bg-gray-100 ${rounded} animate-pulse`}/>
       ))}
     </div>
-  )
+  );
 }
 
 export function DistributionSkeleton({rows = 5}: { rows?: number }) {
@@ -25,5 +25,5 @@ export function DistributionSkeleton({rows = 5}: { rows?: number }) {
         </div>
       ))}
     </div>
-  )
+  );
 }

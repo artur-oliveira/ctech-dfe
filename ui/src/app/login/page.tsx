@@ -1,22 +1,22 @@
-'use client'
+'use client';
 
-import {Suspense, useEffect} from 'react'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {FileText} from 'lucide-react'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {startOAuthFlow} from '@/lib/auth/oauth'
-import {Button} from '@/components/ui/button'
+import {Suspense, useEffect} from 'react';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {FileText} from 'lucide-react';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {startOAuthFlow} from '@/lib/auth/oauth';
+import {Button} from '@/components/ui/button';
 
 function LoginInner() {
-  const {user, loading} = useAuth()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const returnTo = searchParams.get('returnTo') ?? '/dashboard'
+  const {user, loading} = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') ?? '/dashboard';
 
   // Already signed in — go straight to the app.
   useEffect(() => {
-    if (!loading && user) router.replace(returnTo)
-  }, [loading, user, router, returnTo])
+    if (!loading && user) router.replace(returnTo);
+  }, [loading, user, router, returnTo]);
 
   return (
     <div className="min-h-screen bg-gradient-login flex items-center justify-center p-4">
@@ -39,7 +39,7 @@ function LoginInner() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 export default function LoginPage() {
@@ -47,5 +47,5 @@ export default function LoginPage() {
     <Suspense>
       <LoginInner/>
     </Suspense>
-  )
+  );
 }

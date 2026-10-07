@@ -1,26 +1,26 @@
-'use client'
+'use client';
 
-import {useRouter} from 'next/navigation'
-import {Menu} from '@base-ui/react/menu'
-import {Search} from 'lucide-react'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {SettingsIcon} from '@/components/ui/icon'
+import {useRouter} from 'next/navigation';
+import {Menu} from '@base-ui/react/menu';
+import {Search} from 'lucide-react';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {SettingsIcon} from '@/components/ui/icon';
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
 const MENU_POPUP_CLASSNAME = 'rounded-lg border border-gray-200 bg-white shadow-popover py-1 ' +
     'origin-(--transform-origin) duration-100 data-[side=bottom]:slide-in-from-top-2 ' +
     'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 ' +
-    'data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95'
+    'data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 
 const MENU_ITEM_CLASSNAME = 'w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 ' +
-    'cursor-default outline-hidden transition-colors data-highlighted:bg-gray-50'
+    'cursor-default outline-hidden transition-colors data-highlighted:bg-gray-50';
 
 const ChevronDownIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
          strokeLinecap="round" strokeLinejoin="round">
         <polyline points="6 9 12 15 18 9"/>
     </svg>
-)
+);
 
 const UserIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -28,14 +28,14 @@ const UserIcon = () => (
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
         <circle cx="12" cy="7" r="4"/>
     </svg>
-)
+);
 
 const EditUserIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
         <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0-8 0M6 21v-2a4 4 0 0 1 4-4h3.5m4.92.61a2.1 2.1 0 0 1 2.97 2.97L18 22h-3v-3z"></path>
     </svg>
-)
+);
 
 const LogOutIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -44,23 +44,23 @@ const LogOutIcon = () => (
         <polyline points="16 17 21 12 16 7"/>
         <line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
-)
+);
 
 interface TopbarProps {
     onSearchClick: () => void
 }
 
 export function Topbar({onSearchClick}: TopbarProps) {
-    const {user, selectedOrg, setSelectedOrg, logout} = useAuth()
-    const router = useRouter()
+    const {user, selectedOrg, setSelectedOrg, logout} = useAuth();
+    const router = useRouter();
 
     const handleLogout = () => {
-        void logout('/')
-    }
+        void logout('/');
+    };
 
     const initials = user
         ? `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase()
-        : ''
+        : '';
 
     return (
         <header
@@ -168,5 +168,5 @@ export function Topbar({onSearchClick}: TopbarProps) {
                 </Menu.Root>
             </div>
         </header>
-    )
+    );
 }

@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import {useEffect, useState} from 'react'
-import type {Resolver} from 'react-hook-form'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Input} from '@/components/ui/input'
-import {Textarea} from '@/components/ui/textarea'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {formatDatetimeBR} from '@/lib/utils/dfe'
+import {useEffect, useState} from 'react';
+import type {Resolver} from 'react-hook-form';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Input} from '@/components/ui/input';
+import {Textarea} from '@/components/ui/textarea';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {formatDatetimeBR} from '@/lib/utils/dfe';
 import {
   BRAZIL_TIMEZONES,
   type BrazilTimezone,
@@ -24,9 +24,9 @@ import {
   type NFeConfigFormData,
   nfeConfigSchema,
   TIMEZONE_LABELS,
-} from '@/lib/schemas/fiscal-configs'
-import type {MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api'
-import {NfseConfigForm} from '@/components/fiscal-config/NfseConfigForm'
+} from '@/lib/schemas/fiscal-configs';
+import type {MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
+import {NfseConfigForm} from '@/components/fiscal-config/NfseConfigForm';
 
 type AnyConfigOut = NFeConfigOut | NFCeConfigOut | MDFeConfigOut | null | undefined
 type AnyFormData = NFeConfigFormData | NFCeConfigFormData | CTeConfigFormData | MDFeConfigFormData
@@ -43,7 +43,7 @@ const SCHEMA_BY_VARIANT = {
   cte: cteConfigSchema,
   nfce: nfceConfigSchema,
   mdfe: mdfeConfigSchema,
-}
+};
 
 const LABEL_BY_VARIANT: Record<DocVariant, string> = {
   nfe: 'NF-e',
@@ -51,10 +51,10 @@ const LABEL_BY_VARIANT: Record<DocVariant, string> = {
   cte: 'CT-e',
   mdfe: 'MDF-e',
   nfse: 'NFS-e',
-}
+};
 
 function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
-  const cfg = data as NFeConfigOut | undefined
+  const cfg = data as NFeConfigOut | undefined;
   const base = {
     timezone: (BRAZIL_TIMEZONES.includes(cfg?.timezone as BrazilTimezone)
       ? cfg!.timezone
@@ -68,10 +68,10 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
     // O CSRT nunca volta da API: o campo nasce vazio a cada abertura, e vazio
     // no PUT significa "manter o que está gravado", não "apagar".
     csrt: '',
-  }
+  };
 
   if (variant === 'nfce') {
-    const nfce = data as NFCeConfigOut | undefined
+    const nfce = data as NFCeConfigOut | undefined;
     return {
       ...base,
       prod_csc: nfce?.prod_csc ?? '',
@@ -82,7 +82,7 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
   }
 
   if (variant === 'mdfe') {
-    const mdfe = data as MDFeConfigOut | undefined
+    const mdfe = data as MDFeConfigOut | undefined;
     return {
       ...base,
       ind_canal_verde: mdfe?.ind_canal_verde ?? false,
@@ -95,7 +95,7 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
 }
 
 function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, unknown> {
-  const d = data as Record<string, string>
+  const d = data as Record<string, string>;
   const base = {
     timezone: d.timezone,
     environment: parseInt(d.environment, 10),
@@ -107,7 +107,7 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
     // Chave ausente, não null: vazio significa "manter o gravado". Enviar null
     // apagaria o segredo que a tela nunca chegou a exibir.
     ...(d.csrt ? {csrt: d.csrt} : {}),
-  }
+  };
 
   if (variant === 'nfce') {
     return {
@@ -116,20 +116,20 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
       prod_csc_id: parseInt(d.prod_csc_id, 10),
       hom_csc: d.hom_csc,
       hom_csc_id: parseInt(d.hom_csc_id, 10),
-    }
+    };
   }
 
   if (variant === 'mdfe') {
-    const m = data as unknown as MDFeConfigFormData
+    const m = data as unknown as MDFeConfigFormData;
     return {
       ...base,
       ind_canal_verde: m.ind_canal_verde,
       ind_carrega_posterior: m.ind_carrega_posterior,
       inf_ad_fisco: m.inf_ad_fisco || null,
-    }
+    };
   }
 
-  return base
+  return base;
 }
 
 export function FiscalConfigForm({variant, initialData, onSave, loading = false}: FiscalConfigFormProps) {
@@ -138,12 +138,12 @@ export function FiscalConfigForm({variant, initialData, onSave, loading = false}
   // (nacional x abrasf204) em vez de csc x sem-csc. Componente próprio em vez
   // de forçar o formato aqui — ver NfseConfigForm.tsx.
   if (variant === 'nfse') {
-    return <NfseConfigForm initialData={initialData as NfseConfigOut | null} onSave={onSave} loading={loading}/>
+    return <NfseConfigForm initialData={initialData as NfseConfigOut | null} onSave={onSave} loading={loading}/>;
   }
 
   return (
     <FiscalConfigFormInner variant={variant} initialData={initialData as AnyConfigOut} onSave={onSave} loading={loading}/>
-  )
+  );
 }
 
 function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: {
@@ -152,38 +152,38 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
   onSave: (data: Record<string, unknown>) => Promise<void>
   loading?: boolean
 }) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const savedAt = lastSavedAt ?? (initialData?.updated_at
     ? new Date(initialData.updated_at).toLocaleString('pt-BR')
-    : null)
+    : null);
 
   const form = useForm<AnyFormData>({
     resolver: zodResolver(SCHEMA_BY_VARIANT[variant]) as Resolver<AnyFormData>,
     defaultValues: toFormValues(variant, initialData),
-  })
+  });
 
   useEffect(() => {
-    form.reset(toFormValues(variant, initialData))
-  }, [form, initialData, variant])
+    form.reset(toFormValues(variant, initialData));
+  }, [form, initialData, variant]);
 
-  const showCsc = variant === 'nfce'
-  const showMdfeFields = variant === 'mdfe'
-  const showNsu = variant !== 'nfce'
-  const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null
-  const isProd = nsuConfig?.environment === 1
-  const activeNsu = nsuConfig ? (isProd ? nsuConfig.prod_nsu : nsuConfig.hom_nsu) : undefined
-  const activeLastAt = nsuConfig ? (isProd ? nsuConfig.prod_last_dist_nsu_at : nsuConfig.hom_last_dist_nsu_at) : null
+  const showCsc = variant === 'nfce';
+  const showMdfeFields = variant === 'mdfe';
+  const showNsu = variant !== 'nfce';
+  const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null;
+  const isProd = nsuConfig?.environment === 1;
+  const activeNsu = nsuConfig ? (isProd ? nsuConfig.prod_nsu : nsuConfig.hom_nsu) : undefined;
+  const activeLastAt = nsuConfig ? (isProd ? nsuConfig.prod_last_dist_nsu_at : nsuConfig.hom_last_dist_nsu_at) : null;
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
-      await onSave(toApiPayload(variant, data))
-      setLastSavedAt(new Date().toLocaleString('pt-BR'))
+      await onSave(toApiPayload(variant, data));
+      setLastSavedAt(new Date().toLocaleString('pt-BR'));
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  })
+  });
 
   return (
     <Form {...form}>
@@ -500,5 +500,5 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
         </div>
       </form>
     </Form>
-  )
+  );
 }

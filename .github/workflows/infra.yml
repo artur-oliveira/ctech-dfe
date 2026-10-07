@@ -10,6 +10,8 @@ on:
     paths:
       - 'cdk/**'
       - 'py-dfe/layer/requirements.txt'
+      - 'go-dfe/**'
+      - 'go-dfe-egress/**'
       - '.github/workflows/infra.yml'
 
 permissions:

@@ -1,75 +1,75 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ServiceIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
-import {BulkActionBar} from '@/components/ui/bulk-action-bar'
-import {useRowSelection} from '@/lib/hooks/useRowSelection'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {ServiceOut} from '@/lib/types/api'
-import {formatCurrency} from '@/lib/utils/helpers'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ServiceIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
+import {BulkActionBar} from '@/components/ui/bulk-action-bar';
+import {useRowSelection} from '@/lib/hooks/useRowSelection';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {ServiceOut} from '@/lib/types/api';
+import {formatCurrency} from '@/lib/utils/helpers';
 
 const ISS_INCIDENCE_LABELS: Record<number, string> = {
   1: 'Tributável',
   2: 'Imunidade',
   3: 'Exportação',
   4: 'Não incidência',
-}
+};
 
 const ISS_RETENTION_LABELS: Record<number, string> = {
   1: 'Não retido',
   2: 'Retido pelo tomador',
   3: 'Retido pelo intermediário',
-}
+};
 
 function ServicesContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ServiceOut>({
       queryKey: queryKeys.services.page(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getServices({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ServiceOut>({
     mutationFn: (id) => apiClient.deleteService(id),
     getId: (s) => extractId(s.sk, SK_PREFIX.SERVICE),
     getDeletedMessage: (s) => `Serviço "${s.description}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.services.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.services.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
-  const rowId = (s: ServiceOut) => extractId(s.sk, SK_PREFIX.SERVICE)
-  const selection = useRowSelection(visibleItems.map(rowId))
+  const rowId = (s: ServiceOut) => extractId(s.sk, SK_PREFIX.SERVICE);
+  const selection = useRowSelection(visibleItems.map(rowId));
   const bulkDelete = () => {
-    const byId = new Map(visibleItems.map((s) => [rowId(s), s]))
+    const byId = new Map(visibleItems.map((s) => [rowId(s), s]));
     selection.selectedIds.forEach((id) => {
-      const s = byId.get(id)
-      if (s) handleDelete(s)
-    })
-    selection.clear()
-  }
+      const s = byId.get(id);
+      if (s) handleDelete(s);
+    });
+    selection.clear();
+  };
 
   return (
     <RootLayout>
@@ -176,7 +176,7 @@ function ServicesContent() {
         </BulkActionBar>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function ServicesPage() {
@@ -184,5 +184,5 @@ export default function ServicesPage() {
     <ProtectedRoute>
       <ServicesContent/>
     </ProtectedRoute>
-  )
+  );
 }

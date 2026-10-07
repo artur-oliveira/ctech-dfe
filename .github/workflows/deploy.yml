@@ -5,7 +5,7 @@ name: Deploy
 # push trigger of their own, so a push that touches several of them still deploys
 # strictly in order:
 #
-#   CDK → OAuth scopes → py-dfe → worker → API → Frontend
+#   go-dfe tests → CDK (incl. the go-dfe-egress Lambda) → OAuth scopes → worker → API → Frontend
 #
 
 # The Lambdas go before the API because a new py-dfe/worker feature must already
@@ -74,16 +74,22 @@ jobs:
         with:
           # py-dfe/layer/requirements.txt is in BOTH infra and: it changes the
           # Lambda layer the CDK stack bundles, and the code that runs on top of it.
-          # go-dfe/** and go.work(.sum) are in BOTH worker and api (and godfe): it's
-          # a library both import in-process via the root go.work — a change there
-          # must re-run both consumers' test suites, not just go-dfe's own.
+          # go-dfe/**, go-dfe-egress/** and go.work(.sum) are in infra (the CDK stack
+          # bundles the egress Lambda from them) and in worker/api/godfe: both import
+          # go-dfe types via the root go.work — a change there must re-run their test
+          # suites, not just go-dfe's own.
           filters: |
             infra:
               - 'cdk/**'
               - 'py-dfe/layer/requirements.txt'
+              - 'go-dfe/**'
+              - 'go-dfe-egress/**'
+              - 'go.work'
+              - 'go.work.sum'
               - '.github/workflows/infra.yml'
             godfe:
               - 'go-dfe/**'
+              - 'go-dfe-egress/**'
               - 'go.work'
               - 'go.work.sum'
               - '.github/workflows/godfe.yml'
@@ -128,8 +134,8 @@ jobs:
 
   infra:
     name: CDK
-    needs: changes
-    if: ${{ needs.changes.outputs.infra == 'true' }}
+    needs: [ changes, godfe ]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.changes.outputs.infra == 'true' }}
     uses: ./.github/workflows/infra.yml
     permissions:
       id-token: write

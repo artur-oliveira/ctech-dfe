@@ -169,7 +169,7 @@ func TestParseResult_MissingBodyErrors(t *testing.T) {
 
 func TestParseResult_FallsBackToFirstChildWhenResultNameAbsent(t *testing.T) {
 	// No element named "nfeResultMsg" anywhere in the response — ParseResult
-	// should fall back to Body's first child, mirroring py-dfe's extract_body.
+	// should fall back to Body's first child, mirroring the original Python client's extract_body.
 	resp := []byte(`<soap12:Envelope xmlns:soap12="` + soap12NS + `">` +
 		`<soap12:Body><someOtherWrapper><cStat>107</cStat></someOtherWrapper></soap12:Body></soap12:Envelope>`)
 

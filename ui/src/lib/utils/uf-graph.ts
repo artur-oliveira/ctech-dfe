@@ -28,51 +28,51 @@ const ADJACENCY: Record<string, string[]> = {
   SE: ['AL', 'BA'],
   SP: ['MG', 'MS', 'PR', 'RJ'],
   TO: ['BA', 'GO', 'MA', 'MT', 'PA', 'PI'],
-}
+};
 
-const ALL_UFS = Object.keys(ADJACENCY)
+const ALL_UFS = Object.keys(ADJACENCY);
 
 /**
  * Returns all Brazilian UFs in BFS order starting from `startUf`.
  * Unreachable UFs (shouldn't happen in a connected graph) are appended at the end.
  */
 export function bfsUfOrder(startUf: string): string[] {
-  const uf = startUf.toUpperCase()
-  if (!ADJACENCY[uf]) return ALL_UFS
+  const uf = startUf.toUpperCase();
+  if (!ADJACENCY[uf]) return ALL_UFS;
 
-  const visited = new Set<string>([uf])
-  const queue: string[][] = [[uf]]
-  const result: string[] = [uf]
+  const visited = new Set<string>([uf]);
+  const queue: string[][] = [[uf]];
+  const result: string[] = [uf];
 
   while (queue.length > 0) {
-    const level = queue.shift()!
-    const nextLevel: string[] = []
+    const level = queue.shift()!;
+    const nextLevel: string[] = [];
     for (const node of level) {
       for (const neighbor of ADJACENCY[node] ?? []) {
         if (!visited.has(neighbor)) {
-          visited.add(neighbor)
-          result.push(neighbor)
-          nextLevel.push(neighbor)
+          visited.add(neighbor);
+          result.push(neighbor);
+          nextLevel.push(neighbor);
         }
       }
     }
-    if (nextLevel.length > 0) queue.push(nextLevel)
+    if (nextLevel.length > 0) queue.push(nextLevel);
   }
 
   // Append any UF not reachable (safety net)
   for (const u of ALL_UFS) {
-    if (!visited.has(u)) result.push(u)
+    if (!visited.has(u)) result.push(u);
   }
 
-  return result
+  return result;
 }
 
 /** True when the two UFs share a land border (or are the same UF). */
 export function ufsBorder(a: string, b: string): boolean {
-  const ua = a.toUpperCase()
-  const ub = b.toUpperCase()
-  if (ua === ub) return true
-  return (ADJACENCY[ua] ?? []).includes(ub)
+  const ua = a.toUpperCase();
+  const ub = b.toUpperCase();
+  if (ua === ub) return true;
+  return (ADJACENCY[ua] ?? []).includes(ub);
 }
 
 /**
@@ -81,31 +81,31 @@ export function ufsBorder(a: string, b: string): boolean {
  * either UF is unknown. Used to suggest `route` (percurso) on the MDF-e form.
  */
 export function suggestRoute(from: string, to: string): string[] {
-  const start = from.toUpperCase()
-  const goal = to.toUpperCase()
-  if (!ADJACENCY[start] || !ADJACENCY[goal] || start === goal) return []
-  if (ufsBorder(start, goal)) return []
+  const start = from.toUpperCase();
+  const goal = to.toUpperCase();
+  if (!ADJACENCY[start] || !ADJACENCY[goal] || start === goal) return [];
+  if (ufsBorder(start, goal)) return [];
 
-  const prev: Record<string, string | null> = {[start]: null}
-  const queue = [start]
+  const prev: Record<string, string | null> = {[start]: null};
+  const queue = [start];
   while (queue.length > 0) {
-    const node = queue.shift()!
-    if (node === goal) break
+    const node = queue.shift()!;
+    if (node === goal) break;
     for (const neighbor of ADJACENCY[node] ?? []) {
       if (!(neighbor in prev)) {
-        prev[neighbor] = node
-        queue.push(neighbor)
+        prev[neighbor] = node;
+        queue.push(neighbor);
       }
     }
   }
-  if (!(goal in prev)) return []
+  if (!(goal in prev)) return [];
 
-  const path: string[] = []
-  let cur: string | null = goal
+  const path: string[] = [];
+  let cur: string | null = goal;
   while (cur) {
-    path.unshift(cur)
-    cur = prev[cur]
+    path.unshift(cur);
+    cur = prev[cur];
   }
   // Drop origin + destination → only the intermediate states.
-  return path.slice(1, -1)
+  return path.slice(1, -1);
 }

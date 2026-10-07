@@ -23,8 +23,9 @@ type Config struct {
 	TablePrefix       string `env:"TABLE_PREFIX,required"`
 	S3BucketCerts     string `env:"S3_BUCKET_CERTIFICATES,required"`
 	S3BucketDocuments string `env:"S3_BUCKET_DOCUMENTS,required"`
-	SefazFunctionName string `env:"SEFAZ_FUNCTION_NAME,required"`
-	DynamoDBEndpoint  string `env:"DYNAMODB_ENDPOINT"` // local override
+	SefazFunctionName string `env:"SEFAZ_FUNCTION_NAME,required"` // go-dfe-egress Lambda
+	DfeEgressRegion   string `env:"DFE_EGRESS_REGION,required"`   // its region (sa-east-1)
+	DynamoDBEndpoint  string `env:"DYNAMODB_ENDPOINT"`            // local override
 
 	// SNS
 	WorkerTopicARN string `env:"DFE_TOPIC_ARN"`

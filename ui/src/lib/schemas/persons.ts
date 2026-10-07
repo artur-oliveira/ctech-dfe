@@ -7,6 +7,6 @@ export {
   addressSchema as personAddressSchema,
   stateRegistrationSchema,
   UF_OPTIONS,
-} from '@/lib/schemas/entity'
+} from '@/lib/schemas/entity';
 
-export type {AddressData as PersonAddressData, StateRegistrationData} from '@/lib/schemas/entity'
+export type {AddressData as PersonAddressData, StateRegistrationData} from '@/lib/schemas/entity';

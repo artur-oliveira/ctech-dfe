@@ -1,26 +1,26 @@
 export function triggerRemoteDownload(url: string): void {
-  const a = document.createElement('a')
-  a.href = url
-  a.rel = 'noopener noreferrer'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 export function formatNsu(nsu: number): string {
-  return String(nsu).padStart(15, '0')
+  return String(nsu).padStart(15, '0');
 }
 
 export function formatDatetimeBR(dateStr: string): string {
   return new Date(dateStr).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  })
+  });
 }
 
 export function formatISODateBR(dateStr: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : dateStr
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : dateStr;
 }
 
 export interface AccessKeyComposition {
@@ -43,7 +43,7 @@ export const parseAccessKey = (accessKey: string): AccessKeyComposition => {
   }
   //  22-2606-03518739000188-55-001-000178049-1-33277442-2
   const formatted = accessKey
-    .replace(/(\d{2})(\d{2})(\d{2})(\d{14})(\d{2})(\d{3})(\d{9})(\d)(\d{8})(\d)/, '$1-$2-$3-$4-$5-$6-$7-$8-$9-$10')
+    .replace(/(\d{2})(\d{2})(\d{2})(\d{14})(\d{2})(\d{3})(\d{9})(\d)(\d{8})(\d)/, '$1-$2-$3-$4-$5-$6-$7-$8-$9-$10');
 
   const parts = formatted.split('-');
 
@@ -59,5 +59,5 @@ export const parseAccessKey = (accessKey: string): AccessKeyComposition => {
     dfe_code: parts[8],
     verification_digit: parts[9],
     formatted: formatted,
-  }
-}
+  };
+};

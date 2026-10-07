@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from 'next/link';
 
 export function NoOrgBanner() {
   return (
@@ -20,5 +20,5 @@ export function NoOrgBanner() {
         .
       </p>
     </div>
-  )
+  );
 }

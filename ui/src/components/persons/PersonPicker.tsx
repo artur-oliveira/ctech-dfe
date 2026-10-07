@@ -1,22 +1,22 @@
-'use client'
+'use client';
 
-import {useCallback, useEffect, useId, useRef, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import {PersonForm} from '@/components/persons/PersonForm'
-import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity'
-import {formatCpfCnpj, personTaxId} from '@/lib/utils/document'
-import type {PersonCreate, PersonItemOut} from '@/lib/types/api'
+import {useCallback, useEffect, useId, useRef, useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import {PersonForm} from '@/components/persons/PersonForm';
+import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity';
+import {formatCpfCnpj, personTaxId} from '@/lib/utils/document';
+import type {PersonCreate, PersonItemOut} from '@/lib/types/api';
 
 /** Mínimo de caracteres antes de consultar a API. Não é preferência de UX: a
  *  busca por papel usa um FilterExpression aplicado depois da condição de chave,
  *  então um termo curto faz o DynamoDB ler muito mais do que devolve. */
-export const PERSON_PICKER_MIN_QUERY = 2
+export const PERSON_PICKER_MIN_QUERY = 2;
 
 interface PersonPickerProps {
   value: PersonItemOut | null
@@ -40,74 +40,74 @@ export function PersonPicker({
                                autoFocus = false,
                                role,
                              }: PersonPickerProps) {
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, 300)
-  const [open, setOpen] = useState(false)
-  const [directError, setDirectError] = useState<string | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [createLoading, setCreateLoading] = useState(false)
-  const [docSearchLoading, setDocSearchLoading] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(-1)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const docSearchTimerRef = useRef<number | null>(null)
-  const docSearchSequenceRef = useRef(0)
-  const listboxId = useId()
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
+  const [open, setOpen] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [docSearchLoading, setDocSearchLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const docSearchTimerRef = useRef<number | null>(null);
+  const docSearchSequenceRef = useRef(0);
+  const listboxId = useId();
 
-  const digits = query.replace(/\D/g, '')
-  const isCpf = digits.length === 11
-  const isCnpj = digits.length === 14
-  const isDoc = isCpf || isCnpj
+  const digits = query.replace(/\D/g, '');
+  const isCpf = digits.length === 11;
+  const isCnpj = digits.length === 14;
+  const isDoc = isCpf || isCnpj;
 
-  const canSearch = !!debouncedQuery && !isDoc && debouncedQuery.length >= PERSON_PICKER_MIN_QUERY
+  const canSearch = !!debouncedQuery && !isDoc && debouncedQuery.length >= PERSON_PICKER_MIN_QUERY;
 
   const nameQuery = useQuery({
     queryKey: queryKeys.persons.search(`${role ?? ''}:${debouncedQuery}`),
     queryFn: () => apiClient.searchPersonsByName(debouncedQuery, role),
     enabled: open && canSearch,
-  })
+  });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
     return () => {
-      document.removeEventListener('mousedown', handler)
-      if (docSearchTimerRef.current !== null) window.clearTimeout(docSearchTimerRef.current)
-    }
-  }, [])
+      document.removeEventListener('mousedown', handler);
+      if (docSearchTimerRef.current !== null) window.clearTimeout(docSearchTimerRef.current);
+    };
+  }, []);
 
   const handleSearchByDoc = useCallback(async (docDigits: string, sequence: number) => {
-    setDirectError(null)
+    setDirectError(null);
     try {
-      const person = await apiClient.getPersonByCpfCnpj(docDigits)
-      if (sequence !== docSearchSequenceRef.current) return
-      onChange(person)
-      setQuery('')
-      setOpen(false)
+      const person = await apiClient.getPersonByCpfCnpj(docDigits);
+      if (sequence !== docSearchSequenceRef.current) return;
+      onChange(person);
+      setQuery('');
+      setOpen(false);
     } catch {
-      if (sequence !== docSearchSequenceRef.current) return
-      setDirectError('Pessoa não encontrada. Cadastre-a abaixo.')
+      if (sequence !== docSearchSequenceRef.current) return;
+      setDirectError('Pessoa não encontrada. Cadastre-a abaixo.');
     } finally {
-      if (sequence === docSearchSequenceRef.current) setDocSearchLoading(false)
+      if (sequence === docSearchSequenceRef.current) setDocSearchLoading(false);
     }
-  }, [onChange])
+  }, [onChange]);
 
   const handleCreatePerson = async (data: PersonCreate) => {
-    setCreateLoading(true)
+    setCreateLoading(true);
     try {
-      const created = await apiClient.createPerson(data)
-      onChange(created)
-      setShowCreate(false)
-      setQuery('')
-      setDirectError(null)
+      const created = await apiClient.createPerson(data);
+      onChange(created);
+      setShowCreate(false);
+      setQuery('');
+      setDirectError(null);
     } finally {
-      setCreateLoading(false)
+      setCreateLoading(false);
     }
-  }
+  };
 
   if (value) {
-    const cpfCnpj = personTaxId(value)
+    const cpfCnpj = personTaxId(value);
     return (
       <div className="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3">
         <div className="flex-1 min-w-0">
@@ -119,39 +119,39 @@ export function PersonPicker({
           Trocar
         </Button>
       </div>
-    )
+    );
   }
 
-  const suggestions = nameQuery.data?.items ?? []
+  const suggestions = nameQuery.data?.items ?? [];
 
   const selectSuggestion = (person: PersonItemOut) => {
-    onChange(person)
-    setQuery('')
-    setOpen(false)
-    setActiveIndex(-1)
-  }
+    onChange(person);
+    setQuery('');
+    setOpen(false);
+    setActiveIndex(-1);
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
-      setOpen(false)
-      setActiveIndex(-1)
-      return
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
     }
-    if (!open || suggestions.length === 0) return
+    if (!open || suggestions.length === 0) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      const direction = event.key === 'ArrowDown' ? 1 : -1
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
       setActiveIndex((current) => {
-        const start = current < 0 ? (direction > 0 ? -1 : 0) : current
-        return (start + direction + suggestions.length) % suggestions.length
-      })
+        const start = current < 0 ? (direction > 0 ? -1 : 0) : current;
+        return (start + direction + suggestions.length) % suggestions.length;
+      });
     }
     if (event.key === 'Enter' && activeIndex >= 0) {
-      event.preventDefault()
-      const person = suggestions[activeIndex]
-      if (person) selectSuggestion(person)
+      event.preventDefault();
+      const person = suggestions[activeIndex];
+      if (person) selectSuggestion(person);
     }
-  }
+  };
 
   return (
     <div ref={containerRef} className="space-y-3">
@@ -167,21 +167,21 @@ export function PersonPicker({
             aria-busy={docSearchLoading}
             value={query}
             onChange={(e) => {
-              const nextQuery = e.target.value
-              const nextDigits = nextQuery.replace(/\D/g, '')
-              const nextIsDoc = nextDigits.length === 11 || nextDigits.length === 14
-              docSearchSequenceRef.current += 1
-              const sequence = docSearchSequenceRef.current
-              if (docSearchTimerRef.current !== null) window.clearTimeout(docSearchTimerRef.current)
-              setQuery(nextQuery)
-              setOpen(true)
-              setActiveIndex(-1)
-              setDirectError(null)
-              setDocSearchLoading(nextIsDoc)
+              const nextQuery = e.target.value;
+              const nextDigits = nextQuery.replace(/\D/g, '');
+              const nextIsDoc = nextDigits.length === 11 || nextDigits.length === 14;
+              docSearchSequenceRef.current += 1;
+              const sequence = docSearchSequenceRef.current;
+              if (docSearchTimerRef.current !== null) window.clearTimeout(docSearchTimerRef.current);
+              setQuery(nextQuery);
+              setOpen(true);
+              setActiveIndex(-1);
+              setDirectError(null);
+              setDocSearchLoading(nextIsDoc);
               if (nextIsDoc) {
                 docSearchTimerRef.current = window.setTimeout(() => {
-                  void handleSearchByDoc(nextDigits, sequence)
-                }, 300)
+                  void handleSearchByDoc(nextDigits, sequence);
+                }, 300);
               }
             }}
             onFocus={() => setOpen(true)}
@@ -249,5 +249,5 @@ export function PersonPicker({
                     initialRoles={role ? [role] : undefined}/>
       </Modal>
     </div>
-  )
+  );
 }

@@ -118,7 +118,11 @@ Run once per AWS account and region:
 
 ```bash
 cdk bootstrap aws://868899309401/us-east-1
+cdk bootstrap aws://868899309401/sa-east-1   # go-dfe-egress Lambda (SEFAZ/prefeituras via IP brasileiro)
 ```
+
+The `GoDfeEgress` stack (`go-dfe-egress` Lambda, `{env}-go-dfe-egress`) is the only resource in `sa-east-1`. Other stacks
+reference it by name/ARN strings (`cdk/lib/egress.ts`), never by CloudFormation reference.
 
 ---
 

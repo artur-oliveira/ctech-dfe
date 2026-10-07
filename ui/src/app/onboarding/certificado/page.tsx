@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {CertificateFields} from '@/components/organizations/CertificateFields'
-import {Button} from '@/components/ui/button'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_DOCUMENTS} from '@/lib/constants/onboarding'
+import {useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {CertificateFields} from '@/components/organizations/CertificateFields';
+import {Button} from '@/components/ui/button';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_DOCUMENTS} from '@/lib/constants/onboarding';
 
 /**
  * The certificate layer.
@@ -27,39 +27,39 @@ import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_DOCUMENTS} from '@/lib/constants
  * the same place.
  */
 function CertificateStepContent() {
-  const router = useRouter()
-  const qc = useQueryClient()
-  const {selectedOrg} = useAuth()
-  const {hasCertificate, certificateInherited, isPending} = useOnboarding()
+  const router = useRouter();
+  const qc = useQueryClient();
+  const {selectedOrg} = useAuth();
+  const {hasCertificate, certificateInherited, isPending} = useOnboarding();
 
-  const [file, setFile] = useState<File | null>(null)
-  const [password, setPassword] = useState('')
-  const [fileError, setFileError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
 
-  const next = `${ONBOARDING_ROOT}/${STEP_DOCUMENTS}`
-  const orgPk = selectedOrg?.pk
+  const next = `${ONBOARDING_ROOT}/${STEP_DOCUMENTS}`;
+  const orgPk = selectedOrg?.pk;
 
   const upload = useMutation({
     mutationFn: () => apiClient.uploadCertificate(orgPk as string, file as File, password),
     onSuccess: async () => {
       // The step is derived from this list, so it has to be re-read before the
       // next screen decides what is left — awaited, not fired and forgotten.
-      await qc.invalidateQueries({queryKey: queryKeys.certificates(orgPk ?? '')})
-      router.push(next)
+      await qc.invalidateQueries({queryKey: queryKeys.certificates(orgPk ?? '')});
+      router.push(next);
     },
-  })
+  });
 
   const submit = () => {
-    setFileError(null)
+    setFileError(null);
     if (!file) {
-      setFileError('Selecione o arquivo .pfx ou .p12')
-      return
+      setFileError('Selecione o arquivo .pfx ou .p12');
+      return;
     }
-    if (!password) return
-    upload.mutate()
-  }
+    if (!password) return;
+    upload.mutate();
+  };
 
-  const done = !isPending && hasCertificate
+  const done = !isPending && hasCertificate;
 
   return (
     <OnboardingShell
@@ -96,8 +96,8 @@ function CertificateStepContent() {
           <CertificateFields
             file={file}
             onFileChange={(f) => {
-              setFile(f)
-              setFileError(null)
+              setFile(f);
+              setFileError(null);
             }}
             password={password}
             onPasswordChange={setPassword}
@@ -123,7 +123,7 @@ function CertificateStepContent() {
         </div>
       )}
     </OnboardingShell>
-  )
+  );
 }
 
 export default function CertificateStepPage() {
@@ -131,5 +131,5 @@ export default function CertificateStepPage() {
     <ProtectedRoute>
       <CertificateStepContent/>
     </ProtectedRoute>
-  )
+  );
 }

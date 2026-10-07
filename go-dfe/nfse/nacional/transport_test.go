@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
@@ -112,5 +115,68 @@ func TestHTTPDo_RetriesOn5xxNotOn4xx(t *testing.T) {
 	_, _ = httpDo(context.Background(), srv4.Client(), http.MethodGet, srv4.URL, nil, &out, 3)
 	if calls != 1 {
 		t.Errorf("4xx foi repetido %d vezes; rejeição de negócio nunca se repete", calls)
+	}
+}
+
+func TestHTTPDoAttemptTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // never answers
+	}))
+	defer srv.Close()
+
+	orig := attemptTimeout
+	attemptTimeout = 50 * time.Millisecond
+	defer func() { attemptTimeout = orig }()
+
+	start := time.Now()
+	_, err := httpDo(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, nil, 0)
+	if err == nil {
+		t.Fatal("expected a timeout error")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("took %v: per-attempt timeout not applied", elapsed)
+	}
+}
+
+// A POST that timed out may already have been accepted by the authority:
+// re-sending the same DPS would turn an authorized NFS-e into a duplicate
+// rejection. A timed-out POST must not be retried.
+func TestHTTPDoDoesNotRetryTimedOutPOST(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body) // lets the server notice the client hanging up
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	orig := attemptTimeout
+	attemptTimeout = 50 * time.Millisecond
+	defer func() { attemptTimeout = orig }()
+
+	_, err := httpDo(context.Background(), srv.Client(), http.MethodPost, srv.URL, map[string]any{"a": 1}, nil, 1)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("server saw %d POSTs, want exactly 1 (timed-out POST must not be retried)", got)
+	}
+}
+
+func TestHTTPDoRetriesTimedOutGET(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	orig := attemptTimeout
+	attemptTimeout = 30 * time.Millisecond
+	defer func() { attemptTimeout = orig }()
+
+	_, _ = httpDo(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, nil, 1)
+	if got := hits.Load(); got != 2 {
+		t.Fatalf("server saw %d GETs, want 2 (reads are idempotent and retried)", got)
 	}
 }

@@ -274,12 +274,12 @@ export const IBS_CBS_CST: IbsCbsCstEntry[] = [
     classCodes: [
       {code: "830001", desc: "Documento com exclusão da base de cálculo da CBS e do IBS refrente à energia elétrica fornecida pela distribuidora à unidade consumidora, conforme Art 28, parágrafos 3° e 4°."},
     ],
-  },]
+  },];
 
 export const IBS_CBS_CST_OPTIONS = IBS_CBS_CST.map(({cst, desc}) => ({
   value: cst,
   label: `${cst} – ${desc}`,
-}))
+}));
 
 export const IBS_CBS_CLASS_BY_CST: Record<string, Array<{ value: string; label: string; }>> =
   Object.fromEntries(
@@ -290,8 +290,8 @@ export const IBS_CBS_CLASS_BY_CST: Record<string, Array<{ value: string; label: 
         label: `${code} – ${desc}`,
       })),
     ])
-  )
+  );
 
 /** Todo cClassTrib publicado, para validação. */
 export const IBS_CBS_CLASS_CODES: ReadonlySet<string> =
-  new Set(IBS_CBS_CST.flatMap((e) => e.classCodes.map((c) => c.code)))
+  new Set(IBS_CBS_CST.flatMap((e) => e.classCodes.map((c) => c.code)));

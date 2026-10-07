@@ -1,14 +1,14 @@
-import type {Metadata} from 'next'
-import {LegalPage, LegalSection} from '@/components/legal-page'
+import type {Metadata} from 'next';
+import {LegalPage, LegalSection} from '@/components/legal-page';
 
 export const metadata: Metadata = {
   title: 'Termos Adicionais: CTech DF-e',
   description:
     'Termos adicionais aplicáveis à utilização do CTech DF-e.',
-}
+};
 
-const ADDENDUM_VERSION = '2.0'
-const UPDATED_AT = '12 de julho de 2026'
+const ADDENDUM_VERSION = '2.0';
+const UPDATED_AT = '12 de julho de 2026';
 
 export default function TermsAddendumPage() {
   return (
@@ -300,5 +300,5 @@ export default function TermsAddendumPage() {
         </ul>
       </LegalSection>
     </LegalPage>
-  )
+  );
 }

@@ -284,6 +284,14 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 
 ## NFS-e (F1 — modelo de dados e cadastros; F2 — go-dfe/nfse, provider nacional)
 
+- **O cliente HTTP mTLS tem connect timeout (`constants.DialTimeout`, 10 s) e cada tentativa REST do
+  NFS-e tem teto próprio (`constants.NFSeAttemptTimeout`, 20 s).** Sem isso, uma prefeitura que
+  descarta o SYN custava ~80 s (timeout de connect do SO) antes de falhar — foi o que aconteceu em
+  Teresina em 2026-10-06. A cadeia de timeouts do egress depende desses valores: o pior caso do
+  NFS-e é 4 tentativas × 20 s + backoff (~90 s), abaixo dos 120 s do Lambda egress.
+- **POST do NFS-e nunca é reenviado após timeout ou falha de leitura da resposta** (`httpDo`): a requisição pode já ter
+  chegado ao fisco, e reenviar a mesma DPS viraria rejeição por duplicidade de uma nota autorizada. Só falha de
+  *connect* (`isDialError`) é retentada em POST; GET segue retentando.
 - **A SK de `nfses` é o `idDPS`, nunca a chave de acesso**, porque `nNFSe` e `cNum` são gerados
   pelo fisco e a chave de acesso de 50 dígitos só existe depois da resposta. Consulta por chave
   passa pela GSI `access-key-index`.
@@ -1097,6 +1105,22 @@ trusting a hop nothing routes through is inert rather than wrong.
 - The worker invokes go-dfe in-process when supported and the Python Lambda as fallback.
 - After SEFAZ response: update DynamoDB, upload XML to S3, publish terminal results to SNS.
 - DLQ receives messages after max retries — monitor and alert.
+
+---
+
+# go-dfe-egress (sa-east-1)
+
+- **Every SEFAZ/municipal call goes through the `go-dfe-egress` Lambda.** `worker`/`api` never call `dfe.Call` in
+  process and there is no fallback client; a failed `Invoke` or a `FunctionError` fails the call (the worker retries).
+- **The PFX and its password cross regions in the Invoke payload** (us-east-1 → sa-east-1, same account, IAM-only
+  `lambda:InvokeFunction`). The egress must **never log the request body**; it logs only `doc_type`, `service`, `uf`,
+  status and duration (`go-dfe-egress/handler.go`, covered by a test).
+- **Timeout chain:** workers that call SEFAZ (150 s) > egress Lambda (120 s) > go-dfe worst case (NFS-e: 4 attempts × 20 s
+  + backoff). Change one, change the others (`cdk/lib/egress.ts`, `cdk/lib/worker-definitions.ts`, `go-dfe/internal/constants`).
+- **Environment strings:** `worker`/`api` send `producao`/`homologacao`; the egress converts to `prod`/`hom`. NFS-e sends an
+  empty `uf` (municipal competence) and must not be rejected for it.
+- **Cross-region references are strings** (`egressFunctionName`/`egressFunctionArn`): never a CloudFormation reference.
+  `cdk bootstrap` of sa-east-1 is required before the first deploy.
 
 ---
 

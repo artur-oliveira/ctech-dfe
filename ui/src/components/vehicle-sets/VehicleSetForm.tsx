@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {useQuery} from '@tanstack/react-query'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Combobox} from '@/components/ui/combobox'
-import {Button} from '@/components/ui/button'
-import {PersonPicker} from '@/components/persons/PersonPicker'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {MAX_TRAILERS, type VehicleSetFormData, vehicleSetSchema} from '@/lib/schemas/vehicle-sets'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
-import type {PersonItemOut, VehicleSetCreate, VehicleSetItemOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {useQuery} from '@tanstack/react-query';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Combobox} from '@/components/ui/combobox';
+import {Button} from '@/components/ui/button';
+import {PersonPicker} from '@/components/persons/PersonPicker';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {MAX_TRAILERS, type VehicleSetFormData, vehicleSetSchema} from '@/lib/schemas/vehicle-sets';
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
+import type {PersonItemOut, VehicleSetCreate, VehicleSetItemOut} from '@/lib/types/api';
 
 interface VehicleSetFormProps {
   initialData?: VehicleSetItemOut
@@ -24,15 +24,15 @@ interface VehicleSetFormProps {
 
 const EMPTY: VehicleSetFormData = {
   name: '', tractor_sk: '', trailer_sks: [], driver_docs: [], rntrc: '', ciot: '',
-}
+};
 
 /**
  * Cadastro de composição veicular. Reusa os seletores de veículo e o
  * PersonPicker com papel `driver` — nenhum seletor novo é escrito aqui.
  */
 export function VehicleSetForm({initialData, onSubmit, loading = false}: VehicleSetFormProps) {
-  const {selectedOrg} = useAuth()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<VehicleSetFormData>({
     resolver: zodResolver(vehicleSetSchema),
@@ -46,48 +46,48 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
         ciot: initialData.ciot ?? '',
       }
       : EMPTY,
-  })
+  });
 
   const {data: vehiclePage} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getVehicles({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const vehicles = vehiclePage?.items ?? []
+  });
+  const vehicles = vehiclePage?.items ?? [];
   const vehicleLabel = (sk: string) => {
-    const v = vehicles.find((it) => it.sk === sk)
-    return v ? `${v.plate} · ${v.plate_uf}` : sk
-  }
+    const v = vehicles.find((it) => it.sk === sk);
+    return v ? `${v.plate} · ${v.plate_uf}` : sk;
+  };
   const optionsFor = (role: string) => vehicles
     .filter((v) => v.role === role)
-    .map((v) => ({value: v.sk, label: `${v.plate} · ${v.plate_uf}`}))
+    .map((v) => ({value: v.sk, label: `${v.plate} · ${v.plate_uf}`}));
 
-  const trailerSks = useWatch({control: form.control, name: 'trailer_sks'}) ?? []
-  const driverDocs = useWatch({control: form.control, name: 'driver_docs'}) ?? []
+  const trailerSks = useWatch({control: form.control, name: 'trailer_sks'}) ?? [];
+  const driverDocs = useWatch({control: form.control, name: 'driver_docs'}) ?? [];
 
   const addTrailer = (sk: string) => {
-    if (!sk || trailerSks.includes(sk) || trailerSks.length >= MAX_TRAILERS) return
-    form.setValue('trailer_sks', [...trailerSks, sk], {shouldValidate: true})
-  }
+    if (!sk || trailerSks.includes(sk) || trailerSks.length >= MAX_TRAILERS) return;
+    form.setValue('trailer_sks', [...trailerSks, sk], {shouldValidate: true});
+  };
   const addDriver = (person: PersonItemOut | null) => {
-    if (!person) return
-    const doc = unformatCpfCnpj(person.sk)
-    if (driverDocs.includes(doc)) return
-    form.setValue('driver_docs', [...driverDocs, doc], {shouldValidate: true})
-  }
+    if (!person) return;
+    const doc = unformatCpfCnpj(person.sk);
+    if (driverDocs.includes(doc)) return;
+    form.setValue('driver_docs', [...driverDocs, doc], {shouldValidate: true});
+  };
 
   const handleSubmit = async (data: VehicleSetFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         ...data,
         rntrc: data.rntrc || null,
         ciot: data.ciot || null,
-      } as unknown as VehicleSetCreate)
+      } as unknown as VehicleSetCreate);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a composição.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a composição.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -198,5 +198,5 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
         </div>
       </form>
     </Form>
-  )
+  );
 }

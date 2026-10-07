@@ -1,3 +1,8 @@
+// Workers that call SEFAZ/municipal authorities via the go-dfe-egress Lambda must
+// outlive it (EGRESS_TIMEOUT_SECONDS = 120), or SQS redelivers a call the egress
+// is still running.
+const SEFAZ_CALL_TIMEOUT_SECONDS = 150
+
 export type WorkerDefinition = {
   id: string
   name: string
@@ -27,7 +32,7 @@ export const WORKERS: WorkerDefinition[] = [
     id: 'nfe-event',
     name: 'nfe-event-worker',
     queueName: 'nfe-event',
-    timeoutSeconds: 60,
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     // nfes/nfces needed for cancellation: worker updates the document status to cancelled
     dynamoTables: ['nfes', 'nfces', 'nfe_events', 'nfce_events'],
@@ -38,7 +43,7 @@ export const WORKERS: WorkerDefinition[] = [
     id: 'nfe-inutilization',
     name: 'nfe-inutilization-worker',
     queueName: 'nfe-inutilization',
-    timeoutSeconds: 60,
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['nfe_events', 'nfce_events'],
     sefazServices: ['NfeInutilizacao'],
@@ -58,7 +63,7 @@ export const WORKERS: WorkerDefinition[] = [
     id: 'cte-event',
     name: 'cte-event-worker',
     queueName: 'cte-event',
-    timeoutSeconds: 60,
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['ctes', 'cte_events'],
     sefazServices: ['CTeRecepcaoEvento'],
@@ -78,7 +83,7 @@ export const WORKERS: WorkerDefinition[] = [
     id: 'mdfe-event',
     name: 'mdfe-event-worker',
     queueName: 'mdfe-event',
-    timeoutSeconds: 60,
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['mdfes', 'mdfe_events'],
     sefazServices: ['MDFeRecepcaoEvento'],
@@ -98,7 +103,7 @@ export const WORKERS: WorkerDefinition[] = [
     id: 'nfse-event',
     name: 'nfse-event-worker',
     queueName: 'nfse-event',
-    timeoutSeconds: 60,
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     // nfses needed for cancellation (TE101101): worker reverts the document status
     dynamoTables: ['nfses', 'nfse_events'],

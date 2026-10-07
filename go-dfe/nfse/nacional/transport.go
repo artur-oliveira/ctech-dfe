@@ -9,12 +9,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
@@ -108,6 +111,9 @@ type errorEnvelope struct {
 	Erros []nfse.Message `json:"erros"`
 }
 
+// attemptTimeout é var (não const) só para o teste reduzi-lo.
+var attemptTimeout = constants.NFSeAttemptTimeout
+
 // httpDo executa a requisição com retry apenas em falha de infraestrutura e
 // converte qualquer resposta não-2xx em *nfse.FiscalError com o código e a
 // descrição do fisco preservados. out pode ser nil (resposta binária).
@@ -135,8 +141,10 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		if payload != nil {
 			reader = bytes.NewReader(payload)
 		}
-		req, err := http.NewRequestWithContext(ctx, method, url, reader)
+		attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+		req, err := http.NewRequestWithContext(attemptCtx, method, url, reader)
 		if err != nil {
+			cancel()
 			return 0, fmt.Errorf("nacional: build request: %w", err)
 		}
 		req.Header.Set("Accept", "application/json")
@@ -147,13 +155,24 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 
 		resp, err := client.Do(req)
 		if err != nil {
+			cancel()
 			lastErr = fmt.Errorf("nacional: %s %s: %w", method, url, err)
+			if method == http.MethodPost && !isDialError(err) {
+				// The request may have reached the authority (a timeout fires
+				// after it was sent). Re-POSTing the same DPS/evento could turn
+				// an authorized document into a duplicate rejection.
+				return 0, lastErr
+			}
 			continue
 		}
 		respBody, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		cancel()
 		if readErr != nil {
 			lastErr = fmt.Errorf("nacional: ler resposta: %w", readErr)
+			if method == http.MethodPost {
+				return 0, lastErr // the authority already processed the request
+			}
 			continue
 		}
 
@@ -187,6 +206,13 @@ func httpDo(ctx context.Context, client *http.Client, method, url string, body, 
 		return resp.StatusCode, toFiscalError(resp.StatusCode, respBody)
 	}
 	return 0, lastErr
+}
+
+// isDialError reports whether err happened while connecting, i.e. before any
+// byte of the request was sent — the only failure a POST can safely retry.
+func isDialError(err error) bool {
+	var opErr *net.OpError
+	return errors.As(err, &opErr) && opErr.Op == "dial"
 }
 
 func toFiscalError(status int, body []byte) error {

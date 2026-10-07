@@ -1,13 +1,13 @@
 // Package services implements the SEFAZ HTTP client (Strategy pattern per
-// doc_type) that py-dfe/py_dfe/services/base.py + config.py implement in
+// doc_type) that the original Python client + config.py implement in
 // Python: JSON payload -> XML -> (optional sign) -> SOAP envelope -> mTLS
 // POST with retry -> parsed response.
 package services
 
 import "fmt"
 
-// Config is an immutable per-doc-type configuration, mirroring py-dfe's
-// ServiceConfig (py-dfe/py_dfe/services/config.py). The HTTP/retry/SOAP layer
+// Config is an immutable per-doc-type configuration, mirroring the original Python client's
+// ServiceConfig. The HTTP/retry/SOAP layer
 // stays generic; only this config varies by doc_type.
 type Config struct {
 	DocType                     string
@@ -27,7 +27,7 @@ func (c Config) RequiresSignature(service string) bool {
 // sending. go-dfe does not implement XSD validation yet (see
 // docs/plans/2026-07-17-go-dfe-migration.md — CGO_ENABLED=0 rules out the
 // only mature Go XSD validator, libxml2); this is exposed for parity with
-// py-dfe's config shape and so callers can fail loudly if it's ever wired to
+// the original Python client's config shape and so callers can fail loudly if it's ever wired to
 // a validator that isn't there.
 func (c Config) RequiresValidation(service string) bool {
 	return c.ServicesRequiringValidation[service]
@@ -35,12 +35,12 @@ func (c Config) RequiresValidation(service string) bool {
 
 // SignXPath returns the element-local-name whose subtree gets the
 // <Signature>, or "" if service has no signing xpath (falls back to signing
-// the document root — see py-dfe's SefazClient._sign).
+// the document root — see the original Python client's SefazClient._sign).
 func (c Config) SignXPath(service string) string {
 	return c.SignIDXPath[service]
 }
 
-// NFeConfig, NFCeConfig, CTeConfig, MDFeConfig are 1:1 ports of py-dfe's
+// NFeConfig, NFCeConfig, CTeConfig, MDFeConfig are 1:1 ports of the original Python client's
 // NFE_CONFIG/NFCE_CONFIG/CTE_CONFIG/MDFE_CONFIG.
 var (
 	NFeConfig = Config{
@@ -117,7 +117,7 @@ var (
 
 // nfeWSDLService / cteWSDLService / mdfeWSDLService duplicate
 // go-dfe/internal/constants' WSDL tables under the doc-type-specific names
-// py-dfe's config.py uses; kept local to avoid the config/constants packages
+// the original Python client's config.py uses; kept local to avoid the config/constants packages
 // import-cycling on doc-type-keyed data neither owns exclusively.
 var (
 	nfeWSDLService = map[string]string{
@@ -140,7 +140,7 @@ var (
 )
 
 // configs indexes NFeConfig/NFCeConfig/CTeConfig/MDFeConfig by doc_type
-// string, mirroring py-dfe's SERVICE_CONFIGS/get_config.
+// string, mirroring the original Python client's SERVICE_CONFIGS/get_config.
 var configs = map[string]Config{
 	"nfe":  NFeConfig,
 	"nfce": NFCeConfig,

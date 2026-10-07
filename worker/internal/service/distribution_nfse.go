@@ -111,7 +111,7 @@ func maxNSUOf(items []nfseDistItem) int64 {
 // runDistNSU: aquele é SOAP distDFeInt com paginação ultNSU/maxNSU, cStat 137/238
 // como fim de lote e punição por consumo indevido — nada disso existe no ADN, que
 // é REST, sequencial por NSU e para quando o lote vem vazio. O que é comum
-// (loadConfig, loadCert, getCertB64, claimDistNSUSlot, invokePyDfe, updateNSU)
+// (loadConfig, loadCert, getCertB64, claimDistNSUSlot, invokeEgress, updateNSU)
 // é reusado sem cópia.
 func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger string, dtcfg docTypeConfig) error {
 	configTable := fmt.Sprintf("%s_organization_%s", s.cfg.TablePrefix, dtcfg.configTableSuffix)
@@ -164,9 +164,9 @@ func (s *DistributionService) runNfseDistNSU(ctx context.Context, orgPK, trigger
 
 	for range maxNfseDistBatches {
 		// O ADN devolve documentos a partir do NSU informado — pede-se o próximo.
-		resp, err := s.invokePyDfe(ctx, buildNfseDistPayload(cnpj, certB64, certPassword, sefazEnv, provider, currentNSU+1))
+		resp, err := s.invokeEgress(ctx, buildNfseDistPayload(cnpj, certB64, certPassword, sefazEnv, provider, currentNSU+1))
 		if err != nil {
-			return fmt.Errorf("invokePyDfe nfse: %w", err)
+			return fmt.Errorf("invokeEgress nfse: %w", err)
 		}
 
 		var respBody map[string]any

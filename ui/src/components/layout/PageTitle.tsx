@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import {useEffect} from 'react'
-import {usePathname} from 'next/navigation'
-import {documentTitleForPath} from '@/lib/navigation/page-title'
+import {useEffect} from 'react';
+import {usePathname} from 'next/navigation';
+import {documentTitleForPath} from '@/lib/navigation/page-title';
 
 /** Rotas públicas — o título delas vem do `metadata` do Next, que é o que os
  *  buscadores leem. Sobrescrever aqui só atrapalharia. */
 const isPublicRoute = (pathname: string) =>
-  pathname === '/' || pathname === '/guide' || pathname.startsWith('/guide/')
+  pathname === '/' || pathname === '/guide' || pathname.startsWith('/guide/');
 
 /**
  * Dá nome à aba em toda tela autenticada. As páginas do app são client
@@ -21,20 +21,20 @@ const isPublicRoute = (pathname: string) =>
  * corrida contra o framework.
  */
 export function PageTitle() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (isPublicRoute(pathname)) return
-    const desired = documentTitleForPath(pathname)
+    if (isPublicRoute(pathname)) return undefined;
+    const desired = documentTitleForPath(pathname);
     const apply = () => {
-      if (document.title !== desired) document.title = desired
-    }
-    apply()
+      if (document.title !== desired) document.title = desired;
+    };
+    apply();
 
-    const observer = new MutationObserver(apply)
-    observer.observe(document.head, {childList: true, subtree: true, characterData: true})
-    return () => observer.disconnect()
-  }, [pathname])
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, {childList: true, subtree: true, characterData: true});
+    return () => observer.disconnect();
+  }, [pathname]);
 
-  return null
+  return null;
 }

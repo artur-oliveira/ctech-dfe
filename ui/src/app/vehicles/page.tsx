@@ -1,62 +1,62 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {TruckIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
-import {BulkActionBar} from '@/components/ui/bulk-action-bar'
-import {useRowSelection} from '@/lib/hooks/useRowSelection'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {VehicleOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {TruckIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
+import {BulkActionBar} from '@/components/ui/bulk-action-bar';
+import {useRowSelection} from '@/lib/hooks/useRowSelection';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {VehicleOut} from '@/lib/types/api';
 
 function VehiclesContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<VehicleOut>({
       queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getVehicles({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
   
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<VehicleOut>({
     mutationFn: (id) => apiClient.deleteVehicle(id),
     getId: (v) => extractId(v.sk, SK_PREFIX.VEHICLE),
     getDeletedMessage: (v) => `Veículo ${v.plate} excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)});
     },
-  })
+  });
   
   // Rows inside the undo window are hidden until the delete commits (or is undone).
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
-  const rowId = (v: VehicleOut) => extractId(v.sk, SK_PREFIX.VEHICLE)
-  const selection = useRowSelection(visibleItems.map(rowId))
+  const rowId = (v: VehicleOut) => extractId(v.sk, SK_PREFIX.VEHICLE);
+  const selection = useRowSelection(visibleItems.map(rowId));
   const bulkDelete = () => {
-    const byId = new Map(visibleItems.map((v) => [rowId(v), v]))
+    const byId = new Map(visibleItems.map((v) => [rowId(v), v]));
     selection.selectedIds.forEach((id) => {
-      const v = byId.get(id)
-      if (v) handleDelete(v)
-    })
-    selection.clear()
-  }
+      const v = byId.get(id);
+      if (v) handleDelete(v);
+    });
+    selection.clear();
+  };
 
   return (
     <RootLayout>
@@ -159,7 +159,7 @@ function VehiclesContent() {
         </BulkActionBar>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function VehiclesPage() {
@@ -167,5 +167,5 @@ export default function VehiclesPage() {
     <ProtectedRoute>
       <VehiclesContent/>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,22 +1,22 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Combobox} from '@/components/ui/combobox'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {ApiError} from '@/lib/api/client'
-import {PAYMENT_OPTIONS} from '@/lib/data/payment-options'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Combobox} from '@/components/ui/combobox';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {ApiError} from '@/lib/api/client';
+import {PAYMENT_OPTIONS} from '@/lib/data/payment-options';
 import {
   type PaymentTermFormData,
   paymentTermSchema,
   previewInstallments,
-} from '@/lib/schemas/payment-terms'
-import type {PaymentTermCreate, PaymentTermItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/payment-terms';
+import type {PaymentTermCreate, PaymentTermItemOut} from '@/lib/types/api';
 
 interface PaymentTermFormProps {
   initialData?: PaymentTermItemOut
@@ -25,20 +25,20 @@ interface PaymentTermFormProps {
 }
 
 /** Total de exemplo da pré-visualização — só para o usuário ver a divisão. */
-const PREVIEW_TOTAL = 1000
+const PREVIEW_TOTAL = 1000;
 
 const IND_PAG_OPTIONS = [
   {value: '', label: 'Derivar das parcelas'},
   {value: '0', label: '0 – À vista'},
   {value: '1', label: '1 – A prazo'},
-]
+];
 
 const EMPTY: PaymentTermFormData = {
   name: '', payment_type: '', ind_pag: '', installments: 1, interval_days: 30, first_due_days: 30,
-}
+};
 
 export function PaymentTermForm({initialData, onSubmit, loading = false}: PaymentTermFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<PaymentTermFormData>({
     resolver: zodResolver(paymentTermSchema),
@@ -52,9 +52,9 @@ export function PaymentTermForm({initialData, onSubmit, loading = false}: Paymen
         first_due_days: initialData.first_due_days ?? 30,
       }
       : EMPTY,
-  })
+  });
 
-  const values = useWatch({control: form.control}) as PaymentTermFormData
+  const values = useWatch({control: form.control}) as PaymentTermFormData;
   const preview = previewInstallments(
     {
       installments: values.installments ?? 1,
@@ -63,16 +63,16 @@ export function PaymentTermForm({initialData, onSubmit, loading = false}: Paymen
     },
     PREVIEW_TOTAL,
     new Date(),
-  )
+  );
 
   const handleSubmit = async (data: PaymentTermFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
-      await onSubmit({...data, ind_pag: data.ind_pag || null} as unknown as PaymentTermCreate)
+      await onSubmit({...data, ind_pag: data.ind_pag || null} as unknown as PaymentTermCreate);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a condição.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a condição.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -182,5 +182,5 @@ export function PaymentTermForm({initialData, onSubmit, loading = false}: Paymen
         </div>
       </form>
     </Form>
-  )
+  );
 }

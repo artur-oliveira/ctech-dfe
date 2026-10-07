@@ -1,35 +1,35 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
+import {useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
 import {
   NFE_REF_KEY_KINDS,
   NFE_REF_KIND_LABELS,
   NFE_REF_KINDS,
   type NfeRefKind,
-} from '@/lib/schemas/nfe-refs'
-import type {NfeRefIn} from '@/lib/types/api'
+} from '@/lib/schemas/nfe-refs';
+import type {NfeRefIn} from '@/lib/types/api';
 
 export interface NfeRefsPickerProps {
   value: NfeRefIn[]
   onChange: (refs: NfeRefIn[]) => void
 }
 
-const EMPTY_EXTERNAL: NfeRefIn = {kind: 'nf'}
+const EMPTY_EXTERNAL: NfeRefIn = {kind: 'nf'};
 
 /** Rótulo curto de uma referência já adicionada. */
 function describe(ref: NfeRefIn): string {
-  if (ref.nfe_id) return `Nota da base · ${ref.nfe_id}`
-  if (ref.access_key) return `${NFE_REF_KIND_LABELS[ref.kind as NfeRefKind]} · ${ref.access_key}`
-  if (ref.kind === 'ecf') return `Cupom fiscal · ECF ${ref.n_ecf} COO ${ref.n_coo}`
-  return `${NFE_REF_KIND_LABELS[ref.kind as NfeRefKind]} · nº ${ref.n_nf ?? ''}`
+  if (ref.nfe_id) return `Nota da base · ${ref.nfe_id}`;
+  if (ref.access_key) return `${NFE_REF_KIND_LABELS[ref.kind as NfeRefKind]} · ${ref.access_key}`;
+  if (ref.kind === 'ecf') return `Cupom fiscal · ECF ${ref.n_ecf} COO ${ref.n_coo}`;
+  return `${NFE_REF_KIND_LABELS[ref.kind as NfeRefKind]} · nº ${ref.n_nf ?? ''}`;
 }
 
 /**
@@ -38,23 +38,23 @@ function describe(ref: NfeRefIn): string {
  * documento externo só existe para o que o sistema nunca emitiu.
  */
 export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
-  const {selectedOrg} = useAuth()
-  const [external, setExternal] = useState<NfeRefIn | null>(null)
+  const {selectedOrg} = useAuth();
+  const [external, setExternal] = useState<NfeRefIn | null>(null);
 
   const {data: nfePage} = useQuery({
     queryKey: queryKeys.nfes.list(selectedOrg?.pk, {limit: 50}),
     queryFn: () => apiClient.getNfes({limit: 50}),
     enabled: !!selectedOrg,
-  })
-  const nfes = nfePage?.items ?? []
+  });
+  const nfes = nfePage?.items ?? [];
 
-  const add = (ref: NfeRefIn) => onChange([...value, ref])
-  const removeAt = (i: number) => onChange(value.filter((_, k) => k !== i))
+  const add = (ref: NfeRefIn) => onChange([...value, ref]);
+  const removeAt = (i: number) => onChange(value.filter((_, k) => k !== i));
   const patchExternal = (patch: Partial<NfeRefIn>) =>
-    setExternal((cur) => ({...(cur ?? EMPTY_EXTERNAL), ...patch}))
+    setExternal((cur) => ({...(cur ?? EMPTY_EXTERNAL), ...patch}));
 
-  const externalKind = (external?.kind ?? 'nf') as NfeRefKind
-  const externalIsKeyOnly = NFE_REF_KEY_KINDS.includes(externalKind)
+  const externalKind = (external?.kind ?? 'nf') as NfeRefKind;
+  const externalIsKeyOnly = NFE_REF_KEY_KINDS.includes(externalKind);
 
   return (
     <div className="space-y-3">
@@ -79,7 +79,7 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
           value=""
           placeholder="Selecione uma nota emitida…"
           onValueChange={(v: string) => {
-            if (v) add({nfe_id: v})
+            if (v) add({nfe_id: v});
           }}
           options={[
             ...nfes.map((n) => ({
@@ -187,8 +187,8 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
 
           <div className="flex gap-2">
             <Button type="button" size="xs" onClick={() => {
-              add(external)
-              setExternal(null)
+              add(external);
+              setExternal(null);
             }}>
               Adicionar
             </Button>
@@ -199,5 +199,5 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

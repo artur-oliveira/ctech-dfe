@@ -267,15 +267,15 @@ export const BACEN_COUNTRIES: readonly CountryEntry[] = [
   {code: "8753", description: "Wallis e Futuna, Ilhas"},
   {code: "8885", description: "Congo, República Democrática do"},
   {code: "8907", description: "Zâmbia"},
-]
+];
 
 export const BACEN_COUNTRY_OPTIONS = BACEN_COUNTRIES.map((c) => ({
   value: c.code,
   label: `${c.description} (${c.code})`,
-}))
+}));
 
 /** Índice para validação, sem varrer a lista a cada tecla. */
-export const BACEN_COUNTRY_CODES: ReadonlySet<string> = new Set(BACEN_COUNTRIES.map((c) => c.code))
+export const BACEN_COUNTRY_CODES: ReadonlySet<string> = new Set(BACEN_COUNTRIES.map((c) => c.code));
 
 /** Brasil — default de todo campo de país num documento fiscal brasileiro. */
-export const BACEN_COUNTRY_BRAZIL = '1058'
+export const BACEN_COUNTRY_BRAZIL = '1058';

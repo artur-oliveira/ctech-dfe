@@ -1,14 +1,15 @@
-// Package constants is a 1:1 port of py-dfe's constants/enums.py: UF list,
+// Package constants is a 1:1 port of the original Python client's constants/enums.py: UF list,
 // environment/doc-type enums, WSDL service/operation tables, and the
 // per-authorizer overrides SEFAZ requires. Kept as a single file, mirroring
 // the source layout, since these are pure lookup tables with no logic.
 package constants
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// Environment values, already normalized (py-dfe also accepts
-// "producao"/"homologacao" and normalizes on the way in — see
-// py-dfe/py_dfe/models/request.py normalize_environment).
+// Environment values, already normalized.
 const (
 	EnvironmentProd = "prod"
 	EnvironmentHom  = "hom"
@@ -23,11 +24,19 @@ const (
 	DocTypeNFSE = "nfse"
 )
 
-// Retry defaults (py-dfe/py_dfe/models/request.py: max_retries 0-10, default 3).
+// Retry defaults.
 const (
 	DefaultMaxRetries = 3
 	MinMaxRetries     = 0
 	MaxMaxRetries     = 10
+)
+
+// Timeouts de rede do cliente HTTP mTLS. DialTimeout limita só o TCP connect:
+// uma prefeitura que descarta SYN deve falhar em segundos, não no timeout do
+// SO (~127 s no Linux). NFSeAttemptTimeout limita cada tentativa REST do NFS-e.
+const (
+	DialTimeout        = 10 * time.Second
+	NFSeAttemptTimeout = 20 * time.Second
 )
 
 // Serviços NFS-e. Diferente dos demais doc types, não existem operações de
@@ -268,7 +277,7 @@ func WSDLOperation(uf, docType, service string) (string, error) {
 	return op, nil
 }
 
-// Error codes, mirroring py-dfe/py_dfe/exceptions.py.
+// Error codes, mirroring the original Python client
 const (
 	ErrCodeCertificate      = "certificate error"
 	ErrCodeEndpointNotFound = "endpoint not found"

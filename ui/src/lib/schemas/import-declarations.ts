@@ -4,7 +4,7 @@
  * emissão o item só aponta qual adição o representa, e nAdicao/nSeqAdic saem
  * desse vínculo.
  */
-import {z} from 'zod'
+import {z} from 'zod';
 
 /** tpViaTransp — via de transporte internacional. */
 export const TP_VIA_TRANSP_OPTIONS = [
@@ -20,24 +20,24 @@ export const TP_VIA_TRANSP_OPTIONS = [
   {value: '10', label: '10 – Entrada / saída ficta'},
   {value: '11', label: '11 – Courier'},
   {value: '12', label: '12 – Handcarry'},
-]
+];
 
 /** tpIntermedio — forma de intermediação da importação. */
 export const TP_INTERMEDIO_OPTIONS = [
   {value: '1', label: '1 – Importação por conta própria'},
   {value: '2', label: '2 – Importação por conta e ordem'},
   {value: '3', label: '3 – Importação por encomenda'},
-]
+];
 
 /** A via marítima é a única que exige o AFRMM. */
-export const TP_VIA_TRANSP_MARITIMA = '01'
+export const TP_VIA_TRANSP_MARITIMA = '01';
 
 export const importAdditionSchema = z.object({
   n_adicao: z.string().regex(/^\d{1,3}$/, 'Número da adição: até 3 dígitos'),
   c_fabricante: z.string().min(1, 'Fabricante obrigatório').max(60),
   v_desc_di: z.string().optional().or(z.literal('')),
   n_draw: z.string().max(20).optional().or(z.literal('')),
-})
+});
 
 export const importDeclarationSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -56,8 +56,8 @@ export const importDeclarationSchema = z.object({
 }).superRefine((v, ctx) => {
   // Mesma regra do backend: sem AFRMM, a DI marítima seria recusada na SEFAZ.
   if (v.tp_via_transp === TP_VIA_TRANSP_MARITIMA && !v.v_afrmm) {
-    ctx.addIssue({code: 'custom', path: ['v_afrmm'], message: 'AFRMM é obrigatório na via marítima'})
+    ctx.addIssue({code: 'custom', path: ['v_afrmm'], message: 'AFRMM é obrigatório na via marítima'});
   }
-})
+});
 
 export type ImportDeclarationFormData = z.infer<typeof importDeclarationSchema>

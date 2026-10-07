@@ -161,7 +161,7 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 - [ ] All constants named (no magic strings)
 - [ ] Errors returned via `sendProblem` / `problem.*` helpers
 - [ ] Docs updated (`../DOCS.md` and/or `../CONDUCT.md`)
-- [ ] Cross-project impact reviewed (api ↔ worker ↔ ui ↔ py-dfe)
+- [ ] Cross-project impact reviewed (api ↔ worker ↔ ui ↔ go-dfe-egress)
 
 ## Mandatory Documentation Policy
 

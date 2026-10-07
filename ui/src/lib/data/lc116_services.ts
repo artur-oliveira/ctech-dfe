@@ -213,11 +213,11 @@ export const LC116_SERVICES: readonly ServiceItem[] = [
   {code: "38.01", description: "Serviços de museologia"},
   {code: "39.01", description: "Serviços de ourivesaria e lapidação (quando o material for fornecido pelo tomador do serviço)"},
   {code: "40.01", description: "Obras de arte sob encomenda"},
-]
+];
 
 export const LC116_SERVICE_OPTIONS = LC116_SERVICES.map((s) => ({
   value: s.code,
   label: `${s.code} - ${s.description}`,
-}))
+}));
 
-export const LC116_SERVICE_CODES: ReadonlySet<string> = new Set(LC116_SERVICES.map((s) => s.code))
+export const LC116_SERVICE_CODES: ReadonlySet<string> = new Set(LC116_SERVICES.map((s) => s.code));

@@ -1,5 +1,5 @@
-import {describe, expect, it} from 'vitest'
-import {MAX_TRAILERS, vehicleSetSchema} from '@/lib/schemas/vehicle-sets'
+import {describe, expect, it} from 'vitest';
+import {MAX_TRAILERS, vehicleSetSchema} from '@/lib/schemas/vehicle-sets';
 
 describe('vehicleSetSchema', () => {
   const valid = {
@@ -9,23 +9,23 @@ describe('vehicleSetSchema', () => {
     driver_docs: ['11144477735'],
     rntrc: '12345678',
     ciot: '',
-  }
+  };
 
   it('aceita uma composição completa', () => {
-    expect(vehicleSetSchema.safeParse(valid).success).toBe(true)
-  })
+    expect(vehicleSetSchema.safeParse(valid).success).toBe(true);
+  });
 
   it('exige veículo de tração', () => {
-    expect(vehicleSetSchema.safeParse({...valid, tractor_sk: ''}).success).toBe(false)
-  })
+    expect(vehicleSetSchema.safeParse({...valid, tractor_sk: ''}).success).toBe(false);
+  });
 
   it(`recusa mais de ${MAX_TRAILERS} reboques`, () => {
-    const trailers = Array.from({length: MAX_TRAILERS + 1}, (_, i) => `VEHICLE_T${i}`)
-    expect(vehicleSetSchema.safeParse({...valid, trailer_sks: trailers}).success).toBe(false)
-  })
+    const trailers = Array.from({length: MAX_TRAILERS + 1}, (_, i) => `VEHICLE_T${i}`);
+    expect(vehicleSetSchema.safeParse({...valid, trailer_sks: trailers}).success).toBe(false);
+  });
 
   it('aceita RNTRC vazio mas recusa formato inválido', () => {
-    expect(vehicleSetSchema.safeParse({...valid, rntrc: ''}).success).toBe(true)
-    expect(vehicleSetSchema.safeParse({...valid, rntrc: '123'}).success).toBe(false)
-  })
-})
+    expect(vehicleSetSchema.safeParse({...valid, rntrc: ''}).success).toBe(true);
+    expect(vehicleSetSchema.safeParse({...valid, rntrc: '123'}).success).toBe(false);
+  });
+});

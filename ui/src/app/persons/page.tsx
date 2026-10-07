@@ -1,40 +1,40 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {UsersIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
-import {BulkActionBar} from '@/components/ui/bulk-action-bar'
-import {useRowSelection} from '@/lib/hooks/useRowSelection'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {PERSON_ROLE_LABELS, PERSON_ROLE_OPTIONS, type PersonRole} from '@/lib/schemas/entity'
-import type {PersonItemOut} from '@/lib/types/api'
-import {docLabel, formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
+import {useState} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {UsersIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
+import {BulkActionBar} from '@/components/ui/bulk-action-bar';
+import {useRowSelection} from '@/lib/hooks/useRowSelection';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {PERSON_ROLE_LABELS, PERSON_ROLE_OPTIONS, type PersonRole} from '@/lib/schemas/entity';
+import type {PersonItemOut} from '@/lib/types/api';
+import {docLabel, formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
 
 // Valor sentinela do select "todos os tipos" — o Radix Select não aceita "".
-const ROLE_FILTER_ALL = '__all__'
-const ROLE_FILTER_OPTIONS = [{value: ROLE_FILTER_ALL, label: 'Todos os tipos'}, ...PERSON_ROLE_OPTIONS]
+const ROLE_FILTER_ALL = '__all__';
+const ROLE_FILTER_OPTIONS = [{value: ROLE_FILTER_ALL, label: 'Todos os tipos'}, ...PERSON_ROLE_OPTIONS];
 
 function PersonsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
-  const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL)
-  const role = roleFilter === ROLE_FILTER_ALL ? undefined : (roleFilter as PersonRole)
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
+  const role = roleFilter === ROLE_FILTER_ALL ? undefined : (roleFilter as PersonRole);
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<PersonItemOut>({
@@ -43,31 +43,31 @@ function PersonsContent() {
       queryKey: [...queryKeys.persons.list(selectedOrg?.pk), role ?? ROLE_FILTER_ALL],
       queryFn: (cursor) => apiClient.getPersons({cursor, role}),
       enabled: !!selectedOrg,
-    })
+    });
   
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<PersonItemOut>({
     mutationFn: (id) => apiClient.deletePerson(id),
     getId: (p) => unformatCpfCnpj(p.sk),
     getDeletedMessage: (p) => `"${p.name}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)});
     },
-  })
+  });
   
   // Rows inside the undo window are hidden until the delete commits (or is undone).
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
-  const rowId = (p: PersonItemOut) => unformatCpfCnpj(p.sk)
-  const selection = useRowSelection(visibleItems.map(rowId))
+  const rowId = (p: PersonItemOut) => unformatCpfCnpj(p.sk);
+  const selection = useRowSelection(visibleItems.map(rowId));
   const bulkDelete = () => {
-    const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
+    const byId = new Map(visibleItems.map((p) => [rowId(p), p]));
     selection.selectedIds.forEach((id) => {
-      const p = byId.get(id)
-      if (p) handleDelete(p)
-    })
-    selection.clear()
-  }
+      const p = byId.get(id);
+      if (p) handleDelete(p);
+    });
+    selection.clear();
+  };
 
   return (
     <RootLayout>
@@ -204,7 +204,7 @@ function PersonsContent() {
         </BulkActionBar>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function PersonsPage() {
@@ -212,5 +212,5 @@ export default function PersonsPage() {
     <ProtectedRoute>
       <PersonsContent/>
     </ProtectedRoute>
-  )
+  );
 }

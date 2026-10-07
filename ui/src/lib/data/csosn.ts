@@ -9,4 +9,4 @@ export const CSOSN_OPTIONS = [
   {value: '400', label: '400 – Não tributada'},
   {value: '500', label: '500 – ICMS cobrado anteriormente'},
   {value: '900', label: '900 – Outros'},
-]
+];

@@ -1,100 +1,100 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ShoppingBagIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell'
-import {BulkActionBar} from '@/components/ui/bulk-action-bar'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {useRowSelection} from '@/lib/hooks/useRowSelection'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {ProductOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ShoppingBagIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
+import {BulkActionBar} from '@/components/ui/bulk-action-bar';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {useRowSelection} from '@/lib/hooks/useRowSelection';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {ProductOut} from '@/lib/types/api';
 import {formatCurrency} from "@/lib/utils/helpers";
 
 function ProductsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ProductOut>({
       queryKey: queryKeys.products.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getProducts({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
   
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ProductOut>({
     mutationFn: (id) => apiClient.deleteProduct(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PRODUCT),
     getDeletedMessage: (p) => `Produto "${p.description}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)});
     },
-  })
+  });
   
   // Rows inside the undo window are hidden until the delete commits (or is undone).
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
-  const rowId = (p: ProductOut) => extractId(p.sk, SK_PREFIX.PRODUCT)
-  const selection = useRowSelection(visibleItems.map(rowId))
+  const rowId = (p: ProductOut) => extractId(p.sk, SK_PREFIX.PRODUCT);
+  const selection = useRowSelection(visibleItems.map(rowId));
   // Nomes dos perfis para exibir na coluna: a linha do produto guarda só o id.
   const {data: taxProfilePage} = useQuery({
     queryKey: queryKeys.taxProfiles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getTaxProfiles({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const taxProfiles = taxProfilePage?.items ?? []
+  });
+  const taxProfiles = taxProfilePage?.items ?? [];
   const profileNames = new Map(
     taxProfiles.map((tp) => [extractId(tp.sk, SK_PREFIX.TAX_PROFILE), tp.name]),
-  )
+  );
 
-  const [isApplyingProfile, setIsApplyingProfile] = useState(false)
+  const [isApplyingProfile, setIsApplyingProfile] = useState(false);
 
   // Aplica um perfil aos produtos selecionados. Substitui o vínculo em vez de
   // acumular: dois perfis cobrindo o mesmo CFOP é configuração ambígua.
   const applyProfileToSelected = async (profileId: string) => {
-    if (!profileId) return
-    const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
-    setIsApplyingProfile(true)
+    if (!profileId) return;
+    const byId = new Map(visibleItems.map((p) => [rowId(p), p]));
+    setIsApplyingProfile(true);
     try {
       for (const id of selection.selectedIds) {
-        const product = byId.get(id)
-        if (!product) continue
+        const product = byId.get(id);
+        if (!product) continue;
         await apiClient.updateProduct(id, {
           ...product,
           tax_profiles: [{tax_profile_id: profileId}],
-        })
+        });
       }
-      selection.clear()
-      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
+      selection.clear();
+      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)});
     } finally {
-      setIsApplyingProfile(false)
+      setIsApplyingProfile(false);
     }
-  }
+  };
 
   const bulkDelete = () => {
-    const byId = new Map(visibleItems.map((p) => [rowId(p), p]))
+    const byId = new Map(visibleItems.map((p) => [rowId(p), p]));
     selection.selectedIds.forEach((id) => {
-      const p = byId.get(id)
-      if (p) handleDelete(p)
-    })
-    selection.clear()
-  }
+      const p = byId.get(id);
+      if (p) handleDelete(p);
+    });
+    selection.clear();
+  };
 
   return (
     <RootLayout>
@@ -222,7 +222,7 @@ function ProductsContent() {
         </BulkActionBar>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function ProductsPage() {
@@ -230,5 +230,5 @@ export default function ProductsPage() {
     <ProtectedRoute>
       <ProductsContent/>
     </ProtectedRoute>
-  )
+  );
 }

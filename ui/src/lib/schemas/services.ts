@@ -1,9 +1,9 @@
-import {z} from 'zod'
+import {z} from 'zod';
 
 // Valores monetários e alíquotas são string decimal com ponto — mesmo contrato
 // do backend (api/internal/api/v1/dto.go ServiceBody) e do XML assinado.
-const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Use ponto decimal, ex: 1000.00')
-const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida')
+const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Use ponto decimal, ex: 1000.00');
+const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida');
 
 const serviceIssSchema = z.object({
   // 1 operação tributável | 2 imunidade | 3 exportação de serviço | 4 não incidência
@@ -17,16 +17,16 @@ const serviceIssSchema = z.object({
   c_pais_resultado: z.string().length(2, 'Código de país tem 2 letras').optional().or(z.literal('')),
 }).superRefine((v, ctx) => {
   if (v.trib_issqn === '1' && !v.tax_rate) {
-    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['tax_rate'], message: 'Alíquota obrigatória'})
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['tax_rate'], message: 'Alíquota obrigatória'});
   }
   if (v.trib_issqn !== '2' && v.tp_imunidade) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['tp_imunidade'],
       message: 'Só se aplica quando trib_issqn é imunidade (2)',
-    })
+    });
   }
-})
+});
 
 const serviceFederalSchema = z.object({
   cst_pis_cofins: z.string().length(2, 'CST tem 2 dígitos').optional().or(z.literal('')),
@@ -36,7 +36,7 @@ const serviceFederalSchema = z.object({
   v_ret_cp: money.optional().or(z.literal('')),
   v_ret_irrf: money.optional().or(z.literal('')),
   v_ret_csll: money.optional().or(z.literal('')),
-})
+});
 
 const serviceIbsCbsSchema = z.object({
   c_ind_op: z.string().regex(/^\d{6}$/, 'Indicador da operação tem 6 dígitos'),
@@ -45,13 +45,13 @@ const serviceIbsCbsSchema = z.object({
   ind_dest: z.enum(['0', '1']),
   tp_oper: z.enum(['1', '2', '3', '4', '5']).optional().or(z.literal('')),
   fin_nfse: z.literal('0'),
-})
+});
 
 const serviceTotTribSchema = z.object({
   // Valor fixo — Decreto 8.264/2014 veda estimar tributos na NFS-e.
   ind_tot_trib: z.literal('0'),
   p_tot_trib_sn: percent.optional().or(z.literal('')),
-})
+});
 
 export const serviceSchema = z.object({
   code: z.string().trim().min(1, 'Código obrigatório').max(60),
@@ -66,6 +66,6 @@ export const serviceSchema = z.object({
   federal: serviceFederalSchema.optional(),
   ibs_cbs: serviceIbsCbsSchema,
   tot_trib: serviceTotTribSchema.optional(),
-})
+});
 
 export type ServiceFormData = z.infer<typeof serviceSchema>

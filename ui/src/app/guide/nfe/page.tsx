@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
+import Link from 'next/link';
+import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage';
 
 export default function GuideNfe() {
   return (
@@ -194,5 +194,5 @@ export default function GuideNfe() {
         },
       ]}
     />
-  )
+  );
 }

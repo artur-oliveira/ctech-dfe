@@ -1,39 +1,39 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {PaymentTerminalForm} from '@/components/payment-terminals/PaymentTerminalForm'
-import type {PaymentTerminalCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {PaymentTerminalForm} from '@/components/payment-terminals/PaymentTerminalForm';
+import type {PaymentTerminalCreate} from '@/lib/types/api';
 
 function EditPaymentTerminalContent() {
-  const params = useSearchParams()
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {data: terminal, isLoading} = useQuery({
     queryKey: queryKeys.paymentTerminals.detail(id),
     queryFn: () => apiClient.getPaymentTerminal(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
 
   const updateMutation = useMutation({
     mutationFn: (d: PaymentTerminalCreate) => apiClient.updatePaymentTerminal(id, d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.detail(id)})
-      router.push('/payment-terminals')
+      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.detail(id)});
+      router.push('/payment-terminals');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -55,14 +55,14 @@ function EditPaymentTerminalContent() {
           <PaymentTerminalForm
             initialData={terminal}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditPaymentTerminalPage() {
@@ -72,5 +72,5 @@ export default function EditPaymentTerminalPage() {
         <EditPaymentTerminalContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

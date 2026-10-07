@@ -285,7 +285,7 @@ func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, 
 	uf := dtcfg.uf
 
 	payload := s.buildConsultaProtocoloPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, class.AccessKey)
-	resp, err := s.invokePyDfe(ctx, payload)
+	resp, err := s.invokeEgress(ctx, payload)
 	if err != nil {
 		return fmt.Errorf("consulta protocolo: %w", err)
 	}
@@ -368,7 +368,7 @@ func (s *DistributionService) runImportXML(ctx context.Context, orgPK, docType, 
 }
 
 // buildConsultaProtocoloPayload builds the generic Request payload shape
-// (see mapToDfeRequest/invokePyDfe) for a one-off NfeConsultaProtocolo call —
+// (see invokeEgress) for a one-off NfeConsultaProtocolo call —
 // distinct from buildPayload, whose "service" is fixed to dtcfg.sefazService
 // (the doc type's *distribution* service, not consulta protocolo).
 func (s *DistributionService) buildConsultaProtocoloPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, accessKey string) map[string]any {
@@ -498,9 +498,9 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 		body := s.buildPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, dtcfg, "distNSU",
 			map[string]any{"ultNSU": fmt.Sprintf("%015d", max(currentNSU, 1))})
 
-		resp, err := s.invokePyDfe(ctx, body)
+		resp, err := s.invokeEgress(ctx, body)
 		if err != nil {
-			return fmt.Errorf("invokePyDfe: %w", err)
+			return fmt.Errorf("invokeEgress: %w", err)
 		}
 
 		statusCode := int(getFloat(resp, "statusCode"))
@@ -513,7 +513,7 @@ func (s *DistributionService) runDistNSU(ctx context.Context, orgPK, docType, tr
 
 		if statusCode != 200 {
 			detail := mapStr(respBody, "detail", mapStr(respBody, "title", "Erro SEFAZ"))
-			slog.Error("py-dfe error", "org_pk", orgPK, "status", statusCode, "detail", detail, "response_body", rawBody)
+			slog.Error("egress error", "org_pk", orgPK, "status", statusCode, "detail", detail, "response_body", rawBody)
 			if strings.Contains(strings.ToLower(detail), "consumo indevido") {
 				_ = s.setImproperUsage(ctx, orgPK, configTable, envPrefix, now)
 			}
@@ -613,7 +613,7 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 
 	body := s.buildPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, dtcfg, "consNSU",
 		map[string]any{"NSU": fmt.Sprintf("%015d", nsu)})
-	resp, err := s.invokePyDfe(ctx, body)
+	resp, err := s.invokeEgress(ctx, body)
 	if err != nil || int(getFloat(resp, "statusCode")) != 200 {
 		slog.Error("consNSU failed", "org_pk", orgPK, "nsu", nsu, "err", err)
 		return nil
@@ -687,7 +687,7 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 
 	body := s.buildPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, dtcfg, chKey,
 		map[string]any{chTag: accessKey})
-	resp, err := s.invokePyDfe(ctx, body)
+	resp, err := s.invokeEgress(ctx, body)
 	if err != nil || int(getFloat(resp, "statusCode")) != 200 {
 		slog.Error("consAccessKey failed", "org_pk", orgPK, "access_key", accessKey, "err", err)
 		return nil
@@ -1427,7 +1427,7 @@ func (s *DistributionService) getCertB64(ctx context.Context, s3Key string) (str
 }
 
 // ------------------------------------------------------------------
-// py-dfe Lambda invocation
+// go-dfe-egress Lambda invocation
 // ------------------------------------------------------------------
 
 func (s *DistributionService) buildPayload(
@@ -1471,25 +1471,9 @@ func (s *DistributionService) buildPayload(
 	}
 }
 
-// invokePyDfe dispatches a distribution SEFAZ call. 2026-07-18: cut over to
-// go-dfe in-process for every (docType, service) it implements (see
-// go-dfe/dfe.go's `implemented` map — NFeDistribuicaoDFe/CTeDistribuicaoDFe/
-// MDFeDistribuicaoDFe are all in it) — same worker-wide cutover, same
-// explicit-operator-direction caveat, as dfe.go's Process().
-// Revert to py-dfe-only: delete the if block below (keep only the
-// unconditional call to invokePyDfeLambda that follows it).
-func (s *DistributionService) invokePyDfe(ctx context.Context, payload map[string]any) (map[string]any, error) {
-	if req, ok := mapToDfeRequest(payload); ok && godfeImplements(req.DocType, req.Service) {
-		resp, err := godfeCall(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"statusCode": float64(resp.StatusCode), "body": resp.Body}, nil
-	}
-	return s.invokePyDfeLambda(ctx, payload)
-}
-
-func (s *DistributionService) invokePyDfeLambda(ctx context.Context, payload map[string]any) (map[string]any, error) {
+// invokeEgress sends a distribution SEFAZ/municipal call to the go-dfe-egress
+// Lambda (sa-east-1).
+func (s *DistributionService) invokeEgress(ctx context.Context, payload map[string]any) (map[string]any, error) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err

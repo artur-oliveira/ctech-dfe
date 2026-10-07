@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {useId, useState} from 'react'
-import {useSavedFilterViews, type SavedFilterView} from '@/lib/hooks/useSavedFilterViews'
+import {useId, useState} from 'react';
+import {useSavedFilterViews, type SavedFilterView} from '@/lib/hooks/useSavedFilterViews';
 
 /**
  * Saved named NSU filter views for a distribution page. Persists via
@@ -18,15 +18,15 @@ export function SavedFilterViews({
   currentNsu: string
   onApply: (nsu: string) => void
 }) {
-  const popoverId = useId()
-  const {views, saveView, deleteView} = useSavedFilterViews(pageId)
-  const [name, setName] = useState('')
+  const popoverId = useId();
+  const {views, saveView, deleteView} = useSavedFilterViews(pageId);
+  const [name, setName] = useState('');
 
   const handleSave = () => {
-    if (!name.trim()) return
-    saveView(name, currentNsu)
-    setName('')
-  }
+    if (!name.trim()) return;
+    saveView(name, currentNsu);
+    setName('');
+  };
 
   return (
     <div className="relative inline-block">
@@ -85,8 +85,8 @@ export function SavedFilterViews({
             onChange={e => setName(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter') {
-                e.preventDefault()
-                handleSave()
+                e.preventDefault();
+                handleSave();
               }
             }}
             placeholder="Nome da visualização"
@@ -103,5 +103,5 @@ export function SavedFilterViews({
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {Button} from '@/components/ui/button'
-import {SystemState} from '@/components/SystemState'
+import Link from 'next/link';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {Button} from '@/components/ui/button';
+import {SystemState} from '@/components/SystemState';
 
 export default function NotFound() {
-  const {user} = useAuth()
+  const {user} = useAuth();
 
   return (
     <SystemState
@@ -18,5 +18,5 @@ export default function NotFound() {
         {user ? 'Ir para o painel' : 'Ir para o login'}
       </Button>
     </SystemState>
-  )
+  );
 }

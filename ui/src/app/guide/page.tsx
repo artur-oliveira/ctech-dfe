@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import Link from 'next/link'
-import {ArrowRight} from 'lucide-react'
-import {Button} from '@/components/ui/button'
-import {GuideChrome} from '@/components/guide/GuidePage'
-import {GUIDE_TOPICS} from '@/lib/constants/guide'
+import Image from 'next/image';
+import Link from 'next/link';
+import {ArrowRight} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {GuideChrome} from '@/components/guide/GuidePage';
+import {GUIDE_TOPICS} from '@/lib/constants/guide';
 
 const QUICKSTART = [
   {step: 'Configure', detail: 'empresa, certificado A1 e numeração'},
   {step: 'Cadastre', detail: 'o cliente e os produtos da nota'},
   {step: 'Emita', detail: 'e acompanhe até a autorização'},
-]
+];
 
 export default function GuideHome() {
   return (
@@ -104,5 +104,5 @@ export default function GuideHome() {
         </div>
       </div>
     </GuideChrome>
-  )
+  );
 }

@@ -1,52 +1,52 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ImportIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {TP_VIA_TRANSP_OPTIONS} from '@/lib/schemas/import-declarations'
-import type {ImportDeclarationItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ImportIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {TP_VIA_TRANSP_OPTIONS} from '@/lib/schemas/import-declarations';
+import type {ImportDeclarationItemOut} from '@/lib/types/api';
 
 const viaLabel = (code: unknown) =>
-  TP_VIA_TRANSP_OPTIONS.find((o) => o.value === code)?.label ?? '-'
+  TP_VIA_TRANSP_OPTIONS.find((o) => o.value === code)?.label ?? '-';
 
 function ImportDeclarationsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ImportDeclarationItemOut>({
       queryKey: queryKeys.importDeclarations.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getImportDeclarations({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ImportDeclarationItemOut>({
     mutationFn: (id) => apiClient.deleteImportDeclaration(id),
     getId: (u) => extractId(u.sk, SK_PREFIX.IMPORT_DI),
     getDeletedMessage: (u) => `"${u.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -114,7 +114,7 @@ function ImportDeclarationsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function ImportDeclarationsPage() {
@@ -122,5 +122,5 @@ export default function ImportDeclarationsPage() {
     <ProtectedRoute>
       <ImportDeclarationsContent/>
     </ProtectedRoute>
-  )
+  );
 }

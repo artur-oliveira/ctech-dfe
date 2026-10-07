@@ -1,32 +1,32 @@
-'use client'
+'use client';
 
-import {useRouter} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import type {Organization} from '@/components/organizations/OrganizationsTable'
-import {OrganizationsTable} from '@/components/organizations/OrganizationsTable'
-import {Button} from '@/components/ui/button'
+import {useRouter} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import type {Organization} from '@/components/organizations/OrganizationsTable';
+import {OrganizationsTable} from '@/components/organizations/OrganizationsTable';
+import {Button} from '@/components/ui/button';
 
 function OrganizationsContent() {
-  const router = useRouter()
-  const qc = useQueryClient()
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {data, isPending, error} = useQuery({
     queryKey: queryKeys.organizations.all(),
     queryFn: () => apiClient.getOrganizations(),
-  })
+  });
   
   const deleteMutation = useMutation({
     mutationFn: (pk: string) => apiClient.deleteOrganization(pk),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.organizations.all()}),
-  })
+  });
   
   const handleEdit = (org: Organization) => {
-    router.push(`/organizations/edit?pk=${encodeURIComponent(org.pk)}`)
-  }
+    router.push(`/organizations/edit?pk=${encodeURIComponent(org.pk)}`);
+  };
   
   return (
     <RootLayout>
@@ -59,7 +59,7 @@ function OrganizationsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function OrganizationsPage() {
@@ -67,5 +67,5 @@ export default function OrganizationsPage() {
     <ProtectedRoute>
       <OrganizationsContent/>
     </ProtectedRoute>
-  )
+  );
 }

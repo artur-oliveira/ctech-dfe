@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {MOCK_ENABLED} from './env'
-import {mockAdapter} from './handler'
-import {getMockState, initMockStateFromUrl, setMockState} from './state'
-import type {BillingScenario} from './fixtures'
+import {useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {MOCK_ENABLED} from './env';
+import {mockAdapter} from './handler';
+import {getMockState, initMockStateFromUrl, setMockState} from './state';
+import type {BillingScenario} from './fixtures';
 
 // Anexa o adapter no browser. Fica neste módulo (e não em index.ts) porque só
 // um módulo cliente é avaliado no navegador — ver o comentário em index.ts.
 if (MOCK_ENABLED && typeof window !== 'undefined') {
-  initMockStateFromUrl(window.location.search)
-  apiClient.setAdapter(mockAdapter)
+  initMockStateFromUrl(window.location.search);
+  apiClient.setAdapter(mockAdapter);
 }
 
-const STATUS_OPTIONS = [500, 422, 403]
+const STATUS_OPTIONS = [500, 422, 403];
 
 const BILLING_SCENARIOS: { value: BillingScenario; label: string }[] = [
   {value: 'pro_active', label: 'Pro ativa'},
@@ -23,7 +23,7 @@ const BILLING_SCENARIOS: { value: BillingScenario; label: string }[] = [
   {value: 'pro_past_due', label: 'Pro em atraso'},
   {value: 'ondemand', label: 'Sob demanda'},
   {value: 'checkout_pending', label: 'Checkout pendente'},
-]
+];
 
 /**
  * Dev-only control to flip the mock between success and simulated-error flows
@@ -31,14 +31,14 @@ const BILLING_SCENARIOS: { value: BillingScenario; label: string }[] = [
  * `NEXT_PUBLIC_MOCK_API=true` (see layout.tsx).
  */
 export function MockDevPanel() {
-  const qc = useQueryClient()
-  const {mode, status, billing} = getMockState()
+  const qc = useQueryClient();
+  const {mode, status, billing} = getMockState();
 
   const apply = (next: Partial<Parameters<typeof setMockState>[0]>) => {
-    setMockState(next)
+    setMockState(next);
     // Re-run active queries so list/detail pages reflect the new mode.
-    void qc.invalidateQueries()
-  }
+    void qc.invalidateQueries();
+  };
 
   return (
     <div
@@ -83,5 +83,5 @@ export function MockDevPanel() {
         ))}
       </select>
     </div>
-  )
+  );
 }

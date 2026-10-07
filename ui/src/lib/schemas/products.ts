@@ -1,9 +1,9 @@
-import {z} from 'zod'
-import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods'
-import {IPI_CENQ} from '@/lib/data/ipi_cenq'
-import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CLASS_CODES} from '@/lib/data/ibs_cbs_cst'
-import {ANP_CODE_SET} from '@/lib/data/anp'
-import {isValidVehicleTypePair} from '@/lib/data/vehicle_type_pairs'
+import {z} from 'zod';
+import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods';
+import {IPI_CENQ} from '@/lib/data/ipi_cenq';
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CLASS_CODES} from '@/lib/data/ibs_cbs_cst';
+import {ANP_CODE_SET} from '@/lib/data/anp';
+import {isValidVehicleTypePair} from '@/lib/data/vehicle_type_pairs';
 
 export const conversionFactorSchema = z.object({
   origin_unit: z
@@ -20,26 +20,26 @@ export const conversionFactorSchema = z.object({
     .string()
     .regex(/^\d+(\.\d+)?$/, 'Fator inválido (ex: 20 ou 0.5)')
     .refine((v) => parseFloat(v) > 0, 'Deve ser maior que zero'),
-})
+});
 
-const _ibsCbsCstRegex = /^(000|010|011|200|220|221|222|400|410|510|515|550|620|800|810|811|820|830)$/
-const _ibsCbsClassRegex = /^\d{6}$/
-const _ibsCbsAliqRegex = /^\d{1,3}(\.\d{1,4})?$/
-const _percentRegex = /^\d{1,3}(\.\d{1,4})?$/
+const _ibsCbsCstRegex = /^(000|010|011|200|220|221|222|400|410|510|515|550|620|800|810|811|820|830)$/;
+const _ibsCbsClassRegex = /^\d{6}$/;
+const _ibsCbsAliqRegex = /^\d{1,3}(\.\d{1,4})?$/;
+const _percentRegex = /^\d{1,3}(\.\d{1,4})?$/;
 
 /** CSTs de IPI tributado — exigem pIPI ou vUnid (leiauteNFe_v4.00, grupo IPITrib). */
-const IPI_TAXED_CSTS = new Set(['00', '49', '50', '99'])
+const IPI_TAXED_CSTS = new Set(['00', '49', '50', '99']);
 
 /** modBC por pauta (1) e por lista negociada (2) exigem o valor da pauta. */
-const ICMS_MOD_BC_PAUTA = new Set(['1', '2'])
+const ICMS_MOD_BC_PAUTA = new Set(['1', '2']);
 
-const optionalStr = z.string().optional().or(z.literal(''))
-const optionalPercent = z.string().regex(_percentRegex, '% inválido').optional().or(z.literal(''))
+const optionalStr = z.string().optional().or(z.literal(''));
+const optionalPercent = z.string().regex(_percentRegex, '% inválido').optional().or(z.literal(''));
 
 export const ufTaxOverrideSchema = z.object({
   ufs: z.array(z.string().regex(/^[A-Z]{2}$/, 'UF inválida')).min(1, 'Escolha ao menos uma UF'),
   overrides: z.record(z.string(), z.unknown()),
-})
+});
 
 export const cfopConfigBase = z.object({
   cfop: z.string().regex(/^\d{4}$/, 'CFOP deve ter 4 dígitos'),
@@ -176,7 +176,7 @@ export const cfopConfigBase = z.object({
   issqn_v_iss_ret: optionalStr,
   // Overrides por UF de destino — só preenche o que diverge para aquelas UFs
   uf_overrides: z.array(ufTaxOverrideSchema).optional(),
-})
+});
 
 /**
  * Regras de grupo do tratamento tributário. Ficam numa função para valerem tanto
@@ -187,17 +187,17 @@ export function applyTaxGroupRules(
   data: Record<string, unknown>,
   ctx: z.RefinementCtx,
 ): void {
-  const filled = (v: unknown): boolean => typeof v === 'string' && v.trim() !== ''
+  const filled = (v: unknown): boolean => typeof v === 'string' && v.trim() !== '';
   /** Grupo do leiaute: ou vêm todos os campos, ou nenhum. */
   const requireTogether = (fields: string[], message: string) => {
-    const present = fields.filter((f) => filled(data[f]))
-    if (present.length === 0 || present.length === fields.length) return
+    const present = fields.filter((f) => filled(data[f]));
+    if (present.length === 0 || present.length === fields.length) return;
     for (const field of fields) {
       if (!filled(data[field])) {
-        ctx.addIssue({code: 'custom', path: [field], message})
+        ctx.addIssue({code: 'custom', path: [field], message});
       }
     }
-  }
+  };
 
   // IPI tributado é por alíquota OU por unidade — nunca nenhum dos dois.
   if (IPI_TAXED_CSTS.has(String(data.ipi_cst ?? '')) && !filled(data.ipi_aliq) && !filled(data.ipi_v_unid)) {
@@ -205,14 +205,14 @@ export function applyTaxGroupRules(
       code: 'custom',
       path: ['ipi_aliq'],
       message: 'CST de IPI tributado exige alíquota ou valor por unidade',
-    })
+    });
   }
 
   // ICMSPart: a partilha precisa do percentual da operação própria e da UF do ST.
   requireTogether(
     ['icms_part_p_bc_op', 'icms_part_uf_st'],
     'A partilha do ICMS exige o percentual da operação própria e a UF do ST',
-  )
+  );
 
   // modBC por pauta ou por lista negociada exige o valor da pauta.
   if (ICMS_MOD_BC_PAUTA.has(String(data.icms_mod_bc ?? '')) && !filled(data.icms_pauta_valor)) {
@@ -220,18 +220,18 @@ export function applyTaxGroupRules(
       code: 'custom',
       path: ['icms_pauta_valor'],
       message: 'Esta modalidade de base de cálculo exige o valor da pauta',
-    })
+    });
   }
 
   requireTogether(
     ['alc_zfm_tp_cbs', 'alc_zfm_n_proc_suframa'],
     'A alíquota zero da CBS em ALC/ZFM exige o tipo e o processo SUFRAMA',
-  )
+  );
 
   requireTogether(
     ['obs_item_x_campo', 'obs_item_x_texto'],
     'A observação do item exige campo e texto',
-  )
+  );
 
   // Seis dígitos que passam no regex mas não existem na tabela publicada são
   // rejeição na emissão, e a classificação tem que ser a do CST escolhido.
@@ -239,28 +239,28 @@ export function applyTaxGroupRules(
     ['ibs_cbs_cst', 'ibs_cbs_class_trib'],
     ['ibs_reg_cst', 'ibs_reg_class_trib'],
   ] as const) {
-    const classCode = data[classField]
-    if (!filled(classCode)) continue
+    const classCode = data[classField];
+    if (!filled(classCode)) continue;
     if (!IBS_CBS_CLASS_CODES.has(classCode as string)) {
-      ctx.addIssue({code: 'custom', path: [classField], message: 'Classificação não existe na tabela do IBS/CBS'})
-      continue
+      ctx.addIssue({code: 'custom', path: [classField], message: 'Classificação não existe na tabela do IBS/CBS'});
+      continue;
     }
-    const cst = data[cstField]
-    const allowed = filled(cst) ? IBS_CBS_CLASS_BY_CST[cst as string] : undefined
+    const cst = data[cstField];
+    const allowed = filled(cst) ? IBS_CBS_CLASS_BY_CST[cst as string] : undefined;
     if (allowed && !allowed.some((o) => o.value === classCode)) {
       ctx.addIssue({
         code: 'custom',
         path: [classField],
         message: 'Esta classificação não pertence ao CST de IBS/CBS escolhido',
-      })
+      });
     }
   }
 }
 
-export const cfopConfigSchema = cfopConfigBase.superRefine(applyTaxGroupRules)
+export const cfopConfigSchema = cfopConfigBase.superRefine(applyTaxGroupRules);
 
 const nullableStr = (schema: z.ZodString) =>
-  schema.or(z.literal('')).optional()
+  schema.or(z.literal('')).optional();
 
 
 /**
@@ -269,14 +269,14 @@ const nullableStr = (schema: z.ZodString) =>
  * cadastro — e é conta, que é justamente o que o operador não deve fazer.
  */
 export function isValidGtin(code: string): boolean {
-  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false
-  const digits = code.split('').map(Number)
-  const check = digits.pop() as number
-  let sum = 0
+  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+  const digits = code.split('').map(Number);
+  const check = digits.pop() as number;
+  let sum = 0;
   for (let i = digits.length - 1, weight = 3; i >= 0; i--, weight = weight === 3 ? 1 : 3) {
-    sum += digits[i] * weight
+    sum += digits[i] * weight;
   }
-  return (10 - (sum % 10)) % 10 === check
+  return (10 - (sum % 10)) % 10 === check;
 }
 
 /** Tags de veicProd exigidas pelo leiaute — espelha `veicProdTagOrder` no builder Go. */
@@ -302,14 +302,14 @@ const VEICULO_REQUIRED: {field: keyof ProductFormData; label: string}[] = [
   {field: 'veic_dist', label: 'distância entre eixos'},
   {field: 'net_weight', label: 'peso líquido'},
   {field: 'gross_weight', label: 'peso bruto'},
-]
+];
 
-const ANVISA_ISENTO = 'ISENTO'
+const ANVISA_ISENTO = 'ISENTO';
 
 /** Índices das tabelas oficiais, para a validação não varrê-las por tecla. */
-const RISK_CLASS_CODES = new Set(RISK_CLASSES.filter((c) => !c.parentOnly).map((c) => c.code))
-const IPI_CENQ_CODES = new Set(IPI_CENQ.map((e) => e.code))
-const SEM_GTIN = 'SEM GTIN'
+const RISK_CLASS_CODES = new Set(RISK_CLASSES.filter((c) => !c.parentOnly).map((c) => c.code));
+const IPI_CENQ_CODES = new Set(IPI_CENQ.map((e) => e.code));
+const SEM_GTIN = 'SEM GTIN';
 
 const productSchemaBase = z.object({
   code: z
@@ -437,7 +437,7 @@ const productSchemaBase = z.object({
   // arma
   arma_tp_arma: nullableStr(z.string().regex(/^[01]$/, '0 ou 1')),
   arma_descr: nullableStr(z.string().max(256, 'Máximo 256 chars')),
-})
+});
 
 type ProductFormBase = z.infer<typeof productSchemaBase>
 
@@ -449,62 +449,62 @@ export type ProductFormData = ProductFormBase
  * rejeição não chegar dias depois, na emissão, numa tela diferente.
  */
 export const productSchema = productSchemaBase.superRefine((data, ctx) => {
-  const filled = (v: unknown): boolean => typeof v === 'string' && v.trim() !== ''
+  const filled = (v: unknown): boolean => typeof v === 'string' && v.trim() !== '';
   const require = (field: keyof ProductFormBase, message: string) => {
-    if (!filled(data[field])) ctx.addIssue({code: 'custom', path: [field], message})
-  }
+    if (!filled(data[field])) ctx.addIssue({code: 'custom', path: [field], message});
+  };
 
   if (data.prod_type === 'comb') {
-    require('comb_c_prod_anp', 'Obrigatório para combustível')
-    require('comb_desc_anp', 'Obrigatório para combustível')
-    require('comb_uf_cons', 'Obrigatório para combustível')
+    require('comb_c_prod_anp', 'Obrigatório para combustível');
+    require('comb_desc_anp', 'Obrigatório para combustível');
+    require('comb_uf_cons', 'Obrigatório para combustível');
   }
 
   if (data.prod_type === 'veiculo') {
     for (const {field, label} of VEICULO_REQUIRED) {
-      require(field, `Obrigatório para veículo novo (${label})`)
+      require(field, `Obrigatório para veículo novo (${label})`);
     }
   }
 
   if (data.prod_type === 'arma') {
-    require('arma_tp_arma', 'Obrigatório para armamento')
+    require('arma_tp_arma', 'Obrigatório para armamento');
   }
 
   // cProdANVISA = ISENTO exige o motivo; registro numérico o proíbe.
   if (data.med_c_prod_anvisa === ANVISA_ISENTO) {
-    require('med_x_motivo_isencao', 'Obrigatório quando o registro é ISENTO')
+    require('med_x_motivo_isencao', 'Obrigatório quando o registro é ISENTO');
   } else if (filled(data.med_c_prod_anvisa) && filled(data.med_x_motivo_isencao)) {
     ctx.addIssue({
       code: 'custom',
       path: ['med_x_motivo_isencao'],
       message: 'Só se aplica quando o registro ANVISA é ISENTO',
-    })
+    });
   }
 
   // indEscala = N (produção fora de escala relevante) exige o fabricante.
   if (data.ind_escala === 'N') {
-    require('cnpj_fab', 'Obrigatório quando a produção é fora de escala relevante')
+    require('cnpj_fab', 'Obrigatório quando a produção é fora de escala relevante');
   }
 
   // O selo de controle do IPI é um grupo: código e quantidade andam juntos.
   if (filled(data.ipi_c_selo) !== filled(data.ipi_q_selo)) {
-    const missing = filled(data.ipi_c_selo) ? 'ipi_q_selo' : 'ipi_c_selo'
-    ctx.addIssue({code: 'custom', path: [missing], message: 'Código e quantidade do selo andam juntos'})
+    const missing = filled(data.ipi_c_selo) ? 'ipi_q_selo' : 'ipi_c_selo';
+    ctx.addIssue({code: 'custom', path: [missing], message: 'Código e quantidade do selo andam juntos'});
   }
 
   // peri: com o número ONU, o resto do grupo é obrigatório no MDF-e que
   // referenciar esta nota.
   if (filled(data.peri_n_onu)) {
-    require('peri_x_nome_ae', 'Obrigatório quando há número ONU')
-    require('peri_x_cla_risco', 'Obrigatório quando há número ONU')
+    require('peri_x_nome_ae', 'Obrigatório quando há número ONU');
+    require('peri_x_cla_risco', 'Obrigatório quando há número ONU');
     // Classe 1, 2, 5.2, 6.2 e 7 não recebem grupo de embalagem (Res. ANTT 5.998/2022).
     if (packingGroupApplies(data.peri_x_cla_risco)) {
-      require('peri_gr_emb', 'Obrigatório quando há número ONU')
+      require('peri_gr_emb', 'Obrigatório quando há número ONU');
     }
   }
 
   if (filled(data.peri_x_cla_risco) && !RISK_CLASS_CODES.has(data.peri_x_cla_risco as string)) {
-    ctx.addIssue({code: 'custom', path: ['peri_x_cla_risco'], message: 'Classe de risco não existe na tabela da ANTT'})
+    ctx.addIssue({code: 'custom', path: ['peri_x_cla_risco'], message: 'Classe de risco não existe na tabela da ANTT'});
   }
 
   if (filled(data.peri_gr_emb) && !packingGroupApplies(data.peri_x_cla_risco)) {
@@ -512,12 +512,12 @@ export const productSchema = productSchemaBase.superRefine((data, ctx) => {
       code: 'custom',
       path: ['peri_gr_emb'],
       message: 'Esta classe de risco não recebe grupo de embalagem',
-    })
+    });
   }
 
   // cProdANP inexistente é rejeição de item; a tabela da ANP é fechada.
   if (filled(data.comb_c_prod_anp) && !ANP_CODE_SET.has(data.comb_c_prod_anp as string)) {
-    ctx.addIssue({code: 'custom', path: ['comb_c_prod_anp'], message: 'Código não existe na tabela da ANP'})
+    ctx.addIssue({code: 'custom', path: ['comb_c_prod_anp'], message: 'Código não existe na tabela da ANP'});
   }
 
   // Tipo e espécie de veículo não são independentes: a SEFAZ publica os pares.
@@ -526,43 +526,43 @@ export const productSchema = productSchemaBase.superRefine((data, ctx) => {
       code: 'custom',
       path: ['veic_esp_veic'],
       message: 'Esta espécie não existe para o tipo de veículo escolhido',
-    })
+    });
   }
 
   if (filled(data.ipi_c_enq) && !IPI_CENQ_CODES.has(data.ipi_c_enq as string)) {
-    ctx.addIssue({code: 'custom', path: ['ipi_c_enq'], message: 'Enquadramento legal do IPI não existe na tabela'})
+    ctx.addIssue({code: 'custom', path: ['ipi_c_enq'], message: 'Enquadramento legal do IPI não existe na tabela'});
   }
 
   // Origem do combustível: o rateio tem que fechar em 100%.
   if (data.comb_orig && data.comb_orig.length > 0) {
-    const total = data.comb_orig.reduce((sum, o) => sum + (parseFloat(o.p_orig) || 0), 0)
+    const total = data.comb_orig.reduce((sum, o) => sum + (parseFloat(o.p_orig) || 0), 0);
     if (Math.abs(total - 100) >= 0.01) {
       ctx.addIssue({
         code: 'custom',
         path: ['comb_orig'],
         message: `Os percentuais de origem somam ${total.toFixed(2)}%; têm que somar 100%`,
-      })
+      });
     }
   }
 
   // Peso bruto inclui a embalagem: nunca é menor que o líquido.
-  const net = parseFloat(data.net_weight ?? '')
-  const gross = parseFloat(data.gross_weight ?? '')
+  const net = parseFloat(data.net_weight ?? '');
+  const gross = parseFloat(data.gross_weight ?? '');
   if (!Number.isNaN(net) && !Number.isNaN(gross) && gross < net) {
     ctx.addIssue({
       code: 'custom',
       path: ['gross_weight'],
       message: 'Peso bruto não pode ser menor que o líquido',
-    })
+    });
   }
 
   for (const field of ['cean', 'taxable_cean'] as const) {
-    const value = data[field]
+    const value = data[field];
     if (filled(value) && value !== SEM_GTIN && !isValidGtin(value as string)) {
-      ctx.addIssue({code: 'custom', path: [field], message: 'Dígito verificador do GTIN inválido'})
+      ctx.addIssue({code: 'custom', path: [field], message: 'Dígito verificador do GTIN inválido'});
     }
   }
-})
+});
 
 export type CfopConfigFormData = z.infer<typeof cfopConfigSchema>
 export type ConversionFactorFormData = z.infer<typeof conversionFactorSchema>

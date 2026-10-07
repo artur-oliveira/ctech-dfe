@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import {Button} from '@/components/ui/button'
+import {Button} from '@/components/ui/button';
 
 function savedAgo(savedAt: number): string {
-  const minutes = Math.round((Date.now() - savedAt) / 60_000)
-  if (minutes < 1) return 'agora há pouco'
-  if (minutes < 60) return `há ${minutes} min`
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) return `há ${hours} h`
-  return `há ${Math.round(hours / 24)} dia(s)`
+  const minutes = Math.round((Date.now() - savedAt) / 60_000);
+  if (minutes < 1) return 'agora há pouco';
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `há ${hours} h`;
+  return `há ${Math.round(hours / 24)} dia(s)`;
 }
 
 /**
@@ -31,5 +31,5 @@ export function DraftRecoveryBanner({savedAt, onRestore, onDiscard}: {
         <Button type="button" variant="brand" onClick={onRestore}>Retomar</Button>
       </div>
     </div>
-  )
+  );
 }

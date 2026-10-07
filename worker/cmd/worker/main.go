@@ -46,7 +46,7 @@ func main() {
 
 	svc := service.New(service.Clients{
 		S3:     s3.NewFromConfig(ac),
-		Lambda: lambdaSDK.NewFromConfig(ac),
+		Lambda: lambdaSDK.NewFromConfig(ac, func(o *lambdaSDK.Options) { o.Region = cfg.DfeEgressRegion }),
 		Dynamo: dynamodb.NewFromConfig(ac),
 		SNS:    sns.NewFromConfig(ac),
 	}, cfg)

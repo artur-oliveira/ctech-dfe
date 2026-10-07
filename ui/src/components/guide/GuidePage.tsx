@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import Link from 'next/link'
-import type {ReactNode} from 'react'
-import {ArrowLeft, ArrowRight, CircleAlert, Info, Lightbulb, ShieldCheck} from 'lucide-react'
-import {Button} from '@/components/ui/button'
-import {GUIDE_TOPICS} from '@/lib/constants/guide'
-import {useAuth} from '@/lib/hooks/useAuth'
+import Image from 'next/image';
+import Link from 'next/link';
+import type {ReactNode} from 'react';
+import {ArrowLeft, ArrowRight, CircleAlert, Info, Lightbulb, ShieldCheck} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {GUIDE_TOPICS} from '@/lib/constants/guide';
+import {useAuth} from '@/lib/hooks/useAuth';
 
 /** Cabeçalho e rodapé públicos do guia — não depende de sessão. */
 export function GuideChrome({children}: { children: ReactNode }) {
-  const {user} = useAuth()
+  const {user} = useAuth();
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
@@ -34,7 +34,7 @@ export function GuideChrome({children}: { children: ReactNode }) {
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
 export interface GuideSection {
@@ -61,8 +61,8 @@ export function GuidePage({
   sections: GuideSection[]
   currentHref: string
 }) {
-  const index = GUIDE_TOPICS.findIndex((topic) => topic.href === currentHref)
-  const next = GUIDE_TOPICS[index + 1]
+  const index = GUIDE_TOPICS.findIndex((topic) => topic.href === currentHref);
+  const next = GUIDE_TOPICS[index + 1];
 
   return (
     <GuideChrome>
@@ -79,7 +79,7 @@ export function GuidePage({
         >
           <ul className="flex w-max gap-1.5">
             {GUIDE_TOPICS.map((item) => {
-              const active = item.href === currentHref
+              const active = item.href === currentHref;
               return (
                 <li key={item.href}>
                   <Link
@@ -94,7 +94,7 @@ export function GuidePage({
                     {item.label}
                   </Link>
                 </li>
-              )
+              );
             })}
           </ul>
         </nav>
@@ -166,21 +166,21 @@ export function GuidePage({
         </div>
       </div>
     </GuideChrome>
-  )
+  );
 }
 
 export function GuideSteps({children}: { children: ReactNode }) {
   return (
     <ol className="ml-5 list-decimal space-y-2 marker:font-semibold marker:text-primary-600">{children}</ol>
-  )
+  );
 }
 
 export function GuideBullets({children}: { children: ReactNode }) {
-  return <ul className="ml-5 list-disc space-y-2 marker:text-gray-300">{children}</ul>
+  return <ul className="ml-5 list-disc space-y-2 marker:text-gray-300">{children}</ul>;
 }
 
 export function GuideTerms({children}: { children: ReactNode }) {
-  return <dl className="divide-y divide-gray-100 rounded-xl border border-gray-200">{children}</dl>
+  return <dl className="divide-y divide-gray-100 rounded-xl border border-gray-200">{children}</dl>;
 }
 
 export function GuideTerm({term, children}: { term: string; children: ReactNode }) {
@@ -189,7 +189,7 @@ export function GuideTerm({term, children}: { term: string; children: ReactNode 
       <dt className="font-semibold text-gray-900">{term}</dt>
       <dd className="text-gray-600">{children}</dd>
     </div>
-  )
+  );
 }
 
 const CALLOUT_STYLES = {
@@ -197,14 +197,14 @@ const CALLOUT_STYLES = {
   tip: {icon: Lightbulb, box: 'border-primary-200 bg-primary-50/60', mark: 'text-primary-700'},
   safe: {icon: ShieldCheck, box: 'border-primary-200 bg-primary-50/60', mark: 'text-primary-700'},
   warning: {icon: CircleAlert, box: 'border-amber-200 bg-amber-50', mark: 'text-amber-700'},
-} as const
+} as const;
 
 export function GuideCallout({kind = 'info', title, children}: {
   kind?: keyof typeof CALLOUT_STYLES
   title: string
   children: ReactNode
 }) {
-  const {icon: Icon, box, mark} = CALLOUT_STYLES[kind]
+  const {icon: Icon, box, mark} = CALLOUT_STYLES[kind];
   return (
     <aside className={`flex gap-3 rounded-xl border p-4 ${box}`}>
       <Icon size={18} className={`mt-0.5 shrink-0 ${mark}`} aria-hidden="true"/>
@@ -213,5 +213,5 @@ export function GuideCallout({kind = 'info', title, children}: {
         <div className="text-gray-700">{children}</div>
       </div>
     </aside>
-  )
+  );
 }

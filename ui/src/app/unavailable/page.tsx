@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {SystemState, SystemStateRetry} from '@/components/SystemState'
-import {checkApiLiveness} from '@/lib/network/liveness'
-import {takeMaintenanceReturn} from '@/lib/network/maintenance'
+import {useState} from 'react';
+import {SystemState, SystemStateRetry} from '@/components/SystemState';
+import {checkApiLiveness} from '@/lib/network/liveness';
+import {takeMaintenanceReturn} from '@/lib/network/maintenance';
 
 /**
  * Where a 503 lands.
@@ -13,20 +13,20 @@ import {takeMaintenanceReturn} from '@/lib/network/maintenance'
  * them right back here, having learned nothing.
  */
 export default function UnavailablePage() {
-  const [checking, setChecking] = useState(false)
-  const [stillDown, setStillDown] = useState(false)
+  const [checking, setChecking] = useState(false);
+  const [stillDown, setStillDown] = useState(false);
 
   const retry = async () => {
-    if (checking) return
-    setChecking(true)
-    setStillDown(false)
+    if (checking) return;
+    setChecking(true);
+    setStillDown(false);
     if (await checkApiLiveness()) {
-      window.location.replace(takeMaintenanceReturn())
-      return
+      window.location.replace(takeMaintenanceReturn());
+      return;
     }
-    setChecking(false)
-    setStillDown(true)
-  }
+    setChecking(false);
+    setStillDown(true);
+  };
 
   return (
     <SystemState
@@ -43,5 +43,5 @@ export default function UnavailablePage() {
     >
       <SystemStateRetry onRetry={() => void retry()} label="Verificar agora"/>
     </SystemState>
-  )
+  );
 }

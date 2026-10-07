@@ -1,8 +1,8 @@
-import { OAuthClient, decodeIdToken as sdkDecodeIdToken } from '@aoctech/auth-client'
-import type { UnverifiedIdTokenClaims } from '@aoctech/auth-client'
+import { OAuthClient, decodeIdToken as sdkDecodeIdToken } from '@aoctech/auth-client';
+import type { UnverifiedIdTokenClaims } from '@aoctech/auth-client';
 
-const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!
-const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!
+const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_URL!;
+const CLIENT_ID = process.env.NEXT_PUBLIC_CTECH_CLIENT_ID!;
 
 export const DFE_USER_SCOPES = [
   'dfe:nfes:read',
@@ -49,18 +49,18 @@ export const DFE_USER_SCOPES = [
   'dfe:organizations:write',
   'dfe:organization_certificates:read',
   'dfe:organization_certificates:write',
-] as const
+] as const;
 
-export const DFE_OAUTH_SCOPE = ['openid', 'profile', ...DFE_USER_SCOPES].join(' ')
+export const DFE_OAUTH_SCOPE = ['openid', 'profile', ...DFE_USER_SCOPES].join(' ');
 
 const client = new OAuthClient({
   baseUrl: CTECH_URL,
   clientId: CLIENT_ID,
   redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : '',
   scope: DFE_OAUTH_SCOPE,
-})
+});
 
-export type { UnverifiedIdTokenClaims }
+export type { UnverifiedIdTokenClaims };
 /** @deprecated Use UnverifiedIdTokenClaims instead */
 export type IdTokenClaims = UnverifiedIdTokenClaims
 
@@ -70,10 +70,10 @@ export type IdTokenClaims = UnverifiedIdTokenClaims
  * The id_token's audience is the OAuth client itself, so reading profile data from it
  * client-side avoids the ctech-account /userinfo audience block on the DFe access token.
  */
-export const decodeIdToken = sdkDecodeIdToken
+export const decodeIdToken = sdkDecodeIdToken;
 
 export async function startOAuthFlow(returnTo = '/'): Promise<void> {
-  await client.startOAuthFlow(returnTo)
+  await client.startOAuthFlow(returnTo);
 }
 
 /**
@@ -92,16 +92,16 @@ export async function startOAuthFlow(returnTo = '/'): Promise<void> {
  * exchange with a spent code.
  */
 export function currentReturnTo(): string {
-  const {pathname, search} = window.location
-  return pathname === '/callback' ? '/' : `${pathname}${search}`
+  const {pathname, search} = window.location;
+  return pathname === '/callback' ? '/' : `${pathname}${search}`;
 }
 
 export async function exchangeCode(
   code: string,
   state: string,
 ): Promise<{ accessToken: string; idToken: string | null; returnTo: string }> {
-  const result = await client.exchangeCode(code, state)
-  return { accessToken: result.accessToken, idToken: result.idToken ?? null, returnTo: result.returnTo }
+  const result = await client.exchangeCode(code, state);
+  return { accessToken: result.accessToken, idToken: result.idToken ?? null, returnTo: result.returnTo };
 }
 
 // M2: refresh_token is no longer passed in the request body — ctech-account
@@ -111,8 +111,8 @@ export async function exchangeCode(
 // without the ctech_auth hint cookie or after a local revoked mark, so it
 // never burns the shared /token rate limit on a doomed request.
 export async function doRefresh(): Promise<{ accessToken: string } | null> {
-  const result = await client.refresh()
-  return result ? { accessToken: result.accessToken } : null
+  const result = await client.refresh();
+  return result ? { accessToken: result.accessToken } : null;
 }
 
 /**
@@ -123,17 +123,17 @@ export async function doRefresh(): Promise<{ accessToken: string } | null> {
  * back in instead of showing a fresh login.
  */
 export function endSessionRedirect(returnTo = '/login'): void {
-  client.endSessionRedirect(returnTo)
+  client.endSessionRedirect(returnTo);
 }
 
 // M2: the refresh token lives in the HttpOnly ctech_rt cookie; we don't have it
 // in JS. credentials:'include' sends the cookie and ctech-account's /revoke
 // clears it, ending the refresh chain.
 export async function revokeToken(): Promise<void> {
-  await client.revoke()
+  await client.revoke();
 }
 
 /** Closes the OAuth client's BroadcastChannel to prevent memory/event-loop leaks in tests. */
 export function close(): void {
-  client.close()
+  client.close();
 }

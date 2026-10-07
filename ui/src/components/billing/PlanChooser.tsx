@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {formatCents, METER_COMPANIES, METER_USERS, METER_LABELS, PLAN_ONDEMAND, QUOTA_UNLIMITED} from '@/lib/constants/billing'
-import {grantedMeters, type PlanOption} from '@/lib/billing/catalog'
+import {formatCents, METER_COMPANIES, METER_USERS, METER_LABELS, PLAN_ONDEMAND, QUOTA_UNLIMITED} from '@/lib/constants/billing';
+import {grantedMeters, type PlanOption} from '@/lib/billing/catalog';
 
 interface PlanChooserProps {
   options: PlanOption[]
@@ -12,14 +12,14 @@ interface PlanChooserProps {
 }
 
 function quotaText(limit: number): string {
-  return limit === QUOTA_UNLIMITED ? 'ilimitado' : limit.toLocaleString('pt-BR')
+  return limit === QUOTA_UNLIMITED ? 'ilimitado' : limit.toLocaleString('pt-BR');
 }
 
 /** The price line: a monthly amount, "grátis", or per-document pricing. */
 function priceLabel(option: PlanOption): {amount: string; unit: string} {
-  if (option.plan === PLAN_ONDEMAND) return {amount: 'Por uso', unit: 'sem mensalidade'}
-  if (option.monthlyCents === 0) return {amount: 'Grátis', unit: 'para sempre'}
-  return {amount: formatCents(option.monthlyCents), unit: 'por mês'}
+  if (option.plan === PLAN_ONDEMAND) return {amount: 'Por uso', unit: 'sem mensalidade'};
+  if (option.monthlyCents === 0) return {amount: 'Grátis', unit: 'para sempre'};
+  return {amount: formatCents(option.monthlyCents), unit: 'por mês'};
 }
 
 /**
@@ -34,10 +34,10 @@ export function PlanChooser({options, value, onChange, currentPlan}: PlanChooser
   return (
     <div role="radiogroup" aria-label="Planos" className="flex flex-col gap-3">
       {options.map((option) => {
-        const selected = value === option.productId
-        const isCurrent = currentPlan === option.plan
-        const price = priceLabel(option)
-        const meters = grantedMeters(option.quotas)
+        const selected = value === option.productId;
+        const isCurrent = currentPlan === option.plan;
+        const price = priceLabel(option);
+        const meters = grantedMeters(option.quotas);
 
         return (
           <div
@@ -48,8 +48,8 @@ export function PlanChooser({options, value, onChange, currentPlan}: PlanChooser
             onClick={() => onChange(option.productId)}
             onKeyDown={(e) => {
               if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault()
-                onChange(option.productId)
+                e.preventDefault();
+                onChange(option.productId);
               }
             }}
             className={`cursor-pointer rounded-xl border bg-white p-4 transition-all outline-none focus-visible:ring-3 focus-visible:ring-brand-200 md:p-5 ${
@@ -114,8 +114,8 @@ export function PlanChooser({options, value, onChange, currentPlan}: PlanChooser
               </p>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

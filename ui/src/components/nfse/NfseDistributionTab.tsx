@@ -1,21 +1,21 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {toast} from 'sonner'
-import {useMutation, useQuery} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ServiceIcon} from '@/components/ui/icon'
-import {Pagination} from '@/components/ui/pagination'
-import {Button} from '@/components/ui/button'
-import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import type {NfseDistributionOut} from '@/lib/types/api'
-import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {EVENT_LABELS} from '@/lib/schemas/nfse'
+import {useState} from 'react';
+import {toast} from 'sonner';
+import {useMutation, useQuery} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ServiceIcon} from '@/components/ui/icon';
+import {Pagination} from '@/components/ui/pagination';
+import {Button} from '@/components/ui/button';
+import {PenaltyBanner} from '@/components/ui/penalty-banner';
+import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import type {NfseDistributionOut} from '@/lib/types/api';
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {EVENT_LABELS} from '@/lib/schemas/nfse';
 
 interface NfseDistributionTabProps {
   docType: 'nfe' | 'cte' | 'mdfe' | 'nfse'
@@ -23,18 +23,18 @@ interface NfseDistributionTabProps {
 }
 
 function DistributionRow({item, docType}: { item: NfseDistributionOut; docType: NfseDistributionTabProps['docType'] }) {
-  const [xmlLoading, setXmlLoading] = useState(false)
+  const [xmlLoading, setXmlLoading] = useState(false);
 
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-		triggerRemoteDownload((await apiClient.downloadDistributionXml(docType, item.nsu)).url)
+		triggerRemoteDownload((await apiClient.downloadDistributionXml(docType, item.nsu)).url);
     } catch {
-      toast.error('Não foi possível baixar o XML.')
+      toast.error('Não foi possível baixar o XML.');
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
 
   return (
     <tr className={TABLE_ROW}>
@@ -58,38 +58,38 @@ function DistributionRow({item, docType}: { item: NfseDistributionOut; docType: 
         )}
       </td>
     </tr>
-  )
+  );
 }
 
 export function NfseDistributionTab({docType, orgPk}: NfseDistributionTabProps) {
-  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
+  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null);
   const {data: config} = useQuery({
     queryKey: queryKeys.nfseConfig(orgPk),
     queryFn: () => apiClient.getNfseConfig(orgPk),
     enabled: !!orgPk,
-  })
+  });
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NfseDistributionOut>({
     queryKey: queryKeys.distributions.history(docType, orgPk),
     queryFn: (cursor) => apiClient.listDistributions<NfseDistributionOut>(docType, {limit: 10, cursor}),
     enabled: !!orgPk,
-  })
+  });
 
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions(docType),
     onSuccess: () => {
-      setPenaltyMessage(null)
-      toast.info('Consulta ao ADN enfileirada. Novos documentos aparecerão automaticamente.')
+      setPenaltyMessage(null);
+      toast.info('Consulta ao ADN enfileirada. Novos documentos aparecerão automaticamente.');
     },
     onError: (error: unknown) => {
-      if (error instanceof ApiError && error.status === 429) setPenaltyMessage(error.detail)
-      else toast.error(error instanceof ApiError ? error.detail : 'Não foi possível consultar o ADN agora.')
+      if (error instanceof ApiError && error.status === 429) setPenaltyMessage(error.detail);
+      else toast.error(error instanceof ApiError ? error.detail : 'Não foi possível consultar o ADN agora.');
     },
-  })
+  });
 
-  const isProd = config?.environment === 1
-  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
-  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
-  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 60 * 60 * 1000) : null
+  const isProd = config?.environment === 1;
+  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null;
+  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null;
+  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 60 * 60 * 1000) : null;
 
   return (
     <div className="space-y-4">
@@ -135,5 +135,5 @@ export function NfseDistributionTab({docType, orgPk}: NfseDistributionTabProps) 
                     isLoading={isFetching}/>
       )}
     </div>
-  )
+  );
 }

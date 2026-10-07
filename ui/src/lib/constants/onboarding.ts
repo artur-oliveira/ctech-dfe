@@ -1,4 +1,4 @@
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 /**
  * The first-run flow, in layers.
@@ -21,18 +21,18 @@ import type {DocVariant} from '@/lib/schemas/fiscal-configs'
  * everything is how a setup flow turns into a form to be endured.
  */
 
-export const ONBOARDING_ROOT = '/onboarding'
+export const ONBOARDING_ROOT = '/onboarding';
 
-export const STEP_PLAN = 'plano'
-export const STEP_COMPANY = 'empresa'
-export const STEP_CERTIFICATE = 'certificado'
-export const STEP_DOCUMENTS = 'documentos'
-export const STEP_PRODUCTS = 'produtos'
-export const STEP_SERVICES = 'servicos'
-export const STEP_DONE = 'pronto'
+export const STEP_PLAN = 'plano';
+export const STEP_COMPANY = 'empresa';
+export const STEP_CERTIFICATE = 'certificado';
+export const STEP_DOCUMENTS = 'documentos';
+export const STEP_PRODUCTS = 'produtos';
+export const STEP_SERVICES = 'servicos';
+export const STEP_DONE = 'pronto';
 
 /** The checkout return lives under the flow but is not a step of its own. */
-export const STEP_CHECKOUT_RETURN = 'retorno'
+export const STEP_CHECKOUT_RETURN = 'retorno';
 
 export type OnboardingStep =
   | typeof STEP_PLAN
@@ -95,13 +95,13 @@ export const ONBOARDING_STEPS: StepDefinition[] = [
     title: 'Tudo pronto',
     path: `${ONBOARDING_ROOT}/${STEP_DONE}`,
   },
-]
+];
 
 /** Document types whose issuance consumes the product catalogue. */
-export const PRODUCT_DOC_VARIANTS: DocVariant[] = ['nfe', 'nfce']
+export const PRODUCT_DOC_VARIANTS: DocVariant[] = ['nfe', 'nfce'];
 
 /** Document types whose issuance consumes the service catalogue. */
-export const SERVICE_DOC_VARIANTS: DocVariant[] = ['nfse']
+export const SERVICE_DOC_VARIANTS: DocVariant[] = ['nfse'];
 
 /**
  * Document types that need NF-e configured even when the company never issues
@@ -113,10 +113,10 @@ export const SERVICE_DOC_VARIANTS: DocVariant[] = ['nfse']
  * distribution.go`). So the flow creates one silently, with numbering at zero —
  * a configuration that receives and never issues.
  */
-export const DISTRIBUTION_DEPENDENT_VARIANTS: DocVariant[] = ['cte', 'mdfe']
+export const DISTRIBUTION_DEPENDENT_VARIANTS: DocVariant[] = ['cte', 'mdfe'];
 
 /** The variant that dependency creates. */
-export const DISTRIBUTION_SOURCE_VARIANT: DocVariant = 'nfe'
+export const DISTRIBUTION_SOURCE_VARIANT: DocVariant = 'nfe';
 
 /**
  * Where "issue your first one" goes, per document type.
@@ -131,5 +131,5 @@ export const FIRST_ISSUANCE_PATH: Record<DocVariant, string> = {
   cte: '/cte',
   mdfe: '/mdfe/emit',
   nfse: '/nfse/emit',
-}
+};
 

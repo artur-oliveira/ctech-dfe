@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {useSearchParams} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+import {Suspense, useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useSearchParams} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 const TABS: { id: DocVariant; label: string; description: string }[] = [
   {id: 'nfe', label: 'NF-e', description: 'Nota Fiscal Eletrônica'},
@@ -19,48 +19,48 @@ const TABS: { id: DocVariant; label: string; description: string }[] = [
   {id: 'cte', label: 'CT-e', description: 'Conhecimento de Transporte Eletrônico'},
   {id: 'mdfe', label: 'MDF-e', description: 'Manifesto Eletrônico de Documentos Fiscais'},
   {id: 'nfse', label: 'NFS-e', description: 'Nota Fiscal de Serviços Eletrônica'},
-]
+];
 
 function isDocVariant(v: string | null): v is DocVariant {
-  return TABS.some((t) => t.id === v)
+  return TABS.some((t) => t.id === v);
 }
 
 function FiscalConfigContent() {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const params = useSearchParams()
-  const tabParam = params.get('tab')
-  const [activeTab, setActiveTab] = useState<DocVariant>(isDocVariant(tabParam) ? tabParam : 'nfe')
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const params = useSearchParams();
+  const tabParam = params.get('tab');
+  const [activeTab, setActiveTab] = useState<DocVariant>(isDocVariant(tabParam) ? tabParam : 'nfe');
 
-  const pk = selectedOrg?.pk ?? ''
+  const pk = selectedOrg?.pk ?? '';
 
   // Fetch all configs in parallel; the hook treats 404 as null (not configured yet)
-  const nfeQuery = useFiscalConfig('nfe', pk)
-  const nfceQuery = useFiscalConfig('nfce', pk)
-  const cteQuery = useFiscalConfig('cte', pk)
-  const mdfeQuery = useFiscalConfig('mdfe', pk)
-  const nfseQuery = useFiscalConfig('nfse', pk)
+  const nfeQuery = useFiscalConfig('nfe', pk);
+  const nfceQuery = useFiscalConfig('nfce', pk);
+  const cteQuery = useFiscalConfig('cte', pk);
+  const mdfeQuery = useFiscalConfig('mdfe', pk);
+  const nfseQuery = useFiscalConfig('nfse', pk);
 
   const nfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfeConfig(pk)}),
-  })
+  });
   const nfceMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFCeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfceConfig(pk)}),
-  })
+  });
   const cteMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertCTeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.cteConfig(pk)}),
-  })
+  });
   const mdfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertMDFeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.mdfeConfig(pk)}),
-  })
+  });
   const nfseMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNfseConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfseConfig(pk)}),
-  })
+  });
 
   const configByTab = {
     nfe: {query: nfeQuery, mutation: nfeMutation},
@@ -68,10 +68,10 @@ function FiscalConfigContent() {
     cte: {query: cteQuery, mutation: cteMutation},
     mdfe: {query: mdfeQuery, mutation: mdfeMutation},
     nfse: {query: nfseQuery, mutation: nfseMutation},
-  }
+  };
   
-  const active = configByTab[activeTab]
-  const queryError = active.query.error?.message
+  const active = configByTab[activeTab];
+  const queryError = active.query.error?.message;
   
   return (
     <RootLayout>
@@ -91,9 +91,9 @@ function FiscalConfigContent() {
             {/* Tabs */}
             <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1">
               {TABS.map((tab) => {
-                const isActive = tab.id === activeTab
-                const {query} = configByTab[tab.id]
-                const hasConfig = !!query.config
+                const isActive = tab.id === activeTab;
+                const {query} = configByTab[tab.id];
+                const hasConfig = !!query.config;
                 return (
                   <button
                     key={tab.id}
@@ -113,7 +113,7 @@ function FiscalConfigContent() {
                       />
                     )}
                   </button>
-                )
+                );
               })}
             </div>
             
@@ -147,7 +147,7 @@ function FiscalConfigContent() {
                   variant={activeTab}
                   initialData={active.query.config ?? null}
                   onSave={async (data) => {
-                    await active.mutation.mutateAsync(data)
+                    await active.mutation.mutateAsync(data);
                   }}
                   loading={active.mutation.isPending}
                 />
@@ -157,7 +157,7 @@ function FiscalConfigContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function FiscalConfigPage() {
@@ -167,5 +167,5 @@ export default function FiscalConfigPage() {
         <FiscalConfigContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

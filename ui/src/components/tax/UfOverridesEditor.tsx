@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {Button} from '@/components/ui/button'
+import {useState} from 'react';
+import {Button} from '@/components/ui/button';
 import {
   EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups,
-} from '@/components/tax/TaxFieldsEditor'
-import type {CfopConfigFormData} from '@/lib/schemas/products'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
+} from '@/components/tax/TaxFieldsEditor';
+import type {CfopConfigFormData} from '@/lib/schemas/products';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
 
 export interface UfOverrideFormData {
   ufs: string[]
@@ -26,18 +26,18 @@ interface UfOverridesEditorProps {
  * aquelas UFs (design spec 2026-08-09-tax-config-redesign §Modelo de dados 1).
  */
 export function UfOverridesEditor({value, onChange, simples}: UfOverridesEditorProps) {
-  const [groupsByIndex, setGroupsByIndex] = useState<Record<number, TaxGroups>>({})
+  const [groupsByIndex, setGroupsByIndex] = useState<Record<number, TaxGroups>>({});
 
-  const addCard = () => onChange([...value, {ufs: [], overrides: {}}])
-  const removeCard = (i: number) => onChange(value.filter((_, idx) => idx !== i))
+  const addCard = () => onChange([...value, {ufs: [], overrides: {}}]);
+  const removeCard = (i: number) => onChange(value.filter((_, idx) => idx !== i));
   const setUfs = (i: number, ufs: string[]) =>
-    onChange(value.map((v, idx) => (idx === i ? {...v, ufs} : v)))
+    onChange(value.map((v, idx) => (idx === i ? {...v, ufs} : v)));
   const setOverrides = (i: number, updater: (r: CfopConfigFormData) => CfopConfigFormData) =>
     onChange(value.map((v, idx) => {
-      if (idx !== i) return v
-      const next = updater(v.overrides as CfopConfigFormData)
-      return {...v, overrides: next}
-    }))
+      if (idx !== i) return v;
+      const next = updater(v.overrides as CfopConfigFormData);
+      return {...v, overrides: next};
+    }));
 
   return (
     <div className="space-y-3">
@@ -48,7 +48,7 @@ export function UfOverridesEditor({value, onChange, simples}: UfOverridesEditorP
               <label className="text-sm font-medium text-gray-700">UFs de destino</label>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {UF_OPTIONS.map((opt) => {
-                  const checked = card.ufs.includes(opt.value)
+                  const checked = card.ufs.includes(opt.value);
                   return (
                     <button key={opt.value} type="button"
                             onClick={() => setUfs(i, checked
@@ -59,7 +59,7 @@ export function UfOverridesEditor({value, onChange, simples}: UfOverridesEditorP
                             }`}>
                       {opt.value}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -78,5 +78,5 @@ export function UfOverridesEditor({value, onChange, simples}: UfOverridesEditorP
         + Adicionar override por UF
       </Button>
     </div>
-  )
+  );
 }

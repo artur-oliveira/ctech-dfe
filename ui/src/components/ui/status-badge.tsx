@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {type ReactNode, useState} from 'react'
-import {Modal} from '@/components/ui/modal'
+import {type ReactNode, useState} from 'react';
+import {Modal} from '@/components/ui/modal';
 
 /**
  * Doc-neutral status badge primitive. Status uses a FIXED semantic palette
@@ -16,7 +16,7 @@ export function StatusBadge({label, className, isTransitional, size = 'sm'}: {
   isTransitional?: boolean
   size?: 'sm' | 'md'
 }) {
-  const sizeClass = size === 'md' ? 'gap-1.5 px-2.5 py-1 text-sm' : 'gap-1 px-2 py-0.5 text-xs'
+  const sizeClass = size === 'md' ? 'gap-1.5 px-2.5 py-1 text-sm' : 'gap-1 px-2 py-0.5 text-xs';
   return (
     <span
       className={`inline-flex items-center rounded font-medium ${sizeClass} ${className} ${isTransitional ? 'animate-pulse motion-reduce:animate-none' : ''}`}
@@ -27,7 +27,7 @@ export function StatusBadge({label, className, isTransitional, size = 'sm'}: {
       )}
       {label}
     </span>
-  )
+  );
 }
 
 /**
@@ -43,8 +43,8 @@ export function StatusCell({badge, sefazMotive, motiveTitle, iconClassName = 'te
   motiveTitle: string | null
   iconClassName?: string
 }) {
-  const [open, setOpen] = useState(false)
-  if (!(motiveTitle && sefazMotive)) return <>{badge}</>
+  const [open, setOpen] = useState(false);
+  if (!(motiveTitle && sefazMotive)) return <>{badge}</>;
   return (
     <>
       <button type="button" onClick={() => setOpen(true)}
@@ -61,5 +61,5 @@ export function StatusCell({badge, sefazMotive, motiveTitle, iconClassName = 'te
         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{sefazMotive}</p>
       </Modal>
     </>
-  )
+  );
 }

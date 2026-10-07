@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useMutation} from '@tanstack/react-query'
-import {toast} from 'sonner'
+import {useState} from 'react';
+import {useMutation} from '@tanstack/react-query';
+import {toast} from 'sonner';
 
 interface UseEntityDeleteOptions<TItem> {
   mutationFn: (id: string) => Promise<unknown>
@@ -29,35 +29,35 @@ export function useEntityDelete<TItem>({
                                          onSuccess,
                                          delayMs = 5000,
                                        }: UseEntityDeleteOptions<TItem>) {
-  const [hidden, setHidden] = useState<Set<string>>(new Set())
-  const mutation = useMutation({mutationFn, onSuccess})
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const mutation = useMutation({mutationFn, onSuccess});
 
   const reveal = (id: string) =>
     setHidden((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
   const handleDelete = (item: TItem) => {
-    const id = getId(item)
-    setHidden((prev) => new Set(prev).add(id))
+    const id = getId(item);
+    setHidden((prev) => new Set(prev).add(id));
 
     const timer = setTimeout(() => {
-      mutation.mutate(id, {onSettled: () => reveal(id)})
-    }, delayMs)
+      mutation.mutate(id, {onSettled: () => reveal(id)});
+    }, delayMs);
 
     toast(getDeletedMessage(item), {
       duration: delayMs,
       action: {
         label: 'Desfazer',
         onClick: () => {
-          clearTimeout(timer)
-          reveal(id)
+          clearTimeout(timer);
+          reveal(id);
         },
       },
-    })
-  }
+    });
+  };
 
   return {
     handleDelete,
@@ -65,5 +65,5 @@ export function useEntityDelete<TItem>({
     /** Drop rows currently in the undo window from a list before rendering. */
     filterVisible: (items: TItem[]) => items.filter((i) => !hidden.has(getId(i))),
     isPending: mutation.isPending,
-  }
+  };
 }

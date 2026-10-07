@@ -3,7 +3,7 @@ package nfse
 import "testing"
 
 // intOf/strSlice must handle both JSON-decoded body values (float64, []any —
-// arrives via the worker's SQS/py-dfe-shaped path) and native Go values
+// arrives via the worker's SQS/the original client's payload shape) and native Go values
 // (int64, []string — arrives via in-process callers like
 // worker/internal/service/distribution_nfse.go and
 // api/internal/services/nfses/municipal.go, which build the body map

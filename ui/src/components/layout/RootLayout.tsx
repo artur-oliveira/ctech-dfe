@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import React, {useState} from 'react'
-import {usePathname} from 'next/navigation'
-import {Sidebar} from './Sidebar'
-import {Topbar} from './Topbar'
-import {BottomNav} from './BottomNav'
-import {GlobalSearch} from './GlobalSearch'
-import {KeyboardShortcuts} from './KeyboardShortcuts'
-import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme'
-import {SubscriptionBanner} from '@/components/billing/SubscriptionNotice'
+import React, {useState} from 'react';
+import {usePathname} from 'next/navigation';
+import {Sidebar} from './Sidebar';
+import {Topbar} from './Topbar';
+import {BottomNav} from './BottomNav';
+import {GlobalSearch} from './GlobalSearch';
+import {KeyboardShortcuts} from './KeyboardShortcuts';
+import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme';
+import {SubscriptionBanner} from '@/components/billing/SubscriptionNotice';
 
 export function RootLayout({children}: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const pathname = usePathname()
-  const dfeTheme = getDfeThemeFromPath(pathname)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const pathname = usePathname();
+  const dfeTheme = getDfeThemeFromPath(pathname);
 
   return (
     <div className="min-h-screen bg-gray-50" data-dfe-theme={dfeTheme}>
@@ -43,5 +43,5 @@ export function RootLayout({children}: { children: React.ReactNode }) {
 
       <BottomNav onOpenMenu={() => setSidebarOpen(true)} onOpenSearch={() => setSearchOpen(true)}/>
     </div>
-  )
+  );
 }

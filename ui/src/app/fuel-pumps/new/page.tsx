@@ -1,28 +1,28 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {FuelPumpForm} from '@/components/fuel-pumps/FuelPumpForm'
-import type {FuelPumpCreate} from '@/lib/types/api'
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {FuelPumpForm} from '@/components/fuel-pumps/FuelPumpForm';
+import type {FuelPumpCreate} from '@/lib/types/api';
 
 function NewFuelPumpContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (d: FuelPumpCreate) => apiClient.createFuelPump(d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.fuelPumps.list(selectedOrg?.pk)})
-      router.push('/fuel-pumps')
+      void qc.invalidateQueries({queryKey: queryKeys.fuelPumps.list(selectedOrg?.pk)});
+      router.push('/fuel-pumps');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -35,13 +35,13 @@ function NewFuelPumpContent() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Nova bomba de combustível</h1>
         <FuelPumpForm
           onSubmit={async (d) => {
-            await createMutation.mutateAsync(d)
+            await createMutation.mutateAsync(d);
           }}
           loading={createMutation.isPending}
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NewFuelPumpPage() {
@@ -49,5 +49,5 @@ export default function NewFuelPumpPage() {
     <ProtectedRoute>
       <NewFuelPumpContent/>
     </ProtectedRoute>
-  )
+  );
 }

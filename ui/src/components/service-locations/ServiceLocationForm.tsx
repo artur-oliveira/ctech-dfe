@@ -1,23 +1,23 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {Combobox} from '@/components/ui/combobox'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {CITY_OPTIONS} from '@/lib/data/cities'
-import {ApiError} from '@/lib/api/client'
-import {maskCep} from '@/lib/utils/masks'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {Combobox} from '@/components/ui/combobox';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {CITY_OPTIONS} from '@/lib/data/cities';
+import {ApiError} from '@/lib/api/client';
+import {maskCep} from '@/lib/utils/masks';
 import {
   ADDRESS_SCOPES,
   SERVICE_LOCATION_ROLES,
   type ServiceLocationFormData,
   serviceLocationSchema,
-} from '@/lib/schemas/service-locations'
-import type {ServiceLocationCreate, ServiceLocationItemOut, ServiceLocationRole} from '@/lib/types/api'
+} from '@/lib/schemas/service-locations';
+import type {ServiceLocationCreate, ServiceLocationItemOut, ServiceLocationRole} from '@/lib/types/api';
 
 const EMPTY: ServiceLocationFormData = {
   name: '', roles: [], address_scope: 'national',
@@ -25,7 +25,7 @@ const EMPTY: ServiceLocationFormData = {
   postal_code: '', city_ibge_code: '',
   foreign_postal_code: '', foreign_city: '', foreign_region: '',
   insc_imob_fisc: '', c_obra: '', cib: '', id_atv_evt: '',
-}
+};
 
 export interface ServiceLocationFormProps {
   initialData?: ServiceLocationItemOut
@@ -34,12 +34,12 @@ export interface ServiceLocationFormProps {
 }
 
 function str(v: unknown): string {
-  return typeof v === 'string' ? v : ''
+  return typeof v === 'string' ? v : '';
 }
 
 function toFormData(l: ServiceLocationItemOut): ServiceLocationFormData {
-  const address = (l.address ?? {}) as Record<string, unknown>
-  const foreign = !!str(address.foreign_postal_code)
+  const address = (l.address ?? {}) as Record<string, unknown>;
+  const foreign = !!str(address.foreign_postal_code);
   return {
     name: l.name,
     roles: Array.isArray(l.roles) ? (l.roles as ServiceLocationRole[]) : [],
@@ -57,25 +57,25 @@ function toFormData(l: ServiceLocationItemOut): ServiceLocationFormData {
     c_obra: str(l.c_obra),
     cib: str(l.cib),
     id_atv_evt: str(l.id_atv_evt),
-  }
+  };
 }
 
 /** Campo vazio vira null: o backend distingue ausente de string vazia. */
 function orNull(value: string | undefined): string | null {
-  return value ? value : null
+  return value ? value : null;
 }
 
 export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLocationFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<ServiceLocationFormData>({
     resolver: zodResolver(serviceLocationSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
-  const scope = useWatch({control: form.control, name: 'address_scope'})
-  const isForeign = scope === 'foreign'
+  });
+  const scope = useWatch({control: form.control, name: 'address_scope'});
+  const isForeign = scope === 'foreign';
 
   const handleSubmit = async (data: ServiceLocationFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -95,11 +95,11 @@ export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLoc
         c_obra: orNull(data.c_obra),
         cib: orNull(data.cib),
         id_atv_evt: orNull(data.id_atv_evt),
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o local.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o local.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -134,7 +134,7 @@ export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLoc
                        <FormLabel>Papéis do local *</FormLabel>
                        <div className="flex flex-col sm:flex-row gap-2">
                          {SERVICE_LOCATION_ROLES.map((role) => {
-                           const checked = field.value.includes(role.value)
+                           const checked = field.value.includes(role.value);
                            return (
                              <label key={role.value}
                                     className="flex items-center gap-2 min-h-11 px-3 rounded-md border border-gray-300 text-sm">
@@ -144,7 +144,7 @@ export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLoc
                                         : [...field.value, role.value])}/>
                                {role.label}
                              </label>
-                           )
+                           );
                          })}
                        </div>
                        <p className="text-xs text-gray-500">
@@ -325,5 +325,5 @@ export function ServiceLocationForm({initialData, onSubmit, loading}: ServiceLoc
         </div>
       </form>
     </Form>
-  )
+  );
 }

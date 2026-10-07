@@ -55,17 +55,17 @@ export const VEHICLE_TYPE_PAIRS: readonly VehicleTypePair[] = [
   {tpVeic: "25", espVeic: "3", description: "25-Utilitário; 3-Misto"},
   {tpVeic: "25", espVeic: "6", description: "25-Utilitário; 6-Especial"},
   {tpVeic: "26", espVeic: "6", description: "26-Motor-Casa; 6-Especial"},
-]
+];
 
 /** Espécies válidas para o tipo escolhido, na ordem da tabela oficial. */
 export function especieOptionsForTipo(tpVeic?: string | null): { value: string; label: string }[] {
-  if (!tpVeic) return []
+  if (!tpVeic) return [];
   return VEHICLE_TYPE_PAIRS
     .filter((p) => p.tpVeic === tpVeic)
-    .map((p) => ({value: p.espVeic, label: p.description.split(';').pop()?.trim() ?? p.espVeic}))
+    .map((p) => ({value: p.espVeic, label: p.description.split(';').pop()?.trim() ?? p.espVeic}));
 }
 
 export function isValidVehicleTypePair(tpVeic?: string | null, espVeic?: string | null): boolean {
-  if (!tpVeic || !espVeic) return true
-  return VEHICLE_TYPE_PAIRS.some((p) => p.tpVeic === tpVeic && p.espVeic === espVeic)
+  if (!tpVeic || !espVeic) return true;
+  return VEHICLE_TYPE_PAIRS.some((p) => p.tpVeic === tpVeic && p.espVeic === espVeic);
 }

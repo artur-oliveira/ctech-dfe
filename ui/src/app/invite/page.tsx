@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {Button} from '@/components/ui/button'
+import {Suspense, useState} from 'react';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {Button} from '@/components/ui/button';
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
 function InviteContent({token}: { token: string }) {
-    const router = useRouter()
-    const {refreshUser} = useAuth()
-    const [error, setError] = useState<string | null>(null)
+    const router = useRouter();
+    const {refreshUser} = useAuth();
+    const [error, setError] = useState<string | null>(null);
 
     const {data: preview, isPending, error: fetchError} = useQuery({
         queryKey: queryKeys.invitation(token),
         queryFn: () => apiClient.getInvitation(token),
         retry: false,
         enabled: !!token,
-    })
+    });
 
     const acceptMutation = useMutation({
         mutationFn: () => apiClient.acceptInvitation(token),
         onSuccess: async () => {
-            await refreshUser()
-            router.replace('/dashboard')
+            await refreshUser();
+            router.replace('/dashboard');
         },
         onError: (e) => setError(e instanceof ApiError ? e.detail : 'Não foi possível aceitar o convite'),
-    })
+    });
     const declineMutation = useMutation({
         mutationFn: () => apiClient.declineInvitation(token),
         onSuccess: () => router.replace('/dashboard'),
         onError: (e) => setError(e instanceof ApiError ? e.detail : 'Não foi possível recusar o convite'),
-    })
+    });
 
     const card = (children: React.ReactNode) => (
         <div className="flex items-center justify-center min-h-[60vh] p-4">
@@ -44,7 +44,7 @@ function InviteContent({token}: { token: string }) {
                 {children}
             </div>
         </div>
-    )
+    );
 
     if (!token) {
         return card(
@@ -54,11 +54,11 @@ function InviteContent({token}: { token: string }) {
                 <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o
                     painel</Button>
             </>,
-        )
+        );
     }
 
     if (isPending) {
-        return card(<div className="h-24 animate-pulse rounded bg-gray-100"/>)
+        return card(<div className="h-24 animate-pulse rounded bg-gray-100"/>);
     }
     if (fetchError || !preview) {
         return card(
@@ -68,14 +68,14 @@ function InviteContent({token}: { token: string }) {
                 <Button variant="outline" className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o
                     painel</Button>
             </>,
-        )
+        );
     }
 
     const invalid =
         preview.already_member ? 'Você já faz parte desta organização.'
             : preview.expired ? 'Este convite expirou.'
                 : preview.status !== 'PENDING' ? 'Este convite já foi utilizado ou revogado.'
-                    : null
+                    : null;
 
     if (invalid) {
         return card(
@@ -84,7 +84,7 @@ function InviteContent({token}: { token: string }) {
                 <p className="text-sm text-gray-600">{invalid}</p>
                 <Button className="w-full h-11" onClick={() => router.replace('/dashboard')}>Ir para o painel</Button>
             </>,
-        )
+        );
     }
 
     return card(
@@ -106,7 +106,7 @@ function InviteContent({token}: { token: string }) {
                         disabled={acceptMutation.isPending || declineMutation.isPending}
                         onClick={() => {
                             setError(null);
-                            acceptMutation.mutate()
+                            acceptMutation.mutate();
                         }}>
                     {acceptMutation.isPending ? 'Entrando…' : 'Aceitar'}
                 </Button>
@@ -114,19 +114,19 @@ function InviteContent({token}: { token: string }) {
                         disabled={acceptMutation.isPending || declineMutation.isPending}
                         onClick={() => {
                             setError(null);
-                            declineMutation.mutate()
+                            declineMutation.mutate();
                         }}>
                     Recusar
                 </Button>
             </div>
         </>,
-    )
+    );
 }
 
 function InviteParamsWrapper() {
-    const searchParams = useSearchParams()
-    const token = searchParams.get('token') || ''
-    return <InviteContent token={token}/>
+    const searchParams = useSearchParams();
+    const token = searchParams.get('token') || '';
+    return <InviteContent token={token}/>;
 }
 
 export default function InvitePage() {
@@ -142,5 +142,5 @@ export default function InvitePage() {
                 </Suspense>
             </RootLayout>
         </ProtectedRoute>
-    )
+    );
 }

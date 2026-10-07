@@ -19,9 +19,8 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 )
 
-// Retry/timeout defaults, mirroring py-dfe's SefazClient class attributes
-// (py-dfe/py_dfe/services/base.py: MAX_RETRIES, TIMEOUT_CONNECT, TIMEOUT_READ,
-// BACKOFF_BASE).
+// Retry/timeout defaults, mirroring the original Python client's SefazClient class attributes
+// .
 const (
 	defaultTimeoutConnect = 3 * time.Second
 	defaultTimeoutRead    = 15 * time.Second
@@ -29,11 +28,11 @@ const (
 	ufMatoGrosso          = "MT"
 )
 
-// retryableHTTPStatus mirrors py-dfe's _RETRYABLE_HTTP: only infrastructure
+// retryableHTTPStatus mirrors the original Python client's _RETRYABLE_HTTP: only infrastructure
 // failures are retried, never a 4xx business rejection.
 var retryableHTTPStatus = map[int]bool{500: true, 502: true, 503: true, 504: true}
 
-// gzipEndpoints mirrors py-dfe's _GZIP_ENDPOINTS: services whose SOAP body
+// gzipEndpoints mirrors the original Python client's _GZIP_ENDPOINTS: services whose SOAP body
 // must be gzip-compressed + base64-encoded rather than embedded as raw XML.
 var gzipEndpoints = map[string]bool{
 	"CTeRecepcaoSinc": true, "CTeRecepcaoOS": true, "CTeRecepcaoGTVe": true,
@@ -41,7 +40,7 @@ var gzipEndpoints = map[string]bool{
 }
 
 // Client is a generic SEFAZ web service client for one (docType, uf,
-// environment), mirroring py-dfe's SefazClient (py-dfe/py_dfe/services/base.py):
+// environment), mirroring the original Python client's SefazClient:
 // JSON payload -> XML -> optional sign -> SOAP envelope -> mTLS POST with
 // retry -> parsed response.
 type Client struct {
@@ -59,7 +58,7 @@ type Client struct {
 // NewClient builds a Client. httpClient/cert/key come from
 // certificate.NewClient + the same PFX decode (see go-dfe/internal/certificate) —
 // this package only consumes an already-decoded certificate, it does not
-// parse PFX itself. maxRetries mirrors py-dfe's max_retries (0-10, default
+// parse PFX itself. maxRetries mirrors the original Python client's max_retries (0-10, default
 // constants.DefaultMaxRetries); validateSchema, if true, and the service
 // requires validation, is a hard error (see Config.RequiresValidation) since
 // go-dfe does not implement XSD validation (CGO_ENABLED=0 rules out the only
@@ -86,8 +85,8 @@ func NewClient(
 // Call executes a SEFAZ service call: payload (a single-key map, e.g.
 // {"consStatServ": {...}}, matching Request.Body's existing shape) becomes
 // XML, is signed if the service requires it, wrapped in a SOAP envelope,
-// POSTed with retry, and the response parsed back into the shape py-dfe's
-// facade layer produces (py-dfe/py_dfe/services/_nf.py, cte.py, mdfe.py):
+// POSTed with retry, and the response parsed back into the shape the original Python client's
+// facade layer produces:
 // unwrapped per the per-(authorizer,service) response node path
 // (unwrapResponseNode, response.go), any known repeated-but-possibly-single
 // element normalized to a list (ensureList, response.go), and — for signed
@@ -184,7 +183,7 @@ func normalizeFiscalText(docType, uf string, xmlBytes []byte) []byte {
 }
 
 // singleRootElement extracts payload's one top-level key/value pair, which
-// becomes the XML document's root tag/content — mirroring py-dfe's
+// becomes the XML document's root tag/content — mirroring the original Python client's
 // to_xml_bytes(payload), which infers the root element from the dict's
 // single key.
 func singleRootElement(payload map[string]any) (tag string, body map[string]any, err error) {
@@ -201,7 +200,7 @@ func singleRootElement(payload map[string]any) (tag string, body map[string]any,
 	return "", nil, fmt.Errorf("unreachable")
 }
 
-// logCStat logs SEFAZ's response status, if present, mirroring py-dfe's
+// logCStat logs SEFAZ's response status, if present, mirroring the original Python client's
 // diagnostic log in _parse_response.
 func logCStat(service string, result map[string]any) {
 	cStat, _ := result["cStat"].(string)
@@ -212,7 +211,7 @@ func logCStat(service string, result map[string]any) {
 	slog.Info("sefaz response", "service", service, "cStat", cStat, "xMotivo", xMotivo)
 }
 
-// postWithRetry POSTs body to url with retries, mirroring py-dfe's
+// postWithRetry POSTs body to url with retries, mirroring the original Python client's
 // _post_with_retry: retry only on retryableHTTPStatus or network/timeout
 // errors, exponential backoff (backoffBase * 2^attempt), never retry a 4xx
 // business rejection.
@@ -220,10 +219,10 @@ func (c *Client) postWithRetry(ctx context.Context, url string, body []byte, con
 	client := c.httpClient
 	if client.Timeout == 0 {
 		// Caller-supplied httpClient (certificate.NewClient) sets no overall
-		// timeout; apply py-dfe's read timeout as this client's request
+		// timeout; apply the original Python client's read timeout as this client's request
 		// deadline (connect timeout is not separately controllable via
 		// net/http's high-level Client without a custom DialContext, and
-		// TIMEOUT_READ is the larger of the two in py-dfe anyway).
+		// TIMEOUT_READ is the larger of the two in the original client anyway).
 		clientCopy := *client
 		clientCopy.Timeout = defaultTimeoutRead
 		client = &clientCopy

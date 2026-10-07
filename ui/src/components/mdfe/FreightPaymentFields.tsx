@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Input} from '@/components/ui/input'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {SK_PREFIX} from '@/lib/constants/entity-keys'
-import {unformatCpfCnpj} from '@/lib/utils/document'
-import type {MdfePaymentIn} from '@/lib/types/api'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {SK_PREFIX} from '@/lib/constants/entity-keys';
+import {unformatCpfCnpj} from '@/lib/utils/document';
+import type {MdfePaymentIn} from '@/lib/types/api';
 
 /** Componentes do valor do frete (`infPag/Comp/tpComp`). */
 const COMPONENT_OPTIONS = [
@@ -20,15 +20,15 @@ const COMPONENT_OPTIONS = [
   {value: '03', label: '03 – Despesas bancárias'},
   {value: '04', label: '04 – Diárias'},
   {value: '99', label: '99 – Outros'},
-]
+];
 
 const PAYMENT_TYPE_OPTIONS = [
   {value: '0', label: 'À vista'},
   {value: '1', label: 'A prazo'},
-]
+];
 
-const COMPONENT_OTHERS = '99'
-const PAYMENT_TERM = '1'
+const COMPONENT_OTHERS = '99';
+const PAYMENT_TERM = '1';
 
 export interface FreightPaymentFieldsProps {
   payments: MdfePaymentIn[]
@@ -43,24 +43,24 @@ export interface FreightPaymentFieldsProps {
  * prazo escolhido — a tela nunca pede parcela por parcela.
  */
 export function FreightPaymentFields({payments, onChange, required}: FreightPaymentFieldsProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.persons.list(selectedOrg?.pk, 'driver'),
     queryFn: () => apiClient.getPersons({role: 'driver', limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const persons = page?.items ?? []
+  });
+  const persons = page?.items ?? [];
 
   const patch = (i: number, p: Partial<MdfePaymentIn>) =>
-    onChange(payments.map((v, k) => (k === i ? {...v, ...p} : v)))
+    onChange(payments.map((v, k) => (k === i ? {...v, ...p} : v)));
 
   const addPayment = () => onChange([...payments, {
     person_doc: '',
     components: [{type: '01', value: ''}],
     contract_value: '',
     payment_type: '0',
-  }])
+  }]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -187,5 +187,5 @@ export function FreightPaymentFields({payments, onChange, required}: FreightPaym
         </div>
       ))}
     </div>
-  )
+  );
 }

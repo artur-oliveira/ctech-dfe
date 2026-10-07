@@ -58,7 +58,7 @@ const STATUS_META: Record<DfeStatus, StatusMeta> = {
   cancelled: {label: 'Cancelad@', tone: 'neutral'},
   closed: {label: 'Encerrad@', tone: 'info'},
   success: {label: 'Registrad@', tone: 'success'},
-}
+};
 
 /**
  * Paleta semântica fixa — NÃO recolorida por `data-dfe-theme` (DESIGN.md §7):
@@ -71,27 +71,27 @@ const TONE_CLASSES: Record<DfeStatusTone, string> = {
   warning: 'bg-amber-50 text-amber-700',
   info: 'bg-blue-50 text-blue-700',
   neutral: 'bg-gray-100 text-gray-500',
-}
+};
 
-const UNKNOWN_CLASSES = 'bg-gray-100 text-gray-600'
+const UNKNOWN_CLASSES = 'bg-gray-100 text-gray-600';
 
-const meta = (status: string): StatusMeta | undefined => STATUS_META[status as DfeStatus]
+const meta = (status: string): StatusMeta | undefined => STATUS_META[status as DfeStatus];
 
 /** Status desconhecido devolve o próprio valor — nunca "Desconhecido", que esconde a informação de quem depura. */
 export const dfeStatusLabel = (status: string, gender: DfeGender = 'f'): string =>
-  meta(status)?.label.replace('@', gender === 'f' ? 'a' : 'o') ?? status
+  meta(status)?.label.replace('@', gender === 'f' ? 'a' : 'o') ?? status;
 
-export const dfeStatusTone = (status: string): DfeStatusTone => meta(status)?.tone ?? 'neutral'
+export const dfeStatusTone = (status: string): DfeStatusTone => meta(status)?.tone ?? 'neutral';
 
 export const dfeStatusClasses = (status: string): string => {
-  const m = meta(status)
-  return m ? TONE_CLASSES[m.tone] : UNKNOWN_CLASSES
-}
+  const m = meta(status);
+  return m ? TONE_CLASSES[m.tone] : UNKNOWN_CLASSES;
+};
 
-export const isTransitionalDfeStatus = (status: string): boolean => meta(status)?.transitional ?? false
+export const isTransitionalDfeStatus = (status: string): boolean => meta(status)?.transitional ?? false;
 
 /** Título do modal de motivo, ou null quando nenhum motivo explica este status. */
-export const dfeStatusMotiveTitle = (status: string): string | null => meta(status)?.motiveTitle ?? null
+export const dfeStatusMotiveTitle = (status: string): string | null => meta(status)?.motiveTitle ?? null;
 
 /** Gênero por tabela do backend — usado pelos toasts, que só recebem `table_name`. */
 export const DOC_GENDER: Record<string, DfeGender> = {
@@ -100,12 +100,12 @@ export const DOC_GENDER: Record<string, DfeGender> = {
   nfses: 'f',
   ctes: 'm',
   mdfes: 'm',
-}
+};
 
 /** Status que uma NFS-e alcança (spec §3.4) — alimenta o filtro da lista. */
 export const NFSE_STATUSES: readonly DfeStatus[] = [
   'pending', 'processing', 'retryable_failed', 'authorized', 'rejected', 'cancelled', 'error',
-]
+];
 
 export const dfeStatusOptions = (statuses: readonly DfeStatus[], gender: DfeGender = 'f') =>
-  statuses.map((value) => ({value, label: dfeStatusLabel(value, gender)}))
+  statuses.map((value) => ({value, label: dfeStatusLabel(value, gender)}));

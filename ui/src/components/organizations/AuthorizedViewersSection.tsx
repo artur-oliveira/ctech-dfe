@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {authorizedViewerSchema, hasDuplicateViewer, MAX_AUTHORIZED_VIEWERS} from '@/lib/schemas/authorized-viewers'
-import {maskCpfCnpj} from '@/lib/utils/masks'
-import type {AuthorizedViewerOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {authorizedViewerSchema, hasDuplicateViewer, MAX_AUTHORIZED_VIEWERS} from '@/lib/schemas/authorized-viewers';
+import {maskCpfCnpj} from '@/lib/utils/masks';
+import type {AuthorizedViewerOut} from '@/lib/types/api';
 
 interface AuthorizedViewersSectionProps {
   orgPk: string
@@ -27,45 +27,45 @@ interface AuthorizedViewersSectionProps {
  * Its own writes are immediate, so it is not part of the form's submit.
  */
 export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSectionProps) {
-  const qc = useQueryClient()
-  const [cpfCnpj, setCpfCnpj] = useState('')
-  const [name, setName] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
+  const qc = useQueryClient();
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [name, setName] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const invalidate = () => qc.invalidateQueries({queryKey: queryKeys.organizations.detail(orgPk)})
+  const invalidate = () => qc.invalidateQueries({queryKey: queryKeys.organizations.detail(orgPk)});
 
   const addMutation = useMutation({
     mutationFn: (data: { cpf_or_cnpj: string; name: string }) => apiClient.addAuthorizedViewer(orgPk, data),
     onSuccess: () => {
-      invalidate()
-      setCpfCnpj('')
-      setName('')
-      setFormError(null)
+      invalidate();
+      setCpfCnpj('');
+      setName('');
+      setFormError(null);
     },
     onError: (err) => setFormError(err instanceof Error ? err.message : 'Erro ao adicionar'),
-  })
+  });
 
   const removeMutation = useMutation({
     mutationFn: (viewerCpfCnpj: string) => apiClient.removeAuthorizedViewer(orgPk, viewerCpfCnpj),
     onSuccess: invalidate,
-  })
+  });
 
-  const atLimit = viewers.length >= MAX_AUTHORIZED_VIEWERS
+  const atLimit = viewers.length >= MAX_AUTHORIZED_VIEWERS;
 
   const handleAdd = () => {
-    setFormError(null)
-    const raw = cpfCnpj.replace(/\D/g, '')
-    const parsed = authorizedViewerSchema.safeParse({cpf_or_cnpj: raw, name})
+    setFormError(null);
+    const raw = cpfCnpj.replace(/\D/g, '');
+    const parsed = authorizedViewerSchema.safeParse({cpf_or_cnpj: raw, name});
     if (!parsed.success) {
-      setFormError(parsed.error.issues[0]?.message ?? 'Dados inválidos')
-      return
+      setFormError(parsed.error.issues[0]?.message ?? 'Dados inválidos');
+      return;
     }
     if (hasDuplicateViewer(viewers, raw)) {
-      setFormError('CPF/CNPJ já autorizado')
-      return
+      setFormError('CPF/CNPJ já autorizado');
+      return;
     }
-    addMutation.mutate(parsed.data)
-  }
+    addMutation.mutate(parsed.data);
+  };
 
   return (
     <div className="border-t border-gray-200 pt-4">
@@ -119,5 +119,5 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
         {addMutation.isPending ? 'Adicionando...' : atLimit ? 'Limite atingido' : 'Adicionar'}
       </Button>
     </div>
-  )
+  );
 }

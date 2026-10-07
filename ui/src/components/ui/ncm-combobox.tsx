@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import React, {useCallback, useEffect, useRef, useState} from 'react'
-import {createPortal} from 'react-dom'
-import {FuseResult} from 'fuse.js'
-import {CheckIcon, ChevronDownIcon, LoaderCircleIcon} from 'lucide-react'
-import {cn} from '@/lib/utils'
-import {ALL_NCMS, type NcmEntry} from '@/lib/data/ncm'
-import {Highlighted} from '@/components/ui/highlight'
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
+import {FuseResult} from 'fuse.js';
+import {CheckIcon, ChevronDownIcon, LoaderCircleIcon} from 'lucide-react';
+import {cn} from '@/lib/utils';
+import {ALL_NCMS, type NcmEntry} from '@/lib/data/ncm';
+import {Highlighted} from '@/components/ui/highlight';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const NCM_MAP = new Map(
@@ -14,7 +14,7 @@ const NCM_MAP = new Map(
     ncm.code.replace(/\D/g, ''),
     ncm
   ])
-)
+);
 
 interface NcmComboboxProps {
   value?: string | null
@@ -44,207 +44,207 @@ export function NcmCombobox({
                               className,
                               id,
                             }: NcmComboboxProps) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<FuseResult<NcmEntry>[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [pos, setPos] = useState<DropdownPos | null>(null)
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState<FuseResult<NcmEntry>[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [pos, setPos] = useState<DropdownPos | null>(null);
 
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const workerRef = useRef<Worker | null>(null)
-  const queryIdRef = useRef(0)
-  const [activeIndex, setActiveIndex] = useState(-1)
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const queryIdRef = useRef(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const itemRefs = useRef<
     Array<HTMLButtonElement | null>
-  >([])
+  >([]);
 
-  const selected = value ? NCM_MAP.get(value) : undefined
+  const selected = value ? NCM_MAP.get(value) : undefined;
 
   const updatePosition = useCallback(() => {
-    const rect = triggerRef.current?.getBoundingClientRect()
-    if (!rect) return
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    const MARGIN = 8
-    const idealWidth = Math.max(rect.width, Math.min(420, window.innerWidth - MARGIN * 2))
-    const left = Math.min(rect.left, window.innerWidth - idealWidth - MARGIN)
+    const MARGIN = 8;
+    const idealWidth = Math.max(rect.width, Math.min(420, window.innerWidth - MARGIN * 2));
+    const left = Math.min(rect.left, window.innerWidth - idealWidth - MARGIN);
 
     setPos({
       top: rect.bottom + 4,
       left: Math.max(MARGIN, left),
       width: idealWidth,
       maxWidth: idealWidth,
-    })
-  }, [])
+    });
+  }, []);
 
   const handleSearchChange = useCallback((q: string) => {
-    setSearch(q)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setSearch(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.trim().length < 2) {
-      setResults([])
-      setIsSearching(false)
-      return
+      setResults([]);
+      setIsSearching(false);
+      return;
     }
-    setIsSearching(true)
+    setIsSearching(true);
     debounceRef.current = setTimeout(() => {
-      const id = ++queryIdRef.current
-      workerRef.current?.postMessage({query: q, id})
-    }, 300)
-  }, [])
+      const id = ++queryIdRef.current;
+      workerRef.current?.postMessage({query: q, id});
+    }, 300);
+  }, []);
 
   const resetSearch = useCallback(() => {
-    setSearch('')
-    setResults([])
-    setIsSearching(false)
-  }, [])
+    setSearch('');
+    setResults([]);
+    setIsSearching(false);
+  }, []);
 
   const handleSelect = (optValue: string) => {
-    onValueChange?.(optValue)
-    setOpen(false)
-    resetSearch()
-  }
+    onValueChange?.(optValue);
+    setOpen(false);
+    resetSearch();
+  };
 
   const handleKeyDown = (
     e: React.KeyboardEvent,
   ) => {
-    if (!open) return
+    if (!open) return;
 
     switch (e.key) {
       case 'Escape':
-        setOpen(false)
-        resetSearch()
-        break
+        setOpen(false);
+        resetSearch();
+        break;
 
       case 'ArrowDown':
-        e.preventDefault()
+        e.preventDefault();
 
         setActiveIndex((v) =>
           Math.min(v + 1, results.length - 1),
-        )
+        );
 
-        break
+        break;
 
       case 'ArrowUp':
-        e.preventDefault()
+        e.preventDefault();
 
         setActiveIndex((v) =>
           Math.max(v - 1, 0),
-        )
+        );
 
-        break
+        break;
 
       case 'Home':
-        e.preventDefault()
-        setActiveIndex(0)
-        break
+        e.preventDefault();
+        setActiveIndex(0);
+        break;
 
       case 'End':
-        e.preventDefault()
-        setActiveIndex(results.length - 1)
-        break
+        e.preventDefault();
+        setActiveIndex(results.length - 1);
+        break;
 
       case 'Enter':
-        e.preventDefault()
+        e.preventDefault();
 
         if (activeIndex >= 0) {
-          const item = results[activeIndex]?.item
+          const item = results[activeIndex]?.item;
 
           if (item) {
             handleSelect(
               item.code.replace(/\D/g, ''),
-            )
+            );
           }
         }
 
-        break
+        break;
     }
-  }
+  };
 
   useEffect(() => {
-    if (!open) return
-    updatePosition()
-    inputRef.current?.focus()
-  }, [open, updatePosition])
+    if (!open) return;
+    updatePosition();
+    inputRef.current?.focus();
+  }, [open, updatePosition]);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined;
 
     const handle = () => {
-      updatePosition()
-    }
+      updatePosition();
+    };
 
-    window.addEventListener('scroll', handle, true)
-    window.addEventListener('resize', handle)
+    window.addEventListener('scroll', handle, true);
+    window.addEventListener('resize', handle);
 
     return () => {
-      window.removeEventListener('scroll', handle, true)
-      window.removeEventListener('resize', handle)
-    }
-  }, [open, updatePosition])
+      window.removeEventListener('scroll', handle, true);
+      window.removeEventListener('resize', handle);
+    };
+  }, [open, updatePosition]);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined;
     const handler = (e: MouseEvent) => {
       if (
         !triggerRef.current?.contains(e.target as Node) &&
         !dropdownRef.current?.contains(e.target as Node)
       ) {
-        setOpen(false)
-        resetSearch()
+        setOpen(false);
+        resetSearch();
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open, resetSearch])
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, resetSearch]);
 
   useEffect(() => {
-    if (activeIndex < 0) return
+    if (activeIndex < 0) return;
 
     itemRefs.current[
       activeIndex
       ]?.scrollIntoView({
       block: 'nearest',
-    })
-  }, [activeIndex])
+    });
+  }, [activeIndex]);
 
   useEffect(() => {
     const worker = new Worker(
       new URL('../../lib/workers/ncm-search.worker.ts', import.meta.url),
-    )
+    );
     worker.onmessage = (e: MessageEvent<WorkerResult>) => {
       if (e.data.id === queryIdRef.current) {
-        setResults(e.data.results)
-        setIsSearching(false)
+        setResults(e.data.results);
+        setIsSearching(false);
       }
-    }
-    workerRef.current = worker
+    };
+    workerRef.current = worker;
 
     worker.onmessage = (
       e: MessageEvent<WorkerResult>,
     ) => {
       if (e.data.id === queryIdRef.current) {
-        const nextResults = e.data.results
+        const nextResults = e.data.results;
 
-        setResults(nextResults)
+        setResults(nextResults);
         setActiveIndex(
           nextResults.length ? 0 : -1,
-        )
-        setIsSearching(false)
+        );
+        setIsSearching(false);
       }
-    }
+    };
 
-    return () => worker.terminate()
-  }, [])
+    return () => worker.terminate();
+  }, []);
 
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
 
   const dropdown = open && pos ? (
@@ -276,8 +276,8 @@ export function NcmCombobox({
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">Nenhum resultado</p>
         ) : (
           results.map(({item}, index) => {
-            const optValue = item.code.replace(/\D/g, '')
-            const pathLabel = item.path.join(' › ')
+            const optValue = item.code.replace(/\D/g, '');
+            const pathLabel = item.path.join(' › ');
             return (
               <button
                 key={optValue}
@@ -285,7 +285,7 @@ export function NcmCombobox({
                 aria-selected={optValue === value}
                 type="button"
                 ref={(el) => {
-                  itemRefs.current[index] = el
+                  itemRefs.current[index] = el;
                 }}
                 onClick={() => handleSelect(optValue)}
                 className={cn(
@@ -312,12 +312,12 @@ export function NcmCombobox({
                   <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary"/>
                 )}
               </button>
-            )
+            );
           })
         )}
       </div>
     </div>
-  ) : null
+  ) : null;
 
   return (
     <div className={cn('relative min-w-0', className)} onKeyDown={handleKeyDown}>
@@ -349,5 +349,5 @@ export function NcmCombobox({
 
       {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
     </div>
-  )
+  );
 }

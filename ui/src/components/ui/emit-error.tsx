@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import {useEffect, useRef} from 'react'
-import Link from 'next/link'
-import type {EmitFailure} from '@/lib/billing/notice'
+import {useEffect, useRef} from 'react';
+import Link from 'next/link';
+import type {EmitFailure} from '@/lib/billing/notice';
 
 /**
  * Emission failure banner, shared by every DF-e emit form.
@@ -18,18 +18,18 @@ import type {EmitFailure} from '@/lib/billing/notice'
  * person ends up phoning support.
  */
 export function EmitError({failure}: { failure: EmitFailure | null }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const message = failure?.message ?? null
+  const ref = useRef<HTMLDivElement>(null);
+  const message = failure?.message ?? null;
 
   useEffect(() => {
-    if (!message) return
+    if (!message) return;
     ref.current?.scrollIntoView?.({
       block: 'nearest',
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    })
-  }, [message])
+    });
+  }, [message]);
 
-  if (!failure) return null
+  if (!failure) return null;
 
   return (
     <div
@@ -48,5 +48,5 @@ export function EmitError({failure}: { failure: EmitFailure | null }) {
         </Link>
       )}
     </div>
-  )
+  );
 }

@@ -4,7 +4,7 @@
  * até acabar: na emissão o item só aponta qual lote saiu, e a quantidade é
  * rateada da quantidade vendida.
  */
-import {z} from 'zod'
+import {z} from 'zod';
 
 export const productLotSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -17,8 +17,8 @@ export const productLotSchema = z.object({
 }).superRefine((v, ctx) => {
   // Mesma regra do backend: lote que vence antes de ser fabricado é digitação errada.
   if (v.d_fab && v.d_val && v.d_val < v.d_fab) {
-    ctx.addIssue({code: 'custom', path: ['d_val'], message: 'A validade não pode ser anterior à fabricação'})
+    ctx.addIssue({code: 'custom', path: ['d_val'], message: 'A validade não pode ser anterior à fabricação'});
   }
-})
+});
 
 export type ProductLotFormData = z.infer<typeof productLotSchema>

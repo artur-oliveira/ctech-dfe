@@ -1,30 +1,30 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {PersonForm} from '@/components/persons/PersonForm'
-import type {PersonCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {PersonForm} from '@/components/persons/PersonForm';
+import type {PersonCreate} from '@/lib/types/api';
 
 function EditPersonContent() {
-  const params = useSearchParams()
+  const params = useSearchParams();
   // id is the raw cpfCnpj (no prefix, no mask)
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {data: person, isLoading} = useQuery({
     queryKey: queryKeys.persons.detail(id),
     queryFn: () => apiClient.getPerson(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
   
   const updateMutation = useMutation({
     mutationFn: (d: PersonCreate) =>
@@ -32,11 +32,11 @@ function EditPersonContent() {
       // DynamoDB traduz null em REMOVE — a pessoa perderia os papéis a cada edição.
       apiClient.updatePerson(id, {name: d.name, roles: d.roles, person: d.person}),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.persons.detail(id)})
-      router.push('/persons')
+      void qc.invalidateQueries({queryKey: queryKeys.persons.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.persons.detail(id)});
+      router.push('/persons');
     },
-  })
+  });
   
   return (
     <RootLayout>
@@ -62,14 +62,14 @@ function EditPersonContent() {
           <PersonForm
             initialData={person}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditPersonPage() {
@@ -79,5 +79,5 @@ export default function EditPersonPage() {
         <EditPersonContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

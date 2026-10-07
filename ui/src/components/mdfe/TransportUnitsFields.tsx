@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {RowCheckbox} from '@/components/ui/table-shell'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {MdfeTransportUnitIn} from '@/lib/types/api'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {RowCheckbox} from '@/components/ui/table-shell';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {MdfeTransportUnitIn} from '@/lib/types/api';
 
 export interface TransportUnitsFieldsProps {
   units: MdfeTransportUnitIn[]
@@ -24,31 +24,31 @@ export interface TransportUnitsFieldsProps {
  * dentro. O rateio (`qtdRat`) é calculado no backend a partir dos pesos.
  */
 export function TransportUnitsFields({units, onChange, documentKeys}: TransportUnitsFieldsProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk),
     queryFn: () => apiClient.getCargoUnits({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const all = page?.items ?? []
-  const transportOptions = all.filter((u) => u.kind === 'transport')
-  const cargoOptions = all.filter((u) => u.kind === 'cargo')
+  });
+  const all = page?.items ?? [];
+  const transportOptions = all.filter((u) => u.kind === 'transport');
+  const cargoOptions = all.filter((u) => u.kind === 'cargo');
 
   const patch = (i: number, p: Partial<MdfeTransportUnitIn>) =>
-    onChange(units.map((u, k) => (k === i ? {...u, ...p} : u)))
+    onChange(units.map((u, k) => (k === i ? {...u, ...p} : u)));
 
   const toggleDoc = (i: number, key: string) => {
-    const current = units[i].document_keys
+    const current = units[i].document_keys;
     patch(i, {
       document_keys: current.includes(key) ? current.filter((k) => k !== key) : [...current, key],
-    })
-  }
+    });
+  };
 
   const toggleCargoUnit = (i: number, id: string) => {
-    const current = units[i].cargo_unit_ids ?? []
-    patch(i, {cargo_unit_ids: current.includes(id) ? current.filter((c) => c !== id) : [...current, id]})
-  }
+    const current = units[i].cargo_unit_ids ?? [];
+    patch(i, {cargo_unit_ids: current.includes(id) ? current.filter((c) => c !== id) : [...current, id]});
+  };
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -109,7 +109,7 @@ export function TransportUnitsFields({units, onChange, documentKeys}: TransportU
             <div className="space-y-1">
               <p className="text-xs font-medium text-gray-600">Unidades de carga dentro dela</p>
               {cargoOptions.map((c) => {
-                const id = extractId(c.sk, SK_PREFIX.CARGO_UNIT)
+                const id = extractId(c.sk, SK_PREFIX.CARGO_UNIT);
                 return (
                   <label key={c.sk} className="flex items-center gap-2 text-xs text-gray-600">
                     <RowCheckbox checked={(unit.cargo_unit_ids ?? []).includes(id)}
@@ -117,12 +117,12 @@ export function TransportUnitsFields({units, onChange, documentKeys}: TransportU
                                  ariaLabel={`${c.name} nesta unidade`}/>
                     {c.name} · {c.id_unid}
                   </label>
-                )
+                );
               })}
             </div>
           )}
         </div>
       ))}
     </div>
-  )
+  );
 }

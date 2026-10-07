@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import {useId, useState} from 'react'
-import {useMutation} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {Modal} from '@/components/ui/modal'
+import {useId, useState} from 'react';
+import {useMutation} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {Modal} from '@/components/ui/modal';
 
 export interface ImportXmlModalProps {
   docType: 'nfe' | 'nfce'
@@ -15,7 +15,7 @@ export interface ImportXmlModalProps {
 const DOC_LABEL: Record<ImportXmlModalProps['docType'], string> = {
   nfe: 'NF-e',
   nfce: 'NFC-e',
-}
+};
 
 /**
  * Upload de XML (nfeProc ou NFe) para importação assíncrona — o worker
@@ -25,29 +25,29 @@ const DOC_LABEL: Record<ImportXmlModalProps['docType'], string> = {
  * apiClient e o WS `import_xml_failed`, já tratado em useRealtimeUpdates).
  */
 export function ImportXmlModal({docType, isOpen, onClose}: ImportXmlModalProps) {
-  const [file, setFile] = useState<File | null>(null)
-  const fileId = useId()
-  const docLabel = DOC_LABEL[docType]
+  const [file, setFile] = useState<File | null>(null);
+  const fileId = useId();
+  const docLabel = DOC_LABEL[docType];
 
   const mutation = useMutation({
     mutationFn: () => {
-      if (!file) throw new Error('Selecione um arquivo XML.')
-      return apiClient.importXML(docType, file)
+      if (!file) throw new Error('Selecione um arquivo XML.');
+      return apiClient.importXML(docType, file);
     },
     onSuccess: () => {
-      setFile(null)
-      onClose()
-      toast.info(`Importação enfileirada. A ${docLabel} aparecerá automaticamente quando processada.`)
+      setFile(null);
+      onClose();
+      toast.info(`Importação enfileirada. A ${docLabel} aparecerá automaticamente quando processada.`);
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar XML.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar XML.');
     },
-  })
+  });
 
   const handleClose = () => {
-    setFile(null)
-    onClose()
-  }
+    setFile(null);
+    onClose();
+  };
 
   return (
     <Modal
@@ -78,5 +78,5 @@ export function ImportXmlModal({docType, isOpen, onClose}: ImportXmlModalProps) 
         </p>
       </div>
     </Modal>
-  )
+  );
 }

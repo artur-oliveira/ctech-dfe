@@ -1,33 +1,33 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import {useMutation} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import Link from 'next/link'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {MdfeIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import type {MdfeListOut, NFeDistributionOut} from '@/lib/types/api'
-import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {mdfeSchemaLabel} from '@/lib/constants/distributions'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
-import {useMdfeActions} from '@/components/mdfe/MdfeActions'
-import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import {Suspense, useState} from 'react';
+import {useMutation} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import Link from 'next/link';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {MdfeIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PenaltyBanner} from '@/components/ui/penalty-banner';
+import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import type {MdfeListOut, NFeDistributionOut} from '@/lib/types/api';
+import {formatCurrency, formatDate} from '@/lib/utils/helpers';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {mdfeSchemaLabel} from '@/lib/constants/distributions';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
+import {useMdfeActions} from '@/components/mdfe/MdfeActions';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 
 type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
 
@@ -38,21 +38,21 @@ function MdfeList({orgPk, onCancel, onClose}: {
   onCancel: (m: MdfeListOut) => void
   onClose: (m: MdfeListOut) => void
 }) {
-  const queryParams = {sort: 'desc' as const}
+  const queryParams = {sort: 'desc' as const};
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<MdfeListOut>({
     queryKey: queryKeys.mdfes.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.getMdfes({...queryParams, cursor}),
     enabled: true,
-  })
+  });
   
   if (isLoading) {
-    return <LoadingSkeleton/>
+    return <LoadingSkeleton/>;
   }
   if (items.length === 0) {
     return (
       <EmptyState title="Nenhum MDF-e emitido" icon={<MdfeIcon width={20} height={20}/>}
                   description="Emita o primeiro Manifesto Eletrônico de Documentos Fiscais da organização."/>
-    )
+    );
   }
   
   return (
@@ -114,25 +114,25 @@ function MdfeList({orgPk, onCancel, onClose}: {
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>
     </>
-  )
+  );
 }
 
 // ─── received MDF-e (distribution) ───────────────────────────────────────────
 
 function MDFeRow({item}: { item: NFeDistributionOut }) {
-  const [xmlLoading, setXmlLoading] = useState(false)
+  const [xmlLoading, setXmlLoading] = useState(false);
   
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-		const download = await apiClient.downloadDistributionXml('mdfe', item.nsu)
-		triggerRemoteDownload(download.url)
+		const download = await apiClient.downloadDistributionXml('mdfe', item.nsu);
+		triggerRemoteDownload(download.url);
     } catch {
-      toast.error('Erro ao baixar XML.')
+      toast.error('Erro ao baixar XML.');
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
   
   return (
     <tr className={TABLE_ROW}>
@@ -154,39 +154,39 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
         )}
       </td>
     </tr>
-  )
+  );
 }
 
 function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
-  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
+  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null);
   
-  const {config} = useFiscalConfig('mdfe', orgPk)
+  const {config} = useFiscalConfig('mdfe', orgPk);
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('mdfe', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('mdfe', {limit: 8, cursor}),
     enabled: true,
-  })
+  });
   
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('mdfe'),
     onSuccess: () => {
-      setPenaltyMessage(null)
-      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.')
+      setPenaltyMessage(null);
+      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.');
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) {
-        setPenaltyMessage(err.detail)
+        setPenaltyMessage(err.detail);
       } else {
-        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.')
+        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.');
       }
     },
-  })
+  });
   
-  const isProd = config?.environment === 1
-  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
-  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
-  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
+  const isProd = config?.environment === 1;
+  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null;
+  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null;
+  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null;
   
   return (
     <div className="space-y-4">
@@ -236,24 +236,24 @@ function MDFeDistributionList({orgPk, showSync}: { orgPk: string; showSync: bool
                     isLoading={isFetching}/>
       )}
     </div>
-  )
+  );
 }
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
 function MDFeContent() {
-  const {selectedOrg} = useAuth()
-  const [activeTab, setActiveTab] = useState<Tab>('emitidos')
+  const {selectedOrg} = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>('emitidos');
   
-  const {config: mdfeConfig, isMissing: mdfeConfigMissing} = useFiscalConfig('mdfe', selectedOrg?.pk)
+  const {config: mdfeConfig, isMissing: mdfeConfigMissing} = useFiscalConfig('mdfe', selectedOrg?.pk);
   
-  const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk)
+  const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk);
   
   const tabs: { key: Tab; label: string }[] = [
     {key: 'emitidos', label: 'Emitidos'},
     {key: 'recebidos', label: 'Recebidos'},
     {key: 'distribuicao', label: 'Importação/Distribuição'},
-  ]
+  ];
   
   return (
     <RootLayout>
@@ -303,7 +303,7 @@ function MDFeContent() {
       
       {modals}
     </RootLayout>
-  )
+  );
 }
 
 export default function MDFePage() {
@@ -313,5 +313,5 @@ export default function MDFePage() {
         <MDFeContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,38 +1,38 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {VehicleForm} from '@/components/vehicles/VehicleForm'
-import type {VehicleCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {VehicleForm} from '@/components/vehicles/VehicleForm';
+import type {VehicleCreate} from '@/lib/types/api';
 
 function EditVehicleContent() {
-  const params = useSearchParams()
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {data: vehicle, isLoading} = useQuery({
     queryKey: queryKeys.vehicles.detail(id),
     queryFn: () => apiClient.getVehicle(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
   
   const updateMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.updateVehicle(id, d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.vehicles.detail(id)})
-      router.push('/vehicles')
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.detail(id)});
+      router.push('/vehicles');
     },
-  })
+  });
   
   return (
     <RootLayout>
@@ -58,14 +58,14 @@ function EditVehicleContent() {
           <VehicleForm
             initialData={vehicle}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditVehiclePage() {
@@ -75,5 +75,5 @@ export default function EditVehiclePage() {
         <EditVehicleContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

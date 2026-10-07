@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {buttonVariants} from '@/components/ui/button'
-import {cn} from '@/lib/utils'
-import {STEP_DONE} from '@/lib/constants/onboarding'
+import Link from 'next/link';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {buttonVariants} from '@/components/ui/button';
+import {cn} from '@/lib/utils';
+import {STEP_DONE} from '@/lib/constants/onboarding';
 
 /**
  * What is left of first-run setup, on the dashboard.
@@ -15,16 +15,16 @@ import {STEP_DONE} from '@/lib/constants/onboarding'
  * reminder of a task already done.
  */
 export function SetupChecklist() {
-  const {steps, nextStep, isPending, isUnknown} = useOnboarding()
+  const {steps, nextStep, isPending, isUnknown} = useOnboarding();
 
-  const remaining = steps.filter((s) => !s.done && s.id !== STEP_DONE)
+  const remaining = steps.filter((s) => !s.done && s.id !== STEP_DONE);
   // Nothing is rendered until setup is known: an account that finished months
   // ago must never see this card blink back into the dashboard while five
   // queries land, and an unreachable API is not evidence of an empty account.
-  if (isPending || isUnknown || remaining.length === 0 || !nextStep) return null
+  if (isPending || isUnknown || remaining.length === 0 || !nextStep) return null;
 
-  const total = steps.filter((s) => s.id !== STEP_DONE).length
-  const done = total - remaining.length
+  const total = steps.filter((s) => s.id !== STEP_DONE).length;
+  const done = total - remaining.length;
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -67,5 +67,5 @@ export function SetupChecklist() {
         Continuar
       </Link>
     </section>
-  )
+  );
 }

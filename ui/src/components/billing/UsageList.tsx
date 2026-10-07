@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import {METER_LABELS, QUOTA_UNLIMITED} from '@/lib/constants/billing'
-import {grantedMeters} from '@/lib/billing/catalog'
-import type {MeterUsage} from '@/lib/types/billing'
+import {METER_LABELS, QUOTA_UNLIMITED} from '@/lib/constants/billing';
+import {grantedMeters} from '@/lib/billing/catalog';
+import type {MeterUsage} from '@/lib/types/billing';
 
 interface UsageListProps {
   quotas: Record<string, number>
@@ -11,12 +11,12 @@ interface UsageListProps {
 }
 
 /** Where a bar stops warning and starts alarming. */
-const NEAR_LIMIT_RATIO = 0.8
+const NEAR_LIMIT_RATIO = 0.8;
 
 function barColor(ratio: number): string {
-  if (ratio >= 1) return 'bg-danger'
-  if (ratio >= NEAR_LIMIT_RATIO) return 'bg-amber-500'
-  return 'bg-brand-600'
+  if (ratio >= 1) return 'bg-danger';
+  if (ratio >= NEAR_LIMIT_RATIO) return 'bg-amber-500';
+  return 'bg-brand-600';
 }
 
 /**
@@ -26,18 +26,18 @@ function barColor(ratio: number): string {
  * "you are at your limit", which is the opposite of what it means.
  */
 export function UsageList({quotas, usage}: UsageListProps) {
-  const meters = grantedMeters(quotas)
+  const meters = grantedMeters(quotas);
   if (meters.length === 0) {
-    return <p className="text-sm text-gray-500">Este plano não inclui nenhum documento.</p>
+    return <p className="text-sm text-gray-500">Este plano não inclui nenhum documento.</p>;
   }
 
   return (
     <ul className="flex flex-col gap-4">
       {meters.map((meter) => {
-        const limit = quotas[meter]
-        const used = usage?.[meter]?.used
-        const unlimited = limit === QUOTA_UNLIMITED
-        const ratio = unlimited || used == null ? 0 : Math.min(used / limit, 1)
+        const limit = quotas[meter];
+        const used = usage?.[meter]?.used;
+        const unlimited = limit === QUOTA_UNLIMITED;
+        const ratio = unlimited || used == null ? 0 : Math.min(used / limit, 1);
 
         return (
           <li key={meter}>
@@ -60,8 +60,8 @@ export function UsageList({quotas, usage}: UsageListProps) {
               </div>
             )}
           </li>
-        )
+        );
       })}
     </ul>
-  )
+  );
 }

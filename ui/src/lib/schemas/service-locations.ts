@@ -7,19 +7,19 @@
  * endereço do imóvel tributado seria dois cadastros idênticos se fossem
  * exclusivos.
  */
-import {z} from 'zod'
+import {z} from 'zod';
 
 export const SERVICE_LOCATION_ROLES = [
   {value: 'work', label: 'Obra'},
   {value: 'property', label: 'Imóvel'},
   {value: 'event_venue', label: 'Local de evento'},
-] as const
+] as const;
 
 /** Escopo do endereço: nacional pede CEP e município; exterior, cidade e região. */
 export const ADDRESS_SCOPES = [
   {value: 'national', label: 'Brasil'},
   {value: 'foreign', label: 'Exterior'},
-] as const
+] as const;
 
 export const serviceLocationSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -41,21 +41,21 @@ export const serviceLocationSchema = z.object({
 }).superRefine((v, ctx) => {
   if (v.address_scope === 'national') {
     if (!/^\d{8}$/.test(v.postal_code ?? '')) {
-      ctx.addIssue({code: 'custom', path: ['postal_code'], message: 'CEP deve ter 8 dígitos'})
+      ctx.addIssue({code: 'custom', path: ['postal_code'], message: 'CEP deve ter 8 dígitos'});
     }
     if (!/^\d{7}$/.test(v.city_ibge_code ?? '')) {
-      ctx.addIssue({code: 'custom', path: ['city_ibge_code'], message: 'Escolha o município'})
+      ctx.addIssue({code: 'custom', path: ['city_ibge_code'], message: 'Escolha o município'});
     }
-    return
+    return;
   }
   if (!v.foreign_postal_code) {
-    ctx.addIssue({code: 'custom', path: ['foreign_postal_code'], message: 'Código postal obrigatório'})
+    ctx.addIssue({code: 'custom', path: ['foreign_postal_code'], message: 'Código postal obrigatório'});
   }
   if (!v.foreign_city) {
-    ctx.addIssue({code: 'custom', path: ['foreign_city'], message: 'Cidade obrigatória'})
+    ctx.addIssue({code: 'custom', path: ['foreign_city'], message: 'Cidade obrigatória'});
   }
   if (!v.foreign_region) {
-    ctx.addIssue({code: 'custom', path: ['foreign_region'], message: 'Estado/província/região obrigatório'})
+    ctx.addIssue({code: 'custom', path: ['foreign_region'], message: 'Estado/província/região obrigatório'});
   }
   // Mesma regra do backend: CNO, CIB e inscrição imobiliária são registros
   // brasileiros e não existem num endereço no exterior.
@@ -63,18 +63,18 @@ export const serviceLocationSchema = z.object({
     ['c_obra', v.c_obra], ['cib', v.cib], ['insc_imob_fisc', v.insc_imob_fisc],
   ] as const) {
     if (value) {
-      ctx.addIssue({code: 'custom', path: [field], message: 'Não se aplica a um local no exterior'})
+      ctx.addIssue({code: 'custom', path: [field], message: 'Não se aplica a um local no exterior'});
     }
   }
 }).superRefine((v, ctx) => {
   // serv/obra é a escolha cObra|cCIB|end: guardar os dois deixaria a emissão
   // decidir em silêncio qual ramo gerar.
   if (v.c_obra && v.cib) {
-    ctx.addIssue({code: 'custom', path: ['cib'], message: 'Informe o código da obra OU o CIB, não os dois'})
+    ctx.addIssue({code: 'custom', path: ['cib'], message: 'Informe o código da obra OU o CIB, não os dois'});
   }
   if (v.cib && v.cib.length !== 8) {
-    ctx.addIssue({code: 'custom', path: ['cib'], message: 'CIB tem 8 caracteres'})
+    ctx.addIssue({code: 'custom', path: ['cib'], message: 'CIB tem 8 caracteres'});
   }
-})
+});
 
 export type ServiceLocationFormData = z.infer<typeof serviceLocationSchema>

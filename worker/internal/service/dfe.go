@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
-	godfe "gopkg.aoctech.app/dfe/go-dfe"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -282,7 +281,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		return s.markRetryable(ctx, msg, "failed to retrieve certificate: "+err.Error(), cause)
 	}
 
-	pyDfePayload := lambdaPayload{
+	egressPayload := lambdaPayload{
 		CNPJ:                msg.CNPJ,
 		CertificateB64:      certB64,
 		CertificatePassword: msg.CertPassword,
@@ -293,25 +292,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		Body:                msg.Body,
 	}
 
-	// 2026-07-18: worker cut over to go-dfe in-process for every
-	// (docType, service) it implements (see go-dfe/dfe.go's `implemented`
-	// map) — done at explicit operator direction during a controlled
-	// zero-traffic window, ahead of the plan's normal shadow-mode/
-	// byte-identical gates for the newly-promoted signed operations.
-	// Revert to py-dfe-only (undo this cutover): comment the if/else block
-	// below, uncomment the line under it.
-	var lambdaResp lambdaResponse
-	if godfeImplements(msg.DocType, msg.SefazService) {
-		resp, callErr := godfeCall(ctx, godfe.Request{
-			CNPJ: msg.CNPJ, CertificateB64: certB64, CertificatePassword: msg.CertPassword,
-			UF: msg.UF, Environment: normalizeSefazEnvironment(msg.SefazEnvironment),
-			DocType: msg.DocType, Service: msg.SefazService, Body: msg.Body,
-		})
-		lambdaResp, err = lambdaResponse{StatusCode: resp.StatusCode, Body: resp.Body}, callErr
-	} else {
-		lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
-	}
-	// lambdaResp, err = s.invokePyDfe(ctx, pyDfePayload)
+	lambdaResp, err := s.invokeEgress(ctx, egressPayload)
 	if err != nil {
 		cause := fmt.Errorf("sefaz call: %w", err)
 		return s.markRetryable(ctx, msg, "sefaz invocation error: "+err.Error(), cause)
@@ -320,14 +301,14 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	slog.Info("sefaz response", "status_code", lambdaResp.StatusCode, "access_key", msg.AccessKey)
 
 	if lambdaResp.StatusCode != 200 {
-		detail := "py-dfe error"
+		detail := "egress error"
 		var bodyMap map[string]any
 		if json.Unmarshal([]byte(lambdaResp.Body), &bodyMap) == nil {
 			if d, ok := bodyMap["detail"].(string); ok && d != "" {
 				detail = d
 			}
 		}
-		slog.Warn("py-dfe returned error", "access_key", msg.AccessKey, "detail", detail, "response_body", lambdaResp.Body)
+		slog.Warn("egress returned error", "access_key", msg.AccessKey, "detail", detail, "response_body", lambdaResp.Body)
 		if isRetryableEngineStatus(lambdaResp.StatusCode) {
 			cause := fmt.Errorf("SEFAZ engine returned retryable status %d: %s", lambdaResp.StatusCode, detail)
 			return s.markRetryable(ctx, msg, detail, cause)
@@ -557,7 +538,8 @@ func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, 
 	return certB64, nil
 }
 
-func (s *DfeService) invokePyDfe(ctx context.Context, payload lambdaPayload) (lambdaResponse, error) {
+// invokeEgress sends a SEFAZ/municipal call to the go-dfe-egress Lambda (sa-east-1).
+func (s *DfeService) invokeEgress(ctx context.Context, payload lambdaPayload) (lambdaResponse, error) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return lambdaResponse{}, err

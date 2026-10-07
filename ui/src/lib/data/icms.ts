@@ -8,4 +8,4 @@ export const ICMS_CST_OPTIONS = [
   {value: '60', label: '60 – ICMS cobrado anteriormente'},
   {value: '70', label: '70 – Red. BC e cobrança ST'},
   {value: '90', label: '90 – Outros'},
-]
+];

@@ -140,4 +140,4 @@ export const queryKeys = {
   members: (orgPk: string | undefined) => ['members', orgPk] as const,
   invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,
   invitation: (token: string) => ['invitation', token] as const,
-}
+};

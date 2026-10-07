@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Input} from '@/components/ui/input'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {MdfeTollIn} from '@/lib/types/api'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {MdfeTollIn} from '@/lib/types/api';
 
 export interface TollVouchersFieldsProps {
   vouchers: MdfeTollIn[]
@@ -24,17 +24,17 @@ export interface TollVouchersFieldsProps {
  * do número de reboques pelo backend, nunca perguntada.
  */
 export function TollVouchersFields({vouchers, onChange}: TollVouchersFieldsProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.tollProviders.list(selectedOrg?.pk),
     queryFn: () => apiClient.getTollProviders({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const providers = page?.items ?? []
+  });
+  const providers = page?.items ?? [];
 
   const patch = (i: number, p: Partial<MdfeTollIn>) =>
-    onChange(vouchers.map((v, k) => (k === i ? {...v, ...p} : v)))
+    onChange(vouchers.map((v, k) => (k === i ? {...v, ...p} : v)));
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -88,5 +88,5 @@ export function TollVouchersFields({vouchers, onChange}: TollVouchersFieldsProps
         </div>
       ))}
     </div>
-  )
+  );
 }

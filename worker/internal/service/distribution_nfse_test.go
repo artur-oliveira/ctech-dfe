@@ -90,24 +90,6 @@ func TestBuildNfseDistPayload(t *testing.T) {
 	}
 }
 
-// TestMapToDfeRequest_NfseSemUF: NFS-e é competência municipal e viaja sem UF
-// (api/internal/services/nfses/emit.go). Se o guard de UF vazia derrubasse o
-// payload, a distribuição cairia no py-dfe, que não implementa NFS-e.
-func TestMapToDfeRequest_NfseSemUF(t *testing.T) {
-	req, ok := mapToDfeRequest(buildNfseDistPayload("12345678000199", "Y2VydA==", "senha", sefazEnvHom, "nacional", 1))
-	if !ok {
-		t.Fatal("payload de NFS-e rejeitado por mapToDfeRequest")
-	}
-	if req.Service != serviceNFSeDistribuicao {
-		t.Errorf("Service = %q", req.Service)
-	}
-	if _, ok := mapToDfeRequest(map[string]any{
-		"doc_type": "nfe", "service": "NFeDistribuicaoDFe", "body": map[string]any{},
-	}); ok {
-		t.Error("NF-e sem UF deveria continuar sendo rejeitada")
-	}
-}
-
 // ---------------------------------------------------------------------------
 // runNfseDistNSU
 // ---------------------------------------------------------------------------
@@ -122,7 +104,7 @@ func nfseConfigItem(provider string, nsu int) map[string]types.AttributeValue {
 	}
 }
 
-// nfseDistResp monta a resposta do go-dfe/py-dfe para um lote do ADN.
+// nfseDistResp monta a resposta do go-dfe para um lote do ADN.
 func nfseDistResp(items []map[string]any) []byte {
 	status := "NENHUM_DOCUMENTO_LOCALIZADO"
 	body := map[string]any{}
@@ -283,44 +265,36 @@ func TestRunNfseDistNSU_UpdateNSUFailure_Propagates(t *testing.T) {
 	}
 }
 
-// TestRunNfseDistNSU_RealInProcessPath exercises the actual production route
-// (godfeImplements=true, godfeCall wired) instead of this file's mockLambda,
-// which every other test in this package uses (see distribution_test.go's
-// package-level init forcing godfeImplements=false). That masking is why the
-// int64 NSU / dispatch.go intOf mismatch shipped undetected: no test ever
-// sent a native (non-JSON-decoded) body through the real in-process call.
-// This test stubs godfeCall directly and asserts the NSU cursor reaches it
-// as int64, proving the path this package's other NFS-e tests never touch.
-func TestRunNfseDistNSU_RealInProcessPath(t *testing.T) {
-	origImplements, origCall := godfeImplements, godfeCall
-	defer func() { godfeImplements, godfeCall = origImplements, origCall }()
-
-	var gotNSU any
-	godfeImplements = func(docType, service string) bool {
-		return docType == docTypeNfse && service == serviceNFSeDistribuicao
-	}
-	godfeCall = func(_ context.Context, req godfe.Request) (godfe.Response, error) {
-		gotNSU = req.Body[nfse.BodyKeyNSU]
-		body, _ := json.Marshal(map[string]any{"status_distribuicao": "NENHUM_DOCUMENTO_LOCALIZADO"})
-		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
-	}
-
+// TestRunNfseDistNSU_SendsNSUAndEmptyUF asserts what reaches go-dfe-egress for
+// an NFS-e distribution: the NSU cursor as a JSON number (the egress decodes
+// it into float64 and dispatch.go's intOf accepts it) and no UF (NFS-e is
+// municipal competence; the egress must not need one).
+func TestRunNfseDistNSU_SendsNSUAndEmptyUF(t *testing.T) {
 	dynm := &mockDistDynamo{gets: []getResult{
 		{item: nfseConfigItem("nacional", 10)}, {item: orgItemWithUF("SP")},
 	}}
 	dynm.queries = []queryResult{{items: []map[string]types.AttributeValue{certItem()}}}
-	lam := &mockLambda{}
-	svc := newDistSvc(dynm, certS3(), lam, &mockSNS{}, distCfg)
+	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
+
+	var gotReq godfe.Request
+	svc.lam = fakeEgress(func(_ context.Context, req godfe.Request) (godfe.Response, error) {
+		gotReq = req
+		body, _ := json.Marshal(map[string]any{"status_distribuicao": "NENHUM_DOCUMENTO_LOCALIZADO"})
+		return godfe.Response{StatusCode: 200, Body: string(body)}, nil
+	})
 
 	if err := svc.Process(context.Background(), DistributionMessage{
 		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: docTypeNfse, Trigger: "scheduler",
 	}); err != nil {
 		t.Fatalf("Process: %v", err)
 	}
-	if lam.calls != 0 {
-		t.Errorf("py-dfe Lambda não deveria ser chamado (go-dfe implementa nfse dist), houve %d chamadas", lam.calls)
+	if gotReq.Service != serviceNFSeDistribuicao {
+		t.Errorf("Service = %q, want %q", gotReq.Service, serviceNFSeDistribuicao)
 	}
-	if nsu, ok := gotNSU.(int64); !ok || nsu != 11 {
-		t.Errorf("req.Body[%q] = %v (%T), esperado int64(11)", nfse.BodyKeyNSU, gotNSU, gotNSU)
+	if gotReq.UF != "" {
+		t.Errorf("UF = %q, want empty for NFS-e", gotReq.UF)
+	}
+	if nsu, ok := gotReq.Body[nfse.BodyKeyNSU].(float64); !ok || nsu != 11 {
+		t.Errorf("req.Body[%q] = %v (%T), want JSON number 11", nfse.BodyKeyNSU, gotReq.Body[nfse.BodyKeyNSU], gotReq.Body[nfse.BodyKeyNSU])
 	}
 }

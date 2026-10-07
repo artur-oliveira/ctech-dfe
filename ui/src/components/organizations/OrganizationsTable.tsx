@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import type {OrganizationOut} from '@/lib/types/api'
-import {Button} from '@/components/ui/button'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import type {OrganizationOut} from '@/lib/types/api';
+import {Button} from '@/components/ui/button';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 import {formatCpfCnpj, orgTaxId} from "@/lib/utils/document";
 
 export type Organization = OrganizationOut
@@ -25,7 +25,7 @@ export function OrganizationsTable({
           <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"/>
         ))}
       </div>
-    )
+    );
   }
   if (organizations.length === 0) {
     return (
@@ -33,7 +33,7 @@ export function OrganizationsTable({
         <p className="text-gray-500 text-lg">Nenhuma organização encontrada</p>
         <p className="text-gray-400 text-sm mt-1">Crie sua primeira organização para começar</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -68,5 +68,5 @@ export function OrganizationsTable({
         </tr>
       ))}
     </TableShell>
-  )
+  );
 }

@@ -120,3 +120,18 @@ func TestParseInfo(t *testing.T) {
 		t.Errorf("NotAfter = %v, want %v", info.NotAfter, wantCert.NotAfter)
 	}
 }
+
+func TestLoad_SetsDialTimeout(t *testing.T) {
+	certB64, _ := buildTestPFX(t, "s3cr3t")
+	client, _, _, err := Load(certB64, "s3cr3t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", client.Transport)
+	}
+	if tr.DialContext == nil {
+		t.Fatal("DialContext is nil: TCP connect has no timeout")
+	}
+}

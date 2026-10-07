@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import {GuideBullets, GuideCallout, GuidePage, GuideSteps, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
+import {GuideBullets, GuideCallout, GuidePage, GuideSteps, GuideTerm, GuideTerms} from '@/components/guide/GuidePage';
 
 export default function PrimeirosPassos() {
   return (
@@ -151,5 +151,5 @@ export default function PrimeirosPassos() {
         },
       ]}
     />
-  )
+  );
 }

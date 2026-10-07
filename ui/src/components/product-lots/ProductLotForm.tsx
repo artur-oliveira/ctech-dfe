@@ -1,21 +1,21 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {ProductSearch} from '@/components/ui/product-search'
-import {ApiError} from '@/lib/api/client'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {type ProductLotFormData, productLotSchema} from '@/lib/schemas/product-lots'
-import type {ProductLotCreate, ProductLotItemOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {ProductSearch} from '@/components/ui/product-search';
+import {ApiError} from '@/lib/api/client';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {type ProductLotFormData, productLotSchema} from '@/lib/schemas/product-lots';
+import type {ProductLotCreate, ProductLotItemOut} from '@/lib/types/api';
 
 const EMPTY: ProductLotFormData = {
   name: '', product_id: '', n_lote: '', q_lote: '', d_fab: '', d_val: '', c_agreg: '',
-}
+};
 
 export interface ProductLotFormProps {
   initialData?: ProductLotItemOut
@@ -24,7 +24,7 @@ export interface ProductLotFormProps {
 }
 
 function toFormData(l: ProductLotItemOut): ProductLotFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
   return {
     name: l.name,
     product_id: str(l.product_id),
@@ -33,21 +33,21 @@ function toFormData(l: ProductLotItemOut): ProductLotFormData {
     d_fab: str(l.d_fab),
     d_val: str(l.d_val),
     c_agreg: str(l.c_agreg),
-  }
+  };
 }
 
 export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [productLabel, setProductLabel] = useState(
     typeof initialData?.product_description === 'string' ? initialData.product_description : '',
-  )
+  );
   const form = useForm<ProductLotFormData>({
     resolver: zodResolver(productLotSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
   const handleSubmit = async (data: ProductLotFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -57,11 +57,11 @@ export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormP
         d_fab: data.d_fab,
         d_val: data.d_val,
         c_agreg: data.c_agreg || null,
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o lote.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o lote.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -75,8 +75,8 @@ export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormP
                            {productLabel}{' '}
                            <Button type="button" variant="ghost" size="xs"
                                    onClick={() => {
-                                     setProductLabel('')
-                                     field.onChange('')
+                                     setProductLabel('');
+                                     field.onChange('');
                                    }}
                                    className="text-brand-600 hover:text-brand-700">trocar</Button>
                          </p>
@@ -85,8 +85,8 @@ export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormP
                          <ProductSearch
                            placeholder="Código ou descrição do produto..."
                            onSelect={(p) => {
-                             field.onChange(extractId(p.sk, SK_PREFIX.PRODUCT))
-                             setProductLabel(`${p.code} · ${p.description}`)
+                             field.onChange(extractId(p.sk, SK_PREFIX.PRODUCT));
+                             setProductLabel(`${p.code} · ${p.description}`);
                            }}/>
                        )}
                        <FormMessage/>
@@ -174,5 +174,5 @@ export function ProductLotForm({initialData, onSubmit, loading}: ProductLotFormP
         </div>
       </form>
     </Form>
-  )
+  );
 }

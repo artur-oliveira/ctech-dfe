@@ -12,14 +12,13 @@ Go Lambda — SQS consumer (standard queue, at-least-once), async DFe issuance p
 
 Consumes `WorkerMessage` / `DistributionMessage` from SQS (standard — **not** FIFO),
 orchestrates the full DFe issuance:
-fetches certificate from S3 → calls SEFAZ via **go-dfe in-process (primary)** or
-**py-dfe Lambda (fallback)** → persists result in DynamoDB → uploads XML to S3 →
+fetches certificate from S3 → calls SEFAZ via the **go-dfe-egress Lambda** (sa-east-1) → persists result in DynamoDB → uploads XML to S3 →
 publishes result to the **SNS results bus** (`${env}-ctech-dfe-results`), which the API's
 `ResultsConsumer` polls and fans out over WebSocket.
 
-**Flow:** `SQS (standard) → Handler → S3 (cert) → go-dfe (in-process SEFAZ; py-dfe Lambda fallback) → DynamoDB + S3 → SNS results topic`
+**Flow:** `SQS (standard) → Handler → S3 (cert) → Invoke go-dfe-egress (sa-east-1; SEFAZ/municipal) → DynamoDB + S3 → SNS results topic`
 
-See [`README.md`](README.md) for the full contract and the go-dfe/py-dfe dispatch decision.
+See [`README.md`](README.md) for the full contract and the go-dfe-egress dispatch.
 
 ---
 
@@ -44,7 +43,7 @@ worker/
 2. `rg "..."` — search for existing implementations before creating new code.
 3. Plan → Implement → Run affected tests.
 4. Update `../DOCS.md` for architectural changes; `../CONDUCT.md` for new constraints.
-5. State cross-project impact (worker ↔ api ↔ py-dfe ↔ cdk).
+5. State cross-project impact (worker ↔ api ↔ go-dfe-egress ↔ cdk).
 6. Suggest Conventional Commit.
 
 ---
@@ -93,7 +92,7 @@ worker/
 - Runtime: `provided.al2023`. Binary MUST be named `bootstrap`.
 - Use `aws-sdk-go-v2` only.
 - No goroutines that outlive the Lambda invocation.
-- Invoke `go-dfe` in-process for promoted operations and use the py-dfe Lambda only as the compatibility fallback.
+- Send every SEFAZ/municipal call to the go-dfe-egress Lambda; never call `dfe.Call` in process.
 
 ### DynamoDB
 
@@ -127,7 +126,7 @@ Run: `go test ./... -race` from `worker/`.
 
 - DLQ receives messages after max retries — monitor via CloudWatch alarms (configured in CDK).
 - Command queues are standard SQS; duplicate and out-of-order deliveries are expected.
-- `go-dfe` is the primary in-process path for promoted services; py-dfe remains the SEFAZ fallback. The API renders PDFs.
+- go-dfe runs inside the go-dfe-egress Lambda (sa-east-1); there is no fallback client. The API renders PDFs.
 - After a terminal SEFAZ response: persist state, upload XML to S3, and publish the result to SNS; the API results
   consumer performs Valkey/WebSocket fan-out.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
@@ -137,7 +136,7 @@ Run: `go test ./... -race` from `worker/`.
 ## Critical Areas (require analysis before touching)
 
 - DFe issuance handlers (NF-e, NFC-e, CT-e, MDF-e)
-- py-dfe Lambda invocation and response parsing
+- go-dfe-egress Lambda invocation and response parsing
 - DynamoDB status persistence and idempotency checks
 - Results SNS publication and API-side Valkey/WebSocket delivery
 - DLQ handling and retry logic
@@ -154,7 +153,7 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 - [ ] All constants named (no magic strings)
 - [ ] SEFAZ rejections not retried (only network errors)
 - [ ] Docs updated (`../DOCS.md` and/or `../CONDUCT.md`)
-- [ ] Cross-project impact reviewed (worker ↔ api ↔ py-dfe ↔ cdk)
+- [ ] Cross-project impact reviewed (worker ↔ api ↔ go-dfe-egress ↔ cdk)
 
 ## Mandatory Documentation Policy
 

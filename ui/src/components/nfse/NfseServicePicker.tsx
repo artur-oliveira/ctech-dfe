@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import {useEffect} from 'react'
-import {useInfiniteQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
-import {Button} from '@/components/ui/button'
-import type {ServiceOut} from '@/lib/types/api'
+import {useEffect} from 'react';
+import {useInfiniteQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
+import {Button} from '@/components/ui/button';
+import type {ServiceOut} from '@/lib/types/api';
 
 interface NfseServicePickerProps {
   id?: string
@@ -23,29 +23,29 @@ interface NfseServicePickerProps {
  * usuário pode sobrescrevê-los livremente (NfseServiceItem aceita overrides).
  */
 export function NfseServicePicker({id, value, onSelect, onClear}: NfseServicePickerProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
   const {data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage} = useInfiniteQuery({
     queryKey: queryKeys.services.list(selectedOrg?.pk),
     queryFn: ({pageParam}) => apiClient.getServices({limit: 100, cursor: pageParam}),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.has_next ? (lastPage.next_cursor ?? undefined) : undefined,
     enabled: !!selectedOrg,
-  })
+  });
 
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) void fetchNextPage()
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const services = data?.pages.flatMap((page) => page.items) ?? []
+  const services = data?.pages.flatMap((page) => page.items) ?? [];
   const options: ComboboxOption[] = services.map((s) => ({
     value: s.sk,
     label: `${s.code} – ${s.description}`,
-  }))
+  }));
 
   const handleSelect = (sk: string) => {
-    const service = services.find((s) => s.sk === sk)
-    if (service) onSelect(service)
-  }
+    const service = services.find((s) => s.sk === sk);
+    if (service) onSelect(service);
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -64,5 +64,5 @@ export function NfseServicePicker({id, value, onSelect, onClear}: NfseServicePic
         </Button>
       )}
     </div>
-  )
+  );
 }

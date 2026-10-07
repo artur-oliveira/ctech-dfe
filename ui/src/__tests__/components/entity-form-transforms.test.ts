@@ -1,7 +1,7 @@
-import {describe, expect, it} from 'vitest'
-import {organizationFormToApi} from '@/components/organizations/OrganizationForm'
-import {personFormToApi} from '@/components/persons/PersonForm'
-import type {EntityFormData} from '@/lib/schemas/entity'
+import {describe, expect, it} from 'vitest';
+import {organizationFormToApi} from '@/components/organizations/OrganizationForm';
+import {personFormToApi} from '@/components/persons/PersonForm';
+import type {EntityFormData} from '@/lib/schemas/entity';
 
 const formData: EntityFormData = {
   tipo: 'pj',
@@ -37,28 +37,28 @@ const formData: EntityFormData = {
       c_mun_fg: '2211001',
     },
   },
-}
+};
 
 describe('cadastro compartilhado — transformação para a API', () => {
   it('preserva dados bancários, retenção de frete, CNAE e Suframa da pessoa', () => {
-    const payload = personFormToApi(formData)
+    const payload = personFormToApi(formData);
 
     expect(payload.person).toMatchObject({
       cnae: '6201501',
       isuf_emit: '123456789',
       bank: {pix_key: 'financeiro@example.com'},
       freight_retention: {p_icms_ret: '12.00', cfop: '5353'},
-    })
-  })
+    });
+  });
 
   it('preserva CNAE e Suframa da organização', () => {
-    const payload = organizationFormToApi(formData)
+    const payload = organizationFormToApi(formData);
 
     expect(payload.person).toMatchObject({
       cnae: '6201501',
       isuf_emit: '123456789',
-    })
-  })
+    });
+  });
 
   it('converte grupos opcionais vazios da pessoa para null', () => {
     const payload = personFormToApi({
@@ -68,9 +68,9 @@ describe('cadastro compartilhado — transformação para a API', () => {
         bank: {pix_key: '', bank_code: '', branch_code: '', cnpj_ipef: ''},
         freight_retention: {v_serv: '', v_bc_ret: '', p_icms_ret: '', cfop: '', c_mun_fg: ''},
       },
-    })
+    });
 
-    expect(payload.person.bank).toBeNull()
-    expect(payload.person.freight_retention).toBeNull()
-  })
-})
+    expect(payload.person.bank).toBeNull();
+    expect(payload.person.freight_retention).toBeNull();
+  });
+});

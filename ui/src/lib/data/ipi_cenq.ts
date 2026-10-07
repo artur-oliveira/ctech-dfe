@@ -150,29 +150,29 @@ export const IPI_CENQ: readonly CEnqEntry[] = [
   {code: "607", group: "reducao", description: "Padis - Art. 150 do Decreto 7.212/2010"},
   {code: "608", group: "reducao", description: "Patvd - Art. 158 do Decreto 7.212/2010"},
   {code: "999", group: "outros", description: "Tributação normal IPI; Outros"},
-]
+];
 
 /** Enquadramento genérico: tributação normal. É o default do leiaute. */
-export const IPI_CENQ_DEFAULT = '999'
+export const IPI_CENQ_DEFAULT = '999';
 
 /** Faixa de enquadramento exigida por CST de IPI (RV W16-10). */
 const CENQ_GROUP_BY_CST: Record<string, CEnqGroup> = {
   '04': 'imunidade', '54': 'imunidade',
   '05': 'suspensao', '55': 'suspensao',
   '02': 'isencao', '52': 'isencao',
-}
+};
 
-const toOption = (e: CEnqEntry) => ({value: e.code, label: `${e.code} - ${e.description}`})
+const toOption = (e: CEnqEntry) => ({value: e.code, label: `${e.code} - ${e.description}`});
 
-export const IPI_CENQ_OPTIONS = IPI_CENQ.map(toOption)
+export const IPI_CENQ_OPTIONS = IPI_CENQ.map(toOption);
 
 /**
  * Enquadramentos aceitos para o CST informado. Sem CST, devolve a tabela
  * inteira; com CST fora do mapa, só as opções de redução e o genérico.
  */
 export function cEnqOptionsForCst(cst?: string): { value: string; label: string }[] {
-  if (!cst) return IPI_CENQ_OPTIONS
-  const group = CENQ_GROUP_BY_CST[cst]
-  if (group) return IPI_CENQ.filter((e) => e.group === group).map(toOption)
-  return IPI_CENQ.filter((e) => e.group === 'reducao' || e.group === 'outros').map(toOption)
+  if (!cst) return IPI_CENQ_OPTIONS;
+  const group = CENQ_GROUP_BY_CST[cst];
+  if (group) return IPI_CENQ.filter((e) => e.group === group).map(toOption);
+  return IPI_CENQ.filter((e) => e.group === 'reducao' || e.group === 'outros').map(toOption);
 }

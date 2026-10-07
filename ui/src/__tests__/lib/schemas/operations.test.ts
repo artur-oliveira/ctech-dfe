@@ -1,5 +1,5 @@
-import {describe, expect, it} from 'vitest'
-import {operationSchema, unknownPlaceholder} from '@/lib/schemas/operations'
+import {describe, expect, it} from 'vitest';
+import {operationSchema, unknownPlaceholder} from '@/lib/schemas/operations';
 
 const base = {
   name: 'Venda para revenda',
@@ -20,54 +20,54 @@ const base = {
   ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true,
   is_default: false,
-}
+};
 
 describe('natureza de operação', () => {
   it('aceita uma operação completa', () => {
-    expect(operationSchema.safeParse(base).success).toBe(true)
-  })
+    expect(operationSchema.safeParse(base).success).toBe(true);
+  });
 
   // A natureza fiscal são só os 3 últimos dígitos: o escopo (5/6/7) é resolvido
   // na emissão pelas UFs, não escolhido no cadastro.
   it('recusa CFOP completo no lugar da natureza fiscal', () => {
-    expect(operationSchema.safeParse({...base, cfop_suffix: '5102'}).success).toBe(false)
-  })
+    expect(operationSchema.safeParse({...base, cfop_suffix: '5102'}).success).toBe(false);
+  });
 
   it('aceita operação sem natureza fiscal', () => {
-    expect(operationSchema.safeParse({...base, cfop_suffix: ''}).success).toBe(true)
-  })
+    expect(operationSchema.safeParse({...base, cfop_suffix: ''}).success).toBe(true);
+  });
 
   it('exige nome com ao menos 2 caracteres', () => {
-    expect(operationSchema.safeParse({...base, name: 'V'}).success).toBe(false)
-  })
-})
+    expect(operationSchema.safeParse({...base, name: 'V'}).success).toBe(false);
+  });
+});
 
 describe('placeholders das mensagens fiscais', () => {
   it('aceita todas as chaves conhecidas', () => {
-    const text = 'NF {{v_nf}} · ST {{v_icms_st}} · {{cliente}} · {{nat_op}} · {{competencia}}'
-    expect(unknownPlaceholder(text)).toBeNull()
-    expect(operationSchema.safeParse({...base, inf_cpl: text}).success).toBe(true)
-  })
+    const text = 'NF {{v_nf}} · ST {{v_icms_st}} · {{cliente}} · {{nat_op}} · {{competencia}}';
+    expect(unknownPlaceholder(text)).toBeNull();
+    expect(operationSchema.safeParse({...base, inf_cpl: text}).success).toBe(true);
+  });
 
   it('tolera espaços dentro das chaves', () => {
-    expect(unknownPlaceholder('{{ v_nf }}')).toBeNull()
-  })
+    expect(unknownPlaceholder('{{ v_nf }}')).toBeNull();
+  });
 
   // Chave desconhecida tem que falhar no cadastro; deixar passar viraria um
   // buraco silencioso no XML.
   it('recusa chave desconhecida, nomeando qual é', () => {
-    expect(unknownPlaceholder('Total {{v_iss}}')).toBe('v_iss')
-    const parsed = operationSchema.safeParse({...base, inf_cpl: 'Total {{v_iss}}'})
-    expect(parsed.success).toBe(false)
+    expect(unknownPlaceholder('Total {{v_iss}}')).toBe('v_iss');
+    const parsed = operationSchema.safeParse({...base, inf_cpl: 'Total {{v_iss}}'});
+    expect(parsed.success).toBe(false);
     if (!parsed.success) {
-      expect(parsed.error.issues[0].message).toContain('v_iss')
+      expect(parsed.error.issues[0].message).toContain('v_iss');
     }
-  })
+  });
 
   it('texto sem placeholder nenhum é válido', () => {
-    expect(unknownPlaceholder('Documento emitido em regime especial.')).toBeNull()
-  })
-})
+    expect(unknownPlaceholder('Documento emitido em regime especial.')).toBeNull();
+  });
+});
 
 describe('operationSchema — natureza fiscal e compra governamental', () => {
   const base = {
@@ -78,24 +78,24 @@ describe('operationSchema — natureza fiscal e compra governamental', () => {
     ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
     requires_receiver: true,
     is_default: false,
-  }
+  };
 
   const pathsOf = (data: Record<string, unknown>): string[] => {
-    const result = operationSchema.safeParse(data)
-    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
-  }
+    const result = operationSchema.safeParse(data);
+    return result.success ? [] : result.error.issues.map((i) => i.path.join('.'));
+  };
 
   it('aceita um sufixo que existe na tabela CFOP', () => {
-    expect(operationSchema.safeParse({...base, cfop_suffix: '102'}).success).toBe(true)
-  })
+    expect(operationSchema.safeParse({...base, cfop_suffix: '102'}).success).toBe(true);
+  });
 
   it('recusa três dígitos que não são natureza fiscal', () => {
-    expect(pathsOf({...base, cfop_suffix: '999'})).toContain('cfop_suffix')
-  })
+    expect(pathsOf({...base, cfop_suffix: '999'})).toContain('cfop_suffix');
+  });
 
   it('compra governamental exige ente e tipo de operação juntos', () => {
-    expect(pathsOf({...base, compra_gov_tp_ente: '1'})).toContain('compra_gov_tp_oper')
-    expect(pathsOf({...base, compra_gov_tp_oper: '2'})).toContain('compra_gov_tp_ente')
-    expect(operationSchema.safeParse({...base, compra_gov_tp_ente: '1', compra_gov_tp_oper: '2'}).success).toBe(true)
-  })
-})
+    expect(pathsOf({...base, compra_gov_tp_ente: '1'})).toContain('compra_gov_tp_oper');
+    expect(pathsOf({...base, compra_gov_tp_oper: '2'})).toContain('compra_gov_tp_ente');
+    expect(operationSchema.safeParse({...base, compra_gov_tp_ente: '1', compra_gov_tp_oper: '2'}).success).toBe(true);
+  });
+});

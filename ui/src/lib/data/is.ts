@@ -6,7 +6,7 @@ export const IS_CST_OPTIONS = [
   {value: '030', label: '030 – Não tributada'},
   {value: '040', label: '040 – Isenção'},
   {value: '999', label: '999 – Outras'},
-]
+];
 
 // ICMS motivos de desoneração — usados nos CSTs 40, 41, 50 e 51
 export const ICMS_MOT_DESONE_OPTIONS = [
@@ -23,4 +23,4 @@ export const ICMS_MOT_DESONE_OPTIONS = [
   {value: '11', label: '11 – Deficiente não condutor (Lei 8.989/95)'},
   {value: '16', label: '16 – Olimpíadas / Paraolimpíadas 2016'},
   {value: '90', label: '90 – Solicitado pelo fisco'},
-]
+];

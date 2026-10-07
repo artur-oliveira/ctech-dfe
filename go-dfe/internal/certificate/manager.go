@@ -1,7 +1,7 @@
-// Package certificate ports py-dfe's certificate manager
-// (py-dfe/py_dfe/certificate/manager.py) to Go: PFX/PKCS12 decode, private
+// Package certificate ports the original Python client's certificate manager
+// to Go: PFX/PKCS12 decode, private
 // key extraction, and mTLS client construction for SEFAZ communication.
-// Per py-dfe/CLAUDE.md ("Certificate Handling (MUST NOT simplify)"), the
+// Per the original Python client ("Certificate Handling (MUST NOT simplify)"), the
 // mTLS setup here is deliberate and must not be simplified or bypassed.
 package certificate
 
@@ -11,14 +11,16 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
+	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
 // Info holds certificate metadata callers may need for error messages (e.g.
-// "certificate expired") — mirrors what py-dfe's manager exposes via its
+// "certificate expired") — mirrors what the original Python client's manager exposes via its
 // `certificate` property (a cryptography x509.Certificate, from which CN and
 // validity dates are read by callers).
 type Info struct {
@@ -42,7 +44,7 @@ func decode(certificateB64, password string) (*x509.Certificate, *rsa.PrivateKey
 		return nil, nil, nil, fmt.Errorf("certificate: failed to load PFX certificate: %w", err)
 	}
 
-	// py-dfe requires RSA (it signs with RSA-SHA1 downstream) — mirror that
+	// the original Python client requires RSA (it signs with RSA-SHA1 downstream) — mirror that
 	// here rather than letting a non-RSA key fail obscurely later.
 	rsaKey, ok := privateKey.(*rsa.PrivateKey)
 	if !ok {
@@ -60,7 +62,7 @@ func decode(certificateB64, password string) (*x509.Certificate, *rsa.PrivateKey
 // not expose in usable form).
 //
 // InsecureSkipVerify is deliberate: SEFAZ's server certificate chain is not
-// validated by design (Brazilian government PKI quirks) — mirrors py-dfe's
+// validated by design (Brazilian government PKI quirks) — mirrors the original Python client's
 // ssl_context() (ctx.verify_mode = ssl.CERT_NONE, ctx.check_hostname = False).
 // This is not a bug; do not "fix" it.
 func Load(certificateB64, password string) (*http.Client, *x509.Certificate, *rsa.PrivateKey, error) {
@@ -83,6 +85,7 @@ func Load(certificateB64, password string) (*http.Client, *x509.Certificate, *rs
 
 	client := &http.Client{
 		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: constants.DialTimeout}).DialContext,
 			TLSClientConfig: &tls.Config{
 				Certificates:       []tls.Certificate{tlsCert},
 				Renegotiation:      tls.RenegotiateOnceAsClient,

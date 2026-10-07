@@ -1,5 +1,5 @@
-import type {ReactNode} from 'react'
-import {CteIcon, MdfeIcon, NfceIcon, NfeIcon} from '@/components/ui/icon'
+import type {ReactNode} from 'react';
+import {CteIcon, MdfeIcon, NfceIcon, NfeIcon} from '@/components/ui/icon';
 
 export interface DfeDocument {
   code: string
@@ -43,4 +43,4 @@ export const DFE_DOCUMENTS: DfeDocument[] = [
     icon: <MdfeIcon/>,
     accent: '#f59e0b',
   },
-]
+];

@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {useRouter, useSearchParams} from 'next/navigation'
-import Link from 'next/link'
-import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {NfeIcon} from '@/components/ui/icon'
-import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal'
-import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
-import {InutilizationsTab} from '@/components/dfe/InutilizationsTab'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatNsu, parseAccessKey, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {maskAccessKey} from '@/lib/utils/masks'
-import {type AccessKeyField, validateAccessKey} from '@/lib/utils/access-key'
-import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
+import {Suspense, useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useRouter, useSearchParams} from 'next/navigation';
+import Link from 'next/link';
+import {toast} from 'sonner';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {NfeIcon} from '@/components/ui/icon';
+import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal';
+import {ImportXmlModal} from '@/components/dfe/ImportXmlModal';
+import {InutilizationsTab} from '@/components/dfe/InutilizationsTab';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency, formatDate} from '@/lib/utils/helpers';
+import {formatDatetimeBR, formatNsu, parseAccessKey, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {maskAccessKey} from '@/lib/utils/masks';
+import {type AccessKeyField, validateAccessKey} from '@/lib/utils/access-key';
+import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {PenaltyBanner} from '@/components/ui/penalty-banner';
+import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 import {DownloadPdfButton} from "@/components/dfe/DownloadPdfButton";
 
@@ -63,13 +63,13 @@ const LIST_TABS: { key: Tab; label: string; incoming: 0 | 1 | 2; emptyLabel: str
     emptyLabel: 'Nenhuma NF-e transportada',
     emptyDesc: 'NF-es nas quais a organização consta como transportadora aparecerão aqui.'
   },
-]
+];
 
 const ALL_TAB_LABELS: { key: Tab; label: string }[] = [
   ...LIST_TABS,
   {key: 'distribuicao', label: 'Importação/Distribuição'},
   {key: 'inutilizacoes', label: 'Inutilizações'},
-]
+];
 
 const ACCESS_KEY_FIELD_LABELS: Record<AccessKeyField, string> = {
   length: 'A chave deve ter 44 caracteres',
@@ -79,51 +79,51 @@ const ACCESS_KEY_FIELD_LABELS: Record<AccessKeyField, string> = {
   mod: 'Modelo do documento inválido (esperado 55: NF-e)',
   tpEmis: 'Tipo de emissão inválido',
   cDV: 'Dígito verificador da chave inválido',
-}
+};
 
 const DIST_SCHEMA_LABELS: Record<string, string> = {
   resNFe: 'Resumo NF-e',
   procNFe: 'NF-e Completa',
   resEvento: 'Resumo Evento',
   procEventoNFe: 'Evento',
-}
+};
 
 const MONTHS = [
   {value: 1, label: 'Jan'}, {value: 2, label: 'Fev'}, {value: 3, label: 'Mar'},
   {value: 4, label: 'Abr'}, {value: 5, label: 'Mai'}, {value: 6, label: 'Jun'},
   {value: 7, label: 'Jul'}, {value: 8, label: 'Ago'}, {value: 9, label: 'Set'},
   {value: 10, label: 'Out'}, {value: 11, label: 'Nov'}, {value: 12, label: 'Dez'},
-]
+];
 
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i);
 
 function distSchemaLabel(item: NFeDistributionOut): string {
   if (item.schema_type && DIST_SCHEMA_LABELS[item.schema_type]) {
     if (item.schema_type === 'resEvento' || item.schema_type === 'procEventoNFe') {
-      const evtLabel = item.event_type ? (EVENT_TYPE_LABELS[item.event_type] ?? item.event_type) : ''
-      return evtLabel ? `${DIST_SCHEMA_LABELS[item.schema_type]}: ${evtLabel}` : DIST_SCHEMA_LABELS[item.schema_type]
+      const evtLabel = item.event_type ? (EVENT_TYPE_LABELS[item.event_type] ?? item.event_type) : '';
+      return evtLabel ? `${DIST_SCHEMA_LABELS[item.schema_type]}: ${evtLabel}` : DIST_SCHEMA_LABELS[item.schema_type];
     }
-    return DIST_SCHEMA_LABELS[item.schema_type]
+    return DIST_SCHEMA_LABELS[item.schema_type];
   }
-  return item.doc_schema
+  return item.doc_schema;
 }
 
 function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: string }) {
-  const [xmlLoading, setXmlLoading] = useState(false)
-  const isFullNfe = item.schema_type === 'procNFe'
+  const [xmlLoading, setXmlLoading] = useState(false);
+  const isFullNfe = item.schema_type === 'procNFe';
 
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-		const download = await apiClient.downloadDistributionXml(docType, item.nsu)
-		triggerRemoteDownload(download.url)
+		const download = await apiClient.downloadDistributionXml(docType, item.nsu);
+		triggerRemoteDownload(download.url);
     } catch {
-      toast.error('Erro ao baixar XML.')
+      toast.error('Erro ao baixar XML.');
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
   const composition = item.access_key ? parseAccessKey(item.access_key) : null;
   return (
     <tr className={TABLE_ROW}>
@@ -168,56 +168,56 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
         </div>
       </td>
     </tr>
-  )
+  );
 }
 
 function NfeDistributionTab({orgPk}: { orgPk: string }) {
-  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [importKeyInput, setImportKeyInput] = useState('')
+  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importKeyInput, setImportKeyInput] = useState('');
 
-  const {config} = useFiscalConfig('nfe', orgPk)
+  const {config} = useFiscalConfig('nfe', orgPk);
 
-  const cleanImportKey = importKeyInput.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const importValidation = cleanImportKey.length === 44 ? validateAccessKey(cleanImportKey) : {valid: false as const}
+  const cleanImportKey = importKeyInput.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  const importValidation = cleanImportKey.length === 44 ? validateAccessKey(cleanImportKey) : {valid: false as const};
 
   const importMutation = useMutation({
     mutationFn: () => apiClient.importNfeByKey(cleanImportKey),
     onSuccess: () => {
-      setShowImportModal(false)
-      setImportKeyInput('')
-      toast.info('Importação enfileirada. A NF-e aparecerá automaticamente quando processada.')
+      setShowImportModal(false);
+      setImportKeyInput('');
+      toast.info('Importação enfileirada. A NF-e aparecerá automaticamente quando processada.');
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar NF-e.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao importar NF-e.');
     },
-  })
+  });
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('nfe', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('nfe', {limit: 10, cursor}),
     enabled: true,
-  })
+  });
 
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('nfe'),
     onSuccess: () => {
-      setPenaltyMessage(null)
-      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.')
+      setPenaltyMessage(null);
+      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.');
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) {
-        setPenaltyMessage(err.detail)
+        setPenaltyMessage(err.detail);
       } else {
-        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.')
+        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.');
       }
     },
-  })
+  });
 
-  const isProd = config?.environment === 1
-  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
-  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
-  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
+  const isProd = config?.environment === 1;
+  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null;
+  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null;
+  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null;
 
   return (
     <div className="space-y-4">
@@ -248,8 +248,8 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
             variant="outline"
             size="sm"
             onClick={() => {
-              setImportKeyInput('')
-              setShowImportModal(true)
+              setImportKeyInput('');
+              setShowImportModal(true);
             }}
             className="text-brand-600 border-brand-200 hover:bg-brand-50"
           >
@@ -318,7 +318,7 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
       </Modal>
 
     </div>
-  )
+  );
 }
 
 function NfeListTab({
@@ -330,50 +330,50 @@ function NfeListTab({
   orgPk: string
   onCancelRequest: (nfe: NfeListOut) => void
 }) {
-  const router = useRouter()
-  const params = useSearchParams()
+  const router = useRouter();
+  const params = useSearchParams();
 
-  const filterYear = params.get('year') ?? ''
-  const filterMonth = params.get('month') ?? ''
-  const filterDay = params.get('day') ?? ''
-  const numberSearch = params.get('number') ?? ''
-  const activeTab = params.get('tab') ?? 'emitidas'
+  const filterYear = params.get('year') ?? '';
+  const filterMonth = params.get('month') ?? '';
+  const filterDay = params.get('day') ?? '';
+  const numberSearch = params.get('number') ?? '';
+  const activeTab = params.get('tab') ?? 'emitidas';
 
   const setFilterYear = (v: string) => {
-    const sp = new URLSearchParams()
-    sp.set('tab', activeTab)
-    if (v) sp.set('year', v)
-    router.replace(`/nfe?${sp.toString()}`, {scroll: false})
-  }
+    const sp = new URLSearchParams();
+    sp.set('tab', activeTab);
+    if (v) sp.set('year', v);
+    router.replace(`/nfe?${sp.toString()}`, {scroll: false});
+  };
 
   const setFilterMonth = (v: string) => {
-    const sp = new URLSearchParams()
-    sp.set('tab', activeTab)
-    if (filterYear) sp.set('year', filterYear)
-    if (v) sp.set('month', v)
-    if (numberSearch) sp.set('number', numberSearch)
-    router.replace(`/nfe?${sp.toString()}`, {scroll: false})
-  }
+    const sp = new URLSearchParams();
+    sp.set('tab', activeTab);
+    if (filterYear) sp.set('year', filterYear);
+    if (v) sp.set('month', v);
+    if (numberSearch) sp.set('number', numberSearch);
+    router.replace(`/nfe?${sp.toString()}`, {scroll: false});
+  };
 
   const setFilterDay = (v: string) => {
-    const sp = new URLSearchParams()
-    sp.set('tab', activeTab)
-    if (filterYear) sp.set('year', filterYear)
-    if (filterMonth) sp.set('month', filterMonth)
-    if (v) sp.set('day', v)
-    if (numberSearch) sp.set('number', numberSearch)
-    router.replace(`/nfe?${sp.toString()}`, {scroll: false})
-  }
+    const sp = new URLSearchParams();
+    sp.set('tab', activeTab);
+    if (filterYear) sp.set('year', filterYear);
+    if (filterMonth) sp.set('month', filterMonth);
+    if (v) sp.set('day', v);
+    if (numberSearch) sp.set('number', numberSearch);
+    router.replace(`/nfe?${sp.toString()}`, {scroll: false});
+  };
 
   const setNumberSearch = (v: string) => {
-    const sp = new URLSearchParams()
-    sp.set('tab', activeTab)
-    if (filterYear) sp.set('year', filterYear)
-    if (filterMonth) sp.set('month', filterMonth)
-    if (filterDay) sp.set('day', filterDay)
-    if (v) sp.set('number', v)
-    router.replace(`/nfe?${sp.toString()}`, {scroll: false})
-  }
+    const sp = new URLSearchParams();
+    sp.set('tab', activeTab);
+    if (filterYear) sp.set('year', filterYear);
+    if (filterMonth) sp.set('month', filterMonth);
+    if (filterDay) sp.set('day', filterDay);
+    if (v) sp.set('number', v);
+    router.replace(`/nfe?${sp.toString()}`, {scroll: false});
+  };
 
   const queryParams = {
     sort: 'desc' as const,
@@ -383,39 +383,39 @@ function NfeListTab({
     ...(filterYear ? {year: parseInt(filterYear, 10)} : {}),
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
     ...(filterDay ? {day: parseInt(filterDay, 10)} : {}),
-  }
+  };
 
-  const hasFilters = numberSearch || filterYear || filterMonth || filterDay
+  const hasFilters = numberSearch || filterYear || filterMonth || filterDay;
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NfeListOut>({
     queryKey: queryKeys.nfes.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.getNfes({...queryParams, cursor}),
     enabled: true,
-  })
+  });
 
   const clearFilters = () => {
-    reset()
-    router.replace(`/nfe?tab=${activeTab}`, {scroll: false})
-  }
+    reset();
+    router.replace(`/nfe?tab=${activeTab}`, {scroll: false});
+  };
 
   const detailLink = (accessKey: string) => {
-    const sp = new URLSearchParams()
-    sp.set('key', accessKey)
-    sp.set('tab', activeTab)
-    if (filterYear) sp.set('year', filterYear)
-    if (filterMonth) sp.set('month', filterMonth)
-    if (filterDay) sp.set('day', filterDay)
-    if (numberSearch) sp.set('number', numberSearch)
-    return `/nfe/detail?${sp.toString()}`
-  }
+    const sp = new URLSearchParams();
+    sp.set('key', accessKey);
+    sp.set('tab', activeTab);
+    if (filterYear) sp.set('year', filterYear);
+    if (filterMonth) sp.set('month', filterMonth);
+    if (filterDay) sp.set('day', filterDay);
+    if (numberSearch) sp.set('number', numberSearch);
+    return `/nfe/detail?${sp.toString()}`;
+  };
 
   const maxDay = filterYear && filterMonth
     ? new Date(parseInt(filterYear), parseInt(filterMonth), 0).getDate()
-    : 31
+    : 31;
   const dayOptions = Array.from({length: maxDay}, (_, i) => ({
     value: String(i + 1),
     label: String(i + 1).padStart(2, '0')
-  }))
+  }));
 
   return (
     <>
@@ -560,52 +560,52 @@ function NfeListTab({
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>
     </>
-  )
+  );
 }
 
 function NfesContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const params = useSearchParams()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const params = useSearchParams();
+  const qc = useQueryClient();
 
-  const {config: nfeConfig, isMissing: nfeConfigMissing} = useFiscalConfig('nfe', selectedOrg?.pk)
+  const {config: nfeConfig, isMissing: nfeConfigMissing} = useFiscalConfig('nfe', selectedOrg?.pk);
 
-  const activeTab = (params.get('tab') as Tab) || 'emitidas'
+  const activeTab = (params.get('tab') as Tab) || 'emitidas';
 
-  const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
-  const [justification, setJustification] = useState('')
-  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null);
+  const [justification, setJustification] = useState('');
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false);
 
   const setActiveTab = (tab: Tab) => {
-    router.replace(`/nfe?tab=${tab}`, {scroll: false})
-  }
+    router.replace(`/nfe?tab=${tab}`, {scroll: false});
+  };
 
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelNfe(accessKey, justification),
     onSuccess: (_data, {accessKey}) => {
-      setCancelTarget(null)
-      setJustification('')
+      setCancelTarget(null);
+      setJustification('');
       // Optimistically reflect the transitional "Cancelando" state. The list GSI
       // is eventually consistent, so we patch the cache instead of refetching;
       // the WebSocket delivers the final (cancelled) status when the worker finishes.
-      setDocStatusOptimistic(qc, queryKeys.nfes.lists(selectedOrg?.pk), accessKey, 'cancel_pending')
-      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)})
+      setDocStatusOptimistic(qc, queryKeys.nfes.lists(selectedOrg?.pk), accessKey, 'cancel_pending');
+      void qc.invalidateQueries({queryKey: queryKeys.nfes.detail(accessKey)});
     },
-  })
+  });
 
   const openCancelModal = (nfe: NfeListOut) => {
-    setJustification('')
-    setCancelTarget(nfe)
-  }
+    setJustification('');
+    setCancelTarget(nfe);
+  };
 
   const handleConfirmCancel = () => {
-    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
-    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
-  }
+    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return;
+    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()});
+  };
 
-  const currentListTab = LIST_TABS.find(t => t.key === activeTab)
+  const currentListTab = LIST_TABS.find(t => t.key === activeTab);
 
   return (
     <RootLayout>
@@ -674,7 +674,7 @@ function NfesContent() {
         onJustificationChange={setJustification}
         onClose={() => {
           setCancelTarget(null);
-          setJustification('')
+          setJustification('');
         }}
         onConfirm={handleConfirmCancel}
         loading={cancelMutation.isPending}
@@ -682,7 +682,7 @@ function NfesContent() {
       />
       <ImportXmlModal docType="nfe" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfesPage() {
@@ -692,5 +692,5 @@ export default function NfesPage() {
         <NfesContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

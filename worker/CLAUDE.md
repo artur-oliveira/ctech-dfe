@@ -9,11 +9,11 @@ Go Lambda — SQS (standard) consumer, async DFe issuance pipeline, `provided.al
 ## Role
 
 Consumes `DfeWorkerEvent` messages from SQS (standard), orchestrates the full DFe issuance:
-fetches certificate from S3 → invokes go-dfe in-process (XML-DSig + SEFAZ SOAP; py-dfe Lambda
-is the fallback for operations not yet ported) → persists result in DynamoDB → uploads XML to S3 →
+fetches certificate from S3 → invokes the go-dfe-egress Lambda (sa-east-1; XML-DSig + SEFAZ SOAP /
+NFS-e REST) → persists result in DynamoDB → uploads XML to S3 →
 publishes results to the SNS results topic (DfeResultsBus).
 
-**Flow:** `SQS (standard) → Handler → S3 (cert) → go-dfe (in-process SEFAZ; py-dfe Lambda fallback) → DynamoDB + S3 → SNS results topic`
+**Flow:** `SQS (standard) → Handler → S3 (cert) → Invoke go-dfe-egress (sa-east-1; SEFAZ/municipal) → DynamoDB + S3 → SNS results topic`
 
 ---
 
@@ -38,7 +38,7 @@ worker/
 2. `rg "..."` — search for existing implementations before creating new code.
 3. Plan → Implement → Run affected tests.
 4. Update `../DOCS.md` for architectural changes; `../CONDUCT.md` for new constraints.
-5. State cross-project impact (worker ↔ api ↔ py-dfe ↔ cdk).
+5. State cross-project impact (worker ↔ api ↔ go-dfe-egress ↔ cdk).
 6. Suggest Conventional Commit.
 
 ---
@@ -85,13 +85,12 @@ worker/
 - Runtime: `provided.al2023`. Binary MUST be named `bootstrap`.
 - Use `aws-sdk-go-v2` only.
 - No goroutines that outlive the Lambda invocation.
-- `go-dfe` (module `gopkg.aoctech.app/dfe/go-dfe`, in-process, see `docs/plans/2026-07-17-go-dfe-migration.md`)
-  is the sanctioned path for any SEFAZ operation in its `dfe.Implements(docType, service)` set. The
-  py-dfe Lambda invocation remains the fallback for every operation NOT yet in that set, and is the
-  compatibility fallback for unimplemented SEFAZ operations. Auxiliary-document rendering belongs to the API.
-  Do not call py-dfe for an operation `go-dfe` already implements, and do not add a new SEFAZ
-  operation to `go-dfe`'s implemented set without the byte-identical signature gate (signed ops) or
-  shadow-mode parity window (unsigned ops) described in the plan.
+- Every SEFAZ/municipal call goes through the **go-dfe-egress Lambda** (`DFE_LAMBDA_NAME`, region
+  `DFE_EGRESS_REGION` = sa-east-1), via `invokeEgress` in `dfe.go`/`distribution.go`. There is no
+  in-process `dfe.Call` and no fallback client: if the egress fails, the call fails and the normal
+  retry applies. Some authorities (Teresina) drop traffic from outside Brazil, which is why it runs in
+  sa-east-1. Auxiliary-document rendering belongs to the API. `go-dfe` is imported only for its types
+  and helpers (`Request`, `nfse`, `BuildXMLFragment`).
 
 ### DynamoDB
 
@@ -125,14 +124,14 @@ Run: `go test ./... -race` from `worker/`.
 
 - DLQ receives messages after max retries — monitored via a CloudWatch alarm per queue (configured in `cdk/lib/worker-stack.ts`).
 - SQS is standard (not FIFO) — ordering across messages for the same org is NOT guaranteed; correctness relies on the fiscal-numbering `transact_write` (atomic, order-independent) plus the idempotency guard in `DfeService.Process`.
-- py-dfe Lambda is the fallback path for XML signing + SEFAZ SOAP not yet ported to `go-dfe`, and the
-  compatibility fallback for SEFAZ; do not duplicate SEFAZ logic outside `go-dfe`/py-dfe.
+- All XML signing and SEFAZ SOAP lives in `go-dfe` (executed by go-dfe-egress); do not duplicate SEFAZ
+  logic in the worker.
 - After SEFAZ response: always update DynamoDB status, upload XML to S3, publish results to the SNS
   results topic (DfeResultsBus) — in that order. Redis pub/sub and WebSocket fan-out are done by the
   API's ResultsConsumer, not the worker.
 - Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
 - NFS-e branches out of the shared pipeline in `internal/service/nfse.go` (issuance/events) and
-  `distribution_nfse.go` (ADN NSU cursor). It never reaches py-dfe, the response carries no
+  `distribution_nfse.go` (ADN NSU cursor). It goes through the same egress Lambda, the response carries no
   `cStat`/`xMotivo`, and a rejection is always terminal — never retry it.
 
 ---
@@ -140,7 +139,7 @@ Run: `go test ./... -race` from `worker/`.
 ## Critical Areas (require analysis before touching)
 
 - DFe issuance handlers (NF-e, NFC-e, CT-e, MDF-e)
-- py-dfe Lambda invocation and response parsing
+- go-dfe-egress Lambda invocation and response parsing
 - DynamoDB status persistence and idempotency checks
 - SNS results topic publish (DfeResultsBus); Redis/WebSocket fan-out is done by the API's ResultsConsumer.
 - DLQ handling and retry logic
@@ -157,7 +156,7 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 - [ ] All constants named (no magic strings)
 - [ ] SEFAZ rejections not retried (only network errors)
 - [ ] Docs updated (`../DOCS.md` and/or `../CONDUCT.md`)
-- [ ] Cross-project impact reviewed (worker ↔ api ↔ py-dfe ↔ cdk)
+- [ ] Cross-project impact reviewed (worker ↔ api ↔ go-dfe-egress ↔ cdk)
 
 ## Mandatory Documentation Policy
 
