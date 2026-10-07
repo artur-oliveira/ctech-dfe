@@ -1,6 +1,7 @@
 import {z} from 'zod';
 
 const serieField = z.string().regex(/^\d{1,3}$/, 'Série deve ter entre 1 e 3 dígitos');
+const nfseSerieField = z.string().regex(/^\d{1,5}$/, 'Série deve ter entre 1 e 5 dígitos');
 const numberField = z.string().regex(/^\d+$/, 'Número inválido');
 
 export const BRAZIL_TIMEZONES = [
@@ -84,7 +85,7 @@ export const nfseConfigSchema = z.object({
   environment: z.enum(['1', '2']),
   timezone: z.enum(BRAZIL_TIMEZONES),
   c_loc_emi: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),
-  serie: serieField,
+  serie: nfseSerieField,
   prod_current_number: numberField,
   hom_current_number: numberField,
   certificate_sk: z.string().optional().or(z.literal('')),
