@@ -132,7 +132,7 @@ See `../DEPLOYMENT.md` for step-by-step procedures and diagnostics.
 
 ## Known Constraints
 
-- `ApiStack` (Elastic Beanstalk) is legacy — migration to `ApiStack` (EC2 ASG) is in progress.
+- `ApiStack` (EC2 ASG) is the only API stack; the migration from the legacy `ApiStack` (Elastic Beanstalk) is complete.
 - `ApiStack` ASG uses combined EC2 + ELB health checks with `gracePeriod: 120s`.
 - Worker Lambda binary must be named `bootstrap` (runtime: `provided.al2023`).
 - API binary must be named `app` (EC2 userdata expects `/opt/app/current/app`).

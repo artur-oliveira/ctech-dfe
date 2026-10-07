@@ -1027,22 +1027,34 @@ func (s *DistributionService) persistIncoming(ctx context.Context, docPK string,
 	}
 }
 
+// personRoleSupplier/personRoleCustomer mirram services.RoleSupplier/RoleCustomer
+// (api/internal/services/person_roles.go) — api não é importável daqui (não é
+// lib compartilhada como go-dfe), então os valores são replicados como
+// constantes, não a fonte da verdade.
+const (
+	personRoleSupplier = "supplier"
+	personRoleCustomer = "customer"
+)
+
 // persistCounterparties upserts a received document's emitter and recipient as
 // organization_persons records (suppliers/customers) so future issuances can
-// reuse the data. Parties whose CPF/CNPJ equals the org's own are skipped.
+// reuse the data. Parties whose CPF/CNPJ equals the org's own are skipped. The
+// emitter is always the org's supplier here (this is an INCOMING distributed
+// document); the recipient, when it's a third party rather than the org
+// itself, is the org's customer.
 func (s *DistributionService) persistCounterparties(ctx context.Context, orgPK, orgCNPJ string, fields DocFields) error {
-	if err := s.persistPerson(ctx, orgPK, orgCNPJ, fields.EmitCPFCNPJ, fields.EmitName, fields.EmitDetails); err != nil {
+	if err := s.persistPerson(ctx, orgPK, orgCNPJ, fields.EmitCPFCNPJ, fields.EmitName, fields.EmitDetails, personRoleSupplier); err != nil {
 		return err
 	}
-	return s.persistPerson(ctx, orgPK, orgCNPJ, fields.DestCPFCNPJ, fields.DestName, fields.DestDetails)
+	return s.persistPerson(ctx, orgPK, orgCNPJ, fields.DestCPFCNPJ, fields.DestName, fields.DestDetails, personRoleCustomer)
 }
 
 // persistPerson creates an organization_persons record for a counterparty when
 // its CPF/CNPJ is non-blank and differs from the org's. The nested person object
 // (addresses, contacts, state_registrations, ...) is stored under `person` when
 // the document carries it. Create-if-absent: a manually curated person is never
-// overwritten.
-func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ, cpfCNPJ, name string, details map[string]any) error {
+// overwritten (including its `roles`, if any).
+func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ, cpfCNPJ, name string, details map[string]any, role string) error {
 	digits := onlyDigits(cpfCNPJ)
 	if digits == "" || digits == onlyDigits(orgCNPJ) {
 		return nil
@@ -1060,6 +1072,7 @@ func (s *DistributionService) persistPerson(ctx context.Context, orgPK, orgCNPJ,
 		"org_pk":      &types.AttributeValueMemberS{Value: orgPK},
 		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: digits},
 		"name":        &types.AttributeValueMemberS{Value: name},
+		"roles":       &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberS{Value: role}}},
 		"created_at":  &types.AttributeValueMemberS{Value: now},
 		"updated_at":  &types.AttributeValueMemberS{Value: now},
 	}

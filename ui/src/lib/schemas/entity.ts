@@ -85,8 +85,8 @@ export const nfseInfoSchema = z.object({
 
 export const OP_SIMP_NAC_OPTIONS = [
   {value: '1', label: '1 – Não optante pelo Simples Nacional'},
-  {value: '2', label: '2 – Optante — MEI'},
-  {value: '3', label: '3 – Optante — Microempresa ou EPP'},
+  {value: '2', label: '2 – Optante; MEI'},
+  {value: '3', label: '3 – Optante; Microempresa ou EPP'},
 ];
 
 export const REG_AP_TRIB_SN_OPTIONS = [

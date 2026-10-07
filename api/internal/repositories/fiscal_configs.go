@@ -67,7 +67,12 @@ func NewMdfeConfigRepository(db *dynamodb.Client, cfg *config.Config) *MdfeConfi
 }
 
 // NfseConfigRepository — organization_nfse_configs.
-// preserve: contadores de numeração da DPS/RPS, atualizados pela emissão, e cursor NSU da distribuição ADN.
+// preserve: cursor NSU da distribuição ADN. Os contadores de numeração da
+// DPS/RPS (prod_current_number/hom_current_number) NÃO entram aqui: são
+// campos editáveis via PUT (NfseConfigBody) e só avançam fora do Upsert, por
+// IncrementNumber (AtomicIncrement direto) — preservá-los aqui sobrescreveria
+// silenciosamente qualquer valor enviado pelo usuário com o que já está
+// gravado.
 type NfseConfigRepository struct {
 	FiscalConfigRepository
 }
@@ -75,8 +80,6 @@ type NfseConfigRepository struct {
 func NewNfseConfigRepository(db *dynamodb.Client, cfg *config.Config) *NfseConfigRepository {
 	return &NfseConfigRepository{
 		FiscalConfigRepository: newFiscalConfigBase(db, cfg, "organization_nfse_configs", map[string]any{
-			"prod_current_number":   0,
-			"hom_current_number":    0,
 			"prod_nsu":              0,
 			"hom_nsu":               0,
 			"prod_last_dist_nsu_at": nil,

@@ -2,7 +2,7 @@ import type {Metadata} from 'next';
 import {LegalPage, LegalSection} from '@/components/legal-page';
 
 export const metadata: Metadata = {
-  title: 'Termos Adicionais — CTech DF-e',
+  title: 'Termos Adicionais: CTech DF-e',
   description:
     'Termos adicionais aplicáveis à utilização do CTech DF-e.',
 };
@@ -13,7 +13,7 @@ const UPDATED_AT = '12 de julho de 2026';
 export default function TermsAddendumPage() {
   return (
     <LegalPage
-      title="Termos Adicionais — CTech DF-e"
+      title="Termos Adicionais: CTech DF-e"
       updatedAt={UPDATED_AT}
     >
       <p className="text-xs text-gray-400">

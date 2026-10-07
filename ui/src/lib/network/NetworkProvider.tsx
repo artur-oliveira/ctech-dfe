@@ -110,7 +110,7 @@ function NetworkStatusBanner({offline, onRetry}: { offline: boolean; onRetry: ()
               {offline ? 'Você está sem internet.' : 'Servidor temporariamente indisponível.'}
             </strong>{' '}
             {offline
-              ? 'Nada foi perdido — a tela volta a atualizar assim que a conexão retornar.'
+              ? 'Nada foi perdido; a tela volta a atualizar assim que a conexão retornar.'
               : 'Seus dados estão seguros. Estamos verificando a conexão sem sobrecarregar o servidor.'}
           </p>
         </div>

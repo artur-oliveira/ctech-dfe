@@ -7,7 +7,7 @@ export default function GuideNfse() {
     <GuidePage
       currentHref="/guide/nfse"
       title="Emitir NFS-e"
-      description="A nota de serviço no padrão nacional. Diferente dos outros documentos, ela nasce de uma DPS — a declaração que você envia — e o serviço vem de um catálogo próprio."
+      description="A nota de serviço no padrão nacional. Diferente dos outros documentos, ela nasce de uma DPS (a declaração que você envia) e o serviço vem de um catálogo próprio."
       sections={[
         {
           id: 'emit',
@@ -34,7 +34,7 @@ export default function GuideNfse() {
                   o cadastro.
                 </GuideTerm>
                 <GuideTerm term="Competência">
-                  O mês a que o serviço se refere — nem sempre o mês em que você emite.
+                  O mês a que o serviço se refere; nem sempre o mês em que você emite.
                 </GuideTerm>
               </GuideTerms>
               <p>
@@ -55,6 +55,11 @@ export default function GuideNfse() {
           },
           body: (
             <>
+              <p>
+                No detalhe, o id da DPS (e a chave, quando a nota é autorizada) aparece sob o número.
+                Passe o mouse sobre ele para ver o ícone de copiar; o clique copia o valor sem
+                formatação. O mesmo vale para a chave de acesso de NF-e, NFC-e e MDF-e.
+              </p>
               <p>
                 O ciclo é o mesmo dos demais: <b>Processando</b> enquanto o pedido está em voo,
                 depois <b>Autorizada</b> ou <b>Rejeitada</b>. Autorizada, a nota tem XML e DANFSE

@@ -69,7 +69,7 @@ export function TransportUnitsFields({units, onChange, documentKeys}: TransportU
         </p>
       ) : (
         <p className="text-xs text-gray-500">
-          O rateio da carga entre os documentos é calculado a partir dos pesos — nada de percentual aqui.
+          O rateio da carga entre os documentos é calculado a partir dos pesos; nada de percentual aqui.
         </p>
       )}
 

@@ -7,7 +7,7 @@ export default function GuideNavegacao() {
     <GuidePage
       currentHref="/guide/navigation"
       title="Como circular pelo sistema"
-      description="A navegação segue o documento que você está emitindo. O que serve a todos fica sempre à vista; o que só existe por causa de um tipo de documento mora dentro dele — e a busca global alcança qualquer tela em duas teclas."
+      description="A navegação segue o documento que você está emitindo. O que serve a todos fica sempre à vista; o que só existe por causa de um tipo de documento mora dentro dele; e a busca global alcança qualquer tela em duas teclas."
       sections={[
         {
           id: 'sidebar',
@@ -47,7 +47,7 @@ export default function GuideNavegacao() {
                 </GuideTerm>
               </GuideTerms>
               <GuideCallout kind="tip" title="A cor diz onde você está">
-                Cada documento tem seu acento — verde na NF-e, azul na NFC-e, violeta no CT-e, âmbar
+                Cada documento tem seu acento; verde na NF-e, azul na NFC-e, violeta no CT-e, âmbar
                 no MDF-e e teal na NFS-e. O acento acompanha os cadastros do contexto: a tela de
                 <b> Serviços</b> é teal porque pertence à NFS-e.
               </GuideCallout>
@@ -67,7 +67,7 @@ export default function GuideNavegacao() {
             <>
               <p>
                 Clique em <b>Buscar…</b> na barra superior, ou pressione <b>⌘K</b> (<b>Ctrl+K</b> no
-                Windows e Linux) — a barra <b>/</b> também abre. A busca tolera erro de digitação e
+                Windows e Linux); a barra <b>/</b> também abre. A busca tolera erro de digitação e
                 procura muito além do rótulo da tela.
               </p>
               <GuideBullets>
@@ -77,7 +77,7 @@ export default function GuideNavegacao() {
                 <li>Setas ↑ ↓ percorrem, <b>Enter</b> navega, <b>Esc</b> fecha.</li>
               </GuideBullets>
               <GuideCallout kind="info" title="A busca vê o que você pode ver">
-                Páginas restritas a proprietário e administrador — usuários e assinatura — não
+                Páginas restritas a proprietário e administrador, usuários e assinatura, não
                 aparecem para os demais papéis, igual à barra lateral.
               </GuideCallout>
             </>
@@ -102,7 +102,7 @@ export default function GuideNavegacao() {
                 compartilhados.
               </p>
               <GuideBullets>
-                <li><b>Emitir</b> emite o tipo do contexto em que você está — na NFS-e, abre a emissão de NFS-e.</li>
+                <li><b>Emitir</b> emite o tipo do contexto em que você está; na NFS-e, abre a emissão de NFS-e.</li>
                 <li>As barras de ação das telas de emissão ficam acima da navegação, nunca escondidas por ela.</li>
               </GuideBullets>
             </>
@@ -122,7 +122,7 @@ export default function GuideNavegacao() {
                 <GuideTerm term="Esc">Fecha diálogo, busca ou painel aberto.</GuideTerm>
               </GuideTerms>
               <p>
-                Os atalhos de uma tecla só disparam fora de campos de texto — digitar
+                Os atalhos de uma tecla só disparam fora de campos de texto; digitar
                 <b> n</b> numa descrição de produto não abre emissão nenhuma.
               </p>
             </>

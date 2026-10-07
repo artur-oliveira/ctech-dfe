@@ -18,7 +18,7 @@ function NfceEmitContent() {
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Emitir NFC-e</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Escaneie os itens, receba o pagamento e emita — o CPF é opcional
+            Escaneie os itens, receba o pagamento e emita; o CPF é opcional
           </p>
         </div>
         

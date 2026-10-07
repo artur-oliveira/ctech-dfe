@@ -83,7 +83,7 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
             <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-600">
               {selected.plan === PLAN_ONDEMAND || selected.monthlyCents === 0
                 ? 'A partir da mudança você passa a ser cobrado pelo novo plano. O que já foi pago deste ciclo vira crédito na próxima fatura.'
-                : `A mensalidade passa a ser ${formatCents(selected.monthlyCents)}. Nesta fatura entra apenas a diferença proporcional aos dias que faltam do ciclo atual — o valor exato aparece na tela de pagamento, antes de qualquer cobrança.`}
+                : `A mensalidade passa a ser ${formatCents(selected.monthlyCents)}. Nesta fatura entra apenas a diferença proporcional aos dias que faltam do ciclo atual; o valor exato aparece na tela de pagamento, antes de qualquer cobrança.`}
             </p>
           )}
 

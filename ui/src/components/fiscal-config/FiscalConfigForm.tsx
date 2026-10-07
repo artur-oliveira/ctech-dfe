@@ -455,7 +455,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
           </p>
           <p className="text-xs text-gray-500">
             Algumas UFs exigem o CSRT. O código é secreto: ele nunca é devolvido pela API, então este
-            campo volta em branco a cada abertura — deixá-lo vazio mantém o que já está gravado.
+            campo volta em branco a cada abertura; deixá-lo vazio mantém o que já está gravado.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField

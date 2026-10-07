@@ -115,7 +115,7 @@ export function CargoUnitForm({initialData, onSubmit, loading}: CargoUnitFormPro
                      )}
           />
           <p className="sm:col-span-2 text-xs text-gray-500">
-            O rateio da carga entre os documentos é calculado na emissão a partir dos pesos — não se
+            O rateio da carga entre os documentos é calculado na emissão a partir dos pesos; não se
             informa percentual aqui.
           </p>
         </div>

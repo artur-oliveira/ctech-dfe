@@ -58,7 +58,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     title: 'Emitir NF-e',
     time: '7 min',
     description:
-      'Os quatro passos da emissão — destinatário, produtos, pagamento e revisão —, o rascunho automático e o que fazer com a nota depois de autorizada.',
+      'Os quatro passos da emissão (destinatário, produtos, pagamento e revisão), o rascunho automático e o que fazer com a nota depois de autorizada.',
     tags: ['Emissão', 'DANFE', 'Rascunho'],
     icon: <NfeIcon width={20} height={20}/>,
     accent: '#2ea87f',
@@ -77,7 +77,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
   {
     href: '/guide/cte-mdfe',
     label: 'CT-e e MDF-e',
-    title: 'Transporte — CT-e e MDF-e',
+    title: 'Transporte: CT-e e MDF-e',
     time: '6 min',
     description:
       'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e o que já dá para fazer com CT-e hoje.',
@@ -122,7 +122,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     title: 'Cadastros que a emissão usa',
     time: '6 min',
     description:
-      'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa — cada um preenche um pedaço da emissão.',
+      'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa; cada um preenche um pedaço da emissão.',
     tags: ['Produtos', 'Perfis fiscais', 'Operações'],
     icon: <BriefcaseIcon width={20} height={20}/>,
   },

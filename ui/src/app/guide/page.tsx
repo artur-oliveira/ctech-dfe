@@ -37,7 +37,7 @@ export default function GuideHome() {
             </h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-600">
               O onboarding pergunta só o necessário e já deixa a empresa apta a emitir em
-              homologação — o ambiente de teste, sem validade fiscal.
+              homologação; o ambiente de teste, sem validade fiscal.
             </p>
             <ol className="mt-5 space-y-2.5">
               {QUICKSTART.map(({step, detail}, i) => (

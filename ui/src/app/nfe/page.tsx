@@ -76,7 +76,7 @@ const ACCESS_KEY_FIELD_LABELS: Record<AccessKeyField, string> = {
   cUF: 'Código da UF (cUF) inválido',
   AAMM: 'Ano/mês de emissão inválido',
   doc: 'CNPJ/CPF do emitente inválido (dígito verificador incorreto)',
-  mod: 'Modelo do documento inválido (esperado 55 — NF-e)',
+  mod: 'Modelo do documento inválido (esperado 55: NF-e)',
   tpEmis: 'Tipo de emissão inválido',
   cDV: 'Dígito verificador da chave inválido',
 };
@@ -102,7 +102,7 @@ function distSchemaLabel(item: NFeDistributionOut): string {
   if (item.schema_type && DIST_SCHEMA_LABELS[item.schema_type]) {
     if (item.schema_type === 'resEvento' || item.schema_type === 'procEventoNFe') {
       const evtLabel = item.event_type ? (EVENT_TYPE_LABELS[item.event_type] ?? item.event_type) : '';
-      return evtLabel ? `${DIST_SCHEMA_LABELS[item.schema_type]} — ${evtLabel}` : DIST_SCHEMA_LABELS[item.schema_type];
+      return evtLabel ? `${DIST_SCHEMA_LABELS[item.schema_type]}: ${evtLabel}` : DIST_SCHEMA_LABELS[item.schema_type];
     }
     return DIST_SCHEMA_LABELS[item.schema_type];
   }
@@ -136,10 +136,10 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
       </td>
       <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="NF-e">
         {composition ? composition.number + ' / ' + composition.serie :
-          <span className="text-gray-300">—</span>}
+          <span className="text-gray-300">-</span>}
       </td>
       <td className={`${TABLE_CELL} font-mono text-xs text-gray-400`} data-label="Chave">
-        {composition?.formatted ?? <span className="text-gray-300">—</span>}
+        {composition?.formatted ?? <span className="text-gray-300">-</span>}
       </td>
       <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">
         {formatDatetimeBR(item.created_at)}
@@ -228,7 +228,7 @@ function NfeDistributionTab({orgPk}: { orgPk: string }) {
             SEFAZ</p>
           {config && (
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
-              <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '—'}</span>
+              <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '-'}</span>
               {lastAt && <span>Última consulta: {formatDatetimeBR(lastAt)}</span>}
               {nextAt && <span>Próxima estimada: {formatDatetimeBR(nextAt.toISOString())}</span>}
             </div>

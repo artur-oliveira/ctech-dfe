@@ -7,7 +7,7 @@ export default function GuideCteMdfe() {
   return (
     <GuidePage
       currentHref="/guide/cte-mdfe"
-      title="Transporte — CT-e e MDF-e"
+      title="Transporte: CT-e e MDF-e"
       description="O MDF-e é o manifesto da viagem: amarra veículo, condutor e as notas que estão na carga. O CT-e, por enquanto, entra pelo lado do recebimento."
       sections={[
         {
@@ -22,7 +22,7 @@ export default function GuideCteMdfe() {
           body: (
             <p>
               Um MDF-e passa por <b>Autorizado</b> quando a viagem começa e por <b>Encerrado</b>{' '}
-              quando termina. Manifesto autorizado e não encerrado é pendência com a SEFAZ — encerrar
+              quando termina. Manifesto autorizado e não encerrado é pendência com a SEFAZ; encerrar
               faz parte da operação, não é opcional.
             </p>
           ),
@@ -53,7 +53,7 @@ export default function GuideCteMdfe() {
                   UF de início e fim e as UFs de percurso, além dos municípios de carregamento.
                 </GuideTerm>
                 <GuideTerm term="5. Veículo">
-                  Tração, reboques, condutor e RNTRC — vindos do cadastro de veículos e composições.
+                  Tração, reboques, condutor e RNTRC; vindos do cadastro de veículos e composições.
                 </GuideTerm>
               </GuideTerms>
               <GuideCallout kind="tip" title="Composição veicular economiza o passo 5">
@@ -68,7 +68,7 @@ export default function GuideCteMdfe() {
           id: 'mdfe-detail',
           title: 'Durante e depois da viagem',
           summary:
-            'O manifesto autorizado ainda aceita mudanças — condutor novo, nota que entrou depois — e precisa ser encerrado no destino.',
+            'O manifesto autorizado ainda aceita mudanças (condutor novo, nota que entrou depois) e precisa ser encerrado no destino.',
           image: {
             src: '/guide/mdfe-detail.webp',
             alt: 'Detalhe de um MDF-e autorizado, com documentos vinculados, trajeto, veículo e condutor',
@@ -76,13 +76,13 @@ export default function GuideCteMdfe() {
           body: (
             <>
               <GuideBullets>
-                <li><b>Incluir condutor</b> — troca de motorista no meio do trajeto.</li>
-                <li><b>Incluir DF-e</b> — nota que entrou na carga depois da autorização.</li>
-                <li><b>Encerrar</b> — informa que a viagem terminou, com município e data.</li>
-                <li><b>Cancelar</b> — a viagem não aconteceu, e o manifesto ainda não foi encerrado.</li>
+                <li><b>Incluir condutor</b>: troca de motorista no meio do trajeto.</li>
+                <li><b>Incluir DF-e</b>: nota que entrou na carga depois da autorização.</li>
+                <li><b>Encerrar</b>: informa que a viagem terminou, com município e data.</li>
+                <li><b>Cancelar</b>: a viagem não aconteceu, e o manifesto ainda não foi encerrado.</li>
               </GuideBullets>
               <p>
-                Todos são eventos e ficam registrados na linha do tempo do documento —{' '}
+                Todos são eventos e ficam registrados na linha do tempo do documento;{' '}
                 <Link href="/guide/events" className="font-medium text-primary-700 underline underline-offset-2">
                   ver eventos
                 </Link>.

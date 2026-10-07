@@ -7,14 +7,14 @@ import {absoluteUrl} from '@/lib/seo/site';
 // `lib/constants/guide.tsx`.
 export const metadata: Metadata = {
   title: 'Cadastros que a emissão usa',
-  description: 'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa — cada um preenche um pedaço da emissão.',
+  description: 'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa; cada um preenche um pedaço da emissão.',
   alternates: {canonical: absoluteUrl('/guide/registries')},
 };
 
 const LD = guideTopicLd({
   href: '/guide/registries',
   title: 'Cadastros que a emissão usa',
-  description: 'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa — cada um preenche um pedaço da emissão.',
+  description: 'Pessoas e produtos no bloco global; serviços, perfis fiscais, naturezas de operação e veículos dentro do documento que os usa; cada um preenche um pedaço da emissão.',
 });
 
 export default function Layout({children}: {children: ReactNode}) {

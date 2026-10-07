@@ -225,7 +225,7 @@ export function NicheGroupsFields({
       <div className="space-y-2 pt-3 border-t border-gray-100">
         <Label className="text-sm font-medium text-gray-700">Agropecuário (agropecuario)</Label>
         <p className="text-xs text-gray-500">
-          Receituário de defensivo e guia de trânsito são alternativos no leiaute — escolha um.
+          Receituário de defensivo e guia de trânsito são alternativos no leiaute; escolha um.
         </p>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
           {AGRO_MODE_OPTIONS.map((opt) => (
@@ -243,7 +243,7 @@ export function NicheGroupsFields({
           <div className="space-y-2">
             {!technicalManagerCpf && (
               <p className="text-xs text-amber-700">
-                Cadastre o CPF do responsável técnico agronômico na organização — o leiaute exige um por receituário.
+                Cadastre o CPF do responsável técnico agronômico na organização; o leiaute exige um por receituário.
               </p>
             )}
             <div className="flex items-center justify-between">

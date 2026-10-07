@@ -152,7 +152,7 @@ function PersonsContent() {
                       ))}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-500">—</span>
+                    <span className="text-xs text-gray-500">-</span>
                   )}
                 </td>
                 <td data-label="Documento" className={`${TABLE_CELL} font-mono text-xs text-gray-600`}>{formatCpfCnpj(p.sk)}</td>

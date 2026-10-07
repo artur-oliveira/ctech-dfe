@@ -1,5 +1,11 @@
 # py-dfe — Brazilian DFe Full-Stack Roadmap
 
+> **Stale as of this audit (2026-09):** the "Gap summary" and Phase 1-3 statuses below no longer match the code.
+> NFC-e, CT-e, MDF-e and NFS-e all have API routes (`api/internal/api/v1/{ctes,mdfes,nfses}.go` + `openapi/*.yaml`),
+> worker Lambdas (`cdk/lib/worker-definitions.ts`), and UI pages (`ui/src/app/{cte,mdfe,nfce,nfse}`) already shipped.
+> Treat the milestone table as historical; check `docs/plans/` and `docs/specs/` for the actual current backlog
+> before planning new document-type work.
+
 ## Context
 
 The platform currently has **production-grade NF-e support** across all stacks. The SEFAZ communication layer (`py-dfe`

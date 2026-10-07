@@ -690,7 +690,7 @@ export const nfeDetailFixture = {
     },
   ],
   payments: [{payment_type: '03', value: '3679.70'}],
-  additional_info: 'Documento emitido em ambiente de homologação — sem valor fiscal.',
+  additional_info: 'Documento emitido em ambiente de homologação; sem valor fiscal.',
   xml_s3_key: `xml/${ORG_PK}/nfe/1001.xml`,
   sefaz_protocol: '135260000123456',
 };
@@ -853,7 +853,7 @@ export const taxProfilesFixture = [
   {
     pk: `${ORG_PK}#tax-profile#1`,
     sk: 'TAXPROFILE#1',
-    name: 'Venda dentro do estado — Simples Nacional',
+    name: 'Venda dentro do estado; Simples Nacional',
     description: 'CSOSN 102, sem crédito de ICMS',
     cfops: ['5102'],
     created_at: '2026-01-10T09:00:00Z',
@@ -862,7 +862,7 @@ export const taxProfilesFixture = [
   {
     pk: `${ORG_PK}#tax-profile#2`,
     sk: 'TAXPROFILE#2',
-    name: 'Venda interestadual — consumidor final',
+    name: 'Venda interestadual; consumidor final',
     description: 'Partilha DIFAL destino',
     cfops: ['6108'],
     created_at: '2026-01-12T09:00:00Z',
@@ -961,7 +961,7 @@ export const paymentTermsFixture = [
   {
     pk: `${ORG_PK}#payment-term#1`,
     sk: 'PAYMENTTERM#1',
-    name: 'À vista — Pix',
+    name: 'À vista; Pix',
     payment_type: '17',
     ind_pag: '0',
     installments: 1,
@@ -973,7 +973,7 @@ export const paymentTermsFixture = [
   {
     pk: `${ORG_PK}#payment-term#2`,
     sk: 'PAYMENTTERM#2',
-    name: '3x sem juros — cartão',
+    name: '3x sem juros; cartão',
     payment_type: '03',
     ind_pag: '1',
     installments: 3,
@@ -988,7 +988,7 @@ export const vehicleSetsFixture = [
   {
     pk: `${ORG_PK}#vehicle-set#1`,
     sk: 'VEHICLESET#1',
-    name: 'Cavalo + carreta — rota Sudeste',
+    name: 'Cavalo + carreta; rota Sudeste',
     tractor_sk: 'VEHICLE#1',
     trailer_sks: ['VEHICLE#2'],
     driver_docs: ['12345678909'],
@@ -1096,7 +1096,7 @@ export const fuelPumpsFixture = [
   {
     pk: `${ORG_PK}#fuel-pump#1`,
     sk: 'FUELPUMP#1',
-    name: 'Bico 1 — gasolina comum',
+    name: 'Bico 1; gasolina comum',
     n_bico: '1',
     n_bomba: '1',
     n_tanque: '1',
@@ -1107,7 +1107,7 @@ export const fuelPumpsFixture = [
   {
     pk: `${ORG_PK}#fuel-pump#2`,
     sk: 'FUELPUMP#2',
-    name: 'Bico 4 — etanol',
+    name: 'Bico 4; etanol',
     n_bico: '4',
     n_bomba: '2',
     n_tanque: '3',
@@ -1121,7 +1121,7 @@ export const cargoUnitsFixture = [
   {
     pk: `${ORG_PK}#cargo-unit#1`,
     sk: 'CARGOUNIT#1',
-    name: 'Contêiner 20 pés — exportação',
+    name: 'Contêiner 20 pés; exportação',
     kind: 'cargo' as const,
     tp_unid: '1',
     id_unid: 'MSKU1234567',
@@ -1132,7 +1132,7 @@ export const cargoUnitsFixture = [
   {
     pk: `${ORG_PK}#cargo-unit#2`,
     sk: 'CARGOUNIT#2',
-    name: 'Carreta baú — rota Sudeste',
+    name: 'Carreta baú; rota Sudeste',
     kind: 'transport' as const,
     tp_unid: '2',
     id_unid: 'DEF4G56',
@@ -1160,7 +1160,7 @@ export const insurancePoliciesFixture = [
   {
     pk: `${ORG_PK}#insurance-policy#1`,
     sk: 'INSURANCEPOLICY#1',
-    name: 'RCTR-C — carga geral',
+    name: 'RCTR-C; carga geral',
     resp_seg: '1',
     cnpj: '11222333000181',
     cpf: null,
@@ -1176,7 +1176,7 @@ export const productLotsFixture = [
   {
     pk: `${ORG_PK}#product-lot#1`,
     sk: 'PRODUCTLOT#1',
-    name: 'Lote 2026-A — Notebook 15 polegadas',
+    name: 'Lote 2026-A; Notebook 15 polegadas',
     product_id: '1',
     n_lote: '2026A',
     q_lote: '250.0000',
@@ -1192,7 +1192,7 @@ export const importDeclarationsFixture = [
   {
     pk: `${ORG_PK}#import-declaration#1`,
     sk: 'IMPORTDECLARATION#1',
-    name: 'DI 26/0004512-0 — Santos',
+    name: 'DI 26/0004512-0; Santos',
     n_di: '2600045120',
     d_di: '2026-04-02',
     x_loc_desemb: 'Porto de Santos',

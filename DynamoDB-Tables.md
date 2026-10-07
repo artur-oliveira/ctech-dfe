@@ -1,7 +1,7 @@
 # py-dfe — DynamoDB Tables Reference
 
 All table names are prefixed by environment: `dev_`, `staging_`, `prod_`.  
-Billing: on-demand (max 5 RCU/WCU per table, 10 RCU/WCU per GSI).  
+Billing: on-demand, capped at max 1000 RCU/WCU per table and per GSI (`cdk/lib/dynamodb-stack.ts`, `Billing.onDemand({maxReadRequestUnits: 1000, maxWriteRequestUnits: 1000})` — uniform across every table).  
 Encryption: AWS Managed Keys.  
 PITR: enabled in production only.
 
@@ -403,9 +403,9 @@ resource" without needing a GSI.
 
 ## 25. `organization_users`
 
-**Source of truth for user↔organization membership.** Read on every authorized request (RBAC), so its read-capacity cap
-is set high (500 RCU) unlike the 5-RCU default of other tables. Replaces the legacy embedded `users.organizations` list,
-which no longer carries authorization.
+**Source of truth for user↔organization membership.** Read on every authorized request (RBAC). All tables now share the
+same on-demand cap (max 1000 RCU/WCU) — this table has no special-cased capacity anymore. Replaces the legacy embedded
+`users.organizations` list, which no longer carries authorization.
 
 | Attribute     | Type | Notes                                                                                                                                              |
 |---------------|------|----------------------------------------------------------------------------------------------------------------------------------------------------|

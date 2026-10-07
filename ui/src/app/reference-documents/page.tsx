@@ -24,11 +24,11 @@ import type {ReferenceDocumentItemOut} from '@/lib/types/api';
 
 /** Rótulo da família documental; o código cru nunca vai para a tela. */
 function kindLabel(kind: unknown): string {
-  return REFERENCE_DOCUMENT_KINDS.find((k) => k.value === kind)?.label ?? '—';
+  return REFERENCE_DOCUMENT_KINDS.find((k) => k.value === kind)?.label ?? '-';
 }
 
 function date(v: unknown): string {
-  return typeof v === 'string' && v ? formatISODateBR(v) : '—';
+  return typeof v === 'string' && v ? formatISODateBR(v) : '-';
 }
 
 function ReferenceDocumentsContent() {

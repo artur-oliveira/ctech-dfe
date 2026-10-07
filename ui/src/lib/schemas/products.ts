@@ -540,7 +540,7 @@ export const productSchema = productSchemaBase.superRefine((data, ctx) => {
       ctx.addIssue({
         code: 'custom',
         path: ['comb_orig'],
-        message: `Os percentuais de origem somam ${total.toFixed(2)}% — têm que somar 100%`,
+        message: `Os percentuais de origem somam ${total.toFixed(2)}%; têm que somar 100%`,
       });
     }
   }

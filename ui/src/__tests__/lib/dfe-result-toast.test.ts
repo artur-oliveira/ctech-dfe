@@ -12,7 +12,7 @@ describe('resolveDfeResultToast — document results', () => {
   it('maps rejected to an error toast with the motive', () => {
     expect(resolveDfeResultToast({table_name: 'nfes', status: 'rejected', sefaz_motive: 'Duplicidade'})).toEqual({
       variant: 'error',
-      message: 'NF-e rejeitada pela SEFAZ — Duplicidade',
+      message: 'NF-e rejeitada pela SEFAZ; Duplicidade',
     });
   });
 
@@ -28,13 +28,13 @@ describe('resolveDfeResultToast — document results', () => {
   it('trata retryable_failed como aviso, não como erro', () => {
     const r = resolveDfeResultToast({table_name: 'nfes', status: 'retryable_failed', sefaz_motive: 'timeout SEFAZ'});
     expect(r.variant).toBe('info');
-    expect(r.message).toBe('NF-e não pôde ser enviada agora — tentando novamente — timeout SEFAZ');
+    expect(r.message).toBe('NF-e não pôde ser enviada agora; tentando novamente; timeout SEFAZ');
   });
 
   it('rotula o status no fallback em vez de vazar o valor cru', () => {
     expect(resolveDfeResultToast({table_name: 'mdfes', status: 'processing'})).toEqual({
       variant: 'info',
-      message: 'MDF-e atualizado — status: Processando',
+      message: 'MDF-e atualizado; status: Processando',
     });
   });
 });
@@ -51,7 +51,7 @@ describe('resolveDfeResultToast — event results', () => {
       sefaz_motive: 'Failed to sign XML: Unable to resolve reference URI: #',
     });
     expect(result.variant).toBe('error');
-    expect(result.message).toBe('Falha ao cancelar MDF-e — Failed to sign XML: Unable to resolve reference URI: #');
+    expect(result.message).toBe('Falha ao cancelar MDF-e; Failed to sign XML: Unable to resolve reference URI: #');
   });
 
   it('does not show "autorizada" even when an authorized status leaks into an event', () => {
@@ -77,7 +77,7 @@ describe('resolveDfeResultToast — event results', () => {
       result_kind: 'event', table_name: 'mdfes', event_type: '110112', status: 'retryable_failed',
     });
     expect(r.variant).toBe('info');
-    expect(r.message).toBe('Encerramento de MDF-e não concluído — tentando novamente');
+    expect(r.message).toBe('Encerramento de MDF-e não concluído; tentando novamente');
   });
 
   it('reports a rejected cancellation with the motive', () => {
@@ -89,7 +89,7 @@ describe('resolveDfeResultToast — event results', () => {
         status: 'rejected',
         sefaz_motive: 'Prazo excedido',
       }),
-    ).toEqual({variant: 'error', message: 'Cancelamento de NF-e rejeitado pela SEFAZ — Prazo excedido'});
+    ).toEqual({variant: 'error', message: 'Cancelamento de NF-e rejeitado pela SEFAZ; Prazo excedido'});
   });
 
   it('uses encerramento wording for MDF-e event 110112', () => {
@@ -123,7 +123,7 @@ describe('resolveDfeResultToast — event results', () => {
       }),
     ).toEqual({
       variant: 'error',
-      message: 'Inutilização de numeração de NF-e rejeitada pela SEFAZ — Ja existe NF-e autorizada para a faixa informada',
+      message: 'Inutilização de numeração de NF-e rejeitada pela SEFAZ; Ja existe NF-e autorizada para a faixa informada',
     });
   });
 
@@ -141,6 +141,6 @@ describe('resolveDfeResultToast — event results', () => {
         event_type: 'INUT',
         status: 'retryable_failed',
       }),
-    ).toEqual({variant: 'info', message: 'Inutilização de numeração não concluída — tentando novamente'});
+    ).toEqual({variant: 'info', message: 'Inutilização de numeração não concluída; tentando novamente'});
   });
 });

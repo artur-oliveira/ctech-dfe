@@ -14,7 +14,7 @@ export default function GuideDistribuicoes() {
           id: 'nsu',
           title: 'Como a SEFAZ entrega',
           summary:
-            'Você não recebe notificação — você pergunta. A cada consulta o sistema pede o que veio depois do último NSU processado.',
+            'Você não recebe notificação; você pergunta. A cada consulta o sistema pede o que veio depois do último NSU processado.',
           image: {
             src: '/guide/nfe-distribution.webp',
             alt: 'Aba de importação e distribuição de NF-e, com último NSU consultado e os documentos recebidos',
@@ -27,9 +27,9 @@ export default function GuideDistribuicoes() {
                 <b>Consultar SEFAZ</b> antecipa quando você está esperando um documento específico.
               </p>
               <GuideBullets>
-                <li><b>Resumo NF-e</b> — os dados básicos da nota, sem o XML completo.</li>
-                <li><b>Evento</b> — cancelamento, CC-e ou manifestação de um documento seu.</li>
-                <li><b>NF-e completa</b> — o XML inteiro, disponível depois da manifestação.</li>
+                <li><b>Resumo NF-e</b>; os dados básicos da nota, sem o XML completo.</li>
+                <li><b>Evento</b>; cancelamento, CC-e ou manifestação de um documento seu.</li>
+                <li><b>NF-e completa</b>; o XML inteiro, disponível depois da manifestação.</li>
               </GuideBullets>
               <GuideCallout kind="info" title="Limite da SEFAZ">
                 A SEFAZ limita quantas consultas você pode fazer por intervalo. Por isso o sistema
@@ -47,11 +47,11 @@ export default function GuideDistribuicoes() {
             <>
               <GuideBullets>
                 <li>
-                  <b>Importar NF-e</b> — você informa a chave de acesso de 44 dígitos e o sistema
+                  <b>Importar NF-e</b>; você informa a chave de acesso de 44 dígitos e o sistema
                   busca o documento na SEFAZ.
                 </li>
                 <li>
-                  <b>Importar XML</b> — o fornecedor mandou o arquivo por e-mail e você o sobe
+                  <b>Importar XML</b>; o fornecedor mandou o arquivo por e-mail e você o sobe
                   direto, sem depender do lote.
                 </li>
               </GuideBullets>
@@ -73,7 +73,7 @@ export default function GuideDistribuicoes() {
           },
           body: (
             <p>
-              Abra o documento e escolha a manifestação — Ciência, Confirmação, Desconhecimento ou
+              Abra o documento e escolha a manifestação; Ciência, Confirmação, Desconhecimento ou
               Operação não realizada. Cada uma tem um significado fiscal próprio;{' '}
               <Link href="/guide/events#manifestation" className="font-medium text-primary-700 underline underline-offset-2">
                 o tópico de eventos explica quando usar cada uma
@@ -92,7 +92,7 @@ export default function GuideDistribuicoes() {
           },
           body: (
             <p>
-              CT-e emitidos contra você — como tomador do frete — chegam pela mesma mecânica, e é por
+              CT-e emitidos contra você, como tomador do frete, chegam pela mesma mecânica, e é por
               aí que hoje se acompanha CT-e no sistema. A NFS-e tem distribuição própria no ambiente
               nacional. Como cada tipo mantém o seu NSU, consultar um não afeta os demais.
             </p>

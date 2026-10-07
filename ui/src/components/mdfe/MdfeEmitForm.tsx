@@ -367,7 +367,7 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, 
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
         <p className="text-xs text-gray-400">Produto predominante</p>
-        <p className="text-sm font-medium text-gray-900">{preview.predominant.x_prod || '—'}</p>
+        <p className="text-sm font-medium text-gray-900">{preview.predominant.x_prod || '-'}</p>
         {preview.predominant.ncm && <p className="text-xs text-gray-400 font-mono">NCM {preview.predominant.ncm}</p>}
       </div>
 
@@ -394,7 +394,7 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, 
             ) : (
               <div className="flex flex-col gap-1">
                 <Label className="text-xs font-medium text-amber-700">
-                  Documento sem peso — informe o peso da carga (kg)
+                  Documento sem peso; informe o peso da carga (kg)
                 </Label>
                 <NumericInput value={weightOverrides[d.access_key] || ''}
                               onChange={(v) => onWeightChange(d.access_key, v)}
@@ -783,7 +783,7 @@ export function MdfeEmitForm() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Estados do percurso</p>
               <p className="text-xs text-gray-500">
-                {ufIni} e {ufFim} não fazem fronteira — informe os estados intermediários (sugerimos abaixo).
+                {ufIni} e {ufFim} não fazem fronteira; informe os estados intermediários (sugerimos abaixo).
               </p>
               {route.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -1051,12 +1051,12 @@ export function MdfeEmitForm() {
           {
             label: MODAL_STEP_LABEL[modal],
             value: modal === 'rodoviario'
-              ? (tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '—')
+              ? (tractorsData?.items.find((x) => x.sk === vehicleSk)?.plate ?? '-')
               : modal === 'aereo' ? `${air.flight_number} · ${air.origin_airport} → ${air.dest_airport}`
                 : modal === 'aquaviario' ? `${water.vessel_name} · ${water.origin_port} → ${water.dest_port}`
                   : `${rail.train_prefix} · ${rail.wagons.length} vagão(ões)`,
           },
-          {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '—'},
+          {label: 'Trajeto', value: ufIni && ufFim ? `${ufIni} → ${ufFim}` : '-'},
         ]}
       />
 

@@ -65,7 +65,7 @@ function CertificateStepContent() {
     <OnboardingShell
       current={STEP_CERTIFICATE}
       title="Envie o certificado A1"
-      description="É o certificado que assina cada documento. Sem ele a SEFAZ recusa a emissão — o resto da configuração funciona, a emissão não."
+      description="É o certificado que assina cada documento. Sem ele a SEFAZ recusa a emissão; o resto da configuração funciona, a emissão não."
       action={
         // The escape is honest rather than hidden: setup is resumable, and
         // somebody whose contador holds the file should be able to keep going

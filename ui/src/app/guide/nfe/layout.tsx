@@ -7,14 +7,14 @@ import {absoluteUrl} from '@/lib/seo/site';
 // `lib/constants/guide.tsx`.
 export const metadata: Metadata = {
   title: 'Emitir NF-e',
-  description: 'Os quatro passos da emissão — destinatário, produtos, pagamento e revisão —, o rascunho automático e o que fazer com a nota depois de autorizada.',
+  description: 'Os quatro passos da emissão: destinatário, produtos, pagamento e revisão; o rascunho automático e o que fazer com a nota depois de autorizada.',
   alternates: {canonical: absoluteUrl('/guide/nfe')},
 };
 
 const LD = guideTopicLd({
   href: '/guide/nfe',
   title: 'Emitir NF-e',
-  description: 'Os quatro passos da emissão — destinatário, produtos, pagamento e revisão —, o rascunho automático e o que fazer com a nota depois de autorizada.',
+  description: 'Os quatro passos da emissão: destinatário, produtos, pagamento e revisão; o rascunho automático e o que fazer com a nota depois de autorizada.',
 });
 
 export default function Layout({children}: {children: ReactNode}) {

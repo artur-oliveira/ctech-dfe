@@ -75,7 +75,7 @@ export function CnpjLookupBadge({state}: CnpjLookupBadgeProps) {
   if (state.status === 'no_certificate') {
     return (
       <p role="alert" className="mt-2 text-xs text-red-700">
-        Organização sem certificado digital — consulta SEFAZ indisponível.
+        Organização sem certificado digital; consulta SEFAZ indisponível.
       </p>
     );
   }

@@ -155,7 +155,7 @@ function DocumentsStepContent() {
     <OnboardingShell
       current={STEP_DOCUMENTS}
       title={`Numeração da ${METER_LABELS[current!]}`}
-      description="Se você já emite hoje, informe a série e o último número emitido — o próximo documento sai a partir dele. Se está começando agora, deixe zero."
+      description="Se você já emite hoje, informe a série e o último número emitido; o próximo documento sai a partir dele. Se está começando agora, deixe zero."
       action={
         queue.length > 1 ? (
           <span className="text-sm text-gray-500 tabular-nums">{position}</span>

@@ -111,7 +111,7 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
                          <FormItem>
                            <FormLabel>Nome *</FormLabel>
                            <Input {...field} id={field.name} maxLength={120} className="w-full"
-                                  placeholder="Venda de mercadoria — Simples Nacional"/>
+                                  placeholder="Venda de mercadoria; Simples Nacional"/>
                            <FormMessage/>
                          </FormItem>
                        )}
@@ -131,7 +131,7 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
           <div className="space-y-2">
             <FormLabel>CFOPs cobertos *</FormLabel>
             <p className="text-xs text-gray-500">
-              Escolha os CFOPs cobertos por este perfil — cada variante (interna/interestadual/exterior, ex.:
+              Escolha os CFOPs cobertos por este perfil; cada variante (interna/interestadual/exterior, ex.:
               5102/6102/7102) é uma opção própria. Se o tratamento é o mesmo nas três, adicione as três aqui;
               se difere por CFOP (ex.: um perfil só pro 5102, outro só pro 6102), crie perfis separados. Quando o
               tratamento difere só pela UF de destino dentro do mesmo CFOP, use os overrides por UF abaixo.
@@ -164,7 +164,7 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
               simples ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
             }`}>
-              {simples ? 'Simples Nacional — CSOSN' : 'Regime Normal — ICMS CST'}
+              {simples ? 'Simples Nacional; CSOSN' : 'Regime Normal; ICMS CST'}
             </span>
           </div>
 

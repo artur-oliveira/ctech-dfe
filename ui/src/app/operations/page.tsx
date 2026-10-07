@@ -78,10 +78,10 @@ function OperationsContent() {
               <tr key={p.sk} className={TABLE_ROW}>
                 <td data-label="Nome" className={`${TABLE_CELL} font-medium text-gray-900`}>{p.name}</td>
                 <td data-label="Natureza fiscal" className={`${TABLE_CELL} font-mono text-xs text-gray-600`}>
-                  {p.cfop_suffix ? `x${p.cfop_suffix}` : '—'}
+                  {p.cfop_suffix ? `x${p.cfop_suffix}` : '-'}
                 </td>
                 <td data-label="Documentos" className={`${TABLE_CELL} text-gray-600`}>
-                  {(p.doc_types ?? []).join(', ').toUpperCase() || '—'}
+                  {(p.doc_types ?? []).join(', ').toUpperCase() || '-'}
                 </td>
                 <td data-label="Padrão" className={TABLE_CELL}>
                   {p.is_default ? (
@@ -89,7 +89,7 @@ function OperationsContent() {
                       Padrão
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-500">—</span>
+                    <span className="text-xs text-gray-500">-</span>
                   )}
                 </td>
                 <td className={`${TABLE_CELL} text-right`}>

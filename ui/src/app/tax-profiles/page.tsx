@@ -64,7 +64,7 @@ function TaxProfilesContent() {
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhum perfil fiscal"
-            description="Um perfil guarda a tributação de um conjunto de CFOPs e é reaproveitado por quantos produtos precisar — mudou a alíquota, muda em um lugar só."
+            description="Um perfil guarda a tributação de um conjunto de CFOPs e é reaproveitado por quantos produtos precisar; mudou a alíquota, muda em um lugar só."
             action={{label: 'Novo perfil', onClick: () => router.push('/tax-profiles/new')}}
             icon={<PercentIcon width={20} height={20}/>}
           />
@@ -87,7 +87,7 @@ function TaxProfilesContent() {
                     ))}
                   </span>
                 </td>
-                <td data-label="Descrição" className={`${TABLE_CELL} text-gray-600`}>{p.description ?? '—'}</td>
+                <td data-label="Descrição" className={`${TABLE_CELL} text-gray-600`}>{p.description ?? '-'}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
                     <Button variant="ghost" size="xs"

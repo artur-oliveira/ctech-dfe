@@ -585,13 +585,13 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
             {nfseConfig?.serie && <span className="text-xs text-gray-500">Série {nfseConfig.serie}</span>}
           </div>
           <dl className="divide-y divide-gray-100 text-sm">
-            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tomador</dt><dd className="font-medium text-gray-900">{selectedCustomer ? `${selectedCustomer.name} · ${formatCpfCnpj(personTaxId(selectedCustomer))}` : '—'}</dd></div>
-            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Serviço</dt><dd className="font-medium text-gray-900 wrap-break-word">{selectedService?.description ?? values.service?.description ?? '—'}</dd></div>
-            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tributação nacional</dt><dd className="font-mono text-gray-900">{selectedService?.trib_nacional_code ?? '—'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tomador</dt><dd className="font-medium text-gray-900">{selectedCustomer ? `${selectedCustomer.name} · ${formatCpfCnpj(personTaxId(selectedCustomer))}` : '-'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Serviço</dt><dd className="font-medium text-gray-900 wrap-break-word">{selectedService?.description ?? values.service?.description ?? '-'}</dd></div>
+            <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Tributação nacional</dt><dd className="font-mono text-gray-900">{selectedService?.trib_nacional_code ?? '-'}</dd></div>
             <div className="grid grid-cols-2 gap-4 py-2 sm:grid-cols-4">
-              <div><dt className="text-gray-500">Valor</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue ? formatCurrency(serviceValue) : '—'}</dd></div>
-              <div><dt className="text-gray-500">Alíquota</dt><dd className="mt-0.5 font-medium text-gray-900">{taxRate ? `${taxRate}%` : '—'}</dd></div>
-              <div><dt className="text-gray-500">ISS calculado</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue && taxRate ? formatCurrency(issValue) : '—'}</dd></div>
+              <div><dt className="text-gray-500">Valor</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue ? formatCurrency(serviceValue) : '-'}</dd></div>
+              <div><dt className="text-gray-500">Alíquota</dt><dd className="mt-0.5 font-medium text-gray-900">{taxRate ? `${taxRate}%` : '-'}</dd></div>
+              <div><dt className="text-gray-500">ISS calculado</dt><dd className="mt-0.5 font-medium text-gray-900">{serviceValue && taxRate ? formatCurrency(issValue) : '-'}</dd></div>
               <div><dt className="text-gray-500">Competência</dt><dd className="mt-0.5 font-medium text-gray-900">{formatISODateBR(values.competence ?? '')}</dd></div>
             </div>
             <div className="grid gap-1 py-2 sm:grid-cols-[10rem_1fr]"><dt className="text-gray-500">Retenção</dt><dd className="font-medium text-gray-900">{retention}</dd></div>

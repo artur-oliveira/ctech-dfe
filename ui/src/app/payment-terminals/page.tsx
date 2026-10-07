@@ -24,7 +24,7 @@ import type {PaymentTerminalItemOut} from '@/lib/types/api';
 
 /** Rótulo da bandeira padrão; em branco quando o terminal não define uma. */
 function bandLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—';
+  if (typeof code !== 'string' || !code) return '-';
   return CARD_BAND_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 

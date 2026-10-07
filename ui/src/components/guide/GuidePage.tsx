@@ -29,7 +29,7 @@ export function GuideChrome({children}: { children: ReactNode }) {
       <footer className="border-t border-gray-200">
         <div
           className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 text-sm text-gray-500 md:flex-row md:items-center md:justify-between md:px-6">
-          <p>Guia do CTech DF-e — telas reais do sistema, com dados de demonstração.</p>
+          <p>Guia do CTech DF-e; telas reais do sistema, com dados de demonstração.</p>
           <Link href="/" className="font-medium text-gray-700 hover:text-gray-900">Voltar ao site</Link>
         </div>
       </footer>

@@ -452,7 +452,7 @@ export function TaxFieldsEditor({
               </TaxField>
             </div>
             <p className="text-xs text-gray-500">
-              A base e o valor do ICMS efetivo são calculados na emissão — informe só os percentuais.
+              A base e o valor do ICMS efetivo são calculados na emissão; informe só os percentuais.
             </p>
           </div>
         )}
@@ -555,7 +555,7 @@ export function TaxFieldsEditor({
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-pis-cofins-st`}
                    className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-              PIS/COFINS-ST — Substituição Tributária
+              PIS/COFINS-ST; Substituição Tributária
             </label>
           </div>
           {showPisCofinsSt && (
@@ -595,7 +595,7 @@ export function TaxFieldsEditor({
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ipi`}
                    className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-              IPI — Imposto sobre Produtos Industrializados
+              IPI; Imposto sobre Produtos Industrializados
             </label>
           </div>
           {showIpi && (
@@ -617,7 +617,7 @@ export function TaxFieldsEditor({
                               placeholder="0.0000"
                               onChange={(v) => onChange((r) => ({...r, ipi_v_unid: v}))}/>
                 <p className="text-xs text-gray-500">
-                  Bebidas e cigarros recolhem IPI por unidade. Preenchido, substitui a alíquota — os dois
+                  Bebidas e cigarros recolhem IPI por unidade. Preenchido, substitui a alíquota; os dois
                   modos são exclusivos no leiaute.
                 </p>
               </div>
@@ -638,7 +638,7 @@ export function TaxFieldsEditor({
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-is`}
                    className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-              IS — Imposto Seletivo (NT 2024.001)
+              IS; Imposto Seletivo (NT 2024.001)
             </label>
           </div>
           {showIs && (
@@ -688,7 +688,7 @@ export function TaxFieldsEditor({
                      className="size-4 rounded border-gray-300 text-brand-600"/>
               <label htmlFor={`${uid}-toggle-mono`}
                      className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-                ICMS Monofásico — Combustíveis (CST 02/15/53/61)
+                ICMS Monofásico; Combustíveis (CST 02/15/53/61)
               </label>
             </div>
             {(showIcmsMono || ICMS_MONO_CSTS.has(value.icms ?? '')) && (
@@ -752,7 +752,7 @@ export function TaxFieldsEditor({
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-issqn`}
                    className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-              ISSQN — Imposto Sobre Serviços (LC 116/2003)
+              ISSQN; Imposto Sobre Serviços (LC 116/2003)
             </label>
           </div>
           {showIssqn && (
@@ -867,7 +867,7 @@ export function TaxFieldsEditor({
                    className="size-4 rounded border-gray-300 text-brand-600"/>
             <label htmlFor={`${uid}-toggle-ibs-cbs`}
                    className="flex min-h-11 items-center text-sm font-medium text-gray-600 cursor-pointer select-none sm:min-h-0">
-              IBS / CBS — Reforma Tributária
+              IBS / CBS; Reforma Tributária
             </label>
           </div>
           {showIbsCbs && (
@@ -1016,11 +1016,11 @@ export function TaxFieldsEditor({
                 ['ibs_ad_rem_ret', 'cbs_ad_rem_ret', 'Já retido anteriormente'],
               ] as const).map(([ibsKey, cbsKey, label]) => (
                 <div key={label} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-                  <TaxField label={`${label} — IBS R$/un`}>
+                  <TaxField label={`${label}; IBS R$/un`}>
                     <NumericInput value={value[ibsKey] ?? ''} decimal decimalPlaces={4}
                                   onChange={(v) => onChange((r) => ({...r, [ibsKey]: v}))} placeholder="0.0000"/>
                   </TaxField>
-                  <TaxField label={`${label} — CBS R$/un`}>
+                  <TaxField label={`${label}; CBS R$/un`}>
                     <NumericInput value={value[cbsKey] ?? ''} decimal decimalPlaces={4}
                                   onChange={(v) => onChange((r) => ({...r, [cbsKey]: v}))} placeholder="0.0000"/>
                   </TaxField>
@@ -1058,7 +1058,7 @@ export function TaxFieldsEditor({
           {showIbsRef && (
             <div className="space-y-2">
               <p className="text-xs text-gray-500">
-                Quanto o item pagaria fora do regime ou benefício — é o que mede o incentivo. Os
+                Quanto o item pagaria fora do regime ou benefício; é o que mede o incentivo. Os
                 valores saem das alíquotas na emissão.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1159,7 +1159,7 @@ export function TaxFieldsEditor({
                 </TaxField>
               </div>
               <p className="text-xs text-gray-500">
-                O crédito da operação e o da ZFM são alternativos no leiaute — com os dois preenchidos,
+                O crédito da operação e o da ZFM são alternativos no leiaute; com os dois preenchidos,
                 o da operação é o emitido.
               </p>
             </div>

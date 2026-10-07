@@ -22,7 +22,7 @@ const FLOW_STEPS = [
   },
   {
     label: 'Autorizar',
-    body: 'Em segundos, o documento volta autorizado — pronto para imprimir, baixar ou cancelar se precisar.',
+    body: 'Em segundos, o documento volta autorizado; pronto para imprimir, baixar ou cancelar se precisar.',
   },
 ];
 
@@ -51,7 +51,7 @@ const SCREENS = [
     slug: 'nfe-events',
     kicker: 'Eventos',
     title: 'Cancelamento e correção com histórico',
-    body: 'Documento autorizado não se edita — se corrige por evento. Cada cancelamento, carta de correção ou encerramento fica no histórico.',
+    body: 'Documento autorizado não se edita; se corrige por evento. Cada cancelamento, carta de correção ou encerramento fica no histórico.',
     alt: 'Linha do tempo de eventos de uma NF-e, com emissão e carta de correção registradas',
     href: '/guide/events',
     linkLabel: 'Entender os eventos',
@@ -62,7 +62,7 @@ const BENEFITS = [
   {
     icon: Puzzle,
     title: 'Flexível',
-    body: 'Uma conta, várias empresas — cada uma com seus próprios produtos, clientes e configuração fiscal, do seu jeito.',
+    body: 'Uma conta, várias empresas; cada uma com seus próprios produtos, clientes e configuração fiscal, do seu jeito.',
   },
   {
     icon: Zap,
@@ -199,7 +199,7 @@ export default function Home() {
               Emita seus documentos fiscais de forma simples e resiliente.
             </h1>
             <p className="max-w-md text-base leading-relaxed text-gray-600">
-              Da emissão à autorização em segundos — com fila resiliente e novas tentativas automáticas nos raros
+              Da emissão à autorização em segundos, com fila resiliente e novas tentativas automáticas nos raros
               momentos de instabilidade da SEFAZ.
             </p>
             <div className="flex items-center gap-3">
@@ -330,7 +330,7 @@ export default function Home() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Planos</h2>
             <p className="mt-2 text-sm text-gray-600">
-              Cobrança ainda não habilitada — valores de referência. Planos Basic e Max disponíveis sob
+              Cobrança ainda não habilitada; valores de referência. Planos Basic e Max disponíveis sob
               consulta.
             </p>
           </div>

@@ -49,8 +49,12 @@ func TestHandler_DocumentMessage_WritesFailedStatus(t *testing.T) {
 	body, _ := json.Marshal(msg)
 	event := sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}}
 
-	if err := handler(context.Background(), event); err != nil {
+	resp, err := handler(context.Background(), event)
+	if err != nil {
 		t.Fatalf("handler: %v", err)
+	}
+	if len(resp.BatchItemFailures) != 0 {
+		t.Fatalf("expected no batch item failures, got %v", resp.BatchItemFailures)
 	}
 	if len(fd.calls) != 1 {
 		t.Fatalf("expected 1 UpdateItem call, got %d", len(fd.calls))
@@ -91,8 +95,12 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 	body, _ := json.Marshal(msg)
 	event := sqsEvent{Records: []sqsRecord{{MessageID: "m2", Body: string(body)}}}
 
-	if err := handler(context.Background(), event); err != nil {
+	resp, err := handler(context.Background(), event)
+	if err != nil {
 		t.Fatalf("handler: %v", err)
+	}
+	if len(resp.BatchItemFailures) != 0 {
+		t.Fatalf("expected no batch item failures, got %v", resp.BatchItemFailures)
 	}
 	if len(fd.calls) != 1 {
 		t.Fatalf("expected 1 UpdateItem call, got %d", len(fd.calls))
@@ -112,9 +120,9 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 	}
 }
 
-func TestHandler_DynamoUpdateFails_RetriesBatch(t *testing.T) {
+func TestHandler_DynamoUpdateFails_ReportsRecordAsBatchItemFailure(t *testing.T) {
 	tablePrefix = "dev"
-	resultsTopicARN = "" // keep SNS a no-op for this test; only asserting handler doesn't error
+	resultsTopicARN = "" // keep SNS a no-op for this test; only asserting failure reporting
 	fd := &fakeDynamo{err: context.DeadlineExceeded}
 	dynamoClient = fd
 
@@ -122,7 +130,59 @@ func TestHandler_DynamoUpdateFails_RetriesBatch(t *testing.T) {
 	body, _ := json.Marshal(msg)
 	event := sqsEvent{Records: []sqsRecord{{MessageID: "m3", Body: string(body)}}}
 
-	if err := handler(context.Background(), event); err == nil {
-		t.Fatal("handler must retry when the terminal status cannot be persisted")
+	resp, err := handler(context.Background(), event)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
 	}
+	if len(resp.BatchItemFailures) != 1 || resp.BatchItemFailures[0].ItemIdentifier != "m3" {
+		t.Fatalf("expected m3 reported as a batch item failure, got %v", resp.BatchItemFailures)
+	}
+}
+
+// A poison message (e.g. its Dynamo condition check is permanently false)
+// must not cause a sibling message in the same batch that succeeded to be
+// redelivered — only the failing record should come back in
+// BatchItemFailures. This is the behavior reportBatchItemFailures depends on.
+func TestHandler_OneFailureInBatch_DoesNotFailSiblingRecord(t *testing.T) {
+	tablePrefix = "dev"
+	resultsTopicARN = ""
+
+	failingMsg := service.WorkerMessage{DocPK: "pk-bad", AccessKey: "ak-bad", TableName: "nfes"}
+	okMsg := service.WorkerMessage{DocPK: "pk-good", AccessKey: "ak-good", TableName: "nfes"}
+	failingBody, _ := json.Marshal(failingMsg)
+	okBody, _ := json.Marshal(okMsg)
+
+	fd := &conditionalDynamo{failPK: failingMsg.DocPK}
+	dynamoClient = fd
+
+	event := sqsEvent{Records: []sqsRecord{
+		{MessageID: "bad", Body: string(failingBody)},
+		{MessageID: "good", Body: string(okBody)},
+	}}
+
+	resp, err := handler(context.Background(), event)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(resp.BatchItemFailures) != 1 || resp.BatchItemFailures[0].ItemIdentifier != "bad" {
+		t.Fatalf("expected only \"bad\" reported as a batch item failure, got %v", resp.BatchItemFailures)
+	}
+	if len(fd.calls) != 2 {
+		t.Fatalf("expected both records to be attempted, got %d calls", len(fd.calls))
+	}
+}
+
+// conditionalDynamo fails UpdateItem only for a specific pk, so a test can
+// assert that one poison message doesn't take down a sibling in the batch.
+type conditionalDynamo struct {
+	failPK string
+	calls  []*dynamodb.UpdateItemInput
+}
+
+func (f *conditionalDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	f.calls = append(f.calls, in)
+	if s, ok := in.Key["pk"].(*types.AttributeValueMemberS); ok && s.Value == f.failPK {
+		return nil, context.DeadlineExceeded
+	}
+	return &dynamodb.UpdateItemOutput{}, nil
 }

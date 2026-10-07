@@ -72,7 +72,7 @@ function CargoUnitsContent() {
         ) : visibleItems.length === 0 ? (
           <EmptyState
             title="Nenhuma unidade cadastrada"
-            description="Uma unidade guarda tipo, identificação e lacres fixos. Na emissão do MDF-e basta apontar quais documentos ela leva — o rateio sai dos pesos."
+            description="Uma unidade guarda tipo, identificação e lacres fixos. Na emissão do MDF-e basta apontar quais documentos ela leva; o rateio sai dos pesos."
             action={{label: 'Nova unidade', onClick: () => router.push('/cargo-units/new')}}
             icon={<PackageIcon width={20} height={20}/>}
           />

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	godfe "gopkg.aoctech.app/dfe/go-dfe"
 )
@@ -211,6 +212,29 @@ func buildFinalNfeProc(originalXML []byte, root *xmlEl, protNFeDict map[string]a
 	return buf.Bytes(), nil
 }
 
+// cityLowerConnectors are Portuguese prepositions/conjunctions kept lowercase
+// in titleCaseCity, except as the first word (e.g. "Miguel Leão", "Rio de
+// Janeiro").
+var cityLowerConnectors = map[string]bool{"de": true, "da": true, "do": true, "das": true, "dos": true, "e": true}
+
+// titleCaseCity normaliza o nome do município vindo do XML da SEFAZ (em geral
+// todo maiúsculo) para o padrão exibido no cadastro (Title Case): "TERESINA"
+// -> "Teresina".
+func titleCaseCity(s string) string {
+	words := strings.Fields(strings.ToLower(s))
+	for i, w := range words {
+		if i > 0 && cityLowerConnectors[w] {
+			continue
+		}
+		r := []rune(w)
+		if len(r) > 0 {
+			r[0] = unicode.ToUpper(r[0])
+		}
+		words[i] = string(r)
+	}
+	return strings.Join(words, " ")
+}
+
 // buildPersonDetails extracts the nested person object (addresses, contacts,
 // state_registrations, fantasy_name, crt) from an emit/dest party element,
 // mirroring the api person model. Only present fields are included; returns nil
@@ -238,8 +262,8 @@ func buildPersonDetails(party *xmlEl, ns string) map[string]any {
 		setIfNotEmpty(addr, "complement", findText(ender, ns, "xCpl"))
 		setIfNotEmpty(addr, "neighborhood", findText(ender, ns, "xBairro"))
 		setIfNotEmpty(addr, "city_ibge_code", findText(ender, ns, "cMun"))
-		setIfNotEmpty(addr, "city", findText(ender, ns, "xMun"))
-		uf = findText(ender, ns, "UF")
+		setIfNotEmpty(addr, "city", titleCaseCity(findText(ender, ns, "xMun")))
+		uf = strings.ToUpper(findText(ender, ns, "UF"))
 		setIfNotEmpty(addr, "state_federation", uf)
 		setIfNotEmpty(addr, "postal_code", findText(ender, ns, "CEP"))
 		if len(addr) > 0 {

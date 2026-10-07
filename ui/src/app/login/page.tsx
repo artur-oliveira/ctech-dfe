@@ -26,7 +26,7 @@ function LoginInner() {
         </div>
         <h1 className="mt-4 text-2xl font-bold text-gray-900">CTech DFe</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          Emita e gerencie seus documentos fiscais — NF-e, NFC-e, CT-e e MDF-e.
+          Emita e gerencie seus documentos fiscais: NF-e, NFC-e, CT-e e MDF-e.
         </p>
         <Button
           variant="brand"

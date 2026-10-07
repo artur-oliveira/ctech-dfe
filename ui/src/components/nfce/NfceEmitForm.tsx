@@ -166,7 +166,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
         </div>
         {!value.name && (
           <p className="text-xs text-warning">
-            CPF não cadastrado — a NFC-e pode ser emitida assim mesmo.{' '}
+            CPF não cadastrado; a NFC-e pode ser emitida assim mesmo.{' '}
             <button type="button" className="text-brand-700 hover:text-brand-800 underline"
                     onClick={() => setShowCreate(true)}>Cadastrar (opcional)
             </button>
@@ -656,7 +656,7 @@ export function NfceEmitForm() {
             label: 'Pagamento',
             value: effectivePayments()
               .map((p) => `${NF_PAYMENT_TYPES[p.payment_type] ?? p.payment_type} ${fmt(parseFloat(p.value) || 0)}`)
-              .join(' + ') || '—',
+              .join(' + ') || 'Nenhum',
           },
           {label: 'Total', value: fmt(totalNfce)},
         ]}

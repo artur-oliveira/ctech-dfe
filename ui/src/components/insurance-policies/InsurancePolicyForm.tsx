@@ -150,7 +150,7 @@ export function InsurancePolicyForm({initialData, onSubmit, loading}: InsuranceP
                      )}
           />
           <p className="sm:col-span-2 text-xs text-gray-500">
-            O documento do responsável só é informado quando ele não é o emitente do MDF-e — CNPJ ou
+            O documento do responsável só é informado quando ele não é o emitente do MDF-e: CNPJ ou
             CPF, nunca os dois; com o contratante como responsável, um dos dois é obrigatório. As
             averbações (nAver) são informadas por viagem, na emissão.
           </p>

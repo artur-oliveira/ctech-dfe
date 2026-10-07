@@ -1279,7 +1279,7 @@ func TestPersistPerson_WritesCounterpartyItem(t *testing.T) {
 	dynm := &mockDistDynamo{}
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil, personRoleSupplier); err != nil {
 		t.Fatalf("persistPerson: %v", err)
 	}
 
@@ -1305,6 +1305,13 @@ func TestPersistPerson_WritesCounterpartyItem(t *testing.T) {
 	assertItemS(t, personPut.Item, "sk", "CNPJ_98765432000188")
 	assertItemS(t, personPut.Item, "cpf_or_cnpj", "98765432000188")
 	assertItemS(t, personPut.Item, "name", "Fornecedor LTDA")
+	roles, ok := personPut.Item["roles"].(*types.AttributeValueMemberL)
+	if !ok || len(roles.Value) != 1 {
+		t.Fatalf("expected roles=[supplier], got %v", personPut.Item["roles"])
+	}
+	if got := roles.Value[0].(*types.AttributeValueMemberS).Value; got != personRoleSupplier {
+		t.Errorf("roles[0] = %q, want %q", got, personRoleSupplier)
+	}
 
 	auditPut := items[1].Put
 	if auditPut == nil {
@@ -1332,7 +1339,7 @@ func TestPersistPerson_WritesNestedPersonDetails(t *testing.T) {
 			"uf": "SP", "state_registration": "123456789",
 		}},
 	}
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor SA", details); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor SA", details, personRoleSupplier); err != nil {
 		t.Fatalf("persistPerson: %v", err)
 	}
 
@@ -1373,15 +1380,15 @@ func TestPersistPerson_SkipsOrgSelfAndBlank(t *testing.T) {
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
 	// Same CPF/CNPJ as the org → skipped.
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "12345678000195", "Self", nil); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "12345678000195", "Self", nil, personRoleSupplier); err != nil {
 		t.Fatalf("persist self: %v", err)
 	}
 	// Blank counterparty → skipped.
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "", "Blank", nil); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "", "Blank", nil, personRoleSupplier); err != nil {
 		t.Fatalf("persist blank: %v", err)
 	}
 	// Invalid digit count → skipped.
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "123", "Invalid", nil); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "123", "Invalid", nil, personRoleSupplier); err != nil {
 		t.Fatalf("persist invalid: %v", err)
 	}
 
@@ -1403,7 +1410,7 @@ func TestPersistPerson_ExistingPersonIsIdempotent(t *testing.T) {
 	}
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
-	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil); err != nil {
+	if err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil, personRoleSupplier); err != nil {
 		t.Fatalf("existing person must be idempotent: %v", err)
 	}
 }
@@ -1412,7 +1419,7 @@ func TestPersistPerson_PropagatesTransactionFailureWhenPersonIsAbsent(t *testing
 	dynm := &mockDistDynamo{transactErr: errors.New("AccessDeniedException")}
 	svc := newDistSvc(dynm, certS3(), &mockLambda{}, &mockSNS{}, distCfg)
 
-	err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil)
+	err := svc.persistPerson(context.Background(), testOrgPK, "12345678000195", "98765432000188", "Fornecedor LTDA", nil, personRoleSupplier)
 	if err == nil || !strings.Contains(err.Error(), "AccessDeniedException") {
 		t.Fatalf("persistPerson error = %v, want propagated AccessDeniedException", err)
 	}

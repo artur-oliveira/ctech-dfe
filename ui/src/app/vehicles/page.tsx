@@ -110,10 +110,10 @@ function VehiclesContent() {
                 <td data-label="Placa" className={`${TABLE_CELL} font-mono font-medium text-gray-900`}>{v.plate}</td>
                 <td data-label="UF" className={`${TABLE_CELL} text-gray-600`}>{v.plate_uf}</td>
                 <td data-label="Tipo" className={`${TABLE_CELL} text-gray-700`}>{v.role === 'trailer' ? 'Reboque' : 'Tração'}</td>
-                <td data-label="Carroceria" className={`${TABLE_CELL} text-gray-600`}>{v.bodywork ?? '—'}</td>
+                <td data-label="Carroceria" className={`${TABLE_CELL} text-gray-600`}>{v.bodywork ?? '-'}</td>
                 <td
-                  data-label="Tara" className={`${TABLE_CELL} text-gray-600`}>{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '—'}</td>
-                <td data-label="Proprietário" className={`${TABLE_CELL} text-gray-600 max-w-[160px] truncate`}>{v.owner?.name ?? '—'}</td>
+                  data-label="Tara" className={`${TABLE_CELL} text-gray-600`}>{v.weight ? `${v.weight.toLocaleString('pt-BR')} kg` : '-'}</td>
+                <td data-label="Proprietário" className={`${TABLE_CELL} text-gray-600 max-w-[160px] truncate`}>{v.owner?.name ?? '-'}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
                     <Button

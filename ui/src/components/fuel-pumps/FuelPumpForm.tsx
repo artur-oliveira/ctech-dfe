@@ -56,7 +56,7 @@ export function FuelPumpForm({initialData, onSubmit, loading}: FuelPumpFormProps
                        <FormItem>
                          <FormLabel>Nome *</FormLabel>
                          <Input {...field} id={field.name} maxLength={120} className="w-full"
-                                placeholder="Bico 1 — Gasolina comum"/>
+                                placeholder="Bico 1: Gasolina comum"/>
                          <FormMessage/>
                        </FormItem>
                      )}
@@ -96,7 +96,7 @@ export function FuelPumpForm({initialData, onSubmit, loading}: FuelPumpFormProps
         <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
           Última leitura do encerrante:{' '}
           <span className="font-medium text-gray-900">{lastReading || 'nenhuma venda ainda'}</span>.
-          Ela é gravada pela emissão, na mesma transação da nota — a próxima venda parte daqui e não
+          Ela é gravada pela emissão, na mesma transação da nota; a próxima venda parte daqui e não
           precisa (nem deve) ser digitada.
         </div>
 

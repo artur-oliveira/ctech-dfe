@@ -11,14 +11,14 @@ import {PUBLIC_ORIGIN} from '@/lib/seo/site';
  */
 export const metadata: Metadata = {
   title: {
-    absolute: 'CTech DF-e — Emissão de NF-e, NFC-e, CT-e, MDF-e e NFS-e',
+    absolute: 'CTech DF-e: Emissão de NF-e, NFC-e, CT-e, MDF-e e NFS-e',
   },
   description:
     'Emita NF-e, NFC-e, CT-e, MDF-e e NFS-e com comunicação direta com a SEFAZ, status em tempo real e API para integrar ao seu sistema.',
   alternates: {canonical: PUBLIC_ORIGIN},
   robots: {index: true, follow: true},
   openGraph: {
-    title: 'CTech DF-e — Emissão de documentos fiscais eletrônicos',
+    title: 'CTech DF-e: Emissão de documentos fiscais eletrônicos',
     description:
       'Emita NF-e, NFC-e, CT-e, MDF-e e NFS-e com comunicação direta com a SEFAZ e status em tempo real.',
     url: PUBLIC_ORIGIN,

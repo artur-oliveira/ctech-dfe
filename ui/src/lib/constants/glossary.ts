@@ -16,7 +16,7 @@ export const GLOSSARY = {
   mod_frete: {
     label: 'Modalidade do frete',
     definition:
-      'Define quem contrata e paga o transporte: o emitente, o destinatário, um terceiro — ou se não há frete.',
+      'Define quem contrata e paga o transporte: o emitente, o destinatário, um terceiro, ou se não há frete.',
   },
   nat_op: {
     label: 'Natureza da operação',
@@ -66,7 +66,7 @@ export const GLOSSARY = {
   n_fci: {
     label: 'FCI',
     definition:
-      'Ficha de Conteúdo de Importação. Declara quanto de um produto industrializado aqui veio de insumo importado — define se a operação interestadual usa a alíquota de 4%.',
+      'Ficha de Conteúdo de Importação. Declara quanto de um produto industrializado aqui veio de insumo importado; define se a operação interestadual usa a alíquota de 4%.',
   },
   c_enq: {
     label: 'Enquadramento legal do IPI',
@@ -86,7 +86,7 @@ export const GLOSSARY = {
   c_class_trib: {
     label: 'Classificação tributária',
     definition:
-      'Código de 6 dígitos que, junto do CST, identifica exatamente qual regra de IBS/CBS se aplica ao item — é o que determina alíquota, redução e crédito presumido.',
+      'Código de 6 dígitos que, junto do CST, identifica exatamente qual regra de IBS/CBS se aplica ao item; é o que determina alíquota, redução e crédito presumido.',
   },
   issqn_exigibilidade: {
     label: 'Exigibilidade do ISS',
@@ -101,7 +101,7 @@ export const GLOSSARY = {
   nsu: {
     label: 'NSU',
     definition:
-      'Número Sequencial Único. Identificador que a SEFAZ dá a cada documento na distribuição — usado para localizar notas emitidas contra o seu CNPJ.',
+      'Número Sequencial Único. Identificador que a SEFAZ dá a cada documento na distribuição; usado para localizar notas emitidas contra o seu CNPJ.',
   },
 } as const;
 

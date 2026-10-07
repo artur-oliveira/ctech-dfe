@@ -109,7 +109,7 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
             <FormItem>
               <FormLabel>Nome *</FormLabel>
               <Input {...field} id={field.name} maxLength={120} className="w-full"
-                     placeholder="DI 2026/0000001 — Itaqui"/>
+                     placeholder="DI 2026/0000001; Itaqui"/>
               <FormMessage/>
             </FormItem>
           )}/>

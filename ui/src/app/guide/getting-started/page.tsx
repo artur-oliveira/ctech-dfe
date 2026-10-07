@@ -19,7 +19,7 @@ export default function PrimeirosPassos() {
               <GuideTerms>
                 <GuideTerm term="Entrar">
                   A tela de login manda você para a conta CTech e volta autenticado. A sessão é
-                  renovada sozinha — não é preciso entrar de novo a cada dia.
+                  renovada sozinha; não é preciso entrar de novo a cada dia.
                 </GuideTerm>
                 <GuideTerm term="Convite">
                   O link do convite abre a tela de aceite. Se você ainda não tem conta, cria na hora;
@@ -45,7 +45,7 @@ export default function PrimeirosPassos() {
           id: 'onboarding',
           title: 'Onboarding em seis etapas',
           summary:
-            'Aparece no primeiro acesso e pergunta só o que a SEFAZ vai exigir. Dá para sair no meio e voltar depois — o painel guarda o que falta.',
+            'Aparece no primeiro acesso e pergunta só o que a SEFAZ vai exigir. Dá para sair no meio e voltar depois; o painel guarda o que falta.',
           image: {
             src: '/guide/onboarding.webp',
             alt: 'Etapa final do onboarding, com os cinco tipos de documento marcados como habilitados',
@@ -80,7 +80,7 @@ export default function PrimeirosPassos() {
           id: 'certificate',
           title: 'Certificado digital A1',
           summary:
-            'É o certificado que assina o XML. Sem ele o documento não sai do rascunho — a SEFAZ não aceita nada sem assinatura.',
+            'É o certificado que assina o XML. Sem ele o documento não sai do rascunho; a SEFAZ não aceita nada sem assinatura.',
           image: {
             src: '/guide/certificates.webp',
             alt: 'Tela de certificados com um certificado A1 ativo, exibindo apelido, hash e data de expiração',
@@ -94,7 +94,7 @@ export default function PrimeirosPassos() {
               </GuideSteps>
               <GuideCallout kind="warning" title="Fique de olho na validade">
                 Certificado A1 vale um ano. A tela mostra a data de expiração e sinaliza quando está
-                perto do fim — vencido, a emissão para no mesmo dia.
+                perto do fim; vencido, a emissão para no mesmo dia.
               </GuideCallout>
             </>
           ),
@@ -112,11 +112,11 @@ export default function PrimeirosPassos() {
             <>
               <GuideBullets>
                 <li>
-                  <b>Homologação</b> — documento é autorizado de verdade pela SEFAZ, mas sem valor
+                  <b>Homologação</b>: documento é autorizado de verdade pela SEFAZ, mas sem valor
                   fiscal. Toda tela mostra a tarja amarela avisando.
                 </li>
                 <li>
-                  <b>Produção</b> — vale para valer. Cancelar tem prazo, e nota autorizada entra na
+                  <b>Produção</b>: vale para valer. Cancelar tem prazo, e nota autorizada entra na
                   sua apuração.
                 </li>
               </GuideBullets>
@@ -127,7 +127,7 @@ export default function PrimeirosPassos() {
               </p>
               <GuideCallout kind="tip" title="Comece com uma nota de teste">
                 Emita uma NF-e em homologação para um cliente fictício antes de virar a chave. Você vê
-                o fluxo inteiro — autorização, DANFE, cancelamento — sem consequência nenhuma.
+                o fluxo inteiro (autorização, DANFE, cancelamento) sem consequência nenhuma.
               </GuideCallout>
             </>
           ),
@@ -143,8 +143,8 @@ export default function PrimeirosPassos() {
           },
           body: (
             <p>
-              O seletor no topo troca de empresa quando a conta tem mais de uma; tudo abaixo dele —
-              documentos, cadastros, configuração — pertence à empresa selecionada. A lista de
+              O seletor no topo troca de empresa quando a conta tem mais de uma; tudo abaixo dele
+              (documentos, cadastros, configuração) pertence à empresa selecionada. A lista de
               pendências some sozinha à medida que a configuração fica completa.
             </p>
           ),

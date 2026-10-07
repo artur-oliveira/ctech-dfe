@@ -40,11 +40,11 @@ function DistributionRow({item, docType}: { item: NfseDistributionOut; docType: 
     <tr className={TABLE_ROW}>
       <td className={`${TABLE_CELL} font-mono text-xs text-gray-500`} data-label="NSU">{formatNsu(item.nsu)}</td>
       <td className={`${TABLE_CELL} font-mono text-xs text-gray-500`} data-label="Chave de acesso">
-        {item.access_key ?? '—'}
+        {item.access_key ?? '-'}
       </td>
       <td className={`${TABLE_CELL} text-sm text-gray-700`} data-label="Tipo">{item.schema_type}</td>
       <td className={`${TABLE_CELL} text-sm text-gray-700`} data-label="Evento">
-        {item.event_type ? (EVENT_LABELS[item.event_type] ?? item.event_type) : '—'}
+        {item.event_type ? (EVENT_LABELS[item.event_type] ?? item.event_type) : '-'}
       </td>
       <td className={`${TABLE_CELL} whitespace-nowrap text-xs text-gray-500`} data-label="Recebido em">
         {formatDatetimeBR(item.created_at)}
@@ -98,7 +98,7 @@ export function NfseDistributionTab({docType, orgPk}: NfseDistributionTabProps) 
           <p className="text-sm text-gray-500">NFS-e recebidas pela organização via Ambiente de Dados Nacional (ADN).</p>
           {config && (
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
-              <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '—'}</span>
+              <span className="font-mono">Último NSU: {nsu != null ? formatNsu(nsu) : '-'}</span>
               {lastAt && <span>Última consulta: {formatDatetimeBR(lastAt)}</span>}
               {nextAt && <span>Próxima consulta disponível: {formatDatetimeBR(nextAt.toISOString())}</span>}
             </div>
