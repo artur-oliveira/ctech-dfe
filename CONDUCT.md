@@ -876,6 +876,12 @@ Must follow Conventional Commits:
   Use an Asset rather than a bucket with fixed keys: the Asset's key is a content hash, so editing a
   script versions the launch template and triggers an instance refresh, while a fixed key would
   change the file under instances already running.
+- **A launch template change replaces the API instance during `cdk deploy`, before the API
+  binary is deployed.** `@aoctech/cdk` >= 0.10.1 puts an `AutoScalingRollingUpdate` on the Spot
+  ASG. Before that, running instances kept their old `/etc/app-static.env`, and the next deploy
+  started a new binary against it (#114: missing `DFE_EGRESS_REGION`, crash loop). The pipeline
+  runs CDK before the API job, so the replacement boots the previous `current.zip` with the new env
+  until the API job finishes. A new `required` env var must therefore not break the previous binary.
 - Profile and password management endpoints do not exist — those belong to ctech-account.
 - **Membership is owned by the `organization_users` table** (via `MembershipService`). RBAC,
   `/auth/me`, `GET /organizations`, and the WebSocket all resolve access through
