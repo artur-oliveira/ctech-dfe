@@ -249,7 +249,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
   const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
-      label: `${entry.municipalCode} · ${entry.nationalItem}; ${entry.description} · ${entry.taxRate}%`,
+      label: `${entry.municipalCode} · ${entry.nationalItem}; ${entry.description}${entry.taxRate === null ? '' : ` · ${entry.taxRate}%`}`,
     }));
     if (currentMunicipalCode && !options.some(({value}) => value === currentMunicipalCode)) {
       options.unshift({
@@ -343,7 +343,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                 {municipalTaxCodes.length > 0 ? (
                   <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
                             options={municipalTaxOptions} placeholder="Buscar código municipal"
-                            searchPlaceholder="Código, item ou descrição..." fuzzySearch/>
+                            searchPlaceholder="Código, item ou descrição..." fuzzySearch clearable/>
                 ) : (
                   <Input {...field} id={field.name} maxLength={20} disabled={isMunicipalityLoading}
                          placeholder={isMunicipalityLoading ? 'Carregando município…' : 'Informe o código'}/>

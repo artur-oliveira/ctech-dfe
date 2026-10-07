@@ -3,7 +3,7 @@
 import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import Fuse from 'fuse.js';
-import {CheckIcon, ChevronDownIcon} from 'lucide-react';
+import {CheckIcon, ChevronDownIcon, XIcon} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {Highlighted} from '@/components/ui/highlight';
 
@@ -22,6 +22,7 @@ interface ComboboxProps {
   className?: string
   id?: string
   fuzzySearch?: boolean
+  clearable?: boolean // mostra botão para limpar a seleção (campos opcionais)
 }
 
 const PAGE_SIZE = 50;
@@ -44,6 +45,7 @@ export function Combobox({
                            className,
                            id,
                            fuzzySearch = false,
+                           clearable = false,
                          }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -273,6 +275,16 @@ export function Combobox({
         </span>
         <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground"/>
       </button>
+      {clearable && selected && !disabled && (
+        <button
+          type="button"
+          aria-label="Limpar seleção"
+          onClick={() => onValueChange?.('')}
+          className="absolute right-8 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <XIcon className="size-3.5"/>
+        </button>
+      )}
 
       {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
     </div>

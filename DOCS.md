@@ -1075,6 +1075,13 @@ deliberately does NOT carry the prestador's inscrição municipal or regime trib
 the organization's own `person.nfse` group instead (see Organizations above and
 `docs/specs/2026-08-04-nfse-design.md` §3.2–§3.3).
 
+**Catálogo de código municipal (UI).** O combobox de `trib_municipal_code` em `ServiceForm` lista os códigos do
+município emissor da organização (`c_loc_emi`); sem catálogo para o município, cai em campo livre. Os dados
+(`ui/src/lib/data/municipal_tax_codes_data.ts`, 182 municípios) são gerados por
+`node ui/scripts/generate-municipal-tax-codes.mjs`, que lê o sitemap e o `__NEXT_DATA__` de
+`contabilidade.com/tabela-iss/`. São códigos da lei municipal, não o cadastro do ADN; o E0314 pode persistir se
+divergirem.
+
 **Numbering counters:** `PUT /nfse-config` persists `prod_current_number` and `hom_current_number` exactly as
 sent. Only the NSU cursor fields (`prod_nsu`, `hom_nsu`, `*_last_dist_nsu_at`) are carried forward from the stored
 item; emission advances the counters through `IncrementNumber` (atomic update, outside the upsert).

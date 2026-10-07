@@ -20,7 +20,15 @@ describe('catálogo municipal de tributação', () => {
     });
   });
 
+  it('cobre outros municípios pelo código IBGE da organização', () => {
+    const codes = getMunicipalTaxCodes('3550308');
+    expect(codes.length).toBeGreaterThan(0);
+    expect(new Set(codes.map(({municipalCode}) => municipalCode)).size).toBe(codes.length);
+    expect(codes.every(({municipalityCode}) => municipalityCode === '3550308')).toBe(true);
+  });
+
   it('mantém fallback vazio para municípios sem catálogo local', () => {
-    expect(getMunicipalTaxCodes('3550308')).toEqual([]);
+    expect(getMunicipalTaxCodes('9999999')).toEqual([]);
+    expect(getMunicipalTaxCodes(undefined)).toEqual([]);
   });
 });
