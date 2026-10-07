@@ -4,7 +4,7 @@
 > Updated: 2026-06-09. Owner: Artur.
 >
 > **Status: migration complete.** `worker/` is Go (Lambda), SQS is standard (no FIFO) everywhere, and the API
-> deploys on EC2 ASG (spot) — not the ECS Fargate target sketched below (see `cdk/CLAUDE.md`, `cdk/README.md`).
+> deploys on EC2 ASG (On-Demand t4g.nano) — not the ECS Fargate target sketched below (see `cdk/CLAUDE.md`, `cdk/README.md`).
 > py-dfe remains the SOAP/XML-DSig fallback behind `go-dfe` (primary), per `README.md`. This document is kept as
 > a historical decision record; for current architecture see `OVERVIEW.md` and `cdk/README.md`.
 

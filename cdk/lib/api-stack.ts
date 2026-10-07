@@ -9,8 +9,6 @@ import {Construct} from 'constructs';
 import {Ec2ScriptRunner, HaproxyEc2Service, SSM as CtechSSM} from '@aoctech/cdk';
 import {Environment} from './types';
 
-const API_SPOT_INSTANCE_TYPES = ['t4g.nano', 't4g.micro'] as const;
-
 /** Emits `cat > /etc/nginx/conf.d/<name> << 'DELIM' … DELIM` for a checked-in file. */
 function nginxFragment(name: string, delimiter: string): string[] {
   const body = readFileSync(path.join(__dirname, '..', 'scripts', 'api', name), 'utf8');
@@ -128,6 +126,8 @@ export class ApiStack extends cdk.Stack {
     // deploy time, so editing a shared script changes this user data, versions
     // the launch template and triggers an instance refresh.
     const userData = ec2.UserData.forLinux();
+    // Version the launch template so the migration also replaces existing Spot hosts.
+    userData.addCommands('# EC2 capacity: t4g.nano On-Demand');
     let scripts: Ec2ScriptRunner | undefined;
 
     if (isAlpine) {
@@ -325,18 +325,15 @@ export class ApiStack extends cdk.Stack {
       logRemovalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       asgName: this.asgName,
       minCapacity: 1,
-      // +1 over min: gives CapacityRebalance headroom to launch the
-      // replacement before terminating the spot-interrupted instance instead
-      // of waiting for it to go down first.
+      // +1 over min: headroom to launch the replacement before terminating
+      // the old instance during a rolling replacement.
       maxCapacity: 2,
       // The ASG runs only inside a narrow daytime window: up at 11:55 and down
       // at 13:15 America/Sao_Paulo. Outside it the service is off — inbound
       // webhooks fail and nothing is reachable. Deliberate for a development
       // environment on a single t4g.nano.
       // schedule: {enableCron: '55 11 * * *', disableCron: '15 13 * * *'},
-      spot: {
-        instanceTypes: API_SPOT_INSTANCE_TYPES.map((type) => new ec2.InstanceType(type)),
-      },
+      onDemand: true,
     });
 
     // ── Outputs ───────────────────────────────────────────────────────────────

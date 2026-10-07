@@ -877,7 +877,7 @@ Must follow Conventional Commits:
   script versions the launch template and triggers an instance refresh, while a fixed key would
   change the file under instances already running.
 - **A launch template change replaces the API instance during `cdk deploy`, before the API
-  binary is deployed.** `@aoctech/cdk` >= 0.10.1 puts an `AutoScalingRollingUpdate` on the Spot
+  binary is deployed.** `@aoctech/cdk` >= 0.10.1 puts an `AutoScalingRollingUpdate` on the
   ASG. Before that, running instances kept their old `/etc/app-static.env`, and the next deploy
   started a new binary against it (#114: missing `DFE_EGRESS_REGION`, crash loop). The pipeline
   runs CDK before the API job, so the replacement boots the previous `current.zip` with the new env

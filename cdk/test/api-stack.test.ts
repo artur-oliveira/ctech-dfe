@@ -91,13 +91,13 @@ test('the SSM agent is disabled by default', () => {
   expect(text).toContain('rc-update del amazon-ssm-agent')
 })
 
-test('the Spot policy can launch both nano and micro Graviton instances', () => {
-  synth().hasResourceProperties('AWS::AutoScaling::AutoScalingGroup', {
-    MixedInstancesPolicy: {
-      LaunchTemplate: {
-        Overrides: [{ InstanceType: 't4g.nano' }, { InstanceType: 't4g.micro' }],
-      },
-    },
+test('the ASG runs t4g.nano On-Demand, with no Spot policy or capacity rebalance', () => {
+  const template = synth()
+  const [asg] = Object.values(template.findResources('AWS::AutoScaling::AutoScalingGroup')) as any[]
+  expect(asg.Properties.MixedInstancesPolicy).toBeUndefined()
+  expect(asg.Properties.CapacityRebalance).toBe(false)
+  template.hasResourceProperties('AWS::EC2::LaunchTemplate', {
+    LaunchTemplateData: { InstanceType: 't4g.nano' },
   })
 })
 

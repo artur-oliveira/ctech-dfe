@@ -162,8 +162,9 @@ exists it is applied elsewhere).
 - Keep-warm rate is 1 min (code) vs 5 min (comment) — B21 cost note.
 - No separate go-dfe Lambda; go-dfe is in-process in the Go workers.
 - ASG `gracePeriod: 120s` is supplied to the shared `HaproxyEc2Service` construct.
-- Spot capacity is diversified across `t4g.nano` and `t4g.micro` through
-  `HaproxyEc2Service.spot.instanceTypes`, reducing dependence on one capacity pool.
+- The API runs `t4g.nano` On-Demand (`HaproxyEc2Service` `onDemand: true`, `@aoctech/cdk` >= 0.10.0),
+  covered by the `t4g` EC2 Instance Savings Plan. Spot and the micro fallback were dropped after
+  repeated Spot capacity shortages.
 
 See root [`DEPLOYMENT.md`](../DEPLOYMENT.md), [`CONDUCT.md`](../CONDUCT.md),
 [`DOCS.md`](../DOCS.md).
