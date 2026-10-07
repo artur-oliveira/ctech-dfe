@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import {Button} from '@/components/ui/button'
+import {Button} from '@/components/ui/button';
 
 /**
  * Sticky bar shown when one or more rows are selected. Renders the selection
@@ -17,7 +17,7 @@ export function BulkActionBar({
   /** Action buttons for the selection (e.g. delete). */
   children?: React.ReactNode
 }) {
-  if (count === 0) return null
+  if (count === 0) return null;
 
   return (
     <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex flex-col gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:-mx-8 md:px-8">
@@ -31,5 +31,5 @@ export function BulkActionBar({
       </div>
       <div className="flex items-center gap-2">{children}</div>
     </div>
-  )
+  );
 }

@@ -13,12 +13,12 @@
  */
 
 /** The API is fronted by a load balancer and answers fast or not at all. */
-export const HTTP_TIMEOUT_MS = 5_000
+export const HTTP_TIMEOUT_MS = 5_000;
 /** Health path — public (no auth, not gated by the subscription middleware). */
-export const HEALTH_PATH = '/v1.0/health'
-export const HEALTHY_POLL_INTERVAL_MS = 30_000
-export const MAX_UNAVAILABLE_POLL_INTERVAL_MS = 30_000
-const FIRST_BACKOFF_MS = 1_000
+export const HEALTH_PATH = '/v1.0/health';
+export const HEALTHY_POLL_INTERVAL_MS = 30_000;
+export const MAX_UNAVAILABLE_POLL_INTERVAL_MS = 30_000;
+const FIRST_BACKOFF_MS = 1_000;
 
 export type ApiLivenessStatus = 'checking' | 'available' | 'unavailable'
 export type ApiUnavailableReason = 'offline' | 'server' | null
@@ -31,20 +31,20 @@ export interface ApiLivenessSnapshot {
 
 export class ApiUnavailableError extends Error {
   constructor(public readonly reason: Exclude<ApiUnavailableReason, null>) {
-    super(reason === 'offline' ? 'Sem conexão com a internet' : 'Servidor temporariamente indisponível')
-    this.name = 'ApiUnavailableError'
+    super(reason === 'offline' ? 'Sem conexão com a internet' : 'Servidor temporariamente indisponível');
+    this.name = 'ApiUnavailableError';
   }
 }
 
-const INITIAL_SNAPSHOT: ApiLivenessSnapshot = {status: 'checking', reason: null, checkedAt: null}
+const INITIAL_SNAPSHOT: ApiLivenessSnapshot = {status: 'checking', reason: null, checkedAt: null};
 
-let snapshot = INITIAL_SNAPSHOT
-let inFlightCheck: Promise<boolean> | null = null
-const listeners = new Set<() => void>()
+let snapshot = INITIAL_SNAPSHOT;
+let inFlightCheck: Promise<boolean> | null = null;
+const listeners = new Set<() => void>();
 
 function healthURL(): string {
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
-  return `${base}${HEALTH_PATH}`
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+  return `${base}${HEALTH_PATH}`;
 }
 
 function publish(next: ApiLivenessSnapshot): void {
@@ -52,45 +52,45 @@ function publish(next: ApiLivenessSnapshot): void {
     snapshot.status === next.status &&
     snapshot.reason === next.reason &&
     snapshot.checkedAt === next.checkedAt
-  ) return
-  snapshot = next
-  listeners.forEach((l) => l())
+  ) return;
+  snapshot = next;
+  listeners.forEach((l) => l());
 }
 
 function browserIsOffline(): boolean {
-  return typeof navigator !== 'undefined' && navigator.onLine === false
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
 export function getApiLivenessSnapshot(): ApiLivenessSnapshot {
-  return snapshot
+  return snapshot;
 }
 
 /** Static export renders on the server with no network — always "checking". */
 export function getServerApiLivenessSnapshot(): ApiLivenessSnapshot {
-  return INITIAL_SNAPSHOT
+  return INITIAL_SNAPSHOT;
 }
 
 export function subscribeApiLiveness(listener: () => void): () => void {
-  listeners.add(listener)
+  listeners.add(listener);
   return () => {
-    listeners.delete(listener)
-  }
+    listeners.delete(listener);
+  };
 }
 
 export function markApiOffline(): void {
-  publish({status: 'unavailable', reason: 'offline', checkedAt: Date.now()})
+  publish({status: 'unavailable', reason: 'offline', checkedAt: Date.now()});
 }
 
 /** Probes the health endpoint. Concurrent callers share one in-flight request. */
 export function checkApiLiveness(): Promise<boolean> {
   if (browserIsOffline()) {
-    markApiOffline()
-    return Promise.resolve(false)
+    markApiOffline();
+    return Promise.resolve(false);
   }
-  if (inFlightCheck) return inFlightCheck
+  if (inFlightCheck) return inFlightCheck;
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   inFlightCheck = fetch(healthURL(), {
     method: 'GET',
     cache: 'no-store',
@@ -101,27 +101,27 @@ export function checkApiLiveness(): Promise<boolean> {
     .then((response) => {
       // 207 is "warn": a degraded dependency the customer cannot act on, and
       // not a reason to take the whole product away from them.
-      const available = response.ok || response.status === 207
+      const available = response.ok || response.status === 207;
       publish({
         status: available ? 'available' : 'unavailable',
         reason: available ? null : 'server',
         checkedAt: Date.now(),
-      })
-      return available
+      });
+      return available;
     })
     .catch(() => {
       publish({
         status: 'unavailable',
         reason: browserIsOffline() ? 'offline' : 'server',
         checkedAt: Date.now(),
-      })
-      return false
+      });
+      return false;
     })
     .finally(() => {
-      clearTimeout(timeout)
-      inFlightCheck = null
-    })
-  return inFlightCheck
+      clearTimeout(timeout);
+      inFlightCheck = null;
+    });
+  return inFlightCheck;
 }
 
 /**
@@ -130,21 +130,21 @@ export function checkApiLiveness(): Promise<boolean> {
  * mounted query — responsible for discovering that the API came back.
  */
 export async function requireApiLiveness(): Promise<void> {
-  if (snapshot.status === 'available') return
-  if (snapshot.status === 'unavailable') throw new ApiUnavailableError(snapshot.reason ?? 'server')
-  if (!(await checkApiLiveness())) throw new ApiUnavailableError(snapshot.reason ?? 'server')
+  if (snapshot.status === 'available') return;
+  if (snapshot.status === 'unavailable') throw new ApiUnavailableError(snapshot.reason ?? 'server');
+  if (!(await checkApiLiveness())) throw new ApiUnavailableError(snapshot.reason ?? 'server');
 }
 
 /** Equal jitter: no busy loop near zero, no fleet of clients retrying in step. */
 export function livenessPollDelay(failureCount: number, random: () => number = Math.random): number {
-  if (failureCount <= 0) return HEALTHY_POLL_INTERVAL_MS
-  const ceiling = Math.min(MAX_UNAVAILABLE_POLL_INTERVAL_MS, FIRST_BACKOFF_MS * 2 ** (failureCount - 1))
-  return Math.floor(ceiling / 2 + (random() * ceiling) / 2)
+  if (failureCount <= 0) return HEALTHY_POLL_INTERVAL_MS;
+  const ceiling = Math.min(MAX_UNAVAILABLE_POLL_INTERVAL_MS, FIRST_BACKOFF_MS * 2 ** (failureCount - 1));
+  return Math.floor(ceiling / 2 + (random() * ceiling) / 2);
 }
 
 /** Test-only reset, kept explicit so runtime code cannot silently hide an outage. */
 export function resetApiLivenessForTests(): void {
-  snapshot = INITIAL_SNAPSHOT
-  inFlightCheck = null
-  listeners.clear()
+  snapshot = INITIAL_SNAPSHOT;
+  inFlightCheck = null;
+  listeners.clear();
 }

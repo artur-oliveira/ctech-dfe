@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {Modal} from '@/components/ui/modal'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {JustificationField} from '@/components/ui/justification-field'
-import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
-import {ApiError} from '@/lib/api/client'
-import {NFSE_CANCELLATION_MOTIVES} from '@/lib/data/nfse_motives'
+import {useState} from 'react';
+import {Modal} from '@/components/ui/modal';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {JustificationField} from '@/components/ui/justification-field';
+import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
+import {ApiError} from '@/lib/api/client';
+import {NFSE_CANCELLATION_MOTIVES} from '@/lib/data/nfse_motives';
 
 interface NfseCancelModalProps {
   isOpen: boolean
@@ -23,16 +23,16 @@ interface NfseCancelModalProps {
  * usa só uma justificativa. Por isso não reusa CancelDfeModal.
  */
 export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onConfirm}: NfseCancelModalProps) {
-  const [reasonCode, setReasonCode] = useState('')
-  const [reasonDescription, setReasonDescription] = useState('')
+  const [reasonCode, setReasonCode] = useState('');
+  const [reasonDescription, setReasonDescription] = useState('');
 
-  const canSubmit = reasonCode.trim().length > 0 && reasonDescription.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH
+  const canSubmit = reasonCode.trim().length > 0 && reasonDescription.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH;
 
   const handleClose = () => {
-    setReasonCode('')
-    setReasonDescription('')
-    onClose()
-  }
+    setReasonCode('');
+    setReasonDescription('');
+    onClose();
+  };
 
   return (
     <Modal
@@ -73,5 +73,5 @@ export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onC
         )}
       </div>
     </Modal>
-  )
+  );
 }

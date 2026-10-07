@@ -4,7 +4,7 @@
  * real server. All values are synthetic.
  */
 
-const ORG_PK = '11222333000181'
+const ORG_PK = '11222333000181';
 
 export const meFixture = {
   user_id: 'mock-user-1',
@@ -26,13 +26,13 @@ export const meFixture = {
     },
   ],
   terms_addendum_accepted: true,
-}
+};
 
 export const rolesFixture = [
   {name: 'owner', description: 'Controle total da organização'},
   {name: 'admin', description: 'Gestão operacional'},
   {name: 'viewer', description: 'Leitura apenas'},
-]
+];
 
 export const organizationsFixture = [
   {
@@ -60,7 +60,7 @@ export const organizationsFixture = [
     created_at: '2025-01-15T10:00:00Z',
     updated_at: '2025-06-01T12:00:00Z',
   },
-]
+];
 
 export const productsFixture = [
   {
@@ -126,7 +126,7 @@ export const productsFixture = [
     cfop_config: [],
     conversion_factors: [],
   },
-]
+];
 
 export const vehiclesFixture = [
   {
@@ -161,7 +161,7 @@ export const vehiclesFixture = [
     created_at: '2025-03-12T09:00:00Z',
     updated_at: '2025-06-01T09:00:00Z',
   },
-]
+];
 
 export const personsFixture = [
   {
@@ -214,7 +214,7 @@ export const personsFixture = [
     created_at: '2025-02-05T09:00:00Z',
     updated_at: '2025-05-30T09:00:00Z',
   },
-]
+];
 
 /**
  * Chave de acesso sintética com a estrutura real de 44 dígitos:
@@ -222,9 +222,9 @@ export const personsFixture = [
  * Telas mostram a chave formatada — um `1` repetido 44 vezes denuncia o mock.
  */
 function accessKey(cnpj: string, model: string, serie: number, number: number, code: number) {
-  const body = `35260${''}7${cnpj}${model}${String(serie).padStart(3, '0')}${String(number).padStart(9, '0')}1${String(code).padStart(8, '0')}`
-  const digit = String(body.split('').reduce((sum, char) => sum + Number(char), 0) % 10)
-  return `${body}${digit}`
+  const body = `35260${''}7${cnpj}${model}${String(serie).padStart(3, '0')}${String(number).padStart(9, '0')}1${String(code).padStart(8, '0')}`;
+  const digit = String(body.split('').reduce((sum, char) => sum + Number(char), 0) % 10);
+  return `${body}${digit}`;
 }
 
 function nfeList(status: string, number: number, total: string, day: number) {
@@ -247,7 +247,7 @@ function nfeList(status: string, number: number, total: string, day: number) {
     total,
     dh_emi: `2026-07-${String(day).padStart(2, '0')}T14:30:00Z`,
     created_at: `2026-07-${String(day).padStart(2, '0')}T14:30:00Z`,
-  }
+  };
 }
 
 export const nfesFixture = [
@@ -256,13 +256,13 @@ export const nfesFixture = [
   nfeList('processing', 1003, '259.90', 3),
   nfeList('rejected', 1004, '1299.00', 5),
   nfeList('cancelled', 1005, '599.00', 8),
-]
+];
 
 export const nfcesFixture = [
   {...nfeList('authorized', 2001, '45.00', 1), sk: accessKey(ORG_PK, '65', 1, 2001, 11)},
   {...nfeList('authorized', 2002, '12.50', 2), sk: accessKey(ORG_PK, '65', 1, 2002, 22)},
   {...nfeList('pending', 2003, '88.90', 4), sk: accessKey(ORG_PK, '65', 1, 2003, 33)},
-]
+];
 
 function mdfeList(status: string, number: number, day: number, ufEnd: string) {
   return {
@@ -287,14 +287,14 @@ function mdfeList(status: string, number: number, day: number, ufEnd: string) {
     cargo_value: '3589.80',
     dh_emi: `2026-07-${String(day).padStart(2, '0')}T08:00:00Z`,
     created_at: `2026-07-${String(day).padStart(2, '0')}T08:00:00Z`,
-  }
+  };
 }
 
 export const mdfesFixture = [
   mdfeList('authorized', 1, 1, 'RJ'),
   mdfeList('closed', 2, 4, 'MG'),
   mdfeList('close_pending', 3, 9, 'PR'),
-]
+];
 
 export const distributionsFixture = [
   {
@@ -333,7 +333,7 @@ export const distributionsFixture = [
     xml_s3_key: `xml/${ORG_PK}/dist/100000002.xml`,
     created_at: '2026-07-02T11:04:00Z',
   },
-]
+];
 
 export const nfeConfigFixture = {
   pk: `${ORG_PK}#nfe-config`,
@@ -348,7 +348,7 @@ export const nfeConfigFixture = {
   hom_nsu: 100000002,
   hom_last_dist_nsu_at: '2026-07-02T11:05:00Z',
   updated_at: '2026-07-02T11:05:00Z',
-}
+};
 
 export const nfceConfigFixture = {
   pk: `${ORG_PK}#nfce-config`,
@@ -363,14 +363,14 @@ export const nfceConfigFixture = {
   hom_csc: 'MOCK-CSC-HOMOLOGACAO',
   hom_csc_id: 1,
   updated_at: '2026-07-02T09:00:00Z',
-}
+};
 
 export const cteConfigFixture = {
   ...nfeConfigFixture,
   pk: `${ORG_PK}#cte-config`,
   hom_current_number: 10,
   hom_nsu: 100000002,
-}
+};
 
 export const mdfeConfigFixture = {
   ...nfeConfigFixture,
@@ -378,7 +378,7 @@ export const mdfeConfigFixture = {
   hom_current_number: 2,
   hom_nsu: 0,
   hom_last_dist_nsu_at: null,
-}
+};
 
 export const nfseConfigFixture = {
   pk: `${ORG_PK}#nfse-config`,
@@ -396,7 +396,7 @@ export const nfseConfigFixture = {
   hom_nsu: 42,
   hom_last_dist_nsu_at: '2026-07-02T08:30:00Z',
   updated_at: '2026-07-02T08:30:00Z',
-}
+};
 
 export const certificatesFixture = [
   {
@@ -408,7 +408,7 @@ export const certificatesFixture = [
     expires_at: '2027-01-20T23:59:59Z',
     created_at: '2026-01-20T10:00:00Z',
   },
-]
+];
 
 export const membersFixture = [
   {
@@ -419,7 +419,7 @@ export const membersFixture = [
     invited_by: 'system',
     created_at: '2025-01-15T10:00:00Z',
   },
-]
+];
 
 export const auditLogsFixture = [
   {
@@ -458,9 +458,9 @@ export const auditLogsFixture = [
     user_name: 'Mock User',
     created_at: '2026-06-20T16:04:00Z',
   },
-]
+];
 
-export const ORG_PK_VALUE = ORG_PK
+export const ORG_PK_VALUE = ORG_PK;
 
 /**
  * Billing fixtures.
@@ -536,10 +536,10 @@ export const billingPlansFixture = {
       ],
     },
   ],
-}
+};
 
-const PRO_QUOTAS = {nfe: 1000, nfce: 1000, cte: 500, mdfe: 500, nfse: 500, companies: 3, users: 10}
-const FREE_QUOTAS = {nfe: 3, nfce: 3, companies: 1, users: 1}
+const PRO_QUOTAS = {nfe: 1000, nfce: 1000, cte: 500, mdfe: 500, nfse: 500, companies: 3, users: 10};
+const FREE_QUOTAS = {nfe: 3, nfce: 3, companies: 1, users: 1};
 
 export const billingSubscriptionFixtures = {
   /** Fresh account: the plan layer of onboarding has not been answered. */
@@ -630,7 +630,7 @@ export const billingSubscriptionFixtures = {
       checkout_url: 'https://billing.example.test/pay/inv_mock_first',
     },
   },
-}
+};
 
 export type BillingScenario = keyof typeof billingSubscriptionFixtures
 
@@ -654,7 +654,7 @@ export const billingInvoicesFixture = [
     amount_due: 14900,
     checkout_url: 'https://billing.example.test/pay/inv_mock_overdue',
   },
-]
+];
 
 /**
  * Detalhes de documento. As listas trazem só a projeção de listagem; o detalhe
@@ -693,7 +693,7 @@ export const nfeDetailFixture = {
   additional_info: 'Documento emitido em ambiente de homologação — sem valor fiscal.',
   xml_s3_key: `xml/${ORG_PK}/nfe/1001.xml`,
   sefaz_protocol: '135260000123456',
-}
+};
 
 export const nfceDetailFixture = {
   ...nfcesFixture[0],
@@ -715,7 +715,7 @@ export const nfceDetailFixture = {
   additional_info: null,
   xml_s3_key: `xml/${ORG_PK}/nfce/2001.xml`,
   sefaz_protocol: '135260000987654',
-}
+};
 
 export const mdfeDetailFixture = {
   ...mdfesFixture[0],
@@ -735,7 +735,7 @@ export const mdfeDetailFixture = {
   bulk_cargo: null,
   xml_s3_key: `xml/${ORG_PK}/mdfe/1.xml`,
   sefaz_protocol: '135260000555111',
-}
+};
 
 /**
  * Eventos SEFAZ. O worker grava a emissão como evento também, então a timeline
@@ -756,22 +756,22 @@ function dfeEvent(accessKey: string, eventType: string, seq: number, status: str
     xml_s3_key: `xml/${ORG_PK}/events/${eventType}-${seq}.xml`,
     created_at: at,
     updated_at: at,
-  }
+  };
 }
 
 export const nfeEventsFixture = [
   dfeEvent(nfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T14:30:00Z'),
   dfeEvent(nfesFixture[0].sk, '110110', 1, 'success', '2026-07-03T10:12:00Z'),
-]
+];
 
 export const nfceEventsFixture = [
   dfeEvent(nfcesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T14:30:00Z'),
-]
+];
 
 export const mdfeEventsFixture = [
   dfeEvent(mdfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T08:00:00Z'),
   dfeEvent(mdfesFixture[0].sk, '110112', 1, 'success', '2026-07-02T18:40:00Z'),
-]
+];
 
 // Inutilizações de numeração (NF-e / NFC-e)
 const inutilization = (
@@ -795,18 +795,18 @@ const inutilization = (
   user_name: 'Operador',
   created_at: createdAt,
   updated_at: createdAt,
-})
+});
 
 export const inutilizationsFixture = [
   inutilization('01924f10-0001', 2026, 1, 118, 120, 'success',
     'Numeros perdidos por falha de transmissao', '2026-07-04T09:15:00Z'),
   inutilization('01924f10-0002', 2026, 1, 97, 97, 'pending',
     'Numero consumido sem gerar documento autorizado', '2026-07-06T16:02:00Z'),
-]
+];
 
 export const numberGapsFixture = [
   {serie: 1, number_start: 131, number_end: 133},
-]
+];
 
 // Catálogo de serviços (NFS-e)
 export const servicesFixture = [
@@ -846,7 +846,7 @@ export const servicesFixture = [
     created_at: '2026-02-10T09:00:00Z',
     updated_at: '2026-06-10T09:00:00Z',
   },
-]
+];
 
 // Cadastros reutilizáveis
 export const taxProfilesFixture = [
@@ -877,7 +877,7 @@ export const taxProfilesFixture = [
     created_at: '2026-03-01T09:00:00Z',
     updated_at: '2026-05-02T09:00:00Z',
   },
-]
+];
 
 export const serviceLocationsFixture = [
   {
@@ -906,7 +906,7 @@ export const serviceLocationsFixture = [
     created_at: '2026-03-02T09:00:00Z',
     updated_at: '2026-04-20T09:00:00Z',
   },
-]
+];
 
 export const referenceDocumentsFixture = [
   {
@@ -930,7 +930,7 @@ export const referenceDocumentsFixture = [
     created_at: '2026-07-21T09:00:00Z',
     updated_at: '2026-07-21T09:00:00Z',
   },
-]
+];
 
 export const operationsFixture = [
   {
@@ -955,7 +955,7 @@ export const operationsFixture = [
     created_at: '2026-02-14T09:00:00Z',
     updated_at: '2026-04-20T09:00:00Z',
   },
-]
+];
 
 export const paymentTermsFixture = [
   {
@@ -982,7 +982,7 @@ export const paymentTermsFixture = [
     created_at: '2026-01-11T09:00:00Z',
     updated_at: '2026-04-01T09:00:00Z',
   },
-]
+];
 
 export const vehicleSetsFixture = [
   {
@@ -997,11 +997,11 @@ export const vehicleSetsFixture = [
     created_at: '2026-03-05T09:00:00Z',
     updated_at: '2026-06-05T09:00:00Z',
   },
-]
+];
 
 // NFS-e
 function nfseList(status: string, number: number, day: number, total: string) {
-  const id = `${ORG_PK}${String(number).padStart(15, '0')}`.padStart(45, '0').slice(-45)
+  const id = `${ORG_PK}${String(number).padStart(15, '0')}`.padStart(45, '0').slice(-45);
   return {
     pk: `hom#${ORG_PK}`,
     sk: id,
@@ -1030,21 +1030,21 @@ function nfseList(status: string, number: number, day: number, total: string) {
     user_name: 'Mock User',
     created_at: `2026-07-${String(day).padStart(2, '0')}T11:00:00Z`,
     updated_at: `2026-07-${String(day).padStart(2, '0')}T11:02:00Z`,
-  }
+  };
 }
 
 export const nfsesFixture = [
   nfseList('authorized', 11, 2, '4500.00'),
   nfseList('authorized', 12, 6, '890.00'),
   nfseList('processing', 13, 10, '1200.00'),
-]
+];
 
 export const nfseEventsFixture = [
   {
     ...dfeEvent(nfsesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-02T11:00:00Z'),
     pk: nfsesFixture[0].sk,
   },
-]
+];
 
 /**
  * Distribuição NFS-e. Diferente de NF-e/CT-e/MDF-e, o worker não faz parsing do
@@ -1060,7 +1060,7 @@ export const nfseDistributionsFixture = [
     xml_s3_key: `xml/${ORG_PK}/dist-nfse/42.xml`,
     created_at: '2026-07-02T08:30:00Z',
   },
-]
+];
 
 // ── Cadastros de apoio (um por contexto de documento) ──────────────────────
 // Alimentam as listagens do guia; os campos são os mesmos que a tela mostra.
@@ -1090,7 +1090,7 @@ export const paymentTerminalsFixture = [
     created_at: '2026-02-10T09:05:00Z',
     updated_at: '2026-05-02T09:05:00Z',
   },
-]
+];
 
 export const fuelPumpsFixture = [
   {
@@ -1115,7 +1115,7 @@ export const fuelPumpsFixture = [
     created_at: '2026-01-15T09:05:00Z',
     updated_at: '2026-07-01T09:05:00Z',
   },
-]
+];
 
 export const cargoUnitsFixture = [
   {
@@ -1140,7 +1140,7 @@ export const cargoUnitsFixture = [
     created_at: '2026-03-01T09:05:00Z',
     updated_at: '2026-06-01T09:05:00Z',
   },
-]
+];
 
 export const tollProvidersFixture = [
   {
@@ -1154,7 +1154,7 @@ export const tollProvidersFixture = [
     created_at: '2026-03-10T09:00:00Z',
     updated_at: '2026-06-10T09:00:00Z',
   },
-]
+];
 
 export const insurancePoliciesFixture = [
   {
@@ -1170,7 +1170,7 @@ export const insurancePoliciesFixture = [
     created_at: '2026-03-12T09:00:00Z',
     updated_at: '2026-06-12T09:00:00Z',
   },
-]
+];
 
 export const productLotsFixture = [
   {
@@ -1186,7 +1186,7 @@ export const productLotsFixture = [
     created_at: '2026-02-02T09:00:00Z',
     updated_at: '2026-05-02T09:00:00Z',
   },
-]
+];
 
 export const importDeclarationsFixture = [
   {
@@ -1208,4 +1208,4 @@ export const importDeclarationsFixture = [
     created_at: '2026-04-09T09:00:00Z',
     updated_at: '2026-06-09T09:00:00Z',
   },
-]
+];

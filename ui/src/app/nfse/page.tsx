@@ -1,97 +1,97 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {useRouter, useSearchParams} from 'next/navigation'
-import Link from 'next/link'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ServiceIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Button} from '@/components/ui/button'
-import {PageHeader} from '@/components/ui/page-header'
-import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
-import type {NfseListOut} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
-import {dfeStatusOptions, NFSE_STATUSES} from '@/lib/data/dfe_status'
-import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
-import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
-import {NfseDistributionTab} from '@/components/nfse/NfseDistributionTab'
-import {useState} from 'react'
-import {toast} from 'sonner'
+import {Suspense} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useRouter, useSearchParams} from 'next/navigation';
+import Link from 'next/link';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ServiceIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Button} from '@/components/ui/button';
+import {PageHeader} from '@/components/ui/page-header';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import type {NfseListOut} from '@/lib/types/api';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
+import {dfeStatusOptions, NFSE_STATUSES} from '@/lib/data/dfe_status';
+import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
+import {NfseCancelModal} from '@/components/nfse/NfseCancelModal';
+import {NfseDistributionTab} from '@/components/nfse/NfseDistributionTab';
+import {useState} from 'react';
+import {toast} from 'sonner';
 
 const MONTHS = [
   {value: 1, label: 'Jan'}, {value: 2, label: 'Fev'}, {value: 3, label: 'Mar'},
   {value: 4, label: 'Abr'}, {value: 5, label: 'Mai'}, {value: 6, label: 'Jun'},
   {value: 7, label: 'Jul'}, {value: 8, label: 'Ago'}, {value: 9, label: 'Set'},
   {value: 10, label: 'Out'}, {value: 11, label: 'Nov'}, {value: 12, label: 'Dez'},
-]
+];
 
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i);
 
 const STATUS_OPTIONS = [
   {value: '', label: 'Todos'},
   ...dfeStatusOptions(NFSE_STATUSES),
-]
+];
 
 type NfseTab = 'emitidas' | 'distribuicao'
 
 const NFSE_TABS: readonly { key: NfseTab; label: string }[] = [
   {key: 'emitidas', label: 'Emitidas'},
   {key: 'distribuicao', label: 'Recebidas via ADN'},
-]
+];
 
 function NfsesContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const params = useSearchParams()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const params = useSearchParams();
+  const qc = useQueryClient();
 
-  const [cancelTarget, setCancelTarget] = useState<NfseListOut | null>(null)
-  const [xmlLoading, setXmlLoading] = useState<string | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<NfseListOut | null>(null);
+  const [xmlLoading, setXmlLoading] = useState<string | null>(null);
 
-  const orgPk = selectedOrg?.pk ?? ''
+  const orgPk = selectedOrg?.pk ?? '';
 
-  const {config: nfseConfig, isMissing: nfseConfigMissing} = useFiscalConfig('nfse', orgPk)
+  const {config: nfseConfig, isMissing: nfseConfigMissing} = useFiscalConfig('nfse', orgPk);
 
-  const filterYear = params.get('year') ?? ''
-  const filterMonth = params.get('month') ?? ''
-  const numberSearch = params.get('number') ?? ''
-  const filterStatus = params.get('status') ?? ''
-  const activeTab: NfseTab = params.get('tab') === 'distribuicao' ? 'distribuicao' : 'emitidas'
+  const filterYear = params.get('year') ?? '';
+  const filterMonth = params.get('month') ?? '';
+  const numberSearch = params.get('number') ?? '';
+  const filterStatus = params.get('status') ?? '';
+  const activeTab: NfseTab = params.get('tab') === 'distribuicao' ? 'distribuicao' : 'emitidas';
 
   const setActiveTab = (tab: NfseTab) => {
-    const search = new URLSearchParams(params.toString())
-    search.set('tab', tab)
-    router.replace(`/nfse?${search.toString()}`, {scroll: false})
-  }
+    const search = new URLSearchParams(params.toString());
+    search.set('tab', tab);
+    router.replace(`/nfse?${search.toString()}`, {scroll: false});
+  };
 
   const setFilter = (key: string, value: string) => {
-    const sp = new URLSearchParams(params.toString())
-    if (value) sp.set(key, value); else sp.delete(key)
-    if (key === 'year' && !value) sp.delete('month')
-    router.replace(`/nfse?${sp.toString()}`, {scroll: false})
-  }
+    const sp = new URLSearchParams(params.toString());
+    if (value) sp.set(key, value); else sp.delete(key);
+    if (key === 'year' && !value) sp.delete('month');
+    router.replace(`/nfse?${sp.toString()}`, {scroll: false});
+  };
 
-  const hasFilters = numberSearch || filterYear || filterMonth || filterStatus
+  const hasFilters = numberSearch || filterYear || filterMonth || filterStatus;
 
   const queryParams = {
     sort: 'desc' as const,
@@ -100,34 +100,34 @@ function NfsesContent() {
     ...(filterYear ? {year: parseInt(filterYear, 10)} : {}),
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
     ...(filterStatus ? {status: filterStatus} : {}),
-  }
+  };
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NfseListOut>({
     queryKey: queryKeys.nfses.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.getNfses({...queryParams, cursor}),
     enabled: !!orgPk && activeTab === 'emitidas',
-  })
+  });
 
   const cancelMutation = useMutation({
     mutationFn: ({id, reasonCode, reasonDescription}: { id: string; reasonCode: string; reasonDescription: string }) =>
       apiClient.cancelNfse(id, reasonCode, reasonDescription),
     onSuccess: (_data, {id}) => {
-      setCancelTarget(null)
-      setDocStatusOptimistic(qc, queryKeys.nfses.lists(orgPk), id, 'cancelled')
-      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(id)})
+      setCancelTarget(null);
+      setDocStatusOptimistic(qc, queryKeys.nfses.lists(orgPk), id, 'cancelled');
+      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(id)});
     },
-  })
+  });
 
   const handleDownloadXml = async (item: NfseListOut) => {
-    setXmlLoading(item.sk)
+    setXmlLoading(item.sk);
     try {
-		triggerRemoteDownload((await apiClient.downloadNfseXml(item.sk)).url)
+		triggerRemoteDownload((await apiClient.downloadNfseXml(item.sk)).url);
     } catch {
-      toast.error('Erro ao baixar XML.')
+      toast.error('Erro ao baixar XML.');
     } finally {
-      setXmlLoading(null)
+      setXmlLoading(null);
     }
-  }
+  };
 
   return (
     <RootLayout>
@@ -315,13 +315,13 @@ function NfsesContent() {
         error={cancelMutation.error}
         onClose={() => setCancelTarget(null)}
         onConfirm={({reasonCode, reasonDescription}) => {
-          if (!cancelTarget) return
-          if (reasonDescription.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
-          cancelMutation.mutate({id: cancelTarget.sk, reasonCode, reasonDescription: reasonDescription.trim()})
+          if (!cancelTarget) return;
+          if (reasonDescription.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return;
+          cancelMutation.mutate({id: cancelTarget.sk, reasonCode, reasonDescription: reasonDescription.trim()});
         }}
       />
     </RootLayout>
-  )
+  );
 }
 
 export default function NfsesPage() {
@@ -331,5 +331,5 @@ export default function NfsesPage() {
         <NfsesContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

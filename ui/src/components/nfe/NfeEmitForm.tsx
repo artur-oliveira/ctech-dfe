@@ -1,43 +1,43 @@
-'use client'
+'use client';
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import {useRouter} from 'next/navigation'
-import {useQuery} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {duplicataSumGap, paymentBalanceGap, SUM_TOLERANCE, unitDataGap} from '@/lib/utils/emit-guards'
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
-import {Textarea} from '@/components/ui/textarea'
-import {GlossaryTerm} from '@/components/ui/glossary-term'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Combobox} from '@/components/ui/combobox'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {CollapsibleSection} from '@/components/ui/collapsible-section'
-import {datetimeLocalToOffset} from '@/lib/utils/datetime'
-import {AccessKeyPicker} from '@/components/nfe/AccessKeyPicker'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import {useRouter} from 'next/navigation';
+import {useQuery} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {duplicataSumGap, paymentBalanceGap, SUM_TOLERANCE, unitDataGap} from '@/lib/utils/emit-guards';
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {Textarea} from '@/components/ui/textarea';
+import {GlossaryTerm} from '@/components/ui/glossary-term';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Combobox} from '@/components/ui/combobox';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
+import {datetimeLocalToOffset} from '@/lib/utils/datetime';
+import {AccessKeyPicker} from '@/components/nfe/AccessKeyPicker';
 import {
   COMPRA_GOV_TP_OPER_COM_REFERENCIA,
   COMPRA_GOV_TP_OPER_REFERENCIA_UNICA,
-} from '@/lib/data/ibs_cbs_reform'
+} from '@/lib/data/ibs_cbs_reform';
 import {
   EMPTY_NICHE_GROUPS,
   NicheGroupsFields,
   type NicheGroupsValue,
-} from '@/components/nfe/NicheGroupsFields'
-import {Modal} from '@/components/ui/modal'
-import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
-import {EmitError} from '@/components/ui/emit-error'
-import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
-import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {StepIndicator} from '@/components/ui/step-indicator'
+} from '@/components/nfe/NicheGroupsFields';
+import {Modal} from '@/components/ui/modal';
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {EmitError} from '@/components/ui/emit-error';
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner';
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {StepIndicator} from '@/components/ui/step-indicator';
 import type {
   NfeArmaIn,
   NfeIBSCBSPairIn,
@@ -56,16 +56,16 @@ import type {
   PersonItemOut,
   ProductOut,
   VehicleOut
-} from '@/lib/types/api'
-import {NF_PAYMENT_TYPES} from '@/lib/types/api'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {PersonForm} from '@/components/persons/PersonForm'
-import {PersonPicker} from '@/components/persons/PersonPicker'
-import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {resolveCfopScope} from '@/lib/data/cfop'
-import {formatCpfCnpj, orgTaxId, unformatCpfCnpj} from "@/lib/utils/document"
+} from '@/lib/types/api';
+import {NF_PAYMENT_TYPES} from '@/lib/types/api';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {PersonForm} from '@/components/persons/PersonForm';
+import {PersonPicker} from '@/components/persons/PersonPicker';
+import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {resolveCfopScope} from '@/lib/data/cfop';
+import {formatCpfCnpj, orgTaxId, unformatCpfCnpj} from "@/lib/utils/document";
 import {
   buildNatOpFromCfops,
   cfopDirection,
@@ -76,18 +76,18 @@ import {
   groupCfopConfigBySuffix,
   NO_PAYMENT_CFOPS,
   resolveCfopForUf
-} from "@/lib/data/cfop"
-import {resolveUnitPrice} from "@/lib/data/product-price"
-import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from "@/components/nfe/PaymentCardFields"
-import {ProductLineItem} from "@/components/ui/product-line-item"
-import {ProductSearch} from "@/components/ui/product-search"
-import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options"
-import {previewInstallments} from "@/lib/schemas/payment-terms"
-import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit"
-import {LocationPicker} from "@/components/nfe/LocationPicker"
-import {NfeRefsPicker} from "@/components/nfe/NfeRefsPicker"
-import {VolumesFields} from "@/components/nfe/VolumesFields"
-import {finNFeRequiresRef} from "@/lib/schemas/nfe-refs"
+} from "@/lib/data/cfop";
+import {resolveUnitPrice} from "@/lib/data/product-price";
+import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from "@/components/nfe/PaymentCardFields";
+import {ProductLineItem} from "@/components/ui/product-line-item";
+import {ProductSearch} from "@/components/ui/product-search";
+import {NO_PAYMENT_TYPE, PAYMENT_OPTIONS} from "@/lib/data/payment-options";
+import {previewInstallments} from "@/lib/schemas/payment-terms";
+import {NatOpInlineEdit} from "@/components/nfe/NatOpInlineEdit";
+import {LocationPicker} from "@/components/nfe/LocationPicker";
+import {NfeRefsPicker} from "@/components/nfe/NfeRefsPicker";
+import {VolumesFields} from "@/components/nfe/VolumesFields";
+import {finNFeRequiresRef} from "@/lib/schemas/nfe-refs";
 
 // ─── Local state types ────────────────────────────────────────────────────────
 
@@ -129,19 +129,19 @@ const REFORM_ITEM_MODE_OPTIONS: { value: ReformItemMode; label: string }[] = [
   {value: 'none', label: 'Apuração normal'},
   {value: 'transf_cred', label: 'Transferência de crédito'},
   {value: 'ajuste_compet', label: 'Ajuste de competência'},
-]
+];
 
 /** Par IBS/CBS do ramo escolhido; null quando o item não usa aquele ramo. */
 function reformPair(item: EmitProduct, mode: ReformItemMode): NfeIBSCBSPairIn | null {
-  if ((item.reform_mode ?? 'none') !== mode) return null
-  if (!item.reform_v_ibs && !item.reform_v_cbs) return null
-  return {v_ibs: item.reform_v_ibs || null, v_cbs: item.reform_v_cbs || null}
+  if ((item.reform_mode ?? 'none') !== mode) return null;
+  if (!item.reform_v_ibs && !item.reform_v_cbs) return null;
+  return {v_ibs: item.reform_v_ibs || null, v_cbs: item.reform_v_cbs || null};
 }
 
 /** Estorno de crédito do item — convive com qualquer ramo da apuração. */
 function estornoPair(item: EmitProduct): NfeIBSCBSPairIn | null {
-  if (!item.estorno_v_ibs && !item.estorno_v_cbs) return null
-  return {v_ibs: item.estorno_v_ibs || null, v_cbs: item.estorno_v_cbs || null}
+  if (!item.estorno_v_ibs && !item.estorno_v_cbs) return null;
+  return {v_ibs: item.estorno_v_ibs || null, v_cbs: item.estorno_v_cbs || null};
 }
 
 interface EmitPayment {
@@ -172,32 +172,32 @@ interface EmitDuplicata {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function computeTotal(p: EmitProduct): number {
-  const qty = parseFloat(p.qty) || 0
-  const unit = parseFloat(p.unitValue) || 0
-  const disc = parseFloat(p.discount) || 0
-  return Math.max(0, qty * unit - disc)
+  const qty = parseFloat(p.qty) || 0;
+  const unit = parseFloat(p.unitValue) || 0;
+  const disc = parseFloat(p.discount) || 0;
+  return Math.max(0, qty * unit - disc);
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 }
 
 /** Tabela estática: recriar por render invalida o memo do Combobox. */
-const ALL_CFOP_OPTIONS = getAllCfopOptions()
+const ALL_CFOP_OPTIONS = getAllCfopOptions();
 
 /** Placa Mercosul (ABC1D23) ou o padrão antigo (ABC1234) — nada mais entra no XML. */
-const PLATE_RE = /^[A-Z]{3}\d[A-Z0-9]\d{2}$/
+const PLATE_RE = /^[A-Z]{3}\d[A-Z0-9]\d{2}$/;
 
 /** Data de hoje em ISO — piso de vencimento: duplicata vencida antes da emissão é rejeição. */
 function todayIso(): string {
-  return localIso().slice(0, 10)
+  return localIso().slice(0, 10);
 }
 
 /** Agora no formato do input datetime-local (hora local, não UTC). */
 function localIso(): string {
-  const now = new Date()
-  const offsetMs = now.getTimezoneOffset() * 60_000
-  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16)
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function itemUnitDataGap(item: EmitProduct): string | null {
@@ -207,7 +207,7 @@ function itemUnitDataGap(item: EmitProduct): string | null {
     nSerie: item.veic_n_serie,
     nMotor: item.veic_n_motor,
     armaCount: (item.armas ?? []).length,
-  })
+  });
 }
 
 // ─── Receiver search ──────────────────────────────────────────────────────────
@@ -218,69 +218,69 @@ interface ReceiverSearchProps {
 }
 
 function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, 300)
-  const [open, setOpen] = useState(false)
-  const [directError, setDirectError] = useState<string | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [createLoading, setCreateLoading] = useState(false)
-  const [docSearchLoading, setDocSearchLoading] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
+  const [open, setOpen] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [docSearchLoading, setDocSearchLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Detect CPF (11) or CNPJ (14) regardless of formatting
-  const digits = query.replace(/\D/g, '')
-  const isCpf = digits.length === 11
-  const isCnpj = digits.length === 14
-  const isDoc = isCpf || isCnpj
+  const digits = query.replace(/\D/g, '');
+  const isCpf = digits.length === 11;
+  const isCnpj = digits.length === 14;
+  const isDoc = isCpf || isCnpj;
 
   const nameQuery = useQuery({
     queryKey: queryKeys.persons.search(debouncedQuery),
     queryFn: () => apiClient.searchPersonsByName(debouncedQuery),
     enabled: open && !!debouncedQuery && !isDoc && debouncedQuery.length >= 2,
-  })
+  });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleSearchByDoc = useCallback(async () => {
-    if (!isDoc) return
-    setDirectError(null)
-    setDocSearchLoading(true)
+    if (!isDoc) return;
+    setDirectError(null);
+    setDocSearchLoading(true);
     try {
-      const person = await apiClient.getPersonByCpfCnpj(digits)
-      onChange(person)
-      setQuery('')
-      setOpen(false)
+      const person = await apiClient.getPersonByCpfCnpj(digits);
+      onChange(person);
+      setQuery('');
+      setOpen(false);
     } catch {
-      setDirectError('Pessoa não encontrada. Cadastre-a abaixo.')
-      setShowCreate(true)
+      setDirectError('Pessoa não encontrada. Cadastre-a abaixo.');
+      setShowCreate(true);
     } finally {
-      setDocSearchLoading(false)
+      setDocSearchLoading(false);
     }
-  }, [digits, isDoc, onChange])
+  }, [digits, isDoc, onChange]);
 
   const handleCreatePerson = async (data: PersonCreate) => {
-    setCreateLoading(true)
+    setCreateLoading(true);
     try {
-      const created = await apiClient.createPerson(data)
-      onChange(created)
-      setShowCreate(false)
-      setQuery('')
-      setDirectError(null)
+      const created = await apiClient.createPerson(data);
+      onChange(created);
+      setShowCreate(false);
+      setQuery('');
+      setDirectError(null);
     } finally {
-      setCreateLoading(false)
+      setCreateLoading(false);
     }
-  }
+  };
 
   if (value) {
-    const cpfCnpj = unformatCpfCnpj(value.sk)
+    const cpfCnpj = unformatCpfCnpj(value.sk);
     return (
       <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
         <div className="flex-1 min-w-0">
@@ -292,10 +292,10 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
           Trocar
         </Button>
       </div>
-    )
+    );
   }
 
-  const suggestions = nameQuery.data?.items ?? []
+  const suggestions = nameQuery.data?.items ?? [];
 
   return (
     <div ref={containerRef} className="space-y-3">
@@ -305,10 +305,10 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
             type="text"
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value.toUpperCase())
-              setDirectError(null)
-              setShowCreate(false)
-              setOpen(true)
+              setQuery(e.target.value.toUpperCase());
+              setDirectError(null);
+              setShowCreate(false);
+              setOpen(true);
             }}
             onFocus={() => setOpen(true)}
             placeholder="Nome, CPF ou CNPJ (com ou sem formatação)"
@@ -354,7 +354,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
               // that registered them. Reading the PK here showed the issuer's
               // CNPJ under every suggestion — and once the PK is a company id it
               // would have shown a UUID.
-              const cpfCnpj = unformatCpfCnpj(p.sk)
+              const cpfCnpj = unformatCpfCnpj(p.sk);
               return (
                 <button
                   key={p.sk}
@@ -363,16 +363,16 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
                   aria-selected={false}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    onChange(p)
-                    setQuery('')
-                    setOpen(false)
+                    onChange(p);
+                    setQuery('');
+                    setOpen(false);
                   }}
                   className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors"
                 >
                   <p className="text-sm font-medium text-gray-900">{p.name}</p>
                   <p className="text-xs text-gray-400 font-mono">{formatCpfCnpj(cpfCnpj)}</p>
                 </button>
-              )
+              );
             })}
           </div>
         )}
@@ -395,7 +395,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowCreate(true);
-                setOpen(false)
+                setOpen(false);
               }}
               className="text-brand-600 hover:text-brand-700 px-0"
             >
@@ -418,7 +418,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
         />
       </Modal>
     </div>
-  )
+  );
 }
 
 // ─── Carrier search (transportadora) ─────────────────────────────────────────
@@ -438,14 +438,14 @@ function VehicleSelect({vehicles, onSelect, query, onQueryChange}: VehicleSelect
       v.plate.toLowerCase().includes(query.toLowerCase()) ||
       v.owner?.name?.toLowerCase().includes(query.toLowerCase())
     )
-    : vehicles
+    : vehicles;
 
   if (vehicles.length === 0) {
     return (
       <p className="text-xs text-gray-400 py-1">
         Nenhum veículo cadastrado. Use as opções manuais abaixo.
       </p>
-    )
+    );
   }
 
   return (
@@ -469,7 +469,7 @@ function VehicleSelect({vehicles, onSelect, query, onQueryChange}: VehicleSelect
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // ─── Product row ──────────────────────────────────────────────────────────────
@@ -486,24 +486,24 @@ interface ProductRowProps {
 }
 
 export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, onRemove}: ProductRowProps) {
-  const cfopGroups = groupCfopConfigBySuffix(item.product.cfop_config)
+  const cfopGroups = groupCfopConfigBySuffix(item.product.cfop_config);
   const cfopOptions = cfopGroups.map((g) => {
-    const codes = cfopGroupCodes(g)
-    const label = g.label ? `${codes} – ${g.label}` : codes
-    return {value: g.suffix, label}
-  })
-  const selectedGroup = cfopGroups.find(g => g.suffix === item.cfopSuffix) ?? null
+    const codes = cfopGroupCodes(g);
+    const label = g.label ? `${codes} – ${g.label}` : codes;
+    return {value: g.suffix, label};
+  });
+  const selectedGroup = cfopGroups.find(g => g.suffix === item.cfopSuffix) ?? null;
   // UF unknown (no recipient UF / issuer UF) — cannot resolve scope yet.
-  const cfopUfUnknown = selectedGroup !== null && sameUf === null
+  const cfopUfUnknown = selectedGroup !== null && sameUf === null;
   // Required-scope variant (5xxx/6xxx) not configured for this destination.
   const cfopMissingVariant = selectedGroup !== null && sameUf !== null
-    && resolveCfopForUf(selectedGroup, sameUf) === null
-  const total = computeTotal(item)
-  const isVeiculo = item.product.prod_type === 'veiculo'
-  const isArma = item.product.prod_type === 'arma'
-  const unitDataGap = itemUnitDataGap(item)
+    && resolveCfopForUf(selectedGroup, sameUf) === null;
+  const total = computeTotal(item);
+  const isVeiculo = item.product.prod_type === 'veiculo';
+  const isArma = item.product.prod_type === 'arma';
+  const unitDataGap = itemUnitDataGap(item);
 
-  const [newArma, setNewArma] = useState<NfeArmaIn>({n_serie: '', n_cano: '', descr: ''})
+  const [newArma, setNewArma] = useState<NfeArmaIn>({n_serie: '', n_cano: '', descr: ''});
 
   return (
     <ProductLineItem
@@ -539,9 +539,9 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
               id={`nfe-item-${index}-cfop`}
               value={item.cfopSuffix}
               onValueChange={(suffix) => {
-                const group = cfopGroups.find(g => g.suffix === suffix)
-                const resolved = group && sameUf !== null ? resolveCfopForUf(group, sameUf) : null
-                onChange(index, {cfopSuffix: suffix, cfop: resolved ?? ''})
+                const group = cfopGroups.find(g => g.suffix === suffix);
+                const resolved = group && sameUf !== null ? resolveCfopForUf(group, sameUf) : null;
+                onChange(index, {cfopSuffix: suffix, cfop: resolved ?? ''});
               }}
               options={cfopOptions} placeholder="CFOP"/>
           ) : (
@@ -731,8 +731,8 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
           <Button type="button" variant="ghost" size="sm"
                   disabled={!newArma.n_serie || !newArma.n_cano}
                   onClick={() => {
-                    onChange(index, {armas: [...(item.armas ?? []), newArma]})
-                    setNewArma({n_serie: '', n_cano: '', descr: ''})
+                    onChange(index, {armas: [...(item.armas ?? []), newArma]});
+                    setNewArma({n_serie: '', n_cano: '', descr: ''});
                   }}
                   className="text-brand-600 hover:text-brand-700 px-0">
             + Adicionar arma
@@ -741,37 +741,37 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
       )}
 
     </ProductLineItem>
-  )
+  );
 }
 
 // ─── Date / amount utilities ──────────────────────────────────────────────────
 
 function addOneMonth(dateStr: string): string {
-  if (!dateStr) return ''
-  const [year, month, day] = dateStr.split('-').map(Number)
-  let newMonth = month + 1
-  let newYear = year
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let newMonth = month + 1;
+  let newYear = year;
   if (newMonth > 12) {
     newMonth = 1;
-    newYear++
+    newYear++;
   }
-  const lastDay = new Date(newYear, newMonth, 0).getDate()
-  const newDay = Math.min(day, lastDay)
-  return `${newYear}-${String(newMonth).padStart(2, '0')}-${String(newDay).padStart(2, '0')}`
+  const lastDay = new Date(newYear, newMonth, 0).getDate();
+  const newDay = Math.min(day, lastDay);
+  return `${newYear}-${String(newMonth).padStart(2, '0')}-${String(newDay).padStart(2, '0')}`;
 }
 
 function generateDuplicatas(total: number, count: number, firstDate: string): EmitDuplicata[] {
-  if (count <= 0 || total <= 0) return []
-  const cents = Math.round(total * 100)
-  const baseC = Math.floor(cents / count)
-  const remainder = cents - baseC * count
-  const result: EmitDuplicata[] = []
+  if (count <= 0 || total <= 0) return [];
+  const cents = Math.round(total * 100);
+  const baseC = Math.floor(cents / count);
+  const remainder = cents - baseC * count;
+  const result: EmitDuplicata[] = [];
   for (let i = 0; i < count; i++) {
-    const amount = (baseC + (i === count - 1 ? remainder : 0)) / 100
-    const date = i === 0 ? firstDate : addOneMonth(result[i - 1].d_venc)
-    result.push({n_dup: String(i + 1).padStart(3, '0'), d_venc: date, v_dup: amount.toFixed(2)})
+    const amount = (baseC + (i === count - 1 ? remainder : 0)) / 100;
+    const date = i === 0 ? firstDate : addOneMonth(result[i - 1].d_venc);
+    result.push({n_dup: String(i + 1).padStart(3, '0'), d_venc: date, v_dup: amount.toFixed(2)});
   }
-  return result
+  return result;
 }
 
 // ─── Review row ───────────────────────────────────────────────────────────────
@@ -793,7 +793,7 @@ function ReviewRow({label, onEdit, children}: {
       </div>
       <div className="mt-1.5 text-sm">{children}</div>
     </div>
-  )
+  );
 }
 
 // ─── Step types ───────────────────────────────────────────────────────────────
@@ -804,186 +804,186 @@ const STEPS: { id: EmitStep; label: string }[] = [
   {id: 'produtos', label: 'Produtos'},
   {id: 'pagamento', label: 'Pagamento'},
   {id: 'revisao', label: 'Revisão'},
-]
-const STEP_IDS = STEPS.map(s => s.id)
+];
+const STEP_IDS = STEPS.map(s => s.id);
 
 // ─── Main form ────────────────────────────────────────────────────────────────
 
 export function NfeEmitForm() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
 
-  const [currentStep, setCurrentStep] = useState<EmitStep>('destinatario')
-  const [receiver, setReceiver] = useState<PersonItemOut | null>(null)
-  const [selfIssuance, setSelfIssuance] = useState(false)
-  const [entrega, setEntrega] = useState<NfeLocalIn | null>(null)
-  const [saveEntregaLocation, setSaveEntregaLocation] = useState(false)
-  const [retirada, setRetirada] = useState<NfeLocalIn | null>(null)
-  const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false)
-  const [prevReceiverSk, setPrevReceiverSk] = useState<string | null>(null)
+  const [currentStep, setCurrentStep] = useState<EmitStep>('destinatario');
+  const [receiver, setReceiver] = useState<PersonItemOut | null>(null);
+  const [selfIssuance, setSelfIssuance] = useState(false);
+  const [entrega, setEntrega] = useState<NfeLocalIn | null>(null);
+  const [saveEntregaLocation, setSaveEntregaLocation] = useState(false);
+  const [retirada, setRetirada] = useState<NfeLocalIn | null>(null);
+  const [saveRetiradaLocation, setSaveRetiradaLocation] = useState(false);
+  const [prevReceiverSk, setPrevReceiverSk] = useState<string | null>(null);
   // rawProducts é o que o usuário montou; `products` (abaixo) é isso com o
   // CFOP da operação já aplicado, quando há operação.
-  const [rawProducts, setProducts] = useState<EmitProduct[]>([])
-  const [payments, setPayments] = useState<EmitPayment[]>([])
-  const [additionalInfo, setAdditionalInfo] = useState('')
-  const [nfRefs, setNfRefs] = useState<NfeRefIn[]>([])
-  const [vols, setVols] = useState<NfeVolIn[]>([])
-  const [reboques, setReboques] = useState<NfeReboqueIn[]>([])
-  const [procRef, setProcRef] = useState<NfeProcRefIn[]>([])
-  const [natOpManual, setNatOpManual] = useState<string | null>(null)
+  const [rawProducts, setProducts] = useState<EmitProduct[]>([]);
+  const [payments, setPayments] = useState<EmitPayment[]>([]);
+  const [additionalInfo, setAdditionalInfo] = useState('');
+  const [nfRefs, setNfRefs] = useState<NfeRefIn[]>([]);
+  const [vols, setVols] = useState<NfeVolIn[]>([]);
+  const [reboques, setReboques] = useState<NfeReboqueIn[]>([]);
+  const [procRef, setProcRef] = useState<NfeProcRefIn[]>([]);
+  const [natOpManual, setNatOpManual] = useState<string | null>(null);
   // null = ainda não escolhido; a operação padrão vale como default.
-  const [operationId, setOperationId] = useState<string | null>(null)
+  const [operationId, setOperationId] = useState<string | null>(null);
   // Grupos de nicho (compra, cana, agropecuario) — todos opcionais.
-  const [nicheGroups, setNicheGroups] = useState<NicheGroupsValue>(EMPTY_NICHE_GROUPS)
+  const [nicheGroups, setNicheGroups] = useState<NicheGroupsValue>(EMPTY_NICHE_GROUPS);
   // Saída da mercadoria e previsão de entrega. Em branco, valem o prazo padrão
   // da natureza de operação (ou nenhuma tag, se ela não define prazo).
-  const [dhSaiEnt, setDhSaiEnt] = useState('')
-  const [dPrevEntrega, setDPrevEntrega] = useState('')
+  const [dhSaiEnt, setDhSaiEnt] = useState('');
+  const [dPrevEntrega, setDPrevEntrega] = useState('');
   // Chaves referenciadas da reforma: documentos anteriores da compra
   // governamental e NF-e de antecipação de pagamento a abater.
-  const [compraGovRefs, setCompraGovRefs] = useState<string[]>([])
-  const [pagAntecipadoRefs, setPagAntecipadoRefs] = useState<string[]>([])
+  const [compraGovRefs, setCompraGovRefs] = useState<string[]>([]);
+  const [pagAntecipadoRefs, setPagAntecipadoRefs] = useState<string[]>([]);
   // '' = pagamento manual (comportamento de sempre).
-  const [paymentTermId, setPaymentTermId] = useState('')
-  const [showProductPicker, setShowProductPicker] = useState(false)
-  const [newPaymentType, setNewPaymentType] = useState('01')
-  const [newPaymentValue, setNewPaymentValue] = useState('')
-  const paymentValueLockedRef = useRef(false)
-  const [newPaymentIndPag, setNewPaymentIndPag] = useState<'0' | '1'>('0')
-  const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
-  const [newPaymentTerminal, setNewPaymentTerminal] = useState('')
-  const [showCardToggle, setShowCardToggle] = useState(false)
+  const [paymentTermId, setPaymentTermId] = useState('');
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [newPaymentType, setNewPaymentType] = useState('01');
+  const [newPaymentValue, setNewPaymentValue] = useState('');
+  const paymentValueLockedRef = useRef(false);
+  const [newPaymentIndPag, setNewPaymentIndPag] = useState<'0' | '1'>('0');
+  const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null);
+  const [newPaymentTerminal, setNewPaymentTerminal] = useState('');
+  const [showCardToggle, setShowCardToggle] = useState(false);
   // Cobrança
-  const [cobrFat, setCobrFat] = useState<NfeFatIn>({n_fat: '', v_orig: '', v_desc: '', v_liq: ''})
-  const [prevHasPrazoPayment, setPrevHasPrazoPayment] = useState(false)
-  const [prevSameUf, setPrevSameUf] = useState<boolean | null>(null)
-  const [prevHasNoPaymentCfop, setPrevHasNoPaymentCfop] = useState(false)
-  const [duplicatas, setDuplicatas] = useState<EmitDuplicata[]>([])
-  const [dupCount, setDupCount] = useState('1')
-  const [dupFirstDate, setDupFirstDate] = useState('')
+  const [cobrFat, setCobrFat] = useState<NfeFatIn>({n_fat: '', v_orig: '', v_desc: '', v_liq: ''});
+  const [prevHasPrazoPayment, setPrevHasPrazoPayment] = useState(false);
+  const [prevSameUf, setPrevSameUf] = useState<boolean | null>(null);
+  const [prevHasNoPaymentCfop, setPrevHasNoPaymentCfop] = useState(false);
+  const [duplicatas, setDuplicatas] = useState<EmitDuplicata[]>([]);
+  const [dupCount, setDupCount] = useState('1');
+  const [dupFirstDate, setDupFirstDate] = useState('');
   // Transport
-  const [showTransport, setShowTransport] = useState(false)
+  const [showTransport, setShowTransport] = useState(false);
   const [transport, setTransport] = useState<EmitTransport>({
     mod_frete: '9', transporta_cnpj: '', transporta_nome: '', transporta_uf: '',
     veiculo_placa: '', veiculo_uf: '', veiculo_rntrc: '',
-  })
-  const [selectedCarrier, setSelectedCarrier] = useState<PersonItemOut | null>(null)
-  const [selectedVehicle, setSelectedVehicle] = useState<VehicleOut | null>(null)
-  const [vehicleSearchQuery, setVehicleSearchQuery] = useState('')
-  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
-  const [loadingFavCpfCnpj, setLoadingFavCpfCnpj] = useState<string | null>(null)
+  });
+  const [selectedCarrier, setSelectedCarrier] = useState<PersonItemOut | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleOut | null>(null);
+  const [vehicleSearchQuery, setVehicleSearchQuery] = useState('');
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false);
+  const [loadingFavCpfCnpj, setLoadingFavCpfCnpj] = useState<string | null>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
 
-  const {config: nfeConfig} = useFiscalConfig('nfe', selectedOrg?.pk)
+  const {config: nfeConfig} = useFiscalConfig('nfe', selectedOrg?.pk);
 
   const {data: orgData} = useQuery({
     queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
     enabled: !!selectedOrg,
-  })
+  });
 
   const {data: vehiclesData} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getVehicles({limit: 50}),
     enabled: !!selectedOrg && showTransport,
-  })
+  });
 
   const {data: recentNfes, isLoading: recentNfesLoading} = useQuery({
     queryKey: queryKeys.nfes.list(selectedOrg?.pk, {limit: 50}),
     queryFn: () => apiClient.getNfes({limit: 50}),
     enabled: !!selectedOrg,
     staleTime: 60_000,
-  })
+  });
 
   const favoriteReceivers = useMemo((): Array<{ name: string; cpfCnpj: string; count: number }> => {
-    if (!recentNfes?.items) return []
+    if (!recentNfes?.items) return [];
     // The emitter's document goes into the XML. Off the record: the pk is a
     // company id since ADR 0022 and carries none.
-    const orgDoc = selectedOrg ? orgTaxId(selectedOrg) : null
-    const counts = new Map<string, { name: string; cpfCnpj: string; count: number }>()
+    const orgDoc = selectedOrg ? orgTaxId(selectedOrg) : null;
+    const counts = new Map<string, { name: string; cpfCnpj: string; count: number }>();
     for (const nfe of recentNfes.items as NfeListOut[]) {
-      if (nfe.incoming || !nfe.dest_cpf_cnpj) continue
-      if (orgDoc && unformatCpfCnpj(nfe.dest_cpf_cnpj) === orgDoc) continue
-      const cur = counts.get(nfe.dest_cpf_cnpj)
-      if (cur) cur.count++
-      else counts.set(nfe.dest_cpf_cnpj, {name: nfe.dest_name, cpfCnpj: nfe.dest_cpf_cnpj, count: 1})
+      if (nfe.incoming || !nfe.dest_cpf_cnpj) continue;
+      if (orgDoc && unformatCpfCnpj(nfe.dest_cpf_cnpj) === orgDoc) continue;
+      const cur = counts.get(nfe.dest_cpf_cnpj);
+      if (cur) cur.count++;
+      else counts.set(nfe.dest_cpf_cnpj, {name: nfe.dest_name, cpfCnpj: nfe.dest_cpf_cnpj, count: 1});
     }
-    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 5)
-  }, [recentNfes, selectedOrg])
+    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [recentNfes, selectedOrg]);
 
   const {data: operationPage} = useQuery({
     queryKey: queryKeys.operations.list(selectedOrg?.pk),
     queryFn: () => apiClient.getOperations({limit: 100}),
     enabled: !!selectedOrg,
-  })
+  });
   const operations = useMemo(
     () => (operationPage?.items ?? []).filter((op) => (op.doc_types ?? ['nfe']).includes('nfe')),
     [operationPage],
-  )
+  );
   // A operação padrão da organização vem pré-selecionada, sem escrever estado:
   // `operationId` guarda só a escolha explícita do usuário — inclusive a
   // escolha de não usar operação nenhuma (string vazia após tocar no seletor).
-  const defaultOperationId = operations.find((op) => op.is_default)
+  const defaultOperationId = operations.find((op) => op.is_default);
   const effectiveOperationId = operationId === null
     ? (defaultOperationId ? extractId(defaultOperationId.sk, SK_PREFIX.OPERATION) : '')
-    : operationId
+    : operationId;
   const selectedOperation = operations.find(
     (op) => extractId(op.sk, SK_PREFIX.OPERATION) === effectiveOperationId,
-  )
+  );
 
   const {data: paymentTermPage} = useQuery({
     queryKey: queryKeys.paymentTerms.list(selectedOrg?.pk),
     queryFn: () => apiClient.getPaymentTerms({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const paymentTerms = paymentTermPage?.items ?? []
+  });
+  const paymentTerms = paymentTermPage?.items ?? [];
   const selectedPaymentTerm = paymentTerms.find(
     (t) => extractId(t.sk, SK_PREFIX.PAYMENT_TERM) === paymentTermId,
-  )
+  );
 
   const operationCfopSuffix = typeof selectedOperation?.cfop_suffix === 'string'
     ? selectedOperation.cfop_suffix
-    : ''
+    : '';
 
   // Complementar, ajuste e devolução só existem contra um documento anterior:
   // a seção de referências aparece exatamente nessas finalidades.
   const operationFinNFe = typeof selectedOperation?.fin_nfe === 'string'
     ? selectedOperation.fin_nfe
-    : null
-  const requiresNfRefs = finNFeRequiresRef(operationFinNFe)
+    : null;
+  const requiresNfRefs = finNFeRequiresRef(operationFinNFe);
 
   // Safra da cana e CPF do responsável técnico agronômico: os dois vêm do
   // cadastro (operação e organização) e habilitam os grupos de nicho.
   const operationCanaSafra = typeof selectedOperation?.cana_safra === 'string'
     ? selectedOperation.cana_safra
-    : null
+    : null;
   const orgTechnicalManagerCpf = typeof orgData?.person?.technical_manager_cpf === 'string'
     ? orgData.person.technical_manager_cpf
-    : null
+    : null;
   const operationDhSaiEntOffsetDays = typeof selectedOperation?.dh_sai_ent_offset_days === 'number'
     ? selectedOperation.dh_sai_ent_offset_days
-    : null
+    : null;
 
   // A regra do refDFeAnt é do leiaute: obrigatório nos tipos 2 e 3, vedado em 1
   // e 4, e no tipo 2 uma chave só. O formulário só mostra o campo quando ele é
   // aceito — assim a rejeição não é a primeira notícia da regra.
   const operationCompraGovTpOper = typeof selectedOperation?.compra_gov_tp_oper === 'string'
     ? selectedOperation.compra_gov_tp_oper
-    : ''
-  const compraGovNeedsRef = COMPRA_GOV_TP_OPER_COM_REFERENCIA.has(operationCompraGovTpOper)
-  const compraGovRefMax = operationCompraGovTpOper === COMPRA_GOV_TP_OPER_REFERENCIA_UNICA ? 1 : undefined
+    : '';
+  const compraGovNeedsRef = COMPRA_GOV_TP_OPER_COM_REFERENCIA.has(operationCompraGovTpOper);
+  const compraGovRefMax = operationCompraGovTpOper === COMPRA_GOV_TP_OPER_REFERENCIA_UNICA ? 1 : undefined;
 
 
   // Recipient in the issuer's UF? Self-issuance ⇒ always same UF.
-  const issuerUf = selectedOrg?.state_federation ?? null
+  const issuerUf = selectedOrg?.state_federation ?? null;
   const recipientUf = selfIssuance
     ? issuerUf
-    : (receiver?.person.addresses?.[0]?.state_federation ?? null)
+    : (receiver?.person.addresses?.[0]?.state_federation ?? null);
   const sameUf: boolean | null =
-    issuerUf && recipientUf ? issuerUf === recipientUf : null
+    issuerUf && recipientUf ? issuerUf === recipientUf : null;
 
   // Com a operação escolhida, o CFOP de cada item é derivado das UFs — o
   // operador não responde item a item o que a operação já respondeu uma vez.
@@ -991,10 +991,10 @@ export function NfeEmitForm() {
   // digitou, e trocar de operação não deixa CFOP velho para trás.
   const operationCfop = operationCfopSuffix && issuerUf && recipientUf
     ? resolveCfopScope(operationCfopSuffix, issuerUf, recipientUf)
-    : null
+    : null;
   const products = operationCfop
     ? rawProducts.map((p) => ({...p, cfop: operationCfop, cfopSuffix: operationCfopSuffix}))
-    : rawProducts
+    : rawProducts;
 
   // ─── Draft recovery ───────────────────────────────────────────────────────
 
@@ -1004,54 +1004,54 @@ export function NfeEmitForm() {
     selectedCarrier, selectedVehicle,
   }), [currentStep, receiver, selfIssuance, entrega, retirada, rawProducts, payments,
     additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
-    selectedCarrier, selectedVehicle])
+    selectedCarrier, selectedVehicle]);
   const draft = useEmitDraft('nfe', selectedOrg?.pk, draftState,
-    rawProducts.length > 0 || receiver !== null || selfIssuance)
+    rawProducts.length > 0 || receiver !== null || selfIssuance);
 
   const restoreDraft = () => {
-    const s = draft.recovered?.state
+    const s = draft.recovered?.state;
     if (s) {
-      setCurrentStep(s.currentStep)
-      setReceiver(s.receiver)
-      setSelfIssuance(s.selfIssuance)
-      setEntrega(s.entrega)
-      setRetirada(s.retirada)
-      setProducts(s.products)
-      setPayments(s.payments)
-      setAdditionalInfo(s.additionalInfo)
-      setNatOpManual(s.natOpManual)
-      setCobrFat(s.cobrFat)
-      setDuplicatas(s.duplicatas)
-      setShowTransport(s.showTransport)
-      setTransport(s.transport)
-      setSelectedCarrier(s.selectedCarrier)
-      setSelectedVehicle(s.selectedVehicle)
+      setCurrentStep(s.currentStep);
+      setReceiver(s.receiver);
+      setSelfIssuance(s.selfIssuance);
+      setEntrega(s.entrega);
+      setRetirada(s.retirada);
+      setProducts(s.products);
+      setPayments(s.payments);
+      setAdditionalInfo(s.additionalInfo);
+      setNatOpManual(s.natOpManual);
+      setCobrFat(s.cobrFat);
+      setDuplicatas(s.duplicatas);
+      setShowTransport(s.showTransport);
+      setTransport(s.transport);
+      setSelectedCarrier(s.selectedCarrier);
+      setSelectedVehicle(s.selectedVehicle);
     }
-    draft.accept()
-  }
+    draft.accept();
+  };
 
   // ─── Totals ───────────────────────────────────────────────────────────────
 
-  const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0)
-  const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0)
-  const totalNfe = Math.max(0, totalProducts - totalDiscount)
-  const totalPaid = payments.some(it => it.payment_type === NO_PAYMENT_TYPE) ? totalNfe : payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
-  const remaining = totalNfe - totalPaid
+  const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0);
+  const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0);
+  const totalNfe = Math.max(0, totalProducts - totalDiscount);
+  const totalPaid = payments.some(it => it.payment_type === NO_PAYMENT_TYPE) ? totalNfe : payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0);
+  const remaining = totalNfe - totalPaid;
 
   // ─── CFOP direction (tp_nf) + nat_op ───────────────────────────────────────
   // Note type is set by the FIRST product's CFOP; mixing entrada (1/2/3) with
   // saída (5/6/7) CFOPs is not allowed in the same NF-e.
-  const noteDirection = products.length > 0 ? cfopDirection(products[0].cfop) : null
+  const noteDirection = products.length > 0 ? cfopDirection(products[0].cfop) : null;
   const cfopMixError = noteDirection !== null
-    && products.some(p => cfopDirection(p.cfop) !== null && cfopDirection(p.cfop) !== noteDirection)
-  const tpNf = products.length > 0 ? cfopTpNf(products[0].cfop) : '1'
-  const computedNatOp = useMemo(() => buildNatOpFromCfops(products.map(p => p.cfop)), [products])
-  const natOp = natOpManual ?? computedNatOp
+    && products.some(p => cfopDirection(p.cfop) !== null && cfopDirection(p.cfop) !== noteDirection);
+  const tpNf = products.length > 0 ? cfopTpNf(products[0].cfop) : '1';
+  const computedNatOp = useMemo(() => buildNatOpFromCfops(products.map(p => p.cfop)), [products]);
+  const natOp = natOpManual ?? computedNatOp;
 
 
   // Grouped-CFOP products block emission until the destination UF is known
   // (sameUf === null) AND a same-scope variant is resolved (non-empty cfop).
-  const cfopUnresolvedError = products.some(p => p.cfopSuffix && (!p.cfop || sameUf === null))
+  const cfopUnresolvedError = products.some(p => p.cfopSuffix && (!p.cfop || sameUf === null));
 
   // Dados por unidade (chassi, motor, arma) que a SEFAZ só cobra na emissão.
   const itemGaps = useMemo(
@@ -1059,79 +1059,79 @@ export function NfeEmitForm() {
       .map((item, index) => ({index, reason: itemUnitDataGap(item)}))
       .filter((g): g is {index: number; reason: string} => g.reason !== null),
     [products],
-  )
+  );
 
   // Re-resolve CFOPs when sameUf changes (same-render pattern to avoid effect setState warning)
   if (sameUf !== prevSameUf) {
-    setPrevSameUf(sameUf)
+    setPrevSameUf(sameUf);
     if (sameUf !== null) {
       setProducts(prev => prev.map(item => {
-        if (!item.cfopSuffix) return item
-        const groups = groupCfopConfigBySuffix(item.product.cfop_config)
-        const group = groups.find(g => g.suffix === item.cfopSuffix)
-        if (!group) return item
-        return {...item, cfop: resolveCfopForUf(group, sameUf) ?? ''}
-      }))
+        if (!item.cfopSuffix) return item;
+        const groups = groupCfopConfigBySuffix(item.product.cfop_config);
+        const group = groups.find(g => g.suffix === item.cfopSuffix);
+        if (!group) return item;
+        return {...item, cfop: resolveCfopForUf(group, sameUf) ?? ''};
+      }));
     }
   }
 
   // Products with a "sem pagamento" CFOP (e.g. remessa/bonificação) force the
   // payment to "Sem pagamento" (tPag 90). Same-render guard mirrors the CFOP
   // re-resolve above to avoid the React 19 passive-effect setState cascade.
-  const hasNoPaymentCfop = products.some(p => (NO_PAYMENT_CFOPS as string[]).includes(p.cfop))
+  const hasNoPaymentCfop = products.some(p => (NO_PAYMENT_CFOPS as string[]).includes(p.cfop));
   if (hasNoPaymentCfop !== prevHasNoPaymentCfop) {
-    setPrevHasNoPaymentCfop(hasNoPaymentCfop)
+    setPrevHasNoPaymentCfop(hasNoPaymentCfop);
     if (hasNoPaymentCfop) {
-      setNewPaymentType(NO_PAYMENT_TYPE)
-      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null, terminal_id: null}])
+      setNewPaymentType(NO_PAYMENT_TYPE);
+      setPayments([{payment_type: NO_PAYMENT_TYPE, value: '0.00', ind_pag: '0', card: null, terminal_id: null}]);
     }
   }
 
   // Derived — cobrança only shown when there's an "a prazo" payment
-  const plateInvalid = transport.veiculo_placa !== '' && !PLATE_RE.test(transport.veiculo_placa)
-  const hasPrazoPayment = payments.some(p => p.ind_pag === '1')
+  const plateInvalid = transport.veiculo_placa !== '' && !PLATE_RE.test(transport.veiculo_placa);
+  const hasPrazoPayment = payments.some(p => p.ind_pag === '1');
 
   // A fatura e suas parcelas também têm que fechar: "somatório das duplicatas
   // difere do valor da fatura" é rejeição, não aviso.
-  const faturaTotal = parseFloat(cobrFat.v_liq || cobrFat.v_orig || '') || totalNfe
+  const faturaTotal = parseFloat(cobrFat.v_liq || cobrFat.v_orig || '') || totalNfe;
   const duplicataGap: string | null = !hasPrazoPayment || duplicatas.length === 0
     ? null
-    : duplicataSumGap(faturaTotal, duplicatas.reduce((sum, d) => sum + (parseFloat(d.v_dup) || 0), 0))
+    : duplicataSumGap(faturaTotal, duplicatas.reduce((sum, d) => sum + (parseFloat(d.v_dup) || 0), 0));
 
   // Saída anterior à emissão e entrega no passado são rejeições da SEFAZ; o
   // `min` do input cobre o caminho do calendário, esta regra cobre o resto.
   const dateGap: string | null = (() => {
     if (dhSaiEnt && dhSaiEnt < localIso().slice(0, 10)) {
-      return 'A saída da mercadoria não pode ser anterior à emissão.'
+      return 'A saída da mercadoria não pode ser anterior à emissão.';
     }
     if (dPrevEntrega && dPrevEntrega < todayIso()) {
-      return 'A previsão de entrega não pode ser anterior à emissão.'
+      return 'A previsão de entrega não pode ser anterior à emissão.';
     }
-    return null
-  })()
-  const isPix = isPixPaymentType(newPaymentType)
-  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
+    return null;
+  })();
+  const isPix = isPixPaymentType(newPaymentType);
+  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType);
 
   // ─── Auto-fill new payment value from remaining ───────────────────────────
 
   useEffect(() => {
     if (!paymentValueLockedRef.current) {
-      setNewPaymentValue(remaining > 0.005 ? remaining.toFixed(2) : '')
+      setNewPaymentValue(remaining > 0.005 ? remaining.toFixed(2) : '');
     }
-  }, [remaining])
+  }, [remaining]);
 
   // ─── Auto-fill fatura on first prazo payment (setState during render) ──────
   // Avoids the passive-effect setState cascade error in React 19.
 
   if (hasPrazoPayment !== prevHasPrazoPayment) {
-    setPrevHasPrazoPayment(hasPrazoPayment)
+    setPrevHasPrazoPayment(hasPrazoPayment);
     if (hasPrazoPayment) {
       setCobrFat(f => ({
         ...f,
         v_orig: f.v_orig || totalProducts.toFixed(2),
         v_desc: f.v_desc || (totalDiscount > 0 ? totalDiscount.toFixed(2) : ''),
         v_liq: f.v_liq || totalNfe.toFixed(2),
-      }))
+      }));
     }
   }
 
@@ -1140,11 +1140,11 @@ export function NfeEmitForm() {
   // effect setState cascade). Saved locations are per-destinatário, so a
   // stale entrega from a previous receiver must not survive a receiver swap.
 
-  const receiverSk = receiver?.sk ?? null
+  const receiverSk = receiver?.sk ?? null;
   if (receiverSk !== prevReceiverSk) {
-    setPrevReceiverSk(receiverSk)
-    setEntrega(null)
-    setSaveEntregaLocation(false)
+    setPrevReceiverSk(receiverSk);
+    setEntrega(null);
+    setSaveEntregaLocation(false);
   }
 
   // ─── Step navigation ──────────────────────────────────────────────────────
@@ -1156,36 +1156,36 @@ export function NfeEmitForm() {
    */
   function stepBlockReason(step: EmitStep): string | null {
     if (step === 'destinatario') {
-      return selfIssuance || receiver !== null ? null : 'Selecione o destinatário da nota.'
+      return selfIssuance || receiver !== null ? null : 'Selecione o destinatário da nota.';
     }
     if (step === 'produtos') {
-      if (products.length === 0) return 'Adicione ao menos um produto.'
-      if (cfopMixError) return 'A nota mistura CFOP de entrada e de saída.'
-      if (cfopUnresolvedError) return 'Há item sem CFOP resolvido para a UF de destino.'
-      const gap = itemGaps[0]
-      if (gap) return `Item ${gap.index + 1}: ${gap.reason}`
-      return null
+      if (products.length === 0) return 'Adicione ao menos um produto.';
+      if (cfopMixError) return 'A nota mistura CFOP de entrada e de saída.';
+      if (cfopUnresolvedError) return 'Há item sem CFOP resolvido para a UF de destino.';
+      const gap = itemGaps[0];
+      if (gap) return `Item ${gap.index + 1}: ${gap.reason}`;
+      return null;
     }
     if (step === 'pagamento') {
       // O prazo gera parcelas, fatura e duplicatas a partir do total na emissão:
       // por construção a soma fecha.
-      if (paymentTermId) return null
-      if (newPaymentType === NO_PAYMENT_TYPE) return null
-      if (payments.some(p => p.payment_type === NO_PAYMENT_TYPE)) return null
+      if (paymentTermId) return null;
+      if (newPaymentType === NO_PAYMENT_TYPE) return null;
+      if (payments.some(p => p.payment_type === NO_PAYMENT_TYPE)) return null;
       if (payments.length === 0 && !(parseFloat(newPaymentValue) > 0)) {
-        return 'Informe o pagamento da nota.'
+        return 'Informe o pagamento da nota.';
       }
       // O valor ainda não adicionado conta: handleNext o adiciona ao avançar.
-      const balanceGap = paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), false)
-      if (balanceGap !== null) return balanceGap
-      if (duplicataGap !== null) return duplicataGap
-      return null
+      const balanceGap = paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), false);
+      if (balanceGap !== null) return balanceGap;
+      if (duplicataGap !== null) return duplicataGap;
+      return null;
     }
-    return null
+    return null;
   }
 
   function canGoNext(step: EmitStep): boolean {
-    return stepBlockReason(step) === null
+    return stepBlockReason(step) === null;
   }
 
   /**
@@ -1195,119 +1195,119 @@ export function NfeEmitForm() {
    */
   function handleAbsorbRemainder() {
     setPayments(prev => {
-      if (prev.length === 0) return prev
-      const last = prev[prev.length - 1]
-      const adjusted = (parseFloat(last.value) || 0) + remaining
-      if (adjusted <= 0) return prev
-      return [...prev.slice(0, -1), {...last, value: adjusted.toFixed(2)}]
-    })
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      const adjusted = (parseFloat(last.value) || 0) + remaining;
+      if (adjusted <= 0) return prev;
+      return [...prev.slice(0, -1), {...last, value: adjusted.toFixed(2)}];
+    });
   }
 
   function handleNext() {
-    const i = STEP_IDS.indexOf(currentStep)
+    const i = STEP_IDS.indexOf(currentStep);
     if (i < STEP_IDS.length - 1) {
       if (currentStep === 'pagamento' && !paymentTermId) {
-        const isNoPay = newPaymentType === NO_PAYMENT_TYPE
-        const hasValidValue = isNoPay || (!!newPaymentValue && parseFloat(newPaymentValue) > 0)
-        if (hasValidValue && payments.length === 0) handleAddPayment()
+        const isNoPay = newPaymentType === NO_PAYMENT_TYPE;
+        const hasValidValue = isNoPay || (!!newPaymentValue && parseFloat(newPaymentValue) > 0);
+        if (hasValidValue && payments.length === 0) handleAddPayment();
       }
-      setCurrentStep(STEP_IDS[i + 1])
+      setCurrentStep(STEP_IDS[i + 1]);
     }
   }
 
   function handleBack() {
-    const i = STEP_IDS.indexOf(currentStep)
-    if (i > 0) setCurrentStep(STEP_IDS[i - 1])
+    const i = STEP_IDS.indexOf(currentStep);
+    if (i > 0) setCurrentStep(STEP_IDS[i - 1]);
   }
 
   // ─── Product handlers ─────────────────────────────────────────────────────
 
   const handleSelectProduct = (product: ProductOut) => {
-    const groups = groupCfopConfigBySuffix(product.cfop_config)
-    const firstGroup = groups[0]
-    const firstSuffix = firstGroup?.suffix ?? (product.cfop_nfce ? cfopSuffix(product.cfop_nfce) : '')
+    const groups = groupCfopConfigBySuffix(product.cfop_config);
+    const firstGroup = groups[0];
+    const firstSuffix = firstGroup?.suffix ?? (product.cfop_nfce ? cfopSuffix(product.cfop_nfce) : '');
     const resolvedCfop = firstGroup && sameUf !== null
       ? (resolveCfopForUf(firstGroup, sameUf) ?? '')
-      : (product.cfop_config[0]?.cfop ?? product.cfop_nfce ?? '')
+      : (product.cfop_config[0]?.cfop ?? product.cfop_nfce ?? '');
     // NF-e: consumer-final price for CPF, resale price for CNPJ (self-issuance = org CNPJ).
     const recipientDoc = selfIssuance
       ? (selectedOrg ? orgTaxId(selectedOrg) : '')
-      : unformatCpfCnpj(receiver?.sk ?? '')
+      : unformatCpfCnpj(receiver?.sk ?? '');
     setProducts(prev => [...prev, {
       product, cfop: resolvedCfop, cfopSuffix: firstSuffix, qty: '1',
       unitValue: resolveUnitPrice(product, recipientDoc), discount: '0',
       armas: product.prod_type === 'arma' ? [] : undefined,
-    }])
-    setShowProductPicker(false)
-  }
+    }]);
+    setShowProductPicker(false);
+  };
 
   const handleProductChange = (index: number, updated: Partial<EmitProduct>) =>
-    setProducts(prev => prev.map((item, i) => (i === index ? {...item, ...updated} : item)))
+    setProducts(prev => prev.map((item, i) => (i === index ? {...item, ...updated} : item)));
 
   const handleProductRemove = (index: number) =>
-    setProducts(prev => prev.filter((_, i) => i !== index))
+    setProducts(prev => prev.filter((_, i) => i !== index));
 
   // ─── Payment handlers ─────────────────────────────────────────────────────
 
   const handleAddPayment = () => {
-    const isNoPay = newPaymentType === NO_PAYMENT_TYPE
-    if (!isNoPay && (!newPaymentValue || parseFloat(newPaymentValue) <= 0)) return
-    const value = isNoPay ? '0.00' : newPaymentValue
+    const isNoPay = newPaymentType === NO_PAYMENT_TYPE;
+    if (!isNoPay && (!newPaymentValue || parseFloat(newPaymentValue) <= 0)) return;
+    const value = isNoPay ? '0.00' : newPaymentValue;
     setPayments(prev => [...prev, {
       payment_type: newPaymentType,
       value,
       ind_pag: newPaymentIndPag,
       card: showCardToggle ? newPaymentCard : null,
       terminal_id: showCardToggle ? (newPaymentTerminal || null) : null,
-    }])
-    paymentValueLockedRef.current = false
-    setNewPaymentCard(null)
-    setNewPaymentTerminal('')
-    setShowCardToggle(false)
-    setNewPaymentIndPag('0')
-  }
+    }]);
+    paymentValueLockedRef.current = false;
+    setNewPaymentCard(null);
+    setNewPaymentTerminal('');
+    setShowCardToggle(false);
+    setNewPaymentIndPag('0');
+  };
 
   const handleRemovePayment = (index: number) => {
-    paymentValueLockedRef.current = false
-    setPayments(prev => prev.filter((_, i) => i !== index))
-  }
+    paymentValueLockedRef.current = false;
+    setPayments(prev => prev.filter((_, i) => i !== index));
+  };
 
   // ─── Duplicata handlers ───────────────────────────────────────────────────
 
   const handleGenerateDuplicatas = () => {
-    const n = parseInt(dupCount) || 1
-    const total = parseFloat(cobrFat.v_liq || cobrFat.v_orig || totalNfe.toFixed(2)) || totalNfe
+    const n = parseInt(dupCount) || 1;
+    const total = parseFloat(cobrFat.v_liq || cobrFat.v_orig || totalNfe.toFixed(2)) || totalNfe;
     const firstDate = dupFirstDate || (() => {
       // Default: 30 days from today
-      const d = new Date()
-      d.setMonth(d.getMonth() + 1)
-      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-      d.setDate(Math.min(d.getDate(), lastDay))
-      return d.toISOString().split('T')[0]
-    })()
-    setDuplicatas(generateDuplicatas(total, n, firstDate))
-  }
+      const d = new Date();
+      d.setMonth(d.getMonth() + 1);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(d.getDate(), lastDay));
+      return d.toISOString().split('T')[0];
+    })();
+    setDuplicatas(generateDuplicatas(total, n, firstDate));
+  };
 
   // ─── Carrier handler ──────────────────────────────────────────────────────
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    setSubmitError(null)
+    setSubmitError(null);
     if (cfopMixError) {
-      setSubmitError({message: 'Não é possível misturar CFOPs de entrada e saída na mesma NF-e.'})
-      return
+      setSubmitError({message: 'Não é possível misturar CFOPs de entrada e saída na mesma NF-e.'});
+      return;
     }
     if (cfopUnresolvedError) {
-      setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'})
-      return
+      setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'});
+      return;
     }
     if (requiresNfRefs && nfRefs.length === 0) {
-      setSubmitError({message: 'Esta finalidade exige ao menos um documento referenciado. Adicione a nota de origem em "Documentos referenciados".'})
-      return
+      setSubmitError({message: 'Esta finalidade exige ao menos um documento referenciado. Adicione a nota de origem em "Documentos referenciados".'});
+      return;
     }
-    const vTroco = totalPaid > totalNfe + 0.005 ? (totalPaid - totalNfe).toFixed(2) : null
-    const hasCobr = hasPrazoPayment && (cobrFat.v_liq || duplicatas.length > 0)
+    const vTroco = totalPaid > totalNfe + 0.005 ? (totalPaid - totalNfe).toFixed(2) : null;
+    const hasCobr = hasPrazoPayment && (cobrFat.v_liq || duplicatas.length > 0);
 
     const payload: NfeEmit = {
       ...(selfIssuance ? {self_issuance: true} : {receiver_id: receiver!.sk}),
@@ -1335,9 +1335,9 @@ export function NfeEmitForm() {
       nat_op: natOp || null,
       tp_nf: tpNf,
       transport: showTransport ? (() => {
-        const mf = transport.mod_frete as NfeTransportIn['mod_frete']
-        let carrierPk: string | null = null
-        if (mf === '0' || mf === '1' || mf === '2') carrierPk = selectedCarrier?.sk ?? null
+        const mf = transport.mod_frete as NfeTransportIn['mod_frete'];
+        let carrierPk: string | null = null;
+        if (mf === '0' || mf === '1' || mf === '2') carrierPk = selectedCarrier?.sk ?? null;
         return {
           mod_frete: mf, transporta_pk: carrierPk,
           veiculo_sk: selectedVehicle?.sk ?? null,
@@ -1346,7 +1346,7 @@ export function NfeEmitForm() {
           veiculo_rntrc: !selectedVehicle ? (transport.veiculo_rntrc || null) : null,
           vols: vols.length > 0 ? vols : null,
           reboques: reboques.length > 0 ? reboques : null,
-        } as NfeTransportIn
+        } as NfeTransportIn;
       })() : null,
       cobr_fat: hasCobr ? {
         n_fat: cobrFat.n_fat || null, v_orig: cobrFat.v_orig || null,
@@ -1370,26 +1370,26 @@ export function NfeEmitForm() {
       d_prev_entrega: dPrevEntrega || null,
       compra_gov_refs: compraGovRefs.length > 0 ? compraGovRefs : null,
       pag_antecipado_refs: pagAntecipadoRefs.length > 0 ? pagAntecipadoRefs : null,
-    }
+    };
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      const result = await apiClient.emitNfe(payload)
-      draft.clear()
+      const result = await apiClient.emitNfe(payload);
+      draft.clear();
       toast.success('NF-e enviada para a SEFAZ', {
         description: result.sefaz_protocol
           ? `Protocolo ${result.sefaz_protocol} · chave ${result.sk}`
           : `Chave de acesso ${result.sk}`,
-      })
-      router.push(`/nfe/detail?key=${result.sk}`)
+      });
+      router.push(`/nfe/detail?key=${result.sk}`);
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir NF-e.'))
-      setIsSubmitting(false)
+      setSubmitError(emitFailure(err, 'Erro ao emitir NF-e.'));
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (!selectedOrg) {
-    return <div className="text-center py-12 text-sm text-gray-500">Selecione uma organização para emitir NF-e.</div>
+    return <div className="text-center py-12 text-sm text-gray-500">Selecione uma organização para emitir NF-e.</div>;
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1415,9 +1415,9 @@ export function NfeEmitForm() {
               aria-pressed={selfIssuance}
               onClick={() => {
                 setSelfIssuance(v => {
-                  if (!v) setReceiver(null)
-                  return !v
-                })
+                  if (!v) setReceiver(null);
+                  return !v;
+                });
               }}
               className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
                 selfIssuance
@@ -1477,13 +1477,13 @@ export function NfeEmitForm() {
                         type="button"
                         disabled={loadingFavCpfCnpj !== null}
                         onClick={async () => {
-                          setLoadingFavCpfCnpj(fav.cpfCnpj)
+                          setLoadingFavCpfCnpj(fav.cpfCnpj);
                           try {
-                            const person = await apiClient.getPersonByCpfCnpj(fav.cpfCnpj)
-                            setReceiver(person)
+                            const person = await apiClient.getPersonByCpfCnpj(fav.cpfCnpj);
+                            setReceiver(person);
                           } catch { /* person deleted — fall through to manual search */
                           } finally {
-                            setLoadingFavCpfCnpj(null)
+                            setLoadingFavCpfCnpj(null);
                           }
                         }}
                         className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-brand-300 hover:text-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1665,9 +1665,9 @@ export function NfeEmitForm() {
                 <div className="flex items-center gap-1"><Label htmlFor="nfe-payment-type" className="text-xs font-medium text-gray-600">Forma de pagamento</Label><GlossaryTerm term="ind_pag"/></div>
                 <OptionsSelect id="nfe-payment-type" value={newPaymentType}
                                onValueChange={(v) => {
-                                 setNewPaymentType(v)
-                                 setShowCardToggle(false)
-                                 setNewPaymentCard(null)
+                                 setNewPaymentType(v);
+                                 setShowCardToggle(false);
+                                 setNewPaymentCard(null);
                                }}
                                options={PAYMENT_OPTIONS}/>
               </div>
@@ -1683,8 +1683,8 @@ export function NfeEmitForm() {
                   <Label htmlFor="nfe-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
                   <CurrencyInput id="nfe-payment-value" decimalPlaces={2} value={newPaymentValue}
                                  onChange={(v) => {
-                                   paymentValueLockedRef.current = true
-                                   setNewPaymentValue(v)
+                                   paymentValueLockedRef.current = true;
+                                   setNewPaymentValue(v);
                                  }}
                                  placeholder="0,00"/>
                 </div>
@@ -1706,7 +1706,7 @@ export function NfeEmitForm() {
                   <input type="checkbox" id="toggle-card" checked={showCardToggle}
                          onChange={e => {
                            setShowCardToggle(e.target.checked);
-                           if (!e.target.checked) setNewPaymentCard(null)
+                           if (!e.target.checked) setNewPaymentCard(null);
                          }}
                          className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
                   <label htmlFor="toggle-card" className="text-xs font-medium text-gray-500 cursor-pointer">
@@ -1772,14 +1772,14 @@ export function NfeEmitForm() {
                     Parcelas {duplicatas.length > 0 && `(${duplicatas.length})`}
                   </p>
                   {duplicatas.length > 0 && (() => {
-                    const allocated = duplicatas.reduce((s, d) => s + (parseFloat(d.v_dup) || 0), 0)
-                    const expected = parseFloat(cobrFat.v_liq || cobrFat.v_orig || totalNfe.toFixed(2)) || totalNfe
-                    const diff = Math.abs(allocated - expected)
+                    const allocated = duplicatas.reduce((s, d) => s + (parseFloat(d.v_dup) || 0), 0);
+                    const expected = parseFloat(cobrFat.v_liq || cobrFat.v_orig || totalNfe.toFixed(2)) || totalNfe;
+                    const diff = Math.abs(allocated - expected);
                     return (
                       <span className={`text-xs font-medium ${diff < 0.01 ? 'text-success' : 'text-warning'}`}>
                         {diff < 0.01 ? '✓ Total conferido' : `${fmt(allocated)} de ${fmt(expected)}`}
                       </span>
-                    )
+                    );
                   })()}
                 </div>
 
@@ -1814,17 +1814,17 @@ export function NfeEmitForm() {
                         <span className="font-mono text-xs text-gray-400 w-7 shrink-0">{d.n_dup}</span>
                         <Input type="date" min={todayIso()} value={d.d_venc}
                                onChange={e => {
-                                 const newDate = e.target.value
+                                 const newDate = e.target.value;
                                  setDuplicatas(prev => {
-                                   const updated = [...prev]
-                                   updated[i] = {...updated[i], d_venc: newDate}
+                                   const updated = [...prev];
+                                   updated[i] = {...updated[i], d_venc: newDate};
                                    if (i === 0 && newDate) {
                                      for (let j = 1; j < updated.length; j++) {
-                                       updated[j] = {...updated[j], d_venc: addOneMonth(updated[j - 1].d_venc)}
+                                       updated[j] = {...updated[j], d_venc: addOneMonth(updated[j - 1].d_venc)};
                                      }
                                    }
-                                   return updated
-                                 })
+                                   return updated;
+                                 });
                                }}
                                className="w-36 text-xs h-7 shrink-0"/>
                         <CurrencyInput decimalPlaces={2} value={d.v_dup}
@@ -1959,7 +1959,7 @@ export function NfeEmitForm() {
                        setShowTransport(e.target.checked);
                        if (!e.target.checked) {
                          setSelectedCarrier(null);
-                         setSelectedVehicle(null)
+                         setSelectedVehicle(null);
                        }
                      }}
                      className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
@@ -2208,8 +2208,8 @@ export function NfeEmitForm() {
         open={showEmitConfirm}
         onClose={() => setShowEmitConfirm(false)}
         onConfirm={() => {
-          setShowEmitConfirm(false)
-          void handleSubmit()
+          setShowEmitConfirm(false);
+          void handleSubmit();
         }}
         docLabel="NF-e"
         summary={[
@@ -2219,5 +2219,5 @@ export function NfeEmitForm() {
         ]}
       />
     </div>
-  )
+  );
 }

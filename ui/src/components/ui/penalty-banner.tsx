@@ -12,5 +12,5 @@ export function PenaltyBanner({message, onDismiss}: PenaltyBannerProps) {
       <button onClick={onDismiss} className="shrink-0 text-amber-600 hover:text-amber-800" aria-label="Fechar">✕
       </button>
     </div>
-  )
+  );
 }

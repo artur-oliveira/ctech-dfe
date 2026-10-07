@@ -1,29 +1,25 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {useQuery} from '@tanstack/react-query'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {Combobox} from '@/components/ui/combobox'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {CITY_OPTIONS} from '@/lib/data/cities'
-import {ApiError, apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {useQuery} from '@tanstack/react-query';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {Combobox} from '@/components/ui/combobox';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {CITY_OPTIONS} from '@/lib/data/cities';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
 import {
   REFERENCE_DFE_KEY_TYPES,
   REFERENCE_DOCUMENT_KINDS,
   type ReferenceDocumentFormData,
   referenceDocumentSchema,
-} from '@/lib/schemas/reference-documents'
-import type {
-  ReferenceDocumentCreate,
-  ReferenceDocumentItemOut,
-  ReferenceDocumentKind,
-} from '@/lib/types/api'
+} from '@/lib/schemas/reference-documents';
+import type {ReferenceDocumentCreate, ReferenceDocumentItemOut, ReferenceDocumentKind,} from '@/lib/types/api';
 
 const EMPTY: ReferenceDocumentFormData = {
   name: '', kind: 'dfe', issued_at: '', competence_at: '', description: '', supplier_person_id: '',
@@ -32,7 +28,7 @@ const EMPTY: ReferenceDocumentFormData = {
   n_nfs: '', mod_nfs: '', serie_nfs: '',
   n_doc_fiscal: '', c_mun_doc_fiscal: '', x_doc_fiscal: '',
   n_doc: '', x_doc: '',
-}
+};
 
 export interface ReferenceDocumentFormProps {
   initialData?: ReferenceDocumentItemOut
@@ -41,20 +37,20 @@ export interface ReferenceDocumentFormProps {
 }
 
 function str(v: unknown): string {
-  return typeof v === 'string' ? v : ''
+  return typeof v === 'string' ? v : '';
 }
 
 function group(item: ReferenceDocumentItemOut, key: string): Record<string, unknown> {
-  const value = item[key]
-  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const value = item[key];
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
 function toFormData(d: ReferenceDocumentItemOut): ReferenceDocumentFormData {
-  const dfe = group(d, 'dfe')
-  const mun = group(d, 'nfse_municipal')
-  const nf = group(d, 'nf_nfs')
-  const fiscal = group(d, 'doc_fiscal_outro')
-  const other = group(d, 'doc_nao_fiscal')
+  const dfe = group(d, 'dfe');
+  const mun = group(d, 'nfse_municipal');
+  const nf = group(d, 'nf_nfs');
+  const fiscal = group(d, 'doc_fiscal_outro');
+  const other = group(d, 'doc_nao_fiscal');
   return {
     name: d.name,
     kind: d.kind,
@@ -75,11 +71,11 @@ function toFormData(d: ReferenceDocumentItemOut): ReferenceDocumentFormData {
     x_doc_fiscal: str(fiscal.x_doc_fiscal),
     n_doc: str(other.n_doc),
     x_doc: str(other.x_doc),
-  }
+  };
 }
 
 function orNull(value: string | undefined): string | null {
-  return value ? value : null
+  return value ? value : null;
 }
 
 /**
@@ -90,7 +86,7 @@ function orNull(value: string | undefined): string | null {
 function buildUnion(data: ReferenceDocumentFormData): Partial<ReferenceDocumentCreate> {
   const empty = {
     dfe: null, nfse_municipal: null, nf_nfs: null, doc_fiscal_outro: null, doc_nao_fiscal: null,
-  }
+  };
   switch (data.kind) {
     case 'dfe':
       return {
@@ -100,7 +96,7 @@ function buildUnion(data: ReferenceDocumentFormData): Partial<ReferenceDocumentC
           chave_dfe: data.chave_dfe ?? '',
           x_tipo_chave_dfe: null,
         },
-      }
+      };
     case 'nfse_municipal':
       return {
         ...empty,
@@ -109,14 +105,14 @@ function buildUnion(data: ReferenceDocumentFormData): Partial<ReferenceDocumentC
           n_nfse_mun: data.n_nfse_mun ?? '',
           c_verif_nfse_mun: data.c_verif_nfse_mun ?? '',
         },
-      }
+      };
     case 'nf_nfs':
       return {
         ...empty,
         nf_nfs: {
           n_nfs: data.n_nfs ?? '', mod_nfs: data.mod_nfs ?? '', serie_nfs: data.serie_nfs ?? '',
         },
-      }
+      };
     case 'doc_fiscal_outro':
       return {
         ...empty,
@@ -125,23 +121,25 @@ function buildUnion(data: ReferenceDocumentFormData): Partial<ReferenceDocumentC
           c_mun_doc_fiscal: orNull(data.c_mun_doc_fiscal),
           x_doc_fiscal: orNull(data.x_doc_fiscal),
         },
-      }
+      };
     case 'doc_nao_fiscal':
       return {
         ...empty,
         doc_nao_fiscal: {n_doc: data.n_doc ?? '', x_doc: orNull(data.x_doc)},
-      }
+      };
+    default:
+      return {};
   }
 }
 
 export function ReferenceDocumentForm({initialData, onSubmit, loading}: ReferenceDocumentFormProps) {
-  const {selectedOrg} = useAuth()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<ReferenceDocumentFormData>({
     resolver: zodResolver(referenceDocumentSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
-  const kind: ReferenceDocumentKind = useWatch({control: form.control, name: 'kind'})
+  });
+  const kind: ReferenceDocumentKind = useWatch({control: form.control, name: 'kind'});
 
   // O fornecedor é sempre uma pessoa do cadastro: o documento referencia, nunca
   // copia CNPJ e nome.
@@ -149,14 +147,14 @@ export function ReferenceDocumentForm({initialData, onSubmit, loading}: Referenc
     queryKey: queryKeys.persons.list(selectedOrg?.pk),
     queryFn: () => apiClient.getPersons({limit: 100}),
     enabled: !!selectedOrg,
-  })
+  });
   const supplierOptions = [
     {value: '', label: 'Sem fornecedor'},
     ...(personsPage?.items ?? []).map((p) => ({value: p.sk, label: p.name})),
-  ]
+  ];
 
   const handleSubmit = async (data: ReferenceDocumentFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -166,11 +164,11 @@ export function ReferenceDocumentForm({initialData, onSubmit, loading}: Referenc
         description: orNull(data.description),
         supplier_person_id: orNull(data.supplier_person_id),
         ...buildUnion(data),
-      } as ReferenceDocumentCreate)
+      } as ReferenceDocumentCreate);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o documento.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o documento.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -424,5 +422,5 @@ export function ReferenceDocumentForm({initialData, onSubmit, loading}: Referenc
         </div>
       </form>
     </Form>
-  )
+  );
 }

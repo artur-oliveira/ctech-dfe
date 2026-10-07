@@ -2,15 +2,15 @@
  * Natureza de operação — os valores que sempre andam juntos por cenário de
  * negócio. Espelha OperationBody (api/internal/api/v1/dto.go).
  */
-import {z} from 'zod'
-import {CFOP_SUFFIXES} from '@/lib/data/cfop'
+import {z} from 'zod';
+import {CFOP_SUFFIXES} from '@/lib/data/cfop';
 
 export const DOC_TYPE_OPTIONS = [
   {value: 'nfe', label: 'NF-e'},
   {value: 'nfce', label: 'NFC-e'},
   {value: 'cte', label: 'CT-e'},
   {value: 'mdfe', label: 'MDF-e'},
-] as const
+] as const;
 
 /** Placeholders aceitos em inf_ad_fisco/inf_cpl — espelha services.AllPlaceholders. */
 export const OPERATION_PLACEHOLDERS = [
@@ -19,32 +19,32 @@ export const OPERATION_PLACEHOLDERS = [
   {key: 'cliente', label: 'Nome do cliente'},
   {key: 'nat_op', label: 'Natureza da operação'},
   {key: 'competencia', label: 'Competência'},
-] as const
+] as const;
 
-const KNOWN_KEYS = new Set(OPERATION_PLACEHOLDERS.map((p) => p.key as string))
-const PLACEHOLDER_RE = /\{\{\s*([a-z_]+)\s*\}\}/g
+const KNOWN_KEYS = new Set(OPERATION_PLACEHOLDERS.map((p) => p.key as string));
+const PLACEHOLDER_RE = /\{\{\s*([a-z_]+)\s*\}\}/g;
 
 /** Primeira chave desconhecida do texto, ou null. Espelha services.ValidatePlaceholders. */
 export function unknownPlaceholder(template: string): string | null {
   for (const match of template.matchAll(PLACEHOLDER_RE)) {
-    if (!KNOWN_KEYS.has(match[1])) return match[1]
+    if (!KNOWN_KEYS.has(match[1])) return match[1];
   }
-  return null
+  return null;
 }
 
 const fiscalText = (max: number) => z.string().max(max).optional().or(z.literal(''))
   .superRefine((v, ctx) => {
-    const unknown = v ? unknownPlaceholder(v) : null
+    const unknown = v ? unknownPlaceholder(v) : null;
     if (unknown) {
-      ctx.addIssue({code: 'custom', message: `Placeholder desconhecido: {{${unknown}}}`})
+      ctx.addIssue({code: 'custom', message: `Placeholder desconhecido: {{${unknown}}}`});
     }
-  })
+  });
 
 /** Par campo/texto de infAdic (obsCont ou obsFisco). */
 export const obsSchema = z.object({
   x_campo: z.string().min(1, 'Campo obrigatório').max(20),
   x_texto: z.string().min(1, 'Texto obrigatório').max(60),
-})
+});
 
 export const operationSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -112,12 +112,12 @@ export const operationSchema = z.object({
       code: 'custom',
       path: ['cfop_suffix'],
       message: 'Natureza fiscal não existe na tabela CFOP',
-    })
+    });
   }
 
   // gCompraGov: o tipo do ente e o redutor formam grupo com o tipo de operação.
-  const govFields = ['compra_gov_tp_ente', 'compra_gov_tp_oper'] as const
-  const govFilled = govFields.filter((f) => data[f])
+  const govFields = ['compra_gov_tp_ente', 'compra_gov_tp_oper'] as const;
+  const govFilled = govFields.filter((f) => data[f]);
   if (govFilled.length === 1) {
     for (const field of govFields) {
       if (!data[field]) {
@@ -125,11 +125,11 @@ export const operationSchema = z.object({
           code: 'custom',
           path: [field],
           message: 'Compra governamental exige o tipo do ente e o tipo da operação',
-        })
+        });
       }
     }
   }
-})
+});
 
 export type OperationFormData = z.infer<typeof operationSchema>
 
@@ -139,11 +139,11 @@ export type OperationFormData = z.infer<typeof operationSchema>
  * consecutivos.
  */
 export function safraOptions(now: Date = new Date()): { value: string; label: string }[] {
-  const current = now.getFullYear()
-  const out: { value: string; label: string }[] = []
+  const current = now.getFullYear();
+  const out: { value: string; label: string }[] = [];
   for (let y = current + 1; y >= current - 3; y--) {
-    const value = `${y}/${y + 1}`
-    out.push({value, label: value})
+    const value = `${y}/${y + 1}`;
+    out.push({value, label: value});
   }
-  return out
+  return out;
 }

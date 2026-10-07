@@ -1,58 +1,58 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {LotIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {formatISODateBR} from '@/lib/utils/dfe'
-import type {ProductLotItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {LotIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {formatISODateBR} from '@/lib/utils/dfe';
+import type {ProductLotItemOut} from '@/lib/types/api';
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '—';
 }
 
 /** Data ISO do cadastro no formato brasileiro; em branco quando ausente. */
 function date(v: unknown): string {
-  return typeof v === 'string' && v ? formatISODateBR(v) : '—'
+  return typeof v === 'string' && v ? formatISODateBR(v) : '—';
 }
 
 function ProductLotsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ProductLotItemOut>({
       queryKey: queryKeys.productLots.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getProductLots({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ProductLotItemOut>({
     mutationFn: (id) => apiClient.deleteProductLot(id),
     getId: (l) => extractId(l.sk, SK_PREFIX.PRODUCT_LOT),
     getDeletedMessage: (l) => `"${l.name}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.productLots.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.productLots.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -117,7 +117,7 @@ function ProductLotsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function ProductLotsPage() {
@@ -125,5 +125,5 @@ export default function ProductLotsPage() {
     <ProtectedRoute>
       <ProductLotsContent/>
     </ProtectedRoute>
-  )
+  );
 }

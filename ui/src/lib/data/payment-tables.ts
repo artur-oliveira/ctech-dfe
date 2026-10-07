@@ -36,7 +36,7 @@ export const TPAG_TABLE: readonly PaymentTableEntry[] = [
   {code: "90", description: "Sem Pagamento"},
   {code: "91", description: "Pagamento Posterior"},
   {code: "99", description: "Outros"},
-]
+];
 
 export const TBAND_TABLE: readonly PaymentTableEntry[] = [
   {code: "01", description: "Visa"},
@@ -67,22 +67,22 @@ export const TBAND_TABLE: readonly PaymentTableEntry[] = [
   {code: "26", description: "VR"},
   {code: "27", description: "Ticket"},
   {code: "99", description: "Outros"},
-]
+];
 
 export const TPAG_LABELS: Record<string, string> =
-  Object.fromEntries(TPAG_TABLE.map((e) => [e.code, e.description]))
+  Object.fromEntries(TPAG_TABLE.map((e) => [e.code, e.description]));
 
-export const TBAND_OPTIONS = TBAND_TABLE.map((e) => ({value: e.code, label: `${e.code} – ${e.description}`}))
+export const TBAND_OPTIONS = TBAND_TABLE.map((e) => ({value: e.code, label: `${e.code} – ${e.description}`}));
 
 /**
  * Meios de pagamento que são PIX. 17 é o PIX comum, 20 o estático e 23 o
  * automático — 12 e 13 são Vale Presente e Vale Combustível, e tratá-los como
  * PIX abria campos de transação no lugar errado.
  */
-export const PIX_PAYMENT_TYPES: ReadonlySet<string> = new Set(['17', '20', '23'])
+export const PIX_PAYMENT_TYPES: ReadonlySet<string> = new Set(['17', '20', '23']);
 
 /** Meios que carregam dados de transação (`card`): cartões, vales e PIX. */
 export const CARD_PAYMENT_TYPES: ReadonlySet<string> =
-  new Set(['03', '04', '05', '10', '11', '12', '13', '17', '20', '21', '23', '24'])
+  new Set(['03', '04', '05', '10', '11', '12', '13', '17', '20', '21', '23', '24']);
 
-export const isPixPaymentType = (tPag: string): boolean => PIX_PAYMENT_TYPES.has(tPag)
+export const isPixPaymentType = (tPag: string): boolean => PIX_PAYMENT_TYPES.has(tPag);

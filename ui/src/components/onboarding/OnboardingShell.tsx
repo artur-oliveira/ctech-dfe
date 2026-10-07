@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import Image from 'next/image'
-import type {ReactNode} from 'react'
-import {Button} from '@/components/ui/button'
-import {StepIndicator} from '@/components/ui/step-indicator'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import type {OnboardingStep} from '@/lib/constants/onboarding'
+import Image from 'next/image';
+import type {ReactNode} from 'react';
+import {Button} from '@/components/ui/button';
+import {StepIndicator} from '@/components/ui/step-indicator';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import type {OnboardingStep} from '@/lib/constants/onboarding';
 
 interface OnboardingShellProps {
   current: OnboardingStep
@@ -27,8 +27,8 @@ interface OnboardingShellProps {
  * out — signing out.
  */
 export function OnboardingShell({current, title, description, children, action}: OnboardingShellProps) {
-  const {logout} = useAuth()
-  const {steps} = useOnboarding()
+  const {logout} = useAuth();
+  const {steps} = useOnboarding();
 
   return (
     <div className="min-h-screen bg-gray-50/60">
@@ -58,5 +58,5 @@ export function OnboardingShell({current, title, description, children, action}:
         {children}
       </main>
     </div>
-  )
+  );
 }

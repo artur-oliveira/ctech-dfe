@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import Link from 'next/link'
-import {usePathname} from 'next/navigation'
-import {FileText, LayoutGrid, Menu, Plus, Search} from 'lucide-react'
-import {contextForPath, DOC_CONTEXTS, isItemActive} from '@/lib/navigation/nav'
+import {useState} from 'react';
+import Link from 'next/link';
+import {usePathname} from 'next/navigation';
+import {FileText, LayoutGrid, Menu, Plus, Search} from 'lucide-react';
+import {contextForPath, DOC_CONTEXTS, isItemActive} from '@/lib/navigation/nav';
 
 const TAB_BASE =
-  'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-14 px-0.5 text-xs font-medium transition-colors'
-const TAB_ACTIVE = 'text-brand-700'
-const TAB_IDLE = 'text-gray-600'
+  'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-14 px-0.5 text-xs font-medium transition-colors';
+const TAB_ACTIVE = 'text-brand-700';
+const TAB_IDLE = 'text-gray-600';
 
 interface BottomNavProps {
   onOpenMenu: () => void
@@ -22,12 +22,12 @@ interface BottomNavProps {
  * A barra lateral segue disponível em "Menu" para tudo o que é secundário.
  */
 export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
-  const pathname = usePathname()
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const activeContext = contextForPath(pathname)
+  const pathname = usePathname();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const activeContext = contextForPath(pathname);
   // CT-e ainda não emite: nesse contexto a ação cai no primeiro tipo que emite.
-  const emitContext = activeContext?.emit ? activeContext : DOC_CONTEXTS.find(c => c.emit)!
-  const emitHref = emitContext.emit!.href
+  const emitContext = activeContext?.emit ? activeContext : DOC_CONTEXTS.find(c => c.emit)!;
+  const emitHref = emitContext.emit!.href;
 
   return (
     <>
@@ -53,7 +53,7 @@ export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
             </p>
             <ul className="grid grid-cols-1 gap-0.5">
               {DOC_CONTEXTS.map(ctx => {
-                const active = activeContext?.key === ctx.key
+                const active = activeContext?.key === ctx.key;
                 return (
                   <li key={ctx.key}>
                     <Link
@@ -69,7 +69,7 @@ export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
                       {ctx.label}
                     </Link>
                   </li>
-                )
+                );
               })}
             </ul>
 
@@ -148,8 +148,8 @@ export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
             <button
               type="button"
               onClick={() => {
-                setSheetOpen(false)
-                onOpenSearch()
+                setSheetOpen(false);
+                onOpenSearch();
               }}
               className={[TAB_BASE, TAB_IDLE].join(' ')}
             >
@@ -162,8 +162,8 @@ export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
             <button
               type="button"
               onClick={() => {
-                setSheetOpen(false)
-                onOpenMenu()
+                setSheetOpen(false);
+                onOpenMenu();
               }}
               aria-label="Abrir menu completo"
               className={[TAB_BASE, TAB_IDLE].join(' ')}
@@ -175,5 +175,5 @@ export function BottomNav({onOpenMenu, onOpenSearch}: BottomNavProps) {
         </ul>
       </nav>
     </>
-  )
+  );
 }

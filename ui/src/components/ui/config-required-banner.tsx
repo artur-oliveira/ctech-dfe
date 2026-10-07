@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+import Link from 'next/link';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 interface ConfigRequiredBannerProps {
   show: boolean
@@ -8,7 +8,7 @@ interface ConfigRequiredBannerProps {
 }
 
 export function ConfigRequiredBanner({show, variant, docLabel}: ConfigRequiredBannerProps) {
-  if (!show) return null
+  if (!show) return null;
   return (
     <div
       className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6">
@@ -20,5 +20,5 @@ export function ConfigRequiredBanner({show, variant, docLabel}: ConfigRequiredBa
         Configurar agora
       </Link>
     </div>
-  )
+  );
 }

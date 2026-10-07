@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {cn} from '@/lib/utils'
+import {useState} from 'react';
+import {cn} from '@/lib/utils';
 
 /**
  * Disclosure for an optional/advanced group of fields. Collapsed by default so
@@ -26,8 +26,8 @@ export function CollapsibleSection({
   children: React.ReactNode
   className?: string
 }) {
-  const [open, setOpen] = useState(defaultOpen)
-  const panelId = `collapsible-${title.replace(/\s+/g, '-').toLowerCase()}`
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = `collapsible-${title.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
     <div className={cn('rounded-xl border border-gray-200 bg-white', className)}>
@@ -58,5 +58,5 @@ export function CollapsibleSection({
         </div>
       )}
     </div>
-  )
+  );
 }

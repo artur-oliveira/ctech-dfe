@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage'
+import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage';
 
 export default function GuideNavegacao() {
   return (
@@ -130,5 +130,5 @@ export default function GuideNavegacao() {
         },
       ]}
     />
-  )
+  );
 }

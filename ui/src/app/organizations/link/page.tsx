@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import {useEffect, useRef, useState} from 'react'
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {Button} from '@/components/ui/button'
-import {HANDOFF_STATE_KEY} from '@/lib/handoff'
+import {useEffect, useRef, useState} from 'react';
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useQueryClient} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {Button} from '@/components/ui/button';
+import {HANDOFF_STATE_KEY} from '@/lib/handoff';
 
 /**
  * The handoff's return leg: the person created a company in the CTech account
@@ -29,79 +29,79 @@ import {HANDOFF_STATE_KEY} from '@/lib/handoff'
  * `window.location.search` is the URL the browser is actually on.
  */
 function LinkCompanyContent() {
-  const router = useRouter()
-  const qc = useQueryClient()
-  const {refreshUser, setSelectedOrg} = useAuth()
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const qc = useQueryClient();
+  const {refreshUser, setSelectedOrg} = useAuth();
+  const [error, setError] = useState<string | null>(null);
   // An organization came back without a company: recoverable, and not by
   // starting over.
-  const [incompleteOrg, setIncompleteOrg] = useState<string | null>(null)
-  const [cancelled, setCancelled] = useState(false)
+  const [incompleteOrg, setIncompleteOrg] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
   // A React 18 dev double-mount would otherwise link twice. The server is
   // idempotent, so this is about not showing two errors, not about correctness.
-  const started = useRef(false)
+  const started = useRef(false);
 
   useEffect(() => {
-    if (started.current) return
-    started.current = true
+    if (started.current) return;
+    started.current = true;
 
     // Everything, including the validation, runs inside the async continuation.
     // A synchronous setState in an effect is both a lint error and a wasted
     // render, and there is nothing here the first paint needs.
     void (async () => {
-      const params = new URLSearchParams(window.location.search)
+      const params = new URLSearchParams(window.location.search);
       if (params.get('cancelled') === '1') {
-        setCancelled(true)
-        return
+        setCancelled(true);
+        return;
       }
-      const organizationId = params.get('organization_id') ?? ''
-      const companyId = params.get('company_id') ?? ''
+      const organizationId = params.get('organization_id') ?? '';
+      const companyId = params.get('company_id') ?? '';
 
       // An organization with no company is its own case, and telling somebody
       // to "start over" here would be wrong twice: the workspace they just
       // created still exists, and starting over creates a second one. The way
       // out is to add the company to the workspace that is already there.
       if (organizationId && !companyId) {
-        setIncompleteOrg(organizationId)
-        return
+        setIncompleteOrg(organizationId);
+        return;
       }
       if (!organizationId || !companyId) {
-        setError('O endereço de retorno está incompleto. Comece novamente pela lista de empresas.')
-        return
+        setError('O endereço de retorno está incompleto. Comece novamente pela lista de empresas.');
+        return;
       }
       // The state we sent must be the state that came back. It is what tells a
       // real return apart from somebody opening this URL with ids they typed.
-      const expected = sessionStorage.getItem(HANDOFF_STATE_KEY)
+      const expected = sessionStorage.getItem(HANDOFF_STATE_KEY);
       if (expected && params.get('state') !== expected) {
-        setError('Este retorno não corresponde ao cadastro iniciado aqui. Comece novamente.')
-        return
+        setError('Este retorno não corresponde ao cadastro iniciado aqui. Comece novamente.');
+        return;
       }
 
       try {
-        const org = await apiClient.linkCompany(organizationId, companyId)
-        sessionStorage.removeItem(HANDOFF_STATE_KEY)
-        void qc.invalidateQueries({queryKey: queryKeys.organizations.all()})
-        const me = await refreshUser()
-        const linked = me?.organizations.find((o) => o.pk === org.pk)
+        const org = await apiClient.linkCompany(organizationId, companyId);
+        sessionStorage.removeItem(HANDOFF_STATE_KEY);
+        void qc.invalidateQueries({queryKey: queryKeys.organizations.all()});
+        const me = await refreshUser();
+        const linked = me?.organizations.find((o) => o.pk === org.pk);
         // Navigating without it would leave the PREVIOUS company selected, and
         // every request from the company's own screen would carry that
         // company's pk — the person edits one company and writes to another.
         // The link itself already succeeded, so this says so.
         if (!linked) {
-          setError('A empresa foi vinculada, mas ainda não apareceu na sua lista. Recarregue a página em instantes.')
-          return
+          setError('A empresa foi vinculada, mas ainda não apareceu na sua lista. Recarregue a página em instantes.');
+          return;
         }
-        setSelectedOrg(linked)
+        setSelectedOrg(linked);
         // Straight to the company's own screen: the fiscal side is empty, and
         // that is the next thing the person has to do. `from=link` says this
         // edit is the tail of the handoff, which is what lets that screen fill
         // the blanks from the CNPJ and then continue the setup flow.
-        router.replace(`/organizations/edit?pk=${encodeURIComponent(org.pk)}&from=link`)
+        router.replace(`/organizations/edit?pk=${encodeURIComponent(org.pk)}&from=link`);
       } catch (e) {
-        setError(e instanceof ApiError ? e.detail : 'Não foi possível vincular a empresa.')
+        setError(e instanceof ApiError ? e.detail : 'Não foi possível vincular a empresa.');
       }
-    })()
-  }, [qc, refreshUser, setSelectedOrg, router])
+    })();
+  }, [qc, refreshUser, setSelectedOrg, router]);
 
   if (cancelled) {
     return (
@@ -113,11 +113,11 @@ function LinkCompanyContent() {
           <Button variant="outline" className="mt-4">Voltar para empresas</Button>
         </Link>
       </Shell>
-    )
+    );
   }
 
   if (incompleteOrg) {
-    const accountUrl = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? ''
+    const accountUrl = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? '';
     return (
       <Shell title="Falta a empresa">
         <p className="text-sm text-gray-600">
@@ -136,7 +136,7 @@ function LinkCompanyContent() {
           </Link>
         </div>
       </Shell>
-    )
+    );
   }
 
   if (error) {
@@ -147,14 +147,14 @@ function LinkCompanyContent() {
           <Button variant="outline" className="mt-4">Voltar para empresas</Button>
         </Link>
       </Shell>
-    )
+    );
   }
 
   return (
     <Shell title="Vinculando empresa">
       <p className="text-sm text-gray-500">Só um momento…</p>
     </Shell>
-  )
+  );
 }
 
 function Shell({title, children}: { title: string; children: React.ReactNode }) {
@@ -165,7 +165,7 @@ function Shell({title, children}: { title: string; children: React.ReactNode }) 
         {children}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function LinkCompanyPage() {
@@ -173,5 +173,5 @@ export default function LinkCompanyPage() {
     <ProtectedRoute>
       <LinkCompanyContent/>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {
   CargoUnitItemOut,
   MdfeAirModalIn,
@@ -17,23 +17,23 @@ import type {
   MdfeRailWagonIn,
   MdfeWaterModalIn,
   MdfeWaterTerminalIn,
-} from '@/lib/types/api'
+} from '@/lib/types/api';
 
 const EMPTY_WAGON: MdfeRailWagonIn = {
   weight_bc: '', weight_real: '', series: '', number: '', tu: '', wagon_type: '', sequence: '',
-}
+};
 
 /** Um voo é válido quando os seis campos do XSD estão preenchidos. */
 export function airComplete(a: MdfeAirModalIn): boolean {
   return !!(a.nationality && a.registration && a.flight_number
-    && a.origin_airport && a.dest_airport && a.flight_date)
+    && a.origin_airport && a.dest_airport && a.flight_date);
 }
 
 /** Um trem precisa de prefixo, origem, destino e ao menos um vagão completo. */
 export function railComplete(r: MdfeRailModalIn): boolean {
   return !!(r.train_prefix && r.origin_station && r.dest_station)
     && r.wagons.length > 0
-    && r.wagons.every((w) => w.weight_bc && w.weight_real && w.series && w.number && w.tu)
+    && r.wagons.every((w) => w.weight_bc && w.weight_real && w.series && w.number && w.tu);
 }
 
 function Field({id, label, children}: { id: string; label: string; children: React.ReactNode }) {
@@ -42,15 +42,15 @@ function Field({id, label, children}: { id: string; label: string; children: Rea
       <Label htmlFor={id} className="text-xs font-medium text-gray-600">{label}</Label>
       {children}
     </div>
-  )
+  );
 }
 
 export function AirModalFields({value, onChange}: {
   value: MdfeAirModalIn
   onChange: (v: MdfeAirModalIn) => void
 }) {
-  const patch = (p: Partial<MdfeAirModalIn>) => onChange({...value, ...p})
-  const upper = (s: string) => s.toUpperCase()
+  const patch = (p: Partial<MdfeAirModalIn>) => onChange({...value, ...p});
+  const upper = (s: string) => s.toUpperCase();
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -83,16 +83,16 @@ export function AirModalFields({value, onChange}: {
         </Field>
       </div>
     </div>
-  )
+  );
 }
 
 export function RailModalFields({value, onChange}: {
   value: MdfeRailModalIn
   onChange: (v: MdfeRailModalIn) => void
 }) {
-  const patch = (p: Partial<MdfeRailModalIn>) => onChange({...value, ...p})
+  const patch = (p: Partial<MdfeRailModalIn>) => onChange({...value, ...p});
   const patchWagon = (i: number, p: Partial<MdfeRailWagonIn>) =>
-    patch({wagons: value.wagons.map((w, k) => (k === i ? {...w, ...p} : w))})
+    patch({wagons: value.wagons.map((w, k) => (k === i ? {...w, ...p} : w))});
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -173,20 +173,20 @@ export function RailModalFields({value, onChange}: {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /** Uma embarcação é válida com os sete campos obrigatórios do XSD. */
 export function waterComplete(w: MdfeWaterModalIn): boolean {
   return !!(w.irin && w.vessel_type && w.vessel_code && w.vessel_name
-    && w.voyage_number && w.origin_port.length === 5 && w.dest_port.length === 5)
+    && w.voyage_number && w.origin_port.length === 5 && w.dest_port.length === 5);
 }
 
 /** tpNav — tipo de navegação. */
 const TP_NAV_OPTIONS = [
   {value: '0', label: '0 – Interior'},
   {value: '1', label: '1 – Cabotagem'},
-]
+];
 
 /** Lista de pares código/nome: terminais e balsas têm a mesma forma. */
 function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onChange, max}: {
@@ -200,7 +200,7 @@ function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onCha
   max: number
 }) {
   const patch = (i: number, p: Partial<MdfeWaterTerminalIn>) =>
-    onChange(items.map((t, k) => (k === i ? {...t, ...p} : t)))
+    onChange(items.map((t, k) => (k === i ? {...t, ...p} : t)));
 
   return (
     <div className="space-y-2">
@@ -228,7 +228,7 @@ function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onCha
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /** Unidades do cadastro que viajam vazias — marcadas, não redigitadas. */
@@ -241,7 +241,7 @@ function EmptyUnitPicker({label, hint, idPrefix, options, selected, onChange}: {
   onChange: (ids: string[]) => void
 }) {
   const toggle = (id: string) =>
-    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id])
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
 
   return (
     <div className="space-y-2">
@@ -250,7 +250,7 @@ function EmptyUnitPicker({label, hint, idPrefix, options, selected, onChange}: {
         <p className="text-xs text-gray-500">{hint}</p>
       ) : (
         options.map((u) => {
-          const id = extractId(u.sk, SK_PREFIX.CARGO_UNIT)
+          const id = extractId(u.sk, SK_PREFIX.CARGO_UNIT);
           return (
             <label key={u.sk} htmlFor={`${idPrefix}-${id}`}
                    className="flex items-center gap-2 min-h-11 py-1 cursor-pointer text-sm text-gray-700">
@@ -259,30 +259,30 @@ function EmptyUnitPicker({label, hint, idPrefix, options, selected, onChange}: {
                      className="size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
               <span>{u.name} <span className="text-gray-400">· {u.id_unid}</span></span>
             </label>
-          )
+          );
         })
       )}
     </div>
-  )
+  );
 }
 
 export function WaterModalFields({value, onChange}: {
   value: MdfeWaterModalIn
   onChange: (v: MdfeWaterModalIn) => void
 }) {
-  const {selectedOrg} = useAuth()
-  const patch = (p: Partial<MdfeWaterModalIn>) => onChange({...value, ...p})
-  const upper = (s: string) => s.toUpperCase()
+  const {selectedOrg} = useAuth();
+  const patch = (p: Partial<MdfeWaterModalIn>) => onChange({...value, ...p});
+  const upper = (s: string) => s.toUpperCase();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk),
     queryFn: () => apiClient.getCargoUnits({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const units = page?.items ?? []
+  });
+  const units = page?.items ?? [];
   // O XSD só aceita unidades rodoviárias (tração/reboque) como transporte vazio.
-  const emptyTransportOptions = units.filter((u) => u.kind === 'transport' && (u.tp_unid === '1' || u.tp_unid === '2'))
-  const emptyCargoOptions = units.filter((u) => u.kind === 'cargo')
+  const emptyTransportOptions = units.filter((u) => u.kind === 'transport' && (u.tp_unid === '1' || u.tp_unid === '2'));
+  const emptyCargoOptions = units.filter((u) => u.kind === 'cargo');
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
@@ -357,5 +357,5 @@ export function WaterModalFields({value, onChange}: {
                        options={emptyTransportOptions} selected={value.empty_transport_unit_ids ?? []}
                        onChange={(ids) => patch({empty_transport_unit_ids: ids})}/>
     </div>
-  )
+  );
 }

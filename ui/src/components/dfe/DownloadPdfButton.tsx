@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {toast} from 'sonner'
-import {Button} from '@/components/ui/button'
-import {triggerRemoteDownload} from '@/lib/utils/dfe'
-import type {SignedFileDownload} from '@/lib/types/api'
+import {useState} from 'react';
+import {toast} from 'sonner';
+import {Button} from '@/components/ui/button';
+import {triggerRemoteDownload} from '@/lib/utils/dfe';
+import type {SignedFileDownload} from '@/lib/types/api';
 
 interface DownloadPdfButtonProps {
   /** Fetches the presigned URL of the generated auxiliary document. */
@@ -28,23 +28,23 @@ export function DownloadPdfButton({
                                     size = 'xs',
                                     className,
                                   }: DownloadPdfButtonProps) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      triggerRemoteDownload((await fetchPdf()).url)
+      triggerRemoteDownload((await fetchPdf()).url);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao gerar o PDF.')
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar o PDF.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Button variant={variant} size={size} onClick={handleClick} disabled={loading}
             className={className ?? 'text-brand-600 hover:text-brand-700'}>
       {loading ? 'Gerando…' : label}
     </Button>
-  )
+  );
 }

@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {apiClient} from '@/lib/api/client'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import type {NfeListOut} from '@/lib/types/api'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
+import {useState} from 'react';
+import {apiClient} from '@/lib/api/client';
+import {Modal} from '@/components/ui/modal';
+import {JustificationField} from '@/components/ui/justification-field';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import type {NfeListOut} from '@/lib/types/api';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
 
-const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
-const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
+const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
+const CANCEL_JUSTIFICATION_MAX_LENGTH = 255;
 
 /**
  * Cancelamento por substituição (evento 110112). The user provides the number or
@@ -24,44 +24,44 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
   onConfirm: (substituteKey: string, justification: string) => void
   loading: boolean
 }) {
-  const [queryStr, setQueryStr] = useState('')
-  const [justification, setJustification] = useState('')
-  const [lookupLoading, setLookupLoading] = useState(false)
-  const [substitute, setSubstitute] = useState<NfeListOut | null>(null)
-  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [queryStr, setQueryStr] = useState('');
+  const [justification, setJustification] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [substitute, setSubstitute] = useState<NfeListOut | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   const lookup = async () => {
-    setLookupError(null)
-    setSubstitute(null)
-    const digits = queryStr.replace(/\D/g, '')
+    setLookupError(null);
+    setSubstitute(null);
+    const digits = queryStr.replace(/\D/g, '');
     try {
-      setLookupLoading(true)
-      let found: NfeListOut | null = null
+      setLookupLoading(true);
+      let found: NfeListOut | null = null;
       if (digits.length === 44) {
-        found = await apiClient.getNfce(digits)
+        found = await apiClient.getNfce(digits);
       } else if (digits.length > 0) {
-        const res = await apiClient.listNfces({number: parseInt(digits, 10), limit: 1, sort: 'desc'})
-        found = res.items[0] ?? null
+        const res = await apiClient.listNfces({number: parseInt(digits, 10), limit: 1, sort: 'desc'});
+        found = res.items[0] ?? null;
       }
       if (!found) {
-        setLookupError('NFC-e substituta não encontrada.')
-        return
+        setLookupError('NFC-e substituta não encontrada.');
+        return;
       }
       if (found.sk === target.sk) {
-        setLookupError('A NFC-e substituta deve ser diferente da que será cancelada.')
-        return
+        setLookupError('A NFC-e substituta deve ser diferente da que será cancelada.');
+        return;
       }
-      setSubstitute(found)
+      setSubstitute(found);
     } catch {
-      setLookupError('Erro ao consultar NFC-e substituta.')
+      setLookupError('Erro ao consultar NFC-e substituta.');
     } finally {
-      setLookupLoading(false)
+      setLookupLoading(false);
     }
-  }
+  };
 
-  const totalDiverges = substitute && Math.abs(parseFloat(substitute.total) - parseFloat(target.total)) > 0.01
-  const notAuthorized = substitute && substitute.status !== 'authorized'
-  const canConfirm = !!substitute && !notAuthorized && justification.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH
+  const totalDiverges = substitute && Math.abs(parseFloat(substitute.total) - parseFloat(target.total)) > 0.01;
+  const notAuthorized = substitute && substitute.status !== 'authorized';
+  const canConfirm = !!substitute && !notAuthorized && justification.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH;
 
   return (
     <Modal
@@ -124,5 +124,5 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
         />
       </div>
     </Modal>
-  )
+  );
 }

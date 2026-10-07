@@ -20,8 +20,8 @@ export const SK_PREFIX = {
   VEHICLE_SET: 'VEHICLESET_',
   SERVICE_LOCATION: 'SERVICELOCATION_',
   REFERENCE_DOCUMENT: 'REFERENCEDOC_',
-} as const
+} as const;
 
 export function extractId(sk: string, prefix: string): string {
-  return sk.startsWith(prefix) ? sk.slice(prefix.length) : sk
+  return sk.startsWith(prefix) ? sk.slice(prefix.length) : sk;
 }

@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import {usePathname} from 'next/navigation'
-import {ChevronDown} from 'lucide-react'
-import {Button} from '@/components/ui/button'
-import {useAuth} from '@/lib/hooks/useAuth'
+import {useState} from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import {usePathname} from 'next/navigation';
+import {ChevronDown} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {useAuth} from '@/lib/hooks/useAuth';
 import {
   contextForPath,
   DOC_CONTEXTS,
@@ -14,14 +14,14 @@ import {
   NAV_GROUPS,
   type DocContext,
   type NavItem,
-} from '@/lib/navigation/nav'
+} from '@/lib/navigation/nav';
 
-const DOC_GROUP_LABEL = 'Documentos Fiscais'
+const DOC_GROUP_LABEL = 'Documentos Fiscais';
 
 const ITEM_BASE =
-  'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors'
-const ITEM_ACTIVE = 'bg-brand-50 text-brand-700 font-medium'
-const ITEM_IDLE = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+  'flex items-center gap-2.5 px-2 py-2 min-h-11 sm:min-h-0 rounded-md text-sm transition-colors';
+const ITEM_ACTIVE = 'bg-brand-50 text-brand-700 font-medium';
+const ITEM_IDLE = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900';
 
 function NavLink(
   {item, active, sub, onNavigate}:
@@ -43,7 +43,7 @@ function NavLink(
       )}
       <span className="truncate">{item.label}</span>
     </Link>
-  )
+  );
 }
 
 /**
@@ -55,12 +55,12 @@ function ContextItem(
   {ctx, pathname, onNavigate}:
   {ctx: DocContext; pathname: string; onNavigate: () => void},
 ) {
-  const inContext = contextForPath(pathname)?.key === ctx.key
-  const [expanded, setExpanded] = useState(false)
-  const open = inContext || expanded
-  const children: NavItem[] = [...(ctx.emit ? [ctx.emit] : []), ...ctx.items]
-  const active = isItemActive(ctx.href, pathname)
-  const panelId = `nav-context-${ctx.key}`
+  const inContext = contextForPath(pathname)?.key === ctx.key;
+  const [expanded, setExpanded] = useState(false);
+  const open = inContext || expanded;
+  const children: NavItem[] = [...(ctx.emit ? [ctx.emit] : []), ...ctx.items];
+  const active = isItemActive(ctx.href, pathname);
+  const panelId = `nav-context-${ctx.key}`;
 
   return (
     <li>
@@ -106,7 +106,7 @@ function ContextItem(
         </ul>
       )}
     </li>
-  )
+  );
 }
 
 interface SidebarProps {
@@ -115,9 +115,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({open, onClose}: SidebarProps) {
-  const pathname = usePathname()
-  const {selectedOrg} = useAuth()
-  const role = selectedOrg?.role
+  const pathname = usePathname();
+  const {selectedOrg} = useAuth();
+  const role = selectedOrg?.role;
 
   return (
     <aside
@@ -156,9 +156,9 @@ export function Sidebar({open, onClose}: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 pb-24 md:pb-4" aria-label="Navegação principal">
         {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((item) => !item.roles || (role != null && item.roles.includes(role)))
-          if (items.length === 0) return null
-          const isDocGroup = group.label === DOC_GROUP_LABEL
+          const items = group.items.filter((item) => !item.roles || (role != null && item.roles.includes(role)));
+          if (items.length === 0) return null;
+          const isDocGroup = group.label === DOC_GROUP_LABEL;
           return (
             <div key={group.label} className="mb-5">
               <p className="px-2 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -176,9 +176,9 @@ export function Sidebar({open, onClose}: SidebarProps) {
                   ))}
               </ul>
             </div>
-          )
+          );
         })}
       </nav>
     </aside>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import {cn} from '@/lib/utils'
+import * as React from 'react';
+import {cn} from '@/lib/utils';
 
 interface CurrencyInputProps
   extends Omit<React.ComponentProps<'input'>, 'type' | 'onChange' | 'value'> {
@@ -23,65 +23,65 @@ export function CurrencyInput({
                                 placeholder,
                                 ...props
                               }: CurrencyInputProps) {
-  const maxDec = maxDecimalPlaces ?? decimalPlaces
-  const [focused, setFocused] = React.useState(false)
-  const [editValue, setEditValue] = React.useState('')
+  const maxDec = maxDecimalPlaces ?? decimalPlaces;
+  const [focused, setFocused] = React.useState(false);
+  const [editValue, setEditValue] = React.useState('');
 
-  const numericValue = parseFloat(value)
-  const isValid = value !== '' && !isNaN(numericValue)
+  const numericValue = parseFloat(value);
+  const isValid = value !== '' && !isNaN(numericValue);
 
   const formattedDisplay = isValid
     ? numericValue.toLocaleString('pt-BR', {
       minimumFractionDigits: decimalPlaces,
       maximumFractionDigits: maxDec,
     })
-    : ''
+    : '';
 
-  const displayValue = focused ? editValue : formattedDisplay
+  const displayValue = focused ? editValue : formattedDisplay;
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setFocused(true)
+    setFocused(true);
     if (isValid) {
       const editStr = numericValue.toLocaleString('pt-BR', {
         minimumFractionDigits: 0,
         maximumFractionDigits: maxDec,
         useGrouping: false,
-      }).replace('.', ',')
-      setEditValue(editStr)
+      }).replace('.', ',');
+      setEditValue(editStr);
     } else {
-      setEditValue('')
+      setEditValue('');
     }
-    props.onFocus?.(e)
-  }
+    props.onFocus?.(e);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value.replace(/[^\d,]/g, '')
-    const commaIdx = raw.indexOf(',')
+    let raw = e.target.value.replace(/[^\d,]/g, '');
+    const commaIdx = raw.indexOf(',');
     if (commaIdx !== -1) {
-      const afterComma = raw.slice(commaIdx + 1).replace(/,/g, '')
-      if (afterComma.length > maxDec) return
-      raw = raw.slice(0, commaIdx + 1) + afterComma
+      const afterComma = raw.slice(commaIdx + 1).replace(/,/g, '');
+      if (afterComma.length > maxDec) return;
+      raw = raw.slice(0, commaIdx + 1) + afterComma;
     }
-    setEditValue(raw)
-    const asDecimal = raw.replace(',', '.')
-    onChange?.(asDecimal === '.' ? '' : asDecimal)
-  }
+    setEditValue(raw);
+    const asDecimal = raw.replace(',', '.');
+    onChange?.(asDecimal === '.' ? '' : asDecimal);
+  };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    setFocused(false)
-    const rawStr = editValue.replace(',', '.')
-    const num = parseFloat(rawStr)
+    setFocused(false);
+    const rawStr = editValue.replace(',', '.');
+    const num = parseFloat(rawStr);
     if (editValue === '' || isNaN(num)) {
-      onChange?.('')
+      onChange?.('');
     } else if (!allowZero && num === 0) {
-      onChange?.('')
+      onChange?.('');
     } else {
-      const dotIdx = rawStr.indexOf('.')
-      const typedDecimals = dotIdx === -1 ? 0 : rawStr.length - dotIdx - 1
-      onChange?.(num.toFixed(Math.max(typedDecimals, decimalPlaces)))
+      const dotIdx = rawStr.indexOf('.');
+      const typedDecimals = dotIdx === -1 ? 0 : rawStr.length - dotIdx - 1;
+      onChange?.(num.toFixed(Math.max(typedDecimals, decimalPlaces)));
     }
-    props.onBlur?.(e)
-  }
+    props.onBlur?.(e);
+  };
 
   return (
     <div
@@ -110,5 +110,5 @@ export function CurrencyInput({
         id={props.id ?? props.name}
       />
     </div>
-  )
+  );
 }

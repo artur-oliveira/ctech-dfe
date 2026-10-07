@@ -1,30 +1,30 @@
-'use client'
+'use client';
 
-import {Suspense, useMemo, useState} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {PageHeader} from '@/components/ui/page-header'
-import {SectionCard} from '@/components/ui/section-card'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {StatusBadge} from '@/components/ui/status-badge'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button, buttonVariants} from '@/components/ui/button'
-import {UsageList} from '@/components/billing/UsageList'
-import {ChangePlanDialog} from '@/components/billing/ChangePlanDialog'
-import {CancelSubscriptionDialog} from '@/components/billing/CancelSubscriptionDialog'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useSubscription} from '@/lib/hooks/useSubscription'
-import {ROLE_OWNER} from '@/lib/data/roles'
-import {cn} from '@/lib/utils'
-import {formatISODateBR} from '@/lib/utils/dfe'
-import {QUERY_CHANGE_PLAN} from '@/lib/billing/notice'
-import {ONBOARDING_ROOT, STEP_PLAN} from '@/lib/constants/onboarding'
+import {Suspense, useMemo, useState} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {PageHeader} from '@/components/ui/page-header';
+import {SectionCard} from '@/components/ui/section-card';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {StatusBadge} from '@/components/ui/status-badge';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button, buttonVariants} from '@/components/ui/button';
+import {UsageList} from '@/components/billing/UsageList';
+import {ChangePlanDialog} from '@/components/billing/ChangePlanDialog';
+import {CancelSubscriptionDialog} from '@/components/billing/CancelSubscriptionDialog';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useSubscription} from '@/lib/hooks/useSubscription';
+import {ROLE_OWNER} from '@/lib/data/roles';
+import {cn} from '@/lib/utils';
+import {formatISODateBR} from '@/lib/utils/dfe';
+import {QUERY_CHANGE_PLAN} from '@/lib/billing/notice';
+import {ONBOARDING_ROOT, STEP_PLAN} from '@/lib/constants/onboarding';
 import {
   formatCents,
   INVOICE_STATUS_CLASSES,
@@ -32,28 +32,28 @@ import {
   PLAN_LABELS,
   STATUS_BADGE_CLASSES,
   STATUS_LABELS,
-} from '@/lib/constants/billing'
-import type {AccountSubscription} from '@/lib/types/billing'
+} from '@/lib/constants/billing';
+import type {AccountSubscription} from '@/lib/types/billing';
 
-const MONTH_OPTIONS_COUNT = 12
+const MONTH_OPTIONS_COUNT = 12;
 const MONTH_NAMES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-]
+];
 
 /** `YYYY-MM`, the value the month picker carries. */
 function monthKey(year: number, month: number): string {
-  return `${year}-${String(month).padStart(2, '0')}`
+  return `${year}-${String(month).padStart(2, '0')}`;
 }
 
 function recentMonths(now: Date): { value: string; label: string }[] {
   return Array.from({length: MONTH_OPTIONS_COUNT}, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     return {
       value: monthKey(d.getFullYear(), d.getMonth() + 1),
       label: `${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`,
-    }
-  })
+    };
+  });
 }
 
 function PlanSummary({subscription}: { subscription: AccountSubscription }) {
@@ -76,7 +76,7 @@ function PlanSummary({subscription}: { subscription: AccountSubscription }) {
         size="md"
       />
     </div>
-  )
+  );
 }
 
 /** What an ADMIN sees: the plan governing this organization, and no buttons. */
@@ -84,15 +84,15 @@ function OrganizationPlanView({orgPk}: { orgPk: string }) {
   const {data, isPending, error} = useQuery({
     queryKey: queryKeys.billing.orgPlan(orgPk),
     queryFn: () => apiClient.getOrganizationPlan(orgPk),
-  })
+  });
 
-  if (isPending) return <LoadingSkeleton/>
+  if (isPending) return <LoadingSkeleton/>;
   if (error) {
     return (
       <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
         Não foi possível carregar o plano. {error.message}
       </p>
-    )
+    );
   }
 
   return (
@@ -109,38 +109,38 @@ function OrganizationPlanView({orgPk}: { orgPk: string }) {
         <UsageList quotas={data.quotas}/>
       </SectionCard>
     </div>
-  )
+  );
 }
 
 /** What the OWNER sees: everything, and the two actions that spend money. */
 function OwnerSubscriptionView() {
-  const params = useSearchParams()
-  const {subscription, isPending, error} = useSubscription()
-  const [changeOpen, setChangeOpen] = useState(params.get(QUERY_CHANGE_PLAN) === '1')
-  const [cancelOpen, setCancelOpen] = useState(false)
+  const params = useSearchParams();
+  const {subscription, isPending, error} = useSubscription();
+  const [changeOpen, setChangeOpen] = useState(params.get(QUERY_CHANGE_PLAN) === '1');
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [month, setMonth] = useState(() => {
-    const now = new Date()
-    return monthKey(now.getFullYear(), now.getMonth() + 1)
-  })
+    const now = new Date();
+    return monthKey(now.getFullYear(), now.getMonth() + 1);
+  });
 
-  const months = useMemo(() => recentMonths(new Date()), [])
-  const [year, monthNumber] = month.split('-').map(Number)
+  const months = useMemo(() => recentMonths(new Date()), []);
+  const [year, monthNumber] = month.split('-').map(Number);
 
   const invoicesQuery = useQuery({
     queryKey: queryKeys.billing.invoices(year, monthNumber),
     queryFn: () => apiClient.listBillingInvoices(year, monthNumber),
     enabled: !!subscription?.has_subscription,
-  })
+  });
 
-  if (isPending) return <LoadingSkeleton/>
+  if (isPending) return <LoadingSkeleton/>;
   if (error) {
     return (
       <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
         Não foi possível carregar a assinatura. {error.message}
       </p>
-    )
+    );
   }
-  if (!subscription) return null
+  if (!subscription) return null;
 
   if (subscription.no_charge) {
     return (
@@ -149,7 +149,7 @@ function OwnerSubscriptionView() {
           Esta instalação não cobra nada. Todos os recursos estão liberados e não há faturas.
         </p>
       </SectionCard>
-    )
+    );
   }
 
   if (!subscription.has_subscription) {
@@ -162,11 +162,11 @@ function OwnerSubscriptionView() {
           Escolher plano
         </Link>
       </SectionCard>
-    )
+    );
   }
 
-  const invoices = invoicesQuery.data?.data ?? []
-  const openInvoice = subscription.open_invoice
+  const invoices = invoicesQuery.data?.data ?? [];
+  const openInvoice = subscription.open_invoice;
 
   return (
     <div className="flex flex-col gap-6">
@@ -276,14 +276,14 @@ function OwnerSubscriptionView() {
         subscription={subscription}
       />
     </div>
-  )
+  );
 }
 
 function SubscriptionContent() {
-  const {selectedOrg} = useAuth()
-  const role = selectedOrg?.role
+  const {selectedOrg} = useAuth();
+  const role = selectedOrg?.role;
 
-  if (!selectedOrg) return <NoOrgBanner/>
+  if (!selectedOrg) return <NoOrgBanner/>;
 
   return (
     <div className="p-4 md:p-8 max-w-3xl">
@@ -297,7 +297,7 @@ function SubscriptionContent() {
       />
       {role === ROLE_OWNER ? <OwnerSubscriptionView/> : <OrganizationPlanView orgPk={selectedOrg.pk}/>}
     </div>
-  )
+  );
 }
 
 export default function SubscriptionPage() {
@@ -310,5 +310,5 @@ export default function SubscriptionPage() {
         </Suspense>
       </RootLayout>
     </ProtectedRoute>
-  )
+  );
 }

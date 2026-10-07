@@ -1,23 +1,23 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {maskCnpj} from '@/lib/utils/masks'
-import type {NfeCardIn} from '@/lib/types/api'
-import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS} from '@/lib/data/payment-tables'
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {maskCnpj} from '@/lib/utils/masks';
+import type {NfeCardIn} from '@/lib/types/api';
+import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS} from '@/lib/data/payment-tables';
 
 // Bandeiras e classificação dos meios de pagamento vivem na tabela oficial
 // (lib/data/payment-tables.ts). Reexportadas aqui porque é onde os formulários
 // já as importam.
-export const CARD_BAND_OPTIONS = TBAND_OPTIONS
+export const CARD_BAND_OPTIONS = TBAND_OPTIONS;
 
-export {CARD_PAYMENT_TYPES, isPixPaymentType}
+export {CARD_PAYMENT_TYPES, isPixPaymentType};
 
 /**
  * Card / PIX transaction fields (tpIntegra, bandeira, NSU/autorização, CNPJ).
@@ -31,16 +31,16 @@ export function PaymentCardFields({card, onChange, isPix, terminalId, onTerminal
   terminalId?: string | null
   onTerminalChange?: (terminalId: string) => void
 }) {
-  const {selectedOrg} = useAuth()
-  const set = (patch: Partial<NfeCardIn>) => onChange({...(card ?? {tp_integra: '2'}), ...patch})
+  const {selectedOrg} = useAuth();
+  const set = (patch: Partial<NfeCardIn>) => onChange({...(card ?? {tp_integra: '2'}), ...patch});
 
   // O cadastro traz CNPJReceb e idTermPag; aqui só se escolhe qual maquininha.
   const {data: terminalPage} = useQuery({
     queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk),
     queryFn: () => apiClient.getPaymentTerminals({limit: 100}),
     enabled: !!selectedOrg && !!onTerminalChange,
-  })
-  const terminals = terminalPage?.items ?? []
+  });
+  const terminals = terminalPage?.items ?? [];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -83,5 +83,5 @@ export function PaymentCardFields({card, onChange, isPix, terminalId, onTerminal
                placeholder="00.000.000/0000-00" maxLength={18}/>
       </div>
     </div>
-  )
+  );
 }

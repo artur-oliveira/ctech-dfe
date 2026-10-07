@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {useId} from 'react'
-import {Input} from '@/components/ui/input'
+import {useId} from 'react';
+import {Input} from '@/components/ui/input';
 
 export interface CertificateFieldsProps {
   file: File | null
@@ -29,8 +29,8 @@ export function CertificateFields({
   passwordError,
   hint,
 }: CertificateFieldsProps) {
-  const fileId = useId()
-  const pwId = useId()
+  const fileId = useId();
+  const pwId = useId();
 
   return (
     <div className="space-y-4">
@@ -66,5 +66,5 @@ export function CertificateFields({
         {passwordError && <p className="mt-1 text-[0.8rem] font-medium text-destructive">{passwordError}</p>}
       </div>
     </div>
-  )
+  );
 }

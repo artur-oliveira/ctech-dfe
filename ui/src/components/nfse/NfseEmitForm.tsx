@@ -1,49 +1,49 @@
-'use client'
+'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react'
-import {useForm, useWatch, type FieldErrors} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {EmitError} from '@/components/ui/emit-error'
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Textarea} from '@/components/ui/textarea'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
-import {Button} from '@/components/ui/button'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
-import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {PersonPicker} from '@/components/persons/PersonPicker'
-import {NfseServicePicker} from '@/components/nfse/NfseServicePicker'
-import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse'
-import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api'
-import {NFSE_SUBSTITUTION_MOTIVES, NFSE_THIRD_PARTY_MOTIVES} from '@/lib/data/nfse_motives'
-import {formatCpfCnpj, orgTaxId, personTaxId} from '@/lib/utils/document'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {formatISODateBR} from '@/lib/utils/dfe'
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useForm, useWatch, type FieldErrors} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {EmitError} from '@/components/ui/emit-error';
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Textarea} from '@/components/ui/textarea';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
+import {Button} from '@/components/ui/button';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {PersonPicker} from '@/components/persons/PersonPicker';
+import {NfseServicePicker} from '@/components/nfse/NfseServicePicker';
+import {type NfseEmitFormData, nfseEmitSchema} from '@/lib/schemas/nfse';
+import type {NfseEmit, OrganizationOut, PersonItemOut, ServiceOut} from '@/lib/types/api';
+import {NFSE_SUBSTITUTION_MOTIVES, NFSE_THIRD_PARTY_MOTIVES} from '@/lib/data/nfse_motives';
+import {formatCpfCnpj, orgTaxId, personTaxId} from '@/lib/utils/document';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {formatISODateBR} from '@/lib/utils/dfe';
 
 const THIRD_PARTY_ISSUER_OPTIONS = [
   {value: '1', label: 'O próprio prestador'},
   {value: '2', label: 'O tomador'},
   {value: '3', label: 'O intermediário'},
-]
+];
 
 const RETENTION_LABELS: Record<number, string> = {
   1: 'ISS não retido',
   2: 'ISS retido pelo tomador',
   3: 'ISS retido pelo intermediário',
-}
+};
 
 const FORM_FIELD_ORDER: readonly (keyof NfseEmitFormData | `service.${keyof NfseEmitFormData['service']}`)[] = [
   'customer_id',
@@ -59,7 +59,7 @@ const FORM_FIELD_ORDER: readonly (keyof NfseEmitFormData | `service.${keyof Nfse
   'service.c_trib_mun',
   'additional_info',
   'substitutes_reason',
-]
+];
 
 interface NfseEmitFormProps {
   mode?: 'emit' | 'substitute' | 'duplicate'
@@ -76,18 +76,18 @@ interface NfseDraftState {
 }
 
 function todayCompetence(): string {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function nextMonthCompetence(value: string): string {
-  const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) return todayCompetence()
-  const lastDay = new Date(year, month + 1, 0).getDate()
-  const next = new Date(year, month, Math.min(day, lastDay))
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return todayCompetence();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const next = new Date(year, month, Math.min(day, lastDay));
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
 }
 
 function orgAsPerson(org: OrganizationOut): PersonItemOut {
@@ -99,70 +99,70 @@ function orgAsPerson(org: OrganizationOut): PersonItemOut {
     person: org.person as unknown as PersonItemOut['person'],
     created_at: org.created_at,
     updated_at: org.updated_at,
-  }
+  };
 }
 
 function singleLine(value: string): string {
-  return value.replace(/[\r\n]+/g, ' ')
+  return value.replace(/[\r\n]+/g, ' ');
 }
 
 function hasFieldError(errors: FieldErrors<NfseEmitFormData>, path: string): boolean {
   return path.split('.').reduce<unknown>((value, key) => {
-    if (!value || typeof value !== 'object') return undefined
-    return (value as Record<string, unknown>)[key]
-  }, errors) != null
+    if (!value || typeof value !== 'object') return undefined;
+    return (value as Record<string, unknown>)[key];
+  }, errors) != null;
 }
 
 export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const orgPk = selectedOrg?.pk ?? ''
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const orgPk = selectedOrg?.pk ?? '';
 
-  const [selectedProvider, setSelectedProvider] = useState<PersonItemOut | null>(null)
-  const [selectedCustomer, setSelectedCustomer] = useState<PersonItemOut | null>(null)
-  const [selectedIntermediary, setSelectedIntermediary] = useState<PersonItemOut | null>(null)
-  const [selectedService, setSelectedService] = useState<ServiceOut | null>(null)
-  const [moreOptionsOpen, setMoreOptionsOpen] = useState(mode === 'substitute')
-  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
-  const appliedSourceRef = useRef<string | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<PersonItemOut | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<PersonItemOut | null>(null);
+  const [selectedIntermediary, setSelectedIntermediary] = useState<PersonItemOut | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceOut | null>(null);
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(mode === 'substitute');
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false);
+  const appliedSourceRef = useRef<string | null>(null);
 
-  const {config: nfseConfig} = useFiscalConfig('nfse', orgPk)
+  const {config: nfseConfig} = useFiscalConfig('nfse', orgPk);
 
   const {data: org} = useQuery({
     queryKey: queryKeys.organizations.detail(orgPk),
     queryFn: () => apiClient.getOrganization(orgPk),
     enabled: !!orgPk,
-  })
+  });
 
   const sourceQuery = useQuery({
     queryKey: queryKeys.nfses.detail(sourceIdDps ?? ''),
     queryFn: () => apiClient.getNfse(sourceIdDps!),
     enabled: mode !== 'emit' && !!sourceIdDps,
-  })
+  });
 
-  const sourceInput = sourceQuery.data?.emit_input
+  const sourceInput = sourceQuery.data?.emit_input;
   const sourceServiceQuery = useQuery({
     queryKey: queryKeys.services.detail(sourceInput?.service.service_id ?? ''),
     queryFn: () => apiClient.getService(sourceInput!.service.service_id),
     enabled: !!sourceInput?.service.service_id,
-  })
+  });
   const sourceProviderQuery = useQuery({
     queryKey: queryKeys.persons.detail(sourceInput?.provider_person_id ?? ''),
     queryFn: () => apiClient.getPerson(sourceInput!.provider_person_id!),
     enabled: !!sourceInput?.provider_person_id && sourceInput.provider_person_id !== orgPk,
-  })
+  });
   const sourceCustomerQuery = useQuery({
     queryKey: queryKeys.persons.detail(sourceInput?.customer_id ?? ''),
     queryFn: () => apiClient.getPerson(sourceInput!.customer_id!),
     enabled: !!sourceInput?.customer_id && sourceInput.customer_id !== orgPk,
-  })
+  });
   const sourceIntermediaryQuery = useQuery({
     queryKey: queryKeys.persons.detail(sourceInput?.intermediary_id ?? ''),
     queryFn: () => apiClient.getPerson(sourceInput!.intermediary_id!),
     enabled: !!sourceInput?.intermediary_id && sourceInput.intermediary_id !== orgPk,
-  })
+  });
 
   const rejectedNfsesQuery = useInfiniteQuery({
     queryKey: queryKeys.nfses.list(orgPk, {status: 'rejected', limit: 100}),
@@ -170,15 +170,15 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.has_next ? (lastPage.next_cursor ?? undefined) : undefined,
     enabled: !!orgPk,
-  })
+  });
   const {fetchNextPage: fetchNextRejectedPage, hasNextPage: hasNextRejectedPage,
-    isFetchingNextPage: isFetchingNextRejectedPage} = rejectedNfsesQuery
+    isFetchingNextPage: isFetchingNextRejectedPage} = rejectedNfsesQuery;
 
   useEffect(() => {
     if (hasNextRejectedPage && !isFetchingNextRejectedPage) {
-      void fetchNextRejectedPage()
+      void fetchNextRejectedPage();
     }
-  }, [fetchNextRejectedPage, hasNextRejectedPage, isFetchingNextRejectedPage])
+  }, [fetchNextRejectedPage, hasNextRejectedPage, isFetchingNextRejectedPage]);
 
   const form = useForm<NfseEmitFormData>({
     resolver: zodResolver(nfseEmitSchema),
@@ -196,34 +196,34 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
       substitutes_reason: '',
       additional_info: '',
     },
-  })
+  });
 
-  const values = useWatch({control: form.control}) as NfseEmitFormData
-  const tpEmit = values.tp_emit
-  const motivoEmisTi = values.motivo_emis_ti
+  const values = useWatch({control: form.control}) as NfseEmitFormData;
+  const tpEmit = values.tp_emit;
+  const motivoEmisTi = values.motivo_emis_ti;
 
   useEffect(() => {
     if (mode === 'substitute' && sourceQuery.data?.access_key) {
-      form.setValue('substitutes_access_key', sourceQuery.data.access_key)
+      form.setValue('substitutes_access_key', sourceQuery.data.access_key);
     }
-  }, [form, mode, sourceQuery.data])
+  }, [form, mode, sourceQuery.data]);
 
   useEffect(() => {
     if (!sourceIdDps || !sourceQuery.data || !sourceInput || !sourceServiceQuery.data
-      || appliedSourceRef.current === sourceIdDps) return
+      || appliedSourceRef.current === sourceIdDps) return undefined;
 
     const resolvePerson = (id: string | null | undefined, fetched: PersonItemOut | undefined) => {
-      if (!id) return null
-      if (id === orgPk && org) return orgAsPerson(org)
-      return fetched ?? null
-    }
-    const provider = resolvePerson(sourceInput.provider_person_id, sourceProviderQuery.data)
-    const customer = resolvePerson(sourceInput.customer_id, sourceCustomerQuery.data)
-    const intermediary = resolvePerson(sourceInput.intermediary_id, sourceIntermediaryQuery.data)
+      if (!id) return null;
+      if (id === orgPk && org) return orgAsPerson(org);
+      return fetched ?? null;
+    };
+    const provider = resolvePerson(sourceInput.provider_person_id, sourceProviderQuery.data);
+    const customer = resolvePerson(sourceInput.customer_id, sourceCustomerQuery.data);
+    const intermediary = resolvePerson(sourceInput.intermediary_id, sourceIntermediaryQuery.data);
     if ((sourceInput.provider_person_id && !provider) || (sourceInput.customer_id && !customer)
-      || (sourceInput.intermediary_id && !intermediary)) return
+      || (sourceInput.intermediary_id && !intermediary)) return undefined;
 
-    const service = sourceServiceQuery.data
+    const service = sourceServiceQuery.data;
     const timer = window.setTimeout(() => {
       form.reset({
         tp_emit: String(sourceInput.tp_emit) as NfseEmitFormData['tp_emit'],
@@ -244,16 +244,16 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
         substitutes_access_key: mode === 'substitute' ? (sourceQuery.data.access_key ?? '') : '',
         substitutes_reason: '',
         additional_info: sourceInput.additional_info ?? '',
-      })
-      setSelectedProvider(provider)
-      setSelectedCustomer(customer)
-      setSelectedIntermediary(intermediary)
-      setSelectedService(service)
-      appliedSourceRef.current = sourceIdDps
-    }, 0)
-    return () => window.clearTimeout(timer)
+      });
+      setSelectedProvider(provider);
+      setSelectedCustomer(customer);
+      setSelectedIntermediary(intermediary);
+      setSelectedService(service);
+      appliedSourceRef.current = sourceIdDps;
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [form, mode, org, orgPk, sourceCustomerQuery.data, sourceIdDps, sourceInput,
-    sourceIntermediaryQuery.data, sourceProviderQuery.data, sourceQuery.data, sourceServiceQuery.data])
+    sourceIntermediaryQuery.data, sourceProviderQuery.data, sourceQuery.data, sourceServiceQuery.data]);
 
   const draftState = useMemo<NfseDraftState>(() => ({
     values,
@@ -262,72 +262,72 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     intermediary: selectedIntermediary,
     service: selectedService,
     moreOptionsOpen,
-  }), [moreOptionsOpen, selectedCustomer, selectedIntermediary, selectedProvider, selectedService, values])
+  }), [moreOptionsOpen, selectedCustomer, selectedIntermediary, selectedProvider, selectedService, values]);
 
   const draft = useEmitDraft(mode === 'emit' ? 'nfse' : `nfse-${mode}`, selectedOrg?.pk, draftState,
-    !!values.service?.service_id || selectedCustomer !== null || selectedProvider !== null)
+    !!values.service?.service_id || selectedCustomer !== null || selectedProvider !== null);
 
   const restoreDraft = () => {
-    const recovered = draft.recovered?.state
+    const recovered = draft.recovered?.state;
     if (recovered) {
-      form.reset(recovered.values)
-      setSelectedProvider(recovered.provider)
-      setSelectedCustomer(recovered.customer)
-      setSelectedIntermediary(recovered.intermediary)
-      setSelectedService(recovered.service)
-      setMoreOptionsOpen(recovered.moreOptionsOpen)
+      form.reset(recovered.values);
+      setSelectedProvider(recovered.provider);
+      setSelectedCustomer(recovered.customer);
+      setSelectedIntermediary(recovered.intermediary);
+      setSelectedService(recovered.service);
+      setMoreOptionsOpen(recovered.moreOptionsOpen);
     }
-    draft.accept()
-  }
+    draft.accept();
+  };
 
   const rejectedOptions: ComboboxOption[] = (rejectedNfsesQuery.data?.pages.flatMap((page) => page.items) ?? [])
     .filter((item) => item.access_key)
     .map((item) => ({
       value: item.access_key!,
       label: `NFS-e ${item.number} / ${item.serie} – ${item.dest_name ?? 'Sem tomador'} – ${formatCurrency(item.total)}`,
-    }))
+    }));
 
   const handleSelectService = (service: ServiceOut) => {
-    setSelectedService(service)
-    form.setValue('service.service_id', service.sk, {shouldValidate: true})
-    form.setValue('service.description', service.description)
-    form.setValue('service.value', service.value)
-    form.setValue('service.tax_rate', service.iss.tax_rate)
-    form.setValue('service.c_trib_mun', service.trib_municipal_code ?? '')
-  }
+    setSelectedService(service);
+    form.setValue('service.service_id', service.sk, {shouldValidate: true});
+    form.setValue('service.description', service.description);
+    form.setValue('service.value', service.value);
+    form.setValue('service.tax_rate', service.iss.tax_rate);
+    form.setValue('service.c_trib_mun', service.trib_municipal_code ?? '');
+  };
 
   const handleClearService = () => {
-    setSelectedService(null)
-    form.setValue('service.service_id', '', {shouldValidate: true})
-  }
+    setSelectedService(null);
+    form.setValue('service.service_id', '', {shouldValidate: true});
+  };
 
   const handleProviderChange = (person: PersonItemOut | null) => {
-    setSelectedProvider(person)
-    form.setValue('provider_person_id', person?.sk ?? '', {shouldValidate: true})
-  }
+    setSelectedProvider(person);
+    form.setValue('provider_person_id', person?.sk ?? '', {shouldValidate: true});
+  };
 
   const handleCustomerChange = (person: PersonItemOut | null) => {
-    setSelectedCustomer(person)
-    form.setValue('customer_id', person?.sk ?? '', {shouldValidate: true})
-  }
+    setSelectedCustomer(person);
+    form.setValue('customer_id', person?.sk ?? '', {shouldValidate: true});
+  };
 
   const handleIntermediaryChange = (person: PersonItemOut | null) => {
-    setSelectedIntermediary(person)
-    form.setValue('intermediary_id', person?.sk ?? '', {shouldValidate: true})
-  }
+    setSelectedIntermediary(person);
+    form.setValue('intermediary_id', person?.sk ?? '', {shouldValidate: true});
+  };
 
   const onInvalid = (errors: FieldErrors<NfseEmitFormData>) => {
-    const firstError = FORM_FIELD_ORDER.find((field) => hasFieldError(errors, field))
-    setSubmitError({message: 'Revise o campo destacado antes de emitir a NFS-e.'})
-    if (!firstError) return
+    const firstError = FORM_FIELD_ORDER.find((field) => hasFieldError(errors, field));
+    setSubmitError({message: 'Revise o campo destacado antes de emitir a NFS-e.'});
+    if (!firstError) return;
     const isAdvancedField = !['customer_id', 'service.service_id', 'service.value', 'service.tax_rate', 'competence']
-      .includes(firstError)
-    if (isAdvancedField) setMoreOptionsOpen(true)
-    window.setTimeout(() => document.getElementById(firstError)?.focus(), 0)
-  }
+      .includes(firstError);
+    if (isAdvancedField) setMoreOptionsOpen(true);
+    window.setTimeout(() => document.getElementById(firstError)?.focus(), 0);
+  };
 
   const submit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
+    setSubmitError(null);
     const payload: NfseEmit = {
       tp_emit: Number(data.tp_emit) as 1 | 2 | 3,
       motivo_emis_ti: data.motivo_emis_ti ? (Number(data.motivo_emis_ti) as 1 | 2 | 3 | 4) : undefined,
@@ -346,34 +346,34 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
       substitutes_access_key: mode === 'substitute' ? data.substitutes_access_key : undefined,
       substitutes_reason: mode === 'substitute' ? data.substitutes_reason : undefined,
       additional_info: data.additional_info || undefined,
-    }
+    };
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const result = mode === 'substitute' && sourceIdDps
         ? await apiClient.substituteNfse(sourceIdDps, payload)
-        : await apiClient.emitNfse(payload)
-      draft.clear()
+        : await apiClient.emitNfse(payload);
+      draft.clear();
       toast.success(mode === 'substitute' ? 'Substituição enviada para processamento' : 'NFS-e enviada para processamento', {
         description: 'Acompanhe a autorização e o retorno do fisco na tela de detalhes.',
         action: {label: 'Emitir outra', onClick: () => router.push('/nfse/emit')},
-      })
-      router.push(`/nfse/detail?id=${encodeURIComponent(result.sk)}`)
+      });
+      router.push(`/nfse/detail?id=${encodeURIComponent(result.sk)}`);
     } catch (error) {
-      setSubmitError(emitFailure(error, 'Não foi possível enviar a NFS-e. Revise os dados e tente novamente.'))
-      setIsSubmitting(false)
+      setSubmitError(emitFailure(error, 'Não foi possível enviar a NFS-e. Revise os dados e tente novamente.'));
+      setIsSubmitting(false);
     }
-  }, onInvalid)
+  }, onInvalid);
 
-  const serviceValue = values.service?.value ?? ''
-  const taxRate = values.service?.tax_rate ?? ''
-  const issValue = ((Number(serviceValue) || 0) * (Number(taxRate) || 0) / 100).toFixed(2)
+  const serviceValue = values.service?.value ?? '';
+  const taxRate = values.service?.tax_rate ?? '';
+  const issValue = ((Number(serviceValue) || 0) * (Number(taxRate) || 0) / 100).toFixed(2);
   const retention = selectedService?.iss.tp_ret_issqn
     ? (RETENTION_LABELS[selectedService.iss.tp_ret_issqn] ?? 'Retenção não informada')
-    : 'Retenção não informada'
+    : 'Retenção não informada';
 
   if (!selectedOrg) {
-    return <div className="py-12 text-center text-sm text-gray-500">Selecione uma organização para emitir NFS-e.</div>
+    return <div className="py-12 text-center text-sm text-gray-500">Selecione uma organização para emitir NFS-e.</div>;
   }
 
   if (nfseConfig?.provider === 'abrasf204') {
@@ -382,20 +382,20 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
         A emissão por ABRASF 2.04 ainda não está disponível aqui. Em Configuração Fiscal, selecione o provedor
         Nacional (ADN) para emitir NFS-e.
       </div>
-    )
+    );
   }
 
   const sourceDependenciesLoading = sourceServiceQuery.isLoading || sourceProviderQuery.isLoading
-    || sourceCustomerQuery.isLoading || sourceIntermediaryQuery.isLoading
+    || sourceCustomerQuery.isLoading || sourceIntermediaryQuery.isLoading;
 
   if (mode !== 'emit' && (sourceQuery.isLoading || sourceDependenciesLoading)) {
-    return <LoadingSkeleton count={2} height="h-32" rounded="rounded-xl"/>
+    return <LoadingSkeleton count={2} height="h-32" rounded="rounded-xl"/>;
   }
 
   const sourceDependencyError = sourceServiceQuery.isError || sourceProviderQuery.isError
-    || sourceCustomerQuery.isError || sourceIntermediaryQuery.isError
+    || sourceCustomerQuery.isError || sourceIntermediaryQuery.isError;
   const sourceUnavailable = mode !== 'emit' && (sourceQuery.isError || !sourceInput || sourceDependencyError
-    || (mode === 'substitute' && !sourceQuery.data?.access_key))
+    || (mode === 'substitute' && !sourceQuery.data?.access_key));
 
   return (
     <Form {...form}>
@@ -493,8 +493,8 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
               <FormItem>
                 <FormLabel>Responsável pela emissão</FormLabel>
                 <OptionsSelect id={field.name} value={field.value} onValueChange={(value) => {
-                  field.onChange(value)
-                  if (value === '1') handleProviderChange(null)
+                  field.onChange(value);
+                  if (value === '1') handleProviderChange(null);
                 }} options={THIRD_PARTY_ISSUER_OPTIONS}/>
                 <FormMessage/>
               </FormItem>
@@ -613,13 +613,13 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
           open={showEmitConfirm}
           onClose={() => setShowEmitConfirm(false)}
           onConfirm={() => {
-            setShowEmitConfirm(false)
-            void submit()
+            setShowEmitConfirm(false);
+            void submit();
           }}
           docLabel="NFS-e"
           summary={[]}
         />
       </form>
     </Form>
-  )
+  );
 }

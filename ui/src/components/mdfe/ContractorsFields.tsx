@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Input} from '@/components/ui/input'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {SK_PREFIX} from '@/lib/constants/entity-keys'
-import {unformatCpfCnpj} from '@/lib/utils/document'
-import type {MdfeContractorIn} from '@/lib/types/api'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {SK_PREFIX} from '@/lib/constants/entity-keys';
+import {unformatCpfCnpj} from '@/lib/utils/document';
+import type {MdfeContractorIn} from '@/lib/types/api';
 
 export interface ContractorsFieldsProps {
   contractors: MdfeContractorIn[]
@@ -24,17 +24,17 @@ export interface ContractorsFieldsProps {
  * contrato — número e valor global.
  */
 export function ContractorsFields({contractors, onChange}: ContractorsFieldsProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.persons.list(selectedOrg?.pk, 'freight_contractor'),
     queryFn: () => apiClient.getPersons({role: 'freight_contractor', limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const persons = page?.items ?? []
+  });
+  const persons = page?.items ?? [];
 
   const patch = (i: number, p: Partial<MdfeContractorIn>) =>
-    onChange(contractors.map((c, k) => (k === i ? {...c, ...p} : c)))
+    onChange(contractors.map((c, k) => (k === i ? {...c, ...p} : c)));
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -84,5 +84,5 @@ export function ContractorsFields({contractors, onChange}: ContractorsFieldsProp
         </div>
       ))}
     </div>
-  )
+  );
 }

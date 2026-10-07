@@ -40,4 +40,4 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   '110114': 'Inclusão de Condutor',
   '110115': 'Inclusão de DF-e',
   '110116': 'Pagamento da Operação',
-}
+};

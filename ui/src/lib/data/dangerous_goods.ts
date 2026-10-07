@@ -42,27 +42,27 @@ export const RISK_CLASSES: readonly RiskClassEntry[] = [
   {code: '7', description: 'Material radioativo'},
   {code: '8', description: 'Substâncias corrosivas'},
   {code: '9', description: 'Substâncias e artigos perigosos diversos, incluindo os que apresentam risco ao meio ambiente'},
-]
+];
 
 /** Só o que o expedidor pode informar: a classe-pai com subclasse fica de fora. */
 export const RISK_CLASS_OPTIONS = RISK_CLASSES
   .filter((c) => !c.parentOnly)
-  .map((c) => ({value: c.code, label: `${c.code} - ${c.description}`}))
+  .map((c) => ({value: c.code, label: `${c.code} - ${c.description}`}));
 
 /**
  * Classes que não recebem grupo de embalagem (Res. ANTT 5.998/2022, Parte 2).
  * Com uma delas, o campo fica vazio — e não é o operador que tem que saber disso.
  */
 export const RISK_CLASSES_WITHOUT_PACKING_GROUP: ReadonlySet<string> =
-  new Set(['1', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '2', '2.1', '2.2', '2.3', '5.2', '6.2', '7'])
+  new Set(['1', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '2', '2.1', '2.2', '2.3', '5.2', '6.2', '7']);
 
 /** Grupo de embalagem (Parte 2, item 2.8.2.1): o nível de risco no transporte. */
 export const PACKING_GROUP_OPTIONS = [
   {value: 'I', label: 'I - Alto risco'},
   {value: 'II', label: 'II - Risco médio'},
   {value: 'III', label: 'III - Baixo risco'},
-]
+];
 
 export function packingGroupApplies(riskClass?: string | null): boolean {
-  return !!riskClass && !RISK_CLASSES_WITHOUT_PACKING_GROUP.has(riskClass)
+  return !!riskClass && !RISK_CLASSES_WITHOUT_PACKING_GROUP.has(riskClass);
 }

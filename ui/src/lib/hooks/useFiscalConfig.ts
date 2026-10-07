@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
-import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api'
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
+import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
 
 type FiscalConfigOut<V extends DocVariant> =
   V extends 'nfe' ? NFeConfigOut :
@@ -15,31 +15,34 @@ type FiscalConfigOut<V extends DocVariant> =
 
 function fetchConfig(variant: DocVariant, pk: string) {
   switch (variant) {
-    case 'nfe': return apiClient.getNFeConfig(pk)
-    case 'nfce': return apiClient.getNFCeConfig(pk)
-    case 'cte': return apiClient.getCTeConfig(pk)
-    case 'mdfe': return apiClient.getMDFeConfig(pk)
-    case 'nfse': return apiClient.getNfseConfig(pk)
+    case 'nfe': return apiClient.getNFeConfig(pk);
+    case 'nfce': return apiClient.getNFCeConfig(pk);
+    case 'cte': return apiClient.getCTeConfig(pk);
+    case 'mdfe': return apiClient.getMDFeConfig(pk);
+    case 'nfse': return apiClient.getNfseConfig(pk);
+    default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
 
 function saveConfig(variant: DocVariant, pk: string, data: Record<string, unknown>): Promise<unknown> {
   switch (variant) {
-    case 'nfe': return apiClient.upsertNFeConfig(pk, data)
-    case 'nfce': return apiClient.upsertNFCeConfig(pk, data)
-    case 'cte': return apiClient.upsertCTeConfig(pk, data)
-    case 'mdfe': return apiClient.upsertMDFeConfig(pk, data)
-    case 'nfse': return apiClient.upsertNfseConfig(pk, data)
+    case 'nfe': return apiClient.upsertNFeConfig(pk, data);
+    case 'nfce': return apiClient.upsertNFCeConfig(pk, data);
+    case 'cte': return apiClient.upsertCTeConfig(pk, data);
+    case 'mdfe': return apiClient.upsertMDFeConfig(pk, data);
+    case 'nfse': return apiClient.upsertNfseConfig(pk, data);
+    default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
 
-function configQueryKey(variant: DocVariant, pk: string) {
+function configQueryKey(variant: DocVariant, pk: string): readonly string[] {
   switch (variant) {
-    case 'nfe': return queryKeys.nfeConfig(pk)
-    case 'nfce': return queryKeys.nfceConfig(pk)
-    case 'cte': return queryKeys.cteConfig(pk)
-    case 'mdfe': return queryKeys.mdfeConfig(pk)
-    case 'nfse': return queryKeys.nfseConfig(pk)
+    case 'nfe': return queryKeys.nfeConfig(pk);
+    case 'nfce': return queryKeys.nfceConfig(pk);
+    case 'cte': return queryKeys.cteConfig(pk);
+    case 'mdfe': return queryKeys.mdfeConfig(pk);
+    case 'nfse': return queryKeys.nfseConfig(pk);
+    default: throw new Error('Unknown variant: ' + variant);
   }
 }
 
@@ -53,21 +56,21 @@ export function useFiscalConfig<V extends DocVariant>(variant: V, pk: string | u
     queryKey: configQueryKey(variant, pk ?? ''),
     queryFn: async () => {
       try {
-        return (await fetchConfig(variant, pk!)) as FiscalConfigOut<V>
+        return (await fetchConfig(variant, pk!)) as FiscalConfigOut<V>;
       } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return null
-        throw e
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
       }
     },
     enabled: !!pk,
-  })
+  });
 
   return {
     config: query.data,
     isPending: query.isPending,
     isMissing: query.data === null,
     error: query.error,
-  }
+  };
 }
 
 /**
@@ -78,9 +81,9 @@ export function useFiscalConfig<V extends DocVariant>(variant: V, pk: string | u
  * own switch — the second copy is where the invalidation gets forgotten.
  */
 export function useFiscalConfigMutation(variant: DocVariant, pk: string | undefined) {
-  const qc = useQueryClient()
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => saveConfig(variant, pk!, data),
     onSuccess: () => qc.invalidateQueries({queryKey: configQueryKey(variant, pk ?? '')}),
-  })
+  });
 }

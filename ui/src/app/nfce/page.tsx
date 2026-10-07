@@ -1,57 +1,57 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {useRouter, useSearchParams} from 'next/navigation'
-import Link from 'next/link'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {NfceIcon} from '@/components/ui/icon'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Button} from '@/components/ui/button'
-import type {NfeListOut} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge'
-import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
-import {ImportXmlModal} from '@/components/dfe/ImportXmlModal'
-import {SubstituteModal} from '@/components/nfce/SubstituteModal'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
-import {InutilizationsTab} from '@/components/dfe/InutilizationsTab'
+import {Suspense, useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useRouter, useSearchParams} from 'next/navigation';
+import Link from 'next/link';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {NfceIcon} from '@/components/ui/icon';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Modal} from '@/components/ui/modal';
+import {JustificationField} from '@/components/ui/justification-field';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Button} from '@/components/ui/button';
+import type {NfeListOut} from '@/lib/types/api';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency, formatDate} from '@/lib/utils/helpers';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import {ImportXmlModal} from '@/components/dfe/ImportXmlModal';
+import {SubstituteModal} from '@/components/nfce/SubstituteModal';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
+import {InutilizationsTab} from '@/components/dfe/InutilizationsTab';
 
 type Tab = 'emitidas' | 'inutilizacoes'
 
 const TAB_LABELS: { key: Tab; label: string }[] = [
   {key: 'emitidas', label: 'Emitidas'},
   {key: 'inutilizacoes', label: 'Inutilizações'},
-]
+];
 
-const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
-const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i)
+const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
+const CANCEL_JUSTIFICATION_MAX_LENGTH = 255;
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i);
 const MONTHS = [
   {value: 1, label: 'Jan'}, {value: 2, label: 'Fev'}, {value: 3, label: 'Mar'},
   {value: 4, label: 'Abr'}, {value: 5, label: 'Mai'}, {value: 6, label: 'Jun'},
   {value: 7, label: 'Jul'}, {value: 8, label: 'Ago'}, {value: 9, label: 'Set'},
   {value: 10, label: 'Out'}, {value: 11, label: 'Nov'}, {value: 12, label: 'Dez'},
-]
+];
 
 // ─── list ───────────────────────────────────────────────────────────────────────
 
@@ -60,20 +60,20 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
   onCancel: (n: NfeListOut) => void
   onSubstitute: (n: NfeListOut) => void
 }) {
-  const router = useRouter()
-  const params = useSearchParams()
-  const filterYear = params.get('year') ?? ''
-  const filterMonth = params.get('month') ?? ''
-  const numberSearch = params.get('number') ?? ''
+  const router = useRouter();
+  const params = useSearchParams();
+  const filterYear = params.get('year') ?? '';
+  const filterMonth = params.get('month') ?? '';
+  const numberSearch = params.get('number') ?? '';
 
   const setParam = (next: Record<string, string>) => {
-    const sp = new URLSearchParams()
-    const merged = {year: filterYear, month: filterMonth, number: numberSearch, ...next}
+    const sp = new URLSearchParams();
+    const merged = {year: filterYear, month: filterMonth, number: numberSearch, ...next};
     Object.entries(merged).forEach(([k, v]) => {
-      if (v) sp.set(k, v)
-    })
-    router.replace(`/nfce?${sp.toString()}`, {scroll: false})
-  }
+      if (v) sp.set(k, v);
+    });
+    router.replace(`/nfce?${sp.toString()}`, {scroll: false});
+  };
 
   const queryParams = {
     sort: 'desc' as const,
@@ -82,15 +82,15 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
     ...(numberSearch ? {number: parseInt(numberSearch, 10)} : {}),
     ...(filterYear ? {year: parseInt(filterYear, 10)} : {}),
     ...(filterMonth ? {month: parseInt(filterMonth, 10)} : {}),
-  }
+  };
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} = usePagination<NfeListOut>({
     queryKey: queryKeys.nfces.list(orgPk, queryParams),
     queryFn: (cursor) => apiClient.listNfces({...queryParams, cursor}),
     enabled: true,
-  })
+  });
 
-  const hasFilters = numberSearch || filterYear || filterMonth
+  const hasFilters = numberSearch || filterYear || filterMonth;
 
   return (
     <>
@@ -126,8 +126,8 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
         {hasFilters && (
           <Button type="button" variant="outline" size="sm" className="self-end text-gray-500"
                   onClick={() => {
-                    reset()
-                    router.replace('/nfce', {scroll: false})
+                    reset();
+                    router.replace('/nfce', {scroll: false});
                   }}>Limpar</Button>
         )}
       </form>
@@ -204,43 +204,43 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
       <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
                   isLoading={isFetching}/>
     </>
-  )
+  );
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 function NfceContent() {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const router = useRouter()
-  const params = useSearchParams()
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const router = useRouter();
+  const params = useSearchParams();
 
-  const activeTab = (params.get('tab') as Tab) || 'emitidas'
+  const activeTab = (params.get('tab') as Tab) || 'emitidas';
 
-  const {config: nfceConfig, isMissing: nfceConfigMissing} = useFiscalConfig('nfce', selectedOrg?.pk)
+  const {config: nfceConfig, isMissing: nfceConfigMissing} = useFiscalConfig('nfce', selectedOrg?.pk);
 
-  const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null)
-  const [justification, setJustification] = useState('')
-  const [substituteTarget, setSubstituteTarget] = useState<NfeListOut | null>(null)
-  const [showImportXmlModal, setShowImportXmlModal] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null);
+  const [justification, setJustification] = useState('');
+  const [substituteTarget, setSubstituteTarget] = useState<NfeListOut | null>(null);
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false);
 
   // Optimistically show the transitional "Cancelando" state (GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
   const markCancelPending = (accessKey: string) => {
-    setDocStatusOptimistic(qc, queryKeys.nfces.lists(selectedOrg?.pk), accessKey, 'cancel_pending')
-    void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)})
-  }
+    setDocStatusOptimistic(qc, queryKeys.nfces.lists(selectedOrg?.pk), accessKey, 'cancel_pending');
+    void qc.invalidateQueries({queryKey: queryKeys.nfces.detail(accessKey)});
+  };
 
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelNfce(accessKey, justification),
     onSuccess: (_data, {accessKey}) => {
-      setCancelTarget(null)
-      setJustification('')
-      markCancelPending(accessKey)
+      setCancelTarget(null);
+      setJustification('');
+      markCancelPending(accessKey);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao cancelar NFC-e.'),
-  })
+  });
 
   const substituteMutation = useMutation({
     mutationFn: ({accessKey, substituteKey, justification}: {
@@ -249,17 +249,17 @@ function NfceContent() {
       justification: string
     }) => apiClient.substituteNfce(accessKey, substituteKey, justification),
     onSuccess: (_data, {accessKey}) => {
-      setSubstituteTarget(null)
-      markCancelPending(accessKey)
-      toast.success('Substituição enviada à SEFAZ.')
+      setSubstituteTarget(null);
+      markCancelPending(accessKey);
+      toast.success('Substituição enviada à SEFAZ.');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao substituir NFC-e.'),
-  })
+  });
 
   const handleConfirmCancel = () => {
-    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
-    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
-  }
+    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return;
+    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()});
+  };
 
   return (
     <RootLayout>
@@ -313,8 +313,8 @@ function NfceContent() {
           <InutilizationsTab key="nfce-inutilizations" docType="nfce" docLabel="NFC-e" orgPk={selectedOrg.pk}/>
         ) : (
           <NfceList orgPk={selectedOrg.pk} onCancel={(n) => {
-            setJustification('')
-            setCancelTarget(n)
+            setJustification('');
+            setCancelTarget(n);
           }} onSubstitute={setSubstituteTarget}/>
         )}
       </div>
@@ -323,8 +323,8 @@ function NfceContent() {
         isOpen={cancelTarget !== null}
         title={cancelTarget ? `Cancelar NFC-e nº ${cancelTarget.number}` : ''}
         onClose={() => {
-          setCancelTarget(null)
-          setJustification('')
+          setCancelTarget(null);
+          setJustification('');
         }}
         onSubmit={handleConfirmCancel}
         submitLabel="Confirmar cancelamento"
@@ -361,7 +361,7 @@ function NfceContent() {
 
       <ImportXmlModal docType="nfce" isOpen={showImportXmlModal} onClose={() => setShowImportXmlModal(false)}/>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfcePage() {
@@ -371,5 +371,5 @@ export default function NfcePage() {
         <NfceContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,28 +1,28 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {PaymentTerminalForm} from '@/components/payment-terminals/PaymentTerminalForm'
-import type {PaymentTerminalCreate} from '@/lib/types/api'
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {PaymentTerminalForm} from '@/components/payment-terminals/PaymentTerminalForm';
+import type {PaymentTerminalCreate} from '@/lib/types/api';
 
 function NewPaymentTerminalContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (d: PaymentTerminalCreate) => apiClient.createPaymentTerminal(d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)})
-      router.push('/payment-terminals')
+      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)});
+      router.push('/payment-terminals');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -35,13 +35,13 @@ function NewPaymentTerminalContent() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Novo terminal de pagamento</h1>
         <PaymentTerminalForm
           onSubmit={async (d) => {
-            await createMutation.mutateAsync(d)
+            await createMutation.mutateAsync(d);
           }}
           loading={createMutation.isPending}
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NewPaymentTerminalPage() {
@@ -49,5 +49,5 @@ export default function NewPaymentTerminalPage() {
     <ProtectedRoute>
       <NewPaymentTerminalContent/>
     </ProtectedRoute>
-  )
+  );
 }

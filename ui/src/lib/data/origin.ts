@@ -8,4 +8,4 @@ export const ORIGIN_OPTIONS = [
   {value: '6', label: '6 – Estrangeira – Sem Similar Nacional'},
   {value: '7', label: '7 – Estrangeira – Merc. Int. sem Similar'},
   {value: '8', label: '8 – Nacional – Conteúdo > 70%'},
-]
+];

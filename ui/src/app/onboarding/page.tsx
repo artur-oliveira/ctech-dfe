@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import {useEffect} from 'react'
-import {useRouter} from 'next/navigation'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {useOnboarding} from '@/lib/hooks/useOnboarding'
-import {ONBOARDING_ROOT, STEP_DONE} from '@/lib/constants/onboarding'
+import {useEffect} from 'react';
+import {useRouter} from 'next/navigation';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {ONBOARDING_ROOT, STEP_DONE} from '@/lib/constants/onboarding';
 
 /** `/onboarding` resumes wherever setup stopped, so the flow has one entry. */
 function OnboardingEntry() {
-  const router = useRouter()
-  const {nextStep, isPending} = useOnboarding()
+  const router = useRouter();
+  const {nextStep, isPending} = useOnboarding();
 
   useEffect(() => {
-    if (isPending) return
-    router.replace(nextStep?.path ?? `${ONBOARDING_ROOT}/${STEP_DONE}`)
-  }, [isPending, nextStep, router])
+    if (isPending) return;
+    router.replace(nextStep?.path ?? `${ONBOARDING_ROOT}/${STEP_DONE}`);
+  }, [isPending, nextStep, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -24,7 +24,7 @@ function OnboardingEntry() {
         aria-label="Carregando"
       />
     </div>
-  )
+  );
 }
 
 export default function OnboardingPage() {
@@ -32,5 +32,5 @@ export default function OnboardingPage() {
     <ProtectedRoute>
       <OnboardingEntry/>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,56 +1,56 @@
-'use client'
+'use client';
 
-import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {VehicleSetIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {VehicleSetItemOut} from '@/lib/types/api'
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {VehicleSetIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {VehicleSetItemOut} from '@/lib/types/api';
 
 function VehicleSetsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<VehicleSetItemOut>({
       queryKey: queryKeys.vehicleSets.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getVehicleSets({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   // As placas moram no cadastro de veículos; sem elas a lista mostraria só SKs.
   const {data: vehiclePage} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getVehicles({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const plateOf = (sk: string) => vehiclePage?.items.find((v) => v.sk === sk)?.plate ?? '—'
+  });
+  const plateOf = (sk: string) => vehiclePage?.items.find((v) => v.sk === sk)?.plate ?? '—';
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<VehicleSetItemOut>({
     mutationFn: (id) => apiClient.deleteVehicleSet(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.VEHICLE_SET),
     getDeletedMessage: (p) => `"${p.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.vehicleSets.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.vehicleSets.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -120,7 +120,7 @@ function VehicleSetsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function VehicleSetsPage() {
@@ -128,5 +128,5 @@ export default function VehicleSetsPage() {
     <ProtectedRoute>
       <VehicleSetsContent/>
     </ProtectedRoute>
-  )
+  );
 }

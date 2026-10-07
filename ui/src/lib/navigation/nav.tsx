@@ -1,5 +1,5 @@
-import type {ReactNode} from 'react'
-import {BookOpen} from 'lucide-react'
+import type {ReactNode} from 'react';
+import {BookOpen} from 'lucide-react';
 import {
   BriefcaseIcon,
   CalendarClockIcon,
@@ -23,12 +23,12 @@ import {
   TruckIcon,
   UsersIcon,
   VehicleSetIcon,
-} from '@/components/ui/icon'
-import {BuildingIcon, CardIcon, ClipboardIcon, GridIcon} from '@/components/ui/nav-icons'
-import {GUIDE_TOPICS} from '@/lib/constants/guide'
-import {ROLE_ADMIN, ROLE_OWNER} from '@/lib/data/roles'
-import {SUBSCRIPTION_PATH} from '@/lib/billing/notice'
-import type {DfeThemeKey} from '@/lib/theme/dfe-theme'
+} from '@/components/ui/icon';
+import {BuildingIcon, CardIcon, ClipboardIcon, GridIcon} from '@/components/ui/nav-icons';
+import {GUIDE_TOPICS} from '@/lib/constants/guide';
+import {ROLE_ADMIN, ROLE_OWNER} from '@/lib/data/roles';
+import {SUBSCRIPTION_PATH} from '@/lib/billing/notice';
+import type {DfeThemeKey} from '@/lib/theme/dfe-theme';
 
 /**
  * Fonte única da navegação do app: barra lateral, navegação de contexto por
@@ -175,7 +175,7 @@ export const DOC_CONTEXTS: DocContext[] = [
       },
     ],
   },
-]
+];
 
 /** Cadastros usados por mais de um contexto — só estes ficam globais. */
 export const SHARED_REGISTRIES: NavItem[] = [
@@ -187,7 +187,7 @@ export const SHARED_REGISTRIES: NavItem[] = [
     href: '/products', label: 'Produtos', icon: <ShoppingBagIcon/>,
     keywords: ['mercadoria', 'item', 'ncm', 'cest', 'gtin', 'ean', 'catálogo'],
   },
-]
+];
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -236,7 +236,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
-]
+];
 
 /** Páginas que não moram na barra lateral mas precisam ser encontráveis. */
 const EXTRA_SEARCHABLE: NavItem[] = [
@@ -245,7 +245,7 @@ const EXTRA_SEARCHABLE: NavItem[] = [
     href: '/onboarding', label: 'Onboarding', icon: <SettingsIcon/>,
     keywords: ['primeiros passos', 'configuração inicial', 'começar'],
   },
-]
+];
 
 export interface SearchEntry {
   href: string
@@ -265,7 +265,7 @@ function toEntry(item: NavItem, context: string): SearchEntry {
     context,
     keywords: item.keywords ?? [],
     roles: item.roles,
-  }
+  };
 }
 
 /**
@@ -289,7 +289,7 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
     context: 'Guia',
     keywords: [topic.label, ...topic.tags],
   })),
-]
+];
 
 /** Rota -> contexto de documento, para tema e navegação secundária. */
 export const CONTEXT_BY_HREF: Record<string, DfeThemeKey> = Object.fromEntries(
@@ -298,33 +298,33 @@ export const CONTEXT_BY_HREF: Record<string, DfeThemeKey> = Object.fromEntries(
     ...(ctx.emit ? [[ctx.emit.href, ctx.key] as const] : []),
     ...ctx.items.map(item => [item.href, ctx.key] as const),
   ]),
-)
+);
 
 /** O contexto de documento ao qual a rota pertence, ou `null` fora deles. */
 export function contextForPath(pathname: string): DocContext | null {
   const match = Object.keys(CONTEXT_BY_HREF)
     .filter(href => pathname === href || pathname.startsWith(href + '/'))
     // A rota mais específica vence (`/nfe/emit` antes de `/nfe`).
-    .sort((a, b) => b.length - a.length)[0]
-  if (!match) return null
-  const key = CONTEXT_BY_HREF[match]
-  return DOC_CONTEXTS.find(ctx => ctx.key === key) ?? null
+    .sort((a, b) => b.length - a.length)[0];
+  if (!match) return null;
+  const key = CONTEXT_BY_HREF[match];
+  return DOC_CONTEXTS.find(ctx => ctx.key === key) ?? null;
 }
 
 /** Todas as rotas da navegação — usado para resolver o item ativo mais específico. */
 const ALL_HREFS = [
   ...NAV_GROUPS.flatMap(g => g.items.map(i => i.href)),
   ...DOC_CONTEXTS.flatMap(c => [...(c.emit ? [c.emit.href] : []), ...c.items.map(i => i.href)]),
-]
+];
 
 export function isItemActive(href: string, pathname: string): boolean {
-  if (pathname === href) return true
-  if (!pathname.startsWith(href + '/')) return false
+  if (pathname === href) return true;
+  if (!pathname.startsWith(href + '/')) return false;
   // Um item mais profundo tem precedência — não marque o pai como ativo.
   return !ALL_HREFS.some(
     other =>
       other !== href &&
       other.startsWith(href + '/') &&
       (pathname === other || pathname.startsWith(other + '/')),
-  )
+  );
 }

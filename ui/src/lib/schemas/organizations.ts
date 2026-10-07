@@ -8,4 +8,4 @@ export {
   stateRegistrationSchema,
   organizationSchema,
   UF_OPTIONS,
-} from '@/lib/schemas/entity'
+} from '@/lib/schemas/entity';

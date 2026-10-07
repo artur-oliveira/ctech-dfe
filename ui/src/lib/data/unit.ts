@@ -65,9 +65,9 @@ export const UNITS: Unit[] = [
   {code: 'UNID', description: 'UNIDADE'},
   {code: 'VASIL', description: 'VASILHAME'},
   {code: 'VIDRO', description: 'VIDRO'},
-]
+];
 
 export const UNIT_OPTIONS = UNITS.map((u) => ({
   value: u.code,
   label: `${u.code} - ${u.description}`,
-}))
+}));

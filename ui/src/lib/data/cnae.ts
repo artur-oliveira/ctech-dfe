@@ -5434,4 +5434,4 @@ export const ALL_CNAES: readonly CnaeEntry[] = [
     "code": "9900800",
     "description": "Organismos Internacionais e Outras Instituições Extraterritoriais"
   }
-]
+];

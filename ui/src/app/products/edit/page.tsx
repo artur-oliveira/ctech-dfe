@@ -1,44 +1,44 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {ProductForm} from '@/components/products/ProductForm'
-import type {ProductCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {ProductForm} from '@/components/products/ProductForm';
+import type {ProductCreate} from '@/lib/types/api';
 
 function EditProductContent() {
-  const params = useSearchParams()
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
   
   const {data: product, isLoading} = useQuery({
     queryKey: queryKeys.products.detail(id),
     queryFn: () => apiClient.getProduct(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
   
   const {data: org} = useQuery({
     queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
     enabled: !!selectedOrg,
-  })
+  });
   
   const updateMutation = useMutation({
     mutationFn: (d: ProductCreate) => apiClient.updateProduct(id, d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.products.detail(id)})
-      router.push('/products')
+      void qc.invalidateQueries({queryKey: queryKeys.products.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.products.detail(id)});
+      router.push('/products');
     },
-  })
+  });
   
   return (
     <RootLayout>
@@ -66,14 +66,14 @@ function EditProductContent() {
             crt={org?.person?.crt}
             uf={org?.person?.state_registrations?.[0]?.uf}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditProductPage() {
@@ -83,5 +83,5 @@ export default function EditProductPage() {
         <EditProductContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

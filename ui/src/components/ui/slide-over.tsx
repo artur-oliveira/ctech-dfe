@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import {ReactNode, useEffect} from 'react'
+import {ReactNode, useEffect} from 'react';
 
 interface SlideOverProps {
   open: boolean
@@ -10,19 +10,19 @@ interface SlideOverProps {
   width?: 'md' | 'lg' | 'xl'
 }
 
-const widthClass = {md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl'}
+const widthClass = {md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl'};
 
 export function SlideOver({open, title, children, onClose, width = 'lg'}: SlideOverProps) {
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -59,5 +59,5 @@ export function SlideOver({open, title, children, onClose, width = 'lg'}: SlideO
         </div>
       </div>
     </div>
-  )
+  );
 }

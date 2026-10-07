@@ -1,29 +1,29 @@
-'use client'
+'use client';
 
-import {ReactNode, startTransition, useEffect, useState} from 'react'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {currentReturnTo, startOAuthFlow} from '@/lib/auth/oauth'
-import {TermsAddendumGate} from '@/components/terms-addendum-gate'
-import {OnboardingGate} from '@/components/onboarding/OnboardingGate'
+import {ReactNode, startTransition, useEffect, useState} from 'react';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {currentReturnTo, startOAuthFlow} from '@/lib/auth/oauth';
+import {TermsAddendumGate} from '@/components/terms-addendum-gate';
+import {OnboardingGate} from '@/components/onboarding/OnboardingGate';
 
-const OAUTH_ATTEMPT_KEY = 'oauth_last_attempt_ms'
-const OAUTH_DEBOUNCE_MS = 15_000
+const OAUTH_ATTEMPT_KEY = 'oauth_last_attempt_ms';
+const OAUTH_DEBOUNCE_MS = 15_000;
 
 export function ProtectedRoute({children}: { children: ReactNode }) {
-  const {user, loading} = useAuth()
-  const [blocked, setBlocked] = useState(false)
+  const {user, loading} = useAuth();
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
-      const last = Number(sessionStorage.getItem(OAUTH_ATTEMPT_KEY) ?? 0)
+      const last = Number(sessionStorage.getItem(OAUTH_ATTEMPT_KEY) ?? 0);
       if (Date.now() - last < OAUTH_DEBOUNCE_MS) {
-        startTransition(() => setBlocked(true))
-        return
+        startTransition(() => setBlocked(true));
+        return;
       }
-      sessionStorage.setItem(OAUTH_ATTEMPT_KEY, String(Date.now()))
-      void startOAuthFlow(currentReturnTo())
+      sessionStorage.setItem(OAUTH_ATTEMPT_KEY, String(Date.now()));
+      void startOAuthFlow(currentReturnTo());
     }
-  }, [user, loading])
+  }, [user, loading]);
 
   if (loading) {
     return (
@@ -34,7 +34,7 @@ export function ProtectedRoute({children}: { children: ReactNode }) {
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
@@ -46,24 +46,24 @@ export function ProtectedRoute({children}: { children: ReactNode }) {
             <button
               className="text-primary-600 underline text-sm"
               onClick={() => {
-                sessionStorage.removeItem(OAUTH_ATTEMPT_KEY)
-                void startOAuthFlow(currentReturnTo())
+                sessionStorage.removeItem(OAUTH_ATTEMPT_KEY);
+                void startOAuthFlow(currentReturnTo());
               }}
             >
               Tentar novamente
             </button>
           </div>
         </div>
-      )
+      );
     }
-    return null
+    return null;
   }
 
   if (!user.terms_addendum_accepted) {
-    return <TermsAddendumGate/>
+    return <TermsAddendumGate/>;
   }
 
   // Order matters: the addendum is a legal precondition to using the product at
   // all, so it is answered before anyone is asked to choose a plan.
-  return <OnboardingGate>{children}</OnboardingGate>
+  return <OnboardingGate>{children}</OnboardingGate>;
 }

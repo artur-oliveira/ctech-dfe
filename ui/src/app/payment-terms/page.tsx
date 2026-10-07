@@ -1,53 +1,53 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {CalendarClockIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {PAYMENT_OPTIONS} from '@/lib/data/payment-options'
-import type {PaymentTermItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {CalendarClockIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {PAYMENT_OPTIONS} from '@/lib/data/payment-options';
+import type {PaymentTermItemOut} from '@/lib/types/api';
 
 function paymentLabel(code: string): string {
-  return PAYMENT_OPTIONS.find((o) => o.value === code)?.label ?? code
+  return PAYMENT_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 
 function PaymentTermsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<PaymentTermItemOut>({
       queryKey: queryKeys.paymentTerms.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getPaymentTerms({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<PaymentTermItemOut>({
     mutationFn: (id) => apiClient.deletePaymentTerm(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PAYMENT_TERM),
     getDeletedMessage: (p) => `"${p.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.paymentTerms.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.paymentTerms.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -115,7 +115,7 @@ function PaymentTermsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function PaymentTermsPage() {
@@ -123,5 +123,5 @@ export default function PaymentTermsPage() {
     <ProtectedRoute>
       <PaymentTermsContent/>
     </ProtectedRoute>
-  )
+  );
 }

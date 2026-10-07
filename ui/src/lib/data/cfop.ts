@@ -1,4 +1,4 @@
-import type { CfopConfigItem } from '@/lib/types/api'
+import type { CfopConfigItem } from '@/lib/types/api';
 
 type CfopPrefix = '1' | '2' | '3' | '5' | '6' | '7'
 type AnyDigit = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '0';
@@ -34,7 +34,7 @@ export const NO_PAYMENT_CFOPS: CfopCode[] = [
   '5910', '6910',  // Remessa em bonificação, doação ou brinde
   '5911', '6911',  // Remessa de amostra grátis
   '5920', '6920',  // Remessa de embalagens, vasilhames, pallets e assemelhados
-]
+];
 
 const ALL_CFOPS: CfopEntry[] = [
   {
@@ -4000,58 +4000,58 @@ const ALL_CFOPS: CfopEntry[] = [
     devolution: false,
     incoming: true
   }
-]
+];
 
 const ALL_CFOPS_NFCE = ALL_CFOPS.filter(it => it.nfce).map(it => {
   return {
     ...it,
     variants: [it.code]
-  }
+  };
 });
 const ALL_CFOPS_NFE = ALL_CFOPS.filter(it => it.nfe);
 const ALL_CFOPS_CTE = ALL_CFOPS.filter(it => it.cte);
-const ALL_CFOPS_GROUP: Record<CfopCode, CfopEntry> = {} as Record<CfopCode, CfopEntry>
+const ALL_CFOPS_GROUP: Record<CfopCode, CfopEntry> = {} as Record<CfopCode, CfopEntry>;
 ALL_CFOPS.forEach(it => {
-  ALL_CFOPS_GROUP[it.code] = it
-})
+  ALL_CFOPS_GROUP[it.code] = it;
+});
 
 // variant (5xxx/6xxx/7xxx) → código canônico do grupo, pra agrupar de volta uma
 // lista achatada de CFOPs (ex.: perfil fiscal) nos grupos que o combobox oferece.
-const VARIANT_TO_CODE: Record<string, CfopCode> = {}
+const VARIANT_TO_CODE: Record<string, CfopCode> = {};
 ALL_CFOPS.forEach(it => {
   it.variants.forEach(v => {
-    VARIANT_TO_CODE[v] = it.code
-  })
-})
+    VARIANT_TO_CODE[v] = it.code;
+  });
+});
 
 const displayVariants = (it: CfopEntry): string => {
   return (it.variants ?? [it.code]).join('/');
-}
+};
 
 const displayName = (it: CfopEntry) => {
   return `${displayVariants(it)}` + ' - ' + it.description;
-}
+};
 
 export const getCfopVariants = (code: CfopCode): string[] => {
   return ALL_CFOPS_GROUP[code].variants;
-}
+};
 
 export const getCfopDescription = (code: string): string | null => {
   // Resolve pelo grupo e também por variante: 6102 é o mesmo 5102 em escopo
   // interestadual, e devolver null para ele surpreendia quem chamava.
-  const group = ALL_CFOPS_GROUP[code as CfopCode] ?? ALL_CFOPS_GROUP[VARIANT_TO_CODE[code]]
-  return group?.description ?? null
-}
+  const group = ALL_CFOPS_GROUP[code as CfopCode] ?? ALL_CFOPS_GROUP[VARIANT_TO_CODE[code]];
+  return group?.description ?? null;
+};
 
 /** Código canônico do grupo (5xxx) a que um CFOP concreto pertence, incluindo variantes 6xxx/7xxx. */
 export const getCfopCanonical = (cfop: string): CfopCode | null => {
-  return VARIANT_TO_CODE[cfop] ?? null
-}
+  return VARIANT_TO_CODE[cfop] ?? null;
+};
 
 const CFOP_SCOPE_LABEL: Record<string, string> = {
   '1': 'interna', '2': 'interestadual', '3': 'exterior',
   '5': 'interna', '6': 'interestadual', '7': 'exterior',
-}
+};
 
 /**
  * Uma opção por variante (5xxx/6xxx/7xxx), não por grupo — permite escolher um CFOP
@@ -4063,8 +4063,8 @@ export const getAllCfopOptionsFlat = (): DisplayCfop[] => {
     label: it.variants.length > 1
       ? `${v} (${CFOP_SCOPE_LABEL[v.charAt(0)] ?? v.charAt(0)}) - ${it.description}`
       : `${v} - ${it.description}`,
-  })))
-}
+  })));
+};
 
 const displayCfops = (entries: CfopEntry[]): DisplayCfop[] => {
   return entries.map(it => {
@@ -4073,25 +4073,25 @@ const displayCfops = (entries: CfopEntry[]): DisplayCfop[] => {
     return {
       value,
       label,
-    }
+    };
   });
-}
+};
 
 export const getCfopOptionsForNfe = (): DisplayCfop[] => {
   return displayCfops(ALL_CFOPS_NFE);
-}
+};
 
 export const getAllCfopOptions = (): DisplayCfop[] => {
   return displayCfops(ALL_CFOPS);
-}
+};
 
 export const getCfopOptionsForNfce = (): DisplayCfop[] => {
   return displayCfops(ALL_CFOPS_NFCE);
-}
+};
 
 export const getCfopOptionsForCte = (): DisplayCfop[] => {
   return displayCfops(ALL_CFOPS_CTE);
-}
+};
 
 // ─── Operation direction (tp_nf) ──────────────────────────────────────────────
 // Incoming CFOPs start with 1/2/3 (entrada → tp_nf '0'); outgoing CFOPs start
@@ -4104,34 +4104,34 @@ export const cfopDirection = (cfop: string): CfopDirection | null => {
     case '1':
     case '2':
     case '3':
-      return 'in'
+      return 'in';
     case '5':
     case '6':
     case '7':
-      return 'out'
+      return 'out';
     default:
-      return null
+      return null;
   }
-}
+};
 
 /** tp_nf for a CFOP: '0' = entrada, '1' = saída. Defaults to '1' when unknown. */
-export const cfopTpNf = (cfop: string): '0' | '1' => (cfopDirection(cfop) === 'in' ? '0' : '1')
+export const cfopTpNf = (cfop: string): '0' | '1' => (cfopDirection(cfop) === 'in' ? '0' : '1');
 
-const NAT_OP_MAX_LEN = 60
+const NAT_OP_MAX_LEN = 60;
 
 const truncateNatOp = (s: string): string =>
-  s.length <= NAT_OP_MAX_LEN ? s : `${s.slice(0, NAT_OP_MAX_LEN - 3)}...`
+  s.length <= NAT_OP_MAX_LEN ? s : `${s.slice(0, NAT_OP_MAX_LEN - 3)}...`;
 
 /** First significant word of a CFOP description (e.g. "Venda de mercadoria…" → "Venda"). */
 const firstTerm = (desc: string): string => {
-  const word = desc.trim().split(/\s+/)[0] ?? ''
-  return word.replace(/[.,;:]+$/, '')
-}
+  const word = desc.trim().split(/\s+/)[0] ?? '';
+  return word.replace(/[.,;:]+$/, '');
+};
 
 const joinNatural = (terms: string[]): string => {
-  if (terms.length <= 1) return terms[0] ?? ''
-  return `${terms.slice(0, -1).join(', ')} e ${terms[terms.length - 1]}`
-}
+  if (terms.length <= 1) return terms[0] ?? '';
+  return `${terms.slice(0, -1).join(', ')} e ${terms[terms.length - 1]}`;
+};
 
 /**
  * Builds the NF-e/NFC-e ide.natOp from the selected CFOPs (max 60 chars).
@@ -4139,14 +4139,14 @@ const joinNatural = (terms: string[]): string => {
  * term per distinct CFOP joined naturally (e.g. "Venda e Remessa").
  */
 export const buildNatOpFromCfops = (cfops: string[]): string => {
-  const distinct = [...new Set(cfops.filter(Boolean))]
-  if (distinct.length === 0) return ''
+  const distinct = [...new Set(cfops.filter(Boolean))];
+  if (distinct.length === 0) return '';
   if (distinct.length === 1) {
-    return truncateNatOp(getCfopDescription(distinct[0]) ?? distinct[0])
+    return truncateNatOp(getCfopDescription(distinct[0]) ?? distinct[0]);
   }
-  const terms = [...new Set(distinct.map((c) => firstTerm(getCfopDescription(c) ?? c)))]
-  return truncateNatOp(joinNatural(terms))
-}
+  const terms = [...new Set(distinct.map((c) => firstTerm(getCfopDescription(c) ?? c)))];
+  return truncateNatOp(joinNatural(terms));
+};
 
 // ─── CFOP suffix grouping (UF-dynamic selection) ──────────────────────────────
 // A saída CFOP is [scope][suffix]: scope '5' = intra-UF, '6' = inter-UF,
@@ -4154,10 +4154,10 @@ export const buildNatOpFromCfops = (cfops: string[]): string => {
 // intra/inter variants (e.g. 5920 and 6920 are both nature "920").
 
 /** Scope digit of a CFOP ('5' intra-UF, '6' inter-UF, '7' exterior). */
-export const cfopScope = (cfop: string): string => cfop.charAt(0)
+export const cfopScope = (cfop: string): string => cfop.charAt(0);
 
 /** Fiscal-nature suffix (last 3 digits), shared across intra/inter variants. */
-export const cfopSuffix = (cfop: string): string => cfop.slice(1)
+export const cfopSuffix = (cfop: string): string => cfop.slice(1);
 
 export interface CfopSuffixGroup {
   suffix: string
@@ -4168,20 +4168,20 @@ export interface CfopSuffixGroup {
 
 /** Groups a product's cfop_config entries by fiscal-nature suffix. */
 export const groupCfopConfigBySuffix = (config: CfopConfigItem[]): CfopSuffixGroup[] => {
-  const bySuffix = new Map<string, CfopSuffixGroup>()
+  const bySuffix = new Map<string, CfopSuffixGroup>();
   for (const item of config) {
-    const cfop = item.cfop
-    if (!cfop) continue
-    const suffix = cfopSuffix(cfop)
-    const group = bySuffix.get(suffix) ?? {suffix, label: ''}
-    if (cfopScope(cfop) === '6') group.inter = cfop
-    else group.intra = cfop
+    const cfop = item.cfop;
+    if (!cfop) continue;
+    const suffix = cfopSuffix(cfop);
+    const group = bySuffix.get(suffix) ?? {suffix, label: ''};
+    if (cfopScope(cfop) === '6') group.inter = cfop;
+    else group.intra = cfop;
     // Prefer a description from whichever variant resolves one.
-    if (!group.label) group.label = getCfopDescription(cfop) ?? ''
-    bySuffix.set(suffix, group)
+    if (!group.label) group.label = getCfopDescription(cfop) ?? '';
+    bySuffix.set(suffix, group);
   }
-  return [...bySuffix.values()]
-}
+  return [...bySuffix.values()];
+};
 
 /**
  * Naturezas fiscais de saída (o sufixo de 3 dígitos, sem o escopo 5/6/7), com a
@@ -4190,28 +4190,28 @@ export const groupCfopConfigBySuffix = (config: CfopConfigItem[]): CfopSuffixGro
  * envenena toda nota emitida sob aquela operação.
  */
 export const cfopSuffixOptions = (): DisplayCfop[] => {
-  const bySuffix = new Map<string, string>()
+  const bySuffix = new Map<string, string>();
   for (const entry of ALL_CFOPS) {
     for (const variant of entry.variants) {
-      if (!'567'.includes(cfopScope(variant))) continue
-      const suffix = cfopSuffix(variant)
-      if (!bySuffix.has(suffix)) bySuffix.set(suffix, entry.description)
+      if (!'567'.includes(cfopScope(variant))) continue;
+      const suffix = cfopSuffix(variant);
+      if (!bySuffix.has(suffix)) bySuffix.set(suffix, entry.description);
     }
   }
   return [...bySuffix.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([suffix, description]) => ({value: suffix, label: `${suffix} - ${description}`}))
-}
+    .map(([suffix, description]) => ({value: suffix, label: `${suffix} - ${description}`}));
+};
 
 /** Sufixos válidos, indexados para validação de schema. */
-export const CFOP_SUFFIXES: ReadonlySet<string> = new Set(cfopSuffixOptions().map((o) => o.value))
+export const CFOP_SUFFIXES: ReadonlySet<string> = new Set(cfopSuffixOptions().map((o) => o.value));
 
 /** Escopo do destino: '5' dentro da UF, '6' outra UF, '7' exterior. */
-export const CFOP_SCOPE_INTRA_UF = '5'
-export const CFOP_SCOPE_INTER_UF = '6'
-export const CFOP_SCOPE_FOREIGN = '7'
+export const CFOP_SCOPE_INTRA_UF = '5';
+export const CFOP_SCOPE_INTER_UF = '6';
+export const CFOP_SCOPE_FOREIGN = '7';
 /** UF que representa destino no exterior. */
-export const UF_FOREIGN = 'EX'
+export const UF_FOREIGN = 'EX';
 
 /**
  * Monta o CFOP concreto a partir da natureza fiscal e das UFs.
@@ -4225,14 +4225,14 @@ export const UF_FOREIGN = 'EX'
  * Devolve null quando a entrada é inválida; quem chama bloqueia a emissão.
  */
 export const resolveCfopScope = (suffix: string, emitUf: string, destUf: string): string | null => {
-  const nature = suffix.trim()
-  if (!/^\d{3}$/.test(nature)) return null
-  const emit = emitUf.trim().toUpperCase()
-  const dest = destUf.trim().toUpperCase()
-  if (!emit || !dest) return null
-  if (dest === UF_FOREIGN) return CFOP_SCOPE_FOREIGN + nature
-  return (emit === dest ? CFOP_SCOPE_INTRA_UF : CFOP_SCOPE_INTER_UF) + nature
-}
+  const nature = suffix.trim();
+  if (!/^\d{3}$/.test(nature)) return null;
+  const emit = emitUf.trim().toUpperCase();
+  const dest = destUf.trim().toUpperCase();
+  if (!emit || !dest) return null;
+  if (dest === UF_FOREIGN) return CFOP_SCOPE_FOREIGN + nature;
+  return (emit === dest ? CFOP_SCOPE_INTRA_UF : CFOP_SCOPE_INTER_UF) + nature;
+};
 
 /**
  * Resolves the concrete CFOP for a group given whether the recipient is in the
@@ -4240,11 +4240,11 @@ export const resolveCfopScope = (suffix: string, emitUf: string, destUf: string)
  * (caller must block emission).
  */
 export const resolveCfopForUf = (group: CfopSuffixGroup, sameUf: boolean): string | null =>
-  (sameUf ? group.intra : group.inter) ?? null
+  (sameUf ? group.intra : group.inter) ?? null;
 
 /**
  * Concrete CFOP codes of a group joined for display, intra (5xxx) first
  * (e.g. "5920/6920", or just "5405" when only one variant is configured).
  */
 export const cfopGroupCodes = (group: CfopSuffixGroup): string =>
-  [group.intra, group.inter].filter(Boolean).join('/')
+  [group.intra, group.inter].filter(Boolean).join('/');

@@ -1,42 +1,42 @@
-'use client'
+'use client';
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {useQuery} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {paymentBalanceGap} from '@/lib/utils/emit-guards'
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {GlossaryTerm} from '@/components/ui/glossary-term'
-import {CollapsibleSection} from '@/components/ui/collapsible-section'
-import {Textarea} from '@/components/ui/textarea'
-import {Modal} from '@/components/ui/modal'
-import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
-import {EmitError} from '@/components/ui/emit-error'
-import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner'
-import {useEmitDraft} from '@/lib/hooks/useEmitDraft'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {ProductLineItem} from '@/components/ui/product-line-item'
-import {ProductSearch} from '@/components/ui/product-search'
-import {PersonForm} from '@/components/persons/PersonForm'
-import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from '@/components/nfe/PaymentCardFields'
-import {NatOpInlineEdit} from '@/components/nfe/NatOpInlineEdit'
-import type {CfopConfigItem, NfceEmit, NfeCardIn, PersonCreate, ProductOut} from '@/lib/types/api'
-import {NF_PAYMENT_TYPES} from '@/lib/types/api'
-import {PAYMENT_OPTIONS, QUICK_PAYMENT_TYPES} from '@/lib/data/payment-options'
-import {buildNatOpFromCfops, getCfopDescription} from '@/lib/data/cfop'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {maskCpf} from '@/lib/utils/masks'
-import {validateCPF} from '@/lib/utils/validators'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {useQuery} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {paymentBalanceGap} from '@/lib/utils/emit-guards';
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {GlossaryTerm} from '@/components/ui/glossary-term';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
+import {Textarea} from '@/components/ui/textarea';
+import {Modal} from '@/components/ui/modal';
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {EmitError} from '@/components/ui/emit-error';
+import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner';
+import {useEmitDraft} from '@/lib/hooks/useEmitDraft';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {ProductLineItem} from '@/components/ui/product-line-item';
+import {ProductSearch} from '@/components/ui/product-search';
+import {PersonForm} from '@/components/persons/PersonForm';
+import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from '@/components/nfe/PaymentCardFields';
+import {NatOpInlineEdit} from '@/components/nfe/NatOpInlineEdit';
+import type {CfopConfigItem, NfceEmit, NfeCardIn, PersonCreate, ProductOut} from '@/lib/types/api';
+import {NF_PAYMENT_TYPES} from '@/lib/types/api';
+import {PAYMENT_OPTIONS, QUICK_PAYMENT_TYPES} from '@/lib/data/payment-options';
+import {buildNatOpFromCfops, getCfopDescription} from '@/lib/data/cfop';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {maskCpf} from '@/lib/utils/masks';
+import {validateCPF} from '@/lib/utils/validators';
 
 // ─── local types ──────────────────────────────────────────────────────────────
 
@@ -62,27 +62,27 @@ interface EmitPayment {
 }
 
 /** NFC-e is always an internal consumer sale — only 5xxx saída CFOPs apply. */
-const NFCE_CFOP_PREFIX = '5'
+const NFCE_CFOP_PREFIX = '5';
 
 function fmt(n: number): string {
-  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 }
 
 function computeTotal(p: EmitProduct): number {
-  const qty = parseFloat(p.qty) || 0
-  const unit = parseFloat(p.unitValue) || 0
-  const disc = parseFloat(p.discount) || 0
-  return Math.max(0, qty * unit - disc)
+  const qty = parseFloat(p.qty) || 0;
+  const unit = parseFloat(p.unitValue) || 0;
+  const disc = parseFloat(p.discount) || 0;
+  return Math.max(0, qty * unit - disc);
 }
 
 /** CFOPs configured on a product that are valid for NFC-e (internal saída — 5xxx). */
 function nfceCfopsForProduct(product: ProductOut): string[] {
   const configured = (product.cfop_config as CfopConfigItem[] | undefined ?? [])
     .map((c) => c.cfop)
-    .filter((c) => c.startsWith(NFCE_CFOP_PREFIX))
-  if (configured.length > 0) return configured
-  if (product.cfop_nfce?.startsWith(NFCE_CFOP_PREFIX)) return [product.cfop_nfce]
-  return []
+    .filter((c) => c.startsWith(NFCE_CFOP_PREFIX));
+  if (configured.length > 0) return configured;
+  if (product.cfop_nfce?.startsWith(NFCE_CFOP_PREFIX)) return [product.cfop_nfce];
+  return [];
 }
 
 // ─── consumer (CPF na nota) ───────────────────────────────────────────────────
@@ -92,64 +92,64 @@ function nfceCfopsForProduct(product: ProductOut): string[] {
  * Identification is optional for NFC-e, so this never blocks the flow.
  */
 function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c: Consumer | null) => void }) {
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, 300)
-  const [open, setOpen] = useState(false)
-  const [docLoading, setDocLoading] = useState(false)
-  const [notFound, setNotFound] = useState(false)
-  const [showCreate, setShowCreate] = useState(false)
-  const [createLoading, setCreateLoading] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
+  const [open, setOpen] = useState(false);
+  const [docLoading, setDocLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const digits = query.replace(/\D/g, '')
-  const isCpf = validateCPF(digits)
+  const digits = query.replace(/\D/g, '');
+  const isCpf = validateCPF(digits);
 
   const nameQuery = useQuery({
     queryKey: queryKeys.persons.search(debouncedQuery),
     queryFn: () => apiClient.searchPersonsByName(debouncedQuery),
     enabled: open && !!debouncedQuery && !isCpf && debouncedQuery.length >= 2,
-  })
+  });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleSearchByDoc = useCallback(async (docDigits: string) => {
-    setNotFound(false)
-    setDocLoading(true)
+    setNotFound(false);
+    setDocLoading(true);
     try {
-      const person = await apiClient.getPersonByCpfCnpj(docDigits)
-      onChange({cpf: docDigits, name: person.name})
-      setQuery('')
-      setOpen(false)
+      const person = await apiClient.getPersonByCpfCnpj(docDigits);
+      onChange({cpf: docDigits, name: person.name});
+      setQuery('');
+      setOpen(false);
     } catch {
       // Not registered — allow emitting with the raw CPF, and offer registration.
-      onChange({cpf: docDigits, name: null})
-      setNotFound(true)
+      onChange({cpf: docDigits, name: null});
+      setNotFound(true);
     } finally {
-      setDocLoading(false)
+      setDocLoading(false);
     }
-  }, [onChange])
+  }, [onChange]);
 
   const handleCreatePerson = async (data: PersonCreate) => {
-    setCreateLoading(true)
+    setCreateLoading(true);
     try {
-      const created = await apiClient.createPerson(data)
-      onChange({cpf: created.sk.replace(/\D/g, ''), name: created.name})
-      setShowCreate(false)
-      setNotFound(false)
-      setQuery('')
+      const created = await apiClient.createPerson(data);
+      onChange({cpf: created.sk.replace(/\D/g, ''), name: created.name});
+      setShowCreate(false);
+      setNotFound(false);
+      setQuery('');
     } finally {
-      setCreateLoading(false)
+      setCreateLoading(false);
     }
-  }
+  };
 
   // Only CPF persons can be NFC-e consumers.
-  const suggestions = (nameQuery.data?.items ?? []).filter((p) => p.sk.startsWith('CPF_'))
+  const suggestions = (nameQuery.data?.items ?? []).filter((p) => p.sk.startsWith('CPF_'));
 
   if (value) {
     return (
@@ -160,8 +160,8 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
             <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(value.cpf)}</p>
           </div>
           <Button type="button" variant="ghost" size="xs" onClick={() => {
-            onChange(null)
-            setNotFound(false)
+            onChange(null);
+            setNotFound(false);
           }} className="text-danger hover:text-red-700 shrink-0">Remover</Button>
         </div>
         {!value.name && (
@@ -177,7 +177,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
           <PersonForm lockTipo="pf" initialCpfCnpj={value.cpf} onSubmit={handleCreatePerson} loading={createLoading}/>
         </Modal>
       </div>
-    )
+    );
   }
 
   return (
@@ -188,12 +188,12 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
             type="text"
             value={isCpf ? maskCpf(digits) : query}
             onChange={(e) => {
-              const newQuery = e.target.value.toUpperCase()
-              setQuery(newQuery)
-              setNotFound(false)
-              setOpen(true)
-              const newDigits = newQuery.replace(/\D/g, '')
-              if (validateCPF(newDigits)) handleSearchByDoc(newDigits)
+              const newQuery = e.target.value.toUpperCase();
+              setQuery(newQuery);
+              setNotFound(false);
+              setOpen(true);
+              const newDigits = newQuery.replace(/\D/g, '');
+              if (validateCPF(newDigits)) handleSearchByDoc(newDigits);
             }}
             onFocus={() => setOpen(true)}
             placeholder="CPF ou nome (opcional)"
@@ -219,9 +219,9 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
               <button key={p.sk} type="button" role="option" aria-selected={false}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        onChange({cpf: p.sk.replace(/\D/g, ''), name: p.name})
-                        setQuery('')
-                        setOpen(false)
+                        onChange({cpf: p.sk.replace(/\D/g, ''), name: p.name});
+                        setQuery('');
+                        setOpen(false);
                       }}
                       className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors">
                 <p className="text-sm font-medium text-gray-900">{p.name}</p>
@@ -246,7 +246,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
         <PersonForm lockTipo="pf" initialCpfCnpj={digits} onSubmit={handleCreatePerson} loading={createLoading}/>
       </Modal>
     </div>
-  )
+  );
 }
 
 // ─── main form ────────────────────────────────────────────────────────────────
@@ -261,111 +261,111 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
  * optionally, next to the payment — where a cashier actually asks it.
  */
 export function NfceEmitForm() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
 
-  const [consumer, setConsumer] = useState<Consumer | null>(null)
-  const [products, setProducts] = useState<EmitProduct[]>([])
-  const [payments, setPayments] = useState<EmitPayment[]>([])
-  const [newPaymentType, setNewPaymentType] = useState(QUICK_PAYMENT_TYPES[0] as string)
-  const [newPaymentValue, setNewPaymentValue] = useState('')
-  const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null)
-  const [newPaymentTerminal, setNewPaymentTerminal] = useState('')
-  const [showCardToggle, setShowCardToggle] = useState(false)
-  const paymentLocked = useRef(false)
-  const [natOpManual, setNatOpManual] = useState<string | null>(null)
-  const [additionalInfo, setAdditionalInfo] = useState('')
-  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
-  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [consumer, setConsumer] = useState<Consumer | null>(null);
+  const [products, setProducts] = useState<EmitProduct[]>([]);
+  const [payments, setPayments] = useState<EmitPayment[]>([]);
+  const [newPaymentType, setNewPaymentType] = useState(QUICK_PAYMENT_TYPES[0] as string);
+  const [newPaymentValue, setNewPaymentValue] = useState('');
+  const [newPaymentCard, setNewPaymentCard] = useState<NfeCardIn | null>(null);
+  const [newPaymentTerminal, setNewPaymentTerminal] = useState('');
+  const [showCardToggle, setShowCardToggle] = useState(false);
+  const paymentLocked = useRef(false);
+  const [natOpManual, setNatOpManual] = useState<string | null>(null);
+  const [additionalInfo, setAdditionalInfo] = useState('');
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null);
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const {config: nfceConfig} = useFiscalConfig('nfce', selectedOrg?.pk)
+  const {config: nfceConfig} = useFiscalConfig('nfce', selectedOrg?.pk);
 
-  const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0)
-  const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0)
-  const totalNfce = Math.max(0, totalProducts - totalDiscount)
-  const totalPaid = payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
-  const remaining = totalNfce - totalPaid
-  const computedNatOp = useMemo(() => buildNatOpFromCfops(products.map((p) => p.cfop)), [products])
-  const natOp = natOpManual ?? computedNatOp
+  const totalProducts = products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.unitValue) || 0), 0);
+  const totalDiscount = products.reduce((s, p) => s + (parseFloat(p.discount) || 0), 0);
+  const totalNfce = Math.max(0, totalProducts - totalDiscount);
+  const totalPaid = payments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0);
+  const remaining = totalNfce - totalPaid;
+  const computedNatOp = useMemo(() => buildNatOpFromCfops(products.map((p) => p.cfop)), [products]);
+  const natOp = natOpManual ?? computedNatOp;
 
-  const isPix = isPixPaymentType(newPaymentType)
-  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType)
+  const isPix = isPixPaymentType(newPaymentType);
+  const isCardPayment = CARD_PAYMENT_TYPES.has(newPaymentType);
 
   // ─── draft recovery ───────────────────────────────────────────────────────
 
   const draftState = useMemo(
     () => ({products, payments, consumer, additionalInfo, natOpManual}),
-    [products, payments, consumer, additionalInfo, natOpManual])
-  const draft = useEmitDraft('nfce', selectedOrg?.pk, draftState, products.length > 0)
+    [products, payments, consumer, additionalInfo, natOpManual]);
+  const draft = useEmitDraft('nfce', selectedOrg?.pk, draftState, products.length > 0);
 
   const restoreDraft = () => {
-    const s = draft.recovered?.state
+    const s = draft.recovered?.state;
     if (s) {
-      setProducts(s.products)
-      setPayments(s.payments)
-      setConsumer(s.consumer)
-      setAdditionalInfo(s.additionalInfo)
-      setNatOpManual(s.natOpManual)
+      setProducts(s.products);
+      setPayments(s.payments);
+      setConsumer(s.consumer);
+      setAdditionalInfo(s.additionalInfo);
+      setNatOpManual(s.natOpManual);
     }
-    draft.accept()
-  }
+    draft.accept();
+  };
 
   useEffect(() => {
-    if (!paymentLocked.current) setNewPaymentValue(remaining > 0.005 ? remaining.toFixed(2) : '')
-  }, [remaining])
+    if (!paymentLocked.current) setNewPaymentValue(remaining > 0.005 ? remaining.toFixed(2) : '');
+  }, [remaining]);
 
   // ─── products ─────────────────────────────────────────────────────────────
 
   const addProduct = (product: ProductOut) => {
-    const cfop = nfceCfopsForProduct(product)[0] ?? ''
+    const cfop = nfceCfopsForProduct(product)[0] ?? '';
     setProducts((prev) => {
       // Scanning the same item twice bumps the quantity instead of stacking rows.
-      const existing = prev.findIndex((p) => p.product.sk === product.sk && p.cfop === cfop)
+      const existing = prev.findIndex((p) => p.product.sk === product.sk && p.cfop === cfop);
       if (existing >= 0) {
         return prev.map((p, i) =>
-          i === existing ? {...p, qty: String((parseFloat(p.qty) || 0) + 1)} : p)
+          i === existing ? {...p, qty: String((parseFloat(p.qty) || 0) + 1)} : p);
       }
-      return [...prev, {product, cfop, qty: '1', unitValue: product.value, discount: '0'}]
-    })
-  }
+      return [...prev, {product, cfop, qty: '1', unitValue: product.value, discount: '0'}];
+    });
+  };
   const changeProduct = (i: number, u: Partial<EmitProduct>) =>
-    setProducts((prev) => prev.map((it, idx) => (idx === i ? {...it, ...u} : it)))
-  const removeProduct = (i: number) => setProducts((prev) => prev.filter((_, idx) => idx !== i))
+    setProducts((prev) => prev.map((it, idx) => (idx === i ? {...it, ...u} : it)));
+  const removeProduct = (i: number) => setProducts((prev) => prev.filter((_, idx) => idx !== i));
 
   const productDisabledReason = (p: ProductOut) =>
-    nfceCfopsForProduct(p).length > 0 ? null : 'sem CFOP de NFC-e'
+    nfceCfopsForProduct(p).length > 0 ? null : 'sem CFOP de NFC-e';
 
   // ─── payments ─────────────────────────────────────────────────────────────
 
   /** A typed-but-not-yet-added payment still counts towards emission. */
   const pendingPayment = (): EmitPayment | null => {
-    if (!newPaymentValue || parseFloat(newPaymentValue) <= 0) return null
+    if (!newPaymentValue || parseFloat(newPaymentValue) <= 0) return null;
     return {
       payment_type: newPaymentType, value: newPaymentValue,
       card: showCardToggle ? newPaymentCard : null,
       terminal_id: showCardToggle ? (newPaymentTerminal || null) : null,
-    }
-  }
+    };
+  };
 
   const addPayment = () => {
-    const p = pendingPayment()
-    if (!p) return
-    setPayments((prev) => [...prev, p])
-    paymentLocked.current = false
-    setNewPaymentCard(null)
-    setNewPaymentTerminal('')
-    setShowCardToggle(false)
-  }
+    const p = pendingPayment();
+    if (!p) return;
+    setPayments((prev) => [...prev, p]);
+    paymentLocked.current = false;
+    setNewPaymentCard(null);
+    setNewPaymentTerminal('');
+    setShowCardToggle(false);
+  };
   const removePayment = (i: number) => {
-    paymentLocked.current = false
-    setPayments((prev) => prev.filter((_, idx) => idx !== i))
-  }
+    paymentLocked.current = false;
+    setPayments((prev) => prev.filter((_, idx) => idx !== i));
+  };
 
   const effectivePayments = (): EmitPayment[] => {
-    const pending = pendingPayment()
-    return pending ? [...payments, pending] : payments
-  }
+    const pending = pendingPayment();
+    return pending ? [...payments, pending] : payments;
+  };
 
   const emitBlockedReason = products.length === 0
     ? 'Adicione pelo menos um produto.'
@@ -375,22 +375,22 @@ export function NfceEmitForm() {
         ? 'Informe pelo menos uma forma de pagamento.'
         // Excedente aqui é troco legítimo (vTroco); falta continua sendo a
         // rejeição de somatório, e é o computador que tem que fechar a conta.
-        : paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), true)
-  const canEmit = !emitBlockedReason
+        : paymentBalanceGap(remaining - (parseFloat(newPaymentValue) || 0), true);
+  const canEmit = !emitBlockedReason;
 
   // ─── submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    setSubmitError(null)
+    setSubmitError(null);
     if (emitBlockedReason) {
-      setSubmitError({message: emitBlockedReason})
-      return
+      setSubmitError({message: emitBlockedReason});
+      return;
     }
-    const allPayments = effectivePayments()
-    const paid = allPayments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
+    const allPayments = effectivePayments();
+    const paid = allPayments.reduce((s, p) => s + (parseFloat(p.value) || 0), 0);
     if (paid + 0.005 < totalNfce) {
-      setSubmitError({message: 'O total dos pagamentos é menor que o total da NFC-e.'})
-      return
+      setSubmitError({message: 'O total dos pagamentos é menor que o total da NFC-e.'});
+      return;
     }
     const payload: NfceEmit = {
       consumer_cpf: consumer?.cpf || null,
@@ -404,19 +404,19 @@ export function NfceEmitForm() {
       })),
       additional_info: additionalInfo.trim() || null,
       nat_op: natOp || null,
-    }
-    setIsSubmitting(true)
+    };
+    setIsSubmitting(true);
     try {
-      await apiClient.emitNfce(payload)
-      draft.clear()
-      toast.success('NFC-e enviada, aguardando autorização da SEFAZ.')
-      router.push('/nfce')
+      await apiClient.emitNfce(payload);
+      draft.clear();
+      toast.success('NFC-e enviada, aguardando autorização da SEFAZ.');
+      router.push('/nfce');
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir NFC-e.'))
+      setSubmitError(emitFailure(err, 'Erro ao emitir NFC-e.'));
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // ─── render ───────────────────────────────────────────────────────────────
 
@@ -449,10 +449,10 @@ export function NfceEmitForm() {
         ) : (
           products.map((item, i) => {
             const cfopOptions = nfceCfopsForProduct(item.product).map((cfop) => {
-              const desc = getCfopDescription(cfop)
-              const label = desc ? `${cfop} – ${desc}` : cfop
-              return {value: cfop, label}
-            })
+              const desc = getCfopDescription(cfop);
+              const label = desc ? `${cfop} – ${desc}` : cfop;
+              return {value: cfop, label};
+            });
             return (
               <ProductLineItem
                 key={`${item.product.sk}-${i}`}
@@ -484,7 +484,7 @@ export function NfceEmitForm() {
                   </>
                 }
               />
-            )
+            );
           })
         )}
 
@@ -520,16 +520,16 @@ export function NfceEmitForm() {
           {/* Quick picks — the three an operator reaches for */}
           <div className="flex flex-wrap gap-2">
             {QUICK_PAYMENT_TYPES.map((code) => {
-              const active = newPaymentType === code
+              const active = newPaymentType === code;
               return (
                 <button
                   key={code}
                   type="button"
                   aria-pressed={active}
                   onClick={() => {
-                    setNewPaymentType(code)
-                    setShowCardToggle(false)
-                    setNewPaymentCard(null)
+                    setNewPaymentType(code);
+                    setShowCardToggle(false);
+                    setNewPaymentCard(null);
                   }}
                   className={`min-h-11 sm:min-h-9 flex-1 sm:flex-none rounded-lg border px-4 text-sm font-medium transition-colors ${
                     active
@@ -539,7 +539,7 @@ export function NfceEmitForm() {
                 >
                   {NF_PAYMENT_TYPES[code] ?? code}
                 </button>
-              )
+              );
             })}
           </div>
 
@@ -552,17 +552,17 @@ export function NfceEmitForm() {
                 <GlossaryTerm term="ind_pag"/>
               </div>
               <OptionsSelect id="nfce-payment-type" value={newPaymentType} onValueChange={(v) => {
-                setNewPaymentType(v)
-                setShowCardToggle(false)
-                setNewPaymentCard(null)
+                setNewPaymentType(v);
+                setShowCardToggle(false);
+                setNewPaymentCard(null);
               }} options={PAYMENT_OPTIONS}/>
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="nfce-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>
               <CurrencyInput id="nfce-payment-value" decimalPlaces={2} value={newPaymentValue}
                              onChange={(v) => {
-                               paymentLocked.current = true
-                               setNewPaymentValue(v)
+                               paymentLocked.current = true;
+                               setNewPaymentValue(v);
                              }} placeholder="0,00"/>
             </div>
             <Button type="button" variant="outline" onClick={addPayment} className="self-end"
@@ -576,8 +576,8 @@ export function NfceEmitForm() {
               <label htmlFor="nfce-toggle-card" className="flex items-center gap-2 min-h-11 sm:min-h-0 cursor-pointer">
                 <input type="checkbox" id="nfce-toggle-card" checked={showCardToggle}
                        onChange={(e) => {
-                         setShowCardToggle(e.target.checked)
-                         if (!e.target.checked) setNewPaymentCard(null)
+                         setShowCardToggle(e.target.checked);
+                         if (!e.target.checked) setNewPaymentCard(null);
                        }}
                        className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600"/>
                 <span className="text-xs font-medium text-gray-600">
@@ -645,8 +645,8 @@ export function NfceEmitForm() {
         open={showEmitConfirm}
         onClose={() => setShowEmitConfirm(false)}
         onConfirm={() => {
-          setShowEmitConfirm(false)
-          void handleSubmit()
+          setShowEmitConfirm(false);
+          void handleSubmit();
         }}
         docLabel="NFC-e"
         summary={[
@@ -662,5 +662,5 @@ export function NfceEmitForm() {
         ]}
       />
     </div>
-  )
+  );
 }

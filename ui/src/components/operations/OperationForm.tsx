@@ -1,45 +1,45 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {useQuery} from '@tanstack/react-query'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {Textarea} from '@/components/ui/textarea'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {CollapsibleSection} from '@/components/ui/collapsible-section'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {PERSON_ROLE_INTERMEDIARY} from '@/lib/schemas/entity'
-import {Combobox} from '@/components/ui/combobox'
-import {cfopSuffixOptions} from '@/lib/data/cfop'
-import {CITY_OPTIONS} from '@/lib/data/cities'
+import {useState} from 'react';
+import {useFieldArray, useForm, type UseFormReturn, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {useQuery} from '@tanstack/react-query';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {Textarea} from '@/components/ui/textarea';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {PERSON_ROLE_INTERMEDIARY} from '@/lib/schemas/entity';
+import {Combobox} from '@/components/ui/combobox';
+import {cfopSuffixOptions} from '@/lib/data/cfop';
+import {CITY_OPTIONS} from '@/lib/data/cities';
 import {
   COMPRA_GOV_TP_ENTE_OPTIONS,
   COMPRA_GOV_TP_OPER_OPTIONS,
   TP_NF_CREDITO_OPTIONS,
   TP_NF_DEBITO_OPTIONS,
-} from '@/lib/data/ibs_cbs_reform'
+} from '@/lib/data/ibs_cbs_reform';
 import {
   DOC_TYPE_OPTIONS,
   OPERATION_PLACEHOLDERS,
   type OperationFormData,
   operationSchema,
   safraOptions,
-} from '@/lib/schemas/operations'
+} from '@/lib/schemas/operations';
 import {
   FIN_NFE_OPTIONS,
   IND_FINAL_OPTIONS,
   IND_PRES_OPTIONS,
   MOD_FRETE_OPTIONS,
   TP_NF_OPTIONS,
-} from '@/lib/data/nfe_fields'
-import type {OperationCreate, OperationItemOut} from '@/lib/types/api'
+} from '@/lib/data/nfe_fields';
+import type {OperationCreate, OperationItemOut} from '@/lib/types/api';
 
 interface OperationFormProps {
   initialData?: OperationItemOut
@@ -48,7 +48,7 @@ interface OperationFormProps {
 }
 
 // Calculadas uma vez por carga do módulo: a lista não muda durante a sessão.
-const SAFRA_OPTIONS = safraOptions()
+const SAFRA_OPTIONS = safraOptions();
 
 
 const EMPTY: OperationFormData = {
@@ -62,10 +62,10 @@ const EMPTY: OperationFormData = {
   compra_gov_tp_ente: '', compra_gov_p_redutor: '', compra_gov_tp_oper: '',
   ret_trib: {p_ret_pis: '', p_ret_cofins: '', p_ret_csll: '', p_ret_irrf: '', p_ret_prev_inss: ''},
   requires_receiver: true, is_default: false,
-}
+};
 
 function toFormData(op: OperationItemOut): OperationFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
   return {
     ...EMPTY,
     name: op.name,
@@ -108,7 +108,7 @@ function toFormData(op: OperationItemOut): OperationFormData {
     compra_gov_tp_oper: str(op.compra_gov_tp_oper) as OperationFormData['compra_gov_tp_oper'],
     requires_receiver: op.requires_receiver !== false,
     is_default: op.is_default === true,
-  }
+  };
 }
 
 /**
@@ -117,15 +117,15 @@ function toFormData(op: OperationItemOut): OperationFormData {
  */
 /** Lê um percentual do grupo ret_trib de uma operação persistida. */
 function retTribField(op: Record<string, unknown>, key: string): string {
-  const group = op.ret_trib as Record<string, unknown> | undefined
-  const v = group?.[key]
-  return typeof v === 'string' ? v : ''
+  const group = op.ret_trib as Record<string, unknown> | undefined;
+  const v = group?.[key];
+  return typeof v === 'string' ? v : '';
 }
 
 /** Grupo todo vazio vira null: perfil sem percentual nenhum não é perfil. */
 function retTribPayload(v: OperationFormData['ret_trib']): Record<string, string> | null {
-  const filled = Object.entries(v).filter(([, value]) => !!value)
-  return filled.length ? Object.fromEntries(filled) : null
+  const filled = Object.entries(v).filter(([, value]) => !!value);
+  return filled.length ? Object.fromEntries(filled) : null;
 }
 
 function ObsListField({form, name, label}: {
@@ -133,7 +133,7 @@ function ObsListField({form, name, label}: {
   name: 'obs_cont' | 'obs_fisco'
   label: string
 }) {
-  const {fields, append, remove} = useFieldArray({control: form.control, name})
+  const {fields, append, remove} = useFieldArray({control: form.control, name});
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -167,11 +167,11 @@ function ObsListField({form, name, label}: {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /** Campo string vazio vira null: um "" gravado é um default silenciosamente vazio. */
-const nullify = (v: string | undefined) => (v ? v : null)
+const nullify = (v: string | undefined) => (v ? v : null);
 
 /**
  * Cadastro de natureza de operação — o formulário curto que responde de uma vez
@@ -179,40 +179,40 @@ const nullify = (v: string | undefined) => (v ? v : null)
  */
 
 /** Tabela estática das naturezas fiscais — recriar por render invalida o memo. */
-const CFOP_SUFFIX_OPTIONS = cfopSuffixOptions()
+const CFOP_SUFFIX_OPTIONS = cfopSuffixOptions();
 
 /** Campos de cada seção avançada — o badge de erro precisa saber onde eles moram. */
-const MESSAGE_FIELDS = ['inf_ad_fisco', 'inf_cpl', 'obs_cont', 'obs_fisco'] as const
+const MESSAGE_FIELDS = ['inf_ad_fisco', 'inf_cpl', 'obs_cont', 'obs_fisco'] as const;
 const TAX_FIELDS = [
   'ret_trib', 'c_ind_op', 'c_mun_fg_ibs', 'tp_nf_debito', 'tp_nf_credito',
   'compra_gov_tp_ente', 'compra_gov_p_redutor', 'compra_gov_tp_oper',
-] as const
+] as const;
 const NICHE_FIELDS = [
   'intermediary_person_id', 'ind_intermed', 'dh_sai_ent_offset_days',
   'compra_x_n_emp', 'cana_safra', 'export_uf_saida_pais', 'export_loc_despacho_index',
-] as const
+] as const;
 
 export function OperationForm({initialData, onSubmit, loading = false}: OperationFormProps) {
-  const {selectedOrg} = useAuth()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<OperationFormData>({
     resolver: zodResolver(operationSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
   const {data: taxProfilePage} = useQuery({
     queryKey: queryKeys.taxProfiles.list(selectedOrg?.pk),
     queryFn: () => apiClient.getTaxProfiles({limit: 100}),
     enabled: !!selectedOrg,
-  })
+  });
   const taxProfileOptions = [
     {value: '', label: 'Usar o perfil do produto'},
     ...(taxProfilePage?.items ?? []).map((tp) => ({
       value: extractId(tp.sk, SK_PREFIX.TAX_PROFILE),
       label: tp.name,
     })),
-  ]
+  ];
 
   // Intermediadores cadastrados: a operação aponta a plataforma, e o "seller
   // id" vem do cadastro dela. Sem nenhum cadastrado, o select fica só com a
@@ -221,21 +221,21 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
     queryKey: queryKeys.persons.list(selectedOrg?.pk, PERSON_ROLE_INTERMEDIARY),
     queryFn: () => apiClient.getPersons({role: PERSON_ROLE_INTERMEDIARY, limit: 100}),
     enabled: !!selectedOrg,
-  })
+  });
   const intermediaryOptions = [
     {value: '', label: 'Venda em canal próprio'},
     ...(intermediaryPage?.items ?? []).map((p) => ({value: p.sk, label: p.name})),
-  ]
+  ];
 
-  const docTypes = useWatch({control: form.control, name: 'doc_types'}) ?? []
+  const docTypes = useWatch({control: form.control, name: 'doc_types'}) ?? [];
   const toggleDocType = (value: OperationFormData['doc_types'][number]) => {
     form.setValue('doc_types', docTypes.includes(value)
       ? docTypes.filter((d) => d !== value)
-      : [...docTypes, value])
-  }
+      : [...docTypes, value]);
+  };
 
   const handleSubmit = async (data: OperationFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -272,11 +272,11 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         compra_gov_tp_oper: nullify(data.compra_gov_tp_oper),
         requires_receiver: data.requires_receiver,
         is_default: data.is_default,
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a operação.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a operação.');
     }
-  }
+  };
 
   /**
    * Marca da seção fechada: quantos campos dela estão com erro. Uma seção
@@ -284,15 +284,15 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
    * nada mudar na tela.
    */
   const sectionBadge = (fields: readonly string[]) => {
-    const count = fields.filter((f) => f in form.formState.errors).length
-    if (count === 0) return null
+    const count = fields.filter((f) => f in form.formState.errors).length;
+    if (count === 0) return null;
     return (
       <span aria-label={`${count} campo(s) com erro`}
             className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
         {count}
       </span>
-    )
-  }
+    );
+  };
 
 
   return (
@@ -643,10 +643,10 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
                                <FormLabel>Intermediador (marketplace)</FormLabel>
                                <OptionsSelect id={field.name} value={field.value ?? ''}
                                               onValueChange={(v) => {
-                                                field.onChange(v)
+                                                field.onChange(v);
                                                 // O indicador acompanha a escolha: plataforma de
                                                 // terceiros é 1, canal próprio é 0.
-                                                form.setValue('ind_intermed', v ? '1' : '0')
+                                                form.setValue('ind_intermed', v ? '1' : '0');
                                               }}
                                               options={intermediaryOptions}/>
                                <p className="text-xs text-gray-500">
@@ -706,5 +706,5 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         </div>
       </form>
     </Form>
-  )
+  );
 }

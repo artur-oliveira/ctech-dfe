@@ -5,9 +5,9 @@
  */
 
 /** Origem pública canônica. Sem barra final — as rotas já começam com `/`. */
-export const PUBLIC_ORIGIN = 'https://dfe.aoctech.app'
+export const PUBLIC_ORIGIN = 'https://dfe.aoctech.app';
 
 /** As únicas áreas rastreáveis. `/$` casa só a raiz exata. */
-export const CRAWLABLE_PATTERNS = ['/$', '/guide'] as const
+export const CRAWLABLE_PATTERNS = ['/$', '/guide'] as const;
 
-export const absoluteUrl = (path: string) => `${PUBLIC_ORIGIN}${path}`
+export const absoluteUrl = (path: string) => `${PUBLIC_ORIGIN}${path}`;

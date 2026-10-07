@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useAuth} from '@/lib/hooks/useAuth'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {SectionCard} from '@/components/ui/section-card'
-import {Button} from '@/components/ui/button'
+import {useAuth} from '@/lib/hooks/useAuth';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {SectionCard} from '@/components/ui/section-card';
+import {Button} from '@/components/ui/button';
 
-const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? ''
+const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? '';
 
 const UserIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -14,14 +14,14 @@ const UserIcon = () => (
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
     <circle cx="12" cy="7" r="4"/>
   </svg>
-)
+);
 
 function ProfileContent() {
-  const {user} = useAuth()
+  const {user} = useAuth();
   
   const initials = user
     ? `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase()
-    : ''
+    : '';
   
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -62,7 +62,7 @@ function ProfileContent() {
         </div>
       </SectionCard>
     </div>
-  )
+  );
 }
 
 export default function ProfilePage() {
@@ -72,5 +72,5 @@ export default function ProfilePage() {
         <ProfileContent/>
       </RootLayout>
     </ProtectedRoute>
-  )
+  );
 }

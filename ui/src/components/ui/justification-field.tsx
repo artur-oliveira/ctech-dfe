@@ -1,7 +1,7 @@
-import {Textarea} from './textarea'
+import {Textarea} from './textarea';
 
-const DEFAULT_MIN_LENGTH = 15
-const DEFAULT_MAX_LENGTH = 255
+const DEFAULT_MIN_LENGTH = 15;
+const DEFAULT_MAX_LENGTH = 255;
 
 interface JustificationFieldProps {
   id?: string
@@ -25,8 +25,8 @@ export function JustificationField({
   rows = 4,
   placeholder,
 }: JustificationFieldProps) {
-  const trimmedLength = value.trim().length
-  const tooShort = trimmedLength > 0 && trimmedLength < minLength
+  const trimmedLength = value.trim().length;
+  const tooShort = trimmedLength > 0 && trimmedLength < minLength;
 
   return (
     <div>
@@ -50,5 +50,5 @@ export function JustificationField({
         <p className="text-xs text-gray-400 ml-auto">{value.length}/{maxLength}</p>
       </div>
     </div>
-  )
+  );
 }

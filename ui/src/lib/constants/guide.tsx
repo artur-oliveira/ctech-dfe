@@ -1,5 +1,5 @@
-import type {ReactNode} from 'react'
-import {Compass} from 'lucide-react'
+import type {ReactNode} from 'react';
+import {Compass} from 'lucide-react';
 import {
   BriefcaseIcon,
   CteIcon,
@@ -10,7 +10,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   TruckIcon,
-} from '@/components/ui/icon'
+} from '@/components/ui/icon';
 
 /**
  * Índice único do guia (/guide). Alimenta a home do guia, a navegação entre
@@ -136,4 +136,4 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     tags: ['Organizações', 'Plano', 'Auditoria'],
     icon: <CteIcon width={20} height={20}/>,
   },
-]
+];

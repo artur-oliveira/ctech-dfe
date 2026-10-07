@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import type {ProductOut} from '@/lib/types/api'
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import type {ProductOut} from '@/lib/types/api';
 
 interface ProductSearchProps {
   onSelect: (product: ProductOut) => void
@@ -37,66 +37,66 @@ export function ProductSearch({
   autoFocus,
   className,
 }: ProductSearchProps) {
-  const {selectedOrg} = useAuth()
-  const [query, setQuery] = useState('')
-  const debounced = useDebounce(query, 300)
-  const [highlight, setHighlight] = useState(0)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const {selectedOrg} = useAuth();
+  const [query, setQuery] = useState('');
+  const debounced = useDebounce(query, 300);
+  const [highlight, setHighlight] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const {data, isLoading} = useQuery({
     queryKey: queryKeys.products.list(selectedOrg?.pk),
     queryFn: () => apiClient.getProducts({limit: 50}),
     enabled: !!selectedOrg,
-  })
+  });
 
   const filtered = useMemo(() => {
-    const all = data?.items ?? []
-    if (!debounced) return all
-    const q = debounced.toLowerCase()
-    return all.filter((p) => p.description.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
-  }, [data, debounced])
+    const all = data?.items ?? [];
+    if (!debounced) return all;
+    const q = debounced.toLowerCase();
+    return all.filter((p) => p.description.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+  }, [data, debounced]);
 
-  const selectable = filtered.filter((p) => !disabledReason?.(p))
+  const selectable = filtered.filter((p) => !disabledReason?.(p));
 
   // Reset the highlight when the result set changes (setState during render —
   // the codebase's standard way to avoid the React 19 effect setState cascade).
-  const [prevQuery, setPrevQuery] = useState(debounced)
+  const [prevQuery, setPrevQuery] = useState(debounced);
   if (debounced !== prevQuery) {
-    setPrevQuery(debounced)
-    setHighlight(0)
+    setPrevQuery(debounced);
+    setHighlight(0);
   }
 
   // Keep the highlighted row inside the scroll viewport.
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>('[data-highlighted="true"]')
-      ?.scrollIntoView?.({block: 'nearest'})
-  }, [highlight])
+      ?.scrollIntoView?.({block: 'nearest'});
+  }, [highlight]);
 
   const choose = (product: ProductOut) => {
-    if (disabledReason?.(product)) return
-    onSelect(product)
-    setQuery('')
-    setHighlight(0)
-    inputRef.current?.focus()
-  }
+    if (disabledReason?.(product)) return;
+    onSelect(product);
+    setQuery('');
+    setHighlight(0);
+    inputRef.current?.focus();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setHighlight((h) => Math.min(h + 1, Math.max(0, selectable.length - 1)))
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, Math.max(0, selectable.length - 1)));
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setHighlight((h) => Math.max(0, h - 1))
+      e.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
     } else if (e.key === 'Enter') {
-      e.preventDefault()
-      const target = selectable[highlight]
-      if (target) choose(target)
+      e.preventDefault();
+      const target = selectable[highlight];
+      if (target) choose(target);
     } else if (e.key === 'Escape' && onClose) {
-      e.preventDefault()
-      onClose()
+      e.preventDefault();
+      onClose();
     }
-  }
+  };
 
   return (
     <div className={className}>
@@ -129,8 +129,8 @@ export function ProductSearch({
           <p className="text-sm text-gray-500 py-2">Nenhum produto encontrado.</p>
         ) : (
           filtered.map((p) => {
-            const reason = disabledReason?.(p) ?? null
-            const isHighlighted = !reason && selectable[highlight]?.sk === p.sk
+            const reason = disabledReason?.(p) ?? null;
+            const isHighlighted = !reason && selectable[highlight]?.sk === p.sk;
             return (
               <button
                 key={p.sk}
@@ -152,10 +152,10 @@ export function ProductSearch({
                   {parseFloat(p.value).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                 </span>
               </button>
-            )
+            );
           })
         )}
       </div>
     </div>
-  )
+  );
 }

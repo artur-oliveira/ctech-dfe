@@ -1,28 +1,28 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useRouter} from 'next/navigation'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {ReferenceDocumentForm} from '@/components/reference-documents/ReferenceDocumentForm'
-import type {ReferenceDocumentCreate} from '@/lib/types/api'
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {ReferenceDocumentForm} from '@/components/reference-documents/ReferenceDocumentForm';
+import type {ReferenceDocumentCreate} from '@/lib/types/api';
 
 function NewReferenceDocumentsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (d: ReferenceDocumentCreate) => apiClient.createReferenceDocument(d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.referenceDocuments.list(selectedOrg?.pk)})
-      router.push('/reference-documents')
+      void qc.invalidateQueries({queryKey: queryKeys.referenceDocuments.list(selectedOrg?.pk)});
+      router.push('/reference-documents');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -35,13 +35,13 @@ function NewReferenceDocumentsContent() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Novo documento</h1>
         <ReferenceDocumentForm
           onSubmit={async (d) => {
-            await createMutation.mutateAsync(d)
+            await createMutation.mutateAsync(d);
           }}
           loading={createMutation.isPending}
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NewReferenceDocumentsPage() {
@@ -49,5 +49,5 @@ export default function NewReferenceDocumentsPage() {
     <ProtectedRoute>
       <NewReferenceDocumentsContent/>
     </ProtectedRoute>
-  )
+  );
 }

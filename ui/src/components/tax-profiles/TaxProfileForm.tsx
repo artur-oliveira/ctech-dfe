@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {Combobox} from '@/components/ui/combobox'
-import {deriveTaxGroups, EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor'
-import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor'
-import {type TaxProfileFormData, taxProfileSchema} from '@/lib/schemas/tax-profiles'
-import type {CfopConfigFormData} from '@/lib/schemas/products'
-import type {TaxProfileCreate, TaxProfileItemOut} from '@/lib/types/api'
-import {getAllCfopOptionsFlat} from '@/lib/data/cfop'
-import {isRegimeSimples} from '@/lib/constants/tax'
-import {ApiError} from '@/lib/api/client'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {Combobox} from '@/components/ui/combobox';
+import {deriveTaxGroups, EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor';
+import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor';
+import {type TaxProfileFormData, taxProfileSchema} from '@/lib/schemas/tax-profiles';
+import type {CfopConfigFormData} from '@/lib/schemas/products';
+import type {TaxProfileCreate, TaxProfileItemOut} from '@/lib/types/api';
+import {getAllCfopOptionsFlat} from '@/lib/data/cfop';
+import {isRegimeSimples} from '@/lib/constants/tax';
+import {ApiError} from '@/lib/api/client';
 
 interface TaxProfileFormProps {
   initialData?: TaxProfileItemOut
@@ -27,18 +27,18 @@ interface TaxProfileFormProps {
 const EMPTY_TAX_FIELDS: CfopConfigFormData = {
   cfop: '', csosn: '', icms: '', pis: '', cofins: '',
   ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
-} as CfopConfigFormData
+} as CfopConfigFormData;
 
 function toFormData(p: TaxProfileItemOut): TaxProfileFormData {
   // O item vem do DynamoDB com os campos de tributação no nível de cima, do
   // mesmo jeito que uma entrada de cfop_config — é o mesmo TaxFieldsBody.
-  const {pk, sk, created_at, updated_at, ...rest} = p
-  void pk; void sk; void created_at; void updated_at
+  const {pk, sk, created_at, updated_at, ...rest} = p;
+  void pk; void sk; void created_at; void updated_at;
   return {
     ...(rest as unknown as TaxProfileFormData),
     description: p.description ?? '',
     cfops: p.cfops ?? [],
-  }
+  };
 }
 
 /**
@@ -47,57 +47,57 @@ function toFormData(p: TaxProfileItemOut): TaxProfileFormData {
  * perfil vale para todos os CFOPs escolhidos.
  */
 export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}: TaxProfileFormProps) {
-  const simples = isRegimeSimples(crt)
-  const cfopOptions = getAllCfopOptionsFlat()
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const simples = isRegimeSimples(crt);
+  const cfopOptions = getAllCfopOptionsFlat();
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [taxGroups, setTaxGroups] = useState<TaxGroups>(
     () => initialData ? deriveTaxGroups(toFormData(initialData)) : EMPTY_TAX_GROUPS,
-  )
+  );
 
   const form = useForm<TaxProfileFormData>({
     resolver: zodResolver(taxProfileSchema),
     defaultValues: initialData
       ? toFormData(initialData)
       : {...(EMPTY_TAX_FIELDS as unknown as TaxProfileFormData), name: '', description: '', cfops: []},
-  })
+  });
 
-  const cfops = useWatch({control: form.control, name: 'cfops'}) ?? []
+  const cfops = useWatch({control: form.control, name: 'cfops'}) ?? [];
 
   // O combobox lista cada variante (5xxx/6xxx/7xxx) como opção própria — o perfil
   // pode cobrir só um CFOP específico (ex.: só o 6102) ou vários, um de cada vez.
   // Cada CFOP adicionado é um chip independente: remover um não afeta os outros,
   // mesmo que pertençam ao mesmo grupo (ex.: 5920 e 6920 adicionados separadamente).
   const addCfop = (cfop: string) => {
-    if (cfops.includes(cfop)) return
-    form.setValue('cfops', [...cfops, cfop], {shouldValidate: true})
-  }
+    if (cfops.includes(cfop)) return;
+    form.setValue('cfops', [...cfops, cfop], {shouldValidate: true});
+  };
 
   const removeCfop = (cfop: string) => {
-    form.setValue('cfops', cfops.filter((c) => c !== cfop), {shouldValidate: true})
-  }
+    form.setValue('cfops', cfops.filter((c) => c !== cfop), {shouldValidate: true});
+  };
 
   // O TaxFieldsEditor edita a linha inteira; aqui a "linha" é o próprio
   // formulário menos nome/descrição/cfops.
-  const taxValue = useWatch({control: form.control}) as unknown as CfopConfigFormData
+  const taxValue = useWatch({control: form.control}) as unknown as CfopConfigFormData;
   const setTaxValue = (updater: (r: CfopConfigFormData) => CfopConfigFormData) => {
-    const next = updater(form.getValues() as unknown as CfopConfigFormData) as unknown as TaxProfileFormData
+    const next = updater(form.getValues() as unknown as CfopConfigFormData) as unknown as TaxProfileFormData;
     for (const [key, value] of Object.entries(next)) {
-      form.setValue(key as keyof TaxProfileFormData, value as never)
+      form.setValue(key as keyof TaxProfileFormData, value as never);
     }
-  }
+  };
 
   const handleSubmit = async (data: TaxProfileFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
-      const payload: Record<string, unknown> = {...data, description: data.description || null}
+      const payload: Record<string, unknown> = {...data, description: data.description || null};
       for (const key of Object.keys(payload)) {
-        if (payload[key] === '') payload[key] = undefined
+        if (payload[key] === '') payload[key] = undefined;
       }
-      await onSubmit(payload as unknown as TaxProfileCreate)
+      await onSubmit(payload as unknown as TaxProfileCreate);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o perfil.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o perfil.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -196,5 +196,5 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
         </div>
       </form>
     </Form>
-  )
+  );
 }

@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
-import React, {useEffect, useId, useMemo, useRef, useState} from 'react'
-import {createPortal} from 'react-dom'
-import Fuse from 'fuse.js'
-import {CheckIcon, ChevronDownIcon} from 'lucide-react'
-import {cn} from '@/lib/utils'
-import {Highlighted} from '@/components/ui/highlight'
+import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
+import Fuse from 'fuse.js';
+import {CheckIcon, ChevronDownIcon} from 'lucide-react';
+import {cn} from '@/lib/utils';
+import {Highlighted} from '@/components/ui/highlight';
 
 export interface ComboboxOption {
   value: string
@@ -24,7 +24,7 @@ interface ComboboxProps {
   fuzzySearch?: boolean
 }
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 50;
 
 interface DropdownPos {
   top?: number
@@ -45,26 +45,26 @@ export function Combobox({
                            id,
                            fuzzySearch = false,
                          }: ComboboxProps) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [pos, setPos] = useState<DropdownPos | null>(null)
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const [activeIndex, setActiveIndex] = useState(-1)
-  const [prevSearch, setPrevSearch] = useState(search)
-  const [prevOpen, setPrevOpen] = useState(open)
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [pos, setPos] = useState<DropdownPos | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [prevSearch, setPrevSearch] = useState(search);
+  const [prevOpen, setPrevOpen] = useState(open);
   if (prevSearch !== search || prevOpen !== open) {
-    setPrevSearch(search)
-    setPrevOpen(open)
-    setVisibleCount(PAGE_SIZE)
-    setActiveIndex(-1)
+    setPrevSearch(search);
+    setPrevOpen(open);
+    setVisibleCount(PAGE_SIZE);
+    setActiveIndex(-1);
   }
-  const listboxId = useId()
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const listboxId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const selected = value ? options.find((o) => o.value === value) : undefined
+  const selected = value ? options.find((o) => o.value === value) : undefined;
 
   // O índice do Fuse é caro (milhares de opções: NCM, municípios, CFOP) e não
   // depende do texto buscado — indexar por tecla digitada derrubava o campo.
@@ -73,31 +73,31 @@ export function Combobox({
       ? new Fuse(options, {keys: ['value', 'label'], threshold: 0.3, ignoreDiacritics: true, ignoreLocation: true})
       : null),
     [fuzzySearch, options],
-  )
+  );
 
   const filtered = useMemo(() => {
-    const q = search.trim()
-    if (!q) return options
+    const q = search.trim();
+    if (!q) return options;
     if (fuse) {
-      return fuse.search(q).map(({item}) => item)
+      return fuse.search(q).map(({item}) => item);
     }
-    const normalizedQuery = q.toLowerCase()
+    const normalizedQuery = q.toLowerCase();
     return options.filter((o) =>
       o.label.toLowerCase().includes(normalizedQuery) || o.value.toLowerCase().includes(normalizedQuery),
-    )
-  }, [fuse, options, search])
+    );
+  }, [fuse, options, search]);
 
-  const visibleItems = filtered.slice(0, visibleCount)
-  const hasMore = visibleCount < filtered.length
+  const visibleItems = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   // Recompute position whenever the dropdown opens
   useEffect(() => {
-    if (!open) return
-    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!open) return;
+    const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
-      const DROPDOWN_HEIGHT = 300
-      const spaceBelow = window.innerHeight - rect.bottom - 8
-      const openUpward = spaceBelow < DROPDOWN_HEIGHT && rect.top > spaceBelow
+      const DROPDOWN_HEIGHT = 300;
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const openUpward = spaceBelow < DROPDOWN_HEIGHT && rect.top > spaceBelow;
       setPos({
         ...(openUpward
           ? {bottom: window.innerHeight - rect.top + 4}
@@ -105,90 +105,90 @@ export function Combobox({
         left: rect.left,
         width: rect.width,
         maxWidth: Math.min(320, window.innerWidth - rect.left - 8),
-      })
+      });
     }
-    inputRef.current?.focus()
-  }, [open])
+    inputRef.current?.focus();
+  }, [open]);
 
   // Close on scroll outside the dropdown (the list's own scroll must not close it)
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined;
     const close = (e: Event) => {
-      if (dropdownRef.current?.contains(e.target as Node)) return
-      setOpen(false)
-      setSearch('')
-    }
-    window.addEventListener('scroll', close, {capture: true, passive: true})
-    return () => window.removeEventListener('scroll', close, {capture: true})
-  }, [open])
+      if (dropdownRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+      setSearch('');
+    };
+    window.addEventListener('scroll', close, {capture: true, passive: true});
+    return () => window.removeEventListener('scroll', close, {capture: true});
+  }, [open]);
 
   // Close on outside click — must exclude both trigger and portalled dropdown
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined;
     const handler = (e: MouseEvent) => {
       if (
         !triggerRef.current?.contains(e.target as Node) &&
         !dropdownRef.current?.contains(e.target as Node)
       ) {
-        setOpen(false)
-        setSearch('')
+        setOpen(false);
+        setSearch('');
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   // Load more on scroll
   useEffect(() => {
-    const el = listRef.current
-    if (!el) return
+    const el = listRef.current;
+    if (!el) return undefined;
     const onScroll = () => {
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) {
-        setVisibleCount((v) => v + PAGE_SIZE)
+        setVisibleCount((v) => v + PAGE_SIZE);
       }
-    }
-    el.addEventListener('scroll', onScroll, {passive: true})
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [open])
+    };
+    el.addEventListener('scroll', onScroll, {passive: true});
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [open]);
 
   const handleSelect = (optValue: string) => {
-    onValueChange?.(optValue)
-    setOpen(false)
-    setSearch('')
-  }
+    onValueChange?.(optValue);
+    setOpen(false);
+    setSearch('');
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      setOpen(false)
-      setSearch('')
-      return
+      setOpen(false);
+      setSearch('');
+      return;
     }
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        setOpen(true)
+        e.preventDefault();
+        setOpen(true);
       }
-      return
+      return;
     }
     if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveIndex((i) => Math.min(i + 1, visibleItems.length - 1))
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, visibleItems.length - 1));
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveIndex((i) => Math.max(i - 1, 0))
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
-      e.preventDefault()
-      const opt = visibleItems[activeIndex]
-      if (opt) handleSelect(opt.value)
+      e.preventDefault();
+      const opt = visibleItems[activeIndex];
+      if (opt) handleSelect(opt.value);
     }
-  }
+  };
 
   useEffect(() => {
-    if (activeIndex < 0) return
+    if (activeIndex < 0) return;
     listRef.current
       ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
-      ?.scrollIntoView?.({block: 'nearest'})
-  }, [activeIndex])
+      ?.scrollIntoView?.({block: 'nearest'});
+  }, [activeIndex]);
 
   const dropdown = open && pos ? (
     <div
@@ -244,7 +244,7 @@ export function Combobox({
         )}
       </div>
     </div>
-  ) : null
+  ) : null;
 
   return (
     <div className={cn('relative min-w-0', className)} onKeyDown={handleKeyDown}>
@@ -276,5 +276,5 @@ export function Combobox({
 
       {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
     </div>
-  )
+  );
 }

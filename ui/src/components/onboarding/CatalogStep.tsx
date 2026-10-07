@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import type {ReactNode} from 'react'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {Button} from '@/components/ui/button'
-import type {OnboardingStep} from '@/lib/constants/onboarding'
+import type {ReactNode} from 'react';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {Button} from '@/components/ui/button';
+import type {OnboardingStep} from '@/lib/constants/onboarding';
 
 interface CatalogStepProps {
   step: OnboardingStep
@@ -62,5 +62,5 @@ export function CatalogStep({step, title, description, added, noun, onSkip, onDo
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-6">{children}</div>
     </OnboardingShell>
-  )
+  );
 }

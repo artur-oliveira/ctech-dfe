@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import {useMemo, useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Modal} from '@/components/ui/modal'
-import {PlanChooser} from '@/components/billing/PlanChooser'
-import {buildPlanOptions} from '@/lib/billing/catalog'
-import {formatCents, PLAN_ONDEMAND} from '@/lib/constants/billing'
-import type {AccountSubscription} from '@/lib/types/billing'
+import {useMemo, useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Modal} from '@/components/ui/modal';
+import {PlanChooser} from '@/components/billing/PlanChooser';
+import {buildPlanOptions} from '@/lib/billing/catalog';
+import {formatCents, PLAN_ONDEMAND} from '@/lib/constants/billing';
+import type {AccountSubscription} from '@/lib/types/billing';
 
 interface ChangePlanDialogProps {
   isOpen: boolean
@@ -27,31 +27,31 @@ interface ChangePlanDialogProps {
  * charge, where the amount is billing's own.
  */
 export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDialogProps) {
-  const qc = useQueryClient()
-  const [chosen, setChosen] = useState<string | null>(null)
+  const qc = useQueryClient();
+  const [chosen, setChosen] = useState<string | null>(null);
 
   const plansQuery = useQuery({
     queryKey: queryKeys.billing.plans(),
     queryFn: () => apiClient.listBillingPlans(),
     enabled: isOpen,
-  })
+  });
 
-  const options = useMemo(() => buildPlanOptions(plansQuery.data?.data ?? []), [plansQuery.data])
-  const selected = options.find((o) => o.productId === chosen) ?? null
-  const isCurrent = selected?.plan === subscription.plan
+  const options = useMemo(() => buildPlanOptions(plansQuery.data?.data ?? []), [plansQuery.data]);
+  const selected = options.find((o) => o.productId === chosen) ?? null;
+  const isCurrent = selected?.plan === subscription.plan;
 
   const change = useMutation({
     mutationFn: (priceIds: string[]) => apiClient.changeBillingPlan({price_ids: priceIds}),
     onSuccess: async (result) => {
-      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()})
-      const checkoutUrl = result.invoice?.checkout_url
+      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()});
+      const checkoutUrl = result.invoice?.checkout_url;
       if (checkoutUrl) {
-        window.location.href = checkoutUrl
-        return
+        window.location.href = checkoutUrl;
+        return;
       }
-      onClose()
+      onClose();
     },
-  })
+  });
 
   return (
     <Modal
@@ -95,5 +95,5 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
         </>
       )}
     </Modal>
-  )
+  );
 }

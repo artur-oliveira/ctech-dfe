@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import {useFieldAria} from '@/components/ui/form'
-import {cn} from '@/lib/utils'
+import * as React from 'react';
+import {useFieldAria} from '@/components/ui/form';
+import {cn} from '@/lib/utils';
 
 interface NumericInputProps
   extends Omit<React.ComponentProps<'input'>, 'type' | 'onChange'> {
@@ -36,58 +36,58 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
   ) {
     // Em formulário react-hook-form o campo passa `name` ou `id={field.name}`:
     // qualquer um dos dois liga o controle à mensagem de erro.
-    const aria = useFieldAria(props.name ?? props.id)
-    const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const aria = useFieldAria(props.name ?? props.id);
+    const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     React.useEffect(() => () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }, [])
+      if (timerRef.current) clearTimeout(timerRef.current);
+    }, []);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       const passThrough = [
         'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
         'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End',
-      ]
-      if (passThrough.includes(e.key) || e.ctrlKey || e.metaKey) return
-      if (e.key >= '0' && e.key <= '9') return
-      const current = String(value ?? '')
-      const pos = (e.target as HTMLInputElement).selectionStart ?? 0
-      if (decimal && e.key === '.' && !current.includes('.')) return
-      if (negative && e.key === '-' && !current.includes('-') && pos === 0) return
-      e.preventDefault()
-    }
+      ];
+      if (passThrough.includes(e.key) || e.ctrlKey || e.metaKey) return;
+      if (e.key >= '0' && e.key <= '9') return;
+      const current = String(value ?? '');
+      const pos = (e.target as HTMLInputElement).selectionStart ?? 0;
+      if (decimal && e.key === '.' && !current.includes('.')) return;
+      if (negative && e.key === '-' && !current.includes('-') && pos === 0) return;
+      e.preventDefault();
+    };
 
     const fireChange = (raw: string) => {
       if (debounceMs !== undefined) {
-        if (timerRef.current) clearTimeout(timerRef.current)
-        timerRef.current = setTimeout(() => onChange?.(raw), debounceMs)
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => onChange?.(raw), debounceMs);
       } else {
-        onChange?.(raw)
+        onChange?.(raw);
       }
-    }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value
+      const raw = e.target.value;
       if (raw === '' || (negative && raw === '-')) {
-        fireChange(raw)
-        return
+        fireChange(raw);
+        return;
       }
       const pattern = negative
         ? decimal ? /^-?\d*\.?\d*$/ : /^-?\d*$/
-        : decimal ? /^\d*\.?\d*$/ : /^\d*$/
-      if (!pattern.test(raw)) return
-      const intPart = raw.replace(/^-/, '').split('.')[0] ?? ''
-      if (integerPlaces !== undefined && intPart.length > integerPlaces) return
+        : decimal ? /^\d*\.?\d*$/ : /^\d*$/;
+      if (!pattern.test(raw)) return;
+      const intPart = raw.replace(/^-/, '').split('.')[0] ?? '';
+      if (integerPlaces !== undefined && intPart.length > integerPlaces) return;
       if (decimal && decimalPlaces !== undefined && raw.includes('.')) {
-        const after = raw.split('.')[1] ?? ''
-        if (after.length > decimalPlaces) return
+        const after = raw.split('.')[1] ?? '';
+        if (after.length > decimalPlaces) return;
       }
-      fireChange(raw)
-    }
+      fireChange(raw);
+    };
 
     const baseInputClass = cn(
       'h-full min-w-0 flex-1 bg-transparent text-base md:text-sm outline-none',
       'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
-    )
+    );
 
     return (
       <div
@@ -124,6 +124,6 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
           </span>
         )}
       </div>
-    )
+    );
   }
-)
+);

@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import type {ReactNode} from 'react'
-import {Button} from '@/components/ui/button'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {Label} from '@/components/ui/label'
-import {NumericInput} from '@/components/ui/numeric-input'
+import type {ReactNode} from 'react';
+import {Button} from '@/components/ui/button';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {Label} from '@/components/ui/label';
+import {NumericInput} from '@/components/ui/numeric-input';
 
 export interface ProductLineValues {
   qty: string
@@ -30,7 +30,7 @@ interface ProductLineItemProps extends ProductLineValues {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})
+  return n.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 }
 
 /**
@@ -54,7 +54,7 @@ export function ProductLineItem({
   onChange,
   onRemove,
 }: ProductLineItemProps) {
-  const step = (delta: number) => onChange({qty: String(Math.max(0, (parseFloat(qty) || 0) + delta))})
+  const step = (delta: number) => onChange({qty: String(Math.max(0, (parseFloat(qty) || 0) + delta))});
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3 md:p-4 space-y-3">
@@ -113,5 +113,5 @@ export function ProductLineItem({
         Total: <span className="font-semibold">{fmt(total)}</span>
       </div>
     </div>
-  )
+  );
 }

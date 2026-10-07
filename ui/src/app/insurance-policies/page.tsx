@@ -1,59 +1,59 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {InsuranceIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {RESP_SEG_OPTIONS} from '@/lib/schemas/insurance-policies'
-import type {InsurancePolicyItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {InsuranceIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {RESP_SEG_OPTIONS} from '@/lib/schemas/insurance-policies';
+import type {InsurancePolicyItemOut} from '@/lib/types/api';
 
 /** Rótulo do responsável pelo seguro. */
 function respSegLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—'
-  return RESP_SEG_OPTIONS.find((o) => o.value === code)?.label ?? code
+  if (typeof code !== 'string' || !code) return '—';
+  return RESP_SEG_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '—';
 }
 
 function InsurancePoliciesContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<InsurancePolicyItemOut>({
       queryKey: queryKeys.insurancePolicies.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getInsurancePolicies({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<InsurancePolicyItemOut>({
     mutationFn: (id) => apiClient.deleteInsurancePolicy(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.INSURANCE_POLICY),
     getDeletedMessage: (p) => `"${p.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.insurancePolicies.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.insurancePolicies.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -117,7 +117,7 @@ function InsurancePoliciesContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function InsurancePoliciesPage() {
@@ -125,5 +125,5 @@ export default function InsurancePoliciesPage() {
     <ProtectedRoute>
       <InsurancePoliciesContent/>
     </ProtectedRoute>
-  )
+  );
 }

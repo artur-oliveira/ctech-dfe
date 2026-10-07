@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import type {ReactNode} from 'react'
-import {Modal} from '@/components/ui/modal'
+import type {ReactNode} from 'react';
+import {Modal} from '@/components/ui/modal';
 
 interface EmitConfirmModalProps {
   open: boolean
@@ -33,5 +33,5 @@ export function EmitConfirmModal({open, onClose, onConfirm, docLabel, summary}: 
         )}
       </div>
     </Modal>
-  )
+  );
 }

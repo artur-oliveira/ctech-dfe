@@ -1,5 +1,5 @@
-import type {ReactNode} from 'react'
-import {cn} from '@/lib/utils'
+import type {ReactNode} from 'react';
+import {cn} from '@/lib/utils';
 
 interface SectionCardProps {
   icon?: ReactNode
@@ -17,5 +17,5 @@ export function SectionCard({icon, title, children, className}: SectionCardProps
       </div>
       <div className="p-5 space-y-4">{children}</div>
     </div>
-  )
+  );
 }

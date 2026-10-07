@@ -1,4 +1,4 @@
-import {contextForPath} from '@/lib/navigation/nav'
+import {contextForPath} from '@/lib/navigation/nav';
 
 export type DfeThemeKey = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe'
 
@@ -9,5 +9,5 @@ export type DfeThemeKey = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe'
  *  draws the sidebar — so a registry that belongs to NFS-e is themed teal
  *  wherever it lives in the URL space. */
 export function getDfeThemeFromPath(pathname: string): DfeThemeKey {
-  return contextForPath(pathname)?.key ?? 'nfe'
+  return contextForPath(pathname)?.key ?? 'nfe';
 }

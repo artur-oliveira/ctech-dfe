@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import {EmptyState} from '@/components/ui/empty-state'
-import {ShieldIcon} from '@/components/ui/icon'
-import {CertificateFields} from '@/components/organizations/CertificateFields'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import type {CertificateOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import {EmptyState} from '@/components/ui/empty-state';
+import {ShieldIcon} from '@/components/ui/icon';
+import {CertificateFields} from '@/components/organizations/CertificateFields';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import type {CertificateOut} from '@/lib/types/api';
 
 function certStatus(expiresAt: string): 'valid' | 'expiring' | 'expired' {
-  const now = Date.now()
-  const exp = new Date(expiresAt).getTime()
-  if (exp < now) return 'expired'
-  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring'
-  return 'valid'
+  const now = Date.now();
+  const exp = new Date(expiresAt).getTime();
+  if (exp < now) return 'expired';
+  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring';
+  return 'valid';
 }
 
 const STATUS_BADGE: Record<ReturnType<typeof certStatus>, string> = {
   valid: 'bg-green-100 text-green-700',
   expiring: 'bg-yellow-100 text-yellow-700',
   expired: 'bg-red-100 text-red-700',
-}
+};
 
 const STATUS_LABEL: Record<ReturnType<typeof certStatus>, string> = {
   valid: 'Válido',
   expiring: 'Expirando',
   expired: 'Expirado',
-}
+};
 
 function UploadModal({
                        onClose,
@@ -48,23 +48,23 @@ function UploadModal({
   loading: boolean
   serverError: string | null
 }) {
-  const [file, setFile] = useState<File | null>(null)
-  const [password, setPassword] = useState('')
-  const [fileError, setFileError] = useState<string | null>(null)
-  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   
   const handleSubmit = () => {
-    let ok = true
+    let ok = true;
     if (!file) {
-      setFileError('Selecione um arquivo')
-      ok = false
+      setFileError('Selecione um arquivo');
+      ok = false;
     }
     if (!password) {
-      setPasswordError('Senha é obrigatória')
-      ok = false
+      setPasswordError('Senha é obrigatória');
+      ok = false;
     }
-    if (ok && file) onUpload(file, password)
-  }
+    if (ok && file) onUpload(file, password);
+  };
   
   return (
     <Modal isOpen title="Importar Certificado" onClose={onClose} onSubmit={handleSubmit}
@@ -80,23 +80,23 @@ function UploadModal({
           file={file}
           onFileChange={(f) => {
             setFile(f);
-            setFileError(null)
+            setFileError(null);
           }}
           password={password}
           onPasswordChange={(p) => {
             setPassword(p);
-            setPasswordError(null)
+            setPasswordError(null);
           }}
           fileError={fileError}
           passwordError={passwordError}
         />
       </div>
     </Modal>
-  )
+  );
 }
 
 function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete: () => void; isDeleting: boolean }) {
-  const status = certStatus(cert.expires_at)
+  const status = certStatus(cert.expires_at);
   return (
     <tr className={TABLE_ROW}>
       <td data-label="Certificado" className={`${TABLE_CELL} pl-6`}>
@@ -129,48 +129,48 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
         </Button>
       </td>
     </tr>
-  )
+  );
 }
 
 function CertificatesContent() {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const [showModal, setShowModal] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
-  const pk = selectedOrg?.pk ?? ''
+  const pk = selectedOrg?.pk ?? '';
   
   const {data: certs, isPending, error: fetchError} = useQuery({
     queryKey: queryKeys.certificates(pk),
     queryFn: () => apiClient.getCertificates(pk),
     enabled: !!pk,
-  })
+  });
   
   const uploadMutation = useMutation({
     mutationFn: ({file, password}: { file: File; password: string }) =>
       apiClient.uploadCertificate(pk, file, password),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.certificates(pk)})
-      setShowModal(false)
-      setUploadError(null)
+      void qc.invalidateQueries({queryKey: queryKeys.certificates(pk)});
+      setShowModal(false);
+      setUploadError(null);
     },
     onError: (err) => {
-      setUploadError(err instanceof ApiError ? err.detail : 'Erro ao importar certificado')
+      setUploadError(err instanceof ApiError ? err.detail : 'Erro ao importar certificado');
     },
-  })
+  });
   
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<CertificateOut>({
     mutationFn: (md5) => apiClient.deleteCertificate(pk, md5),
     getId: (cert) => cert.md5,
     getDeletedMessage: (cert) => `Certificado "${cert.alias}" excluído`,
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.certificates(pk)}),
-  })
-  const visibleCerts = filterVisible(certs ?? [])
+  });
+  const visibleCerts = filterVisible(certs ?? []);
 
   const handleCloseModal = () => {
-    setShowModal(false)
-    setUploadError(null)
-  }
+    setShowModal(false);
+    setUploadError(null);
+  };
   
   return (
     <RootLayout>
@@ -242,7 +242,7 @@ function CertificatesContent() {
         />
       )}
     </RootLayout>
-  )
+  );
 }
 
 export default function CertificatesPage() {
@@ -250,5 +250,5 @@ export default function CertificatesPage() {
     <ProtectedRoute>
       <CertificatesContent/>
     </ProtectedRoute>
-  )
+  );
 }

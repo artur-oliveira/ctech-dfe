@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import type {ReactNode} from 'react';
 
 export function LegalPage({title, updatedAt, children}: { title: string; updatedAt: string; children: ReactNode }) {
   return (
@@ -17,7 +17,7 @@ export function LegalPage({title, updatedAt, children}: { title: string; updated
         <article className="mt-8 space-y-8 text-sm leading-relaxed text-gray-700">{children}</article>
       </div>
     </div>
-  )
+  );
 }
 
 export function LegalSection({heading, children}: { heading: string; children: ReactNode }) {
@@ -26,5 +26,5 @@ export function LegalSection({heading, children}: { heading: string; children: R
       <h2 className="text-base font-semibold tracking-tight text-gray-900">{heading}</h2>
       <div className="space-y-3">{children}</div>
     </section>
-  )
+  );
 }

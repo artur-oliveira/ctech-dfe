@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig'
-import {NfseEmitForm} from '@/components/nfse/NfseEmitForm'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig';
+import {NfseEmitForm} from '@/components/nfse/NfseEmitForm';
 
 function NfseEmitContent() {
-  const params = useSearchParams()
-  const sourceIdDps = params.get('substitute') ?? undefined
-  const duplicateIdDps = params.get('duplicate') ?? undefined
-  const mode = sourceIdDps ? 'substitute' : duplicateIdDps ? 'duplicate' : 'emit'
-  const source = sourceIdDps ?? duplicateIdDps
-  const title = mode === 'substitute' ? 'Substituir NFS-e' : mode === 'duplicate' ? 'Duplicar NFS-e' : 'Emitir NFS-e'
+  const params = useSearchParams();
+  const sourceIdDps = params.get('substitute') ?? undefined;
+  const duplicateIdDps = params.get('duplicate') ?? undefined;
+  const mode = sourceIdDps ? 'substitute' : duplicateIdDps ? 'duplicate' : 'emit';
+  const source = sourceIdDps ?? duplicateIdDps;
+  const title = mode === 'substitute' ? 'Substituir NFS-e' : mode === 'duplicate' ? 'Duplicar NFS-e' : 'Emitir NFS-e';
 
   return (
     <RootLayout>
@@ -40,7 +40,7 @@ function NfseEmitContent() {
         </RequireFiscalConfig>
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfseEmitPage() {
@@ -50,5 +50,5 @@ export default function NfseEmitPage() {
         <NfseEmitContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

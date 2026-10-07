@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import {ReactNode, useEffect, useRef} from 'react'
-import {createPortal} from 'react-dom'
-import {Button} from '@/components/ui/button'
+import {ReactNode, useEffect, useRef} from 'react';
+import {createPortal} from 'react-dom';
+import {Button} from '@/components/ui/button';
 
 interface ModalProps {
   isOpen: boolean
@@ -23,10 +23,10 @@ const SIZE_CLASSES = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
-}
+};
 
 const FOCUSABLE =
-  'a[href],button:not([disabled]),textarea,input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+  'a[href],button:not([disabled]),textarea,input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export function Modal({
                         isOpen,
@@ -41,59 +41,59 @@ export function Modal({
                         submitDisabled = false,
                         size = 'md',
                       }: ModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  const previouslyFocused = useRef<HTMLElement | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return
-    previouslyFocused.current = document.activeElement as HTMLElement | null
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    if (!isOpen) return undefined;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
-    const panel = panelRef.current
-    const focusables = panel?.querySelectorAll<HTMLElement>(FOCUSABLE)
-    const first = focusables && focusables.length ? focusables[0] : panel
-    first?.focus()
+    const panel = panelRef.current;
+    const focusables = panel?.querySelectorAll<HTMLElement>(FOCUSABLE);
+    const first = focusables && focusables.length ? focusables[0] : panel;
+    first?.focus();
 
     return () => {
-      document.body.style.overflow = prevOverflow
-      previouslyFocused.current?.focus?.()
-    }
-  }, [isOpen])
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused.current?.focus?.();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return
-    const panel = panelRef.current
+    if (!isOpen) return undefined;
+    const panel = panelRef.current;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-        return
+        e.preventDefault();
+        onClose();
+        return;
       }
       if (e.key === 'Tab' && panel) {
-        const items = panel.querySelectorAll<HTMLElement>(FOCUSABLE)
-        if (items.length === 0) return
-        const firstEl = items[0]
-        const lastEl = items[items.length - 1]
+        const items = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
+        if (items.length === 0) return;
+        const firstEl = items[0];
+        const lastEl = items[items.length - 1];
         if (e.shiftKey && document.activeElement === firstEl) {
-          e.preventDefault()
-          lastEl.focus()
+          e.preventDefault();
+          lastEl.focus();
         } else if (!e.shiftKey && document.activeElement === lastEl) {
-          e.preventDefault()
-          firstEl.focus()
+          e.preventDefault();
+          firstEl.focus();
         }
       }
-    }
-    document.addEventListener('keydown', onKeyDown)
+    };
+    document.addEventListener('keydown', onKeyDown);
 
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, onClose])
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
-  if (!isOpen) return null
-  if (typeof document === 'undefined') return null
+  if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
-  const titleId = 'modal-title'
+  const titleId = 'modal-title';
 
   return createPortal(
     <div
@@ -148,5 +148,5 @@ export function Modal({
       </div>
     </div>,
     document.body
-  )
+  );
 }

@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Input} from '@/components/ui/input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import type {MdfeInsuranceIn} from '@/lib/types/api'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import type {MdfeInsuranceIn} from '@/lib/types/api';
 
 export interface InsurancePoliciesFieldsProps {
   policies: MdfeInsuranceIn[]
@@ -18,7 +18,7 @@ export interface InsurancePoliciesFieldsProps {
 
 /** Averbações são digitadas numa linha só; o leiaute quer uma lista de nAver. */
 const splitAver = (raw: string): string[] =>
-  raw.split(',').map((s) => s.trim()).filter(Boolean)
+  raw.split(',').map((s) => s.trim()).filter(Boolean);
 
 /**
  * Seguro da carga (infMDFe/seg). Responsável, seguradora e número da apólice
@@ -26,17 +26,17 @@ const splitAver = (raw: string): string[] =>
  * as averbações emitidas para ela.
  */
 export function InsurancePoliciesFields({policies, onChange}: InsurancePoliciesFieldsProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: page} = useQuery({
     queryKey: queryKeys.insurancePolicies.list(selectedOrg?.pk),
     queryFn: () => apiClient.getInsurancePolicies({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const registered = page?.items ?? []
+  });
+  const registered = page?.items ?? [];
 
   const patch = (i: number, p: Partial<MdfeInsuranceIn>) =>
-    onChange(policies.map((v, k) => (k === i ? {...v, ...p} : v)))
+    onChange(policies.map((v, k) => (k === i ? {...v, ...p} : v)));
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -89,5 +89,5 @@ export function InsurancePoliciesFields({policies, onChange}: InsurancePoliciesF
         </div>
       ))}
     </div>
-  )
+  );
 }

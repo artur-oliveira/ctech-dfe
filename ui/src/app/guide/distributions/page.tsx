@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {GuideBullets, GuideCallout, GuidePage} from '@/components/guide/GuidePage'
+import Link from 'next/link';
+import {GuideBullets, GuideCallout, GuidePage} from '@/components/guide/GuidePage';
 
 export default function GuideDistribuicoes() {
   return (
@@ -100,5 +100,5 @@ export default function GuideDistribuicoes() {
         },
       ]}
     />
-  )
+  );
 }

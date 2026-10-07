@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {ApiError} from '@/lib/api/client'
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {ApiError} from '@/lib/api/client';
 import {
   RESP_SEG_OPTIONS,
   type InsurancePolicyFormData,
   insurancePolicySchema,
-} from '@/lib/schemas/insurance-policies'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
-import type {InsurancePolicyCreate, InsurancePolicyItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/insurance-policies';
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
+import type {InsurancePolicyCreate, InsurancePolicyItemOut} from '@/lib/types/api';
 
 const EMPTY: InsurancePolicyFormData = {
   name: '', resp_seg: '1', cnpj: '', cpf: '', x_seg: '', cnpj_seg: '', n_apol: '',
-}
+};
 
 export interface InsurancePolicyFormProps {
   initialData?: InsurancePolicyItemOut
@@ -27,7 +27,7 @@ export interface InsurancePolicyFormProps {
 }
 
 function toFormData(p: InsurancePolicyItemOut): InsurancePolicyFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
   return {
     name: p.name,
     resp_seg: (str(p.resp_seg) || '1') as InsurancePolicyFormData['resp_seg'],
@@ -36,21 +36,21 @@ function toFormData(p: InsurancePolicyItemOut): InsurancePolicyFormData {
     x_seg: str(p.x_seg),
     cnpj_seg: str(p.cnpj_seg),
     n_apol: str(p.n_apol),
-  }
+  };
 }
 
 /** Campo vazio vira null: um "" gravado é um default silenciosamente vazio. */
-const nullify = (v: string | undefined) => (v ? v : null)
+const nullify = (v: string | undefined) => (v ? v : null);
 
 export function InsurancePolicyForm({initialData, onSubmit, loading}: InsurancePolicyFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<InsurancePolicyFormData>({
     resolver: zodResolver(insurancePolicySchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
   const handleSubmit = async (data: InsurancePolicyFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -60,11 +60,11 @@ export function InsurancePolicyForm({initialData, onSubmit, loading}: InsuranceP
         x_seg: nullify(data.x_seg),
         cnpj_seg: data.cnpj_seg ? unformatCpfCnpj(data.cnpj_seg) : null,
         n_apol: nullify(data.n_apol),
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a apólice.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a apólice.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -169,5 +169,5 @@ export function InsurancePolicyForm({initialData, onSubmit, loading}: InsuranceP
         </div>
       </form>
     </Form>
-  )
+  );
 }

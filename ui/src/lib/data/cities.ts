@@ -27866,7 +27866,7 @@ export const CITIES: CityEntry[] = [
 export const CITY_OPTIONS = CITIES.map((c) => ({
   value: c.code,
   label: `${c.description} / ${c.uf}`,
-}))
+}));
 
 /**
  * UF por código IBGE (os dois primeiros dígitos do código do município). Alguns
@@ -27877,4 +27877,4 @@ export const UF_IBGE_OPTIONS = [...new Map(
   CITIES.map((c) => [c.code.slice(0, 2), c.uf] as const),
 ).entries()]
   .sort(([, a], [, b]) => a.localeCompare(b))
-  .map(([code, uf]) => ({value: code, label: `${uf} (${code})`}))
+  .map(([code, uf]) => ({value: code, label: `${uf} (${code})`}));

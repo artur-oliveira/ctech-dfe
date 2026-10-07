@@ -1,23 +1,23 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
-import {formatDatetimeBR} from '@/lib/utils/dfe'
-import type {AuditLogOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
+import {formatDatetimeBR} from '@/lib/utils/dfe';
+import type {AuditLogOut} from '@/lib/types/api';
 
 const RESOURCE_TYPE_OPTIONS = [
   {value: 'ORGANIZATION', label: 'Organização'},
@@ -29,43 +29,43 @@ const RESOURCE_TYPE_OPTIONS = [
   {value: 'NFCE_CONFIG', label: 'Configuração NFC-e'},
   {value: 'CTE_CONFIG', label: 'Configuração CT-e'},
   {value: 'MDFE_CONFIG', label: 'Configuração MDF-e'},
-]
+];
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE: 'Criação',
   UPDATE: 'Alteração',
   DELETE: 'Exclusão',
-}
+};
 
 const ACTION_BADGE_CLASSES: Record<string, string> = {
   CREATE: 'bg-emerald-50 text-emerald-700',
   UPDATE: 'bg-blue-50 text-blue-700',
   DELETE: 'bg-red-50 text-red-700',
-}
+};
 
 function resourceTypeLabel(resourceType: string): string {
-  return RESOURCE_TYPE_OPTIONS.find((o) => o.value === resourceType)?.label ?? resourceType
+  return RESOURCE_TYPE_OPTIONS.find((o) => o.value === resourceType)?.label ?? resourceType;
 }
 
 function formatValue(v: unknown): string {
-  if (v === null || v === undefined) return '—'
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
 }
 
 function AuditLogsContent() {
-  const {selectedOrg} = useAuth()
-  const [resourceType, setResourceType] = useState<string>('')
-  const [selected, setSelected] = useState<AuditLogOut | null>(null)
+  const {selectedOrg} = useAuth();
+  const [resourceType, setResourceType] = useState<string>('');
+  const [selected, setSelected] = useState<AuditLogOut | null>(null);
   
-  const isOwnerOrAdmin = selectedOrg?.role === 'OWNER' || selectedOrg?.role === 'ADMIN'
+  const isOwnerOrAdmin = selectedOrg?.role === 'OWNER' || selectedOrg?.role === 'ADMIN';
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} =
     usePagination<AuditLogOut>({
       queryKey: queryKeys.auditLogs.list(selectedOrg?.pk, {resourceType}),
       queryFn: (cursor) => apiClient.getAuditLogs({resourceType: resourceType || undefined, cursor}),
       enabled: !!selectedOrg && isOwnerOrAdmin,
-    })
+    });
   
   return (
     <RootLayout>
@@ -171,7 +171,7 @@ function AuditLogsContent() {
         )}
       </Modal>
     </RootLayout>
-  )
+  );
 }
 
 export default function AuditLogsPage() {
@@ -179,5 +179,5 @@ export default function AuditLogsPage() {
     <ProtectedRoute>
       <AuditLogsContent/>
     </ProtectedRoute>
-  )
+  );
 }

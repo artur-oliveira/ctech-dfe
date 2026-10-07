@@ -1,38 +1,38 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {BriefcaseIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {CITY_OPTIONS} from '@/lib/data/cities'
-import {SERVICE_LOCATION_ROLES} from '@/lib/schemas/service-locations'
-import type {ServiceLocationItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {BriefcaseIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {CITY_OPTIONS} from '@/lib/data/cities';
+import {SERVICE_LOCATION_ROLES} from '@/lib/schemas/service-locations';
+import type {ServiceLocationItemOut} from '@/lib/types/api';
 
 function str(v: unknown): string {
-  return typeof v === 'string' && v ? v : '—'
+  return typeof v === 'string' && v ? v : '—';
 }
 
 /** Rótulos dos papéis, na ordem do cadastro. */
 function roleLabels(roles: unknown): string {
-  if (!Array.isArray(roles) || roles.length === 0) return '—'
+  if (!Array.isArray(roles) || roles.length === 0) return '—';
   return SERVICE_LOCATION_ROLES
     .filter((r) => roles.includes(r.value))
     .map((r) => r.label)
-    .join(', ')
+    .join(', ');
 }
 
 /**
@@ -40,38 +40,38 @@ function roleLabels(roles: unknown): string {
  * é resolvido para o nome: quem lê a lista não decora tabela do IBGE.
  */
 function where(address: unknown): string {
-  if (!address || typeof address !== 'object') return '—'
-  const a = address as Record<string, unknown>
+  if (!address || typeof address !== 'object') return '—';
+  const a = address as Record<string, unknown>;
   if (typeof a.foreign_city === 'string' && a.foreign_city) {
-    return [a.foreign_city, a.foreign_region].filter(Boolean).join(' / ')
+    return [a.foreign_city, a.foreign_region].filter(Boolean).join(' / ');
   }
-  const code = str(a.city_ibge_code)
-  return CITY_OPTIONS.find((c) => c.value === code)?.label ?? code
+  const code = str(a.city_ibge_code);
+  return CITY_OPTIONS.find((c) => c.value === code)?.label ?? code;
 }
 
 function ServiceLocationsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<ServiceLocationItemOut>({
       queryKey: queryKeys.serviceLocations.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getServiceLocations({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<ServiceLocationItemOut>({
     mutationFn: (id) => apiClient.deleteServiceLocation(id),
     getId: (e) => extractId(e.sk, SK_PREFIX.SERVICE_LOCATION),
     getDeletedMessage: (e) => `"${e.name}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.serviceLocations.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.serviceLocations.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -137,7 +137,7 @@ function ServiceLocationsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function ServiceLocationsPage() {
@@ -145,5 +145,5 @@ export default function ServiceLocationsPage() {
     <ProtectedRoute>
       <ServiceLocationsContent/>
     </ProtectedRoute>
-  )
+  );
 }

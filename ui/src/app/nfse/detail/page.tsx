@@ -1,49 +1,49 @@
-'use client'
+'use client';
 
-import {Suspense, useState} from 'react'
-import Link from 'next/link'
-import {useSearchParams} from 'next/navigation'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {Modal} from '@/components/ui/modal'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Textarea} from '@/components/ui/textarea'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
-import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton'
-import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
-import {NfseCancelModal} from '@/components/nfse/NfseCancelModal'
-import {CONTRIBUINTE_EVENTS, EVENT_LABELS, nfseEventSchema, type NfseEventFormData} from '@/lib/schemas/nfse'
-import {CITY_OPTIONS} from '@/lib/data/cities'
+import {Suspense, useState} from 'react';
+import Link from 'next/link';
+import {useSearchParams} from 'next/navigation';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {Modal} from '@/components/ui/modal';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Textarea} from '@/components/ui/textarea';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
+import {NfseCancelModal} from '@/components/nfse/NfseCancelModal';
+import {CONTRIBUINTE_EVENTS, EVENT_LABELS, nfseEventSchema, type NfseEventFormData} from '@/lib/schemas/nfse';
+import {CITY_OPTIONS} from '@/lib/data/cities';
 import {
   NFSE_CANCELLATION_MOTIVES,
   NFSE_FISCAL_ANALYSIS_MOTIVES,
   NFSE_REJECTION_MOTIVES,
-} from '@/lib/data/nfse_motives'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {toast} from 'sonner'
+} from '@/lib/data/nfse_motives';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {toast} from 'sonner';
 
-const TP_EMIT_LABELS: Record<number, string> = {1: 'Prestador', 2: 'Tomador', 3: 'Intermediário'}
+const TP_EMIT_LABELS: Record<number, string> = {1: 'Prestador', 2: 'Tomador', 3: 'Intermediário'};
 
-const EVENT_TYPE_OPTIONS = CONTRIBUINTE_EVENTS.map((code) => ({value: code, label: `${code} — ${EVENT_LABELS[code]}`}))
+const EVENT_TYPE_OPTIONS = CONTRIBUINTE_EVENTS.map((code) => ({value: code, label: `${code} — ${EVENT_LABELS[code]}`}));
 
 function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boolean; onClose: () => void }) {
-  const qc = useQueryClient()
+  const qc = useQueryClient();
   const form = useForm<NfseEventFormData>({
     resolver: zodResolver(nfseEventSchema),
     defaultValues: {event_type: CONTRIBUINTE_EVENTS[0]},
-  })
+  });
 
   const mutation = useMutation({
     mutationFn: (data: NfseEventFormData) => apiClient.sendNfseEvent(idDps, {
@@ -53,21 +53,21 @@ function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boole
       reason_description: data.reason_description || undefined,
     }),
     onSuccess: () => {
-      form.reset({event_type: CONTRIBUINTE_EVENTS[0]})
-      onClose()
-      void qc.invalidateQueries({queryKey: queryKeys.nfses.events(idDps)})
-      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(idDps)})
-      toast.success('Evento enviado.')
+      form.reset({event_type: CONTRIBUINTE_EVENTS[0]});
+      onClose();
+      void qc.invalidateQueries({queryKey: queryKeys.nfses.events(idDps)});
+      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(idDps)});
+      toast.success('Evento enviado.');
     },
-  })
-  const eventType = useWatch({control: form.control, name: 'event_type'})
+  });
+  const eventType = useWatch({control: form.control, name: 'event_type'});
   const motiveOptions = eventType === '101101'
     ? NFSE_CANCELLATION_MOTIVES
     : eventType === '101103'
       ? NFSE_FISCAL_ANALYSIS_MOTIVES
       : ['202205', '203206', '204207'].includes(eventType)
         ? NFSE_REJECTION_MOTIVES
-        : []
+        : [];
 
   return (
     <Modal
@@ -114,63 +114,63 @@ function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boole
         </div>
       </Form>
     </Modal>
-  )
+  );
 }
 
 function NfseDetail({idDps}: { idDps: string }) {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showEventModal, setShowEventModal] = useState(false)
-  const [xmlLoading, setXmlLoading] = useState<'xml' | 'dps' | 'danfse' | null>(null)
-  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null)
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [xmlLoading, setXmlLoading] = useState<'xml' | 'dps' | 'danfse' | null>(null);
+  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
 
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.nfses.detail(idDps),
     queryFn: () => apiClient.getNfse(idDps),
     enabled: !!idDps && !!selectedOrg,
-  })
+  });
 
   const {data: eventsData, isLoading: eventsLoading} = useQuery({
     queryKey: queryKeys.nfses.events(idDps),
     queryFn: () => apiClient.getNfseEvents(idDps),
     enabled: !!idDps && !!selectedOrg,
-  })
+  });
 
   const cancelMutation = useMutation({
     mutationFn: ({reasonCode, reasonDescription}: { reasonCode: string; reasonDescription: string }) =>
       apiClient.cancelNfse(idDps, reasonCode, reasonDescription),
     onSuccess: () => {
-      setShowCancelModal(false)
-      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(idDps)})
-      void qc.invalidateQueries({queryKey: queryKeys.nfses.lists(selectedOrg?.pk)})
+      setShowCancelModal(false);
+      void qc.invalidateQueries({queryKey: queryKeys.nfses.detail(idDps)});
+      void qc.invalidateQueries({queryKey: queryKeys.nfses.lists(selectedOrg?.pk)});
     },
-  })
+  });
 
   const handleDownload = async (kind: 'xml' | 'dps' | 'danfse') => {
-    setXmlLoading(kind)
+    setXmlLoading(kind);
     try {
-      if (kind === 'xml') triggerRemoteDownload((await apiClient.downloadNfseXml(idDps)).url)
-      if (kind === 'dps') triggerRemoteDownload((await apiClient.downloadNfseDpsXml(idDps)).url)
-      if (kind === 'danfse') triggerRemoteDownload((await apiClient.downloadDanfse(idDps)).url)
+      if (kind === 'xml') triggerRemoteDownload((await apiClient.downloadNfseXml(idDps)).url);
+      if (kind === 'dps') triggerRemoteDownload((await apiClient.downloadNfseDpsXml(idDps)).url);
+      if (kind === 'danfse') triggerRemoteDownload((await apiClient.downloadDanfse(idDps)).url);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : 'Erro ao baixar arquivo.')
+      toast.error(err instanceof ApiError ? err.detail : 'Erro ao baixar arquivo.');
     } finally {
-      setXmlLoading(null)
+      setXmlLoading(null);
     }
-  }
+  };
 
   const handleDownloadEventXml = async (eventSk: string) => {
-    setEventXmlLoading(eventSk)
+    setEventXmlLoading(eventSk);
     try {
-      triggerRemoteDownload((await apiClient.downloadNfseEventXml(idDps, eventSk)).url)
+      triggerRemoteDownload((await apiClient.downloadNfseEventXml(idDps, eventSk)).url);
     } finally {
-      setEventXmlLoading(null)
+      setEventXmlLoading(null);
     }
-  }
+  };
 
   if (isLoading) {
-    return <LoadingSkeleton count={3} height="h-24" rounded="rounded-xl"/>
+    return <LoadingSkeleton count={3} height="h-24" rounded="rounded-xl"/>;
   }
 
   if (error || !doc) {
@@ -178,11 +178,11 @@ function NfseDetail({idDps}: { idDps: string }) {
       <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
         NFS-e não encontrada.
       </div>
-    )
+    );
   }
 
-  const canCancel = doc.status === 'authorized'
-  const cityLabel = CITY_OPTIONS.find((c) => c.value === doc.c_loc_emi)?.label ?? doc.c_loc_emi
+  const canCancel = doc.status === 'authorized';
+  const cityLabel = CITY_OPTIONS.find((c) => c.value === doc.c_loc_emi)?.label ?? doc.c_loc_emi;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -335,19 +335,19 @@ function NfseDetail({idDps}: { idDps: string }) {
         error={cancelMutation.error}
         onClose={() => setShowCancelModal(false)}
         onConfirm={({reasonCode, reasonDescription}) => {
-          if (reasonDescription.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
-          cancelMutation.mutate({reasonCode, reasonDescription})
+          if (reasonDescription.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return;
+          cancelMutation.mutate({reasonCode, reasonDescription});
         }}
       />
 
       <NfseEventModal idDps={idDps} isOpen={showEventModal} onClose={() => setShowEventModal(false)}/>
     </div>
-  )
+  );
 }
 
 function NfseDetailContent() {
-  const params = useSearchParams()
-  const idDps = params.get('id') ?? ''
+  const params = useSearchParams();
+  const idDps = params.get('id') ?? '';
 
   return (
     <RootLayout>
@@ -364,7 +364,7 @@ function NfseDetailContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function NfseDetailPage() {
@@ -374,5 +374,5 @@ export default function NfseDetailPage() {
         <NfseDetailContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

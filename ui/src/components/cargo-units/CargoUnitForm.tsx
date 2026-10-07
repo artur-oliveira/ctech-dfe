@@ -1,23 +1,23 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {ApiError} from '@/lib/api/client'
+import {useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {ApiError} from '@/lib/api/client';
 import {
   CARGO_UNIT_KIND_OPTIONS,
   TP_UNID_CARGA_OPTIONS,
   TP_UNID_TRANSP_OPTIONS,
   type CargoUnitFormData,
   cargoUnitSchema,
-} from '@/lib/schemas/cargo-units'
-import type {CargoUnitCreate, CargoUnitItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/cargo-units';
+import type {CargoUnitCreate, CargoUnitItemOut} from '@/lib/types/api';
 
-const EMPTY: CargoUnitFormData = {name: '', kind: 'transport', tp_unid: '1', id_unid: '', seals: ''}
+const EMPTY: CargoUnitFormData = {name: '', kind: 'transport', tp_unid: '1', id_unid: '', seals: ''};
 
 export interface CargoUnitFormProps {
   initialData?: CargoUnitItemOut
@@ -26,27 +26,27 @@ export interface CargoUnitFormProps {
 }
 
 function toFormData(u: CargoUnitItemOut): CargoUnitFormData {
-  const seals = Array.isArray(u.seals) ? (u.seals as string[]) : []
+  const seals = Array.isArray(u.seals) ? (u.seals as string[]) : [];
   return {
     name: u.name,
     kind: u.kind,
     tp_unid: u.tp_unid as CargoUnitFormData['tp_unid'],
     id_unid: u.id_unid,
     seals: seals.join(', '),
-  }
+  };
 }
 
 export function CargoUnitForm({initialData, onSubmit, loading}: CargoUnitFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<CargoUnitFormData>({
     resolver: zodResolver(cargoUnitSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
-  const kind = useWatch({control: form.control, name: 'kind'})
+  });
+  const kind = useWatch({control: form.control, name: 'kind'});
 
   const handleSubmit = async (data: CargoUnitFormData) => {
-    setSubmitError(null)
-    const seals = (data.seals ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+    setSubmitError(null);
+    const seals = (data.seals ?? '').split(',').map((s) => s.trim()).filter(Boolean);
     try {
       await onSubmit({
         name: data.name,
@@ -54,11 +54,11 @@ export function CargoUnitForm({initialData, onSubmit, loading}: CargoUnitFormPro
         tp_unid: data.tp_unid,
         id_unid: data.id_unid,
         seals: seals.length ? seals : null,
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a unidade.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a unidade.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -133,5 +133,5 @@ export function CargoUnitForm({initialData, onSubmit, loading}: CargoUnitFormPro
         </div>
       </form>
     </Form>
-  )
+  );
 }

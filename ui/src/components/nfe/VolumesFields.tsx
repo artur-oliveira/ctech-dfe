@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import type {NfeReboqueIn, NfeVolIn} from '@/lib/types/api'
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import type {NfeReboqueIn, NfeVolIn} from '@/lib/types/api';
 
 export interface VolumesFieldsProps {
   vols: NfeVolIn[]
@@ -15,11 +15,11 @@ export interface VolumesFieldsProps {
   onReboquesChange: (reboques: NfeReboqueIn[]) => void
 }
 
-const EMPTY_VOL: NfeVolIn = {q_vol: '', esp: '', marca: '', n_vol: '', peso_l: '', peso_b: '', lacres: []}
-const EMPTY_REBOQUE: NfeReboqueIn = {placa: '', uf: 'SP', rntc: ''}
+const EMPTY_VOL: NfeVolIn = {q_vol: '', esp: '', marca: '', n_vol: '', peso_l: '', peso_b: '', lacres: []};
+const EMPTY_REBOQUE: NfeReboqueIn = {placa: '', uf: 'SP', rntc: ''};
 
 /** Um reboque só existe atrelado a um veículo; o XSD limita a 5. */
-const MAX_REBOQUES = 5
+const MAX_REBOQUES = 5;
 
 /**
  * Volumes (transp/vol) e reboques (transp/reboque) da emissão. Sem volume
@@ -28,9 +28,9 @@ const MAX_REBOQUES = 5
  */
 export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: VolumesFieldsProps) {
   const patchVol = (i: number, patch: Partial<NfeVolIn>) =>
-    onVolsChange(vols.map((v, k) => (k === i ? {...v, ...patch} : v)))
+    onVolsChange(vols.map((v, k) => (k === i ? {...v, ...patch} : v)));
   const patchReboque = (i: number, patch: Partial<NfeReboqueIn>) =>
-    onReboquesChange(reboques.map((r, k) => (k === i ? {...r, ...patch} : r)))
+    onReboquesChange(reboques.map((r, k) => (k === i ? {...r, ...patch} : r)));
 
   return (
     <div className="space-y-4">
@@ -129,5 +129,5 @@ export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: 
         ))}
       </div>
     </div>
-  )
+  );
 }

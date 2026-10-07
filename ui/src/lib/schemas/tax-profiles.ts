@@ -5,8 +5,8 @@
  * `cfopConfigSchema` menos o CFOP, porque no perfil os CFOPs são uma lista à
  * parte.
  */
-import {z} from 'zod'
-import {applyTaxGroupRules, cfopConfigBase} from '@/lib/schemas/products'
+import {z} from 'zod';
+import {applyTaxGroupRules, cfopConfigBase} from '@/lib/schemas/products';
 
 export const taxProfileSchema = cfopConfigBase
   .omit({cfop: true})
@@ -16,6 +16,6 @@ export const taxProfileSchema = cfopConfigBase
     cfops: z.array(z.string().regex(/^\d{4}$/, 'CFOP deve ter 4 dígitos'))
       .min(1, 'Escolha ao menos um CFOP'),
   })
-  .superRefine(applyTaxGroupRules)
+  .superRefine(applyTaxGroupRules);
 
 export type TaxProfileFormData = z.infer<typeof taxProfileSchema>

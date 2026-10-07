@@ -1,36 +1,36 @@
-'use client'
+'use client';
 
-import {useMemo, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {createPortal} from 'react-dom'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {EmitError} from '@/components/ui/emit-error'
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {useDebounce} from '@/lib/hooks/useDebounce'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {RowCheckbox} from '@/components/ui/table-shell'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Label} from '@/components/ui/label'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox} from '@/components/ui/combobox'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal'
-import {VehicleForm} from '@/components/vehicles/VehicleForm'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import {suggestRoute, ufsBorder} from '@/lib/utils/uf-graph'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
-import {PersonPicker} from '@/components/persons/PersonPicker'
-import {formatCurrency} from '@/lib/utils/helpers'
-import {maskCpf} from '@/lib/utils/masks'
-import {validateCPF} from '@/lib/utils/validators'
+import {useMemo, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {createPortal} from 'react-dom';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {EmitError} from '@/components/ui/emit-error';
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useDebounce} from '@/lib/hooks/useDebounce';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {RowCheckbox} from '@/components/ui/table-shell';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Label} from '@/components/ui/label';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox} from '@/components/ui/combobox';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {VehicleForm} from '@/components/vehicles/VehicleForm';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import {suggestRoute, ufsBorder} from '@/lib/utils/uf-graph';
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
+import {PersonPicker} from '@/components/persons/PersonPicker';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {maskCpf} from '@/lib/utils/masks';
+import {validateCPF} from '@/lib/utils/validators';
 import type {
   MdfeCargoPreview,
   MdfeDriverIn,
@@ -48,9 +48,9 @@ import type {
   NfeListOut,
   VehicleCreate,
   VehicleOut,
-} from '@/lib/types/api'
-import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields'
-import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields'
+} from '@/lib/types/api';
+import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields';
+import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields';
 import {
   AirModalFields,
   RailModalFields,
@@ -58,17 +58,17 @@ import {
   airComplete,
   railComplete,
   waterComplete,
-} from '@/components/mdfe/ModalFields'
-import {ContractorsFields} from '@/components/mdfe/ContractorsFields'
-import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields'
-import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields'
+} from '@/components/mdfe/ModalFields';
+import {ContractorsFields} from '@/components/mdfe/ContractorsFields';
+import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields';
+import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields';
 
 /** Lacres são digitados numa linha só; o leiaute quer uma lista de nLacre. */
 const splitSeals = (raw: string): string[] | undefined => {
-  const list = raw.split(',').map((s) => s.trim()).filter(Boolean)
-  return list.length ? list : undefined
-}
-import {Plane, Ship, TramFront, Truck} from 'lucide-react'
+  const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return list.length ? list : undefined;
+};
+import {Plane, Ship, TramFront, Truck} from 'lucide-react';
 
 // ─── steps ──────────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ const MODAL_STEP_LABEL: Record<ModalId, string> = {
   aereo: 'Voo',
   aquaviario: 'Embarcação',
   ferroviario: 'Trem',
-}
+};
 
 const baseSteps = (modal: ModalId): StepDef[] => [
   {id: 'modal', label: 'Transporte'},
@@ -94,10 +94,10 @@ const baseSteps = (modal: ModalId): StepDef[] => [
   {id: 'carga', label: 'Carga'},
   {id: 'transporte', label: 'Trajeto'},
   {id: 'veiculo', label: MODAL_STEP_LABEL[modal]},
-]
+];
 
 // Seguro só aparece quando há CT-e (MDF-e de NF-e não exige seguro).
-const SEGURO_STEP: StepDef = {id: 'seguro', label: 'Seguro'}
+const SEGURO_STEP: StepDef = {id: 'seguro', label: 'Seguro'};
 
 type ModalId = 'rodoviario' | 'aereo' | 'aquaviario' | 'ferroviario'
 
@@ -106,38 +106,38 @@ const MODAIS: { id: ModalId; label: string; icon: React.ReactElement; enabled: b
   {id: 'aereo', label: 'Aéreo', icon: <Plane/>, enabled: true},
   {id: 'aquaviario', label: 'Aquaviário', icon: <Ship/>, enabled: true},
   {id: 'ferroviario', label: 'Ferroviário', icon: <TramFront/>, enabled: true},
-]
+];
 
 const MODAL_BLOCKED_REASON: Record<ModalId, string> = {
   rodoviario: 'Preencha carga, trajeto, veículo cadastrado e ao menos um condutor.',
   aereo: 'Preencha carga, trajeto e todos os dados do voo.',
   aquaviario: 'Preencha carga, trajeto e os dados da embarcação.',
   ferroviario: 'Preencha carga, trajeto, os dados do trem e ao menos um vagão completo.',
-}
+};
 
 const EMPTY_AIR: MdfeAirModalIn = {
   nationality: '', registration: '', flight_number: '',
   origin_airport: '', dest_airport: '', flight_date: '',
-}
+};
 
 const EMPTY_RAIL: MdfeRailModalIn = {
   train_prefix: '', train_datetime: '', origin_station: '', dest_station: '', wagons: [],
-}
+};
 
 const EMPTY_WATER: MdfeWaterModalIn = {
   irin: '', vessel_type: '', vessel_code: '', vessel_name: '', voyage_number: '',
   origin_port: '', dest_port: '', transit_port: '', navigation_type: '', mmsi: '',
   loading_terminals: [], unloading_terminals: [], barges: [],
   empty_cargo_unit_ids: [], empty_transport_unit_ids: [],
-}
+};
 
 function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
-  const idx = steps.findIndex((s) => s.id === current)
+  const idx = steps.findIndex((s) => s.id === current);
   return (
     <div className="flex items-center gap-0 mb-6">
       {steps.map((step, i) => {
-        const done = i < idx
-        const active = i === idx
+        const done = i < idx;
+        const active = i === idx;
         return (
           <div key={step.id} className="flex items-center flex-1 last:flex-none"
                aria-current={active ? 'step' : undefined}>
@@ -153,10 +153,10 @@ function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
             </div>
             {i < steps.length - 1 && <div className={`flex-1 h-0.5 mx-2 ${i < idx ? 'bg-brand-500' : 'bg-gray-200'}`}/>}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 // ─── document picker (NF-e) ───────────────────────────────────────────────────
@@ -165,27 +165,27 @@ function DocumentPicker({selected, onToggle}: {
   selected: NfeListOut[]
   onToggle: (n: NfeListOut) => void
 }) {
-  const {selectedOrg} = useAuth()
-  const [incoming, setIncoming] = useState<0 | 1>(0)
-  const [numberSearch, setNumberSearch] = useState('')
-  const debouncedNumber = useDebounce(numberSearch, 300)
+  const {selectedOrg} = useAuth();
+  const [incoming, setIncoming] = useState<0 | 1>(0);
+  const [numberSearch, setNumberSearch] = useState('');
+  const debouncedNumber = useDebounce(numberSearch, 300);
 
   const params = {
     sort: 'desc' as const,
     incoming,
     limit: 50,
     ...(debouncedNumber ? {number: parseInt(debouncedNumber, 10)} : {}),
-  }
+  };
 
   const {data, isLoading} = useQuery({
     queryKey: queryKeys.nfes.list(selectedOrg?.pk, params),
     queryFn: () => apiClient.getNfes(params),
     enabled: !!selectedOrg,
-  })
+  });
 
   // Only authorized NF-es have an XML available for manifestation.
-  const items = (data?.items ?? []).filter((n) => n.status === 'authorized')
-  const selectedKeys = new Set(selected.map((s) => s.sk))
+  const items = (data?.items ?? []).filter((n) => n.status === 'authorized');
+  const selectedKeys = new Set(selected.map((s) => s.sk));
 
   return (
     <div className="space-y-3">
@@ -209,9 +209,9 @@ function DocumentPicker({selected, onToggle}: {
           <p className="p-4 text-sm text-gray-500 text-center">Nenhuma NF-e autorizada encontrada.</p>
         ) : (
           items.map((n) => {
-            const checked = selectedKeys.has(n.sk)
-            const counterparty = incoming === 0 ? n.dest_name : n.emit_name
-            const doc = incoming === 0 ? n.dest_cpf_cnpj : n.emit_cpf_cnpj
+            const checked = selectedKeys.has(n.sk);
+            const counterparty = incoming === 0 ? n.dest_name : n.emit_name;
+            const doc = incoming === 0 ? n.dest_cpf_cnpj : n.emit_cpf_cnpj;
             return (
               <button key={n.sk} type="button" onClick={() => onToggle(n)}
                       className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${checked ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
@@ -227,12 +227,12 @@ function DocumentPicker({selected, onToggle}: {
                 </span>
                 <span className="text-xs text-gray-500 shrink-0">{formatCurrency(n.total)}</span>
               </button>
-            )
+            );
           })
         )}
       </div>
     </div>
-  )
+  );
 }
 
 // ─── municipality reorder list ────────────────────────────────────────────────
@@ -244,12 +244,12 @@ function MunReorderList({title, hint, muns, onReorder}: {
   onReorder: (next: MdfeMunIn[]) => void
 }) {
   const move = (from: number, to: number) => {
-    if (to < 0 || to >= muns.length) return
-    const next = [...muns]
-    const [item] = next.splice(from, 1)
-    next.splice(to, 0, item)
-    onReorder(next)
-  }
+    if (to < 0 || to >= muns.length) return;
+    const next = [...muns];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onReorder(next);
+  };
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</p>
@@ -267,7 +267,7 @@ function MunReorderList({title, hint, muns, onReorder}: {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 // ─── vehicle modal (reuses VehicleForm) — handles both "no vehicle yet" and
@@ -280,24 +280,24 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
   editing?: VehicleOut
   missing?: string[]
 }) {
-  const {selectedOrg} = useAuth()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const qc = useQueryClient();
   const createMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.createVehicle(d),
     onSuccess: (v) => {
-      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
-      onSaved(v)
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)});
+      onSaved(v);
     },
-  })
+  });
   const updateMutation = useMutation({
     mutationFn: (d: VehicleCreate) => apiClient.updateVehicle(editing!.sk, d),
     onSuccess: (v) => {
-      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)})
-      onSaved(v)
+      void qc.invalidateQueries({queryKey: queryKeys.vehicles.list(selectedOrg?.pk)});
+      onSaved(v);
     },
-  })
-  const mutation = editing ? updateMutation : createMutation
-  if (!open || typeof document === 'undefined') return null
+  });
+  const mutation = editing ? updateMutation : createMutation;
+  if (!open || typeof document === 'undefined') return null;
   return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-modal max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -312,14 +312,14 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
         <div className="p-6">
           <VehicleForm initialData={editing} highlightFields={missing}
                        onSubmit={async (d) => {
-                         await mutation.mutateAsync(d)
+                         await mutation.mutateAsync(d);
                        }}
                        loading={mutation.isPending}/>
         </div>
       </div>
     </div>,
     document.body,
-  )
+  );
 }
 
 // ─── cargo step ───────────────────────────────────────────────────────────────
@@ -335,18 +335,18 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, 
   onRedeliveryChange: (key: string) => void
 }) {
   if (isLoading) {
-    return <LoadingSkeleton count={3} height="h-20" rounded="rounded-xl"/>
+    return <LoadingSkeleton count={3} height="h-20" rounded="rounded-xl"/>;
   }
   if (error) {
-    return <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+    return <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>;
   }
-  if (!preview) return null
+  if (!preview) return null;
 
   // Recompute total weight including user-supplied overrides for visual feedback.
   const totalWeight = preview.documents.reduce((sum, d) => {
-    const w = d.has_weight ? parseFloat(d.weight) : parseFloat(weightOverrides[d.access_key] || '0')
-    return sum + (isNaN(w) ? 0 : w)
-  }, 0)
+    const w = d.has_weight ? parseFloat(d.weight) : parseFloat(weightOverrides[d.access_key] || '0');
+    return sum + (isNaN(w) ? 0 : w);
+  }, 0);
 
   return (
     <div className="space-y-4">
@@ -405,255 +405,255 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, 
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 // ─── main form ────────────────────────────────────────────────────────────────
 
 export function MdfeEmitForm() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
 
-  const [step, setStep] = useState<Step>('modal')
-  const [docs, setDocs] = useState<NfeListOut[]>([])
+  const [step, setStep] = useState<Step>('modal');
+  const [docs, setDocs] = useState<NfeListOut[]>([]);
 
   // Cargo preview state.
-  const [weightOverrides, setWeightOverrides] = useState<Record<string, string>>({})
+  const [weightOverrides, setWeightOverrides] = useState<Record<string, string>>({});
 
   // Trajeto state — kept as nullable overrides so the effective values can be
   // derived from the cargo preview without setState-in-effect.
-  const [loadingsOverride, setLoadingsOverride] = useState<MdfeMunIn[] | null>(null)
-  const [unloadingsOverride, setUnloadingsOverride] = useState<MdfeMunIn[] | null>(null)
-  const [ufIniOverride, setUfIniOverride] = useState('')
-  const [ufFimOverride, setUfFimOverride] = useState('')
-  const [routeOverride, setRouteOverride] = useState<string[] | null>(null)
-  const [newRouteUf, setNewRouteUf] = useState('')
-  const [tripStart, setTripStart] = useState('')
-  const [modal, setModal] = useState<ModalId>('rodoviario')
-  const [air, setAir] = useState<MdfeAirModalIn>(EMPTY_AIR)
-  const [rail, setRail] = useState<MdfeRailModalIn>(EMPTY_RAIL)
-  const [water, setWater] = useState<MdfeWaterModalIn>(EMPTY_WATER)
-  const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([])
-  const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([])
-  const [contractors, setContractors] = useState<MdfeContractorIn[]>([])
-  const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([])
-  const [redelivery, setRedelivery] = useState<Record<string, boolean>>({})
-  const [transportUnits, setTransportUnits] = useState<MdfeTransportUnitIn[]>([])
-  const [seals, setSeals] = useState('')
-  const [rodoSeals, setRodoSeals] = useState('')
-  const [portAgentCode, setPortAgentCode] = useState('')
+  const [loadingsOverride, setLoadingsOverride] = useState<MdfeMunIn[] | null>(null);
+  const [unloadingsOverride, setUnloadingsOverride] = useState<MdfeMunIn[] | null>(null);
+  const [ufIniOverride, setUfIniOverride] = useState('');
+  const [ufFimOverride, setUfFimOverride] = useState('');
+  const [routeOverride, setRouteOverride] = useState<string[] | null>(null);
+  const [newRouteUf, setNewRouteUf] = useState('');
+  const [tripStart, setTripStart] = useState('');
+  const [modal, setModal] = useState<ModalId>('rodoviario');
+  const [air, setAir] = useState<MdfeAirModalIn>(EMPTY_AIR);
+  const [rail, setRail] = useState<MdfeRailModalIn>(EMPTY_RAIL);
+  const [water, setWater] = useState<MdfeWaterModalIn>(EMPTY_WATER);
+  const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([]);
+  const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([]);
+  const [contractors, setContractors] = useState<MdfeContractorIn[]>([]);
+  const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([]);
+  const [redelivery, setRedelivery] = useState<Record<string, boolean>>({});
+  const [transportUnits, setTransportUnits] = useState<MdfeTransportUnitIn[]>([]);
+  const [seals, setSeals] = useState('');
+  const [rodoSeals, setRodoSeals] = useState('');
+  const [portAgentCode, setPortAgentCode] = useState('');
 
   // Bulk cargo (single document).
-  const [cepCarrega, setCepCarrega] = useState('')
-  const [cepDescarrega, setCepDescarrega] = useState('')
+  const [cepCarrega, setCepCarrega] = useState('');
+  const [cepDescarrega, setCepDescarrega] = useState('');
 
   // Vehicles (registered only) + register/edit modal.
-  const [vehicleSetId, setVehicleSetId] = useState('')
-  const [vehicleSk, setVehicleSk] = useState<string | null>(null)
-  const [trailerSks, setTrailerSks] = useState<string[]>([])
-  const [gateModal, setGateModal] = useState<{ vehicle: VehicleOut; missing: string[] } | null>(null)
-  const [registerOpen, setRegisterOpen] = useState(false)
+  const [vehicleSetId, setVehicleSetId] = useState('');
+  const [vehicleSk, setVehicleSk] = useState<string | null>(null);
+  const [trailerSks, setTrailerSks] = useState<string[]>([]);
+  const [gateModal, setGateModal] = useState<{ vehicle: VehicleOut; missing: string[] } | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   // Drivers.
-  const [drivers, setDrivers] = useState<MdfeDriverIn[]>([])
-  const [newDriverName, setNewDriverName] = useState('')
-  const [newDriverCpf, setNewDriverCpf] = useState('')
-  const [manualDriverOpen, setManualDriverOpen] = useState(false)
-  const [driverError, setDriverError] = useState<string | null>(null)
+  const [drivers, setDrivers] = useState<MdfeDriverIn[]>([]);
+  const [newDriverName, setNewDriverName] = useState('');
+  const [newDriverCpf, setNewDriverCpf] = useState('');
+  const [manualDriverOpen, setManualDriverOpen] = useState(false);
+  const [driverError, setDriverError] = useState<string | null>(null);
 
-  const [submitError, setSubmitError] = useState<EmitFailure | null>(null)
-  const [showEmitConfirm, setShowEmitConfirm] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<EmitFailure | null>(null);
+  const [showEmitConfirm, setShowEmitConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const {config: mdfeConfig} = useFiscalConfig('mdfe', selectedOrg?.pk)
+  const {config: mdfeConfig} = useFiscalConfig('mdfe', selectedOrg?.pk);
 
   const {data: tractorsData} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'tractor'),
     queryFn: () => apiClient.getVehicles({role: 'tractor', limit: 50}),
     enabled: !!selectedOrg,
-  })
+  });
   const {data: trailersData} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'trailer'),
     queryFn: () => apiClient.getVehicles({role: 'trailer', limit: 50}),
     enabled: !!selectedOrg,
-  })
+  });
 
   const tractorOptions = (tractorsData?.items ?? []).map((v: VehicleOut) => ({
     value: v.sk, label: `${v.plate} · ${v.plate_uf}`,
-  }))
+  }));
   const trailerOptions = (trailersData?.items ?? []).map((v: VehicleOut) => ({
     value: v.sk, label: `${v.plate} · ${v.plate_uf}`,
-  }))
+  }));
 
   const checkVehicle = async (v: VehicleOut, role: 'tractor' | 'trailer') => {
-    const {missing} = await apiClient.getVehicleRequirements(v.sk, 'mdfe', role)
-    if (missing.length > 0) setGateModal({vehicle: v, missing})
-  }
+    const {missing} = await apiClient.getVehicleRequirements(v.sk, 'mdfe', role);
+    if (missing.length > 0) setGateModal({vehicle: v, missing});
+  };
 
   const onSelectTractor = (sk: string | null) => {
-    setVehicleSk(sk)
-    const v = tractorsData?.items.find((x) => x.sk === sk)
-    if (v) void checkVehicle(v, 'tractor')
-  }
+    setVehicleSk(sk);
+    const v = tractorsData?.items.find((x) => x.sk === sk);
+    if (v) void checkVehicle(v, 'tractor');
+  };
 
   const onSelectTrailer = (sk: string) => {
-    setTrailerSks((prev) => prev.includes(sk) ? prev : [...prev, sk])
-    const v = trailersData?.items.find((x) => x.sk === sk)
-    if (v) void checkVehicle(v, 'trailer')
-  }
+    setTrailerSks((prev) => prev.includes(sk) ? prev : [...prev, sk]);
+    const v = trailersData?.items.find((x) => x.sk === sk);
+    if (v) void checkVehicle(v, 'trailer');
+  };
 
-  const removeTrailer = (sk: string) => setTrailerSks((prev) => prev.filter((s) => s !== sk))
+  const removeTrailer = (sk: string) => setTrailerSks((prev) => prev.filter((s) => s !== sk));
 
   const {data: vehicleSetPage} = useQuery({
     queryKey: queryKeys.vehicleSets.list(selectedOrg?.pk),
     queryFn: () => apiClient.getVehicleSets({limit: 100}),
     enabled: !!selectedOrg,
-  })
-  const vehicleSets = vehicleSetPage?.items ?? []
+  });
+  const vehicleSets = vehicleSetPage?.items ?? [];
 
   // A composição só preenche os campos — todos continuam editáveis abaixo. O
   // `vehicle_set_id` segue no payload porque RNTRC e CIOT do conjunto não têm
   // campo neste formulário e são preenchidos pelo backend.
   const applyVehicleSet = async (id: string) => {
-    setVehicleSetId(id)
-    const set = vehicleSets.find((s) => extractId(s.sk, SK_PREFIX.VEHICLE_SET) === id)
-    if (!set) return
+    setVehicleSetId(id);
+    const set = vehicleSets.find((s) => extractId(s.sk, SK_PREFIX.VEHICLE_SET) === id);
+    if (!set) return;
 
     onSelectTractor(set.tractor_sk)
-    ;(set.trailer_sks ?? []).forEach(onSelectTrailer)
+    ;(set.trailer_sks ?? []).forEach(onSelectTrailer);
 
-    const docs = (set.driver_docs ?? []).filter((d) => !drivers.some((x) => x.cpf === d))
+    const docs = (set.driver_docs ?? []).filter((d) => !drivers.some((x) => x.cpf === d));
     const people = await Promise.all(
       docs.map((d) => apiClient.getPerson(`${SK_PREFIX.CPF}${d}`).catch(() => null)),
-    )
-    const found = people.filter((p): p is PersonItemOut => p !== null)
+    );
+    const found = people.filter((p): p is PersonItemOut => p !== null);
     if (found.length < docs.length) {
-      setDriverError('Alguns condutores da composição não estão mais no cadastro.')
+      setDriverError('Alguns condutores da composição não estão mais no cadastro.');
     }
     setDrivers((prev) => [
       ...prev,
       ...found.map((p) => ({name: p.name, cpf: unformatCpfCnpj(p.sk)})),
-    ])
-  }
+    ]);
+  };
 
   // Seguro só aparece com CT-e. O seletor de documentos é NF-e-only no MVP, logo
   // hasCte é sempre falso; mantido explícito para quando o CT-e for habilitado.
-  const hasCte = false
+  const hasCte = false;
   const STEPS = useMemo(() => {
-    const base = baseSteps(modal)
-    return hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base
-  }, [hasCte, modal])
+    const base = baseSteps(modal);
+    return hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base;
+  }, [hasCte, modal]);
 
   // Cargo preview: fetched once documents are chosen and we reach the carga step.
-  const docKeys = docs.map((d) => d.sk)
+  const docKeys = docs.map((d) => d.sk);
   const {data: preview, isLoading: previewLoading, error: previewErr} = useQuery({
     queryKey: queryKeys.mdfes.cargoPreview(selectedOrg?.pk, docKeys),
     queryFn: () => apiClient.previewMdfeCargo(docs.map((d) => ({type: 'nfe' as const, access_key: d.sk}))),
     enabled: !!selectedOrg && docKeys.length > 0 && (step === 'carga' || step === 'transporte' || step === 'veiculo'),
-  })
+  });
 
   // Effective trajeto values: user override, else derived from the preview.
-  const loadings = loadingsOverride ?? preview?.loadings ?? []
-  const unloadings = unloadingsOverride ?? preview?.unloadings ?? []
-  const ufIni = ufIniOverride || preview?.uf_start || ''
-  const ufFim = ufFimOverride || preview?.uf_end || ''
-  const routeNeeded = !!ufIni && !!ufFim && !ufsBorder(ufIni, ufFim)
-  const suggestedRoute = routeNeeded ? suggestRoute(ufIni, ufFim) : []
-  const route = routeOverride ?? suggestedRoute
+  const loadings = loadingsOverride ?? preview?.loadings ?? [];
+  const unloadings = unloadingsOverride ?? preview?.unloadings ?? [];
+  const ufIni = ufIniOverride || preview?.uf_start || '';
+  const ufFim = ufFimOverride || preview?.uf_end || '';
+  const routeNeeded = !!ufIni && !!ufFim && !ufsBorder(ufIni, ufFim);
+  const suggestedRoute = routeNeeded ? suggestRoute(ufIni, ufFim) : [];
+  const route = routeOverride ?? suggestedRoute;
 
   const toggleDoc = (n: NfeListOut) =>
-    setDocs((prev) => prev.some((d) => d.sk === n.sk) ? prev.filter((d) => d.sk !== n.sk) : [...prev, n])
+    setDocs((prev) => prev.some((d) => d.sk === n.sk) ? prev.filter((d) => d.sk !== n.sk) : [...prev, n]);
 
   const addRouteUf = () => {
-    if (newRouteUf && !route.includes(newRouteUf)) setRouteOverride([...route, newRouteUf])
-    setNewRouteUf('')
-  }
+    if (newRouteUf && !route.includes(newRouteUf)) setRouteOverride([...route, newRouteUf]);
+    setNewRouteUf('');
+  };
 
   // Condutor vindo do cadastro. O MDF-e exige CPF (condutor é sempre pessoa
   // física), então uma pessoa jurídica com o papel de condutor é recusada aqui
   // em vez de virar rejeição da SEFAZ.
   const addDriverFromPerson = (person: PersonItemOut | null) => {
-    if (!person) return
-    const cpf = unformatCpfCnpj(person.sk)
+    if (!person) return;
+    const cpf = unformatCpfCnpj(person.sk);
     if (!validateCPF(cpf)) {
-      setDriverError('Condutor precisa ser pessoa física com CPF válido.')
-      return
+      setDriverError('Condutor precisa ser pessoa física com CPF válido.');
+      return;
     }
-    setDriverError(null)
-    if (drivers.some((d) => d.cpf === cpf)) return
-    setDrivers((prev) => [...prev, {name: person.name, cpf}])
-  }
+    setDriverError(null);
+    if (drivers.some((d) => d.cpf === cpf)) return;
+    setDrivers((prev) => [...prev, {name: person.name, cpf}]);
+  };
 
   const addDriver = () => {
-    const cpf = newDriverCpf.replace(/\D/g, '')
-    if (!newDriverName.trim() || !validateCPF(cpf)) return
-    if (drivers.some((c) => c.cpf === cpf)) return
-    setDrivers((prev) => [...prev, {name: newDriverName.trim(), cpf}])
-    setNewDriverName('')
-    setNewDriverCpf('')
-  }
+    const cpf = newDriverCpf.replace(/\D/g, '');
+    if (!newDriverName.trim() || !validateCPF(cpf)) return;
+    if (drivers.some((c) => c.cpf === cpf)) return;
+    setDrivers((prev) => [...prev, {name: newDriverName.trim(), cpf}]);
+    setNewDriverName('');
+    setNewDriverCpf('');
+  };
 
   // UF options limited to the states present in the referenced documents.
   const docUfs = useMemo(() => {
-    const set = new Set<string>()
+    const set = new Set<string>();
     preview?.documents.forEach((d) => {
-      if (d.uf_start) set.add(d.uf_start)
-      if (d.uf_end) set.add(d.uf_end)
-    })
-    return set
-  }, [preview])
-  const ufIniOptions = UF_OPTIONS.filter((o) => docUfs.size === 0 || docUfs.has(o.value))
-  const ufFimOptions = ufIniOptions
+      if (d.uf_start) set.add(d.uf_start);
+      if (d.uf_end) set.add(d.uf_end);
+    });
+    return set;
+  }, [preview]);
+  const ufIniOptions = UF_OPTIONS.filter((o) => docUfs.size === 0 || docUfs.has(o.value));
+  const ufFimOptions = ufIniOptions;
 
-  const isSingleDoc = docs.length === 1
-  const needsBulk = isSingleDoc
+  const isSingleDoc = docs.length === 1;
+  const needsBulk = isSingleDoc;
   const allWeightsKnown = (preview?.documents ?? []).every(
     (d) => d.has_weight || (weightOverrides[d.access_key]?.trim() ?? '') !== '',
-  )
+  );
 
   const canNext = (s: Step): boolean => {
-    if (s === 'modal') return true
-    if (s === 'documentos') return docs.length > 0
-    if (s === 'carga') return !!preview && allWeightsKnown
+    if (s === 'modal') return true;
+    if (s === 'documentos') return docs.length > 0;
+    if (s === 'carga') return !!preview && allWeightsKnown;
     if (s === 'transporte') {
-      const bulkOk = !needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8)
-      const routeOk = !routeNeeded || route.length > 0
-      return !!ufIni && !!ufFim && bulkOk && routeOk
+      const bulkOk = !needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8);
+      const routeOk = !routeNeeded || route.length > 0;
+      return !!ufIni && !!ufFim && bulkOk && routeOk;
     }
-    if (s === 'seguro') return true
-    return false
-  }
+    if (s === 'seguro') return true;
+    return false;
+  };
 
-  const stepIdx = STEPS.findIndex((s) => s.id === step)
+  const stepIdx = STEPS.findIndex((s) => s.id === step);
   const goNext = () => {
-    if (stepIdx < STEPS.length - 1 && canNext(step)) setStep(STEPS[stepIdx + 1].id)
-  }
+    if (stepIdx < STEPS.length - 1 && canNext(step)) setStep(STEPS[stepIdx + 1].id);
+  };
   const goBack = () => {
-    if (stepIdx > 0) setStep(STEPS[stepIdx - 1].id)
-  }
+    if (stepIdx > 0) setStep(STEPS[stepIdx - 1].id);
+  };
 
   // Cada modal fecha com o seu próprio conjunto obrigatório.
   const modalReady = modal === 'rodoviario'
     ? !!vehicleSk && drivers.length > 0
     : modal === 'aereo' ? airComplete(air)
       : modal === 'ferroviario' ? railComplete(rail)
-        : waterComplete(water)
+        : waterComplete(water);
   const canEmit = docs.length > 0 && modalReady && allWeightsKnown
-    && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8))
-  const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal]
+    && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8));
+  const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal];
 
   const handleSubmit = async () => {
-    setSubmitError(null)
+    setSubmitError(null);
     if (emitBlockedReason) {
-      setSubmitError({message: emitBlockedReason})
-      return
+      setSubmitError({message: emitBlockedReason});
+      return;
     }
-    const isRodo = modal === 'rodoviario'
+    const isRodo = modal === 'rodoviario';
     const payload: MdfeEmit = {
       modal,
       documents: docs.map((d) => {
-        const override = weightOverrides[d.sk]?.trim()
-        return {type: 'nfe', access_key: d.sk, ...(override ? {weight: override} : {})}
+        const override = weightOverrides[d.sk]?.trim();
+        return {type: 'nfe', access_key: d.sk, ...(override ? {weight: override} : {})};
       }),
       uf_start: ufIni || undefined,
       uf_end: ufFim || undefined,
@@ -682,20 +682,20 @@ export function MdfeEmitForm() {
       bulk_cargo: needsBulk
         ? {cep_loading: cepCarrega.replace(/\D/g, ''), cep_unloading: cepDescarrega.replace(/\D/g, '')}
         : undefined,
-    }
-    setIsSubmitting(true)
+    };
+    setIsSubmitting(true);
     try {
-      await apiClient.emitMdfe(payload)
-      toast.success('MDF-e enviado, aguardando autorização da SEFAZ.')
-      router.push('/mdfe')
+      await apiClient.emitMdfe(payload);
+      toast.success('MDF-e enviado, aguardando autorização da SEFAZ.');
+      router.push('/mdfe');
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir MDF-e.'))
+      setSubmitError(emitFailure(err, 'Erro ao emitir MDF-e.'));
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const previewError = previewErr instanceof Error ? previewErr.message : (previewErr ? 'Erro ao analisar documentos.' : null)
+  const previewError = previewErr instanceof Error ? previewErr.message : (previewErr ? 'Erro ao analisar documentos.' : null);
 
   return (
     <div className="max-w-3xl">
@@ -953,14 +953,14 @@ export function MdfeEmitForm() {
             {trailerSks.length > 0 && (
               <div className="space-y-1.5">
                 {trailerSks.map((sk) => {
-                  const t = trailerOptions.find((o) => o.value === sk)
+                  const t = trailerOptions.find((o) => o.value === sk);
                   return (
                     <div key={sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                       <span className="text-gray-700">{t?.label ?? sk}</span>
                       <Button type="button" variant="ghost" size="xs" onClick={() => removeTrailer(sk)}
                               className="text-danger hover:text-red-700">remover</Button>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
@@ -1042,8 +1042,8 @@ export function MdfeEmitForm() {
         open={showEmitConfirm}
         onClose={() => setShowEmitConfirm(false)}
         onConfirm={() => {
-          setShowEmitConfirm(false)
-          void handleSubmit()
+          setShowEmitConfirm(false);
+          void handleSubmit();
         }}
         docLabel="MDF-e"
         summary={[
@@ -1063,11 +1063,11 @@ export function MdfeEmitForm() {
       <VehicleRegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)}
                             onSaved={(v) => {
                               setVehicleSk(v.sk);
-                              setRegisterOpen(false)
+                              setRegisterOpen(false);
                             }}/>
       <VehicleRegisterModal open={!!gateModal} onClose={() => setGateModal(null)}
                             editing={gateModal?.vehicle} missing={gateModal?.missing}
                             onSaved={() => setGateModal(null)}/>
     </div>
-  )
+  );
 }

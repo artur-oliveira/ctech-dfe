@@ -20,7 +20,7 @@ export interface BenefitEntry {
 }
 
 /** Literal do leiaute para item sem benefício numa UF que exige a tag. */
-export const SEM_CBENEF = 'SEM CBENEF'
+export const SEM_CBENEF = 'SEM CBENEF';
 
 const BENEFITS_BY_UF: Record<string, readonly BenefitEntry[]> = {
   RS: [
@@ -1923,32 +1923,32 @@ const BENEFITS_BY_UF: Record<string, readonly BenefitEntry[]> = {
     {code: "ES220001", description: "Redução de BC do ICMS"},
     {code: "ES230001", description: "Operações realizadas no âmbito do REPETRO."},
     {code: "ES999999", description: "Situações não previstas nos cBenefs anteriores."},
-  ],}
+  ],};
 
-export const CBENEF_UFS = Object.keys(BENEFITS_BY_UF)
+export const CBENEF_UFS = Object.keys(BENEFITS_BY_UF);
 
 /**
  * Opções para a UF, já com `SEM CBENEF` na frente. Quando o CST é conhecido e a
  * UF publica o par código×CST, filtra por ele.
  */
 export function benefitOptionsForUf(uf?: string | null, cst?: string | null): { value: string; label: string }[] {
-  const entries = (uf && BENEFITS_BY_UF[uf.toUpperCase()]) || []
-  if (entries.length === 0) return []
+  const entries = (uf && BENEFITS_BY_UF[uf.toUpperCase()]) || [];
+  if (entries.length === 0) return [];
   const usable = cst
     ? entries.filter((e) => !e.csts || e.csts.length === 0 || e.csts.includes(cst))
-    : entries
+    : entries;
   return [
     {value: SEM_CBENEF, label: `${SEM_CBENEF} - item sem benefício nesta UF`},
     ...usable.map((e) => ({value: e.code, label: e.description ? `${e.code} - ${e.description}` : e.code})),
-  ]
+  ];
 }
 
 /** A UF publica tabela de benefício? Sem ela, o campo segue livre. */
 export function ufHasBenefitTable(uf?: string | null): boolean {
-  return !!uf && uf.toUpperCase() in BENEFITS_BY_UF
+  return !!uf && uf.toUpperCase() in BENEFITS_BY_UF;
 }
 
 export function isKnownBenefit(uf: string, code: string): boolean {
-  if (code === SEM_CBENEF) return true
-  return (BENEFITS_BY_UF[uf.toUpperCase()] ?? []).some((e) => e.code === code)
+  if (code === SEM_CBENEF) return true;
+  return (BENEFITS_BY_UF[uf.toUpperCase()] ?? []).some((e) => e.code === code);
 }

@@ -1,18 +1,18 @@
-'use client'
+'use client';
 
-import {type ReactNode, useState} from 'react'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {Modal} from '@/components/ui/modal'
-import {JustificationField} from '@/components/ui/justification-field'
-import {Combobox} from '@/components/ui/combobox'
-import {setDocStatusOptimistic} from '@/lib/utils/dfe-status'
-import {CITIES, CITY_OPTIONS} from '@/lib/data/cities'
+import {type ReactNode, useState} from 'react';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {Modal} from '@/components/ui/modal';
+import {JustificationField} from '@/components/ui/justification-field';
+import {Combobox} from '@/components/ui/combobox';
+import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
+import {CITIES, CITY_OPTIONS} from '@/lib/data/cities';
 
-const CANCEL_JUSTIFICATION_MIN_LENGTH = 15
-const CANCEL_JUSTIFICATION_MAX_LENGTH = 255
+const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
+const CANCEL_JUSTIFICATION_MAX_LENGTH = 255;
 
 /** Minimal shape needed to dispatch MDF-e cancel/close actions. */
 export interface MdfeActionTarget {
@@ -29,62 +29,62 @@ export interface MdfeActionTarget {
  * and wire trigger buttons to `openCancel`/`openClose`.
  */
 export function useMdfeActions(orgPk?: string) {
-  const qc = useQueryClient()
-  const [cancelTarget, setCancelTarget] = useState<MdfeActionTarget | null>(null)
-  const [justification, setJustification] = useState('')
-  const [closeTarget, setCloseTarget] = useState<MdfeActionTarget | null>(null)
-  const [closeUf, setCloseUf] = useState('')
-  const [closeMun, setCloseMun] = useState('')
+  const qc = useQueryClient();
+  const [cancelTarget, setCancelTarget] = useState<MdfeActionTarget | null>(null);
+  const [justification, setJustification] = useState('');
+  const [closeTarget, setCloseTarget] = useState<MdfeActionTarget | null>(null);
+  const [closeUf, setCloseUf] = useState('');
+  const [closeMun, setCloseMun] = useState('');
 
   // Optimistically show the transitional status (the GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
   const patchStatus = (accessKey: string, status: 'cancel_pending' | 'close_pending') => {
-    setDocStatusOptimistic(qc, queryKeys.mdfes.lists(orgPk), accessKey, status)
-    void qc.invalidateQueries({queryKey: queryKeys.mdfes.detail(accessKey)})
-  }
+    setDocStatusOptimistic(qc, queryKeys.mdfes.lists(orgPk), accessKey, status);
+    void qc.invalidateQueries({queryKey: queryKeys.mdfes.detail(accessKey)});
+  };
 
   const cancelMutation = useMutation({
     mutationFn: ({accessKey, justification}: { accessKey: string; justification: string }) =>
       apiClient.cancelMdfe(accessKey, justification),
     onSuccess: (_data, {accessKey}) => {
-      setCancelTarget(null)
-      setJustification('')
-      patchStatus(accessKey, 'cancel_pending')
+      setCancelTarget(null);
+      setJustification('');
+      patchStatus(accessKey, 'cancel_pending');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao cancelar MDF-e.'),
-  })
+  });
 
   const closeMutation = useMutation({
     mutationFn: ({accessKey, cMun, uf}: { accessKey: string; cMun: string; uf: string }) =>
       apiClient.closeMdfe(accessKey, cMun, uf || undefined),
     onSuccess: (_data, {accessKey}) => {
-      setCloseTarget(null)
-      setCloseMun('')
-      setCloseUf('')
-      patchStatus(accessKey, 'close_pending')
-      toast.success('Encerramento enviado à SEFAZ.')
+      setCloseTarget(null);
+      setCloseMun('');
+      setCloseUf('');
+      patchStatus(accessKey, 'close_pending');
+      toast.success('Encerramento enviado à SEFAZ.');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao encerrar MDF-e.'),
-  })
+  });
 
   const openCancel = (m: MdfeActionTarget) => {
-    setJustification('')
-    setCancelTarget(m)
-  }
+    setJustification('');
+    setCancelTarget(m);
+  };
   const openClose = (m: MdfeActionTarget) => {
-    setCloseMun('')
-    setCloseUf(m.uf_end ?? '')
-    setCloseTarget(m)
-  }
+    setCloseMun('');
+    setCloseUf(m.uf_end ?? '');
+    setCloseTarget(m);
+  };
 
   const handleConfirmCancel = () => {
-    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return
-    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()})
-  }
+    if (!cancelTarget || justification.trim().length < CANCEL_JUSTIFICATION_MIN_LENGTH) return;
+    cancelMutation.mutate({accessKey: cancelTarget.sk, justification: justification.trim()});
+  };
   const handleConfirmClose = () => {
-    if (!closeTarget || closeMun.length !== 7) return
-    closeMutation.mutate({accessKey: closeTarget.sk, cMun: closeMun, uf: closeUf})
-  }
+    if (!closeTarget || closeMun.length !== 7) return;
+    closeMutation.mutate({accessKey: closeTarget.sk, cMun: closeMun, uf: closeUf});
+  };
 
   const modals: ReactNode = (
     <>
@@ -93,7 +93,7 @@ export function useMdfeActions(orgPk?: string) {
         title={cancelTarget ? `Cancelar MDF-e nº ${cancelTarget.number}` : ''}
         onClose={() => {
           setCancelTarget(null);
-          setJustification('')
+          setJustification('');
         }}
         onSubmit={handleConfirmCancel}
         submitLabel="Confirmar cancelamento"
@@ -125,7 +125,7 @@ export function useMdfeActions(orgPk?: string) {
         onClose={() => {
           setCloseTarget(null);
           setCloseMun('');
-          setCloseUf('')
+          setCloseUf('');
         }}
         onSubmit={handleConfirmClose}
         submitLabel="Confirmar encerramento"
@@ -142,9 +142,9 @@ export function useMdfeActions(orgPk?: string) {
             <Combobox
               value={closeMun}
               onValueChange={(code) => {
-                setCloseMun(code)
-                const city = CITIES.find((c) => c.code === code)
-                setCloseUf(city?.uf ?? '')
+                setCloseMun(code);
+                const city = CITIES.find((c) => c.code === code);
+                setCloseUf(city?.uf ?? '');
               }}
               options={CITY_OPTIONS}
               placeholder="Selecione o município"
@@ -154,7 +154,7 @@ export function useMdfeActions(orgPk?: string) {
         </div>
       </Modal>
     </>
-  )
+  );
 
-  return {openCancel, openClose, modals}
+  return {openCancel, openClose, modals};
 }

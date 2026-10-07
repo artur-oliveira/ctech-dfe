@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {Button} from '@/components/ui/button'
-import {startCompanyHandoff} from '@/lib/handoff'
-import {STEP_COMPANY} from '@/lib/constants/onboarding'
+import {useState} from 'react';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {Button} from '@/components/ui/button';
+import {startCompanyHandoff} from '@/lib/handoff';
+import {STEP_COMPANY} from '@/lib/constants/onboarding';
 
 /**
  * The company layer, which happens in the CTech account.
@@ -22,7 +22,7 @@ import {STEP_COMPANY} from '@/lib/constants/onboarding'
  * and that they come back.
  */
 function CompanyStepContent() {
-  const [leaving, setLeaving] = useState(false)
+  const [leaving, setLeaving] = useState(false);
 
   return (
     <OnboardingShell
@@ -52,15 +52,15 @@ function CompanyStepContent() {
           className="mt-5 w-full sm:w-auto"
           disabled={leaving}
           onClick={() => {
-            setLeaving(true)
-            startCompanyHandoff()
+            setLeaving(true);
+            startCompanyHandoff();
           }}
         >
           {leaving ? 'Abrindo a conta CTech…' : 'Cadastrar empresa na conta CTech'}
         </Button>
       </div>
     </OnboardingShell>
-  )
+  );
 }
 
 export default function CompanyStepPage() {
@@ -68,5 +68,5 @@ export default function CompanyStepPage() {
     <ProtectedRoute>
       <CompanyStepContent/>
     </ProtectedRoute>
-  )
+  );
 }

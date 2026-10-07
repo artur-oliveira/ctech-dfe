@@ -62,7 +62,7 @@ export const ANP_MONO_FUELS: readonly AnpMonoFuel[] = [
   {code: "820101034", description: "ÓLEO DIESEL B S10 - COMUM", taxableUnit: "L", bioPercent: "1", adRemIcms: "1.17"},
   {code: "820101030", description: "ÓLEO DIESEL S10 B20 AUTORIZATIVO", taxableUnit: "L", bioPercent: "1", adRemIcms: "1.17"},
   {code: "820101025", description: "ÓLEO DIESEL S10 B30 AUTORIZATIVO", taxableUnit: "L", bioPercent: "1", adRemIcms: "1.17"},
-]
+];
 
 /** Todos os códigos válidos de cProdANP. */
 export const ANP_CODES: readonly string[] = [
@@ -195,11 +195,11 @@ export const ANP_CODES: readonly string[] = [
   "130101001", "110201060", "110203071", "611006001", "611006002", "611006003", "110203065", "110203064",
   "110206026", "110204050", "110203066", "110203067", "110201061", "110203068", "110105026", "110106008",
   "610902001", "610901001", "610901002", "610901003", "610902002", "610902003", "610901004",
-]
+];
 
-export const ANP_CODE_SET: ReadonlySet<string> = new Set(ANP_CODES)
+export const ANP_CODE_SET: ReadonlySet<string> = new Set(ANP_CODES);
 
-const MONO_BY_CODE = new Map(ANP_MONO_FUELS.map((f) => [f.code, f]))
+const MONO_BY_CODE = new Map(ANP_MONO_FUELS.map((f) => [f.code, f]));
 
 /**
  * Opções do seletor: os monofásicos aparecem com a descrição oficial e vêm
@@ -209,9 +209,9 @@ const MONO_BY_CODE = new Map(ANP_MONO_FUELS.map((f) => [f.code, f]))
 export const ANP_OPTIONS = [
   ...ANP_MONO_FUELS.map((f) => ({value: f.code, label: `${f.code} - ${f.description}`})),
   ...ANP_CODES.filter((c) => !MONO_BY_CODE.has(c)).map((c) => ({value: c, label: c})),
-]
+];
 
 /** Dados publicados do combustível, quando ele é de tributação monofásica. */
 export function anpMonoFuel(code?: string | null): AnpMonoFuel | null {
-  return (code && MONO_BY_CODE.get(code)) || null
+  return (code && MONO_BY_CODE.get(code)) || null;
 }

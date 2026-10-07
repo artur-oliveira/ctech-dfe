@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useEffect} from 'react'
-import {SystemState, SystemStateRetry} from '@/components/SystemState'
-import {Button} from '@/components/ui/button'
+import Link from 'next/link';
+import {useEffect} from 'react';
+import {SystemState, SystemStateRetry} from '@/components/SystemState';
+import {Button} from '@/components/ui/button';
 
 /**
  * The boundary for an uncaught error inside a route.
@@ -17,8 +17,8 @@ import {Button} from '@/components/ui/button'
  */
 export default function ErrorPage({error, reset}: { error: Error & {digest?: string}; reset: () => void }) {
   useEffect(() => {
-    console.error(error)
-  }, [error])
+    console.error(error);
+  }, [error]);
 
   return (
     <SystemState
@@ -30,5 +30,5 @@ export default function ErrorPage({error, reset}: { error: Error & {digest?: str
       <SystemStateRetry onRetry={reset} label="Carregar novamente"/>
       <Button variant="outline" render={<Link href="/dashboard"/>}>Ir para o painel</Button>
     </SystemState>
-  )
+  );
 }

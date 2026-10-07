@@ -1,56 +1,56 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {CreditCardIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {CARD_BAND_OPTIONS} from '@/components/nfe/PaymentCardFields'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import type {PaymentTerminalItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {CreditCardIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {CARD_BAND_OPTIONS} from '@/components/nfe/PaymentCardFields';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import type {PaymentTerminalItemOut} from '@/lib/types/api';
 
 /** Rótulo da bandeira padrão; em branco quando o terminal não define uma. */
 function bandLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—'
-  return CARD_BAND_OPTIONS.find((o) => o.value === code)?.label ?? code
+  if (typeof code !== 'string' || !code) return '—';
+  return CARD_BAND_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 
 function PaymentTerminalsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<PaymentTerminalItemOut>({
       queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getPaymentTerminals({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<PaymentTerminalItemOut>({
     mutationFn: (id) => apiClient.deletePaymentTerminal(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.PAYMENT_TERMINAL),
     getDeletedMessage: (p) => `"${p.name}" excluído`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.paymentTerminals.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -116,7 +116,7 @@ function PaymentTerminalsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function PaymentTerminalsPage() {
@@ -124,5 +124,5 @@ export default function PaymentTerminalsPage() {
     <ProtectedRoute>
       <PaymentTerminalsContent/>
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import type {Control, FieldPath, UseFormSetValue} from 'react-hook-form'
-import {FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Combobox} from '@/components/ui/combobox'
-import {CITIES, CITY_OPTIONS} from '@/lib/data/cities'
-import {maskCep} from '@/lib/utils/masks'
+import {useState} from 'react';
+import type {Control, FieldPath, UseFormSetValue} from 'react-hook-form';
+import {FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Combobox} from '@/components/ui/combobox';
+import {CITIES, CITY_OPTIONS} from '@/lib/data/cities';
+import {maskCep} from '@/lib/utils/masks';
 import type {EntityFormData} from "@/lib/schemas/entity";
 
 interface AddressFieldsProps {
@@ -17,31 +17,31 @@ interface AddressFieldsProps {
 }
 
 export function AddressFields({control, setValue, basePath}: AddressFieldsProps) {
-  const [cepLoading, setCepLoading] = useState(false)
+  const [cepLoading, setCepLoading] = useState(false);
 
-  const p = (field: string) => `${basePath}.${field}` as FieldPath<EntityFormData>
+  const p = (field: string) => `${basePath}.${field}` as FieldPath<EntityFormData>;
 
   const lookupCep = async (raw: string) => {
-    if (raw.length !== 8) return
-    setCepLoading(true)
+    if (raw.length !== 8) return;
+    setCepLoading(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`)
+      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
       const data = await res.json() as {
         erro?: boolean; logradouro?: string; bairro?: string
         localidade?: string; uf?: string; ibge?: string
-      }
-      if (data.erro) return
-      setValue(p('street'), data.logradouro ?? '', {shouldValidate: true})
-      setValue(p('neighborhood'), data.bairro ?? '', {shouldValidate: true})
-      setValue(p('city'), data.localidade ?? '', {shouldValidate: true})
-      setValue(p('state_federation'), data.uf ?? 'SP', {shouldValidate: true})
-      setValue(p('city_ibge_code'), data.ibge ?? '', {shouldValidate: true})
+      };
+      if (data.erro) return;
+      setValue(p('street'), data.logradouro ?? '', {shouldValidate: true});
+      setValue(p('neighborhood'), data.bairro ?? '', {shouldValidate: true});
+      setValue(p('city'), data.localidade ?? '', {shouldValidate: true});
+      setValue(p('state_federation'), data.uf ?? 'SP', {shouldValidate: true});
+      setValue(p('city_ibge_code'), data.ibge ?? '', {shouldValidate: true});
     } catch {
       // silently ignore network errors
     } finally {
-      setCepLoading(false)
+      setCepLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-3">
@@ -62,9 +62,9 @@ export function AddressFields({control, setValue, basePath}: AddressFieldsProps)
               autoComplete="postal-code"
               value={maskCep(String(field.value ?? ''))}
               onChange={(e) => {
-                const raw = e.target.value.replace(/\D/g, '').slice(0, 8)
-                field.onChange(raw)
-                if (raw.length === 8) void lookupCep(raw)
+                const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+                field.onChange(raw);
+                if (raw.length === 8) void lookupCep(raw);
               }}
               onBlur={field.onBlur}
               ref={field.ref}
@@ -139,11 +139,11 @@ export function AddressFields({control, setValue, basePath}: AddressFieldsProps)
               id={field.name}
               value={field.value?.toString() || "SP"}
               onValueChange={(code) => {
-                const city = CITIES.find((c) => c.code === code)
-                if (!city) return
-                field.onChange(code)
-                setValue(p('city'), city.description, {shouldValidate: true})
-                setValue(p('state_federation'), city.uf, {shouldValidate: true})
+                const city = CITIES.find((c) => c.code === code);
+                if (!city) return;
+                field.onChange(code);
+                setValue(p('city'), city.description, {shouldValidate: true});
+                setValue(p('state_federation'), city.uf, {shouldValidate: true});
               }}
               options={CITY_OPTIONS}
               placeholder="Selecione a cidade…"
@@ -154,5 +154,5 @@ export function AddressFields({control, setValue, basePath}: AddressFieldsProps)
         )}
       />
     </div>
-  )
+  );
 }

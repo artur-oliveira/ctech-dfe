@@ -7,7 +7,7 @@
  * de qualquer efeito de provider rodar.
  */
 
-import {MOCK_ENABLED} from './env'
-import {MockDevPanel} from './MockDevPanel'
+import {MOCK_ENABLED} from './env';
+import {MockDevPanel} from './MockDevPanel';
 
-export {MockDevPanel, MOCK_ENABLED}
+export {MockDevPanel, MOCK_ENABLED};

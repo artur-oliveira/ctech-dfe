@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal'
-import {ArrowRight, Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {Button} from '@/components/ui/button'
-import {AuthorizationCard} from '@/components/landing/authorization-card'
-import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents'
-import type {DfeThemeKey} from '@/lib/theme/dfe-theme'
+import {useState} from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal';
+import {ArrowRight, Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {Button} from '@/components/ui/button';
+import {AuthorizationCard} from '@/components/landing/authorization-card';
+import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents';
+import type {DfeThemeKey} from '@/lib/theme/dfe-theme';
 
 const FLOW_STEPS = [
   {
@@ -24,7 +24,7 @@ const FLOW_STEPS = [
     label: 'Autorizar',
     body: 'Em segundos, o documento volta autorizado — pronto para imprimir, baixar ou cancelar se precisar.',
   },
-]
+];
 
 // Capturas reais do sistema, geradas por `npm run screens:capture` a partir do
 // mock — nenhum dado de cliente entra aqui. Alternam de lado na composição.
@@ -56,7 +56,7 @@ const SCREENS = [
     href: '/guide/events',
     linkLabel: 'Entender os eventos',
   },
-]
+];
 
 const BENEFITS = [
   {
@@ -79,7 +79,7 @@ const BENEFITS = [
     title: 'Segurança',
     body: 'Seu certificado fica guardado com criptografia, cada documento é assinado digitalmente e enviado direto para a SEFAZ.',
   },
-]
+];
 
 const PLANS = [
   {
@@ -128,7 +128,7 @@ const PLANS = [
     ],
     highlight: false,
   },
-]
+];
 
 const ROADMAP = [
   {
@@ -143,7 +143,7 @@ const ROADMAP = [
     title: 'Outros documentos fiscais',
     body: 'BP-e, NF Gás, NFAg, NF3e e NFCom',
   },
-]
+];
 
 function LoadingScreen() {
   return (
@@ -155,19 +155,19 @@ function LoadingScreen() {
         <p className="text-gray-600 text-sm">Carregando...</p>
       </div>
     </div>
-  )
+  );
 }
 
 export default function Home() {
-  const {user, loading} = useAuth()
-  const [carouselTheme, setCarouselTheme] = useState<DfeThemeKey>('nfe')
+  const {user, loading} = useAuth();
+  const [carouselTheme, setCarouselTheme] = useState<DfeThemeKey>('nfe');
 
   if (loading) {
-    return <LoadingScreen/>
+    return <LoadingScreen/>;
   }
 
-  const primaryHref = user ? '/dashboard' : '/login'
-  const primaryLabel = user ? 'Ir para o painel' : 'Entrar'
+  const primaryHref = user ? '/dashboard' : '/login';
+  const primaryLabel = user ? 'Ir para o painel' : 'Entrar';
 
   return (
     <div className="min-h-screen bg-white" data-dfe-theme={carouselTheme}>
@@ -426,5 +426,5 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

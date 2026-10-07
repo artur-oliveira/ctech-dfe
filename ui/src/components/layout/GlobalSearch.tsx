@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import {useMemo, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import Fuse, {type IFuseOptions} from 'fuse.js'
-import {Search} from 'lucide-react'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {SEARCH_ENTRIES, type SearchEntry} from '@/lib/navigation/nav'
+import {useMemo, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import Fuse, {type IFuseOptions} from 'fuse.js';
+import {Search} from 'lucide-react';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {SEARCH_ENTRIES, type SearchEntry} from '@/lib/navigation/nav';
 
-const MAX_RESULTS = 8
+const MAX_RESULTS = 8;
 
 /** Empate entre rótulo, palavras-chave e contexto — o rótulo sempre ganha. */
 const FUSE_OPTIONS: IFuseOptions<SearchEntry> = {
@@ -18,7 +18,7 @@ const FUSE_OPTIONS: IFuseOptions<SearchEntry> = {
   ],
   threshold: 0.4,
   ignoreLocation: true,
-}
+};
 
 interface GlobalSearchProps {
   open: boolean
@@ -32,50 +32,50 @@ interface GlobalSearchProps {
  */
 export function GlobalSearch({open, onClose}: GlobalSearchProps) {
   // Montar só quando aberta zera consulta e cursor sem efeito de sincronização.
-  if (!open) return null
-  return <SearchDialog onClose={onClose}/>
+  if (!open) return null;
+  return <SearchDialog onClose={onClose}/>;
 }
 
 function SearchDialog({onClose}: {onClose: () => void}) {
-  const router = useRouter()
-  const {selectedOrg} = useAuth()
-  const role = selectedOrg?.role
-  const [query, setQuery] = useState('')
-  const [cursor, setCursor] = useState(0)
+  const router = useRouter();
+  const {selectedOrg} = useAuth();
+  const role = selectedOrg?.role;
+  const [query, setQuery] = useState('');
+  const [cursor, setCursor] = useState(0);
 
   const entries = useMemo(
     () => SEARCH_ENTRIES.filter(e => !e.roles || (role != null && e.roles.includes(role))),
     [role],
-  )
-  const fuse = useMemo(() => new Fuse(entries, FUSE_OPTIONS), [entries])
+  );
+  const fuse = useMemo(() => new Fuse(entries, FUSE_OPTIONS), [entries]);
 
   const results: SearchEntry[] = useMemo(() => {
-    const term = query.trim()
-    if (!term) return entries.slice(0, MAX_RESULTS)
-    return fuse.search(term, {limit: MAX_RESULTS}).map(r => r.item)
-  }, [query, entries, fuse])
+    const term = query.trim();
+    if (!term) return entries.slice(0, MAX_RESULTS);
+    return fuse.search(term, {limit: MAX_RESULTS}).map(r => r.item);
+  }, [query, entries, fuse]);
 
   const go = (entry: SearchEntry | undefined) => {
-    if (!entry) return
-    onClose()
-    router.push(entry.href)
-  }
+    if (!entry) return;
+    onClose();
+    router.push(entry.href);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setCursor(c => (results.length ? (c + 1) % results.length : 0))
+      e.preventDefault();
+      setCursor(c => (results.length ? (c + 1) % results.length : 0));
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setCursor(c => (results.length ? (c - 1 + results.length) % results.length : 0))
+      e.preventDefault();
+      setCursor(c => (results.length ? (c - 1 + results.length) % results.length : 0));
     } else if (e.key === 'Enter') {
-      e.preventDefault()
-      go(results[cursor])
+      e.preventDefault();
+      go(results[cursor]);
     } else if (e.key === 'Escape') {
-      e.preventDefault()
-      onClose()
+      e.preventDefault();
+      onClose();
     }
-  }
+  };
 
   return (
     <div
@@ -97,8 +97,8 @@ function SearchDialog({onClose}: {onClose: () => void}) {
             autoFocus
             value={query}
             onChange={e => {
-              setQuery(e.target.value)
-              setCursor(0)
+              setQuery(e.target.value);
+              setCursor(0);
             }}
             placeholder="Buscar páginas e cadastros…"
             aria-label="Buscar páginas e cadastros"
@@ -143,5 +143,5 @@ function SearchDialog({onClose}: {onClose: () => void}) {
         </ul>
       </div>
     </div>
-  )
+  );
 }

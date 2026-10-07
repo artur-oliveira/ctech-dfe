@@ -1,25 +1,25 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {ApiError} from '@/lib/api/client'
-import {CARD_BAND_OPTIONS} from '@/components/nfe/PaymentCardFields'
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {ApiError} from '@/lib/api/client';
+import {CARD_BAND_OPTIONS} from '@/components/nfe/PaymentCardFields';
 import {
   type PaymentTerminalFormData,
   paymentTerminalSchema,
-} from '@/lib/schemas/payment-terminals'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document'
-import type {PaymentTerminalCreate, PaymentTerminalItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/payment-terminals';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import {formatCpfCnpj, unformatCpfCnpj} from '@/lib/utils/document';
+import type {PaymentTerminalCreate, PaymentTerminalItemOut} from '@/lib/types/api';
 
 const EMPTY: PaymentTerminalFormData = {
   name: '', cnpj_receb: '', id_term_pag: '', cnpj_pag: '', uf_pag: '', t_band: '',
-}
+};
 
 export interface PaymentTerminalFormProps {
   initialData?: PaymentTerminalItemOut
@@ -28,7 +28,7 @@ export interface PaymentTerminalFormProps {
 }
 
 function toFormData(t: PaymentTerminalItemOut): PaymentTerminalFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
   return {
     name: t.name,
     cnpj_receb: str(t.cnpj_receb),
@@ -36,21 +36,21 @@ function toFormData(t: PaymentTerminalItemOut): PaymentTerminalFormData {
     cnpj_pag: str(t.cnpj_pag),
     uf_pag: str(t.uf_pag),
     t_band: str(t.t_band),
-  }
+  };
 }
 
 /** Campo vazio vira null: um "" gravado é um default silenciosamente vazio. */
-const nullify = (v: string | undefined) => (v ? v : null)
+const nullify = (v: string | undefined) => (v ? v : null);
 
 export function PaymentTerminalForm({initialData, onSubmit, loading}: PaymentTerminalFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<PaymentTerminalFormData>({
     resolver: zodResolver(paymentTerminalSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
   const handleSubmit = async (data: PaymentTerminalFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
@@ -59,11 +59,11 @@ export function PaymentTerminalForm({initialData, onSubmit, loading}: PaymentTer
         cnpj_pag: data.cnpj_pag ? unformatCpfCnpj(data.cnpj_pag) : null,
         uf_pag: nullify(data.uf_pag),
         t_band: nullify(data.t_band),
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o terminal.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar o terminal.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -161,5 +161,5 @@ export function PaymentTerminalForm({initialData, onSubmit, loading}: PaymentTer
         </div>
       </form>
     </Form>
-  )
+  );
 }

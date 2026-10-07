@@ -1,10 +1,10 @@
-import {z} from 'zod'
+import {z} from 'zod';
 
 /**
  * Tipos de referência de ide/NFref (leiauteNFe_v4.00). Espelha os `refKind*`
  * de `api/internal/services/nfes/references.go`.
  */
-export const NFE_REF_KINDS = ['nfe', 'nfesig', 'nf', 'nfp', 'cte', 'ecf'] as const
+export const NFE_REF_KINDS = ['nfe', 'nfesig', 'nf', 'nfp', 'cte', 'ecf'] as const;
 export type NfeRefKind = (typeof NFE_REF_KINDS)[number]
 
 /** Rótulo de cada tipo, para o seletor de documento externo. */
@@ -15,10 +15,10 @@ export const NFE_REF_KIND_LABELS: Record<NfeRefKind, string> = {
   nf: 'NF modelo 1/1A (papel)',
   nfp: 'NF de produtor rural',
   ecf: 'Cupom fiscal (ECF)',
-}
+};
 
 /** Tipos cuja identificação é só a chave de acesso. */
-export const NFE_REF_KEY_KINDS: readonly NfeRefKind[] = ['nfe', 'nfesig', 'cte']
+export const NFE_REF_KEY_KINDS: readonly NfeRefKind[] = ['nfe', 'nfesig', 'cte'];
 
 /**
  * Espelha `NfeRefBody` do backend. Ou `nfe_id` (uma nota da própria base, de
@@ -41,28 +41,28 @@ export const nfeRefSchema = z
     n_coo: z.string().regex(/^\d{1,6}$/).optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.nfe_id) return
+    if (v.nfe_id) return;
     if (!v.kind) {
-      ctx.addIssue({code: 'custom', path: ['kind'], message: 'Escolha uma nota da base ou o tipo do documento externo'})
-      return
+      ctx.addIssue({code: 'custom', path: ['kind'], message: 'Escolha uma nota da base ou o tipo do documento externo'});
+      return;
     }
     if (NFE_REF_KEY_KINDS.includes(v.kind) && !v.access_key) {
-      ctx.addIssue({code: 'custom', path: ['access_key'], message: 'Informe a chave de acesso'})
+      ctx.addIssue({code: 'custom', path: ['access_key'], message: 'Informe a chave de acesso'});
     }
     if (v.kind === 'nf' && !(v.c_uf && v.aamm && v.cnpj && v.mod && v.serie && v.n_nf)) {
-      ctx.addIssue({code: 'custom', path: ['n_nf'], message: 'NF modelo 1/1A exige cUF, AAMM, CNPJ, modelo, série e número'})
+      ctx.addIssue({code: 'custom', path: ['n_nf'], message: 'NF modelo 1/1A exige cUF, AAMM, CNPJ, modelo, série e número'});
     }
     if (v.kind === 'nfp' && !(v.c_uf && v.aamm && (v.cnpj || v.cpf) && v.ie && v.mod && v.serie && v.n_nf)) {
-      ctx.addIssue({code: 'custom', path: ['n_nf'], message: 'NF de produtor exige cUF, AAMM, CNPJ ou CPF, IE, modelo, série e número'})
+      ctx.addIssue({code: 'custom', path: ['n_nf'], message: 'NF de produtor exige cUF, AAMM, CNPJ ou CPF, IE, modelo, série e número'});
     }
     if (v.kind === 'ecf' && !(v.mod && v.n_ecf && v.n_coo)) {
-      ctx.addIssue({code: 'custom', path: ['n_coo'], message: 'Cupom fiscal exige modelo, nECF e nCOO'})
+      ctx.addIssue({code: 'custom', path: ['n_coo'], message: 'Cupom fiscal exige modelo, nECF e nCOO'});
     }
-  })
+  });
 
 export type NfeRefFormData = z.infer<typeof nfeRefSchema>
 
 /** finNFe 2 (complementar), 3 (ajuste) e 4 (devolução) exigem ao menos um NFref. */
 export function finNFeRequiresRef(finNFe: string | null | undefined): boolean {
-  return finNFe === '2' || finNFe === '3' || finNFe === '4'
+  return finNFe === '2' || finNFe === '3' || finNFe === '4';
 }

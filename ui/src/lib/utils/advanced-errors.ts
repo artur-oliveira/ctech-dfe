@@ -22,7 +22,7 @@ const ADVANCED_PERSON_LABELS: Record<string, string> = {
   freight_retention: 'Retenção do frete',
   nfse: 'NFS-e',
   contacts: 'Contatos',
-}
+};
 
 /** The names of the fields with errors inside the section, in reading order. */
 export function advancedErrorLabels(
@@ -32,21 +32,21 @@ export function advancedErrorLabels(
   const labels = Object.entries(ADVANCED_PERSON_LABELS)
     .filter(([key]) => {
       // An organization's IE is asked for up front, in the main card.
-      if (key === 'state_registrations' && isOrg) return false
-      return !!personErrors?.[key]
+      if (key === 'state_registrations' && isOrg) return false;
+      return !!personErrors?.[key];
     })
-    .map(([, label]) => label)
+    .map(([, label]) => label);
 
   // The main address lives in the card above; only the extras are in here.
-  const addresses = personErrors?.addresses
+  const addresses = personErrors?.addresses;
   if (Array.isArray(addresses) && addresses.some((e, i) => i > 0 && e)) {
-    labels.push('Endereços adicionais')
+    labels.push('Endereços adicionais');
   }
-  return labels
+  return labels;
 }
 
 /** "A", "A e B", "A, B e C" — a short list as it is written, not as it is joined. */
 export function listPtBR(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? ''
-  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }

@@ -1,7 +1,7 @@
-import type {Metadata} from 'next'
-import type {ReactNode} from 'react'
-import {JsonLd, softwareApplicationLd} from '@/lib/seo/json-ld'
-import {PUBLIC_ORIGIN} from '@/lib/seo/site'
+import type {Metadata} from 'next';
+import type {ReactNode} from 'react';
+import {JsonLd, softwareApplicationLd} from '@/lib/seo/json-ld';
+import {PUBLIC_ORIGIN} from '@/lib/seo/site';
 
 /**
  * A landing é a única rota do app que os buscadores devem indexar além do guia.
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     url: PUBLIC_ORIGIN,
     type: 'website',
   },
-}
+};
 
 export default function PublicLayout({children}: { children: ReactNode }) {
   return (
@@ -32,5 +32,5 @@ export default function PublicLayout({children}: { children: ReactNode }) {
       <JsonLd data={softwareApplicationLd}/>
       {children}
     </>
-  )
+  );
 }

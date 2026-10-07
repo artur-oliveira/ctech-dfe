@@ -1,5 +1,5 @@
-import {z} from 'zod'
-import {UF_LIST} from '@/lib/schemas/entity'
+import {z} from 'zod';
+import {UF_LIST} from '@/lib/schemas/entity';
 
 export const WHEELSET_OPTIONS = [
   { value: '01', label: 'Truck' },
@@ -8,7 +8,7 @@ export const WHEELSET_OPTIONS = [
   { value: '04', label: 'VAN' },
   { value: '05', label: 'Utilitário' },
   { value: '99', label: 'Outros' },
-]
+];
 
 export const BODYWORK_OPTIONS = [
   { value: '00', label: 'Não aplicável' },
@@ -17,27 +17,27 @@ export const BODYWORK_OPTIONS = [
   { value: '03', label: 'Graneleiro' },
   { value: '04', label: 'Porta Container' },
   { value: '05', label: 'Sider' },
-]
+];
 
 export const OWNER_TYPE_OPTIONS = [
   { value: 'TAC', label: 'TAC – Transportador Autônomo' },
   { value: 'ETC', label: 'ETC – Empresa de Transporte' },
   { value: 'CTC', label: 'CTC – Cooperativa de Transporte' },
-]
+];
 
 export const ROLE_OPTIONS = [
   { value: 'tractor', label: 'Tração (cavalo/caminhão)' },
   { value: 'trailer', label: 'Reboque' },
-]
+];
 
-export {UF_OPTIONS} from '@/lib/schemas/entity'
+export {UF_OPTIONS} from '@/lib/schemas/entity';
 
 const ownerSchema = z.object({
   cpf_cnpj: z.string().min(11, 'CPF/CNPJ obrigatório').max(14),
   rntrc: z.string().regex(/^\d{8,12}$/, 'RNTRC deve ter 8–12 dígitos'),
   name: z.string().min(2, 'Mínimo 2 caracteres').max(255),
   type: z.enum(['TAC', 'ETC', 'CTC'], { error: 'Tipo inválido' }),
-})
+});
 
 export const vehicleSchema = z.object({
   plate: z
@@ -53,7 +53,7 @@ export const vehicleSchema = z.object({
   cap_m3: z.string().regex(/^\d+$/, 'Capacidade deve ser um número inteiro positivo').optional().or(z.literal('')),
   cint: z.string().max(10).optional(),
   owner: ownerSchema.optional(),
-})
+});
 
 export type VehicleFormData = z.infer<typeof vehicleSchema>
 export type OwnerFormData = z.infer<typeof ownerSchema>

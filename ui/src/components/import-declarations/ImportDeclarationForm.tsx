@@ -1,31 +1,31 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useFieldArray, useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {ApiError} from '@/lib/api/client'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
+import {useState} from 'react';
+import {useFieldArray, useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {ApiError} from '@/lib/api/client';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {
   TP_INTERMEDIO_OPTIONS,
   TP_VIA_TRANSP_MARITIMA,
   TP_VIA_TRANSP_OPTIONS,
   type ImportDeclarationFormData,
   importDeclarationSchema,
-} from '@/lib/schemas/import-declarations'
-import type {ImportAdditionIn, ImportDeclarationCreate, ImportDeclarationItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/import-declarations';
+import type {ImportAdditionIn, ImportDeclarationCreate, ImportDeclarationItemOut} from '@/lib/types/api';
 
-const EMPTY_ADDITION = {n_adicao: '1', c_fabricante: '', v_desc_di: '', n_draw: ''}
+const EMPTY_ADDITION = {n_adicao: '1', c_fabricante: '', v_desc_di: '', n_draw: ''};
 
 const EMPTY: ImportDeclarationFormData = {
   name: '', n_di: '', d_di: '', x_loc_desemb: '', uf_desemb: 'SP', d_desemb: '',
   tp_via_transp: '01', v_afrmm: '', tp_intermedio: '1', cnpj: '', uf_terceiro: '',
   c_exportador: '', additions: [EMPTY_ADDITION],
-}
+};
 
 export interface ImportDeclarationFormProps {
   initialData?: ImportDeclarationItemOut
@@ -33,10 +33,10 @@ export interface ImportDeclarationFormProps {
   loading?: boolean
 }
 
-const str = (v: unknown) => (typeof v === 'string' ? v : '')
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
 function toFormData(di: ImportDeclarationItemOut): ImportDeclarationFormData {
-  const additions = Array.isArray(di.additions) ? di.additions : []
+  const additions = Array.isArray(di.additions) ? di.additions : [];
   return {
     name: di.name,
     n_di: di.n_di,
@@ -58,28 +58,28 @@ function toFormData(di: ImportDeclarationItemOut): ImportDeclarationFormData {
         n_draw: a.n_draw ?? '',
       }))
       : [EMPTY_ADDITION],
-  }
+  };
 }
 
-const nullify = (v: string | undefined) => (v ? v : null)
+const nullify = (v: string | undefined) => (v ? v : null);
 
 export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDeclarationFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<ImportDeclarationFormData>({
     resolver: zodResolver(importDeclarationSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
-  const {fields, append, remove} = useFieldArray({control: form.control, name: 'additions'})
-  const viaTransp = useWatch({control: form.control, name: 'tp_via_transp'})
+  });
+  const {fields, append, remove} = useFieldArray({control: form.control, name: 'additions'});
+  const viaTransp = useWatch({control: form.control, name: 'tp_via_transp'});
 
   const handleSubmit = async (data: ImportDeclarationFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     const additions: ImportAdditionIn[] = data.additions.map((a) => ({
       n_adicao: a.n_adicao,
       c_fabricante: a.c_fabricante,
       v_desc_di: nullify(a.v_desc_di),
       n_draw: nullify(a.n_draw),
-    }))
+    }));
     try {
       await onSubmit({
         name: data.name,
@@ -95,11 +95,11 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
         uf_terceiro: nullify(data.uf_terceiro),
         c_exportador: data.c_exportador,
         additions,
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a declaração.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a declaração.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -264,5 +264,5 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
         </div>
       </form>
     </Form>
-  )
+  );
 }

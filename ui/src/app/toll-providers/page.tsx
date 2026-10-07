@@ -1,56 +1,56 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {RouteIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {TP_VALE_PED_OPTIONS} from '@/lib/schemas/toll-providers'
-import type {TollProviderItemOut} from '@/lib/types/api'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {RouteIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {TP_VALE_PED_OPTIONS} from '@/lib/schemas/toll-providers';
+import type {TollProviderItemOut} from '@/lib/types/api';
 
 /** Rótulo do tipo do vale; em branco quando a fornecedora não define um. */
 function tpValeLabel(code: unknown): string {
-  if (typeof code !== 'string' || !code) return '—'
-  return TP_VALE_PED_OPTIONS.find((o) => o.value === code)?.label ?? code
+  if (typeof code !== 'string' || !code) return '—';
+  return TP_VALE_PED_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 
 function TollProvidersContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<TollProviderItemOut>({
       queryKey: queryKeys.tollProviders.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getTollProviders({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<TollProviderItemOut>({
     mutationFn: (id) => apiClient.deleteTollProvider(id),
     getId: (p) => extractId(p.sk, SK_PREFIX.TOLL_PROVIDER),
     getDeletedMessage: (p) => `"${p.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.tollProviders.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.tollProviders.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -113,7 +113,7 @@ function TollProvidersContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function TollProvidersPage() {
@@ -121,5 +121,5 @@ export default function TollProvidersPage() {
     <ProtectedRoute>
       <TollProvidersContent/>
     </ProtectedRoute>
-  )
+  );
 }

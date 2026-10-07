@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import React, {useEffect, useRef, useSyncExternalStore} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
-import {CloudOff, RefreshCw, WifiOff} from 'lucide-react'
-import {Button} from '@/components/ui/button'
-import {MOCK_ENABLED} from '@/lib/mock/env'
+import React, {useEffect, useRef, useSyncExternalStore} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
+import {CloudOff, RefreshCw, WifiOff} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {MOCK_ENABLED} from '@/lib/mock/env';
 import {
   checkApiLiveness,
   getApiLivenessSnapshot,
@@ -13,10 +13,10 @@ import {
   markApiOffline,
   subscribeApiLiveness,
   type ApiLivenessSnapshot,
-} from './liveness'
+} from './liveness';
 
 export function useApiLiveness(): ApiLivenessSnapshot {
-  return useSyncExternalStore(subscribeApiLiveness, getApiLivenessSnapshot, getServerApiLivenessSnapshot)
+  return useSyncExternalStore(subscribeApiLiveness, getApiLivenessSnapshot, getServerApiLivenessSnapshot);
 }
 
 /**
@@ -27,54 +27,54 @@ export function useApiLiveness(): ApiLivenessSnapshot {
  * no "tente novamente" on every card.
  */
 export function NetworkProvider({children}: { children: React.ReactNode }) {
-  const state = useApiLiveness()
-  const queryClient = useQueryClient()
-  const checkNowRef = useRef<() => void>(() => undefined)
+  const state = useApiLiveness();
+  const queryClient = useQueryClient();
+  const checkNowRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
-    if (MOCK_ENABLED) return
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let failures = 0
-    let cancelled = false
+    if (MOCK_ENABLED) return undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let failures = 0;
+    let cancelled = false;
 
     async function runCheck() {
-      if (timer) clearTimeout(timer)
-      const wasUnavailable = getApiLivenessSnapshot().status === 'unavailable'
-      const available = await checkApiLiveness()
-      if (cancelled) return
-      failures = available ? 0 : failures + 1
-      if (available && wasUnavailable) void queryClient.refetchQueries({type: 'active'})
-      timer = setTimeout(() => void runCheck(), livenessPollDelay(failures))
+      if (timer) clearTimeout(timer);
+      const wasUnavailable = getApiLivenessSnapshot().status === 'unavailable';
+      const available = await checkApiLiveness();
+      if (cancelled) return;
+      failures = available ? 0 : failures + 1;
+      if (available && wasUnavailable) void queryClient.refetchQueries({type: 'active'});
+      timer = setTimeout(() => void runCheck(), livenessPollDelay(failures));
     }
 
-    checkNowRef.current = () => void runCheck()
-    void runCheck()
+    checkNowRef.current = () => void runCheck();
+    void runCheck();
 
-    const onOnline = () => void runCheck()
+    const onOnline = () => void runCheck();
     const onOffline = () => {
-      if (timer) clearTimeout(timer)
-      markApiOffline()
-      failures += 1
-      timer = setTimeout(() => void runCheck(), livenessPollDelay(failures))
-    }
+      if (timer) clearTimeout(timer);
+      markApiOffline();
+      failures += 1;
+      timer = setTimeout(() => void runCheck(), livenessPollDelay(failures));
+    };
     const onVisibility = () => {
       if (document.visibilityState === 'visible' && getApiLivenessSnapshot().status !== 'available') {
-        void runCheck()
+        void runCheck();
       }
-    }
+    };
 
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      cancelled = true
-      checkNowRef.current = () => undefined
-      if (timer) clearTimeout(timer)
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
-  }, [queryClient])
+      cancelled = true;
+      checkNowRef.current = () => undefined;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [queryClient]);
 
   return (
     <>
@@ -86,7 +86,7 @@ export function NetworkProvider({children}: { children: React.ReactNode }) {
         />
       )}
     </>
-  )
+  );
 }
 
 /**
@@ -95,7 +95,7 @@ export function NetworkProvider({children}: { children: React.ReactNode }) {
  * one thing an outage banner must not do.
  */
 function NetworkStatusBanner({offline, onRetry}: { offline: boolean; onRetry: () => void }) {
-  const Icon = offline ? WifiOff : CloudOff
+  const Icon = offline ? WifiOff : CloudOff;
   return (
     <aside
       role="status"
@@ -119,5 +119,5 @@ function NetworkStatusBanner({offline, onRetry}: { offline: boolean; onRetry: ()
         </Button>
       </div>
     </aside>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import {z} from 'zod'
+import {z} from 'zod';
 
-const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Use ponto decimal, ex: 1000.00')
-const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida')
-const isoDate = z.iso.date('Use AAAA-MM-DD')
+const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Use ponto decimal, ex: 1000.00');
+const percent = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'Alíquota inválida');
+const isoDate = z.iso.date('Use AAAA-MM-DD');
 
 /**
  * Eventos que o contribuinte pode oferecer no seletor da UI. Espelha
@@ -12,7 +12,7 @@ const isoDate = z.iso.date('Use AAAA-MM-DD')
  */
 export const CONTRIBUINTE_EVENTS = [
   '101101', '101103', '202201', '203202', '204203', '202205', '203206', '204207', '205208',
-] as const
+] as const;
 
 export const EVENT_LABELS: Record<string, string> = {
   '101101': 'Cancelamento',
@@ -25,13 +25,13 @@ export const EVENT_LABELS: Record<string, string> = {
   '203206': 'Rejeição do tomador',
   '204207': 'Rejeição do intermediário',
   '205208': 'Anulação de rejeição',
-}
+};
 
 // go-dfe/nfse/constants.go EventsRequiringMotivo, menos 105102 (não é
 // oferecido pela UI — ver CONTRIBUINTE_EVENTS acima).
-const EVENTS_REQUIRING_REASON_CODE = new Set(['101101', '101103', '202205', '203206', '204207'])
+const EVENTS_REQUIRING_REASON_CODE = new Set(['101101', '101103', '202205', '203206', '204207']);
 // go-dfe/nfse/constants.go EventsRequiringXMotivo
-const EVENTS_REQUIRING_REASON_DESCRIPTION = new Set(['101101', '101103'])
+const EVENTS_REQUIRING_REASON_DESCRIPTION = new Set(['101101', '101103']);
 
 const nfseServiceItemSchema = z.object({
   service_id: z.string().min(1, 'Selecione um serviço do catálogo'),
@@ -39,7 +39,7 @@ const nfseServiceItemSchema = z.object({
   value: money.optional().or(z.literal('')),
   tax_rate: percent.optional().or(z.literal('')),
   c_trib_mun: z.string().max(20).optional().or(z.literal('')),
-})
+});
 
 export const nfseEmitSchema = z
   .object({
@@ -61,23 +61,23 @@ export const nfseEmitSchema = z
         code: z.ZodIssueCode.custom,
         path: ['provider_person_id'],
         message: 'Obrigatório quando a emissão não é pelo próprio prestador',
-      })
+      });
     }
     if ((v.tp_emit === '2' || v.tp_emit === '3') && !v.motivo_emis_ti) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['motivo_emis_ti'],
         message: 'Obrigatório quando a emissão é por tomador ou intermediário',
-      })
+      });
     }
     if (v.substitutes_access_key && !v.substitutes_reason) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['substitutes_reason'],
         message: 'Motivo obrigatório na substituição',
-      })
+      });
     }
-  })
+  });
 
 export type NfseEmitFormData = z.infer<typeof nfseEmitSchema>
 
@@ -90,12 +90,12 @@ export const nfseEventSchema = z
   })
   .superRefine((v, ctx) => {
     if (EVENTS_REQUIRING_REASON_CODE.has(v.event_type) && !v.reason_code) {
-      ctx.addIssue({code: z.ZodIssueCode.custom, path: ['reason_code'], message: 'Código do motivo obrigatório'})
+      ctx.addIssue({code: z.ZodIssueCode.custom, path: ['reason_code'], message: 'Código do motivo obrigatório'});
     }
     if (EVENTS_REQUIRING_REASON_DESCRIPTION.has(v.event_type) && !v.reason_description) {
-      ctx.addIssue({code: z.ZodIssueCode.custom, path: ['reason_description'], message: 'Descrição do motivo obrigatória'})
+      ctx.addIssue({code: z.ZodIssueCode.custom, path: ['reason_description'], message: 'Descrição do motivo obrigatória'});
     }
-  })
+  });
 
 export type NfseEventFormData = z.infer<typeof nfseEventSchema>
 
@@ -105,6 +105,6 @@ export const nfseCancelSchema = z.object({
   reason_code: z.string().min(1, 'Código do motivo obrigatório').max(2),
   reason_description: z.string().min(1, 'Descrição do motivo obrigatória').max(255),
   sequence_number: z.number().int().min(1).max(999).optional(),
-})
+});
 
 export type NfseCancelFormData = z.infer<typeof nfseCancelSchema>

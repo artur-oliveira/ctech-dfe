@@ -5,5 +5,5 @@
  */
 
 export async function mockDoRefresh(): Promise<{ accessToken: string }> {
-  return {accessToken: 'mock-access-token'}
+  return {accessToken: 'mock-access-token'};
 }

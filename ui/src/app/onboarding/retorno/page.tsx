@@ -1,18 +1,18 @@
-'use client'
+'use client';
 
-import {useEffect, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {useQuery} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {OnboardingShell} from '@/components/onboarding/OnboardingShell'
-import {Button} from '@/components/ui/button'
-import {formatCents} from '@/lib/constants/billing'
-import {ONBOARDING_ROOT, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding'
+import {useEffect, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {useQuery} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
+import {Button} from '@/components/ui/button';
+import {formatCents} from '@/lib/constants/billing';
+import {ONBOARDING_ROOT, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding';
 
 /** How often the settlement snapshot is re-read while the user waits. */
-const POLL_INTERVAL_MS = 3_000
+const POLL_INTERVAL_MS = 3_000;
 
 /**
  * How long the screen waits before saying so out loud.
@@ -21,30 +21,30 @@ const POLL_INTERVAL_MS = 3_000
  * screen with no exit is worse than a slow payment: it turns a wait into a
  * support call. After a minute this stops pretending and offers a way forward.
  */
-const POLL_CEILING_MS = 60_000
+const POLL_CEILING_MS = 60_000;
 
 function CheckoutReturnContent() {
-  const router = useRouter()
-  const [gaveUpWaiting, setGaveUpWaiting] = useState(false)
+  const router = useRouter();
+  const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
 
   const {data: subscription} = useQuery({
     queryKey: queryKeys.billing.subscription(),
     queryFn: () => apiClient.getSubscription(),
     refetchInterval: gaveUpWaiting ? false : POLL_INTERVAL_MS,
-  })
+  });
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setGaveUpWaiting(true), POLL_CEILING_MS)
-    return () => window.clearTimeout(timer)
-  }, [])
+    const timer = window.setTimeout(() => setGaveUpWaiting(true), POLL_CEILING_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  const settled = subscription?.grants_service === true
+  const settled = subscription?.grants_service === true;
   useEffect(() => {
-    if (settled) router.replace(`${ONBOARDING_ROOT}/${STEP_COMPANY}`)
-  }, [settled, router])
+    if (settled) router.replace(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+  }, [settled, router]);
 
-  const invoice = subscription?.open_invoice
-  const noSubscription = subscription?.has_subscription === false
+  const invoice = subscription?.open_invoice;
+  const noSubscription = subscription?.has_subscription === false;
 
   if (noSubscription) {
     return (
@@ -57,7 +57,7 @@ function CheckoutReturnContent() {
           Escolher plano
         </Button>
       </OnboardingShell>
-    )
+    );
   }
 
   return (
@@ -95,7 +95,7 @@ function CheckoutReturnContent() {
                 variant="outline"
                 className="mt-4 w-full sm:w-auto"
                 onClick={() => {
-                  window.location.href = invoice.checkout_url!
+                  window.location.href = invoice.checkout_url!;
                 }}
               >
                 Abrir a tela de pagamento
@@ -119,7 +119,7 @@ function CheckoutReturnContent() {
         </p>
       </div>
     </OnboardingShell>
-  )
+  );
 }
 
 export default function CheckoutReturnPage() {
@@ -127,5 +127,5 @@ export default function CheckoutReturnPage() {
     <ProtectedRoute>
       <CheckoutReturnContent/>
     </ProtectedRoute>
-  )
+  );
 }

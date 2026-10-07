@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Button} from '@/components/ui/button'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {ApiError} from '@/lib/api/client'
-import {type FuelPumpFormData, fuelPumpSchema} from '@/lib/schemas/fuel-pumps'
-import type {FuelPumpCreate, FuelPumpItemOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {ApiError} from '@/lib/api/client';
+import {type FuelPumpFormData, fuelPumpSchema} from '@/lib/schemas/fuel-pumps';
+import type {FuelPumpCreate, FuelPumpItemOut} from '@/lib/types/api';
 
-const EMPTY: FuelPumpFormData = {name: '', n_bico: '', n_bomba: '', n_tanque: ''}
+const EMPTY: FuelPumpFormData = {name: '', n_bico: '', n_bomba: '', n_tanque: ''};
 
 export interface FuelPumpFormProps {
   initialData?: FuelPumpItemOut
@@ -20,32 +20,32 @@ export interface FuelPumpFormProps {
 }
 
 function toFormData(p: FuelPumpItemOut): FuelPumpFormData {
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
-  return {name: p.name, n_bico: str(p.n_bico), n_bomba: str(p.n_bomba), n_tanque: str(p.n_tanque)}
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  return {name: p.name, n_bico: str(p.n_bico), n_bomba: str(p.n_bomba), n_tanque: str(p.n_tanque)};
 }
 
 export function FuelPumpForm({initialData, onSubmit, loading}: FuelPumpFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<FuelPumpFormData>({
     resolver: zodResolver(fuelPumpSchema),
     defaultValues: initialData ? toFormData(initialData) : EMPTY,
-  })
+  });
 
-  const lastReading = typeof initialData?.last_v_enc_fin === 'string' ? initialData.last_v_enc_fin : ''
+  const lastReading = typeof initialData?.last_v_enc_fin === 'string' ? initialData.last_v_enc_fin : '';
 
   const handleSubmit = async (data: FuelPumpFormData) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
       await onSubmit({
         name: data.name,
         n_bico: data.n_bico,
         n_bomba: data.n_bomba ?? '',
         n_tanque: data.n_tanque ?? '',
-      })
+      });
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a bomba.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Não foi possível salvar a bomba.');
     }
-  }
+  };
 
   return (
     <Form {...form}>
@@ -113,5 +113,5 @@ export function FuelPumpForm({initialData, onSubmit, loading}: FuelPumpFormProps
         </div>
       </form>
     </Form>
-  )
+  );
 }

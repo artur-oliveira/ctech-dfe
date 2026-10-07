@@ -11,30 +11,30 @@
  * these helpers caused.
  */
 export const isCompanyKey = (pk: string): boolean =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pk)
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pk);
 
 export const formatCpfCnpj = (pk: string): string => {
   const raw = unformatCpfCnpj(pk);
-  if (isCompanyKey(raw)) return raw
+  if (isCompanyKey(raw)) return raw;
   if (raw.length === 11)
-    return raw.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-  return raw.replace(/([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})/, '$1.$2.$3/$4-$5')
-}
+    return raw.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  return raw.replace(/([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})/, '$1.$2.$3/$4-$5');
+};
 
 export const unformatCpfCnpj = (pk: string): string => {
   // A company id is not a document. Stripping its hyphens and uppercasing its
   // hex produced a value the API refuses, which is how every screen in the
   // product would have started answering "organização inválida" at once.
-  if (isCompanyKey(pk)) return pk
+  if (isCompanyKey(pk)) return pk;
   return pk.replace(/^(CPF_|CNPJ_)/, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-}
+};
 
 export const docLabel = (pk: string): string => {
   // Empty rather than a guess: labelling a company id "CNPJ" prints a wrong
   // word next to a value that is not one. The caller decides what to render.
-  if (isCompanyKey(pk)) return ''
-  return pk.startsWith('CPF_') ? 'CPF' : 'CNPJ'
-}
+  if (isCompanyKey(pk)) return '';
+  return pk.startsWith('CPF_') ? 'CPF' : 'CNPJ';
+};
 
 /** What an organization's document reader needs. */
 type OrgLike = {
@@ -56,20 +56,20 @@ type OrgLike = {
  * Returning the key is exactly the bug this replaces.
  */
 export const orgTaxId = (org: OrgLike): string => {
-  if (org.tax_id) return org.tax_id
-  if (org.cpf_or_cnpj) return unformatCpfCnpj(org.cpf_or_cnpj)
-  if (isCompanyKey(org.pk)) return ''
-  return unformatCpfCnpj(org.pk)
-}
+  if (org.tax_id) return org.tax_id;
+  if (org.cpf_or_cnpj) return unformatCpfCnpj(org.cpf_or_cnpj);
+  if (isCompanyKey(org.pk)) return '';
+  return unformatCpfCnpj(org.pk);
+};
 
 /** Whether the organization issues as a legal person. Same fallback as above. */
 export const orgIsPJ = (org: OrgLike): boolean => {
-  if (org.tax_id_kind) return org.tax_id_kind === 'cnpj'
-  return orgTaxId(org).length === 14
-}
+  if (org.tax_id_kind) return org.tax_id_kind === 'cnpj';
+  return orgTaxId(org).length === 14;
+};
 
 type PersonLike = {sk: string; cpf_or_cnpj?: string | null}
 
 /** A person's display document without confusing an organization UUID for one. */
 export const personTaxId = (person: PersonLike): string =>
-  person.cpf_or_cnpj ? unformatCpfCnpj(person.cpf_or_cnpj) : unformatCpfCnpj(person.sk)
+  person.cpf_or_cnpj ? unformatCpfCnpj(person.cpf_or_cnpj) : unformatCpfCnpj(person.sk);

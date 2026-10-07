@@ -1,6 +1,6 @@
-import {ChevronLeft, ChevronRight} from 'lucide-react'
-import {Button} from '@/components/ui/button'
-import {cn} from '@/lib/utils'
+import {ChevronLeft, ChevronRight} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {cn} from '@/lib/utils';
 
 interface PaginationProps {
   hasNext: boolean
@@ -19,7 +19,7 @@ export function Pagination({
                              isLoading = false,
                              className,
                            }: PaginationProps) {
-  if (!hasNext && !hasPrevious) return null
+  if (!hasNext && !hasPrevious) return null;
 
   return (
     <div className={cn('flex items-center gap-4 justify-end pt-4', className)}>
@@ -43,5 +43,5 @@ export function Pagination({
         <ChevronRight/>
       </Button>
     </div>
-  )
+  );
 }

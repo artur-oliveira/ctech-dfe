@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useState} from 'react'
-import {Input} from '@/components/ui/input'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Button} from '@/components/ui/button'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
-import type {NfeLocalIn, NfeLocalOut} from '@/lib/types/api'
+import {useState} from 'react';
+import {Input} from '@/components/ui/input';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Button} from '@/components/ui/button';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
+import type {NfeLocalIn, NfeLocalOut} from '@/lib/types/api';
 
 export interface LocationPickerProps {
   label: string
@@ -19,19 +19,19 @@ export interface LocationPickerProps {
 
 const EMPTY_LOCAL: NfeLocalIn = {
   x_lgr: '', nro: '', x_cpl: '', x_bairro: '', c_mun: '', x_mun: '', uf: 'SP',
-}
+};
 
 function localsMatch(saved: NfeLocalOut, current: NfeLocalIn | null): boolean {
-  if (!current) return false
-  return saved.x_lgr === current.x_lgr && saved.nro === current.nro
+  if (!current) return false;
+  return saved.x_lgr === current.x_lgr && saved.nro === current.nro;
 }
 
 /** Free-form entrega/retirada address for NF-e emission, with a picker over
  * locations saved from previous emissions (see delivery_locations /
  * pickup_locations) so the user isn't retyping the same address every time. */
 export function LocationPicker({label, savedLocations, value, onChange, save, onSaveChange}: LocationPickerProps) {
-  const [open, setOpen] = useState(false)
-  const [manual, setManual] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [manual, setManual] = useState(false);
 
   if (!open) {
     return (
@@ -39,11 +39,11 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
               className="gap-1.5 text-brand-600 hover:text-brand-700 px-0">
         + {label}
       </Button>
-    )
+    );
   }
 
-  const set = (patch: Partial<NfeLocalIn>) => onChange({...(value ?? EMPTY_LOCAL), ...patch})
-  const showManualForm = manual || savedLocations.length === 0
+  const set = (patch: Partial<NfeLocalIn>) => onChange({...(value ?? EMPTY_LOCAL), ...patch});
+  const showManualForm = manual || savedLocations.length === 0;
 
   return (
     <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -51,10 +51,10 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
         <p className="text-sm font-medium text-gray-600">{label}</p>
         <Button type="button" variant="ghost" size="xs"
                 onClick={() => {
-                  setOpen(false)
-                  setManual(false)
-                  onChange(null)
-                  onSaveChange(false)
+                  setOpen(false);
+                  setManual(false);
+                  onChange(null);
+                  onSaveChange(false);
                 }}
                 className="text-gray-500 hover:text-danger hover:bg-red-50">
           Remover
@@ -122,5 +122,5 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
         </div>
       )}
     </div>
-  )
+  );
 }

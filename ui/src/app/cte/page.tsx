@@ -1,47 +1,47 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import {useState} from 'react'
-import {useMutation} from '@tanstack/react-query'
-import {toast} from 'sonner'
-import {apiClient, ApiError} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {ComingSoon} from '@/components/ui/coming-soon'
-import {EmptyState} from '@/components/ui/empty-state'
-import {CteIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PenaltyBanner} from '@/components/ui/penalty-banner'
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import type {NFeDistributionOut} from '@/lib/types/api'
-import {HomologationBanner} from '@/components/ui/homologation-banner'
-import {ConfigRequiredBanner} from '@/components/ui/config-required-banner'
-import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig'
-import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {cteSchemaLabel} from '@/lib/constants/distributions'
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import Link from 'next/link';
+import {useState} from 'react';
+import {useMutation} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {ComingSoon} from '@/components/ui/coming-soon';
+import {EmptyState} from '@/components/ui/empty-state';
+import {CteIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PenaltyBanner} from '@/components/ui/penalty-banner';
+import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import type {NFeDistributionOut} from '@/lib/types/api';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {formatDatetimeBR, formatNsu, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {cteSchemaLabel} from '@/lib/constants/distributions';
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 
 type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
 
 function CTeRow({item}: { item: NFeDistributionOut }) {
-  const [xmlLoading, setXmlLoading] = useState(false)
+  const [xmlLoading, setXmlLoading] = useState(false);
   
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-		const download = await apiClient.downloadDistributionXml('cte', item.nsu)
-		triggerRemoteDownload(download.url)
+		const download = await apiClient.downloadDistributionXml('cte', item.nsu);
+		triggerRemoteDownload(download.url);
     } catch {
-      toast.error('Erro ao baixar XML.')
+      toast.error('Erro ao baixar XML.');
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
   
   return (
     <tr className={TABLE_ROW}>
@@ -75,39 +75,39 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
         </div>
       </td>
     </tr>
-  )
+  );
 }
 
 function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boolean }) {
-  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null)
+  const [penaltyMessage, setPenaltyMessage] = useState<string | null>(null);
   
-  const {config} = useFiscalConfig('cte', orgPk)
+  const {config} = useFiscalConfig('cte', orgPk);
   
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<NFeDistributionOut>({
     queryKey: queryKeys.distributions.history('cte', orgPk),
     queryFn: (cursor) => apiClient.listDistributions('cte', {limit: 8, cursor}),
     enabled: true,
-  })
+  });
   
   const syncMutation = useMutation({
     mutationFn: () => apiClient.syncDistributions('cte'),
     onSuccess: () => {
-      setPenaltyMessage(null)
-      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.')
+      setPenaltyMessage(null);
+      toast.info('Consulta enfileirada. Novos documentos aparecerão automaticamente.');
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) {
-        setPenaltyMessage(err.detail)
+        setPenaltyMessage(err.detail);
       } else {
-        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.')
+        toast.error(err instanceof Error ? err.message : 'Erro ao enfileirar consulta.');
       }
     },
-  })
+  });
   
-  const isProd = config?.environment === 1
-  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null
-  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null
-  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null
+  const isProd = config?.environment === 1;
+  const nsu = config ? (isProd ? config.prod_nsu : config.hom_nsu) : null;
+  const lastAt = config ? (isProd ? config.prod_last_dist_nsu_at : config.hom_last_dist_nsu_at) : null;
+  const nextAt = lastAt ? new Date(new Date(lastAt).getTime() + 30 * 60 * 1000) : null;
   
   return (
     <div className="space-y-4">
@@ -164,20 +164,20 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
                     isLoading={isFetching}/>
       )}
     </div>
-  )
+  );
 }
 
 function CTeContent() {
-  const {selectedOrg} = useAuth()
-  const [activeTab, setActiveTab] = useState<Tab>('recebidos')
+  const {selectedOrg} = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>('recebidos');
   
-  const {config: cteConfig, isMissing: cteConfigMissing} = useFiscalConfig('cte', selectedOrg?.pk)
+  const {config: cteConfig, isMissing: cteConfigMissing} = useFiscalConfig('cte', selectedOrg?.pk);
   
   const tabs: { key: Tab; label: string }[] = [
     {key: 'emitidos', label: 'Emitidos'},
     {key: 'recebidos', label: 'Recebidos'},
     {key: 'distribuicao', label: 'Importação/Distribuição'},
-  ]
+  ];
   
   return (
     <RootLayout>
@@ -219,7 +219,7 @@ function CTeContent() {
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function CTePage() {
@@ -227,5 +227,5 @@ export default function CTePage() {
     <ProtectedRoute>
       <CTeContent/>
     </ProtectedRoute>
-  )
+  );
 }

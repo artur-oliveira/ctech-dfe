@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {Button} from '@/components/ui/button'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {UF_OPTIONS} from '@/lib/schemas/entity'
+import {Button} from '@/components/ui/button';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {
   AGRO_MODE_OPTIONS,
   AGRO_TP_GUIA_OPTIONS,
@@ -16,8 +16,8 @@ import {
   MAX_CANA_DELIVERIES,
   MAX_AGRO_RECEITUARIOS,
   type AgroMode,
-} from '@/lib/data/nfe_niche'
-import type {NfeAgroGuiaIn, NfeAgroIn, NfeCanaDeducIn, NfeCanaDeliveryIn, NfeCanaIn} from '@/lib/types/api'
+} from '@/lib/data/nfe_niche';
+import type {NfeAgroGuiaIn, NfeAgroIn, NfeCanaDeducIn, NfeCanaDeliveryIn, NfeCanaIn} from '@/lib/types/api';
 
 export interface NicheGroupsValue {
   /** infNFe/compra — pedido e contrato desta nota. */
@@ -31,7 +31,7 @@ export interface NicheGroupsValue {
 
 export const EMPTY_NICHE_GROUPS: NicheGroupsValue = {
   compraXPed: '', compraXCont: '', cana: null, agro: null,
-}
+};
 
 export interface NicheGroupsFieldsProps {
   value: NicheGroupsValue
@@ -43,10 +43,10 @@ export interface NicheGroupsFieldsProps {
 }
 
 /** Calculada uma vez por carga do módulo: a lista não muda durante a sessão. */
-const CANA_REF_OPTIONS = canaRefOptions()
+const CANA_REF_OPTIONS = canaRefOptions();
 
-const EMPTY_DELIVERY: NfeCanaDeliveryIn = {dia: '1', qtde: ''}
-const EMPTY_DEDUC: NfeCanaDeducIn = {x_ded: '', v_ded: ''}
+const EMPTY_DELIVERY: NfeCanaDeliveryIn = {dia: '1', qtde: ''};
+const EMPTY_DEDUC: NfeCanaDeducIn = {x_ded: '', v_ded: ''};
 
 /**
  * Grupos de nicho da NF-e (compra, cana e agropecuario), todos opcionais.
@@ -62,28 +62,28 @@ const EMPTY_DEDUC: NfeCanaDeducIn = {x_ded: '', v_ded: ''}
 export function NicheGroupsFields({
                                     value, onChange, canaSafra, technicalManagerCpf,
                                   }: NicheGroupsFieldsProps) {
-  const patch = (p: Partial<NicheGroupsValue>) => onChange({...value, ...p})
+  const patch = (p: Partial<NicheGroupsValue>) => onChange({...value, ...p});
 
-  const cana = value.cana
+  const cana = value.cana;
   const patchCana = (p: Partial<NfeCanaIn>) => {
-    if (!cana) return
-    patch({cana: {...cana, ...p}})
-  }
-  const deliveries = cana?.deliveries ?? []
-  const deducoes = cana?.deducoes ?? []
+    if (!cana) return;
+    patch({cana: {...cana, ...p}});
+  };
+  const deliveries = cana?.deliveries ?? [];
+  const deducoes = cana?.deducoes ?? [];
 
-  const agro = value.agro
-  const agroMode: AgroMode = agro?.guia ? 'guia' : agro ? 'defensivo' : 'none'
+  const agro = value.agro;
+  const agroMode: AgroMode = agro?.guia ? 'guia' : agro ? 'defensivo' : 'none';
 
   const setAgroMode = (mode: string) => {
-    if (mode === 'none') return patch({agro: null})
+    if (mode === 'none') return patch({agro: null});
     if (mode === 'guia') {
-      return patch({agro: {guia: {tp_guia: '1', uf_guia: 'PI', serie_guia: '', n_guia: ''}}})
+      return patch({agro: {guia: {tp_guia: '1', uf_guia: 'PI', serie_guia: '', n_guia: ''}}});
     }
-    return patch({agro: {receituarios: ['']}})
-  }
+    return patch({agro: {receituarios: ['']}});
+  };
 
-  const receituarios = agro?.receituarios ?? []
+  const receituarios = agro?.receituarios ?? [];
 
   return (
     <div className="space-y-5">
@@ -273,7 +273,7 @@ export function NicheGroupsFields({
         )}
 
         {agroMode === 'guia' && agro?.guia && (() => {
-          const guia = agro.guia
+          const guia = agro.guia;
           return (
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
             <div className="flex flex-col gap-1">
@@ -300,9 +300,9 @@ export function NicheGroupsFields({
                             onChange={(v) => patch({agro: {guia: {...guia, n_guia: v}}})}/>
             </div>
           </div>
-          )
+          );
         })()}
       </div>
     </div>
-  )
+  );
 }

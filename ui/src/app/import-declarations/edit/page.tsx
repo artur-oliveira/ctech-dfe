@@ -1,39 +1,39 @@
-'use client'
+'use client';
 
-import {Suspense} from 'react'
-import Link from 'next/link'
-import {useRouter, useSearchParams} from 'next/navigation'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {ImportDeclarationForm} from '@/components/import-declarations/ImportDeclarationForm'
-import type {ImportDeclarationCreate} from '@/lib/types/api'
+import {Suspense} from 'react';
+import Link from 'next/link';
+import {useRouter, useSearchParams} from 'next/navigation';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {ImportDeclarationForm} from '@/components/import-declarations/ImportDeclarationForm';
+import type {ImportDeclarationCreate} from '@/lib/types/api';
 
 function EditImportDeclarationContent() {
-  const params = useSearchParams()
-  const id = params.get('id') ?? ''
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {data: unit, isLoading} = useQuery({
     queryKey: queryKeys.importDeclarations.detail(id),
     queryFn: () => apiClient.getImportDeclaration(id),
     enabled: !!id && !!selectedOrg,
-  })
+  });
 
   const updateMutation = useMutation({
     mutationFn: (d: ImportDeclarationCreate) => apiClient.updateImportDeclaration(id, d),
     onSuccess: () => {
-      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.list(selectedOrg?.pk)})
-      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.detail(id)})
-      router.push('/import-declarations')
+      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.list(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.importDeclarations.detail(id)});
+      router.push('/import-declarations');
     },
-  })
+  });
 
   return (
     <RootLayout>
@@ -55,14 +55,14 @@ function EditImportDeclarationContent() {
           <ImportDeclarationForm
             initialData={unit}
             onSubmit={async (d) => {
-              await updateMutation.mutateAsync(d)
+              await updateMutation.mutateAsync(d);
             }}
             loading={updateMutation.isPending}
           />
         )}
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function EditImportDeclarationPage() {
@@ -72,5 +72,5 @@ export default function EditImportDeclarationPage() {
         <EditImportDeclarationContent/>
       </Suspense>
     </ProtectedRoute>
-  )
+  );
 }

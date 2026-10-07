@@ -1,32 +1,32 @@
-'use client'
+'use client';
 
-import {useEffect, useMemo, useState} from 'react'
-import {useRouter} from 'next/navigation'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {useQuery} from '@tanstack/react-query'
-import {Form, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {CurrencyInput} from '@/components/ui/currency-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox, type ComboboxOption} from '@/components/ui/combobox'
-import {Button} from '@/components/ui/button'
-import {type ServiceFormData, serviceSchema} from '@/lib/schemas/services'
-import type {ServiceCreate, ServiceOut} from '@/lib/types/api'
-import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional'
-import {NFSE_NBS} from '@/lib/data/nfse_nbs'
-import {NFSE_COUNTRIES} from '@/lib/data/nfse_countries'
-import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins'
-import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
-import {NFSE_INDOP} from '@/lib/data/nfse_indop'
-import {UNIT_OPTIONS} from '@/lib/data/unit'
-import {ALL_CNAES} from '@/lib/data/cnae'
-import {generateEntityCode} from '@/lib/utils/code'
-import {ApiError, apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes'
-import {cn} from '@/lib/utils'
+import {useEffect, useMemo, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {useQuery} from '@tanstack/react-query';
+import {Form, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Input} from '@/components/ui/input';
+import {CurrencyInput} from '@/components/ui/currency-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
+import {Button} from '@/components/ui/button';
+import {type ServiceFormData, serviceSchema} from '@/lib/schemas/services';
+import type {ServiceCreate, ServiceOut} from '@/lib/types/api';
+import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional';
+import {NFSE_NBS} from '@/lib/data/nfse_nbs';
+import {NFSE_COUNTRIES} from '@/lib/data/nfse_countries';
+import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins';
+import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst';
+import {NFSE_INDOP} from '@/lib/data/nfse_indop';
+import {UNIT_OPTIONS} from '@/lib/data/unit';
+import {ALL_CNAES} from '@/lib/data/cnae';
+import {generateEntityCode} from '@/lib/utils/code';
+import {ApiError, apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes';
+import {cn} from '@/lib/utils';
 
 interface ServiceFormProps {
   initialData?: ServiceOut
@@ -39,13 +39,13 @@ const TRIB_ISSQN_OPTIONS = [
   {value: '2', label: '2 – Imunidade'},
   {value: '3', label: '3 – Exportação de serviço'},
   {value: '4', label: '4 – Não incidência'},
-]
+];
 
 const TP_RET_ISSQN_OPTIONS = [
   {value: '1', label: '1 – Não retido'},
   {value: '2', label: '2 – Retido pelo tomador'},
   {value: '3', label: '3 – Retido pelo intermediário'},
-]
+];
 
 const TP_IMUNIDADE_OPTIONS = [
   {value: '0', label: '0 – Tipo não informado na nota de origem'},
@@ -54,7 +54,7 @@ const TP_IMUNIDADE_OPTIONS = [
   {value: '3', label: '3 – Partidos, sindicatos, educação e assistência sem fins lucrativos'},
   {value: '4', label: '4 – Livros, jornais, periódicos e papel de impressão'},
   {value: '5', label: '5 – Fonogramas e videofonogramas musicais brasileiros'},
-]
+];
 
 // TSTipoRetPISCofins — rótulos em api/internal/api/v1/dto.go (ServiceFederalBody).
 const TP_RET_PIS_COFINS_OPTIONS = [
@@ -68,44 +68,44 @@ const TP_RET_PIS_COFINS_OPTIONS = [
   {value: '7', label: '7 – PIS não retido, COFINS/CSLL retidos'},
   {value: '8', label: '8 – PIS/COFINS não retidos, CSLL retido'},
   {value: '9', label: '9 – COFINS não retido, PIS/CSLL retidos'},
-]
+];
 
 const TRIB_NACIONAL_OPTIONS: ComboboxOption[] = NFSE_TRIB_NACIONAL.map((t) => ({
   value: t.code,
   label: `${t.code} – ${t.description}`,
-}))
+}));
 
 const NBS_OPTIONS: ComboboxOption[] = NFSE_NBS.map((entry) => ({
   value: entry.code,
   label: `${entry.code} – ${entry.description}`,
-}))
+}));
 
 const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
   value: country.code,
   label: `${country.code} – ${country.name}`,
-}))
+}));
 
-const CNAE_CLASS_END = 4
-const CNAE_CHECK_DIGIT_END = 5
+const CNAE_CLASS_END = 4;
+const CNAE_CHECK_DIGIT_END = 5;
 
 function formatCnae(code: string): string {
-  return `${code.slice(0, CNAE_CLASS_END)}-${code.slice(CNAE_CLASS_END, CNAE_CHECK_DIGIT_END)}/${code.slice(CNAE_CHECK_DIGIT_END)}`
+  return `${code.slice(0, CNAE_CLASS_END)}-${code.slice(CNAE_CLASS_END, CNAE_CHECK_DIGIT_END)}/${code.slice(CNAE_CHECK_DIGIT_END)}`;
 }
 
 const CNAE_OPTIONS: ComboboxOption[] = ALL_CNAES.map((entry) => ({
   value: entry.code,
   label: `${formatCnae(entry.code)} – ${entry.description}`,
-}))
+}));
 
 const IND_OP_OPTIONS: ComboboxOption[] = NFSE_INDOP.map((entry) => ({
   value: entry.code,
   label: `${entry.code} – ${entry.tipo_operacao} · ${entry.local_fornecimento}`,
-}))
+}));
 
 const IND_DEST_OPTIONS = [
   {value: '0', label: '0 – O destinatário é o tomador'},
   {value: '1', label: '1 – O destinatário é diferente do tomador'},
-]
+];
 
 const TP_OPER_OPTIONS = [
   {value: '1', label: '1 – Fornecimento com pagamento posterior'},
@@ -113,7 +113,7 @@ const TP_OPER_OPTIONS = [
   {value: '3', label: '3 – Fornecimento com pagamento já realizado'},
   {value: '4', label: '4 – Recebimento antes do fornecimento'},
   {value: '5', label: '5 – Fornecimento e recebimento concomitantes'},
-]
+];
 
 function toFormData(s: ServiceOut): ServiceFormData {
   return {
@@ -153,12 +153,12 @@ function toFormData(s: ServiceOut): ServiceFormData {
       ind_tot_trib: '0',
       p_tot_trib_sn: s.tot_trib.p_tot_trib_sn ?? '',
     } : undefined,
-  }
+  };
 }
 
 function nullify(v: string | undefined): string | null | undefined {
-  const normalized = v?.trim()
-  return normalized === '' ? null : normalized
+  const normalized = v?.trim();
+  return normalized === '' ? null : normalized;
 }
 
 function toApiPayload(data: ServiceFormData): ServiceCreate {
@@ -201,14 +201,14 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
       ind_tot_trib: 0,
       p_tot_trib_sn: nullify(data.tot_trib.p_tot_trib_sn),
     } : undefined,
-  }
+  };
 }
 
 export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFormProps) {
-  const {selectedOrg} = useAuth()
-  const [showFederal, setShowFederal] = useState(!!initialData?.federal)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [defaultCode] = useState(generateEntityCode)
+  const {selectedOrg} = useAuth();
+  const [showFederal, setShowFederal] = useState(!!initialData?.federal);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [defaultCode] = useState(generateEntityCode);
 
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
@@ -220,61 +220,61 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
       iss: {trib_issqn: '1', tax_rate: '', tp_ret_issqn: '', tp_imunidade: '', c_pais_resultado: ''},
       ibs_cbs: {c_ind_op: '', cst: '', c_class_trib: '', ind_dest: '0', tp_oper: '', fin_nfse: '0'},
     },
-  })
+  });
 
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
-    if (!form.formState.isDirty) return
+    if (!form.formState.isDirty) return undefined;
     const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [form.formState.isDirty])
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [form.formState.isDirty]);
 
-  const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'})
-  const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'})
-  const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'})
-  const currentCnae = useWatch({control: form.control, name: 'cnae'})
-  const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? []
+  const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'});
+  const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'});
+  const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'});
+  const currentCnae = useWatch({control: form.control, name: 'cnae'});
+  const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? [];
 
   const {data: nfseConfig, isLoading: isMunicipalityLoading} = useQuery({
     queryKey: queryKeys.nfseConfig(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getNfseConfig(selectedOrg?.pk ?? ''),
     enabled: !!selectedOrg,
     retry: false,
-  })
-  const municipalTaxCodes = getMunicipalTaxCodes(nfseConfig?.c_loc_emi)
+  });
+  const municipalTaxCodes = getMunicipalTaxCodes(nfseConfig?.c_loc_emi);
   const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
       label: `${entry.municipalCode} · ${entry.nationalItem} — ${entry.description} · ${entry.taxRate}%`,
-    }))
+    }));
     if (currentMunicipalCode && !options.some(({value}) => value === currentMunicipalCode)) {
       options.unshift({
         value: currentMunicipalCode,
         label: `${currentMunicipalCode} — código atual (fora do catálogo municipal)`,
-      })
+      });
     }
-    return options
-  }, [currentMunicipalCode, municipalTaxCodes])
+    return options;
+  }, [currentMunicipalCode, municipalTaxCodes]);
   const cnaeOptions = useMemo<ComboboxOption[]>(() => {
-    if (!currentCnae || CNAE_OPTIONS.some(({value}) => value === currentCnae)) return CNAE_OPTIONS
+    if (!currentCnae || CNAE_OPTIONS.some(({value}) => value === currentCnae)) return CNAE_OPTIONS;
     return [{
       value: currentCnae,
       label: `${formatCnae(currentCnae)} — código atual (fora do catálogo CNAE)`,
-    }, ...CNAE_OPTIONS]
-  }, [currentCnae])
+    }, ...CNAE_OPTIONS];
+  }, [currentCnae]);
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
-      await onSubmit(toApiPayload(data))
+      await onSubmit(toApiPayload(data));
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.detail : 'Não foi possível salvar o serviço. Revise os dados e tente novamente.')
+      setSubmitError(err instanceof ApiError ? err.detail : 'Não foi possível salvar o serviço. Revise os dados e tente novamente.');
     }
-  })
+  });
 
   return (
     <Form {...form}>
@@ -459,8 +459,8 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               <FormItem>
                 <FormLabel>CST IBS/CBS *</FormLabel>
                 <OptionsSelect id={field.name} value={field.value} onValueChange={(value) => {
-                  field.onChange(value)
-                  form.setValue('ibs_cbs.c_class_trib', '')
+                  field.onChange(value);
+                  form.setValue('ibs_cbs.c_class_trib', '');
                 }} options={IBS_CBS_CST_OPTIONS}/>
                 <FormMessage/>
               </FormItem>
@@ -555,5 +555,5 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
         </div>
       </form>
     </Form>
-  )
+  );
 }

@@ -17,8 +17,8 @@ export const CFOP_FISCAL_HINTS: Record<string, { label: string; icms_cst?: strin
   '6915': {label: 'Remessa para conserto → ICMS suspenso / CSOSN Não tributado', icms_cst: '50', csosn: '400'},
   '5916': {label: 'Retorno de conserto → ICMS isento / CSOSN Não tributado', icms_cst: '40', csosn: '400'},
   '6916': {label: 'Retorno de conserto → ICMS isento / CSOSN Não tributado', icms_cst: '40', csosn: '400'},
-}
+};
 
 export function getCfopHint(cfop: string) {
-  return CFOP_FISCAL_HINTS[cfop] ?? null
+  return CFOP_FISCAL_HINTS[cfop] ?? null;
 }

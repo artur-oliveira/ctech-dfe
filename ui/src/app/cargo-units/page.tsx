@@ -1,56 +1,56 @@
-'use client'
+'use client';
 
-import {useQueryClient} from '@tanstack/react-query'
-import {useRouter} from 'next/navigation'
-import {apiClient} from '@/lib/api/client'
-import {useAuth} from '@/lib/hooks/useAuth'
-import {usePagination} from '@/lib/hooks/usePagination'
-import {useEntityDelete} from '@/lib/hooks/useEntityDelete'
-import {queryKeys} from '@/lib/api/query-keys'
-import {ProtectedRoute} from '@/components/ProtectedRoute'
-import {RootLayout} from '@/components/layout/RootLayout'
-import {EmptyState} from '@/components/ui/empty-state'
-import {PackageIcon} from '@/components/ui/icon'
-import {NoOrgBanner} from '@/components/ui/no-org-banner'
-import {Pagination} from '@/components/ui/pagination'
-import {PageHeader} from '@/components/ui/page-header'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell'
-import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys'
+import {useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {usePagination} from '@/lib/hooks/usePagination';
+import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
+import {queryKeys} from '@/lib/api/query-keys';
+import {ProtectedRoute} from '@/components/ProtectedRoute';
+import {RootLayout} from '@/components/layout/RootLayout';
+import {EmptyState} from '@/components/ui/empty-state';
+import {PackageIcon} from '@/components/ui/icon';
+import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {Pagination} from '@/components/ui/pagination';
+import {PageHeader} from '@/components/ui/page-header';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {
   CARGO_UNIT_KIND_OPTIONS,
   TP_UNID_CARGA_OPTIONS,
   TP_UNID_TRANSP_OPTIONS,
-} from '@/lib/schemas/cargo-units'
-import type {CargoUnitItemOut} from '@/lib/types/api'
+} from '@/lib/schemas/cargo-units';
+import type {CargoUnitItemOut} from '@/lib/types/api';
 
 const label = (options: {value: string; label: string}[], code: string) =>
-  options.find((o) => o.value === code)?.label ?? code
+  options.find((o) => o.value === code)?.label ?? code;
 
 function CargoUnitsContent() {
-  const {selectedOrg} = useAuth()
-  const router = useRouter()
-  const qc = useQueryClient()
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
 
   const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious, reset} =
     usePagination<CargoUnitItemOut>({
       queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk),
       queryFn: (cursor) => apiClient.getCargoUnits({cursor}),
       enabled: !!selectedOrg,
-    })
+    });
 
   const {handleDelete, filterVisible, isPending: isDeleting} = useEntityDelete<CargoUnitItemOut>({
     mutationFn: (id) => apiClient.deleteCargoUnit(id),
     getId: (u) => extractId(u.sk, SK_PREFIX.CARGO_UNIT),
     getDeletedMessage: (u) => `"${u.name}" excluída`,
     onSuccess: () => {
-      reset()
-      void qc.invalidateQueries({queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk)})
+      reset();
+      void qc.invalidateQueries({queryKey: queryKeys.cargoUnits.list(selectedOrg?.pk)});
     },
-  })
+  });
 
-  const visibleItems = filterVisible(items)
+  const visibleItems = filterVisible(items);
 
   return (
     <RootLayout>
@@ -118,7 +118,7 @@ function CargoUnitsContent() {
         />
       </div>
     </RootLayout>
-  )
+  );
 }
 
 export default function CargoUnitsPage() {
@@ -126,5 +126,5 @@ export default function CargoUnitsPage() {
     <ProtectedRoute>
       <CargoUnitsContent/>
     </ProtectedRoute>
-  )
+  );
 }

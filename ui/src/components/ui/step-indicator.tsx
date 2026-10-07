@@ -6,12 +6,12 @@ export interface Step<Id extends string> {
 export function StepIndicator<Id extends string>(
   {current, steps}: { current: Id; steps: readonly Step<Id>[] },
 ) {
-  const idx = steps.findIndex(s => s.id === current)
+  const idx = steps.findIndex(s => s.id === current);
   return (
     <div className="flex items-center gap-0 mb-6">
       {steps.map((step, i) => {
-        const done = i < idx
-        const active = i === idx
+        const done = i < idx;
+        const active = i === idx;
         return (
           <div key={step.id} className="flex items-center flex-1 last:flex-none"
                aria-current={active ? 'step' : undefined}>
@@ -31,8 +31,8 @@ export function StepIndicator<Id extends string>(
               <div className={`flex-1 h-0.5 mx-2 ${i < idx ? 'bg-brand-500' : 'bg-gray-200'}`}/>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

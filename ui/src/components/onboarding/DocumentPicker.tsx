@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import {DOCUMENT_METERS, METER_LABELS, QUOTA_UNLIMITED} from '@/lib/constants/billing'
-import type {DocVariant} from '@/lib/schemas/fiscal-configs'
+import {DOCUMENT_METERS, METER_LABELS, QUOTA_UNLIMITED} from '@/lib/constants/billing';
+import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 /** What each document type is for, in the words of someone who has to pick. */
 const DOC_PURPOSE: Record<DocVariant, string> = {
@@ -10,7 +10,7 @@ const DOC_PURPOSE: Record<DocVariant, string> = {
   cte: 'Frete: o conhecimento de transporte de uma carga.',
   mdfe: 'Manifesto da viagem, que agrupa as notas e os conhecimentos a bordo.',
   nfse: 'Prestação de serviço, emitida pela prefeitura.',
-}
+};
 
 interface DocumentPickerProps {
   /** Limit per meter from the plan; -1 unlimited, absent means not granted. */
@@ -22,10 +22,10 @@ interface DocumentPickerProps {
 }
 
 function allowance(limit: number | undefined): {allowed: boolean; text: string} {
-  if (limit === undefined) return {allowed: false, text: 'Não incluído no seu plano'}
-  if (limit === 0) return {allowed: false, text: 'Não incluído no seu plano'}
-  if (limit === QUOTA_UNLIMITED) return {allowed: true, text: 'Sem limite mensal'}
-  return {allowed: true, text: `${limit.toLocaleString('pt-BR')} por mês`}
+  if (limit === undefined) return {allowed: false, text: 'Não incluído no seu plano'};
+  if (limit === 0) return {allowed: false, text: 'Não incluído no seu plano'};
+  if (limit === QUOTA_UNLIMITED) return {allowed: true, text: 'Sem limite mensal'};
+  return {allowed: true, text: `${limit.toLocaleString('pt-BR')} por mês`};
 }
 
 /**
@@ -44,10 +44,10 @@ export function DocumentPicker({quotas, configured, selected, onToggle}: Documen
     <fieldset className="flex flex-col gap-2">
       <legend className="sr-only">Documentos que a empresa emite</legend>
       {DOCUMENT_METERS.map((meter) => {
-        const variant = meter as DocVariant
-        const {allowed, text} = allowance(quotas[meter])
-        const isConfigured = configured[variant]
-        const isChecked = isConfigured || selected.includes(variant)
+        const variant = meter as DocVariant;
+        const {allowed, text} = allowance(quotas[meter]);
+        const isConfigured = configured[variant];
+        const isChecked = isConfigured || selected.includes(variant);
 
         return (
           <label
@@ -82,8 +82,8 @@ export function DocumentPicker({quotas, configured, selected, onToggle}: Documen
               <span className={`mt-1 block text-xs ${allowed ? 'text-gray-500' : 'text-warning'}`}>{text}</span>
             </span>
           </label>
-        )
+        );
       })}
     </fieldset>
-  )
+  );
 }

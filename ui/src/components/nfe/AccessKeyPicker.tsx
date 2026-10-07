@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import {useQuery} from '@tanstack/react-query'
-import {Button} from '@/components/ui/button'
-import {Label} from '@/components/ui/label'
-import {Combobox} from '@/components/ui/combobox'
-import {apiClient} from '@/lib/api/client'
-import {queryKeys} from '@/lib/api/query-keys'
-import {useAuth} from '@/lib/hooks/useAuth'
+import {useQuery} from '@tanstack/react-query';
+import {Button} from '@/components/ui/button';
+import {Label} from '@/components/ui/label';
+import {Combobox} from '@/components/ui/combobox';
+import {apiClient} from '@/lib/api/client';
+import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
 
 export interface AccessKeyPickerProps {
   id: string
@@ -21,7 +21,7 @@ export interface AccessKeyPickerProps {
 }
 
 /** Quantas notas recentes o seletor oferece. */
-const RECENT_LIMIT = 50
+const RECENT_LIMIT = 50;
 
 /**
  * Escolha de chaves de acesso entre as notas da própria organização.
@@ -32,23 +32,23 @@ const RECENT_LIMIT = 50
  * notas que este sistema emitiu. Então o campo é um seletor, não um input.
  */
 export function AccessKeyPicker({id, label, value, onChange, hint, max}: AccessKeyPickerProps) {
-  const {selectedOrg} = useAuth()
+  const {selectedOrg} = useAuth();
 
   const {data: nfePage, isLoading} = useQuery({
     queryKey: queryKeys.nfes.list(selectedOrg?.pk, {limit: RECENT_LIMIT}),
     queryFn: () => apiClient.getNfes({limit: RECENT_LIMIT}),
     enabled: !!selectedOrg,
-  })
-  const nfes = nfePage?.items ?? []
+  });
+  const nfes = nfePage?.items ?? [];
 
-  const atMax = max !== undefined && value.length >= max
+  const atMax = max !== undefined && value.length >= max;
   // Uma chave já escolhida não aparece de novo na lista.
   const options = nfes
     .filter((n) => !value.includes(n.sk))
     .map((n) => ({
       value: n.sk,
       label: `${n.number ?? ''} · ${n.dest_name ?? ''} · ${n.sk}`,
-    }))
+    }));
 
   return (
     <div className="space-y-2">
@@ -81,9 +81,9 @@ export function AccessKeyPicker({id, label, value, onChange, hint, max}: AccessK
         options={options}
         fuzzySearch
         onValueChange={(v: string) => {
-          if (v) onChange([...value, v])
+          if (v) onChange([...value, v]);
         }}
       />
     </div>
-  )
+  );
 }

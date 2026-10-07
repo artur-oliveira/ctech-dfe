@@ -1,21 +1,21 @@
-'use client'
+'use client';
 
-import {type ReactNode, useState} from 'react'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal'
-import {LoadingSkeleton} from '@/components/ui/loading-skeleton'
-import {Button} from '@/components/ui/button'
-import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse, type SignedFileDownload} from '@/lib/types/api'
-import {formatCpfCnpj} from '@/lib/utils/document'
-import {formatCurrency, formatDate} from '@/lib/utils/helpers'
-import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe'
-import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge'
-import {ApiError} from '@/lib/api/client'
-import {toast} from 'sonner'
+import {type ReactNode, useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
+import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import {Button} from '@/components/ui/button';
+import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse, type SignedFileDownload} from '@/lib/types/api';
+import {formatCpfCnpj} from '@/lib/utils/document';
+import {formatCurrency, formatDate} from '@/lib/utils/helpers';
+import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {ApiError} from '@/lib/api/client';
+import {toast} from 'sonner';
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
-import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell'
+import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 
-const CANCEL_EVENT_TYPES = ['110111', '110112']
+const CANCEL_EVENT_TYPES = ['110111', '110112'];
 
 export interface DfeDetailProps {
   accessKey: string
@@ -44,67 +44,67 @@ export function DfeDetail({
                             fetchDoc, fetchEvents, cancelFn, downloadXml, downloadEventXml, downloadDanfe,
                             headerActions, renderExtra,
                           }: DfeDetailProps) {
-  const qc = useQueryClient()
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [justification, setJustification] = useState('')
-  const [xmlLoading, setXmlLoading] = useState(false)
-  const [danfeLoading, setDanfeLoading] = useState(false)
-  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null)
+  const qc = useQueryClient();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [justification, setJustification] = useState('');
+  const [xmlLoading, setXmlLoading] = useState(false);
+  const [danfeLoading, setDanfeLoading] = useState(false);
+  const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
 
   const {data: doc, isLoading, error} = useQuery<NfeDetailOut>({
     queryKey: detailQueryKey,
     queryFn: fetchDoc,
     enabled,
-  })
+  });
 
   const {data: eventsData, isLoading: eventsLoading} = useQuery({
     queryKey: eventsQueryKey,
     queryFn: fetchEvents,
     enabled,
-  })
+  });
 
   const cancelMutation = useMutation({
     mutationFn: (j: string) => cancelFn(j),
     onSuccess: () => {
-      setShowCancelModal(false)
-      setJustification('')
-      void qc.invalidateQueries({queryKey: detailQueryKey})
-      void qc.invalidateQueries({queryKey: listQueryKey})
+      setShowCancelModal(false);
+      setJustification('');
+      void qc.invalidateQueries({queryKey: detailQueryKey});
+      void qc.invalidateQueries({queryKey: listQueryKey});
     },
-  })
+  });
 
   const handleDownloadXml = async () => {
-    setXmlLoading(true)
+    setXmlLoading(true);
     try {
-      triggerRemoteDownload((await downloadXml()).url)
+      triggerRemoteDownload((await downloadXml()).url);
     } finally {
-      setXmlLoading(false)
+      setXmlLoading(false);
     }
-  }
+  };
 
   const handleDownloadEventXml = async (event: NfeEventOut) => {
-    setEventXmlLoading(event.sk)
+    setEventXmlLoading(event.sk);
     try {
-      triggerRemoteDownload((await downloadEventXml(event.sk)).url)
+      triggerRemoteDownload((await downloadEventXml(event.sk)).url);
     } finally {
-      setEventXmlLoading(null)
+      setEventXmlLoading(null);
     }
-  }
+  };
 
   const handleDownloadDanfe = async () => {
-    if (!downloadDanfe) return
-    setDanfeLoading(true)
+    if (!downloadDanfe) return;
+    setDanfeLoading(true);
     try {
-      triggerRemoteDownload((await downloadDanfe()).url)
+      triggerRemoteDownload((await downloadDanfe()).url);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : String(err));
     } finally {
-      setDanfeLoading(false)
+      setDanfeLoading(false);
     }
-  }
+  };
 
   if (isLoading) {
-    return <LoadingSkeleton count={3} height="h-24" rounded="rounded-xl"/>
+    return <LoadingSkeleton count={3} height="h-24" rounded="rounded-xl"/>;
   }
 
   if (error || !doc) {
@@ -112,15 +112,15 @@ export function DfeDetail({
       <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
         {docLabel} não encontrada.
       </div>
-    )
+    );
   }
 
-  const totalDiscount = (doc.products || []).reduce((s, p) => s + parseFloat(p.discount || '0'), 0)
-  const hasXml = !!doc.xml_s3_key
-  const isOwnEmission = doc.incoming === 0
-  const canCancel = doc.status === 'authorized' && isOwnEmission
-  const isCancelled = doc.status === 'cancelled'
-  const cancelEvent = (eventsData?.items ?? []).filter(e => CANCEL_EVENT_TYPES.includes(e.event_type)).at(-1) ?? null
+  const totalDiscount = (doc.products || []).reduce((s, p) => s + parseFloat(p.discount || '0'), 0);
+  const hasXml = !!doc.xml_s3_key;
+  const isOwnEmission = doc.incoming === 0;
+  const canCancel = doc.status === 'authorized' && isOwnEmission;
+  const isCancelled = doc.status === 'cancelled';
+  const cancelEvent = (eventsData?.items ?? []).filter(e => CANCEL_EVENT_TYPES.includes(e.event_type)).at(-1) ?? null;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -157,8 +157,8 @@ export function DfeDetail({
           {canCancel && (
             <Button variant="outline" size="sm"
                     onClick={() => {
-                      setJustification('')
-                      setShowCancelModal(true)
+                      setJustification('');
+                      setShowCancelModal(true);
                     }}
                     className="text-red-600 border-red-200 hover:bg-red-50">
               Cancelar
@@ -345,7 +345,7 @@ export function DfeDetail({
         onJustificationChange={setJustification}
         onClose={() => setShowCancelModal(false)}
         onConfirm={() => {
-          if (justification.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH) cancelMutation.mutate(justification.trim())
+          if (justification.trim().length >= CANCEL_JUSTIFICATION_MIN_LENGTH) cancelMutation.mutate(justification.trim());
         }}
         loading={cancelMutation.isPending}
         error={cancelMutation.error}
@@ -353,5 +353,5 @@ export function DfeDetail({
 
       {renderExtra?.(doc)}
     </div>
-  )
+  );
 }

@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import {useEffect, useState} from 'react'
-import {useForm, useWatch} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import {Input} from '@/components/ui/input'
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {NumericInput} from '@/components/ui/numeric-input'
-import {OptionsSelect} from '@/components/ui/options-select'
-import {Combobox} from '@/components/ui/combobox'
-import {Button} from '@/components/ui/button'
-import {formatDatetimeBR} from '@/lib/utils/dfe'
+import {useEffect, useState} from 'react';
+import {useForm, useWatch} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {Input} from '@/components/ui/input';
+import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {NumericInput} from '@/components/ui/numeric-input';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {Combobox} from '@/components/ui/combobox';
+import {Button} from '@/components/ui/button';
+import {formatDatetimeBR} from '@/lib/utils/dfe';
 import {
   BRAZIL_TIMEZONES,
   type BrazilTimezone,
   type NfseConfigFormData,
   nfseConfigSchema,
   TIMEZONE_LABELS,
-} from '@/lib/schemas/fiscal-configs'
-import type {NfseConfigOut} from '@/lib/types/api'
-import {CITY_OPTIONS} from '@/lib/data/cities'
+} from '@/lib/schemas/fiscal-configs';
+import type {NfseConfigOut} from '@/lib/types/api';
+import {CITY_OPTIONS} from '@/lib/data/cities';
 
 interface NfseConfigFormProps {
   initialData: NfseConfigOut | null | undefined
@@ -42,7 +42,7 @@ function toFormValues(cfg: NfseConfigOut | null | undefined): NfseConfigFormData
     abrasf_wsdl_version: cfg?.abrasf?.wsdl_version ?? '',
     abrasf_municipality_code: cfg?.abrasf?.municipality_code ?? '',
     abrasf_synchronous: cfg?.abrasf?.synchronous ?? false,
-  }
+  };
 }
 
 function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
@@ -61,41 +61,41 @@ function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
       municipality_code: d.abrasf_municipality_code,
       synchronous: !!d.abrasf_synchronous,
     } : null,
-  }
+  };
 }
 
 export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfigFormProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const savedAt = lastSavedAt ?? (initialData?.updated_at
     ? new Date(initialData.updated_at).toLocaleString('pt-BR')
-    : null)
+    : null);
 
   const form = useForm<NfseConfigFormData>({
     resolver: zodResolver(nfseConfigSchema),
     defaultValues: toFormValues(initialData),
-  })
+  });
 
   useEffect(() => {
-    form.reset(toFormValues(initialData))
-  }, [form, initialData])
+    form.reset(toFormValues(initialData));
+  }, [form, initialData]);
 
-  const provider = useWatch({control: form.control, name: 'provider'})
-  const environment = useWatch({control: form.control, name: 'environment'})
-  const isAbrasf = provider === 'abrasf204'
-  const isProd = environment === '1'
-  const activeNsu = isProd ? initialData?.prod_nsu : initialData?.hom_nsu
-  const activeLastAt = isProd ? initialData?.prod_last_dist_nsu_at : initialData?.hom_last_dist_nsu_at
+  const provider = useWatch({control: form.control, name: 'provider'});
+  const environment = useWatch({control: form.control, name: 'environment'});
+  const isAbrasf = provider === 'abrasf204';
+  const isProd = environment === '1';
+  const activeNsu = isProd ? initialData?.prod_nsu : initialData?.hom_nsu;
+  const activeLastAt = isProd ? initialData?.prod_last_dist_nsu_at : initialData?.hom_last_dist_nsu_at;
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    setSubmitError(null)
+    setSubmitError(null);
     try {
-      await onSave(toApiPayload(data))
-      setLastSavedAt(new Date().toLocaleString('pt-BR'))
+      await onSave(toApiPayload(data));
+      setLastSavedAt(new Date().toLocaleString('pt-BR'));
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  })
+  });
 
   return (
     <Form {...form}>
@@ -266,5 +266,5 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
         </div>
       </form>
     </Form>
-  )
+  );
 }

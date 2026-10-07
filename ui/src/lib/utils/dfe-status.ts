@@ -1,5 +1,5 @@
-import type {QueryClient} from '@tanstack/react-query'
-import type {PaginatedResponse} from '@/lib/types/api'
+import type {QueryClient} from '@tanstack/react-query';
+import type {PaginatedResponse} from '@/lib/types/api';
 
 /**
  * Optimistically patches a document's status across every cached paginated list
@@ -21,10 +21,10 @@ export function setDocStatusOptimistic<S extends string>(
   status: S,
 ): void {
   qc.setQueriesData<PaginatedResponse<{sk: string; status: S}>>({queryKey: listPrefix}, (old) => {
-    if (!old?.items) return old
+    if (!old?.items) return old;
     return {
       ...old,
       items: old.items.map((it) => (it.sk === accessKey ? {...it, status} : it)),
-    }
-  })
+    };
+  });
 }
