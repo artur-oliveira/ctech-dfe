@@ -41,9 +41,9 @@
 - **R7 S3 by row, never by tenant folder.** Emitted XML lives under `CNPJ_{doc}` folders that two companies with the same CNPJ share (see `documentS3Key`). Objects are deleted through the keys stored on rows, plus company-id prefixes (`pdfs/{t}/{c}/`, `{t}/{env}/{c}/`, `{t}-distribution/{env}/{c}/`, `certs/{c}/`). Cost if wrong: an orphan object nobody references stays until bucket lifecycle.
 - **R8 e-CPF matching scans `organization_certificates`** and opens each PFX (SAN OID 2.16.76.1.3.1, fallback CN). The table holds one or two rows per company. Cost if wrong: purge time grows with certificate count; upgrade path: store a holder-kind attribute at upload and filter.
 - **R9 e-CPF residue:** the PFX object (all versions) and row (with its password) are erased; copies of the password inside `worker_outbox.payload` (30-day TTL) and in-flight SQS bodies are left: the password is useless without the PFX. Cost if wrong: scan the outbox for `cert_s3_key`.
-- **R10 "Notify the surviving organization's admins"** = an audit row `CERTIFICATE … DELETE` by `SYSTEM` / `Sistema (exclusão de conta LGPD)` in the org's audit feed. dfe sends no e-mail today. Cost if wrong: admins learn at the next emission; e-mail needs a ctech-account notification route.
-- **R11 Ack/subject credential = the existing `ACCOUNT_CLIENT_ID/SECRET`** (reach check client), two token managers with one scope each. Cost if wrong: two more SSM parameters.
-- **R12 XML export = one paged endpoint, no UI.** `GET /v1.0/xml-export/{doc_type}` returns a zip of up to 100 production documents and their events, `X-Next-Cursor` for the next page; OWNER/ADMIN only. The dfe UI button and the link from ctech-account's deletion page are a follow-up. Cost if wrong: the user exports one document at a time until the UI ships.
+- **R10 "Notify the surviving organization's admins"** (confirmed 2026-10-08: audit row only) = an audit row `CERTIFICATE … DELETE` by `SYSTEM` / `Sistema (exclusão de conta LGPD)` in the org's audit feed. dfe sends no e-mail today. Cost if wrong: admins learn at the next emission; e-mail needs a ctech-account notification route.
+- **R11 Ack/subject credential = a dedicated confidential client** (decided 2026-10-08), not the reach client `ACCOUNT_CLIENT_ID/SECRET`: env `ERASURE_CLIENT_ID`/`ERASURE_CLIENT_SECRET` from SSM SecureStrings `/ctech-dfe/{env}/erasure/client-id` and `/ctech-dfe/{env}/erasure/client-secret`. The operator grants that client only `internal:account:erasure-ack` and `internal:account:erasure-subject`. Two token managers, one scope each. A broken or rotated erasure credential cannot disable the reach check, and vice versa.
+- **R12 XML export = one paged endpoint, no UI.** `GET /v1.0/xml-export/{doc_type}` returns a zip of up to 100 production documents and their events, `X-Next-Cursor` for the next page. Open to **any member of the organization** (decided 2026-10-08: whoever had access before the deletion may export), enforced as the read permission of the document family (`list.{doc_type}s`, which every role holds). Production documents only. No UI button in this plan: a dfe UI follow-up adds it, and ctech-account's deletion page links to it. Cost if wrong: until the UI ships, exports go through the API.
 - **R13 `internal:dfe:erasure-eligibility` is not added to `scope-manifest.json`:** the manifest is public-only by test, and ctech-account mints this scope itself. Cost if wrong: add the entry and relax `TestScopeManifestMatchesEnforcementFamilies`.
 - **R14 No DLQ alarm in dfe** (dfe has none; `cdk` DOCS §"CloudWatch alarms — none"). ctech-account logs "participant ack overdue" at 48 h. Cost if wrong: a poisoned message waits 48 h to be noticed.
 - **R15 Billing rows of the user:** erase `USER_{sub}`, `QUOTA_GUARD_{sub}#companies` and the current period's `USAGE_{sub}#…`; older usage rows (counters only) expire by their 13-month TTL.
@@ -59,12 +59,12 @@
 
 ## Cross-project impact
 
-- **ctech-account:** add dfe to `ERASURE_PARTICIPANTS` (`service: dfe`, `url: {dfe internal base}/v1.0`, `audience: {dfe SERVICE_AUDIENCE}`, `client_id: {ACCOUNT_CLIENT_ID of dfe}`); grant that confidential client `internal:account:erasure-ack` and `internal:account:erasure-subject`; verify the minted token's `iss` equals dfe's `CTECH_ISSUER_URL`.
+- **ctech-account:** add dfe to `ERASURE_PARTICIPANTS` (`service: dfe`, `url: {dfe internal base}/v1.0`, `audience: {dfe SERVICE_AUDIENCE}`, `client_id: {ERASURE_CLIENT_ID of dfe}`); issue dfe's dedicated erasure confidential client and grant it `internal:account:erasure-ack` and `internal:account:erasure-subject` (R11). ctech-account mints the eligibility token with `iss` = its issuer URL; the deployment check in DEPLOYMENT.md (Task 15) confirms it equals dfe's `CTECH_ISSUER_URL`.
 - **ctech-account ui:** blocker copy: none needed (R2). Link "Exportar XMLs" to dfe when the dfe UI button ships (R12).
 - **ctech-go-common:** none (consumes v1.13.1). README "Account erasure" still says `MessageBody` scope; fixed by ctech-account phase 3 Task 8.
 - **ctech-cdk:** candidate shared construct "erasure participant queue" (queue + DLQ + filtered subscription). Built locally here; extract when the second CDK participant (poker/wallet) needs it.
 - **ctech-billing:** none (dfe's `account_billing` is a local snapshot).
-- **dfe ui:** none in this plan (R12).
+- **dfe ui:** follow-up plan: an "Exportar XMLs" button for any organization member, calling `GET /v1.0/xml-export/{doc_type}` page by page (R12).
 - **dfe worker:** new dependency on `api-commons` and a GetItem per job (Task 13).
 
 ---
@@ -2919,7 +2919,7 @@ func (c *SubjectClient) cpfWithToken(ctx context.Context, token, requestID strin
 
 **Interfaces:**
 - Consumes: Tasks 2, 8, 9, 10.
-- Produces: env `ERASURE_QUEUE_URL` (`Config.ErasureQueueURL`); `apiv1.Services.ErasureBlocked services.BlockedFunc`; app functions `newErasureStore`, `newErasureService`, `startErasureConsumer`, `blockedOf`.
+- Produces: env `ERASURE_QUEUE_URL` (`Config.ErasureQueueURL`), `ERASURE_CLIENT_ID`/`ERASURE_CLIENT_SECRET` (`Config.ErasureClientID`/`ErasureClientSecret`); `apiv1.Services.ErasureBlocked services.BlockedFunc`; app functions `newErasureStore`, `newErasureService`, `newErasureSubject`, `startErasureConsumer`, `blockedOf`.
 
 - [ ] **Step 1: Failing test.** `api/internal/app/erasure_wiring_test.go`:
 
@@ -2958,6 +2958,19 @@ func TestErasureIsOnWithAQueue(t *testing.T) {
 	}
 }
 
+// The purge must not borrow the reach credential (ruling R11): with only
+// ACCOUNT_CLIENT_* set, the subject lookup is unconfigured and fails.
+func TestErasureUsesItsOwnCredential(t *testing.T) {
+	reachOnly := &config.Config{CtechURL: "https://accounts.example", AccountClientID: "dfe-reach", AccountClientSecret: "s"}
+	if newErasureSubject(reachOnly, nil) != nil {
+		t.Fatal("the subject lookup was built from ACCOUNT_CLIENT_*")
+	}
+	own := &config.Config{CtechURL: "https://accounts.example", ErasureClientID: "dfe-erasure", ErasureClientSecret: "s"}
+	if newErasureSubject(own, nil) == nil {
+		t.Fatal("the subject lookup ignored ERASURE_CLIENT_*")
+	}
+}
+
 func TestModuleGraphResolves(t *testing.T) {
 	if err := fx.ValidateApp(Module); err != nil {
 		t.Fatal(err)
@@ -2975,6 +2988,18 @@ func TestModuleGraphResolves(t *testing.T) {
 	// user-erasure topic. Empty turns the whole participant off (lock, purge,
 	// consumer): the dark-launch switch.
 	ErasureQueueURL string `env:"ERASURE_QUEUE_URL"`
+```
+
+and in the `// Auth` area, after `AccountClientSecret`:
+
+```go
+	// ErasureClientID/Secret are the dedicated client-credentials client
+	// ctech-account issued for the deletion saga (plan ruling R11): it acks
+	// user.erase and reads the purging user's CPF, and holds only
+	// internal:account:erasure-ack and internal:account:erasure-subject.
+	// SSM SecureStrings /ctech-dfe/{env}/erasure/client-{id,secret}.
+	ErasureClientID     string `env:"ERASURE_CLIENT_ID"`
+	ErasureClientSecret string `env:"ERASURE_CLIENT_SECRET"`
 ```
 
 `app.go`:
@@ -3030,32 +3055,37 @@ func newErasureService(
 	if store == nil {
 		return nil
 	}
-	subject := accountclient.NewSubject(accountclient.Config{
+	return services.NewErasureService(repo, certs, audit, claims, store, clients.S3,
+		cfg.S3BucketDocuments, cfg.S3BucketCerts, newErasureSubject(cfg, c).CPF, c)
+}
+
+// newErasureSubject builds the CPF lookup from the dedicated erasure client
+// (ruling R11), or nil when that credential is incomplete.
+func newErasureSubject(cfg *config.Config, c cache.Backend) *accountclient.SubjectClient {
+	return accountclient.NewSubject(accountclient.Config{
 		BaseURL:      cfg.CtechURL,
 		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
-		ClientID:     cfg.AccountClientID,
-		ClientSecret: cfg.AccountClientSecret,
+		ClientID:     cfg.ErasureClientID,
+		ClientSecret: cfg.ErasureClientSecret,
 		Cache:        c,
 	})
-	return services.NewErasureService(repo, certs, audit, claims, store, clients.S3,
-		cfg.S3BucketDocuments, cfg.S3BucketCerts, subject.CPF, c)
 }
 
 // startErasureConsumer runs ctech-go-common's erasure.Consumer in the
 // background, like the results consumer (plan ruling R1). It needs the
-// ctech-account credential to ack; without it the purge cannot finish, so it
-// does not start and says so.
+// dedicated erasure credential to ack (ruling R11); without it the purge
+// cannot finish, so it does not start and says so.
 func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclient.Clients, store *erasure.Store, svc *services.ErasureService, c cache.Backend) {
 	if svc == nil {
 		return
 	}
-	if cfg.AccountClientID == "" || cfg.AccountClientSecret == "" {
-		slog.Error("erasure consumer NOT started: ACCOUNT_CLIENT_ID/ACCOUNT_CLIENT_SECRET are unset, so acks cannot be sent")
+	if cfg.ErasureClientID == "" || cfg.ErasureClientSecret == "" {
+		slog.Error("erasure consumer NOT started: ERASURE_CLIENT_ID/ERASURE_CLIENT_SECRET are unset, so acks cannot be sent")
 		return
 	}
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	tokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
-		cfg.AccountClientID, cfg.AccountClientSecret, accountclient.ScopeErasureAck)
+		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeErasureAck)
 	acks := erasure.NewAckClient(httpClient, strings.TrimSuffix(cfg.CtechURL, "/")+erasureAckPath, tokens)
 	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -3088,7 +3118,7 @@ and in `Register`, right after `verifier := middleware.NewVerifier(...)`:
 	}
 ```
 
-If `api/.env.example` exists, add `# ERASURE_QUEUE_URL=   # account-deletion queue; empty = participant off`.
+If `api/.env.example` exists, add `# ERASURE_QUEUE_URL=   # account-deletion queue; empty = participant off` and `# ERASURE_CLIENT_ID=` / `# ERASURE_CLIENT_SECRET=   # dedicated erasure client (ack + subject)`.
 
 - [ ] **Step 4: Pass.** `go build ./... && go vet ./... && go test ./... -race` → `ok` (includes `TestModuleGraphResolves`).
 - [ ] **Step 5: Commit.** `git add internal/config internal/app internal/api/v1/router.go $(ls .env.example 2>/dev/null) && git commit -m "feat(api): wire the account-deletion consumer, lock and purge"`
@@ -3103,7 +3133,7 @@ If `api/.env.example` exists, add `# ERASURE_QUEUE_URL=   # account-deletion que
 
 **Interfaces:**
 - Produces: `func services.NewXMLExportService(docs map[string]*repositories.DocumentRepository, events map[string]*repositories.DocumentEventRepository, objects ObjectStore, bucket string) *XMLExportService`; `func (s *XMLExportService) Page(ctx context.Context, orgPK, docType string, start map[string]types.AttributeValue) ([]byte, map[string]types.AttributeValue, error)`.
-- Produces: route `GET /v1.0/xml-export/{doc_type}` (`nfe|nfce|cte|mdfe|nfse`, query `cursor`), header `X-Next-Cursor`, OWNER/ADMIN only, `application/zip`.
+- Produces: route `GET /v1.0/xml-export/{doc_type}` (`nfe|nfce|cte|mdfe|nfse`, query `cursor`), header `X-Next-Cursor`, any organization member (permission `list.{doc_type}s`), `application/zip`.
 
 - [ ] **Step 1: Failing test.** `api/tests/integration/xml_export_test.go`:
 
@@ -3290,10 +3320,13 @@ const HeaderNextCursor = "X-Next-Cursor"
 
 const contentTypeZip = "application/zip"
 
-// RegisterXMLExport mounts the bulk XML export (OWNER/ADMIN; org via header).
+// RegisterXMLExport mounts the bulk XML export (org via header). Any member
+// may export (plan ruling R12): the permission is the family's read
+// permission (list.nfes, list.nfces, list.ctes, list.mdfes, list.nfses),
+// which every role holds. An unknown doc_type fails RBAC with 403.
 func RegisterXMLExport(router fiber.Router, svc *services.XMLExportService, authMw fiber.Handler, perm *middleware.PermChecker) {
-	g := router.Group("/xml-export", authMw, perm.RequireOwnerOrAdmin())
-	g.Get("/:doc_type", func(c fiber.Ctx) error {
+	g := router.Group("/xml-export", authMw)
+	g.Get("/:doc_type", perm.RequireDynamic("list.%ss", "doc_type"), func(c fiber.Ctx) error {
 		cursor := c.Query("cursor")
 		zipped, next, err := svc.Page(c.Context(), middleware.GetOrgPK(c), c.Params("doc_type"), decodeCursor(cursor))
 		if err != nil {
@@ -3344,7 +3377,8 @@ func newXMLExportService(
         Até 100 documentos de produção por chamada, com o XML do documento,
         o XML da DPS (NFS-e) e o XML de cada evento. Quando houver mais,
         o cabeçalho `X-Next-Cursor` traz o cursor da próxima página.
-        Restrito a OWNER e ADMIN. Usado antes de excluir uma conta cuja
+        Qualquer membro da organização pode exportar (permissão de leitura
+        da família do documento). Usado antes de excluir uma conta cuja
         organização será apagada junto.
       operationId: exportXML
       parameters:
@@ -3554,7 +3588,7 @@ The table is created by the DynamoDB stack, which CDK deploys before the worker 
 - Test: `cdk/test/dynamodb-stack.test.ts`, `cdk/test/event-bus-stack.test.ts` (new), `cdk/test/api-stack.test.ts`
 
 **Interfaces:**
-- Produces: table `{env}_dfe_erasure_state` (pk S, TTL `ttl`); GSI `organization-id-index` (pk `organization_id`, KEYS_ONLY) on `{env}_dfe_organizations`; queues `{env}-ctech-dfe-erasure` + `{env}-ctech-dfe-erasure-dlq`; `EventBusStack.erasureQueueUrl/erasureQueueArn`; `IAMStackProps.erasureQueueArn`; `ApiStackProps.erasureQueueUrl`; API env `ERASURE_QUEUE_URL`.
+- Produces: table `{env}_dfe_erasure_state` (pk S, TTL `ttl`); GSI `organization-id-index` (pk `organization_id`, KEYS_ONLY) on `{env}_dfe_organizations`; queues `{env}-ctech-dfe-erasure` + `{env}-ctech-dfe-erasure-dlq`; `EventBusStack.erasureQueueUrl/erasureQueueArn`; `IAMStackProps.erasureQueueArn`; `ApiStackProps.erasureQueueUrl`; API env `ERASURE_QUEUE_URL`, `ERASURE_CLIENT_ID`, `ERASURE_CLIENT_SECRET` (SSM).
 
 - [ ] **Step 1: Failing tests.**
 
@@ -3622,8 +3656,11 @@ describe('EventBusStack — fila da exclusão de conta', () => {
 In `cdk/test/api-stack.test.ts`, add `erasureQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure',` to the `ApiStack` props in `synth()`, and append:
 
 ```ts
-test('API env carries the account-deletion queue', () => {
-  expect(userDataText(synth())).toContain('ERASURE_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure')
+test('API env carries the account-deletion queue and its own credential', () => {
+  const text = userDataText(synth())
+  expect(text).toContain('ERASURE_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure')
+  expect(text).toContain('ERASURE_CLIENT_ID=/ctech-dfe/prod/erasure/client-id')
+  expect(text).toContain('ERASURE_CLIENT_SECRET=/ctech-dfe/prod/erasure/client-secret')
 })
 ```
 
@@ -3724,7 +3761,24 @@ and before `// ============== OUTPUTS ==============`:
       }))
 ```
 
-`api-stack.ts`: add `erasureQueueUrl: string;` to `ApiStackProps`, destructure it, and add `` `ERASURE_QUEUE_URL=${erasureQueueUrl}`, `` after `` `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`, `` in `/etc/app-static.env`.
+`api-stack.ts`: add `erasureQueueUrl: string;` to `ApiStackProps`, destructure it, and add `` `ERASURE_QUEUE_URL=${erasureQueueUrl}`, `` after `` `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`, `` in `/etc/app-static.env`. Next to `accountClientSecretParameter` add:
+
+```ts
+    // The deletion saga's own credential (plan ruling R11): acks user.erase and
+    // reads the purging user's CPF. Separate from the reach pair so one being
+    // wrong cannot disable the other. SecureStrings written out of band.
+    const erasureClientIdParameter = `/ctech-dfe/${environment}/erasure/client-id`;
+    const erasureClientSecretParameter = `/ctech-dfe/${environment}/erasure/client-secret`;
+```
+
+and append to `ssmEnvArgs`, after the `ACCOUNT_CLIENT_SECRET` entry:
+
+```ts
+      `ERASURE_CLIENT_ID=${erasureClientIdParameter}`,
+      `ERASURE_CLIENT_SECRET=${erasureClientSecretParameter}`,
+```
+
+(the existing SSM policy already allows `parameter/ctech-dfe/${environment}/*`).
 
 `bin/ctech-dfe-cdk.ts`: IAMStack props `erasureQueueArn: eventBusStack.erasureQueueArn,`; ApiStack props `erasureQueueUrl: eventBusStack.erasureQueueUrl,`; and `apiV2Stack.addStackDependency(eventBusStack);`.
 
@@ -3744,23 +3798,28 @@ and before `// ============== OUTPUTS ==============`:
   - New section `## 46. erasure_state`: attributes `pk`, `erasure_state` (`active|locked|erased`), `request_id`, `seq_ns`, `updated_at`, `ttl`; owner `ctech-go-common/erasure.Store`; `ORG#{company_id}` written by dfe (plan R5), `ORG#{account_org_id}` written by the consumer; no PII.
   - `organizations`: document `organization-id-index` (PK `organization_id`, KEYS_ONLY; access pattern "companies of an erased ctech-account organization").
 - [ ] **Step 2: `DOCS.md`.**
-  - §4 *Configuration*: `ERASURE_QUEUE_URL` (empty = participant off).
-  - §4 *API Reference*: `GET /v1.0/internal/erasure/eligibility/{sub}` (service token, scope, always eligible, R2) and `GET /v1.0/xml-export/{doc_type}` (OWNER/ADMIN, 100 docs/page, `X-Next-Cursor`, production only).
+  - §4 *Configuration*: `ERASURE_QUEUE_URL` (empty = participant off), `ERASURE_CLIENT_ID`/`ERASURE_CLIENT_SECRET` (dedicated erasure client, R11).
+  - §4 *API Reference*: `GET /v1.0/internal/erasure/eligibility/{sub}` (service token, scope, always eligible, R2) and `GET /v1.0/xml-export/{doc_type}` (any member via `list.{doc_type}s`, 100 docs/page, `X-Next-Cursor`, production only; UI button is a dfe UI follow-up).
   - New §4 subsection *Exclusão de conta (LGPD)*: the lifecycle seen from dfe (lock → purge → ack), the 403 `account-pending-deletion`, the catalog and its coverage test, the settle window, S3 by row (R7), e-CPF matching and marker, what is anonymized vs kept (R16), ack counts keys.
   - §6 worker: jobs of a locked/erased company are dropped (Task 13).
   - §8 cdk: erasure queue/DLQ/subscription and the new IAM statements.
-- [ ] **Step 3: `DEPLOYMENT.md` → *Out-of-band parameters*.** Operator steps: (1) deploy CDK (DynamoDB stack creates `erasure_state` and the GSI before any code reads them); (2) in ctech-account, grant the dfe confidential client (`/ctech-dfe/{env}/account-client-id`) `internal:account:erasure-ack` and `internal:account:erasure-subject`; (3) add dfe to ctech-account's `/ctech-account/{env}/erasure-participants` JSON with `url` = `{dfe internal base}/v1.0`, `audience` = dfe `SERVICE_AUDIENCE`, `client_id` = that client; (4) the queue is created and subscribed by CDK; `ERASURE_QUEUE_URL` turns the participant on. Backup-restore step (saga protocol §8): after restoring any dfe table from PITR, re-publish `user.erase` for every request purged after the restore point (ctech-account README "Account deletion").
+- [ ] **Step 3: `DEPLOYMENT.md` → *Out-of-band parameters*.** Operator steps: (1) deploy CDK (DynamoDB stack creates `erasure_state` and the GSI before any code reads them); (2) in ctech-account, issue a dedicated confidential client for dfe's erasure (not the reach client) and grant it only `internal:account:erasure-ack` and `internal:account:erasure-subject`; write its id and secret as SecureStrings `/ctech-dfe/{env}/erasure/client-id` and `/ctech-dfe/{env}/erasure/client-secret`; (3) add dfe to ctech-account's `/ctech-account/{env}/erasure-participants` JSON with `url` = `{dfe internal base}/v1.0`, `audience` = dfe `SERVICE_AUDIENCE`, `client_id` = that erasure client; (3b) **issuer check:** ctech-account mints the eligibility token with `iss` = its issuer URL; confirm that URL equals `/ctech-account/{env}/app-url` (`aws ssm get-parameter --name /ctech-account/{env}/app-url --profile ctech`), which dfe reads as `CTECH_ISSUER_URL`, then call eligibility once from ctech-account and expect `200 {"eligible":true,"blockers":[]}` (a 401 means the two differ); (4) the queue is created and subscribed by CDK; `ERASURE_QUEUE_URL` turns the participant on. Backup-restore step (saga protocol §8): after restoring any dfe table from PITR, re-publish `user.erase` for every request purged after the restore point (ctech-account README "Account deletion").
 - [ ] **Step 4: `OVERVIEW.md`.** Security: add the account-deletion lock and JWT revocation; api: the erasure consumer; data model: `erasure_state`.
 - [ ] **Step 5: `CONDUCT.md`.** New section *Exclusão de conta*: a new DynamoDB table must be added to `services/erasure_catalog.go` (the test fails otherwise); a new async consumer of company work must check the company's erasure state (`ORG#{company_id}`) and drop the job; never log or persist the CPF from the subject endpoint; objects are erased by the keys rows store, never by `CNPJ_` folder.
-- [ ] **Step 6: `api/CLAUDE.md` → *Known Constraints*.** One line each: write lock in the auth middleware (403 `account-pending-deletion`); revocation entries read from the shared Valkey DB 0; `ERASURE_QUEUE_URL` is the participant switch.
+- [ ] **Step 6: `api/CLAUDE.md` → *Known Constraints*.** One line each: write lock in the auth middleware (403 `account-pending-deletion`); revocation entries read from the shared Valkey DB 0; `ERASURE_QUEUE_URL` is the participant switch; acks and the subject lookup use `ERASURE_CLIENT_*`, never the reach `ACCOUNT_CLIENT_*`.
 - [ ] **Step 7: Commit.** `git add DOCS.md DynamoDB-Tables.md DEPLOYMENT.md OVERVIEW.md CONDUCT.md api/CLAUDE.md && git commit -m "docs: account deletion participant (lock, purge, export, infra)"`
 
 ---
 
 ## Open questions
 
-1. **Token issuer:** does the token ctech-account mints for eligibility carry `iss` = dfe's `CTECH_ISSUER_URL` (`/ctech-account/{env}/app-url`)? If not, eligibility is a 401 and every deletion request returns 503 at ctech-account.
-2. **Notification of e-CPF removal (R10):** is an audit row enough, or should ctech-account e-mail the surviving organization's admins? That needs an account route dfe can call.
-3. **XML export UI (R12):** who ships the dfe UI button and the link from ctech-account's deletion page, and must export also cover homologação documents?
-4. **Matriz certificate shared by a surviving branch in another account organization:** erasing the matriz company deletes the PFX the branch row points at. Accept (D4: erase everything of the erased org), or keep the object while any surviving row references it?
-5. **Service-scope unlink:** a returning user must get `Store.Clear(sub)` on re-consent (saga §4.5). Out of scope here, as in ctech-account phase 3; needs a plan when service unlink is built.
+1. **Matriz certificate shared by a surviving branch in another account organization:** erasing the matriz company deletes the PFX the branch row points at. Unanswered; the plan keeps R7 (erase it, D4).
+2. **Service-scope unlink:** a returning user must get `Store.Clear(sub)` on re-consent (saga §4.5). Out of scope here, as in ctech-account phase 3; needs a plan when service unlink is built.
+
+## Decisions applied (2026-10-08)
+
+- Eligibility `iss`: ctech-account mints with its issuer URL; DEPLOYMENT.md carries the check that it equals dfe's `CTECH_ISSUER_URL` (Task 15 step 3b).
+- e-CPF removal notice: the audit row is enough (R10).
+- XML export: any organization member, production documents only; UI button is a dfe UI follow-up (R12, Task 12).
+- Shared matriz PFX: no decision; R7 stands.
+- Acks and subject lookup: dedicated confidential client `ERASURE_CLIENT_ID/SECRET` (R11, Tasks 11, 14, 15).
