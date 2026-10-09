@@ -29,6 +29,20 @@ import (
 // company that is not there is a link to refuse, not an outage to retry.
 var ErrCompanyNotFound = errors.New("company not found in ctech-account")
 
+// ErrNotAnOrganization is a company whose workspace is not an organization —
+// a personal space, or a kind this product does not know. ctech-account refuses
+// to put a company in a space; this holds if that refusal ever regresses
+// (docs/specs/2026-10-09-personal-workspaces-in-dfe.md).
+var ErrNotAnOrganization = errors.New("company does not belong to an organization")
+
+// kindOrganization is the only workspace kind this product issues for. An
+// absent kind is one: ctech-account sent none before spaces existed.
+const kindOrganization = "organization"
+
+// isOrganization reads the kind ctech-account reports. Anything but absent or
+// "organization" — a space, or a kind added later — is not consent.
+func isOrganization(kind string) bool { return kind == "" || kind == kindOrganization }
+
 const Scope = "internal:account:company-actor"
 
 const (
@@ -78,8 +92,9 @@ func New(cfg Config) *Client {
 func (c *Client) Enabled() bool { return c != nil }
 
 type reachResponse struct {
-	MayAct         bool   `json:"may_act"`
-	OrganizationID string `json:"organization_id"`
+	MayAct           bool   `json:"may_act"`
+	OrganizationID   string `json:"organization_id"`
+	OrganizationKind string `json:"organization_kind"`
 }
 
 // Reach answers whether userID may act for companyID, and which organization
@@ -129,16 +144,23 @@ func (c *Client) reachWithToken(ctx context.Context, token, companyID, userID st
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxBody)).Decode(&out); err != nil {
 		return "", false, fmt.Errorf("decoding the reach answer: %w", err)
 	}
+	if out.MayAct && !isOrganization(out.OrganizationKind) {
+		// A plain refusal, not an error: it is an answer about this company,
+		// and the reach cache stores it like any other refusal, so a cached
+		// answer is refused on read too.
+		return "", false, nil
+	}
 	return out.OrganizationID, out.MayAct, nil
 }
 
 // Identity is who a company is, as ctech-account records it.
 type Identity struct {
-	OrganizationID string `json:"organization_id"`
-	TaxID          string `json:"tax_id"`
-	TaxIDKind      string `json:"tax_id_kind"`
-	LegalName      string `json:"legal_name"`
-	TradeName      string `json:"trade_name"`
+	OrganizationID   string `json:"organization_id"`
+	OrganizationKind string `json:"organization_kind"`
+	TaxID            string `json:"tax_id"`
+	TaxIDKind        string `json:"tax_id_kind"`
+	LegalName        string `json:"legal_name"`
+	TradeName        string `json:"trade_name"`
 }
 
 // Company reads a company's identity.
@@ -155,7 +177,13 @@ func (c *Client) Company(ctx context.Context, organizationID, companyID string) 
 	if err != nil {
 		return nil, fmt.Errorf("minting a service token: %w", err)
 	}
+	return c.companyWithToken(ctx, token, organizationID, companyID)
+}
 
+// companyWithToken is the identity request itself, split from the token for
+// the same reason reachWithToken is: so which answer means what is testable
+// without a token endpoint.
+func (c *Client) companyWithToken(ctx context.Context, token, organizationID, companyID string) (*Identity, error) {
 	path := fmt.Sprintf("%s/v1.0/internal/organizations/%s/companies/%s",
 		c.baseURL, url.PathEscape(organizationID), url.PathEscape(companyID))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
@@ -185,6 +213,9 @@ func (c *Client) Company(ctx context.Context, organizationID, companyID string) 
 		// produce a local record that fails at the first emission with a much
 		// worse message than this one.
 		return nil, fmt.Errorf("ctech-account returned a company with no tax id")
+	}
+	if !isOrganization(out.OrganizationKind) {
+		return nil, ErrNotAnOrganization
 	}
 	return &out, nil
 }

@@ -71,3 +71,15 @@ every workspace as `organization`, which is today's behaviour.
   decided 2026-10-07). That is its own spec, with its own decisions: migrating live subscriptions,
   what the per-user quota counts, and what happens to companies above the quota.
 - Any use of personal workspaces by the DF-e. A household has nothing to issue.
+
+## Amendment, implementation (2026-10-09)
+
+The check lives in `internal/accountclient`, not in `reachAnswer`, `checkReach` and the middleware as
+"What the DF-e adds" first said. Both questions this product asks about a company pass through that
+client, so one place decides:
+
+- `Reach` turns `may_act: true` with a kind other than absent or `organization` into a plain refusal.
+  `ReachService` caches it as a refusal, so a cached answer is refused on read with no new cache field,
+  and an entry from before this deploy (no kind) still reads as it always did.
+- `Company` answers `ErrNotAnOrganization`, which `Link` turns into the same 403 as every other link
+  refusal (`identityProblem`), before writing any row.
