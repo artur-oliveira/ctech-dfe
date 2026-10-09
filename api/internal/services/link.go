@@ -92,8 +92,8 @@ func (s *LinkService) Link(ctx context.Context, organizationID, companyID, userI
 
 	ident, err := s.identity.Company(ctx, organizationID, companyID)
 	if err != nil {
-		if errors.Is(err, accountclient.ErrCompanyNotFound) {
-			return nil, problem.NotFound("empresa não encontrada na conta CTech")
+		if prob := identityProblem(err); prob != nil {
+			return nil, prob
 		}
 		return nil, fmt.Errorf("reading the company identity: %w", err)
 	}
@@ -132,6 +132,22 @@ func (s *LinkService) Link(ctx context.Context, organizationID, companyID, userI
 // this row. Idempotent: Create is a no-op when it already exists.
 func (s *LinkService) ensureOwner(ctx context.Context, companyID, userID, userName string) error {
 	return s.orgUserRepo.Create(ctx, companyID, userID, repositories.RoleOwner, userID, userName, nil)
+}
+
+// identityProblem is the refusal an identity read turns into, or nil when the
+// error is an outage the caller must report as one. A company whose workspace is
+// not an organization answers the same "no access" as a missing edge: it is a
+// refusal about this company, and a distinct answer would tell a prober which
+// ids are spaces.
+func identityProblem(err error) *problem.Problem {
+	switch {
+	case errors.Is(err, accountclient.ErrCompanyNotFound):
+		return problem.NotFound("empresa não encontrada na conta CTech")
+	case errors.Is(err, accountclient.ErrNotAnOrganization):
+		_, prob := checkReach("", "", false, nil)
+		return prob
+	}
+	return nil
 }
 
 // checkReach decides whether a link may proceed, given what ctech-account said.

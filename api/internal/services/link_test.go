@@ -2,7 +2,10 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+
+	"gopkg.aoctech.app/dfe/api/internal/accountclient"
 )
 
 const (
@@ -64,5 +67,26 @@ func TestEveryLinkRefusalLooksTheSame(t *testing.T) {
 	}
 	if noEdge.Detail != crossed.Detail {
 		t.Fatalf("distinguishable:\n  no edge: %s\n  crossed: %s", noEdge.Detail, crossed.Detail)
+	}
+}
+
+// A company whose workspace is not an organization is refused with the same
+// "no access" as every other link refusal, before any local row is written.
+// ctech-account never puts a company in a personal space; this holds if that
+// ever regresses (docs/specs/2026-10-09-personal-workspaces-in-dfe.md).
+func TestLinkRefusesACompanyOutsideAnOrganization(t *testing.T) {
+	prob := identityProblem(fmt.Errorf("reading: %w", accountclient.ErrNotAnOrganization))
+	if prob == nil {
+		t.Fatal("a company in a space was linkable")
+	}
+	_, noEdge := checkReach(linkOrg, "", false, nil)
+	if prob.Detail != noEdge.Detail || prob.Status != noEdge.Status {
+		t.Fatalf("distinguishable from a missing edge: %+v vs %+v", prob, noEdge)
+	}
+	if identityProblem(accountclient.ErrCompanyNotFound) == nil {
+		t.Fatal("a missing company is no longer refused")
+	}
+	if identityProblem(errors.New("timeout")) != nil {
+		t.Fatal("an outage was turned into a refusal instead of an error")
 	}
 }
