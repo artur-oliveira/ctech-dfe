@@ -1,0 +1,88 @@
+name: CI
+
+# Pull requests only. Until this file existed, the DF-e had no check on a pull
+# request at all — the Go and UI tests ran only inside deploy.yml, after the
+# merge (#117 merged with "no checks reported"). A check that can only fail
+# after main has moved is a check that reports a broken main.
+#
+# The same commands the deploy pipelines run (api.yml, godfe.yml, worker.yml,
+# ctech-cdk's frontend workflow), so a green PR means a green deploy gate.
+# Infrastructure keeps its own PR check in infra.yml.
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go (${{ matrix.module }})
+    runs-on: ubuntu-26.04-arm
+    strategy:
+      # Every module reports, so one red module does not hide another.
+      fail-fast: false
+      matrix:
+        module: [api, worker, go-dfe, go-dfe-egress]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          # Workspace mode (go.work at the root): checksums live in the shared
+          # go.work.sum, and go-dfe has no go.sum of its own.
+          cache-dependency-path: |
+            go.work.sum
+            ${{ matrix.module }}/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Not gofmt-formatted:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build (arm64, CGO disabled — the Lambda and EC2 target)
+        run: CGO_ENABLED=0 GOARCH=arm64 go build -o /dev/null ./...
+
+      - name: Test
+        run: go test ./... -race -count=1
+
+  ui:
+    name: UI Lint, Types & Tests
+    runs-on: ubuntu-26.04-arm
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ui/.nvmrc
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      # `npm ci`, never `npm install`: the lockfile exactly, or a failure.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Judged by vitest's exit code, which counts unhandled errors and
+      # rejections as failures even when every test passes.
+      - name: Tests
+        run: npm test
