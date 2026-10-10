@@ -340,3 +340,126 @@ func isStatus(err error, status int) bool {
 	var p *problem.Problem
 	return errors.As(err, &p) && p.Status == status
 }
+func companyQuotaBilling(t *testing.T, calls *[]usageCall) *services.BillingService {
+	t.Helper()
+	return chargingBilling(t, billingStub(t, calls)).WithEnablement(services.NewFiscalConfigEnablement(
+		nfeConfigRepo, nfceConfigRepo, nil, nil, nil))
+}
+
+// Spec § 3 O5: the company quota applies when a company becomes enabled.
+func TestReserveCompanyRefusesAboveTheLimitAndIgnoresLinkedCompanies(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	org := "org-reserve-" + newCompanyPK(t)
+	enabled := seedCompany(t, org, "owner-r", "11222333000181", "Um Ltda")
+	seedNfeConfig(t, enabled)
+	// Spec § 5 test 8: linked companies above the limit are fine; they cost nothing.
+	for _, tax := range []string{"11222333000262", "11222333000343"} {
+		_ = seedCompany(t, org, "owner-r", tax, "Vinculada Ltda")
+	}
+	snap := proSnapshot("sub_reserve")
+	snap.Quotas[services.MeterCompanies] = 1
+	seedOrgSnapshot(t, org, snap)
+	candidate := seedCompany(t, org, "owner-r", "11222333000424", "Nova Ltda")
+
+	if _, err := svc.ReserveCompany(ctx, org, candidate); !isStatus(err, http.StatusPaymentRequired) {
+		t.Fatalf("second enabled company on a 1-company plan: %v, want 402", err)
+	}
+	// An already-enabled company saving another configuration is not a change.
+	r, err := svc.ReserveCompany(ctx, org, enabled)
+	if err != nil || len(r.Items) != 0 {
+		t.Fatalf("already enabled: %+v %v", r, err)
+	}
+}
+
+// An enablement carries the guard and the level marker; committing them marks
+// the organization's dfe_companies level dirty with a new version.
+func TestAnEnablementMarksTheCompaniesLevelDirty(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	org := "org-level-" + newCompanyPK(t)
+	seedOrgSnapshot(t, org, proSnapshot("sub_level"))
+	company := seedCompany(t, org, "owner-l", "11222333000181", "Nível Ltda")
+
+	r, err := svc.ReserveCompany(ctx, org, company)
+	if err != nil || len(r.Items) != 2 {
+		t.Fatalf("enablement items = %+v (%v), want guard + marker", r, err)
+	}
+	// The configuration and the reservation commit together (Task 11 wires
+	// this into the fiscal configuration route).
+	tx, _, err := nfeConfigRepo.BuildUpsertTxItem(company, map[string]types.AttributeValue{
+		"prod_current_serie": &types.AttributeValueMemberN{Value: "1"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nfeConfigRepo.TransactWrite(ctx, append([]types.TransactWriteItem{tx}, r.Items...)); err != nil {
+		t.Fatal(err)
+	}
+	m, err := repositories.NewAccountBillingRepository(db, cfg).GetLevelMarker(ctx, org, services.MeterLevelCompanies)
+	if err != nil || m == nil || !m.Dirty || m.Version != 1 || m.ChangedAt == "" {
+		t.Fatalf("marker = %+v (%v)", m, err)
+	}
+}
+
+// Levels are reported whatever the plan: a plan with no company quota still
+// marks the level, so it is known the day the organization moves to on-demand.
+func TestAnUncappedPlanStillMarksTheLevel(t *testing.T) {
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	org := "org-uncapped-" + newCompanyPK(t)
+	snap := proSnapshot("sub_uncapped")
+	snap.Quotas[services.MeterCompanies] = services.QuotaUnlimited
+	seedOrgSnapshot(t, org, snap)
+	company := seedCompany(t, org, "owner-u", "11222333000181", "Livre Ltda")
+	r, err := svc.ReserveCompany(context.Background(), org, company)
+	if err != nil || len(r.Items) != 1 {
+		t.Fatalf("items = %+v (%v), want only the marker", r, err)
+	}
+}
+
+func TestClearLevelDirtyKeepsANewerChange(t *testing.T) {
+	ctx := context.Background()
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	org := "org-clear-" + newCompanyPK(t)
+	for range 2 {
+		if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Clearing the version a reporter read before the second change must not
+	// hide the second change.
+	if err := repo.ClearLevelDirty(ctx, org, services.MeterLevelCompanies, 1); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); !m.Dirty {
+		t.Fatal("a stale clear removed a newer change")
+	}
+	if err := repo.ClearLevelDirty(ctx, org, services.MeterLevelCompanies, 2); err != nil {
+		t.Fatal(err)
+	}
+	m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies)
+	if m.Dirty {
+		t.Fatal("the current version was not cleared")
+	}
+	dirty, err := repo.ListDirtyLevels(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dirty {
+		if d.OrganizationID == org {
+			t.Fatal("a clean marker is still listed")
+		}
+	}
+}
+
+// Review Focus 1.
+func TestReserveCompanyRefusesACompanyWithNoOrganization(t *testing.T) {
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	if _, err := svc.ReserveCompany(context.Background(), "", newCompanyPK(t)); !isStatus(err, http.StatusConflict) {
+		t.Fatalf("err = %v, want 409", err)
+	}
+}

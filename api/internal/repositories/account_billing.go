@@ -20,13 +20,14 @@ import (
 
 // AccountBillingRepository stores what ctech-billing says about each account.
 //
-// Table structure (account_billing), five kinds of row:
+// Table structure (account_billing), six kinds of row:
 //
 //	pk = ORG_{organization_id}                the subscription snapshot (docs/specs/2026-10-10-organization-subscription.md)
 //	pk = USER_{sub}                           the pre-migration snapshot, read only by the dual read
 //	pk = EVENT_{event_id}                     a processed webhook (or a once-only marker), with a TTL
 //	pk = USAGE_{organization_id}#{period}     this period's meters
 //	pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
+//	pk = LEVEL_DIRTY_{organization_id}#{meter} a billing level changed and not yet reported
 //
 // They share a table because they share a subject and their access pattern is
 // identical — one row, by primary key, never queried or scanned. A table each
@@ -555,6 +556,125 @@ func (r *AccountBillingRepository) ListUserSnapshots(ctx context.Context) ([]Acc
 			if s.OrganizationID == "" {
 				out = append(out, s)
 			}
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			return out, nil
+		}
+		start = res.LastEvaluatedKey
+	}
+}
+
+// LevelDirtyIndex lists the levels waiting to be reported (sparse).
+const LevelDirtyIndex = "level-dirty-index"
+
+const (
+	attrDirtyShard   = "dirty_shard"
+	dirtyShardLevels = "level"
+	attrChangedAt    = "changed_at"
+	attrLevelVersion = "version"
+	attrLevelMeter   = "meter"
+)
+
+// LevelMarkerPK keys one organization's marker for one level meter.
+func LevelMarkerPK(organizationID, meter string) string {
+	return "LEVEL_DIRTY_" + organizationID + "#" + meter
+}
+
+// LevelMarker says a level changed. Version grows by one per change; the
+// reporter clears only the version it reported, so a change made while a
+// report was in flight stays dirty.
+type LevelMarker struct {
+	OrganizationID string `dynamodbav:"organization_id"`
+	Meter          string `dynamodbav:"meter"`
+	ChangedAt      string `dynamodbav:"changed_at"`
+	Version        int64  `dynamodbav:"version"`
+	Dirty          bool   `dynamodbav:"-"`
+}
+
+// BuildMarkLevelDirtyTx bumps the marker, for the transaction that changes
+// the level (a fiscal configuration that enables a company).
+func (r *AccountBillingRepository) BuildMarkLevelDirtyTx(organizationID, meter string) types.TransactWriteItem {
+	return types.TransactWriteItem{Update: &types.Update{
+		TableName:        aws.String(r.TableName),
+		Key:              map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: LevelMarkerPK(organizationID, meter)}},
+		UpdateExpression: aws.String("ADD #v :one SET #o = :o, #m = :m, #s = :s, #c = :now"),
+		ExpressionAttributeNames: map[string]string{
+			"#v": attrLevelVersion, "#o": "organization_id", "#m": attrLevelMeter, "#s": attrDirtyShard, "#c": attrChangedAt,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":one": &types.AttributeValueMemberN{Value: "1"},
+			":o":   &types.AttributeValueMemberS{Value: organizationID},
+			":m":   &types.AttributeValueMemberS{Value: meter},
+			":s":   &types.AttributeValueMemberS{Value: dirtyShardLevels},
+			":now": &types.AttributeValueMemberS{Value: NowStr()},
+		},
+	}}
+}
+
+// MarkLevelDirty is BuildMarkLevelDirtyTx on its own (the migration command).
+func (r *AccountBillingRepository) MarkLevelDirty(ctx context.Context, organizationID, meter string) error {
+	return r.TransactWrite(ctx, []types.TransactWriteItem{r.BuildMarkLevelDirtyTx(organizationID, meter)})
+}
+
+func decodeLevelMarker(item map[string]types.AttributeValue) (*LevelMarker, error) {
+	var m LevelMarker
+	if err := attributevalue.UnmarshalMap(item, &m); err != nil {
+		return nil, fmt.Errorf("decoding a level marker: %w", err)
+	}
+	_, m.Dirty = item[attrDirtyShard]
+	return &m, nil
+}
+
+// GetLevelMarker reads a marker; nil when the level never changed.
+func (r *AccountBillingRepository) GetLevelMarker(ctx context.Context, organizationID, meter string) (*LevelMarker, error) {
+	item, err := r.GetItem(ctx, LevelMarkerPK(organizationID, meter))
+	if err != nil || item == nil {
+		return nil, err
+	}
+	return decodeLevelMarker(item)
+}
+
+// ClearLevelDirty takes the marker out of the index if it is still at version.
+// A newer change (higher version) keeps it dirty: that change is not reported.
+func (r *AccountBillingRepository) ClearLevelDirty(ctx context.Context, organizationID, meter string, version int64) error {
+	_, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
+		TableName:                aws.String(r.TableName),
+		Key:                      map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: LevelMarkerPK(organizationID, meter)}},
+		UpdateExpression:         aws.String("REMOVE #s"),
+		ConditionExpression:      aws.String("#v = :v"),
+		ExpressionAttributeNames: map[string]string{"#s": attrDirtyShard, "#v": attrLevelVersion},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":v": &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
+		},
+	})
+	if IsConditionFailed(err) {
+		return nil
+	}
+	return wrapDynamoErr(err)
+}
+
+// ListDirtyLevels reads every pending marker, oldest change first.
+func (r *AccountBillingRepository) ListDirtyLevels(ctx context.Context) ([]LevelMarker, error) {
+	var out []LevelMarker
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.QueryRaw(ctx, &dynamodb.QueryInput{
+			TableName:                 aws.String(r.TableName),
+			IndexName:                 aws.String(LevelDirtyIndex),
+			KeyConditionExpression:    aws.String("#s = :s"),
+			ExpressionAttributeNames:  map[string]string{"#s": attrDirtyShard},
+			ExpressionAttributeValues: map[string]types.AttributeValue{":s": &types.AttributeValueMemberS{Value: dirtyShardLevels}},
+			ExclusiveStartKey:         start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			m, err := decodeLevelMarker(item)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, *m)
 		}
 		if len(res.LastEvaluatedKey) == 0 {
 			return out, nil

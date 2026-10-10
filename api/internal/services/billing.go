@@ -54,8 +54,6 @@ const (
 
 const mdfeScopeOwnFleet = "frota_propria"
 
-const companyUsageKeyPrefix = "company:"
-
 // visibilityInternal names a price that exists to be granted, never sold: the
 // R$ 0 unlimited the CTech team and the first two customers run on.
 //
@@ -780,10 +778,10 @@ const (
 	MeterCompanies = "companies"
 )
 
-// DocumentMeters are the meters counted per issuance. `companies` and `users`
-// are absent on purpose: those are current-state counts derived by counting
-// rows, not running totals — deleting an organization must give the slot back,
-// and a counter would have to be decremented by every path that removes one.
+// DocumentMeters are the meters counted per issuance. `companies` is absent on
+// purpose: it is a current-state count derived by counting rows, not a running
+// total — disabling a company gives the slot back, and a counter would have to
+// be decremented by every path that removes one.
 var DocumentMeters = []string{MeterNFe, MeterNFCe, MeterCTe, MeterMDFe, MeterNFSe}
 
 // MeterForTable maps a document table to the meter its issuance consumes.
@@ -990,12 +988,6 @@ func (s *BillingService) ReportUsage(ctx context.Context, orgPK, meter, docKey s
 	return s.client.ReportUsage(ctx, snap.SubscriptionID, priceID, 1, docKey)
 }
 
-// ReportCompanyUsage records creation of one company on the metered on-demand
-// price. The organization key makes a retried idempotent creation one charge.
-func (s *BillingService) ReportCompanyUsage(ctx context.Context, orgPK string) error {
-	return s.ReportUsage(ctx, orgPK, MeterCompanies, companyUsageKeyPrefix+orgPK)
-}
-
 // ReportReservedUsage settles against the subscription and price captured when
 // the quota was reserved, so a plan change while SEFAZ is processing cannot
 // move revenue between plans.
@@ -1044,49 +1036,6 @@ func (s *BillingService) Usage(ctx context.Context, organizationID, companyPK st
 	return out, nil
 }
 
-// CheckCompanyQuota refuses creating one more organization than the plan allows.
-func (s *BillingService) CheckCompanyQuota(ctx context.Context, userID string) error {
-	if !s.Enabled() {
-		return nil
-	}
-	raw := repositories.RawUserID(userID)
-	snap, err := s.Snapshot(ctx, raw)
-	if err != nil {
-		return err
-	}
-	if !GrantsService(snap) {
-		return BlockedProblem(snap)
-	}
-	limit, ok := Quota(snap, MeterCompanies)
-	if !ok {
-		return problem.QuotaExceeded(MeterCompanies, snap.Plan, 0, 0,
-			"seu plano não permite cadastrar empresas")
-	}
-	if limit < 0 {
-		return nil
-	}
-	used, err := s.companiesUsed(ctx, raw)
-	if err != nil {
-		return err
-	}
-	if used >= limit {
-		return problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
-			fmt.Sprintf("seu plano permite %d empresa(s) e você já tem %d em uso", limit, used))
-	}
-	return nil
-}
-
-func (s *BillingService) CompanyQuotaGuard(ctx context.Context, userID string) (*types.TransactWriteItem, error) {
-	if err := s.CheckCompanyQuota(ctx, userID); err != nil {
-		return nil, err
-	}
-	if !s.Enabled() {
-		return nil, nil
-	}
-	tx, err := s.repo.BuildQuotaGuardTx(ctx, repositories.RawUserID(userID), MeterCompanies)
-	return &tx, err
-}
-
 // People are not metered. ctech-dfe counted distinct members across the
 // account's organizations and refused an invitation past the plan's limit.
 //
@@ -1099,7 +1048,92 @@ func (s *BillingService) CompanyQuotaGuard(ctx context.Context, userID string) (
 //
 // Where the quota belongs — the workspace in ctech-account, or reach in the
 // product — is an open question, and metering the wrong set while it is open is
-// worse than not metering. Companies are still metered; see CheckCompanyQuota.
+// worse than not metering. Companies are still metered; see ReserveCompany.
+// The users quota left the catalogue on 2026-10-10 (spec O4).
+
+// MeterLevelCompanies is billing's level meter for an organization's enabled
+// companies (billing plans spec § 6; price price_dfe_ondemand_companies_monthly,
+// aggregation max). Not the quota meter MeterCompanies: the quota reads the
+// plan's `quota_companies`, the level is what the on-demand price bills by peak.
+const MeterLevelCompanies = "dfe_companies"
+
+// CompanyReservation is what ReserveCompany hands the fiscal configuration
+// write: items for the same transaction. Empty Items: not an enablement.
+type CompanyReservation struct {
+	Items          []types.TransactWriteItem
+	OrganizationID string
+	CompanyPK      string
+}
+
+// ReserveCompany checks the company quota where a company starts to count, its
+// first fiscal configuration (spec O5), and marks the organization's companies
+// level dirty in the same transaction. It refuses with 402 when the enabled
+// companies already fill the plan; companies already enabled keep emitting
+// whatever the count (O6).
+//
+// The guard serializes this decision with every other enablement of the
+// organization: two companies racing for the last slot both read N-1, and only
+// the first transaction to bump the guard's version commits. The marker is
+// written whatever the plan, so the level is known the day the organization
+// moves to on-demand.
+func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, companyPK string) (*CompanyReservation, error) {
+	if !s.Enabled() {
+		return &CompanyReservation{}, nil
+	}
+	if organizationID == "" {
+		return nil, ErrNoOrganization
+	}
+	if s.enablement != nil {
+		docTypes, err := s.enablement.ConfiguredDocTypes(ctx, companyPK)
+		if err != nil {
+			return nil, err
+		}
+		if len(docTypes) > 0 {
+			return &CompanyReservation{}, nil
+		}
+	}
+	snap, err := s.snapshotFor(ctx, organizationID, companyPK)
+	if err != nil {
+		return nil, err
+	}
+	if !GrantsService(snap) {
+		return nil, BlockedProblem(snap)
+	}
+	limit, ok := Quota(snap, MeterCompanies)
+	if !ok {
+		return nil, problem.QuotaExceeded(MeterCompanies, snap.Plan, 0, 0,
+			"o plano da organização não permite habilitar empresas")
+	}
+	out := &CompanyReservation{OrganizationID: organizationID, CompanyPK: companyPK}
+	if limit >= 0 {
+		used, err := s.companiesUsed(ctx, organizationID)
+		if err != nil {
+			return nil, err
+		}
+		if used >= limit {
+			return nil, problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
+				fmt.Sprintf("o plano da organização permite %d empresa(s) habilitada(s) e já há %d", limit, used))
+		}
+		guard, err := s.repo.BuildQuotaGuardTx(ctx, organizationID, MeterCompanies)
+		if err != nil {
+			return nil, err
+		}
+		out.Items = append(out.Items, guard)
+	}
+	out.Items = append(out.Items, s.repo.BuildMarkLevelDirtyTx(organizationID, MeterLevelCompanies))
+	return out, nil
+}
+
+// CompanyLevelChangeTx is the marker any path that DISABLES a company must add
+// to its own transaction (removing the last fiscal configuration, deleting or
+// unlinking a company). No such path exists today; whoever adds one includes
+// this, and Task 8's reporter does the rest.
+func (s *BillingService) CompanyLevelChangeTx(organizationID string) (types.TransactWriteItem, bool) {
+	if !s.Enabled() || organizationID == "" {
+		return types.TransactWriteItem{}, false
+	}
+	return s.repo.BuildMarkLevelDirtyTx(organizationID, MeterLevelCompanies), true
+}
 
 // CheckMDFEScope enforces non-numeric MDF-e constraints carried by the plan.
 // The Free plan permits MDF-e only with the issuer's own traction vehicle; in

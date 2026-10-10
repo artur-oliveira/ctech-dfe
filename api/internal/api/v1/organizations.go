@@ -9,7 +9,6 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -104,24 +103,13 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		password := c.FormValue("password")
 
 		userID, userName := resolveActor(c, h.UserSvc)
-		// The company quota is checked here rather than in the subscription
-		// middleware: there is no organization yet, so the gate has nothing to
-		// resolve, and the limit belongs to the **caller's** account — the one
-		// that is about to own this organization and pay for it.
-		quotaGuard, err := h.BillingSvc.CompanyQuotaGuard(c.Context(), userID)
+		// No company quota here any more: a company counts when it is enabled
+		// (its first fiscal configuration, BillingService.ReserveCompany), not
+		// when it is registered. A company created by this legacy route has no
+		// ctech-account organization, so ReserveCompany refuses to enable it
+		// (409): it must be created through the CTech account and linked.
+		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password)
 		if err != nil {
-			return sendProblem(c, err)
-		}
-		var quotaTx []types.TransactWriteItem
-		if quotaGuard != nil {
-			quotaTx = append(quotaTx, *quotaGuard)
-		}
-		org, err := h.OrgSvc.CreateWithOwner(c.Context(), dto.CpfOrCnpj, userID, userName, av, pfx, password, quotaTx...)
-		if err != nil {
-			return sendProblem(c, err)
-		}
-		createdOrgPK, _ := repositories.ParseOrgPK(dto.CpfOrCnpj)
-		if err := h.BillingSvc.ReportCompanyUsage(c.Context(), createdOrgPK); err != nil {
 			return sendProblem(c, err)
 		}
 		m, err := unmarshal(org)

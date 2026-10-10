@@ -469,7 +469,7 @@ Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND
 ## 36. `account_billing`
 
 What ctech-billing says about each ctech-account organization, plus webhook markers, usage counters and concurrency
-guards (docs/specs/2026-10-10-organization-subscription.md). Five row shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
+guards and level markers (docs/specs/2026-10-10-organization-subscription.md). Six row shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
 permissions without improving an access pattern.
 
 **The snapshot is a cache with a durable floor, not a source of truth.** Billing owns the subscription; this row is what
@@ -483,6 +483,7 @@ pk = USER_{sub}                            the pre-migration snapshot, read only
 pk = EVENT_{event_id}                      a processed webhook (or a once-only marker), with a TTL
 pk = USAGE_{organization_id}#{period}      this period's meters
 pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
+pk = LEVEL_DIRTY_{organization_id}#{meter} a billing level changed and not yet reported
 ```
 
 `USER_` rows are read only by the dual read until Phase 2 removes it; every write goes to `ORG_`.
@@ -565,17 +566,31 @@ Homologation does not create or increment this row.
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
-| `pk`      | S    | Guard de `companies` ou `users` por conta |
-| `version` | N    | Versão avançada condicionalmente na mesma transação da admissão |
+| `pk`      | S    | Guard de `companies` por organização |
+| `version` | N    | Versão avançada condicionalmente na mesma transação da habilitação (`BillingService.ReserveCompany`) |
 
-The guard is not a usage counter. Companies and distinct users remain live counts; the version only prevents two
-admissions based on the same count from committing concurrently.
+The guard is not a usage counter. Enabled companies remain a live count; the version only prevents two enablements
+based on the same count from committing concurrently.
 
-`companies` and `users` are **not** stored here. They are current state rather than a running total —
-deleting an organization gives the slot back — so they are counted live from the membership index.
+`companies` is **not** stored here. It is current state rather than a running total — disabling a company gives the
+slot back — so it is counted live from `organization-index` plus the fiscal configurations (enabled companies).
 
-**No GSIs.** Every access is by primary key: the snapshot by account, the marker by event id, the
-counters by account and period.
+### Level marker row — `pk = LEVEL_DIRTY_{organization_id}#{meter}`
+
+A billing **level** (today only `dfe_companies`, the organization's count of enabled companies, billed monthly by peak
+on `price_dfe_ondemand_companies_monthly`) changed and has not been reported to billing yet.
+
+| Attribute         | Type | Notes |
+|-------------------|------|-------|
+| `pk`              | S    | `LEVEL_DIRTY_{organization_id}#{meter}` |
+| `organization_id` | S    | The ctech-account organization |
+| `meter`           | S    | `dfe_companies` |
+| `version`         | N    | `ADD 1` per change, in the same transaction as the change (the enabling fiscal configuration) |
+| `changed_at`      | S    | ISO-8601 UTC of the last change; the report's `occurred_at` |
+| `dirty_shard`     | S    | `level` while pending; **removed** when billing accepted that `version` (a newer version keeps it) |
+
+**GSI `level-dirty-index`** — PK `dirty_shard`, SK `changed_at`, projection ALL, sparse: only pending markers carry
+`dirty_shard`, so the API's sweeper (every 2 min) reads exactly what is left to report.
 
 ---
 

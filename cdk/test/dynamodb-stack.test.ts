@@ -89,3 +89,21 @@ describe('DynamoDBStack — organizations por workspace', () => {
         });
     });
 });
+
+describe('DynamoDBStack — níveis de cobrança pendentes', () => {
+    test('account_billing tem o GSI esparso level-dirty-index', () => {
+        const template = synth();
+        template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_account_billing',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({
+                    IndexName: 'level-dirty-index',
+                    KeySchema: [
+                        {AttributeName: 'dirty_shard', KeyType: 'HASH'},
+                        {AttributeName: 'changed_at', KeyType: 'RANGE'},
+                    ],
+                }),
+            ]),
+        });
+    });
+});

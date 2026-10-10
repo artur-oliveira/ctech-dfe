@@ -432,8 +432,8 @@ export class DynamoDBStack extends cdk.Stack {
     // the issuance path is a GetItem rather than a call across the network — and
     // so an emission stays decidable while billing is unreachable.
     //
-    // No GSI. Every access is by primary key: the snapshot by account, the
-    // marker by event id.
+    // One sparse GSI, for the dirty levels. Every other access is by primary
+    // key: the snapshot by organization, the marker by event id.
     const accountBillingTable = new dynamodb.TableV2(this, `${tablePrefix}_account_billing`, {
       tableName: `${tablePrefix}_account_billing`,
       partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
@@ -448,6 +448,20 @@ export class DynamoDBStack extends cdk.Stack {
       removalPolicy,
       pointInTimeRecoverySpecification,
       encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    // Dirty billing levels (LEVEL_DIRTY_{organization}#{meter}): an
+    // organization whose count of enabled companies changed and has not been
+    // reported to billing yet. Sparse: a marker leaves the index when its
+    // report succeeds (dirty_shard removed), so the sweeper's Query reads only
+    // what is pending. One shard value; the set is tiny by construction.
+    accountBillingTable.addGlobalSecondaryIndex({
+      indexName: 'level-dirty-index',
+      partitionKey: {name: 'dirty_shard', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'changed_at', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.ALL,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
     });
     this.tables.set('account_billing', accountBillingTable);
 
