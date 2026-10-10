@@ -243,7 +243,7 @@ func TestGrantsServiceOnNothing(t *testing.T) {
 	if _, ok := Quota(nil, "nfe"); ok {
 		t.Fatal("nothing grants no quota")
 	}
-	if snap := SnapshotFrom("user-9", nil); snap.UserID != "user-9" {
+	if snap := SnapshotFrom("user-9", nil); snap.OrganizationID != "user-9" {
 		t.Fatalf("snapshot = %+v", snap)
 	}
 }

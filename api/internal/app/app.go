@@ -723,7 +723,8 @@ func newBillingService(
 	c cache.Backend,
 ) *services.BillingService {
 	return services.NewBillingService(repo, client, users, members, orgs, c).
-		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse))
+		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
+		WithUserFallback()
 }
 
 // newReachService builds the reach check, or nil when ctech-account has not

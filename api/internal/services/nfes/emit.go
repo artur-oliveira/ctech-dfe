@@ -746,7 +746,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		DocType:          "nfe",
 		SefazService:     "NFeAutorizacao",
 		Body:             enviNFe,
-		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingUserID:    reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}

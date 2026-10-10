@@ -574,7 +574,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		DocType:          s3PrefixMdfe,
 		SefazService:     sefazServiceAutorizacao,
 		Body:             mdfeBody,
-		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingUserID:    reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}

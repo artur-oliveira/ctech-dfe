@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
@@ -78,23 +77,14 @@ func chargingBilling(t *testing.T, srv *httptest.Server) *services.BillingServic
 	)
 }
 
-// seedPayingOrg creates an organization owned by userID and files the account's
-// billing snapshot, which is what the issuance path reads.
-func seedPayingOrg(t *testing.T, userID string, snap *repositories.AccountSnapshot) string {
+// seedPayingOrg creates a company in a fresh organization and files that
+// organization's billing snapshot, which is what the issuance path reads.
+func seedPayingOrg(t *testing.T, ownerID string, snap *repositories.AccountSnapshot) string {
 	t.Helper()
-	ctx := context.Background()
-	orgPK := "CNPJ_" + randomCNPJ()
-	if err := orgRepo.CreateOrganization(ctx, orgPK, map[string]types.AttributeValue{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := orgSvc.SetOwnerUserID(ctx, orgPK, userID); err != nil {
-		t.Fatal(err)
-	}
-	snap.UserID = userID
-	if err := repositories.NewAccountBillingRepository(db, cfg).Put(ctx, snap); err != nil {
-		t.Fatal(err)
-	}
-	return orgPK
+	org := "org-pay-" + newCompanyPK(t)
+	company := seedCompany(t, org, ownerID, "11222333000181", "Pagante Ltda")
+	seedOrgSnapshot(t, org, snap)
+	return company
 }
 
 // TestAuthorisedIssuanceIsReportedToBilling is the usage-based plan's whole
@@ -189,7 +179,11 @@ func TestARejectedDocumentGivesItsSlotBackExactlyOnce(t *testing.T) {
 	svc.RefundOnce(ctx, orgPK, services.MeterNFe, rejected)
 	svc.RefundOnce(ctx, orgPK, services.MeterNFe, rejected)
 
-	usage, err := svc.Usage(ctx, "refund-owner")
+	orgID, err := svc.OrganizationOf(ctx, orgPK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage, err := svc.Usage(ctx, orgID, orgPK)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -298,7 +298,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		DocType:          DocTypeNfse,
 		SefazService:     nfse.ServiceRecepcao,
 		Body:             workerBody,
-		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		BillingUserID:    reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	})

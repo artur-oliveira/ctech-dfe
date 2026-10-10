@@ -61,7 +61,7 @@ func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingS
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		usage, err := svc.Usage(c.Context(), userID)
+		usage, err := svc.Usage(c.Context(), userID, "")
 		if err != nil {
 			return sendProblem(c, err)
 		}
