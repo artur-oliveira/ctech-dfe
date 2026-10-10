@@ -107,3 +107,32 @@ func TestIndexGapsAreListedAndBackfilledWithoutOverwriting(t *testing.T) {
 		t.Fatal("backfill overwrote an existing created_at")
 	}
 }
+
+func TestListOrganizationsWithCompaniesIsDistinctAndCompanyKeyedOnly(t *testing.T) {
+	ctx := context.Background()
+	org := "org-distinct-" + newCompanyPK(t)
+	_ = seedCompany(t, org, "owner-d", "11222333000181", "D1 Ltda")
+	_ = seedCompany(t, org, "owner-d", "11222333000262", "D2 Ltda")
+	legacyOnly := "org-legacy-only-" + newCompanyPK(t)
+	if err := orgRepo.CreateOrganization(ctx, "CNPJ_"+randomCNPJ(), map[string]types.AttributeValue{
+		repositories.AttrOrganizationID: &types.AttributeValueMemberS{Value: legacyOnly},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := orgRepo.ListOrganizationsWithCompanies(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for _, o := range got {
+		if o == org {
+			seen++
+		}
+		if o == legacyOnly {
+			t.Fatal("a legacy partition's organization was listed")
+		}
+	}
+	if seen != 1 {
+		t.Fatalf("organization listed %d times, want once", seen)
+	}
+}

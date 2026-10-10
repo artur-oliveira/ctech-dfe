@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -340,4 +341,39 @@ func (r *OrganizationRepository) BackfillIndexKeys(ctx context.Context, companyP
 		ExpressionAttributeValues: values,
 	})
 	return err
+}
+
+// ListOrganizationsWithCompanies scans the distinct organizations of the
+// company-keyed records. Used once, by cmd/migrate-billing-org
+// -report-levels-all; never on a request path.
+func (r *OrganizationRepository) ListOrganizationsWithCompanies(ctx context.Context) ([]string, error) {
+	seen := map[string]bool{}
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+			TableName:                aws.String(r.TableName),
+			FilterExpression:         aws.String("attribute_exists(#o)"),
+			ProjectionExpression:     aws.String("pk, #o"),
+			ExpressionAttributeNames: map[string]string{"#o": AttrOrganizationID},
+			ExclusiveStartKey:        start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			if org := itemString(item, AttrOrganizationID); org != "" && IsCompanyKey(itemString(item, "pk")) {
+				seen[org] = true
+			}
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			break
+		}
+		start = res.LastEvaluatedKey
+	}
+	out := make([]string, 0, len(seen))
+	for org := range seen {
+		out = append(out, org)
+	}
+	sort.Strings(out)
+	return out, nil
 }
