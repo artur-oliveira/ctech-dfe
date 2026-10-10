@@ -8,6 +8,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {orgTaxId} from '@/lib/utils/document';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import {useSubscription} from '@/lib/hooks/useSubscription';
+import {canManagePlan} from '@/lib/billing/organization';
 import {STORAGE_KEY_ONBOARDING_SKIPPED_PREFIX} from '@/lib/constants/storage';
 import {
   ONBOARDING_STEPS,
@@ -176,6 +177,7 @@ export function useOnboarding() {
   const probesFailed = !!productsQuery.error || !!servicesQuery.error || !!certificatesQuery.error;
 
   const hasSubscription = !!subscription?.has_subscription || !!subscription?.no_charge;
+  const managesPlan = canManagePlan(subscription);
   const hasCompany = (user?.organizations.length ?? 0) > 0;
   const hasAnyConfig = Object.values(configured).some(Boolean);
   // An expired certificate is not a certificate: the SEFAZ refuses the
@@ -201,7 +203,9 @@ export function useOnboarding() {
       [STEP_DONE]: false,
     };
     const applicableById: Record<OnboardingStep, boolean> = {
-      [STEP_PLAN]: true,
+      // The plan is the organization's: there is one only once a company is
+      // linked, and only its owners and admins can choose it.
+      [STEP_PLAN]: hasCompany && managesPlan,
       [STEP_COMPANY]: true,
       // Nothing to send a certificate to before there is a company.
       [STEP_CERTIFICATE]: hasCompany,
@@ -225,7 +229,7 @@ export function useOnboarding() {
       applicable: applicableById[s.id],
       optional: optionalById[s.id],
     }));
-  }, [hasSubscription, hasCompany, hasCertificate, hasAnyConfig, hasProducts, hasServices, needsProducts, needsServices, skippedSteps]);
+  }, [hasSubscription, managesPlan, hasCompany, hasCertificate, hasAnyConfig, hasProducts, hasServices, needsProducts, needsServices, skippedSteps]);
 
   const visibleSteps = useMemo(() => steps.filter((s) => s.applicable), [steps]);
   const nextStep = useMemo(() => visibleSteps.find((s) => !s.done), [visibleSteps]);
@@ -248,7 +252,8 @@ export function useOnboarding() {
      * which is how a configured account gets shown a first-run card for the
      * half second before its products probe lands.
      */
-    isPending: subPending || (!!orgPk && (configsPending || probesPending)),
+    // The subscription query only runs with a selected company.
+    isPending: !!orgPk && (subPending || configsPending || probesPending),
     /** No answer at all — the caller should say nothing rather than guess. */
     isUnknown: !!subError || configsFailed || probesFailed,
     skip,

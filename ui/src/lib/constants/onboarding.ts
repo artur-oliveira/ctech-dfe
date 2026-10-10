@@ -3,9 +3,9 @@ import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 /**
  * The first-run flow, in layers.
  *
- * Onboarding is ordered because setup genuinely is: there is no company to
- * configure before a plan grants one, no certificate before the company it
- * belongs to, no document numbering before a company, and no product catalogue
+ * Onboarding is ordered because setup genuinely is: there is no plan before the
+ * organization that holds the company (the plan belongs to that ctech-account
+ * organization), no certificate before the company it belongs to, no document numbering before a company, and no product catalogue
  * before a document type that consumes it. The numbers carry that dependency —
  * they are not decoration.
  *
@@ -54,16 +54,16 @@ export interface StepDefinition {
 
 export const ONBOARDING_STEPS: StepDefinition[] = [
   {
-    id: STEP_PLAN,
-    label: 'Plano',
-    title: 'Escolha seu plano',
-    path: `${ONBOARDING_ROOT}/${STEP_PLAN}`,
-  },
-  {
     id: STEP_COMPANY,
     label: 'Empresa',
     title: 'Cadastre sua empresa',
     path: `${ONBOARDING_ROOT}/${STEP_COMPANY}`,
+  },
+  {
+    id: STEP_PLAN,
+    label: 'Plano',
+    title: 'Escolha o plano da organização',
+    path: `${ONBOARDING_ROOT}/${STEP_PLAN}`,
   },
   {
     id: STEP_CERTIFICATE,

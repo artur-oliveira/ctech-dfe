@@ -11,7 +11,7 @@ import {PlanChooser} from '@/components/billing/PlanChooser';
 import {Button} from '@/components/ui/button';
 import {buildPlanOptions} from '@/lib/billing/catalog';
 import {useSubscription} from '@/lib/hooks/useSubscription';
-import {ONBOARDING_ROOT, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding';
+import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
 
 function PlanStepContent() {
   const router = useRouter();
@@ -37,7 +37,7 @@ function PlanStepContent() {
   // No-charge installations have nothing to sell; the layer disappears.
   const noCharge = plansQuery.data?.billing_enabled === false;
   useEffect(() => {
-    if (noCharge) router.replace(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+    if (noCharge) router.replace(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`);
   }, [noCharge, router]);
 
   const choose = useMutation({
@@ -55,7 +55,7 @@ function PlanStepContent() {
         window.location.href = checkoutUrl;
         return;
       }
-      router.push(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+      router.push(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`);
     },
   });
 
