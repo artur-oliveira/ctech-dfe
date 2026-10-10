@@ -61,7 +61,10 @@ type Services struct {
 	External     *services.ExternalService
 	AuditLog     *services.AuditLogService
 	Billing      *services.BillingService
-	RoleRepo     *repositories.RoleRepository
+	// Levels delivers the organization companies level after a first fiscal
+	// configuration (the sweeper delivers it otherwise).
+	Levels   *services.LevelReporter
+	RoleRepo *repositories.RoleRepository
 }
 
 // Register mounts all /v1.0 routes onto the Fiber app.
@@ -102,6 +105,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		MemberSvc:   svcs.Member,
 		InvSvc:      svcs.Invitation,
 		BillingSvc:  svcs.Billing,
+		Levels:      svcs.Levels,
 	}, authMw, perm)
 	RegisterBilling(v1, app, svcs.Billing, cfg.BillingWebhookSecret, authMw, perm)
 	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)

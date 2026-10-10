@@ -662,3 +662,46 @@ func TestWebhookSyncsAnOrganizationAndIgnoresAUser(t *testing.T) {
 		t.Fatalf("a USER_ webhook wrote a snapshot: %+v", u)
 	}
 }
+
+// Two companies of one organization enabled together at limit-1: exactly one
+// configuration commits.
+func TestTwoEnablementsRaceForTheLastSlot(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	org := "org-race-" + newCompanyPK(t)
+	snap := proSnapshot("sub_race")
+	snap.Quotas[services.MeterCompanies] = 1
+	seedOrgSnapshot(t, org, snap)
+	a := seedCompany(t, org, "owner-race", "11222333000181", "A Ltda")
+	b := seedCompany(t, org, "owner-race", "11222333000262", "B Ltda")
+
+	ra, err := svc.ReserveCompany(ctx, org, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rb, err := svc.ReserveCompany(ctx, org, b)
+	if err != nil {
+		t.Fatal(err) // both read 0 of 1: the guard decides
+	}
+	nfe := services.NewNfeConfigService(nfeConfigRepo, auditRepo)
+	fields := map[string]types.AttributeValue{"prod_current_serie": &types.AttributeValueMemberN{Value: "1"}}
+	_, errA := nfe.Upsert(ctx, a, fields, "owner-race", "Dono", ra.Items...)
+	_, errB := nfe.Upsert(ctx, b, fields, "owner-race", "Dono", rb.Items...)
+	if (errA == nil) == (errB == nil) {
+		t.Fatalf("exactly one must commit: errA=%v errB=%v", errA, errB)
+	}
+}
+
+// O6: a company already enabled before it had an organization (a legacy
+// record) keeps saving its configuration; only enabling is refused.
+func TestAnEnabledCompanyWithNoOrganizationStillSaves(t *testing.T) {
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	company := newCompanyPK(t)
+	seedNfeConfig(t, company)
+	r, err := svc.ReserveCompany(context.Background(), "", company)
+	if err != nil || len(r.Items) != 0 {
+		t.Fatalf("already enabled, no organization: %+v %v", r, err)
+	}
+}

@@ -590,6 +590,17 @@ only fall back to a legacy `CNPJ_...`/`CPF_...` key. A UUID must never be format
 | POST   | `/v1.0/organizations/{pk}/authorized-viewers` | Add SEFAZ autXML viewer (`{cpf_or_cnpj, name}`) — 400 if already at 10, 409 if CPF/CNPJ already authorized |
 | DELETE | `/v1.0/organizations/{pk}/authorized-viewers/{cpf_cnpj}` | Remove autXML viewer (no-op if not present) |
 
+**First fiscal configuration = enablement (company quota).** A company counts against its ctech-account organization's
+`quota_companies` when it is **enabled**: its first fiscal configuration of any kind (`PUT …/{nfe,nfce,cte,mdfe,nfse}-config`
+on a company with none). That save checks the quota before the série claim (`BillingService.ReserveCompany`): above the
+limit it answers **402** `quota_exceeded` and writes nothing; within it, the quota guard and the organization's
+`dfe_companies` level marker commit in the same transaction as the configuration, and the level is delivered to billing
+(see "Assinatura da organização"). **409** when the company has no ctech-account organization, or when another company of
+the organization took the last slot concurrently. A company already enabled keeps saving its configuration whatever the
+count or organization (O6). Linking (`LinkService.Link`) is never checked: a linked, unconfigured company costs nothing.
+The legacy `POST /organizations` no longer checks or meters the company quota; the companies it creates have no
+organization, so they cannot be enabled.
+
 **Organization creation (KYC).** `POST /organizations` is `multipart/form-data`:
 `data` (JSON org body) + optional `file` (A1 PFX) + `password`. The organization, its certificate,
 the founding OWNER membership, and the audit row are written in one `TransactWrite` (all-or-nothing).

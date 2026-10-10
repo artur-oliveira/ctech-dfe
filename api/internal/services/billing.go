@@ -1111,9 +1111,8 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 	if !s.Enabled() {
 		return &CompanyReservation{}, nil
 	}
-	if organizationID == "" {
-		return nil, ErrNoOrganization
-	}
+	// Already enabled is not a change, organization or not: a company that
+	// emits keeps saving its configuration (O6). Only enabling is refused.
 	if s.enablement != nil {
 		docTypes, err := s.enablement.ConfiguredDocTypes(ctx, companyPK)
 		if err != nil {
@@ -1122,6 +1121,9 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 		if len(docTypes) > 0 {
 			return &CompanyReservation{}, nil
 		}
+	}
+	if organizationID == "" {
+		return nil, ErrNoOrganization
 	}
 	snap, err := s.snapshotFor(ctx, organizationID, companyPK)
 	if err != nil {

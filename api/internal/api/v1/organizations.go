@@ -29,6 +29,8 @@ type OrgHandlers struct {
 	MemberSvc  *services.MembershipService
 	InvSvc     *services.InvitationService
 	BillingSvc *services.BillingService
+	// Levels delivers the companies level right after an enablement.
+	Levels *services.LevelReporter
 }
 
 // RegisterOrganizations mounts all /organizations routes.
@@ -234,8 +236,21 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	// SEFAZ's code, not ours. NFS-e passes none: it is municipal, its numbering
 	// is not keyed (CNPJ, modelo, série, número, ambiente), and claiming a
 	// national série for it would refuse a collision that cannot happen.
+	//
+	// Every variant carries billing: a company's first configuration, of any
+	// kind, is what enables it and counts it against the organization's
+	// company quota (spec O5).
+	enablement := fiscalConfigDeps{orgSvc: h.OrgSvc}
+	if h.BillingSvc != nil {
+		enablement.billing = h.BillingSvc
+	}
+	if h.Levels != nil {
+		enablement.levels = h.Levels
+	}
 	serieDeps := func(modelo string) fiscalConfigDeps {
-		return fiscalConfigDeps{orgSvc: h.OrgSvc, claims: h.SerieClaims, modelo: modelo}
+		d := enablement
+		d.claims, d.modelo = h.SerieClaims, modelo
+		return d
 	}
 	registerFiscalConfig(scoped, "/nfe-config",
 		"get.organization_nfe_configs", "update.organization_nfe_configs",
@@ -251,7 +266,7 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		h.MdfeConfig, perm, bindAVValidated[MdfeConfigBody], h.UserSvc, serieDeps(services.ModelMDFe))
 	registerFiscalConfig(scoped, "/nfse-config",
 		"get.organization_nfse_configs", "update.organization_nfse_configs",
-		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc, fiscalConfigDeps{})
+		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc, enablement)
 
 	// ── Certificates ────────────────────────────────────────────────────────
 

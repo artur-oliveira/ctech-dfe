@@ -566,6 +566,7 @@ type Services struct {
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
 	BillingSvc      *services.BillingService
+	LevelReporter   *services.LevelReporter
 	RoleRepo        *repositories.RoleRepository
 	Cache           cache.Backend
 	WSReg           ws.Registry
@@ -613,6 +614,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,
 		Billing:         svcs.BillingSvc,
+		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
 	})
 }
