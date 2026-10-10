@@ -93,6 +93,7 @@ var Module = fx.Options(
 		services.NewInvitationService,
 		newBillingClient,
 		newReachService,
+		newWorkspaceRoleService,
 		newLinkService,
 		newBillingService,
 		newCertificateService,
@@ -752,6 +753,25 @@ func newReachService(cfg *config.Config, c cache.Backend) *services.ReachService
 	}
 	slog.Info("the ctech-account reach check is ON — a membership row with no company edge grants nothing")
 	return services.NewReachService(client, c)
+}
+
+// newWorkspaceRoleService builds the role check for managing an organization's
+// subscription. Nil when ctech-account has not issued the credential: the
+// service then answers every management attempt with 403, and reading the plan
+// keeps working.
+func newWorkspaceRoleService(cfg *config.Config, c cache.Backend) *services.WorkspaceRoleService {
+	client := accountclient.NewWorkspace(accountclient.Config{
+		BaseURL:      cfg.CtechURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.AccountWorkspaceClientID,
+		ClientSecret: cfg.AccountWorkspaceClientSecret,
+		Cache:        c,
+	})
+	if client == nil {
+		slog.Warn("the ctech-account workspace credential is not configured — nobody can manage a DF-e subscription")
+		return nil
+	}
+	return services.NewWorkspaceRoleService(client, c)
 }
 
 func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client {
