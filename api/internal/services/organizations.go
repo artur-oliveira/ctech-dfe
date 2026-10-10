@@ -83,24 +83,6 @@ func (s *OrganizationService) CompaniesOf(ctx context.Context, organizationID st
 	return s.repo.ListCompaniesOfOrganization(ctx, organizationID)
 }
 
-// SetOwnerUserID stamps the paying account on an organization.
-//
-// It exists only for the read-fallback repair of organizations created before
-// the field did (BillingService.OwnerOf), which is why it takes no actor and
-// writes no audit row: it records something that was already true rather than
-// deciding it. **Ownership transfer, when it exists, must not use this** — that
-// is a decision with an actor, and it moves the OWNER membership in the same
-// transaction.
-func (s *OrganizationService) SetOwnerUserID(ctx context.Context, orgPK, userID string) error {
-	if err := s.repo.UpdateOrganization(ctx, orgPK, map[string]any{
-		repositories.AttrOwnerUserID: repositories.RawUserID(userID),
-	}); err != nil {
-		return err
-	}
-	cacheDelete(ctx, s.cache, "dfe:org:"+orgPK)
-	return nil
-}
-
 func (s *OrganizationService) Create(ctx context.Context, cpfOrCNPJ string, fields map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	existing, err := s.Get(ctx, cpfOrCNPJ)
 	if err != nil {

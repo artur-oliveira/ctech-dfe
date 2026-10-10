@@ -72,7 +72,7 @@ func chargingBilling(t *testing.T, srv *httptest.Server) *services.BillingServic
 	}
 	return services.NewBillingService(
 		repositories.NewAccountBillingRepository(db, cfg),
-		client, nil, memberSvc, orgSvc, cache.NewMemoryBackend(16),
+		client, nil, orgSvc, cache.NewMemoryBackend(16),
 	)
 }
 

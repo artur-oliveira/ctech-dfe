@@ -111,7 +111,7 @@ func wire(ctx context.Context, prefix, region string) (deps, error) {
 	orgSvc := services.NewOrganizationService(orgRepo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, mem)
 	// The enablement source is required: the level reported is the count of
 	// ENABLED companies, and without it companiesUsed counts every linked one.
-	billingSvc := services.NewBillingService(billingRepo, bill, nil, memberSvc, orgSvc, mem).
+	billingSvc := services.NewBillingService(billingRepo, bill, nil, orgSvc, mem).
 		WithEnablement(services.NewFiscalConfigEnablement(
 			repositories.NewNfeConfigRepository(db, cfg), repositories.NewNfceConfigRepository(db, cfg),
 			repositories.NewCteConfigRepository(db, cfg), repositories.NewMdfeConfigRepository(db, cfg),

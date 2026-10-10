@@ -150,11 +150,6 @@ type AccountSnapshot struct {
 	// bought.
 	NoCharge bool `dynamodbav:"no_charge,omitempty" json:"no_charge,omitempty"`
 
-	// InheritedFromUser marks a snapshot served by the dual read: the
-	// organization has no subscription of its own yet and is running on its
-	// owner's pre-migration one. Never stored; mutations refuse it.
-	InheritedFromUser bool `dynamodbav:"-" json:"-"`
-
 	SyncedAt string `dynamodbav:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 

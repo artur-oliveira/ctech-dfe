@@ -95,29 +95,20 @@ func orgBillingCacheKey(organizationID string) string {
 	return "dfe:billing:org:" + organizationID
 }
 
-// userBillingCacheKey caches a pre-migration USER_ snapshot for the dual read.
-// Deleted with it (Phase 2).
-func userBillingCacheKey(userID string) string {
-	return fmt.Sprintf("dfe:billing:%s", repositories.RawUserID(userID))
-}
-
 const catalogCacheKey = "dfe:billing:catalog"
 
 // BillingService is the DF-e's view of ctech-billing.
 type BillingService struct {
-	repo    *repositories.AccountBillingRepository
-	client  *billingclient.Client
-	users   *UserService
-	members *MembershipService
-	orgs    *OrganizationService
-	cache   cache.Backend
+	repo   *repositories.AccountBillingRepository
+	client *billingclient.Client
+	users  *UserService
+	orgs   *OrganizationService
+	cache  cache.Backend
 	// enablement reports which companies can actually emit, which is what the
 	// company quota applies to (ctech-billing ADR 0021). Optional: without it
 	// the quota falls back to counting owned companies, which is what it always
 	// did and what ADR 0021 says is wrong.
 	enablement enablementSource
-	// userFallback opens the dual-read window (Phase 1 only).
-	userFallback bool
 	// roles answers who may manage an organization's plan; nil refuses.
 	roles workspaceRoles
 	// levelFlush delivers a dirty companies level (LevelReporter.Flush).
@@ -132,15 +123,6 @@ type BillingService struct {
 // falling back cannot let somebody past a limit.
 func (s *BillingService) WithEnablement(e enablementSource) *BillingService {
 	s.enablement = e
-	return s
-}
-
-// WithUserFallback opens the dual-read window
-// (docs/specs/2026-10-10-organization-subscription.md § 4): an organization
-// with no subscription of its own is served its company owner's pre-migration
-// USER_ snapshot. Writes never follow it. Removed in Phase 2.
-func (s *BillingService) WithUserFallback() *BillingService {
-	s.userFallback = true
 	return s
 }
 
@@ -178,11 +160,10 @@ func NewBillingService(
 	repo *repositories.AccountBillingRepository,
 	client *billingclient.Client,
 	users *UserService,
-	members *MembershipService,
 	orgs *OrganizationService,
 	c cache.Backend,
 ) *BillingService {
-	return &BillingService{repo: repo, client: client, users: users, members: members, orgs: orgs, cache: c}
+	return &BillingService{repo: repo, client: client, users: users, orgs: orgs, cache: c}
 }
 
 // Enabled reports whether this deployment charges for anything.
@@ -446,15 +427,10 @@ func (s *BillingService) OrganizationName(ctx context.Context, scope *BillingSco
 	return s.roles.OrganizationName(ctx, scope.OrganizationID, scope.UserID)
 }
 
-// SnapshotOf is the organization's standing as the routes read it (dual read
-// included).
+// SnapshotOf is the organization's standing as the routes read it.
 func (s *BillingService) SnapshotOf(ctx context.Context, scope *BillingScope) (*repositories.AccountSnapshot, error) {
 	return s.snapshotFor(ctx, scope.OrganizationID, scope.CompanyPK)
 }
-
-// migratingConflict refuses a mutation on a plan inherited through the dual
-// read: changing it would change the owner's pre-migration subscription.
-var migratingConflict = problem.Conflict("o plano desta organização está sendo migrado; tente novamente em instantes")
 
 // CustomerPayer is who acts when the organization's customer is created: the
 // fallback name and the e-mail billing writes to.
@@ -643,8 +619,7 @@ func ValidatePriceSelection(products []billingclient.Product, priceIDs []string)
 // It refuses when a subscription already grants service, and that refusal is the
 // difference between this and Change: subscribing twice would leave two
 // subscriptions billing the same organization, and neither billing nor this
-// service has a rule for which of them wins. An inherited (dual-read) snapshot
-// has a subscription, so it is refused too.
+// service has a rule for which of them wins.
 func (s *BillingService) Choose(ctx context.Context, scope *BillingScope, accessToken string, priceIDs []string) (*repositories.AccountSnapshot, *billingclient.Invoice, error) {
 	if !s.Enabled() {
 		return nil, nil, problem.NotImplemented("a cobrança está desativada nesta instalação")
@@ -714,9 +689,6 @@ func (s *BillingService) Change(ctx context.Context, scope *BillingScope, priceI
 	if snap.SubscriptionID == "" {
 		return nil, nil, problem.Conflict("esta organização ainda não tem assinatura; escolha um plano primeiro")
 	}
-	if snap.InheritedFromUser {
-		return nil, nil, migratingConflict
-	}
 	// Same guard as Choose: an organization already on the internal plan must
 	// not be able to move a second one onto it, and a downgrade must not smuggle
 	// in an archived price.
@@ -749,9 +721,6 @@ func (s *BillingService) Cancel(ctx context.Context, scope *BillingScope, atPeri
 	}
 	if snap.SubscriptionID == "" {
 		return nil, problem.NotFound("esta organização não tem assinatura")
-	}
-	if snap.InheritedFromUser {
-		return nil, migratingConflict
 	}
 	key := fmt.Sprintf("cancel:%s:%t", snap.SubscriptionID, atPeriodEnd)
 	if _, err := s.client.CancelSubscription(ctx, snap.SubscriptionID, atPeriodEnd, key); err != nil {
@@ -1290,50 +1259,10 @@ func (s *BillingService) SnapshotForOrg(ctx context.Context, companyPK string) (
 	return s.snapshotFor(ctx, organizationID, companyPK)
 }
 
-// snapshotFor is Snapshot plus the dual read: while the window is open, an
-// organization with no subscription of its own runs on its company owner's
-// USER_ snapshot, marked InheritedFromUser and stamped with the organization
-// so every write still lands on ORG_.
-func (s *BillingService) snapshotFor(ctx context.Context, organizationID, companyPK string) (*repositories.AccountSnapshot, error) {
-	snap, err := s.Snapshot(ctx, organizationID)
-	if err != nil {
-		return nil, err
-	}
-	if !s.userFallback || snap.NoCharge || snap.SubscriptionID != "" {
-		return snap, nil
-	}
-	owner, err := s.OwnerOf(ctx, companyPK)
-	if err != nil {
-		return nil, err
-	}
-	if owner == "" {
-		return snap, nil
-	}
-	user, err := s.userSnapshot(ctx, owner)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || user.SubscriptionID == "" {
-		return snap, nil
-	}
-	inherited := *user
-	inherited.OrganizationID = organizationID
-	inherited.InheritedFromUser = true
-	return &inherited, nil
-}
-
-// userSnapshot reads a pre-migration USER_ row, cache-first. Dual read only.
-func (s *BillingService) userSnapshot(ctx context.Context, userID string) (*repositories.AccountSnapshot, error) {
-	key := userBillingCacheKey(userID)
-	if v, ok := CacheGet[repositories.AccountSnapshot](ctx, s.cache, key); ok {
-		return v, nil
-	}
-	snap, err := s.repo.Get(ctx, userID)
-	if err != nil || snap == nil {
-		return snap, err
-	}
-	CacheSet(ctx, s.cache, key, *snap, snapshotCacheTTL)
-	return snap, nil
+// snapshotFor is the organization's snapshot. (The pre-migration fallback to
+// the owner's USER_ row was removed when the window closed.)
+func (s *BillingService) snapshotFor(ctx context.Context, organizationID, _ string) (*repositories.AccountSnapshot, error) {
+	return s.Snapshot(ctx, organizationID)
 }
 
 // counterAccount is the account a snapshot's counters live under: always its
@@ -1343,51 +1272,6 @@ func counterAccount(s *repositories.AccountSnapshot) (string, error) {
 		return "", ErrNoOrganization
 	}
 	return s.OrganizationID, nil
-}
-
-// OwnerOf returns the account that pays for an organization.
-//
-// The field first, and a scan of the members as the fallback. The fallback is
-// the migration: organizations created before `owner_user_id` existed have none,
-// and rather than a one-shot backfill script that somebody has to remember to
-// run against each environment, the first read repairs the row. It is the same
-// read-fallback self-heal the membership table used through its own migration.
-//
-// The repair is best-effort — a failed write is logged and the answer returned
-// anyway, because the caller asked who the owner is and that is now known.
-func (s *BillingService) OwnerOf(ctx context.Context, orgPK string) (string, error) {
-	org, err := s.orgs.Get(ctx, orgPK)
-	if err != nil {
-		return "", err
-	}
-	if org == nil {
-		return "", problem.NotFound("organização não encontrada")
-	}
-	if v, ok := org[repositories.AttrOwnerUserID].(*types.AttributeValueMemberS); ok && v.Value != "" {
-		return v.Value, nil
-	}
-
-	members, err := s.members.ListByOrg(ctx, orgPK)
-	if err != nil {
-		return "", err
-	}
-	for _, m := range members {
-		if m.Role != repositories.RoleOwner {
-			continue
-		}
-		owner := repositories.RawUserID(m.UserID)
-		if err := s.orgs.SetOwnerUserID(ctx, orgPK, owner); err != nil {
-			slog.WarnContext(ctx, "billing: could not backfill owner_user_id",
-				"org_pk", orgPK, "owner", owner, "error", err)
-		}
-		return owner, nil
-	}
-	// An organization with no OWNER at all. It cannot happen through any write
-	// path this service has — creation writes one and it cannot be removed — so
-	// it means a hand-edited row, and answering "nobody pays for this" is more
-	// useful than an error that hides which organization it was.
-	slog.ErrorContext(ctx, "billing: organization has no owner", "org_pk", orgPK)
-	return "", nil
 }
 
 // OrganizationFromRef reads a DF-e organization out of a billing customer's
@@ -1423,10 +1307,8 @@ func (s *BillingService) SyncBySubscription(ctx context.Context, subscriptionID 
 	}
 	organizationID, ok := OrganizationFromRef(customer.ExternalRef)
 	if !ok {
-		// A USER_ customer is a pre-migration subscription: after
-		// cmd/migrate-billing-org the only USER_ events expected are the
-		// cancellations of the old subscriptions, and nothing reads USER_ rows
-		// after the dual-read window. Anything else belongs to another product.
+		// Pre-migration customers; nothing reads USER_ rows any more. Anything
+		// else belongs to another product.
 		slog.InfoContext(ctx, "billing: webhook for a customer that is not a DF-e organization; ignored",
 			"customer_id", customer.ID, "external_ref", customer.ExternalRef)
 		return nil
