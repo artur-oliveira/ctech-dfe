@@ -69,6 +69,14 @@ type Config struct {
 	AccountClientID     string `env:"ACCOUNT_CLIENT_ID"`
 	AccountClientSecret string `env:"ACCOUNT_CLIENT_SECRET"`
 
+	// AccountWorkspaceClientID/Secret are the client-credentials client holding
+	// internal:account:org-member and internal:account:user-organizations
+	// (docs/specs/2026-10-10-organization-subscription.md). Separate from the
+	// reach client so one wrong grant cannot disable the other. Absent means
+	// nobody can manage a DF-e subscription (fail closed).
+	AccountWorkspaceClientID     string `env:"ACCOUNT_WORKSPACE_CLIENT_ID"`
+	AccountWorkspaceClientSecret string `env:"ACCOUNT_WORKSPACE_CLIENT_SECRET"`
+
 	// BillingWebhookSecret verifies billing's outbound deliveries. It is separate
 	// from the client credentials because it authenticates the opposite
 	// direction, and holding one says nothing about holding the other.

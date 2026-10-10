@@ -13,17 +13,14 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
-// The account's own billing surface.
+// The organization's billing surface (docs/specs/2026-10-10-organization-subscription.md § 2).
 //
-// Every route here acts on **the caller's account** and takes no organization
-// header. That is what makes "only the owner may create or change a
-// subscription" a property of the routing rather than a check somebody can
-// forget: there is no parameter naming whose subscription to touch, so a member
-// of somebody else's organization cannot reach it however their role is set.
-//
-// The one organization-scoped route is read-only and lives at the bottom, so an
-// ADMIN can see the plan governing the organization they help run without being
-// able to act on it.
+// Every /billing/subscription* and /billing/invoices route requires the
+// Dfe-Organization-Pk header: the subscription addressed is that of the
+// selected company's ctech-account organization. Reading the plan and usage is
+// open to anybody with access to the company; choosing, changing, cancelling
+// and listing invoices require the ctech-account role owner or admin, checked
+// in BillingService (403 otherwise, outage included).
 
 // planChoiceBody selects a set of prices. It is a list because a usage-based
 // plan meters several document types and each is its own price — one
@@ -40,7 +37,7 @@ type cancelBody struct {
 }
 
 // RegisterBilling mounts /v1.0/billing/* and the webhook.
-func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingService, webhookSecret string, authMw fiber.Handler) {
+func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingService, webhookSecret string, authMw fiber.Handler, perm *middleware.PermChecker) {
 	registerBillingWebhook(app, svc, webhookSecret)
 
 	billing := router.Group("/billing", authMw)
@@ -54,33 +51,39 @@ func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingS
 		return c.JSON(fiber.Map{"data": products, "billing_enabled": svc.Enabled()})
 	})
 
-	// GET /billing/subscription — the account's standing and what it has used.
-	billing.Get("/subscription", func(c fiber.Ctx) error {
-		userID := middleware.GetUserID(c)
-		snap, err := svc.Snapshot(c.Context(), userID)
+	// GET /billing/subscription — the organization's standing and what it has used.
+	billing.Get("/subscription", perm.RequireMember(), func(c fiber.Ctx) error {
+		scope, err := scopeOf(c, svc)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		usage, err := svc.Usage(c.Context(), userID)
+		snap, err := svc.SnapshotOf(c.Context(), scope)
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		view := subscriptionView(snap)
-		// Usage rides along rather than living on a route of its own: every screen
-		// that shows the plan shows what is left of it, and splitting them would
-		// make the common case two calls that can disagree by a moment.
+		usage, err := svc.Usage(c.Context(), scope.OrganizationID, scope.CompanyPK)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		// An outage reading the role shows the plan read-only; it never fails
+		// the read.
+		manageable, _ := svc.CanManage(c.Context(), scope)
+		view := organizationSubscriptionView(snap, svc.OrganizationName(c.Context(), scope), manageable)
 		view["usage"] = usage
 		return c.JSON(view)
 	})
 
 	// POST /billing/subscription — choose a plan for the first time.
-	billing.Post("/subscription", func(c fiber.Ctx) error {
+	billing.Post("/subscription", perm.RequireMember(), func(c fiber.Ctx) error {
 		var body planChoiceBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
-		snap, invoice, err := svc.Choose(
-			c.Context(), middleware.GetUserID(c), currentAccessToken(c), body.PriceIDs)
+		scope, err := scopeOf(c, svc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		snap, invoice, err := svc.Choose(c.Context(), scope, currentAccessToken(c), body.PriceIDs)
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -88,12 +91,16 @@ func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingS
 	})
 
 	// POST /billing/subscription/change — upgrade or downgrade.
-	billing.Post("/subscription/change", func(c fiber.Ctx) error {
+	billing.Post("/subscription/change", perm.RequireMember(), func(c fiber.Ctx) error {
 		var body planChoiceBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
-		snap, invoice, err := svc.Change(c.Context(), middleware.GetUserID(c), body.PriceIDs)
+		scope, err := scopeOf(c, svc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		snap, invoice, err := svc.Change(c.Context(), scope, body.PriceIDs)
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -101,27 +108,35 @@ func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingS
 	})
 
 	// POST /billing/subscription/cancel
-	billing.Post("/subscription/cancel", func(c fiber.Ctx) error {
+	billing.Post("/subscription/cancel", perm.RequireMember(), func(c fiber.Ctx) error {
 		var body cancelBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
-		snap, err := svc.Cancel(c.Context(), middleware.GetUserID(c), body.AtPeriodEnd)
+		scope, err := scopeOf(c, svc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		snap, err := svc.Cancel(c.Context(), scope, body.AtPeriodEnd)
 		if err != nil {
 			return sendProblem(c, err)
 		}
 		return c.JSON(subscriptionView(snap))
 	})
 
-	// GET /billing/invoices — the account's own invoices for a month.
-	billing.Get("/invoices", func(c fiber.Ctx) error {
+	// GET /billing/invoices — the organization's invoices for a month (owner/admin).
+	billing.Get("/invoices", perm.RequireMember(), func(c fiber.Ctx) error {
 		now := time.Now()
 		year := fiber.Query(c, "year", now.Year())
 		month := fiber.Query(c, "month", int(now.Month()))
 		if month < 1 || month > 12 {
 			return sendProblem(c, problem.BadRequest("mês inválido"))
 		}
-		invoices, err := svc.Invoices(c.Context(), middleware.GetUserID(c), year, month)
+		scope, err := scopeOf(c, svc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		invoices, err := svc.Invoices(c.Context(), scope, year, month)
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -135,12 +150,11 @@ func RegisterBilling(router fiber.Router, app *fiber.App, svc *services.BillingS
 // org-scoped and must sit behind the same tenant resolution every other
 // `/organizations/:org_pk` route does.
 func RegisterOrganizationPlan(scoped fiber.Router, svc *services.BillingService, perm *middleware.PermChecker) {
-	// GET /organizations/:org_pk/plan — the plan that governs this organization.
+	// GET /organizations/:org_pk/plan — the plan that governs this company: it
+	// answers for the ctech-account organization of that company.
 	//
-	// OWNER and ADMIN only, and read-only for both. An ADMIN helps run the
-	// organization and needs to know why an emission was refused; changing the
-	// plan spends the owner's money, and no role but the owner's own account
-	// route can do it.
+	// OWNER and ADMIN (local roles) only, and read-only for both. Managing the
+	// plan happens on /billing/subscription*, gated by the ctech-account role.
 	scoped.Get("/plan", perm.RequireOwnerOrAdmin(), func(c fiber.Ctx) error {
 		snap, err := svc.SnapshotForOrg(c.Context(), middleware.GetOrgPK(c))
 		if err != nil {
@@ -155,7 +169,28 @@ func RegisterOrganizationPlan(scoped fiber.Router, svc *services.BillingService,
 	})
 }
 
-// subscriptionView is the account's standing on the wire.
+// organizationSubscriptionView is subscriptionView plus who the plan belongs
+// to and whether the caller may act on it. `manageable` is the UI's only input
+// for showing the buttons that spend money.
+func organizationSubscriptionView(s *repositories.AccountSnapshot, organizationName string, manageable bool) fiber.Map {
+	out := subscriptionView(s)
+	out["organization"] = map[string]string{"id": s.OrganizationID, "name": organizationName}
+	out["manageable"] = manageable
+	// Paying is managing: the open invoice and its checkout link are for the
+	// organization's owners and admins only.
+	if !manageable {
+		delete(out, "open_invoice")
+	}
+	return out
+}
+
+// scopeOf resolves the selected company to the organization a billing route
+// acts on.
+func scopeOf(c fiber.Ctx, svc *services.BillingService) (*services.BillingScope, error) {
+	return svc.ScopeFor(c.Context(), middleware.GetOrgPK(c), middleware.GetUserID(c))
+}
+
+// subscriptionView is the organization's standing on the wire.
 //
 // It publishes `grants_service` alongside `status` rather than only the status,
 // because "may I issue a document right now" is a question the UI must not

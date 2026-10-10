@@ -61,7 +61,11 @@ func (s *fiscalConfigService) Get(ctx context.Context, orgPK string) (map[string
 // The single Get below feeds both the preserve-merge and the audit baseline:
 // two independent reads could straddle a concurrent internal-process write
 // (e.g. a counter increment) and misattribute it to the acting user.
-func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
+//
+// extra items (the company quota guard and the companies-level marker on a
+// first configuration) commit in the same transaction, so a refused guard
+// leaves no configuration behind.
+func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string, extra ...types.TransactWriteItem) (map[string]types.AttributeValue, error) {
 	current, err := s.repo.Get(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -94,7 +98,8 @@ func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields m
 		return nil, err
 	}
 
-	if err := s.repo.TransactWrite(ctx, []types.TransactWriteItem{configTx, auditTx}); err != nil {
+	items := append([]types.TransactWriteItem{configTx, auditTx}, extra...)
+	if err := s.repo.TransactWrite(ctx, items); err != nil {
 		return nil, err
 	}
 	return finalItem, nil

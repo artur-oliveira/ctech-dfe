@@ -4,12 +4,17 @@ import {useEffect, type ReactNode} from 'react';
 import {usePathname, useRouter} from 'next/navigation';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useSubscription} from '@/lib/hooks/useSubscription';
-import {ONBOARDING_ROOT, STEP_CHECKOUT_RETURN, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding';
-import {STATUS_INCOMPLETE} from '@/lib/constants/billing';
-import {ROLE_OWNER} from '@/lib/data/roles';
+import {ONBOARDING_ROOT} from '@/lib/constants/onboarding';
+import {onboardingTarget} from '@/lib/onboarding/target';
 
-/** Routes that must stay reachable without a plan or a company. */
-const EXEMPT_PREFIXES = [ONBOARDING_ROOT, '/invite', '/callback', '/login', '/terms-addendum'];
+/**
+ * Routes that must stay reachable without a plan or a company.
+ *
+ * The company record (`/organizations/link` and `/organizations/edit`, the
+ * handoff's return leg) is part of the company step, which comes before the
+ * organization's plan; saving it continues the setup flow to the plan.
+ */
+const EXEMPT_PREFIXES = [ONBOARDING_ROOT, '/invite', '/callback', '/login', '/terms-addendum', '/organizations/link', '/organizations/edit'];
 
 /**
  * Sends an account that has not finished the required layers of setup into the
@@ -17,9 +22,9 @@ const EXEMPT_PREFIXES = [ONBOARDING_ROOT, '/invite', '/callback', '/login', '/te
  *
  * Two rules keep this from catching the wrong people:
  *
- * - **Members are never gated.** Someone invited into an organization operates
- *   under the owner's plan and has no subscription of their own. Asking them to
- *   pick one would sell a second plan for the same company.
+ * - **Only those who can choose the plan are sent to it**: the organization's
+ *   owners and admins, as ctech-account says (`manageable`). Everybody else
+ *   operates under the organization's plan and is never asked to pick one.
  * - **A failed lookup lets the user through.** The subscription is a
  *   convenience snapshot, and a network blip is not a reason to lock an account
  *   out of a product it already pays for. The API blocks issuance on its own
@@ -33,34 +38,20 @@ export function OnboardingGate({children}: { children: ReactNode }) {
 
   const exempt = EXEMPT_PREFIXES.some((p) => pathname.startsWith(p));
   const organizations = user?.organizations ?? [];
-  const memberOnly = organizations.length > 0 && !organizations.some((o) => o.role === ROLE_OWNER);
-
-  const needsPlan = !!subscription && !subscription.has_subscription && !subscription.no_charge;
-  // INCOMPLETE is precisely "chose the paid plan and never paid". The account
-  // has a subscription, so the plan step is answered; what is missing is the
-  // payment landing, which is what the return screen waits for.
-  const awaitingPayment = subscription?.status === STATUS_INCOMPLETE;
-  const needsCompany = !needsPlan && !awaitingPayment && organizations.length === 0;
-
-  const target = needsPlan
-    ? `${ONBOARDING_ROOT}/${STEP_PLAN}`
-    : awaitingPayment
-      ? `${ONBOARDING_ROOT}/${STEP_CHECKOUT_RETURN}`
-      : needsCompany
-        ? `${ONBOARDING_ROOT}/${STEP_COMPANY}`
-        : null;
-
-  const shouldRedirect = !exempt && !memberOnly && !error && !!target;
+  const target = onboardingTarget({hasCompany: organizations.length > 0, subscription});
+  const shouldRedirect = !exempt && !error && !!target;
 
   useEffect(() => {
     if (shouldRedirect && target) router.replace(target);
   }, [shouldRedirect, target, router]);
 
-  if (exempt || memberOnly || error) return <>{children}</>;
+  if (exempt || error) return <>{children}</>;
 
   // Holding the page while the snapshot loads avoids a flash of the dashboard
   // for an account that is about to be redirected out of it.
-  if (isPending || shouldRedirect) {
+  // The subscription query is disabled without a selected company, and a
+  // disabled query stays pending: only wait for it when there is a company.
+  if ((isPending && organizations.length > 0) || shouldRedirect) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div

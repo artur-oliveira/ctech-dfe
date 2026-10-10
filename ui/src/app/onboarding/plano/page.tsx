@@ -10,12 +10,14 @@ import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {PlanChooser} from '@/components/billing/PlanChooser';
 import {Button} from '@/components/ui/button';
 import {buildPlanOptions} from '@/lib/billing/catalog';
-import {ONBOARDING_ROOT, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding';
+import {useSubscription} from '@/lib/hooks/useSubscription';
+import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
 
 function PlanStepContent() {
   const router = useRouter();
   const qc = useQueryClient();
   const [chosen, setChosen] = useState<string | null>(null);
+  const organizationName = useSubscription().subscription?.organization?.name?.trim() ?? '';
 
   const plansQuery = useQuery({
     queryKey: queryKeys.billing.plans(),
@@ -35,7 +37,7 @@ function PlanStepContent() {
   // No-charge installations have nothing to sell; the layer disappears.
   const noCharge = plansQuery.data?.billing_enabled === false;
   useEffect(() => {
-    if (noCharge) router.replace(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+    if (noCharge) router.replace(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`);
   }, [noCharge, router]);
 
   const choose = useMutation({
@@ -45,7 +47,7 @@ function PlanStepContent() {
       return apiClient.chooseBillingPlan({price_ids: option.priceIds});
     },
     onSuccess: async (result) => {
-      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()});
+      await qc.invalidateQueries({queryKey: queryKeys.billing.subscriptionAll()});
       // An invoice comes back only when there is something to pay. Free and
       // on-demand skip checkout entirely and go straight on with setup.
       const checkoutUrl = result.invoice?.checkout_url;
@@ -53,7 +55,7 @@ function PlanStepContent() {
         window.location.href = checkoutUrl;
         return;
       }
-      router.push(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+      router.push(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`);
     },
   });
 
@@ -63,8 +65,8 @@ function PlanStepContent() {
   return (
     <OnboardingShell
       current={STEP_PLAN}
-      title="Escolha seu plano"
-      description="Dá para trocar depois, a qualquer momento. O plano define quantos documentos você emite por mês e quantas empresas cabem na conta."
+      title="Escolha o plano da organização"
+      description={`O plano vale para todas as empresas da organização${organizationName ? ` ${organizationName}` : ''} e define quantas empresas podem emitir e quantos documentos de cada tipo por mês. Dá para trocar depois.`}
     >
       {plansQuery.isPending && (
         <div className="flex flex-col gap-3">

@@ -115,26 +115,34 @@ export default function GuideConta() {
           id: 'assinatura',
           title: 'Plano e cobrança',
           summary:
-            'O plano define quantas empresas, quantos usuários e quantos documentos de cada tipo por mês.',
+            'O plano é da organização na conta CTech e vale para todas as empresas dela: define quantas podem emitir e quantos documentos de cada tipo por mês.',
           image: {
             src: '/guide/subscription.webp',
-            alt: 'Tela de assinatura com o plano ativo, o consumo do período e as faturas',
+            alt: 'Tela do plano da organização com o plano ativo, o consumo do período e as faturas',
           },
           body: (
             <>
               <GuideBullets>
-                <li><b>Free</b>: uma empresa, um usuário e uma cota pequena por tipo de documento.</li>
-                <li><b>Pro</b>: várias empresas e usuários, com cota mensal alta.</li>
-                <li><b>Sob demanda</b>: sem cota fixa, você paga por documento emitido.</li>
+                <li><b>Free</b>: uma empresa emitindo e uma cota pequena por tipo de documento.</li>
+                <li><b>Pro</b>: várias empresas emitindo, com cota mensal alta.</li>
+                <li><b>Sob demanda</b>: sem cota fixa; você paga por documento emitido e por empresa habilitada no mês.</li>
               </GuideBullets>
               <p>
-                A tela mostra o consumo do período corrente e o histórico de faturas. Trocar de plano
-                vale a partir da mudança; cancelar no fim do período mantém o acesso até a data de
-                renovação.
+                Proprietários e administradores da organização na conta CTech escolhem, trocam,
+                cancelam e pagam o plano, e veem as faturas. Os demais membros veem o plano e o
+                consumo, sem os botões. Trocar de empresa dentro da mesma organização mostra o mesmo
+                plano.
+              </p>
+              <p>
+                Uma empresa passa a contar no limite quando a primeira configuração fiscal dela é
+                salva. Empresas apenas vinculadas, sem configuração, não contam. Trocar de plano vale a
+                partir da mudança; cancelar no fim do período mantém o acesso até a data de renovação.
               </p>
               <GuideCallout kind="warning" title="Cota estourada bloqueia emissão">
                 Ao atingir o limite do plano, novas emissões são recusadas até a renovação do período
-                ou a troca de plano. Consulta, download de XML e eventos continuam liberados.
+                ou a troca de plano. Consulta, download de XML e eventos continuam liberados. Acima do
+                limite de empresas, as que já emitem continuam emitindo; só habilitar uma nova é
+                recusado.
               </GuideCallout>
             </>
           ),

@@ -300,15 +300,19 @@ func (c *Client) GetEntitlements(ctx context.Context, externalRef string) (*Enti
 
 // CreateCustomerInput is a new billing customer for a DF-e account.
 type CreateCustomerInput struct {
-	// ExternalRef is this service's key for the account, `USER_{sub}`. It is what
-	// every later read uses, so it must be stable for the life of the account.
+	// ExternalRef is this service's key for the account: `ORG_{organization_id}`
+	// (the DF-e's customers since 2026-10-10). It is what every later read uses,
+	// so it must be stable for the life of the organization.
 	ExternalRef string `json:"external_ref"`
-	// UserID is the bare ctech-account subject. Billing needs it to let the
-	// person open the payment portal and to charge them through wallet — without
-	// it there is nobody to collect from.
-	UserID string `json:"user_id"`
+	// UserID is the bare ctech-account subject of a person customer. Billing
+	// refuses it on an organization customer (422 not_allowed: "an organization
+	// customer has no user"), so the DF-e leaves it empty for ORG_ customers.
+	UserID string `json:"user_id,omitempty"`
 	Name   string `json:"name"`
 	Email  string `json:"email"`
+	// TaxID is the CNPJ (or CPF) printed on the invoice: the organization's
+	// billing company.
+	TaxID string `json:"tax_id,omitempty"`
 }
 
 // CreateCustomer registers the account with billing.
@@ -452,6 +456,35 @@ func (c *Client) ReportUsage(ctx context.Context, subscriptionID, priceID string
 	return c.do(ctx, http.MethodPost, "/v1.0/usage", eventKey, body, nil)
 }
 
+// LevelReport is a level: the whole current count of something, never a delta
+// (billing plans spec § 6). A lost report is repaired by the next one.
+type LevelReport struct {
+	CustomerRef    string `json:"customer_ref"`
+	Meter          string `json:"meter"`
+	Value          int64  `json:"value"`
+	OccurredAt     string `json:"occurred_at"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+// ReportLevel records a level for a customer reference. No customer is created
+// by it, and it is accepted whatever the plan.
+func (c *Client) ReportLevel(ctx context.Context, in LevelReport) error {
+	body, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	return c.do(ctx, http.MethodPost, "/v1.0/usage/levels", in.IdempotencyKey, body, nil)
+}
+
+// ErrLevelAlreadyRecorded is billing's 409 `idempotency_key_reused` on a
+// level: that key already recorded a level, so this version was delivered.
+// Billing's other 409 on the same route, `concurrent_update`, means nothing was
+// recorded and must be retried; it stays a plain conflict.
+var ErrLevelAlreadyRecorded = errors.New("billing already recorded a level under this idempotency key")
+
+// codeIdempotencyKeyReused is billing's problem code for ErrLevelAlreadyRecorded.
+const codeIdempotencyKeyReused = "idempotency_key_reused"
+
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
@@ -533,6 +566,7 @@ func mapUpstreamError(ctx context.Context, method, path string, status int, raw 
 	var p struct {
 		Title  string `json:"title"`
 		Detail string `json:"detail"`
+		Code   string `json:"code"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
 		observability.Warn(ctx, "billing problem response decode failed", err, "method", method, "path", path, "status", status)
@@ -553,6 +587,9 @@ func mapUpstreamError(ctx context.Context, method, path string, status int, raw 
 		// answered as a bad request rather than an internal error.
 		return problem.BadRequest("a operação de cobrança foi recusada; recarregue os planos e tente de novo")
 	case http.StatusConflict:
+		if p.Code == codeIdempotencyKeyReused {
+			return ErrLevelAlreadyRecorded
+		}
 		return problem.Conflict("a assinatura mudou desde a última leitura; recarregue e tente de novo")
 	case http.StatusUnauthorized, http.StatusForbidden:
 		// This service's own credential, not the user's. Never phrased as the

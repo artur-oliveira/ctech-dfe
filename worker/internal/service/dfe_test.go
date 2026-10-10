@@ -757,6 +757,7 @@ func TestProcess_RedeliveryRepublishesTerminalWithoutCallingSefazAgain(t *testin
 	svc := New(Clients{S3: certS3(), Lambda: lam, Dynamo: dynm, SNS: snsm}, &cfg)
 	msg := baseMsg
 	msg.BillingUserID = "owner"
+	msg.BillingOrganizationID = "org_1"
 	msg.BillingPeriod = "2026-08-01"
 	msg.BillingSubscriptionID = "sub_1"
 	msg.BillingPriceID = "price_1"
@@ -781,6 +782,9 @@ func TestProcess_RedeliveryRepublishesTerminalWithoutCallingSefazAgain(t *testin
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(snsm.calls[len(snsm.calls)-1]), &payload); err != nil {
 		t.Fatal(err)
+	}
+	if payload[notifyKeyBillingOrganizationID] != msg.BillingOrganizationID {
+		t.Fatalf("the reservation's organization was not republished: %v", payload)
 	}
 	if payload[notifyKeyBillingPeriod] != msg.BillingPeriod || payload[notifyKeyBillingPriceID] != msg.BillingPriceID {
 		t.Fatalf("billing context was not republished: %v", payload)

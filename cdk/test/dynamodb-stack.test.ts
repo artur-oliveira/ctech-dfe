@@ -70,3 +70,40 @@ describe('DynamoDBStack — tabelas NFS-e', () => {
         }
     });
 });
+
+describe('DynamoDBStack — organizations por workspace', () => {
+    test('organizations tem o GSI organization-index (organization_id, created_at), só chaves', () => {
+        const template = synth();
+        template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_organizations',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({
+                    IndexName: 'organization-index',
+                    KeySchema: [
+                        {AttributeName: 'organization_id', KeyType: 'HASH'},
+                        {AttributeName: 'created_at', KeyType: 'RANGE'},
+                    ],
+                    Projection: {ProjectionType: 'KEYS_ONLY'},
+                }),
+            ]),
+        });
+    });
+});
+
+describe('DynamoDBStack — níveis de cobrança pendentes', () => {
+    test('account_billing tem o GSI esparso level-dirty-index', () => {
+        const template = synth();
+        template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_account_billing',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({
+                    IndexName: 'level-dirty-index',
+                    KeySchema: [
+                        {AttributeName: 'dirty_shard', KeyType: 'HASH'},
+                        {AttributeName: 'changed_at', KeyType: 'RANGE'},
+                    ],
+                }),
+            ]),
+        });
+    });
+});

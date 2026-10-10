@@ -1208,13 +1208,9 @@ class ApiClient {
     )).data;
   }
 
-  // Billing — the account's own subscription.
-  //
-  // None of these routes accept the organization header: they act on the token
-  // holder's account. That is what makes "only the owner creates or changes the
-  // subscription" a property of the routing rather than a check someone can
-  // forget. `getOrganizationPlan` is the read-only exception, for an ADMIN who
-  // needs to see the plan governing the org they help run.
+  // Billing: the plan of the selected company's organization. The
+  // `Dfe-Organization-Pk` header the interceptor adds selects it; owners and
+  // admins of the organization manage it, everyone else reads it (`manageable`).
 
   async listBillingPlans(): Promise<BillingPlansResponse> {
     return this.get('/v1.0/billing/plans');
@@ -1238,10 +1234,6 @@ class ApiClient {
 
   async listBillingInvoices(year?: number, month?: number): Promise<{ data: BillingInvoice[] }> {
     return this.get('/v1.0/billing/invoices', {params: {year, month}});
-  }
-
-  async getOrganizationPlan(orgPk: string): Promise<AccountSubscription> {
-    return this.get(`/v1.0/organizations/${orgPk}/plan`);
   }
 
   // Audit log — org context auto-injected via Dfe-Organization-Pk header

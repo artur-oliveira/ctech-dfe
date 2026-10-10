@@ -14,14 +14,17 @@ export const METER_CTE = 'cte';
 export const METER_MDFE = 'mdfe';
 export const METER_NFSE = 'nfse';
 export const METER_COMPANIES = 'companies';
-export const METER_USERS = 'users';
 
 /** Meters counted per issuance, in the order the screens list them. */
 export const DOCUMENT_METERS = [METER_NFE, METER_NFCE, METER_CTE, METER_MDFE, METER_NFSE] as const;
 export type DocumentMeter = (typeof DOCUMENT_METERS)[number]
 
-/** Meters that count current state rather than accumulated issuance. */
-export const ACCOUNT_METERS = [METER_COMPANIES, METER_USERS] as const;
+/**
+ * Meters that count current state (enabled companies) rather than accumulated
+ * issuance. People are not metered: they belong to ctech-account and are shared
+ * between products.
+ */
+export const ACCOUNT_METERS = [METER_COMPANIES] as const;
 
 export const METER_LABELS: Record<string, string> = {
   [METER_NFE]: 'NF-e',
@@ -30,7 +33,6 @@ export const METER_LABELS: Record<string, string> = {
   [METER_MDFE]: 'MDF-e',
   [METER_NFSE]: 'NFS-e',
   [METER_COMPANIES]: 'Empresas',
-  [METER_USERS]: 'Usuários',
 };
 
 /** Price metadata keys. */

@@ -218,6 +218,16 @@ EventBridge scheduler
 
 ---
 
+## Subscription and Quotas
+
+The DF-e subscription belongs to the **ctech-account organization** of the selected company (`ORG_{organization_id}` in
+ctech-billing and in `account_billing`), not to a user: every company of one organization shares one plan, one set of
+usage counters and one company quota. The organization's `owner` and `admin` (ctech-account roles) choose, change,
+cancel and pay; everyone else with access to a company reads the plan. A company counts against `quota_companies` when
+it is enabled (its first fiscal configuration), and the organization's enabled-company count is reported to billing as
+the `dfe_companies` level (on-demand: billed monthly by peak). See `DOCS.md` ("Assinatura da organização") and
+docs/specs/2026-10-10-organization-subscription.md.
+
 ## Security
 
 - **Auth:** OAuth 2.0 Authorization Code + PKCE. ui redirects to accounts.aoctech.app; ctech-account issues RS256 access

@@ -107,3 +107,11 @@ test('API env points SEFAZ calls at the go-dfe-egress Lambda in sa-east-1', () =
   expect(text).toContain('DFE_EGRESS_REGION=sa-east-1')
   expect(text).not.toContain('py-dfe')
 })
+
+describe('ApiStack — organization subscription credential', () => {
+  test('user data reads the ctech-account workspace client from SSM', () => {
+    const text = userDataText(synth())
+    expect(text).toContain('ACCOUNT_WORKSPACE_CLIENT_ID=/ctech-dfe/')
+    expect(text).toContain('ACCOUNT_WORKSPACE_CLIENT_SECRET=/ctech-dfe/')
+  })
+})

@@ -93,6 +93,7 @@ var Module = fx.Options(
 		services.NewInvitationService,
 		newBillingClient,
 		newReachService,
+		newWorkspaceRoleService,
 		newLinkService,
 		newBillingService,
 		newCertificateService,
@@ -127,11 +128,13 @@ var Module = fx.Options(
 		newNfseService,
 		newDistributionService,
 		newResultsConsumer,
+		newLevelReporter,
 		services.NewAuditLogService,
 	),
 	fx.Invoke(seedRoles),
 	fx.Invoke(registerRoutes),
 	fx.Invoke(startResultsConsumer),
+	fx.Invoke(startLevelSweeper),
 	fx.Invoke(startServer),
 )
 
@@ -563,6 +566,7 @@ type Services struct {
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
 	BillingSvc      *services.BillingService
+	LevelReporter   *services.LevelReporter
 	RoleRepo        *repositories.RoleRepository
 	Cache           cache.Backend
 	WSReg           ws.Registry
@@ -610,6 +614,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,
 		Billing:         svcs.BillingSvc,
+		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
 	})
 }
@@ -635,6 +640,26 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 
 func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService) *consumer.ResultsConsumer {
 	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing)
+}
+
+// newLevelReporter delivers companies levels to billing. Billing off → a nil
+// sink and a no-op reporter.
+func newLevelReporter(repo *repositories.AccountBillingRepository, client *billingclient.Client, billing *services.BillingService) *services.LevelReporter {
+	if client == nil {
+		return services.NewLevelReporter(repo, nil, billing)
+	}
+	r := services.NewLevelReporter(repo, client, billing)
+	billing.WithLevelFlush(r.Flush)
+	return r
+}
+
+// startLevelSweeper runs the sweeper for the life of the process.
+func startLevelSweeper(lc fx.Lifecycle, r *services.LevelReporter) {
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error { go r.Run(ctx, services.LevelSweepInterval); return nil },
+		OnStop:  func(context.Context) error { cancel(); return nil },
+	})
 }
 
 func startResultsConsumer(lc fx.Lifecycle, rc *consumer.ResultsConsumer) {
@@ -720,9 +745,14 @@ func newBillingService(
 	mdfe *repositories.MdfeConfigRepository,
 	nfse *repositories.NfseConfigRepository,
 	c cache.Backend,
+	roles *services.WorkspaceRoleService,
 ) *services.BillingService {
+	// A nil *WorkspaceRoleService refuses every management attempt (fail
+	// closed); it is passed as a typed nil on purpose, which its methods handle.
 	return services.NewBillingService(repo, client, users, members, orgs, c).
-		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse))
+		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
+		WithUserFallback().
+		WithWorkspaceRoles(roles)
 }
 
 // newReachService builds the reach check, or nil when ctech-account has not
@@ -752,6 +782,25 @@ func newReachService(cfg *config.Config, c cache.Backend) *services.ReachService
 	}
 	slog.Info("the ctech-account reach check is ON — a membership row with no company edge grants nothing")
 	return services.NewReachService(client, c)
+}
+
+// newWorkspaceRoleService builds the role check for managing an organization's
+// subscription. Nil when ctech-account has not issued the credential: the
+// service then answers every management attempt with 403, and reading the plan
+// keeps working.
+func newWorkspaceRoleService(cfg *config.Config, c cache.Backend) *services.WorkspaceRoleService {
+	client := accountclient.NewWorkspace(accountclient.Config{
+		BaseURL:      cfg.CtechURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.AccountWorkspaceClientID,
+		ClientSecret: cfg.AccountWorkspaceClientSecret,
+		Cache:        c,
+	})
+	if client == nil {
+		slog.Warn("the ctech-account workspace credential is not configured — nobody can manage a DF-e subscription")
+		return nil
+	}
+	return services.NewWorkspaceRoleService(client, c)
 }
 
 func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client {

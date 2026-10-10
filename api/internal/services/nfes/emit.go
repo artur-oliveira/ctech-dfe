@@ -738,15 +738,15 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		// grouping fiscal documents by the CNPJ that issued them is what the
 		// path means. Adding prefix listing is the change that would make this
 		// need revisiting.
-		CNPJ:             emitDoc,
-		UF:               emitUF,
-		SefazEnvironment: sefazEnv,
-		CertS3Key:        strAttr(cert, "s3_key"),
-		CertPassword:     strAttr(cert, "password"),
-		DocType:          "nfe",
-		SefazService:     "NFeAutorizacao",
-		Body:             enviNFe,
-		BillingUserID:    reservation.UserID, BillingPeriod: reservation.Period,
+		CNPJ:                  emitDoc,
+		UF:                    emitUF,
+		SefazEnvironment:      sefazEnv,
+		CertS3Key:             strAttr(cert, "s3_key"),
+		CertPassword:          strAttr(cert, "password"),
+		DocType:               "nfe",
+		SefazService:          "NFeAutorizacao",
+		Body:                  enviNFe,
+		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}

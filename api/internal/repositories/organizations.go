@@ -3,8 +3,11 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -206,4 +209,181 @@ func stripNonDigits(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// OrganizationIndex lists the company records of one ctech-account
+// organization, oldest first. Sparse: only rows carrying organization_id (and
+// created_at) are in it, so the legacy CNPJ_/CPF_ partitions never are.
+const OrganizationIndex = "organization-index"
+
+// attrCreatedAt is the GSI's sort key; CreateOrganization writes it.
+const attrCreatedAt = "created_at"
+
+// CompanyRef is what the KEYS_ONLY index answers about one company.
+type CompanyRef struct {
+	PK        string `dynamodbav:"pk"`
+	CreatedAt string `dynamodbav:"created_at"`
+}
+
+// ListCompaniesOfOrganization lists the companies of one organization, oldest
+// first. It pages internally: an organization's companies are a count and a
+// "first linked", and both need the whole list.
+func (r *OrganizationRepository) ListCompaniesOfOrganization(ctx context.Context, organizationID string) ([]CompanyRef, error) {
+	if organizationID == "" {
+		return nil, nil
+	}
+	var out []CompanyRef
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.QueryRaw(ctx, &dynamodb.QueryInput{
+			TableName:                 aws.String(r.TableName),
+			IndexName:                 aws.String(OrganizationIndex),
+			KeyConditionExpression:    aws.String("#o = :o"),
+			ExpressionAttributeNames:  map[string]string{"#o": AttrOrganizationID},
+			ExpressionAttributeValues: map[string]types.AttributeValue{":o": &types.AttributeValueMemberS{Value: organizationID}},
+			ScanIndexForward:          aws.Bool(true),
+			ExclusiveStartKey:         start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			var ref CompanyRef
+			if err := attributevalue.UnmarshalMap(item, &ref); err != nil {
+				return nil, fmt.Errorf("decoding a company of %s: %w", organizationID, err)
+			}
+			// A legacy partition carrying the attribute is a rollback copy,
+			// never a company to count or to bill.
+			if IsCompanyKey(ref.PK) {
+				out = append(out, ref)
+			}
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			return out, nil
+		}
+		start = res.LastEvaluatedKey
+	}
+}
+
+// CompanyIndexGap is a company-keyed record the organization index cannot see.
+type CompanyIndexGap struct {
+	PK                  string
+	OwnerUserID         string
+	CreatedAt           string
+	MissingOrganization bool
+	MissingCreatedAt    bool
+}
+
+// ListCompanyIndexGaps scans for company records without organization_id or
+// created_at. Used once, by cmd/migrate-billing-org, before the migration:
+// a company the index misses is a company the quota does not count.
+func (r *OrganizationRepository) ListCompanyIndexGaps(ctx context.Context) ([]CompanyIndexGap, error) {
+	var out []CompanyIndexGap
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+			TableName:                aws.String(r.TableName),
+			FilterExpression:         aws.String("attribute_not_exists(#o) OR attribute_not_exists(#c)"),
+			ExpressionAttributeNames: map[string]string{"#o": AttrOrganizationID, "#c": attrCreatedAt},
+			ExclusiveStartKey:        start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			pk := itemString(item, "pk")
+			if !IsCompanyKey(pk) {
+				continue
+			}
+			out = append(out, CompanyIndexGap{
+				PK:                  pk,
+				OwnerUserID:         itemString(item, AttrOwnerUserID),
+				CreatedAt:           itemString(item, attrCreatedAt),
+				MissingOrganization: itemString(item, AttrOrganizationID) == "",
+				MissingCreatedAt:    itemString(item, attrCreatedAt) == "",
+			})
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			return out, nil
+		}
+		start = res.LastEvaluatedKey
+	}
+}
+
+// BackfillIndexKeys writes organization_id and created_at only where absent, so
+// a value already on the record always wins over the backfill's guess.
+func (r *OrganizationRepository) BackfillIndexKeys(ctx context.Context, companyPK, organizationID, createdAt string) error {
+	if !IsCompanyKey(companyPK) {
+		return fmt.Errorf("not a company key: %s", companyPK)
+	}
+	sets := []string{}
+	names := map[string]string{}
+	values := map[string]types.AttributeValue{}
+	if organizationID != "" {
+		sets = append(sets, "#o = if_not_exists(#o, :o)")
+		names["#o"] = AttrOrganizationID
+		values[":o"] = &types.AttributeValueMemberS{Value: organizationID}
+	}
+	if createdAt != "" {
+		sets = append(sets, "#c = if_not_exists(#c, :c)")
+		names["#c"] = attrCreatedAt
+		values[":c"] = &types.AttributeValueMemberS{Value: createdAt}
+	}
+	if len(sets) == 0 {
+		return nil
+	}
+	_, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(r.TableName),
+		Key:                       map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: companyPK}},
+		UpdateExpression:          aws.String("SET " + strings.Join(sets, ", ")),
+		ConditionExpression:       aws.String("attribute_exists(pk)"),
+		ExpressionAttributeNames:  names,
+		ExpressionAttributeValues: values,
+	})
+	return err
+}
+
+// ListOrganizationsWithCompanies scans the distinct organizations of the
+// company-keyed records. Used once, by cmd/migrate-billing-org
+// -report-levels-all; never on a request path.
+func (r *OrganizationRepository) ListOrganizationsWithCompanies(ctx context.Context) ([]string, error) {
+	seen := map[string]bool{}
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+			TableName:                aws.String(r.TableName),
+			FilterExpression:         aws.String("attribute_exists(#o)"),
+			ProjectionExpression:     aws.String("pk, #o"),
+			ExpressionAttributeNames: map[string]string{"#o": AttrOrganizationID},
+			ExclusiveStartKey:        start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			if org := itemString(item, AttrOrganizationID); org != "" && IsCompanyKey(itemString(item, "pk")) {
+				seen[org] = true
+			}
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			break
+		}
+		start = res.LastEvaluatedKey
+	}
+	out := make([]string, 0, len(seen))
+	for org := range seen {
+		out = append(out, org)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// CompanyOwner reads a company's owner_user_id ("" when absent). Used by
+// cmd/migrate-billing-org to see whose USER_ snapshot the dual read serves it.
+func (r *OrganizationRepository) CompanyOwner(ctx context.Context, companyPK string) (string, error) {
+	item, err := r.GetItem(ctx, companyPK)
+	if err != nil || item == nil {
+		return "", err
+	}
+	return itemString(item, AttrOwnerUserID), nil
 }

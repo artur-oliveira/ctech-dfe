@@ -95,6 +95,7 @@ type WorkerMessage struct {
 	SefazService          string         `json:"sefaz_service"`
 	Body                  map[string]any `json:"body"`
 	BillingUserID         string         `json:"billing_user_id,omitempty"`
+	BillingOrganizationID string         `json:"billing_organization_id,omitempty"`
 	BillingPeriod         string         `json:"billing_period,omitempty"`
 	BillingSubscriptionID string         `json:"billing_subscription_id,omitempty"`
 	BillingPriceID        string         `json:"billing_price_id,omitempty"`
@@ -675,6 +676,7 @@ func (s *DfeService) publishDocumentResult(ctx context.Context, msg WorkerMessag
 		notifyKeySefazProtocol:         strVal(attrs.SefazProtocol),
 		notifyKeyXMLS3Key:              strVal(attrs.XMLS3Key),
 		notifyKeyBillingUserID:         msg.BillingUserID,
+		notifyKeyBillingOrganizationID: msg.BillingOrganizationID,
 		notifyKeyBillingPeriod:         msg.BillingPeriod,
 		notifyKeyBillingSubscriptionID: msg.BillingSubscriptionID,
 		notifyKeyBillingPriceID:        msg.BillingPriceID,

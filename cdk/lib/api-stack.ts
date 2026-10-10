@@ -105,6 +105,12 @@ export class ApiStack extends cdk.Stack {
     // the access record — the pre-flip behaviour, and a deliberate default.
     const accountClientIdParameter = `/ctech-dfe/${environment}/account-client-id`;
     const accountClientSecretParameter = `/ctech-dfe/${environment}/account-client-secret`;
+    // The organization-membership credential (internal:account:org-member and
+    // internal:account:user-organizations): who may manage an organization's
+    // DF-e subscription. Created by ctech-account's cmd/createclient with these
+    // SSM paths. Absent means nobody can manage a plan; reading still works.
+    const accountWorkspaceClientIdParameter = `/ctech-dfe/${environment}/account-workspace-client-id`;
+    const accountWorkspaceClientSecretParameter = `/ctech-dfe/${environment}/account-workspace-client-secret`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
     // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
@@ -199,6 +205,8 @@ export class ApiStack extends cdk.Stack {
       `BILLING_CLIENT_SECRET=${billingClientSecretParameter}`,
       `ACCOUNT_CLIENT_ID=${accountClientIdParameter}`,
       `ACCOUNT_CLIENT_SECRET=${accountClientSecretParameter}`,
+      `ACCOUNT_WORKSPACE_CLIENT_ID=${accountWorkspaceClientIdParameter}`,
+      `ACCOUNT_WORKSPACE_CLIENT_SECRET=${accountWorkspaceClientSecretParameter}`,
     ];
     if (isAlpine) {
       const quoted = ssmEnvArgs.map((a) => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');

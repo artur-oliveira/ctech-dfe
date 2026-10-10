@@ -155,6 +155,13 @@ func (p *PermChecker) RequireOwnerOrAdmin() fiber.Handler {
 	return p.requireRoles("Apenas proprietários e administradores podem executar esta ação", roleOwner, roleAdmin)
 }
 
+// RequireMember allows anybody with access to the company, whatever their
+// role. For reads whose sensitivity is the company itself (the billing plan);
+// the action-level decision is made downstream.
+func (p *PermChecker) RequireMember() fiber.Handler {
+	return p.requireRoles(accessDenied, roleOwner, roleAdmin, repositories.RoleUser, repositories.RoleViewer)
+}
+
 func (p *PermChecker) check(c fiber.Ctx, permission string) error {
 	orgPK, m, err := p.parseUserOrganizationRole(c)
 	if err != nil {

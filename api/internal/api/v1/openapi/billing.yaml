@@ -1,11 +1,14 @@
 paths:
 
-  # ── Assinatura da conta ────────────────────────────────────────────────────
+  # ── Assinatura da organização ──────────────────────────────────────────────
   #
-  # Nenhuma rota deste bloco aceita o header de organização: todas agem sobre a
-  # conta do portador do token. É isso que torna "só o proprietário cria ou
-  # altera a assinatura" uma propriedade do roteamento, e não uma checagem que
-  # alguém pode esquecer — não existe parâmetro dizendo de quem é a assinatura.
+  # docs/specs/2026-10-10-organization-subscription.md: a assinatura pertence à
+  # organização da conta CTech que contém a empresa selecionada. Toda rota
+  # /billing/subscription* e /billing/invoices exige o header
+  # Dfe-Organization-Pk (a empresa); ler o plano e o consumo é aberto a quem tem
+  # acesso à empresa; escolher, trocar, cancelar e listar faturas exigem o papel
+  # owner ou admin da organização na conta CTech (403 caso contrário, inclusive
+  # se a conta CTech não responder).
 
   /v1.0/billing/plans:
     get:
@@ -37,18 +40,22 @@ paths:
   /v1.0/billing/subscription:
     get:
       tags: [ Billing ]
-      summary: Assinatura da conta
+      summary: Assinatura da organização
       description: |
-        O que o DF-e sabe sobre a assinatura desta conta, mais o consumo do
-        período. É um retrato do que o billing respondeu por último (atualizado
+        O que o DF-e sabe sobre a assinatura da organização da empresa
+        selecionada, mais o consumo do período. `organization` nomeia a
+        organização e `manageable` diz se o chamador (owner ou admin na conta
+        CTech) pode escolher, trocar ou cancelar o plano. É um retrato do que o billing respondeu por último (atualizado
         por webhook), não uma consulta síncrona — por isso serve para decidir
         emissão sem depender da rede.
 
-        `usage` traz `{used, limit}` por medidor. `companies` e `users` são
-        contados ao vivo (estado atual, não acumulado do período); os documentos
+        `usage` traz `{used, limit}` por medidor. `companies` (empresas
+        habilitadas da organização) é contado ao vivo (estado atual, não acumulado do período); os documentos
         vêm dos contadores. Um medidor que o plano não concede **não aparece** —
         "não incluído no seu plano" e "você já usou tudo" são coisas diferentes.
       operationId: getAccountSubscription
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
       responses:
         '200':
           description: Situação da assinatura
@@ -57,17 +64,25 @@ paths:
               schema: { $ref: '#/components/schemas/AccountSubscription' }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
     post:
       tags: [ Billing ]
       summary: Escolhe um plano
       description: |
-        Cria cliente e assinatura no billing. Recusa com 409 se a conta já tem
-        assinatura viva — para trocar de plano use `/subscription/change`.
+        Cria o cliente `ORG_{organization_id}` e a assinatura no billing.
+        Somente owner ou admin da organização (403). Recusa com 409 se a
+        organização já tem assinatura viva, ou se a empresa não está vinculada a
+        uma organização da conta CTech — para trocar de plano use `/subscription/change`.
 
         A resposta traz `invoice` **apenas quando há o que pagar**. Free e sob
         demanda não geram fatura na adesão, então trate a ausência do campo como
         sucesso e siga direto para o onboarding.
       operationId: chooseBillingPlan
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
       requestBody:
         required: true
         content:
@@ -83,6 +98,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: O chamador não é owner nem admin da organização na conta CTech (ou o papel não pôde ser lido).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -99,6 +119,8 @@ paths:
         nota de crédito, que ainda não existe, então o plano troca e nada é
         cobrado.
       operationId: changeBillingPlan
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
       requestBody:
         required: true
         content:
@@ -114,6 +136,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: O chamador não é owner nem admin da organização na conta CTech (ou o papel não pôde ser lido).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -126,6 +153,8 @@ paths:
         `false` encerra na hora. São operações diferentes, não um detalhe da
         mesma — a segunda desliga a emissão imediatamente.
       operationId: cancelBillingSubscription
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
       requestBody:
         required: true
         content:
@@ -142,6 +171,13 @@ paths:
               schema: { $ref: '#/components/schemas/AccountSubscription' }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: O chamador não é owner nem admin da organização na conta CTech (ou o papel não pôde ser lido).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          $ref: '#/components/responses/Conflict'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -150,11 +186,13 @@ paths:
       tags: [ Billing ]
       summary: Faturas da conta
       description: |
-        Faturas de um mês, filtradas para a assinatura desta conta.
+        Faturas de um mês, filtradas para a assinatura da organização.
+        Somente owner ou admin (pagar é gerenciar).
         `checkout_url` aparece só quando a fatura é pagável agora — ramifique na
         presença do campo, nunca monte a URL.
       operationId: listBillingInvoices
       parameters:
+        - $ref: '#/components/parameters/OrgHeader'
         - name: year
           in: query
           schema: { type: integer }
@@ -178,6 +216,13 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: O chamador não é owner nem admin da organização na conta CTech (ou o papel não pôde ser lido).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /v1.0/organizations/{org_pk}/plan:
     parameters:
@@ -186,13 +231,12 @@ paths:
       tags: [ Billing ]
       summary: Plano que governa a organização
       description: |
-        A assinatura da conta dona da organização (`owner_user_id`) — quem paga
-        por ela. Os membros não assinam nada: é este plano que decide emissão e
-        cotas para todos, qualquer que seja o papel.
+        A assinatura da organização da conta CTech que contém esta empresa. É
+        este plano que decide emissão e cotas para todos, qualquer que seja o
+        papel.
 
-        Somente OWNER e ADMIN. Sempre `manageable: false`: alterar o plano gasta
-        o dinheiro do proprietário e só acontece nas rotas `/v1.0/billing/*`,
-        que agem sobre a conta do próprio chamador.
+        Somente OWNER e ADMIN (papéis locais). Sempre `manageable: false`:
+        gerenciar o plano acontece nas rotas `/v1.0/billing/subscription*`.
       operationId: getOrganizationPlan
       responses:
         '200':
@@ -237,7 +281,7 @@ components:
           type: object
           additionalProperties: { type: string }
           description: |
-            Onde vivem as cotas (`quota_nfe`, `quota_users`, …) e o medidor
+            Onde vivem as cotas (`quota_nfe`, `quota_companies`, …) e o medidor
             (`meter`). O billing carrega esses campos sem lê-los; quem os
             interpreta é o DF-e.
 
@@ -319,7 +363,26 @@ components:
             Consumo do período por medidor. Presente só em
             `GET /v1.0/billing/subscription`.
         open_invoice:
-          $ref: '#/components/schemas/BillingOpenInvoice'
+          allOf:
+            - $ref: '#/components/schemas/BillingOpenInvoice'
+          description: |
+            Em `GET /v1.0/billing/subscription`, presente só para quem pode
+            gerenciar o plano (`manageable`): pagar é gerenciar.
+        organization:
+          type: object
+          description: |
+            A organização da conta CTech dona da assinatura. Presente em
+            `GET /v1.0/billing/subscription`. `name` vazio quando o nome não pôde
+            ser lido.
+          properties:
+            id: { type: string }
+            name: { type: string }
+        manageable:
+          type: boolean
+          description: |
+            Se o chamador pode escolher, trocar ou cancelar o plano (owner ou
+            admin da organização na conta CTech). False também quando o papel
+            não pôde ser lido.
 
     AccountSubscriptionWithInvoice:
       allOf:

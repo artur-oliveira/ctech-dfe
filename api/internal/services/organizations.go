@@ -77,6 +77,12 @@ func (s *OrganizationService) Company(ctx context.Context, orgPK string) (*repos
 	return repositories.CompanyFromItem(pk, item), nil
 }
 
+// CompaniesOf lists the company records of one ctech-account organization,
+// oldest first (repositories.OrganizationIndex).
+func (s *OrganizationService) CompaniesOf(ctx context.Context, organizationID string) ([]repositories.CompanyRef, error) {
+	return s.repo.ListCompaniesOfOrganization(ctx, organizationID)
+}
+
 // SetOwnerUserID stamps the paying account on an organization.
 //
 // It exists only for the read-fallback repair of organizations created before

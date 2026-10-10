@@ -243,7 +243,7 @@ func TestGrantsServiceOnNothing(t *testing.T) {
 	if _, ok := Quota(nil, "nfe"); ok {
 		t.Fatal("nothing grants no quota")
 	}
-	if snap := SnapshotFrom("user-9", nil); snap.UserID != "user-9" {
+	if snap := SnapshotFrom("user-9", nil); snap.OrganizationID != "user-9" {
 		t.Fatalf("snapshot = %+v", snap)
 	}
 }
@@ -382,4 +382,23 @@ func TestAUsersQuotaIsCarriedAndNotEnforced(t *testing.T) {
 	// counting it would count who holds a ROLE rather than who has access.
 	// Where the quota belongs is still open (ctech-billing ADR 0023), and
 	// metering the wrong set while it is open is worse than not metering.
+}
+
+func TestOrganizationFromRef(t *testing.T) {
+	cases := map[string]struct {
+		id string
+		ok bool
+	}{
+		"ORG_0199f3a1": {"0199f3a1", true},
+		"USER_abc":     {"", false},
+		"ORG_":         {"", false},
+		"FIN_x":        {"", false},
+		"":             {"", false},
+	}
+	for ref, want := range cases {
+		id, ok := OrganizationFromRef(ref)
+		if id != want.id || ok != want.ok {
+			t.Errorf("%q → %q %v, want %q %v", ref, id, ok, want.id, want.ok)
+		}
+	}
 }

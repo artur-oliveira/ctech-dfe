@@ -28,7 +28,7 @@ export interface BillingPrice {
   unit_amount: number
   billing_timing: 'advance' | 'arrears'
   archived: boolean
-  /** Where the quotas (`quota_nfe`, `quota_users`, …) and the `meter` live. */
+  /** Where the quotas (`quota_nfe`, `quota_companies`, …) and the `meter` live. */
   metadata: Record<string, string>
 }
 
@@ -88,6 +88,10 @@ export interface AccountSubscription {
   /** Present only on `GET /v1.0/billing/subscription`. */
   usage?: Record<string, MeterUsage>
   open_invoice?: BillingOpenInvoice
+  /** The ctech-account organization the plan belongs to. */
+  organization?: { id: string; name: string }
+  /** True for the organization's owners and admins: they may choose, change, cancel and pay. */
+  manageable?: boolean
 }
 
 export interface AccountSubscriptionWithInvoice extends AccountSubscription {

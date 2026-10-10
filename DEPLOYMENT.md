@@ -479,3 +479,35 @@ curl -s http://localhost:8080/v1.0/health-check
 
 ```
 ```
+
+## Assinatura por organização (2026-10-10)
+
+Spec: docs/specs/2026-10-10-organization-subscription.md. Plan: docs/plans/2026-10-10-organization-subscription.md.
+
+Prerequisites
+1. ctech-billing § 10 step 1 deployed: ORG_ customers + CUSTOMER_ORG# pointer, catalogue without quota_users, POST /v1.0/usage/levels, price_dfe_ondemand_companies_monthly (metered, aggregation max, meter dfe_companies, included 0) with price_dfe_ondemand_company archived.
+2. ctech-account: create the DF-e workspace client (internal:account:org-member, internal:account:user-organizations):
+   go run ./cmd/createclient -client-id ctech-dfe-workspaces -name "ctech-dfe workspaces" \
+     -scopes internal:account:org-member,internal:account:user-organizations \
+     -ssm-path-client /ctech-dfe/{env}/account-workspace-client-id \
+     -ssm-path-secret /ctech-dfe/{env}/account-workspace-client-secret
+3. Production check: list entitled USER_ subscriptions and their prices (the script's dry run prints them). At design time: two, both price_dfe_unlimited_internal_monthly (R$ 0).
+
+Order
+1. cdk deploy of the DynamoDB stack (organizations: organization-index GSI; account_billing: level-dirty-index GSI; wait until both are ACTIVE), then the API stack (new SSM env ACCOUNT_WORKSPACE_CLIENT_ID/SECRET).
+2. Worker deploy (passes billing_organization_id through), then API deploy (dual read on).
+3. Environment for the script (from SSM; the operator's own AWS credentials):
+   AWS_REGION, CTECH_URL, BILLING_API_URL, BILLING_CLIENT_ID, BILLING_CLIENT_SECRET,
+   ACCOUNT_WORKSPACE_CLIENT_ID, ACCOUNT_WORKSPACE_CLIENT_SECRET (required),
+   ACCOUNT_CLIENT_ID, ACCOUNT_CLIENT_SECRET (reach; needed to backfill index gaps).
+   go run ./cmd/migrate-billing-org -table-prefix {prefix}           # dry run: review index gaps, migrations, review list
+   go run ./cmd/migrate-billing-org -table-prefix {prefix} -report-levels-all -apply    # exit 3 = something listed for review
+   Re-run the dry run: it must list nothing to migrate.
+   Check no level is stuck: account_billing level-dirty-index should be empty a few minutes after the run (the sweeper runs every 2 minutes).
+4. After every USER_ subscription is cancelled and a full billing period has passed: deploy Phase 2 (Task 17), which removes the dual read.
+
+Exit codes: 0 done, 1 error, 2 bad flags, 3 done with items listed for review.
+
+Rollback: Phase 1 is additive; redeploying the previous API reads USER_ rows again (they are not deleted). After the script ran, the USER_ subscriptions are cancelled: a rollback past step 3 needs them recreated in billing.
+
+Follow-up (family-wide): api/internal/accountclient/workspace.go duplicates ctech-billing's accountclient/membership.go; extract both to ctech-go-common.

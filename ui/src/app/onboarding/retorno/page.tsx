@@ -5,11 +5,12 @@ import {useRouter} from 'next/navigation';
 import {useQuery} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {Button} from '@/components/ui/button';
 import {formatCents} from '@/lib/constants/billing';
-import {ONBOARDING_ROOT, STEP_COMPANY, STEP_PLAN} from '@/lib/constants/onboarding';
+import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
 
 /** How often the settlement snapshot is re-read while the user waits. */
 const POLL_INTERVAL_MS = 3_000;
@@ -26,10 +27,12 @@ const POLL_CEILING_MS = 60_000;
 function CheckoutReturnContent() {
   const router = useRouter();
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
+  const {selectedOrg} = useAuth();
 
   const {data: subscription} = useQuery({
-    queryKey: queryKeys.billing.subscription(),
+    queryKey: queryKeys.billing.subscription(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getSubscription(),
+    enabled: !!selectedOrg,
     refetchInterval: gaveUpWaiting ? false : POLL_INTERVAL_MS,
   });
 
@@ -40,7 +43,7 @@ function CheckoutReturnContent() {
 
   const settled = subscription?.grants_service === true;
   useEffect(() => {
-    if (settled) router.replace(`${ONBOARDING_ROOT}/${STEP_COMPANY}`);
+    if (settled) router.replace(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`);
   }, [settled, router]);
 
   const invoice = subscription?.open_invoice;
@@ -110,12 +113,12 @@ function CheckoutReturnContent() {
           variant="outline"
           size="lg"
           className="w-full sm:w-auto"
-          onClick={() => router.push(`${ONBOARDING_ROOT}/${STEP_COMPANY}`)}
+          onClick={() => router.push(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`)}
         >
           Continuar a configuração
         </Button>
         <p className="mt-2 text-xs text-gray-500">
-          Você já pode cadastrar a empresa. A emissão libera quando o pagamento for confirmado.
+          Você já pode enviar o certificado. A emissão libera quando o pagamento for confirmado.
         </p>
       </div>
     </OnboardingShell>

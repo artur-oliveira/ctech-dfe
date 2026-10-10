@@ -12,7 +12,7 @@ PITR: enabled in production only.
 | #  | Table (without prefix)      | PK                           | SK                                       | GSIs                                               |
 |----|-----------------------------|------------------------------|------------------------------------------|----------------------------------------------------|
 | 1  | `users`                     | `USER_{uuid}`                | —                                        | `email-index`, `username-index`                    |
-| 2  | `organizations`             | company UUIDv7               | —                                        | —                                                  |
+| 2  | `organizations`             | company UUIDv7               | —                                        | `organization-index`                               |
 | 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | —                                                  |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`                         | `code-index`, `description-index`                  |
 | 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`                           | `plate-index`, `role-index`                        |
@@ -119,6 +119,12 @@ these aren't optional the way they can be for a `organization_persons` record.
 | `owner_user_id`              | S    | Bare `sub` of the account whose subscription pays for this organization. Written at creation in the same `TransactWrite` as the single OWNER membership it mirrors — the membership grants access, this gets billed, and they cannot disagree. A **field, not a lookup**: it is read on the issuance path, and deriving it would mean listing every member. Rewritten only by an explicit ownership transfer (not implemented). Rows created before the field existed are repaired on first read (`BillingService.OwnerOf`) |
 | `created_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
 | `updated_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
+
+**GSIs:**
+
+| Index                | PK                | SK           | Projection | Use case |
+|----------------------|-------------------|--------------|------------|----------|
+| `organization-index` | `organization_id` | `created_at` | KEYS_ONLY  | The companies of one ctech-account organization, oldest first. Sparse: only company-keyed rows carry `organization_id` (legacy `CNPJ_`/`CPF_` rollback partitions are filtered out by the reader). Readers: `BillingService.companiesUsed` (enabled-company count behind `quota_companies`), the billing-company lookup (oldest company = the organization's customer name/tax id), `cmd/migrate-billing-org` (`ListCompanyIndexGaps` + `BackfillIndexKeys` first make every company visible). |
 
 ---
 
@@ -462,8 +468,8 @@ Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND
 
 ## 36. `account_billing`
 
-What ctech-billing says about each account, plus webhook markers, usage counters and concurrency guards. Four row
-shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
+What ctech-billing says about each ctech-account organization, plus webhook markers, usage counters and concurrency
+guards and level markers (docs/specs/2026-10-10-organization-subscription.md). Six row shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
 permissions without improving an access pattern.
 
 **The snapshot is a cache with a durable floor, not a source of truth.** Billing owns the subscription; this row is what
@@ -471,12 +477,24 @@ the last read said, so a quota check on the issuance path is a `get_item` rather
 emission stays decidable while billing is unreachable. Every write comes from re-reading billing (`BillingService.Sync`),
 never from a webhook body.
 
-### Snapshot row — `pk = USER_{sub}`
+```
+pk = ORG_{organization_id}                 the subscription snapshot
+pk = USER_{sub}                            the pre-migration snapshot, read only by the dual read
+pk = EVENT_{event_id}                      a processed webhook (or a once-only marker), with a TTL
+pk = USAGE_{organization_id}#{period}      this period's meters
+pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
+pk = LEVEL_DIRTY_{organization_id}#{meter} a billing level changed and not yet reported
+```
+
+`USER_` rows are read only by the dual read until Phase 2 removes it; every write goes to `ORG_`.
+
+### Snapshot row — `pk = ORG_{organization_id}` (legacy: `USER_{sub}`)
 
 | Attribute              | Type | Notes                                                                                        |
 |------------------------|------|----------------------------------------------------------------------------------------------|
-| `pk`                   | S    | `USER_{sub}` — the same string sent to billing as `external_ref`                             |
-| `user_id`              | S    | Bare ctech-account subject                                                                   |
+| `pk`                   | S    | `ORG_{organization_id}` — the same string sent to billing as `external_ref` (`USER_{sub}` on a legacy row) |
+| `organization_id`      | S    | The ctech-account organization; absent only on a legacy `USER_` row                          |
+| `user_id`              | S    | Bare ctech-account subject (legacy rows; empty on an `ORG_` row)                            |
 | `customer_id`          | S    | Billing's customer id                                                                        |
 | `subscription_id`      | S    | Empty for an account that never chose a plan — an ordinary state, not an error               |
 | `status`               | S    | Billing's status verbatim: `ACTIVE` \| `TRIALING` \| `INCOMPLETE` \| `PAST_DUE` \| `PAUSED` \| `CANCELED` |
@@ -510,14 +528,14 @@ Written create-only (`attribute_not_exists`) **after** the idempotent snapshot r
 failure therefore remains retryable; concurrent deliveries may repeat the same whole-snapshot `Put` before one records
 the marker. Seven days outlasts billing's own retry policy (~2 days).
 
-### Usage counter row — `pk = USAGE_{sub}#{period}`
+### Usage counter row — `pk = USAGE_{organization_id}#{period}`
 
 One row per account per billing period; one numeric attribute per meter (`nfe`, `nfce`, `cte`,
 `mdfe`, `nfse`).
 
 | Attribute | Type | Notes                                                                     |
 |-----------|------|---------------------------------------------------------------------------|
-| `pk`      | S    | `USAGE_{sub}#{period_start}`                                              |
+| `pk`      | S    | `USAGE_{organization_id}#{period_start}`                                              |
 | `{meter}` | N    | Documents reserved this period                                            |
 | `ttl`     | N    | Epoch seconds (now + 13 months), set once with `if_not_exists`            |
 
@@ -544,21 +562,35 @@ infrastructure failure commits neither write and remains retryable.
 The production reservation update is included in the same transaction as document, fiscal number and command outbox.
 Homologation does not create or increment this row.
 
-### Resource quota guard — `pk = QUOTA_GUARD_{sub}#{meter}`
+### Resource quota guard — `pk = QUOTA_GUARD_{organization_id}#{meter}`
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
-| `pk`      | S    | Guard de `companies` ou `users` por conta |
-| `version` | N    | Versão avançada condicionalmente na mesma transação da admissão |
+| `pk`      | S    | Guard de `companies` por organização |
+| `version` | N    | Versão avançada condicionalmente na mesma transação da habilitação (`BillingService.ReserveCompany`) |
 
-The guard is not a usage counter. Companies and distinct users remain live counts; the version only prevents two
-admissions based on the same count from committing concurrently.
+The guard is not a usage counter. Enabled companies remain a live count; the version only prevents two enablements
+based on the same count from committing concurrently.
 
-`companies` and `users` are **not** stored here. They are current state rather than a running total —
-deleting an organization gives the slot back — so they are counted live from the membership index.
+`companies` is **not** stored here. It is current state rather than a running total — disabling a company gives the
+slot back — so it is counted live from `organization-index` plus the fiscal configurations (enabled companies).
 
-**No GSIs.** Every access is by primary key: the snapshot by account, the marker by event id, the
-counters by account and period.
+### Level marker row — `pk = LEVEL_DIRTY_{organization_id}#{meter}`
+
+A billing **level** (today only `dfe_companies`, the organization's count of enabled companies, billed monthly by peak
+on `price_dfe_ondemand_companies_monthly`) changed and has not been reported to billing yet.
+
+| Attribute         | Type | Notes |
+|-------------------|------|-------|
+| `pk`              | S    | `LEVEL_DIRTY_{organization_id}#{meter}` |
+| `organization_id` | S    | The ctech-account organization |
+| `meter`           | S    | `dfe_companies` |
+| `version`         | N    | `ADD 1` per change, in the same transaction as the change (the enabling fiscal configuration) |
+| `changed_at`      | S    | ISO-8601 UTC of the last change; the report's `occurred_at` |
+| `dirty_shard`     | S    | `level` while pending; **removed** when billing accepted that `version` (a newer version keeps it) |
+
+**GSI `level-dirty-index`** — PK `dirty_shard`, SK `changed_at`, projection ALL, sparse: only pending markers carry
+`dirty_shard`, so the API's sweeper (every 2 min) reads exactly what is left to report.
 
 ---
 

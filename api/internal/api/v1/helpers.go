@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"strconv"
 	"strings"
@@ -369,7 +370,86 @@ func sendPage(c fiber.Ctx, result *repositories.QueryResult, incomingCursor stri
 // fiscalConfigSvc is the common interface implemented by Nfe/Nfce/Cte/MdfeConfigService.
 type fiscalConfigSvc interface {
 	Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
-	Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error)
+	Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue, userID, userName string, extra ...types.TransactWriteItem) (map[string]types.AttributeValue, error)
+}
+
+// companyReserver is the company quota as the configuration save needs it
+// (BillingService). An interface so the ordering below is testable.
+type companyReserver interface {
+	OrganizationOf(ctx context.Context, companyPK string) (string, error)
+	ReserveCompany(ctx context.Context, organizationID, companyPK string) (*services.CompanyReservation, error)
+}
+
+// levelFlusher delivers the organization's companies level after the commit
+// (services.LevelReporter). The marker is already durable in the same
+// transaction; this only saves the sweeper's wait.
+type levelFlusher interface {
+	FlushEnabled(ctx context.Context, organizationID, companyPK string) error
+}
+
+// reserveEnablement checks the company quota when this save may be the
+// company's first configuration (spec O5). It runs before the série claim, so
+// a refused company claims nothing and writes nothing.
+func reserveEnablement(ctx context.Context, billing companyReserver, orgPK string) (*services.CompanyReservation, error) {
+	if billing == nil {
+		return nil, nil
+	}
+	organizationID, err := billing.OrganizationOf(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	return billing.ReserveCompany(ctx, organizationID, orgPK)
+}
+
+// fiscalConfigOwnItems is how many items fiscalConfigService.Upsert puts in its
+// transaction before the caller's extra ones (the configuration and its audit
+// row); the reservation's items follow, the quota guard first.
+const fiscalConfigOwnItems = 2
+
+// extraConditionFailed reports a transaction cancelled because a condition on
+// one of the caller's extra items failed (the quota guard: another company of
+// the organization was enabled concurrently), not on the configuration itself.
+func extraConditionFailed(err error, firstExtra int) bool {
+	var canceled *types.TransactionCanceledException
+	if !errors.As(err, &canceled) {
+		return false
+	}
+	for i, reason := range canceled.CancellationReasons {
+		if i >= firstExtra && reason.Code != nil && *reason.Code == conditionalCheckFailed {
+			return true
+		}
+	}
+	return false
+}
+
+// conditionalCheckFailed is DynamoDB's cancellation reason code for a failed
+// condition.
+const conditionalCheckFailed = "ConditionalCheckFailed"
+
+// writeFiscalConfig writes the configuration with the reservation's items (the
+// quota guard and the companies-level marker) in the same transaction, then
+// asks for the level to be delivered now rather than at the next sweep.
+func writeFiscalConfig(ctx context.Context, svc fiscalConfigSvc, levels levelFlusher, reservation *services.CompanyReservation, orgPK string, av map[string]types.AttributeValue, userID, userName string) (map[string]types.AttributeValue, error) {
+	var extra []types.TransactWriteItem
+	if reservation != nil {
+		extra = reservation.Items
+	}
+	item, err := svc.Upsert(ctx, orgPK, av, userID, userName, extra...)
+	if err != nil {
+		if len(extra) > 0 && extraConditionFailed(err, fiscalConfigOwnItems) {
+			return nil, problem.Conflict("outra empresa da organização foi habilitada ao mesmo tempo; tente de novo")
+		}
+		return nil, err
+	}
+	if len(extra) > 0 && levels != nil {
+		// Best effort: the dirty marker committed with the configuration, so a
+		// failure here is delivered by the sweeper, never lost.
+		if err := levels.FlushEnabled(ctx, reservation.OrganizationID, orgPK); err != nil {
+			slog.WarnContext(ctx, "billing: companies level left for the sweeper",
+				"organization_id", reservation.OrganizationID, "error", err)
+		}
+	}
+	return item, nil
 }
 
 // registerFiscalConfig mounts GET and PUT handlers for a fiscal config sub-resource
@@ -394,6 +474,11 @@ type fiscalConfigDeps struct {
 	// …). Empty for a variant with no série uniqueness at the SEFAZ — NFS-e is
 	// municipal, and its numbering is not keyed this way.
 	modelo string
+	// billing checks the organization's company quota on a company's first
+	// configuration (spec O5); levels delivers the companies level after it.
+	// Both nil-able: nil skips the check (billing not wired).
+	billing companyReserver
+	levels  levelFlusher
 }
 
 func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, svc fiscalConfigSvc, perm *middleware.PermChecker,
@@ -413,6 +498,13 @@ func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, sv
 		}
 		orgPK := middleware.GetOrgPK(c)
 
+		// The company quota first (spec O5): a company refused here has
+		// claimed no série and written nothing.
+		reservation, err := reserveEnablement(c.Context(), deps.billing, orgPK)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+
 		// The série claim, before the write. ADR 0022 lets two organizations
 		// hold one CNPJ, so without this the collision surfaces at the SEFAZ as
 		// a duplicate rejection or a gap in numbering somebody must justify.
@@ -426,7 +518,7 @@ func registerFiscalConfig(scoped fiber.Router, path, getPerm, putPerm string, sv
 		}
 
 		userID, userName := resolveActor(c, userSvc)
-		item, err := svc.Upsert(c.Context(), orgPK, av, userID, userName)
+		item, err := writeFiscalConfig(c.Context(), svc, deps.levels, reservation, orgPK, av, userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}

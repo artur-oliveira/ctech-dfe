@@ -43,7 +43,7 @@ function CompanyStepContent() {
           </li>
           <li className="flex gap-2.5">
             <span aria-hidden="true" className="text-gray-400 tabular-nums">3.</span>
-            Na sequência, o certificado A1 e os documentos que você emite.
+            Na sequência, o plano da organização, o certificado A1 e os documentos que você emite.
           </li>
         </ol>
 

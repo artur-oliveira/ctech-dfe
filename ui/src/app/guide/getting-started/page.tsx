@@ -53,11 +53,17 @@ export default function PrimeirosPassos() {
           body: (
             <>
               <GuideTerms>
-                <GuideTerm term="Plano">
-                  Free, Pro ou sob demanda. Dá para começar no Free e trocar depois, sem perder nada.
-                </GuideTerm>
                 <GuideTerm term="Empresa">
-                  CNPJ, inscrição estadual, endereço e regime tributário. Vira o emitente de todo documento.
+                  Vinculada pela conta CTech: CNPJ, inscrição estadual, endereço e regime tributário.
+                  Vira o emitente de todo documento.
+                </GuideTerm>
+                <GuideTerm term="Plano">
+                  O plano é da organização da conta CTech e vale para todas as empresas dela: Free, Pro
+                  ou sob demanda. Só proprietários e administradores da organização escolhem; dá para
+                  começar no Free e trocar depois, sem perder nada.
+                </GuideTerm>
+                <GuideTerm term="Certificado">
+                  O certificado A1 que assina cada documento da empresa.
                 </GuideTerm>
                 <GuideTerm term="Documentos">
                   Quais tipos você vai emitir. Cada um liga a sua própria numeração e configuração.

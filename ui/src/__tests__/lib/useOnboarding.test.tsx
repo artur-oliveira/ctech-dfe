@@ -4,7 +4,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
-import {STEP_CERTIFICATE, STEP_DOCUMENTS, STEP_PRODUCTS, STEP_SERVICES} from '@/lib/constants/onboarding';
+import {STEP_CERTIFICATE, STEP_COMPANY, STEP_DOCUMENTS, STEP_PLAN, STEP_PRODUCTS, STEP_SERVICES} from '@/lib/constants/onboarding';
 import type {AccountSubscription} from '@/lib/types/billing';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
@@ -198,5 +198,32 @@ describe('useOnboarding', () => {
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.hasSubscription).toBe(true);
+  });
+
+  // The plan belongs to the organization of a company: with no company there is
+  // nothing to subscribe yet, so the company comes first and nothing waits on a
+  // subscription query that cannot run.
+  it('sem empresa, pede a empresa primeiro e não fica carregando', async () => {
+    const saved = {...authState};
+    authState.user = {organizations: []} as never;
+    authState.selectedOrg = undefined as never;
+    try {
+      mockConfigs([]);
+      const {result} = renderHook(() => useOnboarding(), {wrapper});
+      await waitFor(() => expect(result.current.isPending).toBe(false));
+      expect(result.current.nextStep?.id).toBe(STEP_COMPANY);
+    } finally {
+      authState.user = saved.user;
+      authState.selectedOrg = saved.selectedOrg;
+    }
+  });
+
+  it('não oferece o passo do plano a quem não pode escolhê-lo', async () => {
+    mockConfigs([]);
+    vi.spyOn(apiClient, 'getSubscription').mockResolvedValue({...SUBSCRIBED, has_subscription: false, status: '', manageable: false});
+    const {result} = renderHook(() => useOnboarding(), {wrapper});
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    // Steps that do not apply are not listed at all.
+    expect(result.current.steps.find((st) => st.id === STEP_PLAN)).toBeUndefined();
   });
 });
