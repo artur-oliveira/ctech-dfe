@@ -479,14 +479,14 @@ never from a webhook body.
 
 ```
 pk = ORG_{organization_id}                 the subscription snapshot
-pk = USER_{sub}                            the pre-migration snapshot, read only by the dual read
+pk = USER_{sub}                            the pre-migration snapshot; no longer read
 pk = EVENT_{event_id}                      a processed webhook (or a once-only marker), with a TTL
 pk = USAGE_{organization_id}#{period}      this period's meters
 pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
 pk = LEVEL_DIRTY_{organization_id}#{meter} a billing level changed and not yet reported
 ```
 
-`USER_` rows are read only by the dual read until Phase 2 removes it; every write goes to `ORG_`.
+`USER_` rows are no longer read (the dual-read window closed in Phase 2); they may be deleted by hand once billing's cancellations of the old `USER_` subscriptions are confirmed. Every write goes to `ORG_`.
 
 ### Snapshot row — `pk = ORG_{organization_id}` (legacy: `USER_{sub}`)
 

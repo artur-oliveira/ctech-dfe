@@ -98,73 +98,6 @@ func TestTwoOrganizationsOfOneOwnerAreSeparate(t *testing.T) {
 	}
 }
 
-// Spec § 5 test 6: dual read. Only the owner's USER_ snapshot exists → it is
-// served; once the organization has its own, the ORG_ one wins.
-func TestDualReadFallsBackToTheOwnerUntilTheOrganizationHasItsOwn(t *testing.T) {
-	ctx := context.Background()
-	var calls []usageCall
-	svc := chargingBilling(t, billingStub(t, &calls)).WithUserFallback()
-	org := "org-dual-" + newCompanyPK(t)
-	company := seedCompany(t, org, "owner-dual", "11222333000181", "Dual Ltda")
-	if err := repositories.NewAccountBillingRepository(db, cfg).Put(ctx, &repositories.AccountSnapshot{
-		UserID: "owner-dual", SubscriptionID: "sub_user", Status: services.StatusActive, Plan: "unlimited",
-		Entitled: true, PeriodStart: "2026-10-01", Quotas: map[string]int64{services.MeterNFe: -1},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := svc.SnapshotForOrg(ctx, company)
-	if err != nil || got.SubscriptionID != "sub_user" || !got.InheritedFromUser || got.OrganizationID != org {
-		t.Fatalf("fallback = %+v (%v)", got, err)
-	}
-	// Writes go to ORG_ only.
-	if err := svc.Reserve(ctx, company, services.MeterNFe); err != nil {
-		t.Fatal(err)
-	}
-	repo := repositories.NewAccountBillingRepository(db, cfg)
-	if u, _ := repo.GetUsage(ctx, org, "2026-10-01"); u[services.MeterNFe] != 1 {
-		t.Fatalf("org counter = %+v", u)
-	}
-	if u, _ := repo.GetUsage(ctx, "owner-dual", "2026-10-01"); u[services.MeterNFe] != 0 {
-		t.Fatalf("the USER_ counter moved: %+v", u)
-	}
-
-	seedOrgSnapshot(t, org, proSnapshot("sub_org"))
-	svc.Invalidate(ctx, org)
-	got, err = svc.SnapshotForOrg(ctx, company)
-	if err != nil || got.SubscriptionID != "sub_org" || got.InheritedFromUser {
-		t.Fatalf("ORG_ must win: %+v (%v)", got, err)
-	}
-}
-
-// Review Focus 1: a company with no organization_id falls back to its owner
-// for reading, and refuses every counter write.
-func TestACompanyWithNoOrganizationFallsBackToItsOwner(t *testing.T) {
-	ctx := context.Background()
-	var calls []usageCall
-	svc := chargingBilling(t, billingStub(t, &calls)).WithUserFallback()
-	company := newCompanyPK(t)
-	if err := orgRepo.CreateOrganization(ctx, company, map[string]types.AttributeValue{
-		repositories.AttrOwnerUserID: &types.AttributeValueMemberS{Value: "owner-noorg"},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := repositories.NewAccountBillingRepository(db, cfg).Put(ctx, &repositories.AccountSnapshot{
-		UserID: "owner-noorg", SubscriptionID: "sub_noorg", Status: services.StatusActive, Entitled: true,
-		Quotas: map[string]int64{services.MeterNFe: -1},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := svc.SnapshotForOrg(ctx, company)
-	if err != nil || got.SubscriptionID != "sub_noorg" || got.OrganizationID != "" {
-		t.Fatalf("snapshot = %+v (%v)", got, err)
-	}
-	if _, err := svc.PrepareUsageReservation(ctx, company, services.MeterNFe, true); err == nil {
-		t.Fatal("a company with no organization must not reserve anywhere")
-	}
-}
-
 // companiesUsed counts enabled companies of the organization only.
 func TestCompaniesUsedCountsEnabledCompaniesOfTheOrganization(t *testing.T) {
 	ctx := context.Background()
@@ -705,6 +638,42 @@ func TestAnEnabledCompanyWithNoOrganizationStillSaves(t *testing.T) {
 	r, err := svc.ReserveCompany(context.Background(), "", company)
 	if err != nil || len(r.Items) != 0 {
 		t.Fatalf("already enabled, no organization: %+v %v", r, err)
+	}
+}
+
+// Phase 2: an organization with only its owner's USER_ snapshot has no plan.
+func TestAnOrganizationWithOnlyItsOwnersUserSnapshotHasNoPlan(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := chargingBilling(t, billingStub(t, &calls))
+	org := "org-p2-" + newCompanyPK(t)
+	company := seedCompany(t, org, "owner-p2", "11222333000181", "P2 Ltda")
+	if err := repositories.NewAccountBillingRepository(db, cfg).Put(ctx, &repositories.AccountSnapshot{
+		UserID: "owner-p2", SubscriptionID: "sub_old", Status: services.StatusActive, Entitled: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.SnapshotForOrg(ctx, company)
+	if err != nil || got.SubscriptionID != "" || services.GrantsService(got) {
+		t.Fatalf("snapshot = %+v (%v), want no plan", got, err)
+	}
+}
+
+// Review Focus 1, Phase 2: a company with no organization reads as "no plan".
+func TestACompanyWithNoOrganizationHasNoPlan(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := chargingBilling(t, billingStub(t, &calls))
+	company := newCompanyPK(t)
+	if err := orgRepo.CreateOrganization(ctx, company, map[string]types.AttributeValue{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.SnapshotForOrg(ctx, company)
+	if err != nil || services.GrantsService(got) {
+		t.Fatalf("snapshot = %+v (%v)", got, err)
+	}
+	if p := services.BlockedProblem(got); p.Status != http.StatusPaymentRequired {
+		t.Fatalf("blocked = %+v", p)
 	}
 }
 

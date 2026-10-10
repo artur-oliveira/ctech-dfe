@@ -713,9 +713,8 @@ and `occurred_at` is the marker's `changed_at`, so a retry sends an identical bo
 billing accepted that version; billing's 409 `idempotency_key_reused` counts as accepted, its 409 `concurrent_update`
 (nothing recorded) is retried.
 
-During the migration window (Phase 1) an organization with no subscription of its own is served its company owner's
-pre-migration `USER_` snapshot (dual read); change and cancel refuse such an inherited plan with 409, and every counter
-write goes to the organization.
+The migration window is closed: a company whose organization has no `ORG_` subscription has no plan (402 on gated
+writes), even if its owner still has a pre-migration `USER_` row; `USER_` rows are no longer read.
 
 `grants_service` é a resposta para "posso emitir agora". Use-a; não reimplemente a lista de status no cliente. Ela é mais
 restrita que o `entitled` do billing por decisão: `INCOMPLETE` (assinou o plano pago e nunca pagou) e `PAST_DUE` não

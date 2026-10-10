@@ -133,7 +133,7 @@ func TestMain(m *testing.M) {
 	// every quota check passes, so a membership test is testing memberships
 	// rather than a subscription it never set up.
 	billingSvc = services.NewBillingService(
-		repositories.NewAccountBillingRepository(db, cfg), nil, nil, memberSvc, orgSvc, memCache)
+		repositories.NewAccountBillingRepository(db, cfg), nil, nil, orgSvc, memCache)
 	invSvc = services.NewInvitationService(invRepo, orgUserRepo, orgRepo, auditRepo, memberSvc, billingSvc)
 	productSvc = services.NewProductService(productRepo, auditRepo, memCache)
 	serviceRepo = repositories.NewServiceRepository(db, cfg)

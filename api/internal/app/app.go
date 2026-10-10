@@ -737,7 +737,6 @@ func newBillingService(
 	repo *repositories.AccountBillingRepository,
 	client *billingclient.Client,
 	users *services.UserService,
-	members *services.MembershipService,
 	orgs *services.OrganizationService,
 	nfe *repositories.NfeConfigRepository,
 	nfce *repositories.NfceConfigRepository,
@@ -749,9 +748,8 @@ func newBillingService(
 ) *services.BillingService {
 	// A nil *WorkspaceRoleService refuses every management attempt (fail
 	// closed); it is passed as a typed nil on purpose, which its methods handle.
-	return services.NewBillingService(repo, client, users, members, orgs, c).
+	return services.NewBillingService(repo, client, users, orgs, c).
 		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
-		WithUserFallback().
 		WithWorkspaceRoles(roles)
 }
 

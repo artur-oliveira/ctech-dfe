@@ -507,6 +507,10 @@ Order
    Re-run the dry run: it must list nothing to migrate.
    Check no level is stuck: account_billing level-dirty-index should be empty a few minutes after the run (the sweeper runs every 2 minutes).
 4. After every USER_ subscription is cancelled and a full billing period has passed: deploy Phase 2 (Task 17), which removes the dual read.
+   Deployed 2026-10-10, the same day as Phase 1, at the owner's call: the migration had moved both entitled subscriptions,
+   the re-run listed nothing to migrate, every company had its organization (index backfill 0, unresolved 0) and the
+   level-dirty-index was empty. The one USER_ subscription left (sub_01M0BJB0JBPJEETSJMW6141KGK, price_dfe_free_monthly,
+   R$ 0, a user with no organization holding DF-e companies) is no longer read by anything; cancel it in billing.
 
 Exit codes: 0 done, 1 error, 2 bad flags, 3 done with items listed for review.
 
