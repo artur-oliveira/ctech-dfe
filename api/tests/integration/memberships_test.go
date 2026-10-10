@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
@@ -118,7 +120,16 @@ func TestCreateWithOwner_BranchInheritsCertificate(t *testing.T) {
 	matriz := "CNPJ_" + root + "000180"
 	filial := root + "000261" // same root, different order
 
-	// Matriz already exists with a cert and the user is its OWNER.
+	// Matriz already exists with a cert and the user is its OWNER. It exists the
+	// way CreateWithOwner leaves it: an organization record, the OWNER row and the
+	// certificate row. The record matters: since the re-key the sibling's raiz is
+	// read off its RECORD (branchCandidateOf), never off its key, so a membership
+	// and a certificate with no record behind them are not a company and offer
+	// nothing to inherit. This one is legacy (CNPJ_ key, no organization_id), the
+	// only kind this route creates, so it pairs with a filial created here.
+	if err := orgRepo.CreateOrganization(ctx, matriz, map[string]types.AttributeValue{}); err != nil {
+		t.Fatal(err)
+	}
 	seedOwner(t, matriz, "grp-user", "Group User")
 	seedCertForOrg(t, matriz)
 

@@ -76,8 +76,12 @@ func TestNfseConfig_IncrementNumber(t *testing.T) {
 	}
 }
 
-// Upsert não pode zerar o contador — é campo de processo interno.
-func TestNfseConfig_UpsertPreservesCounter(t *testing.T) {
+// Os contadores de numeração da NFS-e são campos editáveis do PUT
+// (NfseConfigBody sempre os envia), não campos "preserve": o valor informado
+// pelo usuário vence o gravado, e a emissão continua a partir dele via
+// IncrementNumber. O que o Upsert preserva é o processo interno, o cursor NSU
+// da distribuição ADN. Ver 7311c08 e o comentário de NfseConfigRepository.
+func TestNfseConfig_UpsertWritesCounterAndPreservesNSU(t *testing.T) {
 	ctx := context.Background()
 	orgPK := "CNPJ_" + randomCNPJ()
 
@@ -87,9 +91,13 @@ func TestNfseConfig_UpsertPreservesCounter(t *testing.T) {
 	if _, err := nfseConfigRepo.IncrementNumber(ctx, orgPK, "hom"); err != nil {
 		t.Fatalf("IncrementNumber: %v", err)
 	}
+	if err := nfseConfigRepo.UpdateNSU(ctx, orgPK, "hom", 77); err != nil {
+		t.Fatalf("UpdateNSU: %v", err)
+	}
 
+	// O usuário ajusta a numeração da DPS (ex.: migrando de outro emissor).
 	fields := nfseConfigFields()
-	delete(fields, "hom_current_number")
+	fields["hom_current_number"] = &types.AttributeValueMemberN{Value: "41"}
 	if _, err := nfseConfigSvc.Upsert(ctx, orgPK, fields, "test-user", "Test User"); err != nil {
 		t.Fatalf("segundo Upsert: %v", err)
 	}
@@ -98,7 +106,18 @@ func TestNfseConfig_UpsertPreservesCounter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if n := got["hom_current_number"].(*types.AttributeValueMemberN).Value; n != "1" {
-		t.Errorf("hom_current_number = %s, esperado 1 — o upsert zerou o contador", n)
+	if n, _ := got["hom_current_number"].(*types.AttributeValueMemberN); n == nil || n.Value != "41" {
+		t.Errorf("hom_current_number = %v, esperado 41: o PUT do usuário foi ignorado", got["hom_current_number"])
+	}
+	if n, _ := got["hom_nsu"].(*types.AttributeValueMemberN); n == nil || n.Value != "77" {
+		t.Errorf("hom_nsu = %v, esperado 77: o upsert zerou o cursor NSU", got["hom_nsu"])
+	}
+
+	next, err := nfseConfigRepo.IncrementNumber(ctx, orgPK, "hom")
+	if err != nil {
+		t.Fatalf("IncrementNumber: %v", err)
+	}
+	if next != 42 {
+		t.Errorf("próximo número = %d, esperado 42", next)
 	}
 }
