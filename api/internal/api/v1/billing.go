@@ -176,6 +176,11 @@ func organizationSubscriptionView(s *repositories.AccountSnapshot, organizationN
 	out := subscriptionView(s)
 	out["organization"] = map[string]string{"id": s.OrganizationID, "name": organizationName}
 	out["manageable"] = manageable
+	// Paying is managing: the open invoice and its checkout link are for the
+	// organization's owners and admins only.
+	if !manageable {
+		delete(out, "open_invoice")
+	}
 	return out
 }
 

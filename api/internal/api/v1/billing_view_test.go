@@ -22,3 +22,18 @@ func TestOrganizationViewNamesTheOrganizationAndWhetherTheCallerManagesIt(t *tes
 		t.Fatalf("a member's view must not be manageable: %#v", view)
 	}
 }
+
+// Review round 2, minor 8: paying is managing, so the open invoice and its
+// checkout link reach only the organization's owners and admins.
+func TestTheOpenInvoiceIsShownOnlyToManagers(t *testing.T) {
+	snap := &repositories.AccountSnapshot{
+		OrganizationID: "org_1", SubscriptionID: "sub_1", Status: "PAST_DUE",
+		OpenInvoice: &repositories.OpenInvoice{ID: "in_1", TotalCents: 100, CheckoutURL: "https://pay.example/x"},
+	}
+	if _, has := organizationSubscriptionView(snap, "", false)["open_invoice"]; has {
+		t.Fatal("a member must not see the open invoice")
+	}
+	if _, has := organizationSubscriptionView(snap, "", true)["open_invoice"]; !has {
+		t.Fatal("a manager sees the open invoice")
+	}
+}

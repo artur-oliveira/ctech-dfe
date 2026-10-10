@@ -363,7 +363,11 @@ components:
             Consumo do período por medidor. Presente só em
             `GET /v1.0/billing/subscription`.
         open_invoice:
-          $ref: '#/components/schemas/BillingOpenInvoice'
+          allOf:
+            - $ref: '#/components/schemas/BillingOpenInvoice'
+          description: |
+            Em `GET /v1.0/billing/subscription`, presente só para quem pode
+            gerenciar o plano (`manageable`): pagar é gerenciar.
         organization:
           type: object
           description: |
