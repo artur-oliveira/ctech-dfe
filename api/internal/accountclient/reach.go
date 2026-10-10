@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 )
@@ -35,13 +36,11 @@ var ErrCompanyNotFound = errors.New("company not found in ctech-account")
 // (docs/specs/2026-10-09-personal-workspaces-in-dfe.md).
 var ErrNotAnOrganization = errors.New("company does not belong to an organization")
 
-// kindOrganization is the only workspace kind this product issues for. An
-// absent kind is one: ctech-account sent none before spaces existed.
-const kindOrganization = "organization"
-
 // isOrganization reads the kind ctech-account reports. Anything but absent or
-// "organization" — a space, or a kind added later — is not consent.
-func isOrganization(kind string) bool { return kind == "" || kind == kindOrganization }
+// "organization" — a space, or a kind added later — is not consent. The rule
+// is the family's (accountorgs.IsOrganizationKind), so reach and the role
+// check can never disagree on what an organization is.
+func isOrganization(kind string) bool { return accountorgs.IsOrganizationKind(kind) }
 
 const Scope = "internal:account:company-actor"
 

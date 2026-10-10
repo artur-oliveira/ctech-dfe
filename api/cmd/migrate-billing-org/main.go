@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 
+	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/awsconfig"
 	"gopkg.aoctech.app/api-commons/cache"
 
@@ -85,7 +86,7 @@ func wire(ctx context.Context, prefix, region string) (deps, error) {
 	if bill == nil {
 		return deps{}, fmt.Errorf("BILLING_API_URL, BILLING_CLIENT_ID, BILLING_CLIENT_SECRET and CTECH_URL are required")
 	}
-	workspaces := accountclient.NewWorkspace(accountclient.Config{
+	workspaces := accountorgs.New(accountorgs.Config{
 		BaseURL: ctechURL, TokenURL: tokenURL,
 		ClientID: os.Getenv("ACCOUNT_WORKSPACE_CLIENT_ID"), ClientSecret: os.Getenv("ACCOUNT_WORKSPACE_CLIENT_SECRET"), Cache: mem,
 	})

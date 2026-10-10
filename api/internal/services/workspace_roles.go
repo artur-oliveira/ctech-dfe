@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
-
-	"gopkg.aoctech.app/dfe/api/internal/accountclient"
 )
 
 // ctech-account's ladder roles that manage an organization's DF-e subscription
@@ -27,9 +26,11 @@ func MayManageBilling(role string) bool {
 	return role == AccountRoleOwner || role == AccountRoleAdmin
 }
 
+// workspaceSource is what the service asks ctech-account; accountorgs.Client
+// satisfies it.
 type workspaceSource interface {
-	Membership(ctx context.Context, organizationID, userID string) (role, kind string, member bool, err error)
-	Organizations(ctx context.Context, userID string) ([]accountclient.Workspace, error)
+	Membership(ctx context.Context, organizationID, userID string) (accountorgs.Membership, error)
+	Organizations(ctx context.Context, userID string) ([]accountorgs.Organization, error)
 }
 
 // WorkspaceRoleService answers "which role does this person hold in this
@@ -66,11 +67,12 @@ func (s *WorkspaceRoleService) Role(ctx context.Context, organizationID, userID 
 	if v, ok := CacheGet[workspaceRoleAnswer](ctx, s.cache, key); ok {
 		return v.Role, nil
 	}
-	role, kind, member, err := s.src.Membership(ctx, organizationID, userID)
+	m, err := s.src.Membership(ctx, organizationID, userID)
 	if err != nil {
 		return "", fmt.Errorf("reading the role in %s: %w", organizationID, err)
 	}
-	if !member || !(accountclient.Workspace{Kind: kind}).IsOrganization() {
+	role := m.Role
+	if !m.Member || !m.IsOrganization() {
 		role = ""
 	}
 	CacheSet(ctx, s.cache, key, workspaceRoleAnswer{Role: role}, workspaceRoleCacheTTL)

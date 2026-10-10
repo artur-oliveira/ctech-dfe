@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
+	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
 	"gopkg.aoctech.app/api-commons/ws"
@@ -787,7 +788,7 @@ func newReachService(cfg *config.Config, c cache.Backend) *services.ReachService
 // service then answers every management attempt with 403, and reading the plan
 // keeps working.
 func newWorkspaceRoleService(cfg *config.Config, c cache.Backend) *services.WorkspaceRoleService {
-	client := accountclient.NewWorkspace(accountclient.Config{
+	client := accountorgs.New(accountorgs.Config{
 		BaseURL:      cfg.CtechURL,
 		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
 		ClientID:     cfg.AccountWorkspaceClientID,

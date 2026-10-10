@@ -8,7 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/accountclient"
+	"gopkg.aoctech.app/api-commons/accountorgs"
+
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -42,7 +43,7 @@ type orgBilling interface {
 }
 
 type workspaceLister interface {
-	Organizations(ctx context.Context, userID string) ([]accountclient.Workspace, error)
+	Organizations(ctx context.Context, userID string) ([]accountorgs.Organization, error)
 }
 
 type companyStore interface {
