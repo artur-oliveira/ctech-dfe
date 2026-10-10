@@ -468,8 +468,8 @@ Uniqueness/expiry are enforced by a `ConditionExpression` (`status = PENDING AND
 
 ## 36. `account_billing`
 
-What ctech-billing says about each account, plus webhook markers, usage counters and concurrency guards. Four row
-shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
+What ctech-billing says about each ctech-account organization, plus webhook markers, usage counters and concurrency
+guards (docs/specs/2026-10-10-organization-subscription.md). Five row shapes share one table because every access is a direct primary-key lookup; separate tables would add resources and
 permissions without improving an access pattern.
 
 **The snapshot is a cache with a durable floor, not a source of truth.** Billing owns the subscription; this row is what
@@ -477,12 +477,23 @@ the last read said, so a quota check on the issuance path is a `get_item` rather
 emission stays decidable while billing is unreachable. Every write comes from re-reading billing (`BillingService.Sync`),
 never from a webhook body.
 
-### Snapshot row — `pk = USER_{sub}`
+```
+pk = ORG_{organization_id}                 the subscription snapshot
+pk = USER_{sub}                            the pre-migration snapshot, read only by the dual read
+pk = EVENT_{event_id}                      a processed webhook (or a once-only marker), with a TTL
+pk = USAGE_{organization_id}#{period}      this period's meters
+pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
+```
+
+`USER_` rows are read only by the dual read until Phase 2 removes it; every write goes to `ORG_`.
+
+### Snapshot row — `pk = ORG_{organization_id}` (legacy: `USER_{sub}`)
 
 | Attribute              | Type | Notes                                                                                        |
 |------------------------|------|----------------------------------------------------------------------------------------------|
-| `pk`                   | S    | `USER_{sub}` — the same string sent to billing as `external_ref`                             |
-| `user_id`              | S    | Bare ctech-account subject                                                                   |
+| `pk`                   | S    | `ORG_{organization_id}` — the same string sent to billing as `external_ref` (`USER_{sub}` on a legacy row) |
+| `organization_id`      | S    | The ctech-account organization; absent only on a legacy `USER_` row                          |
+| `user_id`              | S    | Bare ctech-account subject (legacy rows; empty on an `ORG_` row)                            |
 | `customer_id`          | S    | Billing's customer id                                                                        |
 | `subscription_id`      | S    | Empty for an account that never chose a plan — an ordinary state, not an error               |
 | `status`               | S    | Billing's status verbatim: `ACTIVE` \| `TRIALING` \| `INCOMPLETE` \| `PAST_DUE` \| `PAUSED` \| `CANCELED` |
@@ -516,14 +527,14 @@ Written create-only (`attribute_not_exists`) **after** the idempotent snapshot r
 failure therefore remains retryable; concurrent deliveries may repeat the same whole-snapshot `Put` before one records
 the marker. Seven days outlasts billing's own retry policy (~2 days).
 
-### Usage counter row — `pk = USAGE_{sub}#{period}`
+### Usage counter row — `pk = USAGE_{organization_id}#{period}`
 
 One row per account per billing period; one numeric attribute per meter (`nfe`, `nfce`, `cte`,
 `mdfe`, `nfse`).
 
 | Attribute | Type | Notes                                                                     |
 |-----------|------|---------------------------------------------------------------------------|
-| `pk`      | S    | `USAGE_{sub}#{period_start}`                                              |
+| `pk`      | S    | `USAGE_{organization_id}#{period_start}`                                              |
 | `{meter}` | N    | Documents reserved this period                                            |
 | `ttl`     | N    | Epoch seconds (now + 13 months), set once with `if_not_exists`            |
 
@@ -550,7 +561,7 @@ infrastructure failure commits neither write and remains retryable.
 The production reservation update is included in the same transaction as document, fiscal number and command outbox.
 Homologation does not create or increment this row.
 
-### Resource quota guard — `pk = QUOTA_GUARD_{sub}#{meter}`
+### Resource quota guard — `pk = QUOTA_GUARD_{organization_id}#{meter}`
 
 | Attribute | Type | Notes |
 |-----------|------|-------|

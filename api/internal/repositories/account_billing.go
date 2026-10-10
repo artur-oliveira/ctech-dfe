@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -18,12 +20,13 @@ import (
 
 // AccountBillingRepository stores what ctech-billing says about each account.
 //
-// Table structure (account_billing), four kinds of row:
+// Table structure (account_billing), five kinds of row:
 //
-//	pk = USER_{sub}                the subscription snapshot
-//	pk = EVENT_{event_id}          a processed webhook, with a TTL
-//	pk = USAGE_{sub}#{period}      this period's meters
-//	pk = QUOTA_GUARD_{sub}#{meter} concurrency guard for live resource quotas
+//	pk = ORG_{organization_id}                the subscription snapshot (docs/specs/2026-10-10-organization-subscription.md)
+//	pk = USER_{sub}                           the pre-migration snapshot, read only by the dual read
+//	pk = EVENT_{event_id}                     a processed webhook (or a once-only marker), with a TTL
+//	pk = USAGE_{organization_id}#{period}     this period's meters
+//	pk = QUOTA_GUARD_{organization_id}#{meter} concurrency guard for live resource quotas
 //
 // They share a table because they share a subject and their access pattern is
 // identical — one row, by primary key, never queried or scanned. A table each
@@ -50,6 +53,22 @@ func NewAccountBillingRepository(db *dynamodb.Client, cfg *config.Config) *Accou
 // `external_ref` — one identifier for one account across three systems.
 func AccountBillingPK(userID string) string {
 	return BuildMemberSK(userID)
+}
+
+// OrgBillingPrefix marks an organization's snapshot, and is the same string the
+// DF-e sends billing as the customer's external_ref.
+const OrgBillingPrefix = "ORG_"
+
+// OrgBillingPK is the snapshot key of a ctech-account organization.
+func OrgBillingPK(organizationID string) string { return OrgBillingPrefix + organizationID }
+
+// snapshotPK is where a snapshot is filed: by organization, or by user for a
+// legacy row.
+func snapshotPK(s *AccountSnapshot) string {
+	if s.OrganizationID != "" {
+		return OrgBillingPK(s.OrganizationID)
+	}
+	return AccountBillingPK(s.UserID)
 }
 
 // BillingEventPK keys a processed webhook.
@@ -83,8 +102,11 @@ type OpenInvoice struct {
 // same place. Recomputing them on every read would mean re-deriving business
 // rules from a catalogue on the issuance hot path.
 type AccountSnapshot struct {
-	UserID     string `dynamodbav:"user_id" json:"user_id"`
-	CustomerID string `dynamodbav:"customer_id,omitempty" json:"customer_id,omitempty"`
+	// OrganizationID is the ctech-account organization this snapshot governs.
+	// Empty only on a legacy USER_ row.
+	OrganizationID string `dynamodbav:"organization_id,omitempty" json:"organization_id,omitempty"`
+	UserID         string `dynamodbav:"user_id" json:"user_id"`
+	CustomerID     string `dynamodbav:"customer_id,omitempty" json:"customer_id,omitempty"`
 	// SubscriptionID is empty for an account that has never chosen a plan, which
 	// is an ordinary state and not an error.
 	SubscriptionID string `dynamodbav:"subscription_id,omitempty" json:"subscription_id,omitempty"`
@@ -127,6 +149,11 @@ type AccountSnapshot struct {
 	// bought.
 	NoCharge bool `dynamodbav:"no_charge,omitempty" json:"no_charge,omitempty"`
 
+	// InheritedFromUser marks a snapshot served by the dual read: the
+	// organization has no subscription of its own yet and is running on its
+	// owner's pre-migration one. Never stored; mutations refuse it.
+	InheritedFromUser bool `dynamodbav:"-" json:"-"`
+
 	SyncedAt string `dynamodbav:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
@@ -159,8 +186,21 @@ func (r *AccountBillingRepository) Put(ctx context.Context, s *AccountSnapshot) 
 	if err != nil {
 		return fmt.Errorf("encoding account billing snapshot: %w", err)
 	}
-	item["pk"] = &types.AttributeValueMemberS{Value: AccountBillingPK(s.UserID)}
+	item["pk"] = &types.AttributeValueMemberS{Value: snapshotPK(s)}
 	return r.PutItem(ctx, item)
+}
+
+// GetOrg reads an organization's snapshot. Nil with a nil error: never synced.
+func (r *AccountBillingRepository) GetOrg(ctx context.Context, organizationID string) (*AccountSnapshot, error) {
+	item, err := r.GetItem(ctx, OrgBillingPK(organizationID))
+	if err != nil || item == nil {
+		return nil, err
+	}
+	var out AccountSnapshot
+	if err := attributevalue.UnmarshalMap(item, &out); err != nil {
+		return nil, fmt.Errorf("decoding organization billing snapshot: %w", err)
+	}
+	return &out, nil
 }
 
 // MarkEventProcessed records a webhook event id, returning false if it was
@@ -197,7 +237,7 @@ func (r *AccountBillingRepository) MarkEventProcessed(ctx context.Context, event
 // Usage counters
 // ---------------------------------------------------------------------------
 
-// UsageCounterPK keys one account's counters for one billing period.
+// UsageCounterPK keys one organization's counters for one billing period.
 //
 // The counters live in this table rather than one of their own. They share the
 // account's key space and their access pattern is identical — one row, by
@@ -210,19 +250,19 @@ func (r *AccountBillingRepository) MarkEventProcessed(ctx context.Context, event
 // plan anchored on the 10th resets on the 10th, and counting by calendar month
 // would give that customer a short first month and a free stretch every time
 // they changed plan.
-func UsageCounterPK(userID, period string) string {
-	return "USAGE_" + RawUserID(userID) + "#" + period
+func UsageCounterPK(accountID, period string) string {
+	return "USAGE_" + RawUserID(accountID) + "#" + period
 }
 
-func quotaGuardPK(userID, meter string) string {
-	return "QUOTA_GUARD_" + RawUserID(userID) + "#" + meter
+func quotaGuardPK(accountID, meter string) string {
+	return "QUOTA_GUARD_" + RawUserID(accountID) + "#" + meter
 }
 
 // BuildQuotaGuardTx advances a per-account resource version. Company creation
 // and invitation acceptance include it in their own transaction, serializing
 // the preceding live-count decision without replacing live state with counters.
-func (r *AccountBillingRepository) BuildQuotaGuardTx(ctx context.Context, userID, meter string) (types.TransactWriteItem, error) {
-	pk := quotaGuardPK(userID, meter)
+func (r *AccountBillingRepository) BuildQuotaGuardTx(ctx context.Context, accountID, meter string) (types.TransactWriteItem, error) {
+	pk := quotaGuardPK(accountID, meter)
 	item, err := r.GetItem(ctx, pk)
 	if err != nil {
 		return types.TransactWriteItem{}, err
@@ -269,8 +309,8 @@ var ErrQuotaExceeded = errors.New("quota exceeded")
 //
 // It returns the count **after** the reservation, so a caller can report "3 of 3
 // used" without a second read.
-func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, userID, period, meter string, limit int64) (int64, error) {
-	tx := r.BuildReserveUsageTx(userID, period, meter, limit)
+func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, accountID, period, meter string, limit int64) (int64, error) {
+	tx := r.BuildReserveUsageTx(accountID, period, meter, limit)
 	update := tx.Update
 	out, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
 		TableName:                 update.TableName,
@@ -293,7 +333,7 @@ func (r *AccountBillingRepository) ReserveUsage(ctx context.Context, userID, per
 // BuildReserveUsageTx builds the same conditional increment as ReserveUsage,
 // for inclusion in the document+fiscal-number+outbox transaction. A successful
 // quota claim can therefore never exist without the document it paid for.
-func (r *AccountBillingRepository) BuildReserveUsageTx(userID, period, meter string, limit int64) types.TransactWriteItem {
+func (r *AccountBillingRepository) BuildReserveUsageTx(accountID, period, meter string, limit int64) types.TransactWriteItem {
 	names := map[string]string{"#m": meter, "#ttl": "ttl"}
 	values := map[string]types.AttributeValue{
 		":one": &types.AttributeValueMemberN{Value: "1"},
@@ -328,7 +368,7 @@ func (r *AccountBillingRepository) BuildReserveUsageTx(userID, period, meter str
 	return types.TransactWriteItem{Update: &types.Update{
 		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(userID, period)},
+			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(accountID, period)},
 		},
 		UpdateExpression:          aws.String(update),
 		ConditionExpression:       conditionOrNil(condition),
@@ -345,11 +385,11 @@ func (r *AccountBillingRepository) BuildReserveUsageTx(userID, period, meter str
 //
 // A failed condition is not an error. It means there was nothing to give back —
 // the counter was already at zero — and the caller has nothing to do about it.
-func (r *AccountBillingRepository) RefundUsage(ctx context.Context, userID, period, meter string) error {
+func (r *AccountBillingRepository) RefundUsage(ctx context.Context, accountID, period, meter string) error {
 	_, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(userID, period)},
+			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(accountID, period)},
 		},
 		UpdateExpression:         aws.String("ADD #m :minusOne"),
 		ConditionExpression:      aws.String("#m > :zero"),
@@ -368,7 +408,7 @@ func (r *AccountBillingRepository) RefundUsage(ctx context.Context, userID, peri
 // RefundUsageOnce atomically records the document refund and decrements its
 // reserved meter. A redelivery sees the marker condition fail and is a no-op;
 // an infrastructure failure commits neither write and remains retryable.
-func (r *AccountBillingRepository) RefundUsageOnce(ctx context.Context, userID, period, meter, eventID string) error {
+func (r *AccountBillingRepository) RefundUsageOnce(ctx context.Context, accountID, period, meter, eventID string) error {
 	marker := map[string]types.AttributeValue{
 		"pk":         &types.AttributeValueMemberS{Value: BillingEventPK(eventID)},
 		"event_id":   &types.AttributeValueMemberS{Value: eventID},
@@ -380,7 +420,7 @@ func (r *AccountBillingRepository) RefundUsageOnce(ctx context.Context, userID, 
 	refund := types.TransactWriteItem{Update: &types.Update{
 		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(userID, period)},
+			"pk": &types.AttributeValueMemberS{Value: UsageCounterPK(accountID, period)},
 		},
 		UpdateExpression:         aws.String("ADD #m :minusOne"),
 		ConditionExpression:      aws.String("#m > :zero"),
@@ -399,8 +439,8 @@ func (r *AccountBillingRepository) RefundUsageOnce(ctx context.Context, userID, 
 
 // GetUsage reads every counter for one account and period. An absent row is no
 // usage, not an error.
-func (r *AccountBillingRepository) GetUsage(ctx context.Context, userID, period string) (map[string]int64, error) {
-	item, err := r.GetItem(ctx, UsageCounterPK(userID, period))
+func (r *AccountBillingRepository) GetUsage(ctx context.Context, accountID, period string) (map[string]int64, error) {
+	item, err := r.GetItem(ctx, UsageCounterPK(accountID, period))
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +458,109 @@ func (r *AccountBillingRepository) GetUsage(ctx context.Context, userID, period 
 		}
 	}
 	return out, nil
+}
+
+// UsageSource names one counter row to copy from.
+type UsageSource struct {
+	AccountID string
+	Period    string
+}
+
+// CopyUsageOnce adds the sources' counters to toAccount's row for toPeriod,
+// once. The marker (an EVENT_ row with the webhook TTL) and every ADD are one
+// transaction, so a re-run is a no-op and a failure leaves nothing half done.
+// A source equal to the target is skipped: the target keeps what it has.
+func (r *AccountBillingRepository) CopyUsageOnce(ctx context.Context, sources []UsageSource, toAccount, toPeriod, marker string) (bool, error) {
+	target := UsageCounterPK(toAccount, toPeriod)
+	sum := map[string]int64{}
+	for _, src := range sources {
+		if UsageCounterPK(src.AccountID, src.Period) == target {
+			continue
+		}
+		got, err := r.GetUsage(ctx, src.AccountID, src.Period)
+		if err != nil {
+			return false, err
+		}
+		for meter, n := range got {
+			sum[meter] += n
+		}
+	}
+
+	markerItem := map[string]types.AttributeValue{
+		"pk":         &types.AttributeValueMemberS{Value: BillingEventPK(marker)},
+		"event_id":   &types.AttributeValueMemberS{Value: marker},
+		"created_at": &types.AttributeValueMemberS{Value: NowStr()},
+		"ttl": &types.AttributeValueMemberN{
+			Value: strconv.FormatInt(time.Now().Add(billingEventTTL).Unix(), 10),
+		},
+	}
+	items := []types.TransactWriteItem{r.BuildPutTxItemIfAbsent(markerItem)}
+
+	if len(sum) > 0 {
+		meters := make([]string, 0, len(sum))
+		for m := range sum {
+			meters = append(meters, m)
+		}
+		sort.Strings(meters)
+		names := map[string]string{"#ttl": "ttl"}
+		values := map[string]types.AttributeValue{
+			":ttl": &types.AttributeValueMemberN{Value: strconv.FormatInt(time.Now().Add(usageCounterTTL).Unix(), 10)},
+		}
+		adds := make([]string, 0, len(meters))
+		for i, m := range meters {
+			n, v := fmt.Sprintf("#m%d", i), fmt.Sprintf(":v%d", i)
+			names[n] = m
+			values[v] = &types.AttributeValueMemberN{Value: strconv.FormatInt(sum[m], 10)}
+			adds = append(adds, n+" "+v)
+		}
+		items = append(items, types.TransactWriteItem{Update: &types.Update{
+			TableName:                 aws.String(r.TableName),
+			Key:                       map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: target}},
+			UpdateExpression:          aws.String("ADD " + strings.Join(adds, ", ") + " SET #ttl = if_not_exists(#ttl, :ttl)"),
+			ExpressionAttributeNames:  names,
+			ExpressionAttributeValues: values,
+		}})
+	}
+
+	err := r.TransactWrite(ctx, items)
+	if IsConditionFailed(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ListUserSnapshots scans every pre-migration USER_ snapshot. Used once, by
+// cmd/migrate-billing-org; the table is small and this is never on a request path.
+func (r *AccountBillingRepository) ListUserSnapshots(ctx context.Context) ([]AccountSnapshot, error) {
+	var out []AccountSnapshot
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+			TableName:                 aws.String(r.TableName),
+			FilterExpression:          aws.String("begins_with(pk, :p)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{":p": &types.AttributeValueMemberS{Value: AccountBillingPK("")}},
+			ExclusiveStartKey:         start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range res.Items {
+			var s AccountSnapshot
+			if err := attributevalue.UnmarshalMap(item, &s); err != nil {
+				return nil, fmt.Errorf("decoding a user snapshot: %w", err)
+			}
+			if s.OrganizationID == "" {
+				out = append(out, s)
+			}
+		}
+		if len(res.LastEvaluatedKey) == 0 {
+			return out, nil
+		}
+		start = res.LastEvaluatedKey
+	}
 }
 
 func conditionOrNil(expr string) *string {

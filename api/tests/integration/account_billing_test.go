@@ -283,3 +283,100 @@ func TestPeriodsAreCountedSeparately(t *testing.T) {
 		t.Fatalf("the next period starts empty: %v", err)
 	}
 }
+
+// TestOrgSnapshotLivesUnderTheOrganization: the ORG_ row and the legacy USER_
+// row are two partitions; reading one never returns the other.
+func TestOrgSnapshotLivesUnderTheOrganization(t *testing.T) {
+	ctx := context.Background()
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+
+	if err := repo.Put(ctx, &repositories.AccountSnapshot{
+		OrganizationID: "org-snap-1", UserID: "", SubscriptionID: "sub_org", Status: "ACTIVE",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Put(ctx, &repositories.AccountSnapshot{UserID: "org-snap-1", SubscriptionID: "sub_user"}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.GetOrg(ctx, "org-snap-1")
+	if err != nil || got == nil || got.SubscriptionID != "sub_org" || got.OrganizationID != "org-snap-1" {
+		t.Fatalf("GetOrg = %+v (%v)", got, err)
+	}
+	user, err := repo.Get(ctx, "org-snap-1")
+	if err != nil || user == nil || user.SubscriptionID != "sub_user" {
+		t.Fatalf("Get(USER_) = %+v (%v)", user, err)
+	}
+	if none, err := repo.GetOrg(ctx, "org-snap-absent"); err != nil || none != nil {
+		t.Fatalf("an organization with no row reads as absent, got %+v (%v)", none, err)
+	}
+}
+
+// TestCopyUsageOnceAddsTheSourcesExactlyOnce: the migration's counter copy.
+// Twice is the same as once, and the target keeps what it already had.
+func TestCopyUsageOnceAddsTheSourcesExactlyOnce(t *testing.T) {
+	ctx := context.Background()
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+
+	for range 3 {
+		if _, err := repo.ReserveUsage(ctx, "copy-user", "2026-10-01", "nfe", -1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := repo.ReserveUsage(ctx, "copy-org", "2026-10-01", "nfe", -1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.ReserveUsage(ctx, "copy-org", "2026-10-10", "mdfe", -1); err != nil {
+		t.Fatal(err)
+	}
+	sources := []repositories.UsageSource{
+		{AccountID: "copy-user", Period: "2026-10-01"},
+		{AccountID: "copy-org", Period: "2026-10-01"},
+		// The target itself is ignored as a source.
+		{AccountID: "copy-org", Period: "2026-10-10"},
+	}
+
+	for i := range 2 {
+		fresh, err := repo.CopyUsageOnce(ctx, sources, "copy-org", "2026-10-10", "migrate-usage:copy-user:copy-org")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fresh != (i == 0) {
+			t.Fatalf("run %d: fresh = %v", i, fresh)
+		}
+	}
+	got, err := repo.GetUsage(ctx, "copy-org", "2026-10-10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["nfe"] != 4 || got["mdfe"] != 1 {
+		t.Fatalf("usage = %+v, want nfe 4 (3 + 1) and mdfe 1 (kept)", got)
+	}
+}
+
+func TestListUserSnapshotsReturnsOnlyUserRows(t *testing.T) {
+	ctx := context.Background()
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	if err := repo.Put(ctx, &repositories.AccountSnapshot{UserID: "list-user-1", SubscriptionID: "sub_l1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Put(ctx, &repositories.AccountSnapshot{OrganizationID: "list-org-1", SubscriptionID: "sub_o1"}); err != nil {
+		t.Fatal(err)
+	}
+	all, err := repo.ListUserSnapshots(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawUser bool
+	for _, s := range all {
+		if s.OrganizationID != "" {
+			t.Fatalf("an ORG_ row was listed: %+v", s)
+		}
+		if s.UserID == "list-user-1" {
+			sawUser = true
+		}
+	}
+	if !sawUser {
+		t.Fatal("the USER_ row was not listed")
+	}
+}
