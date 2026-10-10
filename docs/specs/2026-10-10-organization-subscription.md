@@ -146,3 +146,82 @@ Before running it, production is checked: at design time there were two entitled
 - CT-e emission itself.
 - Organizations' Finanças plans (ctech-billing plans spec, out of scope there too).
 - Moving a company between organizations (ctech-account has no such operation).
+
+## Amendment, planning (2026-10-10)
+
+Recorded while writing [`docs/plans/2026-10-10-organization-subscription.md`](../plans/2026-10-10-organization-subscription.md).
+Where this section and the text above disagree, this section wins.
+
+### A1. The on-demand company charge is monthly, by peak (product decision)
+
+§ 3 said a company enablement reports `companies` usage with key `company:{companyPK}`, a one-shot charge. That is
+replaced by level metering (ctech-billing plans spec § 6):
+
+- Billing adds `price_dfe_ondemand_companies_monthly` (metered, `aggregation: max`, meter `dfe_companies`,
+  included 0, R$ 5) and archives `price_dfe_ondemand_company`.
+- The DF-e reports the **level** `dfe_companies` = the organization's enabled companies (the same count the quota
+  uses), to `POST /v1.0/usage/levels` with `customer_ref: ORG_{organization_id}`. It is the whole current count,
+  never a delta.
+- It is reported on **every enablement change** (enable and, when such a path exists, disable), **whatever the
+  plan**, so the level is already known the day an organization moves to on-demand.
+- `ReserveCompany` still checks and guards the quota. In the same transaction as the configuration it also bumps a
+  marker `LEVEL_DIRTY_{organization_id}#dfe_companies` in `account_billing` (a version and `changed_at`, kept in
+  a sparse GSI `level-dirty-index` while pending).
+- **Delivery is durable.** A `LevelReporter` reports right after the commit and again from a sweeper that every API
+  instance runs every 2 minutes. The idempotency key is `dfe_companies:{organization}:v{version}` and
+  `occurred_at` is the marker's `changed_at`, so a retry sends an identical body. The marker leaves the index only
+  when billing accepted that version, and a 409 counts as accepted. A newer report repairs a lost one.
+- Re-enabling a company in the same month is no second charge: the monthly peak is what is billed.
+- No route disables a company today: no fiscal configuration is ever deleted, and no company is deleted or
+  unlinked. `BillingService.CompanyLevelChangeTx` is the item any future disable path must add to its transaction.
+- Every plan selection for an organization (`Choose`, `Change`) also marks and flushes its level, so the level is
+  known from the moment an organization subscribes, migrated or not.
+- The migration reports each migrated organization's initial level (marker, then flush). With
+  `-report-levels-all` it marks every organization holding DF-e companies; a dry run lists them.
+
+### A2. Decisions where the spec was silent or contradicted the code
+
+1. **Onboarding order.** The plan step came before the company step. An `ORG_` subscription needs an organization,
+   so the company is linked first, then the organization's plan is chosen. Only someone with
+   `manageable` (an `owner` or `admin`) is sent to the plan step.
+2. **Legacy `POST /organizations`** creates `CNPJ_` companies with no ctech-account organization.
+   - It loses its quota check and its usage report.
+   - `ReserveCompany` refuses to enable such a company (409): there is no `ORG_` to bill.
+   - The UI no longer uses the route.
+3. **Owner's CPF fallback.** ctech-account's userinfo carries no CPF. A DF-e billing action always has a company,
+   so the customer gets the billing company's legal name and tax id. In the no-company fallback it gets the
+   payer's name and no tax id. `CreateCustomerInput` gains `tax_id`.
+4. **"First linked company"** is the organization's oldest local company record (`organization-index`, sorted by
+   `created_at`). The DF-e cannot see ctech-account's own linking order.
+5. **Company → organization** is read from the local company record's `organization_id`, not from the reach cache.
+   Reach is cached per company *and user*, and the results consumer has no user. Link and the re-key wrote the
+   record from the same fact.
+6. **Credentials.** The DF-e's existing ctech-account client holds only `internal:account:company-actor`, and no
+   command adds scopes to an existing machine client. A second client, `ctech-dfe-workspaces`, holds
+   `internal:account:org-member` and `internal:account:user-organizations`, read from env
+   `ACCOUNT_WORKSPACE_CLIENT_ID` / `ACCOUNT_WORKSPACE_CLIENT_SECRET`. The role check fails closed: an outage gives
+   403 on management, and reading still works.
+7. **Counter copy target.** The migrated `ORG_` subscription has a new period start. The user's counters, plus what
+   the dual read already wrote to the organization under the old period, are added once (guarded by a marker) into
+   `USAGE_{org}#{new period}`.
+8. **`USER_` webhooks are ignored during the window**, as specified. As a result the inherited snapshot's period
+   never renews, so counters accumulate under a stale period. This is harmless for the two R$ 0 unlimited
+   subscriptions, which is why the window must stay short.
+9. **During the window** every organization of one owner gets its own `ORG_` counters against the shared `USER_`
+   quota, so the quota is effectively multiplied until the migration runs.
+10. **Unspecified details.**
+    - The `ORG_` customer's `user_id` is the person acting when it is created.
+    - Listing invoices is owner/admin only, because paying is managing.
+    - `GET /organizations/:org_pk/plan` keeps its route and its local gate. The UI reads `/billing/subscription`
+      for everyone and shows actions by `manageable`.
+11. **GSI coverage.** Company records missing `organization_id` or `created_at` are invisible to `organization-index`.
+    The migration first lists them and backfills `organization_id` through reach (company + `owner_user_id`) and a
+    missing `created_at` with the run time. Unresolved ones are listed for a person.
+12. **Reporting durability.** Superseded by A1: there is no log-and-forget path. The marker and the sweeper
+    guarantee delivery.
+13. **Cross-repo.**
+    - The DF-e membership client duplicates ctech-billing's; extracting both into `ctech-go-common` is a follow-up.
+    - ctech-billing must ship `ORG_` customers, the pointer, `usage/levels` and the new price before the DF-e
+      deploy.
+14. **Worker wire field.** Reservations carry `billing_organization_id`. `billing_user_id` is still read, so a
+    message reserved before the deploy refunds the user counter it took.
