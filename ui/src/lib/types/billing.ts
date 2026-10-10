@@ -88,6 +88,10 @@ export interface AccountSubscription {
   /** Present only on `GET /v1.0/billing/subscription`. */
   usage?: Record<string, MeterUsage>
   open_invoice?: BillingOpenInvoice
+  /** The ctech-account organization the plan belongs to. */
+  organization?: { id: string; name: string }
+  /** True for the organization's owners and admins: they may choose, change, cancel and pay. */
+  manageable?: boolean
 }
 
 export interface AccountSubscriptionWithInvoice extends AccountSubscription {

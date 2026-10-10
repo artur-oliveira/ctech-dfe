@@ -20,7 +20,7 @@ import {ChangePlanDialog} from '@/components/billing/ChangePlanDialog';
 import {CancelSubscriptionDialog} from '@/components/billing/CancelSubscriptionDialog';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useSubscription} from '@/lib/hooks/useSubscription';
-import {ROLE_OWNER} from '@/lib/data/roles';
+import {canManagePlan, MEMBER_NO_PLAN_MESSAGE, organizationPlanTitle} from '@/lib/billing/organization';
 import {cn} from '@/lib/utils';
 import {formatISODateBR} from '@/lib/utils/dfe';
 import {QUERY_CHANGE_PLAN} from '@/lib/billing/notice';
@@ -79,44 +79,19 @@ function PlanSummary({subscription}: { subscription: AccountSubscription }) {
   );
 }
 
-/** What an ADMIN sees: the plan governing this organization, and no buttons. */
-function OrganizationPlanView({orgPk}: { orgPk: string }) {
-  const {data, isPending, error} = useQuery({
-    queryKey: queryKeys.billing.orgPlan(orgPk),
-    queryFn: () => apiClient.getOrganizationPlan(orgPk),
-  });
-
-  if (isPending) return <LoadingSkeleton/>;
-  if (error) {
-    return (
-      <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
-        Não foi possível carregar o plano. {error.message}
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <SectionCard title="Plano desta organização">
-        <PlanSummary subscription={data}/>
-        <p className="text-sm leading-relaxed text-gray-600">
-          A assinatura pertence ao proprietário da conta; só ele pode contratar, mudar ou cancelar
-          o plano. Fale com ele se um limite estiver atrapalhando a operação.
-        </p>
-      </SectionCard>
-
-      <SectionCard title="Limites do plano">
-        <UsageList quotas={data.quotas}/>
-      </SectionCard>
-    </div>
-  );
-}
-
-/** What the OWNER sees: everything, and the two actions that spend money. */
-function OwnerSubscriptionView() {
+/**
+ * The plan of the selected company's ctech-account organization. Everybody
+ * with access to the company reads it and its usage; only the organization's
+ * owners and admins (`manageable`, from the API) see the actions that spend
+ * money and the invoices.
+ */
+function OrganizationSubscriptionView({companyPk, subscription}: {
+  companyPk: string
+  subscription: AccountSubscription
+}) {
   const params = useSearchParams();
-  const {subscription, isPending, error} = useSubscription();
-  const [changeOpen, setChangeOpen] = useState(params.get(QUERY_CHANGE_PLAN) === '1');
+  const manageable = canManagePlan(subscription);
+  const [changeOpen, setChangeOpen] = useState(manageable && params.get(QUERY_CHANGE_PLAN) === '1');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -127,20 +102,10 @@ function OwnerSubscriptionView() {
   const [year, monthNumber] = month.split('-').map(Number);
 
   const invoicesQuery = useQuery({
-    queryKey: queryKeys.billing.invoices(year, monthNumber),
+    queryKey: queryKeys.billing.invoices(companyPk, year, monthNumber),
     queryFn: () => apiClient.listBillingInvoices(year, monthNumber),
-    enabled: !!subscription?.has_subscription,
+    enabled: manageable && subscription.has_subscription,
   });
-
-  if (isPending) return <LoadingSkeleton/>;
-  if (error) {
-    return (
-      <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
-        Não foi possível carregar a assinatura. {error.message}
-      </p>
-    );
-  }
-  if (!subscription) return null;
 
   if (subscription.no_charge) {
     return (
@@ -155,12 +120,19 @@ function OwnerSubscriptionView() {
   if (!subscription.has_subscription) {
     return (
       <SectionCard title="Assinatura">
-        <p className="text-sm leading-relaxed text-gray-600">
-          A conta ainda não tem um plano. Escolher um libera a emissão de documentos fiscais.
-        </p>
-        <Link href={`${ONBOARDING_ROOT}/${STEP_PLAN}`} className={cn(buttonVariants(), 'w-full sm:w-auto')}>
-          Escolher plano
-        </Link>
+        {manageable ? (
+          <>
+            <p className="text-sm leading-relaxed text-gray-600">
+              A organização ainda não tem um plano. Escolher um libera a emissão de documentos
+              fiscais em todas as empresas dela.
+            </p>
+            <Link href={`${ONBOARDING_ROOT}/${STEP_PLAN}`} className={cn(buttonVariants(), 'w-full sm:w-auto')}>
+              Escolher plano
+            </Link>
+          </>
+        ) : (
+          <p className="text-sm leading-relaxed text-gray-600">{MEMBER_NO_PLAN_MESSAGE}</p>
+        )}
       </SectionCard>
     );
   }
@@ -177,23 +149,30 @@ function OwnerSubscriptionView() {
           <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
             A assinatura foi cancelada e termina em{' '}
             {subscription.period_end ? formatISODateBR(subscription.period_end) : 'breve'}. Até lá
-            você continua emitindo normalmente.
+            as empresas da organização continuam emitindo normalmente.
           </p>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="brand" className="w-full sm:w-auto" onClick={() => setChangeOpen(true)}>
-            Mudar de plano
-          </Button>
-          {!subscription.cancel_at_period_end && (
-            <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setCancelOpen(true)}>
-              Cancelar assinatura
+        {manageable ? (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="brand" className="w-full sm:w-auto" onClick={() => setChangeOpen(true)}>
+              Mudar de plano
             </Button>
-          )}
-        </div>
+            {!subscription.cancel_at_period_end && (
+              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setCancelOpen(true)}>
+                Cancelar assinatura
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed text-gray-600">
+            Fale com um proprietário ou administrador da organização se um limite estiver
+            atrapalhando a operação.
+          </p>
+        )}
       </SectionCard>
 
-      {openInvoice && (
+      {manageable && openInvoice && (
         <SectionCard title="Fatura em aberto">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <div>
@@ -217,85 +196,101 @@ function OwnerSubscriptionView() {
         <UsageList quotas={subscription.quotas} usage={subscription.usage}/>
       </SectionCard>
 
-      <SectionCard title="Faturas">
-        <OptionsSelect
-          value={month}
-          onValueChange={setMonth}
-          options={months}
-          ariaLabel="Mês das faturas"
-          className="w-full sm:w-64"
-        />
+      {manageable && (
+        <>
+          <SectionCard title="Faturas">
+            <OptionsSelect
+              value={month}
+              onValueChange={setMonth}
+              options={months}
+              ariaLabel="Mês das faturas"
+              className="w-full sm:w-64"
+            />
 
-        {invoicesQuery.isPending ? (
-          <LoadingSkeleton/>
-        ) : invoices.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhuma fatura neste mês.</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-gray-100">
-            {invoices.map((invoice) => (
-              <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    Fatura {invoice.number}
-                    <span className="ml-2 font-normal text-gray-500 tabular-nums">
-                      {formatCents(invoice.total)}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    Vencimento em {formatISODateBR(invoice.due_date)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge
-                    label={INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
-                    className={INVOICE_STATUS_CLASSES[invoice.status] ?? 'bg-gray-100 text-gray-600'}
-                  />
-                  {invoice.amount_due > 0 && invoice.checkout_url && (
-                    <a
-                      href={invoice.checkout_url}
-                      className={cn(buttonVariants({variant: 'outline', size: 'sm'}), 'shrink-0')}
-                    >
-                      Pagar
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
+            {invoicesQuery.isPending ? (
+              <LoadingSkeleton/>
+            ) : invoices.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhuma fatura neste mês.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-gray-100">
+                {invoices.map((invoice) => (
+                  <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        Fatura {invoice.number}
+                        <span className="ml-2 font-normal text-gray-500 tabular-nums">
+                          {formatCents(invoice.total)}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Vencimento em {formatISODateBR(invoice.due_date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge
+                        label={INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
+                        className={INVOICE_STATUS_CLASSES[invoice.status] ?? 'bg-gray-100 text-gray-600'}
+                      />
+                      {invoice.amount_due > 0 && invoice.checkout_url && (
+                        <a
+                          href={invoice.checkout_url}
+                          className={cn(buttonVariants({variant: 'outline', size: 'sm'}), 'shrink-0')}
+                        >
+                          Pagar
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
 
-      <ChangePlanDialog
-        isOpen={changeOpen}
-        onClose={() => setChangeOpen(false)}
-        subscription={subscription}
-      />
-      <CancelSubscriptionDialog
-        isOpen={cancelOpen}
-        onClose={() => setCancelOpen(false)}
-        subscription={subscription}
-      />
+          <ChangePlanDialog
+            isOpen={changeOpen}
+            onClose={() => setChangeOpen(false)}
+            subscription={subscription}
+          />
+          <CancelSubscriptionDialog
+            isOpen={cancelOpen}
+            onClose={() => setCancelOpen(false)}
+            subscription={subscription}
+          />
+        </>
+      )}
     </div>
   );
 }
 
 function SubscriptionContent() {
   const {selectedOrg} = useAuth();
-  const role = selectedOrg?.role;
+  const {subscription, isPending, error} = useSubscription();
 
   if (!selectedOrg) return <NoOrgBanner/>;
+
+  const manageable = canManagePlan(subscription);
 
   return (
     <div className="p-4 md:p-8 max-w-3xl">
       <PageHeader
-        title="Assinatura"
+        title={organizationPlanTitle(subscription)}
         description={
-          role === ROLE_OWNER
-            ? 'Seu plano, o que já foi usado dele e as faturas da conta.'
-            : 'O plano que governa esta organização.'
+          manageable
+            ? 'O plano vale para todas as empresas da organização.'
+            : 'O plano que vale para todas as empresas da organização. Só proprietários e administradores da organização podem alterá-lo.'
         }
       />
-      {role === ROLE_OWNER ? <OwnerSubscriptionView/> : <OrganizationPlanView orgPk={selectedOrg.pk}/>}
+      {isPending ? (
+        <LoadingSkeleton/>
+      ) : error ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">
+          Não foi possível carregar o plano. {error.message}
+        </p>
+      ) : subscription ? (
+        // Keyed on the company so switching companies resets the dialogs and
+        // the month picker.
+        <OrganizationSubscriptionView key={selectedOrg.pk} companyPk={selectedOrg.pk} subscription={subscription}/>
+      ) : null}
     </div>
   );
 }

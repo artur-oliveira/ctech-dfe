@@ -43,7 +43,7 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
   const change = useMutation({
     mutationFn: (priceIds: string[]) => apiClient.changeBillingPlan({price_ids: priceIds}),
     onSuccess: async (result) => {
-      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()});
+      await qc.invalidateQueries({queryKey: queryKeys.billing.subscriptionAll()});
       const checkoutUrl = result.invoice?.checkout_url;
       if (checkoutUrl) {
         window.location.href = checkoutUrl;

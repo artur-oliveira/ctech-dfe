@@ -36,7 +36,7 @@ export function CancelSubscriptionDialog({isOpen, onClose, subscription}: Cancel
   const cancel = useMutation({
     mutationFn: () => apiClient.cancelBillingSubscription(!immediate),
     onSuccess: async () => {
-      await qc.invalidateQueries({queryKey: queryKeys.billing.subscription()});
+      await qc.invalidateQueries({queryKey: queryKeys.billing.subscriptionAll()});
       onClose();
     },
   });

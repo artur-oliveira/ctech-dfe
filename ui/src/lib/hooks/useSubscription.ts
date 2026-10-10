@@ -7,7 +7,10 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import type {AccountSubscription} from '@/lib/types/billing';
 
 /**
- * The account's subscription.
+ * The subscription of the selected company's ctech-account organization.
+ *
+ * Switching between two companies of one organization refetches and shows the
+ * same plan.
  *
  * A snapshot the API keeps current from billing webhooks, not a synchronous
  * lookup — which is why it is cheap enough to sit behind the route gate and the
@@ -16,11 +19,11 @@ import type {AccountSubscription} from '@/lib/types/billing';
  * key explicitly.
  */
 export function useSubscription() {
-  const {user} = useAuth();
+  const {user, selectedOrg} = useAuth();
   const query = useQuery<AccountSubscription>({
-    queryKey: queryKeys.billing.subscription(),
+    queryKey: queryKeys.billing.subscription(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getSubscription(),
-    enabled: !!user,
+    enabled: !!user && !!selectedOrg,
     staleTime: 60_000,
   });
 

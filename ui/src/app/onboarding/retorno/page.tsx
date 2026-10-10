@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation';
 import {useQuery} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
+import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {Button} from '@/components/ui/button';
@@ -26,10 +27,12 @@ const POLL_CEILING_MS = 60_000;
 function CheckoutReturnContent() {
   const router = useRouter();
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
+  const {selectedOrg} = useAuth();
 
   const {data: subscription} = useQuery({
-    queryKey: queryKeys.billing.subscription(),
+    queryKey: queryKeys.billing.subscription(selectedOrg?.pk ?? ''),
     queryFn: () => apiClient.getSubscription(),
+    enabled: !!selectedOrg,
     refetchInterval: gaveUpWaiting ? false : POLL_INTERVAL_MS,
   });
 

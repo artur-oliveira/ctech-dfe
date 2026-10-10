@@ -131,11 +131,13 @@ export const queryKeys = {
   },
   billing: {
     plans: () => ['billing', 'plans'] as const,
-    // Keyed on the account, not the active org: the subscription belongs to the
-    // token holder, and switching orgs must not refetch or invalidate it.
-    subscription: () => ['billing', 'subscription'] as const,
-    invoices: (year?: number, month?: number) => ['billing', 'invoices', year, month] as const,
-    orgPlan: (orgPk: string | undefined) => ['billing', 'org-plan', orgPk] as const,
+    // Keyed on the selected company: the API answers for that company's
+    // ctech-account organization, so two companies of one organization show
+    // the same plan and two organizations never share a cache entry.
+    subscription: (companyPk: string) => ['billing', 'subscription', companyPk] as const,
+    /** Every company's cached subscription; what mutations invalidate. */
+    subscriptionAll: () => ['billing', 'subscription'] as const,
+    invoices: (companyPk: string, year?: number, month?: number) => ['billing', 'invoices', companyPk, year, month] as const,
   },
   members: (orgPk: string | undefined) => ['members', orgPk] as const,
   invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,

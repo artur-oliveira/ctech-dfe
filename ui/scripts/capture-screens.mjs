@@ -143,7 +143,7 @@ const CAPTURES = [
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},
 
   // ── Conta ────────────────────────────────────────────────────────────────
-  {slug: 'subscription', route: '/assinatura', waitText: 'Assinatura'},
+  {slug: 'subscription', route: '/assinatura', waitText: 'Plano da organização'},
   {slug: 'audit-logs', route: '/audit-logs', waitText: 'Mock User'},
   {slug: 'organizations', route: '/organizations', waitText: 'EMPRESA MOCK'},
   {slug: 'members', route: '/members', waitText: 'Mock User'},

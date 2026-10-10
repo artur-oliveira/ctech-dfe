@@ -57,6 +57,9 @@ import {
 } from './fixtures';
 import {getMockState, shouldError} from './state';
 
+/** The ctech-account organization the mock plan belongs to, managed by the mock user. */
+const mockOrganizationPlan = {organization: {id: 'org_mock', name: 'Escritório Modelo'}, manageable: true};
+
 const MOCK_LATENCY_MS = 250;
 
 /**
@@ -205,7 +208,8 @@ function route(method: string, path: string, body: unknown): RouteResult {
   // Billing — the scenario decides what the account's standing is.
   if (key === 'get /v1.0/billing/plans') return {data: billingPlansFixture};
   if (key === 'get /v1.0/billing/subscription') {
-    return {data: billingSubscriptionFixtures[getMockState().billing]};
+    // The organization's plan, seen by one of its owners or admins.
+    return {data: {...billingSubscriptionFixtures[getMockState().billing], ...mockOrganizationPlan}};
   }
   if (key === 'get /v1.0/billing/invoices') return {data: {data: billingInvoicesFixture}};
   if (m === 'post' && path === '/v1.0/billing/subscription') {
