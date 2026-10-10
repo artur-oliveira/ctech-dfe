@@ -28,7 +28,7 @@ export interface BillingPrice {
   unit_amount: number
   billing_timing: 'advance' | 'arrears'
   archived: boolean
-  /** Where the quotas (`quota_nfe`, `quota_users`, …) and the `meter` live. */
+  /** Where the quotas (`quota_nfe`, `quota_companies`, …) and the `meter` live. */
   metadata: Record<string, string>
 }
 

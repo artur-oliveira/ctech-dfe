@@ -29,4 +29,11 @@ describe('UsageList', () => {
     render(<UsageList quotas={{}}/>);
     expect(screen.getByText(/não inclui nenhum documento/i)).toBeInTheDocument();
   });
+
+  it('never lists users, even when an older price still carries the quota', () => {
+    render(<UsageList quotas={{nfe: 3, companies: 1, users: 1}} usage={{users: {used: 1, limit: 1}}}/>);
+    expect(screen.queryByText('Usuários')).not.toBeInTheDocument();
+    expect(screen.queryByText('users')).not.toBeInTheDocument();
+    expect(screen.getByText('Empresas')).toBeInTheDocument();
+  });
 });

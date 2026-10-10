@@ -115,7 +115,7 @@ export default function GuideConta() {
           id: 'assinatura',
           title: 'Plano e cobrança',
           summary:
-            'O plano define quantas empresas, quantos usuários e quantos documentos de cada tipo por mês.',
+            'O plano define quantas empresas podem emitir e quantos documentos de cada tipo por mês.',
           image: {
             src: '/guide/subscription.webp',
             alt: 'Tela de assinatura com o plano ativo, o consumo do período e as faturas',
