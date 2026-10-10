@@ -735,3 +735,67 @@ func TestASyncStubDoesNotEnableACompany(t *testing.T) {
 		t.Fatalf("companies used = %+v (%v), want 1 (sync-only companies are not enabled)", usage[services.MeterCompanies], err)
 	}
 }
+
+// hookEnablement runs a side effect on the n-th question about one company,
+// then answers from the real tables.
+type hookEnablement struct {
+	real   *services.FiscalConfigEnablement
+	pk     string
+	nth    int
+	seen   int
+	effect func()
+}
+
+func (h *hookEnablement) ConfiguredDocTypes(ctx context.Context, pk string) ([]string, error) {
+	if pk == h.pk {
+		h.seen++
+		if h.seen == h.nth && h.effect != nil {
+			h.effect()
+		}
+	}
+	return h.real.ConfiguredDocTypes(ctx, pk)
+}
+
+// Review round 2, important 3: A commits between B's live count and B's guard
+// read. B must not commit too: the guard version is read before the count.
+func TestAnEnablementCommittedDuringTheCountDoesNotLetASecondIn(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	org := "org-interleave-" + newCompanyPK(t)
+	snap := proSnapshot("sub_interleave")
+	snap.Quotas[services.MeterCompanies] = 1
+	seedOrgSnapshot(t, org, snap)
+	a := seedCompany(t, org, "owner-i", "11222333000181", "A Ltda")
+	b := seedCompany(t, org, "owner-i", "11222333000262", "B Ltda")
+	real := services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil)
+	nfe := services.NewNfeConfigService(nfeConfigRepo, auditRepo)
+	fields := func() map[string]types.AttributeValue {
+		return map[string]types.AttributeValue{
+			"prod_current_serie": &types.AttributeValueMemberN{Value: "1"},
+			"environment":        &types.AttributeValueMemberN{Value: "2"},
+		}
+	}
+
+	plain := companyQuotaBilling(t, &calls)
+	ra, err := plain.ReserveCompany(ctx, org, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var errA error
+	hook := &hookEnablement{real: real, pk: b, nth: 2, effect: func() {
+		// B's first question about itself is "already enabled?"; the second is
+		// the last company of the live count. A commits right there.
+		_, errA = nfe.Upsert(ctx, a, fields(), "owner-i", "Dono", ra.Items...)
+	}}
+	racing := chargingBilling(t, billingStub(t, &calls)).WithEnablement(hook)
+	rb, errReserveB := racing.ReserveCompany(ctx, org, b)
+	if errA != nil {
+		t.Fatalf("A must commit: %v", errA)
+	}
+	if errReserveB != nil {
+		return // refused at reservation: fine
+	}
+	if _, errB := nfe.Upsert(ctx, b, fields(), "owner-i", "Dono", rb.Items...); errB == nil {
+		t.Fatal("both companies were enabled on a 1-company plan")
+	}
+}

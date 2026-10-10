@@ -1139,6 +1139,15 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 	}
 	out := &CompanyReservation{OrganizationID: organizationID, CompanyPK: companyPK}
 	if limit >= 0 {
+		// The guard version is read BEFORE the live count. An enablement that
+		// commits after this read bumps the version, so this one's transaction
+		// fails; one that committed before it is in the (consistent) count. Read
+		// the other way round, an enablement landing between the count and the
+		// guard read would pass both checks.
+		guard, err := s.repo.BuildQuotaGuardTx(ctx, organizationID, MeterCompanies)
+		if err != nil {
+			return nil, err
+		}
 		used, err := s.companiesUsed(ctx, organizationID)
 		if err != nil {
 			return nil, err
@@ -1146,10 +1155,6 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 		if used >= limit {
 			return nil, problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
 				fmt.Sprintf("o plano da organização permite %d empresa(s) habilitada(s) e já há %d", limit, used))
-		}
-		guard, err := s.repo.BuildQuotaGuardTx(ctx, organizationID, MeterCompanies)
-		if err != nil {
-			return nil, err
 		}
 		out.Items = append(out.Items, guard)
 	}
