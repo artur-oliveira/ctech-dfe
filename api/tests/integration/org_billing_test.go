@@ -464,6 +464,7 @@ func TestReserveCompanyRefusesACompanyWithNoOrganization(t *testing.T) {
 		t.Fatalf("err = %v, want 409", err)
 	}
 }
+
 // levelSinkStub records level reports and can fail.
 type levelSinkStub struct {
 	reports []billingclient.LevelReport
@@ -569,6 +570,7 @@ func TestAConflictingReportCountsAsDelivered(t *testing.T) {
 		t.Fatal("a 409 must clear the version")
 	}
 }
+
 // Billing answers 409 concurrent_update when nothing was recorded: the marker
 // stays dirty for the sweeper.
 func TestAConcurrentUpdateReportStaysDirty(t *testing.T) {
