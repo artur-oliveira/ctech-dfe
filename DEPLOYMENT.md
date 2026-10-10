@@ -500,13 +500,17 @@ Order
    AWS_REGION, CTECH_URL, BILLING_API_URL, BILLING_CLIENT_ID, BILLING_CLIENT_SECRET,
    ACCOUNT_WORKSPACE_CLIENT_ID, ACCOUNT_WORKSPACE_CLIENT_SECRET (required),
    ACCOUNT_CLIENT_ID, ACCOUNT_CLIENT_SECRET (reach; needed to backfill index gaps).
-   go run ./cmd/migrate-billing-org -table-prefix {prefix}           # dry run: review index gaps, migrations, review list
-   go run ./cmd/migrate-billing-org -table-prefix {prefix} -report-levels-all -apply    # exit 3 = something listed for review
+   api/cmd/migrate-billing-org/run.sh {env}            # dry run: review index gaps, migrations, review list
+   api/cmd/migrate-billing-org/run.sh {env} -apply     # with -report-levels-all; exit 3 = something listed for review
+   run.sh reads the credentials from SSM without printing them, takes the region from the AWS profile (ctech: us-east-1)
+   and uses the public hosts (accounts{-env}-api, billing{-env}-api): the *.internal hosts only answer inside the VPC.
    Re-run the dry run: it must list nothing to migrate.
    Check no level is stuck: account_billing level-dirty-index should be empty a few minutes after the run (the sweeper runs every 2 minutes).
 4. After every USER_ subscription is cancelled and a full billing period has passed: deploy Phase 2 (Task 17), which removes the dual read.
 
 Exit codes: 0 done, 1 error, 2 bad flags, 3 done with items listed for review.
+
+Production run (2026-10-10): 2 USER_ subscriptions moved to their organizations (both price_dfe_unlimited_internal_monthly), 2 levels reported, re-run clean, level-dirty-index empty. One left for review: USER_976bb0e3-8f14-404e-8726-539e6e9936c8 owns no organization with DF-e companies, so sub_01M0BJB0JBPJEETSJMW6141KGK stays on the user until it is cancelled (needed before Phase 2).
 
 Rollback: Phase 1 is additive; redeploying the previous API reads USER_ rows again (they are not deleted). After the script ran, the USER_ subscriptions are cancelled: a rollback past step 3 needs them recreated in billing.
 
