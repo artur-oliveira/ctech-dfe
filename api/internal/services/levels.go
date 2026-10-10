@@ -44,6 +44,16 @@ func (r *LevelReporter) off() bool { return r == nil || r.sink == nil }
 
 // Flush reports the organization's companies level if its marker is dirty.
 func (r *LevelReporter) Flush(ctx context.Context, organizationID string) error {
+	return r.flush(ctx, organizationID)
+}
+
+// FlushEnabled is Flush right after companyPK was enabled: the count includes
+// it even if the organization-index has not caught up with it yet.
+func (r *LevelReporter) FlushEnabled(ctx context.Context, organizationID, companyPK string) error {
+	return r.flush(ctx, organizationID, companyPK)
+}
+
+func (r *LevelReporter) flush(ctx context.Context, organizationID string, include ...string) error {
 	if r.off() {
 		return nil
 	}
@@ -51,7 +61,7 @@ func (r *LevelReporter) Flush(ctx context.Context, organizationID string) error 
 	if err != nil || m == nil || !m.Dirty {
 		return err
 	}
-	count, err := r.billing.companiesUsed(ctx, organizationID)
+	count, err := r.billing.companiesUsed(ctx, organizationID, include...)
 	if err != nil {
 		return err
 	}

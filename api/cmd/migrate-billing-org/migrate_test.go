@@ -101,10 +101,29 @@ type fakeCompanies struct {
 	byOrg      map[string][]repositories.CompanyRef
 	gaps       []repositories.CompanyIndexGap
 	backfilled []string
+	lag        map[string]lagged
+	lagReads   int
+	owners     map[string]string
 }
 
 func (f *fakeCompanies) ListCompaniesOfOrganization(_ context.Context, org string) ([]repositories.CompanyRef, error) {
-	return f.byOrg[org], nil
+	out := append([]repositories.CompanyRef(nil), f.byOrg[org]...)
+	for pk, l := range f.lag {
+		if l.org != org {
+			continue
+		}
+		if l.after > 0 {
+			l.after--
+			f.lag[pk] = l
+			continue
+		}
+		out = append(out, repositories.CompanyRef{PK: pk})
+	}
+	return out, nil
+}
+
+func (f *fakeCompanies) CompanyOwner(_ context.Context, pk string) (string, error) {
+	return f.owners[pk], nil
 }
 func (f *fakeCompanies) ListOrganizationsWithCompanies(context.Context) ([]string, error) {
 	return f.all, nil
@@ -114,7 +133,17 @@ func (f *fakeCompanies) ListCompanyIndexGaps(context.Context) ([]repositories.Co
 }
 func (f *fakeCompanies) BackfillIndexKeys(_ context.Context, pk, org, _ string) error {
 	f.backfilled = append(f.backfilled, pk+"="+org)
+	if f.lag != nil && org != "" {
+		f.lag[pk] = lagged{org: org, after: f.lagReads}
+	}
 	return nil
+}
+
+// lagged is a backfilled company the organization-index shows only after a
+// number of reads: the GSI is eventually consistent.
+type lagged struct {
+	org   string
+	after int
 }
 
 type fakeLevels struct{ orgs []string }
@@ -167,6 +196,7 @@ func fixtureWithLevels(unitAmount int64) (deps, *fakeSnaps, *fakeBilling, *fakeC
 		levels:    levels,
 		reach:     fakeReach{},
 		now:       func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
+		sleep:     func(time.Duration) {},
 	}
 	return d, snaps, bill, comps, levels
 }
@@ -299,5 +329,44 @@ func TestIndexGapsAreBackfilledThroughReach(t *testing.T) {
 	}
 	if len(rep.Unresolved) != 1 || !strings.HasPrefix(rep.Unresolved[0], "cmp_orphan") {
 		t.Fatalf("unresolved = %v", rep.Unresolved)
+	}
+}
+
+// Review round 2, important 2: a company backfilled into the organization-index
+// is waited for before the organization's level is reported, so the initial
+// level does not miss it.
+func TestBackfilledCompaniesAreWaitedForBeforeTheLevel(t *testing.T) {
+	d, _, _, comps, _ := fixtureWithLevels(0)
+	comps.gaps = []repositories.CompanyIndexGap{{PK: "cmp_gap", OwnerUserID: "u1", MissingOrganization: true}}
+	comps.lag = map[string]lagged{}
+	comps.lagReads = 2
+	d.reach = fakeReach{"cmp_gap": "org_a"}
+	var sleeps int
+	d.sleep = func(time.Duration) { sleeps++ }
+	rep, err := run(context.Background(), d, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sleeps == 0 {
+		t.Fatal("the run did not wait for the index to show the backfilled company")
+	}
+	if rep.NeedsReview() {
+		t.Fatalf("review = %v %v", rep.Review, rep.Unresolved)
+	}
+}
+
+func TestACompanyTheIndexNeverShowsIsListedForReview(t *testing.T) {
+	d, _, _, comps, _ := fixtureWithLevels(0)
+	comps.gaps = []repositories.CompanyIndexGap{{PK: "cmp_gap", OwnerUserID: "u1", MissingOrganization: true}}
+	comps.lag = map[string]lagged{}
+	comps.lagReads = 1000
+	d.reach = fakeReach{"cmp_gap": "org_a"}
+	d.sleep = func(time.Duration) {}
+	rep, err := run(context.Background(), d, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(rep.Review, "\n"), "cmp_gap") {
+		t.Fatalf("review = %v, want cmp_gap listed", rep.Review)
 	}
 }

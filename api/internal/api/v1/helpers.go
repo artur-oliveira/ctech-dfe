@@ -384,7 +384,7 @@ type companyReserver interface {
 // (services.LevelReporter). The marker is already durable in the same
 // transaction; this only saves the sweeper's wait.
 type levelFlusher interface {
-	Flush(ctx context.Context, organizationID string) error
+	FlushEnabled(ctx context.Context, organizationID, companyPK string) error
 }
 
 // reserveEnablement checks the company quota when this save may be the
@@ -419,7 +419,7 @@ func writeFiscalConfig(ctx context.Context, svc fiscalConfigSvc, levels levelFlu
 	if len(extra) > 0 && levels != nil {
 		// Best effort: the dirty marker committed with the configuration, so a
 		// failure here is delivered by the sweeper, never lost.
-		if err := levels.Flush(ctx, reservation.OrganizationID); err != nil {
+		if err := levels.FlushEnabled(ctx, reservation.OrganizationID, orgPK); err != nil {
 			slog.WarnContext(ctx, "billing: companies level left for the sweeper",
 				"organization_id", reservation.OrganizationID, "error", err)
 		}

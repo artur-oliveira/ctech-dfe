@@ -32,10 +32,16 @@ type fakeReserver struct {
 	err         error
 }
 
-type fakeFlusher struct{ flushed int }
+type fakeFlusher struct {
+	flushed int
+	company string
+}
 
-func (f *fakeFlusher) Flush(context.Context, string) error {
+// FlushEnabled is told which company was just enabled, so the level counts it
+// even before the organization-index shows it.
+func (f *fakeFlusher) FlushEnabled(_ context.Context, _, companyPK string) error {
 	f.flushed++
+	f.company = companyPK
 	return nil
 }
 
@@ -67,6 +73,9 @@ func TestAnEnablementCommitsTheGuardWithTheConfigurationAndReports(t *testing.T)
 	}
 	if _, err := writeFiscalConfig(context.Background(), cfg, levels, r, "cmp_1", nil, "usr_1", "Fulano"); err != nil {
 		t.Fatal(err)
+	}
+	if levels.company != "cmp_1" {
+		t.Fatalf("flushed for %q, want the company just enabled", levels.company)
 	}
 	if cfg.upserts != 1 || len(cfg.extra) != 2 || levels.flushed != 1 {
 		t.Fatalf("upserts=%d extra=%d flushed=%d", cfg.upserts, len(cfg.extra), levels.flushed)

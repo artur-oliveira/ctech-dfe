@@ -799,3 +799,31 @@ func TestAnEnablementCommittedDuringTheCountDoesNotLetASecondIn(t *testing.T) {
 		t.Fatal("both companies were enabled on a 1-company plan")
 	}
 }
+
+// Review round 2, important 2: the inline flush right after an enablement must
+// count the company just enabled even if the (eventually consistent)
+// organization-index has not shown it yet. Simulated with a company record the
+// index cannot see (no organization_id).
+func TestTheInlineFlushCountsTheCompanyJustEnabled(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	sink := &levelSinkStub{}
+	rep := services.NewLevelReporter(repo, sink, svc)
+	org := "org-inline-" + newCompanyPK(t)
+	invisible := newCompanyPK(t)
+	if err := orgRepo.CreateOrganization(ctx, invisible, map[string]types.AttributeValue{}); err != nil {
+		t.Fatal(err)
+	}
+	seedNfeConfig(t, invisible)
+	if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+		t.Fatal(err)
+	}
+	if err := rep.FlushEnabled(ctx, org, invisible); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.reports) != 1 || sink.reports[0].Value != 1 {
+		t.Fatalf("reports = %+v, want the level 1 including the company just enabled", sink.reports)
+	}
+}

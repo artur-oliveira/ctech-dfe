@@ -1195,14 +1195,27 @@ func (s *BillingService) CheckMDFEScope(ctx context.Context, orgPK string, hasTh
 // companiesUsed is how many of the organization's companies count against the
 // plan: the enabled ones (ADR 0021). Without an enablement source it counts
 // every linked company, the stricter answer.
-func (s *BillingService) companiesUsed(ctx context.Context, organizationID string) (int64, error) {
+//
+// include names companies known to belong to the organization that the
+// organization-index (a GSI, eventually consistent) may not show yet: the
+// company enabled a moment ago. The index is membership only; enablement is
+// read consistently from the config tables.
+func (s *BillingService) companiesUsed(ctx context.Context, organizationID string, include ...string) (int64, error) {
 	refs, err := s.orgs.CompaniesOf(ctx, organizationID)
 	if err != nil {
 		return 0, err
 	}
-	pks := make([]string, 0, len(refs))
+	pks := make([]string, 0, len(refs)+len(include))
+	seen := map[string]bool{}
 	for _, r := range refs {
 		pks = append(pks, r.PK)
+		seen[r.PK] = true
+	}
+	for _, pk := range include {
+		if pk != "" && !seen[pk] {
+			pks = append(pks, pk)
+			seen[pk] = true
+		}
 	}
 	if s.enablement == nil {
 		return int64(len(pks)), nil

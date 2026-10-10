@@ -70,7 +70,10 @@ type deps struct {
 	reach      reacher // nil: nothing can be backfilled, gaps are listed
 	// reportLevelsAll is -report-levels-all.
 	reportLevelsAll bool
-	now             func() time.Time
+	// sleep waits between reads of the organization-index after a backfill
+	// (nil: time.Sleep).
+	sleep func(time.Duration)
+	now   func() time.Time
 }
 
 // Report is what the run did (or, dry, would do).
@@ -180,10 +183,51 @@ func checkCompanyIndex(ctx context.Context, d deps, apply bool, rep *Report) err
 			if err := d.companies.BackfillIndexKeys(ctx, g.PK, org, createdAt); err != nil {
 				return err
 			}
+			// The index is a GSI and eventually consistent: what follows (the
+			// owned organizations, the initial companies level) reads it, so
+			// the backfilled company must be visible first.
+			if org != "" {
+				visible, err := waitIndexed(ctx, d, org, g.PK)
+				if err != nil {
+					return err
+				}
+				if !visible {
+					rep.Review = append(rep.Review, fmt.Sprintf("%s: backfilled into %s but not yet visible in organization-index; rerun with -report-levels-all once it is", g.PK, org))
+				}
+			}
 		}
 		rep.Backfilled = append(rep.Backfilled, g.PK)
 	}
 	return nil
+}
+
+// Waiting for the organization-index after a backfill: GSI propagation is
+// usually well under a second.
+const (
+	indexWaitAttempts = 20
+	indexWaitInterval = 500 * time.Millisecond
+)
+
+// waitIndexed reads the organization-index until it lists companyPK under
+// organizationID, a bounded number of times.
+func waitIndexed(ctx context.Context, d deps, organizationID, companyPK string) (bool, error) {
+	sleep := d.sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+	for attempt := 0; attempt < indexWaitAttempts; attempt++ {
+		refs, err := d.companies.ListCompaniesOfOrganization(ctx, organizationID)
+		if err != nil {
+			return false, err
+		}
+		for _, r := range refs {
+			if r.PK == companyPK {
+				return true, nil
+			}
+		}
+		sleep(indexWaitInterval)
+	}
+	return false, nil
 }
 
 func migrateUser(ctx context.Context, d deps, apply bool, u repositories.AccountSnapshot, rep *Report) error {
