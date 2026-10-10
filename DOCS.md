@@ -690,6 +690,18 @@ vinculada a uma organização da conta CTech"). The organization's billing custo
 with `external_ref: ORG_{organization_id}`, the name and tax id of its oldest company (`organization-index`), and no
 `user_id` (billing refuses one on an organization customer).
 
+**Companies level (on-demand, monthly by peak).** The organization's `dfe_companies` level, its count of enabled
+companies (the same count the quota uses), is reported to billing's `POST /v1.0/usage/levels` with
+`customer_ref: ORG_{organization_id}` on every enablement change, **whatever the plan**, and at every plan selection
+(`Choose`, `Change`). It is the whole count, never a delta; billing's `price_dfe_ondemand_companies_monthly`
+(`aggregation: max`) bills the month's peak, so re-enabling a company in the same month is no second charge.
+Delivery is durable: the change writes a `LEVEL_DIRTY_{organization_id}#dfe_companies` marker (version + `changed_at`)
+in its own transaction; `LevelReporter` flushes it right after the commit and a sweeper on every API instance retries
+pending markers every 2 minutes (`level-dirty-index`). The idempotency key is `dfe_companies:{organization}:v{version}`
+and `occurred_at` is the marker's `changed_at`, so a retry sends an identical body. A marker leaves the index only when
+billing accepted that version; billing's 409 `idempotency_key_reused` counts as accepted, its 409 `concurrent_update`
+(nothing recorded) is retried.
+
 During the migration window (Phase 1) an organization with no subscription of its own is served its company owner's
 pre-migration `USER_` snapshot (dual read); change and cancel refuse such an inherited plan with 409, and every counter
 write goes to the organization.

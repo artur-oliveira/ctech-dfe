@@ -128,11 +128,13 @@ var Module = fx.Options(
 		newNfseService,
 		newDistributionService,
 		newResultsConsumer,
+		newLevelReporter,
 		services.NewAuditLogService,
 	),
 	fx.Invoke(seedRoles),
 	fx.Invoke(registerRoutes),
 	fx.Invoke(startResultsConsumer),
+	fx.Invoke(startLevelSweeper),
 	fx.Invoke(startServer),
 )
 
@@ -636,6 +638,26 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 
 func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService) *consumer.ResultsConsumer {
 	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing)
+}
+
+// newLevelReporter delivers companies levels to billing. Billing off → a nil
+// sink and a no-op reporter.
+func newLevelReporter(repo *repositories.AccountBillingRepository, client *billingclient.Client, billing *services.BillingService) *services.LevelReporter {
+	if client == nil {
+		return services.NewLevelReporter(repo, nil, billing)
+	}
+	r := services.NewLevelReporter(repo, client, billing)
+	billing.WithLevelFlush(r.Flush)
+	return r
+}
+
+// startLevelSweeper runs the sweeper for the life of the process.
+func startLevelSweeper(lc fx.Lifecycle, r *services.LevelReporter) {
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error { go r.Run(ctx, services.LevelSweepInterval); return nil },
+		OnStop:  func(context.Context) error { cancel(); return nil },
+	})
 }
 
 func startResultsConsumer(lc fx.Lifecycle, rc *consumer.ResultsConsumer) {

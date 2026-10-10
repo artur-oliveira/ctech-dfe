@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -461,5 +462,159 @@ func TestReserveCompanyRefusesACompanyWithNoOrganization(t *testing.T) {
 	svc := companyQuotaBilling(t, &calls)
 	if _, err := svc.ReserveCompany(context.Background(), "", newCompanyPK(t)); !isStatus(err, http.StatusConflict) {
 		t.Fatalf("err = %v, want 409", err)
+	}
+}
+// levelSinkStub records level reports and can fail.
+type levelSinkStub struct {
+	reports []billingclient.LevelReport
+	fail    error
+}
+
+func (l *levelSinkStub) ReportLevel(_ context.Context, in billingclient.LevelReport) error {
+	if l.fail != nil {
+		return l.fail
+	}
+	l.reports = append(l.reports, in)
+	return nil
+}
+
+func TestFlushReportsTheWholeCountOnceAndClears(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	sink := &levelSinkStub{}
+	rep := services.NewLevelReporter(repo, sink, svc)
+	org := "org-flush-" + newCompanyPK(t)
+	a := seedCompany(t, org, "owner-f", "11222333000181", "A Ltda")
+	b := seedCompany(t, org, "owner-f", "11222333000262", "B Ltda")
+	seedNfeConfig(t, a)
+	seedNfeConfig(t, b)
+	if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+		t.Fatal(err)
+	}
+
+	for range 2 {
+		if err := rep.Flush(ctx, org); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(sink.reports) != 1 {
+		t.Fatalf("reports = %+v, want one (the second flush finds nothing dirty)", sink.reports)
+	}
+	got := sink.reports[0]
+	if got.CustomerRef != repositories.OrgBillingPK(org) || got.Meter != services.MeterLevelCompanies || got.Value != 2 ||
+		got.IdempotencyKey != services.LevelKey(org, 1) || got.OccurredAt == "" {
+		t.Fatalf("report = %+v", got)
+	}
+}
+
+// Gap 12 of the planning amendment: a failed delivery is not forgotten. The
+// marker stays dirty and the sweeper delivers it later, with the same key.
+func TestAFailedReportStaysDirtyAndTheSweeperDeliversIt(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	sink := &levelSinkStub{fail: errors.New("billing down")}
+	rep := services.NewLevelReporter(repo, sink, svc)
+	org := "org-sweep-" + newCompanyPK(t)
+	c := seedCompany(t, org, "owner-s", "11222333000181", "S Ltda")
+	seedNfeConfig(t, c)
+	if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rep.Flush(ctx, org); err == nil {
+		t.Fatal("a failed report must surface")
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); !m.Dirty {
+		t.Fatal("a failed report cleared the marker")
+	}
+	sink.fail = nil
+	if err := rep.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var delivered bool
+	for _, r := range sink.reports {
+		if r.CustomerRef == repositories.OrgBillingPK(org) && r.Value == 1 && r.IdempotencyKey == services.LevelKey(org, 1) {
+			delivered = true
+		}
+	}
+	if !delivered {
+		t.Fatalf("the sweeper did not deliver: %+v", sink.reports)
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); m.Dirty {
+		t.Fatal("still dirty after delivery")
+	}
+}
+
+// Billing answers 409 idempotency_key_reused for a key it holds with another
+// body: the version was already recorded (by another instance), so the marker
+// is cleared, not retried forever.
+func TestAConflictingReportCountsAsDelivered(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	rep := services.NewLevelReporter(repo, &levelSinkStub{fail: billingclient.ErrLevelAlreadyRecorded}, svc)
+	org := "org-409-" + newCompanyPK(t)
+	if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+		t.Fatal(err)
+	}
+	if err := rep.Flush(ctx, org); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); m.Dirty {
+		t.Fatal("a 409 must clear the version")
+	}
+}
+// Billing answers 409 concurrent_update when nothing was recorded: the marker
+// stays dirty for the sweeper.
+func TestAConcurrentUpdateReportStaysDirty(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	rep := services.NewLevelReporter(repo, &levelSinkStub{fail: problem.Conflict("concurrent")}, svc)
+	org := "org-409c-" + newCompanyPK(t)
+	if err := repo.MarkLevelDirty(ctx, org, services.MeterLevelCompanies); err != nil {
+		t.Fatal(err)
+	}
+	if err := rep.Flush(ctx, org); err == nil {
+		t.Fatal("a concurrent_update must surface")
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); !m.Dirty {
+		t.Fatal("nothing was recorded; the marker must stay dirty")
+	}
+}
+
+// Any plan selection makes the organization's level known: subscribing marks
+// it dirty and flushes it, migrated or not.
+func TestChoosingAPlanReportsTheCompaniesLevel(t *testing.T) {
+	ctx := context.Background()
+	stub := &managementStub{}
+	svc := chargingBilling(t, stub.server(t)).
+		WithWorkspaceRoles(fakeRoles{roles: map[string]string{"usr-admin": services.AccountRoleAdmin}}).
+		WithEnablement(services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil))
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	sink := &levelSinkStub{}
+	svc.WithLevelFlush(services.NewLevelReporter(repo, sink, svc).Flush)
+	org := "org-choose-level-" + newCompanyPK(t)
+	company := seedCompany(t, org, "usr-owner", "11222333000181", "Escolhe Ltda")
+	seedNfeConfig(t, company)
+
+	scope, err := svc.ScopeFor(ctx, company, "usr-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Choose(ctx, scope, "", []string{"price_dfe_free"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.reports) != 1 || sink.reports[0].CustomerRef != repositories.OrgBillingPK(org) || sink.reports[0].Value != 1 {
+		t.Fatalf("reports = %+v, want the level 1 for the organization", sink.reports)
+	}
+	if m, _ := repo.GetLevelMarker(ctx, org, services.MeterLevelCompanies); m == nil || m.Dirty {
+		t.Fatalf("marker = %+v, want written and delivered", m)
 	}
 }

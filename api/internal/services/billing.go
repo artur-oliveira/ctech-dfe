@@ -120,6 +120,8 @@ type BillingService struct {
 	userFallback bool
 	// roles answers who may manage an organization's plan; nil refuses.
 	roles workspaceRoles
+	// levelFlush delivers a dirty companies level (LevelReporter.Flush).
+	levelFlush func(ctx context.Context, organizationID string) error
 }
 
 // WithEnablement makes the company quota count what is enabled rather than what
@@ -147,6 +149,30 @@ func (s *BillingService) WithUserFallback() *BillingService {
 // writing to the owner's would split one organization's usage across keys.
 var ErrNoOrganization = problem.Conflict(
 	"esta empresa não está vinculada a uma organização da conta CTech; vincule-a pela conta CTech para continuar")
+
+// WithLevelFlush wires the level delivery (LevelReporter.Flush). Set after
+// both exist, since the reporter counts through this service.
+func (s *BillingService) WithLevelFlush(flush func(ctx context.Context, organizationID string) error) *BillingService {
+	s.levelFlush = flush
+	return s
+}
+
+// markCompaniesLevel makes the organization's dfe_companies level known to
+// billing at a plan selection, so an organization that subscribes (migrated or
+// not) has its level from day one. The marker is durable; a failed flush is
+// left for the sweeper and never fails the plan selection.
+func (s *BillingService) markCompaniesLevel(ctx context.Context, organizationID string) {
+	if err := s.repo.MarkLevelDirty(ctx, organizationID, MeterLevelCompanies); err != nil {
+		slog.ErrorContext(ctx, "billing: could not mark the companies level", "organization_id", organizationID, "error", err)
+		return
+	}
+	if s.levelFlush == nil {
+		return
+	}
+	if err := s.levelFlush(ctx, organizationID); err != nil {
+		slog.WarnContext(ctx, "billing: companies level left for the sweeper", "organization_id", organizationID, "error", err)
+	}
+}
 
 func NewBillingService(
 	repo *repositories.AccountBillingRepository,
@@ -665,6 +691,7 @@ func (s *BillingService) Choose(ctx context.Context, scope *BillingScope, access
 	if err != nil {
 		return nil, nil, err
 	}
+	s.markCompaniesLevel(ctx, scope.OrganizationID)
 	return fresh, res.Invoice, nil
 }
 
@@ -704,6 +731,7 @@ func (s *BillingService) Change(ctx context.Context, scope *BillingScope, priceI
 	if err != nil {
 		return nil, nil, err
 	}
+	s.markCompaniesLevel(ctx, scope.OrganizationID)
 	return fresh, res.Invoice, nil
 }
 
