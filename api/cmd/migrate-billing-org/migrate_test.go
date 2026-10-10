@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/accountclient"
+	"gopkg.aoctech.app/api-commons/accountorgs"
+
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -90,9 +91,9 @@ func (f fakeOrgBilling) Sync(_ context.Context, org string) (*repositories.Accou
 	return s, nil
 }
 
-type fakeWorkspaces struct{ orgs []accountclient.Workspace }
+type fakeWorkspaces struct{ orgs []accountorgs.Organization }
 
-func (f fakeWorkspaces) Organizations(context.Context, string) ([]accountclient.Workspace, error) {
+func (f fakeWorkspaces) Organizations(context.Context, string) ([]accountorgs.Organization, error) {
 	return f.orgs, nil
 }
 
@@ -185,7 +186,7 @@ func fixtureWithLevels(unitAmount int64) (deps, *fakeSnaps, *fakeBilling, *fakeC
 		snaps:   snaps,
 		billing: bill,
 		orgs:    fakeOrgBilling{snaps: snaps},
-		workspaces: fakeWorkspaces{orgs: []accountclient.Workspace{
+		workspaces: fakeWorkspaces{orgs: []accountorgs.Organization{
 			{ID: "org_a", Role: "owner", Kind: "organization"},
 			{ID: "org_b", Role: "owner"},
 			{ID: "org_admin", Role: "admin", Kind: "organization"}, // not owned

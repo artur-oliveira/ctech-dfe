@@ -5,26 +5,28 @@ import (
 	"errors"
 	"testing"
 
+	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
-
-	"gopkg.aoctech.app/dfe/api/internal/accountclient"
 )
 
 type fakeWorkspaceSource struct {
 	role, kind string
 	member     bool
 	err        error
-	orgs       []accountclient.Workspace
+	orgs       []accountorgs.Organization
 	listErr    error
 	calls      int
 }
 
-func (f *fakeWorkspaceSource) Membership(_ context.Context, _, _ string) (string, string, bool, error) {
+func (f *fakeWorkspaceSource) Membership(_ context.Context, _, _ string) (accountorgs.Membership, error) {
 	f.calls++
-	return f.role, f.kind, f.member, f.err
+	if f.err != nil {
+		return accountorgs.Membership{}, f.err
+	}
+	return accountorgs.Membership{Member: f.member, Role: f.role, Kind: f.kind}, nil
 }
 
-func (f *fakeWorkspaceSource) Organizations(_ context.Context, _ string) ([]accountclient.Workspace, error) {
+func (f *fakeWorkspaceSource) Organizations(_ context.Context, _ string) ([]accountorgs.Organization, error) {
 	return f.orgs, f.listErr
 }
 
@@ -88,7 +90,7 @@ func TestMayManageBilling(t *testing.T) {
 }
 
 func TestOrganizationNameIsBestEffort(t *testing.T) {
-	s := NewWorkspaceRoleService(&fakeWorkspaceSource{orgs: []accountclient.Workspace{{ID: "org_1", DisplayName: "Escritório Silva"}}}, cache.NewMemoryBackend(16))
+	s := NewWorkspaceRoleService(&fakeWorkspaceSource{orgs: []accountorgs.Organization{{ID: "org_1", DisplayName: "Escritório Silva"}}}, cache.NewMemoryBackend(16))
 	if got := s.OrganizationName(context.Background(), "org_1", "usr_1"); got != "Escritório Silva" {
 		t.Fatalf("name = %q", got)
 	}

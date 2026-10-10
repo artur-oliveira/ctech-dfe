@@ -517,5 +517,3 @@ Exit codes: 0 done, 1 error, 2 bad flags, 3 done with items listed for review.
 Production run (2026-10-10): 2 USER_ subscriptions moved to their organizations (both price_dfe_unlimited_internal_monthly), 2 levels reported, re-run clean, level-dirty-index empty. One left for review: USER_976bb0e3-8f14-404e-8726-539e6e9936c8 owns no organization with DF-e companies, so sub_01M0BJB0JBPJEETSJMW6141KGK stays on the user until it is cancelled (needed before Phase 2).
 
 Rollback: Phase 1 is additive; redeploying the previous API reads USER_ rows again (they are not deleted). After the script ran, the USER_ subscriptions are cancelled: a rollback past step 3 needs them recreated in billing.
-
-Follow-up (family-wide): api/internal/accountclient/workspace.go duplicates ctech-billing's accountclient/membership.go; extract both to ctech-go-common.
