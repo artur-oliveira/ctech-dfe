@@ -1367,8 +1367,19 @@ func (s *BillingService) OwnerOf(ctx context.Context, orgPK string) (string, err
 	return "", nil
 }
 
-// SyncBySubscription resolves a subscription id back to the DF-e account and
-// re-syncs it. This is what a webhook does.
+// OrganizationFromRef reads a DF-e organization out of a billing customer's
+// external_ref. Anything else (USER_, another product's prefix) is not ours to
+// sync.
+func OrganizationFromRef(externalRef string) (string, bool) {
+	id, ok := strings.CutPrefix(externalRef, repositories.OrgBillingPrefix)
+	if !ok || id == "" {
+		return "", false
+	}
+	return id, true
+}
+
+// SyncBySubscription resolves a subscription id back to the DF-e organization
+// and re-syncs it. This is what a webhook does.
 //
 // It resolves through billing rather than through a local index, and the two
 // extra reads are the price of never being wrong: an index would be one more
@@ -1387,16 +1398,17 @@ func (s *BillingService) SyncBySubscription(ctx context.Context, subscriptionID 
 	if err != nil {
 		return err
 	}
-	userID := repositories.RawUserID(customer.ExternalRef)
-	if userID == "" || userID == customer.ExternalRef {
-		// The external ref is this service's own `USER_{sub}`. Anything else
-		// belongs to another product sharing the tenant, and syncing it here would
-		// write a DF-e snapshot for an account that has none.
-		slog.InfoContext(ctx, "billing: webhook for a customer that is not a DF-e account",
+	organizationID, ok := OrganizationFromRef(customer.ExternalRef)
+	if !ok {
+		// A USER_ customer is a pre-migration subscription: after
+		// cmd/migrate-billing-org the only USER_ events expected are the
+		// cancellations of the old subscriptions, and nothing reads USER_ rows
+		// after the dual-read window. Anything else belongs to another product.
+		slog.InfoContext(ctx, "billing: webhook for a customer that is not a DF-e organization; ignored",
 			"customer_id", customer.ID, "external_ref", customer.ExternalRef)
 		return nil
 	}
-	_, err = s.Sync(ctx, userID)
+	_, err = s.Sync(ctx, organizationID)
 	return err
 }
 

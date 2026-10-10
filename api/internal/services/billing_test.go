@@ -383,3 +383,22 @@ func TestAUsersQuotaIsCarriedAndNotEnforced(t *testing.T) {
 	// Where the quota belongs is still open (ctech-billing ADR 0023), and
 	// metering the wrong set while it is open is worse than not metering.
 }
+
+func TestOrganizationFromRef(t *testing.T) {
+	cases := map[string]struct {
+		id string
+		ok bool
+	}{
+		"ORG_0199f3a1": {"0199f3a1", true},
+		"USER_abc":     {"", false},
+		"ORG_":         {"", false},
+		"FIN_x":        {"", false},
+		"":             {"", false},
+	}
+	for ref, want := range cases {
+		id, ok := OrganizationFromRef(ref)
+		if id != want.id || ok != want.ok {
+			t.Errorf("%q → %q %v, want %q %v", ref, id, ok, want.id, want.ok)
+		}
+	}
+}

@@ -618,3 +618,47 @@ func TestChoosingAPlanReportsTheCompaniesLevel(t *testing.T) {
 		t.Fatalf("marker = %+v, want written and delivered", m)
 	}
 }
+func TestWebhookSyncsAnOrganizationAndIgnoresAUser(t *testing.T) {
+	ctx := context.Background()
+	org := "org-hook-" + newCompanyPK(t)
+	ref := repositories.OrgBillingPK(org)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1.0/token", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"access_token":"tok","expires_in":3600}`))
+	})
+	mux.HandleFunc("/v1.0/subscriptions/sub_org", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"sub_org","customer_id":"cus_org"}`))
+	})
+	mux.HandleFunc("/v1.0/subscriptions/sub_user", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"sub_user","customer_id":"cus_user"}`))
+	})
+	mux.HandleFunc("/v1.0/customers/cus_org", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"cus_org","external_ref":"` + ref + `"}`))
+	})
+	mux.HandleFunc("/v1.0/customers/cus_user", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"cus_user","external_ref":"USER_hook-owner"}`))
+	})
+	mux.HandleFunc("/v1.0/entitlements", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("customer_ref") != ref {
+			t.Errorf("entitlements asked for %q", r.URL.Query().Get("customer_ref"))
+		}
+		_, _ = w.Write([]byte(`{"customer_id":"cus_org","subscriptions":[{"id":"sub_org","status":"PAST_DUE","entitled":true,"plan":"pro","current_period":{"start":"2026-10-01","end":"2026-11-01"}}]}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc := chargingBilling(t, srv)
+
+	if err := svc.SyncBySubscription(ctx, "sub_org"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repositories.NewAccountBillingRepository(db, cfg).GetOrg(ctx, org)
+	if err != nil || got == nil || got.Status != "PAST_DUE" {
+		t.Fatalf("ORG_ snapshot = %+v (%v)", got, err)
+	}
+	if err := svc.SyncBySubscription(ctx, "sub_user"); err != nil {
+		t.Fatalf("a USER_ customer is ignored, not an error: %v", err)
+	}
+	if u, _ := repositories.NewAccountBillingRepository(db, cfg).Get(ctx, "hook-owner"); u != nil {
+		t.Fatalf("a USER_ webhook wrote a snapshot: %+v", u)
+	}
+}
