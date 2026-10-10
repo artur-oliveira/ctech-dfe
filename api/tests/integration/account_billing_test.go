@@ -380,3 +380,21 @@ func TestListUserSnapshotsReturnsOnlyUserRows(t *testing.T) {
 		t.Fatal("the USER_ row was not listed")
 	}
 }
+
+// Review round 2, minor 6: the counter-copy marker never expires, so a re-run
+// of the migration months later can never add the counters a second time.
+func TestCopyUsageOnceMarkerDoesNotExpire(t *testing.T) {
+	ctx := context.Background()
+	repo := repositories.NewAccountBillingRepository(db, cfg)
+	marker := "migrate-usage:ttl-user:ttl-org"
+	if _, err := repo.CopyUsageOnce(ctx, nil, "ttl-org", "2026-10-10", marker); err != nil {
+		t.Fatal(err)
+	}
+	item, err := repo.GetItem(ctx, repositories.BillingEventPK(marker))
+	if err != nil || item == nil {
+		t.Fatalf("marker = %v (%v)", item, err)
+	}
+	if _, has := item["ttl"]; has {
+		t.Fatalf("the copy marker carries a ttl: %v", item["ttl"])
+	}
+}

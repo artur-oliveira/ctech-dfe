@@ -468,7 +468,7 @@ type UsageSource struct {
 }
 
 // CopyUsageOnce adds the sources' counters to toAccount's row for toPeriod,
-// once. The marker (an EVENT_ row with the webhook TTL) and every ADD are one
+// once. The marker (an EVENT_ row that never expires) and every ADD are one
 // transaction, so a re-run is a no-op and a failure leaves nothing half done.
 // A source equal to the target is skipped: the target keeps what it has.
 func (r *AccountBillingRepository) CopyUsageOnce(ctx context.Context, sources []UsageSource, toAccount, toPeriod, marker string) (bool, error) {
@@ -487,13 +487,12 @@ func (r *AccountBillingRepository) CopyUsageOnce(ctx context.Context, sources []
 		}
 	}
 
+	// No ttl, unlike a webhook marker: a re-run of the migration months later
+	// must still find it, or the counters would be added a second time.
 	markerItem := map[string]types.AttributeValue{
 		"pk":         &types.AttributeValueMemberS{Value: BillingEventPK(marker)},
 		"event_id":   &types.AttributeValueMemberS{Value: marker},
 		"created_at": &types.AttributeValueMemberS{Value: NowStr()},
-		"ttl": &types.AttributeValueMemberN{
-			Value: strconv.FormatInt(time.Now().Add(billingEventTTL).Unix(), 10),
-		},
 	}
 	items := []types.TransactWriteItem{r.BuildPutTxItemIfAbsent(markerItem)}
 
