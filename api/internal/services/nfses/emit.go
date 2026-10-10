@@ -285,20 +285,20 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		return nil, err
 	}
 	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(services.WorkerMessage{
-		DocPK:            pk,
-		AccessKey:        idDPS, // identificador da linha; NFS-e usa id_dps
-		TableName:        repositories.TableNfses,
-		S3Prefix:         S3PrefixNfse,
-		ExpectedFileName: idDPS,
-		CNPJ:             emitDoc,
-		UF:               "", // competência municipal: não há UF autorizadora
-		SefazEnvironment: sefazEnv,
-		CertS3Key:        strAttr(cert, "s3_key"),
-		CertPassword:     strAttr(cert, "password"),
-		DocType:          DocTypeNfse,
-		SefazService:     nfse.ServiceRecepcao,
-		Body:             workerBody,
-		BillingUserID:    reservation.OrganizationID, BillingPeriod: reservation.Period,
+		DocPK:                 pk,
+		AccessKey:             idDPS, // identificador da linha; NFS-e usa id_dps
+		TableName:             repositories.TableNfses,
+		S3Prefix:              S3PrefixNfse,
+		ExpectedFileName:      idDPS,
+		CNPJ:                  emitDoc,
+		UF:                    "", // competência municipal: não há UF autorizadora
+		SefazEnvironment:      sefazEnv,
+		CertS3Key:             strAttr(cert, "s3_key"),
+		CertPassword:          strAttr(cert, "password"),
+		DocType:               DocTypeNfse,
+		SefazService:          nfse.ServiceRecepcao,
+		Body:                  workerBody,
+		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	})

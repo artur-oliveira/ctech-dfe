@@ -798,8 +798,11 @@ func (s *BillingService) Invoices(ctx context.Context, scope *BillingScope, year
 // contract between the seed file, the quota enforcement and the worker's usage
 // report — three places that must agree on one spelling.
 const (
-	MeterNFe       = "nfe"
-	MeterNFCe      = "nfce"
+	MeterNFe  = "nfe"
+	MeterNFCe = "nfce"
+	// MeterCTe has a table and a quota but no emission path yet. When CT-e
+	// emission is built it must call PrepareUsageReservation(…, MeterCTe, …)
+	// like the other four; a Free plan (quota_cte: 0) then refuses it with 402.
 	MeterCTe       = "cte"
 	MeterMDFe      = "mdfe"
 	MeterNFSe      = "nfse"

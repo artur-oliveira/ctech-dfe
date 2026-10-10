@@ -135,6 +135,7 @@ func handler(ctx context.Context, event sqsEvent) (batchResponse, error) {
 			"sefaz_protocol":          nil,
 			"xml_s3_key":              nil,
 			"billing_user_id":         msg.BillingUserID,
+			"billing_organization_id": msg.BillingOrganizationID,
 			"billing_period":          msg.BillingPeriod,
 			"billing_subscription_id": msg.BillingSubscriptionID,
 			"billing_price_id":        msg.BillingPriceID,

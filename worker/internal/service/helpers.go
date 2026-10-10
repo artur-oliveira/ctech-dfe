@@ -44,6 +44,7 @@ const (
 	notifyKeyEventType             = "event_type"
 	notifyKeyEventSK               = "event_sk"
 	notifyKeyBillingUserID         = "billing_user_id"
+	notifyKeyBillingOrganizationID = "billing_organization_id"
 	notifyKeyBillingPeriod         = "billing_period"
 	notifyKeyBillingSubscriptionID = "billing_subscription_id"
 	notifyKeyBillingPriceID        = "billing_price_id"

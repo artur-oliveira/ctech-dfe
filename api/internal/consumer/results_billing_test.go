@@ -92,3 +92,30 @@ func TestEveryDocumentMeterHasATable(t *testing.T) {
 		}
 	}
 }
+
+// Review Focus 5: a message reserved before the deploy names the user whose
+// counter it took; one reserved after names the organization. The refund goes
+// back to whichever it names.
+func TestRefundUsesTheAccountTheReservationNamed(t *testing.T) {
+	cases := []struct {
+		event map[string]any
+		want  string
+	}{
+		{map[string]any{resultKeyBillingOrganizationID: "org_1", resultKeyBillingUserID: "org_1"}, "org_1"},
+		{map[string]any{resultKeyBillingUserID: "user_legacy"}, "user_legacy"},
+		{map[string]any{}, ""},
+	}
+	for _, tc := range cases {
+		if got := reservationAccount(tc.event); got != tc.want {
+			t.Errorf("reservationAccount(%v) = %q, want %q", tc.event, got, tc.want)
+		}
+	}
+}
+
+// CT-e has a meter and a table but no emission path yet (spec § 3). Whoever
+// builds it must reserve with MeterCTe like the other four.
+func TestCTeTableIsMeteredAsCTe(t *testing.T) {
+	if services.MeterForTable["ctes"] != services.MeterCTe {
+		t.Fatalf("ctes → %q", services.MeterForTable["ctes"])
+	}
+}

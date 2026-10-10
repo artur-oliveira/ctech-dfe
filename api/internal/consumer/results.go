@@ -36,6 +36,7 @@ const (
 	resultKeyTableName             = "table_name"
 	resultKeyType                  = "type"
 	resultKeyBillingUserID         = "billing_user_id"
+	resultKeyBillingOrganizationID = "billing_organization_id"
 	resultKeyBillingPeriod         = "billing_period"
 	resultKeyBillingSubscriptionID = "billing_subscription_id"
 	resultKeyBillingPriceID        = "billing_price_id"
@@ -277,7 +278,7 @@ func (r *ResultsConsumer) settleBilling(ctx context.Context, event map[string]an
 	if reservedMeter != "" {
 		meter = reservedMeter
 	}
-	userID, _ := event[resultKeyBillingUserID].(string)
+	account := reservationAccount(event)
 	period, _ := event[resultKeyBillingPeriod].(string)
 	subscriptionID, _ := event[resultKeyBillingSubscriptionID].(string)
 	priceID, _ := event[resultKeyBillingPriceID].(string)
@@ -296,8 +297,8 @@ func (r *ResultsConsumer) settleBilling(ctx context.Context, event map[string]an
 		}
 	case billingRefund:
 		var err error
-		if userID != "" && period != "" {
-			err = r.billing.RefundReservedUsage(ctx, userID, period, meter, accessKey)
+		if account != "" && period != "" {
+			err = r.billing.RefundReservedUsage(ctx, account, period, meter, accessKey)
 		} else {
 			err = r.billing.RefundOnce(ctx, orgPK, meter, accessKey)
 		}
@@ -308,4 +309,15 @@ func (r *ResultsConsumer) settleBilling(ctx context.Context, event map[string]an
 		}
 	}
 	return nil
+}
+
+// reservationAccount is the counter a reservation took: the organization for
+// messages reserved since the organization re-key, the user for those reserved
+// before it and still in flight.
+func reservationAccount(event map[string]any) string {
+	if org, _ := event[resultKeyBillingOrganizationID].(string); org != "" {
+		return org
+	}
+	user, _ := event[resultKeyBillingUserID].(string)
+	return user
 }

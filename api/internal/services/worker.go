@@ -15,20 +15,25 @@ import (
 
 // WorkerMessage is the SNS payload sent to the DFe workers.
 type WorkerMessage struct {
-	DocPK                 string `json:"doc_pk"`
-	AccessKey             string `json:"access_key"`
-	TableName             string `json:"table_name"`
-	S3Prefix              string `json:"s3_prefix"`
-	ExpectedFileName      string `json:"expected_file_name"`
-	CNPJ                  string `json:"cnpj"`
-	UF                    string `json:"uf"`
-	SefazEnvironment      string `json:"sefaz_environment"`
-	CertS3Key             string `json:"cert_s3_key"`
-	CertPassword          string `json:"cert_password"`
-	DocType               string `json:"doc_type"`
-	SefazService          string `json:"sefaz_service"`
-	Body                  any    `json:"body"`
-	BillingUserID         string `json:"billing_user_id,omitempty"`
+	DocPK            string `json:"doc_pk"`
+	AccessKey        string `json:"access_key"`
+	TableName        string `json:"table_name"`
+	S3Prefix         string `json:"s3_prefix"`
+	ExpectedFileName string `json:"expected_file_name"`
+	CNPJ             string `json:"cnpj"`
+	UF               string `json:"uf"`
+	SefazEnvironment string `json:"sefaz_environment"`
+	CertS3Key        string `json:"cert_s3_key"`
+	CertPassword     string `json:"cert_password"`
+	DocType          string `json:"doc_type"`
+	SefazService     string `json:"sefaz_service"`
+	Body             any    `json:"body"`
+	BillingUserID    string `json:"billing_user_id,omitempty"`
+	// BillingOrganizationID is the organization whose counter the reservation
+	// took (docs/specs/2026-10-10-organization-subscription.md). BillingUserID
+	// is kept only so a message reserved before this deploy still refunds the
+	// user counter it took; nothing sets it any more.
+	BillingOrganizationID string `json:"billing_organization_id,omitempty"`
 	BillingPeriod         string `json:"billing_period,omitempty"`
 	BillingSubscriptionID string `json:"billing_subscription_id,omitempty"`
 	BillingPriceID        string `json:"billing_price_id,omitempty"`
