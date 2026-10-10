@@ -661,22 +661,38 @@ permission set. Ownership transfer is not implemented; when it is, it moves the 
 than adding one. This matters beyond permissions: `owner_user_id` is what will say whose
 subscription pays for the organization, and that question needs one answer.
 
-### Assinatura da conta — `/v1.0/billing/*`
+### Assinatura da organização — `/v1.0/billing/*`
+
+The subscription belongs to the **ctech-account organization** of the selected company (`ORG_{organization_id}`,
+docs/specs/2026-10-10-organization-subscription.md). Every route below except `/billing/plans` requires the
+`Dfe-Organization-Pk` header (the selected company) and any local role in it; the subscription addressed is that of the
+company's organization (`organization_id` on the local company record).
 
 | Method | Endpoint | Access | Description |
 |--------|----------|--------|-------------|
 | GET    | `/v1.0/billing/plans`                | qualquer sessão | Catálogo vindo do ctech-billing, com as cotas em `metadata` de cada preço |
-| GET    | `/v1.0/billing/subscription`         | a própria conta | Situação da assinatura desta conta |
-| POST   | `/v1.0/billing/subscription`         | a própria conta | Escolhe um plano; 409 se já houver assinatura viva |
-| POST   | `/v1.0/billing/subscription/change`  | a própria conta | Troca de plano com pró-rata |
-| POST   | `/v1.0/billing/subscription/cancel`  | a própria conta | `{at_period_end}` |
-| GET    | `/v1.0/billing/invoices`             | a própria conta | Faturas do mês, filtradas pela assinatura da conta |
-| GET    | `/v1.0/organizations/{pk}/plan`      | OWNER ou ADMIN  | Plano que governa a organização — **somente leitura** |
+| GET    | `/v1.0/billing/subscription`         | qualquer membro | Situação da assinatura da organização + `usage`, `organization {id, name}` e `manageable` |
+| POST   | `/v1.0/billing/subscription`         | owner/admin (conta CTech) | Escolhe um plano; 409 se já houver assinatura viva |
+| POST   | `/v1.0/billing/subscription/change`  | owner/admin (conta CTech) | Troca de plano com pró-rata |
+| POST   | `/v1.0/billing/subscription/cancel`  | owner/admin (conta CTech) | `{at_period_end}` |
+| GET    | `/v1.0/billing/invoices`             | owner/admin (conta CTech) | Faturas do mês, filtradas pela assinatura da organização |
+| GET    | `/v1.0/organizations/{pk}/plan`      | OWNER ou ADMIN (local) | Plano que governa a organização da empresa — **somente leitura**, `manageable: false` |
 
-**Nenhuma rota de `/v1.0/billing/*` aceita o header de organização.** Todas agem sobre a conta do portador do token, e é
-isso que torna "só o proprietário cria ou altera a assinatura" uma propriedade do roteamento em vez de uma checagem que
-alguém pode esquecer: não existe parâmetro dizendo de quem é a assinatura. A única rota org-scoped é de leitura, para que
-um ADMIN entenda por que uma emissão foi recusada sem poder gastar o dinheiro do proprietário.
+**Managing is decided by ctech-account, not by the local role.** Choosing, changing, cancelling and listing invoices
+require the ctech-account role `owner` or `admin` in the organization (`WorkspaceRoleService`, read from
+`/v1.0/internal/organizations/{id}/members/{user}` with the `ctech-dfe-workspaces` credential, cached 60 s). Anybody else
+with access to the company gets **403** on those and can read the plan and usage. The role read **fails closed**: an
+outage or a missing credential is a 403 on management, and `GET /billing/subscription` still answers with
+`manageable: false`.
+
+A company whose record names no organization (legacy `CNPJ_`/`CPF_` partitions) answers **409** ("esta empresa não está
+vinculada a uma organização da conta CTech"). The organization's billing customer is created on the first plan choice
+with `external_ref: ORG_{organization_id}`, the name and tax id of its oldest company (`organization-index`), and no
+`user_id` (billing refuses one on an organization customer).
+
+During the migration window (Phase 1) an organization with no subscription of its own is served its company owner's
+pre-migration `USER_` snapshot (dual read); change and cancel refuse such an inherited plan with 409, and every counter
+write goes to the organization.
 
 `grants_service` é a resposta para "posso emitir agora". Use-a; não reimplemente a lista de status no cliente. Ela é mais
 restrita que o `entitled` do billing por decisão: `INCOMPLETE` (assinou o plano pago e nunca pagou) e `PAST_DUE` não

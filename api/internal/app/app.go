@@ -721,10 +721,14 @@ func newBillingService(
 	mdfe *repositories.MdfeConfigRepository,
 	nfse *repositories.NfseConfigRepository,
 	c cache.Backend,
+	roles *services.WorkspaceRoleService,
 ) *services.BillingService {
+	// A nil *WorkspaceRoleService refuses every management attempt (fail
+	// closed); it is passed as a typed nil on purpose, which its methods handle.
 	return services.NewBillingService(repo, client, users, members, orgs, c).
 		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
-		WithUserFallback()
+		WithUserFallback().
+		WithWorkspaceRoles(roles)
 }
 
 // newReachService builds the reach check, or nil when ctech-account has not

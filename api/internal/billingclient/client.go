@@ -300,15 +300,19 @@ func (c *Client) GetEntitlements(ctx context.Context, externalRef string) (*Enti
 
 // CreateCustomerInput is a new billing customer for a DF-e account.
 type CreateCustomerInput struct {
-	// ExternalRef is this service's key for the account, `USER_{sub}`. It is what
-	// every later read uses, so it must be stable for the life of the account.
+	// ExternalRef is this service's key for the account: `ORG_{organization_id}`
+	// (the DF-e's customers since 2026-10-10). It is what every later read uses,
+	// so it must be stable for the life of the organization.
 	ExternalRef string `json:"external_ref"`
-	// UserID is the bare ctech-account subject. Billing needs it to let the
-	// person open the payment portal and to charge them through wallet — without
-	// it there is nobody to collect from.
-	UserID string `json:"user_id"`
+	// UserID is the bare ctech-account subject of a person customer. Billing
+	// refuses it on an organization customer (422 not_allowed: "an organization
+	// customer has no user"), so the DF-e leaves it empty for ORG_ customers.
+	UserID string `json:"user_id,omitempty"`
 	Name   string `json:"name"`
 	Email  string `json:"email"`
+	// TaxID is the CNPJ (or CPF) printed on the invoice: the organization's
+	// billing company.
+	TaxID string `json:"tax_id,omitempty"`
 }
 
 // CreateCustomer registers the account with billing.

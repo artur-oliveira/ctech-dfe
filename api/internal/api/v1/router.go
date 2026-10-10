@@ -103,7 +103,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		InvSvc:      svcs.Invitation,
 		BillingSvc:  svcs.Billing,
 	}, authMw, perm)
-	RegisterBilling(v1, app, svcs.Billing, cfg.BillingWebhookSecret, authMw)
+	RegisterBilling(v1, app, svcs.Billing, cfg.BillingWebhookSecret, authMw, perm)
 	RegisterInvitations(v1, svcs.Invitation, svcs.User, authMw)
 	RegisterProducts(v1, svcs.Product, svcs.User, authMw, perm)
 	RegisterServices(v1, svcs.Service, svcs.User, authMw, perm)

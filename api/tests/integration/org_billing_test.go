@@ -4,10 +4,15 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
@@ -194,4 +199,144 @@ func seedNfeConfig(t *testing.T, companyPK string) {
 	if err := nfeConfigRepo.TransactWrite(context.Background(), []types.TransactWriteItem{tx}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// fakeRoles stands in for ctech-account's membership route.
+type fakeRoles struct {
+	roles map[string]string // userID → role
+	err   error
+}
+
+func (f fakeRoles) Role(_ context.Context, _, userID string) (string, error) {
+	return f.roles[userID], f.err
+}
+func (f fakeRoles) OrganizationName(context.Context, string, string) string { return "Escritório" }
+
+// managementStub answers what Choose/Change/Cancel need: the catalogue, the
+// entitlements, customer and subscription creation. It records creations.
+type managementStub struct {
+	customers     []map[string]any
+	subscriptions int
+	entitled      bool
+}
+
+func (m *managementStub) server(t *testing.T) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1.0/token", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"access_token":"tok","expires_in":3600}`))
+	})
+	mux.HandleFunc("/v1.0/products", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"id":"prod_dfe_free","name":"Free","active":true,"prices":[{"id":"price_dfe_free","product_id":"prod_dfe_free","unit_amount":0,"metadata":{"plan":"free","quota_nfe":"3","quota_companies":"1"}}]}]}`))
+	})
+	// The list carries no prices; billingclient reads each product's detail.
+	mux.HandleFunc("/v1.0/products/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"prod_dfe_free","name":"Free","active":true,"prices":[{"id":"price_dfe_free","product_id":"prod_dfe_free","active":true,"unit_amount":0,"metadata":{"plan":"free","quota_nfe":"3","quota_companies":"1"}}]}`))
+	})
+	mux.HandleFunc("/v1.0/entitlements", func(w http.ResponseWriter, _ *http.Request) {
+		if !m.entitled {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write([]byte(`{"customer_id":"cus_org","entitled":true,"subscriptions":[{"id":"sub_org","status":"ACTIVE","entitled":true,"plan":"free","items":[{"price_id":"price_dfe_free","unit_amount":0,"metadata":{"plan":"free","quota_nfe":"3","quota_companies":"1"}}],"current_period":{"start":"2026-10-10","end":"2026-11-10"}}]}`))
+	})
+	mux.HandleFunc("/v1.0/customers", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		m.customers = append(m.customers, body)
+		_, _ = w.Write([]byte(`{"id":"cus_org","external_ref":"` + body["external_ref"].(string) + `"}`))
+	})
+	mux.HandleFunc("/v1.0/subscriptions", func(w http.ResponseWriter, _ *http.Request) {
+		m.subscriptions++
+		m.entitled = true
+		_, _ = w.Write([]byte(`{"subscription":{"id":"sub_org","customer_id":"cus_org","status":"ACTIVE"}}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// Spec § 5 test 3: member → 403 on choose/change/cancel; admin → allowed; both
+// read the plan.
+func TestOnlyOwnerAndAdminManageThePlan(t *testing.T) {
+	ctx := context.Background()
+	stub := &managementStub{}
+	svc := chargingBilling(t, stub.server(t)).WithWorkspaceRoles(fakeRoles{roles: map[string]string{
+		"usr-admin": services.AccountRoleAdmin, "usr-member": "member",
+	}})
+	org := "org-manage-" + newCompanyPK(t)
+	company := seedCompany(t, org, "usr-owner", "11222333000181", "Gerida Ltda")
+
+	member, err := svc.ScopeFor(ctx, company, "usr-member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Choose(ctx, member, "", []string{"price_dfe_free"}); !isStatus(err, http.StatusForbidden) {
+		t.Fatalf("member choose: %v, want 403", err)
+	}
+	if _, _, err := svc.Change(ctx, member, []string{"price_dfe_free"}); !isStatus(err, http.StatusForbidden) {
+		t.Fatalf("member change: %v, want 403", err)
+	}
+	if _, err := svc.Cancel(ctx, member, true); !isStatus(err, http.StatusForbidden) {
+		t.Fatalf("member cancel: %v, want 403", err)
+	}
+	if _, err := svc.Invoices(ctx, member, 2026, 10); !isStatus(err, http.StatusForbidden) {
+		t.Fatalf("member invoices: %v, want 403", err)
+	}
+	if _, err := svc.SnapshotOf(ctx, member); err != nil {
+		t.Fatalf("a member reads the plan: %v", err)
+	}
+
+	admin, err := svc.ScopeFor(ctx, company, "usr-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, _, err := svc.Choose(ctx, admin, "", []string{"price_dfe_free"})
+	if err != nil || snap.SubscriptionID != "sub_org" || snap.OrganizationID != org {
+		t.Fatalf("admin choose = %+v (%v)", snap, err)
+	}
+	if len(stub.customers) != 1 || stub.customers[0]["external_ref"] != repositories.OrgBillingPK(org) {
+		t.Fatalf("customers = %+v", stub.customers)
+	}
+	// The organization's billing company names the invoice.
+	if stub.customers[0]["tax_id"] != "11222333000181" || stub.customers[0]["name"] != "Gerida Ltda" {
+		t.Fatalf("customer identity = %+v", stub.customers[0])
+	}
+	// Billing refuses user_id on an organization customer (422 not_allowed).
+	if uid, has := stub.customers[0]["user_id"]; has && uid != "" {
+		t.Fatalf("an ORG_ customer must carry no user_id: %+v", stub.customers[0])
+	}
+	if ok, _ := svc.CanManage(ctx, member); ok {
+		t.Fatal("a member must not be reported manageable")
+	}
+}
+
+// Review Focus 2: ctech-account down → 403, never a grant; reading still works.
+func TestManagingFailsClosedWhenTheRoleCannotBeRead(t *testing.T) {
+	ctx := context.Background()
+	stub := &managementStub{}
+	svc := chargingBilling(t, stub.server(t)).WithWorkspaceRoles(fakeRoles{err: errors.New("down")})
+	company := seedCompany(t, "org-down-"+newCompanyPK(t), "usr-owner", "11222333000181", "Fora Ltda")
+	scope, err := svc.ScopeFor(ctx, company, "usr-owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Choose(ctx, scope, "", []string{"price_dfe_free"}); !isStatus(err, http.StatusForbidden) {
+		t.Fatalf("choose during an outage: %v, want 403", err)
+	}
+	if stub.subscriptions != 0 {
+		t.Fatal("nothing may be created when the role is unknown")
+	}
+	if ok, err := svc.CanManage(ctx, scope); ok || err == nil {
+		t.Fatalf("CanManage = %v, %v", ok, err)
+	}
+	if _, err := svc.SnapshotOf(ctx, scope); err != nil {
+		t.Fatalf("reading must survive the outage: %v", err)
+	}
+}
+
+// isStatus reports a problem with the given HTTP status.
+func isStatus(err error, status int) bool {
+	var p *problem.Problem
+	return errors.As(err, &p) && p.Status == status
 }

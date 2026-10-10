@@ -120,6 +120,8 @@ type BillingService struct {
 	enablement enablementSource
 	// userFallback opens the dual-read window (Phase 1 only).
 	userFallback bool
+	// roles answers who may manage an organization's plan; nil refuses.
+	roles workspaceRoles
 }
 
 // WithEnablement makes the company quota count what is enabled rather than what
@@ -350,23 +352,104 @@ func Quota(s *repositories.AccountSnapshot, meter string) (int64, bool) {
 	return limit, ok
 }
 
-// GetOrCreateCustomer returns the account's billing customer, registering it on
-// first use.
-//
-// The profile comes from ctech-account through the caller's own access token,
-// never from a local copy — the same discipline GetMeData follows, and for the
-// same reason: ctech-account owns the name and the e-mail, and a stale copy sent
-// to billing ends up printed on an invoice.
-func (s *BillingService) GetOrCreateCustomer(ctx context.Context, userID, accessToken string) (string, error) {
+// workspaceRoles is the role check ScopeFor's callers are authorized by.
+// *WorkspaceRoleService satisfies it; a nil one refuses (fail closed).
+type workspaceRoles interface {
+	Role(ctx context.Context, organizationID, userID string) (string, error)
+	OrganizationName(ctx context.Context, organizationID, userID string) string
+}
+
+// WithWorkspaceRoles wires who may manage an organization's plan.
+func (s *BillingService) WithWorkspaceRoles(r workspaceRoles) *BillingService {
+	s.roles = r
+	return s
+}
+
+// BillingScope is what a /billing route acts on: the organization of the
+// selected company, on behalf of one person.
+type BillingScope struct {
+	CompanyPK      string
+	OrganizationID string
+	UserID         string
+}
+
+// ScopeFor resolves the selected company to its organization.
+func (s *BillingService) ScopeFor(ctx context.Context, companyPK, userID string) (*BillingScope, error) {
+	organizationID, err := s.OrganizationOf(ctx, companyPK)
+	if err != nil {
+		return nil, err
+	}
+	if organizationID == "" {
+		return nil, ErrNoOrganization
+	}
+	return &BillingScope{CompanyPK: companyPK, OrganizationID: organizationID, UserID: repositories.RawUserID(userID)}, nil
+}
+
+// manageDenied is the single answer to every refusal to manage, outage
+// included: like reach, the cause goes to the log, not to the caller.
+const manageDenied = "apenas proprietários e administradores da organização podem gerenciar o plano"
+
+// CanManage reports whether the person is owner or admin of the organization
+// in ctech-account. An error is an outage; the caller must read it as "no".
+func (s *BillingService) CanManage(ctx context.Context, scope *BillingScope) (bool, error) {
+	if s.roles == nil {
+		return false, fmt.Errorf("no workspace role check is wired")
+	}
+	role, err := s.roles.Role(ctx, scope.OrganizationID, scope.UserID)
+	if err != nil {
+		return false, err
+	}
+	return MayManageBilling(role), nil
+}
+
+func (s *BillingService) requireManager(ctx context.Context, scope *BillingScope) error {
+	ok, err := s.CanManage(ctx, scope)
+	if err != nil {
+		slog.WarnContext(ctx, "billing: could not read the role; refusing", "organization_id", scope.OrganizationID, "error", err)
+		return problem.Forbidden(manageDenied)
+	}
+	if !ok {
+		return problem.Forbidden(manageDenied)
+	}
+	return nil
+}
+
+// OrganizationName is the display name for the plan screen, "" when unknown.
+func (s *BillingService) OrganizationName(ctx context.Context, scope *BillingScope) string {
+	if s.roles == nil {
+		return ""
+	}
+	return s.roles.OrganizationName(ctx, scope.OrganizationID, scope.UserID)
+}
+
+// SnapshotOf is the organization's standing as the routes read it (dual read
+// included).
+func (s *BillingService) SnapshotOf(ctx context.Context, scope *BillingScope) (*repositories.AccountSnapshot, error) {
+	return s.snapshotFor(ctx, scope.OrganizationID, scope.CompanyPK)
+}
+
+// migratingConflict refuses a mutation on a plan inherited through the dual
+// read: changing it would change the owner's pre-migration subscription.
+var migratingConflict = problem.Conflict("o plano desta organização está sendo migrado; tente novamente em instantes")
+
+// CustomerPayer is who acts when the organization's customer is created: the
+// fallback name and the e-mail billing writes to.
+type CustomerPayer struct {
+	UserID string
+	Name   string
+	Email  string
+}
+
+// GetOrCreateCustomer returns ORG_{organizationID}'s billing customer,
+// registering it on first use with the organization's billing company (its
+// first linked company: legal name and tax id) and, failing that, the payer's
+// name. Billing writes the CUSTOMER_ORG# pointer (its spec § 8).
+func (s *BillingService) GetOrCreateCustomer(ctx context.Context, organizationID string, payer CustomerPayer) (string, error) {
 	if !s.Enabled() {
 		return "", billingclient.ErrNotConfigured
 	}
-	raw := repositories.RawUserID(userID)
-	externalRef := repositories.AccountBillingPK(raw)
-
-	// The snapshot is checked first only to save a round trip; billing remains
-	// the authority, and a snapshot without a customer id falls through.
-	if snap, err := s.Snapshot(ctx, raw); err == nil && snap.CustomerID != "" {
+	externalRef := repositories.OrgBillingPK(organizationID)
+	if snap, err := s.Snapshot(ctx, organizationID); err == nil && snap.CustomerID != "" {
 		return snap.CustomerID, nil
 	}
 	switch existing, err := s.client.GetEntitlements(ctx, externalRef); {
@@ -376,28 +459,37 @@ func (s *BillingService) GetOrCreateCustomer(ctx context.Context, userID, access
 		return "", err
 	}
 
-	profile, err := s.users.GetUserInfo(ctx, accessToken)
+	name, taxID, err := s.billingCompany(ctx, organizationID)
 	if err != nil {
-		// Without a name and an e-mail the customer would be created blank, and a
-		// customer is not editable afterwards through any route this service has.
-		// Failing here is recoverable — the user retries — while a blank customer
-		// is not.
-		return "", problem.InternalServer("não foi possível ler o perfil da conta para iniciar a assinatura")
+		return "", err
 	}
-	name := actorNameFromProfile(profile)
 	if name == "" {
-		name = raw
+		name = payer.Name
 	}
 	customer, err := s.client.CreateCustomer(ctx, billingclient.CreateCustomerInput{
 		ExternalRef: externalRef,
-		UserID:      raw,
 		Name:        name,
-		Email:       profile.Email,
+		Email:       payer.Email,
+		TaxID:       taxID,
 	})
 	if err != nil {
 		return "", err
 	}
 	return customer.ID, nil
+}
+
+// billingCompany is the organization's first linked company, as this product
+// knows it (organization-index, oldest first).
+func (s *BillingService) billingCompany(ctx context.Context, organizationID string) (name, taxID string, err error) {
+	refs, err := s.orgs.CompaniesOf(ctx, organizationID)
+	if err != nil || len(refs) == 0 {
+		return "", "", err
+	}
+	company, err := s.orgs.Company(ctx, refs[0].PK)
+	if err != nil || company == nil {
+		return "", "", err
+	}
+	return company.LegalName, company.TaxID, nil
 }
 
 // Plans returns the catalogue: the products, their prices and the quota
@@ -522,69 +614,87 @@ func ValidatePriceSelection(products []billingclient.Product, priceIDs []string)
 	return nil
 }
 
-// Choose puts the account on a plan for the first time.
+// Choose puts the organization on a plan for the first time.
 //
 // It refuses when a subscription already grants service, and that refusal is the
 // difference between this and Change: subscribing twice would leave two
-// subscriptions billing the same account, and neither billing nor this service
-// has a rule for which of them wins.
-func (s *BillingService) Choose(ctx context.Context, userID, accessToken string, priceIDs []string) (*repositories.AccountSnapshot, *billingclient.Invoice, error) {
+// subscriptions billing the same organization, and neither billing nor this
+// service has a rule for which of them wins. An inherited (dual-read) snapshot
+// has a subscription, so it is refused too.
+func (s *BillingService) Choose(ctx context.Context, scope *BillingScope, accessToken string, priceIDs []string) (*repositories.AccountSnapshot, *billingclient.Invoice, error) {
 	if !s.Enabled() {
 		return nil, nil, problem.NotImplemented("a cobrança está desativada nesta instalação")
 	}
 	if len(priceIDs) == 0 {
 		return nil, nil, problem.BadRequest("informe ao menos um preço")
 	}
-	raw := repositories.RawUserID(userID)
-
-	snap, err := s.Snapshot(ctx, raw)
+	if err := s.requireManager(ctx, scope); err != nil {
+		return nil, nil, err
+	}
+	snap, err := s.SnapshotOf(ctx, scope)
 	if err != nil {
 		return nil, nil, err
 	}
 	if snap.SubscriptionID != "" && snap.Status != "" && snap.Status != "CANCELED" {
-		return nil, nil, problem.Conflict("esta conta já tem uma assinatura; use a troca de plano")
+		return nil, nil, problem.Conflict("esta organização já tem uma assinatura; use a troca de plano")
 	}
 	if err := s.validatePrices(ctx, priceIDs); err != nil {
 		return nil, nil, err
 	}
-
-	customerID, err := s.GetOrCreateCustomer(ctx, raw, accessToken)
+	payer := CustomerPayer{UserID: scope.UserID}
+	// users is nil only where no person is acting (tests, the migration
+	// command, which calls GetOrCreateCustomer with its own payer).
+	if s.users != nil {
+		profile, err := s.users.GetUserInfo(ctx, accessToken)
+		if err != nil {
+			return nil, nil, problem.InternalServer("não foi possível ler o perfil da conta para iniciar a assinatura")
+		}
+		payer.Name, payer.Email = actorNameFromProfile(profile), profile.Email
+	}
+	customerID, err := s.GetOrCreateCustomer(ctx, scope.OrganizationID, payer)
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err := s.client.CreateSubscription(ctx, customerID, itemsOf(priceIDs), subscribeIdempotencyKey(raw, priceIDs))
+	res, err := s.client.CreateSubscription(ctx, customerID, itemsOf(priceIDs),
+		subscribeIdempotencyKey(repositories.OrgBillingPK(scope.OrganizationID), priceIDs))
 	if err != nil {
 		return nil, nil, err
 	}
 	// Synced rather than derived from `res`: the response says what was created,
 	// and the snapshot must say what is true — which for a paid plan is
 	// INCOMPLETE with an invoice outstanding, not the plan the user picked.
-	fresh, err := s.Sync(ctx, raw)
+	fresh, err := s.Sync(ctx, scope.OrganizationID)
 	if err != nil {
 		return nil, nil, err
 	}
 	return fresh, res.Invoice, nil
 }
 
-// Change moves the account to a different plan, billing the prorated difference.
-func (s *BillingService) Change(ctx context.Context, userID string, priceIDs []string) (*repositories.AccountSnapshot, *billingclient.Invoice, error) {
+// Change moves the organization to a different plan, billing the prorated
+// difference.
+func (s *BillingService) Change(ctx context.Context, scope *BillingScope, priceIDs []string) (*repositories.AccountSnapshot, *billingclient.Invoice, error) {
 	if !s.Enabled() {
 		return nil, nil, problem.NotImplemented("a cobrança está desativada nesta instalação")
 	}
 	if len(priceIDs) == 0 {
 		return nil, nil, problem.BadRequest("informe ao menos um preço")
 	}
-	raw := repositories.RawUserID(userID)
-	snap, err := s.Snapshot(ctx, raw)
+	if err := s.requireManager(ctx, scope); err != nil {
+		return nil, nil, err
+	}
+	snap, err := s.SnapshotOf(ctx, scope)
 	if err != nil {
 		return nil, nil, err
 	}
 	if snap.SubscriptionID == "" {
-		return nil, nil, problem.Conflict("esta conta ainda não tem assinatura; escolha um plano primeiro")
+		return nil, nil, problem.Conflict("esta organização ainda não tem assinatura; escolha um plano primeiro")
 	}
-	// Same guard as Choose: an account already on the internal plan must not be
-	// able to move a second account onto it, and a downgrade must not smuggle in
-	// an archived price.
+	if snap.InheritedFromUser {
+		return nil, nil, migratingConflict
+	}
+	// Same guard as Choose: an organization already on the internal plan must
+	// not be able to move a second one onto it, and a downgrade must not smuggle
+	// in an archived price.
 	if err := s.validatePrices(ctx, priceIDs); err != nil {
 		return nil, nil, err
 	}
@@ -592,44 +702,52 @@ func (s *BillingService) Change(ctx context.Context, userID string, priceIDs []s
 	if err != nil {
 		return nil, nil, err
 	}
-	fresh, err := s.Sync(ctx, raw)
+	fresh, err := s.Sync(ctx, scope.OrganizationID)
 	if err != nil {
 		return nil, nil, err
 	}
 	return fresh, res.Invoice, nil
 }
 
-// Cancel ends the account's subscription.
-func (s *BillingService) Cancel(ctx context.Context, userID string, atPeriodEnd bool) (*repositories.AccountSnapshot, error) {
+// Cancel ends the organization's subscription.
+func (s *BillingService) Cancel(ctx context.Context, scope *BillingScope, atPeriodEnd bool) (*repositories.AccountSnapshot, error) {
 	if !s.Enabled() {
 		return nil, problem.NotImplemented("a cobrança está desativada nesta instalação")
 	}
-	raw := repositories.RawUserID(userID)
-	snap, err := s.Snapshot(ctx, raw)
+	if err := s.requireManager(ctx, scope); err != nil {
+		return nil, err
+	}
+	snap, err := s.SnapshotOf(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
 	if snap.SubscriptionID == "" {
-		return nil, problem.NotFound("esta conta não tem assinatura")
+		return nil, problem.NotFound("esta organização não tem assinatura")
+	}
+	if snap.InheritedFromUser {
+		return nil, migratingConflict
 	}
 	key := fmt.Sprintf("cancel:%s:%t", snap.SubscriptionID, atPeriodEnd)
 	if _, err := s.client.CancelSubscription(ctx, snap.SubscriptionID, atPeriodEnd, key); err != nil {
 		return nil, err
 	}
-	return s.Sync(ctx, raw)
+	return s.Sync(ctx, scope.OrganizationID)
 }
 
-// Invoices lists the account's invoices, newest month first.
+// Invoices lists the organization's invoices, newest month first. Owner/admin
+// only: paying is managing.
 //
 // Billing's M2M invoice list is **tenant-wide** — it has no customer filter —
 // so the result is narrowed here by subscription id. Publishing it unfiltered
 // would show every CTech customer's invoices to whoever asked.
-func (s *BillingService) Invoices(ctx context.Context, userID string, year, month int) ([]billingclient.Invoice, error) {
+func (s *BillingService) Invoices(ctx context.Context, scope *BillingScope, year, month int) ([]billingclient.Invoice, error) {
 	if !s.Enabled() {
 		return nil, nil
 	}
-	raw := repositories.RawUserID(userID)
-	snap, err := s.Snapshot(ctx, raw)
+	if err := s.requireManager(ctx, scope); err != nil {
+		return nil, err
+	}
+	snap, err := s.SnapshotOf(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
