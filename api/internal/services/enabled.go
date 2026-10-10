@@ -6,6 +6,8 @@ import (
 	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // enablementSource reports which document types a company has a fiscal
@@ -63,9 +65,10 @@ type FiscalConfigEnablement struct {
 	repos map[string]fiscalConfigReader
 }
 
-// fiscalConfigReader is the one method this needs from a config repository.
+// fiscalConfigReader is the one method this needs from a config repository: a
+// strongly consistent read, so a configuration committed a moment ago counts.
 type fiscalConfigReader interface {
-	Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
+	GetConsistent(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
 }
 
 // NewFiscalConfigEnablement wires the readers. A document type missing from this
@@ -95,11 +98,13 @@ func (e *FiscalConfigEnablement) ConfiguredDocTypes(ctx context.Context, orgPK s
 		if repo == nil {
 			continue
 		}
-		item, err := repo.Get(ctx, orgPK)
+		item, err := repo.GetConsistent(ctx, orgPK)
 		if err != nil {
 			return nil, fmt.Errorf("reading the %s config of %s: %w", docType, orgPK, err)
 		}
-		if item != nil {
+		// A row is not a configuration: the distribution sync upserts NSU and
+		// quota bookkeeping into these tables for a company with none.
+		if repositories.IsConfigured(item) {
 			out = append(out, docType)
 		}
 	}

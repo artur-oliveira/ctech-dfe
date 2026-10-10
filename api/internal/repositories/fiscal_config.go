@@ -44,6 +44,44 @@ func (r *FiscalConfigRepository) Get(ctx context.Context, orgPK string) (map[str
 	return r.GetItem(ctx, orgPK)
 }
 
+// AttrConfigEnvironment is the ambiente of a fiscal configuration. Every
+// configuration PUT writes it (it is required in every config body), and
+// nothing else does: the distribution sync's NSU and quota bookkeeping
+// (ClaimDistNSUSlot, UpdateNSU, IncrementConsQuota) upserts rows without it.
+// Its presence is therefore what tells a configured company from a stub.
+const AttrConfigEnvironment = "environment"
+
+// IsConfigured reports a row written by a configuration PUT, not a stub left by
+// the distribution sync's bookkeeping.
+func IsConfigured(item map[string]types.AttributeValue) bool {
+	if item == nil {
+		return false
+	}
+	_, ok := item[AttrConfigEnvironment]
+	return ok
+}
+
+// GetConsistent reads the configuration with a strongly consistent read: the
+// company quota and the companies level must see a configuration committed a
+// moment ago. A Query on the base table, because Base.GetItem cannot ask for
+// consistency.
+func (r *FiscalConfigRepository) GetConsistent(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
+	out, err := r.QueryRaw(ctx, &dynamodb.QueryInput{
+		TableName:                 aws.String(r.TableName),
+		KeyConditionExpression:    aws.String("pk = :pk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{":pk": &types.AttributeValueMemberS{Value: orgPK}},
+		ConsistentRead:            aws.Bool(true),
+		Limit:                     aws.Int32(1),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(out.Items) == 0 {
+		return nil, nil
+	}
+	return out.Items[0], nil
+}
+
 // Upsert writes the fiscal config, preserving internal-process fields (e.g. NSU cursors).
 func (r *FiscalConfigRepository) Upsert(ctx context.Context, orgPK string, fields map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	existing, err := r.GetItem(ctx, orgPK)

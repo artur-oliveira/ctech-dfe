@@ -192,7 +192,7 @@ func TestCompaniesUsedCountsEnabledCompaniesOfTheOrganization(t *testing.T) {
 func seedNfeConfig(t *testing.T, companyPK string) {
 	t.Helper()
 	tx, _, err := nfeConfigRepo.BuildUpsertTxItem(companyPK, map[string]types.AttributeValue{
-		"prod_current_serie": &types.AttributeValueMemberN{Value: "1"},
+		"prod_current_serie": &types.AttributeValueMemberN{Value: "1"}, "environment": &types.AttributeValueMemberN{Value: "2"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -391,7 +391,7 @@ func TestAnEnablementMarksTheCompaniesLevelDirty(t *testing.T) {
 	// The configuration and the reservation commit together (Task 11 wires
 	// this into the fiscal configuration route).
 	tx, _, err := nfeConfigRepo.BuildUpsertTxItem(company, map[string]types.AttributeValue{
-		"prod_current_serie": &types.AttributeValueMemberN{Value: "1"},
+		"prod_current_serie": &types.AttributeValueMemberN{Value: "1"}, "environment": &types.AttributeValueMemberN{Value: "2"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -685,7 +685,7 @@ func TestTwoEnablementsRaceForTheLastSlot(t *testing.T) {
 		t.Fatal(err) // both read 0 of 1: the guard decides
 	}
 	nfe := services.NewNfeConfigService(nfeConfigRepo, auditRepo)
-	fields := map[string]types.AttributeValue{"prod_current_serie": &types.AttributeValueMemberN{Value: "1"}}
+	fields := map[string]types.AttributeValue{"prod_current_serie": &types.AttributeValueMemberN{Value: "1"}, "environment": &types.AttributeValueMemberN{Value: "2"}}
 	_, errA := nfe.Upsert(ctx, a, fields, "owner-race", "Dono", ra.Items...)
 	_, errB := nfe.Upsert(ctx, b, fields, "owner-race", "Dono", rb.Items...)
 	if (errA == nil) == (errB == nil) {
@@ -703,5 +703,35 @@ func TestAnEnabledCompanyWithNoOrganizationStillSaves(t *testing.T) {
 	r, err := svc.ReserveCompany(context.Background(), "", company)
 	if err != nil || len(r.Items) != 0 {
 		t.Fatalf("already enabled, no organization: %+v %v", r, err)
+	}
+}
+
+// Review round 2, critical 1: a distribution sync writes NSU/quota bookkeeping
+// into a config table for a company that has no configuration. That row must
+// not read as "enabled": the first real configuration still checks the quota,
+// and a sync-only company never counts toward the level.
+func TestASyncStubDoesNotEnableACompany(t *testing.T) {
+	ctx := context.Background()
+	var calls []usageCall
+	svc := companyQuotaBilling(t, &calls)
+	org := "org-stub-" + newCompanyPK(t)
+	enabled := seedCompany(t, org, "owner-stub", "11222333000181", "Habilitada Ltda")
+	seedNfeConfig(t, enabled)
+	snap := proSnapshot("sub_stub")
+	snap.Quotas[services.MeterCompanies] = 1
+	seedOrgSnapshot(t, org, snap)
+	candidate := seedCompany(t, org, "owner-stub", "11222333000262", "Só Sync Ltda")
+
+	if ok, err := nfeConfigRepo.ClaimDistNSUSlot(ctx, candidate, "prod"); err != nil || !ok {
+		t.Fatalf("claim: %v %v", ok, err)
+	}
+	_ = nfeConfigRepo.IncrementConsQuota(ctx, candidate, "prod")
+
+	if _, err := svc.ReserveCompany(ctx, org, candidate); !isStatus(err, http.StatusPaymentRequired) {
+		t.Fatalf("first configuration after a sync stub at the limit: %v, want 402", err)
+	}
+	usage, err := svc.Usage(ctx, org, enabled)
+	if err != nil || usage[services.MeterCompanies].Used != 1 {
+		t.Fatalf("companies used = %+v (%v), want 1 (sync-only companies are not enabled)", usage[services.MeterCompanies], err)
 	}
 }
