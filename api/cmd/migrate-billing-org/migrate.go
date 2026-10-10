@@ -50,6 +50,9 @@ type companyStore interface {
 	ListCompaniesOfOrganization(ctx context.Context, organizationID string) ([]repositories.CompanyRef, error)
 	ListCompanyIndexGaps(ctx context.Context) ([]repositories.CompanyIndexGap, error)
 	BackfillIndexKeys(ctx context.Context, companyPK, organizationID, createdAt string) error
+	// CompanyOwner is the company's owner_user_id: whose USER_ snapshot the
+	// dual read serves it today.
+	CompanyOwner(ctx context.Context, companyPK string) (string, error)
 }
 
 type levelReporter interface {
@@ -84,6 +87,10 @@ type Report struct {
 	Migrated   []string
 	Review     []string
 	Levels     []string // organizations whose level was (or, dry, would be) reported by -report-levels-all
+
+	// assigned is organization → the user whose subscription the migration
+	// gives it (dry or applied).
+	assigned map[string]string
 }
 
 func (r *Report) NeedsReview() bool { return len(r.Review) > 0 || len(r.Unresolved) > 0 }
@@ -110,7 +117,7 @@ func (r *Report) Print(w io.Writer) {
 }
 
 func run(ctx context.Context, d deps, apply bool) (*Report, error) {
-	rep := &Report{Apply: apply}
+	rep := &Report{Apply: apply, assigned: map[string]string{}}
 	if err := checkCompanyIndex(ctx, d, apply, rep); err != nil {
 		return rep, fmt.Errorf("company index: %w", err)
 	}
@@ -126,12 +133,66 @@ func run(ctx context.Context, d deps, apply bool) (*Report, error) {
 			return rep, fmt.Errorf("%s: %w", repositories.AccountBillingPK(u.UserID), err)
 		}
 	}
+	if err := listInheritanceLosses(ctx, d, users, rep); err != nil {
+		return rep, fmt.Errorf("inheritance check: %w", err)
+	}
 	if d.reportLevelsAll {
 		if err := reportAllLevels(ctx, d, apply, rep); err != nil {
 			return rep, fmt.Errorf("levels: %w", err)
 		}
 	}
 	return rep, nil
+}
+
+// listInheritanceLosses lists every organization with no subscription of its
+// own whose companies run today on a user's plan through the dual read
+// (owner_user_id → that user's USER_ snapshot), when the migration does not give
+// it that user's subscription. Closing the dual-read window would silently
+// leave it without a plan, so a person must look at it first.
+func listInheritanceLosses(ctx context.Context, d deps, users []repositories.AccountSnapshot, rep *Report) error {
+	subscribed := map[string]bool{}
+	for _, u := range users {
+		if u.SubscriptionID != "" {
+			subscribed[repositories.RawUserID(u.UserID)] = true
+		}
+	}
+	orgs, err := d.companies.ListOrganizationsWithCompanies(ctx)
+	if err != nil {
+		return err
+	}
+	for _, org := range orgs {
+		own, err := d.snaps.GetOrg(ctx, org)
+		if err != nil {
+			return err
+		}
+		if own != nil && own.SubscriptionID != "" {
+			continue // it has its own plan: the dual read never served it
+		}
+		refs, err := d.companies.ListCompaniesOfOrganization(ctx, org)
+		if err != nil {
+			return err
+		}
+		listed := map[string]bool{}
+		for _, ref := range refs {
+			owner, err := d.companies.CompanyOwner(ctx, ref.PK)
+			if err != nil {
+				return err
+			}
+			owner = repositories.RawUserID(owner)
+			if owner == "" || !subscribed[owner] || rep.assigned[org] == owner || listed[owner] {
+				continue
+			}
+			listed[owner] = true
+			target := "no subscription"
+			if a := rep.assigned[org]; a != "" {
+				target = repositories.AccountBillingPK(a) + "'s subscription"
+			}
+			rep.Review = append(rep.Review, fmt.Sprintf(
+				"%s: company %s runs today on %s's plan (dual read); the migration gives the organization %s, so it loses that plan when the dual read closes",
+				repositories.OrgBillingPK(org), ref.PK, repositories.AccountBillingPK(owner), target))
+		}
+	}
+	return nil
 }
 
 // reportAllLevels marks (and flushes) the companies level of every
@@ -256,6 +317,9 @@ func migrateUser(ctx context.Context, d deps, apply bool, u repositories.Account
 	if len(orgs) == 0 {
 		rep.Review = append(rep.Review, fmt.Sprintf("%s: owns no organization with DF-e companies; subscription %s left as is", userRef, sub.ID))
 		return nil
+	}
+	for _, org := range orgs {
+		rep.assigned[org] = u.UserID
 	}
 	priceIDs := make([]string, 0, len(sub.Items))
 	items := make([]billingclient.Item, 0, len(sub.Items))

@@ -377,3 +377,13 @@ func (r *OrganizationRepository) ListOrganizationsWithCompanies(ctx context.Cont
 	sort.Strings(out)
 	return out, nil
 }
+
+// CompanyOwner reads a company's owner_user_id ("" when absent). Used by
+// cmd/migrate-billing-org to see whose USER_ snapshot the dual read serves it.
+func (r *OrganizationRepository) CompanyOwner(ctx context.Context, companyPK string) (string, error) {
+	item, err := r.GetItem(ctx, companyPK)
+	if err != nil || item == nil {
+		return "", err
+	}
+	return itemString(item, AttrOwnerUserID), nil
+}

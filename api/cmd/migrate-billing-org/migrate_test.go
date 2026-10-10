@@ -370,3 +370,25 @@ func TestACompanyTheIndexNeverShowsIsListedForReview(t *testing.T) {
 		t.Fatalf("review = %v, want cmp_gap listed", rep.Review)
 	}
 }
+
+// Review round 2, minor 7: an organization whose companies run today on a
+// user's plan through the dual read, and that the migration does not assign to
+// that user, is listed: closing the window would silently downgrade it.
+func TestOrganizationsThatWouldLoseAnInheritedPlanAreListed(t *testing.T) {
+	d, _, _, comps, _ := fixtureWithLevels(0)
+	comps.all = []string{"org_a", "org_b", "org_x"}
+	comps.byOrg["org_x"] = []repositories.CompanyRef{{PK: "cmp_x"}}
+	comps.owners = map[string]string{"cmp_a": "u1", "cmp_b": "u1", "cmp_x": "u1"}
+
+	rep, err := run(context.Background(), d, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	review := strings.Join(rep.Review, "\n")
+	if !strings.Contains(review, "ORG_org_x") || !strings.Contains(review, "USER_u1") {
+		t.Fatalf("review = %v, want org_x listed as inheriting from USER_u1", rep.Review)
+	}
+	if strings.Contains(review, "ORG_org_a") || strings.Contains(review, "ORG_org_b") {
+		t.Fatalf("review lists an organization the migration assigns to its owner: %v", rep.Review)
+	}
+}
