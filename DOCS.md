@@ -758,6 +758,7 @@ Isento (mutações sobre documentos que **já existem**, mais o caminho de saíd
 |---|---|
 | `/v1.0/billing/*`, `/v1.0/auth/*` | é como se paga; bloquear seria uma armadilha sem saída |
 | `/v1.0/invitations/*` | age sobre a conta do convidado, que pode nem ser membro ainda |
+| `/v1.0/organizations/{pk}` (só o registro da empresa, inclusive `/organizations/link`) | a empresa é vinculada e completada antes de a organização escolher o plano (spec 2026-10-10, A2.1); nada abaixo dela (certificados, convites, configuração fiscal) é isento |
 | `.../cancel`, `.../correction-letter` | cancelamento de NF-e tem prazo legal de 24 h |
 | `.../close`, `.../include-condutor`, `.../include-dfe`, `.../events` | encerram algo já emitido |
 | `.../manifestation`, `/distributions/*/sync`, `/import-xml`, `/nfe/key` | responder a documentos que **terceiros** emitiram contra o seu CNPJ |

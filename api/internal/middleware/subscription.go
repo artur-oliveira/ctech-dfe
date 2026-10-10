@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -117,7 +118,19 @@ func RequireActiveSubscription(billing *services.BillingService) fiber.Handler {
 	}
 }
 
+// companyRecordPath is /v1.0/organizations/{pk} and nothing below it: the
+// company's own record (and /organizations/link, which creates it). The
+// company comes before its organization's plan
+// (docs/specs/2026-10-10-organization-subscription.md, amendment A2.1), so
+// linking it and completing its address and regime must work with no plan.
+// Nothing here issues a document or spends a quota; what is below it
+// (certificates, invitations, fiscal configurations) stays gated.
+var companyRecordPath = regexp.MustCompile(`^/v1\.0/organizations/[^/]+$`)
+
 func isExempt(path string) bool {
+	if companyRecordPath.MatchString(path) {
+		return true
+	}
 	for _, prefix := range exemptPrefixes {
 		if strings.HasPrefix(path, prefix) {
 			return true

@@ -7,8 +7,14 @@ import {useSubscription} from '@/lib/hooks/useSubscription';
 import {ONBOARDING_ROOT} from '@/lib/constants/onboarding';
 import {onboardingTarget} from '@/lib/onboarding/target';
 
-/** Routes that must stay reachable without a plan or a company. */
-const EXEMPT_PREFIXES = [ONBOARDING_ROOT, '/invite', '/callback', '/login', '/terms-addendum'];
+/**
+ * Routes that must stay reachable without a plan or a company.
+ *
+ * The company record (`/organizations/link` and `/organizations/edit`, the
+ * handoff's return leg) is part of the company step, which comes before the
+ * organization's plan; saving it continues the setup flow to the plan.
+ */
+const EXEMPT_PREFIXES = [ONBOARDING_ROOT, '/invite', '/callback', '/login', '/terms-addendum', '/organizations/link', '/organizations/edit'];
 
 /**
  * Sends an account that has not finished the required layers of setup into the

@@ -53,6 +53,11 @@ func TestExemptPathsAreTheOnesThatMustStayOpen(t *testing.T) {
 		{"consultar chave", "/v1.0/distributions/nfe/key"},
 		// Computes and returns; writes nothing, issues nothing.
 		{"prévia de carga", "/v1.0/mdfes/cargo-preview"},
+		// Setup before a plan (docs/specs/2026-10-10-organization-subscription.md,
+		// amendment A2.1): the company is linked and its record completed before
+		// its organization chooses the plan.
+		{"linking a company", "/v1.0/organizations/link"},
+		{"completing the company record", "/v1.0/organizations/0199f3a1-8c42-7c31-9d5e-0242ac120002"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if !isExempt(tc.path) {
@@ -79,7 +84,7 @@ func TestIssuanceAndRegistryWritesAreGated(t *testing.T) {
 		{"creating a vehicle", "/v1.0/vehicles"},
 		{"uploading a certificate", "/v1.0/organizations/CNPJ_1/certificates"},
 		{"inviting a member", "/v1.0/organizations/CNPJ_1/invitations"},
-		{"editing the organization", "/v1.0/organizations/CNPJ_1"},
+		{"enabling the company (fiscal configuration)", "/v1.0/organizations/CNPJ_1/nfe-config"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if isExempt(tc.path) {
