@@ -401,6 +401,31 @@ func reserveEnablement(ctx context.Context, billing companyReserver, orgPK strin
 	return billing.ReserveCompany(ctx, organizationID, orgPK)
 }
 
+// fiscalConfigOwnItems is how many items fiscalConfigService.Upsert puts in its
+// transaction before the caller's extra ones (the configuration and its audit
+// row); the reservation's items follow, the quota guard first.
+const fiscalConfigOwnItems = 2
+
+// extraConditionFailed reports a transaction cancelled because a condition on
+// one of the caller's extra items failed (the quota guard: another company of
+// the organization was enabled concurrently), not on the configuration itself.
+func extraConditionFailed(err error, firstExtra int) bool {
+	var canceled *types.TransactionCanceledException
+	if !errors.As(err, &canceled) {
+		return false
+	}
+	for i, reason := range canceled.CancellationReasons {
+		if i >= firstExtra && reason.Code != nil && *reason.Code == conditionalCheckFailed {
+			return true
+		}
+	}
+	return false
+}
+
+// conditionalCheckFailed is DynamoDB's cancellation reason code for a failed
+// condition.
+const conditionalCheckFailed = "ConditionalCheckFailed"
+
 // writeFiscalConfig writes the configuration with the reservation's items (the
 // quota guard and the companies-level marker) in the same transaction, then
 // asks for the level to be delivered now rather than at the next sweep.
@@ -411,7 +436,7 @@ func writeFiscalConfig(ctx context.Context, svc fiscalConfigSvc, levels levelFlu
 	}
 	item, err := svc.Upsert(ctx, orgPK, av, userID, userName, extra...)
 	if err != nil {
-		if len(extra) > 0 && repositories.IsConditionFailed(err) {
+		if len(extra) > 0 && extraConditionFailed(err, fiscalConfigOwnItems) {
 			return nil, problem.Conflict("outra empresa da organização foi habilitada ao mesmo tempo; tente de novo")
 		}
 		return nil, err

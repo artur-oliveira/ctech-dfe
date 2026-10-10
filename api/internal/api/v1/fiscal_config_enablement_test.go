@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -105,5 +106,36 @@ func TestAFailedWriteReportsNothing(t *testing.T) {
 	}
 	if levels.flushed != 0 {
 		t.Fatal("flushed a level whose change was not written")
+	}
+}
+
+func canceled(codes ...string) error {
+	reasons := make([]types.CancellationReason, 0, len(codes))
+	for _, c := range codes {
+		code := c
+		reasons = append(reasons, types.CancellationReason{Code: &code})
+	}
+	return fmt.Errorf("dynamodb: %w", &types.TransactionCanceledException{CancellationReasons: reasons})
+}
+
+// Only the quota guard's own refusal is "another company took the last slot";
+// a condition failing on the configuration itself is reported as it is.
+func TestOnlyTheGuardRefusalIsReportedAsARace(t *testing.T) {
+	res := &services.CompanyReservation{Items: []types.TransactWriteItem{{}, {}}, OrganizationID: "org_1"}
+
+	guardFailed := &recordingConfig{err: canceled("None", "None", "ConditionalCheckFailed", "None")}
+	_, err := writeFiscalConfig(context.Background(), guardFailed, &fakeFlusher{}, res, "cmp_1", nil, "u", "n")
+	var p *problem.Problem
+	if !errors.As(err, &p) || p.Status != 409 {
+		t.Fatalf("guard refusal: %v, want the 409 race", err)
+	}
+
+	configFailed := &recordingConfig{err: canceled("ConditionalCheckFailed", "None", "None", "None")}
+	_, err = writeFiscalConfig(context.Background(), configFailed, &fakeFlusher{}, res, "cmp_1", nil, "u", "n")
+	if errors.As(err, &p) {
+		t.Fatalf("a configuration condition was reported as the race: %v", err)
+	}
+	if err == nil {
+		t.Fatal("want the original error")
 	}
 }
