@@ -345,6 +345,23 @@ export class DynamoDBStack extends cdk.Stack {
       pointInTimeRecoverySpecification,
       encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
     });
+    // The company records of one ctech-account organization (ORG_ billing,
+    // docs/specs/2026-10-10-organization-subscription.md): the enabled-company
+    // count behind `quota_companies`, and the organization's billing company
+    // (the first one linked, hence created_at as the sort key).
+    //
+    // Sparse by construction: the legacy CNPJ_/CPF_ rollback partitions carry no
+    // organization_id and never appear. KEYS_ONLY because both readers only need
+    // the company pk and its created_at; anything else is one GetItem away.
+    organizationsTable.addGlobalSecondaryIndex({
+      indexName: 'organization-index',
+      partitionKey: {name: 'organization_id', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'created_at', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
     this.tables.set('organizations', organizationsTable);
 
     // Membership is the source of truth for user↔organization access (RBAC, /auth/me, member management).

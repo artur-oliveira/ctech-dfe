@@ -12,7 +12,7 @@ PITR: enabled in production only.
 | #  | Table (without prefix)      | PK                           | SK                                       | GSIs                                               |
 |----|-----------------------------|------------------------------|------------------------------------------|----------------------------------------------------|
 | 1  | `users`                     | `USER_{uuid}`                | —                                        | `email-index`, `username-index`                    |
-| 2  | `organizations`             | company UUIDv7               | —                                        | —                                                  |
+| 2  | `organizations`             | company UUIDv7               | —                                        | `organization-index`                               |
 | 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | —                                                  |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`                         | `code-index`, `description-index`                  |
 | 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`                           | `plate-index`, `role-index`                        |
@@ -119,6 +119,12 @@ these aren't optional the way they can be for a `organization_persons` record.
 | `owner_user_id`              | S    | Bare `sub` of the account whose subscription pays for this organization. Written at creation in the same `TransactWrite` as the single OWNER membership it mirrors — the membership grants access, this gets billed, and they cannot disagree. A **field, not a lookup**: it is read on the issuance path, and deriving it would mean listing every member. Rewritten only by an explicit ownership transfer (not implemented). Rows created before the field existed are repaired on first read (`BillingService.OwnerOf`) |
 | `created_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
 | `updated_at`                 | S    | ISO-8601 UTC                                                                                                                                                                                                        |
+
+**GSIs:**
+
+| Index                | PK                | SK           | Projection | Use case |
+|----------------------|-------------------|--------------|------------|----------|
+| `organization-index` | `organization_id` | `created_at` | KEYS_ONLY  | The companies of one ctech-account organization, oldest first. Sparse: only company-keyed rows carry `organization_id` (legacy `CNPJ_`/`CPF_` rollback partitions are filtered out by the reader). Readers: `BillingService.companiesUsed` (enabled-company count behind `quota_companies`), the billing-company lookup (oldest company = the organization's customer name/tax id), `cmd/migrate-billing-org` (`ListCompanyIndexGaps` + `BackfillIndexKeys` first make every company visible). |
 
 ---
 

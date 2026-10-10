@@ -188,7 +188,17 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			},
 			AttributeDefinitions: []types.AttributeDefinition{
 				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String(repositories.AttrOrganizationID), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("created_at"), AttributeType: types.ScalarAttributeTypeS},
 			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{{
+				IndexName: aws.String(repositories.OrganizationIndex),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String(repositories.AttrOrganizationID), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("created_at"), KeyType: types.KeyTypeRange},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
+			}},
 		},
 		{
 			TableName:   aws.String(tablePrefix + "_organization_products"),
