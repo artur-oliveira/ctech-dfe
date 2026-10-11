@@ -108,22 +108,40 @@ func (r *OrgInvitationRepository) Get(ctx context.Context, pk string) (map[strin
 	return r.GetItem(ctx, pk)
 }
 
-// ListPendingByOrg returns an org's PENDING invitations, newest first.
+// maxPendingInvitations caps ListPendingByOrg's result.
+const maxPendingInvitations = 200
+
+// ListPendingByOrg returns an org's PENDING invitations (up to 200), newest
+// first.
+//
+// Status is a filter, not a key, and the index keeps every accepted and revoked
+// invitation the org ever sent, so the pending ones can sit behind any number
+// of them. The query follows the cursor until the page is full or the
+// partition ends — a short page is never the end on its own.
 func (r *OrgInvitationRepository) ListPendingByOrg(ctx context.Context, orgPK string) ([]map[string]types.AttributeValue, error) {
-	res, err := r.Query(ctx, QueryOpts{
-		IndexName:        invitationOrgGSI,
-		PKField:          "org_pk",
-		SKField:          "created_at",
-		PK:               orgPK,
-		FilterField:      "status",
-		FilterValue:      InvitationPending,
-		ScanIndexForward: false,
-		Limit:            200,
-	})
-	if err != nil {
-		return nil, err
+	var out []map[string]types.AttributeValue
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.Query(ctx, QueryOpts{
+			IndexName:         invitationOrgGSI,
+			PKField:           "org_pk",
+			SKField:           "created_at",
+			PK:                orgPK,
+			FilterField:       "status",
+			FilterValue:       InvitationPending,
+			ScanIndexForward:  false,
+			Limit:             maxPendingInvitations - len(out),
+			ExclusiveStartKey: start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, res.Items...)
+		if res.LastEvaluatedKey == nil || len(out) >= maxPendingInvitations {
+			return out, nil
+		}
+		start = res.LastEvaluatedKey
 	}
-	return res.Items, nil
 }
 
 // Revoke marks a PENDING invitation REVOKED, scoped to org (so an admin of one

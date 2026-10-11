@@ -123,9 +123,13 @@ func (r *NfseRepository) ListNfses(ctx context.Context, pk string, opts NfseList
 		input.ExpressionAttributeNames = names
 	}
 
-	out, err := r.db.Query(ctx, input)
+	// O DynamoDB aplica o Limit aos itens avaliados, antes do filtro: uma
+	// chamada só devolveria página vazia com notas da competência mais adiante
+	// na partição. QueryRawFiltered segue o LastEvaluatedKey até encher a
+	// página (sem filtro, é uma chamada só, como antes).
+	res, err := r.QueryRawFiltered(ctx, input, 0)
 	if err != nil {
 		return nil, fmt.Errorf("query %s: %w", r.TableName, err)
 	}
-	return &QueryResult{Items: out.Items, LastEvaluatedKey: out.LastEvaluatedKey}, nil
+	return res, nil
 }
