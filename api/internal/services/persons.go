@@ -74,7 +74,8 @@ func (s *PersonService) Get(ctx context.Context, orgPK, cpfCNPJ string) (map[str
 	}, "person not found")
 }
 
-// MaxFilteredPageRoundTrips bounds how many DynamoDB calls one filtered listing
+// MaxFilteredPageRoundTrips bounds how many repository calls (each at most
+// repositories.PersonFilteredQueryMaxPages DynamoDB calls) one filtered listing
 // request may make while trying to fill a page. A FilterExpression is applied
 // after the read, so a rare role in a large organization would otherwise sweep
 // the whole partition just to hand back an empty page.
