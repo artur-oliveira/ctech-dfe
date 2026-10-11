@@ -63,6 +63,10 @@ type PersonListOpts struct {
 	StartKey map[string]types.AttributeValue
 }
 
+// PersonFilteredQueryMaxPages is the DynamoDB calls one role-filtered List
+// call may make (api-commons QueryOpts.MaxPages).
+const PersonFilteredQueryMaxPages = 2
+
 // List resolves one of three query shapes. The Role-less shape is deliberately
 // identical to the pre-roles code so nothing existing can regress.
 //
@@ -80,6 +84,9 @@ func (r *PersonRepository) List(ctx context.Context, orgPK string, opts PersonLi
 	if opts.Role != "" {
 		q.FilterContainsField = PersonRolesField
 		q.FilterContainsValue = opts.Role
+		// PersonService.listFilled makes up to MaxFilteredPageRoundTrips of
+		// these calls; 2 DynamoDB calls each keeps a request at about 10.
+		q.MaxPages = PersonFilteredQueryMaxPages
 	}
 
 	if digitsOnlyRe.MatchString(opts.Q) {

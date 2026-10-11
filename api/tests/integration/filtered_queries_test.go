@@ -170,4 +170,7 @@ func TestAuditByUserFindsEntriesPastTheFirstPage(t *testing.T) {
 	if got := skOf(t, res.Items, "sk"); !slices.Equal(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
+	if res.LastEvaluatedKey != nil {
+		t.Fatalf("feed exhausted, cursor must be nil")
+	}
 }
