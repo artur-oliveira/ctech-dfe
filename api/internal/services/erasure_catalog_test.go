@@ -4,7 +4,10 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 // TestErasureCatalogCoversEveryCDKTable fails when a table is added to
@@ -64,5 +67,30 @@ func TestErasureCatalogCoversEveryCDKTable(t *testing.T) {
 func TestInutEventPK(t *testing.T) {
 	if got := InutEventPK(EnvProd, "C1"); got != "INUT#prod#C1" {
 		t.Fatalf("InutEventPK = %q", got)
+	}
+}
+
+// TestEveryAccountBillingKeyKindIsPurged fails when a partition-key builder of
+// account_billing has no entry in billingKeyKinds (plan ruling R15): a new kind
+// of row must be classified as erased or kept on purpose.
+func TestEveryAccountBillingKeyKindIsPurged(t *testing.T) {
+	builders := map[string]string{
+		"AccountBillingPK": repositories.AccountBillingPK("u"),
+		"OrgBillingPK":     repositories.OrgBillingPK("o"),
+		"QuotaGuardPK":     repositories.QuotaGuardPK("o", MeterNFe),
+		"UsageCounterPK":   repositories.UsageCounterPK("o", "2026-10"),
+		"LevelMarkerPK":    repositories.LevelMarkerPK("o", MeterNFe),
+		"BillingEventPK":   repositories.BillingEventPK("e"),
+	}
+	for name, key := range builders {
+		found := false
+		for prefix := range billingKeyKinds {
+			if strings.HasPrefix(key, prefix) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s produces %q, which billingKeyKinds does not classify", name, key)
+		}
 	}
 }
