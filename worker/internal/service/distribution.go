@@ -139,6 +139,8 @@ type DistributionService struct {
 	dynamo DistributionDynamoClient
 	sns    SNSClient
 	cfg    *config.Config
+
+	orgStopped OrgStopped
 }
 
 // NewDistribution creates a new DistributionService.
@@ -164,6 +166,12 @@ type DistributionMessage struct {
 }
 
 // Process routes a distribution job to the correct handler.
+// WithOrgStopped makes Process drop jobs of companies the deletion saga stopped.
+func (s *DistributionService) WithOrgStopped(f OrgStopped) *DistributionService {
+	s.orgStopped = f
+	return s
+}
+
 func (s *DistributionService) Process(ctx context.Context, msg DistributionMessage) error {
 	dtcfg, ok := docTypeConfigs[msg.DocType]
 	if !ok {
@@ -177,6 +185,12 @@ func (s *DistributionService) Process(ctx context.Context, msg DistributionMessa
 		"doc_type", msg.DocType,
 		"trigger", msg.Trigger,
 	)
+	if stopped, err := s.orgStopped.check(ctx, msg.OrgPK); err != nil {
+		return fmt.Errorf("erasure state: %w", err)
+	} else if stopped {
+		slog.Info("dropping distribution job of a company in account deletion", "org_pk", msg.OrgPK, "job_type", msg.JobType)
+		return nil
+	}
 
 	switch msg.JobType {
 	case "dist_nsu", "":

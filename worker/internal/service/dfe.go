@@ -62,6 +62,8 @@ type DfeService struct {
 	dynamo DynamoClient
 	sns    SNSClient
 	cfg    *config.Config
+
+	orgStopped OrgStopped
 }
 
 // New creates a new DfeService.
@@ -251,6 +253,12 @@ func attributeString(item map[string]types.AttributeValue, name string) *string 
 }
 
 // Process handles a single DFe SEFAZ operation from an SQS message.
+// WithOrgStopped makes Process drop jobs of companies the deletion saga stopped.
+func (s *DfeService) WithOrgStopped(f OrgStopped) *DfeService {
+	s.orgStopped = f
+	return s
+}
+
 func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	slog.Info("processing dfe",
 		"doc_type", msg.DocType,
@@ -258,6 +266,12 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		"doc_pk", msg.DocPK,
 		"access_key", msg.AccessKey,
 	)
+	if stopped, err := s.orgStopped.check(ctx, companyOfDocPK(msg.DocPK)); err != nil {
+		return fmt.Errorf("erasure state: %w", err)
+	} else if stopped {
+		slog.Info("dropping job of a company in account deletion", "doc_pk", msg.DocPK, "access_key", msg.AccessKey)
+		return nil
+	}
 
 	owner, err := newProcessingOwner()
 	if err != nil {
