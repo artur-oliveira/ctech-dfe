@@ -65,12 +65,17 @@ type Services struct {
 	// configuration (the sweeper delivers it otherwise).
 	Levels   *services.LevelReporter
 	RoleRepo *repositories.RoleRepository
+	// ErasureBlocked is the account-deletion write lock; nil leaves it off.
+	ErasureBlocked services.BlockedFunc
 }
 
 // Register mounts all /v1.0 routes onto the Fiber app.
 func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, wsReg ws.Registry, awsClients *awsclient.Clients, svcs Services) {
 	// The issuer is ctech-account's public base URL — the iss claim it signs into tokens.
 	verifier := middleware.NewVerifier(cfg.CtechJWKSURL, cfg.ServiceAudience, cfg.CtechIssuerURL, cacheBackend)
+	if svcs.ErasureBlocked != nil {
+		verifier.WithLockCheck(svcs.ErasureBlocked)
+	}
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 	// The flip. Off unless ctech-account issued this service a credential:

@@ -33,6 +33,10 @@ type Config struct {
 	// SQS
 	ResultsQueueURL      string `env:"DFE_RESULTS_QUEUE_URL"`
 	DistributionQueueURL string `env:"DFE_DISTRIBUTION_QUEUE_URL"`
+	// ErasureQueueURL is the account-deletion queue subscribed to ctech-account's
+	// user-erasure topic. Empty turns the whole participant off (lock, purge,
+	// consumer): the dark-launch switch.
+	ErasureQueueURL string `env:"ERASURE_QUEUE_URL"`
 
 	// Auth
 	CtechURL        string `env:"CTECH_URL"`
@@ -68,6 +72,14 @@ type Config struct {
 	// deliberate default: turning this on is a live authorization change.
 	AccountClientID     string `env:"ACCOUNT_CLIENT_ID"`
 	AccountClientSecret string `env:"ACCOUNT_CLIENT_SECRET"`
+
+	// ErasureClientID/Secret are the dedicated client-credentials client
+	// ctech-account issued for the deletion saga (plan ruling R11): it acks
+	// user.erase and reads the purging user's CPF, and holds only
+	// internal:account:erasure-ack and internal:account:erasure-subject.
+	// SSM SecureStrings /ctech-dfe/{env}/erasure/client-{id,secret}.
+	ErasureClientID     string `env:"ERASURE_CLIENT_ID"`
+	ErasureClientSecret string `env:"ERASURE_CLIENT_SECRET"`
 
 	// AccountWorkspaceClientID/Secret are the client-credentials client holding
 	// internal:account:org-member and internal:account:user-organizations

@@ -6,12 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
 	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/erasure"
+	"gopkg.aoctech.app/api-commons/oauth2client"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
 	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/accountclient"
@@ -44,6 +48,7 @@ var Module = fx.Options(
 		newCacheBackend,
 		newWSRegistry,
 		newFiberApp,
+		newErasureStore,
 		// Repositories
 		newDynamoDBClient,
 		repositories.NewOrganizationRepository,
@@ -54,6 +59,7 @@ var Module = fx.Options(
 		repositories.NewOrgUserRepository,
 		repositories.NewOrgInvitationRepository,
 		repositories.NewAccountBillingRepository,
+		repositories.NewErasureRepository,
 		repositories.NewProductRepository,
 		repositories.NewServiceRepository,
 		repositories.NewTaxProfileRepository,
@@ -90,6 +96,7 @@ var Module = fx.Options(
 		// Services
 		newOrganizationService,
 		newUserService,
+		newErasureService,
 		services.NewMembershipService,
 		services.NewInvitationService,
 		newBillingClient,
@@ -135,6 +142,7 @@ var Module = fx.Options(
 	fx.Invoke(seedRoles),
 	fx.Invoke(registerRoutes),
 	fx.Invoke(startResultsConsumer),
+	fx.Invoke(startErasureConsumer),
 	fx.Invoke(startLevelSweeper),
 	fx.Invoke(startServer),
 )
@@ -268,8 +276,12 @@ func newOrganizationService(
 	return services.NewOrganizationService(repo, auditRepo, certRepo, orgUserRepo, certSvc, memberSvc, c)
 }
 
-func newUserService(repo *repositories.UserRepository, c cache.Backend, cfg *config.Config, orgSvc *services.OrganizationService, memberSvc *services.MembershipService) *services.UserService {
-	return services.NewUserService(repo, c, cfg.CtechURL, orgSvc, memberSvc)
+func newUserService(repo *repositories.UserRepository, c cache.Backend, cfg *config.Config, orgSvc *services.OrganizationService, memberSvc *services.MembershipService, store *erasure.Store) *services.UserService {
+	svc := services.NewUserService(repo, c, cfg.CtechURL, orgSvc, memberSvc)
+	if blocked := blockedOf(store); blocked != nil {
+		svc = svc.WithErasureLock(blocked)
+	}
+	return svc
 }
 
 func newCertificateService(repo *repositories.CertificateRepository, auditRepo *repositories.AuditLogRepository, clients *awsclient.Clients, cfg *config.Config) *services.CertificateService {
@@ -573,6 +585,7 @@ type Services struct {
 	WSReg           ws.Registry
 	Cfg             *config.Config
 	AWS             *awsclient.Clients
+	ErasureStore    *erasure.Store
 }
 
 func registerRoutes(app *fiber.App, svcs Services) {
@@ -617,6 +630,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Billing:         svcs.BillingSvc,
 		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
+		ErasureBlocked:  blockedOf(svcs.ErasureStore),
 	})
 }
 
@@ -824,4 +838,84 @@ func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client
 		slog.Warn("BILLING_WEBHOOK_SECRET is unset — billing's webhook route will not be mounted")
 	}
 	return client
+}
+
+const erasureAckPath = "/v1.0/internal/erasure/ack"
+
+// newErasureStore binds {prefix}_erasure_state, or nil (participant off) when
+// ERASURE_QUEUE_URL is unset. Tombstones are kept forever (erasedTTL 0): dfe
+// retains nothing, and the record is what rejects a late message.
+func newErasureStore(clients *awsclient.Clients, cfg *config.Config) *erasure.Store {
+	if cfg.ErasureQueueURL == "" {
+		slog.Warn("ERASURE_QUEUE_URL is unset: the account-deletion lock and purge are OFF")
+		return nil
+	}
+	return erasure.NewStore(clients.DynamoDB, cfg.TablePrefix, 0)
+}
+
+func blockedOf(store *erasure.Store) services.BlockedFunc {
+	if store == nil {
+		return nil
+	}
+	return store.Blocked
+}
+
+func newErasureService(
+	repo *repositories.ErasureRepository,
+	certs *repositories.CertificateRepository,
+	audit *repositories.AuditLogRepository,
+	claims *repositories.SerieClaimRepository,
+	store *erasure.Store,
+	clients *awsclient.Clients,
+	cfg *config.Config,
+	c cache.Backend,
+) *services.ErasureService {
+	if store == nil {
+		return nil
+	}
+	return services.NewErasureService(repo, certs, audit, claims, store, clients.S3,
+		cfg.S3BucketDocuments, cfg.S3BucketCerts, newErasureSubject(cfg, c).CPF, c)
+}
+
+// newErasureSubject builds the CPF lookup from the dedicated erasure client
+// (ruling R11), or nil when that credential is incomplete.
+func newErasureSubject(cfg *config.Config, c cache.Backend) *accountclient.SubjectClient {
+	return accountclient.NewSubject(accountclient.Config{
+		BaseURL:      cfg.CtechURL,
+		TokenURL:     billingclient.TokenURLFor(cfg.CtechURL),
+		ClientID:     cfg.ErasureClientID,
+		ClientSecret: cfg.ErasureClientSecret,
+		Cache:        c,
+	})
+}
+
+// startErasureConsumer runs ctech-go-common's erasure.Consumer in the
+// background, like the results consumer (plan ruling R1). It needs the
+// dedicated erasure credential to ack (ruling R11); without it the purge
+// cannot finish, so it does not start and says so.
+func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclient.Clients, store *erasure.Store, svc *services.ErasureService, c cache.Backend) {
+	if svc == nil {
+		return
+	}
+	if cfg.ErasureClientID == "" || cfg.ErasureClientSecret == "" {
+		slog.Error("erasure consumer NOT started: ERASURE_CLIENT_ID/ERASURE_CLIENT_SECRET are unset, so acks cannot be sent")
+		return
+	}
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	tokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
+		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeErasureAck)
+	acks := erasure.NewAckClient(httpClient, strings.TrimSuffix(cfg.CtechURL, "/")+erasureAckPath, tokens)
+	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks)
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go func() { _ = consumer.Run(ctx) }()
+			slog.Info("erasure consumer started", "queue", cfg.ErasureQueueURL)
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			cancel()
+			return nil
+		},
+	})
 }
