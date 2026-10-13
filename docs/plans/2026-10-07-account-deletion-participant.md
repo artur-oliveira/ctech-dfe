@@ -1,5 +1,15 @@
 # Account Deletion (LGPD) — DF-e Participant Implementation Plan
 
+> **Amendment 2026-10-13.** Source: ctech-account `docs/2026-10-13-account-deletion-plan-review.md`.
+> 1. **`account_billing` is keyed by ctech-account organization** since #130/#132 (`ORG_...` snapshot, counters, quota guard,
+>    `LEVEL_DIRTY_{org}#meter` markers). In the catalog, mark it as organization scope for every id in `organizations[]` /
+>    `workspaces[]`, deleting those keys directly (no company lookup needed). Legacy `USER_{sub}` rows stay person scope (R15).
+> 2. **R4:** do not create `organization-id-index`; reuse the existing sparse `organization-index` (`organization_id`, `created_at`, KEYS_ONLY).
+> 3. **Coordination with billing:** the organization's DF-e subscription is an `ORG_{id}` customer in billing; billing's amendment
+>    cancels it. dfe must not report the organization purge as complete in a way that implies the subscription was cancelled.
+> 4. Pin no api-commons version (current `v1.16.0`); remove the `v1.13.1` pins.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make ctech-dfe a participant of the ctech-account erasure saga: answer eligibility, refuse writes of a locked user, purge the person (memberships, invitations, audit actor, e-CPF certificates, user rows) and every company of an organization erased with its only member, then ack.
