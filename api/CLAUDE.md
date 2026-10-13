@@ -132,6 +132,9 @@ Run: `go test ./... -race` from `api/`.
 
 ## Known Constraints
 
+- Account deletion (LGPD): the auth middleware refuses writes of a locked/erased user with 403 `account-pending-deletion`;
+  revocation entries come from the shared Valkey DB 0; `ERASURE_QUEUE_URL` is the participant on/off switch; acks and the
+  subject lookup use `ERASURE_CLIENT_*`, never the reach `ACCOUNT_CLIENT_*`. New tables go in `services/erasure_catalog.go`.
 - `InMemoryCache` TTL=300s — not shared across replicas. Redis/Valkey is authoritative for JWKS and WebSocket pub/sub.
 - Lambda invocation for doc issuance is async: API enqueues to SQS (standard), returns 202, worker processes and pushes
   WebSocket update.

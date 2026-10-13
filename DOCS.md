@@ -453,6 +453,11 @@ ENVIRONMENT=dev
 PYDFE_FUNCTION_NAME=dev-py-dfe  # Python SEFAZ Lambda (Scenario A)
 DFE_TOPIC_ARN=                  # SNS command topic; issuance reaches it through worker_outbox
 TECHNICAL_CNPJ=62787449000107   # Technical contact CNPJ (DFe)
+
+# Account deletion (LGPD) participant
+ERASURE_QUEUE_URL=              # empty = participant off (no lock, no purge, no consumer)
+ERASURE_CLIENT_ID=              # dedicated client of the deletion saga (ack + subject), never ACCOUNT_CLIENT_*
+ERASURE_CLIENT_SECRET=
 ```
 
 ### Error handling
@@ -566,6 +571,16 @@ Profile and password management are handled by ctech-account directly.
 | GET    | `/v1.0/auth/me`    | Authenticated user profile + org list    |
 | GET    | `/v1.0/auth/roles` | Available RBAC roles (OWNER/ADMIN/USER/VIEWER, seeded on boot) |
 
+#### Account deletion (LGPD)
+
+| Method | Endpoint                                      | Description                                                                 |
+|--------|-----------------------------------------------|-----------------------------------------------------------------------------|
+| GET    | `/v1.0/internal/erasure/eligibility/{sub}`    | Service token minted by ctech-account (no `sid`, scope `internal:dfe:erasure-eligibility`). dfe has no blocker of its own, so the answer is always `{"eligible":true,"blockers":[]}` (R2) |
+| GET    | `/v1.0/xml-export/{doc_type}`                 | `doc_type` is `nfe`, `nfce`, `cte`, `mdfe` or `nfse`. Any member of the organization (permission `list.{doc_type}s`). Zip of up to 100 production documents with their events, `X-Next-Cursor` for the next page. The dfe UI button is a follow-up |
+
+A locked or erased user gets `403 account-pending-deletion` on every `POST/PUT/PATCH/DELETE` (auth middleware, one
+choke point) and `GET /auth/me` no longer provisions the `users` row. Reads stay open.
+
 #### Organizations
 
 Organization identity has two separate fields: `{pk}` and `Dfe-Organization-Pk` carry the stable company UUIDv7;
@@ -671,6 +686,32 @@ assign it through any route — invitation, role change or direct membership wri
 permission set. Ownership transfer is not implemented; when it is, it moves the single OWNER rather
 than adding one. This matters beyond permissions: `owner_user_id` is what will say whose
 subscription pays for the organization, and that question needs one answer.
+
+### Exclusão de conta (LGPD)
+
+ctech-account runs the saga; dfe is a participant (`docs/plans/2026-10-07-account-deletion-participant.md`).
+Everything is off until `ERASURE_QUEUE_URL` is set.
+
+1. **Lock** (`user.locked`, grace period): `erasure.Consumer` records `SUB#{sub}` in `{prefix}_erasure_state`; the
+   auth middleware refuses writes of that sub, and JWT revocation (Valkey DB 0) is enabled in `NewVerifier`.
+2. **Purge** (`user.erase`, `ErasureService.Purge`, idempotent and resumable):
+   - every company of each ctech-account organization in `organizations[]` (found through `organization-index`) is
+     locked (`ORG#{company_id}`), emptied through the catalog and erased after a 10-minute **settle window** (the
+     first delivery returns `ErrErasureSettling` and the redelivery finishes);
+   - then the person: memberships, invitations received, audit rows anonymized (`Usuário removido`), e-CPF
+     certificates whose holder CPF is the user's (PFX versions and row, with a `SYSTEM` audit notice), the
+     organization billing snapshot, quota guards, level markers and usage counters (`ORG_{id}`, R15), and the
+     `users` row. Documents and events of surviving organizations keep `user_id` (R16).
+3. **Ack** (`done` with `Counts` keyed by table name, plus `s3_object_versions`, `serie_claims_released`,
+   `audit_logs_anonymized`, `audit_logs_scrubbed`, `organization_invitations_anonymized`,
+   `organization_certificates_ecpf`).
+
+The purge is table-driven: `services/erasure_catalog.go` lists every DynamoDB table of the CDK stack with how its
+rows are reached; `TestErasureCatalogCoversEveryCDKTable` fails when a table is added without a decision, and
+`TestEveryAccountBillingKeyKindIsPurged` does the same for `account_billing` key kinds. S3 objects are erased by the
+keys rows store plus company-id prefixes, never by a `CNPJ_` folder (two companies may share it; R7), all versions.
+The CPF read from ctech-account for e-CPF matching lives in memory only: never logged, persisted or put in an error.
+Workers drop jobs whose company is locked or erased (`worker/internal/service/erasure.go`).
 
 ### Assinatura da organização — `/v1.0/billing/*`
 
@@ -2969,6 +3010,7 @@ nem mapas locais de status de evento em telas de detalhe.
 - Parse SEFAZ response, update DynamoDB (status, protocol, xml_s3_key)
 - Upload signed XML to S3
 - Publish terminal status to results SNS → API results consumer → Valkey/WebSocket
+- Drop jobs whose company is locked or erased by the account-deletion saga (one `GetItem` on `{prefix}_erasure_state`; an unknown state fails closed and retries)
 
 **Deployment:**
 
@@ -3106,7 +3148,7 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 | `OidcStack`     | `oidc-stack.ts`      | GitHub OIDC deploy roles; imports the shared provider     |
 | `DynamoDBStack` | `dynamodb-stack.ts`  | DFE tables, GSIs, and streamed worker outbox              |
 | `S3Stack`       | `s3-stack.ts`        | DFE certificates and documents buckets                   |
-| `EventBusStack` | `event-bus-stack.ts` | SNS command/results topics and SQS results queue          |
+| `EventBusStack` | `event-bus-stack.ts` | SNS command/results topics, SQS results queue, and the account-deletion queue (+ DLQ, subscribed to ctech-account's user-erasure topic with filter `services=dfe`; visibility 30 min, 5 receives) |
 | `IAMStack`      | `iam-stack.ts`       | Lambda and EC2 roles/instance profiles                    |
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility SEFAZ Lambda                         |
 | `WorkerStack`   | `worker-stack.ts`    | Fiscal workers, outbox publisher, standard SQS/DLQs       |

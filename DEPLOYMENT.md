@@ -88,6 +88,28 @@ boot log says so at WARN. That is a supported deployment — it is what a dev
 environment needs — so a production instance missing these parameters starts
 successfully and must be caught by reading the log, not by a crash.
 
+### Account-deletion participant (LGPD)
+
+Order matters; the participant stays dark until step 4.
+
+1. Deploy CDK. The DynamoDB stack creates `{env}_dfe_erasure_state` (the `organization-index` GSI exists since #130)
+   and the EventBus stack creates the queue and DLQ and subscribes the queue to ctech-account's topic
+   (`/ctech/{env}/account/erasure-topic-arn`) with filter `{"services":["dfe"]}`.
+2. In ctech-account issue a **dedicated** confidential client for dfe's erasure (not the reach client) and grant it only
+   `internal:account:erasure-ack` and `internal:account:erasure-subject`. Write it as SecureStrings
+   `/ctech-dfe/{env}/erasure/client-id` and `/ctech-dfe/{env}/erasure/client-secret`.
+3. Add dfe to ctech-account's `/ctech-account/{env}/erasure-participants` JSON:
+   `{"service":"dfe","url":"{dfe internal base}/v1.0","audience":"<dfe SERVICE_AUDIENCE>","client_id":"<that client>"}`.
+   **Issuer check:** ctech-account mints the eligibility token with `iss` = its issuer URL. Confirm that URL equals
+   `/ctech-account/{env}/app-url` (`aws ssm get-parameter --name /ctech-account/{env}/app-url --profile ctech`), which
+   dfe reads as `CTECH_ISSUER_URL`; then expect `200 {"eligible":true,"blockers":[]}` on one eligibility call (a 401
+   means the two differ).
+4. `ERASURE_QUEUE_URL` (set by CDK) turns the participant on at the next API deploy. Without the erasure client the
+   consumer does not start and logs it at ERROR.
+
+Backup restore (saga protocol §8): after restoring any dfe table from PITR, re-publish `user.erase` for every request
+purged after the restore point (ctech-account README, "Account deletion").
+
 The webhook secret is separate: without it the client still works, but
 `POST /v1/internal/webhooks/billing` is **not mounted at all**. A signature check
 that cannot run is not a signature check, so the route 404s rather than trusting

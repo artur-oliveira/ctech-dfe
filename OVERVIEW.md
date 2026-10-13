@@ -246,6 +246,9 @@ docs/specs/2026-10-10-organization-subscription.md.
   ADMIN/USER/VIEWER — never OWNER.
 - **RBAC:** Roles OWNER / ADMIN / USER / VIEWER (seeded on boot) with `action.resource` permissions; effective
   permission = role ∪ per-member extras.
+- **Account deletion (LGPD):** the auth middleware refuses writes of a locked/erased user (`403
+  account-pending-deletion`) and honours ctech-account's JWT revocation list; the API runs the saga's `erasure.Consumer`
+  and purges companies and the person; workers drop jobs of a locked company. State lives in `erasure_state`.
 - **IAM:** Least privilege per function (Lambda, API, Worker)
 
 ---
