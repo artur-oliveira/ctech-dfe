@@ -56,6 +56,27 @@ cd ui && npm install && npm run dev
 cd cdk && npm install && cdk synth
 ```
 
+## Exclusão de conta: toda feature nova entrega seu fluxo de exclusão
+
+A ctech-account orquestra um saga de exclusão (LGPD) em toda a família CTech (specs e revisão em
+`ctech-account/docs/specs/2026-10-06-account-deletion-*.md` e `docs/2026-10-13-account-deletion-plan-review.md`).
+Cada serviço é participante. Os planos de participante envelheceram conforme features novas entraram, então vale esta regra:
+
+**Uma feature que guarda ou deriva dado ligado a uma pessoa ou organização (tabela, índice, prefixo de chave ou de bucket,
+chave de cache, linha de fila ou job, registro em terceiro, campo de auditoria) só está pronta quando o fluxo de exclusão
+dela existe e foi testado.** Na mesma alteração:
+
+1. Inclua a linha dela no inventário de dados do serviço (apagar, anonimizar ou reter, com base legal e prazo; reter exige motivo).
+2. Implemente o passo de apagar ou anonimizar no purge do serviço, idempotente e retomável (reexecutável do zero).
+3. Crie ou atualize os bloqueios de elegibilidade se ela puder guardar dinheiro, dívida, trabalho em aberto ou titularidade.
+4. Todo caminho assíncrono (webhook, job, varredura, consumidor de fila) deve descartar trabalho de `sub` ou organização travada ou apagada.
+5. Teste: crie os dados, rode o purge duas vezes, confirme que sumiram ou foram anonimizados e que uma escrita tardia para o titular
+   apagado é rejeitada. O teste de classificação de tabelas do purge deve falhar para tabela não classificada; mantenha-o exaustivo.
+6. Revogue ou apague o que vive em terceiros (por exemplo webhooks ou credenciais registradas em banco).
+7. Atualize o plano ou spec do participante e registre o impacto entre serviços (quem mais precisa agir quando isto for apagado).
+
+Um pull request que adiciona dado ligado a pessoa sem isso está incompleto, independentemente do resto passar.
+
 ## Licença
 
 [Elastic License 2.0 (ELv2)](LICENSE.md) — código fonte disponível, uso como serviço gerenciado por terceiros não
