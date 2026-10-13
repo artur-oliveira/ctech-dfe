@@ -1,13 +1,6 @@
 # Account Deletion (LGPD) — DF-e Participant Implementation Plan
 
-> **Amendment 2026-10-13.** Source: ctech-account `docs/2026-10-13-account-deletion-plan-review.md`.
-> 1. **`account_billing` is keyed by ctech-account organization** since #130/#132 (`ORG_...` snapshot, counters, quota guard,
->    `LEVEL_DIRTY_{org}#meter` markers). In the catalog, mark it as organization scope for every id in `organizations[]` /
->    `workspaces[]`, deleting those keys directly (no company lookup needed). Legacy `USER_{sub}` rows stay person scope (R15).
-> 2. **R4:** do not create `organization-id-index`; reuse the existing sparse `organization-index` (`organization_id`, `created_at`, KEYS_ONLY).
-> 3. **Coordination with billing:** the organization's DF-e subscription is an `ORG_{id}` customer in billing; billing's amendment
->    cancels it. dfe must not report the organization purge as complete in a way that implies the subscription was cancelled.
-> 4. Pin no api-commons version (current `v1.16.0`); remove the `v1.13.1` pins.
+> **Rebaselined 2026-10-13** (ctech-account `docs/2026-10-13-account-deletion-plan-review.md`): `account_billing` is keyed by ctech-account organization since #130/#132 (R15); the existing `organization-index` replaces the proposed GSI (R4); api-commons is not pinned at v1.13.1 (current v1.16.0); the organization's DF-e subscription is an `ORG_{id}` customer in billing, which cancels it (billing plan R19).
 
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -20,7 +13,7 @@
 - Lock: the auth middleware (one choke point for every user route) refuses mutating requests of a locked/erased `sub`; JWT revocation (`jwtverify.WithRevocation`) is enabled in the same constructor.
 - Workers (Lambda) drop jobs whose company is locked or erased (`ORG#{company_id}` in `{prefix}_erasure_state`).
 
-**Tech Stack:** Go 1.27, Fiber v3, fx, aws-sdk-go-v2 (DynamoDB, S3, SQS), `gopkg.aoctech.app/api-commons` v1.13.1 (`erasure`, `jwtverify`, `oauth2client`), AWS CDK (TypeScript, jest).
+**Tech Stack:** Go 1.27, Fiber v3, fx, aws-sdk-go-v2 (DynamoDB, S3, SQS), `gopkg.aoctech.app/api-commons` (current `go.mod`, v1.16.0 or later; `erasure`, `jwtverify`, `oauth2client`), AWS CDK (TypeScript, jest).
 
 **Spec:** ctech-account `docs/specs/2026-10-06-account-deletion-overview.md` (D1–D14), `…-data-inventory.md` §2 and §5, `…-saga-protocol.md` §3–§9; wire contract in ctech-account `docs/plans/2026-10-07-account-deletion-phase3-participants.md` (Global Constraints, Task 5).
 
@@ -45,7 +38,7 @@
 - **R1 Consumer in the API, not the worker.** The worker is SQS-triggered Lambda; `erasure.Consumer` is a long-poll loop and the API already runs one (results consumer). Cost if wrong: purge competes with request CPU on a t4g.nano; move the loop to a Lambda later by wrapping `ErasureService.Purge`.
 - **R2 No dfe blocker codes.** Ownership is checked by ctech-account. "In-flight emission by the user" cannot happen at LOCKED: the user is locked from grace start (7 days, D1) and every job runs ≤ 300 s. Rows have no index by actor, so a check would scan. The endpoint always answers `eligible: true`. Cost if wrong: add a code later; the endpoint shape does not change.
 - **R3 Lock choke point = `middleware.Verifier.Middleware`** for `POST/PUT/PATCH/DELETE`, plus `UserService.GetOrCreate` (the only GET that writes). Cost if wrong: one GetItem per write request.
-- **R4 `organizations[]` are ctech-account organization ids; dfe tenancy is the company id.** Companies are found through a new GSI `organization-id-index` on `organizations.organization_id`. Legacy `CNPJ_`/`CPF_` rows without `organization_id` are not found (they are erased only by the person purge's membership step). Cost if wrong: an orphan legacy company remains; operator deletes it.
+- **R4 `organizations[]` are ctech-account organization ids; dfe tenancy is the company id.** Companies are found through the existing sparse `organization-index` GSI on `organizations` (`organization_id`, sort `created_at`, KEYS_ONLY; added by #130). It is eventually consistent and was backfilled by `cmd/migrate-billing-org`; a company created seconds before the purge may not show yet, so the first delivery reads the index, deletes, and the settle-window redelivery (R6) reads it again. Legacy `CNPJ_`/`CPF_` rows without `organization_id` are not in the index (they are erased only by the person purge's membership step). Cost if wrong: an orphan legacy company remains; operator deletes it.
 - **R5 Company tombstones are written by dfe** (`ORG#{company_id}`), locked before the purge and erased after it, because workers only know company ids. The consumer still tombstones the account org ids itself.
 - **R6 Settle window instead of in-flight detection.** The first delivery locks the companies, deletes everything but the `organizations` items, and returns an error; the redelivery (30 min later) deletes again and finishes. Cost if wrong: one extra SQS receive per deletion with organizations.
 - **R7 S3 by row, never by tenant folder.** Emitted XML lives under `CNPJ_{doc}` folders that two companies with the same CNPJ share (see `documentS3Key`). Objects are deleted through the keys stored on rows, plus company-id prefixes (`pdfs/{t}/{c}/`, `{t}/{env}/{c}/`, `{t}-distribution/{env}/{c}/`, `certs/{c}/`). Cost if wrong: an orphan object nobody references stays until bucket lifecycle.
@@ -56,7 +49,11 @@
 - **R12 XML export = one paged endpoint, no UI.** `GET /v1.0/xml-export/{doc_type}` returns a zip of up to 100 production documents and their events, `X-Next-Cursor` for the next page. Open to **any member of the organization** (decided 2026-10-08: whoever had access before the deletion may export), enforced as the read permission of the document family (`list.{doc_type}s`, which every role holds). Production documents only. No UI button in this plan: a dfe UI follow-up adds it, and ctech-account's deletion page links to it. Cost if wrong: until the UI ships, exports go through the API.
 - **R13 `internal:dfe:erasure-eligibility` is not added to `scope-manifest.json`:** the manifest is public-only by test, and ctech-account mints this scope itself. Cost if wrong: add the entry and relax `TestScopeManifestMatchesEnforcementFamilies`.
 - **R14 No DLQ alarm in dfe** (dfe has none; `cdk` DOCS §"CloudWatch alarms — none"). ctech-account logs "participant ack overdue" at 48 h. Cost if wrong: a poisoned message waits 48 h to be noticed.
-- **R15 Billing rows of the user:** erase `USER_{sub}`, `QUOTA_GUARD_{sub}#companies` and the current period's `USAGE_{sub}#…`; older usage rows (counters only) expire by their 13-month TTL.
+- **R15 Billing rows (`account_billing`) are keyed by the ctech-account organization, plus legacy per-user rows.**
+  - Person: `USER_{sub}`, `QUOTA_GUARD_{sub}#companies`, and the current period's `USAGE_{sub}#…` (legacy rows of users not yet migrated by `cmd/migrate-billing-org`); older usage rows (counters only) expire by their 13-month TTL.
+  - Each organization in `organizations[]` (`workspaces[]`): the snapshot `ORG_{id}`, `QUOTA_GUARD_{id}#{meter}`, `LEVEL_DIRTY_{id}#{meter}` and `USAGE_{id}#{period}`. Partition keys cannot be listed by prefix, so the purge deletes them for the **known meters** (`MeterNFe`, `MeterNFCe`, `MeterCTe`, plus the companies meter; one constant list in `services`) and for the current and the previous 13 periods; earlier usage rows have expired by TTL. Cost if wrong: a meter added later and missing from the list leaves an opaque counter row until its TTL; `TestEveryAccountBillingKeyKindIsPurged` (Task 9) fails when a new key kind has no entry.
+  - The organization's DF-e subscription itself is a customer `ORG_{id}` in **ctech-billing**, which cancels it (billing plan R19). dfe erases its local snapshot only.
+  - A `LEVEL_DIRTY` marker still pending for an erased organization is deleted without reporting: the reporter must not send a level for an erased ref (billing drops it anyway, billing plan Task 8b).
 - **R16 Document/event rows of surviving orgs keep `user_id`/`user_name`** (inventory §5: fiscal documents of a surviving org are untouched). Only `audit_logs`, memberships and invitations are anonymized.
 
 ## Review Focus
@@ -71,15 +68,15 @@
 
 - **ctech-account:** add dfe to `ERASURE_PARTICIPANTS` (`service: dfe`, `url: {dfe internal base}/v1.0`, `audience: {dfe SERVICE_AUDIENCE}`, `client_id: {ERASURE_CLIENT_ID of dfe}`); issue dfe's dedicated erasure confidential client and grant it `internal:account:erasure-ack` and `internal:account:erasure-subject` (R11). ctech-account mints the eligibility token with `iss` = its issuer URL; the deployment check in DEPLOYMENT.md (Task 15) confirms it equals dfe's `CTECH_ISSUER_URL`.
 - **ctech-account ui:** blocker copy: none needed (R2). Link "Exportar XMLs" to dfe when the dfe UI button ships (R12).
-- **ctech-go-common:** none (consumes v1.13.1). README "Account erasure" still says `MessageBody` scope; fixed by ctech-account phase 3 Task 8.
+- **ctech-go-common:** none beyond the version in `go.mod`. The README scope names were corrected in go-common v1.19.0.
 - **ctech-cdk:** candidate shared construct "erasure participant queue" (queue + DLQ + filtered subscription). Built locally here; extract when the second CDK participant (poker/wallet) needs it.
-- **ctech-billing:** none (dfe's `account_billing` is a local snapshot).
+- **ctech-billing:** cancels the organization's DF-e subscription (`ORG_{id}` customer) when the workspace is erased (its plan R19); dfe's `account_billing` is a local snapshot of it and is erased here.
 - **dfe ui:** follow-up plan: an "Exportar XMLs" button for any organization member, calling `GET /v1.0/xml-export/{doc_type}` page by page (R12).
 - **dfe worker:** new dependency on `api-commons` and a GetItem per job (Task 13).
 
 ---
 
-### Task 1: Upgrade `api-commons` to v1.13.1
+### Task 1: Confirm `api-commons` is current enough
 
 **Files:**
 - Modify: `api/go.mod`, `api/go.sum`
@@ -88,10 +85,10 @@
 - Produces: packages `gopkg.aoctech.app/api-commons/erasure` and `jwtverify` revocation (`Revoke`, `ErrTokenRevoked`, `Verifier.WithRevocation`) available to later tasks.
 
 - [ ] **Step 1: Baseline.** `cd api && go test ./... -race 2>&1 | tail -5` → all `ok`. If not green on `main`, stop and report.
-- [ ] **Step 2: Bump.** `cd api && go get gopkg.aoctech.app/api-commons@v1.13.1 && go mod tidy`
-- [ ] **Step 3: Verify.** `grep api-commons go.mod` → `gopkg.aoctech.app/api-commons v1.13.1`. `go build ./... && go vet ./... && go test ./... -race 2>&1 | tail -20` → all `ok`.
+- [ ] **Step 2: Bump only if needed.** `grep api-commons api/go.mod` must show v1.13.0 or later (it shows v1.16.0 today): nothing to do. Never lower it.
+- [ ] **Step 3: Verify.** `grep api-commons go.mod` → v1.16.0 or later. `go build ./... && go vet ./... && go test ./... -race 2>&1 | tail -20` → all `ok`.
 - [ ] **Step 4: Integration suite.** `docker compose -f docker-compose.test.yml up -d && make test-integration 2>&1 | tail -5` → `ok`.
-- [ ] **Step 5: Commit.** `git add go.mod go.sum && git commit -m "chore(api): api-commons v1.13.1 (erasure, jwt revocation)"`
+- [ ] **Step 5: Commit.** `git add go.mod go.sum && git commit -m "chore(api): confirm api-commons has erasure and jwt revocation"`
 
 ---
 
@@ -1311,7 +1308,7 @@ func (r *ErasureRepository) SetAttrs(ctx context.Context, table string, key, att
 - Modify: `cdk/lib/dynamodb-stack.ts` (add `'erasure_state'` to `TableName` only; the table itself is Task 14), `api/internal/services/shared.go` (add `InutEventPK`), `api/internal/services/nfes/inutilization.go` (use it), `api/internal/repositories/account_billing.go` (export `QuotaGuardPK`)
 
 **Interfaces:**
-- Produces: `type services.ErasureScope int` with `ScopeKept, ScopePerson, ScopeOrganization, ScopeOrgItem, ScopeOrgPartition, ScopeEnvDocs, ScopeEnvPartition, ScopeDocEvents, ScopeOutbox, ScopeInvitations, ScopeSerieClaims`.
+- Produces: `type services.ErasureScope int` with `ScopeKept, ScopePerson, ScopeAccountBilling, ScopeOrganization, ScopeOrgItem, ScopeOrgPartition, ScopeEnvDocs, ScopeEnvPartition, ScopeDocEvents, ScopeOutbox, ScopeInvitations, ScopeSerieClaims`.
 - Produces: `type services.ErasureTable struct { CDK, Name string; Scope ErasureScope; SortKey, Events string; Inut bool }`, `func services.ErasureCatalog() []services.ErasureTable`.
 - Produces: `func services.InutEventPK(env, orgPK string) string` (`INUT#{env}#{orgPK}`), `func repositories.QuotaGuardPK(userID, meter string) string` (renamed from `quotaGuardPK`).
 
@@ -1451,7 +1448,7 @@ var erasureCatalog = []ErasureTable{
 	{CDK: "roles", Name: "roles", Scope: ScopeKept},
 	{CDK: "erasure_state", Name: "erasure_state", Scope: ScopeKept},
 	{CDK: "users", Name: "users", Scope: ScopePerson},
-	{CDK: "account_billing", Name: "account_billing", Scope: ScopePerson},
+	{CDK: "account_billing", Name: "account_billing", Scope: ScopeAccountBilling}, // person (legacy USER_ rows) and organization (ORG_ rows) keys, R15
 	{CDK: "organizations", Name: "organizations", Scope: ScopeOrganization},
 	{CDK: "organization_users", Name: "organization_users", Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "organization_invitations", Name: "organization_invitations", Scope: ScopeInvitations},
@@ -1523,30 +1520,7 @@ func ErasureCatalog() []ErasureTable { return slices.Clone(erasureCatalog) }
 
 - [ ] **Step 1: Harness.** In `api/tests/integration/setup_test.go`:
 
-Replace the `_organizations` definition with one that carries the new GSI:
-
-```go
-		{
-			TableName:   aws.String(tablePrefix + "_organizations"),
-			BillingMode: types.BillingModePayPerRequest,
-			KeySchema: []types.KeySchemaElement{
-				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
-			},
-			AttributeDefinitions: []types.AttributeDefinition{
-				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
-				{AttributeName: aws.String("organization_id"), AttributeType: types.ScalarAttributeTypeS},
-			},
-			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
-				{
-					IndexName: aws.String("organization-id-index"),
-					KeySchema: []types.KeySchemaElement{
-						{AttributeName: aws.String("organization_id"), KeyType: types.KeyTypeHash},
-					},
-					Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
-				},
-			},
-		},
-```
+The harness already defines `_organizations` with `organization-index` (#130); leave it as it is, and make sure the `organization_id` attribute definition it has is the one the purge queries.
 
 Just before `for _, def := range definitions {` in `createTables`, add:
 
@@ -1782,7 +1756,7 @@ const ErasureServiceName = "dfe"
 const (
 	erasureSettleWindow = 10 * time.Minute // > the 300 s worker Lambda timeout
 
-	organizationIDIndex = "organization-id-index"
+	organizationIDIndex = "organization-index" // existing since #130; sort key created_at
 	orgInviteIndex      = "org-invite-index"
 	userIndex           = "user-index"
 	userIDIndex         = "user-id-index"
@@ -3427,7 +3401,7 @@ func newXMLExportService(
 **Interfaces:**
 - Produces: `type service.OrgStopped func(ctx context.Context, companyID string) (bool, error)`, `func service.NewOrgStopped(store *erasure.Store) OrgStopped`, `func (s *DfeService) WithOrgStopped(f OrgStopped) *DfeService`, `func (s *DistributionService) WithOrgStopped(f OrgStopped) *DistributionService`, `func companyOfDocPK(docPK string) string`.
 
-- [ ] **Step 1: Dependency.** `cd worker && go get gopkg.aoctech.app/api-commons@v1.13.1 && go mod tidy && go build ./... && go test ./... 2>&1 | tail -5` → all `ok` (the AWS SDK minor bumps come from api-commons; the suite gates them).
+- [ ] **Step 1: Dependency.** `cd worker && go get gopkg.aoctech.app/api-commons@v1.16.0 && go mod tidy && go build ./... && go test ./... 2>&1 | tail -5` → all `ok` (the worker has no api-commons requirement today; the AWS SDK minor bumps come from api-commons and the suite gates them).
 - [ ] **Step 2: Failing tests.** `worker/internal/service/erasure_test.go`:
 
 ```go
@@ -3598,7 +3572,7 @@ The table is created by the DynamoDB stack, which CDK deploys before the worker 
 - Test: `cdk/test/dynamodb-stack.test.ts`, `cdk/test/event-bus-stack.test.ts` (new), `cdk/test/api-stack.test.ts`
 
 **Interfaces:**
-- Produces: table `{env}_dfe_erasure_state` (pk S, TTL `ttl`); GSI `organization-id-index` (pk `organization_id`, KEYS_ONLY) on `{env}_dfe_organizations`; queues `{env}-ctech-dfe-erasure` + `{env}-ctech-dfe-erasure-dlq`; `EventBusStack.erasureQueueUrl/erasureQueueArn`; `IAMStackProps.erasureQueueArn`; `ApiStackProps.erasureQueueUrl`; API env `ERASURE_QUEUE_URL`, `ERASURE_CLIENT_ID`, `ERASURE_CLIENT_SECRET` (SSM).
+- Produces: table `{env}_dfe_erasure_state` (pk S, TTL `ttl`); (the `organization-index` GSI on `{env}_dfe_organizations` already exists); queues `{env}-ctech-dfe-erasure` + `{env}-ctech-dfe-erasure-dlq`; `EventBusStack.erasureQueueUrl/erasureQueueArn`; `IAMStackProps.erasureQueueArn`; `ApiStackProps.erasureQueueUrl`; API env `ERASURE_QUEUE_URL`, `ERASURE_CLIENT_ID`, `ERASURE_CLIENT_SECRET` (SSM).
 
 - [ ] **Step 1: Failing tests.**
 
@@ -3611,19 +3585,6 @@ describe('DynamoDBStack — exclusão de conta', () => {
             TableName: 'dev_dfe_erasure_state',
             KeySchema: [{AttributeName: 'pk', KeyType: 'HASH'}],
             TimeToLiveSpecification: {AttributeName: 'ttl', Enabled: true},
-        });
-    });
-
-    test('organizations tem o GSI organization-id-index', () => {
-        synth().hasResourceProperties('AWS::DynamoDB::GlobalTable', {
-            TableName: 'dev_dfe_organizations',
-            GlobalSecondaryIndexes: Match.arrayWith([
-                Match.objectLike({
-                    IndexName: 'organization-id-index',
-                    KeySchema: [{AttributeName: 'organization_id', KeyType: 'HASH'}],
-                    Projection: {ProjectionType: 'KEYS_ONLY'},
-                }),
-            ]),
         });
     });
 });
@@ -3677,20 +3638,7 @@ test('API env carries the account-deletion queue and its own credential', () => 
 - [ ] **Step 2: Fail.** `cd cdk && npx jest 2>&1 | tail -20` → the new tests FAIL (and `api-stack.test.ts` fails to compile on the unknown prop).
 - [ ] **Step 3: Implement.**
 
-`dynamodb-stack.ts`, immediately before `this.tables.set('organizations', organizationsTable);` add:
-
-```ts
-    // Account deletion (ctech-account saga, D4): an erased ctech-account
-    // organization id → its dfe companies. Keys only: the purge needs the pk.
-    organizationsTable.addGlobalSecondaryIndex({
-      indexName: 'organization-id-index',
-      partitionKey: {name: 'organization_id', type: dynamodb.AttributeType.STRING},
-      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
-      warmThroughput: undefined,
-      maxReadRequestUnits: 1000,
-      maxWriteRequestUnits: 1000,
-    });
-```
+`dynamodb-stack.ts`: no change to `organizations` (the `organization-index` GSI exists since #130). Only the new `erasure_state` table below.
 
 and before `// ============== OUTPUTS ==============`:
 
@@ -3803,10 +3751,10 @@ and append to `ssmEnvArgs`, after the `ACCOUNT_CLIENT_SECRET` entry:
 - Modify: `DOCS.md`, `DynamoDB-Tables.md`, `DEPLOYMENT.md`, `OVERVIEW.md`, `CONDUCT.md`, `api/CLAUDE.md`
 
 - [ ] **Step 1: `DynamoDB-Tables.md`.**
-  - Index rows: add `| 46 | erasure_state | SUB#{sub} / ORG#{id} | — | — |`, add the missing `account_billing` (36) and `serie_claims` rows, and add `organization-id-index` to `organizations`.
+  - Index rows: add `| 46 | erasure_state | SUB#{sub} / ORG#{id} | — | — |`, add the missing `account_billing` (36) and `serie_claims` rows, and verify `organization-index` is listed for `organizations`.
   - Fix `15–18` and `31`: the events partition key is the document's access key (`id_dps` for NFS-e), plus `INUT#{env}#{org_pk}` for inutilizações. The old `{org_pk}` text is wrong (see `DocumentEventRepository.CreateEvent`).
   - New section `## 46. erasure_state`: attributes `pk`, `erasure_state` (`active|locked|erased`), `request_id`, `seq_ns`, `updated_at`, `ttl`; owner `ctech-go-common/erasure.Store`; `ORG#{company_id}` written by dfe (plan R5), `ORG#{account_org_id}` written by the consumer; no PII.
-  - `organizations`: document `organization-id-index` (PK `organization_id`, KEYS_ONLY; access pattern "companies of an erased ctech-account organization").
+  - `organizations`: document `organization-index` (PK `organization_id`, SK `created_at`, KEYS_ONLY; access pattern "companies of an erased ctech-account organization").
 - [ ] **Step 2: `DOCS.md`.**
   - §4 *Configuration*: `ERASURE_QUEUE_URL` (empty = participant off), `ERASURE_CLIENT_ID`/`ERASURE_CLIENT_SECRET` (dedicated erasure client, R11).
   - §4 *API Reference*: `GET /v1.0/internal/erasure/eligibility/{sub}` (service token, scope, always eligible, R2) and `GET /v1.0/xml-export/{doc_type}` (any member via `list.{doc_type}s`, 100 docs/page, `X-Next-Cursor`, production only; UI button is a dfe UI follow-up).
