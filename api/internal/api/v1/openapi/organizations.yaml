@@ -321,6 +321,39 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/xml-export/{doc_type}:
+    get:
+      tags: [ Organizations ]
+      summary: Exporta os XMLs de produção da organização em zip, por página
+      description: |
+        Até 100 documentos de produção por chamada, com o XML do documento,
+        o XML da DPS (NFS-e) e o XML de cada evento. Quando houver mais,
+        o cabeçalho `X-Next-Cursor` traz o cursor da próxima página.
+        Qualquer membro da organização pode exportar (permissão de leitura
+        da família do documento). Usado antes de excluir uma conta cuja
+        organização será apagada junto.
+      operationId: exportXML
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: doc_type
+          in: path
+          required: true
+          schema: { type: string, enum: [ nfe, nfce, cte, mdfe, nfse ] }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Zip com os XMLs da página
+          headers:
+            X-Next-Cursor:
+              description: Cursor da próxima página; ausente na última.
+              schema: { type: string }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
 
   schemas:

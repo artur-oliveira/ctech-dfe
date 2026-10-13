@@ -67,6 +67,7 @@ type Services struct {
 	RoleRepo *repositories.RoleRepository
 	// ErasureBlocked is the account-deletion write lock; nil leaves it off.
 	ErasureBlocked services.BlockedFunc
+	XMLExport      *services.XMLExportService
 }
 
 // Register mounts all /v1.0 routes onto the Fiber app.
@@ -140,6 +141,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterExternal(v1, svcs.External, authMw, perm)
 	RegisterAuditLogs(v1, svcs.AuditLog, authMw, perm)
 	RegisterErasure(v1, authMw)
+	RegisterXMLExport(v1, svcs.XMLExport, authMw, perm)
 	// The socket asks reach as the HTTP routes do. A nil *ReachService must not
 	// become a non-nil interface, or the flip would read as on and refuse
 	// everybody.

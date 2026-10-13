@@ -97,6 +97,7 @@ var Module = fx.Options(
 		newOrganizationService,
 		newUserService,
 		newErasureService,
+		newXMLExportService,
 		services.NewMembershipService,
 		services.NewInvitationService,
 		newBillingClient,
@@ -241,7 +242,7 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 		AllowOrigins:     cfg.CorsAllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "Dfe-Organization-Pk"},
-		ExposeHeaders:    []string{fiberobs.RequestIDHeader},
+		ExposeHeaders:    []string{fiberobs.RequestIDHeader, apiv1.HeaderNextCursor},
 		AllowCredentials: true,
 		MaxAge:           3600,
 	}))
@@ -586,6 +587,7 @@ type Services struct {
 	Cfg             *config.Config
 	AWS             *awsclient.Clients
 	ErasureStore    *erasure.Store
+	XMLExport       *services.XMLExportService
 }
 
 func registerRoutes(app *fiber.App, svcs Services) {
@@ -631,6 +633,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
 		ErasureBlocked:  blockedOf(svcs.ErasureStore),
+		XMLExport:       svcs.XMLExport,
 	})
 }
 
@@ -918,4 +921,20 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 			return nil
 		},
 	})
+}
+
+func newXMLExportService(
+	nfe *repositories.NfeRepository, nfce *repositories.NfceRepository, cte *repositories.CteRepository,
+	mdfe *repositories.MdfeRepository, nfse *repositories.NfseRepository,
+	db *dynamodb.Client, clients *awsclient.Clients, cfg *config.Config,
+) *services.XMLExportService {
+	docs := map[string]*repositories.DocumentRepository{
+		"nfe": &nfe.DocumentRepository, "nfce": &nfce.DocumentRepository, "cte": &cte.DocumentRepository,
+		"mdfe": &mdfe.DocumentRepository, "nfse": &nfse.DocumentRepository,
+	}
+	events := make(map[string]*repositories.DocumentEventRepository, len(docs))
+	for docType := range docs {
+		events[docType] = repositories.NewDocumentEventRepository(db, cfg, docType)
+	}
+	return services.NewXMLExportService(docs, events, clients.S3, cfg.S3BucketDocuments)
 }
