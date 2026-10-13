@@ -13,10 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/dynamo"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
@@ -675,4 +677,37 @@ func randomCNPJ() string {
 		b.WriteByte(byte('0' + d))
 	}
 	return b.String()
+}
+
+// putItem writes item to {tablePrefix}_{table}.
+func putItem(t *testing.T, table string, item map[string]any) {
+	t.Helper()
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.PutItem(context.Background(), &dynamodb.PutItemInput{
+		TableName: aws.String(dynamo.TableName(tablePrefix, table)), Item: av,
+	}); err != nil {
+		t.Fatalf("put %s: %v", table, err)
+	}
+}
+
+// getItem reads key from {tablePrefix}_{table}; nil when absent.
+func getItem(t *testing.T, table string, key map[string]any) map[string]types.AttributeValue {
+	t.Helper()
+	av, err := attributevalue.MarshalMap(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := db.GetItem(context.Background(), &dynamodb.GetItemInput{
+		TableName: aws.String(dynamo.TableName(tablePrefix, table)), Key: av, ConsistentRead: aws.Bool(true),
+	})
+	if err != nil {
+		t.Fatalf("get %s: %v", table, err)
+	}
+	if len(out.Item) == 0 {
+		return nil
+	}
+	return out.Item
 }
