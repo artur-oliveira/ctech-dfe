@@ -138,6 +138,12 @@ export class WorkerStack extends cdk.Stack {
         resources: [dfeLambdaArn],
       }))
 
+      // Drop jobs of companies in account deletion (erasure state, read only).
+      role.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['dynamodb:GetItem'],
+        resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_erasure_state`],
+      }))
+
       role.addToPrincipalPolicy(new iam.PolicyStatement({
         actions: ['sns:Publish'],
         resources: [resultsTopicArn],

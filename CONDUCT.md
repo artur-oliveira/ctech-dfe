@@ -1092,6 +1092,17 @@ trusting a hop nothing routes through is inert rather than wrong.
   $remote_addr`) rather than appending, so the Go app's `TRUSTED_PROXIES` / Fiber `c.IP()` — which
   reads the leftmost entry — cannot be fed a forged value.
 
+### Exclusão de conta (LGPD)
+
+- Toda tabela DynamoDB nova entra em `api/internal/services/erasure_catalog.go` no mesmo change; o teste
+  `TestErasureCatalogCoversEveryCDKTable` falha caso contrário. Chave nova em `account_billing` entra em
+  `billingKeyKinds` (`TestEveryAccountBillingKeyKindIsPurged`).
+- Todo consumidor assíncrono novo de trabalho de empresa consulta o estado da empresa (`ORG#{company_id}` em
+  `erasure_state`) e descarta o job se estiver bloqueada ou apagada; falha na consulta é erro (fail closed).
+- O CPF do endpoint de subject fica só em memória: nunca logar, persistir nem colocar em mensagem de erro.
+- Objetos S3 são apagados pelas chaves que as linhas guardam (todas as versões), nunca pela pasta `CNPJ_`.
+- Credencial do ack e do subject é `ERASURE_CLIENT_*`, nunca `ACCOUNT_CLIENT_*`.
+
 ## ctech-dfe-worker (Go Lambda)
 
 - Runtime: `provided.al2023`. Binary must be named `bootstrap`.

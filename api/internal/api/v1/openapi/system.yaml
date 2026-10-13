@@ -351,3 +351,38 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/internal/erasure/eligibility/{sub}:
+    get:
+      tags: [ Auth ]
+      summary: Bloqueios desta API para excluir a conta (saga LGPD)
+      description: |
+        Chamada pelo ctech-account com token de serviço (sem sessão) e escopo
+        `internal:dfe:erasure-eligibility`. A DF-e não tem bloqueio próprio:
+        a resposta é sempre `eligible: true`.
+      operationId: erasureEligibility
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Elegibilidade
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ eligible, blockers ]
+                properties:
+                  eligible: { type: boolean }
+                  blockers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code: { type: string }
+                        detail: { type: object }
+                        action_url: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }

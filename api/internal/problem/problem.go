@@ -18,19 +18,22 @@ const ContentType = "application/problem+json"
 // Problem type URIs (RFC 7807 "type" member). Defined as constants so they are
 // never scattered as raw string literals across the codebase.
 const (
-	TypeBadRequest      = "/problems/bad-request"
-	TypeNoCertificate   = "/problems/no-certificate"
-	TypeRetired         = "/problems/retired"
-	TypeSefazRejection  = "/problems/sefaz-rejection"
-	TypeUnauthorized    = "/problems/unauthorized"
-	TypeForbidden       = "/problems/forbidden"
-	TypeNotFound        = "/problems/not-found"
-	TypeConflict        = "/problems/conflict"
-	TypeValidation      = "/problems/validation-error"
-	TypeTooManyRequests = "/problems/too-many-requests"
-	TypeInternalServer  = "/problems/internal-server-error"
-	TypeNotImplemented  = "/problems/not-implemented"
-	TypePayloadTooLarge = "/problems/payload-too-large"
+	TypeBadRequest     = "/problems/bad-request"
+	TypeNoCertificate  = "/problems/no-certificate"
+	TypeRetired        = "/problems/retired"
+	TypeSefazRejection = "/problems/sefaz-rejection"
+	TypeUnauthorized   = "/problems/unauthorized"
+	TypeForbidden      = "/problems/forbidden"
+	// TypeAccountPendingDeletion refuses a write of an account in the deletion
+	// saga (locked during grace, or erased). Same name ctech-account uses.
+	TypeAccountPendingDeletion = "/problems/account-pending-deletion"
+	TypeNotFound               = "/problems/not-found"
+	TypeConflict               = "/problems/conflict"
+	TypeValidation             = "/problems/validation-error"
+	TypeTooManyRequests        = "/problems/too-many-requests"
+	TypeInternalServer         = "/problems/internal-server-error"
+	TypeNotImplemented         = "/problems/not-implemented"
+	TypePayloadTooLarge        = "/problems/payload-too-large"
 	// TypePaymentRequired covers every refusal that money fixes: no subscription,
 	// one that lapsed, and a quota that ran out. One type with a `reason` rather
 	// than three types, because the client's response to all of them is the same
@@ -131,6 +134,11 @@ func Unauthorized(detail string) *Problem {
 
 func Forbidden(detail string) *Problem {
 	return wrap(commonproblem.Forbidden(detail))
+}
+
+// AccountPendingDeletion refuses a state-changing request of a locked account.
+func AccountPendingDeletion(detail string) *Problem {
+	return New(http.StatusForbidden, TypeAccountPendingDeletion, "Account Pending Deletion", detail)
 }
 
 func NotFound(detail string) *Problem {

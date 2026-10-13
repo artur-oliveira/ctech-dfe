@@ -18,6 +18,7 @@ interface IAMStackProps extends cdk.StackProps {
 
   resultsQueueArn: string;
   distributionQueueArn: string;
+  erasureQueueArn: string;
 }
 
 export class IAMStack extends cdk.Stack {
@@ -264,6 +265,21 @@ export class IAMStack extends cdk.Stack {
     });
 
     this.apiV2Role.addToPrincipalPolicy(apiSqsPolicy);
+
+    // Account deletion: consume the erasure queue, and erase every version of
+    // an erased company's objects or of an erased e-CPF (inventory §2).
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes'],
+      resources: [props.erasureQueueArn],
+    }));
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['s3:ListBucketVersions'],
+      resources: [props.certificatesBucketArn, props.documentsBucketArn],
+    }));
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
+      resources: [`${props.certificatesBucketArn}/*`, `${props.documentsBucketArn}/*`],
+    }));
 
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['sqs:SendMessage', 'sqs:GetQueueAttributes'],

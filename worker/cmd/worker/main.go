@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"gopkg.aoctech.app/api-commons/erasure"
 	"log/slog"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -44,12 +45,14 @@ func main() {
 		panic("aws config: " + err.Error())
 	}
 
+	dyn := dynamodb.NewFromConfig(ac)
+	stopped := service.NewOrgStopped(erasure.NewStore(dyn, cfg.TablePrefix, 0))
 	svc := service.New(service.Clients{
 		S3:     s3.NewFromConfig(ac),
 		Lambda: lambdaSDK.NewFromConfig(ac, func(o *lambdaSDK.Options) { o.Region = cfg.DfeEgressRegion }),
-		Dynamo: dynamodb.NewFromConfig(ac),
+		Dynamo: dyn,
 		SNS:    sns.NewFromConfig(ac),
-	}, cfg)
+	}, cfg).WithOrgStopped(stopped)
 
 	lambda.Start(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
 		if service.IsPingEvent(raw) {

@@ -6,15 +6,18 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/jwtverify"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 )
 
@@ -90,5 +93,75 @@ func TestVerify_RejectsInvalidToken(t *testing.T) {
 
 	if _, err := v.VerifyClaims(context.Background(), "not-a-jwt"); err == nil {
 		t.Fatal("expected malformed token to be rejected")
+	}
+}
+
+func TestMiddleware_RefusesWritesOfLockedUser(t *testing.T) {
+	key, srv := newJWKSServer(t)
+	locked := map[string]bool{"user-locked": true}
+	v := middleware.NewVerifier(srv.URL, testAudience, testIssuer, cache.NewMemoryBackend(16)).
+		WithLockCheck(func(_ context.Context, sub string) (bool, error) { return locked[sub], nil })
+	app := fiber.New()
+	app.Use(v.Middleware())
+	app.All("/x", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+
+	do := func(method, sub string) int {
+		now := time.Now().Unix()
+		tok := signToken(t, key, jwt.MapClaims{
+			"sub": sub, "iss": testIssuer, "aud": []string{testAudience}, "iat": now, "exp": now + 900, "token_use": "access",
+		})
+		req := httptest.NewRequest(method, "/x", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp.StatusCode
+	}
+	if got := do(fiber.MethodPost, "user-locked"); got != fiber.StatusForbidden {
+		t.Errorf("POST by a locked user = %d, want 403", got)
+	}
+	if got := do(fiber.MethodGet, "user-locked"); got != fiber.StatusNoContent {
+		t.Errorf("GET by a locked user = %d, want 204 (reads are not state-changing)", got)
+	}
+	if got := do(fiber.MethodDelete, "user-free"); got != fiber.StatusNoContent {
+		t.Errorf("DELETE by an active user = %d, want 204", got)
+	}
+}
+
+func TestMiddleware_LockCheckFailureFailsClosed(t *testing.T) {
+	key, srv := newJWKSServer(t)
+	v := middleware.NewVerifier(srv.URL, testAudience, testIssuer, cache.NewMemoryBackend(16)).
+		WithLockCheck(func(context.Context, string) (bool, error) { return false, errors.New("dynamodb down") })
+	app := fiber.New()
+	app.Use(v.Middleware())
+	app.Post("/x", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+	now := time.Now().Unix()
+	tok := signToken(t, key, jwt.MapClaims{"sub": "u", "iss": testIssuer, "aud": []string{testAudience}, "iat": now, "exp": now + 900, "token_use": "access"})
+	req := httptest.NewRequest(fiber.MethodPost, "/x", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 (an unknown lock state must not allow a write)", resp.StatusCode)
+	}
+}
+
+func TestVerify_RejectsRevokedToken(t *testing.T) {
+	key, srv := newJWKSServer(t)
+	mem := cache.NewMemoryBackend(16)
+	v := middleware.NewVerifier(srv.URL, testAudience, testIssuer, mem)
+	now := time.Now()
+	tok := signToken(t, key, jwt.MapClaims{
+		"sub": "user-1", "iss": testIssuer, "aud": []string{testAudience},
+		"iat": now.Add(-time.Minute).Unix(), "exp": now.Add(14 * time.Minute).Unix(), "token_use": "access",
+	})
+	if err := jwtverify.Revoke(context.Background(), mem, "user-1", now, jwtverify.RevocationTTL); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.VerifyClaims(context.Background(), tok); !errors.Is(err, jwtverify.ErrTokenRevoked) {
+		t.Fatalf("err = %v, want ErrTokenRevoked", err)
 	}
 }

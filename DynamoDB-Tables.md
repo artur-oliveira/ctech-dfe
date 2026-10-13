@@ -25,10 +25,10 @@ PITR: enabled in production only.
 | 12 | `nfces`                     | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 13 | `ctes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 14 | `mdfes`                     | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
-| 15 | `nfe_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
-| 16 | `nfce_events`               | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
-| 17 | `cte_events`                | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
-| 18 | `mdfe_events`               | `{org_pk}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 15 | `nfe_events`                | `{access_key}` (+ `INUT#{env}#{org_pk}`) | `{ulid}`                               | `org-event-key-index`                              |
+| 16 | `nfce_events`               | `{access_key}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 17 | `cte_events`                | `{access_key}`                   | `{ulid}`                               | `org-event-key-index`                              |
+| 18 | `mdfe_events`               | `{access_key}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 19 | `nfe_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 20 | `cte_distributions`         | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
 | 21 | `mdfe_distributions`        | `{env}#{org_pk}`             | `nsu` (N)                                | —                                                  |
@@ -55,6 +55,8 @@ PITR: enabled in production only.
 | 43 | `organization_fuel_pumps`   | `{org_pk}`                   | `FUELPUMP_{uuid}`                        | `name-index`                                       |
 | 44 | `organization_service_locations` | `{org_pk}`              | `SERVICELOCATION_{uuid}`                 | `name-index`                                       |
 | 45 | `organization_reference_documents` | `{org_pk}`            | `REFERENCEDOC_{uuid}`                    | `name-index`                                       |
+| 36 | `account_billing`           | `ORG_{id}` / `USER_{sub}` / `QUOTA_GUARD_…` / `USAGE_…` / `LEVEL_DIRTY_…` | — | `level-dirty-index` (sparse) |
+| 46 | `erasure_state`             | `SUB#{sub}` / `ORG#{id}`     | —                                        | —                                                |
 
 ---
 
@@ -1050,3 +1052,25 @@ silêncio qual ramo do `xs:choice` gerar.
 | `competence_at`      | S    | → `dtCompDoc`. Nunca anterior a `issued_at`                          |
 | `description`        | S    | → `xDescOutDed` / `xTpReeRepRes` (até 150)                            |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                              |
+
+---
+
+## 46. `erasure_state`
+
+Account-deletion lock and tombstones (LGPD). Schema owned by `ctech-go-common/erasure.Store`.
+
+| Attribute       | Type | Meaning                                                                    |
+|-----------------|------|----------------------------------------------------------------------------|
+| `pk`            | S    | `SUB#{sub}` (a person) or `ORG#{id}` (a company or a ctech-account organization) |
+| `erasure_state` | S    | `active`, `locked` or `erased`                                             |
+| `request_id`    | S    | The deletion request that moved it                                         |
+| `seq_ns`        | N    | Ordering of messages (`issued_at`)                                         |
+| `updated_at`    | S    | RFC 3339; the settle window counts from the company's lock time            |
+| `ttl`           | N    | Only on records that may expire; erased records have none                  |
+
+No personal data. `ORG#{company_id}` is written by dfe itself (plan ruling R5) so workers, which only know company
+ids, can drop jobs of a locked company; `ORG#{account_org_id}` and `SUB#{sub}` are written by the consumer.
+Everything here is reached by `GetItem` on `pk`; there are no GSIs.
+
+`organizations` also carries `organization-index` (PK `organization_id`, SK `created_at`, KEYS_ONLY, sparse):
+access pattern "companies of an erased ctech-account organization" for the deletion purge.

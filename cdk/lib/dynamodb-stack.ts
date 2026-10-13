@@ -51,7 +51,8 @@ export type TableName = (
   'cte_distributions' |
   'mdfe_distributions' |
   'nfse_distributions' |
-  'worker_outbox'
+  'worker_outbox' |
+  'erasure_state'
   )
 
 type TablePrefix = `${Environment}_dfe`
@@ -783,6 +784,22 @@ export class DynamoDBStack extends cdk.Stack {
     this.tables.set('serie_claims', serieClaimsTable);
 
     this.tables.set('worker_outbox', workerOutboxTable);
+
+    // Account-deletion lock/tombstone state (SUB#{sub}, ORG#{id}), schema owned
+    // by ctech-go-common erasure.Store. No PII; erased records have no TTL.
+    const erasureStateTable = new dynamodb.TableV2(this, `${tablePrefix}_erasure_state`, {
+      tableName: `${tablePrefix}_erasure_state`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      timeToLiveAttribute: 'ttl',
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    this.tables.set('erasure_state', erasureStateTable);
 
     // ============== OUTPUTS ==============
 

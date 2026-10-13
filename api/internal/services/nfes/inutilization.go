@@ -94,7 +94,7 @@ func (d inutDeps) partitionKey(orgPK string) string {
 // inutEventPK is the synthetic events-table partition key for an organization's
 // inutilizations in one environment.
 func inutEventPK(envPrefix, orgPK string) string {
-	return fmt.Sprintf("%s#%s#%s", EventTypeInutilizacao, envPrefix, orgPK)
+	return services.InutEventPK(envPrefix, orgPK)
 }
 
 // inutEventKey is the GSI sort key — one per (year, series, range), which also

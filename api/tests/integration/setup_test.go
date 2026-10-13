@@ -13,10 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/dynamo"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
@@ -577,6 +579,18 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 		})
 	}
 
+	// The account-deletion purge reaches every catalog table: create the ones
+	// the definitions above do not, with the plain key shape the purge uses.
+	defined := map[string]bool{}
+	for _, d := range definitions {
+		defined[*d.TableName] = true
+	}
+	for _, tb := range services.ErasureCatalog() {
+		if name := tablePrefix + "_" + tb.Name; !defined[name] {
+			definitions = append(definitions, plainTable(name, tb.SortKey))
+		}
+	}
+
 	for _, def := range definitions {
 		_, err := db.CreateTable(ctx, &def)
 		if err != nil && !strings.Contains(err.Error(), "ResourceInUseException") {
@@ -628,6 +642,30 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})
 	}
+	for _, tb := range services.ErasureCatalog() {
+		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(tablePrefix + "_" + tb.Name)})
+	}
+}
+
+// plainTable is a pk (S) table with an optional sort key ("nsu" is numeric).
+func plainTable(name, sortKey string) dynamodb.CreateTableInput {
+	in := dynamodb.CreateTableInput{
+		TableName:   aws.String(name),
+		BillingMode: types.BillingModePayPerRequest,
+		KeySchema:   []types.KeySchemaElement{{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash}},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+		},
+	}
+	if sortKey != "" {
+		typ := types.ScalarAttributeTypeS
+		if sortKey == "nsu" {
+			typ = types.ScalarAttributeTypeN
+		}
+		in.KeySchema = append(in.KeySchema, types.KeySchemaElement{AttributeName: aws.String(sortKey), KeyType: types.KeyTypeRange})
+		in.AttributeDefinitions = append(in.AttributeDefinitions, types.AttributeDefinition{AttributeName: aws.String(sortKey), AttributeType: typ})
+	}
+	return in
 }
 
 // randomCNPJ generates a structurally valid CNPJ (check digits correct).
@@ -675,4 +713,37 @@ func randomCNPJ() string {
 		b.WriteByte(byte('0' + d))
 	}
 	return b.String()
+}
+
+// putItem writes item to {tablePrefix}_{table}.
+func putItem(t *testing.T, table string, item map[string]any) {
+	t.Helper()
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.PutItem(context.Background(), &dynamodb.PutItemInput{
+		TableName: aws.String(dynamo.TableName(tablePrefix, table)), Item: av,
+	}); err != nil {
+		t.Fatalf("put %s: %v", table, err)
+	}
+}
+
+// getItem reads key from {tablePrefix}_{table}; nil when absent.
+func getItem(t *testing.T, table string, key map[string]any) map[string]types.AttributeValue {
+	t.Helper()
+	av, err := attributevalue.MarshalMap(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := db.GetItem(context.Background(), &dynamodb.GetItemInput{
+		TableName: aws.String(dynamo.TableName(tablePrefix, table)), Key: av, ConsistentRead: aws.Bool(true),
+	})
+	if err != nil {
+		t.Fatalf("get %s: %v", table, err)
+	}
+	if len(out.Item) == 0 {
+		return nil
+	}
+	return out.Item
 }

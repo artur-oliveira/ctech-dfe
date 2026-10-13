@@ -147,6 +147,7 @@ const iamStack = new IAMStack(app, id('IAM'), {
   topicArn: eventBusStack.topic.topicArn,
   resultsQueueArn: eventBusStack.resultsQueueArn,
   distributionQueueArn: workerStack.distributionQueueArn,
+  erasureQueueArn: eventBusStack.erasureQueueArn,
   description: `CTech DFe IAM Roles - ${ENVIRONMENT}`,
 });
 iamStack.addStackDependency(dynamodbStack);
@@ -169,6 +170,7 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
   resultsQueueUrl: eventBusStack.resultsQueueUrl,
   nfeEmissionTopicArn: eventBusStack.topic.topicArn,
   distributionQueueUrl: workerStack.distributionQueueUrl,
+  erasureQueueUrl: eventBusStack.erasureQueueUrl,
   // Shared Valkey instance owned by ctech-cdk — same SSM path convention.
   valkeyUrlSsmPath: `/ctech/${ENVIRONMENT}/valkey/url`,
   enableSsmAgent: ENABLE_SSM_AGENT,
@@ -184,3 +186,4 @@ apiV2Stack.addStackDependency(iamStack);
 // distributionQueueUrl is a CFN cross-stack reference — CDK infers this automatically,
 // but we make it explicit for clarity.
 apiV2Stack.addStackDependency(workerStack);
+apiV2Stack.addStackDependency(eventBusStack);

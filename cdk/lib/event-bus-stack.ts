@@ -3,6 +3,7 @@ import * as sns from 'aws-cdk-lib/aws-sns'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions'
 import * as iam from 'aws-cdk-lib/aws-iam'
+import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
 import {Environment} from './types'
 
@@ -15,6 +16,8 @@ export class EventBusStack extends cdk.Stack {
   public readonly resultsTopic: sns.Topic
   public readonly resultsQueueUrl: string
   public readonly resultsQueueArn: string
+  public readonly erasureQueueUrl: string
+  public readonly erasureQueueArn: string
 
   constructor(scope: Construct, id: string, props: EventBusStackProps) {
     super(scope, id, props)
@@ -72,8 +75,32 @@ export class EventBusStack extends cdk.Stack {
     this.resultsQueueUrl = resultsQueue.queueUrl
     this.resultsQueueArn = resultsQueue.queueArn
 
+    // Account deletion (ctech-account saga protocol §3): this service's queue
+    // on ctech-account's user-erasure topic. Raw delivery; the filter is on the
+    // `services` message attribute. Visibility >= 2x the slowest purge (§7).
+    const erasureDlq = new sqs.Queue(this, 'ErasureQueue-dlq', {
+      queueName: `${environment}-ctech-dfe-erasure-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+    })
+    const erasureQueue = new sqs.Queue(this, 'ErasureQueue', {
+      queueName: `${environment}-ctech-dfe-erasure`,
+      visibilityTimeout: cdk.Duration.minutes(30),
+      retentionPeriod: cdk.Duration.days(14),
+      receiveMessageWaitTime: cdk.Duration.seconds(20),
+      deadLetterQueue: {queue: erasureDlq, maxReceiveCount: 5},
+    })
+    const accountErasureTopic = sns.Topic.fromTopicArn(this, 'AccountUserErasureTopic',
+      ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/account/erasure-topic-arn`))
+    accountErasureTopic.addSubscription(new subs.SqsSubscription(erasureQueue, {
+      rawMessageDelivery: true,
+      filterPolicy: {services: sns.SubscriptionFilter.stringFilter({allowlist: ['dfe']})},
+    }))
+    this.erasureQueueUrl = erasureQueue.queueUrl
+    this.erasureQueueArn = erasureQueue.queueArn
+
     new cdk.CfnOutput(this, 'EventBusArn', {value: this.topic.topicArn})
     new cdk.CfnOutput(this, 'ResultsTopicArn', {value: this.resultsTopic.topicArn})
     new cdk.CfnOutput(this, 'ResultsQueueUrl', {value: this.resultsQueueUrl})
+    new cdk.CfnOutput(this, 'ErasureQueueUrl', {value: this.erasureQueueUrl})
   }
 }

@@ -84,9 +84,9 @@ func seedNfseOrgAt(t *testing.T, orgPK, taxID string, withRegTrib bool) (service
 		"cpf_or_cnpj": &types.AttributeValueMemberS{Value: taxID},
 		"person":      &types.AttributeValueMemberM{Value: person},
 	}
-	putItem(t, tablePrefix+"_organizations", org)
+	putRawItem(t, tablePrefix+"_organizations", org)
 
-	putItem(t, tablePrefix+"_organization_certificates", map[string]types.AttributeValue{
+	putRawItem(t, tablePrefix+"_organization_certificates", map[string]types.AttributeValue{
 		"pk":       &types.AttributeValueMemberS{Value: orgPK},
 		"sk":       &types.AttributeValueMemberS{Value: "CERTIFICATE_test"},
 		"s3_key":   &types.AttributeValueMemberS{Value: orgPK + "/cert.pfx"},
@@ -121,7 +121,7 @@ func seedNfseOrgAt(t *testing.T, orgPK, taxID string, withRegTrib bool) (service
 	return svc["sk"].(*types.AttributeValueMemberS).Value
 }
 
-func putItem(t *testing.T, table string, item map[string]types.AttributeValue) {
+func putRawItem(t *testing.T, table string, item map[string]types.AttributeValue) {
 	t.Helper()
 	if _, err := db.PutItem(context.Background(), &dynamodb.PutItemInput{
 		TableName: aws.String(table), Item: item,
