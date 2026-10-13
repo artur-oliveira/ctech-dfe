@@ -51,7 +51,8 @@ export type TableName = (
   'cte_distributions' |
   'mdfe_distributions' |
   'nfse_distributions' |
-  'worker_outbox'
+  'worker_outbox' |
+  'erasure_state'
   )
 
 type TablePrefix = `${Environment}_dfe`

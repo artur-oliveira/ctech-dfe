@@ -29,6 +29,12 @@ const (
 	SefazEnvHom  = "homologacao"
 )
 
+// InutEventPK is the synthetic events-table partition of an organization's
+// inutilizações in one environment: INUT#{env}#{org_pk}.
+func InutEventPK(env, orgPK string) string {
+	return "INUT#" + env + "#" + orgPK
+}
+
 // EnvToPrefix converts the environment code (1=produção, 2=homologação) to the
 // prefix used by every per-environment config field (`{prefix}_current_number`,
 // `{prefix}_nsu`, …) and by the document PK (`{prefix}#{org_pk}`).

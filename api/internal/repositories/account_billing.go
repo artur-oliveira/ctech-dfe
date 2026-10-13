@@ -250,7 +250,8 @@ func UsageCounterPK(accountID, period string) string {
 	return "USAGE_" + RawUserID(accountID) + "#" + period
 }
 
-func quotaGuardPK(accountID, meter string) string {
+// QuotaGuardPK keys the concurrency guard of a live resource quota.
+func QuotaGuardPK(accountID, meter string) string {
 	return "QUOTA_GUARD_" + RawUserID(accountID) + "#" + meter
 }
 
@@ -258,7 +259,7 @@ func quotaGuardPK(accountID, meter string) string {
 // and invitation acceptance include it in their own transaction, serializing
 // the preceding live-count decision without replacing live state with counters.
 func (r *AccountBillingRepository) BuildQuotaGuardTx(ctx context.Context, accountID, meter string) (types.TransactWriteItem, error) {
-	pk := quotaGuardPK(accountID, meter)
+	pk := QuotaGuardPK(accountID, meter)
 	item, err := r.GetItem(ctx, pk)
 	if err != nil {
 		return types.TransactWriteItem{}, err
