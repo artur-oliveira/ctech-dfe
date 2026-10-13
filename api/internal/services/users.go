@@ -56,6 +56,7 @@ type UserService struct {
 	httpClient *http.Client
 	orgSvc     *OrganizationService
 	memberSvc  *MembershipService
+	blocked    BlockedFunc
 }
 
 func NewUserService(
@@ -75,6 +76,12 @@ func NewUserService(
 	}
 }
 
+// WithErasureLock makes GetOrCreate refuse to provision a locked or erased sub.
+func (s *UserService) WithErasureLock(blocked BlockedFunc) *UserService {
+	s.blocked = blocked
+	return s
+}
+
 // GetOrCreate provisions a bare user row on first login (organizations: []).
 // Profile fields are never written here — see CreateMinimal.
 func (s *UserService) GetOrCreate(ctx context.Context, userID string) (map[string]types.AttributeValue, error) {
@@ -84,6 +91,15 @@ func (s *UserService) GetOrCreate(ctx context.Context, userID string) (map[strin
 	}
 	if user != nil {
 		return user, nil
+	}
+	if s.blocked != nil {
+		locked, err := s.blocked(ctx, repositories.RawUserID(userID))
+		if err != nil {
+			return nil, err
+		}
+		if locked {
+			return nil, problem.AccountPendingDeletion("Conta em processo de exclusão.")
+		}
 	}
 	return s.repo.CreateMinimal(ctx, userID)
 }

@@ -8,6 +8,7 @@ import (
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/jwtverify"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -29,10 +30,25 @@ const (
 // Fiber-facing bits (locals wiring, RFC 7807 error responses) specific to dfe.
 type Verifier struct {
 	*jwtverify.Verifier
+	blocked services.BlockedFunc
 }
 
+// NewVerifier also turns on the account-deletion revocation list: ctech-account
+// writes ctech:jwt:revoked_sub:{sub} in Valkey DB 0, which is this service's
+// cache backend (VALKEY_URL has no DB suffix). Fail open when Valkey is down;
+// the local lock (WithLockCheck) is the independent second layer.
 func NewVerifier(jwksURL, audience, issuer string, cacheBackend cache.Backend) *Verifier {
-	return &Verifier{jwtverify.NewVerifier(jwksURL, audience, issuer, cacheBackend)}
+	v := jwtverify.NewVerifier(jwksURL, audience, issuer, cacheBackend)
+	v.WithRevocation(cacheBackend)
+	return &Verifier{Verifier: v}
+}
+
+// WithLockCheck refuses state-changing requests of a sub the deletion saga
+// locked or erased. This middleware is the one choke point every user route
+// goes through, so no write path can forget the check.
+func (v *Verifier) WithLockCheck(blocked services.BlockedFunc) *Verifier {
+	v.blocked = blocked
+	return v
 }
 
 // Middleware returns Fiber middleware that validates the Bearer token on each request.
@@ -53,6 +69,15 @@ func (v *Verifier) Middleware() fiber.Handler {
 		c.Locals(SessionIDKey, claims.SID)
 		c.Locals(ScopesKey, claims.Scopes())
 		c.Locals(AzpKey, claims.AZP)
+		if v.blocked != nil && isMutating(c.Method()) {
+			locked, err := v.blocked(c.Context(), claims.Sub)
+			if err != nil {
+				return problem.InternalServer("estado da conta indisponível").WithCause(err).Send(c)
+			}
+			if locked {
+				return problem.AccountPendingDeletion("Conta em processo de exclusão; operações de escrita estão bloqueadas.").Send(c)
+			}
+		}
 		return c.Next()
 	}
 }
