@@ -22,6 +22,7 @@ function synth() {
     resultsQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-dfe-results',
     nfeEmissionTopicArn: 'arn:aws:sns:us-east-1:868899309401:prod-dfe-emission',
     distributionQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-dfe-distribution',
+    erasureQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure',
     valkeyUrlSsmPath: '/ctech-dfe/prod/valkey-url',
   })
   cachedTemplate = Template.fromStack(stack)
@@ -114,4 +115,11 @@ describe('ApiStack — organization subscription credential', () => {
     expect(text).toContain('ACCOUNT_WORKSPACE_CLIENT_ID=/ctech-dfe/')
     expect(text).toContain('ACCOUNT_WORKSPACE_CLIENT_SECRET=/ctech-dfe/')
   })
+})
+
+test('API env carries the account-deletion queue and its own credential', () => {
+  const text = userDataText(synth())
+  expect(text).toContain('ERASURE_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure')
+  expect(text).toContain('ERASURE_CLIENT_ID=/ctech-dfe/prod/erasure/client-id')
+  expect(text).toContain('ERASURE_CLIENT_SECRET=/ctech-dfe/prod/erasure/client-secret')
 })

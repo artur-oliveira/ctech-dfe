@@ -107,3 +107,13 @@ describe('DynamoDBStack — níveis de cobrança pendentes', () => {
         });
     });
 });
+
+describe('DynamoDBStack — exclusão de conta', () => {
+    test('erasure_state: só pk, com TTL em ttl', () => {
+        synth().hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_erasure_state',
+            KeySchema: [{AttributeName: 'pk', KeyType: 'HASH'}],
+            TimeToLiveSpecification: {AttributeName: 'ttl', Enabled: true},
+        });
+    });
+});

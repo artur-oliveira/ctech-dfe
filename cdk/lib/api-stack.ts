@@ -34,6 +34,7 @@ interface ApiStackProps extends cdk.StackProps {
   resultsQueueUrl: string;
   nfeEmissionTopicArn: string;
   distributionQueueUrl: string;
+  erasureQueueUrl: string;
   // SSM path written by ValkeyStack at boot. If omitted, VALKEY_URL is not set
   // and the app falls back to NoCacheBackend.
   valkeyUrlSsmPath: string;
@@ -63,6 +64,7 @@ export class ApiStack extends cdk.Stack {
       resultsQueueUrl,
       nfeEmissionTopicArn,
       distributionQueueUrl,
+      erasureQueueUrl,
       valkeyUrlSsmPath,
       enableSsmAgent = false,
       osFamily = 'alpine',
@@ -105,6 +107,11 @@ export class ApiStack extends cdk.Stack {
     // the access record — the pre-flip behaviour, and a deliberate default.
     const accountClientIdParameter = `/ctech-dfe/${environment}/account-client-id`;
     const accountClientSecretParameter = `/ctech-dfe/${environment}/account-client-secret`;
+    // The deletion saga's own credential (plan ruling R11): acks user.erase and
+    // reads the purging user's CPF. Separate from the reach pair so one being
+    // wrong cannot disable the other. SecureStrings written out of band.
+    const erasureClientIdParameter = `/ctech-dfe/${environment}/erasure/client-id`;
+    const erasureClientSecretParameter = `/ctech-dfe/${environment}/erasure/client-secret`;
     // The organization-membership credential (internal:account:org-member and
     // internal:account:user-organizations): who may manage an organization's
     // DF-e subscription. Created by ctech-account's cmd/createclient with these
@@ -185,6 +192,7 @@ export class ApiStack extends cdk.Stack {
       `DFE_TOPIC_ARN=${nfeEmissionTopicArn}`,
       `DFE_RESULTS_QUEUE_URL=${resultsQueueUrl}`,
       `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`,
+      `ERASURE_QUEUE_URL=${erasureQueueUrl}`,
       `SEFAZ_FUNCTION_NAME=${egressFunctionName(environment)}`,
       `DFE_EGRESS_REGION=${EGRESS_REGION}`,
       `TRUSTED_PROXIES=127.0.0.1`,
@@ -205,6 +213,8 @@ export class ApiStack extends cdk.Stack {
       `BILLING_CLIENT_SECRET=${billingClientSecretParameter}`,
       `ACCOUNT_CLIENT_ID=${accountClientIdParameter}`,
       `ACCOUNT_CLIENT_SECRET=${accountClientSecretParameter}`,
+      `ERASURE_CLIENT_ID=${erasureClientIdParameter}`,
+      `ERASURE_CLIENT_SECRET=${erasureClientSecretParameter}`,
       `ACCOUNT_WORKSPACE_CLIENT_ID=${accountWorkspaceClientIdParameter}`,
       `ACCOUNT_WORKSPACE_CLIENT_SECRET=${accountWorkspaceClientSecretParameter}`,
     ];
