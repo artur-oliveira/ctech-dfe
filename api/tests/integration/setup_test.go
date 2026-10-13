@@ -579,6 +579,18 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 		})
 	}
 
+	// The account-deletion purge reaches every catalog table: create the ones
+	// the definitions above do not, with the plain key shape the purge uses.
+	defined := map[string]bool{}
+	for _, d := range definitions {
+		defined[*d.TableName] = true
+	}
+	for _, tb := range services.ErasureCatalog() {
+		if name := tablePrefix + "_" + tb.Name; !defined[name] {
+			definitions = append(definitions, plainTable(name, tb.SortKey))
+		}
+	}
+
 	for _, def := range definitions {
 		_, err := db.CreateTable(ctx, &def)
 		if err != nil && !strings.Contains(err.Error(), "ResourceInUseException") {
@@ -630,6 +642,30 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})
 	}
+	for _, tb := range services.ErasureCatalog() {
+		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(tablePrefix + "_" + tb.Name)})
+	}
+}
+
+// plainTable is a pk (S) table with an optional sort key ("nsu" is numeric).
+func plainTable(name, sortKey string) dynamodb.CreateTableInput {
+	in := dynamodb.CreateTableInput{
+		TableName:   aws.String(name),
+		BillingMode: types.BillingModePayPerRequest,
+		KeySchema:   []types.KeySchemaElement{{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash}},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+		},
+	}
+	if sortKey != "" {
+		typ := types.ScalarAttributeTypeS
+		if sortKey == "nsu" {
+			typ = types.ScalarAttributeTypeN
+		}
+		in.KeySchema = append(in.KeySchema, types.KeySchemaElement{AttributeName: aws.String(sortKey), KeyType: types.KeyTypeRange})
+		in.AttributeDefinitions = append(in.AttributeDefinitions, types.AttributeDefinition{AttributeName: aws.String(sortKey), AttributeType: typ})
+	}
+	return in
 }
 
 // randomCNPJ generates a structurally valid CNPJ (check digits correct).
