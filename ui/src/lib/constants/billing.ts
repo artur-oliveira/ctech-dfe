@@ -37,6 +37,8 @@ export const METER_LABELS: Record<string, string> = {
 
 /** Price metadata keys. */
 export const META_PLAN = 'plan';
+/** Optional: the plan's display name, set on its prices when one product holds several plans. */
+export const META_PLAN_NAME = 'plan_name';
 export const META_METER = 'meter';
 export const META_QUOTA_PREFIX = 'quota_';
 export const META_VISIBILITY = 'visibility';

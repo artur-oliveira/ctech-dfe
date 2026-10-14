@@ -32,7 +32,7 @@ function PlanStepContent() {
   // The recommended plan leads the list and shows its allowance open, but the
   // choice is still derived rather than stored until the user makes one — and
   // the confirm button is what charges anything.
-  const selected = chosen ?? options.find((o) => o.recommended)?.productId ?? options[0]?.productId ?? null;
+  const selected = chosen ?? options.find((o) => o.recommended)?.key ?? options[0]?.key ?? null;
 
   // No-charge installations have nothing to sell; the layer disappears.
   const noCharge = plansQuery.data?.billing_enabled === false;
@@ -41,8 +41,8 @@ function PlanStepContent() {
   }, [noCharge, router]);
 
   const choose = useMutation({
-    mutationFn: (productId: string) => {
-      const option = options.find((o) => o.productId === productId);
+    mutationFn: (key: string) => {
+      const option = options.find((o) => o.key === key);
       if (!option) throw new Error('Plano indisponível. Recarregue a página.');
       return apiClient.chooseBillingPlan({price_ids: option.priceIds});
     },
@@ -59,7 +59,7 @@ function PlanStepContent() {
     },
   });
 
-  const selectedOption = options.find((o) => o.productId === selected);
+  const selectedOption = options.find((o) => o.key === selected);
   const paid = (selectedOption?.monthlyCents ?? 0) > 0;
 
   return (

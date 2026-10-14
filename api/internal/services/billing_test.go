@@ -402,3 +402,41 @@ func TestOrganizationFromRef(t *testing.T) {
 		}
 	}
 }
+
+// One product may hold several plans (ctech-billing price names): the plan is
+// the unit that is subscribed to, not the product.
+func oneProductManyPlans() []billingclient.Product {
+	return []billingclient.Product{{
+		ID: "prod_dfe", Name: "DF-e", Active: true,
+		Prices: []billingclient.Price{
+			{ID: "price_free", Metadata: map[string]string{"plan": "free"}},
+			{ID: "price_pro", Metadata: map[string]string{"plan": "pro"}},
+			{ID: "price_od_nfe", Metadata: map[string]string{"plan": "ondemand", "meter": "nfe"}},
+			{ID: "price_od_nfce", Metadata: map[string]string{"plan": "ondemand", "meter": "nfce"}},
+		},
+	}}
+}
+
+func TestOnePlanOfAProductHoldingSeveralIsAccepted(t *testing.T) {
+	for _, ids := range [][]string{
+		{"price_pro"},
+		{"price_free"},
+		{"price_od_nfe", "price_od_nfce"},
+	} {
+		if err := ValidatePriceSelection(oneProductManyPlans(), ids); err != nil {
+			t.Fatalf("%v refused: %v", ids, err)
+		}
+	}
+}
+
+func TestAPartialPlanOfAProductHoldingSeveralIsRefused(t *testing.T) {
+	if err := ValidatePriceSelection(oneProductManyPlans(), []string{"price_od_nfe"}); err == nil {
+		t.Fatal("a partial on-demand plan was accepted; it would omit meters and their charges")
+	}
+}
+
+func TestTwoPlansOfOneProductAreRefused(t *testing.T) {
+	if err := ValidatePriceSelection(oneProductManyPlans(), []string{"price_pro", "price_free"}); err == nil {
+		t.Fatal("a subscription mixing two plans of the same product was accepted")
+	}
+}

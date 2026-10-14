@@ -566,6 +566,9 @@ func (s *BillingService) validatePrices(ctx context.Context, priceIDs []string) 
 	return ValidatePriceSelection(products, priceIDs)
 }
 
+// planKey identifies a plan inside the catalogue.
+func planKey(productID, plan string) string { return productID + "\x00" + plan }
+
 // ValidatePriceSelection is validatePrices without the catalogue fetch — pure,
 // and separated for the same reason SnapshotFrom is: the rules are worth testing
 // without a network.
@@ -575,12 +578,14 @@ func ValidatePriceSelection(products []billingclient.Product, priceIDs []string)
 		productID string
 	}
 	known := map[string]offeredPrice{}
-	productPrices := map[string]map[string]bool{}
+	// planPrices counts the prices that compose each plan. A plan is the
+	// product plus its `plan` metadata: a product may hold several plans, and
+	// the prices of one are not the prices of another.
+	planPrices := map[string]int{}
 	for _, product := range products {
-		productPrices[product.ID] = map[string]bool{}
 		for _, price := range product.Prices {
 			known[price.ID] = offeredPrice{price: price, productID: product.ID}
-			productPrices[product.ID][price.ID] = true
+			planPrices[planKey(product.ID, price.Metadata[metadataKeyPlan])]++
 		}
 	}
 
@@ -608,7 +613,7 @@ func ValidatePriceSelection(products []billingclient.Product, priceIDs []string)
 			return problem.BadRequest("todos os preços devem ser do mesmo plano")
 		}
 	}
-	if len(selected) != len(productPrices[productID]) {
+	if len(selected) != planPrices[planKey(productID, plan)] {
 		return problem.BadRequest("selecione todos os preços que compõem o plano")
 	}
 	return nil

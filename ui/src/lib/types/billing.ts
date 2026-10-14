@@ -22,6 +22,8 @@ export type InvoiceStatus = 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE'
 
 export interface BillingPrice {
   id: string
+  /** How the price reads on the invoice; absent when billing has none. */
+  name?: string
   product_id: string
   type: 'fixed' | 'metered'
   /** Cents. */

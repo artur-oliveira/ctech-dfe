@@ -2626,6 +2626,14 @@ uma diz *o que a assinatura dá*, a outra *quem pode contratá-la*. Inventar uma
 a primeira que esquecesse renderizaria "o plano unlimited_internal" para o cliente. O produto é que
 se chama `prod_dfe_unlimited_internal`.
 
+**Um produto pode conter vários planos.** O plano é o produto mais o `metadata.plan` dos preços, não
+o produto sozinho: `ValidatePriceSelection` exige o mesmo produto e o mesmo plano, e todos os
+preços *desse plano* (não de todo o produto). A UI monta uma opção por plano (`PlanOption.key` é
+`produto:plano`; o id do produto sozinho colidiria). O nome mostrado vem de `metadata.plan_name`
+dos preços, com o nome do produto como reserva. Os dois formatos, um produto por plano e um
+produto com vários planos, funcionam; o catálogo pode migrar de um para o outro sem coordenar com
+a publicação deste código.
+
 ### Bloqueio por pagamento
 
 Um 402 da API carrega `reason`, `meter`, `quota_limit`, `quota_used` e `plan`
