@@ -3,6 +3,7 @@ import {
   DOCUMENT_METERS,
   META_METER,
   META_PLAN,
+  META_PLAN_NAME,
   META_QUOTA_PREFIX,
   META_VISIBILITY,
   PLAN_PRESENTATION,
@@ -10,12 +11,14 @@ import {
 } from '@/lib/constants/billing';
 import type {BillingPrice, BillingProduct} from '@/lib/types/billing';
 
-/** A plan as the chooser shows it: one product, all of its prices. */
+/** A plan as the chooser shows it: the prices of one product that share a plan key. */
 export interface PlanOption {
   /** `free`, `ondemand`, `pro`, `unlimited` — from the price metadata. */
   plan: string
+  /** Identifies the option: a product may hold several plans, so the product id is not enough. */
+  key: string
   productId: string
-  /** Billing's own name for the product. Never a local copy. */
+  /** Billing's own name: the plan's `plan_name` metadata, else the product's. Never a local copy. */
   name: string
   tagline: string
   recommended: boolean
@@ -45,44 +48,51 @@ export function buildPlanOptions(products: BillingProduct[]): PlanOption[] {
 
   for (const product of products) {
     if (!product.active) continue;
-    const prices = product.prices.filter(isOffered);
-    if (prices.length === 0) continue;
+    const offered = product.prices.filter(isOffered);
 
-    const plan = prices.find((p) => p.metadata[META_PLAN])?.metadata[META_PLAN] ?? '';
-    if (!plan) continue;
-
-    const quotas: Record<string, number> = {};
-    const metered: PlanOption['metered'] = [];
-    let monthlyCents = 0;
-
-    for (const price of prices) {
-      for (const [key, value] of Object.entries(price.metadata)) {
-        if (!key.startsWith(META_QUOTA_PREFIX)) continue;
-        const parsed = Number(value);
-        // An unreadable quota is not a quota of zero — dropping it shows
-        // "não incluído", which is the honest reading of a broken value.
-        if (Number.isFinite(parsed)) quotas[key.slice(META_QUOTA_PREFIX.length)] = parsed;
-      }
-      if (price.type === 'metered') {
-        const meter = price.metadata[META_METER];
-        if (meter) metered.push({meter, unitAmount: price.unit_amount});
-      } else {
-        monthlyCents += price.unit_amount;
-      }
+    // A product may hold several plans: group its prices by the plan they name.
+    const byPlan = new Map<string, BillingPrice[]>();
+    for (const price of offered) {
+      const plan = price.metadata[META_PLAN];
+      if (!plan) continue;
+      byPlan.set(plan, [...(byPlan.get(plan) ?? []), price]);
     }
 
-    const presentation = PLAN_PRESENTATION[plan];
-    options.push({
-      plan,
-      productId: product.id,
-      name: product.name,
-      tagline: presentation?.tagline ?? '',
-      recommended: presentation?.recommended ?? false,
-      priceIds: prices.map((p) => p.id),
-      monthlyCents,
-      metered,
-      quotas,
-    });
+    for (const [plan, prices] of byPlan) {
+      const quotas: Record<string, number> = {};
+      const metered: PlanOption['metered'] = [];
+      let monthlyCents = 0;
+
+      for (const price of prices) {
+        for (const [key, value] of Object.entries(price.metadata)) {
+          if (!key.startsWith(META_QUOTA_PREFIX)) continue;
+          const parsed = Number(value);
+          // An unreadable quota is not a quota of zero: dropping it shows
+          // "não incluído", which is the honest reading of a broken value.
+          if (Number.isFinite(parsed)) quotas[key.slice(META_QUOTA_PREFIX.length)] = parsed;
+        }
+        if (price.type === 'metered') {
+          const meter = price.metadata[META_METER];
+          if (meter) metered.push({meter, unitAmount: price.unit_amount});
+        } else {
+          monthlyCents += price.unit_amount;
+        }
+      }
+
+      const presentation = PLAN_PRESENTATION[plan];
+      options.push({
+        plan,
+        key: `${product.id}:${plan}`,
+        productId: product.id,
+        name: prices.find((p) => p.metadata[META_PLAN_NAME])?.metadata[META_PLAN_NAME] ?? product.name,
+        tagline: presentation?.tagline ?? '',
+        recommended: presentation?.recommended ?? false,
+        priceIds: prices.map((p) => p.id),
+        monthlyCents,
+        metered,
+        quotas,
+      });
+    }
   }
 
   return options.sort(

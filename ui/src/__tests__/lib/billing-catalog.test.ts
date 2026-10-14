@@ -142,3 +142,37 @@ describe('grantedMeters', () => {
     expect(grantedMeters({nfe: 3})).toEqual(['nfe']);
   });
 });
+
+describe('buildPlanOptions with one product holding several plans', () => {
+  const unified: BillingProduct[] = [
+    {
+      id: 'prod_dfe',
+      name: 'DF-e',
+      active: true,
+      prices: [
+        price({id: 'p_free', name: 'DF-e Free', metadata: {plan: 'free', plan_name: 'DF-e Free', quota_nfe: '3'}}),
+        price({id: 'p_pro', unit_amount: 35000, metadata: {plan: 'pro', plan_name: 'DF-e Pro', quota_nfe: '1200'}}),
+        price({id: 'p_internal', metadata: {plan: 'unlimited', visibility: 'internal'}}),
+        price({id: 'p_od_nfe', type: 'metered', billing_timing: 'arrears', unit_amount: 5, metadata: {plan: 'ondemand', plan_name: 'DF-e Sob Demanda', meter: 'nfe'}}),
+        price({id: 'p_od_nfce', type: 'metered', billing_timing: 'arrears', unit_amount: 1, metadata: {plan: 'ondemand', meter: 'nfce'}}),
+      ],
+    },
+  ];
+
+  it('makes one option per plan, with its own prices and a key that is not the product id', () => {
+    const options = buildPlanOptions(unified);
+    expect(options.map((o) => o.plan)).toEqual(['free', 'ondemand', 'pro']);
+    expect(new Set(options.map((o) => o.key)).size).toBe(3);
+    expect(options.find((o) => o.plan === 'pro')).toMatchObject({priceIds: ['p_pro'], monthlyCents: 35000, quotas: {nfe: 1200}});
+    expect(options.find((o) => o.plan === 'ondemand')?.priceIds).toEqual(['p_od_nfe', 'p_od_nfce']);
+  });
+
+  it('names a plan from its plan_name metadata, and falls back to the product name', () => {
+    const options = buildPlanOptions(unified);
+    expect(options.find((o) => o.plan === 'pro')?.name).toBe('DF-e Pro');
+    expect(options.find((o) => o.plan === 'ondemand')?.name).toBe('DF-e Sob Demanda');
+    const bare = buildPlanOptions([{id: 'prod_x', name: 'Produto X', active: true, prices: [price({metadata: {plan: 'pro'}})]}]);
+    expect(bare[0].name).toBe('Produto X');
+  });
+});
+

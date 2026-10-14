@@ -6,7 +6,7 @@ import {grantedMeters, type PlanOption} from '@/lib/billing/catalog';
 interface PlanChooserProps {
   options: PlanOption[]
   value: string | null
-  onChange: (productId: string) => void
+  onChange: (key: string) => void
   /** The plan already in force, so the current one is not offered as a change. */
   currentPlan?: string
 }
@@ -34,22 +34,22 @@ export function PlanChooser({options, value, onChange, currentPlan}: PlanChooser
   return (
     <div role="radiogroup" aria-label="Planos" className="flex flex-col gap-3">
       {options.map((option) => {
-        const selected = value === option.productId;
+        const selected = value === option.key;
         const isCurrent = currentPlan === option.plan;
         const price = priceLabel(option);
         const meters = grantedMeters(option.quotas);
 
         return (
           <div
-            key={option.productId}
+            key={option.key}
             role="radio"
             aria-checked={selected}
             tabIndex={0}
-            onClick={() => onChange(option.productId)}
+            onClick={() => onChange(option.key)}
             onKeyDown={(e) => {
               if (e.key === ' ' || e.key === 'Enter') {
                 e.preventDefault();
-                onChange(option.productId);
+                onChange(option.key);
               }
             }}
             className={`cursor-pointer rounded-xl border bg-white p-4 transition-all outline-none focus-visible:ring-3 focus-visible:ring-brand-200 md:p-5 ${

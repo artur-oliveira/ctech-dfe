@@ -37,7 +37,7 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
   });
 
   const options = useMemo(() => buildPlanOptions(plansQuery.data?.data ?? []), [plansQuery.data]);
-  const selected = options.find((o) => o.productId === chosen) ?? null;
+  const selected = options.find((o) => o.key === chosen) ?? null;
   const isCurrent = selected?.plan === subscription.plan;
 
   const change = useMutation({

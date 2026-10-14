@@ -137,7 +137,10 @@ type Customer struct {
 // billing does not read and this service does (ADR 0008 — metadata is opaque to
 // billing).
 type Price struct {
-	ID         string            `json:"id"`
+	ID string `json:"id"`
+	// Name is how the price reads on the invoice ("DF-e Pro"); empty when billing
+	// has none, and then the product's name is what the customer sees.
+	Name       string            `json:"name"`
 	ProductID  string            `json:"product_id"`
 	Type       string            `json:"type"`
 	UnitAmount int64             `json:"unit_amount"`
