@@ -12,7 +12,7 @@
     "screens:capture": "node scripts/capture-screens.mjs"
   },
   "dependencies": {
-    "@aoctech/auth-client": "^1.4.0",
+    "@aoctech/auth-client": "^1.4.1",
     "@aoctech/ws-client": "^1.4.0",
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5",
