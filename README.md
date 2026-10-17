@@ -62,6 +62,11 @@ A ctech-account orquestra um saga de exclusão (LGPD) em toda a família CTech (
 `ctech-account/docs/specs/2026-10-06-account-deletion-*.md` e `docs/2026-10-13-account-deletion-plan-review.md`).
 Cada serviço é participante. Os planos de participante envelheceram conforme features novas entraram, então vale esta regra:
 
+**Sair de um único produto (`scope: service`).** O ctech-account deixa a pessoa sair de um produto CTech sem encerrar a conta.
+A mensagem chega sem workspaces, então o purge apaga só os dados da própria pessoa e deixa os dados dos workspaces; o mesmo
+consumer limpa o tombstone com `user.relinked` quando ela volta (`api-commons` ≥ v1.28.0, `Store.Relink`). Nada neste repo muda
+por isso. Spec: ctech-account `docs/specs/2026-10-17-service-unlink.md`.
+
 **Uma feature que guarda ou deriva dado ligado a uma pessoa ou organização (tabela, índice, prefixo de chave ou de bucket,
 chave de cache, linha de fila ou job, registro em terceiro, campo de auditoria) só está pronta quando o fluxo de exclusão
 dela existe e foi testado.** Na mesma alteração:
