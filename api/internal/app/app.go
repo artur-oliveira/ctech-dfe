@@ -14,6 +14,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/dataexport"
 	"gopkg.aoctech.app/api-commons/erasure"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
@@ -845,6 +846,8 @@ func newBillingClient(cfg *config.Config, c cache.Backend) *billingclient.Client
 
 const erasureAckPath = "/v1.0/internal/erasure/ack"
 
+const exportAckPath = "/v1.0/internal/export/ack"
+
 // newErasureStore binds {prefix}_erasure_state, or nil (participant off) when
 // ERASURE_QUEUE_URL is unset. Tombstones are kept forever (erasedTTL 0): dfe
 // retains nothing, and the record is what rejects a late message.
@@ -908,7 +911,16 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 	tokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
 		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeErasureAck)
 	acks := erasure.NewAckClient(httpClient, strings.TrimSuffix(cfg.CtechURL, "/")+erasureAckPath, tokens)
-	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks)
+	// The personal-data export rides the same queue (ctech-account
+	// docs/specs/2026-10-17-data-export.md): the part is PUT to a presigned S3 URL
+	// and acked, with a longer timeout than the saga's because it is data.
+	uploads := &http.Client{Timeout: 60 * time.Second}
+	exportTokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
+		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeExportAck)
+	exporter := dataexport.NewHandler(services.ErasureServiceName, svc.DataExporter().Part, uploads,
+		dataexport.NewAckClient(uploads, strings.TrimSuffix(cfg.CtechURL, "/")+exportAckPath, exportTokens))
+	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks).
+		WithExporter(exporter.Handle)
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
