@@ -18,6 +18,9 @@ const (
 	ScopeErasureSubject = "internal:account:erasure-subject"
 	// ScopeErasureAck acks a finished user.erase (saga protocol §3).
 	ScopeErasureAck = "internal:account:erasure-ack"
+	// ScopeExportAck acks an uploaded part of the personal-data export
+	// (ctech-account docs/specs/2026-10-17-data-export.md); an operator grants it to the same client.
+	ScopeExportAck = "internal:account:export-ack"
 )
 
 // SubjectClient asks ctech-account for the CPF of a purging request. Its own

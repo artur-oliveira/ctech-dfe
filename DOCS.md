@@ -713,6 +713,22 @@ keys rows store plus company-id prefixes, never by a `CNPJ_` folder (two compani
 The CPF read from ctech-account for e-CPF matching lives in memory only: never logged, persisted or put in an error.
 Workers drop jobs whose company is locked or erased (`worker/internal/service/erasure.go`).
 
+### Personal-data export (LGPD art. 18, V)
+
+The erasure queue also carries `user.export` from ctech-account (spec ctech-account `docs/specs/2026-10-17-data-export.md`;
+`api-commons` ≥ v1.29.1, `dataexport.Handler` plugged into the consumer with `WithExporter` in `startErasureConsumer`).
+`services.DataExporter` builds one zip, PUT to the presigned S3 URL in the message and acked to
+`/v1.0/internal/export/ack` with the erasure client, which needs the extra scope `internal:account:export-ack` (operator grant)
+before ctech-account is told `"export": true` for dfe.
+
+- **Included (the person, not their companies):** `user.json` (users row), `memberships.json` (companies and role, via
+  `user-index`), `billing.json` (plan snapshot, `USER_` key), `audit-logs.json` (what they did as actor, via `user-id-index`;
+  the `modifications` payload is the company's and is dropped).
+- **Not included:** fiscal documents, certificates (credentials; e-CPF files), configs and every other company table: the
+  company exports its XMLs itself. Invitations hold other people's e-mails. `TestEveryTableIsClassifiedForTheExport` walks
+  `erasureCatalog`: a person-scoped table must be exported and a company one excluded, so **a new table decides its export
+  next to its purge**. Secret-looking attributes are dropped at any depth; each file is capped at 50k rows while paging.
+
 ### Assinatura da organização — `/v1.0/billing/*`
 
 The subscription belongs to the **ctech-account organization** of the selected company (`ORG_{organization_id}`,
