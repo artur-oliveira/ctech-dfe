@@ -14,8 +14,8 @@ import (
 // smaller one; reads the larger, since the UI polls and lists. The budgets are
 // abuse guards, far above what a person or an integration normally does.
 const (
-	ReadLimitPerWindow  int64 = 600
-	WriteLimitPerWindow int64 = 120
+	ReadLimitPerWindow  int64 = 1200
+	WriteLimitPerWindow int64 = 300
 	RateLimitWindow           = time.Minute
 
 	rateLimitReadPrefix  = "dfe:rl:read"

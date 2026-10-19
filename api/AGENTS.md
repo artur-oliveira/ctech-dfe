@@ -109,7 +109,7 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
     `repositories/account_billing.go` (`ListUserSnapshots`) and `cmd/migrate-grants`, `cmd/rekey-companies`: one-shot
     migration tools, never on a request path.
   - The worker's distribution dispatcher also scans (see `../worker/CLAUDE.md`).
-- **Rate limit:** `middleware.RateLimit` runs after auth (`Verifier.WithAfterAuth`), per user, 600 reads/min and 120
+- **Rate limit:** `middleware.RateLimit` runs after auth (`Verifier.WithAfterAuth`), per user, 1200 reads/min and 300
   writes/min, fail open, 429 + `Retry-After`. Budgets are the constants in `middleware/ratelimit.go`; there is no
   per-organization cap (the org is only resolved later, by RBAC).
 - **No `Idempotency-Key` handling on inbound POSTs** (the only uses are outbound calls to ctech-billing).
