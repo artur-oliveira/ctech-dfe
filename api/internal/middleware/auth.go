@@ -7,7 +7,8 @@ import (
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/jwtverify"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -75,7 +76,7 @@ func (v *Verifier) Middleware() fiber.Handler {
 				return problem.InternalServer("estado da conta indisponível").WithCause(err).Send(c)
 			}
 			if locked {
-				return problem.AccountPendingDeletion("Conta em processo de exclusão; operações de escrita estão bloqueadas.").Send(c)
+				return dfeproblem.AccountPendingDeletion("Conta em processo de exclusão; operações de escrita estão bloqueadas.").Send(c)
 			}
 		}
 		return c.Next()

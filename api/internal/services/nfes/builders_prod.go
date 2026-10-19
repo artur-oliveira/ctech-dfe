@@ -9,7 +9,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // prodParams carrega os valores já calculados no laço de itens que o nó prod

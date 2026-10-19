@@ -9,7 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 )
 
 // Creating an invitation here is retired: invitations are ctech-account's, and
@@ -22,7 +22,7 @@ import (
 func TestCreatingAnInvitationAnswersRetired(t *testing.T) {
 	app := fiber.New()
 	app.Post("/invitations", func(c fiber.Ctx) error {
-		return sendProblem(c, problem.Retired(
+		return sendProblem(c, dfeproblem.Retired(
 			"os convites agora são criados na sua conta CTech, em Organizações — lá é possível escolher as empresas que a pessoa poderá usar"))
 	})
 

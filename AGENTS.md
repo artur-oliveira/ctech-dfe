@@ -203,7 +203,7 @@ is incomplete.
   `py-dfe/layer` path filter in `deploy.yml`, `dependabot.yml`).
 - No CloudWatch alarm on any DLQ and no use of go-common `alerts` / SNS `ctech-{env}-alerts` yet.
 - Scans: worker distribution dispatcher (every 30 min) and the account-deletion e-CPF search; see `api/CLAUDE.md`.
-- No inbound `Idempotency-Key`, local `internal/problem` wrapper, no `@aoctech/ui`, no i18n in the UI.
+- No inbound `Idempotency-Key`, no `@aoctech/ui`, no i18n in the UI.
 - CI (`ci.yml`) runs gofmt, vet, arm64 build and `-race` tests plus UI lint/tsc/tests; there is no staticcheck,
   govulncheck, golangci-lint or `npm audit`, and the CDK jest tests are not run. `infra.yml` runs `cdk diff` with AWS
   credentials on pull requests.

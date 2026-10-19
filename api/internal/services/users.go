@@ -11,8 +11,9 @@ import (
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/observability"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/api-commons/resilient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -99,7 +100,7 @@ func (s *UserService) GetOrCreate(ctx context.Context, userID string) (map[strin
 			return nil, err
 		}
 		if locked {
-			return nil, problem.AccountPendingDeletion("Conta em processo de exclusão.")
+			return nil, dfeproblem.AccountPendingDeletion("Conta em processo de exclusão.")
 		}
 	}
 	return s.repo.CreateMinimal(ctx, userID)

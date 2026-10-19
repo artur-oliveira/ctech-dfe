@@ -7,7 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -21,7 +22,7 @@ func TestGetOrCreate_DoesNotResurrectALockedUser(t *testing.T) {
 
 	_, err := svc.GetOrCreate(ctx, "locked-user-1")
 	var p *problem.Problem
-	if !errors.As(err, &p) || p.Type != problem.TypeAccountPendingDeletion {
+	if !errors.As(err, &p) || p.Type != dfeproblem.TypeAccountPendingDeletion {
 		t.Fatalf("err = %v, want account-pending-deletion", err)
 	}
 	if item, _ := userRepo.GetByID(ctx, "locked-user-1"); item != nil {

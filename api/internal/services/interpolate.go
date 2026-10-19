@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // Placeholders aceitos em inf_ad_fisco / inf_cpl de uma natureza de operação.

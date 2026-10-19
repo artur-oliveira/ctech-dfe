@@ -19,6 +19,7 @@ import (
 	"gopkg.aoctech.app/api-commons/erasure"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/api-commons/resilient"
 	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/accountclient"
@@ -27,7 +28,6 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
@@ -709,10 +709,22 @@ func errorHandler(c fiber.Ctx, err error) error {
 		return problem.GatewayTimeout("a requisição demorou demais; tente novamente").WithCause(err).Send(c)
 	}
 	if f, ok := errors.AsType[*fiber.Error](err); ok {
-		p := problem.FromFiber(f)
-		return p.Send(c)
+		return fiberErrorProblem(f).Send(c)
 	}
 	return problem.InternalServer("erro interno").WithCause(err).Send(c)
+}
+
+// fiberErrorProblem keeps the API's historical mapping of framework errors: 404
+// and 504 keep their meaning, every other fiber error answers a generic 500.
+func fiberErrorProblem(err *fiber.Error) *problem.Problem {
+	switch err.Code {
+	case http.StatusNotFound:
+		return problem.NotFound(err.Error()).WithCause(err)
+	case http.StatusGatewayTimeout:
+		return problem.GatewayTimeout("a requisição demorou demais; tente novamente").WithCause(err)
+	default:
+		return problem.InternalServer("erro interno").WithCause(err)
+	}
 }
 
 // newBillingClient builds the ctech-billing client, or nil when this deployment

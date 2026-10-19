@@ -14,8 +14,8 @@ import (
 	"github.com/aws/smithy-go"
 	"golang.org/x/sync/singleflight"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 const (

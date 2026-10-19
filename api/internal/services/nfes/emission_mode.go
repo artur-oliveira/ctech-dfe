@@ -14,7 +14,7 @@ package nfes
 import (
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // EmissionMode is the form of emission of one document.

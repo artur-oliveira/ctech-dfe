@@ -3,7 +3,7 @@ package v1
 import (
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 
 	"github.com/gofiber/fiber/v3"
 )

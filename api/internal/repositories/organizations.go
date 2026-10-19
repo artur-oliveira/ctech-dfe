@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/config"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
 
 // Organization is the DynamoDB item for an organization. Current rows use the

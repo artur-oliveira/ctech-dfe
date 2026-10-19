@@ -13,8 +13,9 @@ import (
 	"regexp"
 	"strings"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -171,7 +172,7 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 		if notFoundStats[cStat] {
 			return nil, problem.NotFound(fmt.Sprintf("%s %s não localizado na UF %s: %s", docKey, cpfCNPJ, uf, display))
 		}
-		return nil, problem.SefazRejection(display)
+		return nil, dfeproblem.SefazRejection(display)
 	}
 
 	infCadList := asSliceOfMaps(infCons, "infCad")
@@ -252,7 +253,7 @@ func (s *ExternalService) CertificateB64(ctx context.Context, orgPK string) (str
 		return "", "", err
 	}
 	if len(certs) == 0 {
-		return "", "", problem.NoCertificate("organização sem certificado digital")
+		return "", "", dfeproblem.NoCertificate("organização sem certificado digital")
 	}
 	cert := certs[0]
 	pfxBytes, err := s.downloadPFX(ctx, avStr(cert, "s3_key"))
@@ -268,7 +269,7 @@ func (s *ExternalService) downloadPFX(ctx context.Context, s3Key string) ([]byte
 		Key:    aws.String(s3Key),
 	})
 	if err != nil {
-		return nil, problem.NoCertificate("falha ao obter certificado digital")
+		return nil, dfeproblem.NoCertificate("falha ao obter certificado digital")
 	}
 	defer closeReadCloser(ctx, out.Body, "certificate S3 download")
 	buf := new(bytes.Buffer)
