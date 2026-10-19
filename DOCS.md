@@ -886,8 +886,7 @@ Três propriedades sustentam o desenho:
   gravados na mesma transação. Uma falha transitória não grava nenhum dos dois e volta para a fila;
   uma redelivery após sucesso encontra o marcador e não decrementa novamente.
 
-**A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então dispara o
-alarme da DLQ de resultados — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
+**A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então a mensagem vai para a DLQ de resultados (sem alarme: foi removido do CDK; a profundidade da DLQ é verificada à mão) — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
 Redirecionar (redrive) a DLQ é seguro: os dois lados são idempotentes.
 
 Falha ao publicar um resultado terminal volta para a fila. Na redelivery, um documento já terminal
