@@ -57,6 +57,7 @@ PITR: enabled in production only.
 | 45 | `organization_reference_documents` | `{org_pk}`            | `REFERENCEDOC_{uuid}`                    | `name-index`                                       |
 | 36 | `account_billing`           | `ORG_{id}` / `USER_{sub}` / `QUOTA_GUARD_…` / `USAGE_…` / `LEVEL_DIRTY_…` | — | `level-dirty-index` (sparse) |
 | 46 | `erasure_state`             | `SUB#{sub}` / `ORG#{id}`     | —                                        | —                                                |
+| 47 | `idempotency`               | `IDEM#{sub}#{org_pk}`        | `KEY#{Idempotency-Key}`                  | —                                                |
 
 ---
 
@@ -1074,3 +1075,20 @@ Everything here is reached by `GetItem` on `pk`; there are no GSIs.
 
 `organizations` also carries `organization-index` (PK `organization_id`, SK `created_at`, KEYS_ONLY, sparse):
 access pattern "companies of an erased ctech-account organization" for the deletion purge.
+
+## 47. `idempotency`
+
+Claims and replayable answers of the API's POSTs. Schema owned by `ctech-go-common/idempotency.DynamoStore`.
+
+| Attribute      | Type | Meaning                                                           |
+|----------------|------|-------------------------------------------------------------------|
+| `pk`           | S    | `IDEM#{sub}#{Dfe-Organization-Pk header}`                         |
+| `sk`           | S    | `KEY#{Idempotency-Key}`                                           |
+| `ttl`          | N    | Epoch seconds: claim now+2 min, answer now+24 h (TTL enabled)     |
+| `request_hash` | S    | sha256 of method, path, query, body (the body itself is not kept) |
+| `status`       | N    | `0` while claimed, the HTTP status once answered                  |
+| `content_type` | S    | Stored answer's Content-Type                                      |
+| `response`     | B    | Stored answer body (at most 256 KiB)                              |
+| `created_at`   | S    | RFC 3339                                                          |
+
+Holds response bodies for 24 h at most; the account-deletion purge leaves it (`ScopeKept`) because every row expires.
