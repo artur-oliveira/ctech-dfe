@@ -107,6 +107,19 @@ import type {
 // the browser never makes a cross-origin request, so CORS never applies.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 export const ORG_HEADER = 'Dfe-Organization-Pk';
+export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
+
+/**
+ * The API demands an `Idempotency-Key` on every POST. One is made per request and
+ * kept on the config, so the 401-refresh replay of the same request reuses it and
+ * the server runs the operation once.
+ */
+export function withIdempotencyKey(config: AxiosRequestConfig, gen: () => string = () => crypto.randomUUID()): void {
+  if ((config.method ?? 'get').toLowerCase() !== 'post') return;
+  config.headers = config.headers ?? {};
+  const headers = config.headers as Record<string, unknown>;
+  if (!headers[IDEMPOTENCY_HEADER]) headers[IDEMPOTENCY_HEADER] = gen();
+}
 
 /**
  * The value of `Dfe-Organization-Pk`.
@@ -244,6 +257,8 @@ function createAxiosInstance(): AxiosInstance {
         }
       }
     }
+
+    withIdempotencyKey(config);
 
     // Only strip plain JSON bodies — never FormData/Blob/etc. (would be flattened to {}).
     if (isStrippableBody(config.data)) {
