@@ -2,7 +2,7 @@
 
 **SaaS platform for issuing and managing Electronic Tax Documents (DF-e) with direct SEFAZ communication.**
 
-Supports: NF-e · NFC-e · CT-e · MDF-e
+Supports: NF-e · NFC-e · CT-e · MDF-e · NFS-e
 
 ---
 
@@ -14,7 +14,7 @@ ctech-dfe/
 ├── go-dfe/     # Go library — SEFAZ SOAP/mTLS + NFS-e REST client
 ├── go-dfe-egress/ # Go Lambda (sa-east-1) — runs go-dfe so SEFAZ/prefeitura calls leave from Brazil
 ├── api/        # REST backend — Go (Fiber v3), multi-tenant
-├── ui/         # SaaS frontend — Next.js + TypeScript + ShadCN
+├── ui/         # SaaS frontend — Next.js + TypeScript (static export)
 ├── worker/     # Async workers — Go Lambda, SQS consumers
 └── cdk/        # AWS infrastructure — CDK TypeScript
 ```
@@ -27,9 +27,9 @@ ctech-dfe/
 |-----------|----------------------------------------------------|
 | Backend   | Go (Fiber v3), aws-sdk-go-v2                       |
 | Workers   | Go Lambda (aws-lambda-go), SQS consumers           |
-| SEFAZ lib | Go in-process (go-dfe), Python Lambda compatibility fallback |
-| Frontend  | Next.js 16, TypeScript, Tailwind CSS 4, ShadCN     |
-| Database  | DynamoDB (35 tables) + S3 (certificates and XMLs)  |
+| SEFAZ lib | Go (go-dfe), run by the go-dfe-egress Lambda in sa-east-1 |
+| Frontend  | Next.js 16 (static export on Cloudflare), TypeScript, Tailwind CSS 4, shadcn |
+| Database  | DynamoDB (47 tables) + S3 (certificates and XMLs)  |
 | Messaging | SQS (standard) + SNS                               |
 | Infra     | AWS CDK TypeScript                                 |
 | Auth      | OAuth 2.0 PKCE + RS256 via ctech-account           |
@@ -38,9 +38,9 @@ ctech-dfe/
 
 ## Components
 
-### py-dfe — Core Library
+### py-dfe — Core Library (retired)
 
-Lambda handler that receives a structured request, loads the A1 certificate (PFX), signs the XML with XML-DSig, and
+No worker or API code calls it any more (they call go-dfe-egress); the stack is still deployed and removal is pending. Historical description: Lambda handler that receives a structured request, loads the A1 certificate (PFX), signs the XML with XML-DSig, and
 submits via SOAP to SEFAZ with mTLS.
 
 **Flow:**
@@ -73,7 +73,7 @@ Multi-tenant Go API (Fiber v3). Manages organizations, users, certificates, prod
 document issuance.
 
 **Authentication:** JWT RS256 Bearer validated against JWKS from ctech-account. Org access via `Dfe-Organization-Pk`
-header or path param.
+header (path parameters only for organization creation).
 
 **Main endpoints:**
 
@@ -105,16 +105,14 @@ Next.js SPA with JWT authentication, active organization selector, and NF-e issu
 **Pages:** Login · Dashboard · Organizations · NF-e · NFC-e · CT-e · MDF-e · Products · Vehicles · Persons ·
 Certificates · Fiscal Configuration
 
-**Theme:** Soft green (`#50ba95` as primary color). Defined in `THEME.md`.
+**Theme:** green brand scale (`--brand-*` in `ui/src/app/globals.css`, primary `#1c6c55`). See `THEME.md` and `ui/DESIGN.md`.
 
 ### cdk — Infrastructure
 
-14 CDK TypeScript stacks. Tables prefixed by environment (`dev_`, `staging_`, `prod_`).
+9 CDK TypeScript stacks (OIDC, DynamoDB, S3, EventBus, Dfe, GoDfeEgress, Worker, IAM, API). Tables are named `{env}_dfe_{name}` with env `dev`, `stage` or `prod`.
 
-**Main resources:** DynamoDB (35 tables) · S3 (2 buckets: certificates + documents) · Lambda (worker; go-dfe-egress in sa-east-1) · API
-Gateway · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
-export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; `FrontendStack`
-(S3 + CloudFront) is retired and awaiting teardown.
+**Main resources:** DynamoDB (47 tables) · S3 (2 buckets: certificates + documents) · Lambda (workers; go-dfe-egress in sa-east-1) · EC2 ASG behind the shared HAProxy (no ALB, no API Gateway) · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
+export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; there is no `FrontendStack` in `cdk/lib` any more (S3 + CloudFront was removed from the app; delete any leftover stack manually).
 
 ---
 
@@ -255,11 +253,11 @@ docs/specs/2026-10-10-organization-subscription.md.
 
 ## Environments
 
-| Environment | Table prefix | DynamoDB billing | Removal Policy | PITR |
-|-------------|--------------|------------------|----------------|------|
-| dev         | dev_         | On-demand        | DESTROY        | No   |
-| staging     | staging_     | On-demand        | RETAIN         | No   |
-| production  | prod_        | On-demand        | RETAIN         | Yes  |
+| Environment | Table prefix  | DynamoDB billing | Removal Policy | PITR |
+|-------------|---------------|------------------|----------------|------|
+| dev         | `dev_dfe_`    | On-demand        | DESTROY        | No   |
+| stage       | `stage_dfe_`  | On-demand        | RETAIN         | No   |
+| prod        | `prod_dfe_`   | On-demand        | RETAIN         | Yes  |
 
 ---
 
@@ -267,7 +265,7 @@ docs/specs/2026-10-10-organization-subscription.md.
 
 ```bash
 # SEFAZ library
-cd py-dfe && pip install -e ".[dev]" && pytest tests/unit/
+cd go-dfe && go test ./... -race
 
 # Backend
 cd api && go run ./cmd/server
@@ -285,13 +283,14 @@ cd cdk && npm install && cdk synth
 PORT=8080
 ENVIRONMENT=dev
 AWS_REGION=us-east-1
-TABLE_PREFIX=dev
+TABLE_PREFIX=dev_dfe
 S3_BUCKET_CERTIFICATES=dev-ctech-dfe-certificates
 S3_BUCKET_DOCUMENTS=dev-ctech-dfe-documents
-SEFAZ_FUNCTION_NAME=dev-ctech-dfe
+SEFAZ_FUNCTION_NAME=dev-go-dfe-egress   # egress Lambda name (legacy env var name)
+DFE_EGRESS_REGION=sa-east-1
 SERVICE_AUDIENCE=https://dfe-api.aoctech.app
 CTECH_URL=https://accounts.aoctech.app   # derives CTECH_JWKS_URL automatically
-# VALKEY_URL=redis://...                        # JWKS cache (falls back to in-memory)
+# VALKEY_URL=redis://...                        # shared cache (falls back to in-memory)
 ```
 
 **Required environment variables (ui):**
@@ -310,7 +309,7 @@ NEXT_PUBLIC_CTECH_CLIENT_ID=dfe
 |----------------------|------------------------------------|
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Detailed schema for all 35 tables  |
+| `DynamoDB-Tables.md` | Detailed schema for all tables (47 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |
