@@ -1,9 +1,11 @@
 # py-dfe
 
+> **Status: retired.** No `worker` or `api` code invokes this Lambda any more (both call `go-dfe-egress`, see
+> `../go-dfe-egress/CLAUDE.md`). `cdk/lib/dfe-stack.ts`, its IAM role/policy and the `ctech-dfe-gha-pydfe` OIDC role are
+> still deployed; removal is pending. Do not add features here. Text below describes the old behavior.
+
 Python Lambda — XML-DSig, SEFAZ SOAP, mTLS, and A1 certificate handling.
-This is the **authoritative / fallback** SEFAZ client: the `worker` dispatches
-to it via Lambda `InvokeFunction` when go-dfe does not `Implements` the operation
-(go-dfe-primary / py-dfe-fallback — see `worker/README.md` §3). Auxiliary documents are
+Historically it was the SEFAZ client the worker dispatched to via Lambda `InvokeFunction`; that path is gone. Auxiliary documents are
 rendered by the Go API with Folio; this Lambda no longer accepts render-only services.
 
 Authoritative rules: [`CLAUDE.md`](CLAUDE.md) · root [`DOCS.md`](../DOCS.md) py-dfe section.

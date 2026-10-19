@@ -1,5 +1,9 @@
 # CLAUDE.md — py-dfe
 
+> **Status: retired.** No `worker` or `api` code invokes this Lambda any more (both call `go-dfe-egress`, see
+> `../go-dfe-egress/CLAUDE.md`). `cdk/lib/dfe-stack.ts`, its IAM role/policy and the `ctech-dfe-gha-pydfe` OIDC role are
+> still deployed; removal is pending. Do not add features here. Text below describes the old behavior.
+
 Python Lambda — XML-DSig, SEFAZ SOAP, mTLS, A1 certificate handling. Python 3.14.
 
 **Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §3`.

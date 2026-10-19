@@ -1,22 +1,23 @@
-# Tema Visual - py-dfe
+# Tema Visual - ctech-dfe
 
 ## Paleta de Cores Primária
 
-Soft Green Theme (#50ba95) - Documento Fiscal Style
+Escala `--brand-*` definida em `ui/src/app/globals.css` (fonte de verdade; `primary-*` e `brand-*` do Tailwind
+resolvem para ela). Contexto de produto e papéis em `ui/DESIGN.md`.
 
 ### Cores Principais
 
 ```
-primary-50:  #f0faf8  (background claro)
-primary-100: #d5f1eb  (backgrounds)
-primary-200: #a8e3d8  (borders, light elements)
-primary-300: #7dd4c4  (hover states)
-primary-400: #5fc9b6  (secondary buttons)
-primary-500: #50ba95  (brand color)
-primary-600: #409d80  (buttons, accents) ← BUTTON COLOR
-primary-700: #30806a  (hover, darker accents)
-primary-800: #256354  (text, dark elements)
-primary-900: #1a463e  (very dark, backgrounds)
+brand-50:  #f0faf6
+brand-100: #d4f1e6
+brand-200: #a9e3cd
+brand-300: #74cfb0
+brand-400: #44b896
+brand-500: #2ea87f  (marca)
+brand-600: #1c6c55  (botões, acentos)
+brand-700: #195644
+brand-800: #195644
+brand-900: #164738
 ```
 
 ### Cores de status (texto)
@@ -49,61 +50,11 @@ pelo rótulo e pelo pulso, nunca por um segundo tom de vermelho. Tabela completa
 - `ui/public/app.svg` é a fonte canônica da marca DF-e: o nó central ligado aos quatro pontos sobre o quadrado verde.
 - A landing page, seu estado inicial de carregamento e o cabeçalho da sidebar usam esse mesmo ativo. Ícones de arquivo/documento continuam disponíveis para ações e tipos de conteúdo, mas não representam a identidade do produto.
 
-### Login Page
+### Uso dos tokens
 
-- **Background**: Gradient soft green (`#f0faf8` → `#d5f1eb` → `#a8e3d8`)
-- **Card**: White with primary-100 border
-- **Button**: primary-600 (#409d80) with hover to primary-700 (#30806a)
-- **Icon**: primary-600 background with emoji
-
-### Dashboard
-
-- **Header**: White with subtle primary-50 background
-- **Cards**: White with primary-100 border
-- **Buttons**: primary-600 for primary actions
-- **Links**: primary-600 text
-
-### Forms
-
-- **Labels**: gray-700
-- **Inputs**: border-gray-300 with focus ring on primary-500
-- **Errors**: red-600 text with red-500 border
-- **Sections**: primary-200 bottom border
-
-## CSS Classes Used
-
-### Gradients
-
-```css
-.bg-gradient-login {
-    background-image: linear-gradient(to bottom right, #f0faf8 0%, #d5f1eb 50%, #a8e3d8 100%);
-}
-```
-
-### Buttons
-
-```css
-.btn-primary {
-    background-color: #409d80;
-    color: white;
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    font-weight: 600;
-    transition: opacity 200ms;
-}
-
-.btn-primary:hover {
-    background-color: #30806a;
-}
-```
-
-## Implementation Notes
-
-- Inline styles used for button to ensure visibility
-- Gradient applied via tailwind backgroundImage customization
-- All primary colors extend from tailwind.config theme
-- Focus rings use primary-500 for consistency
-- Error states use red-600 for contrast
+Botões primários usam `brand-600` (hover `brand-700`), foco usa `brand-500`, bordas e fundos claros usam
+`brand-100`/`brand-200`, erros usam `text-danger`. Componentes devem usar o token, nunca hex fixo.
+Os hex antigos desta página (`#50ba95`, `#409d80`, `#30806a`, gradiente de login) não existem mais no código.
 
 ## Contextual DF-e Theme
 
