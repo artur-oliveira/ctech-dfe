@@ -1,4 +1,4 @@
-# py-dfe — Brazilian DFe Full-Stack Roadmap
+# ctech-dfe — Brazilian DFe Full-Stack Roadmap (historical)
 
 > **Stale as of this audit (2026-09):** the "Gap summary" and Phase 1-3 statuses below no longer match the code.
 > NFC-e, CT-e, MDF-e and NFS-e all have API routes (`api/internal/api/v1/{ctes,mdfes,nfses}.go` + `openapi/*.yaml`),
