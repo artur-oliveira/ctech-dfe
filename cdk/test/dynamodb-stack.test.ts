@@ -117,3 +117,13 @@ describe('DynamoDBStack — exclusão de conta', () => {
         });
     });
 });
+
+describe('DynamoDBStack — idempotência', () => {
+    test('idempotency: pk+sk, com TTL em ttl', () => {
+        synth().hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_idempotency',
+            KeySchema: [{AttributeName: 'pk', KeyType: 'HASH'}, {AttributeName: 'sk', KeyType: 'RANGE'}],
+            TimeToLiveSpecification: {AttributeName: 'ttl', Enabled: true},
+        });
+    });
+});
