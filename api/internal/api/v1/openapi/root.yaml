@@ -26,6 +26,15 @@ info:
     As exceções são as rotas sob `/organizations/{org_pk}`, cuja organização
     vem do path, `POST /organizations` e `GET /organizations`.
 
+    ## Idempotência
+
+    Todo `POST` autenticado exige o header `Idempotency-Key` (1 a 128 caracteres
+    ASCII visíveis; 400 sem ele), exceto `/billing/`, `/auth/`, `/invitations/` e
+    `/cargo-preview`, onde ele é opcional. A primeira requisição executa; repetir a
+    mesma chave com a mesma requisição devolve a primeira resposta, com o header
+    `Idempotent-Replay: true`, por 24 horas. A mesma chave com outro corpo ou rota
+    responde 409; com a primeira ainda em andamento, 409 com `Retry-After`.
+
     ## Erros
 
     Todo erro é um RFC 7807 Problem Details (`application/problem+json`). Erros

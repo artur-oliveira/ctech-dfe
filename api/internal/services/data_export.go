@@ -68,7 +68,7 @@ func exportClassification(table string) string {
 		return v
 	}
 	switch table {
-	case "roles", "erasure_state", "serie_claims":
+	case "roles", "erasure_state", "serie_claims", "idempotency":
 		return "excluded: global, derived or the saga's own state; no data of the person"
 	case "organization_invitations":
 		return "excluded: reachable only per organization, and they hold other people's e-mail addresses"

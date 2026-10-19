@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
 )
 
@@ -21,7 +22,7 @@ import (
 func buildFullApp(t *testing.T) *fiber.App {
 	t.Helper()
 	app := fiber.New()
-	Register(app, cache.NewMemoryBackend(1), &config.Config{}, nil, nil, Services{})
+	Register(app, cache.NewMemoryBackend(1), &config.Config{}, nil, &awsclient.Clients{}, Services{})
 	return app
 }
 

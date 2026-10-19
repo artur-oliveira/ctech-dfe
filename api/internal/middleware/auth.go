@@ -33,7 +33,7 @@ type Verifier struct {
 	*jwtverify.Verifier
 	blocked services.BlockedFunc
 	// afterAuth runs once the token is verified and the locals are set; it must
-	// call c.Next() itself (the rate limiter).
+	// call c.Next() itself (see AfterAuth for chaining more than one guard).
 	afterAuth fiber.Handler
 }
 

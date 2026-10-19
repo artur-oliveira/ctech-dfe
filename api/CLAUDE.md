@@ -112,7 +112,9 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
 - **Rate limit:** `middleware.RateLimit` runs after auth (`Verifier.WithAfterAuth`), per user, 1200 reads/min and 300
   writes/min, fail open, 429 + `Retry-After`. Budgets are the constants in `middleware/ratelimit.go`; there is no
   per-organization cap (the org is only resolved later, by RBAC).
-- **No `Idempotency-Key` handling on inbound POSTs** (the only uses are outbound calls to ctech-billing).
+- **Idempotency:** every authenticated POST requires `Idempotency-Key` (400 without it), enforced after auth by `middleware.Idempotency`
+  (`Verifier.WithAfterAuth`, scope user + org header, table `{prefix}_idempotency`, fail closed: 503 if the store is down).
+  Optional (honored if sent): `/billing/`, `/auth/`, `/invitations/`, `/cargo-preview`. Outbound calls to ctech-billing carry their own keys.
 - `v1.Register` takes positional parameters (cache, cfg, ws registry, AWS clients, `Services`), not a single `Deps`.
 - No custom metrics, no alarms: logs only.
 

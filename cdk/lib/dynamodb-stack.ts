@@ -52,7 +52,8 @@ export type TableName = (
   'mdfe_distributions' |
   'nfse_distributions' |
   'worker_outbox' |
-  'erasure_state'
+  'erasure_state' |
+  'idempotency'
   )
 
 type TablePrefix = `${Environment}_dfe`
@@ -800,6 +801,24 @@ export class DynamoDBStack extends cdk.Stack {
       encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
     });
     this.tables.set('erasure_state', erasureStateTable);
+
+    // Idempotency-Key claims and replayable answers of the API's POSTs; schema
+    // owned by ctech-go-common idempotency.DynamoStore (pk IDEM#scope, sk KEY#key).
+    // Rows expire by TTL (24 h answers, 2 min unanswered claims); the claim
+    // condition itself ignores expired rows, so lazy TTL deletion is harmless.
+    const idempotencyTable = new dynamodb.TableV2(this, `${tablePrefix}_idempotency`, {
+      tableName: `${tablePrefix}_idempotency`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      timeToLiveAttribute: 'ttl',
+      removalPolicy,
+      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    });
+    this.tables.set('idempotency', idempotencyTable);
 
     // ============== OUTPUTS ==============
 
