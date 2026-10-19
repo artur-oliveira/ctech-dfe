@@ -77,6 +77,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	if svcs.ErasureBlocked != nil {
 		verifier.WithLockCheck(svcs.ErasureBlocked)
 	}
+	verifier.WithAfterAuth(middleware.RateLimit(middleware.NewCounter(cacheBackend)))
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 	// The flip. Off unless ctech-account issued this service a credential:

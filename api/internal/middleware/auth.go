@@ -32,6 +32,9 @@ const (
 type Verifier struct {
 	*jwtverify.Verifier
 	blocked services.BlockedFunc
+	// afterAuth runs once the token is verified and the locals are set; it must
+	// call c.Next() itself (the rate limiter).
+	afterAuth fiber.Handler
 }
 
 // NewVerifier also turns on the account-deletion revocation list: ctech-account
@@ -49,6 +52,12 @@ func NewVerifier(jwksURL, audience, issuer string, cacheBackend cache.Backend) *
 // goes through, so no write path can forget the check.
 func (v *Verifier) WithLockCheck(blocked services.BlockedFunc) *Verifier {
 	v.blocked = blocked
+	return v
+}
+
+// WithAfterAuth runs h for every authenticated request, after the lock check.
+func (v *Verifier) WithAfterAuth(h fiber.Handler) *Verifier {
+	v.afterAuth = h
 	return v
 }
 
@@ -78,6 +87,9 @@ func (v *Verifier) Middleware() fiber.Handler {
 			if locked {
 				return dfeproblem.AccountPendingDeletion("Conta em processo de exclusão; operações de escrita estão bloqueadas.").Send(c)
 			}
+		}
+		if v.afterAuth != nil {
+			return v.afterAuth(c)
 		}
 		return c.Next()
 	}
