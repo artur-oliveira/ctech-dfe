@@ -1,4 +1,4 @@
-# Engineering Guidelines — py-dfe
+# Engineering Guidelines — ctech-dfe
 
 > This document defines the engineering standards for all development within the py-dfe monorepo.
 >
@@ -409,6 +409,7 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   (`ContribuinteEvents`, `EventsRequiringMotivo`, `EventsRequiringXMotivo`): a api valida antes de
   enfileirar e a `nacional.BuildPedRegEvento` valida ao serializar — duas cópias da regra
   divergiriam. Mesmo precedente de `BuildIDDPS`.
+- *(Nota: desde 2026-10-06 `dfe.Call` só roda dentro da `go-dfe-egress`, sempre depois de um round-trip de JSON; as "chamadas in-process" abaixo descrevem o estado anterior e a regra de `intOf`/`strSlice` não foi reverificada.)*
 - **`go-dfe/nfse/dispatch.go`'s `intOf`/`strSlice` têm que aceitar tipos nativos do Go, não só os
   pós-decode de JSON.** `dfe.Call` tem duas rotas de transporte: o worker chamando via
   `invokePyDfeLambda` (o corpo passa por `json.Marshal`/`Unmarshal`, então `int`/`[]string` viram
@@ -1043,7 +1044,7 @@ Must follow Conventional Commits:
 - Development stacks use `RemovalPolicy.DESTROY`.
 - Production uses `RemovalPolicy.RETAIN`.
 - IAM permissions must follow least privilege principle.
-- PITR (Point-in-Time Recovery) is enabled only in staging/production.
+- PITR (Point-in-Time Recovery) is enabled only in prod (`cdk/lib/dynamodb-stack.ts`); stage is RETAIN without PITR.
 
 ### Edge routing (Cloudflare in front of everything)
 
@@ -1119,7 +1120,7 @@ trusting a hop nothing routes through is inert rather than wrong.
   API, no mesmo change: (1) `cdk/lib/worker-definitions.ts` com o serviço e as tabelas do role, (2) o nome da função
   e do DLQ processor nas quatro listas de `.github/workflows/worker.yml` (o deploy atualiza por nome, não pela lista
   do CDK), (3) o serviço no teste de cobertura em `cdk/test/worker-stack.test.ts`.
-- The worker invokes go-dfe in-process when supported and the Python Lambda as fallback.
+- The worker invokes the go-dfe-egress Lambda (sa-east-1) for every SEFAZ/municipal call; there is no in-process path and no py-dfe fallback.
 - After SEFAZ response: update DynamoDB, upload XML to S3, publish terminal results to SNS.
 - DLQ receives messages after max retries — monitor and alert.
 

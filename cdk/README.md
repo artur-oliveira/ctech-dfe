@@ -1,7 +1,6 @@
 # ctech-dfe CDK Infrastructure
 
-> HAProxy migration: the API ASG no longer creates an ALB target group or listener
-> rule. `ctech-lbalancer` discovers it through its `dfe` route; the retained
+> The API ASG creates no ALB, target group or listener rule (there is no ALB in this repo). `ctech-lbalancer` discovers it through its `dfe` route; the retained
 > `/ctech/{env}/network/alb-sg-id` identifies the shared edge trusted by the API SG.
 > The stack now uses `HaproxyEc2Service` from `@aoctech/cdk`; route creation stays
 > disabled because the existing `dfe` route parameter is owned by
@@ -22,66 +21,73 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 ## 1. Stacks (`bin/ctech-dfe-cdk.ts`)
 
 `ENVIRONMENT = process.env.ENVIRONMENT || 'dev'`; type `Environment = 'prod'|'stage'|'dev'`
-(`lib/types.ts:1`). Account `868899309401`, region `us-east-1` (`bin:21-22`). Stack ids
-`CtechDfe-{Env}-{Name}` (`bin:54-55`); OIDC is global.
+(`lib/types.ts:1`). Account `868899309401`, region `us-east-1`. Stack ids
+`CtechDfe-{Env}-{Name}`; OIDC is global.
 
 | Stack | id | Creates |
 |-------|-----|---------|
-| `OidcStack` | `CtechDfe-Global-OIDC` | GitHub Actions OIDC deploy roles (`bin:60-65`) |
-| `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 26 tables, including streamed worker outbox (§4) (`bin:70-75`) |
-| `S3Stack` | `CtechDfe-{Env}-S3` | Certificates + Documents buckets (`bin:79-84`) |
-| `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results SQS, no alarms (`bin:86-90`) |
-| `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (`bin:97-101`) |
-| `WorkerStack` | `CtechDfe-{Env}-Worker` | 8 workers + DLQs + dispatcher + outbox publisher (§2/§3) (`bin:105-116`) |
-| `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies (`bin:118-130`) |
-| `ApiStack` | `CtechDfe-{Env}-API-V2` | EC2 ASG + HAProxy route (§5) (`bin:139-156`) |
-| `FrontendStack` | `CtechDfe-{Env}-Frontend` | S3 + CloudFront (§6) (`bin:168-176`) |
+| `OidcStack` | `CtechDfe-Global-OIDC` | GitHub Actions OIDC deploy roles |
+| `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 47 tables, including streamed worker outbox (§4) |
+| `S3Stack` | `CtechDfe-{Env}-S3` | Certificates + Documents buckets |
+| `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results and erasure SQS, no alarms |
+| `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (retired, still deployed) |
+| `GoDfeEgressStack` | `CtechDfe-{Env}-GoDfeEgress` | go-dfe-egress Lambda, **sa-east-1** (§2) |
+| `WorkerStack` | `CtechDfe-{Env}-Worker` | 10 workers + DLQs + dispatcher + outbox publisher (§2/§3) |
+| `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies |
+| `ApiStack` | `CtechDfe-{Env}-API-V2` | EC2 ASG + HAProxy route (§5) |
 
 ## 2. Lambdas
 
 **Workers** (`lib/worker-definitions.ts`, built via `goCode` → Go `PROVIDED_AL2023`/`arm64`,
-handler `bootstrap`):
+handler `bootstrap`; every one is memory 128 except `distribution`):
 
-| id | function | binary | timeout | mem | SEFAZ services |
-|----|----------|--------|---------|-----|----------------|
-| nfe-emission | `${env}-nfe-emission-worker` | worker | 300 | 128 | NFeAutorizacao |
-| nfe-event | `${env}-nfe-event-worker` | worker | 60 | 128 | RecepcaoEvento |
-| nfe-inutilization | `${env}-nfe-inutilization-worker` | worker | 60 | 128 | NfeInutilizacao |
-| cte-emission | `${env}-cte-emission-worker` | worker | 300 | 128 | CTeRecepcao{Sinc,OS,GTVe,Simp} |
-| cte-event | `${env}-cte-event-worker` | worker | 60 | 128 | CTeRecepcaoEvento |
-| mdfe-emission | `${env}-mdfe-emission-worker` | worker | 300 | 128 | MDFeRecepcaoSinc |
-| mdfe-event | `${env}-mdfe-event-worker` | worker | 60 | 128 | MDFeRecepcaoEvento |
-| distribution | `${env}-distribution-worker` | distribution-worker | 300 | 256 | — |
+| id | function | binary | timeout (s) | SEFAZ services |
+|----|----------|--------|-------------|----------------|
+| nfe-emission | `${env}-nfe-emission-worker` | worker | 300 | NFeAutorizacao |
+| nfe-event | `${env}-nfe-event-worker` | worker | 150 | RecepcaoEvento |
+| nfe-inutilization | `${env}-nfe-inutilization-worker` | worker | 150 | NfeInutilizacao |
+| cte-emission | `${env}-cte-emission-worker` | worker | 300 | CTeRecepcao{Sinc,OS,GTVe,Simp} |
+| cte-event | `${env}-cte-event-worker` | worker | 150 | CTeRecepcaoEvento |
+| mdfe-emission | `${env}-mdfe-emission-worker` | worker | 300 | MDFeRecepcaoSinc |
+| mdfe-event | `${env}-mdfe-event-worker` | worker | 150 | MDFeRecepcaoEvento |
+| nfse-emission | `${env}-nfse-emission-worker` | worker | 300 | NFSeRecepcao |
+| nfse-event | `${env}-nfse-event-worker` | worker | 150 | NFSeEvento |
+| distribution | `${env}-distribution-worker` | distribution-worker (mem 256) | 300 | — (SQS direct) |
+
+Event-type workers use 150 s (`SEFAZ_CALL_TIMEOUT_SECONDS`) so they outlive the egress Lambda (120 s).
 
 Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
-- **DLQ processor** per worker: `${env}-{name}-dlq-processor`, timeout 30 / mem 128
-  (`worker-stack.ts:273-290`).
+- **DLQ processor**: one shared `${env}-dfe-dlq-processor` (timeout 30 / mem 128), created once and fed by the
+  worker DLQ; it publishes `status=failed` to the results SNS topic.
 - **outbox-publisher**: `${env}-dfe-outbox-publisher`, consumes `${p}_worker_outbox` `NEW_IMAGE` stream records,
-  publishes command SNS, and conditionally acknowledges the row; its own DLQ has no alarm (2026-08-19).
+  publishes command SNS, and conditionally acknowledges the row; its own DLQ has no alarm.
 - **distribution-dispatcher**: `${env}-distribution-dispatcher`, timeout 60 / mem 128,
-  EventBridge schedule every **30 min** (`worker-stack.ts:346-368`).
+  EventBridge schedule every **30 min**.
+- **go-dfe-egress** (`lib/egress-stack.ts`, `GoDfeEgressStack`): `${env}-go-dfe-egress` in **sa-east-1**,
+  `provided.al2023` arm64, timeout 120 s / mem 256. Every SEFAZ and municipal call goes through it
+  (referenced from other stacks by name/ARN strings only, since it is cross-region).
 - **py-dfe**: `${env}-py-dfe`, Python 3.14, arm64, timeout 30 / mem 512, handler
-  `py_dfe.handler.handler`. Its layer contains only Python SEFAZ dependencies; PDF-only
-  Pango/Cairo/font assets were removed. **There is no separate go-dfe
-  Lambda** — go-dfe runs in-process inside the Go workers; a comment at
-  `worker-stack.ts:226` about "go-dfe in-process" is forward-looking.
+  `py_dfe.handler.handler`. **Retired**: no worker or API code invokes it (they call the egress Lambda via
+  `DFE_LAMBDA_NAME`), but `DfeStack`, its role and invoke policy are still deployed. Removal is a separate change.
 
 ## 3. SQS / SNS (`lib/event-bus-stack.ts`, `lib/worker-stack.ts`)
 
 All **standard** (no FIFO anywhere).
 - SNS: `${env}-ctech-dfe` (event/command bus), `${env}-ctech-dfe-results` (results),
   `${env}-ctech-dfe-results-ops-alerts`, `${env}-dfe-ops-alerts` — both kept for out-of-band
-  subscriptions, but no alarm publishes to either any more (2026-08-19).
+  subscriptions; no alarm publishes to either (the DLQ alarms were removed from the CDK). The family alert topic
+  is `ctech-{env}-alerts` (owned by ctech-cdk); this service does not publish to it yet.
 - SQS: per-worker main queue `${env}-{queue}` → DLQ, `maxReceiveCount: 3`; DLQ retention
-  **14 days** (`worker-stack.ts:107-129`). Results queue retention **1h**, DLQ 14d
-  (`event-bus-stack.ts:42-65`). Event source `batchSize: 1`, `reportBatchItemFailures: true`
-  (`worker-stack.ts:217-223`).
+  **14 days**. Results queue retention **1h**, DLQ 14d
+ . Event source `batchSize: 1`, `reportBatchItemFailures: true`
+ .
 
 ## 4. DynamoDB (`lib/dynamodb-stack.ts`)
 
 `TableV2`, **`Billing.onDemand({ maxReadRequestUnits: 1000, maxWriteRequestUnits: 1000 })`**
 (on-demand, capped — NOT provisioned autoscaling). `RemovalPolicy` DESTROY in dev / RETAIN
-otherwise; **PITR prod only** (`:221-222`). 26 tables; notable GSIs:
+otherwise (so `stage` is RETAIN); **PITR prod only**. 47 tables, physical name `{env}_dfe_{name}`
+(org-owned entities as `{env}_dfe_organization_{name}`); notable GSIs:
 
 | table | keys | GSIs |
 |-------|------|------|
@@ -98,45 +104,39 @@ otherwise; **PITR prod only** (`:221-222`). 26 tables; notable GSIs:
 | `${p}_organization_{nfe,nfce,cte,mdfe}_configs` | pk only | — |
 | `${p}_worker_outbox` | pk+sk (+TTL `ttl`, `NEW_IMAGE` stream) | — |
 
-The `TableName` union (`:8-34`) is a **logical-name enum**, not the physical name — map via
+The `TableName` union  is a **logical-name enum**, not the physical name — map via
 the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` builders.
 
 ## 5. IAM & EC2 (`lib/iam-stack.ts`, `lib/api-stack.ts`, `lib/oidc-stack.ts`)
 
 - Roles: `${env}-py-dfe-lambda-role`, `${env}-ctech-dfe-api-v2-role`, per-worker roles,
   dispatcher role, DLQ-processor roles. `DynamoPolicy` grants CRUD + Query/**Scan** on all
-  tables + `/index/*` (`iam-stack.ts:81-105`); S3 on cert/doc buckets; SNS publish on the
+  tables + `/index/*`; S3 on cert/doc buckets; SNS publish on the
   event bus; SQS receive on results + send on distribution; SSM `GetParameter` on
   `/ctech-dfe|ctech-account|ctech/${env}/*`.
 - The API role can tag objects in the documents bucket. PDFs tagged
   `cache=auxiliary-document` expire after 30 days; in versioned production buckets,
   noncurrent tagged versions expire after one additional day.
-- **API on a private-IPv4 EC2 ASG routed by `ctech-lbalancer` HAProxy**
+- **API on an EC2 ASG routed by `ctech-lbalancer` HAProxy**
   (`api-stack.ts`): the shared `HaproxyEc2Service` creates the encrypted launch
-  template, ASG, SG, log groups and CPU target tracking. Capacity remains
-  `minCapacity: 1`, `maxCapacity: prod ? 3 : 1`; HAProxy probes
-  `/v1.0/health-check` and accepts `200,207`. The binary `app` runs from
-  `/opt/app/current/app` via systemd; nginx `:8080 → :8000` keeps the per-IP/per-tenant
-  rate limits. No ALB target group or listener rule is synthesized.
-- User data downloads only the official Cloudflare Origin CA RSA root, verifies
-  its pinned SHA-256 and installs it so private `*.internal.aoctech.app` TLS
-  endpoints validate without disabling verification.
-- `buildCloudWatchAgentConfig` publishes four bounded 60-second host series under
-  `CtechDfe/<env>/Host`: memory %, swap %, root-disk %, and application RSS.
-  EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
-- OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for frontend/api/infra/
-  pydfe/worker (`oidc-stack.ts`), plus `ctech-dfe-gha-scopes`. The scope role can
+  template, ASG, SG, log groups and CPU target tracking. Capacity is
+  `minCapacity: 1`, `maxCapacity: 2` (all environments). The binary `app` runs
+  via systemd behind nginx (`:8080`, per-IP/per-tenant rate limits). No ALB, target group or
+  listener rule is synthesized; the retained `/ctech/{env}/network/alb-sg-id` SSM parameter only
+  names the shared edge security group.
+- User data installs the Cloudflare Origin CA (`setup-cloudflare-ca.sh` from ctech-cdk assets) so private
+  `*.internal.aoctech.app` TLS endpoints validate without disabling verification.
+- CloudWatch agent config is **logs only** (app and nginx log groups); the host-metric series that earlier
+  versions published were removed. EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
+- OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for api/infra/
+  pydfe (retired Lambda, role still present)/worker (`oidc-stack.ts`), plus `ctech-dfe-gha-scopes`. The scope role can
   read only Account's app URL and DFe publisher client ID/secret parameters.
 
-## 6. CloudFront / Frontend (`lib/frontend-stack.ts`)
+## 6. Frontend
 
-`createNextjsStaticFrontend` from `@aoctech/cdk` creates the private S3 bucket, OAC,
-route KVS, rewrite function, headers and distribution. The stack adds the API
-origin behavior for `/v1.0/*` and `/.well-known/*` (CACHING_DISABLED) and for
-`/docs`, `/openapi.json`, `/openapi.yaml` (same behavior, own CSP allowing unpkg for Stoplight
-Elements); security headers (HSTS 2y, frame DENY, CSP `default-src 'self'`); `priceClass PRICE_CLASS_100`;
-HTTP2+3; TLS 1.2_2021. **No `geoRestriction`** in this stack (if any Brazil geo-restriction
-exists it is applied elsewhere).
+There is no frontend stack in this repo: the UI is a static export deployed to Cloudflare Workers Static
+Assets by `.github/workflows/frontend.yml` (reusable workflow `frontend-cloudflare.yml` in ctech-cdk). The
+browser calls the API host directly (CORS applies). `FrontendStack`/CloudFront no longer exist in `cdk/lib`.
 
 ## 7. Deploy & cost
 
@@ -148,19 +148,19 @@ exists it is applied elsewhere).
   `CTECH_AWS_PROFILE=ctech ./scripts/configure-service-url-parameters.sh {env}`.
   The API resolves account transport/JWKS and its own audience/CORS URLs from SSM
   on every service start; changing them no longer changes the CloudFormation template.
-- **Keep-warm (~B21 cost driver)**: for each of the 8 workers a `scheduler.Schedule`
+- **Keep-warm (cost driver)**: for each of the 10 workers a `scheduler.Schedule`
   `${env}-{name}-ping-schedule` invokes the worker with `{ping:true}` at
-  **`Duration.minutes(1)`** (`worker-stack.ts:228-236`) — i.e. 8 Lambdas pinged 1440×/day
-  each. **Code/comment mismatch**: the comment at `worker-stack.ts:225` says "every 5 min";
-  the code says 1 min — the code wins. No Lambda provisioned concurrency; EC2 `maxCapacity 3`
-  (prod) / 1 (dev/stage); DynamoDB on-demand capped 1000 RU/WU; CloudFront PRICE_CLASS_100.
+  **`Duration.minutes(1)`** (`worker-stack.ts`) — 1440 pings/day per worker. **Code/comment mismatch**: the
+  comment in `worker-stack.ts` says "every 5 min"; the code says 1 min, the code wins. No Lambda provisioned
+  concurrency; EC2 `maxCapacity` 2; DynamoDB on-demand capped 1000 RU/WU.
 
 ## 8. Known divergences (documented honestly)
 
-- **B14** — DynamoDB IAM policy grants `Scan` (`iam-stack.ts:81-105`), consumed by the
+- **B14** — DynamoDB IAM policy grants `Scan`, consumed by the
   distribution-dispatcher's org enumeration (`worker/README.md` §6).
 - Keep-warm rate is 1 min (code) vs 5 min (comment) — B21 cost note.
-- No separate go-dfe Lambda; go-dfe is in-process in the Go workers.
+- py-dfe is retired but its stack, IAM and OIDC role are still deployed.
+- DLQs have no alarm; alerts to the family SNS topic `ctech-{env}-alerts` are not wired yet.
 - ASG `gracePeriod: 120s` is supplied to the shared `HaproxyEc2Service` construct.
 - The API runs `t4g.nano` On-Demand (`HaproxyEc2Service` `onDemand: true`, `@aoctech/cdk` >= 0.10.0),
   covered by the `t4g` EC2 Instance Savings Plan. Spot and the micro fallback were dropped after

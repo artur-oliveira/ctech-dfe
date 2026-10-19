@@ -1,10 +1,10 @@
-# py-dfe — Technical Reference
+# ctech-dfe — Technical Reference
 
 ## Table of Contents
 
 1. [Overview](#1-overview)
 2. [Architecture](#2-architecture)
-3. [py-dfe — Core Library](#3-py-dfe--core-library)
+3. [py-dfe — Core Library (retired)](#3-py-dfe--core-library)
 4. [ctech-dfe-api — REST Backend](#4-ctech-dfe-api--rest-backend)
 5. [ui — Frontend](#5-ui--frontend)
 6. [ctech-dfe-worker — Async Workers](#6-ctech-dfe-worker--async-workers)
@@ -19,7 +19,7 @@
 
 ## 1. Overview
 
-**py-dfe** is a multi-tenant SaaS platform for fiscal communication with SEFAZ (Secretaria da Fazenda). It enables
+**ctech-dfe** is a multi-tenant SaaS platform for fiscal communication with SEFAZ (Secretaria da Fazenda). It enables
 companies to issue and manage Electronic Tax Documents (DF-e) via REST API or web interface.
 
 **Supported documents:**
@@ -28,6 +28,7 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
 - NFC-e — Nota Fiscal de Consumidor Eletrônica (POS)
 - CT-e — Conhecimento de Transporte Eletrônico
 - MDF-e — Manifesto de Documento Fiscal Eletrônico
+- NFS-e — Nota Fiscal de Serviços Eletrônica (national REST, via the same egress Lambda)
 
 **SEFAZ environments:** Production and Homologation (per organization and document type).
 
@@ -38,7 +39,7 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        ui                            │
-│              Next.js 16 · TypeScript · ShadCN · Tailwind        │
+│              Next.js 16 · TypeScript · shadcn · Tailwind     │
 └────────────────────────────┬────────────────────────────────────┘
                              │ HTTPS · JWT Bearer
 ┌────────────────────────────▼────────────────────────────────────┐
@@ -51,7 +52,7 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
        │              │          │             │
   ┌────▼─────┐  ┌─────▼──────┐  │   ┌─────────▼──────┐
   │ DynamoDB │  │     S3     │  │   │ Redis (Valkey)  │
-  │ 26 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
+  │ 47 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
   └──────────┘  └────────────┘  │   └────────────────┘
                             ┌───▼────────────────────┐
                             │ Outbox → SNS → SQS     │
@@ -61,11 +62,11 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
                         │  ctech-dfe-worker    │
                         │  Go Lambda           │
                         └───────┬──────────────┘
-                                │ InvokeFunction
+                                │ InvokeFunction (sa-east-1)
                         ┌───────▼──────────────┐
-                        │  ctech-dfe (py-dfe)  │
-                        │  Python Lambda       │
-                        │  Sign XML · SOAP     │
+                        │  go-dfe-egress       │
+                        │  Go Lambda · go-dfe  │
+                        │  Sign XML · SOAP/REST│
                         └───────┬──────────────┘
                                 │ mTLS
                         ┌───────▼────────┐
@@ -79,14 +80,18 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
 2. ctech-dfe-api validates JWT (RS256, JWKS cached in Redis), loads data from DynamoDB and certificate from S3
 3. Issuance transacts the fiscal number, document, and immutable `worker_outbox` command
 4. The outbox DynamoDB Stream publisher forwards the command through SNS to standard SQS
-5. ctech-dfe-worker conditionally claims the target, fetches the certificate, and invokes go-dfe or py-dfe
+5. ctech-dfe-worker conditionally claims the target, fetches the certificate, and invokes the go-dfe-egress Lambda (sa-east-1)
 6. The fiscal engine signs XML, opens mTLS with the A1 certificate, and submits to SEFAZ
 7. Worker persists the result, uploads XML to S3, and publishes terminal status to results SNS
 8. ctech-dfe-api consumes results and delivers the update through Valkey/WebSocket
 
 ---
 
-## 3. py-dfe — Core Library
+## 3. py-dfe — Core Library (retired)
+
+> **Retired.** No `worker` or `api` code invokes py-dfe; every SEFAZ/municipal call goes through the go-dfe-egress
+> Lambda (see the go-dfe section and `go-dfe-egress/CLAUDE.md`). `cdk/lib/dfe-stack.ts` and its IAM/OIDC pieces are still
+> deployed and removal is pending. This section documents the old behavior only.
 
 **Location:** `/py-dfe/`
 **Runtime:** AWS Lambda, Python 3.14
@@ -392,45 +397,28 @@ go-dfe/nfse/
 
 ## 4. ctech-dfe-api — REST Backend
 
-**Location:** `/ctech-dfe-api/`
+**Location:** `/api/`
 **Framework:** Fiber v3 · Go · AWS SDK v2
 
 ### Structure
 
 ```
-ctech-dfe-api/
-├── cmd/server/main.go          # Fiber app, dependency wiring, startup
+api/
+├── cmd/server/main.go          # Fiber app, fx wiring, startup (plus one-shot tools: migrate-*, rekey-companies, openapi-dump)
 ├── internal/
+│   ├── app/app.go              # fx module, Fiber app, cache/ws wiring
 │   ├── config/                 # 12-Factor env config (caarlos0/env)
-│   ├── problem/                # RFC 7807 Problem type + helpers
-│   ├── middleware/
-│   │   ├── auth.go             # RS256 JWT validation, JWKS cached in Redis
-│   │   ├── tenant.go           # Dfe-Organization-Pk header → org context
-│   │   └── perm.go             # RBAC permission checker (OWNER/ADMIN bypass)
-│   ├── cache/                  # Redis + in-memory backends
-│   ├── ws/                     # WebSocket registry (Redis pub/sub)
+│   ├── problem/                # RFC 7807 helpers (wraps api-commons/problem)
+│   ├── middleware/             # auth.go, tenant.go, rbac.go, scopes.go, reach.go, subscription.go, internal.go
+│   ├── accountclient/ billingclient/ oauthresource/ consumer/
 │   ├── awsclient/              # AWS SDK v2 client wrappers
 │   ├── repositories/           # Persistence only — DynamoDB access
-│   ├── services/               # Business logic
-│   │   ├── certificates.go     # CertificateService: upload (PFX parse + S3 + DynamoDB), list, delete
-│   │   ├── fiscal_configs.go   # NfeConfig / NfceConfig / CteConfig / MdfeConfig
-│   │   ├── nfes/               # NfeService: emit (transact_write), cancel, events
-│   │   ├── organizations.go    # OrganizationService: CRUD + Redis cache
-│   │   ├── persons.go          # PersonService
-│   │   ├── users.go            # UserService: GetMe, AttachToOrg, Redis cache
-│   │   └── vehicles.go         # VehicleService
-│   └── api/v1/
-│       ├── router.go           # Mounts all route groups
-│       ├── auth.go             # /auth/me, /auth/roles
-│       ├── organizations.go    # /organizations/*
-│       ├── products.go         # /products
-│       ├── persons.go          # /persons
-│       ├── vehicles.go         # /vehicles
-│       ├── nfes.go             # /nfes
-│       ├── distributions.go    # /distributions
-│       ├── external.go         # /external/lookup-organizations
-│       └── helpers.go          # sendPage, sendItem, sendProblem, pagination helpers
+│   ├── services/               # Business logic (+ nfes/, mdfes/, nfses/, documents/)
+│   └── api/v1/                 # router.go and one file per resource, helpers.go (sendPage, sendItem, sendProblem)
 ```
+
+Cache, WebSocket registry, JWT verification, deadline, erasure and observability come from `api-commons` (go-common),
+not from local packages.
 
 ### Configuration (environment variables)
 
@@ -446,11 +434,12 @@ VALKEY_URL=redis://...          # JWKS cached here; falls back to in-memory when
 
 # AWS
 AWS_REGION=us-east-1
-TABLE_PREFIX=dev                # dev | staging | prod
-S3_BUCKET_CERTIFICATES=dev-py-dfe-certificates
-S3_BUCKET_DOCUMENTS=dev-py-dfe-documents
+TABLE_PREFIX=dev_dfe            # {env}_dfe, env = dev | stage | prod
+S3_BUCKET_CERTIFICATES=dev-ctech-dfe-certificates
+S3_BUCKET_DOCUMENTS=dev-ctech-dfe-documents
 ENVIRONMENT=dev
-PYDFE_FUNCTION_NAME=dev-py-dfe  # Python SEFAZ Lambda (Scenario A)
+SEFAZ_FUNCTION_NAME=dev-go-dfe-egress  # egress Lambda name (legacy env var name)
+DFE_EGRESS_REGION=sa-east-1
 DFE_TOPIC_ARN=                  # SNS command topic; issuance reaches it through worker_outbox
 TECHNICAL_CNPJ=62787449000107   # Technical contact CNPJ (DFe)
 
@@ -897,8 +886,7 @@ Três propriedades sustentam o desenho:
   gravados na mesma transação. Uma falha transitória não grava nenhum dos dois e volta para a fila;
   uma redelivery após sucesso encontra o marcador e não decrementa novamente.
 
-**A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então dispara o
-alarme da DLQ de resultados — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
+**A mensagem não é apagada quando o acerto falha.** A fila redelivera 3 vezes e então a mensagem vai para a DLQ de resultados (sem alarme: foi removido do CDK; a profundidade da DLQ é verificada à mão) — apagar deixaria um reporte de uso perdido com uma linha de log atrás.
 Redirecionar (redrive) a DLQ é seguro: os dois lados são idempotentes.
 
 Falha ao publicar um resultado terminal volta para a fila. Na redelivery, um documento já terminal
@@ -3022,7 +3010,7 @@ nem mapas locais de status de evento em telas de detalhe.
 
 ## 6. ctech-dfe-worker — Async Workers
 
-**Location:** `/ctech-dfe-worker/`
+**Location:** `/worker/`
 **Runtime:** AWS Lambda · Go · `provided.al2023` · binary named `bootstrap`
 
 **Responsibility:**
@@ -3030,7 +3018,7 @@ nem mapas locais de status de evento em telas de detalhe.
 - Publish immutable API command outbox rows from DynamoDB Streams to command SNS
 - Consume standard SQS for at-least-once DFe issuance/event delivery (`DfeWorkerEvent`)
 - Conditionally claim each document/event with an owner and six-minute processing lease before SEFAZ
-- Fetch A1 certificate from S3, invoke `ctech-dfe` Python Lambda (SEFAZ XML-DSig + SOAP)
+- Fetch A1 certificate from S3, invoke the go-dfe-egress Lambda in sa-east-1 (XML-DSig + SEFAZ SOAP / NFS-e REST)
 - Parse SEFAZ response, update DynamoDB (status, protocol, xml_s3_key)
 - Upload signed XML to S3
 - Publish terminal status to results SNS → API results consumer → Valkey/WebSocket
@@ -3040,12 +3028,12 @@ nem mapas locais de status de evento em telas de detalhe.
 
 ```
 GitHub push → worker.yml
-  1. test     go test ./... -race (ubuntu-24.04-arm)
+  1. test     go test ./... -race
   2. deploy
-     a. build  CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build → dist/bootstrap
-     b. zip    bootstrap → worker-{version}.zip
-     c. upload s3://{env}-py-dfe-deployments/worker/{version}.zip
-     d. update aws lambda update-function-code (9 emission/event workers, parallel)
+     a. build  CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build → dist/bootstrap (per cmd: worker, distribution-worker, dlq-processor, distribution-dispatcher)
+     b. zip    bootstrap → {cmd}-{version}.zip
+     c. upload s3://{env}-ctech-deployments/ctech-dfe/worker/{cmd}-{version}.zip
+     d. update aws lambda update-function-code (emission/event workers incl. NFS-e, distribution worker, DLQ processor, dispatcher)
      e. wait   aws lambda wait function-updated
 ```
 
@@ -3109,14 +3097,14 @@ Não reusa `runDistNSU` porque os dois só parecem o mesmo problema:
 | Punição     | consumo indevido                     | não existe no ADN                           |
 | Teto        | `ultNSU >= maxNSU`                   | `maxNfseDistBatches = 20` por invocação     |
 
-O que é comum — `loadConfig`, `loadCert`, `getCertB64`, `claimDistNSUSlot`, `invokePyDfe`, `updateNSU` — é reusado
+O que é comum — `loadConfig`, `loadCert`, `getCertB64`, `claimDistNSUSlot`, `invokeEgress`, `updateNSU` — é reusado
 sem cópia.
 
 | Regra | Por quê |
 |---|---|
 | Só `provider = nacional` distribui | O ADN é do Sistema Nacional; ABRASF 2.04 não tem distribuição |
 | Cursor em `organization_nfse_configs` (`{env}_nsu`), igual à família NF-e | Homologação e produção têm sequências de NSU independentes |
-| Erro do ADN (HTTP != 200) é terminal — loga e devolve nil | Repetir a chamada devolve a mesma recusa; só falha de rede merece retry (o `error` de `invokePyDfe`) |
+| Erro do ADN (HTTP != 200) é terminal — loga e devolve nil | Repetir a chamada devolve a mesma recusa; só falha de rede merece retry (o `error` de `invokeEgress`) |
 | `PutItem` do NSU é condicional (`attribute_not_exists`) | SQS é at-least-once: a re-entrega não pode duplicar o registro |
 | Não passa por `processDocZip` | Aquele descompacta gzip+base64 e faz parsing de `procNFe`/`resNFe`; o ADN já entrega o XML pronto em `xml` |
 | `mapToDfeRequest` aceita UF vazia quando `doc_type = nfse` | NFS-e é competência municipal e viaja sem UF; o guard antigo jogaria a chamada no py-dfe, que não implementa NFS-e |
@@ -3163,7 +3151,7 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 ## 8. cdk — Infrastructure
 
 **Location:** `/cdk/`
-**Language:** TypeScript, AWS CDK 2.257
+**Language:** TypeScript, `aws-cdk-lib` v2 (resolved 2.268), `@aoctech/cdk`. CDK is frozen by family policy (new independent infra goes to Terraform).
 
 ### Stacks
 
@@ -3174,10 +3162,14 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 | `S3Stack`       | `s3-stack.ts`        | DFE certificates and documents buckets                   |
 | `EventBusStack` | `event-bus-stack.ts` | SNS command/results topics, SQS results queue, and the account-deletion queue (+ DLQ, subscribed to ctech-account's user-erasure topic with filter `services=dfe`; visibility 30 min, 5 receives) |
 | `IAMStack`      | `iam-stack.ts`       | Lambda and EC2 roles/instance profiles                    |
-| `DfeStack`      | `dfe-stack.ts`       | py-dfe compatibility SEFAZ Lambda                         |
-| `WorkerStack`   | `worker-stack.ts`    | Fiscal workers, outbox publisher, standard SQS/DLQs       |
-| `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG, logs, scaling, and HAProxy route manifest |
-| `FrontendStack` | `frontend-stack.ts`  | S3 + CloudFront + URL-rewrite KVS — retired, see below     |
+| `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda — retired, still deployed                   |
+| `GoDfeEgressStack` | `egress-stack.ts` | go-dfe-egress Lambda in sa-east-1 (every SEFAZ/municipal call) |
+| `WorkerStack`   | `worker-stack.ts`    | Fiscal workers (10), DLQ processor, outbox publisher, distribution dispatcher, standard SQS/DLQs |
+| `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG (`HaproxyEc2Service`), logs, scaling; no ALB |
+
+There is no `FrontendStack` and no CloudFront in `cdk/lib`: the UI is a static export published to Cloudflare Workers
+Static Assets by `.github/workflows/frontend.yml`. The retired CloudFront stack no longer exists in the code; if one is
+still deployed in the account it is a leftover to delete (not verified).
 
 ### Network Architecture
 
@@ -3188,66 +3180,27 @@ Free Gateway VPC Endpoints keep S3 and DynamoDB traffic inside AWS without going
 
 ### ApiStack — Go API on EC2
 
-Each instance is provisioned via Launch Template with user data that:
+The ASG, security group, launch template and log groups come from `HaproxyEc2Service` (`@aoctech/cdk`); route
+registration and the private CNAME belong to `ctech-lbalancer`. Capacity is `minCapacity: 1`, `maxCapacity: 2`,
+`t4g.nano` On-Demand (Alpine arm64 AMI by default, `OS_FAMILY=al2023` is the rollback). User data runs shared
+bootstrap scripts from ctech-cdk's `assets/ec2` (fetched from S3, versioned by content hash so a script change
+triggers an instance refresh): base setup, 256 MB swap, dual-stack, Cloudflare origin CA, nginx (`:8080` in front of the
+app, per-service fragments in `cdk/scripts/api/*.conf`), the app systemd service and the deploy script, then the
+CloudWatch agent (logs only) and the first bootstrap from `s3://{deployments-bucket}/ctech-dfe/api/current.zip`.
+No secret value is resolved at synthesis time; the app reads SSM parameters by name at start with the instance role.
 
-1. Installs nginx, SSM agent, and CloudWatch agent
-2. Creates the application user, 256 MB swap, and the Cloudflare origin CA trust
-3. Configures SSM agent with `UseDualStackEndpoint: true`
-4. Writes the two environment files (below)
-5. Downloads and unpacks the bootstrap asset, then runs `setup.sh`
-6. Refreshes the nginx realip ranges and configures the CloudWatch agent
-7. Attempts automatic bootstrap via `s3://*/api/current.zip`
-
-#### The 16 KB split — static files ride in an S3 asset
-
-EC2 caps user data at 16384 bytes, and the deploy is where you find out: inlining
-`nginx.conf`, the systemd unit and three shell scripts blew past it. Everything
-byte-identical across environments now lives in `cdk/scripts/api/` and travels as an
-`aws-s3-assets` Asset:
-
-| File                | Installed to                    |
-|---------------------|---------------------------------|
-| `setup.sh`          | runs from `/opt/bootstrap`      |
-| `nginx.conf`        | `/etc/nginx/nginx.conf`         |
-| `app.service`       | `/etc/systemd/system/app.service` |
-| `start.sh`          | `/opt/app/start.sh`             |
-| `deploy.sh`         | `/opt/app/deploy.sh`            |
-| `upload-logs.sh`    | `/opt/app/upload-logs.sh`       |
-| `logrotate.conf`    | `/etc/logrotate.d/ctech-dfe`    |
-
-**Why an Asset and not a bucket of our own with fixed keys:** the Asset's S3 key is
-the hash of the directory, so editing a script changes the user data, which versions
-the launch template and triggers an instance refresh. With a fixed key the file would
-change under running instances while the template stayed byte-identical, and the next
-scale-out would boot a different machine than the one already serving.
-
-The instance reads the asset with the same instance profile it uses for everything
-else; the grant lives in `iam-stack.ts` (`ApiS3Policy`) rather than via
-`asset.grantRead()`, because `ApiStack` receives the profile as a **name**, not a Role.
-
-#### The two environment files
-
-| File                 | Written by | Holds                                                                 |
-|----------------------|------------|-----------------------------------------------------------------------|
-| `/etc/bootstrap.env` | user data  | bucket names and **SSM parameter names** — read by every shipped script |
-| `/etc/app-static.env`| user data  | the app's non-secret configuration, loaded by systemd `EnvironmentFile=` |
-
-No secret value is ever resolved at synthesis time. `start.sh` reads the parameters
-by name at service start, using the instance role — a value in the launch template
-would be readable by anyone holding `ec2:DescribeLaunchTemplateVersions`.
-
-The ASG itself uses EC2 health. HAProxy performs the application health check and, when `autoHeal` is enabled, marks an
-instance unhealthy after repeated failed reconciliations so the ASG replaces it. Instance Refresh still requires
-explicit monitoring because application health is not a native ASG health-check type.
+Health: the ASG uses EC2 health; HAProxy performs the application check (`ctech-lbalancer`).
 
 ### S3 Buckets
 
-| Bucket                      | Lifecycle                     | Usage                           |
-|-----------------------------|-------------------------------|---------------------------------|
-| `{env}-py-dfe-certificates` | Expires `temp/` after 90 days | Organization A1 certificates    |
-| `{env}-py-dfe-documents`    | Tagged PDFs expire after 30d | Issued XML and cached auxiliary PDFs |
-| `{env}-py-dfe-deployments`  | Expires after 30 days         | API deployment artifacts        |
-| `{env}-py-dfe-logs`         | — (RETAIN in prod)            | Rotated EC2 instance logs       |
+| Bucket                          | Owner / lifecycle                               | Usage                           |
+|---------------------------------|-------------------------------------------------|---------------------------------|
+| `{env}-ctech-dfe-certificates`  | this repo; expires `temp/` after 90 days        | Organization A1 certificates    |
+| `{env}-ctech-dfe-documents`     | this repo; tagged PDFs expire after 30 days     | Issued XML and cached auxiliary PDFs |
+| `{env}-ctech-deployments`       | ctech-cdk (shared); artifacts expire after 30 days | API deployment artifacts     |
+| `{env}-ctech-application-logs`  | ctech-cdk (shared)                              | Rotated EC2 instance logs       |
+
+Outside prod the two DFE buckets are `DESTROY` with `autoDeleteObjects`; prod is versioned and `RETAIN`.
 
 ### SQS long polling
 
@@ -3265,7 +3218,9 @@ free/month, $0.10/alarm-month after) had pushed CloudWatch cost from $0 to ~$0.1
 subscriptions. The last two, `outbox-publisher-dlq-alarm` and `ResultsQueue-dlq-alarm`, were
 removed for the same reason: nobody was subscribed, so they billed without ever reaching a human.
 
-**What replaces them:** nothing automatic. DLQ depth is a console check or a redrive runbook.
+**What replaces them:** nothing automatic yet. DLQ depth is a console check or a redrive runbook. The family
+policy is to alert through the shared SNS topic `ctech-{env}-alerts` via go-common `alerts`; this service does not
+use it yet.
 Both SNS topics are still created so an alarm can be pointed back at them without breaking any
 subscription added outside CloudFormation.
 
@@ -3275,21 +3230,16 @@ subscription added outside CloudFormation.
 namespace (2026-08-19). EC2 already publishes CPUUtilization and CPUCreditBalance for free, and
 the host/process series the agent published (mem, swap, disk, app RSS) were never alarmed on.
 
-### SSM agent — off by default
+### SSM agent — on
 
-The agent is **disabled in user data**. Deploys replace the instances through an ASG instance
-refresh, so nothing runs over RunCommand any more, and the agent costs ~70 MiB of RSS on a
-t4g.nano. `ENABLE_SSM_AGENT=true cdk deploy` puts it back when you need a Session Manager shell —
-the instances have no other ingress (no public IPv4, no SSH). Same knob as `ctech-lbalancer`,
-`ctech-billing`, `ctech-wallet`, `ctech-poker` and `ctech-account`. Changing it replaces the
-instances.
+`bin/ctech-dfe-cdk.ts` sets `ENABLE_SSM_AGENT = true`: CI deploys over SSM RunCommand (`/opt/app/deploy.sh`) and the
+agent also gives a Session Manager shell (the instances have no public IPv4 and no SSH). It costs ~70 MiB of RSS on a
+`t4g.nano`. The `enableSsmAgent` prop of `ApiStack` defaults to `false`; changing it replaces the instances.
 
-### ASG schedule — 11:55 to 13:15
+### ASG schedule — disabled
 
-Scheduled actions bring the ASG up at **11:55** and take it down at **13:15**
-America/Sao_Paulo. Outside that window the API is unreachable and inbound webhooks fail —
-deliberate for a development environment on a single t4g.nano. A deploy that lands outside the
-window exits early; the next scheduled instance boots the artifact from S3.
+The daytime-window schedule (up 11:55, down 13:15 America/Sao_Paulo) is commented out in `api-stack.ts`; the ASG runs
+continuously.
 
 ### Cost allocation tags
 
@@ -3306,13 +3256,13 @@ cd ../ctech-dfe/cdk
 npm install
 cdk synth                    # Generate CloudFormation
 cdk deploy --all             # Deploy all stacks
-ENVIRONMENT=prod cdk deploy PyDfe-Prod-API-V2  # Specific stack
+ENVIRONMENT=prod cdk deploy CtechDfe-Prod-API-V2  # Specific stack
 ```
 
 **Never run in production:**
 
 ```bash
-cdk destroy --all  # Deletes EVERYTHING including data in dev/staging with DESTROY policy
+cdk destroy --all  # Deletes EVERYTHING including data in dev (DESTROY policy; stage and prod RETAIN tables)
 ```
 
 ---
@@ -3428,46 +3378,30 @@ documented, time-bounded diagnostic required by the fiscal integration policy.
 
 | Source           | Log Group                  | Retention         | Format |
 |------------------|----------------------------|-------------------|--------|
-| api (app) | `/py-dfe/{env}/app`        | 7d dev / 30d prod | text   |
-| nginx access     | `/py-dfe/{env}/nginx`      | 7d dev / 30d prod | JSON   |
-| nginx error      | `/py-dfe/{env}/nginx`      | 7d dev / 30d prod | text   |
-| Lambda py-dfe    | `/aws/lambda/{env}-py-dfe` | Lambda default    | JSON   |
+| api (app) | `/ctech-dfe/{env}/app`     | 7d non-prod / 30d prod | text   |
+| nginx access/error | `/ctech-dfe/{env}/nginx` | 7d non-prod / 30d prod | JSON / text |
+| Lambda workers   | `/aws/lambda/{env}-*`      | Lambda default    | JSON   |
+| Lambda py-dfe (retired) | `/aws/lambda/{env}-py-dfe` | Lambda default | JSON |
 
 nginx uses `log_format json_log escape=json` with fields: `remote_addr`, `status`, `request`, `body_bytes_sent`,
 `request_time`, `upstream_response_time`.
 
-**CNPJ masking:** `_mask_cnpj()` in the py-dfe handler hides sensitive digits in logs.
+**CNPJ masking:** `_mask_cnpj()` in the (retired) py-dfe handler hid sensitive digits in logs; the Go code must not log
+CNPJ/CPF or fiscal payloads (see above).
 
 ### Log Rotation and Archiving (EC2)
 
-Daily logrotate (`/etc/logrotate.d/py-dfe`) with `copytruncate` — files rotated on disk without restarting nginx or
-gunicorn.
+Log rotation and archiving of the instance logs to the shared logs bucket `{env}-ctech-application-logs` is done by
+the shared ctech-cdk setup scripts (`setup-logs.sh`); the exact object layout is defined there and was not re-verified here.
 
-After rotation, `/opt/app/upload-logs.sh` packages the day's `.gz` files and uploads to:
+### HTTP Metrics
 
-```
-s3://{env}-py-dfe-logs/api/{yyyymmdd}-{instance_id}.tar.gz
-```
-
-Local files are deleted after a successful upload. If upload fails, the file remains in `/var/log/app` or
-`/var/log/nginx` until the next rotation (rotate 1).
-
-### HTTP Metrics (CloudWatch Metric Filters)
-
-Filters on the nginx log group — no application instrumentation required:
-
-| Metric    | Namespace     | Filter                                      |
-|-----------|---------------|---------------------------------------------|
-| `HTTP2XX` | `PyDfe/{env}` | `{ ($.status >= 200) && ($.status < 300) }` |
-| `HTTP3XX` | `PyDfe/{env}` | `{ ($.status >= 300) && ($.status < 400) }` |
-| `HTTP4XX` | `PyDfe/{env}` | `{ ($.status >= 400) && ($.status < 500) }` |
-| `HTTP5XX` | `PyDfe/{env}` | `{ $.status >= 500 }`                       |
+None. The CDK defines no metric filter, no custom metric and no alarm (family policy: logs plus SNS alerts only).
 
 ### Other
 
-- **Lambda Metrics:** CloudWatch Metrics (duration, errors, throttles)
 - **Traces:** X-Ray (planned — not implemented)
-- **Alerts:** SNS (configured in CDK for DLQ)
+- **Alerts:** none wired from this service yet (see "CloudWatch alarms — none" in section 8)
 
 ---
 
@@ -3476,52 +3410,42 @@ Filters on the nginx log group — no application instrumentation required:
 ### Environments
 
 ```
-dev        → TABLE_PREFIX=dev,     S3=dev-py-dfe-*,     Lambda=dev-py-dfe
-staging    → TABLE_PREFIX=staging, S3=staging-py-dfe-*, Lambda=staging-py-dfe
-production → TABLE_PREFIX=prod,    S3=prod-py-dfe-*,    Lambda=prod-py-dfe
+dev   (branch dev)     → TABLE_PREFIX=dev_dfe,   S3=dev-ctech-dfe-*,   Lambda=dev-go-dfe-egress
+stage (branch staging) → TABLE_PREFIX=stage_dfe, S3=stage-ctech-dfe-*, Lambda=stage-go-dfe-egress
+prod  (branch main)    → TABLE_PREFIX=prod_dfe,  S3=prod-ctech-dfe-*,  Lambda=prod-go-dfe-egress
 ```
 
-### py-dfe (Lambda)
+### py-dfe (Lambda) — retired
 
-```bash
-cd py-dfe
-pip install -e .
-# Deploy via CDK — packaged as Lambda Layer
-```
+Still deployed by `DfeStack` (Lambda layer built from `py-dfe/layer`), but nothing calls it. Do not extend.
 
-### ctech-dfe-api
+### api
 
 ```bash
 # Local dev
-cd ctech-dfe-api
+cd api
 go run ./cmd/server
 # or
-make build && ./dist/ctech-dfe-api
+make build
 ```
 
-**Production (EC2 + ASG via ApiStackV2) — rolling deploy:**
+**Production (EC2 + ASG via ApiStack) — rolling deploy** (`.github/workflows/deploy.yml` → `api.yml`):
 
 ```
-GitHub push → api.yml
-  1. test       go test ./... -race (ubuntu-24.04-arm)
+push to main|staging|dev → deploy.yml (path filter, ordered stages) → api.yml
+  1. test       go test ./... -race -count=1
   2. deploy     (depends on test)
-     a. build     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build → dist/ctech-dfe-api
-     b. package   zip ctech-dfe-api + ctech-dfe-api.service → {version}.zip
-     c. upload S3 api/{version}.zip  (expires 30 days via lifecycle)
-                  api/current.zip   (always points to latest version)
-     d. refresh   aws autoscaling start-instance-refresh
-                    MinHealthyPercentage: 0     ← no replacement before the old instance goes
-                                                  away: the service is DOWN during the refresh
-                    SkipMatching: false         ← a deploy does not change the launch template,
-                                                  so matching would skip every instance
-     e. wait      polling every 15s until Successful | Failed | Cancelled
+     a. build     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build → dist/app (+ release.env with APP_VERSION)
+     b. package   zip → api-{version}.zip
+     c. upload    s3://{deployments-bucket}/ctech-dfe/api/{zip}  (30-day lifecycle) and .../current.zip
+     d. rolling   ctech-cdk action `deploy-backend` over SSM against ASG {env}-ctech-dfe
 ```
 
-New instances auto-bootstrap via `api/current.zip` on boot (user data) — installs binary to
-`/opt/ctech-dfe-api/ctech-dfe-api` and registers the systemd service.
+New instances bootstrap from `ctech-dfe/api/current.zip` on boot (user data).
 
-> The ASG uses EC2 health checks. HAProxy's route reconciliation supplies application-level removal and auto-heal;
-> verify the health endpoint and HAProxy backend state during an Instance Refresh rather than assuming native ELB rollback.
+> The ASG uses EC2 health checks; HAProxy (`ctech-lbalancer`) provides application-level health. Verify the health
+> endpoint and HAProxy backend state during a deploy. Whether the `deploy-backend` action keeps capacity during the
+> rollout is defined in ctech-cdk and was not verified here.
 
 See `DEPLOYMENT.md §EC2` for diagnostic commands and log analysis.
 
@@ -3532,8 +3456,7 @@ cd ui
 npm install && npm run build
 # Production: Cloudflare Worker with static assets, deployed by
 # .github/workflows/frontend.yml calling ctech-cdk's reusable workflow.
-# FrontendStack (S3 + CloudFront) is kept deployed only as the rollback target
-# during the soak window and is torn down in Phase 4 of the migration plan.
+# There is no CloudFront/S3 frontend stack in cdk/ any more.
 # Dev: npm run dev → http://localhost:3000
 ```
 
@@ -3550,7 +3473,7 @@ cdk bootstrap aws://868899309401/us-east-1
 # Deploy
 cdk synth                       # Verify template first
 cdk deploy --all                # Full deploy
-ENVIRONMENT=production TABLE_PREFIX=prod cdk deploy --all
+ENVIRONMENT=prod cdk deploy --all
 ```
 
 See `DEPLOYMENT.md` for post-deploy verification and troubleshooting.

@@ -1,4 +1,4 @@
-# py-dfe — Frontend-Backend Integration Guide
+# ctech-dfe — Frontend-Backend Integration Guide
 
 This document covers how ui (Next.js) authenticates against ctech-account and communicates with api.
 
@@ -320,14 +320,14 @@ cd api
 cp .env.example .env
 # CTECH_URL=http://localhost:8080  (local ctech-account Go API)
 # or CTECH_URL=https://accountsapi.aoctech.app  (prod ctech-account)
-uvicorn app.main:app --reload --port 8000
+go run ./cmd/server   # port from PORT (config default 8000; .env.example sets 8080)
 
 # Terminal 2 — ui
 cd ui
 cp .env.local.example .env.local
-# NEXT_PUBLIC_API_URL=http://localhost:8000
+# NEXT_PUBLIC_API_URL=http://localhost:<api PORT>
 # NEXT_PUBLIC_CTECH_URL=http://localhost:8080   ← Go API, not the Next.js UI
-# NEXT_PUBLIC_CTECH_CLIENT_ID=pydfe
+# NEXT_PUBLIC_CTECH_CLIENT_ID=dfe
 npm run dev   # http://localhost:3000
 ```
 
@@ -336,7 +336,7 @@ The `/callback` redirect URI is built as `${window.location.origin}/callback`:
 - Local dev → `http://localhost:3000/callback`
 - Production → `https://dfe.aoctech.app/callback`
 
-Both must be registered in ctech-account for the `pydfe` OAuth client (`redirect_uris` field in DynamoDB).
+Both must be registered in ctech-account for the `dfe` OAuth client (`redirect_uris` field in DynamoDB).
 
 ---
 

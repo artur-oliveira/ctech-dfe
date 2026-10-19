@@ -1,6 +1,6 @@
-# py-dfe — DynamoDB Tables Reference
+# ctech-dfe — DynamoDB Tables Reference
 
-All table names are prefixed by environment: `dev_`, `staging_`, `prod_`.  
+Physical names are `{env}_dfe_{table}` with env `dev`, `stage` or `prod` (e.g. `dev_dfe_users`, `dev_dfe_organization_persons`); the tables below are listed without that prefix. The CDK defines 47 tables (`cdk/lib/dynamodb-stack.ts`); this index may lag it (e.g. `serie_claims` is not described), so the code wins.  
 Billing: on-demand, capped at max 1000 RCU/WCU per table and per GSI (`cdk/lib/dynamodb-stack.ts`, `Billing.onDemand({maxReadRequestUnits: 1000, maxWriteRequestUnits: 1000})` — uniform across every table).  
 Encryption: AWS Managed Keys.  
 PITR: enabled in production only.

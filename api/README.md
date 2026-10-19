@@ -212,8 +212,8 @@ result frames described in §4.
 ### 3.10 Health (`health.go`)
 
 `GET /health-check` (no auth). Checks DynamoDB, S3, SNS (event bus), SQS (results + distribution), cache, CPU, memory.
-Overall `pass`/`warn`/`fail` (207 on warn, 503 on fail). This is the ALB/health-check target
-(`healthCheckPath: /v1.0/health-check` in CDK).
+Overall `pass`/`warn`/`fail` (207 on warn, 503 on fail). This is the dependency-health report; there is no ALB, and which
+route HAProxy probes is configured in ctech-lbalancer / `HaproxyEc2Service` (not re-verified here).
 
 ---
 

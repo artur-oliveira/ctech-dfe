@@ -1,7 +1,7 @@
 # CTech DFe
 
-Plataforma SaaS para emissão e gerenciamento de Documentos Fiscais Eletrônicos (NF-e, NFC-e, CT-e, MDF-e) com
-comunicação direta à SEFAZ.
+Plataforma SaaS para emissão e gerenciamento de Documentos Fiscais Eletrônicos (NF-e, NFC-e, CT-e, MDF-e, NFS-e) com
+comunicação direta à SEFAZ (sempre pela Lambda `go-dfe-egress` em sa-east-1).
 
 ## Documentação
 
@@ -24,18 +24,20 @@ do CTech está na versão **2.1**. A API reexige o aceite quando
 
 | Diretório | Papel                                               | README                               |
 |-----------|-----------------------------------------------------|--------------------------------------|
-| `py-dfe/` | Biblioteca Python core — Lambda + SEFAZ SOAP (mTLS) | [py-dfe/README.md](py-dfe/README.md) |
-| `go-dfe/` | Cliente Go SEFAZ (mTLS, in-process)                 | [go-dfe/README.md](go-dfe/README.md) |
+| `py-dfe/` | **Aposentado** (nenhum chamador; Lambda ainda implantada) | [py-dfe/README.md](py-dfe/README.md) |
+| `go-dfe/` | Biblioteca Go SEFAZ/NFS-e (mTLS), executada pela `go-dfe-egress` | [go-dfe/README.md](go-dfe/README.md) |
+| `go-dfe-egress/` | Lambda Go em sa-east-1 que executa o go-dfe | [go-dfe-egress/CLAUDE.md](go-dfe-egress/CLAUDE.md) |
 | `api/`    | Backend REST — Go (Fiber v3), multi-tenant          | [api/README.md](api/README.md)       |
-| `ui/`     | Frontend SaaS — Next.js + TypeScript + ShadCN       | [ui/README.md](ui/README.md)         |
+| `ui/`     | Frontend SaaS — Next.js (export estático, Cloudflare) + TypeScript | [ui/README.md](ui/README.md)         |
 | `worker/` | Workers assíncronos — Go Lambda (SQS consumers)     | [worker/README.md](worker/README.md) |
 | `cdk/`    | Infraestrutura AWS — CDK TypeScript                 | [cdk/README.md](cdk/README.md)       |
 
 ```
-py-dfe/     # Biblioteca Python core — Lambda + SEFAZ SOAP (mTLS)
-go-dfe/     # Cliente Go SEFAZ (mTLS, in-process) — primário; py-dfe é fallback
+py-dfe/     # Lambda Python aposentada (remoção pendente)
+go-dfe/     # Biblioteca Go SEFAZ/NFS-e (mTLS)
+go-dfe-egress/ # Lambda Go (sa-east-1) que executa o go-dfe
 api/        # Backend REST — Go (Fiber v3), multi-tenant
-ui/         # Frontend SaaS — Next.js + TypeScript + ShadCN
+ui/         # Frontend SaaS — Next.js + TypeScript
 worker/     # Workers assíncronos — Go Lambda (SQS consumers)
 cdk/        # Infraestrutura AWS — CDK TypeScript
 ```
@@ -44,7 +46,7 @@ cdk/        # Infraestrutura AWS — CDK TypeScript
 
 ```bash
 # Biblioteca SEFAZ
-cd py-dfe && pip install -e ".[dev]" && pytest tests/unit/
+cd go-dfe && go test ./... -race
 
 # Backend
 cd api && go run ./cmd/server

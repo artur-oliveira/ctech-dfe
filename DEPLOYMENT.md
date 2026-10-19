@@ -1,4 +1,4 @@
-# CDK Deployment — py-dfe
+# CDK Deployment — ctech-dfe
 
 For infrastructure architecture, stacks, and environment details, see:
 
@@ -10,13 +10,16 @@ For infrastructure architecture, stacks, and environment details, see:
 # Infrastructure Overview
 
 The API runs as a Go/Fiber binary (`app`) on an EC2 Auto Scaling Group reached through the shared CTech HAProxy edge —
-see `cdk/lib/api-stack.ts`. The \bootstrap route parameter
+see `cdk/lib/api-stack.ts`. There is no ALB and no CloudFront in this repo. The bootstrap route parameter
 `/ctech/{env}/lbalancer/routes/dfe` is currently owned by `ctech-lbalancer`, not
 the DFE stack; ownership must be transferred explicitly before a future shared
 service construct creates it here.
 Fiscal issuance runs asynchronously through an outbox, SNS, standard SQS, Lambda workers
-(`cdk/lib/worker-stack.ts`), in-process go-dfe operations, and the py-dfe fallback Lambda
-(`cdk/lib/dfe-stack.ts`).
+(`cdk/lib/worker-stack.ts`) that invoke the `go-dfe-egress` Lambda in sa-east-1 for every SEFAZ/municipal call
+(`cdk/lib/egress-stack.ts`). The py-dfe Lambda (`cdk/lib/dfe-stack.ts`) is retired and no code calls it, but its stack
+is still deployed.
+The frontend is not deployed from CDK: it is a static export published to Cloudflare Workers Static Assets by
+`.github/workflows/frontend.yml`.
 
 ```text
 AWS Account
@@ -167,7 +170,7 @@ cdk deploy --all
 ## Deploy a Specific Stack
 
 ```bash
-cdk deploy PyDfeStack/PyDfeStack-dynamodb
+ENVIRONMENT=dev npx cdk deploy CtechDfe-Dev-DynamoDB
 ```
 
 ## CI/CD Deployment
@@ -214,7 +217,7 @@ Inspect a specific table:
 
 ```bash
 aws dynamodb describe-table \
-  --table-name dev_users \
+  --table-name dev_dfe_users \
   --region us-east-1
 ```
 
@@ -229,8 +232,8 @@ aws dynamodb describe-table --table-name "${TABLE_PREFIX}_dfe_worker_outbox" --r
 aws lambda list-event-source-mappings --function-name "${ENVIRONMENT}-dfe-outbox-publisher" --region us-east-1
 ```
 
-The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ alarm must
-be `OK`. Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the five-minute
+The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ (`${ENVIRONMENT}-dfe-outbox-publisher-dlq`) must be empty (there is no
+alarm on it; check the queue depth). Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the five-minute
 maximum batching window; do not replace it with a fixed value below the function execution budget.
 
 # Destroy
@@ -257,17 +260,17 @@ Without confirmation:
 cdk destroy --all --force
 ```
 
-Production and staging environments use:
+Production and stage environments use (S3 buckets and log groups are `DESTROY` outside prod, see `cdk/CLAUDE.md`):
 
 ```text
 RemovalPolicy.RETAIN
 ```
 
-DynamoDB tables remain after stack deletion.
+DynamoDB tables (stage and prod) remain after stack deletion.
 
 ---
 
-# EC2 Instance Operations (ApiStackV2)
+# EC2 Instance Operations (ApiStack)
 
 Instances do not have public IPv4 addresses.
 
@@ -285,7 +288,7 @@ List Auto Scaling Group instances:
 
 ```bash
 aws ec2 describe-instances \
-  --filters "Name=tag:aws:autoscaling:groupName,Values=${ENV}-api-v2" \
+  --filters "Name=tag:aws:autoscaling:groupName,Values=${ENV}-ctech-dfe" \
   --query "Reservations[].Instances[].{Id:InstanceId,State:State.Name,IP:PrivateIpAddress}" \
   --output table
 ```
@@ -355,13 +358,13 @@ sudo journalctl -u app --no-pager -n 100
 Application logs:
 
 ```bash
-aws logs tail /py-dfe/prod/app --follow
+aws logs tail /ctech-dfe/prod/app --follow
 ```
 
 Nginx logs:
 
 ```bash
-aws logs tail /py-dfe/prod/nginx \
+aws logs tail /ctech-dfe/prod/nginx \
   --follow \
   --log-stream-name-prefix i-XXXXX
 ```
@@ -370,7 +373,7 @@ Filter 5XX responses:
 
 ```bash
 aws logs filter-log-events \
-  --log-group-name /py-dfe/prod/nginx \
+  --log-group-name /ctech-dfe/prod/nginx \
   --filter-pattern '{ $.status >= 500 }' \
   --start-time $(date -d '1 hour ago' +%s000)
 ```
@@ -382,14 +385,14 @@ aws logs filter-log-events \
 List archived files:
 
 ```bash
-aws s3 ls s3://prod-py-dfe-logs/api/ --recursive | grep 20260603
+aws s3 ls s3://prod-ctech-application-logs/<prefix set by ctech-cdk setup-logs.sh>/ --recursive | grep 20260603
 ```
 
 Download and extract:
 
 ```bash
 aws s3 cp \
-  s3://prod-py-dfe-logs/api/20260603-i-XXXXX.tar.gz \
+  s3://prod-ctech-application-logs/<prefix>/20260603-i-XXXXX.tar.gz \
   /tmp/
 
 tar xzf /tmp/20260603-i-XXXXX.tar.gz -C /tmp/logs/
@@ -401,7 +404,7 @@ tar xzf /tmp/20260603-i-XXXXX.tar.gz -C /tmp/logs/
 
 ```bash
 ENV=prod
-ASG="${ENV}-api-v2"
+ASG="${ENV}-ctech-dfe"
 ARTIFACT="api/api-20260603-1200-main-abc1234.zip"
 
 COMMAND_ID=$(aws ssm send-command \
@@ -425,25 +428,11 @@ aws ssm list-command-invocations \
 
 ---
 
-## Target Group Health Checks
+## Load balancer health
 
-Get Target Group ARN:
-
-```bash
-TG_ARN=$(aws elbv2 describe-target-groups \
-  --names "${ENV}-api-v2-tg" \
-  --query "TargetGroups[0].TargetGroupArn" \
-  --output text)
-```
-
-Check target health:
-
-```bash
-aws elbv2 describe-target-health \
-  --target-group-arn "$TG_ARN" \
-  --query "TargetHealthDescriptions[].{Id:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" \
-  --output table
-```
+There is no ALB and no target group. Traffic reaches the instances through the shared HAProxy of `ctech-lbalancer`,
+which discovers the service through its `dfe` route (SSM `/ctech/{env}/lbalancer/routes/dfe`). Backend health is read
+from the HAProxy side (see the ctech-lbalancer repo); on the instance use the local checks below.
 
 ---
 
