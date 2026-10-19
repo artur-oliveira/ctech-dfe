@@ -8,7 +8,7 @@ frontend and infra (patterns, resilience, scale, cost). If anything in this file
 wins and this file must be fixed. Install on a new machine:
 `/plugin marketplace add artur-oliveira/ctech-skills` then `/plugin install ctech-skills@ctech-skills`.
 
-Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via SOAP + mTLS.
+Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e) — direct SEFAZ communication via SOAP + mTLS (NFS-e: national REST), always through the go-dfe-egress Lambda.
 
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
 
@@ -20,10 +20,10 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via
 |-----------|--------------------------------------------------------|--------------------|
 | `api/`    | Go REST API — Fiber v3, multi-tenant, DynamoDB         | `api/CLAUDE.md`    |
 | `worker/` | Go Lambda — standard SQS consumer, DFe pipeline        | `worker/CLAUDE.md` |
-| `ui/`     | Next.js 16 frontend — TypeScript, ShadCN               | `ui/CLAUDE.md`     |
-| `cdk/`    | AWS CDK infrastructure — TypeScript                    | `cdk/CLAUDE.md`    |
-| `py-dfe/` | Python Lambda — XML-DSig + SEFAZ SOAP + mTLS           | `py-dfe/CLAUDE.md` |
-| `go-dfe/` | Go lib — SEFAZ SOAP+mTLS and NFS-e REST client | `go-dfe/CLAUDE.md` |
+| `ui/`     | Next.js 16 static-export frontend (Cloudflare) — TypeScript | `ui/CLAUDE.md` |
+| `cdk/`    | AWS CDK infrastructure — TypeScript (frozen; see skill) | `cdk/CLAUDE.md`    |
+| `py-dfe/` | Python Lambda — **retired** (no caller; stack still deployed, removal pending) | `py-dfe/CLAUDE.md` |
+| `go-dfe/` | Go lib — SEFAZ SOAP+mTLS and NFS-e REST client (runs inside go-dfe-egress) | `go-dfe/CLAUDE.md` |
 | `go-dfe-egress/` | Go Lambda (sa-east-1) — runs `dfe.Call` so SEFAZ/prefeitura calls leave from Brazil | `go-dfe-egress/CLAUDE.md` |
 
 **Always read the relevant subproject CLAUDE.md before making any change.**
@@ -32,16 +32,24 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via
 
 ## Universal Rules (apply to every project)
 
-### DRY — think generic first
+### Generic rules live in the skill
 
-Before writing any function, search the codebase (`rg "..."`):
+DRY / reuse, named constants, RFC 7807 errors, secrets, scope control and "never assume" are covered by
+`ctech-dev-standards`; do not restate them here or in the subproject files. Product-specific additions:
 
-1. Reuse existing code.
-2. Extend if reuse is insufficient.
-3. Parameterize if behavior differs only by inputs.
-4. Create new only when no suitable alternative exists.
-
-Two implementations that solve the same problem must be unified.
+- Search the codebase (`rg "..."`) before writing anything; two implementations that solve the same problem must be
+  unified.
+- Never assume DynamoDB table/index names, API contracts, payload formats, tax XML structures, AWS resource names or
+  business rules (fiscal rules especially): search the code, then the docs, then ask.
+- Never commit PFX certs, JWT secrets, AWS credentials, passwords, real customer data or real CNPJs.
+- Implement only what was requested; no unrelated fixes, opportunistic refactors or API changes.
+- **api / worker** return errors as RFC 7807 Problem JSON through `problem.*` helpers (api) and structured errors that
+  let SQS route to the DLQ (worker). `py-dfe` is retired; do not add code there.
+- **Fiscal calls** (SEFAZ and municipal NFS-e) always leave through the `go-dfe-egress` Lambda in `sa-east-1`
+  (some authorities drop non-Brazilian traffic). Never call SEFAZ in process from `api` or `worker`.
+- **Issuance is async** through a transactional outbox: API writes the outbox row, the publisher sends it to SNS/SQS,
+  workers are idempotent consumers, results return through SNS to the API's WebSocket fan-out.
+- **ui:** `npm run lint` (from `ui/`) must pass with zero errors and zero warnings before any commit.
 
 ### Sem travessão em texto visível
 
@@ -49,21 +57,6 @@ Proibido usar travessão (—) em qualquer texto visível ao usuário: UI (label
 copy de commit/PR, e nas respostas do Claude neste projeto. Prefira ponto e vírgula para pausa textual, ou lista
 com marcadores para separar termos. Isso não se aplica a comentários de código nem a docs técnicos internos
 (`OVERVIEW.md`, `DOCS.md`, `CONDUCT.md`).
-
-### Constants — no magic variables
-
-Every string key, numeric code, URL, header name, or enum value must be a named constant. Never scatter raw string
-literals across files.
-
-### Backend error handling
-
-- **api / worker:** All errors MUST be returned as RFC 7807 Problem JSON via `problem.*` helpers. Never return raw
-  errors, `fiber.Map`, or unstructured responses.
-- **py-dfe:** All errors MUST be raised as `DFeError` with explicit `status_code`, `code`, `message`.
-
-### Frontend quality gate
-
-- **ui:** `npx eslint src --ext .ts,.tsx` must pass with **zero errors and zero warnings** before any commit.
 
 ### UI — guia, busca e navegação (regras inegociáveis)
 
@@ -93,25 +86,6 @@ Every core function must be covered by an integration test in addition to unit t
 
 ---
 
-## Scope Control
-
-Implement only what was requested. No unrelated fixes, opportunistic refactors, dir reorganization, or API changes.
-
----
-
-## Never Assume
-
-Never assume DynamoDB table/index names, API contracts, payload formats, tax XML structures, AWS resource names, or
-business rules. If not explicit: search codebase → search docs → ask user.
-
----
-
-## Secrets
-
-Never commit: PFX certs, JWT secrets, AWS credentials, passwords, real customer data, real CNPJs.
-
----
-
 ## Documentation
 
 | File                 | Contents                           |
@@ -119,7 +93,7 @@ Never commit: PFX certs, JWT secrets, AWS credentials, passwords, real customer 
 | `OVERVIEW.md`        | System architecture + data flow    |
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Schema for all 22+ tables          |
+| `DynamoDB-Tables.md` | Schema for all tables (47 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |
@@ -216,21 +190,17 @@ There are NO exceptions.
 Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business
 rules, or developer workflow MUST include the corresponding documentation update in the same change.
 
-## CTech Family — Cross-Repo Awareness (IMPORTANT)
+## CTech Family
 
-This repo is one service in the CTech product family, not an isolated project. All CTech repos live under the same GitHub account and are meant to be treated as one codebase split across repos:
+This repo is one service of the CTech family (ctech-cdk, ctech-go-common, ctech-ui, ctech-ws-client, ctech-account,
+ctech-wallet, ctech-billing, ctech-poker, ctech-lbalancer, ...). "Does this apply to the whole family?" and
+"reusable code goes to the shared package" are rules of `ctech-dev-standards`; a repo-local fix to a systemic problem
+is incomplete.
 
-- ctech-cdk (github.com/artur-oliveira/ctech-cdk) — shared CDK constructs (EC2/ASG, DynamoDB, etc.)
-- ctech-go-common (github.com/artur-oliveira/ctech-go-common) — shared Go libraries (HTTP client, auth, retries, websocket drain, caching)
-- ctech-account, ctech-wallet, ctech-billing, ctech-dfe, ctech-poker — backend services
-- ctech-ui (github.com/artur-oliveira/ctech-ui) — shared frontend design system / components (adoption in progress)
-- ctech-ws-client (github.com/artur-oliveira/ctech-ws-client) — shared websocket client library
-- ctech-oauth-client, ctech-vanity, ctech-lbalancer — supporting infra/clients
+## Known divergences from the standard (documented, not yet fixed)
 
-Before making a decision here, ask: "does this apply to the whole family, not just this repo?" Treat as cross-repo by default:
-- Infra/runtime bugs (clock drift, spot interruption handling, websocket draining, health checks, load balancer behavior) — check ctech-cdk / ctech-lbalancer and sibling services for the same exposure before treating it as local.
-- API leaks/perf/cost bugs (DynamoDB read/write amplification, KMS decrypt calls, SQS growth, N+1 requests) — check whether the root cause is shared code (ctech-go-common) or a repeatable pattern other services also have.
-- Frontend state/websocket/resilience/UX patterns (reconnect, circuit breaker, error/loading/empty states, 404/500/503 pages, OAuth flow, modals, buttons) — check ctech-ui and ctech-ws-client for the shared version before implementing locally.
-- New reusable code (not service-specific business logic) — default to proposing it for a shared package (ctech-cdk, ctech-go-common, ctech-ui, ctech-ws-client) instead of duplicating it here.
-
-A fix scoped to only this repo, for a problem that is actually systemic across the family, is an incomplete fix. This applies to AI agents working in single-repo sessions too.
+- py-dfe is retired but still deployed (`cdk/lib/dfe-stack.ts`, `iam-stack.ts`, `ctech-dfe-gha-pydfe` OIDC role,
+  `py-dfe/layer` path filter in `deploy.yml`, `dependabot.yml`).
+- No CloudWatch alarm on any DLQ and no use of go-common `alerts` / SNS `ctech-{env}-alerts` yet.
+- Scans: worker distribution dispatcher (every 30 min) and the account-deletion e-CPF search; see `api/CLAUDE.md`.
+- No inbound `Idempotency-Key`, local `internal/problem` wrapper, no `@aoctech/ui`, no i18n in the UI.
