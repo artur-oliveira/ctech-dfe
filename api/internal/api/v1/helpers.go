@@ -52,6 +52,9 @@ func sendProblem(c fiber.Ctx, err error) error {
 	if p, ok := errors.AsType[*problem.Problem](err); ok {
 		return p.Send(c)
 	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return problem.GatewayTimeout("a requisição demorou demais; tente novamente").WithCause(err).Send(c)
+	}
 	return problem.InternalServer("erro interno").WithCause(err).Send(c)
 }
 
