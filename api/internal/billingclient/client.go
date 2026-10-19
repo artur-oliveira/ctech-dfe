@@ -34,6 +34,7 @@ import (
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 	"gopkg.aoctech.app/api-commons/observability"
+	"gopkg.aoctech.app/api-commons/resilient"
 
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 )
@@ -99,7 +100,8 @@ func New(cfg Config) *Client {
 	if cfg.BaseURL == "" || cfg.TokenURL == "" || cfg.ClientID == "" || cfg.ClientSecret == "" {
 		return nil
 	}
-	httpClient := &http.Client{Timeout: requestTimeout}
+	// A circuit per host: billing and the account (token) are separate hosts.
+	httpClient := resilient.Client(requestTimeout, resilient.Config{})
 	return &Client{
 		http:    httpClient,
 		tokens:  oauth2client.New(httpClient, cfg.Cache, cfg.TokenURL, cfg.ClientID, cfg.ClientSecret, Scopes),

@@ -21,6 +21,7 @@ import (
 	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/oauth2client"
+	"gopkg.aoctech.app/api-commons/resilient"
 )
 
 // Scope is what the reach route requires. One scope, and nothing else: this
@@ -79,7 +80,9 @@ func New(cfg Config) *Client {
 	if cfg.BaseURL == "" || cfg.TokenURL == "" || cfg.ClientID == "" || cfg.ClientSecret == "" {
 		return nil
 	}
-	httpClient := &http.Client{Timeout: requestTimeout}
+	// A pooled transport and a per-host circuit: while the account is down a call is refused
+	// at once (resilient.ErrCircuitOpen) instead of waiting out the timeout.
+	httpClient := resilient.Client(requestTimeout, resilient.Config{})
 	return &Client{
 		http:    httpClient,
 		tokens:  oauth2client.New(httpClient, cfg.Cache, cfg.TokenURL, cfg.ClientID, cfg.ClientSecret, Scope),

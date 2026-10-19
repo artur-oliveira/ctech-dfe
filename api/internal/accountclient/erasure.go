@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/oauth2client"
+	"gopkg.aoctech.app/api-commons/resilient"
 )
 
 const (
@@ -36,7 +37,9 @@ func NewSubject(cfg Config) *SubjectClient {
 	if cfg.BaseURL == "" || cfg.TokenURL == "" || cfg.ClientID == "" || cfg.ClientSecret == "" {
 		return nil
 	}
-	httpClient := &http.Client{Timeout: requestTimeout}
+	// A pooled transport and a per-host circuit: while the account is down a call is refused
+	// at once (resilient.ErrCircuitOpen) instead of waiting out the timeout.
+	httpClient := resilient.Client(requestTimeout, resilient.Config{})
 	return &SubjectClient{
 		http:    httpClient,
 		tokens:  oauth2client.New(httpClient, cfg.Cache, cfg.TokenURL, cfg.ClientID, cfg.ClientSecret, ScopeErasureSubject),
