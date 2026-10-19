@@ -251,7 +251,7 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 		b := base()
 		b.Nfse = &NfseInfoBody{
 			IM:      new("987654"),
-			RegTrib: &NfseRegTribBody{OpSimpNac: 3, RegApTribSN: ptrInt(1), RegEspTrib: 0},
+			RegTrib: &NfseRegTribBody{OpSimpNac: 3, RegApTribSN: new(1), RegEspTrib: 0},
 		}
 		if p := validation.Struct(b); p != nil {
 			t.Fatalf("grupo nfse válido rejeitado: %+v", p)
@@ -276,7 +276,6 @@ func TestPersonObjectBody_NfseGroup(t *testing.T) {
 }
 
 //go:fix inline
-func ptrInt(v int) *int { return new(v) }
 
 func TestServiceBody_Validation(t *testing.T) {
 	zero := 0

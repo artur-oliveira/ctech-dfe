@@ -323,7 +323,7 @@ func intAttr(item map[string]types.AttributeValue, key string, def int) int {
 		return def
 	}
 	var n int
-	fmt.Sscanf(v.Value, "%d", &n)
+	_, _ = fmt.Sscanf(v.Value, "%d", &n)
 	return n
 }
 

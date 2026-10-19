@@ -32,7 +32,7 @@ func assertBefore(t *testing.T, order []string, a, b string) {
 	if ib == -1 {
 		t.Fatalf("%q not found in %v", b, order)
 	}
-	if !(ia < ib) {
+	if ia >= ib {
 		t.Errorf("expected %q before %q, got order %v", a, b, order)
 	}
 }

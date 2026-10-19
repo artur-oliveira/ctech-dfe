@@ -210,10 +210,7 @@ func cpuPercent() float64 {
 		return -1
 	}
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-
-		}
+		_ = f.Close()
 	}(f)
 	scanner := bufio.NewScanner(f)
 	if !scanner.Scan() {
@@ -254,10 +251,7 @@ func memoryPercent() float64 {
 		return -1
 	}
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-
-		}
+		_ = f.Close()
 	}(f)
 	info := map[string]int64{}
 	scanner := bufio.NewScanner(f)

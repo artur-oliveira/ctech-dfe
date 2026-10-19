@@ -17,5 +17,5 @@ func main() {
 		fmt.Fprintln(os.Stderr, "openapi-dump:", err)
 		os.Exit(1)
 	}
-	os.Stdout.Write(spec)
+	_, _ = os.Stdout.Write(spec)
 }

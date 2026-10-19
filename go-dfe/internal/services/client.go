@@ -248,7 +248,7 @@ func (c *Client) postWithRetry(ctx context.Context, url string, body []byte, con
 		}
 
 		respBody, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if readErr != nil {
 			return nil, fmt.Errorf("services: read response: %w", readErr)
 		}

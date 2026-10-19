@@ -74,7 +74,7 @@ func SerieClaimPK(taxID, modelo, ambiente string, serie int) string {
 func (r *SerieClaimRepository) Claim(ctx context.Context, taxID, modelo, ambiente string, serie int, companyID string) error {
 	pk := SerieClaimPK(taxID, modelo, ambiente, serie)
 	_, err := r.PutItemRaw(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.Base.TableName),
+		TableName: aws.String(r.TableName),
 		Item: map[string]types.AttributeValue{
 			"pk":               &types.AttributeValueMemberS{Value: pk},
 			attrClaimCompanyID: &types.AttributeValueMemberS{Value: companyID},
@@ -105,7 +105,7 @@ func (r *SerieClaimRepository) Claim(ctx context.Context, taxID, modelo, ambient
 func (r *SerieClaimRepository) Release(ctx context.Context, taxID, modelo, ambiente string, serie int, companyID string) error {
 	pk := SerieClaimPK(taxID, modelo, ambiente, serie)
 	_, err := r.DeleteItemRaw(ctx, &dynamodb.DeleteItemInput{
-		TableName: aws.String(r.Base.TableName),
+		TableName: aws.String(r.TableName),
 		Key: map[string]types.AttributeValue{
 			"pk": &types.AttributeValueMemberS{Value: pk},
 		},

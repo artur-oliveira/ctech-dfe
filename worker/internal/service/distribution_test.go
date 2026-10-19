@@ -646,9 +646,6 @@ func TestDistNSU_PenaltyActive_SkipsWithoutLambdaCall(t *testing.T) {
 	_ = svc.Process(context.Background(), DistributionMessage{
 		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
 	})
-	if lam.err == nil && lam.payload == nil {
-		// Lambda was never invoked — correct.
-	}
 	// Verify: no UpdateItem calls (not even slot claim).
 	if len(dynm.updateCalls) != 0 {
 		t.Errorf("expected no UpdateItem during penalty, got %d calls", len(dynm.updateCalls))
@@ -684,10 +681,6 @@ func TestDistNSU_SlotClaimRace_StopsWhenUpdateFails(t *testing.T) {
 	_ = svc.Process(context.Background(), DistributionMessage{
 		JobType: "dist_nsu", OrgPK: testOrgPK, DocType: "nfe",
 	})
-	// Lambda must NOT have been invoked if slot claim failed.
-	if lam.payload != nil || lam.err != nil {
-		// lam.payload/lam.err being non-nil here just reflects the mock state not invocation.
-	}
 	// Only 1 UpdateItem call (the failed slot claim) — no updateNSU.
 	if len(dynm.updateCalls) != 1 {
 		t.Errorf("expected 1 UpdateItem (slot claim), got %d", len(dynm.updateCalls))

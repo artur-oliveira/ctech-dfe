@@ -72,10 +72,7 @@ func GzipB64(raw []byte) (string, error) {
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	defer func(zw *gzip.Writer) {
-		err := zw.Close()
-		if err != nil {
-
-		}
+		_ = zw.Close()
 	}(zw)
 	if _, err := zw.Write(raw); err != nil {
 		return "", fmt.Errorf("nacional: gzip: %w", err)

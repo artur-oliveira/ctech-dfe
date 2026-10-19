@@ -539,10 +539,7 @@ func (s *DfeService) getCertB64(ctx context.Context, certS3Key string) (string, 
 		return "", err
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
+		_ = Body.Close()
 	}(out.Body)
 	data, err := io.ReadAll(out.Body)
 	if err != nil {

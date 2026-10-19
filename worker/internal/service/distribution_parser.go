@@ -440,7 +440,7 @@ func decompressDocZip(text string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("gzip open: %w", err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	out, err := io.ReadAll(r)
 	if err != nil {
 		return "", fmt.Errorf("gzip read: %w", err)
