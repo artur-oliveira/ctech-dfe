@@ -19,6 +19,7 @@ import (
 	"gopkg.aoctech.app/api-commons/erasure"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
+	"gopkg.aoctech.app/api-commons/resilient"
 	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/accountclient"
 	apiv1 "gopkg.aoctech.app/dfe/api/internal/api/v1"
@@ -918,7 +919,7 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 		slog.Error("erasure consumer NOT started: ERASURE_CLIENT_ID/ERASURE_CLIENT_SECRET are unset, so acks cannot be sent")
 		return
 	}
-	httpClient := &http.Client{Timeout: 10 * time.Second}
+	httpClient := resilient.Client(10*time.Second, resilient.Config{}) // the account: acks and token; a down account is refused at once
 	tokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
 		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeErasureAck)
 	acks := erasure.NewAckClient(httpClient, strings.TrimSuffix(cfg.CtechURL, "/")+erasureAckPath, tokens)

@@ -11,6 +11,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/observability"
+	"gopkg.aoctech.app/api-commons/resilient"
 	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
@@ -70,7 +71,7 @@ func NewUserService(
 		repo:       repo,
 		cache:      c,
 		ctechURL:   ctechURL,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: resilient.Client(10*time.Second, resilient.Config{}), // a circuit per host: a down account is refused at once
 		orgSvc:     orgSvc,
 		memberSvc:  memberSvc,
 	}

@@ -2,10 +2,14 @@ package accountclient
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+
+	"gopkg.aoctech.app/api-commons/resilient"
 )
 
 func serving(t *testing.T, status int, body string) *Client {
@@ -86,5 +90,36 @@ func TestAnUpstreamErrorIsAnError(t *testing.T) {
 	c := serving(t, http.StatusInternalServerError, ``)
 	if _, _, err := c.reachWithToken(context.Background(), "tok", "cmp_1", "usr_1"); err == nil {
 		t.Fatal("a 500 answered without an error")
+	}
+}
+
+// While ctech-account is down five failures open the circuit and the next call is
+// refused at once. It is still an ERROR, never an answer: an authorization check that
+// reads "the account did not say" as anything but a failure is an open door.
+func TestADownAccountOpensTheCircuitAndStaysAnErrorNotAPermission(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			_, _ = w.Write([]byte(`{"access_token":"tok","expires_in":3600}`))
+			return
+		}
+		hits.Add(1)
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+	c := New(Config{BaseURL: srv.URL, TokenURL: srv.URL + "/token", ClientID: "id", ClientSecret: "secret"})
+
+	for i := 0; i < 5; i++ {
+		if _, _, err := c.Reach(context.Background(), "cmp_1", "usr_1"); err == nil {
+			t.Fatalf("call %d against a down account answered without an error", i)
+		}
+	}
+	before := hits.Load()
+	_, allowed, err := c.Reach(context.Background(), "cmp_1", "usr_1")
+	if !errors.Is(err, resilient.ErrCircuitOpen) || allowed {
+		t.Fatalf("allowed=%v err=%v, want a refused call with the open-circuit error and no permission", allowed, err)
+	}
+	if hits.Load() != before {
+		t.Fatal("the refused call still reached the account")
 	}
 }
