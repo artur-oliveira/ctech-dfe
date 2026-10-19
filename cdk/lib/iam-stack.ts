@@ -269,7 +269,7 @@ export class IAMStack extends cdk.Stack {
     // Account deletion: consume the erasure queue, and erase every version of
     // an erased company's objects or of an erased e-CPF (inventory §2).
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes'],
+      actions: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:ChangeMessageVisibility', 'sqs:GetQueueAttributes'],
       resources: [props.erasureQueueArn],
     }));
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({

@@ -43,6 +43,12 @@ type Config struct {
 	// user-erasure topic. Empty turns the whole participant off (lock, purge,
 	// consumer): the dark-launch switch.
 	ErasureQueueURL string `env:"ERASURE_QUEUE_URL"`
+	// ErasureQueueVisibility is the queue's own visibility timeout
+	// (cdk/lib/event-bus-stack.ts, 30 min). While a purge or an export runs, the
+	// consumer keeps the message invisible by setting that timeout again every third
+	// of it, so a long one is not delivered to another replica half done. Keep it
+	// equal to the queue's. Zero turns the heartbeat off.
+	ErasureQueueVisibility time.Duration `env:"ERASURE_QUEUE_VISIBILITY" envDefault:"30m"`
 
 	// Auth
 	CtechURL        string `env:"CTECH_URL"`
