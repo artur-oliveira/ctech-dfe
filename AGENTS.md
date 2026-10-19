@@ -1,5 +1,13 @@
 # AGENTS.md — ctech-dfe (monorepo root)
 
+## CTech Standards (mandatory)
+
+Before writing, changing or reviewing any code or infra here, load the `ctech-dev-standards` skill (plugin
+`ctech-skills`, repo github.com/artur-oliveira/ctech-skills). It is the single source of truth for backend,
+frontend and infra (patterns, resilience, scale, cost). If anything in this file contradicts it, the skill
+wins and this file must be fixed. Install on a new machine:
+`/plugin marketplace add artur-oliveira/ctech-skills` then `/plugin install ctech-skills@ctech-skills`.
+
 Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e) — direct SEFAZ communication via SOAP + mTLS.
 
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
