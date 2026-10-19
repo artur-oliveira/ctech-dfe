@@ -115,23 +115,6 @@ export class OidcStack extends cdk.Stack {
       iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess'),
     );
 
-    // ── ctech-dfe Lambda deploy role ───────────────────────────────────────────
-    const pyDfeRole = new iam.Role(this, 'PyDfeLambdaDeployRole', {
-      roleName: 'ctech-dfe-gha-pydfe',
-      assumedBy: trust,
-    });
-    pyDfeRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['s3:PutObject', 's3:GetObject'],
-      resources: [
-        `arn:aws:s3:::${deploymentsBucket}/ctech-dfe`,
-        `arn:aws:s3:::${deploymentsBucket}/ctech-dfe/*`,
-      ],
-    }));
-    pyDfeRole.addToPolicy(new iam.PolicyStatement({
-      actions: ['lambda:UpdateFunctionCode', 'lambda:GetFunction', 'lambda:GetFunctionConfiguration'],
-      resources: ['arn:aws:lambda:*:*:function:*-py-dfe'],
-    }));
-
     // ── Worker Lambda deploy role ───────────────────────────────────────────
     const workerRole = new iam.Role(this, 'WorkerLambdaDeployRole', {
       roleName: 'ctech-dfe-gha-worker',
@@ -155,7 +138,6 @@ export class OidcStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'ApiRoleArn', {value: apiRole.roleArn});
     new cdk.CfnOutput(this, 'InfraRoleArn', {value: infraRole.roleArn});
-    new cdk.CfnOutput(this, 'PyDfeLambdaRoleArn', {value: pyDfeRole.roleArn});
     new cdk.CfnOutput(this, 'WorkerLambdaRoleArn', {value: workerRole.roleArn});
     new cdk.CfnOutput(this, 'ScopePublisherRoleArn', {value: scopesRole.roleArn});
   }

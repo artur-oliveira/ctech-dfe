@@ -30,7 +30,6 @@ root [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 | `DynamoDBStack` | `CtechDfe-{Env}-DynamoDB` | 47 tables, including streamed worker outbox (§4) |
 | `S3Stack` | `CtechDfe-{Env}-S3` | Certificates + Documents buckets |
 | `EventBusStack` | `CtechDfe-{Env}-EventBus` | SNS event/results/ops-alerts + results and erasure SQS, no alarms |
-| `DfeStack` | `CtechDfe-{Env}-Dfe` | py-dfe Lambda + layer (retired, still deployed) |
 | `GoDfeEgressStack` | `CtechDfe-{Env}-GoDfeEgress` | go-dfe-egress Lambda, **sa-east-1** (§2) |
 | `WorkerStack` | `CtechDfe-{Env}-Worker` | 10 workers + DLQs + dispatcher + outbox publisher (§2/§3) |
 | `IAMStack` | `CtechDfe-{Env}-IAM` | Lambda/API roles + policies |
@@ -66,9 +65,6 @@ Extra Lambdas (in `lib/worker-stack.ts`, not in worker-definitions):
 - **go-dfe-egress** (`lib/egress-stack.ts`, `GoDfeEgressStack`): `${env}-go-dfe-egress` in **sa-east-1**,
   `provided.al2023` arm64, timeout 120 s / mem 256. Every SEFAZ and municipal call goes through it
   (referenced from other stacks by name/ARN strings only, since it is cross-region).
-- **py-dfe**: `${env}-py-dfe`, Python 3.14, arm64, timeout 30 / mem 512, handler
-  `py_dfe.handler.handler`. **Retired**: no worker or API code invokes it (they call the egress Lambda via
-  `DFE_LAMBDA_NAME`), but `DfeStack`, its role and invoke policy are still deployed. Removal is a separate change.
 
 ## 3. SQS / SNS (`lib/event-bus-stack.ts`, `lib/worker-stack.ts`)
 
@@ -109,7 +105,7 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
 
 ## 5. IAM & EC2 (`lib/iam-stack.ts`, `lib/api-stack.ts`, `lib/oidc-stack.ts`)
 
-- Roles: `${env}-py-dfe-lambda-role`, `${env}-ctech-dfe-api-v2-role`, per-worker roles,
+- Roles: `${env}-ctech-dfe-api-v2-role`, per-worker roles,
   dispatcher role, DLQ-processor roles. `DynamoPolicy` grants CRUD + Query/**Scan** on all
   tables + `/index/*`; S3 on cert/doc buckets; SNS publish on the
   event bus; SQS receive on results + send on distribution; SSM `GetParameter` on
@@ -129,7 +125,7 @@ the `getDfeTable`/`getEventsTable`/`getDistributionTable`/`getDfeConfigTable` bu
 - CloudWatch agent config is **logs only** (app and nginx log groups); the host-metric series that earlier
   versions published were removed. EC2's native `CPUUtilization`/`CPUCreditBalance` remain the CPU source.
 - OIDC: GitHub Actions deploy roles gated on `repo:{githubRepo}:*` for api/infra/
-  pydfe (retired Lambda, role still present)/worker (`oidc-stack.ts`), plus `ctech-dfe-gha-scopes`. The scope role can
+  worker (`oidc-stack.ts`), plus `ctech-dfe-gha-scopes`. The scope role can
   read only Account's app URL and DFe publisher client ID/secret parameters.
 
 ## 6. Frontend
@@ -159,7 +155,6 @@ browser calls the API host directly (CORS applies). `FrontendStack`/CloudFront n
 - **B14** — DynamoDB IAM policy grants `Scan`, consumed by the
   distribution-dispatcher's org enumeration (`worker/README.md` §6).
 - Keep-warm rate is 1 min (code) vs 5 min (comment) — B21 cost note.
-- py-dfe is retired but its stack, IAM and OIDC role are still deployed.
 - DLQs have no alarm; alerts to the family SNS topic `ctech-{env}-alerts` are not wired yet.
 - ASG `gracePeriod: 120s` is supplied to the shared `HaproxyEc2Service` construct.
 - The API runs `t4g.nano` On-Demand (`HaproxyEc2Service` `onDemand: true`, `@aoctech/cdk` >= 0.10.0),

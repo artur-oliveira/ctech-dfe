@@ -8,7 +8,7 @@ name: Deploy
 #   go-dfe tests → CDK (incl. the go-dfe-egress Lambda) → OAuth scopes → worker → API → Frontend
 #
 
-# The Lambdas go before the API because a new py-dfe/worker feature must already
+# The Lambdas go before the API because a new worker feature must already
 # be live when the API that calls it ships. A stage whose paths did not change is
 # skipped, and a skipped stage does NOT block the ones after it
 # (`!contains(needs.*.result, 'failure')`). A stage that FAILS does block them.
@@ -72,8 +72,6 @@ jobs:
         id: filter
         if: github.event_name == 'push'
         with:
-          # py-dfe/layer/requirements.txt is in BOTH infra and: it changes the
-          # Lambda layer the CDK stack bundles, and the code that runs on top of it.
           # go-dfe/**, go-dfe-egress/** and go.work(.sum) are in infra (the CDK stack
           # bundles the egress Lambda from them) and in worker/api/godfe: both import
           # go-dfe types via the root go.work — a change there must re-run their test
@@ -81,7 +79,6 @@ jobs:
           filters: |
             infra:
               - 'cdk/**'
-              - 'py-dfe/layer/requirements.txt'
               - 'go-dfe/**'
               - 'go-dfe-egress/**'
               - 'go.work'

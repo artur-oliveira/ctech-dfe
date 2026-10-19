@@ -1,7 +1,7 @@
 name: Frontend
 
 # Called by deploy.yml, which owns the trigger, the path filter and the
-# CDK → py-dfe → worker → API → Frontend ordering. Never triggered on push.
+# CDK → worker → API → Frontend ordering. Never triggered on push.
 on:
   workflow_call:
 

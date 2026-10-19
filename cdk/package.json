@@ -1,5 +1,5 @@
 {
-  "name": "py-dfe-cdk",
+  "name": "ctech-dfe-cdk",
   "version": "0.1.0",
   "scripts": {
     "deploy:prod": "ENVIRONMENT=prod cdk deploy --all --require-approval never --profile ctech",

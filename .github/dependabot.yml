@@ -11,11 +11,6 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "pip"
-    directory: "/py-dfe"
-    schedule:
-      interval: "weekly"
-      
   - package-ecosystem: "npm"
     directory: "/cdk"
     schedule:

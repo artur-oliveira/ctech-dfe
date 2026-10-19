@@ -1,7 +1,7 @@
 name: Frontend
 
 # Called by deploy.yml, which owns the trigger, the path filter and the
-# CDK → py-dfe → worker → API → Frontend ordering. Never triggered on push.
+# CDK → worker → API → Frontend ordering. Never triggered on push.
 #
 # Everything that used to live here — environment resolution, the two-pass
 # s3 sync, publish-routes.sh, the CloudFront invalidation — is now in the
