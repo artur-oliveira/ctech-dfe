@@ -852,7 +852,6 @@ func TestProcess_CancellationFailure_NotifiesEventNotDocument(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func strPtr(s string) *string { return &s }
-func intPtr(i int) *int       { return &i }
 
 func startsWith(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix

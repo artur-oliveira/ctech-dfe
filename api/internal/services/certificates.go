@@ -316,10 +316,7 @@ func (s *CertificateService) DownloadPFX(ctx context.Context, s3Key string) ([]b
 		return nil, problem.InternalServer("failed to fetch certificate from S3")
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
+		_ = Body.Close()
 	}(out.Body)
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(out.Body); err != nil {

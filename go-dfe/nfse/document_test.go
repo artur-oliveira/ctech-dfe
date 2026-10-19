@@ -37,8 +37,8 @@ func TestDecodeDocument_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeDocument: %v", err)
 	}
-	if got.Prestador.Pessoa.CNPJ != src.Prestador.Pessoa.CNPJ {
-		t.Errorf("CNPJ = %q, esperado %q", got.Prestador.Pessoa.CNPJ, src.Prestador.Pessoa.CNPJ)
+	if got.Prestador.CNPJ != src.Prestador.CNPJ {
+		t.Errorf("CNPJ = %q, esperado %q", got.Prestador.CNPJ, src.Prestador.CNPJ)
 	}
 	if got.Tomador == nil || got.Tomador.CPF != "12345678909" {
 		t.Errorf("tomador perdido no round-trip: %+v", got.Tomador)

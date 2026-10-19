@@ -2,7 +2,6 @@ package mdfes
 
 import (
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -488,10 +487,6 @@ func verProc(t TechData) string {
 		return t.Version
 	}
 	return "ctech-dfe"
-}
-
-func sefazBatchID() string {
-	return fmt.Sprintf("%d", rand.Int63n(999_999_999_999_999)+1)
 }
 
 // --- DynamoDB attribute helpers ---

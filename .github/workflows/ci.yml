@@ -58,6 +58,36 @@ jobs:
       - name: Test
         run: go test ./... -race -count=1
 
+      # Built against the newest x/tools: staticcheck's pinned one cannot read a
+      # newer Go patch's export data (same workaround as ctech-billing).
+      - name: Build staticcheck
+        run: |
+          dir=$(mktemp -d)
+          (cd "$dir" && go mod init staticcheck >/dev/null 2>&1 \
+            && go get honnef.co/go/tools/cmd/staticcheck@latest golang.org/x/tools@latest \
+            && go build -o "$RUNNER_TEMP/staticcheck" honnef.co/go/tools/cmd/staticcheck)
+
+      - name: Staticcheck
+        run: $RUNNER_TEMP/staticcheck ./...
+
+      - name: Staticcheck (integration tag)
+        if: matrix.module == 'api'
+        run: $RUNNER_TEMP/staticcheck -tags integration ./...
+
+      # Reports only vulnerabilities on a reachable call path.
+      - name: Vulnerability scan
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+      - name: Vulnerability scan (integration tag)
+        if: matrix.module == 'api'
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags integration ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          working-directory: ${{ matrix.module }}
+
   ui:
     name: UI Lint, Types & Tests
     runs-on: ubuntu-26.04-arm
@@ -79,6 +109,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # shortcut: reports without failing; production deps already carry high
+      # advisories (ui and cdk), so a hard gate would turn every PR red. Drop
+      # continue-on-error once they are fixed.
+      - name: Dependency audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Type check
         run: npx tsc --noEmit
 
@@ -86,3 +123,33 @@ jobs:
       # rejections as failures even when every test passes.
       - name: Tests
         run: npm test
+
+  cdk:
+    name: CDK Tests
+    runs-on: ubuntu-26.04-arm
+    defaults:
+      run:
+        working-directory: cdk
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cdk/package-lock.json
+
+      - run: npm ci
+
+      # shortcut: reports without failing; production deps already carry high
+      # advisories (ui and cdk), so a hard gate would turn every PR red. Drop
+      # continue-on-error once they are fixed.
+      - name: Dependency audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Jest
+        run: npx jest
+
+      - name: Type check
+        run: npx tsc --noEmit

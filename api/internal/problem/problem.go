@@ -110,7 +110,7 @@ func (p *Problem) Send(c fiber.Ctx) error {
 
 func wrap(p *commonproblem.Problem) *Problem { return &Problem{Problem: *p} }
 func (p *Problem) WithCause(err error) *Problem {
-	p.Problem.WithCause(err)
+	_ = p.Problem.WithCause(err)
 	return p
 }
 

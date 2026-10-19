@@ -96,14 +96,6 @@ func readOptionalUpload(c fiber.Ctx, field string) ([]byte, error) {
 	return buf, nil
 }
 
-// attrStr extracts a string attribute from a DynamoDB item, or "" if absent.
-func attrStr(item map[string]types.AttributeValue, key string) string {
-	if av, ok := item[key].(*types.AttributeValueMemberS); ok {
-		return av.Value
-	}
-	return ""
-}
-
 // unmarshal converts a DynamoDB attribute map to map[string]any for JSON response.
 func unmarshal(item map[string]types.AttributeValue) (map[string]any, error) {
 	var out map[string]any

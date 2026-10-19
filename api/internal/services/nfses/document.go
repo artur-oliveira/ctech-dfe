@@ -367,16 +367,6 @@ func personDoc(item map[string]types.AttributeValue) string {
 	return docPunct.Replace(doc)
 }
 
-// firstNonEmpty devolve o primeiro valor não vazio.
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 // firstContact devolve o primeiro item de person.contacts[key] — o DPS aceita
 // um único telefone/e-mail por pessoa (mesma regra de services.FirstPhone).
 func firstContact(person map[string]types.AttributeValue, key string) string {

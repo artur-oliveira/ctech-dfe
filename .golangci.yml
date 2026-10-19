@@ -1,0 +1,9 @@
+version: "2"
+linters:
+  exclusions:
+    rules:
+      # Baseline: unchecked errors in test helpers/handlers (w.Write, Close, dispatch)
+      # predate the CI gate and are harmless in tests; production code is checked.
+      - path: _test\.go
+        linters:
+          - errcheck

@@ -33,8 +33,6 @@ func attrS(t *testing.T, av types.AttributeValue) string {
 	return s.Value
 }
 
-func ptr(s string) *string { return &s }
-
 func TestHandler_DocumentMessage_WritesFailedStatus(t *testing.T) {
 	tablePrefix = "dev"
 	resultsTopicARN = ""

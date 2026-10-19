@@ -99,7 +99,7 @@ func loadManifest(t *testing.T) dpsManifest {
 // que o encoding/xml pode escrever, incluindo wrappers "a>b" e atributos.
 func collectXMLPaths(t reflect.Type, prefix string, out map[string]bool) {
 	out[prefix] = true
-	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {

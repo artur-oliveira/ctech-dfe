@@ -40,7 +40,7 @@ func TestEnumCatalogMatchesTypeScript(t *testing.T) {
 		}
 		converted := make([]tsEnumOption, len(goEntries))
 		for i, entry := range goEntries {
-			converted[i] = tsEnumOption{Value: entry.Value, Label: entry.Label}
+			converted[i] = tsEnumOption(entry)
 		}
 		if !reflect.DeepEqual(converted, tsEntries) {
 			t.Errorf("domínio %s difere:\nGo = %+v\nTS = %+v", typeName, converted, tsEntries)
