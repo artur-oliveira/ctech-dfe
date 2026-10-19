@@ -39,6 +39,8 @@ const skKey = "sk"
 var erasureCatalog = []ErasureTable{
 	{CDK: "roles", Name: "roles", Scope: ScopeKept},
 	{CDK: "erasure_state", Name: "erasure_state", Scope: ScopeKept},
+	// Replayable answers, keyed by the caller's sub; every row expires by TTL (24 h), so the purge leaves them.
+	{CDK: "idempotency", Name: "idempotency", Scope: ScopeKept},
 	{CDK: "users", Name: "users", Scope: ScopePerson},
 	{CDK: "account_billing", Name: "account_billing", Scope: ScopeAccountBilling}, // person (legacy USER_ rows) and organization (ORG_ rows) keys, R15
 	{CDK: "organizations", Name: "organizations", Scope: ScopeOrganization},

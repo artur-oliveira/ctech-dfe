@@ -244,7 +244,7 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CorsAllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "Dfe-Organization-Pk"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID", "Dfe-Organization-Pk", "Idempotency-Key"},
 		ExposeHeaders:    []string{fiberobs.RequestIDHeader, apiv1.HeaderNextCursor, fiber.HeaderRetryAfter},
 		AllowCredentials: true,
 		MaxAge:           3600,

@@ -2,6 +2,8 @@ package v1
 
 import (
 	"gopkg.aoctech.app/api-commons/cache"
+	"gopkg.aoctech.app/api-commons/dynamo"
+	"gopkg.aoctech.app/api-commons/idempotency"
 	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/config"
@@ -77,7 +79,10 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	if svcs.ErasureBlocked != nil {
 		verifier.WithLockCheck(svcs.ErasureBlocked)
 	}
-	verifier.WithAfterAuth(middleware.RateLimit(middleware.NewCounter(cacheBackend)))
+	verifier.WithAfterAuth(middleware.AfterAuth(
+		middleware.NewRateLimitCheck(middleware.NewCounter(cacheBackend)),
+		middleware.Idempotency(idempotency.NewDynamoStore(dynamo.NewBase(awsClients.DynamoDB, cfg.TablePrefix, middleware.IdempotencyTable))),
+	))
 	authMw := verifier.Middleware()
 	perm := middleware.NewPermChecker(svcs.Member, svcs.RoleRepo, cacheBackend)
 	// The flip. Off unless ctech-account issued this service a credential:
