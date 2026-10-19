@@ -53,7 +53,7 @@ Env vars (`internal/config/config.go`):
 - `${env}-ctech-dfe-results` — results bus (workers → API `ResultsConsumer`).
   `RESULTS_TOPIC_ARN`. Two payload shapes: `result_kind: document|event` (dfe) and
   `{type:"new_distribution_<doc_type>"}` (distribution) — see **H2**.
-- `${env}-ctech-dfe-results-ops-alerts` — DLQ alarm notifications.
+- `${env}-ctech-dfe-results-ops-alerts` — kept for out-of-band subscriptions; no alarm publishes to it (DLQ alarms were removed).
 
 **Retry / DLQ** (`cdk/lib/worker-stack.ts`): per-worker main queue → DLQ,
 `maxReceiveCount: 3`; DLQ retention 14 days; SQS `reportBatchItemFailures: true`.

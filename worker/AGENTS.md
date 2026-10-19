@@ -1,24 +1,23 @@
 # AGENTS.md — worker (ctech-dfe-worker)
 
-Go Lambda — SQS consumer (standard queue, at-least-once), async DFe issuance pipeline,
-`provided.al2023`.
+Go Lambda — SQS (standard) consumer, async DFe issuance pipeline, `provided.al2023`.
 
-**Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §6`,
-`../MIGRATION.md`, `../worker/README.md`.
+**CTech standards:** generic backend, resilience and infra rules live in the `ctech-dev-standards` skill
+(`references/backend.md`, `references/infra.md`); it wins over this file. This file records only what is specific
+to the DFe worker.
+
+**Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §6`, `README.md` (full contract).
 
 ---
 
 ## Role
 
-Consumes `WorkerMessage` / `DistributionMessage` from SQS (standard — **not** FIFO),
-orchestrates the full DFe issuance:
-fetches certificate from S3 → calls SEFAZ via the **go-dfe-egress Lambda** (sa-east-1) → persists result in DynamoDB → uploads XML to S3 →
-publishes result to the **SNS results bus** (`${env}-ctech-dfe-results`), which the API's
-`ResultsConsumer` polls and fans out over WebSocket.
+Consumes `WorkerMessage` / `DistributionMessage` from SQS (standard, not FIFO) and orchestrates DFe issuance:
+fetches the certificate from S3 → invokes the go-dfe-egress Lambda (sa-east-1; XML-DSig + SEFAZ SOAP / NFS-e REST)
+→ persists the result in DynamoDB → uploads XML to S3 → publishes the result to the SNS results topic
+(`${env}-ctech-dfe-results`), which the API's `ResultsConsumer` fans out over WebSocket.
 
-**Flow:** `SQS (standard) → Handler → S3 (cert) → Invoke go-dfe-egress (sa-east-1; SEFAZ/municipal) → DynamoDB + S3 → SNS results topic`
-
-See [`README.md`](README.md) for the full contract and the go-dfe-egress dispatch.
+**Flow:** `SQS (standard) → cmd/<binary> → service.Process → S3 (cert) → go-dfe-egress (sa-east-1) → DynamoDB + S3 → SNS results`
 
 ---
 
@@ -26,14 +25,20 @@ See [`README.md`](README.md) for the full contract and the go-dfe-egress dispatc
 
 ```
 worker/
-├── cmd/                        # Lambda entry points (one per handler type)
-├── internal/
-│   ├── config/                 # Env config
-│   ├── handlers/               # SQS message handlers (one per doc type)
-│   ├── services/               # Business logic
-│   ├── repositories/           # DynamoDB persistence
-│   └── awsclient/              # aws-sdk-go-v2 wrappers
+├── cmd/
+│   ├── worker/                  # emission/event workers (one binary, many functions)
+│   ├── distribution-worker/     # SEFAZ/ADN distribution pulls
+│   ├── distribution-dispatcher/ # scheduled (30 min): enumerates orgs, enqueues distribution jobs
+│   ├── dlq-processor/           # terminal sink for DLQ messages
+│   └── outbox-publisher/        # DynamoDB stream -> command SNS (transactional outbox)
+└── internal/
+    ├── config/                  # env config
+    └── service/                 # flat package: dfe.go, distribution*.go, nfse.go, erasure.go, status.go, ...
 ```
+
+There are no `handlers/`, `services/` or `repositories/` packages: `cmd/*/main.go` parses the event and calls one
+`service` method; DynamoDB/S3/SNS calls are made inside `internal/service` (no repository layer). This diverges
+from the family handler → service → repository layout; do not "fix" it as a drive-by.
 
 ---
 
@@ -41,105 +46,67 @@ worker/
 
 1. Read relevant docs before starting.
 2. `rg "..."` — search for existing implementations before creating new code.
-3. Plan → Implement → Run affected tests.
+3. Plan → Implement → Run affected tests (`go test ./... -race` from `worker/`).
 4. Update `../DOCS.md` for architectural changes; `../CONDUCT.md` for new constraints.
 5. State cross-project impact (worker ↔ api ↔ go-dfe-egress ↔ cdk).
 6. Suggest Conventional Commit.
 
 ---
 
-## Engineering Rules
+## Product Rules
 
-### DRY
+- **Idempotency is mandatory**: standard SQS is at-least-once with no ordering. Check existing state before writing
+  (`DfeService.alreadyTerminal`, `internal/service/dfe.go`); status updates use conditional `UpdateItem`. Fiscal
+  numbering relies on the atomic `transact_write` plus that guard, not on ordering.
+- **SEFAZ business rejections (cStat other than 100/135/150) are not retried**: persist the rejection and publish the
+  failed status. Only network/timeout errors are retried (SQS visibility timeout, then DLQ).
+- NFS-e branches out of the shared pipeline (`internal/service/nfse.go`, `distribution_nfse.go`): the response has no
+  `cStat`/`xMotivo` and a rejection is always terminal.
+- Every SEFAZ/municipal call goes through the **go-dfe-egress Lambda** (`DFE_LAMBDA_NAME`, region
+  `DFE_EGRESS_REGION` = sa-east-1) via `invokeEgress` in `dfe.go`/`distribution.go`. There is no in-process
+  `dfe.Call` and no fallback client. `go-dfe` is imported only for types and helpers (`Request`, `nfse`,
+  `BuildXMLFragment`). Do not duplicate SEFAZ logic here; auxiliary-document rendering belongs to the API.
+- After the SEFAZ response, in order: update DynamoDB status, upload XML to S3, publish to the SNS results topic.
+  Valkey/WebSocket fan-out is the API's job.
+- Lambda timeout must exceed the egress Lambda (120 s): event workers use 150 s, emission workers 300 s.
+- Binary must be named `bootstrap` (`provided.al2023`, arm64). Table names derive from `TABLE_PREFIX`.
+- Never commit AWS credentials, PFX certs, real CPF/CNPJ or customer data.
 
-- Never duplicate functions. If two handlers share logic, extract to a shared package.
-- Before adding any function, search `internal/` for existing implementations.
-- Shared constants (env strings, DynamoDB status values, S3 key patterns) must not be redeclared
-  per-handler — define once in `internal/` and import.
+---
 
-### Constants — no magic strings/numbers
+## Known Constraints and Divergences from the Standard
 
-- DynamoDB status values (`pending`, `authorized`, `rejected`, `failed`, `cancelled`), S3 key
-  patterns, SQS attribute names, and Lambda function name env vars MUST be named constants.
-- Never hardcode table names — always derive from `TABLE_PREFIX` config.
-
-### Error Handling (MUST follow)
-
-- Worker errors are non-HTTP, but structured errors must be used consistently.
-- Return errors explicitly; never silently swallow failures.
-- For DynamoDB/S3/Lambda call failures: log with context (org_pk, access_key) and return the
-  error to let SQS handle visibility timeout + DLQ routing.
-- **SEFAZ business rejections (cStat != 100/135/150) must NOT be retried** — persist the
-  rejection and publish the failed status. Only network/timeout errors warrant retry.
-
-### Idempotency (critical)
-
-- Standard SQS provides at-least-once delivery and no ordering guarantee — every handler **MUST be idempotent**.
-- Before writing to DynamoDB, check existing state to avoid double-processing.
-- Do not rely on `MessageGroupId`, FIFO deduplication, or delivery order; conditional claims and state transitions are
-  the concurrency boundary.
-
-### Layer Separation
-
-| Layer      | Allowed                              | Forbidden                        |
-|------------|--------------------------------------|----------------------------------|
-| Handler    | Parse SQS event, call one service    | Business logic, direct AWS calls |
-| Service    | Orchestration, business logic        | SQS parsing, HTTP concerns       |
-| Repository | DynamoDB read/write only             | Business logic, orchestration    |
-
-### Go Rules
-
-- Runtime: `provided.al2023`. Binary MUST be named `bootstrap`.
-- Use `aws-sdk-go-v2` only.
-- No goroutines that outlive the Lambda invocation.
-- Send every SEFAZ/municipal call to the go-dfe-egress Lambda; never call `dfe.Call` in process.
-
-### DynamoDB
-
-- `GetItem` > `Query` > `Scan`. No production scans.
-- Status updates use `UpdateItem` with condition expressions to prevent race conditions.
-
-### Secrets
-
-Never commit: AWS credentials, PFX certs, real CPF/CNPJ, real customer data.
+- DLQs have **no CloudWatch alarm** (removed from the CDK). Family policy is alerts through the shared SNS topic
+  `ctech-{env}-alerts` via go-common `alerts`; the worker does not import go-common and sends no alert today.
+- **Scan in the distribution dispatcher** (`cmd/distribution-dispatcher/main.go`, `scanOrgPKs`): scans each
+  `organization_*_configs` table (projection `pk`, paginated) every 30 min to enumerate organizations. This grows
+  with the number of organizations and contradicts the family "no scan" rule; it is a known divergence, replace it
+  with a GSI/registry before scale.
+- `cmd/*` entry points use `context.Background()` for AWS config load (no custom cancellation); the worker has no
+  retry/breaker helpers from go-common (retry is SQS redelivery + DLQ, and go-dfe's own backoff inside the egress).
+- Keep-warm: EventBridge pings every worker each minute with `{ping:true}`, short-circuited in `service/ping.go`.
 
 ---
 
 ## Testing
 
-| Change              | Required                         |
-|---------------------|----------------------------------|
-| Handler logic       | Unit test (mock AWS calls)       |
-| Service logic       | Unit test                        |
-| AWS integration     | Integration test                 |
-| Fiscal issuance     | Unit + integration               |
-| Idempotency path    | Integration test (duplicate msg) |
-| Bug fix             | Regression test                  |
-
-**Every core handler and service function must have an integration test.**
+| Change | Required |
+|--------|----------|
+| Service logic | Unit test (mock AWS calls) |
+| AWS integration | Integration test |
+| Fiscal issuance | Unit + integration |
+| Idempotency path | Integration test (duplicate message) |
+| Bug fix | Regression test |
 
 Run: `go test ./... -race` from `worker/`.
 
 ---
 
-## Known Constraints
-
-- DLQ receives messages after max retries — monitor via CloudWatch alarms (configured in CDK).
-- Command queues are standard SQS; duplicate and out-of-order deliveries are expected.
-- go-dfe runs inside the go-dfe-egress Lambda (sa-east-1); there is no fallback client. The API renders PDFs.
-- After a terminal SEFAZ response: persist state, upload XML to S3, and publish the result to SNS; the API results
-  consumer performs Valkey/WebSocket fan-out.
-- Lambda timeout must be aligned with the worst-case SEFAZ latency + retry budget.
-
----
-
 ## Critical Areas (require analysis before touching)
 
-- DFe issuance handlers (NF-e, NFC-e, CT-e, MDF-e)
-- go-dfe-egress Lambda invocation and response parsing
+- DFe issuance (NF-e, NFC-e, CT-e, MDF-e, NFS-e) and go-dfe-egress invocation/response parsing
 - DynamoDB status persistence and idempotency checks
-- Results SNS publication and API-side Valkey/WebSocket delivery
-- DLQ handling and retry logic
+- SNS results publish; DLQ handling and retry logic; outbox publisher
 
 Before touching: identify risks + side effects, verify backward compatibility + regulatory impact.
 
@@ -147,18 +114,10 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 
 ## Completion Checklist
 
-- [ ] Code compiles; `go test ./... -race` passes
-- [ ] Handlers are idempotent (verified with duplicate-message test)
-- [ ] No duplication introduced (searched before creating)
-- [ ] All constants named (no magic strings)
+- [ ] `go test ./... -race` passes; handlers idempotent (duplicate-message test)
+- [ ] No duplication; constants named
 - [ ] SEFAZ rejections not retried (only network errors)
 - [ ] Docs updated (`../DOCS.md` and/or `../CONDUCT.md`)
 - [ ] Cross-project impact reviewed (worker ↔ api ↔ go-dfe-egress ↔ cdk)
 
-## Mandatory Documentation Policy
-
-**Every code change MUST be documented.**
-
-There are NO exceptions.
-
-Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
+Every change that alters behavior, a contract or an operational rule updates the matching docs in the same change.
