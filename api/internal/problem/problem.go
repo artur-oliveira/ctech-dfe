@@ -32,8 +32,10 @@ const (
 	TypeValidation             = "/problems/validation-error"
 	TypeTooManyRequests        = "/problems/too-many-requests"
 	TypeInternalServer         = "/problems/internal-server-error"
-	TypeNotImplemented         = "/problems/not-implemented"
-	TypePayloadTooLarge        = "/problems/payload-too-large"
+	// TypeTimeout is a request that used its whole time budget (REQUEST_TIMEOUT).
+	TypeTimeout         = "/problems/timeout"
+	TypeNotImplemented  = "/problems/not-implemented"
+	TypePayloadTooLarge = "/problems/payload-too-large"
 	// TypePaymentRequired covers every refusal that money fixes: no subscription,
 	// one that lapsed, and a quota that ran out. One type with a `reason` rather
 	// than three types, because the client's response to all of them is the same
@@ -158,6 +160,8 @@ func FromFiber(err *fiber.Error) *Problem {
 	switch err.Code {
 	case http.StatusNotFound:
 		return NotFound(err.Error()).WithCause(err)
+	case http.StatusGatewayTimeout:
+		return GatewayTimeout("a requisição demorou demais; tente novamente").WithCause(err)
 	default:
 		return InternalServer("erro interno").WithCause(err)
 	}
@@ -210,6 +214,12 @@ func QuotaExceeded(meter, plan string, limit, used int64, detail string) *Proble
 // a 400 (bad input) and a 500 (our bug).
 func NotImplemented(detail string) *Problem {
 	return wrap(commonproblem.New(http.StatusNotImplemented, TypeNotImplemented, "Not Implemented", detail))
+}
+
+// GatewayTimeout answers a request cut by its time budget: retryable, and for a
+// write the outcome is unknown until it is read back.
+func GatewayTimeout(detail string) *Problem {
+	return wrap(commonproblem.New(http.StatusGatewayTimeout, TypeTimeout, "Gateway Timeout", detail))
 }
 
 func InternalServer(detail string) *Problem {

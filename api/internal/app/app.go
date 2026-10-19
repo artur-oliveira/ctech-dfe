@@ -15,6 +15,7 @@ import (
 	"gopkg.aoctech.app/api-commons/accountorgs"
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/dataexport"
+	"gopkg.aoctech.app/api-commons/deadline"
 	"gopkg.aoctech.app/api-commons/erasure"
 	"gopkg.aoctech.app/api-commons/oauth2client"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
@@ -255,6 +256,13 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 			return c.Path() == "/v1.0/health" || c.Path() == "/v1.0/health-check"
 		},
 	}))
+	// A time budget for every request, so a DynamoDB, S3, Lambda or outbound call
+	// ends with it instead of outliving the client. Websocket upgrades are exempt
+	// (done by the middleware). No route is skipped: the slowest, the Lambda-egress
+	// lookups, already hit WriteTimeout at 10 s.
+	if cfg.RequestTimeout > 0 {
+		app.Use(deadline.New(cfg.RequestTimeout))
+	}
 	return app
 }
 
@@ -696,6 +704,9 @@ func startResultsConsumer(lc fx.Lifecycle, rc *consumer.ResultsConsumer) {
 }
 
 func errorHandler(c fiber.Ctx, err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return problem.GatewayTimeout("a requisição demorou demais; tente novamente").WithCause(err).Send(c)
+	}
 	if f, ok := errors.AsType[*fiber.Error](err); ok {
 		p := problem.FromFiber(f)
 		return p.Send(c)

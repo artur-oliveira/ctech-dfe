@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"fmt"
 
 	"github.com/caarlos0/env/v11"
@@ -13,11 +15,15 @@ type Config struct {
 	Port int    `env:"PORT" envDefault:"8000"`
 	Env  string `env:"ENVIRONMENT" envDefault:"dev"`
 
-	ReadTimeout        int64    `env:"READ_TIMEOUT" envDefault:"10"`
-	IdleTimeout        int64    `env:"IDLE_TIMEOUT" envDefault:"60"`
-	WriteTimeout       int64    `env:"WRITE_TIMEOUT" envDefault:"10"`
-	TrustedProxies     []string `env:"TRUSTED_PROXIES"`
-	CorsAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS"`
+	ReadTimeout  int64 `env:"READ_TIMEOUT" envDefault:"10"`
+	IdleTimeout  int64 `env:"IDLE_TIMEOUT" envDefault:"60"`
+	WriteTimeout int64 `env:"WRITE_TIMEOUT" envDefault:"10"`
+	// RequestTimeout is the time budget of one request: the context every
+	// DynamoDB, S3, Lambda and outbound call is made with. Under WriteTimeout so
+	// the client gets a 504 instead of a cut connection. Zero disables it.
+	RequestTimeout     time.Duration `env:"REQUEST_TIMEOUT" envDefault:"8s"`
+	TrustedProxies     []string      `env:"TRUSTED_PROXIES"`
+	CorsAllowedOrigins []string      `env:"CORS_ALLOWED_ORIGINS"`
 	// AWS
 	AWSRegion         string `env:"AWS_REGION" envDefault:"us-east-1"`
 	TablePrefix       string `env:"TABLE_PREFIX,required"`
