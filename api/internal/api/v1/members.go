@@ -2,8 +2,9 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
@@ -84,7 +85,7 @@ func registerMemberRoutes(scoped fiber.Router, h OrgHandlers, perm *middleware.P
 	// deserves to be told where it moved, and a 404 would send them looking for
 	// a typo in their own integration.
 	scoped.Post("/invitations", perm.RequireOwnerOrAdmin(), func(c fiber.Ctx) error {
-		return sendProblem(c, problem.Retired(
+		return sendProblem(c, dfeproblem.Retired(
 			"os convites agora são criados na sua conta CTech, em Organizações — lá é possível escolher as empresas que a pessoa poderá usar"))
 	})
 

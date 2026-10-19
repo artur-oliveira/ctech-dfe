@@ -6,9 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )

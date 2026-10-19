@@ -7,7 +7,7 @@ package nfes
 import (
 	"github.com/shopspring/decimal"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // Casas decimais do grupo comb no leiaute: encerrante em 3, CIDE em 4.

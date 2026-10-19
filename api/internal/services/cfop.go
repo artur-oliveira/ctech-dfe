@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // Um CFOP de saída é [escopo][natureza]: o primeiro dígito é o escopo do

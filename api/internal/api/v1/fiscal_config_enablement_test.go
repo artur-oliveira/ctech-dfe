@@ -8,7 +8,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -53,7 +54,7 @@ func (f *fakeReserver) ReserveCompany(context.Context, string, string) (*service
 
 // Spec § 5 test 7: above the limit → 402 and no configuration written.
 func TestARefusedEnablementWritesNoConfiguration(t *testing.T) {
-	res := &fakeReserver{err: problem.QuotaExceeded(services.MeterCompanies, "free", 1, 1, "limite")}
+	res := &fakeReserver{err: dfeproblem.QuotaExceeded(services.MeterCompanies, "free", 1, 1, "limite")}
 	_, err := reserveEnablement(context.Background(), res, "cmp_1")
 	var p *problem.Problem
 	if !errors.As(err, &p) || p.Status != 402 {

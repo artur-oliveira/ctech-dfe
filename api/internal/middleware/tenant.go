@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"

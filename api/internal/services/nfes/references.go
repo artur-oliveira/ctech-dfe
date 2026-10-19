@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // Tipos de referência (ide/NFref, leiauteNFe_v4.00).

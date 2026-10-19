@@ -7,7 +7,7 @@ package nfes
 import (
 	"github.com/shopspring/decimal"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // natOpMaxLen is the SEFAZ ide.natOp limit (xNatOp: 1-60 chars).

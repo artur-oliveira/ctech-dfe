@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
@@ -404,7 +405,7 @@ func resolveEventContext(ctx context.Context, orgRepo *repositories.Organization
 		return nil, err
 	}
 	if len(certs) == 0 {
-		return nil, problem.NoCertificate("certificado digital não encontrado")
+		return nil, dfeproblem.NoCertificate("certificado digital não encontrado")
 	}
 
 	pk := strAttr(nfe, "pk")

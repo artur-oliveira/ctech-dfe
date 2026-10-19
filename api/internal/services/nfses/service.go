@@ -12,8 +12,9 @@ import (
 
 	"gopkg.aoctech.app/api-commons/cache"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
@@ -55,7 +56,7 @@ var (
 	ErrNfseNoOrg         = problem.NotFound("organização não encontrada")
 	ErrNfseNotFound      = problem.NotFound("NFS-e não encontrada")
 	ErrNfseNoConfig      = problem.BadRequest("configure a NFS-e em Configuração Fiscal antes de emitir")
-	ErrNfseNoCertificate = problem.NoCertificate("certificado digital não encontrado")
+	ErrNfseNoCertificate = dfeproblem.NoCertificate("certificado digital não encontrado")
 	ErrNfseNoAbrasf      = problem.BadRequest("configuração ABRASF incompleta: informe o endpoint do município")
 )
 

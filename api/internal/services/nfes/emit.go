@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"gopkg.aoctech.app/api-commons/observability"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
@@ -382,7 +383,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 	if len(certs) == 0 {
-		return nil, problem.NoCertificate("certificado digital não encontrado")
+		return nil, dfeproblem.NoCertificate("certificado digital não encontrado")
 	}
 	cert := certs[0]
 

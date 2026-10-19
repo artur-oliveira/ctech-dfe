@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
@@ -57,7 +58,7 @@ func (s *MdfeService) resolveEventContext(ctx context.Context, orgPK, accessKey 
 		return nil, err
 	}
 	if len(certs) == 0 {
-		return nil, problem.NoCertificate("certificado digital não encontrado")
+		return nil, dfeproblem.NoCertificate("certificado digital não encontrado")
 	}
 	cert := certs[0]
 

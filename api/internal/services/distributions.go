@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 
@@ -319,7 +320,7 @@ func (s *DistributionService) orgContext(ctx context.Context, orgPK, docType str
 		return nil, err
 	}
 	if len(certs) == 0 {
-		return nil, problem.NoCertificate("certificado digital não encontrado")
+		return nil, dfeproblem.NoCertificate("certificado digital não encontrado")
 	}
 	config, err := s.fiscalCfg(docType).Get(ctx, orgPK)
 	if err != nil {
@@ -408,7 +409,7 @@ func (s *DistributionService) certToBase64(ctx context.Context, s3Key string) (s
 		Key:    aws.String(s3Key),
 	})
 	if err != nil {
-		return "", problem.NoCertificate("certificado não encontrado no armazenamento")
+		return "", dfeproblem.NoCertificate("certificado não encontrado no armazenamento")
 	}
 	defer closeReadCloser(ctx, out.Body, "distribution certificate S3 download")
 	buf := new(bytes.Buffer)

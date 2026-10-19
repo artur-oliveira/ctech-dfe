@@ -11,7 +11,7 @@ import (
 
 	godfe "gopkg.aoctech.app/dfe/go-dfe"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 type fakeInvoker struct {

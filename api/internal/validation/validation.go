@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -89,6 +89,9 @@ func RegisterStructRule(fn validator.StructLevelFunc, types ...any) {
 	get().RegisterStructValidation(fn, types...)
 }
 
+// detailInvalidBody is the validation 422's detail, kept as the UI and clients saw it.
+const detailInvalidBody = "the request body failed validation"
+
 // Struct validates v. It returns nil when valid, or an RFC 7807 *problem.Problem
 // (HTTP 422) carrying one FieldError per failed rule.
 func Struct(v any) *problem.Problem {
@@ -113,7 +116,9 @@ func Struct(v any) *problem.Problem {
 			Tag:     fe.Tag(),
 		})
 	}
-	return problem.Validation(errs)
+	out := problem.Validation(errs)
+	out.Detail = detailInvalidBody
+	return out
 }
 
 // asInvalid reports whether err is an *InvalidValidationError (programmer error,

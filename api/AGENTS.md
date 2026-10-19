@@ -29,7 +29,7 @@ api/
 ├── internal/
 │   ├── app/app.go              # fx module, Fiber app, cache/ws wiring
 │   ├── config/                 # env config (caarlos0/env); prod boot validation
-│   ├── problem/                # RFC 7807 helpers (wraps api-commons/problem)
+│   ├── dfeproblem/             # DFe-only RFC 7807 problems (generic ones: api-commons/problem)
 │   ├── middleware/             # auth, tenant, rbac, scopes, reach, subscription, internal
 │   ├── oauthresource/          # OAuth scope manifest
 │   ├── accountclient/ billingclient/   # outbound clients to ctech-account / ctech-billing
@@ -61,7 +61,7 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
 
 - **Layering:** Route parses and calls ONE service method; Service holds rules and cache management; Repository only
   reads/writes DynamoDB. Services and repositories are injected via `go.uber.org/fx`; never instantiated in handlers.
-- **Errors:** all route errors go through `sendProblem(c, err)`; services return `*problem.Problem` (`problem.BadRequest`,
+- **Errors:** all route errors go through `sendProblem(c, err)`; services return `*problem.Problem` from `api-commons/problem` (`problem.BadRequest`,
   `problem.NotFound`, ...). Never return raw errors or `fiber.Map`.
 - **DRY helpers:** CRUD repositories extend `CRUDRepository[T]` (`repositories/base.go`); CRUD services use
   `CRUDMutationHelper` and `GetCachedItem`/`GetCachedList` (`services/crud.go`). UF→IBGE maps and SEFAZ environment
@@ -110,8 +110,6 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
     migration tools, never on a request path.
   - The worker's distribution dispatcher also scans (see `../worker/CLAUDE.md`).
 - **No `Idempotency-Key` handling on inbound POSTs** (the only uses are outbound calls to ctech-billing).
-- **Local `internal/problem` package** (a thin wrapper over `api-commons/problem`); the standard wants products to
-  register only `Type*` constants through go-common.
 - `v1.Register` takes positional parameters (cache, cfg, ws registry, AWS clients, `Services`), not a single `Deps`.
 - No custom metrics, no alarms: logs only.
 

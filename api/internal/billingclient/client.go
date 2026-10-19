@@ -36,7 +36,7 @@ import (
 	"gopkg.aoctech.app/api-commons/observability"
 	"gopkg.aoctech.app/api-commons/resilient"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 // Scopes is what the `dfe-billing` client asks for, space-separated as the token

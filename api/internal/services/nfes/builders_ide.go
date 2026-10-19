@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 

@@ -12,9 +12,9 @@ import (
 
 	"gopkg.aoctech.app/api-commons/observability"
 	fiberobs "gopkg.aoctech.app/api-commons/observability/fiber"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/api-commons/ws"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 
 	fws "github.com/fasthttp/websocket"

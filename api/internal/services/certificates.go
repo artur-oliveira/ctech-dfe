@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/aws/aws-sdk-go-v2/aws"

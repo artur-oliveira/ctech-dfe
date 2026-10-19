@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 
 	"github.com/shopspring/decimal"
 )

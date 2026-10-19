@@ -10,7 +10,8 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -138,7 +139,7 @@ func (s *NfseService) callEgress(ctx context.Context, orgPK, service string, bod
 func problemFromDfeBody(status int, body string) *problem.Problem {
 	var p godfe.Problem
 	if err := json.Unmarshal([]byte(body), &p); err != nil || p.Detail == "" {
-		return problem.New(status, problem.TypeSefazRejection, "Sefaz Rejection", body)
+		return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", body)
 	}
-	return problem.New(status, problem.TypeSefazRejection, "Sefaz Rejection", p.Detail)
+	return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", p.Detail)
 }

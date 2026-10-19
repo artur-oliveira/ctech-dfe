@@ -26,7 +26,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
@@ -159,7 +160,7 @@ func inutilize(ctx context.Context, d inutDeps, orgPK string, body Inutilization
 		return nil, err
 	}
 	if len(certs) == 0 {
-		return nil, problem.NoCertificate("certificado digital não encontrado")
+		return nil, dfeproblem.NoCertificate("certificado digital não encontrado")
 	}
 
 	emitUF := extractEmitUF(org)

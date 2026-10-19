@@ -12,8 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/api-commons/cache"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/billingclient"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
@@ -867,7 +868,7 @@ func (s *BillingService) Reserve(ctx context.Context, orgPK, meter string) error
 	}
 	limit, ok := Quota(snap, meter)
 	if !ok {
-		return problem.QuotaExceeded(meter, snap.Plan, 0, 0,
+		return dfeproblem.QuotaExceeded(meter, snap.Plan, 0, 0,
 			"seu plano não inclui a emissão de "+strings.ToUpper(meter))
 	}
 
@@ -877,7 +878,7 @@ func (s *BillingService) Reserve(ctx context.Context, orgPK, meter string) error
 	}
 	if _, err := s.repo.ReserveUsage(ctx, account, usagePeriod(snap), meter, limit); err != nil {
 		if errors.Is(err, repositories.ErrQuotaExceeded) {
-			return problem.QuotaExceeded(meter, snap.Plan, limit, limit,
+			return dfeproblem.QuotaExceeded(meter, snap.Plan, limit, limit,
 				fmt.Sprintf("o limite de %d %s do plano já foi atingido neste período", limit, strings.ToUpper(meter)))
 		}
 		return err
@@ -900,7 +901,7 @@ func (s *BillingService) PrepareUsageReservation(ctx context.Context, orgPK, met
 	}
 	limit, ok := Quota(snap, meter)
 	if !ok {
-		return nil, problem.QuotaExceeded(meter, snap.Plan, 0, 0,
+		return nil, dfeproblem.QuotaExceeded(meter, snap.Plan, 0, 0,
 			"seu plano não inclui a emissão de "+strings.ToUpper(meter))
 	}
 	account, err := counterAccount(snap)
@@ -914,7 +915,7 @@ func (s *BillingService) PrepareUsageReservation(ctx context.Context, orgPK, met
 			return nil, getErr
 		}
 		if used[meter] >= limit {
-			return nil, problem.QuotaExceeded(meter, snap.Plan, limit, used[meter],
+			return nil, dfeproblem.QuotaExceeded(meter, snap.Plan, limit, used[meter],
 				fmt.Sprintf("o limite de %d %s do plano já foi atingido neste período", limit, strings.ToUpper(meter)))
 		}
 	}
@@ -1108,7 +1109,7 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 	}
 	limit, ok := Quota(snap, MeterCompanies)
 	if !ok {
-		return nil, problem.QuotaExceeded(MeterCompanies, snap.Plan, 0, 0,
+		return nil, dfeproblem.QuotaExceeded(MeterCompanies, snap.Plan, 0, 0,
 			"o plano da organização não permite habilitar empresas")
 	}
 	out := &CompanyReservation{OrganizationID: organizationID, CompanyPK: companyPK}
@@ -1127,7 +1128,7 @@ func (s *BillingService) ReserveCompany(ctx context.Context, organizationID, com
 			return nil, err
 		}
 		if used >= limit {
-			return nil, problem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
+			return nil, dfeproblem.QuotaExceeded(MeterCompanies, snap.Plan, limit, used,
 				fmt.Sprintf("o plano da organização permite %d empresa(s) habilitada(s) e já há %d", limit, used))
 		}
 		out.Items = append(out.Items, guard)
@@ -1161,7 +1162,7 @@ func (s *BillingService) CheckMDFEScope(ctx context.Context, orgPK string, hasTh
 	if snap.Features[metadataKeyMDFEScope] != mdfeScopeOwnFleet {
 		return nil
 	}
-	return problem.QuotaExceeded(MeterMDFe, snap.Plan, 0, 0,
+	return dfeproblem.QuotaExceeded(MeterMDFe, snap.Plan, 0, 0,
 		"seu plano permite MDF-e apenas com veículo de tração da própria empresa",
 	)
 }
@@ -1212,19 +1213,19 @@ func (s *BillingService) companiesUsed(ctx context.Context, organizationID strin
 func BlockedProblem(s *repositories.AccountSnapshot) *problem.Problem {
 	switch {
 	case s == nil || s.SubscriptionID == "":
-		return problem.PaymentRequired(problem.ReasonSubscriptionMissing,
+		return dfeproblem.PaymentRequired(dfeproblem.ReasonSubscriptionMissing,
 			"esta organização não tem um plano ativo; escolha um plano para começar a emitir")
 	case s.Status == "PAST_DUE":
-		return problem.PaymentRequired(problem.ReasonSubscriptionPastDue,
+		return dfeproblem.PaymentRequired(dfeproblem.ReasonSubscriptionPastDue,
 			"há uma fatura em aberto; regularize o pagamento para voltar a emitir")
 	case s.Status == "INCOMPLETE":
-		return problem.PaymentRequired(problem.ReasonSubscriptionIncomplete,
+		return dfeproblem.PaymentRequired(dfeproblem.ReasonSubscriptionIncomplete,
 			"a assinatura ainda não foi paga; conclua o pagamento para começar a emitir")
 	case s.Status == "PAUSED":
-		return problem.PaymentRequired(problem.ReasonSubscriptionPaused,
+		return dfeproblem.PaymentRequired(dfeproblem.ReasonSubscriptionPaused,
 			"a assinatura está pausada")
 	default:
-		return problem.PaymentRequired(problem.ReasonSubscriptionCanceled,
+		return dfeproblem.PaymentRequired(dfeproblem.ReasonSubscriptionCanceled,
 			"a assinatura foi cancelada; escolha um plano para voltar a emitir")
 	}
 }

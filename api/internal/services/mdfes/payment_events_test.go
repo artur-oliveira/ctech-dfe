@@ -3,7 +3,7 @@ package mdfes
 import (
 	"testing"
 
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 )
 
 func ptr(s string) *string { return &s }

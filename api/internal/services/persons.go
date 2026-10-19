@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gopkg.aoctech.app/api-commons/cache"
-	"gopkg.aoctech.app/dfe/api/internal/problem"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
