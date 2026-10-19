@@ -2,15 +2,17 @@ package services
 
 import (
 	"archive/zip"
-	"bytes"
+	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"gopkg.aoctech.app/api-commons/dataexport"
 
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
@@ -22,7 +24,6 @@ type exportRepo interface {
 }
 
 // exportMaxItems bounds one file; the read stops paging at it.
-// ponytail: 50k rows covers any person's audit trail; page to S3 if one outgrows memory.
 const exportMaxItems = 50_000
 
 // DataExporter builds dfe's part of the personal-data export (LGPD art. 18, V;
@@ -42,6 +43,8 @@ const exportMaxItems = 50_000
 type DataExporter struct {
 	repo exportRepo
 	now  func() time.Time
+	// maxItems overrides exportMaxItems (tests).
+	maxItems int
 }
 
 // DataExporter is the export side of the same repository the purge uses.
@@ -75,108 +78,116 @@ func exportClassification(table string) string {
 	return exportedByCompany
 }
 
-// Part is the dataexport.PartFunc of dfe. Idempotent.
-func (e *DataExporter) Part(ctx context.Context, sub string) ([]byte, error) {
-	raw := repositories.RawUserID(sub)
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	var files, truncated []string
-	write := func(name string, rows []map[string]any, cut bool) error {
-		if len(rows) == 0 {
-			return nil
-		}
-		data, err := json.MarshalIndent(map[string]any{"truncated": cut, "items": rows}, "", "  ")
-		if err != nil {
-			return err
-		}
-		w, err := zw.Create(name)
-		if err != nil {
-			return err
-		}
-		if _, err := w.Write(data); err != nil {
-			return err
-		}
-		files = append(files, name)
-		if cut {
-			truncated = append(truncated, name)
-		}
-		return nil
-	}
+// exportFiles is what one export wrote, for the README.
+type exportFiles struct {
+	zw               *zip.Writer
+	files, truncated []string
+}
 
-	var rows []map[string]any
+// one writes a file holding a single row.
+func (f *exportFiles) one(name string, row map[string]any) error {
+	it, err := dataexport.BeginItems(f.zw, name)
+	if err != nil {
+		return err
+	}
+	f.files = append(f.files, name)
+	if err := it.Add(row); err != nil {
+		return err
+	}
+	return it.End(false)
+}
+
+// Write is the dataexport.PartStreamFunc of dfe: it writes the zip to w as it
+// reads, a page of an index at a time, so a person with a long audit trail costs
+// one page of memory. Idempotent.
+func (e *DataExporter) Write(ctx context.Context, sub string, w io.Writer) error {
+	raw := repositories.RawUserID(sub)
+	f := &exportFiles{zw: zip.NewWriter(w)}
+
 	for _, one := range []struct{ file, table, pk string }{
 		{"user.json", tblUsers, repositories.BuildUserPK(raw)},
 		{"billing.json", tblAccountBilling, repositories.AccountBillingPK(raw)},
 	} {
 		item, err := e.repo.GetItem(ctx, one.table, pkKey(one.pk))
 		if err != nil {
-			return nil, fmt.Errorf("export: %s: %w", one.table, err)
+			return fmt.Errorf("export: %s: %w", one.table, err)
 		}
 		if item == nil {
 			continue
 		}
 		m, err := plain(item)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if err := write(one.file, []map[string]any{m}, false); err != nil {
-			return nil, err
+		if err := f.one(one.file, m); err != nil {
+			return err
 		}
 	}
 	for _, idx := range []struct{ file, table, index, attr, value string }{
 		{"memberships.json", tblOrgUsers, userIndex, skKey, repositories.BuildMemberSK(raw)},
 		{"audit-logs.json", tblAuditLogs, userIDIndex, "user_id", raw},
 	} {
-		var cut bool
-		var err error
-		if rows, cut, err = e.readIndex(ctx, idx.table, idx.index, idx.attr, idx.value, idx.table == tblAuditLogs); err != nil {
-			return nil, err
-		}
-		if err := write(idx.file, rows, cut); err != nil {
-			return nil, err
+		if err := e.writeIndex(ctx, f, idx.file, idx.table, idx.index, idx.attr, idx.value, idx.table == tblAuditLogs); err != nil {
+			return err
 		}
 	}
 
-	w, err := zw.Create("README.txt")
+	rw, err := f.zw.Create("README.txt")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if _, err := w.Write([]byte(e.readme(files, truncated))); err != nil {
-		return nil, err
+	if _, err := rw.Write([]byte(e.readme(f.files, f.truncated))); err != nil {
+		return err
 	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return f.zw.Close()
 }
 
-// readIndex pages an index until exportMaxItems, so the cap bounds memory.
-func (e *DataExporter) readIndex(ctx context.Context, table, index, attr, value string, dropPayload bool) ([]map[string]any, bool, error) {
-	var out []map[string]any
+// writeIndex streams an index into one file, a page at a time, up to the cap; a
+// file with no rows is not written.
+func (e *DataExporter) writeIndex(ctx context.Context, f *exportFiles, name, table, index, attr, value string, dropPayload bool) error {
+	var it *dataexport.Items
+	cut := false
 	var start map[string]types.AttributeValue
+paging:
 	for {
 		page, err := e.repo.QueryIndex(ctx, table, index, attr, value, start)
 		if err != nil {
-			return nil, false, fmt.Errorf("export: %s: %w", table, err)
+			return fmt.Errorf("export: %s: %w", table, err)
 		}
-		for _, it := range page.Items {
-			if len(out) >= exportMaxItems {
-				return out, true, nil
+		for _, row := range page.Items {
+			if it != nil && it.Count() >= cmp.Or(e.maxItems, exportMaxItems) {
+				cut = true
+				break paging
 			}
-			m, err := plain(it)
+			m, err := plain(row)
 			if err != nil {
-				return nil, false, err
+				return err
 			}
 			if dropPayload {
 				delete(m, "modifications")
 			}
-			out = append(out, m)
+			if it == nil {
+				if it, err = dataexport.BeginItems(f.zw, name); err != nil {
+					return err
+				}
+				f.files = append(f.files, name)
+			}
+			if err := it.Add(m); err != nil {
+				return err
+			}
 		}
 		if page.Next == nil {
-			return out, false, nil
+			break
 		}
 		start = page.Next
 	}
+	if it == nil {
+		return nil
+	}
+	if cut {
+		f.truncated = append(f.truncated, name)
+	}
+	return it.End(cut)
 }
 
 var secretFragments = []string{"password", "secret", "token", "cpf", "pfx", "private"}

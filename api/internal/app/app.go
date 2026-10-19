@@ -929,10 +929,10 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 	uploads := &http.Client{Timeout: 60 * time.Second}
 	exportTokens := oauth2client.New(httpClient, c, billingclient.TokenURLFor(cfg.CtechURL),
 		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeExportAck)
-	exporter := dataexport.NewHandler(services.ErasureServiceName, svc.DataExporter().Part, uploads,
+	exporter := dataexport.NewStreamHandler(services.ErasureServiceName, svc.DataExporter().Write, uploads,
 		dataexport.NewAckClient(uploads, strings.TrimSuffix(cfg.CtechURL, "/")+exportAckPath, exportTokens))
 	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks).
-		WithExporter(exporter.Handle)
+		WithExporter(exporter.Handle).WithVisibilityHeartbeat(cfg.ErasureQueueVisibility)
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
