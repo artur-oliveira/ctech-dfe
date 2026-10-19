@@ -1,6 +1,10 @@
 # AGENTS.md — ui
 
-Next.js 16 frontend — TypeScript, Tailwind CSS 4, ShadCN, React 19.
+Next.js 16 frontend — TypeScript, Tailwind CSS 4, shadcn (`base-nova`, `@base-ui/react`), React 19.
+
+**CTech standards:** generic frontend rules (shared `@aoctech/ui`, i18n, offline/error states, token handling, CI gate)
+live in the `ctech-dev-standards` skill (`references/frontend.md`); it wins over this file. This file records only
+what is specific to the DFe UI and where it still diverges from the standard (see *Divergences* below).
 
 **Before any task:** Read `../OVERVIEW.md`, `../CONDUCT.md`, `../DOCS.md §5`, `../INTEGRATION.md`, `../THEME.md`.
 
@@ -40,12 +44,13 @@ ui/
 │   │   ├── certificates/
 │   │   └── fiscal-config/
 │   ├── components/
-│   │   └── ui/                 # Shared ShadCN + custom components
+│   │   └── ui/                 # local shadcn + custom primitives (not @aoctech/ui)
 │   ├── lib/
 │   │   ├── api/client.ts       # ApiClient — Axios wrapper (ORG_HEADER defined here)
-│   │   ├── auth/               # OAuth PKCE flow
-│   │   ├── hooks/              # React hooks (useWebSocket, etc.)
-│   │   ├── providers/          # Context providers
+│   │   ├── auth/oauth.ts       # OAuth PKCE flow (via @aoctech/auth-client)
+│   │   ├── context/            # AuthContext
+│   │   ├── hooks/              # React hooks (useRealtimeUpdates, etc.)
+│   │   ├── providers/          # QueryProvider, RealtimeProvider (@aoctech/ws-client)
 │   │   └── schemas/            # Zod schemas (mirror backend)
 │   └── __tests__/ test/
 ```
@@ -68,7 +73,7 @@ ui/
 ### ESLint (MUST pass before any commit)
 
 ```bash
-npx eslint src --ext .ts,.tsx
+npm run lint   # eslint (flat config, eslint.config.mjs)
 ```
 
 **Zero errors, zero warnings.** Fix all reported issues before committing. No `// eslint-disable`
@@ -87,8 +92,10 @@ unless the rule genuinely does not apply and the reason is commented.
 
 - `ORG_HEADER` (`'Dfe-Organization-Pk'`) is defined **once** in `lib/api/client.ts`.
   Never hardcode this string in any other file.
-- localStorage/sessionStorage keys (`pydfe_user`, `pydfe_org`, OAuth state/verifier keys) must be defined as
-  named constants — not inline string literals scattered across files.
+- localStorage/sessionStorage keys must be defined as named constants (`lib/constants/storage.ts`) — not inline
+  string literals scattered across files. The key names still carry the legacy `pydfe_` prefix (`pydfe_user`,
+  `pydfe_org`, `pydfe_emit_draft`, ...); that is only a name, renaming one logs users out or drops drafts, so do it
+  deliberately with a migration.
 - API base URL, OAuth client ID, and CTECH URL come from env vars — never hardcoded.
 - Every new external origin the app talks to must appear as a literal in the caller's
   `build-env-*` (or `extra-connect-src`) in `.github/workflows/frontend.yml`, or the generated
@@ -100,8 +107,8 @@ unless the rule genuinely does not apply and the reason is commented.
 - `access_token` is stored in **module-level memory only** — NEVER write it to localStorage
   or sessionStorage.
 - `refresh_token` lives only in ctech-account's HttpOnly `ctech_rt` cookie; the UI must never read or persist it.
-- User data and active org are in localStorage (`pydfe_user`, `pydfe_org`).
-- Silent refresh happens via `doRefresh()` on any 401 — implemented once in `ApiClient`.
+- The cached user profile and the active org are in localStorage (`pydfe_user`, `pydfe_org`); no token is stored there.
+- Silent refresh on a 401 is implemented once, in `ApiClient` (`client.ts`), calling `doRefresh()` from `lib/auth/oauth.ts`.
 - Do NOT add a second refresh mechanism anywhere else.
 
 ### Loading States (mandatory)
@@ -195,7 +202,7 @@ Detalhes em `../DOCS.md §5`.
 - All API calls go through `ApiClient` — never use `fetch` or raw axios directly.
 - Zod schemas in `lib/schemas/` mirror backend validation — do not duplicate validation logic
   in individual components.
-- Context providers in `lib/providers/` manage global state — do not duplicate state in pages.
+- Global state lives in `lib/context/` (auth) and `lib/providers/` (query, realtime) — do not duplicate state in pages.
 
 ### Secrets
 
@@ -274,8 +281,9 @@ Use `CurrencyInput` (`@/components/ui/currency-input`) for all monetary fields.
 
 ## Theme
 
-Primary color: `#50ba95` (soft green). Full palette in `../THEME.md`. Use ShadCN components and
-Tailwind CSS 4 — do not add custom CSS frameworks.
+The brand scale is the `--brand-*` custom properties in `src/app/globals.css` (primary `brand-600` `#1c6c55`,
+`brand-500` `#2ea87f`), recolored per document type through `data-dfe-theme`. Details in `DESIGN.md` and
+`../THEME.md`. Use the local shadcn components and Tailwind CSS 4 — do not add custom CSS frameworks.
 
 ---
 
@@ -284,14 +292,28 @@ Tailwind CSS 4 — do not add custom CSS frameworks.
 - Auth is OAuth 2.0 PKCE — `login()` redirects to ctech-account; `/callback` exchanges the code.
 - `ORG_HEADER` is injected by the Axios interceptor on every request — never pass it manually.
 - Multiple org membership: stored org is re-validated against `GET /auth/me` on mount.
-- WebSocket reconnects after silent refresh — handled in `useWebSocket` hook.
+- WebSocket reconnects after silent refresh — handled by `useRealtimeUpdates` / `RealtimeProvider` (`@aoctech/ws-client`).
 - UI validation intentionally duplicates backend validation for UX — this is by design.
+
+---
+
+## Divergences from the CTech standard (do not extend these patterns)
+
+Verified in the code; the standard wins and these are migration debt, not conventions.
+
+- **No `@aoctech/ui`**: `package.json` has no dependency on it; primitives are local shadcn copies in
+  `src/components/ui`. Not-domain-specific components belong in ctech-ui.
+- **No i18n**: there is no i18next and no `locales/`; user-visible strings are hard-coded pt-BR. New strings must not
+  make this worse (keep them in one place per screen), but do not start a partial i18n locally.
+- Offline handling exists (`lib/network/liveness.ts` reads `navigator.onLine`, plus `error.tsx`, `global-error.tsx`,
+  `not-found.tsx` and `/unavailable`); whether active queries refetch on reconnect was not verified.
+- No `limits.json` shared with the backend; Zod limits are mirrored by hand.
 
 ---
 
 ## Critical Areas (require analysis before touching)
 
-- OAuth PKCE flow (`lib/auth/oauth.ts`, `lib/providers/AuthContext`)
+- OAuth PKCE flow (`lib/auth/oauth.ts`, `lib/context/AuthContext.tsx`)
 - Token storage rules (access token in memory, refresh token in HttpOnly IdP cookie)
 - ApiClient silent refresh and org header injection
 - NF-e issuance form (fiscal rules validation)
@@ -302,7 +324,7 @@ Before touching: identify risks + side effects, verify backward compatibility.
 
 ## Completion Checklist
 
-- [ ] `npx eslint src --ext .ts,.tsx` passes with zero errors/warnings
+- [ ] `npm run lint` passes with zero errors/warnings
 - [ ] `npm test` passes
 - [ ] No duplicate components, hooks, or API methods introduced
 - [ ] All constants named (no magic strings)
