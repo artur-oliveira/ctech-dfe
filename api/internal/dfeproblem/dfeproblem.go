@@ -78,16 +78,16 @@ func PaymentRequired(reason, detail string) *problem.Problem {
 func QuotaExceeded(meter, plan string, limit, used int64, detail string) *problem.Problem {
 	p := PaymentRequired(ReasonQuotaExceeded, detail)
 	if meter != "" {
-		p.WithExtra(extraMeter, meter)
+		p = p.WithExtra(extraMeter, meter)
 	}
 	if plan != "" {
-		p.WithExtra(extraPlan, plan)
+		p = p.WithExtra(extraPlan, plan)
 	}
 	if limit != 0 {
-		p.WithExtra(extraQuotaLimit, limit)
+		p = p.WithExtra(extraQuotaLimit, limit)
 	}
 	if used != 0 {
-		p.WithExtra(extraQuotaUsed, used)
+		p = p.WithExtra(extraQuotaUsed, used)
 	}
 	return p
 }
