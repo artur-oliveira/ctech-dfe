@@ -111,8 +111,6 @@ func buildTestCargo() *resolvedCargo {
 	}
 }
 
-func ptrStr(s string) *string { return &s }
-
 func testOrg() map[string]types.AttributeValue {
 	return map[string]types.AttributeValue{
 		"name": &types.AttributeValueMemberS{Value: "CTECH"},

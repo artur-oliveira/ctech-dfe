@@ -119,9 +119,7 @@ func classifyImportXML(root *xmlEl, cnpj string) (importClassification, bool) {
 			accessKey = infNFe.Attrs["Id"]
 		}
 	}
-	if strings.HasPrefix(accessKey, "NFe") {
-		accessKey = accessKey[3:]
-	}
+	accessKey = strings.TrimPrefix(accessKey, "NFe")
 
 	emit := findEl(root, nsNFe, "emit")
 	dest := findEl(root, nsNFe, "dest")
@@ -528,9 +526,7 @@ func extractResNFe(root *xmlEl) DocFields {
 // extractProcNFe parses a procNFe docZip element.
 func extractProcNFe(root *xmlEl, cnpj string) DocFields {
 	accessKey := findText(root, nsNFe, "chNFe", "Id")
-	if strings.HasPrefix(accessKey, "NFe") {
-		accessKey = accessKey[3:]
-	}
+	accessKey = strings.TrimPrefix(accessKey, "NFe")
 
 	emit := findEl(root, nsNFe, "emit")
 	dest := findEl(root, nsNFe, "dest")

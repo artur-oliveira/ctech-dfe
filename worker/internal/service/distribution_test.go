@@ -152,11 +152,6 @@ var distCfg = &config.Config{
 	ResultsTopicARN:  "arn:aws:sns:us-east-1:123:results",
 }
 
-// dynS / dynN build single-field DynamoDB item attribute maps for test fixtures.
-func dynS(key, val string) map[string]types.AttributeValue {
-	return map[string]types.AttributeValue{key: &types.AttributeValueMemberS{Value: val}}
-}
-
 // configItem builds a minimal nfe_config DynamoDB item.
 // environment: 1=prod, 2=hom.  lastDistAt: empty means no rate limit.
 func configItem(environment int, envPrefix, lastDistAt, penaltyUntil string) map[string]types.AttributeValue {

@@ -67,18 +67,6 @@ func (n *xnode) child(name string) *xnode {
 	return nil
 }
 
-// path walks a chain of direct children, returning the final node or nil.
-func (n *xnode) path(names ...string) *xnode {
-	cur := n
-	for _, name := range names {
-		cur = cur.child(name)
-		if cur == nil {
-			return nil
-		}
-	}
-	return cur
-}
-
 // firstDeep returns the first descendant (depth-first) with the given local name.
 func (n *xnode) firstDeep(name string) *xnode {
 	if n == nil {

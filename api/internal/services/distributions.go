@@ -418,22 +418,6 @@ func (s *DistributionService) certToBase64(ctx context.Context, s3Key string) (s
 	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
-func (s *DistributionService) downloadDocs(ctx context.Context, s3Key string) ([]byte, error) {
-	out, err := s.clients.S3.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucketDocs),
-		Key:    aws.String(s3Key),
-	})
-	if err != nil {
-		return nil, problem.NotFound("arquivo não encontrado no armazenamento")
-	}
-	defer closeReadCloser(ctx, out.Body, "distribution document S3 download")
-	buf := new(bytes.Buffer)
-	if _, err := io.Copy(buf, out.Body); err != nil {
-		return nil, problem.InternalServer("failed to read S3 object")
-	}
-	return buf.Bytes(), nil
-}
-
 func (s *DistributionService) invokeAndParse(ctx context.Context, payload map[string]any) (map[string]any, error) {
 	respBody, err := invokeSefazLambda(ctx, s.clients.Lambda, s.sefazFunctionName, payload)
 	if err != nil {

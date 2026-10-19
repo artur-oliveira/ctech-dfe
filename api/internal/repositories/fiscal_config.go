@@ -207,9 +207,9 @@ func (r *FiscalConfigRepository) IncrementConsQuota(ctx context.Context, orgPK, 
 
 	input := &dynamodb.UpdateItemInput{
 		Key: map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
-		UpdateExpression: aws.String(fmt.Sprintf(
+		UpdateExpression: aws.String(
 			"SET #w = if_not_exists(#w, :now), #c = if_not_exists(#c, :zero) + :one",
-		)),
+		),
 		ExpressionAttributeNames: map[string]string{"#w": windowField, "#c": callsField},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":now":  &types.AttributeValueMemberS{Value: now},

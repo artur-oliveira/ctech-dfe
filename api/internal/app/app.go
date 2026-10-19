@@ -232,7 +232,7 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 		WriteTimeout: time.Duration(cfg.WriteTimeout) * time.Second,
 		IdleTimeout:  time.Duration(cfg.IdleTimeout) * time.Second,
 		ProxyHeader:  fiber.HeaderXForwardedFor,
-		TrustProxy:   cfg.TrustedProxies != nil && len(cfg.TrustedProxies) > 0,
+		TrustProxy:   len(cfg.TrustedProxies) > 0,
 		TrustProxyConfig: fiber.TrustProxyConfig{
 			Proxies: cfg.TrustedProxies,
 		},

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -71,7 +70,7 @@ func (s *AuditLogService) List(ctx context.Context, orgPK string, opts AuditLogQ
 		limit = 50
 	}
 	if opts.ResourceType != "" {
-		skPfx := fmt.Sprintf("%s", opts.ResourceType)
+		skPfx := opts.ResourceType
 		if opts.ResourceID != "" {
 			skPfx = skPfx + "#" + opts.ResourceID
 		}

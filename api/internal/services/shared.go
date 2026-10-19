@@ -126,7 +126,7 @@ func attributeMapToPlain(item map[string]types.AttributeValue) (map[string]any, 
 }
 
 // attrStrAV extracts a string attribute from a DynamoDB item, or "" if absent.
-// Duplicated from internal/api/v1/helpers.go's attrStr (same one-liner) because
+// Kept separate from the v1 helpers because
 // v1 imports services — importing v1 from here would create a cycle.
 func attrStrAV(item map[string]types.AttributeValue, key string) string {
 	if av, ok := item[key].(*types.AttributeValueMemberS); ok {

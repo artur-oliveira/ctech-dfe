@@ -20,14 +20,6 @@ const (
 	cargoUnitKindCargo     = "cargo"
 )
 
-// Campos do cadastro organization_cargo_units.
-const (
-	cargoUnitFieldKind   = "kind"
-	cargoUnitFieldTpUnid = "tp_unid"
-	cargoUnitFieldIdUnid = "id_unid"
-	cargoUnitFieldSeals  = "seals"
-)
-
 // cargoUnit é uma unidade do cadastro já decodificada.
 type cargoUnit struct {
 	Kind   string

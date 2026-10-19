@@ -229,7 +229,7 @@ func (r *DocumentRepository) TransactReserveAndCreate(ctx context.Context, confi
 	now := NowStr()
 	counterField := fmt.Sprintf("%s_current_number", envPrefix)
 
-	condExpr := fmt.Sprintf("attribute_not_exists(#num) OR #num = :current")
+	condExpr := "attribute_not_exists(#num) OR #num = :current"
 	updateExpr := "SET #num = :next, updated_at = :ts"
 
 	items := []types.TransactWriteItem{
