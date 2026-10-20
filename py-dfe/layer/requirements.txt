@@ -1,5 +1,0 @@
-cryptography==49.0.0
-httpx==0.28.1
-lxml==6.1.1
-pydantic==2.13.4
-signxml==5.0.1

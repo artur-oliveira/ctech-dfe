@@ -35,9 +35,8 @@ cdk/
 │   ├── api-stack.ts            # API EC2 ASG via HaproxyEc2Service (no ALB target group)
 │   ├── iam-stack.ts            # Lambda + EC2 IAM roles
 │   ├── oidc-stack.ts           # GitHub Actions OIDC deploy roles (global)
-│   ├── dfe-stack.ts            # py-dfe Lambda + layer (retired, still deployed; see below)
 │   └── go-code.ts, types.ts    # Go bundling helper, Environment type
-└── test/                       # jest tests, one per stack (py-dfe-cdk.test.ts is the empty cdk init stub)
+└── test/                       # jest tests, one per stack
 ```
 
 ---
@@ -105,9 +104,7 @@ CI deploys through `.github/workflows/deploy.yml`; see `../DEPLOYMENT.md`.
   `/ctech/{env}/network/alb-sg-id` only identifies the shared edge security group (the name is historical, no ALB exists).
 - Worker Lambda binary must be named `bootstrap` (`provided.al2023`, arm64). API binary must be named `app`
   (userdata runs `/opt/app/current/app`).
-- **py-dfe is retired** (no worker or API calls it; they call the egress Lambda), but `DfeStack`, its IAM role and
-  invoke policy (`iam-stack.ts`), the `ctech-dfe-gha-pydfe` OIDC role and the `py-dfe/layer` path filter in
-  `deploy.yml` are still deployed. Removing them is a separate reviewed change; this doc set only records the state.
+- py-dfe was removed (stack, role, OIDC role, path filter). `${env}-py-dfe-lambda-invoke-policy` keeps its old physical name (renaming a named managed policy makes CloudFormation replace it and collide).
 - Queues are standard SQS; each worker queue has a DLQ (`maxReceiveCount: 3`). **No CloudWatch alarm exists on any
   queue** (removed); the `*-ops-alerts` SNS topics are kept only because subscriptions were added outside
   CloudFormation. Family policy is alerts through `ctech-{env}-alerts`; no DFE component uses go-common `alerts` yet (nothing under `api/` or `worker/` imports it).

@@ -22,7 +22,6 @@ interface IAMStackProps extends cdk.StackProps {
 }
 
 export class IAMStack extends cdk.Stack {
-  public readonly lambdaRole: iam.Role;
   public readonly apiV2Role: iam.Role;
   public readonly instanceProfileNameV2: string;
 
@@ -30,21 +29,6 @@ export class IAMStack extends cdk.Stack {
     super(scope, id, props);
 
     const {environment} = props;
-
-    /**
-     * =========================
-     * Lambda Role
-     * =========================
-     */
-    this.lambdaRole = new iam.Role(this, 'LambdaExecutionRole', {
-      roleName: `${environment}-py-dfe-lambda-role`,
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AWSLambdaBasicExecutionRole',
-        ),
-      ],
-    });
 
     /**
      * =========================
@@ -110,28 +94,7 @@ export class IAMStack extends cdk.Stack {
       ],
     });
 
-    this.lambdaRole.addManagedPolicy(dynamoPolicy);
     this.apiV2Role.addManagedPolicy(dynamoPolicy);
-
-    /**
-     * =========================
-     * S3 Permissions
-     * =========================
-     */
-    const s3Policy = new iam.ManagedPolicy(this, 'S3Policy', {
-      managedPolicyName: `${environment}-ctech-dfe-s3-policy`,
-      statements: [
-        new iam.PolicyStatement({
-          actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
-          resources: [
-            `${props.certificatesBucketArn}/*`,
-            `${props.documentsBucketArn}/*`,
-          ],
-        }),
-      ],
-    });
-
-    this.lambdaRole.addManagedPolicy(s3Policy);
 
     // Name of the bucket `cdk bootstrap` created for this account and region.
     // The constant beats a literal, but it is still the *default* qualifier: this
@@ -242,14 +205,13 @@ export class IAMStack extends cdk.Stack {
 
     this.apiV2Role.addManagedPolicy(ssmPolicy);
 
+    // Physical name kept: renaming a named managed policy makes CloudFormation replace it and collide.
     const lambdaInvokePolicy = new iam.ManagedPolicy(this, 'LambdaInvokePolicy', {
       managedPolicyName: `${environment}-py-dfe-lambda-invoke-policy`,
       statements: [
         new iam.PolicyStatement({
           actions: ['lambda:InvokeFunction'],
           resources: [
-            `arn:aws:lambda:${this.region}:${this.account}:function:${environment}-py-dfe`,
-            `arn:aws:lambda:${this.region}:${this.account}:function:${environment}-py-dfe:*`,
             egressFunctionArn(environment, this.account),
             `${egressFunctionArn(environment, this.account)}:*`,
           ],

@@ -16,8 +16,7 @@ the DFE stack; ownership must be transferred explicitly before a future shared
 service construct creates it here.
 Fiscal issuance runs asynchronously through an outbox, SNS, standard SQS, Lambda workers
 (`cdk/lib/worker-stack.ts`) that invoke the `go-dfe-egress` Lambda in sa-east-1 for every SEFAZ/municipal call
-(`cdk/lib/egress-stack.ts`). The py-dfe Lambda (`cdk/lib/dfe-stack.ts`) is retired and no code calls it, but its stack
-is still deployed.
+(`cdk/lib/egress-stack.ts`).
 The frontend is not deployed from CDK: it is a static export published to Cloudflare Workers Static Assets by
 `.github/workflows/frontend.yml`.
 

@@ -6,7 +6,6 @@ import {S3Stack} from '../lib/s3-stack';
 import {IAMStack} from '../lib/iam-stack';
 import {OidcStack} from '../lib/oidc-stack';
 import {WorkerStack} from '../lib/worker-stack';
-import {DfeStack} from '../lib/dfe-stack';
 import {GoDfeEgressStack} from '../lib/egress-stack';
 import {EGRESS_REGION, egressFunctionName} from '../lib/egress';
 import {EventBusStack} from '../lib/event-bus-stack';
@@ -95,17 +94,6 @@ const eventBusStack = new EventBusStack(app, id('EventBus'), {
   env,
   environment: ENVIRONMENT,
   description: `CTech DFe Event Bus - ${ENVIRONMENT}`,
-});
-
-// =====================
-// DFE Lambda Stack
-// =====================
-// DfeStack and WorkerStack each create their own Lambda layer inline.
-// No cross-stack layer references → layer version updates deploy freely.
-new DfeStack(app, id('Dfe'), {
-  env,
-  environment: ENVIRONMENT,
-  description: `CTech DFe Lambda (PyDFe) (SEFAZ) - ${ENVIRONMENT}`,
 });
 
 // Egress Lambda (sa-east-1): every SEFAZ/municipal call leaves from a Brazilian IP.

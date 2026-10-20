@@ -1,7 +1,7 @@
 name: Infrastructure
 
 # Deploy is called by deploy.yml (which owns the ordering:
-# CDK → py-dfe → worker → API → Frontend).
+# CDK → worker → API → Frontend).
 # The diff job runs on its own for pull requests — it deploys nothing.
 on:
   workflow_call:
@@ -9,7 +9,6 @@ on:
     branches: [ main, staging, dev ]
     paths:
       - 'cdk/**'
-      - 'py-dfe/layer/requirements.txt'
       - 'go-dfe/**'
       - 'go-dfe-egress/**'
       - '.github/workflows/infra.yml'
@@ -168,12 +167,6 @@ jobs:
 
       - name: CDK Deploy
         working-directory: cdk
-        # NO CDK_LOCAL_BUNDLING: the PyDfe layer MUST bundle in the AL2023
-        # arm64 SAM image so build.sh can dnf-install the native pango/cairo/
-        # fontconfig .so that WeasyPrint dlopen()s at runtime. Building those
-        # libs on the ubuntu-24.04 host instead would link them against glibc
-        # 2.39 — Lambda's AL2023 only has 2.34 → load failure. The runner is
-        # arm64 + Docker-enabled, so the linux/arm64 image runs natively (no qemu).
         # CtechDfe-Global-OIDC is intentionally excluded via the env-scoped glob
         # (CtechDfe-Prod-* / CtechDfe-Stage-* / CtechDfe-Dev-*). CDK has no --exclude flag.
         run: |

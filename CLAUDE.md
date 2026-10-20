@@ -22,7 +22,6 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e) — direct SEFAZ communicat
 | `worker/` | Go Lambda — standard SQS consumer, DFe pipeline        | `worker/CLAUDE.md` |
 | `ui/`     | Next.js 16 static-export frontend (Cloudflare) — TypeScript | `ui/CLAUDE.md` |
 | `cdk/`    | AWS CDK infrastructure — TypeScript (frozen; see skill) | `cdk/CLAUDE.md`    |
-| `py-dfe/` | Python Lambda — **retired** (no caller; stack still deployed, removal pending) | `py-dfe/CLAUDE.md` |
 | `go-dfe/` | Go lib — SEFAZ SOAP+mTLS and NFS-e REST client (runs inside go-dfe-egress) | `go-dfe/CLAUDE.md` |
 | `go-dfe-egress/` | Go Lambda (sa-east-1) — runs `dfe.Call` so SEFAZ/prefeitura calls leave from Brazil | `go-dfe-egress/CLAUDE.md` |
 
@@ -44,7 +43,7 @@ DRY / reuse, named constants, RFC 7807 errors, secrets, scope control and "never
 - Never commit PFX certs, JWT secrets, AWS credentials, passwords, real customer data or real CNPJs.
 - Implement only what was requested; no unrelated fixes, opportunistic refactors or API changes.
 - **api / worker** return errors as RFC 7807 Problem JSON through `problem.*` helpers (api) and structured errors that
-  let SQS route to the DLQ (worker). `py-dfe` is retired; do not add code there.
+  let SQS route to the DLQ (worker). py-dfe was removed.
 - **Fiscal calls** (SEFAZ and municipal NFS-e) always leave through the `go-dfe-egress` Lambda in `sa-east-1`
   (some authorities drop non-Brazilian traffic). Never call SEFAZ in process from `api` or `worker`.
 - **Issuance is async** through a transactional outbox: API writes the outbox row, the publisher sends it to SNS/SQS,
@@ -199,8 +198,6 @@ is incomplete.
 
 ## Known divergences from the standard (documented, not yet fixed)
 
-- py-dfe is retired but still deployed (`cdk/lib/dfe-stack.ts`, `iam-stack.ts`, `ctech-dfe-gha-pydfe` OIDC role,
-  `py-dfe/layer` path filter in `deploy.yml`, `dependabot.yml`).
 - No CloudWatch alarm on any DLQ and no use of go-common `alerts` / SNS `ctech-{env}-alerts` yet.
 - Scans: worker distribution dispatcher (every 30 min) and the account-deletion e-CPF search; see `api/CLAUDE.md`.
 - No inbound `Idempotency-Key`, no `@aoctech/ui`, no i18n in the UI.
