@@ -86,12 +86,8 @@ import {unformatCpfCnpj} from "@/lib/utils/document";
 import {STORAGE_KEY_ORG} from '@/lib/constants/storage';
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls';
 import {MOCK_ENABLED} from '@/lib/mock/env';
-import {
-  HTTP_TIMEOUT_MS,
-  checkApiLiveness,
-  requireApiLiveness,
-  type ApiUnavailableError,
-} from '@/lib/network/liveness';
+import {withRetry} from '@aoctech/ui';
+import {ApiUnavailableError, requireApiAvailable} from '@/lib/network/api-status';
 import {redirectOnMaintenance} from '@/lib/network/maintenance';
 import type {PersonRole} from '@/lib/schemas/entity';
 import type {
@@ -138,41 +134,11 @@ const OPEN_CNPJ_DOCUMENT_LENGTH = 14;
 const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000;
 const AUXILIARY_DOCUMENT_TIMEOUT_MS = 12_000;
 
-// Retries live here rather than in TanStack: one bounded, jittered budget for
-// the whole app. Retrying in both layers turns three transport attempts into
-// nine requests against a server that is already struggling.
-const MAX_HTTP_RETRIES = 2;
-const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
-// Only requests that can be repeated without issuing something twice. A fiscal
-// document is never worth an accidental duplicate.
-const SAFE_HTTP_METHODS = new Set(['get', 'head', 'options']);
-const RETRY_BASE_DELAY_MS = 250;
-const MAX_RETRY_DELAY_MS = 3_000;
+/** The API answers fast or not at all; a request still open after this is an outage. */
+export const HTTP_TIMEOUT_MS = 5_000;
 
 interface RetryConfig extends AxiosRequestConfig {
   _retry?: boolean
-  _networkRetryCount?: number
-}
-
-/** Full jitter, and `Retry-After` wins when the server names a delay. */
-export function httpRetryDelay(attempt: number, retryAfter?: string, random: () => number = Math.random): number {
-  const retryAfterMs = retryAfter == null ? Number.NaN : Number(retryAfter) * 1_000;
-  if (Number.isFinite(retryAfterMs)) return Math.max(0, retryAfterMs) + Math.floor(random() * 250);
-  const ceiling = Math.min(MAX_RETRY_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1));
-  return Math.floor(random() * ceiling);
-}
-
-function isRetryable(error: AxiosError): boolean {
-  const config = error.config as RetryConfig | undefined;
-  if (!config || (config._networkRetryCount ?? 0) >= MAX_HTTP_RETRIES) return false;
-  if (!SAFE_HTTP_METHODS.has((config.method ?? 'get').toLowerCase())) return false;
-  const status = error.response?.status;
-  // No status means timeout or transport failure — ambiguous, so retryable.
-  return status === undefined || RETRYABLE_HTTP_STATUSES.has(status);
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Access token held in memory only — never written to localStorage.
@@ -223,10 +189,19 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly detail: string,
     public readonly raw?: unknown,
+    /** Raw Retry-After header, so the retry policy can honour it. */
+    public readonly retryAfter?: string,
   ) {
     super(detail);
     this.name = 'ApiError';
   }
+}
+
+/** The client's own ApiError, not axios's: status 0 is a transport failure, an unavailable API is never retried. */
+function classifyApiError(error: unknown) {
+  const e = error as Partial<ApiError>;
+  const unavailable = e.status === 0 && (e.raw as {reason?: string} | undefined)?.reason !== undefined;
+  return {status: e.status || undefined, retryAfter: e.retryAfter, aborted: unavailable};
 }
 
 function createAxiosInstance(): AxiosInstance {
@@ -242,7 +217,7 @@ function createAxiosInstance(): AxiosInstance {
     // The public health probe owns recovery while the API is down. Without this
     // every mounted query becomes its own availability probe against a server
     // that cannot answer.
-    if (!MOCK_ENABLED) await requireApiLiveness();
+    if (!MOCK_ENABLED) requireApiAvailable();
 
     if (_accessToken) config.headers.Authorization = `Bearer ${_accessToken}`;
 
@@ -293,32 +268,19 @@ function createAxiosInstance(): AxiosInstance {
         }
         return undefined;
       }
-      // A timeout or a transport failure is ambiguous in a browser: a dead load
-      // balancer answers without CORS headers and surfaces as a TypeError, not
-      // as a status. Confirm against the health probe before spending retries.
-      let livenessAllowsRetry = error.name !== 'ApiUnavailableError';
-      if (!MOCK_ENABLED && !error.response && livenessAllowsRetry) livenessAllowsRetry = await checkApiLiveness();
-      if (livenessAllowsRetry && isRetryable(error) && original) {
-        const attempt = (original._networkRetryCount ?? 0) + 1;
-        original._networkRetryCount = attempt;
-        const retryAfter = error.response?.headers?.['retry-after'] as string | undefined;
-        await wait(httpRetryDelay(attempt, retryAfter));
-        return instance(original);
-      }
-
       // A 503 that survived its retries is the server saying it is in
       // maintenance — an answer, not a hiccup — so the person gets a screen
       // instead of a failed query behind a banner that polls forever.
-      redirectOnMaintenance(error.response?.status);
+      // Reads redirect in `get`, once their retries are spent.
+      if ((original?.method ?? 'get').toLowerCase() !== 'get') redirectOnMaintenance(error.response?.status);
 
-      if (error.name === 'ApiUnavailableError') {
-        const unavailable = error as unknown as ApiUnavailableError;
-        throw new ApiError(0, unavailable.message, {reason: unavailable.reason});
+      if (error instanceof ApiUnavailableError) {
+        throw new ApiError(0, error.message, {reason: error.reason});
       }
 
       const data = error.response ? await parseResponseErrToJson(error.response) : undefined;
       const detail = data?.detail ?? data?.title ?? error.message ?? `HTTP ${error.response?.status}`;
-      throw new ApiError(error.response?.status ?? 0, detail, data);
+      throw new ApiError(error.response?.status ?? 0, detail, data, error.response?.headers?.['retry-after'] as string | undefined);
     },
   );
 
@@ -1326,7 +1288,14 @@ class ApiClient {
   }
 
   private async get<T>(path: string, config?: AxiosRequestConfig): Promise<T> {
-    return (await this.http.get<T>(path, config)).data;
+    // Only reads are replayed: a POST carries an Idempotency-Key, but a fiscal
+    // document is never worth an accidental duplicate.
+    try {
+      return (await withRetry(() => this.http.get<T>(path, config), {method: 'get', classify: classifyApiError})).data;
+    } catch (error) {
+      if (error instanceof ApiError) redirectOnMaintenance(error.status);
+      throw error;
+    }
   }
 
   private async post<T>(path: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {

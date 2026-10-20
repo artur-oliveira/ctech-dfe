@@ -2,7 +2,7 @@
 
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {ReactNode, useState} from 'react';
-import {NetworkProvider} from '@/lib/network/NetworkProvider';
+import {NetworkBoundary} from '@/lib/network/NetworkBoundary';
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -23,7 +23,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={client}>
-      <NetworkProvider>{children}</NetworkProvider>
+      <NetworkBoundary onReconnect={() => void client.refetchQueries({type: 'active'})}>{children}</NetworkBoundary>
     </QueryClientProvider>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {useEffect} from 'react';
-import {SystemState, SystemStateRetry} from '@/components/SystemState';
+import {ErrorState} from '@aoctech/ui';
 import {Button} from '@/components/ui/button';
 
 /**
@@ -21,14 +21,20 @@ export default function ErrorPage({error, reset}: { error: Error & {digest?: str
   }, [error]);
 
   return (
-    <SystemState
-      code="500"
+    <ErrorState
+      status={500}
+      locale="pt-BR"
+      className="min-h-screen justify-center"
       title="Algo quebrou nesta tela"
-      description="Nada foi enviado à SEFAZ por causa disso; o erro aconteceu aqui, no navegador."
-      detail={error.digest ? `Referência do erro: ${error.digest}` : 'Se acontecer de novo, avise o suporte.'}
-    >
-      <SystemStateRetry onRetry={reset} label="Carregar novamente"/>
-      <Button variant="outline" render={<Link href="/dashboard"/>}>Ir para o painel</Button>
-    </SystemState>
+      description={`Nada foi enviado à SEFAZ por causa disso; o erro aconteceu aqui, no navegador. ${
+        error.digest ? `Referência do erro: ${error.digest}` : 'Se acontecer de novo, avise o suporte.'
+      }`}
+      action={
+        <>
+          <Button variant="brand" onClick={reset}>Carregar novamente</Button>
+          <Button variant="outline" render={<Link href="/dashboard"/>}>Ir para o painel</Button>
+        </>
+      }
+    />
   );
 }
