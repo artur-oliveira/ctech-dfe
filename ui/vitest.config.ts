@@ -9,6 +9,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     css: false,
+    // @aoctech/ui's dist uses extensionless ESM imports, which Node cannot resolve: let Vite do it.
+    server: {deps: {inline: ['@aoctech/ui']}},
   },
   resolve: {
     alias: {

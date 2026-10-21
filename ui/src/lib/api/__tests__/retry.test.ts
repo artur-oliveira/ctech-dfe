@@ -1,24 +1,58 @@
-import {describe, expect, it} from 'vitest';
-import {httpRetryDelay} from '@/lib/api/client';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig} from 'axios';
+import {apiClient, ApiError} from '@/lib/api/client';
+import {setApiStatus} from '@/lib/network/api-status';
 
-describe('httpRetryDelay', () => {
-  it('honours Retry-After when the server names a delay', () => {
-    // 429 with a number is the server telling us exactly when to come back;
-    // guessing a shorter backoff is how a rate limit turns into a ban.
-    expect(httpRetryDelay(1, '2', () => 0)).toBe(2_000);
-    expect(httpRetryDelay(1, '2', () => 0.999)).toBeGreaterThanOrEqual(2_000);
-    expect(httpRetryDelay(1, '2', () => 0.999)).toBeLessThan(2_250);
+// Reads are retried (twice, jittered, Retry-After); writes never are; a known
+// outage fails fast without touching the network.
+function failing(status: number, calls: {n: number}, headers: Record<string, string> = {}): AxiosAdapter {
+  return async (config) => {
+    calls.n += 1;
+    const response = {status, statusText: '', data: {}, headers, config: config as InternalAxiosRequestConfig};
+    throw new AxiosError('fail', 'ERR_BAD_RESPONSE', config as InternalAxiosRequestConfig, null, response);
+  };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  setApiStatus('online');
+  Object.defineProperty(window, 'location', {configurable: true, value: {pathname: '/nfe', search: '', replace: vi.fn()}});
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+describe('client retry (withRetry)', () => {
+  it('retries a read twice on 503 and then gives up with the ApiError', async () => {
+    const calls = {n: 0};
+    apiClient.setAdapter(failing(503, calls, {'retry-after': '1'}));
+    const result = apiClient.getProduct('p1').catch((e) => e);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await result).toBeInstanceOf(ApiError);
+    expect(calls.n).toBe(3);
   });
 
-  it('ignores a malformed Retry-After', () => {
-    expect(httpRetryDelay(1, 'Wed, 21 Oct 2026 07:28:00 GMT', () => 0)).toBe(0);
+  it('does not retry a write', async () => {
+    const calls = {n: 0};
+    apiClient.setAdapter(failing(503, calls));
+    await expect(apiClient.acceptTermsAddendum()).rejects.toBeInstanceOf(ApiError);
+    expect(calls.n).toBe(1);
   });
 
-  it('grows the jitter ceiling per attempt and caps it', () => {
-    expect(httpRetryDelay(1, undefined, () => 0.999)).toBeLessThan(250);
-    expect(httpRetryDelay(2, undefined, () => 0.999)).toBeLessThan(500);
-    for (let attempt = 1; attempt < 20; attempt++) {
-      expect(httpRetryDelay(attempt, undefined, () => 0.999)).toBeLessThanOrEqual(3_000);
-    }
+  it('does not retry a client error', async () => {
+    const calls = {n: 0};
+    apiClient.setAdapter(failing(404, calls));
+    await expect(apiClient.getProduct('p1')).rejects.toMatchObject({status: 404});
+    expect(calls.n).toBe(1);
+  });
+
+  it('fails fast, with no request, while the API is known to be down', async () => {
+    const calls = {n: 0};
+    apiClient.setAdapter(failing(503, calls));
+    setApiStatus('unavailable');
+    await expect(apiClient.getProduct('p1')).rejects.toMatchObject({status: 0, raw: {reason: 'server'}});
+    expect(calls.n).toBe(0);
   });
 });

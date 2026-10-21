@@ -4,6 +4,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* @aoctech/ui (network.tsx, error-state.tsx, button.tsx) is consumed for the
+   offline banner and the error/unavailable screens only. Tailwind does not
+   scan node_modules, so just those files are registered. No @aoctech/ui
+   stylesheet is imported: styles.css brings themes.css, which would repaint the
+   product. The semantic tokens those components read are mapped to the
+   product's own further down (see "@aoctech/ui token mapping"). */
+@source "../../node_modules/@aoctech/ui/dist/components/network.js";
+@source "../../node_modules/@aoctech/ui/dist/components/error-state.js";
+@source "../../node_modules/@aoctech/ui/dist/components/button.js";
+
 :root {
 
     /* Brand */
@@ -103,6 +113,13 @@
        stays legible. Never use amber-600/green-600 for resting text. */
     --color-warning: #b45309;
     --color-success: #15803d;
+
+    /* @aoctech/ui token mapping. background, foreground, muted-foreground,
+       border, ring, warning and brand-* already exist above under the same
+       names. Only these two were missing: `surface` (hover fill of the
+       outline button) and `danger-strong` (hover of its danger variant). */
+    --color-surface: var(--muted);
+    --color-danger-strong: #b91c1c;
 
     /* Primary as alias */
     --color-primary-50: var(--brand-50);
