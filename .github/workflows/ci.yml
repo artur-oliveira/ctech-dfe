@@ -124,6 +124,14 @@ jobs:
       - name: Tests
         run: npm test
 
+      # Per-route first-load JS against ui/bundle-budget.json, measured on the
+      # same plain `next build` export the deploy publishes.
+      - name: Build static export
+        run: npm run build
+
+      - name: Bundle budget
+        run: npm run bundle:check
+
   cdk:
     name: CDK Tests
     runs-on: ubuntu-26.04-arm

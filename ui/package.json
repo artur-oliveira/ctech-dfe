@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "bundle:check": "node scripts/check-bundle-budget.mjs",
+    "bundle:pin": "node scripts/check-bundle-budget.mjs --update",
     "test:watch": "vitest",
     "screens:capture": "node scripts/capture-screens.mjs"
   },

@@ -346,3 +346,5 @@ Before touching: identify risks + side effects, verify backward compatibility.
 There are NO exceptions.
 
 Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
+
+- **Bundle budget:** `npm run bundle:check` (run after `npm run build`; CI does it) holds each route's first-load JS to `bundle-budget.json` +8%. Re-pin with `npm run bundle:pin` only in a deliberate commit that states why the number moved.
