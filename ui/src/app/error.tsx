@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import {useEffect} from 'react';
-import {ErrorState} from '@aoctech/ui';
-import {Button} from '@/components/ui/button';
+import {Button, ErrorState} from '@aoctech/ui';
 
 /**
  * The boundary for an uncaught error inside a route.

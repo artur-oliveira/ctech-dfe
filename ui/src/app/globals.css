@@ -4,15 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* @aoctech/ui (network.tsx, error-state.tsx, button.tsx) is consumed for the
-   offline banner and the error/unavailable screens only. Tailwind does not
-   scan node_modules, so just those files are registered. No @aoctech/ui
-   stylesheet is imported: styles.css brings themes.css, which would repaint the
-   product. The semantic tokens those components read are mapped to the
-   product's own further down (see "@aoctech/ui token mapping"). */
-@source "../../node_modules/@aoctech/ui/dist/components/network.js";
-@source "../../node_modules/@aoctech/ui/dist/components/error-state.js";
-@source "../../node_modules/@aoctech/ui/dist/components/button.js";
+/* Compact density: a button is 32px for a mouse, drawn 36px with a 44px hit
+   area under touch. Only touch.css, never styles.css: styles.css brings
+   themes.css, which would repaint the product. */
+@import "@aoctech/ui/touch.css";
+
+/* Tailwind does not scan node_modules: without this the package components
+   render unstyled. The semantic tokens they read are mapped to the product's
+   own further down (see "@aoctech/ui token mapping"). */
+@source "../../node_modules/@aoctech/ui/dist";
 
 :root {
 
@@ -55,7 +55,7 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: var(--brand-600); /* package focus ring = brand-600 */
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);

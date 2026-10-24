@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {ACCOUNTS_LEGAL_URL, DFE_TERMS_URL, PRIVACY_POLICY_URL} from '@/lib/legal';
 import {ArrowRight, Check, CheckCircle2, Puzzle, ShieldCheck, Zap} from 'lucide-react';
 import {useAuth} from '@/lib/hooks/useAuth';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {AuthorizationCard} from '@/components/landing/authorization-card';
 import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents';
 import type {DfeThemeKey} from '@/lib/theme/dfe-theme';
@@ -203,7 +203,7 @@ export default function Home() {
               momentos de instabilidade da SEFAZ.
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="brand" size="lg" render={<Link href={primaryHref}/>}>
+              <Button variant="brand" size="default" render={<Link href={primaryHref}/>}>
                 {primaryLabel}
               </Button>
             </div>
@@ -396,10 +396,10 @@ export default function Home() {
             Emita seus primeiros documentos fiscais em minutos, sem burocracia.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button variant="brand" size="lg" render={<Link href={primaryHref}/>}>
+            <Button variant="brand" size="default" render={<Link href={primaryHref}/>}>
               {primaryLabel}
             </Button>
-            <Button variant="outline" size="lg" render={<Link href="/guide"/>}>
+            <Button variant="outline" size="default" render={<Link href="/guide"/>}>
               Ler o guia
             </Button>
           </div>

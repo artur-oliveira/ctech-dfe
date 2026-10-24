@@ -25,7 +25,7 @@ import {taxableUnitForNcm} from '@/lib/data/ncm_taxable_unit';
 import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/lib/data/dangerous_goods';
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {
   type CfopConfigFormData,
@@ -97,7 +97,7 @@ function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <FormLabel>Créditos presumidos da UF</FormLabel>
-        <Button type="button" variant="ghost" size="xs" disabled={fields.length >= MAX_GCRED}
+        <Button type="button" variant="ghost" size="sm" disabled={fields.length >= MAX_GCRED}
                 onClick={() => append({c_cred_presumido: '', p_cred_presumido: ''})}>
           + Crédito
         </Button>
@@ -126,7 +126,7 @@ function GCredEditor({form}: {form: UseFormReturn<ProductFormData>}) {
               <FormMessage/>
             </FormItem>
           )}/>
-          <Button type="button" variant="ghost" size="xs" className="min-h-11" onClick={() => remove(index)}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
             Remover
           </Button>
         </div>
@@ -1407,7 +1407,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <div key={i}
                            className="flex items-center justify-between rounded bg-white border border-amber-200 px-3 py-2 text-sm">
                         <span className="font-mono text-gray-700">1 {f.origin_unit} = {f.factor} {f.target_unit}</span>
-                        <Button type="button" variant="ghost" size="xs" onClick={() => removeConversion(i)}
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeConversion(i)}
                                 className="ml-4 text-danger hover:text-red-700">remover
                         </Button>
                       </div>
@@ -1533,7 +1533,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <span className="font-mono text-gray-700">
                         CFOP {c.cfop} · {icmsPart}{stPart} · PIS {c.pis} · COF {c.cofins}{ipiPart}{isPart} · IBS/CBS {c.ibs_cbs_cst}
                       </span>
-                      <Button type="button" variant="ghost" size="xs" onClick={() => removeCfop(i)}
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeCfop(i)}
                               className="ml-4 text-danger hover:text-red-700">remover
                       </Button>
                     </div>
@@ -2151,7 +2151,7 @@ function CombOrigFields({value, onChange}: {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-gray-600">Origem do combustível (até 30)</p>
-        <Button type="button" variant="ghost" size="xs" disabled={value.length >= 30}
+        <Button type="button" variant="ghost" size="sm" disabled={value.length >= 30}
                 onClick={() => onChange([...value, {ind_import: '0', c_uf_orig: '', p_orig: ''}])}>
           + Origem
         </Button>
@@ -2177,7 +2177,7 @@ function CombOrigFields({value, onChange}: {
             <NumericInput id={`orig-p-${i}`} value={o.p_orig} decimal integerPlaces={3} decimalPlaces={4}
                           className="w-full" placeholder="70.0000" onChange={(v) => patch(i, {p_orig: v})}/>
           </div>
-          <Button type="button" variant="ghost" size="xs"
+          <Button type="button" variant="ghost" size="sm"
                   onClick={() => onChange(value.filter((_, k) => k !== i))}>
             Remover
           </Button>

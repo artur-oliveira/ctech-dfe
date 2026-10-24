@@ -17,7 +17,7 @@ import {Pagination} from '@/components/ui/pagination';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {DebouncedInput} from '@/components/ui/debounced-input';
 import {SavedFilterViews} from '@/components/ui/saved-filter-views';
 import type {NFeDistributionOut} from '@/lib/types/api';

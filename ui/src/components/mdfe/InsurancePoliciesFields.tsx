@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Input} from '@/components/ui/input';
 import {OptionsSelect} from '@/components/ui/options-select';
@@ -42,7 +42,7 @@ export function InsurancePoliciesFields({policies, onChange}: InsurancePoliciesF
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Seguro da carga</p>
-        <Button type="button" variant="ghost" size="xs" disabled={registered.length === 0}
+        <Button type="button" variant="ghost" size="sm" disabled={registered.length === 0}
                 onClick={() => onChange([...policies, {insurance_policy_id: '', n_aver: []}])}>
           + Apólice
         </Button>
@@ -82,7 +82,7 @@ export function InsurancePoliciesFields({policies, onChange}: InsurancePoliciesF
                    defaultValue={(v.n_aver ?? []).join(', ')}
                    onChange={(e) => patch(i, {n_aver: splitAver(e.target.value)})}/>
           </div>
-          <Button type="button" variant="ghost" size="xs"
+          <Button type="button" variant="ghost" size="sm"
                   onClick={() => onChange(policies.filter((_, k) => k !== i))}>
             Remover
           </Button>

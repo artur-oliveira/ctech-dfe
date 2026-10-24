@@ -6,7 +6,7 @@ import {apiClient} from '@/lib/api/client';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
 import {Input} from '@/components/ui/input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {PersonForm} from '@/components/persons/PersonForm';
 import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity';
@@ -114,7 +114,7 @@ export function PersonPicker({
           <p className="font-medium text-gray-900 text-sm">{value.name}</p>
           <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(cpfCnpj)}</p>
         </div>
-        <Button type="button" variant="ghost" size="xs" onClick={() => onChange(null)}
+        <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}
                 className="text-danger hover:text-red-700 shrink-0">
           Trocar
         </Button>

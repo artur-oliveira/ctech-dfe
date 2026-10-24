@@ -9,7 +9,7 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Badge} from '@/components/ui/badge';
 import {OptionsSelect} from '@/components/ui/options-select';
 import type {MemberOut} from '@/lib/types/api';
@@ -222,7 +222,7 @@ function ShareModal({onClose}: { orgPk: string; onClose: () => void }) {
             <div className="bg-white rounded-lg shadow-modal w-full sm:max-w-md">
                 <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Compartilhar acesso</h2>
-                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">✕</Button>
+                    <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">✕</Button>
                 </div>
                 <div className="p-6 space-y-4">
                     <p className="text-sm text-gray-600">

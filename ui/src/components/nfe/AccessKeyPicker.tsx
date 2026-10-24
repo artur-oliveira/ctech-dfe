@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Combobox} from '@/components/ui/combobox';
 import {apiClient} from '@/lib/api/client';
@@ -61,7 +61,7 @@ export function AccessKeyPicker({id, label, value, onChange, hint, max}: AccessK
             <li key={key}
                 className="flex items-center justify-between gap-2 rounded border border-gray-200 px-2 py-1 text-sm">
               <span className="truncate font-mono text-xs">{key}</span>
-              <Button type="button" variant="ghost" size="xs" className="min-h-11 sm:min-h-0"
+              <Button type="button" variant="ghost" size="sm"
                       onClick={() => onChange(value.filter((k) => k !== key))}>
                 Remover
               </Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -37,7 +37,7 @@ export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium text-gray-700">Volumes</Label>
-          <Button type="button" variant="ghost" size="xs" onClick={() => onVolsChange([...vols, EMPTY_VOL])}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => onVolsChange([...vols, EMPTY_VOL])}>
             + Volume
           </Button>
         </div>
@@ -88,7 +88,7 @@ export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: 
                        lacres: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
                      })}/>
             </div>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => onVolsChange(vols.filter((_, k) => k !== i))}>
               Remover volume
             </Button>
@@ -99,7 +99,7 @@ export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium text-gray-700">Reboques</Label>
-          <Button type="button" variant="ghost" size="xs" disabled={reboques.length >= MAX_REBOQUES}
+          <Button type="button" variant="ghost" size="sm" disabled={reboques.length >= MAX_REBOQUES}
                   onClick={() => onReboquesChange([...reboques, EMPTY_REBOQUE])}>
             + Reboque
           </Button>
@@ -121,7 +121,7 @@ export function VolumesFields({vols, onVolsChange, reboques, onReboquesChange}: 
               <Input id={`reb-rntc-${i}`} maxLength={20} value={reb.rntc ?? ''}
                      onChange={(e) => patchReboque(i, {rntc: e.target.value})}/>
             </div>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => onReboquesChange(reboques.filter((_, k) => k !== i))}>
               Remover
             </Button>

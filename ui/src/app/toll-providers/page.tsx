@@ -15,7 +15,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {formatCpfCnpj} from '@/lib/utils/document';
@@ -89,12 +89,12 @@ function TollProvidersContent() {
                                 <td data-label="Tipo do vale" className={`${TABLE_CELL} text-gray-600`}>{tpValeLabel(p.tp_vale_ped)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/toll-providers/edit?id=${extractId(p.sk, SK_PREFIX.TOLL_PROVIDER)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(p)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(p)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

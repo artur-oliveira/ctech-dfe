@@ -4,7 +4,7 @@ import {type ReactNode, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse, type SignedFileDownload} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency, formatDate} from '@/lib/utils/helpers';
@@ -324,7 +324,7 @@ export function DfeDetail({
                 data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
               <td className={`${TABLE_CELL} text-right`}>
                 {evt.xml_s3_key && (
-                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
+                  <Button variant="ghost" size="sm" onClick={() => handleDownloadEventXml(evt)}
                           disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
                     {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
                   </Button>

@@ -8,7 +8,7 @@ import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox} from '@/components/ui/combobox';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
 import {
   BRAZIL_TIMEZONES,

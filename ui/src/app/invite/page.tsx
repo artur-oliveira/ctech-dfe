@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
 function InviteContent({token}: { token: string }) {

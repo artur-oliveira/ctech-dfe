@@ -5,7 +5,7 @@ import {useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Combobox} from '@/components/ui/combobox';
 import {deriveTaxGroups, EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups} from '@/components/tax/TaxFieldsEditor';
 import {UfOverridesEditor} from '@/components/tax/UfOverridesEditor';
@@ -190,7 +190,7 @@ export function TaxProfileForm({initialData, crt = 3, onSubmit, loading = false}
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar perfil'}
           </Button>
         </div>

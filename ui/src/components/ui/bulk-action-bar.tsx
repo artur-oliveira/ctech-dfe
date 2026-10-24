@@ -1,6 +1,6 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 /**
  * Sticky bar shown when one or more rows are selected. Renders the selection
@@ -25,7 +25,7 @@ export function BulkActionBar({
         <span className="text-sm font-medium text-gray-900">
           {count} {count === 1 ? 'selecionado' : 'selecionados'}
         </span>
-        <Button variant="ghost" size="xs" onClick={onClear} className="text-gray-500 hover:text-gray-700">
+        <Button variant="ghost" size="sm" onClick={onClear} className="text-gray-500 hover:text-gray-700">
           Limpar
         </Button>
       </div>

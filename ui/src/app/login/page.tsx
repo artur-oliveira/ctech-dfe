@@ -5,7 +5,7 @@ import {useRouter, useSearchParams} from 'next/navigation';
 import {FileText} from 'lucide-react';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {startOAuthFlow} from '@/lib/auth/oauth';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 function LoginInner() {
   const {user, loading} = useAuth();
@@ -30,7 +30,7 @@ function LoginInner() {
         </p>
         <Button
           variant="brand"
-          size="lg"
+          size="default"
           className="mt-6 w-full h-11"
           disabled={loading || !!user}
           onClick={() => void startOAuthFlow(returnTo)}

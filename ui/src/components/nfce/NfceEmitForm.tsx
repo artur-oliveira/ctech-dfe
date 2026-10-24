@@ -10,7 +10,7 @@ import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {GlossaryTerm} from '@/components/ui/glossary-term';
@@ -159,7 +159,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
             <p className="font-medium text-gray-900 text-sm">{value.name ?? 'Consumidor não identificado'}</p>
             <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(value.cpf)}</p>
           </div>
-          <Button type="button" variant="ghost" size="xs" onClick={() => {
+          <Button type="button" variant="ghost" size="sm" onClick={() => {
             onChange(null);
             setNotFound(false);
           }} className="text-danger hover:text-red-700 shrink-0">Remover</Button>
@@ -509,7 +509,7 @@ export function NfceEmitForm() {
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
-                    <Button type="button" variant="ghost" size="xs" onClick={() => removePayment(i)}
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removePayment(i)}
                             className="text-danger hover:text-red-700">remover</Button>
                   </div>
                 </div>

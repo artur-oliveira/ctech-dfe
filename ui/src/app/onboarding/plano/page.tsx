@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {PlanChooser} from '@/components/billing/PlanChooser';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {buildPlanOptions} from '@/lib/billing/catalog';
 import {useSubscription} from '@/lib/hooks/useSubscription';
 import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
@@ -97,7 +97,7 @@ function PlanStepContent() {
 
           <div className="sticky bottom-0 -mx-4 mt-6 border-t border-gray-200 bg-gray-50/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
             <Button
-              size="lg"
+              size="default"
               className="w-full sm:w-auto"
               disabled={!selected || choose.isPending}
               onClick={() => selected && choose.mutate(selected)}

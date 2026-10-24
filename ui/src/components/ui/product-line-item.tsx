@@ -1,7 +1,7 @@
 'use client';
 
 import type {ReactNode} from 'react';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {Label} from '@/components/ui/label';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -66,7 +66,7 @@ export function ProductLineItem({
           </p>
           {badges && <div className="flex flex-wrap items-center gap-1 mt-0.5">{badges}</div>}
         </div>
-        <Button type="button" variant="ghost" size="xs" onClick={onRemove}
+        <Button type="button" variant="ghost" size="sm" onClick={onRemove}
                 className="shrink-0 text-danger hover:text-red-700">
           Remover
         </Button>

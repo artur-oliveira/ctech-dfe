@@ -6,7 +6,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {DocumentPicker} from '@/components/onboarding/DocumentPicker';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useFiscalConfigMutation} from '@/lib/hooks/useFiscalConfig';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
@@ -134,7 +134,7 @@ function DocumentsStepContent() {
 
         <div className="sticky bottom-0 -mx-4 mt-6 border-t border-gray-200 bg-gray-50/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
           <Button
-            size="lg"
+            size="default"
             className="w-full sm:w-auto"
             disabled={selected.length === 0}
             onClick={() => {

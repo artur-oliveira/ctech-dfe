@@ -6,7 +6,7 @@ import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useDebounce} from '@/lib/hooks/useDebounce';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import type {ProductOut} from '@/lib/types/api';
@@ -103,7 +103,7 @@ export function ProductSearch({
       {onClose && (
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium text-gray-600">Buscar produto</p>
-          <Button type="button" variant="ghost" size="xs" onClick={onClose}
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}
                   className="text-gray-500 hover:text-gray-700">
             Fechar
           </Button>

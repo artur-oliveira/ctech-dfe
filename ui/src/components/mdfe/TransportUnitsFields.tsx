@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {RowCheckbox} from '@/components/ui/table-shell';
@@ -56,7 +56,7 @@ export function TransportUnitsFields({units, onChange, documentKeys}: TransportU
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Unidades de transporte (opcional)
         </p>
-        <Button type="button" variant="ghost" size="xs" disabled={transportOptions.length === 0}
+        <Button type="button" variant="ghost" size="sm" disabled={transportOptions.length === 0}
                 onClick={() => onChange([...units, {cargo_unit_id: '', document_keys: [], cargo_unit_ids: []}])}>
           + Unidade
         </Button>
@@ -85,7 +85,7 @@ export function TransportUnitsFields({units, onChange, documentKeys}: TransportU
                                label: `${u.name} · ${u.id_unid}`,
                              }))}/>
             </div>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => onChange(units.filter((_, k) => k !== i))}>
               Remover
             </Button>

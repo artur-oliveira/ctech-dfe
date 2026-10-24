@@ -2,7 +2,7 @@
 
 import {useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {OptionsSelect} from '@/components/ui/options-select';
@@ -64,7 +64,7 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
             <li key={`${ref.nfe_id ?? ref.access_key ?? ref.n_nf ?? ''}-${i}`}
                 className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm">
               <span className="truncate">{describe(ref)}</span>
-              <Button type="button" variant="ghost" size="xs" onClick={() => removeAt(i)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeAt(i)}>
                 Remover
               </Button>
             </li>
@@ -91,7 +91,7 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
       </div>
 
       {external === null ? (
-        <Button type="button" variant="ghost" size="xs" className="px-0 text-brand-600 hover:text-brand-700"
+        <Button type="button" variant="ghost" size="sm" className="px-0 text-brand-600 hover:text-brand-700"
                 onClick={() => setExternal(EMPTY_EXTERNAL)}>
           + Documento de fora do sistema
         </Button>
@@ -186,13 +186,13 @@ export function NfeRefsPicker({value, onChange}: NfeRefsPickerProps) {
           )}
 
           <div className="flex gap-2">
-            <Button type="button" size="xs" onClick={() => {
+            <Button type="button" size="sm" onClick={() => {
               add(external);
               setExternal(null);
             }}>
               Adicionar
             </Button>
-            <Button type="button" variant="ghost" size="xs" onClick={() => setExternal(null)}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setExternal(null)}>
               Cancelar
             </Button>
           </div>

@@ -15,7 +15,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {TableShell, TABLE_CELL} from '@/components/ui/table-shell';
 import {DebouncedInput} from '@/components/ui/debounced-input';
 import {SavedFilterViews} from '@/components/ui/saved-filter-views';

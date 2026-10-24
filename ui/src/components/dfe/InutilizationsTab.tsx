@@ -6,7 +6,7 @@ import {toast} from 'sonner';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {usePagination} from '@/lib/hooks/usePagination';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {JustificationField} from '@/components/ui/justification-field';
@@ -65,7 +65,7 @@ function InutilizationXmlButton({docType, item}: { docType: DocType; item: Inuti
   return (
     <Button
       variant="ghost"
-      size="xs"
+      size="sm"
       onClick={handleDownload}
       disabled={loading}
       className="text-brand-600 hover:text-brand-700"

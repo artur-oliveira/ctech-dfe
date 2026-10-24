@@ -1,6 +1,6 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
@@ -150,7 +150,7 @@ export function NicheGroupsFields({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-gray-700">Fornecimentos diários</Label>
-                <Button type="button" variant="ghost" size="xs"
+                <Button type="button" variant="ghost" size="sm"
                         disabled={deliveries.length >= MAX_CANA_DELIVERIES}
                         onClick={() => patchCana({deliveries: [...deliveries, EMPTY_DELIVERY]})}>
                   + Dia
@@ -178,7 +178,7 @@ export function NicheGroupsFields({
                       deliveries: deliveries.map((x, k) => (k === i ? {...x, qtde: v} : x)),
                     })}/>
                   </div>
-                  <Button type="button" variant="ghost" size="xs" className="min-h-11"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => patchCana({deliveries: deliveries.filter((_, k) => k !== i)})}>
                     Remover
                   </Button>
@@ -189,7 +189,7 @@ export function NicheGroupsFields({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-gray-700">Deduções</Label>
-                <Button type="button" variant="ghost" size="xs" disabled={deducoes.length >= MAX_CANA_DEDUCOES}
+                <Button type="button" variant="ghost" size="sm" disabled={deducoes.length >= MAX_CANA_DEDUCOES}
                         onClick={() => patchCana({deducoes: [...deducoes, EMPTY_DEDUC]})}>
                   + Dedução
                 </Button>
@@ -210,7 +210,7 @@ export function NicheGroupsFields({
                       deducoes: deducoes.map((x, k) => (k === i ? {...x, v_ded: v} : x)),
                     })}/>
                   </div>
-                  <Button type="button" variant="ghost" size="xs" className="min-h-11"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => patchCana({deducoes: deducoes.filter((_, k) => k !== i)})}>
                     Remover
                   </Button>
@@ -248,7 +248,7 @@ export function NicheGroupsFields({
             )}
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-700">Receituários</Label>
-              <Button type="button" variant="ghost" size="xs"
+              <Button type="button" variant="ghost" size="sm"
                       disabled={receituarios.length >= MAX_AGRO_RECEITUARIOS}
                       onClick={() => patch({agro: {receituarios: [...receituarios, '']}})}>
                 + Receituário
@@ -263,7 +263,7 @@ export function NicheGroupsFields({
                     agro: {receituarios: receituarios.map((x, k) => (k === i ? e.target.value : x))},
                   })}/>
                 </div>
-                <Button type="button" variant="ghost" size="xs" className="min-h-11"
+                <Button type="button" variant="ghost" size="sm"
                         onClick={() => patch({agro: {receituarios: receituarios.filter((_, k) => k !== i)}})}>
                   Remover
                 </Button>

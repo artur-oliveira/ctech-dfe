@@ -15,7 +15,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {formatISODateBR} from '@/lib/utils/dfe';
@@ -93,12 +93,12 @@ function ProductLotsContent() {
                 <td data-label="Quantidade" className={`${TABLE_CELL} text-gray-600`}>{str(l.q_lote)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/product-lots/edit?id=${extractId(l.sk, SK_PREFIX.PRODUCT_LOT)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(l)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(l)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

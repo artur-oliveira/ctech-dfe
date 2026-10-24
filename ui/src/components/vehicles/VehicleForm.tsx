@@ -7,7 +7,7 @@ import {Form, FormField, FormItem, FormLabel, FormMessage,} from '@/components/u
 import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {
   BODYWORK_OPTIONS,
   OWNER_TYPE_OPTIONS,
@@ -161,7 +161,7 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
 
         {/* Configurações adicionais */}
         <section className="space-y-3">
-          <Button type="button" variant="ghost" size="xs" onClick={() => setAdvancedOpen(!advancedOpen)}
+          <Button type="button" variant="ghost" size="sm" onClick={() => setAdvancedOpen(!advancedOpen)}
                   className="text-brand-600 hover:text-brand-700">
             {advancedOpen ? '− Ocultar configurações adicionais' : '+ Configurações adicionais'}
           </Button>
@@ -266,7 +266,7 @@ export function VehicleForm({initialData, onSubmit, loading = false, highlightFi
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Proprietário (se não for
                     da própria empresa)</p>
-                  <Button type="button" variant="ghost" size="xs"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => form.setValue('owner', wantsOwner ? undefined : {
                             cpf_cnpj: '',
                             rntrc: '',

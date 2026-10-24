@@ -13,7 +13,7 @@ import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
@@ -129,7 +129,7 @@ function AuditLogsContent() {
                     <td data-label="Usuário" className={`${TABLE_CELL} text-gray-700`}>{log.user_name}</td>
                     <td className={`${TABLE_CELL} text-right`}>
                       {log.modifications.length > 0 && (
-                        <Button variant="ghost" size="xs" onClick={() => setSelected(log)}
+                        <Button variant="ghost" size="sm" onClick={() => setSelected(log)}
                                 className="text-brand-600 hover:text-brand-700">
                           Ver alterações
                         </Button>

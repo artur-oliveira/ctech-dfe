@@ -1,8 +1,7 @@
 'use client';
 
 import {useEffect} from 'react';
-import {ErrorState} from '@aoctech/ui';
-import {Button} from '@/components/ui/button';
+import {Button, ErrorState} from '@aoctech/ui';
 
 /**
  * The last resort: an error in the root layout or the provider tree, where the

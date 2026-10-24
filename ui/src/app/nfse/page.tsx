@@ -16,7 +16,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {PageHeader} from '@/components/ui/page-header';
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import type {NfseListOut} from '@/lib/types/api';
@@ -282,7 +282,7 @@ function NfsesContent() {
                           </Link>
                         )}
                         {nfse.xml_s3_key && (
-                          <Button variant="ghost" size="xs" onClick={() => handleDownloadXml(nfse)}
+                          <Button variant="ghost" size="sm" onClick={() => handleDownloadXml(nfse)}
                                   disabled={xmlLoading === nfse.sk} className="text-brand-600 hover:text-brand-700">
                             {xmlLoading === nfse.sk ? 'Baixando…' : 'XML'}
                           </Button>

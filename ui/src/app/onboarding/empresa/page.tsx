@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {startCompanyHandoff} from '@/lib/handoff';
 import {STEP_COMPANY} from '@/lib/constants/onboarding';
 
@@ -48,7 +48,7 @@ function CompanyStepContent() {
         </ol>
 
         <Button
-          size="lg"
+          size="default"
           className="mt-5 w-full sm:w-auto"
           disabled={leaving}
           onClick={() => {

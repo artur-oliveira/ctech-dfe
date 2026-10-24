@@ -17,7 +17,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import type {NFeDistributionOut} from '@/lib/types/api';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
@@ -61,7 +61,7 @@ function CTeRow({item}: { item: NFeDistributionOut }) {
       <td className={`${TABLE_CELL} text-right`}>
         <div className="flex items-center justify-end gap-3">
           {item.xml_s3_key && (
-            <Button variant="ghost" size="xs" onClick={handleDownloadXml} disabled={xmlLoading}
+            <Button variant="ghost" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
                     className="text-brand-600 hover:text-brand-700">
               {xmlLoading ? 'Baixando…' : 'XML'}
             </Button>

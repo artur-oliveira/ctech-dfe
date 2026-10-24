@@ -9,7 +9,7 @@ import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {Textarea} from '@/components/ui/textarea';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
@@ -138,7 +138,7 @@ function ObsListField({form, name, label}: {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <FormLabel>{label}</FormLabel>
-        <Button type="button" variant="ghost" size="xs" disabled={fields.length >= 10}
+        <Button type="button" variant="ghost" size="sm" disabled={fields.length >= 10}
                 onClick={() => append({x_campo: '', x_texto: ''})}>
           + Observação
         </Button>
@@ -161,7 +161,7 @@ function ObsListField({form, name, label}: {
                        </FormItem>
                      )}
           />
-          <Button type="button" variant="ghost" size="xs" onClick={() => remove(index)}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
             Remover
           </Button>
         </div>
@@ -700,7 +700,7 @@ export function OperationForm({initialData, onSubmit, loading = false}: Operatio
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar operação'}
           </Button>
         </div>

@@ -20,7 +20,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
@@ -149,7 +149,7 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
           {item.xml_s3_key && (
             <Button
               variant="ghost"
-              size="xs"
+              size="sm"
               onClick={handleDownloadXml}
               disabled={xmlLoading}
               className="text-brand-600 hover:text-brand-700"

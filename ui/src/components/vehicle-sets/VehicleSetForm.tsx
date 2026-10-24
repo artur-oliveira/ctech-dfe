@@ -7,7 +7,7 @@ import {useQuery} from '@tanstack/react-query';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 import {Combobox} from '@/components/ui/combobox';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {PersonPicker} from '@/components/persons/PersonPicker';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
@@ -150,7 +150,7 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
               {trailerSks.map((sk) => (
                 <div key={sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <span className="font-mono text-gray-700">{vehicleLabel(sk)}</span>
-                  <Button type="button" variant="ghost" size="xs"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => form.setValue('trailer_sks', trailerSks.filter((it) => it !== sk),
                             {shouldValidate: true})}
                           className="text-danger hover:text-red-700">remover</Button>
@@ -173,7 +173,7 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
               {driverDocs.map((doc) => (
                 <div key={doc} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <span className="font-mono text-gray-700">{formatCpfCnpj(doc)}</span>
-                  <Button type="button" variant="ghost" size="xs"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => form.setValue('driver_docs', driverDocs.filter((it) => it !== doc),
                             {shouldValidate: true})}
                           className="text-danger hover:text-red-700">remover</Button>
@@ -192,7 +192,7 @@ export function VehicleSetForm({initialData, onSubmit, loading = false}: Vehicle
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar composição'}
           </Button>
         </div>

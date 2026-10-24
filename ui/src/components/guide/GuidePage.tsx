@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type {ReactNode} from 'react';
 import {ArrowLeft, ArrowRight, CircleAlert, Info, Lightbulb, ShieldCheck} from 'lucide-react';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {GUIDE_TOPICS} from '@/lib/constants/guide';
 import {useAuth} from '@/lib/hooks/useAuth';
 

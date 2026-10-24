@@ -1,7 +1,7 @@
 'use client';
 
 import {useState} from 'react';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {
   EMPTY_TAX_GROUPS, TaxFieldsEditor, type TaxGroups,
 } from '@/components/tax/TaxFieldsEditor';
@@ -63,7 +63,7 @@ export function UfOverridesEditor({value, onChange, simples}: UfOverridesEditorP
                 })}
               </div>
             </div>
-            <Button type="button" variant="ghost" size="xs" onClick={() => removeCard(i)}
+            <Button type="button" variant="ghost" size="sm" onClick={() => removeCard(i)}
                     className="self-start text-danger hover:text-red-700">remover</Button>
           </div>
           <TaxFieldsEditor value={card.overrides as CfopConfigFormData}

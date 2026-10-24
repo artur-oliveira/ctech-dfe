@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {apiClient} from '@/lib/api/client';
 import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import type {NfeListOut} from '@/lib/types/api';
 import {formatCurrency} from '@/lib/utils/helpers';

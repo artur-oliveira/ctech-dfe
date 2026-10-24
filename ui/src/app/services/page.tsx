@@ -15,7 +15,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {useRowSelection} from '@/lib/hooks/useRowSelection';
@@ -135,18 +135,18 @@ function ServicesContent() {
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => router.push(`/services/edit?id=${extractId(s.sk, SK_PREFIX.SERVICE)}`)}
-                      className="min-h-11 sm:min-h-0 text-brand-600 hover:text-brand-700"
+                      className="text-brand-600 hover:text-brand-700"
                     >
                       Editar
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => handleDelete(s)}
                       disabled={isDeleting}
-                      className="min-h-11 sm:min-h-0 text-danger hover:text-red-700"
+                      className="text-danger hover:text-red-700"
                     >
                       Excluir
                     </Button>

@@ -8,7 +8,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {EmptyState} from '@/components/ui/empty-state';
 import {ShieldIcon} from '@/components/ui/icon';
@@ -120,7 +120,7 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
       <td className={`${TABLE_CELL} pr-6 text-right`}>
         <Button
           variant="ghost"
-          size="xs"
+          size="sm"
           onClick={onDelete}
           disabled={isDeleting}
           className="text-danger hover:text-red-700"

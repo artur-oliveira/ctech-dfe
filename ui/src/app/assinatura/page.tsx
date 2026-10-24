@@ -14,7 +14,7 @@ import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {StatusBadge} from '@/components/ui/status-badge';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button, buttonVariants} from '@/components/ui/button';
+import {Button, buttonVariants} from '@aoctech/ui';
 import {UsageList} from '@/components/billing/UsageList';
 import {ChangePlanDialog} from '@/components/billing/ChangePlanDialog';
 import {CancelSubscriptionDialog} from '@/components/billing/CancelSubscriptionDialog';

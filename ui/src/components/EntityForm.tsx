@@ -13,7 +13,7 @@ import {NumericInput} from '@/components/ui/numeric-input';
 import {ALL_CNAES} from '@/lib/data/cnae';
 import {CITY_OPTIONS} from '@/lib/data/cities';
 import {getAllCfopOptions} from '@/lib/data/cfop';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {AddressFields} from '@/components/ui/address-fields';
 import {SectionCard} from '@/components/ui/section-card';
 import {CnpjLookupBadge} from '@/components/ui/cnpj-lookup-badge';
@@ -406,7 +406,7 @@ export function EntityForm({
     <div className="border-t border-gray-200 pt-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-900">Inscrições estaduais</h3>
-        <Button type="button" variant="ghost" size="xs"
+        <Button type="button" variant="ghost" size="sm"
                 onClick={() => {
                   const first = UF_OPTIONS.find((o) => !selectedUFs.includes(o.value))?.value ?? 'SP';
                   appendIE({
@@ -459,7 +459,7 @@ export function EntityForm({
                          </FormItem>
                        )}
             />
-            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeIE(index)}
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeIE(index)}
                     aria-label="Remover inscrição estadual"
                     className="mb-0.5 text-red-600 hover:text-red-700 hover:bg-red-50">
               <XIcon/>
@@ -937,7 +937,7 @@ export function EntityForm({
               {/* Endereços adicionais */}
               {addressFields.slice(1).map((field, idx) => (
                 <SectionCard key={field.id} icon={<MapPinIcon/>} title={`Endereço ${idx + 2}`} className="relative">
-                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeAddress(idx + 1)}
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeAddress(idx + 1)}
                           aria-label={`Remover endereço ${idx + 2}`}
                           className="absolute top-3 right-4 text-red-600 hover:text-red-700 hover:bg-red-50">
                     <XIcon/>
@@ -969,7 +969,7 @@ export function EntityForm({
                                }
                              }}
                              disabled={emails.length >= 5}/>
-                      <Button type="button" variant="outline" size="icon-lg" onClick={addEmail}
+                      <Button type="button" variant="outline" size="icon" onClick={addEmail}
                               disabled={emails.length >= 5 || !emailInput}
                               aria-label="Adicionar e-mail"
                               className="shrink-0 text-gray-400 hover:text-gray-600">
@@ -982,7 +982,7 @@ export function EntityForm({
                           <li key={email}
                               className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-3 py-2 text-sm">
                             <span className="truncate text-gray-700">{email}</span>
-                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeEmail(index)}
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(index)}
                                     aria-label={`Remover e-mail ${email}`}
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
@@ -1006,7 +1006,7 @@ export function EntityForm({
                                }
                              }}
                              disabled={phones.length >= 5}/>
-                      <Button type="button" variant="outline" size="icon-lg" onClick={addPhone}
+                      <Button type="button" variant="outline" size="icon" onClick={addPhone}
                               disabled={phones.length >= 5 || phoneInput.replace(/\D/g, '').length < 10}
                               aria-label="Adicionar telefone"
                               className="shrink-0 text-gray-400 hover:text-gray-600">
@@ -1019,7 +1019,7 @@ export function EntityForm({
                           <li key={phone}
                               className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-3 py-2 text-sm">
                             <span className="text-gray-700">{maskPhone(phone)}</span>
-                            <Button type="button" variant="ghost" size="icon-xs" onClick={() => removePhone(index)}
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removePhone(index)}
                                     aria-label={`Remover telefone ${maskPhone(phone)}`}
                                     className="ml-3 shrink-0 text-gray-400 hover:text-red-500"><XIcon/>
                             </Button>
