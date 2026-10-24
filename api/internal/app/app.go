@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
 	"gopkg.aoctech.app/api-commons/accountorgs"
+	"gopkg.aoctech.app/api-commons/alerts"
 	"gopkg.aoctech.app/api-commons/cache"
 	"gopkg.aoctech.app/api-commons/dataexport"
 	"gopkg.aoctech.app/api-commons/deadline"
@@ -943,7 +944,8 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeExportAck)
 	exporter := dataexport.NewStreamHandler(services.ErasureServiceName, svc.DataExporter().Write, uploads,
 		dataexport.NewAckClient(uploads, strings.TrimSuffix(cfg.CtechURL, "/")+exportAckPath, exportTokens))
-	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store, svc.Purge, acks).
+	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store,
+		services.AlertingPurge(svc.Purge, newAlerts(cfg)), acks).
 		WithExporter(exporter.Handle).WithVisibilityHeartbeat(cfg.ErasureQueueVisibility)
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
@@ -957,6 +959,17 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 			return nil
 		},
 	})
+}
+
+// newAlerts builds the operator-alert publisher; unconfigured or unavailable
+// degrades to alerts.Nop (logged), never to a startup error.
+func newAlerts(cfg *config.Config) alerts.Publisher {
+	p, err := alerts.New(context.Background(), cfg.AWSRegion, cfg.AlertsTopicARN, "dfe", cfg.Env)
+	if err != nil {
+		slog.Warn("alerts: publisher unavailable, operator alerts are log-only", "err", err)
+		return alerts.Nop{}
+	}
+	return p
 }
 
 func newXMLExportService(

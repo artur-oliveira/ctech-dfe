@@ -88,6 +88,8 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
   `account-pending-deletion`; revocation entries come from the shared Valkey DB 0; `ERASURE_QUEUE_URL` is the
   participant on/off switch; acks and the subject lookup use `ERASURE_CLIENT_*`, never the reach `ACCOUNT_CLIENT_*`.
   New tables go in `services/erasure_catalog.go`.
+  A purge that fails (not the `ErrErasureSettling` wait) also alerts `erasure-purge-failed` through go-common `alerts`
+  (`services.AlertingPurge`, env `ALERTS_TOPIC_ARN` from SSM `/ctech/{env}/alerts/topic-arn`; unset = `alerts.Nop`).
 - **Cache:** shared Valkey via `VALKEY_URL`; without it the cache falls back to an in-process memory backend
   (1000 entries, not shared across replicas).
 - **CORS is wired:** `app.go` mounts `cors.New` with `CORS_ALLOWED_ORIGINS` (credentials allowed). The UI is a static

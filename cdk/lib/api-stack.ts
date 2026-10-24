@@ -193,6 +193,8 @@ export class ApiStack extends cdk.Stack {
       `DFE_RESULTS_QUEUE_URL=${resultsQueueUrl}`,
       `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`,
       `ERASURE_QUEUE_URL=${erasureQueueUrl}`,
+      // Shared operator-alert topic (failed account-deletion purge); not a secret.
+      `ALERTS_TOPIC_ARN=${ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/alerts/topic-arn`)}`,
       `SEFAZ_FUNCTION_NAME=${egressFunctionName(environment)}`,
       `DFE_EGRESS_REGION=${EGRESS_REGION}`,
       `TRUSTED_PROXIES=127.0.0.1`,

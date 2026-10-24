@@ -1,6 +1,7 @@
 import {egressFunctionArn} from './egress'
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
 import {Environment} from './types';
 
@@ -232,6 +233,12 @@ export class IAMStack extends cdk.Stack {
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:ChangeMessageVisibility', 'sqs:GetQueueAttributes'],
       resources: [props.erasureQueueArn],
+    }));
+    // Operator alerts (failed account-deletion purge): publish-only on the shared topic
+    // (ctech-cdk AlertsStack), resolved from SSM at synth like the other CTech services.
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/alerts/topic-arn`)],
     }));
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['s3:ListBucketVersions'],
