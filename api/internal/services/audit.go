@@ -12,7 +12,7 @@ import (
 // auditHousekeepingKeys are never surfaced as modifications — they're storage
 // mechanics, not business data.
 var auditHousekeepingKeys = map[string]bool{
-	"pk": true, "sk": true, "created_at": true, "updated_at": true,
+	"pk": true, "sk": true, "created_at": true, "updated_at": true, "sweep": true,
 }
 
 // Diff compares before/after field maps and returns only the fields that
