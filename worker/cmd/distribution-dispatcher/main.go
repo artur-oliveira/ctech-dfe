@@ -35,18 +35,35 @@ func main() {
 	})
 }
 
+// sweepIndex/sweepAttr/sweepValue mirror api/internal/repositories (AttrSweep,
+// SweepValue, SweepIndex): the API stamps sweep = "1" on every fiscal-config row and
+// the `sweep-index` GSI lists them, so no Scan is needed to enumerate organizations.
+const (
+	sweepIndex = "sweep-index"
+	sweepAttr  = "sweep"
+	sweepValue = "1"
+)
+
+type orgQuerier interface {
+	Query(ctx context.Context, in *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+}
+
+type jobSender interface {
+	SendMessage(ctx context.Context, in *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+}
+
 func dispatch(
 	ctx context.Context,
 	cfg *config.Config,
-	dynamo *dynamodb.Client,
-	sqsClient *sqs.Client,
+	db orgQuerier,
+	sqsClient jobSender,
 ) error {
 	for _, docType := range docTypes {
 		table := cfg.TablePrefix + "_organization_" + docType + "_configs"
 
-		orgPKs, err := scanOrgPKs(ctx, dynamo, table)
+		orgPKs, err := queryOrgPKs(ctx, db, table)
 		if err != nil {
-			slog.Error("failed to scan config table", "table", table, "err", err)
+			slog.Error("failed to list config table", "table", table, "err", err)
 			continue
 		}
 
@@ -71,15 +88,19 @@ func dispatch(
 	return nil
 }
 
-// scanOrgPKs scans the config table and returns all org PKs (auto-paginates).
-func scanOrgPKs(ctx context.Context, dynamo *dynamodb.Client, table string) ([]string, error) {
+// queryOrgPKs lists every org PK of a config table through the sweep-index
+// (auto-paginates). The index is KEYS_ONLY, so the table's pk comes back as-is.
+func queryOrgPKs(ctx context.Context, db orgQuerier, table string) ([]string, error) {
 	var orgPKs []string
-	input := &dynamodb.ScanInput{
-		TableName:            &table,
-		ProjectionExpression: new("pk"),
+	input := &dynamodb.QueryInput{
+		TableName:                 &table,
+		IndexName:                 new(sweepIndex),
+		KeyConditionExpression:    new("#s = :v"),
+		ExpressionAttributeNames:  map[string]string{"#s": sweepAttr},
+		ExpressionAttributeValues: map[string]types.AttributeValue{":v": &types.AttributeValueMemberS{Value: sweepValue}},
 	}
 	for {
-		out, err := dynamo.Scan(ctx, input)
+		out, err := db.Query(ctx, input)
 		if err != nil {
 			return nil, err
 		}

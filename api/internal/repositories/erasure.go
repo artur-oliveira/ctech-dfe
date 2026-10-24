@@ -97,21 +97,6 @@ func (r *ErasureRepository) QueryIndex(ctx context.Context, table, index, attr, 
 	})
 }
 
-// ScanPage reads one page of a whole table. Used only for the e-CPF search
-// (plan ruling R8): certificates carry no attribute a query could key on.
-func (r *ErasureRepository) ScanPage(ctx context.Context, table string, start map[string]types.AttributeValue) (Page, error) {
-	out, err := r.db.Scan(ctx, &dynamodb.ScanInput{
-		TableName: r.name(table), ExclusiveStartKey: start,
-		Limit: aws.Int32(erasurePageSize), ConsistentRead: aws.Bool(true),
-	})
-	if err != nil {
-		return Page{}, wrapDynamoErr(err)
-	}
-	return Page{Items: out.Items, Next: out.LastEvaluatedKey}, nil
-}
-
-// DeleteKeys deletes keys in batches of 25, retrying unprocessed items.
-// Deleting an absent key is a no-op, so a rerun is safe.
 func (r *ErasureRepository) DeleteKeys(ctx context.Context, table string, keys []map[string]types.AttributeValue) error {
 	for len(keys) > 0 {
 		batch := keys[:min(batchWriteMax, len(keys))]

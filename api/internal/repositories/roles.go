@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -150,30 +149,31 @@ func SystemRoles() []SystemRole {
 
 type RoleRepository struct {
 	Base
-	// db is kept alongside Base for ListAll's Scan call, which Base does not
-	// expose (Base's db field is unexported in the shared api-commons/dynamo
-	// package).
-	db *dynamodb.Client
 }
 
 func NewRoleRepository(db *dynamodb.Client, cfg *config.Config) *RoleRepository {
-	return &RoleRepository{Base: NewBase(db, cfg, "roles"), db: db}
+	return &RoleRepository{Base: NewBase(db, cfg, "roles")}
 }
 
 func (r *RoleRepository) Get(ctx context.Context, name string) (map[string]types.AttributeValue, error) {
 	return r.GetItem(ctx, fmt.Sprintf("ROLE_%s", strings.ToUpper(name)))
 }
 
-// ListAll scans the roles table.
-// Justified: table contains at most 4 rows (fixed system roles); no access pattern warrants a GSI.
+// ListAll returns the built-in roles that exist in the table, in SystemRoles order.
+// The table holds only those fixed roles (seeded at boot), so it is four GetItems,
+// not a Scan.
 func (r *RoleRepository) ListAll(ctx context.Context) ([]map[string]types.AttributeValue, error) {
-	out, err := r.db.Scan(ctx, &dynamodb.ScanInput{
-		TableName: aws.String(r.TableName),
-	})
-	if err != nil {
-		return nil, wrapDynamoErr(err)
+	var out []map[string]types.AttributeValue
+	for _, role := range SystemRoles() {
+		item, err := r.Get(ctx, role.Name)
+		if err != nil {
+			return nil, err
+		}
+		if item != nil {
+			out = append(out, item)
+		}
 	}
-	return out.Items, nil
+	return out, nil
 }
 
 func (r *RoleRepository) Upsert(ctx context.Context, name, description string, permissions []string) (map[string]types.AttributeValue, error) {

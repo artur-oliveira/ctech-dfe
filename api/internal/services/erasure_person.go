@@ -319,15 +319,26 @@ func (s *ErasureService) purgeECPF(ctx context.Context, requestID string, counts
 	})
 }
 
+// scanCertificates visits every certificate row through the table's sweep-index
+// (plan ruling R8: certificates carry no attribute a company query could key
+// on). The index is KEYS_ONLY, so each row is read whole, strongly consistent,
+// before fn sees it; a row deleted between the page and the read is skipped.
 func (s *ErasureService) scanCertificates(ctx context.Context, fn func(map[string]types.AttributeValue) error) error {
 	var start map[string]types.AttributeValue
 	for {
-		page, err := s.repo.ScanPage(ctx, tblCertificates, start)
+		page, err := s.repo.QueryIndex(ctx, tblCertificates, repositories.SweepIndex, repositories.AttrSweep, repositories.SweepValue, start)
 		if err != nil {
 			return err
 		}
-		for _, it := range page.Items {
-			if err := fn(it); err != nil {
+		for _, key := range page.Items {
+			item, err := s.repo.GetItem(ctx, tblCertificates, map[string]types.AttributeValue{"pk": key["pk"], "sk": key["sk"]})
+			if err != nil {
+				return err
+			}
+			if item == nil {
+				continue
+			}
+			if err := fn(item); err != nil {
 				return err
 			}
 		}

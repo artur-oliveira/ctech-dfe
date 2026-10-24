@@ -149,3 +149,8 @@ test('every worker that calls SEFAZ outlives the egress Lambda', () => {
     expect(w.timeoutSeconds).toBeGreaterThan(EGRESS_TIMEOUT_SECONDS)
   }
 })
+
+test('no worker role is granted dynamodb:Scan (the dispatcher reads the sweep-index)', () => {
+  const template = buildTemplate()
+  expect(JSON.stringify(template.toJSON().Resources)).not.toContain('dynamodb:Scan')
+})
