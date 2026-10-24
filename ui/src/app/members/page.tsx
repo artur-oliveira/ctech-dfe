@@ -9,8 +9,7 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button, Skeleton} from '@aoctech/ui';
-import {Badge} from '@/components/ui/badge';
+import {Badge, Button, Skeleton} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import type {MemberOut} from '@/lib/types/api';
 import {ASSIGNABLE_ROLES, ROLE_LABEL, RoleName} from "@/lib/data/roles";
@@ -201,7 +200,7 @@ function MemberRow({
                     </Button>
                 </div>
             ) : (
-                <Badge variant="secondary">{(ROLE_LABEL[member.role as RoleName] ?? member.role).toString()}</Badge>
+                <Badge>{(ROLE_LABEL[member.role as RoleName] ?? member.role).toString()}</Badge>
             )}
         </li>
     );
