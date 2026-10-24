@@ -43,6 +43,10 @@ type Config struct {
 	// user-erasure topic. Empty turns the whole participant off (lock, purge,
 	// consumer): the dark-launch switch.
 	ErasureQueueURL string `env:"ERASURE_QUEUE_URL"`
+
+	// AlertsTopicARN is the shared SNS topic for operator alerts (failed account-deletion
+	// purge). Empty = alerts.Nop (local dev, test deployments); never a startup error.
+	AlertsTopicARN string `env:"ALERTS_TOPIC_ARN"`
 	// ErasureQueueVisibility is the queue's own visibility timeout
 	// (cdk/lib/event-bus-stack.ts, 30 min). While a purge or an export runs, the
 	// consumer keeps the message invisible by setting that timeout again every third
