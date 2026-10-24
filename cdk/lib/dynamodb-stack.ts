@@ -250,6 +250,24 @@ const getOrgEntityTable = (
   return table;
 }
 
+/**
+ * Sparse enumeration index (`sweep-index`): every row carries `sweep = "1"`, so a
+ * Query on that one key lists the table without a Scan. KEYS_ONLY because the
+ * readers (distribution dispatcher, account-erasure e-CPF search) only need the
+ * key, and anything else is one GetItem away. Used on the small per-company
+ * tables that background jobs must enumerate; request paths never read it.
+ */
+const addSweepIndex = (table: dynamodb.TableV2) => {
+  table.addGlobalSecondaryIndex({
+    indexName: 'sweep-index',
+    partitionKey: {name: 'sweep', type: dynamodb.AttributeType.STRING},
+    projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    warmThroughput: undefined,
+    maxReadRequestUnits: 1000,
+    maxWriteRequestUnits: 1000,
+  });
+}
+
 const getDfeConfigTable = (
   scope: Construct,
   removalPolicy: RemovalPolicy,
@@ -515,6 +533,7 @@ export class DynamoDBStack extends cdk.Stack {
       pointInTimeRecoverySpecification,
       encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
     });
+    addSweepIndex(certificatesTable);
     this.tables.set('certificates', certificatesTable);
 
     const productsTable = new dynamodb.TableV2(this, `${tablePrefix}_organization_products`, {
@@ -672,18 +691,22 @@ export class DynamoDBStack extends cdk.Stack {
     // ============== CONFIGURATION TABLES ==============
 
     const nfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfe_configs');
+    addSweepIndex(nfeConfigTable);
     this.tables.set('nfe_configs', nfeConfigTable);
 
     const nfceConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfce_configs');
     this.tables.set('nfce_configs', nfceConfigTable);
 
     const cteConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'cte_configs');
+    addSweepIndex(cteConfigTable);
     this.tables.set('cte_configs', cteConfigTable);
 
     const mdfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_configs');
+    addSweepIndex(mdfeConfigTable);
     this.tables.set('mdfe_configs', mdfeConfigTable);
 
     const nfseConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_configs');
+    addSweepIndex(nfseConfigTable);
     this.tables.set('nfse_configs', nfseConfigTable);
 
     // ============== DOCUMENT & EVENT TABLES ==============

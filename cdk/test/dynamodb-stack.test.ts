@@ -127,3 +127,27 @@ describe('DynamoDBStack — idempotência', () => {
         });
     });
 });
+
+describe('DynamoDBStack — sweep-index', () => {
+    test('configs despachadas e certificados têm o GSI sweep-index (KEYS_ONLY)', () => {
+        const template = synth();
+        for (const name of [
+            'dev_dfe_organization_nfe_configs',
+            'dev_dfe_organization_cte_configs',
+            'dev_dfe_organization_mdfe_configs',
+            'dev_dfe_organization_nfse_configs',
+            'dev_dfe_organization_certificates',
+        ]) {
+            template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+                TableName: name,
+                GlobalSecondaryIndexes: Match.arrayWith([
+                    Match.objectLike({
+                        IndexName: 'sweep-index',
+                        KeySchema: [{AttributeName: 'sweep', KeyType: 'HASH'}],
+                        Projection: {ProjectionType: 'KEYS_ONLY'},
+                    }),
+                ]),
+            });
+        }
+    });
+});

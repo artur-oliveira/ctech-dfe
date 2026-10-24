@@ -202,6 +202,7 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK, expectedDoc stri
 		return nil, problem.InternalServer("failed to unmarshal certificate")
 	}
 	delete(out, "password")
+	delete(out, repositories.AttrSweep) // storage mechanic of the sweep-index, not API data
 	return out, nil
 }
 
@@ -256,6 +257,7 @@ func (s *CertificateService) List(ctx context.Context, orgPK string) ([]map[stri
 			return nil, problem.InternalServer("failed to unmarshal certificate")
 		}
 		delete(m, "password")
+		delete(m, repositories.AttrSweep)
 		result = append(result, m)
 	}
 	return result, nil
@@ -274,6 +276,7 @@ func (s *CertificateService) Get(ctx context.Context, orgPK, md5hex string) (map
 		return nil, problem.InternalServer("failed to unmarshal certificate")
 	}
 	delete(out, "password")
+	delete(out, repositories.AttrSweep) // storage mechanic of the sweep-index, not API data
 	return out, nil
 }
 

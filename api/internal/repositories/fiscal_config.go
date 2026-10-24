@@ -51,6 +51,15 @@ func (r *FiscalConfigRepository) Get(ctx context.Context, orgPK string) (map[str
 // Its presence is therefore what tells a configured company from a stub.
 const AttrConfigEnvironment = "environment"
 
+// AttrSweep / SweepValue mark a row for the `sweep-index` GSI (fiscal configs and
+// certificates): background jobs enumerate those tables with a Query on
+// sweep = "1" instead of a Scan. Every write of such a row must carry it.
+const (
+	AttrSweep  = "sweep"
+	SweepValue = "1"
+	SweepIndex = "sweep-index"
+)
+
 // IsConfigured reports a row written by a configuration PUT, not a stub left by
 // the distribution sync's bookkeeping.
 func IsConfigured(item map[string]types.AttributeValue) bool {
@@ -110,6 +119,7 @@ func (r *FiscalConfigRepository) Upsert(ctx context.Context, orgPK string, field
 func (r *FiscalConfigRepository) BuildUpsertTxItem(orgPK string, fields map[string]types.AttributeValue, existing map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error) {
 	fields["pk"] = &types.AttributeValueMemberS{Value: orgPK}
 	fields["updated_at"] = &types.AttributeValueMemberS{Value: NowStr()}
+	fields[AttrSweep] = &types.AttributeValueMemberS{Value: SweepValue}
 
 	// Segredos write-only: o corpo que os omite mantém o que está gravado, em vez
 	// de apagá-los. A API nunca os devolve (redactFiscalSecrets), então um PUT
