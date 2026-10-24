@@ -13,6 +13,7 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e) — direct SEFAZ communicat
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
 
 ---
+- **Standards gate:** `scripts/standards-check.sh` (canonical copy in ctech-skills, identical bytes; CI job "Family standards"; reads `FAMILY_GOCOMMON_MINOR`, default v1.38, bump it on a go-common minor). Debt hidden: none via STANDARDS_SKIP; one-shot migration/report Scans are allow-listed. One-off lines carry a trailing `standards:allow <reason>`.
 
 ## Projects
 

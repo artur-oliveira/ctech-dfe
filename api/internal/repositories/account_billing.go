@@ -534,7 +534,7 @@ func (r *AccountBillingRepository) ListUserSnapshots(ctx context.Context) ([]Acc
 	var out []AccountSnapshot
 	var start map[string]types.AttributeValue
 	for {
-		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{ // standards:allow one-shot cmd/migrate-billing-org scan
 			TableName:                 aws.String(r.TableName),
 			FilterExpression:          aws.String("begins_with(pk, :p)"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{":p": &types.AttributeValueMemberS{Value: AccountBillingPK("")}},

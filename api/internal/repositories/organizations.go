@@ -281,7 +281,7 @@ func (r *OrganizationRepository) ListCompanyIndexGaps(ctx context.Context) ([]Co
 	var out []CompanyIndexGap
 	var start map[string]types.AttributeValue
 	for {
-		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{ // standards:allow one-shot cmd/migrate-billing-org scan
 			TableName:                aws.String(r.TableName),
 			FilterExpression:         aws.String("attribute_not_exists(#o) OR attribute_not_exists(#c)"),
 			ExpressionAttributeNames: map[string]string{"#o": AttrOrganizationID, "#c": attrCreatedAt},
@@ -350,7 +350,7 @@ func (r *OrganizationRepository) ListOrganizationsWithCompanies(ctx context.Cont
 	seen := map[string]bool{}
 	var start map[string]types.AttributeValue
 	for {
-		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{
+		res, err := r.ScanRaw(ctx, &dynamodb.ScanInput{ // standards:allow report-only scan, never on request path
 			TableName:                aws.String(r.TableName),
 			FilterExpression:         aws.String("attribute_exists(#o)"),
 			ProjectionExpression:     aws.String("pk, #o"),
