@@ -16,7 +16,7 @@ re-runs an emission: check the document's state in DynamoDB first and prefer the
 
 ## Alert
 
-None fires on DLQ depth: the family declined CloudWatch alarms (dfe). dfe does not use go-common `alerts` yet, so a DLQ filling is silent: look at the queues after a failed emission or erasure. (The `{env}-dfe-ops-alerts` and `{env}-ctech-dfe-results-ops-alerts` topics are kept only so externally added subscriptions survive; nothing publishes to them.)
+None fires on DLQ depth: the family declined CloudWatch alarms (dfe). Consumer-side go-common `alerts` to `ctech-{env}-alerts` cover the rest: `dlq-exhausted` (the DLQ processor marked a document or event failed), `outbox-stuck`, and `erasure-purge-failed` (an account-deletion purge failed and the message stays for redelivery). A message that lands in a DLQ without one of those (a poison message the processor cannot parse) is still silent: look at the queues after a failed emission or erasure. (The `{env}-dfe-ops-alerts` and `{env}-ctech-dfe-results-ops-alerts` topics are kept only so externally added subscriptions survive; nothing publishes to them.)
 
 ## Inspect
 
