@@ -198,7 +198,8 @@ is incomplete.
 
 ## Known divergences from the standard (documented, not yet fixed)
 
-- No CloudWatch alarm on any DLQ and no use of go-common `alerts` / SNS `ctech-{env}-alerts` yet.
+- No CloudWatch alarm on any DLQ. Failures that need a human go through go-common `alerts` to the shared SNS topic
+  (SSM `/ctech/{env}/alerts/topic-arn`); what alerts is listed in `worker/CLAUDE.md` and `api/CLAUDE.md`.
 - Scans: only one-shot operator tools (migrations, `cmd/backfill-sweep`); services use the `sweep-index`, see `api/CLAUDE.md`.
 - No inbound `Idempotency-Key`, no `@aoctech/ui`, no i18n in the UI.
 - CI (`ci.yml`) runs gofmt, vet, arm64 build and `-race` tests plus UI lint/tsc/tests; there is no staticcheck,

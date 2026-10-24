@@ -11,10 +11,12 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+
+	"gopkg.aoctech.app/api-commons/alerts"
+	"gopkg.aoctech.app/dfe/worker/internal/boot"
 )
 
 const (
@@ -35,17 +37,27 @@ var (
 	dynamoClient updater
 	topicARN     string
 	tableName    string
+	// alerter tells an operator that an outbox record is stuck. Nop until main
+	// wires the shared SNS topic (tests keep Nop).
+	alerter alerts.Publisher = alerts.Nop{}
 )
 
-func init() {
+// stuckAfter is how old an outbox record must be before a failing publish pages
+// a human: Lambda retries the stream record with backoff, so a blip heals
+// silently and only a record that stays unpublished is worth an email.
+const stuckAfter = 10 * time.Minute
+
+func setup(ctx context.Context) error {
 	topicARN = os.Getenv("EVENT_BUS_TOPIC_ARN")
 	tableName = os.Getenv("OUTBOX_TABLE_NAME")
-	cfg, err := awscfg.LoadDefaultConfig(context.Background())
+	cfg, err := boot.AWSConfig(ctx)
 	if err != nil {
-		panic("aws config: " + err.Error())
+		return err
 	}
 	snsClient = sns.NewFromConfig(cfg)
 	dynamoClient = dynamodb.NewFromConfig(cfg)
+	alerter = boot.Alerts(ctx, "dfe-outbox-publisher")
+	return nil
 }
 
 func processRecord(ctx context.Context, record events.DynamoDBEventRecord) error {
@@ -107,12 +119,31 @@ func processRecord(ctx context.Context, record events.DynamoDBEventRecord) error
 func handler(ctx context.Context, event events.DynamoDBEvent) error {
 	for _, record := range event.Records {
 		if err := processRecord(ctx, record); err != nil {
+			alertIfStuck(ctx, record, err)
 			return err
 		}
 	}
 	return nil
 }
 
+func alertIfStuck(ctx context.Context, record events.DynamoDBEventRecord, err error) {
+	age := time.Since(record.Change.ApproximateCreationDateTime.Time)
+	if age < stuckAfter {
+		return
+	}
+	alerter.Alert(ctx, alerts.Alert{
+		Job:     "outbox-stuck",
+		Summary: "An outbox record cannot be published to the command topic; the stream keeps retrying it.",
+		Err:     err,
+		Detail:  fmt.Sprintf("stream_event_id: %s\nage: %s", record.EventID, age.Round(time.Minute)),
+	})
+}
+
 func main() {
-	lambda.Start(handler)
+	ctx, stop := boot.Context()
+	defer stop()
+	if err := setup(ctx); err != nil {
+		panic("setup: " + err.Error())
+	}
+	lambda.StartWithOptions(handler, lambda.WithContext(ctx))
 }

@@ -154,3 +154,15 @@ test('no worker role is granted dynamodb:Scan (the dispatcher reads the sweep-in
   const template = buildTemplate()
   expect(JSON.stringify(template.toJSON().Resources)).not.toContain('dynamodb:Scan')
 })
+
+test('DLQ processor and outbox publisher get the shared alerts topic from SSM', () => {
+  const template = buildTemplate()
+  for (const functionName of ['dev-dfe-dlq-processor', 'dev-dfe-outbox-publisher']) {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: functionName,
+      Environment: {Variables: Match.objectLike({ALERTS_TOPIC_ARN: Match.anyValue()})},
+    })
+  }
+  const params = Object.values(template.toJSON().Parameters ?? {}) as any[]
+  expect(params.some(p => p.Default === '/ctech/dev/alerts/topic-arn')).toBe(true)
+})

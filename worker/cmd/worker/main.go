@@ -7,12 +7,12 @@ import (
 	"log/slog"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
@@ -40,7 +40,10 @@ func main() {
 		panic("config: " + err.Error())
 	}
 
-	ac, err := awscfg.LoadDefaultConfig(context.Background())
+	rootCtx, stop := boot.Context()
+	defer stop()
+
+	ac, err := boot.AWSConfig(rootCtx)
 	if err != nil {
 		panic("aws config: " + err.Error())
 	}
@@ -54,7 +57,7 @@ func main() {
 		SNS:    sns.NewFromConfig(ac),
 	}, cfg).WithOrgStopped(stopped)
 
-	lambda.Start(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
+	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
 		if service.IsPingEvent(raw) {
 			slog.Info("ping: keep-warm invoke, no-op")
 			return batchResponse{}, nil
@@ -80,5 +83,5 @@ func main() {
 			}
 		}
 		return batchResponse{BatchItemFailures: failures}, nil
-	})
+	}, lambda.WithContext(rootCtx))
 }

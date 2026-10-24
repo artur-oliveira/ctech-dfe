@@ -8,6 +8,7 @@ import * as lambdaEvents from 'aws-cdk-lib/aws-lambda-event-sources'
 import * as scheduler from 'aws-cdk-lib/aws-scheduler'
 import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
+import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
 import {WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
@@ -60,6 +61,10 @@ export class WorkerStack extends cdk.Stack {
     } = props
 
     const dfeLambdaArn = egressFunctionArn(environment, this.account)
+
+    // Shared operator-alert topic (ctech-cdk AlertsStack). The dead-letter and outbox
+    // Lambdas publish to it through go-common alerts; unset env = alerts.Nop.
+    const alertsTopicArn = ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/alerts/topic-arn`)
 
     // =========================
     // LOOP DE WORKERS
@@ -239,7 +244,7 @@ export class WorkerStack extends cdk.Stack {
 
       dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
         actions: ['sns:Publish'],
-        resources: [resultsTopicArn],
+        resources: [resultsTopicArn, alertsTopicArn],
       }))
 
       if (workerDlqTableNames.length) {
@@ -269,6 +274,7 @@ export class WorkerStack extends cdk.Stack {
           DFE_LAMBDA_NAME: dfeLambdaName,
           DFE_EGRESS_REGION: dfeEgressRegion,
           RESULTS_TOPIC_ARN: resultsTopicArn,
+          ALERTS_TOPIC_ARN: alertsTopicArn,
         },
       })
 
@@ -309,7 +315,7 @@ export class WorkerStack extends cdk.Stack {
     }))
     outboxRole.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['sns:Publish'],
-      resources: [eventBus.topicArn],
+      resources: [eventBus.topicArn, alertsTopicArn],
     }))
     outboxDlq.grantSendMessages(outboxRole)
 
@@ -323,8 +329,10 @@ export class WorkerStack extends cdk.Stack {
       timeout: Duration.seconds(30),
       memorySize: 128,
       environment: {
+        APP_ENVIRONMENT: environment,
         EVENT_BUS_TOPIC_ARN: eventBus.topicArn,
         OUTBOX_TABLE_NAME: outboxTableName,
+        ALERTS_TOPIC_ARN: alertsTopicArn,
       },
     })
     outboxDlq.addToResourcePolicy(new iam.PolicyStatement({
