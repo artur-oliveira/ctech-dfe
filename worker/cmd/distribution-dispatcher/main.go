@@ -6,11 +6,11 @@ import (
 	"log/slog"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
+	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -22,7 +22,10 @@ func main() {
 		panic("config: " + err.Error())
 	}
 
-	ac, err := awscfg.LoadDefaultConfig(context.Background())
+	rootCtx, stop := boot.Context()
+	defer stop()
+
+	ac, err := boot.AWSConfig(rootCtx)
 	if err != nil {
 		panic("aws config: " + err.Error())
 	}
@@ -30,9 +33,9 @@ func main() {
 	dynamo := dynamodb.NewFromConfig(ac)
 	sqsClient := sqs.NewFromConfig(ac)
 
-	lambda.Start(func(ctx context.Context, _ json.RawMessage) error {
+	lambda.StartWithOptions(func(ctx context.Context, _ json.RawMessage) error {
 		return dispatch(ctx, cfg, dynamo, sqsClient)
-	})
+	}, lambda.WithContext(rootCtx))
 }
 
 // sweepIndex/sweepAttr/sweepValue mirror api/internal/repositories (AttrSweep,

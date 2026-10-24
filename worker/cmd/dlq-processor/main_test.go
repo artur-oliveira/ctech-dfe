@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
+	"gopkg.aoctech.app/api-commons/alerts"
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
 
@@ -183,4 +186,38 @@ func (f *conditionalDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateIte
 		return nil, context.DeadlineExceeded
 	}
 	return &dynamodb.UpdateItemOutput{}, nil
+}
+
+type recordingAlerts struct{ got []alerts.Alert }
+
+func (r *recordingAlerts) Alert(_ context.Context, a alerts.Alert) { r.got = append(r.got, a) }
+
+func TestHandler_ExhaustedMessageAlertsOperator(t *testing.T) {
+	tablePrefix, resultsTopicARN = "dev", ""
+	dynamoClient = &fakeDynamo{}
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
+
+	body, _ := json.Marshal(service.WorkerMessage{DocPK: "prod#CNPJ_1", AccessKey: "KEY1", TableName: "nfes"})
+	if _, err := handler(context.Background(), sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(ra.got) != 1 || ra.got[0].Job != "dlq-exhausted" || !strings.Contains(ra.got[0].Detail, "KEY1") {
+		t.Fatalf("want one dlq-exhausted alert naming the access key, got %+v", ra.got)
+	}
+}
+
+func TestHandler_FailedTerminalWriteDoesNotAlert(t *testing.T) {
+	tablePrefix, resultsTopicARN = "dev", ""
+	dynamoClient = &fakeDynamo{err: errors.New("boom")}
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
+
+	body, _ := json.Marshal(service.WorkerMessage{DocPK: "prod#CNPJ_1", AccessKey: "KEY1", TableName: "nfes"})
+	resp, _ := handler(context.Background(), sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}})
+	if len(resp.BatchItemFailures) != 1 || len(ra.got) != 0 {
+		t.Fatalf("a record that will be retried must not alert yet: failures=%v alerts=%v", resp.BatchItemFailures, ra.got)
+	}
 }

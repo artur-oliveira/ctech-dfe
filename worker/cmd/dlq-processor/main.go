@@ -3,17 +3,19 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	"gopkg.aoctech.app/api-commons/alerts"
+	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
 
@@ -28,17 +30,22 @@ var (
 	dynamoClient    dynamoUpdater
 	resultsTopicARN string
 	tablePrefix     string
+	// alerter tells an operator that a message exhausted its retries. Nop until
+	// main wires the shared SNS topic (tests keep Nop).
+	alerter alerts.Publisher = alerts.Nop{}
 )
 
-func init() {
+func setup(ctx context.Context) error {
 	resultsTopicARN = os.Getenv("RESULTS_TOPIC_ARN")
 	tablePrefix = os.Getenv("TABLE_PREFIX")
-	ac, err := awscfg.LoadDefaultConfig(context.Background())
+	ac, err := boot.AWSConfig(ctx)
 	if err != nil {
-		panic("aws config: " + err.Error())
+		return err
 	}
 	snsClient = sns.NewFromConfig(ac)
 	dynamoClient = dynamodb.NewFromConfig(ac)
+	alerter = boot.Alerts(ctx, "dfe-worker")
+	return nil
 }
 
 type sqsEvent struct {
@@ -118,6 +125,12 @@ func handler(ctx context.Context, event sqsEvent) (batchResponse, error) {
 			failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
 			continue
 		}
+		// The document is now terminally failed: a human decides what to do with it.
+		alerter.Alert(ctx, alerts.Alert{
+			Job:     "dlq-exhausted",
+			Summary: "A document or event exhausted its retries and was marked failed.",
+			Detail:  fmt.Sprintf("message_id: %s\naccess_key: %s\ndoc_pk: %s", record.MessageID, msg.AccessKey, msg.DocPK),
+		})
 
 		if resultsTopicARN == "" {
 			continue
@@ -163,5 +176,10 @@ func handler(ctx context.Context, event sqsEvent) (batchResponse, error) {
 }
 
 func main() {
-	lambda.Start(handler)
+	ctx, stop := boot.Context()
+	defer stop()
+	if err := setup(ctx); err != nil {
+		panic("setup: " + err.Error())
+	}
+	lambda.StartWithOptions(handler, lambda.WithContext(ctx))
 }

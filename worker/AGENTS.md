@@ -32,6 +32,7 @@ worker/
 │   ├── dlq-processor/           # terminal sink for DLQ messages
 │   └── outbox-publisher/        # DynamoDB stream -> command SNS (transactional outbox)
 └── internal/
+    ├── boot/                    # root ctx, JSON slog, AWS config, alerts publisher (go-common)
     ├── config/                  # env config
     └── service/                 # flat package: dfe.go, distribution*.go, nfse.go, erasure.go, status.go, ...
 ```
@@ -76,13 +77,20 @@ from the family handler → service → repository layout; do not "fix" it as a 
 
 ## Known Constraints and Divergences from the Standard
 
-- DLQs have **no CloudWatch alarm** (removed from the CDK). Family policy is alerts through the shared SNS topic
-  `ctech-{env}-alerts` via go-common `alerts`; the worker does not import go-common and sends no alert today.
+- DLQs have **no CloudWatch alarm** (removed from the CDK). Alerts go through go-common `alerts` to the shared SNS
+  topic (SSM `/ctech/{env}/alerts/topic-arn`, env `ALERTS_TOPIC_ARN`, `alerts.Nop` when unset): `dlq-processor`
+  sends `dlq-exhausted` once a message is marked failed; `outbox-publisher` sends `outbox-stuck` when a record is
+  still unpublished after 10 minutes. The distribution-worker DLQ shares the worker DLQ. The outbox DLQ has no
+  consumer (onFailure destination only).
 - **Dispatcher enumeration** (`cmd/distribution-dispatcher/main.go`, `queryOrgPKs`): queries the `sweep-index` GSI of each
   `organization_*_configs` table (no Scan; the role has no `dynamodb:Scan`). The API stamps `sweep = "1"` on every
   config write (`api/internal/repositories`, `AttrSweep`); a config row without it is never dispatched.
-- `cmd/*` entry points use `context.Background()` for AWS config load (no custom cancellation); the worker has no
-  retry/breaker helpers from go-common (retry is SQS redelivery + DLQ, and go-dfe's own backoff inside the egress).
+- Root context, JSON slog and AWS config come from `internal/boot` (go-common `awsconfig`); the Lambda runtime gets
+  it via `lambda.WithContext`, so `context.Background()` appears only there. There is no go-common `supervisor`: the
+  worker has no in-process loops (each Lambda invocation is the unit of work). There is no SEFAZ circuit breaker
+  (go-common `resilient`) on purpose: SEFAZ is called from the go-dfe-egress Lambda with a per-certificate mTLS
+  client built on every call, so a breaker would have no shared state, and an open circuit would burn SQS receives
+  and push messages to the DLQ faster. Retry is SQS redelivery + DLQ and go-dfe's own backoff inside the egress.
 - Keep-warm: EventBridge pings every worker each minute with `{ping:true}`, short-circuited in `service/ping.go`.
 
 ---
