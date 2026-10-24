@@ -12,7 +12,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Textarea} from '@/components/ui/textarea';
@@ -298,7 +298,7 @@ function NfseDetail({idDps}: { idDps: string }) {
         {eventsLoading ? (
           <tr>
             <td colSpan={4} className={TABLE_CELL}>
-              <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
+              <Skeleton className="h-4 w-32 rounded"/>
             </td>
           </tr>
         ) : !eventsData?.items.length ? (

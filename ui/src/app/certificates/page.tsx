@@ -8,7 +8,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {EmptyState} from '@/components/ui/empty-state';
 import {ShieldIcon} from '@/components/ui/icon';
@@ -203,7 +203,7 @@ function CertificatesContent() {
             {isPending ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-14 rounded-lg bg-gray-100 animate-pulse"/>
+                  <Skeleton key={i} className="h-14 rounded-lg"/>
                 ))}
               </div>
             ) : !visibleCerts.length ? (

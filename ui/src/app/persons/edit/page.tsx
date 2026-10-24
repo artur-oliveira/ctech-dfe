@@ -11,6 +11,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {PersonForm} from '@/components/persons/PersonForm';
 import type {PersonCreate} from '@/lib/types/api';
+import {Skeleton} from '@aoctech/ui';
 
 function EditPersonContent() {
   const params = useSearchParams();
@@ -51,7 +52,7 @@ function EditPersonContent() {
         {isLoading ? (
           <div className="space-y-4 max-w-2xl">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>
+              <Skeleton key={i} className="h-14 rounded-xl"/>
             ))}
           </div>
         ) : !person ? (

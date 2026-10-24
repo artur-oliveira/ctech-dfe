@@ -13,6 +13,7 @@ import {AuthorizedViewersSection} from '@/components/organizations/AuthorizedVie
 import type {OrganizationUpdate} from '@/lib/types/api';
 import {organizationOutToFormData} from '@/lib/utils/converters';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
+import {Skeleton} from '@aoctech/ui';
 
 function EditOrganizationContent() {
   const params = useSearchParams();
@@ -70,7 +71,7 @@ function EditOrganizationContent() {
         {isLoading ? (
           <div className="space-y-4 max-w-2xl">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>
+              <Skeleton key={i} className="h-14 rounded-xl"/>
             ))}
           </div>
         ) : !org ? (

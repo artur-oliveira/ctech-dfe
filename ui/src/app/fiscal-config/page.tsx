@@ -12,6 +12,7 @@ import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
+import {Skeleton} from '@aoctech/ui';
 
 const TABS: { id: DocVariant; label: string; description: string }[] = [
   {id: 'nfe', label: 'NF-e', description: 'Nota Fiscal Eletrônica'},
@@ -134,7 +135,7 @@ function FiscalConfigContent() {
             {active.query.isPending && (
               <div className="space-y-3">
                 {['w-80', 'w-60', 'w-100', 'w-60'].map((w, i) => (
-                  <div key={i} className={`h-8 ${w} rounded-md bg-gray-100 animate-pulse`}/>
+                  <Skeleton key={i} className={`h-8 ${w} rounded-md`}/>
                 ))}
               </div>
             )}

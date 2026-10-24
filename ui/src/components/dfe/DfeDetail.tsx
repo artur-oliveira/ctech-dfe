@@ -4,7 +4,7 @@ import {type ReactNode, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {type AuxiliaryDocumentDownload, displayPaymentTypeLabel, type NfeDetailOut, type NfeEventOut, type PaginatedResponse, type SignedFileDownload} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency, formatDate} from '@/lib/utils/helpers';
@@ -293,10 +293,10 @@ export function DfeDetail({
               <div className="divide-y divide-gray-100">
                 {[0, 1].map((i) => (
                   <div key={i} className="flex items-center gap-4">
-                    <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
-                    <div className="h-4 w-8 bg-gray-100 rounded animate-pulse"/>
-                    <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse"/>
-                    <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+                    <Skeleton className="h-4 w-32 rounded"/>
+                    <Skeleton className="h-4 w-8 rounded"/>
+                    <Skeleton className="h-5 w-20 rounded-full"/>
+                    <Skeleton className="ml-auto h-4 w-20 rounded"/>
                   </div>
                 ))}
               </div>

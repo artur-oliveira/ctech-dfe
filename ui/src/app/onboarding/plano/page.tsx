@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {PlanChooser} from '@/components/billing/PlanChooser';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {buildPlanOptions} from '@/lib/billing/catalog';
 import {useSubscription} from '@/lib/hooks/useSubscription';
 import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
@@ -71,7 +71,7 @@ function PlanStepContent() {
       {plansQuery.isPending && (
         <div className="flex flex-col gap-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 rounded-xl bg-gray-100 motion-safe:animate-pulse"/>
+            <Skeleton key={i} className="h-24 rounded-xl"/>
           ))}
         </div>
       )}

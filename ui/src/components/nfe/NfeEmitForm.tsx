@@ -15,7 +15,7 @@ import {Combobox} from '@/components/ui/combobox';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';
@@ -380,8 +380,8 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
         {open && !isDoc && nameQuery.isLoading && (
           <div
             className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover px-4 py-3 space-y-2">
-            <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse"/>
-            <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse"/>
+            <Skeleton className="h-4 w-3/4 rounded"/>
+            <Skeleton className="h-4 w-1/2 rounded"/>
           </div>
         )}
 
@@ -1467,9 +1467,9 @@ export function NfeEmitForm() {
                   <div className="flex flex-wrap gap-2">
                     {recentNfesLoading ? (
                       <>
-                        <div className="h-7 w-24 rounded-full bg-gray-100 animate-pulse"/>
-                        <div className="h-7 w-32 rounded-full bg-gray-100 animate-pulse"/>
-                        <div className="h-7 w-20 rounded-full bg-gray-100 animate-pulse"/>
+                        <Skeleton className="h-7 w-24 rounded-full"/>
+                        <Skeleton className="h-7 w-32 rounded-full"/>
+                        <Skeleton className="h-7 w-20 rounded-full"/>
                       </>
                     ) : favoriteReceivers.map(fav => (
                       <button

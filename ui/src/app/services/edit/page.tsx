@@ -11,6 +11,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {ServiceForm} from '@/components/services/ServiceForm';
 import type {ServiceCreate} from '@/lib/types/api';
+import {Skeleton} from '@aoctech/ui';
 
 function EditServiceContent() {
   const params = useSearchParams();
@@ -47,7 +48,7 @@ function EditServiceContent() {
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse"/>
+              <Skeleton key={i} className="h-16 rounded-xl"/>
             ))}
           </div>
         ) : !service ? (

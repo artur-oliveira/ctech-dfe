@@ -9,7 +9,7 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@aoctech/ui';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Badge} from '@/components/ui/badge';
 import {OptionsSelect} from '@/components/ui/options-select';
 import type {MemberOut} from '@/lib/types/api';
@@ -94,7 +94,7 @@ function MembersContent() {
                 <h2 className="text-base font-semibold text-gray-900 px-4 md:px-6 py-3 border-b border-gray-100">Membros</h2>
                 {membersQuery.isPending ? (
                     <div className="p-6 space-y-3">
-                        {[0, 1, 2].map((i) => <div key={i} className="h-10 rounded bg-gray-100 animate-pulse"/>)}
+                        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 rounded"/>)}
                     </div>
                 ) : (
                     <ul className="divide-y divide-gray-100">
@@ -125,7 +125,7 @@ function MembersContent() {
                     pendentes</h2>
                 {invitationsQuery.isPending ? (
                     <div className="p-6">
-                        <div className="h-10 rounded bg-gray-100 animate-pulse"/>
+                        <Skeleton className="h-10 rounded"/>
                     </div>
                 ) : (invitationsQuery.data ?? []).length === 0 ? (
                     <p className="px-4 md:px-6 py-6 text-sm text-gray-500">Nenhum convite pendente.</p>
