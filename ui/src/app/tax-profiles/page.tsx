@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {PercentIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {TaxProfileItemOut} from '@/lib/types/api';
@@ -65,7 +64,7 @@ function TaxProfilesContent() {
           <EmptyState
             title="Nenhum perfil fiscal"
             description="Um perfil guarda a tributação de um conjunto de CFOPs e é reaproveitado por quantos produtos precisar; mudou a alíquota, muda em um lugar só."
-            action={{label: 'Novo perfil', onClick: () => router.push('/tax-profiles/new')}}
+            action={<Button onClick={() => router.push('/tax-profiles/new')}>Novo perfil</Button>}
             icon={<PercentIcon width={20} height={20}/>}
           />
         ) : (

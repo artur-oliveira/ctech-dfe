@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {CalendarClockIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {PAYMENT_OPTIONS} from '@/lib/data/payment-options';
@@ -70,7 +69,7 @@ function PaymentTermsContent() {
           <EmptyState
             title="Nenhuma condição de pagamento"
             description="Uma condição guarda forma de pagamento, número de parcelas e vencimentos. Na emissão, o total da nota vira fatura e duplicatas automaticamente."
-            action={{label: 'Nova condição', onClick: () => router.push('/payment-terms/new')}}
+            action={<Button onClick={() => router.push('/payment-terms/new')}>Nova condição</Button>}
             icon={<CalendarClockIcon width={20} height={20}/>}
           />
         ) : (

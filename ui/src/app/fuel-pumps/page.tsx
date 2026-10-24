@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {FuelPumpIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {FuelPumpItemOut} from '@/lib/types/api';
@@ -69,7 +68,7 @@ function FuelPumpsContent() {
           <EmptyState
             title="Nenhuma bomba cadastrada"
             description="A bomba guarda bico, bomba e tanque. Na emissão você informa só onde o marcador parou; a leitura inicial é a final da venda anterior."
-            action={{label: 'Nova bomba', onClick: () => router.push('/fuel-pumps/new')}}
+            action={<Button onClick={() => router.push('/fuel-pumps/new')}>Nova bomba</Button>}
             icon={<FuelPumpIcon width={20} height={20}/>}
           />
         ) : (

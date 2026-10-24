@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {LotIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {formatISODateBR} from '@/lib/utils/dfe';
@@ -75,7 +74,7 @@ function ProductLotsContent() {
           <EmptyState
             title="Nenhum lote de produção"
             description="O lote guarda número, fabricação, validade e quantidade. Ele reaparece em várias notas até acabar, e a quantidade de cada nota é rateada da quantidade vendida."
-            action={{label: 'Novo lote', onClick: () => router.push('/product-lots/new')}}
+            action={<Button onClick={() => router.push('/product-lots/new')}>Novo lote</Button>}
             icon={<LotIcon width={20} height={20}/>}
           />
         ) : (

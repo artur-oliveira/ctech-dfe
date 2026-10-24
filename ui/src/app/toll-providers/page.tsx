@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {RouteIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {formatCpfCnpj} from '@/lib/utils/document';
@@ -73,7 +72,7 @@ function TollProvidersContent() {
           <EmptyState
             title="Nenhuma fornecedora de vale-pedágio"
             description="A fornecedora guarda o CNPJ dela e o do pagador. Na emissão do MDF-e entram só o número da compra e o valor do vale."
-            action={{label: 'Nova fornecedora', onClick: () => router.push('/toll-providers/new')}}
+            action={<Button onClick={() => router.push('/toll-providers/new')}>Nova fornecedora</Button>}
             icon={<RouteIcon width={20} height={20}/>}
           />
         ) : (

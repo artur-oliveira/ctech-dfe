@@ -8,9 +8,8 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button, Skeleton} from '@aoctech/ui';
+import {Button, EmptyState, Skeleton} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
-import {EmptyState} from '@/components/ui/empty-state';
 import {ShieldIcon} from '@/components/ui/icon';
 import {CertificateFields} from '@/components/organizations/CertificateFields';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
@@ -210,7 +209,7 @@ function CertificatesContent() {
               <EmptyState
                 title="Nenhum certificado cadastrado"
                 description="Importe um certificado A1 no formato .pfx ou .p12"
-                action={{label: 'Importar certificado', onClick: () => setShowModal(true)}}
+                action={<Button onClick={() => setShowModal(true)}>Importar certificado</Button>}
                 icon={<ShieldIcon width={20} height={20}/>}
               />
             ) : (

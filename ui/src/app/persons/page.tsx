@@ -10,13 +10,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {UsersIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {useRowSelection} from '@/lib/hooks/useRowSelection';
@@ -101,7 +100,7 @@ function PersonsContent() {
             description={role
               ? 'Marque esse tipo no cadastro das pessoas que devem aparecer aqui.'
               : 'Cadastre clientes e fornecedores para usar na emissão de documentos fiscais.'}
-            action={{label: 'Nova pessoa', onClick: () => router.push('/persons/new')}}
+            action={<Button onClick={() => router.push('/persons/new')}>Nova pessoa</Button>}
             icon={<UsersIcon width={20} height={20}/>}
           />
         ) : (

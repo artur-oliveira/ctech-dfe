@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {RouteIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {OperationItemOut} from '@/lib/types/api';
@@ -65,7 +64,7 @@ function OperationsContent() {
           <EmptyState
             title="Nenhuma natureza de operação"
             description="Uma operação guarda natureza, finalidade, CFOP e mensagem fiscal de um cenário de negócio (venda para revenda, remessa para conserto) para não redigitar tudo a cada emissão."
-            action={{label: 'Nova operação', onClick: () => router.push('/operations/new')}}
+            action={<Button onClick={() => router.push('/operations/new')}>Nova operação</Button>}
             icon={<RouteIcon width={20} height={20}/>}
           />
         ) : (

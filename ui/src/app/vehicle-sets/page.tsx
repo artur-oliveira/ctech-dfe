@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {VehicleSetIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {VehicleSetItemOut} from '@/lib/types/api';
@@ -73,7 +72,7 @@ function VehicleSetsContent() {
           <EmptyState
             title="Nenhuma composição veicular"
             description="Uma composição guarda o veículo de tração, os reboques, os condutores, o RNTRC e o CIOT. No MDF-e, escolher a composição preenche tudo isso de uma vez; e cada campo continua editável."
-            action={{label: 'Nova composição', onClick: () => router.push('/vehicle-sets/new')}}
+            action={<Button onClick={() => router.push('/vehicle-sets/new')}>Nova composição</Button>}
             icon={<VehicleSetIcon width={20} height={20}/>}
           />
         ) : (

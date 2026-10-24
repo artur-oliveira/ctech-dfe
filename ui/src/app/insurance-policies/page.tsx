@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {InsuranceIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {RESP_SEG_OPTIONS} from '@/lib/schemas/insurance-policies';
@@ -76,7 +75,7 @@ function InsurancePoliciesContent() {
           <EmptyState
             title="Nenhuma apólice de seguro"
             description="A apólice guarda o responsável, a seguradora e o número. Na emissão do MDF-e entram só as averbações da viagem."
-            action={{label: 'Nova apólice', onClick: () => router.push('/insurance-policies/new')}}
+            action={<Button onClick={() => router.push('/insurance-policies/new')}>Nova apólice</Button>}
             icon={<InsuranceIcon width={20} height={20}/>}
           />
         ) : (

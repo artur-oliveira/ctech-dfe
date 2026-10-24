@@ -10,13 +10,12 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ServiceIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Button} from '@aoctech/ui';
 import {PageHeader} from '@/components/ui/page-header';
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import type {NfseListOut} from '@/lib/types/api';
@@ -234,7 +233,7 @@ function NfsesContent() {
               <LoadingSkeleton/>
             ) : items.length === 0 ? (
               <EmptyState title="Nenhuma NFS-e emitida" description="Emita a primeira Nota Fiscal de Serviços da organização."
-                          action={{label: 'Emitir NFS-e', onClick: () => router.push('/nfse/emit')}}
+                          action={<Button onClick={() => router.push('/nfse/emit')}>Emitir NFS-e</Button>}
                           icon={<ServiceIcon width={20} height={20}/>}/>
             ) : (
               <TableShell

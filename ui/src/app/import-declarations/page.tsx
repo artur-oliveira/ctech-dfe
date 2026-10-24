@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ImportIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {TP_VIA_TRANSP_OPTIONS} from '@/lib/schemas/import-declarations';
@@ -69,7 +68,7 @@ function ImportDeclarationsContent() {
           <EmptyState
             title="Nenhuma declaração de importação"
             description="A DI guarda número, desembaraço, via de transporte e adições. Na emissão o item aponta a adição, e nAdicao/nSeqAdic saem do vínculo."
-            action={{label: 'Nova declaração', onClick: () => router.push('/import-declarations/new')}}
+            action={<Button onClick={() => router.push('/import-declarations/new')}>Nova declaração</Button>}
             icon={<ImportIcon width={20} height={20}/>}
           />
         ) : (

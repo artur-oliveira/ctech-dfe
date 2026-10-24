@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {PackageIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@aoctech/ui';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {
@@ -73,7 +72,7 @@ function CargoUnitsContent() {
           <EmptyState
             title="Nenhuma unidade cadastrada"
             description="Uma unidade guarda tipo, identificação e lacres fixos. Na emissão do MDF-e basta apontar quais documentos ela leva; o rateio sai dos pesos."
-            action={{label: 'Nova unidade', onClick: () => router.push('/cargo-units/new')}}
+            action={<Button onClick={() => router.push('/cargo-units/new')}>Nova unidade</Button>}
             icon={<PackageIcon width={20} height={20}/>}
           />
         ) : (
