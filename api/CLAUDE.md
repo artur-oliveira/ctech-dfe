@@ -100,15 +100,16 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
 
 ### Where the code differs from the CTech standard (do not copy these patterns)
 
-- **Scans exist.** The "no scan" rule is broken in these places, none of them a request path:
-  - `repositories/roles.go` `ListAll`: scans the `roles` table, justified in code (at most 4 fixed system roles).
-  - `repositories/erasure.go` `ScanPage`: scans the certificates table page by page (limit `erasurePageSize`, consistent
-    read) in the account-deletion saga for the e-CPF search, because certificates carry no queryable attribute
-    (plan ruling R8). It grows with total certificates; background only.
-  - `repositories/organizations.go` (`ListCompanyIndexGaps`, `ListOrganizationsWithCompanies`),
-    `repositories/account_billing.go` (`ListUserSnapshots`) and `cmd/migrate-grants`, `cmd/rekey-companies`: one-shot
-    migration tools, never on a request path.
-  - The worker's distribution dispatcher also scans (see `../worker/CLAUDE.md`).
+- **No Scan in the service roles.** `dynamodb:Scan` is not granted to the API instance role or any worker role.
+  Background enumeration uses the sparse `sweep-index` GSI (`sweep = "1"`, KEYS_ONLY) on the nfe/cte/mdfe/nfse config
+  tables and the certificates table: every write stamps `sweep` (`repositories.AttrSweep`), responses and audit diffs
+  strip it, and `cmd/backfill-sweep` stamps rows that predate the index. Readers: the worker's distribution dispatcher
+  and `ErasureService.scanCertificates` (e-CPF search: query the index, then a consistent GetItem per row).
+  `RoleRepository.ListAll` reads the four fixed system roles with GetItem.
+  Still scanning, on purpose and only as one-shot operator tools that need operator credentials:
+  `repositories/organizations.go` (`ListCompanyIndexGaps`, `ListOrganizationsWithCompanies`),
+  `repositories/account_billing.go` (`ListUserSnapshots`), `cmd/migrate-grants`, `cmd/rekey-companies`,
+  `cmd/backfill-sweep`. A new config/certificate write path MUST stamp `sweep` or the row is invisible to those readers.
 - **Rate limit:** `middleware.RateLimit` runs after auth (`Verifier.WithAfterAuth`), per user, 1200 reads/min and 300
   writes/min, fail open, 429 + `Retry-After`. Budgets are the constants in `middleware/ratelimit.go`; there is no
   per-organization cap (the org is only resolved later, by RBAC).

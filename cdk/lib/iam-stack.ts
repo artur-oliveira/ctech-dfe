@@ -79,7 +79,6 @@ export class IAMStack extends cdk.Stack {
             'dynamodb:UpdateItem',
             'dynamodb:DeleteItem',
             'dynamodb:Query',
-            'dynamodb:Scan',
             'dynamodb:BatchGetItem',
             'dynamodb:BatchWriteItem',
             'dynamodb:TransactWriteItems',

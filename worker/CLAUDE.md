@@ -78,10 +78,9 @@ from the family handler → service → repository layout; do not "fix" it as a 
 
 - DLQs have **no CloudWatch alarm** (removed from the CDK). Family policy is alerts through the shared SNS topic
   `ctech-{env}-alerts` via go-common `alerts`; the worker does not import go-common and sends no alert today.
-- **Scan in the distribution dispatcher** (`cmd/distribution-dispatcher/main.go`, `scanOrgPKs`): scans each
-  `organization_*_configs` table (projection `pk`, paginated) every 30 min to enumerate organizations. This grows
-  with the number of organizations and contradicts the family "no scan" rule; it is a known divergence, replace it
-  with a GSI/registry before scale.
+- **Dispatcher enumeration** (`cmd/distribution-dispatcher/main.go`, `queryOrgPKs`): queries the `sweep-index` GSI of each
+  `organization_*_configs` table (no Scan; the role has no `dynamodb:Scan`). The API stamps `sweep = "1"` on every
+  config write (`api/internal/repositories`, `AttrSweep`); a config row without it is never dispatched.
 - `cmd/*` entry points use `context.Background()` for AWS config load (no custom cancellation); the worker has no
   retry/breaker helpers from go-common (retry is SQS redelivery + DLQ, and go-dfe's own backoff inside the egress).
 - Keep-warm: EventBridge pings every worker each minute with `{ping:true}`, short-circuited in `service/ping.go`.
