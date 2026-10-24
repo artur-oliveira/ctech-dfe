@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button} from '@/components/ui/button';
+import {Button, Skeleton} from '@aoctech/ui';
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
 function InviteContent({token}: { token: string }) {
@@ -58,7 +58,7 @@ function InviteContent({token}: { token: string }) {
     }
 
     if (isPending) {
-        return card(<div className="h-24 animate-pulse rounded bg-gray-100"/>);
+        return card(<Skeleton className="h-24 rounded"/>);
     }
     if (fetchError || !preview) {
         return card(
@@ -135,7 +135,7 @@ export default function InvitePage() {
             <RootLayout>
                 <Suspense fallback={
                     <div className="flex items-center justify-center min-h-[60vh] p-4">
-                        <div className="w-full max-w-md h-24 animate-pulse rounded bg-gray-100"/>
+                        <Skeleton className="w-full max-w-md h-24 rounded"/>
                     </div>
                 }>
                     <InviteParamsWrapper/>

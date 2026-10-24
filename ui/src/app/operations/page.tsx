@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {RouteIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {OperationItemOut} from '@/lib/types/api';
@@ -65,7 +64,7 @@ function OperationsContent() {
           <EmptyState
             title="Nenhuma natureza de operação"
             description="Uma operação guarda natureza, finalidade, CFOP e mensagem fiscal de um cenário de negócio (venda para revenda, remessa para conserto) para não redigitar tudo a cada emissão."
-            action={{label: 'Nova operação', onClick: () => router.push('/operations/new')}}
+            action={<Button onClick={() => router.push('/operations/new')}>Nova operação</Button>}
             icon={<RouteIcon width={20} height={20}/>}
           />
         ) : (
@@ -94,12 +93,12 @@ function OperationsContent() {
                 </td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/operations/edit?id=${extractId(p.sk, SK_PREFIX.OPERATION)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(p)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(p)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

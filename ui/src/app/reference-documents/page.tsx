@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ImportIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {formatISODateBR} from '@/lib/utils/dfe';
@@ -76,7 +75,7 @@ function ReferenceDocumentsContent() {
           <EmptyState
             title="Nenhum documento referenciado"
             description="O mesmo cadastro alimenta a dedução/redução e o reembolso/repasse/ressarcimento: o leiaute pede formas diferentes do mesmo documento nos dois grupos."
-            action={{label: 'Novo documento', onClick: () => router.push('/reference-documents/new')}}
+            action={<Button onClick={() => router.push('/reference-documents/new')}>Novo documento</Button>}
             icon={<ImportIcon width={20} height={20}/>}
           />
         ) : (
@@ -93,12 +92,12 @@ function ReferenceDocumentsContent() {
                 <td data-label="Competência" className={`${TABLE_CELL} text-gray-600`}>{date(e.competence_at)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/reference-documents/edit?id=${extractId(e.sk, SK_PREFIX.REFERENCE_DOCUMENT)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(e)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(e)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

@@ -10,7 +10,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {DfeDetail} from '@/components/dfe/DfeDetail';
 import {SubstituteModal} from '@/components/nfce/SubstituteModal';
 

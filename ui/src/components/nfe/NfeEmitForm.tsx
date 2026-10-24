@@ -15,7 +15,7 @@ import {Combobox} from '@/components/ui/combobox';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';
@@ -287,7 +287,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
           <p className="font-medium text-gray-900 text-sm">{value.name}</p>
           <p className="text-xs text-gray-500 font-mono mt-0.5">{formatCpfCnpj(cpfCnpj)}</p>
         </div>
-        <Button type="button" variant="ghost" size="xs" onClick={() => onChange(null)}
+        <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}
                 className="text-danger hover:text-red-700 shrink-0">
           Trocar
         </Button>
@@ -380,8 +380,8 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
         {open && !isDoc && nameQuery.isLoading && (
           <div
             className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-popover px-4 py-3 space-y-2">
-            <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse"/>
-            <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse"/>
+            <Skeleton className="h-4 w-3/4 rounded"/>
+            <Skeleton className="h-4 w-1/2 rounded"/>
           </div>
         )}
 
@@ -703,7 +703,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
                 <div key={ai}
                      className="flex items-center justify-between rounded bg-white border border-red-100 px-3 py-1.5 text-xs">
                   <span className="font-mono text-gray-700">série: {a.n_serie} · cano: {a.n_cano}</span>
-                  <Button type="button" variant="ghost" size="xs"
+                  <Button type="button" variant="ghost" size="sm"
                           onClick={() => onChange(index, {armas: (item.armas ?? []).filter((_, i) => i !== ai)})}
                           className="text-danger hover:text-red-700">remover</Button>
                 </div>
@@ -786,7 +786,7 @@ function ReviewRow({label, onEdit, children}: {
     <div className="px-5 py-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium text-gray-700">{label}</p>
-        <Button type="button" variant="ghost" size="xs" onClick={onEdit}
+        <Button type="button" variant="ghost" size="sm" onClick={onEdit}
                 className="text-brand-700 hover:text-brand-800 shrink-0">
           Editar
         </Button>
@@ -1467,9 +1467,9 @@ export function NfeEmitForm() {
                   <div className="flex flex-wrap gap-2">
                     {recentNfesLoading ? (
                       <>
-                        <div className="h-7 w-24 rounded-full bg-gray-100 animate-pulse"/>
-                        <div className="h-7 w-32 rounded-full bg-gray-100 animate-pulse"/>
-                        <div className="h-7 w-20 rounded-full bg-gray-100 animate-pulse"/>
+                        <Skeleton className="h-7 w-24 rounded-full"/>
+                        <Skeleton className="h-7 w-32 rounded-full"/>
+                        <Skeleton className="h-7 w-20 rounded-full"/>
                       </>
                     ) : favoriteReceivers.map(fav => (
                       <button
@@ -1635,7 +1635,7 @@ export function NfeEmitForm() {
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{fmt(parseFloat(p.value) || 0)}</span>
-                    <Button type="button" variant="ghost" size="xs" onClick={() => handleRemovePayment(i)}
+                    <Button type="button" variant="ghost" size="sm" onClick={() => handleRemovePayment(i)}
                             className="text-danger hover:text-red-700">remover</Button>
                   </div>
                 </div>
@@ -1649,7 +1649,7 @@ export function NfeEmitForm() {
                       : `⚠ Pagamentos excedem o total em ${fmt(-remaining)}.`}
                 </p>
                 {Math.abs(remaining) >= SUM_TOLERANCE && (
-                  <Button type="button" variant="outline" size="xs" onClick={handleAbsorbRemainder}>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAbsorbRemainder}>
                     Ajustar última parcela
                   </Button>
                 )}
@@ -1726,7 +1726,7 @@ export function NfeEmitForm() {
             <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-warning">Cobrança (duplicatas)</p>
-                <Button type="button" variant="ghost" size="xs"
+                <Button type="button" variant="ghost" size="sm"
                         className="text-warning hover:text-amber-900 text-xs"
                         onClick={() => setCobrFat({
                           n_fat: cobrFat.n_fat,
@@ -1833,7 +1833,7 @@ export function NfeEmitForm() {
                                          v_dup: v
                                        } : x))}
                                        className="flex-1 min-w-0 h-7"/>
-                        <Button type="button" variant="ghost" size="xs"
+                        <Button type="button" variant="ghost" size="sm"
                                 onClick={() => setDuplicatas(prev => prev.filter((_, j) => j !== i))}
                                 className="text-danger hover:text-red-700 shrink-0 px-1">×</Button>
                       </div>
@@ -1997,7 +1997,7 @@ export function NfeEmitForm() {
                           <div className="flex-1"><p
                             className="font-mono text-sm font-medium">{selectedVehicle.plate}</p><p
                             className="text-xs text-gray-500">{selectedVehicle.plate_uf}</p></div>
-                          <Button type="button" variant="ghost" size="xs" onClick={() => setSelectedVehicle(null)}
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedVehicle(null)}
                                   className="text-danger">Trocar</Button>
                         </div>
                       ) : (
@@ -2056,7 +2056,7 @@ export function NfeEmitForm() {
           <div className="space-y-2 pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-700">Processos referenciados</Label>
-              <Button type="button" variant="ghost" size="xs"
+              <Button type="button" variant="ghost" size="sm"
                       onClick={() => setProcRef(p => [...p, {n_proc: '', ind_proc: '0'}])}>
                 + Processo
               </Button>
@@ -2074,7 +2074,7 @@ export function NfeEmitForm() {
                                  options={[...IND_PROC_OPTIONS]}
                                  onValueChange={(v: string) => setProcRef(p => p.map((x, k) => k === i ? {...x, ind_proc: v as NfeProcRefIn['ind_proc']} : x))}/>
                 </div>
-                <Button type="button" variant="ghost" size="xs"
+                <Button type="button" variant="ghost" size="sm"
                         onClick={() => setProcRef(p => p.filter((_, k) => k !== i))}>
                   Remover
                 </Button>

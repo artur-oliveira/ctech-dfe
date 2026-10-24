@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -121,7 +121,7 @@ export function RailModalFields({value, onChange}: {
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Vagões ({value.wagons.length})
         </p>
-        <Button type="button" variant="ghost" size="xs"
+        <Button type="button" variant="ghost" size="sm"
                 onClick={() => patch({wagons: [...value.wagons, {...EMPTY_WAGON}]})}>
           + Vagão
         </Button>
@@ -135,7 +135,7 @@ export function RailModalFields({value, onChange}: {
         <div key={i} className="rounded-lg border border-gray-200 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-gray-600">Vagão {i + 1}</p>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => patch({wagons: value.wagons.filter((_, k) => k !== i)})}>
               Remover
             </Button>
@@ -206,7 +206,7 @@ function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onCha
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-gray-600">{title}</p>
-        <Button type="button" variant="ghost" size="xs" disabled={items.length >= max}
+        <Button type="button" variant="ghost" size="sm" disabled={items.length >= max}
                 onClick={() => onChange([...items, {code: '', name: ''}])}>
           {addLabel}
         </Button>
@@ -221,7 +221,7 @@ function PairList({title, addLabel, codeLabel, nameLabel, idPrefix, items, onCha
             <Input id={`${idPrefix}-name-${i}`} maxLength={60} className="w-full" value={t.name}
                    onChange={(e) => patch(i, {name: e.target.value})}/>
           </Field>
-          <Button type="button" variant="ghost" size="xs"
+          <Button type="button" variant="ghost" size="sm"
                   onClick={() => onChange(items.filter((_, k) => k !== i))}>
             Remover
           </Button>

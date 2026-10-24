@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import {ErrorState} from '@aoctech/ui';
+import {Button, ErrorState} from '@aoctech/ui';
 import {useAuth} from '@/lib/hooks/useAuth';
-import {Button} from '@/components/ui/button';
 
 export default function NotFound() {
   const {user} = useAuth();

@@ -10,13 +10,12 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {MdfeIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
 import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import type {MdfeListOut, NFeDistributionOut} from '@/lib/types/api';
 import {formatCurrency, formatDate} from '@/lib/utils/helpers';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
@@ -100,9 +99,9 @@ function MdfeList({orgPk, onCancel, onClose}: {
                 )}
                 {mdfe.status === 'authorized' && (
                   <>
-                    <Button variant="ghost" size="xs" onClick={() => onClose(mdfe)}
+                    <Button variant="ghost" size="sm" onClick={() => onClose(mdfe)}
                             className="text-blue-600 hover:text-blue-700">Encerrar</Button>
-                    <Button variant="ghost" size="xs" onClick={() => onCancel(mdfe)}
+                    <Button variant="ghost" size="sm" onClick={() => onCancel(mdfe)}
                             className="text-danger hover:text-red-700">Cancelar</Button>
                   </>
                 )}
@@ -147,7 +146,7 @@ function MDFeRow({item}: { item: NFeDistributionOut }) {
       <td className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`} data-label="Recebido em">{formatDatetimeBR(item.created_at)}</td>
       <td className={`${TABLE_CELL} text-right`}>
         {item.xml_s3_key && (
-          <Button variant="ghost" size="xs" onClick={handleDownloadXml} disabled={xmlLoading}
+          <Button variant="ghost" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
                   className="text-brand-600 hover:text-brand-700">
             {xmlLoading ? 'Baixando…' : 'XML'}
           </Button>

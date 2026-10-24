@@ -8,7 +8,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import type {Organization} from '@/components/organizations/OrganizationsTable';
 import {OrganizationsTable} from '@/components/organizations/OrganizationsTable';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 function OrganizationsContent() {
   const router = useRouter();

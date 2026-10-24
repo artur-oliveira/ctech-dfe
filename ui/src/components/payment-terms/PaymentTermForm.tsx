@@ -8,7 +8,7 @@ import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {Combobox} from '@/components/ui/combobox';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {ApiError} from '@/lib/api/client';
 import {PAYMENT_OPTIONS} from '@/lib/data/payment-options';
 import {
@@ -176,7 +176,7 @@ export function PaymentTermForm({initialData, onSubmit, loading = false}: Paymen
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar condição'}
           </Button>
         </div>

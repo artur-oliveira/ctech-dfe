@@ -1,6 +1,6 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 function savedAgo(savedAt: number): string {
   const minutes = Math.round((Date.now() - savedAt) / 60_000);

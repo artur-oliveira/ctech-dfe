@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import type {NfeLocalIn, NfeLocalOut} from '@/lib/types/api';
 
@@ -35,7 +35,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
 
   if (!open) {
     return (
-      <Button type="button" variant="ghost" size="xs" onClick={() => setOpen(true)}
+      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}
               className="gap-1.5 text-brand-600 hover:text-brand-700 px-0">
         + {label}
       </Button>
@@ -49,7 +49,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
     <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-600">{label}</p>
-        <Button type="button" variant="ghost" size="xs"
+        <Button type="button" variant="ghost" size="sm"
                 onClick={() => {
                   setOpen(false);
                   setManual(false);
@@ -86,7 +86,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
               </button>
             ))}
           </div>
-          <Button type="button" variant="ghost" size="xs" onClick={() => setManual(true)}
+          <Button type="button" variant="ghost" size="sm" onClick={() => setManual(true)}
                   className="text-brand-600 hover:text-brand-700 px-0">
             + Endereço diferente
           </Button>

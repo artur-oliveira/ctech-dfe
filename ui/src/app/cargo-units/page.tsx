@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {PackageIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {
@@ -73,7 +72,7 @@ function CargoUnitsContent() {
           <EmptyState
             title="Nenhuma unidade cadastrada"
             description="Uma unidade guarda tipo, identificação e lacres fixos. Na emissão do MDF-e basta apontar quais documentos ela leva; o rateio sai dos pesos."
-            action={{label: 'Nova unidade', onClick: () => router.push('/cargo-units/new')}}
+            action={<Button onClick={() => router.push('/cargo-units/new')}>Nova unidade</Button>}
             icon={<PackageIcon width={20} height={20}/>}
           />
         ) : (
@@ -94,12 +93,12 @@ function CargoUnitsContent() {
                 <td data-label="Identificação" className={`${TABLE_CELL} text-gray-600`}>{u.id_unid}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/cargo-units/edit?id=${extractId(u.sk, SK_PREFIX.CARGO_UNIT)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(u)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

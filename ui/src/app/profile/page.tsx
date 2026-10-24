@@ -4,7 +4,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {SectionCard} from '@/components/ui/section-card';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 const CTECH_URL = process.env.NEXT_PUBLIC_CTECH_CLIENT_URL ?? '';
 

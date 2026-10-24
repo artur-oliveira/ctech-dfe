@@ -5,7 +5,7 @@ import {useFieldArray, useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {ApiError} from '@/lib/api/client';
@@ -202,7 +202,7 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Adições</p>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => append({...EMPTY_ADDITION, n_adicao: String(fields.length + 1)})}>
               + Adição
             </Button>
@@ -243,7 +243,7 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
                   <FormMessage/>
                 </FormItem>
               )}/>
-              <Button type="button" variant="ghost" size="xs" disabled={fields.length === 1}
+              <Button type="button" variant="ghost" size="sm" disabled={fields.length === 1}
                       onClick={() => remove(i)}>
                 Remover
               </Button>
@@ -258,7 +258,7 @@ export function ImportDeclarationForm({initialData, onSubmit, loading}: ImportDe
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>

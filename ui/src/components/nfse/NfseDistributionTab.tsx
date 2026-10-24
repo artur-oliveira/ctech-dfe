@@ -6,10 +6,9 @@ import {useMutation, useQuery} from '@tanstack/react-query';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ServiceIcon} from '@/components/ui/icon';
 import {Pagination} from '@/components/ui/pagination';
-import {Button} from '@/components/ui/button';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
 import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
@@ -51,7 +50,7 @@ function DistributionRow({item, docType}: { item: NfseDistributionOut; docType: 
       </td>
       <td className={`${TABLE_CELL} text-right`} data-label="Ações">
         {item.xml_s3_key && (
-          <Button variant="ghost" size="xs" onClick={handleDownloadXml} disabled={xmlLoading}
+          <Button variant="ghost" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
                   className="text-brand-700">
             {xmlLoading ? 'Baixando…' : 'XML'}
           </Button>

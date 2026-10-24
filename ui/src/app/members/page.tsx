@@ -9,8 +9,7 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@/components/ui/button';
-import {Badge} from '@/components/ui/badge';
+import {Badge, Button, Skeleton} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import type {MemberOut} from '@/lib/types/api';
 import {ASSIGNABLE_ROLES, ROLE_LABEL, RoleName} from "@/lib/data/roles";
@@ -94,7 +93,7 @@ function MembersContent() {
                 <h2 className="text-base font-semibold text-gray-900 px-4 md:px-6 py-3 border-b border-gray-100">Membros</h2>
                 {membersQuery.isPending ? (
                     <div className="p-6 space-y-3">
-                        {[0, 1, 2].map((i) => <div key={i} className="h-10 rounded bg-gray-100 animate-pulse"/>)}
+                        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 rounded"/>)}
                     </div>
                 ) : (
                     <ul className="divide-y divide-gray-100">
@@ -125,7 +124,7 @@ function MembersContent() {
                     pendentes</h2>
                 {invitationsQuery.isPending ? (
                     <div className="p-6">
-                        <div className="h-10 rounded bg-gray-100 animate-pulse"/>
+                        <Skeleton className="h-10 rounded"/>
                     </div>
                 ) : (invitationsQuery.data ?? []).length === 0 ? (
                     <p className="px-4 md:px-6 py-6 text-sm text-gray-500">Nenhum convite pendente.</p>
@@ -201,7 +200,7 @@ function MemberRow({
                     </Button>
                 </div>
             ) : (
-                <Badge variant="secondary">{(ROLE_LABEL[member.role as RoleName] ?? member.role).toString()}</Badge>
+                <Badge>{(ROLE_LABEL[member.role as RoleName] ?? member.role).toString()}</Badge>
             )}
         </li>
     );
@@ -222,7 +221,7 @@ function ShareModal({onClose}: { orgPk: string; onClose: () => void }) {
             <div className="bg-white rounded-lg shadow-modal w-full sm:max-w-md">
                 <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Compartilhar acesso</h2>
-                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar">✕</Button>
+                    <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">✕</Button>
                 </div>
                 <div className="p-6 space-y-4">
                     <p className="text-sm text-gray-600">

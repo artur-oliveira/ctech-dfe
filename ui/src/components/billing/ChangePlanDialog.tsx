@@ -9,6 +9,7 @@ import {PlanChooser} from '@/components/billing/PlanChooser';
 import {buildPlanOptions} from '@/lib/billing/catalog';
 import {formatCents, PLAN_ONDEMAND} from '@/lib/constants/billing';
 import type {AccountSubscription} from '@/lib/types/billing';
+import {Skeleton} from '@aoctech/ui';
 
 interface ChangePlanDialogProps {
   isOpen: boolean
@@ -67,7 +68,7 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
       {plansQuery.isPending ? (
         <div className="flex flex-col gap-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-20 rounded-xl bg-gray-100 motion-safe:animate-pulse"/>
+            <Skeleton key={i} className="h-20 rounded-xl"/>
           ))}
         </div>
       ) : (

@@ -9,7 +9,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {HANDOFF_STATE_KEY} from '@/lib/handoff';
 
 /**

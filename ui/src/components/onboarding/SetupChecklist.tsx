@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
-import {buttonVariants} from '@/components/ui/button';
+import {buttonVariants} from '@aoctech/ui';
 import {cn} from '@/lib/utils';
 import {STEP_DONE} from '@/lib/constants/onboarding';
 

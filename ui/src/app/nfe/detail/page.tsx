@@ -12,7 +12,7 @@ import {RootLayout} from '@/components/layout/RootLayout';
 import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {DfeDetail} from '@/components/dfe/DfeDetail';
 import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
 import {EVENT_STATUS_SUCCESS} from '@/lib/utils/dfe-result-toast';

@@ -11,7 +11,7 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {NfeIcon} from '@/components/ui/icon';
 import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal';
 import {ImportXmlModal} from '@/components/dfe/ImportXmlModal';
@@ -20,7 +20,6 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Button} from '@/components/ui/button';
 import {Modal} from '@/components/ui/modal';
 import type {NFeDistributionOut, NfeListOut} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
@@ -149,7 +148,7 @@ function DistributionRow({item, docType}: { item: NFeDistributionOut; docType: s
           {item.xml_s3_key && (
             <Button
               variant="ghost"
-              size="xs"
+              size="sm"
               onClick={handleDownloadXml}
               disabled={xmlLoading}
               className="text-brand-600 hover:text-brand-700"

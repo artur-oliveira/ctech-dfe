@@ -11,6 +11,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {ProductForm} from '@/components/products/ProductForm';
 import type {ProductCreate} from '@/lib/types/api';
+import {Skeleton} from '@aoctech/ui';
 
 function EditProductContent() {
   const params = useSearchParams();
@@ -53,7 +54,7 @@ function EditProductContent() {
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse"/>
+              <Skeleton key={i} className="h-16 rounded-xl"/>
             ))}
           </div>
         ) : !product ? (

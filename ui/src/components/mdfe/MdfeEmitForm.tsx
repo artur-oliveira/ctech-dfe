@@ -11,7 +11,7 @@ import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {RowCheckbox} from '@/components/ui/table-shell';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
@@ -190,9 +190,9 @@ function DocumentPicker({selected, onToggle}: {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Button type="button" size="xs" variant={incoming === 0 ? 'brand' : 'outline'}
+        <Button type="button" size="sm" variant={incoming === 0 ? 'brand' : 'outline'}
                 onClick={() => setIncoming(0)}>Emitidas</Button>
-        <Button type="button" size="xs" variant={incoming === 1 ? 'brand' : 'outline'}
+        <Button type="button" size="sm" variant={incoming === 1 ? 'brand' : 'outline'}
                 onClick={() => setIncoming(1)}>Recebidas</Button>
         <div className="ml-auto w-32">
           <NumericInput value={numberSearch} onChange={setNumberSearch} integerPlaces={9}
@@ -259,9 +259,9 @@ function MunReorderList({title, hint, muns, onReorder}: {
           <div key={m.ibge_code} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
             <span className="w-5 text-center text-xs font-semibold text-gray-400">{i + 1}</span>
             <span className="flex-1 min-w-0 truncate text-gray-700">{m.city || m.ibge_code}</span>
-            <Button type="button" variant="ghost" size="icon-sm" disabled={i === 0}
+            <Button type="button" variant="ghost" size="icon" disabled={i === 0}
                     onClick={() => move(i, i - 1)} aria-label="Subir">↑</Button>
-            <Button type="button" variant="ghost" size="icon-sm" disabled={i === muns.length - 1}
+            <Button type="button" variant="ghost" size="icon" disabled={i === muns.length - 1}
                     onClick={() => move(i, i + 1)} aria-label="Descer">↓</Button>
           </div>
         ))}
@@ -306,7 +306,7 @@ function VehicleRegisterModal({open, onClose, onSaved, editing, missing}: {
           <h2 className="text-lg font-semibold text-gray-900">
             {editing ? 'Completar dados do veículo' : 'Cadastrar veículo'}
           </h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fechar"
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"
                   className="text-gray-400 hover:text-gray-600">×</Button>
         </div>
         <div className="p-6">
@@ -737,7 +737,7 @@ export function MdfeEmitForm() {
               {docs.map((d) => (
                 <div key={d.sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <span className="text-gray-700 min-w-0 truncate">Nº {d.number} · {d.dest_name || d.emit_name}</span>
-                  <Button type="button" variant="ghost" size="xs" onClick={() => toggleDoc(d)}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => toggleDoc(d)}
                           className="text-danger hover:text-red-700 shrink-0">remover</Button>
                 </div>
               ))}
@@ -935,7 +935,7 @@ export function MdfeEmitForm() {
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Veículo (tração)</p>
-              <Button type="button" size="xs" variant="outline"
+              <Button type="button" size="sm" variant="outline"
                       onClick={() => setRegisterOpen(true)}>+ Cadastrar veículo</Button>
             </div>
             {tractorOptions.length > 0 ? (
@@ -957,7 +957,7 @@ export function MdfeEmitForm() {
                   return (
                     <div key={sk} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                       <span className="text-gray-700">{t?.label ?? sk}</span>
-                      <Button type="button" variant="ghost" size="xs" onClick={() => removeTrailer(sk)}
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeTrailer(sk)}
                               className="text-danger hover:text-red-700">remover</Button>
                     </div>
                   );
@@ -980,7 +980,7 @@ export function MdfeEmitForm() {
                        className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
                     <span className="text-gray-700">{c.name} · <span
                       className="font-mono text-gray-400">{formatCpfCnpj(c.cpf)}</span></span>
-                    <Button type="button" variant="ghost" size="xs"
+                    <Button type="button" variant="ghost" size="sm"
                             onClick={() => setDrivers((p) => p.filter((x) => x.cpf !== c.cpf))}
                             className="text-danger hover:text-red-700">remover</Button>
                   </div>
@@ -993,7 +993,7 @@ export function MdfeEmitForm() {
             {driverError && <p role="alert" className="text-xs text-red-600">{driverError}</p>}
 
             {/* Caminho secundário: condutor avulso, sem passar pelo cadastro. */}
-            <Button type="button" variant="ghost" size="xs" onClick={() => setManualDriverOpen((v) => !v)}
+            <Button type="button" variant="ghost" size="sm" onClick={() => setManualDriverOpen((v) => !v)}
                     className="text-brand-600 hover:text-brand-700">
               {manualDriverOpen ? '− Ocultar condutor não cadastrado' : '+ Adicionar condutor não cadastrado'}
             </Button>

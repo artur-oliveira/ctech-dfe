@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
 import {CertificateFields} from '@/components/organizations/CertificateFields';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
 import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_DOCUMENTS} from '@/lib/constants/onboarding';
@@ -87,7 +87,7 @@ function CertificateStepContent() {
               ? 'Ela faz parte de um grupo que você já administra (mesma raiz de CNPJ), então nada precisa ser enviado aqui.'
               : 'Nada a fazer nesta etapa. Você troca o certificado quando quiser, em Certificados.'}
           </p>
-          <Button size="lg" className="mt-5 w-full sm:w-auto" onClick={() => router.push(next)}>
+          <Button size="default" className="mt-5 w-full sm:w-auto" onClick={() => router.push(next)}>
             Continuar
           </Button>
         </div>
@@ -113,7 +113,7 @@ function CertificateStepContent() {
           )}
 
           <Button
-            size="lg"
+            size="default"
             className="mt-5 w-full sm:w-auto"
             disabled={!orgPk || upload.isPending || !file || !password}
             onClick={submit}

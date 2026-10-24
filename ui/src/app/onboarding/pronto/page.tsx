@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
-import {buttonVariants} from '@/components/ui/button';
+import {buttonVariants} from '@aoctech/ui';
 import {cn} from '@/lib/utils';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';
@@ -61,14 +61,14 @@ function DoneStepContent() {
         {primary && (
           <Link
             href={FIRST_ISSUANCE_PATH[primary]}
-            className={cn(buttonVariants({size: 'lg'}), 'w-full sm:w-auto')}
+            className={cn(buttonVariants({size: 'default'}), 'w-full sm:w-auto')}
           >
             Emitir a primeira {METER_LABELS[primary]}
           </Link>
         )}
         <Link
           href="/dashboard"
-          className={cn(buttonVariants({variant: 'outline', size: 'lg'}), 'w-full sm:w-auto')}
+          className={cn(buttonVariants({variant: 'outline', size: 'default'}), 'w-full sm:w-auto')}
         >
           Ir para o painel
         </Link>

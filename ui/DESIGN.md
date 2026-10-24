@@ -163,10 +163,10 @@ Flat by default. Surfaces sit on the canvas with hairline borders; shadow appear
 
 ### Buttons
 - **Shape:** gently rounded (14px radius, `rounded-lg`). Primary is a filled soft-green (`bg-brand-600`) with white text; hover to `bg-brand-700`. This is the only filled, colored button.
-- **Height (mobile-first):** default is `min-h-11` (44px) on mobile — the CLAUDE.md ≥44px touch-target rule — collapsing to `h-8` (32px) at `sm:` and up. Sizes share one shape: `xs` (24px) → `sm` (28px) → `default` (32px desktop / 44px mobile) → `lg` (36px), plus square `icon` variants.
+- **Height:** buttons come from `@aoctech/ui` under compact density (`data-density="compact"` on `<body>` and a root `DensityScope`; only `touch.css` is imported): `default` 32px / `sm` 28px / `icon` 32px on desktop; under touch (coarse pointer or below `sm`) they are drawn 36px (`sm` 28px stays) with a 44px hit area from `touch-target` CSS. Local `min-h-11` is not used on buttons.
 - **Variants:** `default`/`brand` (green fill), `outline` (hairline border, hover fills Surface), `secondary`/`ghost` (quiet fills, hover to Surface), `destructive` (tinted red text on 10%-opacity red fill — `bg-destructive/10 text-destructive`), `link` (underlined brand text), `danger` (solid red fill for irreversible confirms).
 - **Focus:** 3px ring in the brand green at 50% opacity (`ring-3 ring-ring/50`); `disabled` drops to 50% opacity. Invalid state (`aria-invalid`) shifts border to destructive red with a red ring.
-- All buttons use the Base UI `Button` primitive so native-button semantics and focus are consistent everywhere.
+- All buttons use `Button` from `@aoctech/ui` (Base UI underneath), so native-button semantics and focus are consistent. Variants: `brand`, `outline`, `ghost`, `danger`, `link`. Focus ring is `--ring` = brand-600.
 
 ### Inputs / Fields
 - **Style:** transparent fill, 1px hairline border (`border-input`), 32px tall, 14px radius (`rounded-lg`). Text is Ink (#0f172a). Mobile steps the font to `text-base` (16px) to stop iOS zoom, then `md:text-sm`.
@@ -244,7 +244,7 @@ NF-e and NFC-e share components, not flows. NF-e is a considered document and ke
 - **Don't** use red-500 (#ef4444) for resting destructive text; it fails AA. Use `text-danger` (red-600).
 - **Don't** use `text-amber-600` / `text-green-600` for resting text; both fail AA at 12–14px. Use `text-warning` / `text-success`.
 - **Don't** label sections with a `text-xs uppercase tracking-wider` eyebrow. Repeated on every section it is scaffolding, not hierarchy.
-- **Don't** put a primary action on `size="sm"` (28px). The default size already handles the 44px mobile floor.
+- **Don't** put a primary action on `size="sm"` (28px). The default size already handles the touch floor.
 
 ### Utility tokens (kept in sync with THEME.md)
 

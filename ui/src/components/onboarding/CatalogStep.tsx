@@ -2,7 +2,7 @@
 
 import type {ReactNode} from 'react';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import type {OnboardingStep} from '@/lib/constants/onboarding';
 
 interface CatalogStepProps {

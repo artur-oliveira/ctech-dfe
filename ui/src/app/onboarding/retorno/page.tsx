@@ -8,7 +8,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {OnboardingShell} from '@/components/onboarding/OnboardingShell';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {formatCents} from '@/lib/constants/billing';
 import {ONBOARDING_ROOT, STEP_CERTIFICATE, STEP_PLAN} from '@/lib/constants/onboarding';
 
@@ -56,7 +56,7 @@ function CheckoutReturnContent() {
         title="Nenhuma assinatura em aberto"
         description="A assinatura não chegou a ser criada. Escolha um plano para continuar."
       >
-        <Button size="lg" className="w-full sm:w-auto" onClick={() => router.replace(`${ONBOARDING_ROOT}/${STEP_PLAN}`)}>
+        <Button size="default" className="w-full sm:w-auto" onClick={() => router.replace(`${ONBOARDING_ROOT}/${STEP_PLAN}`)}>
           Escolher plano
         </Button>
       </OnboardingShell>
@@ -111,7 +111,7 @@ function CheckoutReturnContent() {
       <div className="sticky bottom-0 -mx-4 mt-6 border-t border-gray-200 bg-gray-50/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
         <Button
           variant="outline"
-          size="lg"
+          size="default"
           className="w-full sm:w-auto"
           onClick={() => router.push(`${ONBOARDING_ROOT}/${STEP_CERTIFICATE}`)}
         >

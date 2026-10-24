@@ -6,7 +6,7 @@ import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import type {ServiceOut} from '@/lib/types/api';
 
 interface NfseServicePickerProps {
@@ -59,7 +59,7 @@ export function NfseServicePicker({id, value, onSelect, onClear}: NfseServicePic
         />
       </div>
       {value && (
-        <Button type="button" variant="ghost" size="xs" onClick={onClear}>
+        <Button type="button" variant="ghost" size="sm" onClick={onClear}>
           Limpar seleção
         </Button>
       )}

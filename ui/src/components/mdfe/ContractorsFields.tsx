@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Input} from '@/components/ui/input';
 import {CurrencyInput} from '@/components/ui/currency-input';
@@ -41,7 +41,7 @@ export function ContractorsFields({contractors, onChange}: ContractorsFieldsProp
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Contratante do frete
           (opcional)</p>
-        <Button type="button" variant="ghost" size="xs" disabled={persons.length === 0}
+        <Button type="button" variant="ghost" size="sm" disabled={persons.length === 0}
                 onClick={() => onChange([...contractors, {person_doc: '', contract_number: '', contract_value: ''}])}>
           + Contratante
         </Button>
@@ -77,7 +77,7 @@ export function ContractorsFields({contractors, onChange}: ContractorsFieldsProp
             <CurrencyInput id={`contractor-value-${i}`} value={c.contract_value ?? ''} className="w-full"
                            onChange={(value) => patch(i, {contract_value: value})}/>
           </div>
-          <Button type="button" variant="ghost" size="xs"
+          <Button type="button" variant="ghost" size="sm"
                   onClick={() => onChange(contractors.filter((_, k) => k !== i))}>
             Remover
           </Button>

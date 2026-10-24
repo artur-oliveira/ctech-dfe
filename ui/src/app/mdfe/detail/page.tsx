@@ -9,7 +9,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button} from '@/components/ui/button';
+import {Button, Skeleton} from '@aoctech/ui';
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
 import {CopyableCode} from '@/components/ui/copyable-code';
 import {useMdfeActions} from '@/components/mdfe/MdfeActions';
@@ -70,7 +70,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse"/>)}
+        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl"/>)}
       </div>
     );
   }
@@ -217,8 +217,8 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
               <div className="divide-y divide-gray-100">
                 {[0, 1].map((i) => (
                   <div key={i} className="flex items-center gap-4">
-                    <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
-                    <div className="ml-auto h-4 w-20 bg-gray-100 rounded animate-pulse"/>
+                    <Skeleton className="h-4 w-32 rounded"/>
+                    <Skeleton className="ml-auto h-4 w-20 rounded"/>
                   </div>
                 ))}
               </div>
@@ -246,7 +246,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
                 data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
               <td className={`${TABLE_CELL} text-right`}>
                 {evt.xml_s3_key && (
-                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt)}
+                  <Button variant="ghost" size="sm" onClick={() => handleDownloadEventXml(evt)}
                           disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
                     {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
                   </Button>

@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ImportIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {TP_VIA_TRANSP_OPTIONS} from '@/lib/schemas/import-declarations';
@@ -69,7 +68,7 @@ function ImportDeclarationsContent() {
           <EmptyState
             title="Nenhuma declaração de importação"
             description="A DI guarda número, desembaraço, via de transporte e adições. Na emissão o item aponta a adição, e nAdicao/nSeqAdic saem do vínculo."
-            action={{label: 'Nova declaração', onClick: () => router.push('/import-declarations/new')}}
+            action={<Button onClick={() => router.push('/import-declarations/new')}>Nova declaração</Button>}
             icon={<ImportIcon width={20} height={20}/>}
           />
         ) : (
@@ -90,12 +89,12 @@ function ImportDeclarationsContent() {
                 </td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/import-declarations/edit?id=${extractId(u.sk, SK_PREFIX.IMPORT_DI)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(u)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

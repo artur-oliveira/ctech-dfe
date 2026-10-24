@@ -1,7 +1,7 @@
 'use client';
 
 import type {OrganizationOut} from '@/lib/types/api';
-import {Button} from '@/components/ui/button';
+import {Button, Skeleton} from '@aoctech/ui';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 import {formatCpfCnpj, orgTaxId} from "@/lib/utils/document";
 
@@ -22,7 +22,7 @@ export function OrganizationsTable({
     return (
       <div className="space-y-2">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"/>
+          <Skeleton key={i} className="h-20 rounded-lg"/>
         ))}
       </div>
     );
@@ -57,7 +57,7 @@ export function OrganizationsTable({
             <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
-                size="xs"
+                size="sm"
                 onClick={() => onEdit(org)}
                 className="text-brand-600 hover:text-brand-700"
               >

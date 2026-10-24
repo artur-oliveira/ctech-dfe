@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Input} from '@/components/ui/input';
 import {CurrencyInput} from '@/components/ui/currency-input';
@@ -68,7 +68,7 @@ export function FreightPaymentFields({payments, onChange, required}: FreightPaym
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Pagamento do frete {required ? '(obrigatório)' : '(opcional)'}
         </p>
-        <Button type="button" variant="ghost" size="xs" disabled={persons.length === 0} onClick={addPayment}>
+        <Button type="button" variant="ghost" size="sm" disabled={persons.length === 0} onClick={addPayment}>
           + Pagamento
         </Button>
       </div>
@@ -108,7 +108,7 @@ export function FreightPaymentFields({payments, onChange, required}: FreightPaym
               <OptionsSelect id={`pay-type-${i}`} value={pay.payment_type} options={PAYMENT_TYPE_OPTIONS}
                              onValueChange={(v: string) => patch(i, {payment_type: v})}/>
             </div>
-            <Button type="button" variant="ghost" size="xs"
+            <Button type="button" variant="ghost" size="sm"
                     onClick={() => onChange(payments.filter((_, k) => k !== i))}>
               Remover
             </Button>
@@ -144,7 +144,7 @@ export function FreightPaymentFields({payments, onChange, required}: FreightPaym
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-gray-600">Componentes do frete</p>
-              <Button type="button" variant="ghost" size="xs"
+              <Button type="button" variant="ghost" size="sm"
                       onClick={() => patch(i, {components: [...pay.components, {type: '01', value: ''}]})}>
                 + Componente
               </Button>
@@ -177,7 +177,7 @@ export function FreightPaymentFields({payments, onChange, required}: FreightPaym
                            })}/>
                   </div>
                 )}
-                <Button type="button" variant="ghost" size="xs" disabled={pay.components.length === 1}
+                <Button type="button" variant="ghost" size="sm" disabled={pay.components.length === 1}
                         onClick={() => patch(i, {components: pay.components.filter((_, k) => k !== ci)})}>
                   Remover
                 </Button>

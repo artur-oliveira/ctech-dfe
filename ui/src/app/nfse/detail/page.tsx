@@ -12,7 +12,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
+import {Button, Skeleton} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Textarea} from '@/components/ui/textarea';
@@ -298,7 +298,7 @@ function NfseDetail({idDps}: { idDps: string }) {
         {eventsLoading ? (
           <tr>
             <td colSpan={4} className={TABLE_CELL}>
-              <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"/>
+              <Skeleton className="h-4 w-32 rounded"/>
             </td>
           </tr>
         ) : !eventsData?.items.length ? (
@@ -318,7 +318,7 @@ function NfseDetail({idDps}: { idDps: string }) {
               <td data-label="Data" className={`${TABLE_CELL} text-xs text-gray-400 whitespace-nowrap`}>{formatDatetimeBR(evt.created_at)}</td>
               <td className={`${TABLE_CELL} text-right`} data-label="Ações">
                 {evt.xml_s3_key && (
-                  <Button variant="ghost" size="xs" onClick={() => handleDownloadEventXml(evt.sk)}
+                  <Button variant="ghost" size="sm" onClick={() => handleDownloadEventXml(evt.sk)}
                           disabled={eventXmlLoading === evt.sk} className="text-brand-600 hover:text-brand-700">
                     {eventXmlLoading === evt.sk ? 'Baixando…' : 'XML'}
                   </Button>

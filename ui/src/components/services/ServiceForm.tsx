@@ -10,7 +10,7 @@ import {Input} from '@/components/ui/input';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {type ServiceFormData, serviceSchema} from '@/lib/schemas/services';
 import type {ServiceCreate, ServiceOut} from '@/lib/types/api';
 import {NFSE_TRIB_NACIONAL} from '@/lib/data/nfse_trib_nacional';

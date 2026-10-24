@@ -2,7 +2,7 @@
 
 import {ReactNode, useEffect, useRef} from 'react';
 import {createPortal} from 'react-dom';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 
 interface ModalProps {
   isOpen: boolean
@@ -114,7 +114,7 @@ export function Modal({
           <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
             aria-label="Fechar"

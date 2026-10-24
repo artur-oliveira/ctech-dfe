@@ -2,7 +2,7 @@
 
 import {useState} from 'react';
 import {toast} from 'sonner';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {triggerRemoteDownload} from '@/lib/utils/dfe';
 import type {SignedFileDownload} from '@/lib/types/api';
 
@@ -12,7 +12,7 @@ interface DownloadPdfButtonProps {
   /** Button text when idle. Defaults to "DANFE". */
   label?: string
   variant?: 'outline' | 'ghost'
-  size?: 'sm' | 'xs'
+  size?: 'sm'
   className?: string
 }
 
@@ -25,7 +25,7 @@ export function DownloadPdfButton({
                                     fetchPdf,
                                     label = 'DANFE',
                                     variant = 'ghost',
-                                    size = 'xs',
+                                    size = 'sm',
                                     className,
                                   }: DownloadPdfButtonProps) {
   const [loading, setLoading] = useState(false);

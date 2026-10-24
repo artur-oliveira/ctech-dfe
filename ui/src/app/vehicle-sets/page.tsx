@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {VehicleSetIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {VehicleSetItemOut} from '@/lib/types/api';
@@ -73,7 +72,7 @@ function VehicleSetsContent() {
           <EmptyState
             title="Nenhuma composição veicular"
             description="Uma composição guarda o veículo de tração, os reboques, os condutores, o RNTRC e o CIOT. No MDF-e, escolher a composição preenche tudo isso de uma vez; e cada campo continua editável."
-            action={{label: 'Nova composição', onClick: () => router.push('/vehicle-sets/new')}}
+            action={<Button onClick={() => router.push('/vehicle-sets/new')}>Nova composição</Button>}
             icon={<VehicleSetIcon width={20} height={20}/>}
           />
         ) : (
@@ -96,12 +95,12 @@ function VehicleSetsContent() {
                 </td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/vehicle-sets/edit?id=${extractId(p.sk, SK_PREFIX.VEHICLE_SET)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(p)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(p)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

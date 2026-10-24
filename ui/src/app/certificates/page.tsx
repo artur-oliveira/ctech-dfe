@@ -8,9 +8,8 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button} from '@/components/ui/button';
+import {Button, EmptyState, Skeleton} from '@aoctech/ui';
 import {Modal} from '@/components/ui/modal';
-import {EmptyState} from '@/components/ui/empty-state';
 import {ShieldIcon} from '@/components/ui/icon';
 import {CertificateFields} from '@/components/organizations/CertificateFields';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
@@ -120,7 +119,7 @@ function CertRow({cert, onDelete, isDeleting}: { cert: CertificateOut; onDelete:
       <td className={`${TABLE_CELL} pr-6 text-right`}>
         <Button
           variant="ghost"
-          size="xs"
+          size="sm"
           onClick={onDelete}
           disabled={isDeleting}
           className="text-danger hover:text-red-700"
@@ -203,14 +202,14 @@ function CertificatesContent() {
             {isPending ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-14 rounded-lg bg-gray-100 animate-pulse"/>
+                  <Skeleton key={i} className="h-14 rounded-lg"/>
                 ))}
               </div>
             ) : !visibleCerts.length ? (
               <EmptyState
                 title="Nenhum certificado cadastrado"
                 description="Importe um certificado A1 no formato .pfx ou .p12"
-                action={{label: 'Importar certificado', onClick: () => setShowModal(true)}}
+                action={<Button onClick={() => setShowModal(true)}>Importar certificado</Button>}
                 icon={<ShieldIcon width={20} height={20}/>}
               />
             ) : (

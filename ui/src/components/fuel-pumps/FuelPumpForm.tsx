@@ -5,7 +5,7 @@ import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {ApiError} from '@/lib/api/client';
 import {type FuelPumpFormData, fuelPumpSchema} from '@/lib/schemas/fuel-pumps';
@@ -107,7 +107,7 @@ export function FuelPumpForm({initialData, onSubmit, loading}: FuelPumpFormProps
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" variant="brand" disabled={loading} className="min-h-11">
+          <Button type="submit" variant="brand" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>

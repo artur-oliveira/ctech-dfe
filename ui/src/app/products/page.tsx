@@ -10,13 +10,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ShoppingBagIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {OptionsSelect} from '@/components/ui/options-select';
@@ -117,7 +116,7 @@ function ProductsContent() {
           <EmptyState
             title="Nenhum produto cadastrado"
             description="Adicione produtos para usar na emissão de NF-e e NFC-e."
-            action={{label: 'Novo produto', onClick: () => router.push('/products/new')}}
+            action={<Button onClick={() => router.push('/products/new')}>Novo produto</Button>}
             icon={<ShoppingBagIcon width={20} height={20}/>}
           />
         ) : (
@@ -166,18 +165,18 @@ function ProductsContent() {
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => router.push(`/products/edit?id=${extractId(p.sk, SK_PREFIX.PRODUCT)}`)}
-                      className="min-h-11 sm:min-h-0 text-brand-600 hover:text-brand-700"
+                      className="text-brand-600 hover:text-brand-700"
                     >
                       Editar
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => handleDelete(p)}
                       disabled={isDeleting}
-                      className="min-h-11 sm:min-h-0 text-danger hover:text-red-700"
+                      className="text-danger hover:text-red-700"
                     >
                       Excluir
                     </Button>

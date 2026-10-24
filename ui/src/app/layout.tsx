@@ -4,6 +4,7 @@ import {AuthProvider} from "@/lib/context/AuthContext";
 import {QueryProvider} from "@/lib/providers/QueryProvider";
 import {RealtimeProvider} from "@/lib/providers/RealtimeProvider";
 import {Toaster} from "sonner";
+import {DensityScope} from "@aoctech/ui";
 import {MOCK_ENABLED, MockDevPanel} from "@/lib/mock";
 import {PageTitle} from "@/components/layout/PageTitle";
 import "./globals.css";
@@ -84,10 +85,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
-    <body className="min-h-full bg-gray-50">
+    <body className="min-h-full bg-gray-50" data-density="compact">
     <QueryProvider>
       <AuthProvider>
-        <RealtimeProvider>{children}</RealtimeProvider>
+        <RealtimeProvider><DensityScope density="compact">{children}</DensityScope></RealtimeProvider>
         {MOCK_ENABLED && <MockDevPanel/>}
       </AuthProvider>
     </QueryProvider>

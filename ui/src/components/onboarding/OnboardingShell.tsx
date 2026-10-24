@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import type {ReactNode} from 'react';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {StepIndicator} from '@/components/ui/step-indicator';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useOnboarding} from '@/lib/hooks/useOnboarding';

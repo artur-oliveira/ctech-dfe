@@ -11,7 +11,7 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {NfceIcon} from '@/components/ui/icon';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {Modal} from '@/components/ui/modal';
@@ -20,7 +20,6 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Button} from '@/components/ui/button';
 import type {NfeListOut} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency, formatDate} from '@/lib/utils/helpers';
@@ -189,9 +188,9 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                   )}
                   {nfce.status === 'authorized' && (
                     <>
-                      <Button variant="ghost" size="xs" onClick={() => onSubstitute(nfce)}
+                      <Button variant="ghost" size="sm" onClick={() => onSubstitute(nfce)}
                               className="text-gray-500 hover:text-gray-700">Substituir</Button>
-                      <Button variant="ghost" size="xs" onClick={() => onCancel(nfce)}
+                      <Button variant="ghost" size="sm" onClick={() => onCancel(nfce)}
                               className="text-danger hover:text-red-700">Cancelar</Button>
                     </>
                   )}

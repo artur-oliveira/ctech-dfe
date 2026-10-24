@@ -5,7 +5,7 @@ import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {Input} from '@/components/ui/input';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {authorizedViewerSchema, hasDuplicateViewer, MAX_AUTHORIZED_VIEWERS} from '@/lib/schemas/authorized-viewers';
 import {maskCpfCnpj} from '@/lib/utils/masks';
 import type {AuthorizedViewerOut} from '@/lib/types/api';

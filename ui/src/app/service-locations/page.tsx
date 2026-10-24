@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {BriefcaseIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {CITY_OPTIONS} from '@/lib/data/cities';
@@ -94,7 +93,7 @@ function ServiceLocationsContent() {
           <EmptyState
             title="Nenhum local de prestação"
             description="O mesmo endereço serve obra, imóvel e local de evento; os papéis são combináveis, então um canteiro que também é o imóvel tributado é um cadastro só."
-            action={{label: 'Novo local', onClick: () => router.push('/service-locations/new')}}
+            action={<Button onClick={() => router.push('/service-locations/new')}>Novo local</Button>}
             icon={<BriefcaseIcon width={20} height={20}/>}
           />
         ) : (
@@ -113,12 +112,12 @@ function ServiceLocationsContent() {
                 <td data-label="Município" className={`${TABLE_CELL} text-gray-600`}>{where(e.address)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/service-locations/edit?id=${extractId(e.sk, SK_PREFIX.SERVICE_LOCATION)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(e)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(e)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

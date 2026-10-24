@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {ServiceIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {useRowSelection} from '@/lib/hooks/useRowSelection';
@@ -92,7 +91,7 @@ function ServicesContent() {
           <EmptyState
             title="Nenhum serviço cadastrado"
             description="Adicione serviços para usar na emissão de NFS-e."
-            action={{label: 'Novo serviço', onClick: () => router.push('/services/new')}}
+            action={<Button onClick={() => router.push('/services/new')}>Novo serviço</Button>}
             icon={<ServiceIcon width={20} height={20}/>}
           />
         ) : (
@@ -135,18 +134,18 @@ function ServicesContent() {
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => router.push(`/services/edit?id=${extractId(s.sk, SK_PREFIX.SERVICE)}`)}
-                      className="min-h-11 sm:min-h-0 text-brand-600 hover:text-brand-700"
+                      className="text-brand-600 hover:text-brand-700"
                     >
                       Editar
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => handleDelete(s)}
                       disabled={isDeleting}
-                      className="min-h-11 sm:min-h-0 text-danger hover:text-red-700"
+                      className="text-danger hover:text-red-700"
                     >
                       Excluir
                     </Button>

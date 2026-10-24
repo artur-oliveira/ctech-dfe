@@ -10,13 +10,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {UsersIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {useRowSelection} from '@/lib/hooks/useRowSelection';
@@ -101,7 +100,7 @@ function PersonsContent() {
             description={role
               ? 'Marque esse tipo no cadastro das pessoas que devem aparecer aqui.'
               : 'Cadastre clientes e fornecedores para usar na emissão de documentos fiscais.'}
-            action={{label: 'Nova pessoa', onClick: () => router.push('/persons/new')}}
+            action={<Button onClick={() => router.push('/persons/new')}>Nova pessoa</Button>}
             icon={<UsersIcon width={20} height={20}/>}
           />
         ) : (
@@ -163,7 +162,7 @@ function PersonsContent() {
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => router.push(`/persons/edit?id=${unformatCpfCnpj(p.sk)}`)}
                       className="text-brand-600 hover:text-brand-700"
                     >
@@ -171,7 +170,7 @@ function PersonsContent() {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => handleDelete(p)}
                       disabled={isDeleting}
                       className="text-danger hover:text-red-700"

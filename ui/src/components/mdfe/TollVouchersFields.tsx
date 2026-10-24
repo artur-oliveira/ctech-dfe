@@ -1,7 +1,7 @@
 'use client';
 
 import {useQuery} from '@tanstack/react-query';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {Label} from '@/components/ui/label';
 import {Input} from '@/components/ui/input';
 import {CurrencyInput} from '@/components/ui/currency-input';
@@ -40,7 +40,7 @@ export function TollVouchersFields({vouchers, onChange}: TollVouchersFieldsProps
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vale-pedágio (opcional)</p>
-        <Button type="button" variant="ghost" size="xs" disabled={providers.length === 0}
+        <Button type="button" variant="ghost" size="sm" disabled={providers.length === 0}
                 onClick={() => onChange([...vouchers, {toll_provider_id: '', n_compra: '', v_vale_ped: ''}])}>
           + Vale
         </Button>
@@ -81,7 +81,7 @@ export function TollVouchersFields({vouchers, onChange}: TollVouchersFieldsProps
             <CurrencyInput id={`toll-valor-${i}`} value={v.v_vale_ped} className="w-full"
                            onChange={(value) => patch(i, {v_vale_ped: value})}/>
           </div>
-          <Button type="button" variant="ghost" size="xs"
+          <Button type="button" variant="ghost" size="sm"
                   onClick={() => onChange(vouchers.filter((_, k) => k !== i))}>
             Remover
           </Button>

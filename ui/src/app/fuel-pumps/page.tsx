@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {FuelPumpIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import type {FuelPumpItemOut} from '@/lib/types/api';
@@ -69,7 +68,7 @@ function FuelPumpsContent() {
           <EmptyState
             title="Nenhuma bomba cadastrada"
             description="A bomba guarda bico, bomba e tanque. Na emissão você informa só onde o marcador parou; a leitura inicial é a final da venda anterior."
-            action={{label: 'Nova bomba', onClick: () => router.push('/fuel-pumps/new')}}
+            action={<Button onClick={() => router.push('/fuel-pumps/new')}>Nova bomba</Button>}
             icon={<FuelPumpIcon width={20} height={20}/>}
           />
         ) : (
@@ -87,12 +86,12 @@ function FuelPumpsContent() {
                 <td data-label="Última leitura" className={`${TABLE_CELL} text-gray-600`}>{str(p.last_v_enc_fin)}</td>
                 <td className={`${TABLE_CELL} text-right`}>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="xs"
+                    <Button variant="ghost" size="sm"
                             onClick={() => router.push(`/fuel-pumps/edit?id=${extractId(p.sk, SK_PREFIX.FUEL_PUMP)}`)}
                             className="text-brand-600 hover:text-brand-700">
                       Editar
                     </Button>
-                    <Button variant="ghost" size="xs" onClick={() => handleDelete(p)} disabled={isDeleting}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(p)} disabled={isDeleting}
                             className="text-danger hover:text-red-700">
                       Excluir
                     </Button>

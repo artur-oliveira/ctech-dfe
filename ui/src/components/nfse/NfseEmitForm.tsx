@@ -18,7 +18,7 @@ import {Textarea} from '@/components/ui/textarea';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
-import {Button} from '@/components/ui/button';
+import {Button} from '@aoctech/ui';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
@@ -438,7 +438,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="text-sm font-medium text-gray-700">Tomador</label>
                 {!selectedCustomer && org && (
-                  <Button type="button" variant="ghost" size="xs" className="text-brand-700"
+                  <Button type="button" variant="ghost" size="sm" className="text-brand-700"
                           onClick={() => handleCustomerChange(orgAsPerson(org))}>
                     Usar a própria empresa
                   </Button>

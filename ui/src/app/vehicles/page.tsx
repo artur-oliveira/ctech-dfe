@@ -9,13 +9,12 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {EmptyState} from '@/components/ui/empty-state';
+import {Button, EmptyState} from '@aoctech/ui';
 import {TruckIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button} from '@/components/ui/button';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
 import {useRowSelection} from '@/lib/hooks/useRowSelection';
@@ -79,7 +78,7 @@ function VehiclesContent() {
           <EmptyState
             title="Nenhum veículo cadastrado"
             description="Cadastre veículos para usar na emissão de CT-e e MDF-e."
-            action={{label: 'Novo veículo', onClick: () => router.push('/vehicles/new')}}
+            action={<Button onClick={() => router.push('/vehicles/new')}>Novo veículo</Button>}
             icon={<TruckIcon width={20} height={20}/>}
           />
         ) : (
@@ -118,7 +117,7 @@ function VehiclesContent() {
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => router.push(`/vehicles/edit?id=${extractId(v.sk, SK_PREFIX.VEHICLE)}`)}
                       className="text-brand-600 hover:text-brand-700"
                     >
@@ -126,7 +125,7 @@ function VehiclesContent() {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="xs"
+                      size="sm"
                       onClick={() => handleDelete(v)}
                       disabled={isDeleting}
                       className="text-danger hover:text-red-700"
