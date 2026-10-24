@@ -77,3 +77,16 @@ func TestUpsertNfseSobrescreveCurrentNumberInformado(t *testing.T) {
 		t.Fatalf("hom_current_number: want 2, got %v", final["hom_current_number"])
 	}
 }
+
+// Todo Put da configuração substitui o item inteiro: sem o `sweep`, uma edição
+// tiraria a linha do sweep-index e a organização sumiria do dispatcher.
+func TestUpsertCarimbaSweep(t *testing.T) {
+	repo := &FiscalConfigRepository{}
+	_, final, err := repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{"environment": s("2")}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := final[AttrSweep].(*types.AttributeValueMemberS); got == nil || got.Value != SweepValue {
+		t.Fatalf("sweep ausente: %v", final)
+	}
+}

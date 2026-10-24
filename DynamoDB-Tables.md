@@ -13,14 +13,14 @@ PITR: enabled in production only.
 |----|-----------------------------|------------------------------|------------------------------------------|----------------------------------------------------|
 | 1  | `users`                     | `USER_{uuid}`                | —                                        | `email-index`, `username-index`                    |
 | 2  | `organizations`             | company UUIDv7               | —                                        | `organization-index`                               |
-| 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | —                                                  |
+| 3  | `organization_certificates` | `{org_pk}`                   | `CERT_{timestamp}`                       | `sweep-index`                                      |
 | 4  | `organization_products`     | `{org_pk}`                   | `PRODUCT_{uuid}`                         | `code-index`, `description-index`                  |
 | 5  | `organization_vehicles`     | `{org_pk}`                   | `VEHICLE_{id}`                           | `plate-index`, `role-index`                        |
 | 6  | `organization_persons`      | `{org_pk}`                   | `CNPJ_{cnpj}` or `CPF_{cpf}`             | `org-name-index`                                   |
-| 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                                        | —                                                  |
+| 7  | `organization_nfe_configs`  | `{org_pk}`                   | —                                        | `sweep-index`                                      |
 | 8  | `organization_nfce_configs` | `{org_pk}`                   | —                                        | —                                                  |
-| 9  | `organization_cte_configs`  | `{org_pk}`                   | —                                        | —                                                  |
-| 10 | `organization_mdfe_configs` | `{org_pk}`                   | —                                        | —                                                  |
+| 9  | `organization_cte_configs`  | `{org_pk}`                   | —                                        | `sweep-index`                                      |
+| 10 | `organization_mdfe_configs` | `{org_pk}`                   | —                                        | `sweep-index`                                      |
 | 11 | `nfes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 12 | `nfces`                     | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
 | 13 | `ctes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`                     |
@@ -39,7 +39,7 @@ PITR: enabled in production only.
 | 26 | `organization_invitations`  | `INVITE_{sha256(token)}`     | —                                        | `org-invite-index`                                 |
 | 27 | `worker_outbox`             | `{table_name}#{access_key}`  | `command`                                | —                                                  |
 | 28 | `organization_services`     | `{org_pk}`                   | `SERVICE_{uuid}`                         | `code-index`, `description-index`                  |
-| 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | —                                                  |
+| 29 | `organization_nfse_configs` | `{org_pk}`                   | —                                        | `sweep-index`                                      |
 | 30 | `nfses`                     | `{env}#{org_pk}`             | `id_dps`                                 | `number-index-v2`, `dfe-index`, `access-key-index` |
 | 31 | `nfse_events`               | `{id_dps}`                   | `{ulid}`                               | `org-event-key-index`                              |
 | 32 | `organization_tax_profiles` | `{org_pk}`                   | `TAXPROFILE_{uuid}`                      | `name-index`                                       |
@@ -145,6 +145,7 @@ A1 certificates for SEFAZ communication. Private key never returned by API.
 | `s3_key`     | S    | `certs/{org_pk}/{md5}.pfx`             |
 | `expires_at` | S    | ISO-8601 (from certificate's NotAfter) |
 | `created_at` | S    | ISO-8601 UTC                           |
+| `sweep`      | S    | Constant `"1"`; key of `sweep-index` (KEYS_ONLY), lets background jobs list the table without a Scan. Never returned by API |
 
 ---
 

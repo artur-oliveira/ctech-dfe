@@ -34,6 +34,7 @@ func certFields(alias, md5, password, s3Key, expiresAt string) map[string]any {
 		"password":   password,
 		"s3_key":     s3Key,
 		"expires_at": expiresAt,
+		AttrSweep:    SweepValue,
 	}
 }
 

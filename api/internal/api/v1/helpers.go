@@ -539,6 +539,7 @@ func redactFiscalSecrets(item map[string]types.AttributeValue) map[string]types.
 	for _, k := range fiscalConfigSecrets {
 		delete(out, k)
 	}
+	delete(out, repositories.AttrSweep) // storage mechanic of the sweep-index, not API data
 	return out
 }
 
