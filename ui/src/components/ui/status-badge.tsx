@@ -1,7 +1,7 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import {type ReactNode, useState} from 'react';
-import {Modal} from '@/components/ui/modal';
 
 /**
  * Doc-neutral status badge primitive. Status uses a FIXED semantic palette
@@ -57,7 +57,7 @@ export function StatusCell({badge, sefazMotive, motiveTitle, iconClassName = 'te
           <line x1="12" y1="8" x2="12.01" y2="8"/>
         </svg>
       </button>
-      <Modal isOpen={open} title={motiveTitle} onClose={() => setOpen(false)} cancelLabel="Fechar">
+      <Modal open={open} title={motiveTitle} onClose={() => setOpen(false)} cancelLabel="Fechar">
         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{sefazMotive}</p>
       </Modal>
     </>

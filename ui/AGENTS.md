@@ -149,8 +149,13 @@ declare uma rota de navegação em outro lugar.
   Fuse.js acha a tela quando o usuário não lembra o rótulo.
 - Rótulo de item aninhado cabe em ~174px a 14px. Mais que isso, encurte o rótulo — não o indente
   menos.
-- A navegação inferior do mobile (`BottomNav`) reserva `--bottomnav-height`. Barra de ação fixa
+- A navegação inferior do mobile (`MobileNav`, que monta o `BottomNav` de `@aoctech/ui`) reserva `--bottomnav-height`. Barra de ação fixa
   usa `sticky bottom-(--bottomnav-height)`, nunca `bottom-0`.
+
+### Componentes de `@aoctech/ui` (regra `uidup`)
+
+- `Modal`, `PageHeader` e `BottomNav` vêm de `@aoctech/ui`; não recrie arquivo local com o mesmo nome. `Modal` usa `open` (não `isOpen`); `PageHeader` recebe `action` como `ReactNode` (um `<Button variant="brand">`).
+- `ui/select.tsx` e `ui/input.tsx` seguem locais com `standards:allow` até o ctech-ui ganhar opções agrupadas no `Select` e a fiação de aria do react-hook-form no `Input`.
 
 ### SEO e título de página
 

@@ -1,7 +1,7 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import {useState} from 'react';
-import {Modal} from '@/components/ui/modal';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {JustificationField} from '@/components/ui/justification-field';
 import {CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
@@ -36,7 +36,7 @@ export function NfseCancelModal({isOpen, docNumber, loading, error, onClose, onC
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title={`Cancelar NFS-e nº ${docNumber}`}
       onClose={handleClose}
       onSubmit={() => onConfirm({reasonCode: reasonCode.trim(), reasonDescription: reasonDescription.trim()})}

@@ -8,8 +8,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
-import {Button, EmptyState, Skeleton} from '@aoctech/ui';
-import {Modal} from '@/components/ui/modal';
+import {Button, EmptyState, Skeleton, Modal} from '@aoctech/ui';
 import {ShieldIcon} from '@/components/ui/icon';
 import {CertificateFields} from '@/components/organizations/CertificateFields';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
@@ -66,7 +65,7 @@ function UploadModal({
   };
   
   return (
-    <Modal isOpen title="Importar Certificado" onClose={onClose} onSubmit={handleSubmit}
+    <Modal open title="Importar Certificado" onClose={onClose} onSubmit={handleSubmit}
            submitLabel="Importar" loading={loading}>
       <div className="space-y-4">
         {serverError && (

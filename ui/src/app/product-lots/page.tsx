@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {LotIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -59,11 +58,7 @@ function ProductLotsContent() {
         <PageHeader
           title="Lotes de produção"
           description="Número, validade e quantidade cadastrados uma vez; na emissão o item só aponta de qual lote saiu"
-          action={selectedOrg ? {
-            label: 'Novo lote',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/product-lots/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/product-lots/new')}><span aria-hidden className="text-base leading-none">+</span> Novo lote</Button> : undefined}
         />
 
         {!selectedOrg ? (

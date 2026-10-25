@@ -12,8 +12,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Button, Skeleton} from '@aoctech/ui';
-import {Modal} from '@/components/ui/modal';
+import {Button, Skeleton, Modal} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Textarea} from '@/components/ui/textarea';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
@@ -72,7 +71,7 @@ function NfseEventModal({idDps, isOpen, onClose}: { idDps: string; isOpen: boole
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title="Registrar evento"
       onClose={onClose}
       onSubmit={form.handleSubmit((data) => mutation.mutate(data))}

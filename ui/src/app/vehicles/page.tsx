@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {TruckIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
@@ -63,11 +62,7 @@ function VehiclesContent() {
         <PageHeader
           title="Veículos"
           description="Frota cadastrada para CT-e e MDF-e"
-          action={selectedOrg ? {
-            label: 'Novo veículo',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/vehicles/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/vehicles/new')}><span aria-hidden className="text-base leading-none">+</span> Novo veículo</Button> : undefined}
         />
         
         {!selectedOrg ? (

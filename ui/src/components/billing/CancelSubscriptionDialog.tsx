@@ -1,10 +1,10 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import {useState} from 'react';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Modal} from '@/components/ui/modal';
 import {formatISODateBR} from '@/lib/utils/dfe';
 import type {AccountSubscription} from '@/lib/types/billing';
 
@@ -45,7 +45,7 @@ export function CancelSubscriptionDialog({isOpen, onClose, subscription}: Cancel
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title="Cancelar assinatura"
       onClose={onClose}
       onSubmit={() => cancel.mutate()}

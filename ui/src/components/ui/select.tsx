@@ -1,5 +1,7 @@
 "use client";
 
+// standards:allow @aoctech/ui Select has no grouped options (SelectGroup/SelectLabel), which OptionsSelect needs for payment and IPI cEnq lists, and no aria-invalid wiring from react-hook-form. Gap to implement in ctech-ui.
+
 import * as React from "react";
 import {Select as SelectPrimitive} from "@base-ui/react/select";
 

@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {CalendarClockIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -54,11 +53,7 @@ function PaymentTermsContent() {
         <PageHeader
           title="Condições de pagamento"
           description="Parcelas, vencimentos e forma de pagamento definidos uma vez e reaproveitados na emissão"
-          action={selectedOrg ? {
-            label: 'Nova condição',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/payment-terms/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/payment-terms/new')}><span aria-hidden className="text-base leading-none">+</span> Nova condição</Button> : undefined}
         />
 
         {!selectedOrg ? (

@@ -1,10 +1,10 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import {useId, useState} from 'react';
 import {useMutation} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {apiClient, ApiError} from '@/lib/api/client';
-import {Modal} from '@/components/ui/modal';
 
 export interface ImportXmlModalProps {
   docType: 'nfe' | 'nfce'
@@ -51,7 +51,7 @@ export function ImportXmlModal({docType, isOpen, onClose}: ImportXmlModalProps) 
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title={`Importar ${docLabel} por XML`}
       onClose={handleClose}
       onSubmit={() => mutation.mutate()}

@@ -75,7 +75,7 @@
 /* A navegação inferior existe apenas abaixo de `md` (768px). */
 @media (max-width: 767px) {
     :root {
-        --bottomnav-height: 3.5rem;
+        --bottomnav-height: calc(4.5rem + env(safe-area-inset-bottom));
     }
 }
 

@@ -15,7 +15,7 @@ import {Combobox} from '@/components/ui/combobox';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button, Skeleton} from '@aoctech/ui';
+import {Button, Skeleton, Modal} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';
@@ -30,7 +30,6 @@ import {
   NicheGroupsFields,
   type NicheGroupsValue,
 } from '@/components/nfe/NicheGroupsFields';
-import {Modal} from '@/components/ui/modal';
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
 import {EmitError} from '@/components/ui/emit-error';
 import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner';
@@ -407,7 +406,7 @@ function ReceiverSearch({value, onChange}: ReceiverSearchProps) {
 
       {/* Modal de cadastro de nova pessoa */}
       <Modal
-        isOpen={showCreate}
+        open={showCreate}
         title="Cadastrar nova pessoa"
         onClose={() => setShowCreate(false)}
         size="xl"

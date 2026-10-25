@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {PackageIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -57,11 +56,7 @@ function CargoUnitsContent() {
         <PageHeader
           title="Unidades de transporte e de carga"
           description="Carretas, vagões, contêineres e pallets que recorrem entre viagens; o rateio da carga é calculado na emissão"
-          action={selectedOrg ? {
-            label: 'Nova unidade',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/cargo-units/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/cargo-units/new')}><span aria-hidden className="text-base leading-none">+</span> Nova unidade</Button> : undefined}
         />
 
         {!selectedOrg ? (

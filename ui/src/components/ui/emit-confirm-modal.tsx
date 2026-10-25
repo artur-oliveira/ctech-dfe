@@ -1,7 +1,7 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import type {ReactNode} from 'react';
-import {Modal} from '@/components/ui/modal';
 
 interface EmitConfirmModalProps {
   open: boolean
@@ -14,7 +14,7 @@ interface EmitConfirmModalProps {
 /** Confirmation step in front of any SEFAZ emission — restates the summary before an irreversible submit. */
 export function EmitConfirmModal({open, onClose, onConfirm, docLabel, summary}: EmitConfirmModalProps) {
   return (
-    <Modal isOpen={open} title={`Confirmar emissão de ${docLabel}`} onClose={onClose} onSubmit={onConfirm}
+    <Modal open={open} title={`Confirmar emissão de ${docLabel}`} onClose={onClose} onSubmit={onConfirm}
            submitLabel="Confirmar e emitir" cancelLabel="Revisar">
       <div className="space-y-3">
         <p className="text-sm text-gray-600">

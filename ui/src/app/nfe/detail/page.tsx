@@ -9,10 +9,9 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@aoctech/ui';
+import {Button, Modal} from '@aoctech/ui';
 import {DfeDetail} from '@/components/dfe/DfeDetail';
 import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
 import {EVENT_STATUS_SUCCESS} from '@/lib/utils/dfe-result-toast';
@@ -142,7 +141,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
       renderExtra={(doc) => (
         <>
           <Modal
-            isOpen={showCceModal}
+            open={showCceModal}
             title={`Carta de Correção: NF-e nº ${doc.number}`}
             onClose={() => setShowCceModal(false)}
             onSubmit={() => {
@@ -190,7 +189,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
           </Modal>
 
           <Modal
-            isOpen={showManifestModal}
+            open={showManifestModal}
             title={`Manifestação: NF-e nº ${doc.number}`}
             onClose={() => setShowManifestModal(false)}
             onSubmit={() => manifestMutation.mutate()}

@@ -1,11 +1,11 @@
 'use client';
 
+import {Modal} from '@aoctech/ui';
 import {type ReactNode, useState} from 'react';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
 import {Combobox} from '@/components/ui/combobox';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
@@ -89,7 +89,7 @@ export function useMdfeActions(orgPk?: string) {
   const modals: ReactNode = (
     <>
       <Modal
-        isOpen={cancelTarget !== null}
+        open={cancelTarget !== null}
         title={cancelTarget ? `Cancelar MDF-e nº ${cancelTarget.number}` : ''}
         onClose={() => {
           setCancelTarget(null);
@@ -120,7 +120,7 @@ export function useMdfeActions(orgPk?: string) {
       </Modal>
 
       <Modal
-        isOpen={closeTarget !== null}
+        open={closeTarget !== null}
         title={closeTarget ? `Encerrar MDF-e nº ${closeTarget.number}` : ''}
         onClose={() => {
           setCloseTarget(null);

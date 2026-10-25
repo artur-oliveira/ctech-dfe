@@ -10,13 +10,12 @@ import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Button} from '@aoctech/ui';
+import {Button, Modal} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {GlossaryTerm} from '@/components/ui/glossary-term';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {Textarea} from '@/components/ui/textarea';
-import {Modal} from '@/components/ui/modal';
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
 import {EmitError} from '@/components/ui/emit-error';
 import {DraftRecoveryBanner} from '@/components/ui/draft-recovery-banner';
@@ -172,7 +171,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
             </button>
           </p>
         )}
-        <Modal isOpen={showCreate} title="Cadastrar consumidor"
+        <Modal open={showCreate} title="Cadastrar consumidor"
                onClose={() => setShowCreate(false)} size="xl">
           <PersonForm lockTipo="pf" initialCpfCnpj={value.cpf} onSubmit={handleCreatePerson} loading={createLoading}/>
         </Modal>
@@ -241,7 +240,7 @@ function ConsumerField({value, onChange}: { value: Consumer | null; onChange: (c
         </p>
       )}
 
-      <Modal isOpen={showCreate} title="Cadastrar consumidor (pessoa física)"
+      <Modal open={showCreate} title="Cadastrar consumidor (pessoa física)"
              onClose={() => setShowCreate(false)} size="xl">
         <PersonForm lockTipo="pf" initialCpfCnpj={digits} onSubmit={handleCreatePerson} loading={createLoading}/>
       </Modal>

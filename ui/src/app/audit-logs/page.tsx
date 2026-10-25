@@ -7,13 +7,11 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, Modal, PageHeader} from '@aoctech/ui';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Modal} from '@/components/ui/modal';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
 import type {AuditLogOut} from '@/lib/types/api';
@@ -150,7 +148,7 @@ function AuditLogsContent() {
       </div>
       
       <Modal
-        isOpen={!!selected}
+        open={!!selected}
         title="Alterações"
         onClose={() => setSelected(null)}
         cancelLabel="Fechar"

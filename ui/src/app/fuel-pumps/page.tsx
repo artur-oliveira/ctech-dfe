@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {FuelPumpIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -53,11 +52,7 @@ function FuelPumpsContent() {
         <PageHeader
           title="Bombas de combustível"
           description="Bico, bomba e tanque cadastrados uma vez; a leitura do encerrante avança sozinha a cada venda"
-          action={selectedOrg ? {
-            label: 'Nova bomba',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/fuel-pumps/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/fuel-pumps/new')}><span aria-hidden className="text-base leading-none">+</span> Nova bomba</Button> : undefined}
         />
 
         {!selectedOrg ? (

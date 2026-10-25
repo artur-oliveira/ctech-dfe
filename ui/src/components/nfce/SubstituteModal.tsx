@@ -2,9 +2,8 @@
 
 import {useState} from 'react';
 import {apiClient} from '@/lib/api/client';
-import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
-import {Button} from '@aoctech/ui';
+import {Button, Modal} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import type {NfeListOut} from '@/lib/types/api';
 import {formatCurrency} from '@/lib/utils/helpers';
@@ -65,7 +64,7 @@ export function SubstituteModal({target, onClose, onConfirm, loading}: {
 
   return (
     <Modal
-      isOpen
+      open
       title={`Substituir NFC-e nº ${target.number}`}
       onClose={onClose}
       onSubmit={() => substitute && onConfirm(substitute.sk, justification.trim())}
