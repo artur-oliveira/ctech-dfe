@@ -208,7 +208,7 @@ export class WorkerStack extends cdk.Stack {
         })
       )
 
-      // Keep-warm: direct invoke with {"ping":true} every 5 min, short-circuited
+      // Keep-warm: direct invoke with {"ping":true} every minute, short-circuited
       // before SQS parsing (service.IsPingEvent) — no SEFAZ/AWS calls, avoids
       // cold start on real traffic once this worker starts calling go-dfe in-process.
       new scheduler.Schedule(this, `${worker.id}-ping-schedule`, {
