@@ -7,7 +7,7 @@ import {useQuery} from '@tanstack/react-query';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {Textarea} from '@/components/ui/textarea';
+import {Textarea} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Button} from '@aoctech/ui';
 import {CollapsibleSection} from '@/components/ui/collapsible-section';

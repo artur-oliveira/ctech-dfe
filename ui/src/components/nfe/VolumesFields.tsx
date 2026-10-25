@@ -2,7 +2,7 @@
 
 import {Button} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {UF_OPTIONS} from '@/lib/schemas/entity';

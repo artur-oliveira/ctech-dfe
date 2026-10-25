@@ -26,7 +26,7 @@ import {PACKING_GROUP_OPTIONS, packingGroupApplies, RISK_CLASS_OPTIONS} from '@/
 import {UF_IBGE_OPTIONS} from '@/lib/data/cities';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {Button} from '@aoctech/ui';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {
   type CfopConfigFormData,
   cfopConfigSchema,

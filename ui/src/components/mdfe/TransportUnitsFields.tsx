@@ -2,7 +2,7 @@
 
 import {useQuery} from '@tanstack/react-query';
 import {Button} from '@aoctech/ui';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {RowCheckbox} from '@/components/ui/table-shell';
 import {apiClient} from '@/lib/api/client';

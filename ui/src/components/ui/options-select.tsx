@@ -1,7 +1,7 @@
 'use client';
 
-import {cn} from '@/lib/utils';
-import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,} from './select';
+import {Select} from '@aoctech/ui';
+import {useFieldAria} from '@/components/ui/form';
 
 interface OptionsSelectProps {
   value?: string | null
@@ -14,6 +14,10 @@ interface OptionsSelectProps {
   ariaLabel?: string
 }
 
+// The shared Select treats "" as "nothing chosen", but some lists have a real
+// "" option ("Todos"). Swap it for a sentinel on the way in and out.
+const EMPTY = '\u0000empty';
+
 export function OptionsSelect({
                                 value,
                                 onValueChange,
@@ -24,55 +28,21 @@ export function OptionsSelect({
                                 id,
                                 ariaLabel,
                               }: OptionsSelectProps) {
-  const selected = value ? options.find((o) => o.value === value) : undefined;
-  const selectedLabel = selected?.label;
-
-  // Group options by their `group` field, preserving first-seen group order.
-  // Falls back to one ungrouped list when no option declares a group.
-  const groups = new Map<string | undefined, typeof options>();
-  for (const opt of options) {
-    const key = opt.group;
-    const bucket = groups.get(key);
-    if (bucket) bucket.push(opt);
-    else groups.set(key, [opt]);
-  }
-  const isGrouped = groups.size > 1 || (groups.size === 1 && [...groups.keys()][0] !== undefined);
-
+  const aria = useFieldAria(id);
+  const hasEmpty = options.some((o) => o.value === '');
+  const toInner = (v: string) => (v === '' && hasEmpty ? EMPTY : v);
   return (
     <Select
-      value={value ?? null}
-      onValueChange={(v) => {
-        if (v !== null) onValueChange?.(v);
-      }}
-    >
-      <SelectTrigger
-        id={id}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        className={cn('w-full overflow-hidden', className)}
-      >
-        <SelectValue placeholder={placeholder} className="min-w-0 overflow-hidden">
-          <span className="block w-full truncate">{selectedLabel}</span>
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {isGrouped
-          ? [...groups.entries()].map(([group, opts]) => (
-            <SelectGroup key={group ?? '__ungrouped'}>
-              {group && <SelectLabel>{group}</SelectLabel>}
-              {opts.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ))
-          : options.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-      </SelectContent>
-    </Select>
+      id={id}
+      value={toInner(value ?? '')}
+      onValueChange={(v) => onValueChange?.(v === EMPTY ? '' : v)}
+      options={options.map((o) => ({...o, value: toInner(o.value)}))}
+      placeholder={placeholder}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-invalid={aria['aria-invalid']}
+      aria-describedby={aria['aria-describedby']}
+      className={className}
+    />
   );
 }

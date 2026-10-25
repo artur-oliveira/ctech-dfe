@@ -2,7 +2,7 @@
 
 import {useQuery} from '@tanstack/react-query';
 import {Button} from '@aoctech/ui';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
