@@ -10,11 +10,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {UsersIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TableShell, TABLE_ROW, TABLE_CELL, RowCheckbox} from '@/components/ui/table-shell';
 import {BulkActionBar} from '@/components/ui/bulk-action-bar';
@@ -74,11 +73,7 @@ function PersonsContent() {
         <PageHeader
           title="Pessoas"
           description="Pessoas físicas e jurídicas cadastradas"
-          action={selectedOrg ? {
-            label: 'Nova pessoa',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/persons/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/persons/new')}><span aria-hidden className="text-base leading-none">+</span> Nova pessoa</Button> : undefined}
         />
         
         {selectedOrg && (

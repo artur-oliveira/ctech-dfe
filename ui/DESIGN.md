@@ -136,7 +136,7 @@ actions visible and place downloads/events/cancellation in **Mais ações** so t
 **Character:** One well-tuned sans carries the entire system — headings, body, data, and labels. Hierarchy comes from weight and size, not from a second family. This is deliberate: the tool should disappear into the task.
 
 ### Hierarchy
-- **Display** (600, 1.5rem / 24px, line-height 1.2, -0.01em): page titles (`PageHeader` h1, `text-2xl`). Where the eye lands first.
+- **Display** (600, 1.5rem / 24px, line-height 1.2, -0.01em): page titles (`PageHeader` h1 de `@aoctech/ui`, `text-xl`). Where the eye lands first.
 - **Title** (600, 1.125rem / 18px, line-height 1.3): section headings, card titles, dialog titles (`text-lg`).
 - **Body** (400, 0.875rem / 14px, line-height 1.5): default text, table cells, descriptions. Prose caps at 65–75ch; data tables run denser. Mobile inputs step up to `text-base` (16px) to prevent iOS focus-zoom, then `md:text-sm`.
 - **Label** (600, 0.75rem / 12px, tracked 0.06em, uppercase): `SectionCard` headers and form-field labels. Small but never muted-gray-on-tint.

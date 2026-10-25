@@ -4,12 +4,11 @@ import {useMemo, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Modal} from '@/components/ui/modal';
 import {PlanChooser} from '@/components/billing/PlanChooser';
 import {buildPlanOptions} from '@/lib/billing/catalog';
 import {formatCents, PLAN_ONDEMAND} from '@/lib/constants/billing';
 import type {AccountSubscription} from '@/lib/types/billing';
-import {Skeleton} from '@aoctech/ui';
+import {Skeleton, Modal} from '@aoctech/ui';
 
 interface ChangePlanDialogProps {
   isOpen: boolean
@@ -56,7 +55,7 @@ export function ChangePlanDialog({isOpen, onClose, subscription}: ChangePlanDial
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title="Mudar de plano"
       size="lg"
       onClose={onClose}

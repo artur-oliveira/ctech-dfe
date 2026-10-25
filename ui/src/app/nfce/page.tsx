@@ -11,10 +11,9 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, Modal} from '@aoctech/ui';
 import {NfceIcon} from '@/components/ui/icon';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
-import {Modal} from '@/components/ui/modal';
 import {JustificationField} from '@/components/ui/justification-field';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
@@ -319,7 +318,7 @@ function NfceContent() {
       </div>
 
       <Modal
-        isOpen={cancelTarget !== null}
+        open={cancelTarget !== null}
         title={cancelTarget ? `Cancelar NFC-e nº ${cancelTarget.number}` : ''}
         onClose={() => {
           setCancelTarget(null);

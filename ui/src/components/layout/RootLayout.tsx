@@ -4,7 +4,7 @@ import React, {useState} from 'react';
 import {usePathname} from 'next/navigation';
 import {Sidebar} from './Sidebar';
 import {Topbar} from './Topbar';
-import {BottomNav} from './BottomNav';
+import {MobileNav} from './MobileNav';
 import {GlobalSearch} from './GlobalSearch';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 import {getDfeThemeFromPath} from '@/lib/theme/dfe-theme';
@@ -41,7 +41,7 @@ export function RootLayout({children}: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <BottomNav onOpenMenu={() => setSidebarOpen(true)} onOpenSearch={() => setSearchOpen(true)}/>
+      <MobileNav onOpenMenu={() => setSidebarOpen(true)} onOpenSearch={() => setSearchOpen(true)}/>
     </div>
   );
 }

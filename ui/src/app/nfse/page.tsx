@@ -10,13 +10,12 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {ServiceIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {NumericInput} from '@/components/ui/numeric-input';
-import {PageHeader} from '@/components/ui/page-header';
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import type {NfseListOut} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
@@ -134,11 +133,7 @@ function NfsesContent() {
         <PageHeader
           title="NFS-e"
           description="Nota Fiscal de Serviços Eletrônica"
-          action={selectedOrg ? {
-            label: 'Emitir NFS-e',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/nfse/emit'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/nfse/emit')}><span aria-hidden className="text-base leading-none">+</span> Emitir NFS-e</Button> : undefined}
         />
 
         <HomologationBanner environment={nfseConfig?.environment}/>

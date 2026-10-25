@@ -1,6 +1,6 @@
 'use client';
 
-import {Modal} from '@/components/ui/modal';
+import {Modal} from '@aoctech/ui';
 import {JustificationField} from '@/components/ui/justification-field';
 
 export const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
@@ -26,7 +26,7 @@ export function CancelDfeModal({
                                 }: CancelDfeModalProps) {
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       title={`Cancelar ${docLabel} nº ${docNumber}`}
       onClose={onClose}
       onSubmit={onConfirm}

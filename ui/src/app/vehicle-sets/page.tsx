@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {VehicleSetIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -57,11 +56,7 @@ function VehicleSetsContent() {
         <PageHeader
           title="Composições veiculares"
           description="Cavalo, reboques e condutores que sempre andam juntos, escolhidos de uma vez no MDF-e"
-          action={selectedOrg ? {
-            label: 'Nova composição',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/vehicle-sets/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/vehicle-sets/new')}><span aria-hidden className="text-base leading-none">+</span> Nova composição</Button> : undefined}
         />
 
         {!selectedOrg ? (

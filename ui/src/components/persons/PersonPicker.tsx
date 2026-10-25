@@ -6,8 +6,7 @@ import {apiClient} from '@/lib/api/client';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
 import {Input} from '@/components/ui/input';
-import {Button} from '@aoctech/ui';
-import {Modal} from '@/components/ui/modal';
+import {Button, Modal} from '@aoctech/ui';
 import {PersonForm} from '@/components/persons/PersonForm';
 import {PERSON_ROLE_LABELS, type PersonRole} from '@/lib/schemas/entity';
 import {formatCpfCnpj, personTaxId} from '@/lib/utils/document';
@@ -244,7 +243,7 @@ export function PersonPicker({
         + Cadastrar nova pessoa
       </button>
 
-      <Modal isOpen={showCreate} title="Cadastrar pessoa" onClose={() => setShowCreate(false)} size="xl">
+      <Modal open={showCreate} title="Cadastrar pessoa" onClose={() => setShowCreate(false)} size="xl">
         <PersonForm onSubmit={handleCreatePerson} loading={createLoading}
                     initialRoles={role ? [role] : undefined}/>
       </Modal>

@@ -1,3 +1,4 @@
+// standards:allow @aoctech/ui Input has no react-hook-form field aria wiring (aria-invalid/aria-describedby via useFieldAria, id defaulting to name), no file-input styling and no desktop-compact height. Gap to implement in ctech-ui.
 import * as React from "react";
 import {Input as InputPrimitive} from "@base-ui/react/input";
 

@@ -6,8 +6,7 @@ import {toast} from 'sonner';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {usePagination} from '@/lib/hooks/usePagination';
-import {Button, EmptyState} from '@aoctech/ui';
-import {Modal} from '@/components/ui/modal';
+import {Button, EmptyState, Modal} from '@aoctech/ui';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {JustificationField} from '@/components/ui/justification-field';
 import {NfeIcon} from '@/components/ui/icon';
@@ -259,7 +258,7 @@ export function InutilizationsTab({docType, docLabel, orgPk}: InutilizationsTabP
       </section>
 
       <Modal
-        isOpen={draft !== null}
+        open={draft !== null}
         title={`Inutilizar numeração de ${docLabel}`}
         onClose={closeModal}
         onSubmit={() => canSubmit && mutation.mutate()}

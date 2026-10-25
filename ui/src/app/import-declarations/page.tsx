@@ -9,11 +9,10 @@ import {useEntityDelete} from '@/lib/hooks/useEntityDelete';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {Button, EmptyState} from '@aoctech/ui';
+import {Button, EmptyState, PageHeader} from '@aoctech/ui';
 import {ImportIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
-import {PageHeader} from '@/components/ui/page-header';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
@@ -53,11 +52,7 @@ function ImportDeclarationsContent() {
         <PageHeader
           title="Declarações de importação"
           description="Uma DI cobre várias notas e vários itens; na emissão o item só aponta qual adição o representa"
-          action={selectedOrg ? {
-            label: 'Nova declaração',
-            icon: <span className="text-base leading-none">+</span>,
-            onClick: () => router.push('/import-declarations/new'),
-          } : undefined}
+          action={selectedOrg ? <Button variant="brand" onClick={() => router.push('/import-declarations/new')}><span aria-hidden className="text-base leading-none">+</span> Nova declaração</Button> : undefined}
         />
 
         {!selectedOrg ? (
