@@ -1,4 +1,4 @@
-import {Textarea} from './textarea';
+import {Textarea} from '@aoctech/ui';
 
 const DEFAULT_MIN_LENGTH = 15;
 const DEFAULT_MAX_LENGTH = 255;

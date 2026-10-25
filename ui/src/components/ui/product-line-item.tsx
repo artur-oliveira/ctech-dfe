@@ -3,7 +3,7 @@
 import type {ReactNode} from 'react';
 import {Button} from '@aoctech/ui';
 import {CurrencyInput} from '@/components/ui/currency-input';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {NumericInput} from '@/components/ui/numeric-input';
 
 export interface ProductLineValues {

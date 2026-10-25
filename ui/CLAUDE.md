@@ -155,7 +155,7 @@ declare uma rota de navegação em outro lugar.
 ### Componentes de `@aoctech/ui` (regra `uidup`)
 
 - `Modal`, `PageHeader` e `BottomNav` vêm de `@aoctech/ui`; não recrie arquivo local com o mesmo nome. `Modal` usa `open` (não `isOpen`); `PageHeader` recebe `action` como `ReactNode` (um `<Button variant="brand">`).
-- `ui/select.tsx` e `ui/input.tsx` seguem locais com `standards:allow` até o ctech-ui ganhar opções agrupadas no `Select` e a fiação de aria do react-hook-form no `Input`.
+- `ui/input.tsx` segue como wrapper fino do `Input` do `@aoctech/ui` com `standards:allow`: o `Input` compartilhado liga aria pelo contexto do `Field`, e os formulários aqui usam `FormItem`/`FormMessage` do shadcn (id da mensagem via `useFieldAria`). `Select`, `Textarea` e `Label` vêm direto do pacote (`OptionsSelect` envolve o `Select`).
 
 ### SEO e título de página
 

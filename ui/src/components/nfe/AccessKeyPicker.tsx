@@ -2,7 +2,7 @@
 
 import {useQuery} from '@tanstack/react-query';
 import {Button} from '@aoctech/ui';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {Combobox} from '@/components/ui/combobox';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';

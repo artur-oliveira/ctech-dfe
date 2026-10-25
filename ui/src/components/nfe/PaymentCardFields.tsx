@@ -7,7 +7,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
+import {Label} from '@aoctech/ui';
 import {maskCnpj} from '@/lib/utils/masks';
 import type {NfeCardIn} from '@/lib/types/api';
 import {CARD_PAYMENT_TYPES, isPixPaymentType, TBAND_OPTIONS} from '@/lib/data/payment-tables';

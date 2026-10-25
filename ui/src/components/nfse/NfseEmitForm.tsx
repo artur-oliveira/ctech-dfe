@@ -14,7 +14,7 @@ import {useEmitDraft} from '@/lib/hooks/useEmitDraft';
 import {queryKeys} from '@/lib/api/query-keys';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-import {Textarea} from '@/components/ui/textarea';
+import {Textarea} from '@aoctech/ui';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox';

@@ -14,7 +14,7 @@ import {RootLayout} from '@/components/layout/RootLayout';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
 import {Button, Skeleton, Modal} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Textarea} from '@/components/ui/textarea';
+import {Textarea} from '@aoctech/ui';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
 import {CopyableCode} from '@/components/ui/copyable-code';
