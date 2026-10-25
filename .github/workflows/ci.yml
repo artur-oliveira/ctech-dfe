@@ -90,7 +90,7 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags integration ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: ${{ matrix.module }}
