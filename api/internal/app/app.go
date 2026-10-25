@@ -944,8 +944,10 @@ func startErasureConsumer(lc fx.Lifecycle, cfg *config.Config, clients *awsclien
 		cfg.ErasureClientID, cfg.ErasureClientSecret, accountclient.ScopeExportAck)
 	exporter := dataexport.NewStreamHandler(services.ErasureServiceName, svc.DataExporter().Write, uploads,
 		dataexport.NewAckClient(uploads, strings.TrimSuffix(cfg.CtechURL, "/")+exportAckPath, exportTokens))
+	pub := newAlerts(cfg)
 	consumer := erasure.NewConsumer(clients.SQS, cfg.ErasureQueueURL, services.ErasureServiceName, store,
-		services.AlertingPurge(svc.Purge, newAlerts(cfg)), acks).
+		erasure.AlertingPurge(svc.Purge, pub, services.ErrErasureSettling), acks).
+		OnFailure(erasure.AlertFailures(pub)).
 		WithExporter(exporter.Handle).WithVisibilityHeartbeat(cfg.ErasureQueueVisibility)
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
