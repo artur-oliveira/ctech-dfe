@@ -5,6 +5,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {DFE_DOCUMENTS} from '@/lib/constants/dfe-documents';
+import {RecentDocuments} from '@/components/dashboard/RecentDocuments';
 import {SetupChecklist} from '@/components/onboarding/SetupChecklist';
 
 const quickActions = DFE_DOCUMENTS;
@@ -57,6 +58,8 @@ function DashboardContent() {
           </div>
         </div>
         
+        <RecentDocuments/>
+
         {/* Whatever is left of first-run setup — hides itself once finished. */}
         <SetupChecklist/>
       </div>

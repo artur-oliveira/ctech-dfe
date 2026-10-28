@@ -87,7 +87,7 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
               <Button type="button" variant="ghost" size="sm"
                       disabled={removeMutation.isPending && removeMutation.variables === v.cpf_cnpj}
                       onClick={() => removeMutation.mutate(v.cpf_cnpj)}
-                      className="shrink-0 min-h-11 sm:min-h-0 text-gray-400 hover:text-red-500 hover:bg-red-50">
+                      className="shrink-0 min-h-11 sm:min-h-0 text-red-700 hover:text-red-800 hover:bg-red-50">
                 {removeMutation.isPending && removeMutation.variables === v.cpf_cnpj ? 'Removendo...' : 'Remover'}
               </Button>
             </li>

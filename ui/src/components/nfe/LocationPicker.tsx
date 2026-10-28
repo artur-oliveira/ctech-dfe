@@ -56,7 +56,7 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
                   onChange(null);
                   onSaveChange(false);
                 }}
-                className="text-gray-500 hover:text-danger hover:bg-red-50">
+                className="text-red-700 hover:text-red-800 hover:bg-red-50">
           Remover
         </Button>
       </div>
