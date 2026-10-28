@@ -225,7 +225,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   value: tz,
                   label: TIMEZONE_LABELS[tz],
                 }))}
-                className="max-w-96"
+                className="w-full max-w-96"
               />
               <FormMessage/>
             </FormItem>
@@ -247,7 +247,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   {value: '1', label: '1 – Produção'},
                   {value: '2', label: '2 – Homologação'},
                 ]}
-                className="max-w-64"
+                className="w-full max-w-64"
               />
               <FormMessage/>
             </FormItem>
@@ -486,7 +486,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
           </div>
         </section>
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:pt-2">
           {savedAt ? (
             <p className="text-xs text-muted-foreground">Última atualização {savedAt}</p>
           ) : (

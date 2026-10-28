@@ -142,7 +142,7 @@ export default function PrimeirosPassos() {
           id: 'dashboard',
           title: 'O painel',
           summary:
-            'Ponto de partida do dia a dia: atalhos de emissão por tipo de documento e o que ainda falta configurar.',
+            'Ponto de partida do dia a dia: atalhos de emissão por tipo de documento, as últimas NF-e emitidas com o status de cada uma e o que ainda falta configurar.',
           image: {
             src: '/guide/dashboard.webp',
             alt: 'Painel do CTech DF-e com os atalhos de emissão para NF-e, NFC-e, CT-e e MDF-e',
