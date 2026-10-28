@@ -101,7 +101,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                            value: String(y),
                            label: String(y)
                          }))]}
-                         placeholder="Todos" className="h-8 w-20 text-sm"/>
+                         placeholder="Todos" className="h-8 w-24 text-sm"/>
         </div>
         {filterYear && (
           <div className="flex flex-col gap-1">
@@ -112,7 +112,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
                              value: String(m.value),
                              label: m.label
                            }))]}
-                           placeholder="Todos" className="h-8 w-18 text-sm"/>
+                           placeholder="Todos" className="h-8 w-28 text-sm"/>
           </div>
         )}
         <div className="flex flex-col gap-1">

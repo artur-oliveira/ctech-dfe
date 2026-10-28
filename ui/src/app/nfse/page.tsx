@@ -173,7 +173,7 @@ function NfsesContent() {
                   onValueChange={(v) => setFilter('year', v)}
                   options={[{value: '', label: 'Todos'}, ...YEARS.map(y => ({value: String(y), label: String(y)}))]}
                   placeholder="Todos"
-                  className="h-8 w-20 text-sm"
+                  className="h-8 w-24 text-sm"
                 />
               </div>
 
@@ -186,7 +186,7 @@ function NfsesContent() {
                     onValueChange={(v) => setFilter('month', v)}
                     options={[{value: '', label: 'Todos'}, ...MONTHS.map(m => ({value: String(m.value), label: m.label}))]}
                     placeholder="Todos"
-                    className="h-8 w-18 text-sm"
+                    className="h-8 w-28 text-sm"
                   />
                 </div>
               )}
