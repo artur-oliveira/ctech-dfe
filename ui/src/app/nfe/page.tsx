@@ -429,7 +429,7 @@ function NfeListTab({
               label: String(y)
             }))]}
             placeholder="Todos"
-            className="h-8 w-20 text-sm"
+            className="h-8 w-24 text-sm"
           />
         </div>
 
@@ -445,7 +445,7 @@ function NfeListTab({
                 label: m.label
               }))]}
               placeholder="Todos"
-              className="h-8 w-18 text-sm"
+              className="h-8 w-28 text-sm"
             />
           </div>
         )}
@@ -459,7 +459,7 @@ function NfeListTab({
               onValueChange={setFilterDay}
               options={[{value: '', label: 'Todos'}, ...dayOptions]}
               placeholder="Todos"
-              className="h-8 w-16 text-sm"
+              className="h-8 w-24 text-sm"
             />
           </div>
         )}
