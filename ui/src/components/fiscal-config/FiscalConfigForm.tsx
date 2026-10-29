@@ -247,7 +247,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   {value: '1', label: '1 – Produção'},
                   {value: '2', label: '2 – Homologação'},
                 ]}
-                className="w-full max-w-64"
+                className="w-full sm:max-w-64"
               />
               <FormMessage/>
             </FormItem>
