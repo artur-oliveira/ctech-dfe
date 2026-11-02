@@ -392,7 +392,7 @@ func newDistributionService(
 		NfeConfig, NfceConfig, CteConfig, MdfeConfig, NfseConfig,
 		nfeDist, cteDist, mdfeDist, nfseDist,
 		clients, documentSvc,
-		cfg.DistributionQueueURL,
+		cfg.DistributionFunctionName,
 		cfg.S3BucketDocuments,
 		cfg.S3BucketCerts,
 		cfg.SefazFunctionName,

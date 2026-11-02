@@ -232,8 +232,9 @@ aws lambda list-event-source-mappings --function-name "${ENVIRONMENT}-dfe-outbox
 ```
 
 The table must expose a `NEW_IMAGE` stream, the event-source mapping must be enabled, and the publisher DLQ (`${ENVIRONMENT}-dfe-outbox-publisher-dlq`) must be empty (there is no
-alarm on it; check the queue depth). Main worker queue visibility is derived from each Lambda timeout as six times the timeout plus the five-minute
-maximum batching window; do not replace it with a fixed value below the function execution budget.
+alarm on it; check the queue depth). Worker Lambdas have no queues: SNS invokes them asynchronously, retries are Lambda async config (2 retries, 1 h max event age) and
+the `dlq-processor` is the on-failure destination. First deploy of that design needs the queue drain in
+`docs/specs/2026-11-02-sns-lambda-worker-delivery.md` (deleting a queue drops what is in it).
 
 # Destroy
 

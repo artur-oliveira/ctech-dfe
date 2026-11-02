@@ -132,7 +132,7 @@ func (r *ResultsConsumer) Start(ctx context.Context) {
 }
 
 func (r *ResultsConsumer) receive(ctx context.Context) ([]sqstypes.Message, error) {
-	out, err := r.sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
+	out, err := r.sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{ // standards:allow intentional always-on poller, ~131k requests/month per instance, cache invalidation needs low latency
 		QueueUrl:            aws.String(r.queueURL),
 		MaxNumberOfMessages: resultsMaxMessages,
 		WaitTimeSeconds:     resultsWaitSeconds,

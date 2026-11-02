@@ -21,7 +21,7 @@ function synth() {
     documentsBucketName: 'prod-ctech-dfe-documents',
     resultsQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-dfe-results',
     nfeEmissionTopicArn: 'arn:aws:sns:us-east-1:868899309401:prod-dfe-emission',
-    distributionQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-dfe-distribution',
+    distributionFunctionName: 'prod-distribution-worker',
     erasureQueueUrl: 'https://sqs.us-east-1.amazonaws.com/868899309401/prod-ctech-dfe-erasure',
     valkeyUrlSsmPath: '/ctech-dfe/prod/valkey-url',
   })

@@ -1,12 +1,18 @@
 // Workers that call SEFAZ/municipal authorities via the go-dfe-egress Lambda must
-// outlive it (EGRESS_TIMEOUT_SECONDS = 120), or SQS redelivers a call the egress
+// outlive it (EGRESS_TIMEOUT_SECONDS = 120), or Lambda's async retry re-sends a call the egress
 // is still running.
 const SEFAZ_CALL_TIMEOUT_SECONDS = 150
+
+/** Worker invoked directly by the API and the dispatcher (no SNS subscription). */
+export const DISTRIBUTION_WORKER_ID = 'distribution'
+
+/** Function name of the distribution worker; the API and IAM stacks build its ARN from it
+ * (a plain string, not a cross-stack reference, so the Worker stack can deploy last). */
+export const distributionFunctionName = (environment: string) => `${environment}-distribution-worker`
 
 export type WorkerDefinition = {
   id: string
   name: string
-  queueName: string
   timeoutSeconds: number
   memory: number
   environment: Record<string, string>
@@ -21,7 +27,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'nfe-emission',
     name: 'nfe-emission-worker',
-    queueName: 'nfe-emission',
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['nfes', 'nfces'],
@@ -31,7 +36,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'nfe-event',
     name: 'nfe-event-worker',
-    queueName: 'nfe-event',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     // nfes/nfces needed for cancellation: worker updates the document status to cancelled
@@ -42,7 +46,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'nfe-inutilization',
     name: 'nfe-inutilization-worker',
-    queueName: 'nfe-inutilization',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['nfe_events', 'nfce_events'],
@@ -52,7 +55,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'cte-emission',
     name: 'cte-emission-worker',
-    queueName: 'cte-emission',
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['ctes'],
@@ -62,7 +64,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'cte-event',
     name: 'cte-event-worker',
-    queueName: 'cte-event',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['ctes', 'cte_events'],
@@ -72,7 +73,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'mdfe-emission',
     name: 'mdfe-emission-worker',
-    queueName: 'mdfe-emission',
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['mdfes'],
@@ -82,7 +82,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'mdfe-event',
     name: 'mdfe-event-worker',
-    queueName: 'mdfe-event',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     dynamoTables: ['mdfes', 'mdfe_events'],
@@ -92,7 +91,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'nfse-emission',
     name: 'nfse-emission-worker',
-    queueName: 'nfse-emission',
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['nfses'],
@@ -102,7 +100,6 @@ export const WORKERS: WorkerDefinition[] = [
   {
     id: 'nfse-event',
     name: 'nfse-event-worker',
-    queueName: 'nfse-event',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     // nfses needed for cancellation (TE101101): worker reverts the document status
@@ -111,11 +108,10 @@ export const WORKERS: WorkerDefinition[] = [
     environment: {},
   },
   {
-    // No sefazServices → queue is not subscribed to the SNS event bus.
-    // Triggered directly via SQS by the API (user-initiated) and the dispatcher Lambda (scheduled).
-    id: 'distribution',
+    // No sefazServices → not subscribed to the SNS event bus.
+    // Invoked asynchronously by the API (user-initiated) and the dispatcher Lambda (scheduled).
+    id: DISTRIBUTION_WORKER_ID,
     name: 'distribution-worker',
-    queueName: 'distribution',
     timeoutSeconds: 300,
     memory: 256,
     sefazServices: [],

@@ -4,19 +4,21 @@ Queues (CDK; `{env}` = `prod`):
 
 | DLQ | Fed by | Source in CDK |
 |---|---|---|
-| `{env}-dfe-dlq` | every worker queue (`{env}-nfe-emission`, `-nfe-event`, `-nfe-inutilization`, `-cte-emission`, `-cte-event`, `-mdfe-emission`, `-mdfe-event`, `-nfse-emission`, `-nfse-event`, `-distribution`) after 3 receives | `cdk/lib/worker-stack.ts` |
+| `{env}-dfe-dlq` | parking queue, no consumer: SNS deliveries to a worker Lambda that SNS gave up on (subscription redrive) and failure envelopes the `dlq-processor` itself could not handle | `cdk/lib/worker-stack.ts` |
 | `{env}-dfe-outbox-publisher-dlq` | outbox publisher Lambda failures | `cdk/lib/worker-stack.ts` |
 | `{env}-ctech-dfe-results-dlq` | `{env}-ctech-dfe-results` after 3 receives | `cdk/lib/event-bus-stack.ts` |
 | `{env}-ctech-dfe-erasure-dlq` | `{env}-ctech-dfe-erasure` after 5 receives | `cdk/lib/event-bus-stack.ts` |
 
-`{env}-dfe-dlq` is drained by the `{env}-dfe-dlq-processor` Lambda (`worker/cmd/dlq-processor`), which publishes
-`status=failed` to the results topic. Messages that stay in it are the ones that processor itself failed on. Redriving them
-re-runs an emission: check the document's state in DynamoDB first and prefer the user retrying with a new
-`Idempotency-Key`, because a SEFAZ call may already have succeeded.
+Worker failures no longer pass through a queue: after Lambda's 3 tries (or 1 h event age) the `{env}-dfe-dlq-processor` Lambda is
+invoked as the on-failure destination, marks the document failed, publishes `status=failed` to the results topic and alerts
+(`dlq-exhausted`). Messages that stay in `{env}-dfe-dlq` are ones that processor itself failed on, or SNS deliveries that never
+reached a worker. Redriving them re-runs an emission: check the document's state in DynamoDB first and prefer the user retrying
+with a new `Idempotency-Key`, because a SEFAZ call may already have succeeded. Details and exact commands:
+`docs/specs/2026-11-02-sns-lambda-worker-delivery.md` (section "Parking queue runbook").
 
 ## Alert
 
-None fires on DLQ depth: the family declined CloudWatch alarms (dfe). Consumer-side go-common `alerts` to `ctech-{env}-alerts` cover the rest: `dlq-exhausted` (the DLQ processor marked a document or event failed), `outbox-stuck`, and `erasure-purge-failed` (an account-deletion purge failed and the message stays for redelivery). A message that lands in a DLQ without one of those (a poison message the processor cannot parse) is still silent: look at the queues after a failed emission or erasure. (The `{env}-dfe-ops-alerts` and `{env}-ctech-dfe-results-ops-alerts` topics are kept only so externally added subscriptions survive; nothing publishes to them.)
+None fires on DLQ depth: the family declined CloudWatch alarms (dfe). Consumer-side go-common `alerts` to `ctech-{env}-alerts` cover the rest: `dlq-exhausted` (the DLQ processor marked a document or event failed), `dlq-processor-failed` (it could not; it retries, then parks the event in `{env}-dfe-dlq`), `dlq-unparseable` (it dropped a payload it could not parse), `outbox-stuck`, and `erasure-purge-failed` (an account-deletion purge failed and the message stays for redelivery). A message that lands in `{env}-dfe-dlq` through SNS subscription redrive (delivery failure) is silent: look at the queue after a failed emission. (The `{env}-dfe-ops-alerts` and `{env}-ctech-dfe-results-ops-alerts` topics are kept only so externally added subscriptions survive; nothing publishes to them.)
 
 ## Inspect
 
@@ -40,7 +42,7 @@ aws sqs start-message-move-task --source-arn arn:aws:sqs:us-east-1:868899309401:
 aws sqs list-message-move-tasks --source-arn arn:aws:sqs:us-east-1:868899309401:<dlq-name>
 ```
 
-Without `--destination-arn` the messages go back to the queue that dead-lettered them. Use `--max-number-of-messages-per-second`
+Without `--destination-arn` the messages go back to the queue that dead-lettered them (not applicable to `{env}-dfe-dlq`, see the spec). Use `--max-number-of-messages-per-second`
 to throttle. Cancel with `aws sqs cancel-message-move-task --task-handle <handle>`.
 For a DLQ filled by something that is not a queue (Scheduler, Lambda stream failure) there is no source queue:
 pass `--destination-arn` of a queue that can take the payload, or replay by hand and `aws sqs purge-queue` after.

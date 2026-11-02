@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"gopkg.aoctech.app/api-commons/erasure"
 	"log/slog"
 
@@ -17,21 +18,39 @@ import (
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
 
-type sqsEvent struct {
-	Records []sqsRecord `json:"Records"`
+type processor interface {
+	Process(ctx context.Context, msg service.WorkerMessage) error
 }
 
-type sqsRecord struct {
-	MessageID string `json:"messageId"`
-	Body      string `json:"body"`
-}
-
-type batchResponse struct {
-	BatchItemFailures []batchItemFailure `json:"batchItemFailures"`
-}
-
-type batchItemFailure struct {
-	ItemIdentifier string `json:"itemIdentifier"`
+// handle processes an SNS event (async invoke from the event bus). Any failure is
+// returned so Lambda's async retry (2 retries, then the dlq-processor destination)
+// takes over; SNS delivers one record per invoke, so there is no partial batch.
+// Process is idempotent under redelivery (claimProcessing lease + terminal-status
+// republish), so a retry after a timeout cannot call SEFAZ twice for a done doc.
+func handle(ctx context.Context, raw json.RawMessage, p processor) error {
+	if service.IsPingEvent(raw) {
+		slog.Info("ping: keep-warm invoke, no-op")
+		return nil
+	}
+	records, err := service.SNSMessages(raw)
+	if err != nil {
+		slog.Error("failed to parse SNS event", "err", err)
+		return err
+	}
+	var errs []error
+	for _, record := range records {
+		var msg service.WorkerMessage
+		if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
+			slog.Error("failed to parse SNS message body", "id", record.ID, "err", err)
+			errs = append(errs, err)
+			continue
+		}
+		if err := p.Process(ctx, msg); err != nil {
+			slog.Error("failed to process message", "id", record.ID, "err", err)
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func main() {
@@ -57,31 +76,7 @@ func main() {
 		SNS:    sns.NewFromConfig(ac),
 	}, cfg).WithOrgStopped(stopped)
 
-	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
-		if service.IsPingEvent(raw) {
-			slog.Info("ping: keep-warm invoke, no-op")
-			return batchResponse{}, nil
-		}
-
-		var ev sqsEvent
-		if err := json.Unmarshal(raw, &ev); err != nil {
-			slog.Error("failed to parse SQS event", "err", err)
-			return batchResponse{}, err
-		}
-
-		var failures []batchItemFailure
-		for _, record := range ev.Records {
-			var msg service.WorkerMessage
-			if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
-				slog.Error("failed to parse SQS record body", "id", record.MessageID, "err", err)
-				failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
-				continue
-			}
-			if err := svc.Process(ctx, msg); err != nil {
-				slog.Error("failed to process message", "id", record.MessageID, "err", err)
-				failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
-			}
-		}
-		return batchResponse{BatchItemFailures: failures}, nil
+	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) error {
+		return handle(ctx, raw, svc)
 	}, lambda.WithContext(rootCtx))
 }

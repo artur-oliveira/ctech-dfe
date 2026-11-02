@@ -8,7 +8,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
+	lambdaTypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
@@ -31,10 +32,10 @@ func main() {
 	}
 
 	dynamo := dynamodb.NewFromConfig(ac)
-	sqsClient := sqs.NewFromConfig(ac)
+	lambdaClient := lambdaSDK.NewFromConfig(ac)
 
 	lambda.StartWithOptions(func(ctx context.Context, _ json.RawMessage) error {
-		return dispatch(ctx, cfg, dynamo, sqsClient)
+		return dispatch(ctx, cfg, dynamo, lambdaClient)
 	}, lambda.WithContext(rootCtx))
 }
 
@@ -51,15 +52,18 @@ type orgQuerier interface {
 	Query(ctx context.Context, in *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 }
 
-type jobSender interface {
-	SendMessage(ctx context.Context, in *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+// jobInvoker starts one async (InvocationType Event) run of the distribution worker.
+// Lambda queues the event, retries it twice and hands it to the dlq-processor
+// destination on failure — the same resilience the SQS queue + DLQ used to give.
+type jobInvoker interface {
+	Invoke(ctx context.Context, in *lambdaSDK.InvokeInput, optFns ...func(*lambdaSDK.Options)) (*lambdaSDK.InvokeOutput, error)
 }
 
 func dispatch(
 	ctx context.Context,
 	cfg *config.Config,
 	db orgQuerier,
-	sqsClient jobSender,
+	invoker jobInvoker,
 ) error {
 	for _, docType := range docTypes {
 		table := cfg.TablePrefix + "_organization_" + docType + "_configs"
@@ -77,15 +81,18 @@ func dispatch(
 				"doc_type": docType,
 				"trigger":  "scheduler",
 			})
-			_, err := sqsClient.SendMessage(ctx, &sqs.SendMessageInput{
-				QueueUrl:    &cfg.DistributionQueueURL,
-				MessageBody: new(string(msg)),
+			// Async invoke returns 202 once Lambda has queued the event; a failure here is
+			// logged and skipped like the SQS send was — the next 30-minute sweep redoes it.
+			_, err := invoker.Invoke(ctx, &lambdaSDK.InvokeInput{
+				FunctionName:   &cfg.DistributionFunctionName,
+				InvocationType: lambdaTypes.InvocationTypeEvent,
+				Payload:        msg,
 			})
 			if err != nil {
-				slog.Error("failed to enqueue distribution job", "org_pk", orgPK, "doc_type", docType, "err", err)
+				slog.Error("failed to invoke distribution job", "org_pk", orgPK, "doc_type", docType, "err", err)
 				continue
 			}
-			slog.Info("enqueued distribution job", "org_pk", orgPK, "doc_type", docType)
+			slog.Info("invoked distribution job", "org_pk", orgPK, "doc_type", docType)
 		}
 	}
 	return nil

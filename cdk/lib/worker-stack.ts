@@ -2,15 +2,15 @@ import * as cdk from 'aws-cdk-lib'
 import {Duration} from 'aws-cdk-lib'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import * as sqs from 'aws-cdk-lib/aws-sqs'
+import * as destinations from 'aws-cdk-lib/aws-lambda-destinations'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as subs from 'aws-cdk-lib/aws-sns-subscriptions'
-import * as lambdaEvents from 'aws-cdk-lib/aws-lambda-event-sources'
 import * as scheduler from 'aws-cdk-lib/aws-scheduler'
 import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
-import {WorkerDefinition} from './worker-definitions'
+import {DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
 import {goLambdaCode} from './go-code'
@@ -22,6 +22,13 @@ const CTECH_WORKER_DIR = path.join(__dirname, '../../worker')
 function goCode(cmd: string): lambda.AssetCode {
   return goLambdaCode(CTECH_WORKER_DIR, `./cmd/${cmd}`)
 }
+
+// Lambda async invoke policy shared by every worker (SNS and direct invokes are both async).
+// 2 retries = 3 tries, the old SQS maxReceiveCount. Lambda waits 1 min, then 2 min between
+// tries. A job older than the max event age is dropped to the on-failure destination: one
+// hour is far past three tries, and keeps a throttled backlog from failing documents late.
+const ASYNC_RETRY_ATTEMPTS = 2
+const ASYNC_MAX_EVENT_AGE = Duration.hours(1)
 
 interface WorkerStackProps extends cdk.StackProps {
   environment: Environment
@@ -39,9 +46,6 @@ interface WorkerStackProps extends cdk.StackProps {
 }
 
 export class WorkerStack extends cdk.Stack {
-  public readonly distributionQueueUrl: string
-  public readonly distributionQueueArn: string
-
   constructor(scope: Construct, id: string, props: WorkerStackProps) {
     super(scope, id, props)
 
@@ -69,14 +73,16 @@ export class WorkerStack extends cdk.Stack {
     // =========================
     // LOOP DE WORKERS
     // =========================
-    const queueById = new Map<string, sqs.Queue>()
-
     // Kept without an alarm attached: the topic may carry email/chat
     // subscriptions added outside CloudFormation, and destroying it would drop
     // them. Publish to it from an alarm again if DLQ paging comes back.
     new sns.Topic(this, 'ops-alerts-topic', {
       topicName: `${environment}-dfe-ops-alerts`,
     })
+    // Parking queue, NOT consumed by any event source mapping (an idle queue costs nothing;
+    // a poller bills ~60k empty receives a week). It receives (a) SNS deliveries that failed
+    // after SNS's own retries (subscription redrive) and (b) events the dlq-processor itself
+    // could not handle. Drain runbook: docs/specs/2026-11-02-sns-lambda-worker-delivery.md.
     const workerDlq = new sqs.Queue(this, 'worker-dlq', {
       queueName: `${environment}-dfe-dlq`,
       retentionPeriod: Duration.days(14),
@@ -84,44 +90,61 @@ export class WorkerStack extends cdk.Stack {
     })
     const workerDlqTableNames = [...new Set(workers.flatMap(worker => worker.dynamoTables ?? []))]
 
+    // DLQ processor — the on-failure destination of every worker. After the last retry
+    // Lambda invokes it with the failure envelope; it publishes status=failed to Results
+    // SNS and alerts. Logical ids keep the first worker's id: the role has a fixed
+    // physical name, so renaming them would make CloudFormation replace it and collide.
+    const dlqOwnerId = workers[0].id
+    const dlqRole = new iam.Role(this, `${dlqOwnerId}-dlq-role`, {
+      roleName: `${environment}-dfe-dlq-processor-role`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    })
+
+    dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [resultsTopicArn, alertsTopicArn],
+    }))
+
+    if (workerDlqTableNames.length) {
+      const dlqTableArns = workerDlqTableNames.map(t =>
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`
+      )
+      dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['dynamodb:UpdateItem'],
+        resources: dlqTableArns,
+      }))
+    }
+
+    const dlqProcessor = new lambda.Function(this, `${dlqOwnerId}-dlq-processor`, {
+      functionName: `${environment}-dfe-dlq-processor`,
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      handler: 'bootstrap',
+      code: goCode('dlq-processor'),
+      role: dlqRole,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 128,
+      // It is itself an async target: a failed run is retried, then parked (not lost).
+      retryAttempts: ASYNC_RETRY_ATTEMPTS,
+      maxEventAge: ASYNC_MAX_EVENT_AGE,
+      onFailure: new destinations.SqsDestination(workerDlq),
+      environment: {
+        APP_ENVIRONMENT: environment,
+        TABLE_PREFIX: tablePrefix,
+        CERTIFICATES_BUCKET: certificatesBucketName,
+        DOCUMENTS_BUCKET: documentsBucketName,
+        DFE_LAMBDA_NAME: dfeLambdaName,
+        DFE_EGRESS_REGION: dfeEgressRegion,
+        RESULTS_TOPIC_ARN: resultsTopicArn,
+        ALERTS_TOPIC_ARN: alertsTopicArn,
+      },
+    })
+
+    let distributionFn: lambda.Function | undefined
     for (const worker of workers) {
-
-      const queue = new sqs.Queue(this, `${worker.id}-queue`, {
-        queueName: `${environment}-${worker.queueName}`,
-        // AWS recommends six times the Lambda timeout, plus the batch window.
-        visibilityTimeout: Duration.seconds((worker.timeoutSeconds ?? 300) * 6 + 300),
-        receiveMessageWaitTime: Duration.seconds(20),
-        deadLetterQueue: {
-          queue: workerDlq,
-          maxReceiveCount: 3,
-        },
-      })
-
-      queueById.set(worker.id, queue)
-
-      // Workers with no sefazServices send messages directly (API or scheduler).
-      // Do not subscribe them to the SNS event bus.
-      if (worker.sefazServices.length > 0) {
-        eventBus.addSubscription(
-          new subs.SqsSubscription(queue, {
-            rawMessageDelivery: true,
-            filterPolicyWithMessageBody: {
-              sefaz_service: sns.FilterOrPolicy.filter(
-                sns.SubscriptionFilter.stringFilter({allowlist: worker.sefazServices})
-              ),
-            },
-          })
-        )
-
-        queue.addToResourcePolicy(new iam.PolicyStatement({
-          effect: iam.Effect.ALLOW,
-          principals: [new iam.ServicePrincipal('sns.amazonaws.com')],
-          actions: ['sqs:SendMessage'],
-          resources: [queue.queueArn],
-          conditions: {ArnEquals: {'aws:SourceArn': eventBus.topicArn}},
-        }))
-      }
-
       const role = new iam.Role(this, `${worker.id}-role`, {
         roleName: `${environment}-${worker.id}-worker-role`,
         assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -188,6 +211,9 @@ export class WorkerStack extends cdk.Stack {
         architecture: lambda.Architecture.ARM_64,
         timeout: Duration.seconds(worker.timeoutSeconds ?? 300),
         memorySize: worker.memory ?? 128,
+        retryAttempts: ASYNC_RETRY_ATTEMPTS,
+        maxEventAge: ASYNC_MAX_EVENT_AGE,
+        onFailure: new destinations.LambdaDestination(dlqProcessor),
         environment: {
           APP_ENVIRONMENT: environment,
           TABLE_PREFIX: tablePrefix,
@@ -200,16 +226,28 @@ export class WorkerStack extends cdk.Stack {
         },
       })
 
-      fn.addEventSource(
-        new lambdaEvents.SqsEventSource(queue, {
-          batchSize: 1,
-          maxBatchingWindow: Duration.minutes(5),
-          reportBatchItemFailures: true
-        })
-      )
+      // Workers with no sefazServices are invoked directly (API, dispatcher), never from
+      // the event bus. The others subscribe to it: SNS invokes the function asynchronously
+      // (no polling, so no idle cost) with the same sefaz_service allowlist as before.
+      // Raw message delivery does not exist for Lambda: the body arrives as Sns.Message.
+      // deadLetterQueue is the subscription redrive for deliveries SNS itself gives up on.
+      if (worker.sefazServices.length > 0) {
+        eventBus.addSubscription(
+          new subs.LambdaSubscription(fn, {
+            deadLetterQueue: workerDlq,
+            filterPolicyWithMessageBody: {
+              sefaz_service: sns.FilterOrPolicy.filter(
+                sns.SubscriptionFilter.stringFilter({allowlist: worker.sefazServices})
+              ),
+            },
+          })
+        )
+      } else if (worker.id === DISTRIBUTION_WORKER_ID) {
+        distributionFn = fn
+      }
 
       // Keep-warm: direct invoke with {"ping":true} every minute, short-circuited
-      // before SQS parsing (service.IsPingEvent) — no SEFAZ/AWS calls, avoids
+      // before event parsing (service.IsPingEvent) — no SEFAZ/AWS calls, avoids
       // cold start on real traffic once this worker starts calling go-dfe in-process.
       new scheduler.Schedule(this, `${worker.id}-ping-schedule`, {
         scheduleName: `${environment}-${worker.name}-ping-schedule`,
@@ -231,63 +269,6 @@ export class WorkerStack extends cdk.Stack {
         fn.addEnvironment('EVENT_BUS_TOPIC_ARN', eventBus.topicArn)
       }
 
-      if (worker !== workers[0]) continue
-
-      // DLQ processor — publishes status=failed to Results SNS after 3 failed attempts.
-      const dlqRole = new iam.Role(this, `${worker.id}-dlq-role`, {
-        roleName: `${environment}-dfe-dlq-processor-role`,
-        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-        managedPolicies: [
-          iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-        ],
-      })
-
-      dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
-        actions: ['sns:Publish'],
-        resources: [resultsTopicArn, alertsTopicArn],
-      }))
-
-      if (workerDlqTableNames.length) {
-        const dlqTableArns = workerDlqTableNames.map(t =>
-          `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}`
-        )
-        dlqRole.addToPrincipalPolicy(new iam.PolicyStatement({
-          actions: ['dynamodb:UpdateItem'],
-          resources: dlqTableArns,
-        }))
-      }
-
-      const dlqProcessor = new lambda.Function(this, `${worker.id}-dlq-processor`, {
-        functionName: `${environment}-dfe-dlq-processor`,
-        runtime: lambda.Runtime.PROVIDED_AL2023,
-        handler: 'bootstrap',
-        code: goCode('dlq-processor'),
-        role: dlqRole,
-        architecture: lambda.Architecture.ARM_64,
-        timeout: Duration.seconds(30),
-        memorySize: 128,
-        environment: {
-          APP_ENVIRONMENT: environment,
-          TABLE_PREFIX: tablePrefix,
-          CERTIFICATES_BUCKET: certificatesBucketName,
-          DOCUMENTS_BUCKET: documentsBucketName,
-          DFE_LAMBDA_NAME: dfeLambdaName,
-          DFE_EGRESS_REGION: dfeEgressRegion,
-          RESULTS_TOPIC_ARN: resultsTopicArn,
-          ALERTS_TOPIC_ARN: alertsTopicArn,
-        },
-      })
-
-      // reportBatchItemFailures: true — a poison message (e.g. attribute_exists(pk)
-      // permanently false) redelivers on its own instead of forcing the whole
-      // batch, including already-succeeded messages, to redeliver.
-      dlqProcessor.addEventSource(
-        new lambdaEvents.SqsEventSource(workerDlq, {
-          batchSize: 10,
-          maxBatchingWindow: Duration.seconds(30),
-          reportBatchItemFailures: true
-        })
-      )
     }
 
     // =========================
@@ -357,10 +338,8 @@ export class WorkerStack extends cdk.Stack {
     // =========================
     // A lightweight Lambda triggered every 30 min by EventBridge.
     // It scans the NF-e/CT-e/MDF-e config tables to find all active orgs
-    // and enqueues one distribution job per (org, doc_type) into the distribution queue.
-    const distributionQueue = queueById.get('distribution')!
-    this.distributionQueueUrl = distributionQueue.queueUrl
-    this.distributionQueueArn = distributionQueue.queueArn
+    // and invokes the distribution worker (async) once per (org, doc_type).
+    const distributionWorker = distributionFn!
 
     const dispatcherRole = new iam.Role(this, 'distribution-dispatcher-role', {
       roleName: `${environment}-distribution-dispatcher-role`,
@@ -370,10 +349,8 @@ export class WorkerStack extends cdk.Stack {
       ],
     })
 
-    dispatcherRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['sqs:SendMessage'],
-      resources: [distributionQueue.queueArn],
-    }))
+    // Async invoke of the distribution worker replaces the SQS send.
+    distributionWorker.grantInvoke(dispatcherRole)
 
     // Dispatcher queries the sweep-index of the config tables to enumerate active orgs
     // (no Scan). The index ARNs are covered by the `/index/*` resource below.
@@ -407,7 +384,7 @@ export class WorkerStack extends cdk.Stack {
       environment: {
         APP_ENVIRONMENT: environment,
         TABLE_PREFIX: tablePrefix,
-        DISTRIBUTION_QUEUE_URL: distributionQueue.queueUrl,
+        DISTRIBUTION_FUNCTION_NAME: distributionWorker.functionName,
       },
     })
 
