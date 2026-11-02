@@ -79,7 +79,7 @@ from the family handler → service → repository layout; do not "fix" it as a 
 
 - DLQs have **no CloudWatch alarm** (removed from the CDK). Alerts go through go-common `alerts` to the shared SNS
   topic (SSM `/ctech/{env}/alerts/topic-arn`, env `ALERTS_TOPIC_ARN`, `alerts.Nop` when unset): `dlq-processor`
-  sends `dlq-exhausted` once a message is marked failed; `outbox-publisher` sends `outbox-stuck` when a record is
+  sends `dlq-exhausted` once a message is marked failed and `dlq-unparseable` (message id and size, never the body) when a message cannot be parsed and is dropped; `outbox-publisher` sends `outbox-stuck` when a record is
   still unpublished after 10 minutes. The distribution-worker DLQ shares the worker DLQ. The outbox DLQ has no
   consumer (onFailure destination only).
 - **Dispatcher enumeration** (`cmd/distribution-dispatcher/main.go`, `queryOrgPKs`): queries the `sweep-index` GSI of each

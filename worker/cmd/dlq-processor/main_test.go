@@ -221,3 +221,20 @@ func TestHandler_FailedTerminalWriteDoesNotAlert(t *testing.T) {
 		t.Fatalf("a record that will be retried must not alert yet: failures=%v alerts=%v", resp.BatchItemFailures, ra.got)
 	}
 }
+
+func TestHandler_UnparseableMessageAlertsOperatorAndIsDropped(t *testing.T) {
+	tablePrefix, resultsTopicARN = "dev", ""
+	dynamoClient = &fakeDynamo{}
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
+
+	resp, err := handler(context.Background(), sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: "not json"}}})
+	if err != nil || len(resp.BatchItemFailures) != 0 {
+		t.Fatalf("an unparseable message is not retried: err=%v failures=%v", err, resp.BatchItemFailures)
+	}
+	if len(ra.got) != 1 || ra.got[0].Job != "dlq-unparseable" || !strings.Contains(ra.got[0].Detail, "m1") ||
+		strings.Contains(ra.got[0].Detail, "not json") {
+		t.Fatalf("want one dlq-unparseable alert naming the message id and not its body, got %+v", ra.got)
+	}
+}

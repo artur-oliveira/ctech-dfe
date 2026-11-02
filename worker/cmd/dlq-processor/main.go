@@ -111,6 +111,14 @@ func handler(ctx context.Context, event sqsEvent) (batchResponse, error) {
 		var msg service.WorkerMessage
 		if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
 			slog.Error("DLQ: failed to parse message body", "id", record.MessageID, "err", err)
+			// Nothing can retry it and the processor deletes it on return, so this alert is the only
+			// trace that a message was lost. The body stays out of it: it is not ours to assume.
+			alerter.Alert(ctx, alerts.Alert{
+				Job:     "dlq-unparseable",
+				Summary: "A message in the dead-letter queue could not be parsed and was dropped.",
+				Detail:  fmt.Sprintf("message_id: %s\nbody_bytes: %d", record.MessageID, len(record.Body)),
+				Err:     err,
+			})
 			continue
 		}
 
