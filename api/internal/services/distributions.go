@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -19,8 +20,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 var docTypeSefazService = map[string]string{
@@ -43,20 +45,23 @@ const distConsQuotaMax = 20
 
 // DistributionService manages DFe distribution received from SEFAZ or the NFS-e ADN.
 type DistributionService struct {
-	orgRepo           *repositories.OrganizationRepository
-	certRepo          *repositories.CertificateRepository
-	NfeConfig         *repositories.NfeConfigRepository
-	NfceConfig        *repositories.NfceConfigRepository
-	CteConfig         *repositories.CteConfigRepository
-	MdfeConfig        *repositories.MdfeConfigRepository
-	NfseConfig        *repositories.NfseConfigRepository
-	nfeDist           *repositories.NFeDistributionRepository
-	cteDist           *repositories.CTeDistributionRepository
-	mdfeDist          *repositories.MDFeDistributionRepository
-	nfseDist          *repositories.NfseDistributionRepository
-	clients           *awsclient.Clients
-	documentSvc       *documents.Service
-	queueURL          string
+	orgRepo     *repositories.OrganizationRepository
+	certRepo    *repositories.CertificateRepository
+	NfeConfig   *repositories.NfeConfigRepository
+	NfceConfig  *repositories.NfceConfigRepository
+	CteConfig   *repositories.CteConfigRepository
+	MdfeConfig  *repositories.MdfeConfigRepository
+	NfseConfig  *repositories.NfseConfigRepository
+	nfeDist     *repositories.NFeDistributionRepository
+	cteDist     *repositories.CTeDistributionRepository
+	mdfeDist    *repositories.MDFeDistributionRepository
+	nfseDist    *repositories.NfseDistributionRepository
+	clients     *awsclient.Clients
+	documentSvc *documents.Service
+	// invoker starts the distribution worker asynchronously; functionName is empty when
+	// the worker is not configured (local dev).
+	invoker           workerInvoker
+	functionName      string
 	bucketDocs        string
 	bucketCerts       string
 	sefazFunctionName string
@@ -76,7 +81,7 @@ func NewDistributionService(
 	nfseDist *repositories.NfseDistributionRepository,
 	clients *awsclient.Clients,
 	documentSvc *documents.Service,
-	queueURL, bucketDocs, bucketCerts, sefazFunctionName string,
+	functionName, bucketDocs, bucketCerts, sefazFunctionName string,
 ) *DistributionService {
 	return &DistributionService{
 		orgRepo: orgRepo, certRepo: certRepo,
@@ -84,7 +89,8 @@ func NewDistributionService(
 		nfeDist: nfeDist, cteDist: cteDist, mdfeDist: mdfeDist, nfseDist: nfseDist,
 		clients:           clients,
 		documentSvc:       documentSvc,
-		queueURL:          queueURL,
+		invoker:           clients.WorkerLambda,
+		functionName:      functionName,
 		bucketDocs:        bucketDocs,
 		bucketCerts:       bucketCerts,
 		sefazFunctionName: sefazFunctionName,
@@ -135,12 +141,36 @@ func validateSefazDistDocType(docType string) error {
 	return nil
 }
 
+// workerInvoker is the slice of the Lambda client used to start the worker.
+type workerInvoker interface {
+	Invoke(ctx context.Context, in *lambda.InvokeInput, optFns ...func(*lambda.Options)) (*lambda.InvokeOutput, error)
+}
+
+// enqueue hands a job to the distribution worker as an async invoke (Lambda queues
+// it, retries twice and routes the final failure to the dlq-processor). Invoke
+// returns 202 on success; anything else, including a function error reported in the
+// response, is a failure to hand off. The worker is idempotent under redelivery.
+func (s *DistributionService) enqueue(ctx context.Context, body []byte) error {
+	out, err := s.invoker.Invoke(ctx, &lambda.InvokeInput{
+		FunctionName:   aws.String(s.functionName),
+		InvocationType: lambdatypes.InvocationTypeEvent,
+		Payload:        body,
+	})
+	if err != nil {
+		return err
+	}
+	if out.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("unexpected async invoke status %d", out.StatusCode)
+	}
+	return nil
+}
+
 // EnqueueSync validates rate limit then enqueues a background distNSU call for the org.
 func (s *DistributionService) EnqueueSync(ctx context.Context, orgPK, docType string) (map[string]any, error) {
 	if err := validateDistDocType(docType); err != nil {
 		return nil, err
 	}
-	if s.queueURL == "" {
+	if s.functionName == "" {
 		return nil, problem.BadRequest("fila de distribuição não configurada")
 	}
 
@@ -184,10 +214,7 @@ func (s *DistributionService) EnqueueSync(ctx context.Context, orgPK, docType st
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode sync message").WithCause(err)
 	}
-	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
-		QueueUrl:    aws.String(s.queueURL),
-		MessageBody: aws.String(string(body)),
-	}); err != nil {
+	if err := s.enqueue(ctx, body); err != nil {
 		return nil, problem.InternalServer("failed to enqueue sync: " + err.Error())
 	}
 
@@ -271,7 +298,7 @@ func (s *DistributionService) LookupByNSU(ctx context.Context, orgPK, docType st
 // job_type "cons_ch_nfe" (worker/internal/service/distribution.go
 // runConsAccessKey) instead of "dist_nsu".
 func (s *DistributionService) EnqueueLookupByKey(ctx context.Context, orgPK, accessKey string) (map[string]any, error) {
-	if s.queueURL == "" {
+	if s.functionName == "" {
 		return nil, problem.BadRequest("fila de distribuição não configurada")
 	}
 	if err := s.checkConsQuota(ctx, orgPK, DocTypeNFe); err != nil {
@@ -290,10 +317,7 @@ func (s *DistributionService) EnqueueLookupByKey(ctx context.Context, orgPK, acc
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode lookup message").WithCause(err)
 	}
-	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
-		QueueUrl:    aws.String(s.queueURL),
-		MessageBody: aws.String(string(body)),
-	}); err != nil {
+	if err := s.enqueue(ctx, body); err != nil {
 		return nil, problem.InternalServer("failed to enqueue lookup: " + err.Error())
 	}
 	return map[string]any{"status": "enqueued"}, nil
@@ -489,7 +513,7 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 	if err != nil || (root != "nfeProc" && root != "NFe") {
 		return nil, problem.BadRequest("XML inválido: raiz deve ser nfeProc ou NFe")
 	}
-	if s.queueURL == "" {
+	if s.functionName == "" {
 		return nil, problem.BadRequest("fila de distribuição não configurada")
 	}
 	if err := s.checkConsQuota(ctx, orgPK, docType); err != nil {
@@ -524,10 +548,7 @@ func (s *DistributionService) ImportXML(ctx context.Context, orgPK, docType stri
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode import message").WithCause(err)
 	}
-	if _, err := s.clients.SQS.SendMessage(ctx, &sqs.SendMessageInput{
-		QueueUrl:    aws.String(s.queueURL),
-		MessageBody: aws.String(string(body)),
-	}); err != nil {
+	if err := s.enqueue(ctx, body); err != nil {
 		return nil, problem.InternalServer("failed to enqueue import: " + err.Error())
 	}
 	return map[string]any{"status": "enqueued"}, nil

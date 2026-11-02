@@ -7,29 +7,29 @@ import (
 
 // Config holds all environment-driven settings for the worker Lambda.
 type Config struct {
-	AWSRegion            string
-	TablePrefix          string
-	DocumentsBucket      string
-	CertsBucket          string
-	DfeLambdaName        string
-	DfeEgressRegion      string // region of the go-dfe-egress Lambda (sa-east-1)
-	ResultsTopicARN      string
-	EventBusTopicARN     string // optional; distribution worker uses this for auto-Ciência
-	DistributionQueueURL string // optional; dispatcher uses this to enqueue jobs
+	AWSRegion                string
+	TablePrefix              string
+	DocumentsBucket          string
+	CertsBucket              string
+	DfeLambdaName            string
+	DfeEgressRegion          string // region of the go-dfe-egress Lambda (sa-east-1)
+	ResultsTopicARN          string
+	EventBusTopicARN         string // optional; distribution worker uses this for auto-Ciência
+	DistributionFunctionName string // dispatcher invokes this function (async) once per job
 }
 
 // Load reads config from environment variables (DFe worker + distribution worker).
 func Load() (*Config, error) {
 	cfg := &Config{
-		AWSRegion:            getenv("AWS_REGION", "us-east-1"),
-		TablePrefix:          getenv("TABLE_PREFIX", "dev"),
-		DocumentsBucket:      os.Getenv("DOCUMENTS_BUCKET"),
-		CertsBucket:          os.Getenv("CERTIFICATES_BUCKET"),
-		DfeLambdaName:        os.Getenv("DFE_LAMBDA_NAME"),
-		DfeEgressRegion:      os.Getenv("DFE_EGRESS_REGION"),
-		ResultsTopicARN:      os.Getenv("RESULTS_TOPIC_ARN"),
-		EventBusTopicARN:     os.Getenv("EVENT_BUS_TOPIC_ARN"),
-		DistributionQueueURL: os.Getenv("DISTRIBUTION_QUEUE_URL"),
+		AWSRegion:                getenv("AWS_REGION", "us-east-1"),
+		TablePrefix:              getenv("TABLE_PREFIX", "dev"),
+		DocumentsBucket:          os.Getenv("DOCUMENTS_BUCKET"),
+		CertsBucket:              os.Getenv("CERTIFICATES_BUCKET"),
+		DfeLambdaName:            os.Getenv("DFE_LAMBDA_NAME"),
+		DfeEgressRegion:          os.Getenv("DFE_EGRESS_REGION"),
+		ResultsTopicARN:          os.Getenv("RESULTS_TOPIC_ARN"),
+		EventBusTopicARN:         os.Getenv("EVENT_BUS_TOPIC_ARN"),
+		DistributionFunctionName: os.Getenv("DISTRIBUTION_FUNCTION_NAME"),
 	}
 	if cfg.DocumentsBucket == "" {
 		return nil, fmt.Errorf("DOCUMENTS_BUCKET is required")
@@ -49,12 +49,12 @@ func Load() (*Config, error) {
 // LoadDispatcher reads the minimal config needed by the distribution dispatcher.
 func LoadDispatcher() (*Config, error) {
 	cfg := &Config{
-		AWSRegion:            getenv("AWS_REGION", "us-east-1"),
-		TablePrefix:          getenv("TABLE_PREFIX", "dev"),
-		DistributionQueueURL: os.Getenv("DISTRIBUTION_QUEUE_URL"),
+		AWSRegion:                getenv("AWS_REGION", "us-east-1"),
+		TablePrefix:              getenv("TABLE_PREFIX", "dev"),
+		DistributionFunctionName: os.Getenv("DISTRIBUTION_FUNCTION_NAME"),
 	}
-	if cfg.DistributionQueueURL == "" {
-		return nil, fmt.Errorf("DISTRIBUTION_QUEUE_URL is required")
+	if cfg.DistributionFunctionName == "" {
+		return nil, fmt.Errorf("DISTRIBUTION_FUNCTION_NAME is required")
 	}
 	return cfg, nil
 }

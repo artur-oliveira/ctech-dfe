@@ -18,7 +18,8 @@ interface IAMStackProps extends cdk.StackProps {
   tablePrefix: string;
 
   resultsQueueArn: string;
-  distributionQueueArn: string;
+  /** Distribution worker Lambda name (plain string: no cross-stack reference). */
+  distributionFunctionName: string;
   erasureQueueArn: string;
 }
 
@@ -249,9 +250,11 @@ export class IAMStack extends cdk.Stack {
       resources: [`${props.certificatesBucketArn}/*`, `${props.documentsBucketArn}/*`],
     }));
 
+    // Distribution jobs are async invokes of the worker (no queue in front of it);
+    // GetFunctionConfiguration backs the /health-check probe.
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['sqs:SendMessage', 'sqs:GetQueueAttributes'],
-      resources: [props.distributionQueueArn],
+      actions: ['lambda:InvokeFunction', 'lambda:GetFunctionConfiguration'],
+      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:${props.distributionFunctionName}`],
     }));
 
     // EC2 — update-realip.sh reads the AWS-managed CloudFront origin-facing

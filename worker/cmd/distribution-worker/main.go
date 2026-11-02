@@ -17,21 +17,29 @@ import (
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
 
-type sqsEvent struct {
-	Records []sqsRecord `json:"Records"`
+type processor interface {
+	Process(ctx context.Context, msg service.DistributionMessage) error
 }
 
-type sqsRecord struct {
-	MessageID string `json:"messageId"`
-	Body      string `json:"body"`
-}
-
-type batchResponse struct {
-	BatchItemFailures []batchItemFailure `json:"batchItemFailures"`
-}
-
-type batchItemFailure struct {
-	ItemIdentifier string `json:"itemIdentifier"`
+// handle processes a distribution job. The payload is the job itself: the API and
+// the dispatcher invoke this function asynchronously (InvocationType Event), so a
+// failure is returned to Lambda's async retry / dlq-processor destination. Jobs are
+// idempotent (NSU cursors and writes are conditional, quota is re-checked here).
+func handle(ctx context.Context, raw json.RawMessage, p processor) error {
+	if service.IsPingEvent(raw) {
+		slog.Info("ping: keep-warm invoke, no-op")
+		return nil
+	}
+	var msg service.DistributionMessage
+	if err := json.Unmarshal(raw, &msg); err != nil {
+		slog.Error("failed to parse distribution message", "err", err)
+		return err
+	}
+	if err := p.Process(ctx, msg); err != nil {
+		slog.Error("failed to process distribution message", "job_type", msg.JobType, "org_pk", msg.OrgPK, "err", err)
+		return err
+	}
+	return nil
 }
 
 func main() {
@@ -57,31 +65,7 @@ func main() {
 		SNS:    sns.NewFromConfig(ac),
 	}, cfg).WithOrgStopped(stopped)
 
-	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) (batchResponse, error) {
-		if service.IsPingEvent(raw) {
-			slog.Info("ping: keep-warm invoke, no-op")
-			return batchResponse{}, nil
-		}
-
-		var ev sqsEvent
-		if err := json.Unmarshal(raw, &ev); err != nil {
-			slog.Error("failed to parse SQS event", "err", err)
-			return batchResponse{}, err
-		}
-
-		var failures []batchItemFailure
-		for _, record := range ev.Records {
-			var msg service.DistributionMessage
-			if err := json.Unmarshal([]byte(record.Body), &msg); err != nil {
-				slog.Error("failed to parse distribution message", "id", record.MessageID, "err", err)
-				failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
-				continue
-			}
-			if err := svc.Process(ctx, msg); err != nil {
-				slog.Error("failed to process distribution message", "id", record.MessageID, "err", err)
-				failures = append(failures, batchItemFailure{ItemIdentifier: record.MessageID})
-			}
-		}
-		return batchResponse{BatchItemFailures: failures}, nil
+	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) error {
+		return handle(ctx, raw, svc)
 	}, lambda.WithContext(rootCtx))
 }

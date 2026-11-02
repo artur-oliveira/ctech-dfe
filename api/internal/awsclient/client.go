@@ -20,11 +20,14 @@ import (
 
 // Clients holds all AWS SDK v2 service clients.
 type Clients struct {
-	DynamoDB      *dynamodb.Client
-	S3            *s3.Client
-	SQS           *sqs.Client
-	SNS           *sns.Client
-	Lambda        *lambda.Client
+	DynamoDB *dynamodb.Client
+	S3       *s3.Client
+	SQS      *sqs.Client
+	SNS      *sns.Client
+	Lambda   *lambda.Client // go-dfe-egress, in the egress region
+	// WorkerLambda talks to the worker Lambdas in the stack's own region (distribution
+	// worker async invoke and health check).
+	WorkerLambda  *lambda.Client
 	SecretManager *secretsmanager.Client
 }
 
@@ -43,6 +46,7 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 		SQS:           sqs.NewFromConfig(awsCfg),
 		SNS:           sns.NewFromConfig(awsCfg),
 		Lambda:        lambda.NewFromConfig(awsCfg, func(o *lambda.Options) { o.Region = cfg.DfeEgressRegion }),
+		WorkerLambda:  lambda.NewFromConfig(awsCfg),
 		SecretManager: secretsmanager.NewFromConfig(awsCfg),
 	}
 	return clients, nil

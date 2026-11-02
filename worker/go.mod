@@ -11,9 +11,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.104.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1
 	github.com/aws/aws-sdk-go-v2/service/sns v1.47.0
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.2
 	github.com/oklog/ulid/v2 v2.1.2
-	gopkg.aoctech.app/api-commons v1.39.0
+	gopkg.aoctech.app/api-commons v1.40.0
 	gopkg.aoctech.app/dfe/go-dfe v0.0.0-00010101000000-000000000000
 )
 
@@ -31,6 +30,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.10.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.38.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.0 // indirect

@@ -13,23 +13,25 @@ Sibling docs: [`../api/README.md`](../api/README.md) · [`../go-dfe/README.md`](
 
 | Binary | File | Role | In | Out |
 |--------|------|------|----|-----|
-| `worker` | `cmd/worker/main.go` | DFe SEFAZ issuance/events consumer | SQS DFe queue | SEFAZ (via go-dfe-egress), SNS results |
-| `distribution-worker` | `cmd/distribution-worker/main.go` | Inbound Distribuição DF-e pipeline | SQS distribution queue | S3, SNS results, DynamoDB |
-| `distribution-dispatcher` | `cmd/distribution-dispatcher/main.go` | Scheduler/enqueuer (no SEFAZ) | EventBridge (cron) | SQS distribution queue |
-| `dlq-processor` | `cmd/dlq-processor/main.go` | Terminal sink for dead-letter messages | SQS DLQ | DynamoDB terminal status, SNS results (optional) |
+| `worker` | `cmd/worker/main.go` | DFe SEFAZ issuance/events consumer | SNS event bus (Lambda subscription) | SEFAZ (via go-dfe-egress), SNS results |
+| `distribution-worker` | `cmd/distribution-worker/main.go` | Inbound Distribuição DF-e pipeline | async Lambda invoke (API, dispatcher) | S3, SNS results, DynamoDB |
+| `distribution-dispatcher` | `cmd/distribution-dispatcher/main.go` | Scheduler/enqueuer (no SEFAZ) | EventBridge (cron) | async invoke of distribution-worker |
+| `dlq-processor` | `cmd/dlq-processor/main.go` | Terminal sink for dead-letter messages | Lambda on-failure destination of every worker | DynamoDB terminal status, SNS results (optional) |
 | `outbox-publisher` | `cmd/outbox-publisher/main.go` | Durable command dispatcher | `worker_outbox` DynamoDB Stream | command SNS, conditional outbox acknowledgement |
 
 Common handler pattern (`cmd/worker/main.go:54-80`, `cmd/distribution-worker/main.go:54-80`):
-`IsPingEvent` keep-warm short-circuit → unmarshal SQS records → `svc.Process` → failures
-appended to `batchItemFailures` → returned so SQS redelivers until `maxReceiveCount` then DLQ.
+`IsPingEvent` keep-warm short-circuit → `service.SNSMessages` (worker) or direct job JSON
+(distribution-worker) → `svc.Process` → any error is returned so Lambda's async retry runs
+(2 retries) and then invokes the dlq-processor destination. See
+`docs/specs/2026-11-02-sns-lambda-worker-delivery.md`.
 
 Env vars (`internal/config/config.go`):
 - `worker` / `distribution-worker`: require `DOCUMENTS_BUCKET`, `CERTIFICATES_BUCKET`,
   `DFE_LAMBDA_NAME` (go-dfe-egress function), `DFE_EGRESS_REGION` (its region, sa-east-1); optional `RESULTS_TOPIC_ARN`, `EVENT_BUS_TOPIC_ARN`,
-  `DISTRIBUTION_QUEUE_URL` (`config.go:32-40`).
+  `DISTRIBUTION_FUNCTION_NAME` (dispatcher only).
 - `outbox-publisher`: requires `EVENT_BUS_TOPIC_ARN` and `OUTBOX_TABLE_NAME`; row identity and payload are carried by
   each DynamoDB Stream record.
-- `distribution-dispatcher`: requires `DISTRIBUTION_QUEUE_URL`; `TABLE_PREFIX`, `AWS_REGION`
+- `distribution-dispatcher`: requires `DISTRIBUTION_FUNCTION_NAME`; `TABLE_PREFIX`, `AWS_REGION`
   have defaults (`config.go:51`).
 - `dlq-processor`: reads `RESULTS_TOPIC_ARN`, `TABLE_PREFIX` directly via `os.Getenv`
   (`cmd/dlq-processor/main.go:34-35`) — **not** validated by `config.Load`; silently no-ops

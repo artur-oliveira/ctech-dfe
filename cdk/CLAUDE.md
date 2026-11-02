@@ -105,7 +105,9 @@ CI deploys through `.github/workflows/deploy.yml`; see `../DEPLOYMENT.md`.
 - Worker Lambda binary must be named `bootstrap` (`provided.al2023`, arm64). API binary must be named `app`
   (userdata runs `/opt/app/current/app`).
 - py-dfe was removed (stack, role, OIDC role, path filter). `${env}-py-dfe-lambda-invoke-policy` keeps its old physical name (renaming a named managed policy makes CloudFormation replace it and collide).
-- Queues are standard SQS; each worker queue has a DLQ (`maxReceiveCount: 3`). **No CloudWatch alarm exists on any
+- Workers are fed by SNS -> Lambda subscriptions (and direct async invokes for `distribution`), not SQS: Lambda async
+  config retries twice, then the `dlq-processor` Lambda is the on-failure destination (see
+  `docs/specs/2026-11-02-sns-lambda-worker-delivery.md`). `{env}-dfe-dlq` is an unconsumed parking queue. **No CloudWatch alarm exists on any
   queue** (removed); the `*-ops-alerts` SNS topics are kept only because subscriptions were added outside
   CloudFormation. Family policy is alerts through `ctech-{env}-alerts`; no DFE component uses go-common `alerts` yet (nothing under `api/` or `worker/` imports it).
 - At-least-once delivery, no ordering: idempotency is enforced in the application.

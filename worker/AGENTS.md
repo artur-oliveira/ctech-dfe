@@ -1,6 +1,6 @@
 # AGENTS.md — worker (ctech-dfe-worker)
 
-Go Lambda — SQS (standard) consumer, async DFe issuance pipeline, `provided.al2023`.
+Go Lambda — SNS-subscribed / async-invoked consumer (no SQS polling), async DFe issuance pipeline, `provided.al2023`.
 
 **CTech standards:** generic backend, resilience and infra rules live in the `ctech-dev-standards` skill
 (`references/backend.md`, `references/infra.md`); it wins over this file. This file records only what is specific
@@ -12,12 +12,12 @@ to the DFe worker.
 
 ## Role
 
-Consumes `WorkerMessage` / `DistributionMessage` from SQS (standard, not FIFO) and orchestrates DFe issuance:
+Consumes `WorkerMessage` (SNS event, `Records[].Sns.Message`) / `DistributionMessage` (direct async invoke payload) and orchestrates DFe issuance:
 fetches the certificate from S3 → invokes the go-dfe-egress Lambda (sa-east-1; XML-DSig + SEFAZ SOAP / NFS-e REST)
 → persists the result in DynamoDB → uploads XML to S3 → publishes the result to the SNS results topic
 (`${env}-ctech-dfe-results`), which the API's `ResultsConsumer` fans out over WebSocket.
 
-**Flow:** `SQS (standard) → cmd/<binary> → service.Process → S3 (cert) → go-dfe-egress (sa-east-1) → DynamoDB + S3 → SNS results`
+**Flow:** `SNS / async invoke → cmd/<binary> → service.Process → S3 (cert) → go-dfe-egress (sa-east-1) → DynamoDB + S3 → SNS results`
 
 ---
 
@@ -60,7 +60,7 @@ from the family handler → service → repository layout; do not "fix" it as a 
   (`DfeService.alreadyTerminal`, `internal/service/dfe.go`); status updates use conditional `UpdateItem`. Fiscal
   numbering relies on the atomic `transact_write` plus that guard, not on ordering.
 - **SEFAZ business rejections (cStat other than 100/135/150) are not retried**: persist the rejection and publish the
-  failed status. Only network/timeout errors are retried (SQS visibility timeout, then DLQ).
+  failed status. Only network/timeout errors are retried (Lambda async retry x2, then the dlq-processor destination).
 - NFS-e branches out of the shared pipeline (`internal/service/nfse.go`, `distribution_nfse.go`): the response has no
   `cStat`/`xMotivo` and a rejection is always terminal.
 - Every SEFAZ/municipal call goes through the **go-dfe-egress Lambda** (`DFE_LAMBDA_NAME`, region
@@ -90,7 +90,7 @@ from the family handler → service → repository layout; do not "fix" it as a 
   worker has no in-process loops (each Lambda invocation is the unit of work). There is no SEFAZ circuit breaker
   (go-common `resilient`) on purpose: SEFAZ is called from the go-dfe-egress Lambda with a per-certificate mTLS
   client built on every call, so a breaker would have no shared state, and an open circuit would burn SQS receives
-  and push messages to the DLQ faster. Retry is SQS redelivery + DLQ and go-dfe's own backoff inside the egress.
+  and push messages to the DLQ faster. Retry is Lambda async retry + dlq-processor destination and go-dfe's own backoff inside the egress.
 - Keep-warm: EventBridge pings every worker each minute with `{ping:true}`, short-circuited in `service/ping.go`.
 
 ---
@@ -128,3 +128,6 @@ Before touching: identify risks + side effects, verify backward compatibility + 
 - [ ] Cross-project impact reviewed (worker ↔ api ↔ go-dfe-egress ↔ cdk)
 
 Every change that alters behavior, a contract or an operational rule updates the matching docs in the same change.
+
+
+Delivery design, resilience table and queue drain runbook: `../docs/specs/2026-11-02-sns-lambda-worker-delivery.md`.

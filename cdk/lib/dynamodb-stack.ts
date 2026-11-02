@@ -80,7 +80,7 @@ const getDfeTable = (
     }),
     removalPolicy,
     pointInTimeRecoverySpecification,
-    encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
   });
 
   dfeTable.addGlobalSecondaryIndex({
@@ -155,7 +155,7 @@ const getDistributionTable = (
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     }
   );
 }
@@ -186,7 +186,7 @@ const getEventsTable = (
       }),
       removalPolicy,
       pointInTimeRecoverySpecification: pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     }
   );
 
@@ -236,7 +236,7 @@ const getOrgEntityTable = (
     }),
     removalPolicy,
     pointInTimeRecoverySpecification,
-    encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+    encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
   });
   table.addGlobalSecondaryIndex({
     indexName: 'name-index',
@@ -287,7 +287,7 @@ const getDfeConfigTable = (
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     }
   );
 }
@@ -313,7 +313,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     this.tables.set('roles', rolesTable);
 
@@ -326,7 +326,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     usersTable.addGlobalSecondaryIndex({
       indexName: 'email-index',
@@ -363,7 +363,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     // The company records of one ctech-account organization (ORG_ billing,
     // docs/specs/2026-10-10-organization-subscription.md): the enabled-company
@@ -395,7 +395,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     // Inverted index: partition on the member SK ("USER_{sub}") to list every
     // org a user belongs to (/auth/me, GET /organizations). No attribute
@@ -425,7 +425,7 @@ export class DynamoDBStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     // List an org's pending invitations, newest first.
     organizationInvitationsTable.addGlobalSecondaryIndex({
@@ -467,7 +467,7 @@ export class DynamoDBStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     // Dirty billing levels (LEVEL_DIRTY_{organization}#{meter}): an
     // organization whose count of enabled companies changed and has not been
@@ -497,7 +497,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     auditLogsTable.addGlobalSecondaryIndex({
       indexName: 'org-time-index',
@@ -531,7 +531,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     addSweepIndex(certificatesTable);
     this.tables.set('certificates', certificatesTable);
@@ -546,7 +546,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     productsTable.addGlobalSecondaryIndex({
       indexName: 'description-index',
@@ -578,7 +578,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     vehiclesTable.addGlobalSecondaryIndex({
       indexName: 'plate-index',
@@ -610,7 +610,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     personsTable.addGlobalSecondaryIndex({
       indexName: 'org-name-index',
@@ -633,7 +633,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     servicesTable.addGlobalSecondaryIndex({
       indexName: 'description-index',
@@ -782,7 +782,7 @@ export class DynamoDBStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     // Uma linha por (tax_id, modelo, série, ambiente) — a mesma unicidade que a
     // SEFAZ usa para uma NF-e, menos o número, que é a sequência que esta trava
@@ -803,7 +803,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     this.tables.set('serie_claims', serieClaimsTable);
 
@@ -821,7 +821,7 @@ export class DynamoDBStack extends cdk.Stack {
       timeToLiveAttribute: 'ttl',
       removalPolicy,
       pointInTimeRecoverySpecification,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     this.tables.set('erasure_state', erasureStateTable);
 
@@ -839,7 +839,7 @@ export class DynamoDBStack extends cdk.Stack {
       }),
       timeToLiveAttribute: 'ttl',
       removalPolicy,
-      encryption: dynamodb.TableEncryptionV2.awsManagedKey(),
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
     });
     this.tables.set('idempotency', idempotencyTable);
 

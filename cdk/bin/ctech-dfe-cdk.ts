@@ -10,7 +10,7 @@ import {GoDfeEgressStack} from '../lib/egress-stack';
 import {EGRESS_REGION, egressFunctionName} from '../lib/egress';
 import {EventBusStack} from '../lib/event-bus-stack';
 import {ApiStack} from '../lib/api-stack';
-import {WORKERS} from '../lib/worker-definitions';
+import {distributionFunctionName, WORKERS} from '../lib/worker-definitions';
 import {Environment} from '../lib/types';
 
 const app = new cdk.App();
@@ -104,8 +104,10 @@ new GoDfeEgressStack(app, id('GoDfeEgress'), {
   description: `CTech DFe go-dfe-egress Lambda (sa-east-1) - ${ENVIRONMENT}`,
 });
 
-// WorkerStack is created before IAMStack so that distributionQueueArn is
-// available to grant sqs:SendMessage to the API v2 role.
+// WorkerStack is declared first but DEPLOYS LAST (see the dependencies below): the IAM and
+// API stacks used to import the distribution queue's ARN/URL, and CloudFormation refuses to
+// delete an export that is still imported. They now use the function name as a plain string,
+// so they deploy first, drop the imports, and only then does this stack drop the queue.
 const workerOutboxTable = dynamodbStack.tables.get('worker_outbox')!;
 const workerStack = new WorkerStack(app, id('Worker'), {
   env,
@@ -121,7 +123,7 @@ const workerStack = new WorkerStack(app, id('Worker'), {
   outboxTableName: workerOutboxTable.tableName,
   outboxTableArn: workerOutboxTable.tableArn,
   outboxStreamArn: workerOutboxTable.tableStreamArn!,
-  description: `CTech DFe Worker (SNS + SQS + Lambda) - ${ENVIRONMENT}`,
+  description: `CTech DFe Worker (SNS + Lambda) - ${ENVIRONMENT}`,
 });
 
 const iamStack = new IAMStack(app, id('IAM'), {
@@ -134,14 +136,13 @@ const iamStack = new IAMStack(app, id('IAM'), {
   tablePrefix: `${ENVIRONMENT}_dfe`,
   topicArn: eventBusStack.topic.topicArn,
   resultsQueueArn: eventBusStack.resultsQueueArn,
-  distributionQueueArn: workerStack.distributionQueueArn,
+  distributionFunctionName: distributionFunctionName(ENVIRONMENT),
   erasureQueueArn: eventBusStack.erasureQueueArn,
   description: `CTech DFe IAM Roles - ${ENVIRONMENT}`,
 });
 iamStack.addStackDependency(dynamodbStack);
 iamStack.addStackDependency(s3Stack);
 iamStack.addStackDependency(eventBusStack);
-iamStack.addStackDependency(workerStack);
 
 // =====================
 // API (EC2 + ASG, shared ALB from ctech-cdk)
@@ -157,7 +158,7 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
   documentsBucketName: s3Stack.documentsBucketName,
   resultsQueueUrl: eventBusStack.resultsQueueUrl,
   nfeEmissionTopicArn: eventBusStack.topic.topicArn,
-  distributionQueueUrl: workerStack.distributionQueueUrl,
+  distributionFunctionName: distributionFunctionName(ENVIRONMENT),
   erasureQueueUrl: eventBusStack.erasureQueueUrl,
   // Shared Valkey instance owned by ctech-cdk — same SSM path convention.
   valkeyUrlSsmPath: `/ctech/${ENVIRONMENT}/valkey/url`,
@@ -171,7 +172,7 @@ const apiV2Stack = new ApiStack(app, id('API-V2'), {
 // infer the dependency automatically. Force it so the instance profile
 // exists before the ASG validates the launch template.
 apiV2Stack.addStackDependency(iamStack);
-// distributionQueueUrl is a CFN cross-stack reference — CDK infers this automatically,
-// but we make it explicit for clarity.
-apiV2Stack.addStackDependency(workerStack);
 apiV2Stack.addStackDependency(eventBusStack);
+// Deploy the consumers of the old queue exports first (see the WorkerStack comment above).
+workerStack.addStackDependency(iamStack);
+workerStack.addStackDependency(apiV2Stack);

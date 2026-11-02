@@ -143,7 +143,24 @@ var eventTerminalStatuses = map[string]bool{
 	EventStatusSuccess: true, EventStatusError: true, StatusRejected: true,
 }
 
+// processingLeaseDuration is the fallback lease when the context carries no deadline.
 const processingLeaseDuration = 6 * time.Minute
+
+// leaseMargin keeps the lease just past the Lambda hard timeout.
+const leaseMargin = 10 * time.Second
+
+// leaseFor sizes the lease to the Lambda invocation: the runtime kills the function at
+// its deadline, so a lease past it only blocks retries. Lambda's async retries start
+// 60s and then 120s after a failed attempt; a fixed 6-minute lease would still be held
+// at the second retry of a timed-out 150s worker and burn its last attempt.
+func leaseFor(ctx context.Context, now time.Time) time.Duration {
+	if d, ok := ctx.Deadline(); ok {
+		if left := d.Sub(now); left > 0 {
+			return left + leaseMargin
+		}
+	}
+	return processingLeaseDuration
+}
 
 var errProcessingLeaseHeld = errors.New("dfe processing lease is held by another worker")
 var errResultPublish = errors.New("publish terminal result")
@@ -201,7 +218,7 @@ func (s *DfeService) claimProcessing(ctx context.Context, msg WorkerMessage, own
 			":processing":     &types.AttributeValueMemberS{Value: StatusProcessing},
 			":owner":          &types.AttributeValueMemberS{Value: owner},
 			":now":            &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Unix())},
-			":lease":          &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Add(processingLeaseDuration).Unix())},
+			":lease":          &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now.Add(leaseFor(ctx, now)).Unix())},
 			":zero":           &types.AttributeValueMemberN{Value: "0"},
 			":one":            &types.AttributeValueMemberN{Value: "1"},
 			":updated":        &types.AttributeValueMemberS{Value: now.Format(time.RFC3339Nano)},

@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import { Match, Template } from 'aws-cdk-lib/assertions'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import { WorkerStack } from '../lib/worker-stack'
-import { WORKERS } from '../lib/worker-definitions'
+import { distributionFunctionName, WORKERS } from '../lib/worker-definitions'
 import { EGRESS_TIMEOUT_SECONDS } from '../lib/egress'
 
 function buildTemplate(): Template {
@@ -75,7 +75,7 @@ test('the worker stack creates no CloudWatch alarms', () => {
 // Regression: NFS-e emission silently vanished because no queue was subscribed to
 // its sefaz_service — SNS drops what no filter policy matches, with no DLQ and no log.
 // Every service the API publishes must be claimed by exactly one worker.
-test('every sefaz_service published by the API has an SQS subscription', () => {
+test('every sefaz_service published by the API has a Lambda subscription', () => {
   const template = buildTemplate()
   const subscribed = WORKERS.flatMap(w => w.sefazServices)
 
@@ -91,10 +91,11 @@ test('every sefaz_service published by the API has an SQS subscription', () => {
 
   for (const worker of WORKERS.filter(w => w.sefazServices.length > 0)) {
     template.hasResourceProperties('AWS::SNS::Subscription', {
-      Protocol: 'sqs',
-      RawMessageDelivery: true,
+      Protocol: 'lambda',
       FilterPolicyScope: 'MessageBody',
       FilterPolicy: {sefaz_service: worker.sefazServices},
+      // Subscription redrive for deliveries SNS gives up on: an unconsumed queue.
+      RedrivePolicy: Match.objectLike({deadLetterTargetArn: Match.anyValue()}),
     })
   }
 })
@@ -165,4 +166,54 @@ test('DLQ processor and outbox publisher get the shared alerts topic from SSM', 
   }
   const params = Object.values(template.toJSON().Parameters ?? {}) as any[]
   expect(params.some(p => p.Default === '/ctech/dev/alerts/topic-arn')).toBe(true)
+})
+
+// The whole point of the SNS -> Lambda delivery: nothing long-polls a queue.
+// Only the outbox DynamoDB stream may feed a Lambda through a mapping.
+test('no SQS event source mapping and only the two parking queues exist', () => {
+  const template = buildTemplate()
+  const mappings: any[] = Object.values(template.findResources('AWS::Lambda::EventSourceMapping'))
+  expect(mappings).toHaveLength(1)
+  expect(JSON.stringify(mappings[0].Properties.EventSourceArn)).toContain('/stream/')
+
+  const queues: any[] = Object.values(template.findResources('AWS::SQS::Queue'))
+  expect(queues.map(q => q.Properties.QueueName).sort()).toEqual(['dev-dfe-dlq', 'dev-dfe-outbox-publisher-dlq'])
+})
+
+// Resilience parity with SQS maxReceiveCount 3 + DLQ: 3 tries, then the dlq-processor.
+test('every worker retries twice and fails over to the dlq-processor', () => {
+  const template = buildTemplate()
+  const json = template.toJSON().Resources
+  const fnIdByName = (name: string) =>
+    Object.keys(json).find(k => json[k].Type === 'AWS::Lambda::Function' && json[k].Properties.FunctionName === name)!
+  const dlqId = fnIdByName('dev-dfe-dlq-processor')
+
+  for (const worker of WORKERS) {
+    template.hasResourceProperties('AWS::Lambda::EventInvokeConfig', {
+      FunctionName: {Ref: fnIdByName(`dev-${worker.name}`)},
+      MaximumRetryAttempts: 2,
+      MaximumEventAgeInSeconds: 3600,
+      DestinationConfig: {OnFailure: {Destination: {'Fn::GetAtt': [dlqId, 'Arn']}}},
+    })
+  }
+  // The processor is itself retried and then parked, never silently dropped.
+  template.hasResourceProperties('AWS::Lambda::EventInvokeConfig', {
+    FunctionName: {Ref: dlqId},
+    MaximumRetryAttempts: 2,
+    DestinationConfig: {OnFailure: {Destination: Match.anyValue()}},
+  })
+})
+
+test('the distribution worker has no subscription; the dispatcher invokes it', () => {
+  const template = buildTemplate()
+  const dist = WORKERS.find(w => w.id === 'distribution')!
+  expect(dist.sefazServices).toEqual([])
+  expect(distributionFunctionName('dev')).toBe(`dev-${dist.name}`)
+  template.resourceCountIs('AWS::SNS::Subscription', WORKERS.filter(w => w.sefazServices.length > 0).length)
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    FunctionName: 'dev-distribution-dispatcher',
+    Environment: {Variables: Match.objectLike({DISTRIBUTION_FUNCTION_NAME: Match.anyValue()})},
+  })
+  const text = JSON.stringify(template.toJSON().Resources)
+  expect(text).not.toContain('DISTRIBUTION_QUEUE_URL')
 })

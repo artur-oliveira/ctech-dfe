@@ -151,3 +151,15 @@ describe('DynamoDBStack — sweep-index', () => {
         }
     });
 });
+
+// KMS-encrypted tables bill a KMS request per read/write; the default AWS-owned key is free.
+// Changing this on an existing GlobalTable is an in-place update (SSESpecification: no interruption).
+describe('DynamoDBStack — encryption', () => {
+    test('no table uses a KMS key (AWS-owned key only)', () => {
+        const tables: any[] = Object.values(synth().findResources('AWS::DynamoDB::GlobalTable'));
+        expect(tables.length).toBeGreaterThan(20);
+        for (const t of tables) {
+            expect(t.Properties.SSESpecification).toEqual({SSEEnabled: false});
+        }
+    });
+});

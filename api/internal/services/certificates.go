@@ -19,8 +19,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"software.sslmate.com/src/go-pkcs12"
 )
+
+// certObjectSSE is the encryption of new certificate objects. AES256 (SSE-S3) is the
+// bucket default and has no per-request KMS charge; "aws:kms" billed a KMS call on // standards:allow comment, not a request
+// every worker GetObject. Objects written earlier with aws:kms stay readable: S3
+// decrypts them with the AWS-managed aws/s3 key, whose key policy already allows
+// this account's principals through S3, so no kms:Decrypt grant is needed or kept.
+const certObjectSSE = s3types.ServerSideEncryptionAes256
 
 // CertInfo holds parsed metadata from a PFX certificate.
 type CertInfo struct {
@@ -172,7 +180,7 @@ func (s *CertificateService) Upload(ctx context.Context, orgPK, expectedDoc stri
 		Key:                  aws.String(s3Key),
 		Body:                 bytes.NewReader(pfxData),
 		ContentType:          aws.String("application/x-pkcs12"),
-		ServerSideEncryption: "aws:kms",
+		ServerSideEncryption: certObjectSSE,
 	})
 	if err != nil {
 		return nil, problem.InternalServer("failed to upload certificate to S3")
@@ -228,7 +236,7 @@ func (s *CertificateService) StageUpload(ctx context.Context, orgPK, expectedDoc
 		Key:                  aws.String(s3Key),
 		Body:                 bytes.NewReader(pfxData),
 		ContentType:          aws.String("application/x-pkcs12"),
-		ServerSideEncryption: "aws:kms",
+		ServerSideEncryption: certObjectSSE,
 	})
 	if err != nil {
 		return nil, "", problem.InternalServer("failed to upload certificate to S3")

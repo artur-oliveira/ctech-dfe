@@ -36,9 +36,12 @@ type Config struct {
 	// SNS
 	WorkerTopicARN string `env:"DFE_TOPIC_ARN"`
 
+	// DistributionFunctionName is the distribution worker Lambda, invoked
+	// asynchronously (InvocationType Event) — no queue sits in front of it.
+	DistributionFunctionName string `env:"DFE_DISTRIBUTION_FUNCTION_NAME"`
+
 	// SQS
-	ResultsQueueURL      string `env:"DFE_RESULTS_QUEUE_URL"`
-	DistributionQueueURL string `env:"DFE_DISTRIBUTION_QUEUE_URL"`
+	ResultsQueueURL string `env:"DFE_RESULTS_QUEUE_URL"`
 	// ErasureQueueURL is the account-deletion queue subscribed to ctech-account's
 	// user-erasure topic. Empty turns the whole participant off (lock, purge,
 	// consumer): the dark-launch switch.

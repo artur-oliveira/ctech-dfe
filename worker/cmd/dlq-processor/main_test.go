@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
@@ -13,6 +12,30 @@ import (
 	"gopkg.aoctech.app/api-commons/alerts"
 	"gopkg.aoctech.app/dfe/worker/internal/service"
 )
+
+// envelope builds the Lambda on-failure destination payload for a failed SNS-fed worker invoke.
+func envelope(t *testing.T, msg service.WorkerMessage) failureEnvelope {
+	t.Helper()
+	body, _ := json.Marshal(msg)
+	return rawEnvelope(t, snsEventOf(string(body)))
+}
+
+func snsEventOf(message string) map[string]any {
+	return map[string]any{"Records": []any{map[string]any{"Sns": map[string]any{"MessageId": "sns-1", "Message": message}}}}
+}
+
+func rawEnvelope(t *testing.T, payload any) failureEnvelope {
+	t.Helper()
+	raw, _ := json.Marshal(map[string]any{
+		"requestContext": map[string]any{"requestId": "req-1", "condition": "RetriesExhausted"},
+		"requestPayload": payload,
+	})
+	var env failureEnvelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatal(err)
+	}
+	return env
+}
 
 type fakeDynamo struct {
 	calls []*dynamodb.UpdateItemInput
@@ -47,15 +70,10 @@ func TestHandler_DocumentMessage_WritesFailedStatus(t *testing.T) {
 		AccessKey: "35250512345678000195550010000000011000000011",
 		TableName: "nfes",
 	}
-	body, _ := json.Marshal(msg)
-	event := sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}}
+	env := envelope(t, msg)
 
-	resp, err := handler(context.Background(), event)
-	if err != nil {
+	if err := handler(context.Background(), env); err != nil {
 		t.Fatalf("handler: %v", err)
-	}
-	if len(resp.BatchItemFailures) != 0 {
-		t.Fatalf("expected no batch item failures, got %v", resp.BatchItemFailures)
 	}
 	if len(fd.calls) != 1 {
 		t.Fatalf("expected 1 UpdateItem call, got %d", len(fd.calls))
@@ -93,15 +111,10 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 		EventType:       new("110111"),
 		EventSK:         &eventSK,
 	}
-	body, _ := json.Marshal(msg)
-	event := sqsEvent{Records: []sqsRecord{{MessageID: "m2", Body: string(body)}}}
+	env := envelope(t, msg)
 
-	resp, err := handler(context.Background(), event)
-	if err != nil {
+	if err := handler(context.Background(), env); err != nil {
 		t.Fatalf("handler: %v", err)
-	}
-	if len(resp.BatchItemFailures) != 0 {
-		t.Fatalf("expected no batch item failures, got %v", resp.BatchItemFailures)
 	}
 	if len(fd.calls) != 1 {
 		t.Fatalf("expected 1 UpdateItem call, got %d", len(fd.calls))
@@ -121,71 +134,20 @@ func TestHandler_EventMessage_WritesEventErrorStatus(t *testing.T) {
 	}
 }
 
-func TestHandler_DynamoUpdateFails_ReportsRecordAsBatchItemFailure(t *testing.T) {
-	tablePrefix = "dev"
-	resultsTopicARN = "" // keep SNS a no-op for this test; only asserting failure reporting
-	fd := &fakeDynamo{err: context.DeadlineExceeded}
-	dynamoClient = fd
+func TestHandler_DynamoUpdateFails_ReturnsErrorAndAlerts(t *testing.T) {
+	tablePrefix, resultsTopicARN = "dev", ""
+	dynamoClient = &fakeDynamo{err: context.DeadlineExceeded}
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
 
-	msg := service.WorkerMessage{DocPK: "pk", AccessKey: "ak", TableName: "nfes"}
-	body, _ := json.Marshal(msg)
-	event := sqsEvent{Records: []sqsRecord{{MessageID: "m3", Body: string(body)}}}
-
-	resp, err := handler(context.Background(), event)
-	if err != nil {
-		t.Fatalf("handler: %v", err)
+	err := handler(context.Background(), envelope(t, service.WorkerMessage{DocPK: "pk", AccessKey: "ak", TableName: "nfes"}))
+	if err == nil {
+		t.Fatal("a failed terminal write must return an error so Lambda retries, then parks the event")
 	}
-	if len(resp.BatchItemFailures) != 1 || resp.BatchItemFailures[0].ItemIdentifier != "m3" {
-		t.Fatalf("expected m3 reported as a batch item failure, got %v", resp.BatchItemFailures)
+	if len(ra.got) != 1 || ra.got[0].Job != "dlq-processor-failed" {
+		t.Fatalf("want one dlq-processor-failed alert, got %+v", ra.got)
 	}
-}
-
-// A poison message (e.g. its Dynamo condition check is permanently false)
-// must not cause a sibling message in the same batch that succeeded to be
-// redelivered — only the failing record should come back in
-// BatchItemFailures. This is the behavior reportBatchItemFailures depends on.
-func TestHandler_OneFailureInBatch_DoesNotFailSiblingRecord(t *testing.T) {
-	tablePrefix = "dev"
-	resultsTopicARN = ""
-
-	failingMsg := service.WorkerMessage{DocPK: "pk-bad", AccessKey: "ak-bad", TableName: "nfes"}
-	okMsg := service.WorkerMessage{DocPK: "pk-good", AccessKey: "ak-good", TableName: "nfes"}
-	failingBody, _ := json.Marshal(failingMsg)
-	okBody, _ := json.Marshal(okMsg)
-
-	fd := &conditionalDynamo{failPK: failingMsg.DocPK}
-	dynamoClient = fd
-
-	event := sqsEvent{Records: []sqsRecord{
-		{MessageID: "bad", Body: string(failingBody)},
-		{MessageID: "good", Body: string(okBody)},
-	}}
-
-	resp, err := handler(context.Background(), event)
-	if err != nil {
-		t.Fatalf("handler: %v", err)
-	}
-	if len(resp.BatchItemFailures) != 1 || resp.BatchItemFailures[0].ItemIdentifier != "bad" {
-		t.Fatalf("expected only \"bad\" reported as a batch item failure, got %v", resp.BatchItemFailures)
-	}
-	if len(fd.calls) != 2 {
-		t.Fatalf("expected both records to be attempted, got %d calls", len(fd.calls))
-	}
-}
-
-// conditionalDynamo fails UpdateItem only for a specific pk, so a test can
-// assert that one poison message doesn't take down a sibling in the batch.
-type conditionalDynamo struct {
-	failPK string
-	calls  []*dynamodb.UpdateItemInput
-}
-
-func (f *conditionalDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
-	f.calls = append(f.calls, in)
-	if s, ok := in.Key["pk"].(*types.AttributeValueMemberS); ok && s.Value == f.failPK {
-		return nil, context.DeadlineExceeded
-	}
-	return &dynamodb.UpdateItemOutput{}, nil
 }
 
 type recordingAlerts struct{ got []alerts.Alert }
@@ -199,8 +161,7 @@ func TestHandler_ExhaustedMessageAlertsOperator(t *testing.T) {
 	alerter = ra
 	t.Cleanup(func() { alerter = alerts.Nop{} })
 
-	body, _ := json.Marshal(service.WorkerMessage{DocPK: "prod#CNPJ_1", AccessKey: "KEY1", TableName: "nfes"})
-	if _, err := handler(context.Background(), sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}}); err != nil {
+	if err := handler(context.Background(), envelope(t, service.WorkerMessage{DocPK: "prod#CNPJ_1", AccessKey: "KEY1", TableName: "nfes"})); err != nil {
 		t.Fatal(err)
 	}
 	if len(ra.got) != 1 || ra.got[0].Job != "dlq-exhausted" || !strings.Contains(ra.got[0].Detail, "KEY1") {
@@ -208,16 +169,57 @@ func TestHandler_ExhaustedMessageAlertsOperator(t *testing.T) {
 	}
 }
 
-func TestHandler_FailedTerminalWriteDoesNotAlert(t *testing.T) {
-	tablePrefix, resultsTopicARN = "dev", ""
-	dynamoClient = &fakeDynamo{err: errors.New("boom")}
+// Nothing can retry an unparseable payload and the destination invoke ends here:
+// the alert is the only trace that it was lost, and the body must not leak into it.
+func TestHandler_UnparseableMessageAlertsOperatorAndIsDropped(t *testing.T) {
+	fd := &fakeDynamo{}
+	dynamoClient = fd
 	ra := &recordingAlerts{}
 	alerter = ra
 	t.Cleanup(func() { alerter = alerts.Nop{} })
 
-	body, _ := json.Marshal(service.WorkerMessage{DocPK: "prod#CNPJ_1", AccessKey: "KEY1", TableName: "nfes"})
-	resp, _ := handler(context.Background(), sqsEvent{Records: []sqsRecord{{MessageID: "m1", Body: string(body)}}})
-	if len(resp.BatchItemFailures) != 1 || len(ra.got) != 0 {
-		t.Fatalf("a record that will be retried must not alert yet: failures=%v alerts=%v", resp.BatchItemFailures, ra.got)
+	for name, env := range map[string]failureEnvelope{
+		"bad sns body":    rawEnvelope(t, snsEventOf("SECRET not json")),
+		"unknown payload": rawEnvelope(t, map[string]any{"x": 1}),
+		"non-object":      rawEnvelope(t, "just a string"),
+	} {
+		ra.got = nil
+		if err := handler(context.Background(), env); err != nil {
+			t.Fatalf("%s: dropped payload must not error (nothing to retry): %v", name, err)
+		}
+		if len(ra.got) != 1 || ra.got[0].Job != "dlq-unparseable" {
+			t.Fatalf("%s: want one dlq-unparseable alert, got %+v", name, ra.got)
+		}
+		if strings.Contains(ra.got[0].Detail, "SECRET") {
+			t.Fatalf("%s: alert must not carry the body: %q", name, ra.got[0].Detail)
+		}
+	}
+	if len(fd.calls) != 0 {
+		t.Fatalf("unparseable payload must not write: %v", fd.calls)
+	}
+}
+
+func TestHandler_DistributionJobAlertsWithoutWriting(t *testing.T) {
+	fd := &fakeDynamo{}
+	dynamoClient = fd
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
+
+	env := rawEnvelope(t, map[string]any{"job_type": "dist_nsu", "org_pk": "CNPJ_1", "doc_type": "nfe", "trigger": "user"})
+	if err := handler(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	if len(fd.calls) != 0 || len(ra.got) != 1 || ra.got[0].Job != "dlq-exhausted" || !strings.Contains(ra.got[0].Detail, "CNPJ_1") {
+		t.Fatalf("want one alert and no write: calls=%v alerts=%+v", fd.calls, ra.got)
+	}
+}
+
+func TestHandler_FailedKeepWarmPingIsIgnored(t *testing.T) {
+	ra := &recordingAlerts{}
+	alerter = ra
+	t.Cleanup(func() { alerter = alerts.Nop{} })
+	if err := handler(context.Background(), rawEnvelope(t, map[string]any{"ping": true})); err != nil || len(ra.got) != 0 {
+		t.Fatalf("ping failure must be a silent no-op: err=%v alerts=%+v", err, ra.got)
 	}
 }

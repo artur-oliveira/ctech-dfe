@@ -8,7 +8,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
+	lambdaTypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
@@ -44,11 +45,17 @@ func (f *fakeDB) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(*dy
 	return out, nil
 }
 
-type fakeSQS struct{ bodies []string }
+type fakeInvoker struct {
+	bodies []string
+	types  []lambdaTypes.InvocationType
+	fns    []string
+}
 
-func (f *fakeSQS) SendMessage(_ context.Context, in *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
-	f.bodies = append(f.bodies, *in.MessageBody)
-	return &sqs.SendMessageOutput{}, nil
+func (f *fakeInvoker) Invoke(_ context.Context, in *lambdaSDK.InvokeInput, _ ...func(*lambdaSDK.Options)) (*lambdaSDK.InvokeOutput, error) {
+	f.bodies = append(f.bodies, string(in.Payload))
+	f.types = append(f.types, in.InvocationType)
+	f.fns = append(f.fns, *in.FunctionName)
+	return &lambdaSDK.InvokeOutput{}, nil
 }
 
 func TestDispatchQueriesSweepIndexAcrossPagesAndSurvivesATableError(t *testing.T) {
@@ -59,8 +66,8 @@ func TestDispatchQueriesSweepIndexAcrossPagesAndSurvivesATableError(t *testing.T
 		},
 		errFor: "dev_organization_cte_configs",
 	}
-	q := &fakeSQS{}
-	cfg := &config.Config{TablePrefix: "dev", DistributionQueueURL: "https://sqs/q"}
+	q := &fakeInvoker{}
+	cfg := &config.Config{TablePrefix: "dev", DistributionFunctionName: "dev-distribution-worker"}
 
 	if err := dispatch(context.Background(), cfg, db, q); err != nil {
 		t.Fatal(err)
@@ -75,6 +82,11 @@ func TestDispatchQueriesSweepIndexAcrossPagesAndSurvivesATableError(t *testing.T
 		}
 		if !found {
 			t.Errorf("missing job %s in %v", want, q.bodies)
+		}
+	}
+	for i := range q.bodies {
+		if q.types[i] != lambdaTypes.InvocationTypeEvent || q.fns[i] != "dev-distribution-worker" {
+			t.Fatalf("job must be an async invoke of the distribution worker, got %v %s", q.types[i], q.fns[i])
 		}
 	}
 	for _, c := range db.calls {

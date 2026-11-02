@@ -10,7 +10,8 @@ func TestIsPingEvent(t *testing.T) {
 	}{
 		{"ping true", `{"ping":true}`, true},
 		{"ping false", `{"ping":false}`, false},
-		{"sqs batch", `{"Records":[{"messageId":"1","body":"{}"}]}`, false},
+		{"sns event", `{"Records":[{"Sns":{"Message":"{}"}}]}`, false},
+		{"distribution job", `{"job_type":"dist_nsu","org_pk":"x"}`, false},
 		{"empty object", `{}`, false},
 		{"invalid json", `not json`, false},
 	}

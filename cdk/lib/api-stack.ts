@@ -33,7 +33,7 @@ interface ApiStackProps extends cdk.StackProps {
   documentsBucketName: string;
   resultsQueueUrl: string;
   nfeEmissionTopicArn: string;
-  distributionQueueUrl: string;
+  distributionFunctionName: string;
   erasureQueueUrl: string;
   // SSM path written by ValkeyStack at boot. If omitted, VALKEY_URL is not set
   // and the app falls back to NoCacheBackend.
@@ -63,7 +63,7 @@ export class ApiStack extends cdk.Stack {
       documentsBucketName,
       resultsQueueUrl,
       nfeEmissionTopicArn,
-      distributionQueueUrl,
+      distributionFunctionName,
       erasureQueueUrl,
       valkeyUrlSsmPath,
       enableSsmAgent = false,
@@ -191,7 +191,7 @@ export class ApiStack extends cdk.Stack {
       `S3_BUCKET_DOCUMENTS=${documentsBucketName}`,
       `DFE_TOPIC_ARN=${nfeEmissionTopicArn}`,
       `DFE_RESULTS_QUEUE_URL=${resultsQueueUrl}`,
-      `DFE_DISTRIBUTION_QUEUE_URL=${distributionQueueUrl}`,
+      `DFE_DISTRIBUTION_FUNCTION_NAME=${distributionFunctionName}`,
       `ERASURE_QUEUE_URL=${erasureQueueUrl}`,
       // Shared operator-alert topic (failed account-deletion purge); not a secret.
       `ALERTS_TOPIC_ARN=${ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/alerts/topic-arn`)}`,
