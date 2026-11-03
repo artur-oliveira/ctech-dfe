@@ -251,6 +251,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     () => getMunicipalTaxCodes(nfseConfig?.c_loc_emi, currentNationalCode),
     [nfseConfig?.c_loc_emi, currentNationalCode],
   );
+  const suggestedRate = municipalTaxCodes.find((c) => c.municipalCode === currentMunicipalCode)?.taxRate;
   const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
@@ -355,7 +356,15 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               <FormItem>
                 <FormLabel>Código de tributação municipal</FormLabel>
                 {hasMunicipalCatalog ? (
-                  <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                  <Combobox id={field.name} value={field.value}
+                            onValueChange={(next) => {
+                              field.onChange(next);
+                              // Sugestão: a alíquota do código escolhido preenche o campo, que segue editável.
+                              const rate = municipalTaxCodes.find((c) => c.municipalCode === next)?.taxRate;
+                              if (rate != null) {
+                                form.setValue('iss.tax_rate', rate.toFixed(2), {shouldDirty: true, shouldValidate: true});
+                              }
+                            }}
                             options={municipalTaxOptions} disabled={municipalTaxOptions.length === 0}
                             placeholder={currentNationalCode ? 'Buscar código municipal' : 'Escolha antes o código nacional'}
                             searchPlaceholder="Código, item ou descrição..." fuzzySearch clearable/>
@@ -413,6 +422,11 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                   <FormLabel>Alíquota (%) *</FormLabel>
                   <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
                                  decimalPlaces={2} maxDecimalPlaces={4}/>
+                  {suggestedRate != null && (
+                    <FormDescription>
+                      Sugerida pelo código municipal: {suggestedRate.toFixed(2).replace('.', ',')}%. Você pode alterar.
+                    </FormDescription>
+                  )}
                   <FormMessage/>
                 </FormItem>
               )}/>

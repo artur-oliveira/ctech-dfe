@@ -1166,7 +1166,8 @@ município emissor da organização (`c_loc_emi`); sem catálogo para o municíp
   ("Correspondência CNAE x Código de Tributação"). No código completo `NN.NN.NN.NNN`, `cTribNac` são os 3 primeiros
   segmentos (6 dígitos) e `cTribMun` é o 4º (3 dígitos); `01.06.01.001` = `010601` + `001`. O `cTribMun` se repete
   entre `cTribNac` diferentes, então o par é que vale: o combobox só lista os códigos do `cTribNac` escolhido e a troca
-  do `cTribNac` limpa um `cTribMun` incompatível. Antes desta correção Teresina usava o catálogo raspado e enviava
+  do `cTribNac` limpa um `cTribMun` incompatível. Escolher o `cTribMun` também preenche `iss.tax_rate` com a alíquota da planilha (sugestão: o campo segue editável e
+  o backend continua sem validar a alíquota contra o município). Antes desta correção Teresina usava o catálogo raspado e enviava
   `101` em vez de `001`; serviços salvos assim aparecem como "fora do catálogo municipal" e precisam ser reeditados.
 - **Demais municípios**: `ui/src/lib/data/municipal_tax_codes_data.ts` (182 municípios menos Teresina), gerado por
   `node ui/scripts/generate-municipal-tax-codes.mjs`, que lê o sitemap e o `__NEXT_DATA__` de

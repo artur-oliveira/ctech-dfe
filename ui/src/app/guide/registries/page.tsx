@@ -247,7 +247,9 @@ export default function GuideCadastros() {
                   organização e só abre depois que o código nacional é escolhido, porque o código
                   municipal vale em par com ele. Em Teresina, por exemplo, o serviço 01.06.01.001
                   é o nacional <b>010601</b> com o municipal <b>001</b>. Trocar o código nacional
-                  descarta o municipal que deixou de combinar.
+                  descarta o municipal que deixou de combinar. Ao escolher o código municipal, a
+                  <b> alíquota do ISS</b> é preenchida com a do município; é só uma sugestão, e você
+                  pode trocar o valor livremente.
                 </li>
               </GuideBullets>
               <GuideCallout kind="warning" title="O município valida o código, não nós">
