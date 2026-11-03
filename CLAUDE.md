@@ -42,6 +42,7 @@ DRY / reuse, named constants, RFC 7807 errors, secrets, scope control and "never
 - Never assume DynamoDB table/index names, API contracts, payload formats, tax XML structures, AWS resource names or
   business rules (fiscal rules especially): search the code, then the docs, then ask.
 - Never commit PFX certs, JWT secrets, AWS credentials, passwords, real customer data or real CNPJs.
+- Never call the AWS Cost Explorer API (`aws ce ...`): it is billed per request. Use the Billing console or CloudTrail `lookup-events`.
 - Implement only what was requested; no unrelated fixes, opportunistic refactors or API changes.
 - **api / worker** return errors as RFC 7807 Problem JSON through `problem.*` helpers (api) and structured errors that
   let SQS route to the DLQ (worker). py-dfe was removed.
