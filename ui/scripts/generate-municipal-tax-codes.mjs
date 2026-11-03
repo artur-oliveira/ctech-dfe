@@ -10,6 +10,8 @@ const NEXT_DATA_PATTERN = /<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s;
 const REQUEST_DELAY_MS = 1500;
 const USER_AGENT = 'ctech-dfe-catalog-generator';
 const DEFAULT_OUTPUT = 'src/lib/data/municipal_tax_codes_data.ts';
+// Municípios com planilha oficial própria (ver generate-teresina-tax-codes.py): o raspador não os sobrescreve.
+const OFFICIAL_IBGE_CODES = new Set(['2211001']);
 
 const outputPath = resolve(process.cwd(), process.argv[2] ?? DEFAULT_OUTPUT);
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -31,6 +33,7 @@ for (const url of urls) {
     const match = NEXT_DATA_PATTERN.exec(await get(url));
     const {info, data} = JSON.parse(match[1]).props.pageProps.pageTableISS;
     if (!/^\d{7}$/.test(info.codigo_ibge) || !data?.length) throw new Error('sem IBGE ou tabela vazia');
+    if (OFFICIAL_IBGE_CODES.has(info.codigo_ibge)) continue;
     catalog[info.codigo_ibge] = data.filter((row) => row.codigo_servico?.trim()).map((row) => [row.lei_116, row.codigo_servico.trim(), parseRate(row.aliquota)]);
     console.log(`${info.codigo_ibge} ${info.cidade}-${info.estado}: ${data.length}`);
   } catch (err) {

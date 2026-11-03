@@ -25,7 +25,7 @@ import {generateEntityCode} from '@/lib/utils/code';
 import {ApiError, apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
-import {getMunicipalTaxCodes} from '@/lib/data/municipal_tax_codes';
+import {getMunicipalTaxCodes, hasMunicipalTaxCatalog} from '@/lib/data/municipal_tax_codes';
 import {cn} from '@/lib/utils';
 
 interface ServiceFormProps {
@@ -236,6 +236,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
   const trIssqn = useWatch({control: form.control, name: 'iss.trib_issqn'});
   const ibsCbsCst = useWatch({control: form.control, name: 'ibs_cbs.cst'});
   const currentMunicipalCode = useWatch({control: form.control, name: 'trib_municipal_code'});
+  const currentNationalCode = useWatch({control: form.control, name: 'trib_nacional_code'});
   const currentCnae = useWatch({control: form.control, name: 'cnae'});
   const classTribOptions = IBS_CBS_CLASS_BY_CST[ibsCbsCst] ?? [];
 
@@ -245,7 +246,11 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
     enabled: !!selectedOrg,
     retry: false,
   });
-  const municipalTaxCodes = getMunicipalTaxCodes(nfseConfig?.c_loc_emi);
+  const hasMunicipalCatalog = hasMunicipalTaxCatalog(nfseConfig?.c_loc_emi);
+  const municipalTaxCodes = useMemo(
+    () => getMunicipalTaxCodes(nfseConfig?.c_loc_emi, currentNationalCode),
+    [nfseConfig?.c_loc_emi, currentNationalCode],
+  );
   const municipalTaxOptions = useMemo<ComboboxOption[]>(() => {
     const options = municipalTaxCodes.map((entry) => ({
       value: entry.municipalCode,
@@ -330,8 +335,17 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
           <FormField control={form.control} name="trib_nacional_code" render={({field}) => (
             <FormItem>
               <FormLabel>Código de tributação nacional *</FormLabel>
-              <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                        options={TRIB_NACIONAL_OPTIONS} placeholder="Buscar código nacional"/>
+              <Combobox id={field.name} value={field.value} options={TRIB_NACIONAL_OPTIONS}
+                        placeholder="Buscar código nacional"
+                        onValueChange={(next) => {
+                          field.onChange(next);
+                          // O cTribMun só vale junto do cTribNac: troca de nacional descarta o municipal incompatível.
+                          const municipal = form.getValues('trib_municipal_code');
+                          if (municipal && hasMunicipalCatalog
+                            && !getMunicipalTaxCodes(nfseConfig?.c_loc_emi, next).some((c) => c.municipalCode === municipal)) {
+                            form.setValue('trib_municipal_code', '', {shouldDirty: true});
+                          }
+                        }}/>
               <FormMessage/>
             </FormItem>
           )}/>
@@ -340,16 +354,17 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
             <FormField control={form.control} name="trib_municipal_code" render={({field}) => (
               <FormItem>
                 <FormLabel>Código de tributação municipal</FormLabel>
-                {municipalTaxCodes.length > 0 ? (
+                {hasMunicipalCatalog ? (
                   <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                            options={municipalTaxOptions} placeholder="Buscar código municipal"
+                            options={municipalTaxOptions} disabled={municipalTaxOptions.length === 0}
+                            placeholder={currentNationalCode ? 'Buscar código municipal' : 'Escolha antes o código nacional'}
                             searchPlaceholder="Código, item ou descrição..." fuzzySearch clearable/>
                 ) : (
                   <Input {...field} id={field.name} maxLength={20} disabled={isMunicipalityLoading}
                          placeholder={isMunicipalityLoading ? 'Carregando município…' : 'Informe o código'}/>
                 )}
                 <FormDescription>
-                  {municipalTaxCodes.length > 0
+                  {hasMunicipalCatalog
                     ? 'Catálogo do município emissor configurado para a organização.'
                     : 'Informe o código adotado pelo município emissor.'}
                 </FormDescription>

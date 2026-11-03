@@ -400,6 +400,9 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   inventar o endpoint de produção a partir do hostname de homologação. O host municipal fica atrás
   de Cloudflare e desafia o `User-Agent` padrão do Go em origens AWS; o transporte REST NFS-e deve
   enviar o identificador compatível `nfseRESTUserAgent`, validado a partir do mesmo egress de produção.
+- **`cTribMun` de Teresina é o 4º segmento do código completo da SEMF (3 dígitos), em par com o `cTribNac`**
+  (`01.06.01.001` = `010601` + `001`). Nunca montar `cTribMun` a partir de item+subitem da LC 116 (era `101`, rejeitado).
+  Fonte: planilha oficial, ver `DOCS.md` → *Catálogo de código municipal (UI)*.
 - **IBS/CBS é obrigatório no catálogo de serviços NFS-e**: `c_ind_op`, `cst`, `c_class_trib`,
   `ind_dest` e `fin_nfse=0`. Não inferir classificação tributária a partir da descrição do serviço.
 - **`MunicipalParameters` e `GetDANFSE` chamam `dfe.Call` direto do serviço, não pelo worker** — são
