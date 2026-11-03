@@ -250,10 +250,10 @@ export class IAMStack extends cdk.Stack {
       resources: [`${props.certificatesBucketArn}/*`, `${props.documentsBucketArn}/*`],
     }));
 
-    // Distribution jobs are async invokes of the worker (no queue in front of it);
-    // GetFunctionConfiguration backs the /health-check probe.
+    // Distribution jobs are async invokes of the worker (no queue in front of it).
+    // No GetFunctionConfiguration: every call decrypts the env vars with KMS (billed per request).
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction', 'lambda:GetFunctionConfiguration'],
+      actions: ['lambda:InvokeFunction'],
       resources: [`arn:aws:lambda:${this.region}:${this.account}:function:${props.distributionFunctionName}`],
     }));
 

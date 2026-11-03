@@ -16,7 +16,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -58,7 +57,6 @@ func RegisterHealth(router fiber.Router, cacheBackend cache.Backend, clients *aw
 		s3c := checkS3(ctx, clients.S3, cfg.S3BucketDocuments, nowStr)
 		snsc := checkSNS(ctx, clients.SNS, cfg.WorkerTopicARN, nowStr)
 		sqsResults := checkSQS(ctx, clients.SQS, "sqs_results", cfg.ResultsQueueURL, nowStr)
-		distFn := checkLambda(ctx, clients.WorkerLambda, "lambda_distribution", cfg.DistributionFunctionName, nowStr)
 		cachec := checkCache(ctx, cacheBackend, nowStr)
 		cpu := checkCPU(nowStr)
 		mem := checkMemory(nowStr)
@@ -73,7 +71,7 @@ func RegisterHealth(router fiber.Router, cacheBackend cache.Backend, clients *aw
 			Time:            nowStr,
 		}
 
-		loadBearing := []string{dynamo.Status, s3c.Status, snsc.Status, sqsResults.Status, distFn.Status, cpu.Status, mem.Status}
+		loadBearing := []string{dynamo.Status, s3c.Status, snsc.Status, sqsResults.Status, cpu.Status, mem.Status}
 		overall := "pass"
 		statusCode := fiber.StatusOK
 		if slices.Contains(loadBearing, "fail") {
@@ -94,15 +92,14 @@ func RegisterHealth(router fiber.Router, cacheBackend cache.Backend, clients *aw
 			ServiceID:   "CTech DF-e",
 			Description: "Health check details for CTech DF-e API",
 			Checks: map[string]healthEntry{
-				"uptime":              uptime,
-				"dynamodb":            dynamo,
-				"s3":                  s3c,
-				"sns":                 snsc,
-				"sqs_results":         sqsResults,
-				"lambda_distribution": distFn,
-				"cpu":                 cpu,
-				"memory":              mem,
-				"cache":               cachec,
+				"uptime":      uptime,
+				"dynamodb":    dynamo,
+				"s3":          s3c,
+				"sns":         snsc,
+				"sqs_results": sqsResults,
+				"cpu":         cpu,
+				"memory":      mem,
+				"cache":       cachec,
 			},
 		})
 	})
@@ -168,22 +165,6 @@ func checkSQS(ctx context.Context, sqsc *sqs.Client, name, queueURL, nowStr stri
 		st = "warn"
 	}
 	return healthEntry{name, "responseTime", "component:queue", ms, "ms", st, nowStr}
-}
-
-// checkLambda confirms the distribution worker exists and is invocable. Lambda
-// control-plane reads are free, unlike the SQS request this replaces.
-func checkLambda(ctx context.Context, lc *lambda.Client, name, functionName, nowStr string) healthEntry {
-	t0 := time.Now()
-	st := "pass"
-	if functionName == "" {
-		return healthEntry{name, "responseTime", "component:function", -1, "ms", "warn", nowStr}
-	}
-	_, err := lc.GetFunctionConfiguration(ctx, &lambda.GetFunctionConfigurationInput{FunctionName: aws.String(functionName)})
-	ms := float64(time.Since(t0).Milliseconds())
-	if err != nil {
-		st = "warn"
-	}
-	return healthEntry{name, "responseTime", "component:function", ms, "ms", st, nowStr}
 }
 
 func checkCache(ctx context.Context, cb cache.Backend, nowStr string) healthEntry {

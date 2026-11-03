@@ -27,9 +27,9 @@ API / distribution-dispatcher ------------------- InvocationType=Event ---> dist
 - `distribution-worker` has no sefaz services. Its payload is the `DistributionMessage` itself (async invoke by the API, 3 call
   sites, and by the dispatcher). `worker/cmd/distribution-worker/main.go` parses it directly.
 - Keep-warm pings (`{"ping":true}`) short-circuit first in both handlers (`service.IsPingEvent`).
-- The API no longer holds a queue URL: `DFE_DISTRIBUTION_FUNCTION_NAME`, `lambda:InvokeFunction` +
-  `lambda:GetFunctionConfiguration` on that one function (`iam-stack.ts`), and `/health-check` reports `lambda_distribution`
-  (Lambda control-plane reads are free) instead of `sqs_distribution`. The API gets a second Lambda client in the stack's own
+- The API no longer holds a queue URL: `DFE_DISTRIBUTION_FUNCTION_NAME`, `lambda:InvokeFunction`
+  on that one function (`iam-stack.ts`). `/health-check` does not probe the worker: `GetFunctionConfiguration` decrypts the env
+  vars with KMS on every call (one billed Decrypt per probe, ~17k/day), so the 2026-11-03 follow-up removed the check. The API gets a second Lambda client in the stack's own
   region (`awsclient.Clients.WorkerLambda`); the existing `Lambda` client stays pinned to the egress region.
 - Dispatcher: `DISTRIBUTION_FUNCTION_NAME`, `grantInvoke` on the worker instead of `sqs:SendMessage`.
 - Removed: 10 worker queues, their queue policies and SQS subscriptions, 11 SQS event source mappings (10 workers + dlq-processor).
@@ -118,7 +118,7 @@ Run in prod with `export AWS_PROFILE=ctech AWS_REGION=us-east-1`.
    `aws sns list-subscriptions-by-topic --topic-arn <event bus>` shows 9 `lambda` subscriptions and no `sqs` worker
    subscription; `aws lambda list-event-source-mappings --function-name prod-nfe-emission-worker` is empty;
    `aws lambda get-function-event-invoke-config --function-name prod-nfe-emission-worker` shows 2 retries and the dlq-processor
-   destination; `/v1.0/health-check` shows `lambda_distribution` pass.
+   destination; `/v1.0/health-check` passes.
 
 ## Parking queue runbook (`${env}-dfe-dlq`)
 
