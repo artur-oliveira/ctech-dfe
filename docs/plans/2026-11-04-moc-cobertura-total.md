@@ -66,16 +66,17 @@ MDF-e 23/11/2026 (CIOT obrigatório, NT 2026.001).
 | F8 | Documentos auxiliares: DANFE (7 `tpImp`), DAMDFE (8 modelos), DACTE | F6 |
 | F9 | Eventos restantes (NF-e reforma, CT-e, MDF-e) | F6 |
 
-## 6. Módulo CIOT (ANTT, "CIOT para Todos")
+## 6. Módulo CIOT (ANTT, Pagamento Eletrônico de Frete)
 
-Referência: `https://www.gov.br/antt/pt-br/assuntos/cargas/ciot-para-todos-1/dcs_pef_v1-1.pdf` (não lido ainda).
+PDF lido em 2026-11-04 (v1.1 de 13/05/2026). Especificação completa, desenho e fases em
+`docs/specs/2026-11-04-ciot-antt-pef-integracao.md`.
 
-- Escopo proposto: serviço `ciot` no `ctech-dfe` com cadastro do contratante e do transportador, abertura,
-  retificação, encerramento e cancelamento do CIOT, e o vínculo com o MDF-e (`infCIOT`) e o pagamento do frete.
-- Pré-requisitos antes de estimar: ler o PDF (autenticação, ambiente de homologação, certificado, formato JSON ou XML,
-  eventos e códigos de erro); decidir se a chamada passa pelo `go-dfe-egress` (regra do projeto para chamadas fiscais).
-- Cada integração externa precisa de timeout, retry idempotente, breaker e decisão de fail open ou closed (`ctech-dev-standards`).
-- Prazo: a NT 2026.001 do MDF-e exige CIOT a partir de 23/11/2026; o módulo entra na F4.
+- É um webservice REST/JSON síncrono com 8 serviços, autenticado só por certificado ICP-Brasil (mTLS). O certificado tem de
+  ser de uma Instituição de Pagamento ou de um transportador do RNTRC (regra C1) e estar cadastrado na ANTT.
+- Bloqueios fora do nosso controle: host e caminho de cada serviço, algoritmo do identificador e do dígito verificador
+  (o PDF manda usar uma DDL da ANTT), tabela de natureza da carga e de piso mínimo de frete.
+- Estimativa de 7 a 8 semanas (C1 a C7). Para 23/11/2026 (regra F113 do MDF-e) o caminho mínimo é aceitar vários `infCIOT`
+  com CPF ou CNPJ do responsável e validar o formato, sem declarar o CIOT por aqui.
 
 ## 7. Padrões a respeitar
 
