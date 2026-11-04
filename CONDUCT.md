@@ -1152,6 +1152,16 @@ trusting a hop nothing routes through is inert rather than wrong.
 
 ---
 
+# Fontes de schema e MOC
+
+- XSDs oficiais: portais SVRS (`https://dfe-portal.svrs.rs.gov.br/{NFE,MDFE,CTE}/Documentos`); download em
+  `/{SIS}/DownloadArquivoEstatico/?sistema={SIS}&tipoArquivo=2&nomeArquivo={zip}`. Os XSDs em `cdk/cdk.out` podem
+  estar desatualizados (CT-e estava na NT 2026.001 com a NT 2026.005 SN publicada): confira a data antes de usar.
+- MOC online: HTTPS recusa conexão; use `curl` em HTTP. Plano: `docs/plans/2026-11-04-moc-cobertura-total.md`.
+- `SegCodBarra` do MDF-e tem 36 dígitos e só vale em FS-DA; nunca emitir a chave de 44.
+
+---
+
 # 12. Definition of Done
 
 A change is not complete until:

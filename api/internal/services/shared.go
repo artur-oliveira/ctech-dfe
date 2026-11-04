@@ -282,8 +282,9 @@ func GenerateAccessKey(uf, cnpj, model string, serie, number int, now time.Time,
 	if len(cnpj) > 14 {
 		cnpj = cnpj[:14]
 	}
+	// Emitente CPF (11 dígitos) entra na chave com zeros à ESQUERDA ("000"+CPF).
 	for len(cnpj) < 14 {
-		cnpj += "0"
+		cnpj = "0" + cnpj
 	}
 	cNF := fmt.Sprintf("%08d", 10_000_000+rand.Intn(90_000_000))
 	key43 := fmt.Sprintf("%s%s%s%s%03d%09d%s%s", cUF, aamm, cnpj, model, serie, number, tpEmis, cNF)

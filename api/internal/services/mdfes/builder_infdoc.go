@@ -56,14 +56,14 @@ func (p buildParams) buildInfDoc() map[string]any {
 }
 
 // docNodes monta os nós de documento transportado. NF-e e CT-e têm a mesma
-// forma no leiaute (chave, SegCodBarra, indReentrega), então é uma função só.
+// forma no leiaute (chave, indReentrega), então é uma função só.
 func (p buildParams) docNodes(keyField string, keys []string) []map[string]any {
 	out := make([]map[string]any, 0, len(keys))
 	for _, k := range keys {
-		// SegCodBarra é o código de barras do documento — que é a própria
-		// chave. Perguntá-lo ao operador seria pedir de volta o dado que ele
-		// acabou de referenciar.
-		node := map[string]any{keyField: k, "SegCodBarra": k}
+		// SegCodBarra (TSegCodBarra) tem 36 dígitos e só existe para documento
+		// em contingência FS-DA; a chave de 44 dígitos violaria o XSD (cStat 225).
+		// Sem FS-DA a tag não sai.
+		node := map[string]any{keyField: k}
 		if p.redelivery[k] {
 			node["indReentrega"] = indReentregaSim
 		}

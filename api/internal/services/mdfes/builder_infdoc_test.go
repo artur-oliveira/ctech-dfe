@@ -14,7 +14,7 @@ func infNFeNodes(t *testing.T, p buildParams) []map[string]any {
 	return mun["infNFe"].([]map[string]any)
 }
 
-func TestBuildInfDocSegCodBarra(t *testing.T) {
+func TestBuildInfDocSemSegCodBarra(t *testing.T) {
 	p := buildParams{
 		cargo: &resolvedCargo{descarga: []descargaGroup{{
 			mun:     MdfeMun{IBGECode: "2211001", City: "Teresina"},
@@ -23,8 +23,8 @@ func TestBuildInfDocSegCodBarra(t *testing.T) {
 		redelivery: map[string]bool{testNFeKey: true},
 	}
 	nfe := infNFeNodes(t, p)[0]
-	if nfe["SegCodBarra"] != testNFeKey {
-		t.Fatalf("SegCodBarra ausente: %v", nfe)
+	if _, ok := nfe["SegCodBarra"]; ok {
+		t.Fatalf("SegCodBarra tem 36 dígitos (só FS-DA); a chave de 44 viola o XSD: %v", nfe)
 	}
 	if nfe["indReentrega"] != indReentregaSim {
 		t.Fatalf("indReentrega ausente: %v", nfe)
@@ -43,7 +43,7 @@ func TestBuildInfDocSemReentrega(t *testing.T) {
 }
 
 // O CT-e tem o mesmo par de campos que a NF-e no leiaute.
-func TestBuildInfDocCTeSegCodBarra(t *testing.T) {
+func TestBuildInfDocCTeSemSegCodBarra(t *testing.T) {
 	key := testCTeKey
 	p := buildParams{
 		cargo: &resolvedCargo{descarga: []descargaGroup{{
@@ -53,8 +53,8 @@ func TestBuildInfDocCTeSegCodBarra(t *testing.T) {
 		redelivery: map[string]bool{key: true},
 	}
 	cte := p.buildInfDoc()["infMunDescarga"].([]map[string]any)[0]["infCTe"].([]map[string]any)[0]
-	if cte["SegCodBarra"] != key || cte["indReentrega"] != indReentregaSim {
-		t.Fatalf("CT-e sem SegCodBarra/indReentrega: %v", cte)
+	if _, ok := cte["SegCodBarra"]; ok || cte["indReentrega"] != indReentregaSim {
+		t.Fatalf("CT-e sem SegCodBarra e com indReentrega: %v", cte)
 	}
 }
 
