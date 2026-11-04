@@ -181,9 +181,10 @@ const CAPTURES = [
     route: '/mdfe',
     viewport: MOBILE,
     steps: [
-      {waitAt: '[aria-controls="bottomnav-docs"]'},
-      {clickAt: '[aria-controls="bottomnav-docs"]'},
-      {waitAt: '#bottomnav-docs'},
+      // O BottomNav de @aoctech/ui não usa mais aria-controls; a aba "mais" leva o rótulo do contexto (MDF-e) e abre um dialog.
+      {waitAt: '[data-slot="bottom-nav"] button[aria-label="MDF-e"]'},
+      {clickAt: '[data-slot="bottom-nav"] button[aria-label="MDF-e"]'},
+      {waitAt: '[role="dialog"]'},
     ],
   },
 ];
