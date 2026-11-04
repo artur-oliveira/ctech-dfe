@@ -64,8 +64,35 @@ const (
 	// mdfeEncerramentoEvent — MDF-e "Encerramento" (closes the manifest).
 	mdfeEncerramentoEvent = "110112"
 
+	// DuplicatedEventError: NF-e/NFC-e, "Duplicidade de evento".
 	DuplicatedEventError = "573"
+	// MOC MDF-e (RegrasDeValidacao, RecepcaoEventoGeral): 631 duplicidade de evento;
+	// 218 MDF-e já cancelado; 609 MDF-e já encerrado.
+	mdfeDuplicatedEventError = "631"
+	alreadyCancelledStat     = "218"
+	mdfeAlreadyClosedStat    = "609"
 )
+
+// rejectedEventDocStatus diz em que situação o documento está depois que a SEFAZ
+// rejeitou o evento de cancelamento/encerramento: duplicidade ou "já cancelado/
+// encerrado" significam que o estado pedido já vale; qualquer outra rejeição
+// devolve o documento a autorizado.
+func rejectedEventDocStatus(docType, cStat string, isClose bool) string {
+	requested := StatusCancelled
+	if isClose {
+		requested = StatusClosed
+	}
+	switch {
+	case cStat == DuplicatedEventError,
+		cStat == mdfeDuplicatedEventError && docType == docTypeMDFe:
+		return requested
+	case cStat == alreadyCancelledStat:
+		return StatusCancelled
+	case cStat == mdfeAlreadyClosedStat && docType == docTypeMDFe:
+		return StatusClosed
+	}
+	return StatusAuthorized
+}
 
 // isCancellationEvent reports whether the event type cancels the document.
 // 110111 cancels any document; 110112 is "cancelamento por substituição" only
@@ -93,6 +120,9 @@ func isCloseEvent(docType string, eventType *string) bool {
 // NfeInutilizacao service, which returns no protocol-bearing infProt.
 var authorizedStats = map[string]bool{
 	"100": true, "102": true, "135": true, "136": true, "150": true, "155": true,
+	// 134: evento armazenado e vinculado a MDF-e em situação diferente de autorizada,
+	// com alerta (MOC MDF-e, RecepcaoEventoGeral); é aceite, não rejeição.
+	"134": true,
 }
 
 // batchStats are envelope-level cStat codes that wrap per-document results

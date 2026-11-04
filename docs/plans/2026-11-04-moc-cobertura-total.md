@@ -31,6 +31,7 @@ interna de cada tag e regra antes de enviar à SEFAZ.
 - `vNF` e `ICMSTot/vProd` pela regra W16-10 e W07-10 (serviço ISSQN fora do vProd).
 - MDF-e: `SegCodBarra` (36 dígitos, só FS-DA) deixou de ser emitido com a chave de 44.
 - `GenerateAccessKey`: CPF com zeros à esquerda.
+- Worker, eventos rejeitados: 631 (duplicidade de evento, MDF-e), 218 (já cancelado) e 609 (já encerrado, MDF-e) confirmam o estado pedido em vez de reverter para autorizado; cStat 134 (evento aceito com alerta) é sucesso. Códigos conferidos no MOC do MDF-e.
 
 ## 4. Bugs conhecidos ainda abertos (cada um com teste de regressão)
 
@@ -42,7 +43,7 @@ interna de cada tag e regra antes de enviar à SEFAZ.
 | `FinNFe` só 1 a 4 | `emit.go` | notas de crédito e débito (5, 6) |
 | Limites de cadastro maiores que o leiaute (`xNome`, `xLgr`, `xProd`, `IE`) | `dto.go` | só com migração dos dados existentes |
 | `tpEmit` fixo em 2 no MDF-e | `mdfes/builder.go` | rejeição 639 com CT-e |
-| Worker: duplicidade só reconhece 573; cStat 134 tratado como rejeição | `worker/internal/service/helpers.go` | **verificar os códigos de MDF-e (218, 609, 631) no MOC antes de mudar** |
+| Worker: autorização duplicada (MDF-e 204 e 539, NF-e 204/539) marca o documento como rejeitado em vez de reconciliar com o protocolo existente | `worker/internal/service/dfe.go` | evento já corrigido em 2026-11-04 (631, 218, 609, 134 conferidos no MOC); falta consultar a situação e adotar o protocolo |
 | `EX` recusado em UF e encerramento; `nSeqEvento` sem sequenciador; soma de pagamento x `vContrato` | MDF-e | |
 | `ValidAccessKey` só mod 55; assinatura de `infCTeOS`/`infGTVe`; distribuição pede `consChCTe` | go-dfe | confirmar com XSD novo |
 

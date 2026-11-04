@@ -439,26 +439,10 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 
 	case cStat != nil:
 		eventStatus = StatusRejected
-		if isClose {
-			// Encerramento rejected → revert document to authorized, unless the
-			// manifest was already closed (duplicated event).
-			status := StatusAuthorized
-			if *cStat == DuplicatedEventError {
-				status = StatusClosed
-			}
-			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, status, updateAttrs{}, false); err != nil {
-				return err
-			}
-		} else if isCancellation {
-			// Cancellation rejected → revert document to authorized.
-
-			var status string
-			if *cStat == DuplicatedEventError {
-				status = StatusCancelled
-			} else {
-				status = StatusAuthorized
-			}
-
+		if isClose || isCancellation {
+			// Evento rejeitado: duplicidade ou "já cancelado/encerrado" confirma o
+			// estado pedido; o resto devolve o documento a autorizado.
+			status := rejectedEventDocStatus(msg.DocType, *cStat, isClose)
 			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, status, updateAttrs{}, false); err != nil {
 				return err
 			}

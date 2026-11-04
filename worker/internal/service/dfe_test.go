@@ -942,3 +942,39 @@ func TestProcess_ClaimStoreErrorFailsClosed(t *testing.T) {
 		t.Errorf("claim-store failure must fail closed before SEFAZ; got %d calls", lamm.calls)
 	}
 }
+
+// MOC MDF-e: 631 (duplicidade de evento), 218 (já cancelado) e 609 (já encerrado)
+// confirmam o estado pedido em vez de devolver o documento a autorizado.
+func TestRejectedEventDocStatus(t *testing.T) {
+	cases := []struct {
+		name, docType, cStat string
+		isClose              bool
+		want                 string
+	}{
+		{"nfe 573 cancelamento", "nfe", "573", false, StatusCancelled},
+		{"mdfe 631 encerramento", docTypeMDFe, "631", true, StatusClosed},
+		{"mdfe 631 cancelamento", docTypeMDFe, "631", false, StatusCancelled},
+		{"mdfe 218 ja cancelado", docTypeMDFe, "218", true, StatusCancelled},
+		{"mdfe 609 ja encerrado em cancelamento", docTypeMDFe, "609", false, StatusClosed},
+		{"631 fora do mdfe nao vale", "nfe", "631", false, StatusAuthorized},
+		{"609 fora do mdfe nao vale", "nfe", "609", false, StatusAuthorized},
+		{"outra rejeicao reverte", docTypeMDFe, "999", true, StatusAuthorized},
+	}
+	for _, c := range cases {
+		if got := rejectedEventDocStatus(c.docType, c.cStat, c.isClose); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// cStat 134 (evento aceito com alerta) é sucesso, não rejeição.
+func TestProcess_Event134_IsSuccess(t *testing.T) {
+	dynm := &mockDynamo{}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("134", "Evento armazenado com alerta", "prot-134")}, dynm)
+	if err := svc.Process(context.Background(), eventMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if dynm.updates[len(dynm.updates)-1].status != EventStatusSuccess {
+		t.Errorf("event status = %q, want success", dynm.updates[len(dynm.updates)-1].status)
+	}
+}
