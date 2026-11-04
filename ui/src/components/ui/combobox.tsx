@@ -4,7 +4,7 @@ import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import Fuse from 'fuse.js';
 import {CheckIcon, ChevronDownIcon} from 'lucide-react';
-import {ClearButton, CLEARABLE_TRIGGER_PADDING} from '@/components/ui/clear-button';
+import {ClearButton, CLEARABLE_TEXT_PADDING} from '@/components/ui/clear-button';
 import {useClearable} from '@/components/ui/form';
 import {cn} from '@/lib/utils';
 import {Highlighted} from '@/components/ui/highlight';
@@ -271,10 +271,9 @@ export function Combobox({
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           'disabled:cursor-not-allowed disabled:opacity-50',
           !selected && 'text-muted-foreground',
-          showClear && CLEARABLE_TRIGGER_PADDING,
         )}
       >
-        <span className="block min-w-0 flex-1 truncate text-left text-foreground">
+        <span className={cn('block min-w-0 flex-1 truncate text-left text-foreground', showClear && CLEARABLE_TEXT_PADDING)}>
           {selected ? selected.label : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}

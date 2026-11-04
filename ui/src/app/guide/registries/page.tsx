@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage';
 
 export default function GuideCadastros() {
@@ -243,6 +244,18 @@ export default function GuideCadastros() {
                 <li>Marcar <b>ISS retido</b> transfere o recolhimento ao tomador; a nota sai com o valor líquido destacado.</li>
                 <li>O valor do cadastro é um padrão: a emissão aceita outro sem alterar o catálogo.</li>
                 <li>
+                  <b>Campos opcionais</b> (código NBS, CNAE, código de tributação municipal, país do
+                  resultado, momento da operação e os tributos federais) mostram um <b>X</b> ao lado
+                  da seta quando têm valor; clicar nele esvazia o campo. Rótulo com <b>*</b> é
+                  obrigatório e não tem X. Vale para todo seletor opcional do sistema.
+                </li>
+                <li>
+                  <b>Momento da operação</b> só é aceito pelo ambiente nacional em compra
+                  governamental e nos itens 10.05, 15.09, 17.12 e 25.05 da LC 116. Em qualquer outro
+                  serviço o sistema ignora o valor cadastrado ao montar a nota, para evitar a
+                  rejeição E0904.
+                </li>
+                <li>
                   <b>Código de tributação municipal:</b> a lista vem do município emissor da
                   organização e só abre depois que o código nacional é escolhido, porque o código
                   municipal vale em par com ele. Em Teresina, por exemplo, o serviço 01.06.01.001
@@ -252,6 +265,17 @@ export default function GuideCadastros() {
                   pode trocar o valor livremente.
                 </li>
               </GuideBullets>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image
+                  src="/guide/services-form.webp"
+                  alt="Formulário de serviço com o código NBS preenchido e o X para limpar ao lado da seta"
+                  width={1280}
+                  height={800}
+                  sizes="(max-width: 1024px) 100vw, 760px"
+                  className="w-full"
+                  unoptimized
+                />
+              </figure>
               <GuideCallout kind="warning" title="O município valida o código, não nós">
                 Código de tributação incompatível com a atividade do prestador é rejeitado pelo
                 ambiente nacional. Na dúvida, confira o item da LC 116 no CNAE da empresa antes de

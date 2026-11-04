@@ -128,6 +128,8 @@ const CAPTURES = [
   {slug: 'service-locations', route: '/service-locations', waitText: 'Obra Centro'},
   {slug: 'reference-documents', route: '/reference-documents', waitText: 'NF-e de materiais'},
   {slug: 'services', route: '/services', waitText: 'Desenvolvimento de software'},
+  // Formulário com NBS preenchido: mostra o X de limpar dos campos opcionais.
+  {slug: 'services-form', route: '/services/edit?id=1', waitText: 'Código NBS'},
   {slug: 'operations', route: '/operations', waitText: 'Venda'},
   {slug: 'payment-terms', route: '/payment-terms', waitText: 'À vista'},
   {slug: 'import-declarations', route: '/import-declarations', waitText: 'Santos'},

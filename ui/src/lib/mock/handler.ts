@@ -152,6 +152,7 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (m === 'post' && path === '/v1.0/services') return {data: echo(body, 'service')};
   if (m === 'put' && path.startsWith('/v1.0/services/')) return {data: echo(body, 'service')};
   if (m === 'delete' && path.startsWith('/v1.0/services/')) return {data: undefined};
+  if (m === 'get' && path.startsWith('/v1.0/services/')) return {data: servicesFixture[0]};
 
   // Cadastros reutilizáveis — mesma forma para os quatro, só muda a fixture.
   for (const [segment, fixture, suffix] of REUSABLE_REGISTRIES) {

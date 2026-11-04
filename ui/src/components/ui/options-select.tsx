@@ -2,7 +2,7 @@
 
 import {Select} from '@aoctech/ui';
 import {useClearable, useFieldAria} from '@/components/ui/form';
-import {ClearButton, CLEARABLE_TRIGGER_PADDING} from '@/components/ui/clear-button';
+import {ClearButton, CLEARABLE_SELECT_TEXT_PADDING} from '@/components/ui/clear-button';
 import {cn} from '@/lib/utils';
 
 interface OptionsSelectProps {
@@ -49,7 +49,7 @@ export function OptionsSelect({
       aria-label={ariaLabel}
       aria-invalid={aria['aria-invalid']}
       aria-describedby={aria['aria-describedby']}
-      className={cn(className, showClear && CLEARABLE_TRIGGER_PADDING)}
+      className={cn(className, showClear && `[&>span:first-child]:${CLEARABLE_SELECT_TEXT_PADDING}`)}
     />
     {showClear && <ClearButton onClear={() => onValueChange?.('')}/>}
     </div>

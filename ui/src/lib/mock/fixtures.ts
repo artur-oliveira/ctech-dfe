@@ -817,7 +817,7 @@ export const servicesFixture = [
     description: 'Desenvolvimento de software sob encomenda',
     trib_nacional_code: '010701',
     trib_municipal_code: null,
-    nbs_code: null,
+    nbs_code: '115029000',
     cnae: '6201501',
     unit: 'UN',
     value: '4500.00',
