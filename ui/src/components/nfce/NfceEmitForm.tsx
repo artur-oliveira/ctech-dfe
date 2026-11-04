@@ -427,7 +427,7 @@ export function NfceEmitForm() {
         <DraftRecoveryBanner savedAt={draft.recovered.savedAt} onRestore={restoreDraft} onDiscard={draft.discard}/>
       )}
 
-      {/* Scan / search — always available, always focused */}
+      {/* Scan / search; always available, always focused */}
       <ProductSearch
         onSelect={addProduct}
         disabledReason={productDisabledReason}
@@ -449,7 +449,7 @@ export function NfceEmitForm() {
           products.map((item, i) => {
             const cfopOptions = nfceCfopsForProduct(item.product).map((cfop) => {
               const desc = getCfopDescription(cfop);
-              const label = desc ? `${cfop} – ${desc}` : cfop;
+              const label = desc ? `${cfop} · ${desc}` : cfop;
               return {value: cfop, label};
             });
             return (
@@ -516,7 +516,7 @@ export function NfceEmitForm() {
             </div>
           )}
 
-          {/* Quick picks — the three an operator reaches for */}
+          {/* Quick picks; the three an operator reaches for */}
           <div className="flex flex-wrap gap-2">
             {QUICK_PAYMENT_TYPES.map((code) => {
               const active = newPaymentType === code;
@@ -600,7 +600,7 @@ export function NfceEmitForm() {
             </p>
           )}
 
-          {/* CPF na nota — asked where a cashier asks it */}
+          {/* CPF na nota; asked where a cashier asks it */}
           <div className="pt-3 border-t border-gray-100 space-y-2">
             <Label className="text-xs font-medium text-gray-600">CPF na nota? (opcional)</Label>
             <ConsumerField value={consumer} onChange={setConsumer}/>
@@ -624,7 +624,7 @@ export function NfceEmitForm() {
         <EmitError failure={submitError}/>
       </div>
 
-      {/* Action bar — the total never leaves the screen */}
+      {/* Action bar; the total never leaves the screen */}
       <div
         className="sticky bottom-(--bottomnav-height) -mx-4 px-4 md:mx-0 md:px-0 py-3 mt-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
         <div className="min-w-0">

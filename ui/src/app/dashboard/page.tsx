@@ -60,7 +60,7 @@ function DashboardContent() {
         
         <RecentDocuments/>
 
-        {/* Whatever is left of first-run setup — hides itself once finished. */}
+        {/* Whatever is left of first-run setup; hides itself once finished. */}
         <SetupChecklist/>
       </div>
     </RootLayout>

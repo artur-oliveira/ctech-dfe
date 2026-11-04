@@ -15,21 +15,21 @@ export const CARGO_UNIT_KIND_OPTIONS = [
 
 /** tpUnidTransp — tipo da unidade de transporte. */
 export const TP_UNID_TRANSP_OPTIONS = [
-  {value: '1', label: '1 – Rodoviário tração'},
-  {value: '2', label: '2 – Rodoviário reboque'},
-  {value: '3', label: '3 – Navio'},
-  {value: '4', label: '4 – Balsa'},
-  {value: '5', label: '5 – Aeronave'},
-  {value: '6', label: '6 – Vagão'},
-  {value: '7', label: '7 – Outros'},
+  {value: '1', label: '1 · Rodoviário tração'},
+  {value: '2', label: '2 · Rodoviário reboque'},
+  {value: '3', label: '3 · Navio'},
+  {value: '4', label: '4 · Balsa'},
+  {value: '5', label: '5 · Aeronave'},
+  {value: '6', label: '6 · Vagão'},
+  {value: '7', label: '7 · Outros'},
 ];
 
 /** tpUnidCarga — tipo da unidade de carga. */
 export const TP_UNID_CARGA_OPTIONS = [
-  {value: '1', label: '1 – Contêiner'},
-  {value: '2', label: '2 – ULD'},
-  {value: '3', label: '3 – Pallet'},
-  {value: '4', label: '4 – Outros'},
+  {value: '1', label: '1 · Contêiner'},
+  {value: '2', label: '2 · ULD'},
+  {value: '3', label: '3 · Pallet'},
+  {value: '4', label: '4 · Outros'},
 ];
 
 export const cargoUnitSchema = z.object({

@@ -20,7 +20,7 @@ describe('perfil fiscal', () => {
     expect(parsed.cfops).toEqual(['5102', '6102']);
   });
 
-  it('exige ao menos um CFOP — perfil sem CFOP não se aplica a nada', () => {
+  it('exige ao menos um CFOP; perfil sem CFOP não se aplica a nada', () => {
     expect(taxProfileSchema.safeParse({...base, cfops: []}).success).toBe(false);
   });
 
@@ -42,7 +42,7 @@ describe('perfil fiscal', () => {
     expect(taxProfileSchema.safeParse(rest).success).toBe(true);
   });
 
-  it('não tem campo cfop — os CFOPs são uma lista à parte', () => {
+  it('não tem campo cfop; os CFOPs são uma lista à parte', () => {
     expect('cfop' in taxProfileSchema.shape).toBe(false);
     expect('cfops' in taxProfileSchema.shape).toBe(true);
   });

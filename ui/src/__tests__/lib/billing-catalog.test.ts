@@ -16,7 +16,7 @@ function price(overrides: Partial<BillingProduct['prices'][number]> = {}) {
 }
 
 describe('buildPlanOptions', () => {
-  it('hides the internal plan — offering it would give away an unlimited subscription', () => {
+  it('hides the internal plan; offering it would give away an unlimited subscription', () => {
     const products: BillingProduct[] = [
       {
         id: 'prod_dfe_unlimited_internal',
@@ -134,7 +134,7 @@ describe('buildPlanOptions', () => {
 });
 
 describe('grantedMeters', () => {
-  it('leaves out a meter granted zero — "not included" is not "you ran out"', () => {
+  it('leaves out a meter granted zero; "not included" is not "you ran out"', () => {
     expect(grantedMeters({nfe: 3, cte: 0, companies: 1})).toEqual(['nfe', 'companies']);
   });
 

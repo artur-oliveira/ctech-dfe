@@ -72,7 +72,7 @@ export const TBAND_TABLE: readonly PaymentTableEntry[] = [
 export const TPAG_LABELS: Record<string, string> =
   Object.fromEntries(TPAG_TABLE.map((e) => [e.code, e.description]));
 
-export const TBAND_OPTIONS = TBAND_TABLE.map((e) => ({value: e.code, label: `${e.code} – ${e.description}`}));
+export const TBAND_OPTIONS = TBAND_TABLE.map((e) => ({value: e.code, label: `${e.code} · ${e.description}`}));
 
 /**
  * Meios de pagamento que são PIX. 17 é o PIX comum, 20 o estático e 23 o

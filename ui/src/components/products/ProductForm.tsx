@@ -1207,7 +1207,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               </div>
             </div>
 
-            {/* EX TIPI — visível quando IPI ativo em algum cfop_config */}
+            {/* EX TIPI; visível quando IPI ativo em algum cfop_config */}
             {cfopConfig.some(c => c.ipi_cst) && (
               <FormField control={form.control} name="ext_ipi" render={({field}) => (
                 <FormItem>
@@ -1219,7 +1219,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               )}/>
             )}
 
-            {/* indEscala + CNPJFab — visível quando CEST preenchido */}
+            {/* indEscala + CNPJFab; visível quando CEST preenchido */}
             {watchedCest && watchedCest.length === 7 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
                 <FormField control={form.control} name="ind_escala" render={({field}) => (
@@ -1227,8 +1227,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                     <FormLabel>Indicador de escala</FormLabel>
                     <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
                                    options={[
-                                     {value: 'S', label: 'S – Produção em escala relevante'},
-                                     {value: 'N', label: 'N – Não em escala relevante'},
+                                     {value: 'S', label: 'S · Produção em escala relevante'},
+                                     {value: 'N', label: 'N · Não em escala relevante'},
                                    ]}/>
                     <FormMessage/>
                   </FormItem>
@@ -1488,12 +1488,12 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
               </div>
             ) : (
               <>
-                {/* Editor de tributação — o mesmo componente do perfil fiscal. */}
+                {/* Editor de tributação; o mesmo componente do perfil fiscal. */}
                 <TaxFieldsEditor key={taxEditorKey} value={cfopRow} onChange={setCfopRow} simples={simples}
                                  groups={taxGroups} onGroupsChange={setTaxGroups}
                                  emitUf={uf} destUf={uf} ncm={watchedNcm}/>
 
-                {/* Overrides por UF de destino — só preenche o que diverge */}
+                {/* Overrides por UF de destino; só preenche o que diverge */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">
                     Overrides por UF de destino (opcional)
@@ -1767,7 +1767,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             </>)}
 
             {extraGroups.reforma && (<>
-              {/* ── Reforma tributária — nível produto ──────────────────── */}
+              {/* ── Reforma tributária; nível produto ──────────────────── */}
               <div className="rounded-lg border border-gray-100 p-4 space-y-3">
                 <p className="text-sm font-medium text-gray-600">
                   Reforma tributária (IBS/CBS): produto
@@ -2105,8 +2105,8 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
                       <FormLabel>Tipo de arma *</FormLabel>
                       <OptionsSelect id={field.name} value={field.value ?? ''} onValueChange={field.onChange}
                                      options={[
-                                       {value: '0', label: '0 – Uso permitido'},
-                                       {value: '1', label: '1 – Uso restrito'},
+                                       {value: '0', label: '0 · Uso permitido'},
+                                       {value: '1', label: '1 · Uso restrito'},
                                      ]} placeholder="Tipo"/>
                       <FormMessage/>
                     </FormItem>
@@ -2163,8 +2163,8 @@ function CombOrigFields({value, onChange}: {
             <OptionsSelect id={`orig-imp-${i}`} value={o.ind_import}
                            onValueChange={(v: string) => patch(i, {ind_import: v as CombOrigIn['ind_import']})}
                            options={[
-                             {value: '0', label: '0 – Nacional'},
-                             {value: '1', label: '1 – Importado'},
+                             {value: '0', label: '0 · Nacional'},
+                             {value: '1', label: '1 · Importado'},
                            ]}/>
           </div>
           <div className="flex flex-col gap-1">

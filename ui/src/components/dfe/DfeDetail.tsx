@@ -168,7 +168,7 @@ export function DfeDetail({
         </div>
       </div>
 
-      {/* SEFAZ info — full rejection/authorization motive (not truncated) */}
+      {/* SEFAZ info; full rejection/authorization motive (not truncated) */}
       {(doc.sefaz_status || doc.sefaz_motive) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
           isCancelled ? 'border-gray-200 bg-gray-50 opacity-60'

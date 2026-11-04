@@ -35,54 +35,54 @@ interface ServiceFormProps {
 }
 
 const TRIB_ISSQN_OPTIONS = [
-  {value: '1', label: '1 – Operação tributável'},
-  {value: '2', label: '2 – Imunidade'},
-  {value: '3', label: '3 – Exportação de serviço'},
-  {value: '4', label: '4 – Não incidência'},
+  {value: '1', label: '1 · Operação tributável'},
+  {value: '2', label: '2 · Imunidade'},
+  {value: '3', label: '3 · Exportação de serviço'},
+  {value: '4', label: '4 · Não incidência'},
 ];
 
 const TP_RET_ISSQN_OPTIONS = [
-  {value: '1', label: '1 – Não retido'},
-  {value: '2', label: '2 – Retido pelo tomador'},
-  {value: '3', label: '3 – Retido pelo intermediário'},
+  {value: '1', label: '1 · Não retido'},
+  {value: '2', label: '2 · Retido pelo tomador'},
+  {value: '3', label: '3 · Retido pelo intermediário'},
 ];
 
 const TP_IMUNIDADE_OPTIONS = [
-  {value: '0', label: '0 – Tipo não informado na nota de origem'},
-  {value: '1', label: '1 – Imunidade recíproca entre entes públicos'},
-  {value: '2', label: '2 – Templos de qualquer culto'},
-  {value: '3', label: '3 – Partidos, sindicatos, educação e assistência sem fins lucrativos'},
-  {value: '4', label: '4 – Livros, jornais, periódicos e papel de impressão'},
-  {value: '5', label: '5 – Fonogramas e videofonogramas musicais brasileiros'},
+  {value: '0', label: '0 · Tipo não informado na nota de origem'},
+  {value: '1', label: '1 · Imunidade recíproca entre entes públicos'},
+  {value: '2', label: '2 · Templos de qualquer culto'},
+  {value: '3', label: '3 · Partidos, sindicatos, educação e assistência sem fins lucrativos'},
+  {value: '4', label: '4 · Livros, jornais, periódicos e papel de impressão'},
+  {value: '5', label: '5 · Fonogramas e videofonogramas musicais brasileiros'},
 ];
 
 // TSTipoRetPISCofins — rótulos em api/internal/api/v1/dto.go (ServiceFederalBody).
 const TP_RET_PIS_COFINS_OPTIONS = [
-  {value: '0', label: '0 – Nenhum retido'},
-  {value: '1', label: '1 – PIS/COFINS retidos'},
-  {value: '2', label: '2 – PIS/COFINS não retidos'},
-  {value: '3', label: '3 – PIS/COFINS/CSLL retidos'},
-  {value: '4', label: '4 – PIS/COFINS retidos, CSLL não'},
-  {value: '5', label: '5 – PIS retido, COFINS/CSLL não'},
-  {value: '6', label: '6 – COFINS retido, PIS/CSLL não'},
-  {value: '7', label: '7 – PIS não retido, COFINS/CSLL retidos'},
-  {value: '8', label: '8 – PIS/COFINS não retidos, CSLL retido'},
-  {value: '9', label: '9 – COFINS não retido, PIS/CSLL retidos'},
+  {value: '0', label: '0 · Nenhum retido'},
+  {value: '1', label: '1 · PIS/COFINS retidos'},
+  {value: '2', label: '2 · PIS/COFINS não retidos'},
+  {value: '3', label: '3 · PIS/COFINS/CSLL retidos'},
+  {value: '4', label: '4 · PIS/COFINS retidos, CSLL não'},
+  {value: '5', label: '5 · PIS retido, COFINS/CSLL não'},
+  {value: '6', label: '6 · COFINS retido, PIS/CSLL não'},
+  {value: '7', label: '7 · PIS não retido, COFINS/CSLL retidos'},
+  {value: '8', label: '8 · PIS/COFINS não retidos, CSLL retido'},
+  {value: '9', label: '9 · COFINS não retido, PIS/CSLL retidos'},
 ];
 
 const TRIB_NACIONAL_OPTIONS: ComboboxOption[] = NFSE_TRIB_NACIONAL.map((t) => ({
   value: t.code,
-  label: `${t.code} – ${t.description}`,
+  label: `${t.code} · ${t.description}`,
 }));
 
 const NBS_OPTIONS: ComboboxOption[] = NFSE_NBS.map((entry) => ({
   value: entry.code,
-  label: `${entry.code} – ${entry.description}`,
+  label: `${entry.code} · ${entry.description}`,
 }));
 
 const COUNTRY_OPTIONS: ComboboxOption[] = NFSE_COUNTRIES.map((country) => ({
   value: country.code,
-  label: `${country.code} – ${country.name}`,
+  label: `${country.code} · ${country.name}`,
 }));
 
 const CNAE_CLASS_END = 4;
@@ -94,25 +94,25 @@ function formatCnae(code: string): string {
 
 const CNAE_OPTIONS: ComboboxOption[] = ALL_CNAES.map((entry) => ({
   value: entry.code,
-  label: `${formatCnae(entry.code)} – ${entry.description}`,
+  label: `${formatCnae(entry.code)} · ${entry.description}`,
 }));
 
 const IND_OP_OPTIONS: ComboboxOption[] = NFSE_INDOP.map((entry) => ({
   value: entry.code,
-  label: `${entry.code} – ${entry.tipo_operacao} · ${entry.local_fornecimento}`,
+  label: `${entry.code} · ${entry.tipo_operacao} · ${entry.local_fornecimento}`,
 }));
 
 const IND_DEST_OPTIONS = [
-  {value: '0', label: '0 – O destinatário é o tomador'},
-  {value: '1', label: '1 – O destinatário é diferente do tomador'},
+  {value: '0', label: '0 · O destinatário é o tomador'},
+  {value: '1', label: '1 · O destinatário é diferente do tomador'},
 ];
 
 const TP_OPER_OPTIONS = [
-  {value: '1', label: '1 – Fornecimento com pagamento posterior'},
-  {value: '2', label: '2 – Recebimento após o fornecimento'},
-  {value: '3', label: '3 – Fornecimento com pagamento já realizado'},
-  {value: '4', label: '4 – Recebimento antes do fornecimento'},
-  {value: '5', label: '5 – Fornecimento e recebimento concomitantes'},
+  {value: '1', label: '1 · Fornecimento com pagamento posterior'},
+  {value: '2', label: '2 · Recebimento após o fornecimento'},
+  {value: '3', label: '3 · Fornecimento com pagamento já realizado'},
+  {value: '4', label: '4 · Recebimento antes do fornecimento'},
+  {value: '5', label: '5 · Fornecimento e recebimento concomitantes'},
 ];
 
 function toFormData(s: ServiceOut): ServiceFormData {
@@ -367,7 +367,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                             }}
                             options={municipalTaxOptions} disabled={municipalTaxOptions.length === 0}
                             placeholder={currentNationalCode ? 'Buscar código municipal' : 'Escolha antes o código nacional'}
-                            searchPlaceholder="Código, item ou descrição..." fuzzySearch clearable/>
+                            searchPlaceholder="Código, item ou descrição..." fuzzySearch/>
                 ) : (
                   <Input {...field} id={field.name} maxLength={20} disabled={isMunicipalityLoading}
                          placeholder={isMunicipalityLoading ? 'Carregando município…' : 'Informe o código'}/>
@@ -414,7 +414,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
                 <FormMessage/>
               </FormItem>
             )}/>
-            {/* Imunidade, exportação e não incidência não têm alíquota — o DPS
+            {/* Imunidade, exportação e não incidência não têm alíquota; o DPS
                 vai com 0 e o campo some. */}
             {trIssqn === '1' && (
               <FormField control={form.control} name="iss.tax_rate" render={({field}) => (

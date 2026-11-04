@@ -184,8 +184,8 @@ export function waterComplete(w: MdfeWaterModalIn): boolean {
 
 /** tpNav — tipo de navegação. */
 const TP_NAV_OPTIONS = [
-  {value: '0', label: '0 – Interior'},
-  {value: '1', label: '1 – Cabotagem'},
+  {value: '0', label: '0 · Interior'},
+  {value: '1', label: '1 · Cabotagem'},
 ];
 
 /** Lista de pares código/nome: terminais e balsas têm a mesma forma. */

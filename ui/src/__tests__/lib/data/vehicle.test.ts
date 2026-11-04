@@ -17,7 +17,7 @@ describe('tabelas RENAVAM de veicProd', () => {
     }
   });
 
-  it('espécie cobre 1 a 7 com um dígito — o XSD aceita só um', () => {
+  it('espécie cobre 1 a 7 com um dígito; o XSD aceita só um', () => {
     expect(VEIC_ESP_VEIC_OPTIONS.map((o) => o.value)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
   });
 

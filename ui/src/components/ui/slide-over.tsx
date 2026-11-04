@@ -33,7 +33,7 @@ export function SlideOver({open, title, children, onClose, width = 'lg'}: SlideO
         aria-hidden
       />
 
-      {/* Panel — full width on mobile, capped on larger screens */}
+      {/* Panel; full width on mobile, capped on larger screens */}
       <div
         className={`relative ml-auto h-full w-full sm:${widthClass[width]} bg-white shadow-modal flex flex-col`}
       >

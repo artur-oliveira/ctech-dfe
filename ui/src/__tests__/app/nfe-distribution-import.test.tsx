@@ -30,7 +30,7 @@ function renderPage() {
   );
 }
 
-describe('NfeDistributionTab — Importar NF-e', () => {
+describe('NfeDistributionTab · Importar NF-e', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(apiClient, 'getNFeConfig').mockResolvedValue({environment: 2} as NFeConfigOut);

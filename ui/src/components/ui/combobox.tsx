@@ -3,7 +3,9 @@
 import React, {useEffect, useId, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import Fuse from 'fuse.js';
-import {CheckIcon, ChevronDownIcon, XIcon} from 'lucide-react';
+import {CheckIcon, ChevronDownIcon} from 'lucide-react';
+import {ClearButton, CLEARABLE_TRIGGER_PADDING} from '@/components/ui/clear-button';
+import {useClearable} from '@/components/ui/form';
 import {cn} from '@/lib/utils';
 import {Highlighted} from '@/components/ui/highlight';
 
@@ -22,7 +24,7 @@ interface ComboboxProps {
   className?: string
   id?: string
   fuzzySearch?: boolean
-  clearable?: boolean // mostra botão para limpar a seleção (campos opcionais)
+  clearable?: boolean // força o X; por padrão aparece sozinho em campo opcional de formulário (ver useClearable)
 }
 
 const PAGE_SIZE = 50;
@@ -45,7 +47,7 @@ export function Combobox({
                            className,
                            id,
                            fuzzySearch = false,
-                           clearable = false,
+                           clearable: clearableProp,
                          }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -67,6 +69,9 @@ export function Combobox({
   const listRef = useRef<HTMLDivElement>(null);
 
   const selected = value ? options.find((o) => o.value === value) : undefined;
+
+  const clearable = useClearable(clearableProp);
+  const showClear = clearable && !!selected && !disabled;
 
   // O índice do Fuse é caro (milhares de opções: NCM, municípios, CFOP) e não
   // depende do texto buscado — indexar por tecla digitada derrubava o campo.
@@ -266,6 +271,7 @@ export function Combobox({
           'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           'disabled:cursor-not-allowed disabled:opacity-50',
           !selected && 'text-muted-foreground',
+          showClear && CLEARABLE_TRIGGER_PADDING,
         )}
       >
         <span className="block min-w-0 flex-1 truncate text-left text-foreground">
@@ -275,16 +281,7 @@ export function Combobox({
         </span>
         <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground"/>
       </button>
-      {clearable && selected && !disabled && (
-        <button
-          type="button"
-          aria-label="Limpar seleção"
-          onClick={() => onValueChange?.('')}
-          className="absolute right-8 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-        >
-          <XIcon className="size-3.5"/>
-        </button>
-      )}
+      {showClear && <ClearButton onClear={() => onValueChange?.('')}/>}
 
       {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
     </div>

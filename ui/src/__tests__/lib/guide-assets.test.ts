@@ -77,7 +77,7 @@ describe('guia', () => {
     }
   });
 
-  it('não deixa captura órfã — toda imagem gerada aparece em alguma página', () => {
+  it('não deixa captura órfã; toda imagem gerada aparece em alguma página', () => {
     const referenced = new Set<string>();
     for (const page of pagesWithShots()) {
       for (const match of readFileSync(page, 'utf8').matchAll(/\/guide\/([a-z0-9-]+)\.webp/g)) {

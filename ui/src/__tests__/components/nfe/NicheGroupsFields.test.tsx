@@ -34,7 +34,7 @@ describe('NicheGroupsFields', () => {
     expect(cana.ref).toMatch(/^(0[1-9]|1[0-2])\/2\d{3}$/);
   });
 
-  it('a safra aparece somente leitura — vem do cadastro, não da nota', () => {
+  it('a safra aparece somente leitura; vem do cadastro, não da nota', () => {
     setup({...EMPTY_NICHE_GROUPS, cana: {ref: '09/2026', deliveries: [{dia: '1', qtde: '10'}]}},
       {canaSafra: '2025/2026'});
     expect(screen.getByDisplayValue('2025/2026')).toBeDisabled();

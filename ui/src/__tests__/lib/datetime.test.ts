@@ -43,7 +43,7 @@ describe('datetimeLocalToOffset', () => {
     expect(datetimeLocalToOffset('2026-09-11T10:00:30')).toBe('2026-09-11T10:00:30-03:00');
   });
 
-  it('campo em branco vira string vazia — a tag simplesmente não sai', () => {
+  it('campo em branco vira string vazia; a tag simplesmente não sai', () => {
     expect(datetimeLocalToOffset('')).toBe('');
   });
 

@@ -42,7 +42,7 @@ export const NFSE_INDOP: readonly IndOpEntry[] = [
     "tipo_operacao": "Serviço prestado fisicamente sobre a pessoa ou fruído presencialmente por pessoa física",
     "caracteristica_fornecimento": "Execução de serviços diversos exclusivamente prestados fisicamente sobre a pessoa ou integralmente fruídos presencialmente por pessoa física (2)",
     "local_fornecimento": "Endereço do adquirente",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "030103",
@@ -77,7 +77,7 @@ export const NFSE_INDOP: readonly IndOpEntry[] = [
     "tipo_operacao": "Serviço prestado fisicamente sobre bem móvel material",
     "caracteristica_fornecimento": "Execução de serviços diversos fisicamente prestados sobre bem móvel material",
     "local_fornecimento": "Endereço do adquirente",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "050103",
@@ -133,62 +133,62 @@ export const NFSE_INDOP: readonly IndOpEntry[] = [
     "tipo_operacao": "Cessão de espaço para prestação de serviços publicitários, em operações onerosas (4)",
     "caracteristica_fornecimento": "Execução de operações de cessão de espaço para prestação de serviços publicitários",
     "local_fornecimento": "Local do domicílio principal do adquirente (3)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100102",
     "tipo_operacao": "Cessão de espaço para prestação de serviços publicitários, em operações onerosas (4)",
     "caracteristica_fornecimento": "Execução de operações de cessão de espaço para prestação de serviços publicitários",
     "local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end/endExt -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/end/endExt"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end/endExt -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/end/endExt"
   },
   {
     "code": "100201",
     "tipo_operacao": "Cessão de espaço para prestação de serviços publicitários, em operações não onerosas (4)",
     "caracteristica_fornecimento": "Execução de operações de cessão de espaço para prestação de serviços publicitários",
     "local_fornecimento": "Local do domicílio principal do destinatário (6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100301",
     "tipo_operacao": "Demais serviços, em operações onerosas",
     "caracteristica_fornecimento": "Execução dos demais serviços em operações não especificadas anteriormente ou, nos serviços de que trata o inc. III, estes sejam, ainda que parcialmente, prestados à distância (2)",
     "local_fornecimento": "Local do domicílio principal do adquirente (3)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100302",
     "tipo_operacao": "Demais serviços, em operações onerosas",
     "caracteristica_fornecimento": "Execução dos demais serviços em operações não especificadas anteriormente ou, nos serviços de que trata o inc. III, estes sejam, ainda que parcialmente, prestados à distância (2)",
     "local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100401",
     "tipo_operacao": "Demais serviços, em operações não onerosas",
     "caracteristica_fornecimento": "Execução dos demais serviços em operações não especificadas anteriormente ou, nos serviços de que tratam o inc. III, estes sejam, ainda que parcialmente, prestados à distância",
     "local_fornecimento": "Local do domicílio principal do destinatário (6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100501",
     "tipo_operacao": "Demais bens móveis imateriais, inclusive direitos, em operações onerosas",
     "caracteristica_fornecimento": "Execução de demais operações não especificadas anteriormente com bens móveis imateriais, inclusive direitos",
     "local_fornecimento": "Local do domicílio principal do adquirente (3)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/ -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/ -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   },
   {
     "code": "100502",
     "tipo_operacao": "Demais bens móveis imateriais, inclusive direitos, em operações onerosas",
     "caracteristica_fornecimento": "Execução de demais operações não especificadas anteriormente com bens móveis imateriais, inclusive direitos",
     "local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end/endExt/ -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/end/endExt/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end/endExt/ -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/end/endExt/"
   },
   {
     "code": "100601",
     "tipo_operacao": "Demais bens móveis imateriais, inclusive direitos, em operações não onerosas",
     "caracteristica_fornecimento": "Execução de demais operações não especificadas anteriormente com bens móveis imateriais, inclusive direitos",
     "local_fornecimento": "Local do domicílio principal do destinatário (6)",
-    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1 – o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
+    "campo_leiaute": "-> Se NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 0–O destinatário é o próprio tomador/adquirente identificado na NFS-e (tomador=adquirente=destinatário) NFSe/infNFSe/DPS/infDPS/toma/end -> SeNaoSe NFSe/infNFSe/DPS/infDPS/IBSCBS/indDest = 1; o destinatário não é o próprio adquirente, podendo ser outra pessoa, física ou jurídica (ou equiparada), ou um estabelecimento diferente do indicado como tomador (tomador=adquirente≠destinatário); NFSe/infNFSe/DPS/infDPS/IBSCBS/dest/"
   }
 ] as const;

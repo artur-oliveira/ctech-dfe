@@ -9,9 +9,9 @@ import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
 
 /** tpValePed — como o vale foi adquirido. */
 export const TP_VALE_PED_OPTIONS = [
-  {value: '01', label: '01 – TAG'},
-  {value: '02', label: '02 – Cupom'},
-  {value: '03', label: '03 – Cartão'},
+  {value: '01', label: '01 · TAG'},
+  {value: '02', label: '02 · Cupom'},
+  {value: '03', label: '03 · Cartão'},
 ];
 
 export const tollProviderSchema = z.object({

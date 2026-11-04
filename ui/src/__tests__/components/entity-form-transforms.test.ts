@@ -39,7 +39,7 @@ const formData: EntityFormData = {
   },
 };
 
-describe('cadastro compartilhado — transformação para a API', () => {
+describe('cadastro compartilhado; transformação para a API', () => {
   it('preserva dados bancários, retenção de frete, CNAE e Suframa da pessoa', () => {
     const payload = personFormToApi(formData);
 

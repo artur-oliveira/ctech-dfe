@@ -21,13 +21,13 @@ export const CANA_DIA_OPTIONS = Array.from({length: MAX_CANA_DELIVERIES}, (_, i)
 
 /** Tipos de guia de trânsito (agropecuario/guiaTransito/tpGuia). */
 export const AGRO_TP_GUIA_OPTIONS: { value: NfeAgroGuiaIn['tp_guia']; label: string }[] = [
-  {value: '1', label: '1 – GTA (Guia de Trânsito Animal)'},
-  {value: '2', label: '2 – TTA (Termo de Trânsito Animal)'},
-  {value: '3', label: '3 – DTA (Documento de Trânsito Animal)'},
-  {value: '4', label: '4 – ATV (Autorização de Trânsito Vegetal)'},
-  {value: '5', label: '5 – PTV (Permissão de Trânsito Vegetal)'},
-  {value: '6', label: '6 – GTV (Guia de Trânsito Vegetal)'},
-  {value: '7', label: '7 – Guia Florestal (DOF, SisFlora, SIAM)'},
+  {value: '1', label: '1 · GTA (Guia de Trânsito Animal)'},
+  {value: '2', label: '2 · TTA (Termo de Trânsito Animal)'},
+  {value: '3', label: '3 · DTA (Documento de Trânsito Animal)'},
+  {value: '4', label: '4 · ATV (Autorização de Trânsito Vegetal)'},
+  {value: '5', label: '5 · PTV (Permissão de Trânsito Vegetal)'},
+  {value: '6', label: '6 · GTV (Guia de Trânsito Vegetal)'},
+  {value: '7', label: '7 · Guia Florestal (DOF, SisFlora, SIAM)'},
 ];
 
 /** Modo do grupo agropecuario — o XSD é um choice, então o seletor é exclusivo. */

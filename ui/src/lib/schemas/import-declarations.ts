@@ -8,25 +8,25 @@ import {z} from 'zod';
 
 /** tpViaTransp — via de transporte internacional. */
 export const TP_VIA_TRANSP_OPTIONS = [
-  {value: '01', label: '01 – Marítima'},
-  {value: '02', label: '02 – Fluvial'},
-  {value: '03', label: '03 – Lacustre'},
-  {value: '04', label: '04 – Aérea'},
-  {value: '05', label: '05 – Postal'},
-  {value: '06', label: '06 – Ferroviária'},
-  {value: '07', label: '07 – Rodoviária'},
-  {value: '08', label: '08 – Conduto / rede transmissão'},
-  {value: '09', label: '09 – Meios próprios'},
-  {value: '10', label: '10 – Entrada / saída ficta'},
-  {value: '11', label: '11 – Courier'},
-  {value: '12', label: '12 – Handcarry'},
+  {value: '01', label: '01 · Marítima'},
+  {value: '02', label: '02 · Fluvial'},
+  {value: '03', label: '03 · Lacustre'},
+  {value: '04', label: '04 · Aérea'},
+  {value: '05', label: '05 · Postal'},
+  {value: '06', label: '06 · Ferroviária'},
+  {value: '07', label: '07 · Rodoviária'},
+  {value: '08', label: '08 · Conduto / rede transmissão'},
+  {value: '09', label: '09 · Meios próprios'},
+  {value: '10', label: '10 · Entrada / saída ficta'},
+  {value: '11', label: '11 · Courier'},
+  {value: '12', label: '12 · Handcarry'},
 ];
 
 /** tpIntermedio — forma de intermediação da importação. */
 export const TP_INTERMEDIO_OPTIONS = [
-  {value: '1', label: '1 – Importação por conta própria'},
-  {value: '2', label: '2 – Importação por conta e ordem'},
-  {value: '3', label: '3 – Importação por encomenda'},
+  {value: '1', label: '1 · Importação por conta própria'},
+  {value: '2', label: '2 · Importação por conta e ordem'},
+  {value: '3', label: '3 · Importação por encomenda'},
 ];
 
 /** A via marítima é a única que exige o AFRMM. */

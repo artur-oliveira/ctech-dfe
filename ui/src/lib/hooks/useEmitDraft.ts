@@ -33,7 +33,7 @@ function loadDraft<T>(key: string): { state: T; savedAt: number } | null {
     // Corrupt or unavailable storage is never worth breaking the form over.
     try {
       window.localStorage.removeItem(key);
-    } catch { /* storage unavailable — nothing to clean up */
+    } catch { /* storage unavailable; nothing to clean up */
     }
   }
   return null;

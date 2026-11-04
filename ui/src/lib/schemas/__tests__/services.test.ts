@@ -14,7 +14,7 @@ const base = {
   ibs_cbs: {c_ind_op: '100301', cst: '000', c_class_trib: '000001', ind_dest: '0', tp_oper: '', fin_nfse: '0'},
 };
 
-describe('serviceSchema — alíquota de ISSQN', () => {
+describe('serviceSchema · alíquota de ISSQN', () => {
   it('exige alíquota na operação tributável', () => {
     const r = serviceSchema.safeParse({...base, iss: {...base.iss, tax_rate: ''}});
     expect(r.success).toBe(false);

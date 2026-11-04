@@ -488,7 +488,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
   const cfopGroups = groupCfopConfigBySuffix(item.product.cfop_config);
   const cfopOptions = cfopGroups.map((g) => {
     const codes = cfopGroupCodes(g);
-    const label = g.label ? `${codes} – ${g.label}` : codes;
+    const label = g.label ? `${codes} · ${g.label}` : codes;
     return {value: g.suffix, label};
   });
   const selectedGroup = cfopGroups.find(g => g.suffix === item.cfopSuffix) ?? null;
@@ -527,7 +527,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
           <div className="flex items-center gap-1"><Label htmlFor={`nfe-item-${index}-cfop`} className="text-xs font-medium text-gray-600">CFOP</Label><GlossaryTerm term="cfop"/></div>
           {operationCfopSuffix ? (
             /* A operação já respondeu qual é a natureza fiscal: o CFOP vira
-               informação, não pergunta. É o ganho real do passo 2 — o operador
+               informação, não pergunta. É o ganho real do passo 2; o operador
                deixa de precisar saber a natureza fiscal item a item. */
             <p id={`nfe-item-${index}-cfop`} className="font-mono text-sm text-gray-700">
               {item.cfop || '-'}
@@ -566,7 +566,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         <p role="alert" className="text-[0.8rem] text-danger">{unitDataGap}</p>
       )}
 
-      {/* ── Veículo — dados por unidade ───────────────────────────── */}
+      {/* ── Veículo; dados por unidade ───────────────────────────── */}
       {isVeiculo && (
         <div className="rounded-md border border-indigo-100 bg-indigo-50/30 p-3 space-y-2">
           <p className="text-sm font-medium text-indigo-800">Dados da unidade</p>
@@ -613,7 +613,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         <div className="mt-2 space-y-2">
           <p className="text-xs text-gray-500">
             Transferência de crédito e ajuste de competência <strong>substituem</strong> a apuração
-            normal do item — por isso a escolha é exclusiva. O estorno de crédito convive com ela.
+            normal do item; por isso a escolha é exclusiva. O estorno de crédito convive com ela.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             {REFORM_ITEM_MODE_OPTIONS.map((opt) => (
@@ -690,7 +690,7 @@ export function ProductRow({item, index, sameUf, operationCfopSuffix, onChange, 
         </div>
       </div>
 
-      {/* ── Armamento — dados por unidade ─────────────────────────── */}
+      {/* ── Armamento; dados por unidade ─────────────────────────── */}
       {isArma && (
         <div className="rounded-md border border-red-100 bg-red-50/20 p-3 space-y-2">
           <p className="text-sm font-medium text-danger">
@@ -1480,7 +1480,7 @@ export function NfeEmitForm() {
                           try {
                             const person = await apiClient.getPersonByCpfCnpj(fav.cpfCnpj);
                             setReceiver(person);
-                          } catch { /* person deleted — fall through to manual search */
+                          } catch { /* person deleted; fall through to manual search */
                           } finally {
                             setLoadingFavCpfCnpj(null);
                           }
@@ -1674,7 +1674,7 @@ export function NfeEmitForm() {
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="nfe-payment-ind-pag" className="text-xs font-medium text-gray-600 whitespace-nowrap">À vista / Parcelado</Label>
                   <OptionsSelect id="nfe-payment-ind-pag" value={newPaymentIndPag} onValueChange={v => setNewPaymentIndPag(v as '0' | '1')}
-                                 options={[{value: '0', label: '0 – À vista'}, {value: '1', label: '1 – Parcelado'}]}/>
+                                 options={[{value: '0', label: '0 · À vista'}, {value: '1', label: '1 · Parcelado'}]}/>
                 </div>
               )}
               {newPaymentType !== NO_PAYMENT_TYPE && (
@@ -1720,7 +1720,7 @@ export function NfeEmitForm() {
             )}
           </div>
 
-          {/* Cobrança — only when ind_pag=1 payment exists */}
+          {/* Cobrança; only when ind_pag=1 payment exists */}
           {hasPrazoPayment && (
             <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 space-y-4">
               <div className="flex items-center justify-between">
@@ -1935,7 +1935,7 @@ export function NfeEmitForm() {
         </div>
       )}
 
-      {/* Documentos referenciados (ide/NFref) — obrigatório na finalidade
+      {/* Documentos referenciados (ide/NFref); obrigatório na finalidade
           escolhida, então fica à vista e não dentro do grupo opcional. */}
       {currentStep === 'pagamento' && requiresNfRefs && (
         <div className="mt-4 space-y-2 rounded-lg border border-gray-200 p-3">
@@ -1945,7 +1945,7 @@ export function NfeEmitForm() {
         </div>
       )}
 
-      {/* Optional groups — collected before the review that shows them */}
+      {/* Optional groups; collected before the review that shows them */}
       {currentStep === 'pagamento' && (
         <>
         <CollapsibleSection title="Transporte"
@@ -2153,7 +2153,7 @@ export function NfeEmitForm() {
         </>
       )}
 
-      {/* Emission failure — rendered next to the action bar that triggers it */}
+      {/* Emission failure; rendered next to the action bar that triggers it */}
       <div className="mt-4 empty:mt-0">
         <EmitError failure={submitError}/>
       </div>

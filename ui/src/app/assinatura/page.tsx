@@ -298,7 +298,7 @@ export default function SubscriptionPage() {
   return (
     <ProtectedRoute>
       <RootLayout>
-        {/* useSearchParams needs a boundary — the plan dialog opens from `?mudar=1`. */}
+        {/* useSearchParams needs a boundary; the plan dialog opens from `?mudar=1`. */}
         <Suspense fallback={<div className="p-4 md:p-8"><LoadingSkeleton/></div>}>
           <SubscriptionContent/>
         </Suspense>

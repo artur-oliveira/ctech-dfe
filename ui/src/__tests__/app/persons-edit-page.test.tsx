@@ -29,7 +29,7 @@ vi.mock('@/components/persons/PersonForm', () => ({
 }));
 
 describe('página de edição de pessoa', () => {
-  it('envia os papéis no PUT — omiti-los apagaria os papéis existentes', async () => {
+  it('envia os papéis no PUT; omiti-los apagaria os papéis existentes', async () => {
     vi.spyOn(apiClient, 'getPerson').mockResolvedValue({
       pk: 'CNPJ_11222333000181',
       sk: 'CPF_12345678909',

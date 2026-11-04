@@ -284,7 +284,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
     .filter((item) => item.access_key)
     .map((item) => ({
       value: item.access_key!,
-      label: `NFS-e ${item.number} / ${item.serie} – ${item.dest_name ?? 'Sem tomador'} – ${formatCurrency(item.total)}`,
+      label: `NFS-e ${item.number} / ${item.serie} · ${item.dest_name ?? 'Sem tomador'} · ${formatCurrency(item.total)}`,
     }));
 
   const handleSelectService = (service: ServiceOut) => {

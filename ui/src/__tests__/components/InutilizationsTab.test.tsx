@@ -132,7 +132,7 @@ describe('InutilizationsTab XML download', () => {
     });
     renderTab();
 
-    expect(await screen.findByText('118 – 120')).toBeInTheDocument();
+    expect(await screen.findByText('118 · 120')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'XML'})).not.toBeInTheDocument();
   });
 });

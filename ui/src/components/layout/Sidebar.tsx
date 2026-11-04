@@ -34,7 +34,7 @@ function NavLink(
       aria-current={active ? 'page' : undefined}
       className={[ITEM_BASE, sub ? 'pl-2.5' : '', active ? ITEM_ACTIVE : ITEM_IDLE].join(' ')}
     >
-      {/* Aninhado, o trilho à esquerda já dá a estrutura — o ícone só roubaria
+      {/* Aninhado, o trilho à esquerda já dá a estrutura; o ícone só roubaria
           a largura de que os rótulos longos precisam. */}
       {!sub && (
         <span className={['shrink-0', active ? 'text-brand-600' : 'text-gray-400'].join(' ')}>
@@ -137,7 +137,7 @@ export function Sidebar({open, onClose}: SidebarProps) {
           <Image src="/app.svg" alt="" aria-hidden="true" width={28} height={28} className="shrink-0" unoptimized/>
           <span className="font-semibold text-gray-900 text-base tracking-tight">CTech DF-e</span>
         </div>
-        {/* Close button — only shown on mobile */}
+        {/* Close button; only shown on mobile */}
         <Button
           variant="ghost"
           size="icon"

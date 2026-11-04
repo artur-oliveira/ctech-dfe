@@ -278,7 +278,7 @@ export const IBS_CBS_CST: IbsCbsCstEntry[] = [
 
 export const IBS_CBS_CST_OPTIONS = IBS_CBS_CST.map(({cst, desc}) => ({
   value: cst,
-  label: `${cst} – ${desc}`,
+  label: `${cst} · ${desc}`,
 }));
 
 export const IBS_CBS_CLASS_BY_CST: Record<string, Array<{ value: string; label: string; }>> =
@@ -287,7 +287,7 @@ export const IBS_CBS_CLASS_BY_CST: Record<string, Array<{ value: string; label: 
       cst,
       classCodes.map(({code, desc}) => ({
         value: code,
-        label: `${code} – ${desc}`,
+        label: `${code} · ${desc}`,
       })),
     ])
   );

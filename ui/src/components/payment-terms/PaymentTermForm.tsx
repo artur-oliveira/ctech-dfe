@@ -29,8 +29,8 @@ const PREVIEW_TOTAL = 1000;
 
 const IND_PAG_OPTIONS = [
   {value: '', label: 'Derivar das parcelas'},
-  {value: '0', label: '0 – À vista'},
-  {value: '1', label: '1 – A prazo'},
+  {value: '0', label: '0 · À vista'},
+  {value: '1', label: '1 · A prazo'},
 ];
 
 const EMPTY: PaymentTermFormData = {

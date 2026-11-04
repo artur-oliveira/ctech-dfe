@@ -249,7 +249,7 @@ function NfseDetail({idDps}: { idDps: string }) {
         </div>
       </div>
 
-      {/* Motivo da rejeição — em destaque, não escondido */}
+      {/* Motivo da rejeição; em destaque, não escondido */}
       {doc.status === 'rejected' && doc.sefaz_motive && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
           <p className="mb-1.5 text-sm font-semibold text-red-700">Motivo da rejeição</p>

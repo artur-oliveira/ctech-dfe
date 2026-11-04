@@ -128,7 +128,7 @@ export function AddressFields({control, setValue, basePath}: AddressFieldsProps)
         />
       </div>
 
-      {/* Cidade / UF / Cód. IBGE — combobox unificado */}
+      {/* Cidade / UF / Cód. IBGE; combobox unificado */}
       <FormField
         control={control}
         name={p('city_ibge_code')}

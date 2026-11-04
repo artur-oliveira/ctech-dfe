@@ -47,7 +47,7 @@ function renderPage() {
   );
 }
 
-describe('NfeDetail — manifestation e importação via distribuição', () => {
+describe('NfeDetail · manifestation e importação via distribuição', () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it('mostra o botão Manifestar apenas para NF-e destinada (incoming=1)', async () => {

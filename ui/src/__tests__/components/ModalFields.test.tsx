@@ -17,7 +17,7 @@ describe('airComplete', () => {
     expect(airComplete(air)).toBe(true);
   });
 
-  it('recusa qualquer campo faltando — nenhum é opcional no modal aéreo', () => {
+  it('recusa qualquer campo faltando; nenhum é opcional no modal aéreo', () => {
     for (const key of Object.keys(air) as (keyof MdfeAirModalIn)[]) {
       expect(airComplete({...air, [key]: ''})).toBe(false);
     }
@@ -29,7 +29,7 @@ describe('railComplete', () => {
     expect(railComplete(rail)).toBe(true);
   });
 
-  it('recusa trem sem vagão — qVag sai desta lista', () => {
+  it('recusa trem sem vagão; qVag sai desta lista', () => {
     expect(railComplete({...rail, wagons: []})).toBe(false);
   });
 
@@ -57,7 +57,7 @@ describe('waterComplete', () => {
     expect(waterComplete({...water, dest_port: ''})).toBe(false);
   });
 
-  it('não exige balsas, terminais nem unidades vazias — todos são minOccurs=0', () => {
+  it('não exige balsas, terminais nem unidades vazias; todos são minOccurs=0', () => {
     expect(waterComplete({...water, barges: [], loading_terminals: [], empty_cargo_unit_ids: []})).toBe(true);
   });
 });

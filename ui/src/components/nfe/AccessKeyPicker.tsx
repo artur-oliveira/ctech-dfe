@@ -71,7 +71,7 @@ export function AccessKeyPicker({id, label, value, onChange, hint, max}: AccessK
       )}
 
       {/* Combobox, não select: são até 50 notas cujo rótulo carrega número, nome
-          e a chave de 44 dígitos — rolar essa lista é procurar, não escolher. */}
+          e a chave de 44 dígitos; rolar essa lista é procurar, não escolher. */}
       <Combobox
         id={id}
         value=""

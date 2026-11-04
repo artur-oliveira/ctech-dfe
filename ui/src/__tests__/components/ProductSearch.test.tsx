@@ -36,7 +36,7 @@ describe('ProductSearch', () => {
     getProducts.mockResolvedValue({items: products});
   });
 
-  it('adds the highlighted product when Enter is pressed — the barcode path', async () => {
+  it('adds the highlighted product when Enter is pressed; the barcode path', async () => {
     const {onSelect} = renderSearch();
     await screen.findByText('Coca-Cola 2L');
 

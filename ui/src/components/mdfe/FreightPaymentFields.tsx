@@ -15,11 +15,11 @@ import type {MdfePaymentIn} from '@/lib/types/api';
 
 /** Componentes do valor do frete (`infPag/Comp/tpComp`). */
 const COMPONENT_OPTIONS = [
-  {value: '01', label: '01 – Vale-pedágio'},
-  {value: '02', label: '02 – Impostos, taxas e contribuições'},
-  {value: '03', label: '03 – Despesas bancárias'},
-  {value: '04', label: '04 – Diárias'},
-  {value: '99', label: '99 – Outros'},
+  {value: '01', label: '01 · Vale-pedágio'},
+  {value: '02', label: '02 · Impostos, taxas e contribuições'},
+  {value: '03', label: '03 · Despesas bancárias'},
+  {value: '04', label: '04 · Diárias'},
+  {value: '99', label: '99 · Outros'},
 ];
 
 const PAYMENT_TYPE_OPTIONS = [

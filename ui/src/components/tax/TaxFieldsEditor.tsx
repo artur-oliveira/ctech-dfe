@@ -41,13 +41,13 @@ export const PIS_COFINS_ALIQ_CSTS = new Set(['01', '02']);
 export const PIS_COFINS_QTDE_CSTS = new Set(['03']);
 
 export const ISSQN_IND_ISS_OPTIONS = [
-  {value: '1', label: '1 – Exigível'},
-  {value: '2', label: '2 – Não incidente'},
-  {value: '3', label: '3 – Isenção'},
-  {value: '4', label: '4 – Exportação'},
-  {value: '5', label: '5 – Imunidade'},
-  {value: '6', label: '6 – Exig. Susp. Judicial'},
-  {value: '7', label: '7 – Exig. Susp. Administrativa'},
+  {value: '1', label: '1 · Exigível'},
+  {value: '2', label: '2 · Não incidente'},
+  {value: '3', label: '3 · Isenção'},
+  {value: '4', label: '4 · Exportação'},
+  {value: '5', label: '5 · Imunidade'},
+  {value: '6', label: '6 · Exig. Susp. Judicial'},
+  {value: '7', label: '7 · Exig. Susp. Administrativa'},
 ];
 
 /** Campos condicionais do ICMS por CST — espelha a tabela do leiaute. */
@@ -309,7 +309,7 @@ export function TaxFieldsEditor({
           </div>
         )}
 
-        {/* Alíquota ICMS — para CSTs tributados */}
+        {/* Alíquota ICMS; para CSTs tributados */}
         {!simples && value.icms && ICMS_TAXED_CSTS.has(value.icms) && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
             <TaxField label="Alíquota ICMS %">
@@ -350,7 +350,7 @@ export function TaxFieldsEditor({
           </div>
         )}
 
-        {/* pCredSN — Simples Nacional com crédito */}
+        {/* pCredSN; Simples Nacional com crédito */}
         {simples && value.csosn && CSOSN_CRED.has(value.csosn) && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
             <TaxField label="% Crédito aproveitável">
@@ -361,7 +361,7 @@ export function TaxFieldsEditor({
           </div>
         )}
 
-        {/* ST — Substituição Tributária */}
+        {/* ST; Substituição Tributária */}
         {showSt && (
           <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-3 space-y-2">
             <p className="text-sm font-medium text-blue-700">
@@ -673,7 +673,7 @@ export function TaxFieldsEditor({
           )}
         </div>
 
-        {/* ── ICMS Monofásico — Combustíveis (CST 02/15/53/61) ── */}
+        {/* ── ICMS Monofásico; Combustíveis (CST 02/15/53/61) ── */}
         {!simples && (
           <div className="rounded-lg border border-gray-100 p-3 space-y-3">
             <div className="flex items-center gap-2">
@@ -724,9 +724,9 @@ export function TaxFieldsEditor({
                       <TaxField label="Motivo redução">
                         <OptionsSelect value={value.icms_mot_red_ad_rem ?? ''}
                                        onValueChange={(v) => onChange((r) => ({...r, icms_mot_red_ad_rem: v}))}
-                                       options={[{value: '1', label: '1 – Transporte coletivo'}, {
+                                       options={[{value: '1', label: '1 · Transporte coletivo'}, {
                                          value: '9',
-                                         label: '9 – Outros'
+                                         label: '9 · Outros'
                                        }]}
                                        placeholder="Motivo"/>
                       </TaxField>
@@ -738,7 +738,7 @@ export function TaxFieldsEditor({
           </div>
         )}
 
-        {/* ── ISSQN — Imposto Sobre Serviços ──────────────────── */}
+        {/* ── ISSQN; Imposto Sobre Serviços ──────────────────── */}
         <div className="rounded-lg border border-gray-100 p-3 space-y-3">
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`${uid}-toggle-issqn`} checked={showIssqn}
@@ -828,7 +828,7 @@ export function TaxFieldsEditor({
                   <OptionsSelect value={value.issqn_ind_incentivo ?? ''}
                                  onValueChange={(v) => onChange((r) => ({...r, issqn_ind_incentivo: v}))}
                                  placeholder="Não informado"
-                                 options={[{value: '1', label: '1 – Sim'}, {value: '2', label: '2 – Não'}]}/>
+                                 options={[{value: '1', label: '1 · Sim'}, {value: '2', label: '2 · Não'}]}/>
                 </TaxField>
               </div>
             </div>
@@ -965,7 +965,7 @@ export function TaxFieldsEditor({
             </div>
           )}
 
-          {/* Doação e devolução de tributo — dois campos avulsos do grupo. */}
+          {/* Doação e devolução de tributo; dois campos avulsos do grupo. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <label htmlFor={`${uid}-ibs-ind-doacao`}
                    className="flex items-center gap-2 min-h-11 text-sm text-gray-700 cursor-pointer">

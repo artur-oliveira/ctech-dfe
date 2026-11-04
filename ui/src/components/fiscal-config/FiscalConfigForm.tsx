@@ -244,8 +244,8 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                 value={field.value}
                 onValueChange={field.onChange}
                 options={[
-                  {value: '1', label: '1 – Produção'},
-                  {value: '2', label: '2 – Homologação'},
+                  {value: '1', label: '1 · Produção'},
+                  {value: '2', label: '2 · Homologação'},
                 ]}
                 className="w-full sm:max-w-64"
               />
@@ -448,7 +448,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
           </section>
         )}
 
-        {/* Responsável técnico — CSRT (NT 2018.005). Vale para os dois ambientes. */}
+        {/* Responsável técnico; CSRT (NT 2018.005). Vale para os dois ambientes. */}
         <section className="space-y-3 rounded-lg border border-gray-200 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             Responsável técnico (CSRT)

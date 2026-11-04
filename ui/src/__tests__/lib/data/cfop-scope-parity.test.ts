@@ -23,7 +23,7 @@ const CASES_PATH = resolve(
 
 const cases: CfopScopeCase[] = JSON.parse(readFileSync(CASES_PATH, 'utf8')).cases;
 
-describe('resolveCfopScope — paridade com o Go', () => {
+describe('resolveCfopScope · paridade com o Go', () => {
   it('a tabela de casos compartilhada foi encontrada e não está vazia', () => {
     expect(cases.length).toBeGreaterThan(0);
   });

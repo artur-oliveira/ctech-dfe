@@ -1793,7 +1793,7 @@ const BENEFITS_BY_UF: Record<string, readonly BenefitEntry[]> = {
     {code: "ES100096", description: "Isenção do ICMS"},
     {code: "ES100097", description: "Convênio ICMS 105/03"},
     {code: "ES100098", description: "Convênio ICMS 77/93"},
-    {code: "ES100099", description: "Fundação Oswaldo Cruz – Fiocruz, destinadas às farmácias"},
+    {code: "ES100099", description: "Fundação Oswaldo Cruz; Fiocruz, destinadas às farmácias"},
     {code: "ES100100", description: "Isenção do ICMS"},
     {code: "ES100101", description: "Isenção do ICMS"},
     {code: "ES100102", description: "Isenção do ICMS"},

@@ -21,7 +21,7 @@ vi.mock('@/lib/hooks/useCnpjLookup', () => ({
 vi.mock('@/components/ui/cnpj-lookup-badge', () => ({CnpjLookupBadge: () => null}));
 vi.mock('@/components/ui/address-fields', () => ({AddressFields: () => <div>Campos do endereço</div>}));
 
-describe('EntityForm — revelação por papel', () => {
+describe('EntityForm · revelação por papel', () => {
   it('mantém o cadastro simples e revela os blocos operacionais relevantes', async () => {
     const user = userEvent.setup();
     render(<EntityForm variant="person" onSubmit={vi.fn()} />);

@@ -39,7 +39,7 @@ export interface PaymentOption {
 export const PAYMENT_OPTIONS: PaymentOption[] = Object.entries(NF_PAYMENT_TYPES)
   .map(([value, label]) => ({
     value,
-    label: `${value} – ${label}`,
+    label: `${value} · ${label}`,
     group: paymentGroup(value),
   }))
   .sort((a, b) =>

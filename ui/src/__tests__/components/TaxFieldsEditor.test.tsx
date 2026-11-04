@@ -9,7 +9,7 @@ const baseValue = {
   ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
 } as CfopConfigFormData;
 
-describe('TaxFieldsEditor — grupos opcionais novos', () => {
+describe('TaxFieldsEditor · grupos opcionais novos', () => {
   it('não mostra os campos do grupo IBS/CBS por padrão', () => {
     render(<TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
                             groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>);
@@ -42,7 +42,7 @@ describe('TaxFieldsEditor — grupos opcionais novos', () => {
   });
 });
 
-describe('TaxFieldsEditor — rótulos ligados ao controle', () => {
+describe('TaxFieldsEditor · rótulos ligados ao controle', () => {
   const groupsWithMono = {...EMPTY_TAX_GROUPS, icmsMono: true};
 
   it('associa cada rótulo ao seu campo (clicar no rótulo foca o controle)', () => {
@@ -69,13 +69,13 @@ describe('TaxFieldsEditor — rótulos ligados ao controle', () => {
   });
 });
 
-describe('TaxFieldsEditor — visão simples e avançada', () => {
+describe('TaxFieldsEditor · visão simples e avançada', () => {
   it('mostra só CFOP, CST, PIS e COFINS quando nenhum grupo está configurado', () => {
     render(<TaxFieldsEditor value={baseValue} onChange={() => {}} simples={false}
                             groups={EMPTY_TAX_GROUPS} onGroupsChange={() => {}}/>);
     expect(screen.getByLabelText('CFOP *')).toBeInTheDocument();
     expect(screen.getByLabelText('PIS *')).toBeInTheDocument();
-    expect(screen.queryByText('IPI — Imposto sobre Produtos Industrializados')).not.toBeInTheDocument();
+    expect(screen.queryByText('IPI · Imposto sobre Produtos Industrializados')).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: /Outros impostos e regimes/})).toHaveAttribute('aria-expanded', 'false');
   });
 

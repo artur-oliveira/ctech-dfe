@@ -13,8 +13,8 @@ describe('Combobox', () => {
         value=""
         onValueChange={onValueChange}
         options={[
-          {value: '415', label: '415 · 04.15 — Psicanálise · 3%'},
-          {value: '416', label: '416 · 04.16 — Psicologia · 3%'},
+          {value: '415', label: '415 · 04.15; Psicanálise · 3%'},
+          {value: '416', label: '416 · 04.16; Psicologia · 3%'},
         ]}
       />,
     );
@@ -34,8 +34,8 @@ describe('Combobox', () => {
         value=""
         onValueChange={onValueChange}
         options={[
-          {value: '415', label: '415 · 04.15 — Psicanálise · 3%'},
-          {value: '416', label: '416 · 04.16 — Psicologia · 3%'},
+          {value: '415', label: '415 · 04.15; Psicanálise · 3%'},
+          {value: '416', label: '416 · 04.16; Psicologia · 3%'},
         ]}
       />,
     );

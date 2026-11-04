@@ -798,7 +798,7 @@ export function EntityForm({
               {!isEdit && <CnpjLookupBadge state={lookupState}/>}
             </div>
 
-            {/* Tipo de cadastro — multi-seleção. Uma pessoa acumula papéis (transportadora
+            {/* Tipo de cadastro; multi-seleção. Uma pessoa acumula papéis (transportadora
                 que também é cliente é o caso normal), então são checkboxes, nunca
                 radio nem select único. */}
             {!isOrg && (
@@ -869,7 +869,7 @@ export function EntityForm({
               </div>
             )}
 
-            {/* Inscrições Estaduais — sempre visível pra organização PJ */}
+            {/* Inscrições Estaduais; sempre visível pra organização PJ */}
             {isOrg && ieSection}
 
           </SectionCard>

@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import {resolveDfeResultToast} from '@/lib/utils/dfe-result-toast';
 
-describe('resolveDfeResultToast — document results', () => {
+describe('resolveDfeResultToast · document results', () => {
   it('maps authorized to a success toast', () => {
     expect(resolveDfeResultToast({table_name: 'nfes', status: 'authorized'})).toEqual({
       variant: 'success',
@@ -39,7 +39,7 @@ describe('resolveDfeResultToast — document results', () => {
   });
 });
 
-describe('resolveDfeResultToast — event results', () => {
+describe('resolveDfeResultToast · event results', () => {
   // Regression: a failed MDF-e cancellation used to surface the reverted
   // document status ("authorized" → "Documento autorizado"), masking the error.
   it('reports the event error, NOT the reverted document status', () => {

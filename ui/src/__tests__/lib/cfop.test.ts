@@ -116,7 +116,7 @@ describe('resolveCfopForUf', () => {
 });
 
 describe('NO_PAYMENT_CFOPS', () => {
-  it('cobre bonificação, doação e brinde — a operação sem pagamento por excelência', () => {
+  it('cobre bonificação, doação e brinde; a operação sem pagamento por excelência', () => {
     // Regressão: a lista trazia só 5920/6920, que na tabela do CONFAZ é remessa
     // de vasilhame. A nota de doação (5910) não era forçada a tPag 90.
     expect(NO_PAYMENT_CFOPS).toContain('5910');

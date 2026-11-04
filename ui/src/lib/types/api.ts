@@ -351,10 +351,10 @@ export interface CfopConfigItem {
   icms_st_aliq?: string | null
   icms_st_fcp_aliq?: string | null
   // Conditional ICMS fields (Regime Normal only)
-  icms_p_red_bc?: string | null   // % redução BC — CST 20, 70
-  icms_mot_des?: string | null    // motivo desoneração — CST 40, 41, 50, 51
-  icms_p_dif?: string | null      // % diferimento — CST 51
-  icms_pauta_valor?: string | null // valor da pauta fiscal — icms_mod_bc Pauta/PMPF
+  icms_p_red_bc?: string | null   // % redução BC; CST 20, 70
+  icms_mot_des?: string | null    // motivo desoneração; CST 40, 41, 50, 51
+  icms_p_dif?: string | null      // % diferimento; CST 51
+  icms_pauta_valor?: string | null // valor da pauta fiscal; icms_mod_bc Pauta/PMPF
   // ICMS monofásico combustíveis (CST 02, 15, 53, 61)
   icms_ad_rem?: string | null
   icms_ad_rem_reten?: string | null
@@ -1485,7 +1485,7 @@ export interface NfeRefIn {
 }
 
 export interface NfeEmit {
-  receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx — omit when self_issuance=true
+  receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx; omit when self_issuance=true
   self_issuance?: boolean
   /** Natureza de operação do cadastro. Todo valor explícito aqui vence os defaults dela. */
   operation_id?: string | null
@@ -1998,7 +1998,7 @@ export interface NfseEventBody {
 
 export interface NfseListOut {
   pk: string    // {env}#{org_pk}
-  sk: string    // id_dps (45 chars) — não a chave de acesso
+  sk: string    // id_dps (45 chars); não a chave de acesso
   provider: 'nacional' | 'abrasf204'
   status: NfseStatus
   tp_emit: number
@@ -2033,7 +2033,7 @@ export interface NfseListOut {
 export type NfseDetailOut = NfseListOut
 
 export interface NfseEventOut {
-  pk: string           // id_dps (não org_pk — spec §3.5)
+  pk: string           // id_dps (não org_pk; spec §3.5)
   sk: string
   access_key: string   // aqui carrega o id_dps, não a chave de acesso
   event_type: string

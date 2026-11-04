@@ -8,8 +8,8 @@ import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
 
 /** respSeg — quem responde pelo seguro da carga. */
 export const RESP_SEG_OPTIONS = [
-  {value: '1', label: '1 – Emitente do MDF-e'},
-  {value: '2', label: '2 – Contratante do serviço de transporte'},
+  {value: '1', label: '1 · Emitente do MDF-e'},
+  {value: '2', label: '2 · Contratante do serviço de transporte'},
 ];
 
 /** Só o responsável que não é o emitente precisa se identificar. */

@@ -153,8 +153,8 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
               value={field.value}
               onValueChange={field.onChange}
               options={[
-                {value: '1', label: '1 – Produção'},
-                {value: '2', label: '2 – Homologação'},
+                {value: '1', label: '1 · Produção'},
+                {value: '2', label: '2 · Homologação'},
               ]}
               className="w-full sm:max-w-64"
             />
@@ -188,7 +188,7 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
           </FormItem>
         )}/>
 
-        {/* NFS-e tem uma única série para os dois ambientes — não é prod/hom split. */}
+        {/* NFS-e tem uma única série para os dois ambientes; não é prod/hom split. */}
         <FormField control={form.control} name="serie" render={({field}) => (
           <FormItem>
             <FormLabel>Série</FormLabel>

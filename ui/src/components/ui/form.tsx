@@ -34,7 +34,9 @@ export function FormField<
   );
 }
 
-type FormItemContextValue = { id: string }
+// `required`: null até o FormLabel dizer; o asterisco no rótulo ("Campo *") é a
+// marca de obrigatório de toda a UI, então é dele que o X de limpar deriva.
+type FormItemContextValue = { id: string; required?: boolean | null; setRequired?: (v: boolean) => void }
 
 const FormItemContext = React.createContext<FormItemContextValue>(
   {} as FormItemContextValue
@@ -78,10 +80,26 @@ export function useFieldAria(name?: string): {
   return {'aria-invalid': true, 'aria-describedby': `${name}-form-item-message`};
 }
 
+/**
+ * Campo opcional (rótulo sem asterisco dentro de um FormItem) mostra o X de
+ * limpar sozinho; `explicit` do controle sempre vence. Fora de formulário, false.
+ */
+export function useClearable(explicit?: boolean): boolean {
+  const {required} = React.useContext(FormItemContext);
+  return explicit ?? required === false;
+}
+
+function labelText(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(labelText).join('');
+  return '';
+}
+
 export function FormItem({className, ...props}: React.ComponentProps<'div'>) {
   const id = React.useId();
+  const [required, setRequired] = React.useState<boolean | null>(null);
   return (
-    <FormItemContext.Provider value={{id}}>
+    <FormItemContext.Provider value={{id, required, setRequired}}>
       <div data-slot="form-item" className={cn('grid gap-1', className)} {...props} />
     </FormItemContext.Provider>
   );
@@ -93,6 +111,9 @@ export function FormLabel({
                             ...props
                           }: React.ComponentProps<typeof Label>) {
   const {error, name} = useFormField();
+  const {setRequired} = React.useContext(FormItemContext);
+  const required = /\*\s*$/.test(labelText(props.children));
+  React.useEffect(() => setRequired?.(required), [required, setRequired]);
   // Controls under a FormField set id={field.name}, so associate the label with
   // that id (the generated formItemId is not applied to any element here).
   // An explicit htmlFor prop still wins; falls back to undefined (no broken for)

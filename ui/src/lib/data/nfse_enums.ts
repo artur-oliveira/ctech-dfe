@@ -341,15 +341,15 @@ export const NFSE_ENUMS: Record<string, readonly NfseEnumOption[]> = {
     },
     {
       "value": "02",
-      "label": "ACC - Adiantamento sobre Contrato de Câmbio – Redução a Zero do IR e do IOF"
+      "label": "ACC - Adiantamento sobre Contrato de Câmbio; Redução a Zero do IR e do IOF"
     },
     {
       "value": "03",
-      "label": "ACE – Adiantamento sobre Cambiais Entregues - Redução a Zero do IR e do IOF"
+      "label": "ACE · Adiantamento sobre Cambiais Entregues - Redução a Zero do IR e do IOF"
     },
     {
       "value": "04",
-      "label": "BNDES-Exim Pós-Embarque – Serviços"
+      "label": "BNDES-Exim Pós-Embarque; Serviços"
     },
     {
       "value": "05",
@@ -825,63 +825,63 @@ export const NFSE_ENUMS: Record<string, readonly NfseEnumOption[]> = {
     },
     {
       "value": "50",
-      "label": "Operação com Direito a Crédito – Vinculada Exclusivamente a Receita Tributada no Mercado Interno"
+      "label": "Operação com Direito a Crédito; Vinculada Exclusivamente a Receita Tributada no Mercado Interno"
     },
     {
       "value": "51",
-      "label": "Operação com Direito a Crédito – Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno"
+      "label": "Operação com Direito a Crédito; Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno"
     },
     {
       "value": "52",
-      "label": "Operação com Direito a Crédito – Vinculada Exclusivamente a Receita de Exportação"
+      "label": "Operação com Direito a Crédito; Vinculada Exclusivamente a Receita de Exportação"
     },
     {
       "value": "53",
-      "label": "Operação com Direito a Crédito – Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"
+      "label": "Operação com Direito a Crédito; Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"
     },
     {
       "value": "54",
-      "label": "Operação com Direito a Crédito – Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"
+      "label": "Operação com Direito a Crédito; Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "55",
-      "label": "Operação com Direito a Crédito – Vinculada a Receitas Não Tributadas no Mercado Interno e de Exportação"
+      "label": "Operação com Direito a Crédito; Vinculada a Receitas Não Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "56",
-      "label": "Operação com Direito a Crédito – Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"
+      "label": "Operação com Direito a Crédito; Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "60",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada Exclusivamente a Receita Tributada no Mercado Interno"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada Exclusivamente a Receita Tributada no Mercado Interno"
     },
     {
       "value": "61",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno"
     },
     {
       "value": "62",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada Exclusivamente a Receita de Exportação"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada Exclusivamente a Receita de Exportação"
     },
     {
       "value": "63",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"
     },
     {
       "value": "64",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "65",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "66",
-      "label": "Crédito Presumido – Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"
+      "label": "Crédito Presumido; Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"
     },
     {
       "value": "67",
-      "label": "Crédito Presumido – Outras Operações"
+      "label": "Crédito Presumido; Outras Operações"
     },
     {
       "value": "70",

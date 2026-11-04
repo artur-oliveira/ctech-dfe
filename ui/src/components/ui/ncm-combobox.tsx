@@ -300,7 +300,7 @@ export function NcmCombobox({
               >
                 <span className="flex-1 min-w-0 overflow-hidden">
                   <span className="block font-mono leading-snug overflow-hidden text-ellipsis whitespace-nowrap">
-                    <Highlighted text={`${item.code} – ${item.description}`} query={search}/>
+                    <Highlighted text={`${item.code} · ${item.description}`} query={search}/>
                   </span>
                   {pathLabel && (
                     <span className="block text-xs text-muted-foreground truncate mt-0.5">
@@ -339,7 +339,7 @@ export function NcmCombobox({
       >
         <span className="block min-w-0 flex-1 truncate text-left font-mono">
           {selected ? (
-            `${selected.code} – ${selected.description}`
+            `${selected.code} · ${selected.description}`
           ) : (
             <span className="text-muted-foreground font-sans">{placeholder}</span>
           )}

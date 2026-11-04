@@ -69,7 +69,7 @@ export function GuidePage({
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
         {/*
           `overflow-x-auto` também torna o overflow vertical `auto`, e a altura do
-          nav é exatamente a das pílulas — sem folga vertical o `ring` da pílula
+          nav é exatamente a das pílulas; sem folga vertical o `ring` da pílula
           ativa é cortado em cima e embaixo. `py-1` dá a folga, `-my-1` devolve o
           espaçamento original.
         */}

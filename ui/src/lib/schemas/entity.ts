@@ -84,26 +84,26 @@ export const nfseInfoSchema = z.object({
 });
 
 export const OP_SIMP_NAC_OPTIONS = [
-  {value: '1', label: '1 – Não optante pelo Simples Nacional'},
-  {value: '2', label: '2 – Optante; MEI'},
-  {value: '3', label: '3 – Optante; Microempresa ou EPP'},
+  {value: '1', label: '1 · Não optante pelo Simples Nacional'},
+  {value: '2', label: '2 · Optante; MEI'},
+  {value: '3', label: '3 · Optante; Microempresa ou EPP'},
 ];
 
 export const REG_AP_TRIB_SN_OPTIONS = [
-  {value: '1', label: '1 – Federais e municipal pelo Simples'},
-  {value: '2', label: '2 – Federais pelo Simples, ISSQN por fora'},
-  {value: '3', label: '3 – Federais e municipal por fora do Simples'},
+  {value: '1', label: '1 · Federais e municipal pelo Simples'},
+  {value: '2', label: '2 · Federais pelo Simples, ISSQN por fora'},
+  {value: '3', label: '3 · Federais e municipal por fora do Simples'},
 ];
 
 export const REG_ESP_TRIB_OPTIONS = [
-  {value: '0', label: '0 – Nenhum'},
-  {value: '1', label: '1 – Ato cooperado'},
-  {value: '2', label: '2 – Estimativa'},
-  {value: '3', label: '3 – Microempresa municipal'},
-  {value: '4', label: '4 – Notário ou registrador'},
-  {value: '5', label: '5 – Profissional autônomo'},
-  {value: '6', label: '6 – Sociedade de profissionais'},
-  {value: '9', label: '9 – Outros'},
+  {value: '0', label: '0 · Nenhum'},
+  {value: '1', label: '1 · Ato cooperado'},
+  {value: '2', label: '2 · Estimativa'},
+  {value: '3', label: '3 · Microempresa municipal'},
+  {value: '4', label: '4 · Notário ou registrador'},
+  {value: '5', label: '5 · Profissional autônomo'},
+  {value: '6', label: '6 · Sociedade de profissionais'},
+  {value: '9', label: '9 · Outros'},
 ];
 
 /** Índice dos códigos CNAE, para a validação não varrer 1.300 entradas por tecla. */
@@ -236,7 +236,7 @@ export const CRT_OPTIONS_PJ = [
   {value: '1', label: 'Simples Nacional'},
   {value: '2', label: 'Simples Nacional (excesso de sublimite)'},
   {value: '3', label: 'Regime Normal'},
-  {value: '4', label: 'MEI – Microempreendedor Individual'},
+  {value: '4', label: 'MEI · Microempreendedor Individual'},
 ];
 
 /** Estado do formulário → grupo `nfse` da API. Devolve null quando nada foi
@@ -294,7 +294,7 @@ export function nfseInfoFromApi(v: NfseInfo | null | undefined): NfseInfoData {
 
 export const CRT_OPTIONS_ORG_PF = [
   {value: '3', label: 'Regime Normal'},
-  {value: '4', label: 'MEI – Microempreendedor Individual'},
+  {value: '4', label: 'MEI · Microempreendedor Individual'},
 ];
 
 /** One blank address, which every entity form starts with. Lives here rather

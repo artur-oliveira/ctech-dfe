@@ -54,7 +54,7 @@ function EditTaxProfileContent() {
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Editar perfil fiscal</h1>
 
         {/* Editar um perfil muda a tributação de toda emissão futura dos produtos
-            que o referenciam — o aviso fica visível antes de qualquer campo. */}
+            que o referenciam; o aviso fica visível antes de qualquer campo. */}
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Alterar este perfil afeta todas as emissões futuras dos produtos que o utilizam.
           Documentos já emitidos não mudam.

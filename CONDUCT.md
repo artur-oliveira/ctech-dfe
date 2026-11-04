@@ -689,6 +689,13 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   `aria-controls`, a lista tem `role="listbox"` e cada item `role="option"`/`aria-selected`, e
   Seta-baixo/Seta-cima/Enter navegam e selecionam sem mouse. Um `Combobox` novo herda isso do
   componente — não reimplemente a lista sem essa navegação.
+- **Campo opcional de formulário ganha o X de limpar sozinho.** `Combobox` e `OptionsSelect` usam
+  `useClearable` (`components/ui/form.tsx`): dentro de um `FormItem`, rótulo sem asterisco final
+  (`Campo *` é obrigatório) mostra o X (`ClearButton`, que reserva `pr-14` no gatilho para não
+  cobrir o texto truncado). Fora de formulário (filtros) não aparece; a prop `clearable` força.
+  Obrigatório sem asterisco no rótulo vira bug de rótulo, não de componente.
+- **Sem travessão (`—`, `–`) em texto visível**, inclusive rótulos de domínio. Separação (código/descrição) vira bullet `·` (`1 · Texto`); pausa em texto vira `;`.
+  `go-dfe/nfse/tables/gen/generate.py` normaliza `nfse_enums.ts` na geração.
 - **Uma emissão, um fluxo por documento.** NF-e é wizard; NFC-e é tela única de balcão. Não
   unifique os fluxos — unifique os componentes (`ProductSearch`, `ProductLineItem`, `EmitError`,
   `EmitConfirmModal`, `useEmitDraft`, `lib/data/payment-options`). Ver DOCS.md §5.

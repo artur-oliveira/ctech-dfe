@@ -29,7 +29,7 @@ const basePF: EntityFormData = {
   },
 };
 
-describe('entitySchema — PF edit', () => {
+describe('entitySchema · PF edit', () => {
   it('valida PF com fantasy_name vazio', () => {
     expect(entitySchema.safeParse(basePF).success).toBe(true);
   });
@@ -65,7 +65,7 @@ describe('entitySchema — PF edit', () => {
   });
 });
 
-describe('organizationSchema — IE obrigatória para PJ, UFs duplicadas rejeitadas', () => {
+describe('organizationSchema · IE obrigatória para PJ, UFs duplicadas rejeitadas', () => {
   const pj: EntityFormData = {
     ...basePF,
     tipo: 'pj',
@@ -102,7 +102,7 @@ describe('organizationSchema — IE obrigatória para PJ, UFs duplicadas rejeita
   });
 });
 
-describe('entitySchema — grupo NFS-e', () => {
+describe('entitySchema · grupo NFS-e', () => {
   it('exige regime de apuração quando optante ME/EPP (op_simp_nac = 3)', () => {
     const data = {...basePF, person: {...basePF.person, nfse: {im: '123456', op_simp_nac: '3' as const, reg_ap_trib_sn: '' as const, reg_esp_trib: ''  as const}}};
     expect(entitySchema.safeParse(data).success).toBe(false);
@@ -114,7 +114,7 @@ describe('entitySchema — grupo NFS-e', () => {
   });
 });
 
-describe('entitySchema — CNAE e retenção do frete', () => {
+describe('entitySchema · CNAE e retenção do frete', () => {
   const pathsOf = (data: EntityFormData): string[] => {
     const result = entitySchema.safeParse(data);
     return result.success ? [] : result.error.issues.map((i) => i.path.join('.'));

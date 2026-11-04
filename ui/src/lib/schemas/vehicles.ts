@@ -20,9 +20,9 @@ export const BODYWORK_OPTIONS = [
 ];
 
 export const OWNER_TYPE_OPTIONS = [
-  { value: 'TAC', label: 'TAC – Transportador Autônomo' },
-  { value: 'ETC', label: 'ETC – Empresa de Transporte' },
-  { value: 'CTC', label: 'CTC – Cooperativa de Transporte' },
+  { value: 'TAC', label: 'TAC · Transportador Autônomo' },
+  { value: 'ETC', label: 'ETC · Empresa de Transporte' },
+  { value: 'CTC', label: 'CTC · Cooperativa de Transporte' },
 ];
 
 export const ROLE_OPTIONS = [

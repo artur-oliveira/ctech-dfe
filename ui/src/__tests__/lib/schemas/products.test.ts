@@ -3,7 +3,7 @@ import {cfopConfigSchema, productSchema} from '@/lib/schemas/products';
 
 const valueResale = productSchema.shape.value_resale;
 
-describe('cfopConfigSchema — uf_overrides e IBS/CBS opcional', () => {
+describe('cfopConfigSchema · uf_overrides e IBS/CBS opcional', () => {
   const base = {
     cfop: '5102', pis: '01', cofins: '01',
     ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
@@ -47,7 +47,7 @@ describe('productSchema.value_resale', () => {
   });
 });
 
-describe('productSchema — regras cruzadas do leiaute', () => {
+describe('productSchema · regras cruzadas do leiaute', () => {
   const base = {
     code: 'PROD1',
     description: 'Produto de teste',
@@ -129,7 +129,7 @@ describe('productSchema — regras cruzadas do leiaute', () => {
   });
 });
 
-describe('cfopConfigSchema — grupos do tratamento tributário', () => {
+describe('cfopConfigSchema · grupos do tratamento tributário', () => {
   const base = {cfop: '5102', pis: '01', cofins: '01'};
 
   const pathsOf = (data: Record<string, unknown>): string[] => {
@@ -159,7 +159,7 @@ describe('cfopConfigSchema — grupos do tratamento tributário', () => {
   });
 });
 
-describe('productSchema — tabelas oficiais de produto perigoso e IPI', () => {
+describe('productSchema · tabelas oficiais de produto perigoso e IPI', () => {
   const base = {
     code: 'PROD1', description: 'Produto de teste', ncm: '84713012', origin: '0',
     unit: 'UN', value: '10.00', ind_tot: '1' as const, cfop_nfce: '5102',
@@ -200,7 +200,7 @@ describe('productSchema — tabelas oficiais de produto perigoso e IPI', () => {
   });
 });
 
-describe('productSchema — tabelas da ANP e de veículo', () => {
+describe('productSchema · tabelas da ANP e de veículo', () => {
   const base = {
     code: 'PROD1', description: 'Produto de teste', ncm: '84713012', origin: '0',
     unit: 'UN', value: '10.00', ind_tot: '1' as const, cfop_nfce: '5102',
@@ -223,7 +223,7 @@ describe('productSchema — tabelas da ANP e de veículo', () => {
   });
 });
 
-describe('cfopConfigSchema — classificação tributária do IBS/CBS', () => {
+describe('cfopConfigSchema · classificação tributária do IBS/CBS', () => {
   const base = {cfop: '5102', pis: '01', cofins: '01'};
   const pathsOf = (data: Record<string, unknown>): string[] => {
     const result = cfopConfigSchema.safeParse(data);

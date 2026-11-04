@@ -14,7 +14,7 @@ describe('insurancePolicySchema', () => {
     expect(r.error?.issues.some((i) => i.path[0] === 'cnpj')).toBe(true);
   });
 
-  it('recusa CNPJ e CPF juntos — infResp é um choice no XSD', () => {
+  it('recusa CNPJ e CPF juntos; infResp é um choice no XSD', () => {
     const r = insurancePolicySchema.safeParse({...base, cnpj: '11222333000181', cpf: '52998224725'});
     expect(r.success).toBe(false);
   });

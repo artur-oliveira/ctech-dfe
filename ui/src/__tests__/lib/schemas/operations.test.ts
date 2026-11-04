@@ -69,7 +69,7 @@ describe('placeholders das mensagens fiscais', () => {
   });
 });
 
-describe('operationSchema — natureza fiscal e compra governamental', () => {
+describe('operationSchema · natureza fiscal e compra governamental', () => {
   const base = {
     name: 'Venda de mercadoria',
     doc_types: ['nfe' as const],

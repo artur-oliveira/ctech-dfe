@@ -31,7 +31,7 @@ interface InutilizationsTabProps {
 }
 
 function rangeLabel(start: number, end: number): string {
-  return start === end ? `${start}` : `${start} – ${end}`;
+  return start === end ? `${start}` : `${start} · ${end}`;
 }
 
 function rangeSize(start: number, end: number): number {
@@ -152,7 +152,7 @@ export function InutilizationsTab({docType, docLabel, orgPk}: InutilizationsTabP
         </Button>
       </div>
 
-      {/* Lacunas detectadas — o que a tela existe para resolver, antes da tabela histórica. */}
+      {/* Lacunas detectadas; o que a tela existe para resolver, antes da tabela histórica. */}
       <section aria-labelledby="gaps-heading" className="space-y-3">
         <h2 id="gaps-heading" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
           Lacunas detectadas

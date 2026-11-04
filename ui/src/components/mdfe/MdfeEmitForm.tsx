@@ -702,7 +702,7 @@ export function MdfeEmitForm() {
       <HomologationBanner environment={mdfeConfig?.environment}/>
       <StepIndicator steps={STEPS} current={step}/>
 
-      {/* Step 1 — modal */}
+      {/* Step 1; modal */}
       {step === 'modal' && (
         <div className="space-y-3">
           <p className="text-sm text-gray-500">Selecione o tipo de transporte.</p>
@@ -726,7 +726,7 @@ export function MdfeEmitForm() {
         </div>
       )}
 
-      {/* Step 2 — documents */}
+      {/* Step 2; documents */}
       {step === 'documentos' && (
         <div className="space-y-3">
           {docs.length > 0 && (
@@ -750,7 +750,7 @@ export function MdfeEmitForm() {
         </div>
       )}
 
-      {/* Step 3 — carga */}
+      {/* Step 3; carga */}
       {step === 'carga' && (
         <CargoStep preview={preview} isLoading={previewLoading} error={previewError}
                    weightOverrides={weightOverrides}
@@ -759,7 +759,7 @@ export function MdfeEmitForm() {
                    onRedeliveryChange={(k) => setRedelivery((p) => ({...p, [k]: !p[k]}))}/>
       )}
 
-      {/* Step 4 — transporte */}
+      {/* Step 4; transporte */}
       {step === 'transporte' && (
         <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -879,12 +879,12 @@ export function MdfeEmitForm() {
         </div>
       )}
 
-      {/* Step (optional) — seguro */}
+      {/* Step (optional); seguro */}
       {step === 'seguro' && (
         <InsurancePoliciesFields policies={insurancePolicies} onChange={setInsurancePolicies}/>
       )}
 
-      {/* Step final — dados do modal escolhido */}
+      {/* Step final; dados do modal escolhido */}
       {step === 'veiculo' && modal === 'aereo' && (
         <div className="space-y-4">
           <AirModalFields value={air} onChange={setAir}/>
@@ -906,7 +906,7 @@ export function MdfeEmitForm() {
         </div>
       )}
 
-      {/* Step — veículo / condutor (rodoviário) */}
+      {/* Step; veículo / condutor (rodoviário) */}
       {step === 'veiculo' && modal === 'rodoviario' && (
         <div className="space-y-4">
           {vehicleSets.length > 0 && (
