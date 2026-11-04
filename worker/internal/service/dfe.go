@@ -403,6 +403,19 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 	slog.Info("sefaz response", "cStat", strVal(cStat), "xMotivo", strVal(xMotivo), "access_key", msg.AccessKey)
 
 	isSefazEvent := msg.EventsTableName != nil && msg.EventType != nil && msg.EventSK != nil
+
+	// 204 na autorização: a SEFAZ já autorizou este documento (resposta anterior
+	// perdida). Reconcilia com a consulta de situação em vez de marcar rejeitado.
+	if !isSefazEvent && cStat != nil && *cStat == authDuplicatedStat {
+		rec, ok, err := s.reconcileDuplicateAuthorization(ctx, msg, respBody)
+		if err != nil {
+			return err
+		}
+		if ok {
+			slog.Info("duplicidade 204 reconciliada com a consulta", "access_key", msg.AccessKey, "nProt", rec.nProt)
+			respBody, cStat, xMotivo, nProt = rec.respBody, &rec.cStat, &rec.xMotivo, &rec.nProt
+		}
+	}
 	isCancellation := isCancellationEvent(msg.DocType, msg.EventType)
 	isClose := isCloseEvent(msg.DocType, msg.EventType)
 

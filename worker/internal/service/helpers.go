@@ -52,6 +52,8 @@ const (
 	notifyKeyBillingExempt         = "billing_exempt"
 
 	// docTypeMDFe is the doc_type carried on the worker message for MDF-e.
+	docTypeNFe  = "nfe"
+	docTypeCTe  = "cte"
 	docTypeMDFe = "mdfe"
 	docTypeNFCe = "nfce"
 

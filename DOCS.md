@@ -1681,6 +1681,14 @@ e `products[].estorno_cred`, cada um `{v_ibs?, v_cbs?}`: são valores de apuraç
 antes da nota. Um lado sozinho é aceito e o outro vale zero.
 `products[].alc_zfm_n_proc_suframa` é o processo Suframa do embarque e vence o do perfil.
 
+**Autorização duplicada (cStat 204).** Quando a SEFAZ responde 204 (mesma chave já autorizada, em geral porque a
+resposta anterior se perdeu), o worker consulta a situação do documento pelo egress (`NfeConsultaProtocolo`,
+`MDFeConsulta` ou `CTeConsulta`). Se consta autorizado (100/150) e o `digVal` do protocolo é o do documento assinado
+que o egress devolveu junto do 204, o documento fica `authorized` com o protocolo vigente e o processado é remontado
+trocando só o elemento de protocolo (a assinatura não é reserializada). Digest diferente, consulta sem autorização ou
+falta do `@xml` mantêm a rejeição. O 539 (chave diferente para a mesma numeração) é rejeição real e não reconcilia.
+Falha de transporte na consulta é retentável. Código: `worker/internal/service/reconcile.go`.
+
 **NFS-e `tpOper` (E0904).** O Sefin só aceita `IBSCBS/tpOper` em compra governamental (`tpEnteGov`
 informado) ou nos itens LC 116 25.05, 15.09, 17.12 e 10.05. O `go-dfe` (`nacional.toXMLIBSCBS`) descarta
 o `tpOper` herdado do cadastro do serviço fora desses casos; o `tp_oper` do serviço é só default.
