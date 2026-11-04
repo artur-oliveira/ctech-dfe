@@ -71,10 +71,19 @@ func newTotals(products, discount decimal.Decimal) totals {
 
 // buildTotal monta o nó total a partir dos acumuladores do laço de itens.
 func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any {
-	vNF := t.Products.Sub(t.Discount).
+	// MOC W16-10 (rej. 610): vNF = vProd + vServ - vDesc - vICMSDeson + vST + vFCPST
+	// + vFrete + vSeg + vOutro + vII + vIPI + vIPIDevol. Products reúne produtos e
+	// serviços, então já carrega o vServ.
+	// ponytail: sem vICMSMonoReten nem PISST/COFINSST (indSomaPISST/indSomaCOFINSST),
+	// que o builder ainda não emite; entram junto com esses grupos.
+	vNF := t.Products.Sub(t.Discount).Sub(t.VICMSDeson).
+		Add(t.VICMSST).Add(t.VFCPST).
 		Add(t.VFrete).Add(t.VSeg).Add(t.VOutro).
-		Add(t.VIPI).Add(t.VICMSST).Add(t.VII).
+		Add(t.VII).Add(t.VIPI).Add(t.VIPIDevol).
 		RoundBank(2)
+	// MOC W07-10 (rej. 564): ICMSTot/vProd só soma itens sujeitos a ICMS/IBS/CBS/IS;
+	// os de ISSQN vão em ISSQNtot/vServ.
+	vProdTot := t.Products.Sub(t.VServ)
 
 	icmsTot := map[string]any{
 		"vBC":        q2(t.VBC.RoundBank(2)),
@@ -85,7 +94,7 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 		"vST":        q2(t.VICMSST.RoundBank(2)),
 		"vFCPST":     q2(t.VFCPST.RoundBank(2)),
 		"vFCPSTRet":  "0.00",
-		"vProd":      q2(t.Products.RoundBank(2)),
+		"vProd":      q2(vProdTot.RoundBank(2)),
 		"vFrete":     q2(t.VFrete.RoundBank(2)),
 		"vSeg":       q2(t.VSeg.RoundBank(2)),
 		"vDesc":      q2(t.Discount.RoundBank(2)),

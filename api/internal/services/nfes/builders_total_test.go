@@ -2,6 +2,7 @@ package nfes
 
 import (
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -46,5 +47,27 @@ func TestValidateDevolucaoRecusaForaDaDevolucao(t *testing.T) {
 	}
 	if err := validateDevolucao("4", items); err != nil {
 		t.Fatalf("devolução aceita p_devol: %v", err)
+	}
+}
+
+// MOC W16-10 e W07-10: vNF fecha com a fórmula do MOC e vProd exclui serviço ISSQN.
+func TestBuildTotal_VNFeVProdPeloMOC(t *testing.T) {
+	tt := newTotals(decimal.RequireFromString("1000.00"), decimal.RequireFromString("50.00"))
+	tt.VICMSDeson = decimal.RequireFromString("10.00")
+	tt.VICMSST = decimal.RequireFromString("20.00")
+	tt.VFCPST = decimal.RequireFromString("2.00")
+	tt.VFrete = decimal.RequireFromString("30.00")
+	tt.VIPI = decimal.RequireFromString("5.00")
+	tt.VIPIDevol = decimal.RequireFromString("1.00")
+	tt.VServ = decimal.RequireFromString("300.00")
+
+	total := buildTotal(tt, time.Now(), nil)
+	icms := total["ICMSTot"].(map[string]any)
+	// 1000 - 50 - 10 + 20 + 2 + 30 + 5 + 1 = 998
+	if got := icms["vNF"]; got != "998.00" {
+		t.Errorf("vNF = %v, want 998.00", got)
+	}
+	if got := icms["vProd"]; got != "700.00" {
+		t.Errorf("vProd = %v, want 700.00 (sem os 300 de serviço)", got)
 	}
 }

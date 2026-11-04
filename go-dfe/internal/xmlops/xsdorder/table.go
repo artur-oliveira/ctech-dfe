@@ -53,7 +53,7 @@ var envInfe = map[string][]string{
 		"dhEmi", "dhSaiEnt", "dPrevEntrega", "tpNF", "idDest", "cMunFG", "cMunFGIBS",
 		"tpImp", "tpEmis", "cDV", "tpAmb", "finNFe",
 		"tpNFDebito", "tpNFCredito",
-		"indFinal", "indPres", "indIntermed", "procEmi", "verProc",
+		"indFinal", "indPres", "indIntermed", "cIndOp", "procEmi", "verProc",
 		"dhCont", "xJust",
 		"NFref", "gCompraGov", "gPagAntecipado",
 	},
@@ -75,20 +75,20 @@ var envInfe = map[string][]string{
 	// retirada / entrega
 	"retirada": {
 		"CNPJ", "CPF", "xNome",
-		"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "UF",
-		"cPais", "xPais", "fone", "email",
+		"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "UF", "CEP",
+		"cPais", "xPais", "fone", "email", "IE",
 	},
 	"entrega": {
 		"CNPJ", "CPF", "xNome",
-		"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "UF",
-		"cPais", "xPais", "fone", "email",
+		"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "UF", "CEP",
+		"cPais", "xPais", "fone", "email", "IE",
 	},
 
 	// autXML
 	"autXML": {"CNPJ", "CPF"},
 
 	// det
-	"det": {"prod", "imposto", "obsItem"},
+	"det": {"prod", "imposto", "impostoDevol", "infAdProd", "obsItem", "vItem", "DFeReferenciado"},
 
 	// prod
 	"prod": {
@@ -158,7 +158,7 @@ var envInfe = map[string][]string{
 	// Sequência no imposto do item (NT 2024.001)
 	"imposto": {
 		"vTotTrib",
-		"ICMS", "IPI", "II", "ISSQNcalc",
+		"ICMS", "IPI", "II", "ISSQN",
 		"PIS", "PISST", "COFINS", "COFINSST",
 		"ICMSUFDest",
 		"IS",     // Imposto Seletivo (separado do IBSCBS)
@@ -453,11 +453,11 @@ var servicosNfe = map[string][]string{
 var envicte = map[string][]string{
 
 	"enviCTe": {"idLote", "CTe"},
-	"CTe":     {"infCte", "infCteSupl"},
+	"CTe":     {"infCte", "infCTeSupl"},
 
 	"infCte": {
 		"ide", "compl", "emit", "rem", "exped", "receb", "dest", "vPrest",
-		"imp", "infCteNorm", "infCteSub", "infCteComp", "autXML",
+		"imp", "infCTeNorm", "infCteSub", "infCteComp", "autXML",
 		"infRespTec", "infSolicNFF",
 	},
 

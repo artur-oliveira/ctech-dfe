@@ -445,7 +445,7 @@ func TestEnviCTeFullOrder(t *testing.T) {
 	order := mustResolve(t, "", "infCte")
 	assertOrderIsCorrect(t, order, []string{
 		"ide", "compl", "emit", "rem", "exped", "receb", "dest", "vPrest",
-		"imp", "infCteNorm", "infCteSub", "infCteComp", "autXML",
+		"imp", "infCTeNorm", "infCteSub", "infCteComp", "autXML",
 		"infRespTec", "infSolicNFF",
 	})
 }
@@ -681,4 +681,27 @@ func TestISUsaOsNomesDoPL010e(t *testing.T) {
 	assertOrderIsCorrect(t, mustResolve(t, "", "IS"), []string{
 		"CSTIS", "cClassTribIS", "vBCIS", "pIS", "adRemIS", "uTrib", "qTrib", "vIS",
 	})
+}
+
+// Regressão MOC x XSD (auditoria 2026-11-04): tags emitidas que caíam no fim do nó.
+func TestOrdemXSDNFeAuditoria(t *testing.T) {
+	assertBefore(t, mustResolve(t, "infNFe", "ide"), "indIntermed", "cIndOp")
+	assertBefore(t, mustResolve(t, "infNFe", "ide"), "cIndOp", "procEmi")
+
+	det := mustResolve(t, "", "det")
+	assertBefore(t, det, "imposto", "impostoDevol")
+	assertBefore(t, det, "impostoDevol", "infAdProd")
+	assertBefore(t, det, "infAdProd", "obsItem")
+	assertBefore(t, det, "obsItem", "DFeReferenciado")
+
+	imposto := mustResolve(t, "", "imposto")
+	assertBefore(t, imposto, "II", "ISSQN")
+	assertBefore(t, imposto, "ISSQN", "PIS")
+
+	for _, local := range []string{"retirada", "entrega"} {
+		o := mustResolve(t, "", local)
+		assertBefore(t, o, "UF", "CEP")
+		assertBefore(t, o, "CEP", "cPais")
+		assertBefore(t, o, "email", "IE")
+	}
 }
