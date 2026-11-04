@@ -364,7 +364,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		dhEmi = now.UTC().Format(dateTimeUTCLayout)
 	}
 
-	ibscbs, err := toXMLIBSCBS(doc.IBSCBS)
+	ibscbs, err := toXMLIBSCBS(doc.IBSCBS, doc.Servico.CServ.CTribNac)
 	if err != nil {
 		return nil, "", err
 	}

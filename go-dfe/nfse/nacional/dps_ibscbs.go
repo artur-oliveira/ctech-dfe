@@ -126,7 +126,18 @@ type xmlDiferimentoIBSCBS struct {
 	PDifCBS string `xml:"pDifCBS"`
 }
 
-func toXMLIBSCBS(g *nfse.IBSCBS) (*xmlIBSCBS, error) {
+// tpOperItensLC116 são os itens da LC 116/2003 (dois primeiros pares de dígitos
+// do cTribNac: item e subitem) em que o Sefin aceita tpOper fora de compra
+// governamental (E0904).
+var tpOperItensLC116 = map[string]bool{"2505": true, "1509": true, "1712": true, "1005": true}
+
+// tpOperPermitido: tpOper só vale em compra governamental (tpEnteGov) ou nos
+// itens de tpOperItensLC116; fora disso o Sefin rejeita com E0904.
+func tpOperPermitido(g *nfse.IBSCBS, cTribNac string) bool {
+	return g.TpEnteGov != 0 || (len(cTribNac) >= 4 && tpOperItensLC116[cTribNac[:4]])
+}
+
+func toXMLIBSCBS(g *nfse.IBSCBS, cTribNac string) (*xmlIBSCBS, error) {
 	if g == nil {
 		return nil, nil
 	}
@@ -139,6 +150,9 @@ func toXMLIBSCBS(g *nfse.IBSCBS) (*xmlIBSCBS, error) {
 				CCredPres: g.Valores.Trib.CCredPres,
 			}},
 		},
+	}
+	if !tpOperPermitido(g, cTribNac) {
+		out.TpOper = 0
 	}
 	if g.Dest != nil {
 		if g.Dest.CAEPF != "" || g.Dest.IM != "" {

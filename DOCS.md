@@ -1681,6 +1681,10 @@ e `products[].estorno_cred`, cada um `{v_ibs?, v_cbs?}`: são valores de apuraç
 antes da nota. Um lado sozinho é aceito e o outro vale zero.
 `products[].alc_zfm_n_proc_suframa` é o processo Suframa do embarque e vence o do perfil.
 
+**NFS-e `tpOper` (E0904).** O Sefin só aceita `IBSCBS/tpOper` em compra governamental (`tpEnteGov`
+informado) ou nos itens LC 116 25.05, 15.09, 17.12 e 10.05. O `go-dfe` (`nacional.toXMLIBSCBS`) descarta
+o `tpOper` herdado do cadastro do serviço fora desses casos; o `tp_oper` do serviço é só default.
+
 **`ide` da reforma.** Da natureza de operação: `c_ind_op` (local da operação de fornecimento, 6
 dígitos), `c_mun_fg_ibs` (município do fato gerador do IBS/CBS — só quando `ind_pres` é 5 e não há
 endereço de destinatário nem local de entrega), `tp_nf_debito` e `tp_nf_credito`, mais o trio de

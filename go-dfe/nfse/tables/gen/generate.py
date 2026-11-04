@@ -283,6 +283,15 @@ TS_ENUM_ALIASES = {
 }
 
 
+def no_dash(text):
+    """Sem travessão em texto visível (regra do projeto): separação de código/rótulo
+    vira " · "; pausa em texto vira "; "."""
+    def sub(m):
+        left = re.split(r'["]', text[:m.start()])[-1]
+        return " · " if not re.search(r"\s", left.strip()) else "; "
+    return re.sub(r" [—–] ", sub, text)
+
+
 def write_enums_ts(catalog):
     missing = sorted({t for t in TS_ENUM_ALIASES.values() if t not in catalog})
     if missing:
@@ -293,7 +302,7 @@ def write_enums_ts(catalog):
         fh.write("export interface NfseEnumOption { value: string; label: string }\n\n")
         fh.write("/** Catálogo completo dos domínios fechados do XSD, pela chave do tipo. */\n")
         fh.write("export const NFSE_ENUMS: Record<string, readonly NfseEnumOption[]> = ")
-        fh.write(json.dumps(catalog, ensure_ascii=False, indent=2))
+        fh.write(no_dash(json.dumps(catalog, ensure_ascii=False, indent=2)))
         fh.write(" as const;\n\n")
         for alias, type_name in TS_ENUM_ALIASES.items():
             fh.write(f"export const {alias}: readonly NfseEnumOption[] = NFSE_ENUMS.{type_name};\n")
