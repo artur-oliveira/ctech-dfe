@@ -1,5 +1,7 @@
 package mdfes
 
+import "gopkg.aoctech.app/dfe/api/internal/services"
+
 // builder_antt.go — grupo infANTT do modal rodoviário (RNTRC, CIOT, vale-pedágio,
 // contratante e pagamento). Extraído de builder.go.
 
@@ -9,8 +11,8 @@ func (p buildParams) buildInfANTT() map[string]any {
 	if rntrc := p.resolveRNTRC(); rntrc != "" {
 		infANTT["RNTRC"] = rntrc
 	}
-	if p.ciot != nil && *p.ciot != "" {
-		infANTT["infCIOT"] = map[string]any{"CIOT": *p.ciot, "CPF": onlyDigits(p.firstCondutorCPF())}
+	if ciots := p.buildInfCIOT(); len(ciots) > 0 {
+		infANTT["infCIOT"] = ciots
 	}
 	if vp := p.buildValePed(); vp != nil {
 		infANTT["valePed"] = vp
@@ -22,6 +24,30 @@ func (p buildParams) buildInfANTT() map[string]any {
 		infANTT["infPag"] = p.infPag
 	}
 	return infANTT
+}
+
+// buildInfCIOT monta infANTT/infCIOT (0-n). Ordem XSD em cada item: CIOT e depois
+// o choice CPF | CNPJ do responsável pela geração. O CIOT legado, sem responsável
+// informado, é do emitente: o CPF do primeiro condutor, que este builder usava,
+// só coincidia com o responsável por acaso.
+func (p buildParams) buildInfCIOT() []map[string]any {
+	list := p.ciots
+	if len(list) == 0 && p.ciot != nil && *p.ciot != "" {
+		doc, _ := services.IssuerDocAV(p.org, p.orgPK)
+		list = []MdfeCIOT{{CIOT: *p.ciot, ResponsibleDoc: doc}}
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, c := range list {
+		doc := onlyDigits(c.ResponsibleDoc)
+		item := map[string]any{"CIOT": c.CIOT}
+		if len(doc) == cnpjLen {
+			item["CNPJ"] = doc
+		} else {
+			item["CPF"] = doc
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 // categCombVeic (valePed/categCombVeic) classifica a combinação veicular pelo

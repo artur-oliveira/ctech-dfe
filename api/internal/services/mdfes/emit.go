@@ -46,9 +46,13 @@ type MdfeEmitBody struct {
 
 	TripStart *string `json:"trip_start" validate:"omitempty"` // dhIniViagem (optional, RFC3339)
 
-	RNTRC          *string `json:"rntrc" validate:"omitempty,rntrc"`
-	CIOT           *string `json:"ciot" validate:"omitempty"`
-	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=5000"`
+	RNTRC *string `json:"rntrc" validate:"omitempty,rntrc"`
+	// CIOT é o CIOT único legado (12 dígitos); sem CIOTs, vira um item cujo
+	// responsável é o emitente. CIOTs substitui o legado e aceita vários, cada
+	// um com o seu responsável pela geração (infANTT/infCIOT, 0-n).
+	CIOT           *string    `json:"ciot" validate:"omitempty,len=12,numeric"`
+	CIOTs          []MdfeCIOT `json:"ciots" validate:"omitempty,dive"`
+	AdditionalInfo *string    `json:"additional_info" validate:"omitempty,max=5000"`
 
 	// TollVouchers são os vales-pedágio da viagem (infANTT/valePed). O
 	// fornecedor vem do cadastro; aqui só o que muda a cada viagem.
@@ -100,6 +104,13 @@ type MdfeTollBody struct {
 	TollProviderID string `json:"toll_provider_id" validate:"required"`
 	NCompra        string `json:"n_compra" validate:"required,max=20"`
 	VValePed       string `json:"v_vale_ped" validate:"required,money"`
+}
+
+// MdfeCIOT é um CIOT do manifesto: o código de 12 dígitos e o CPF (11) ou CNPJ (14)
+// de quem o gerou na ANTT (infANTT/infCIOT, regra F113 do MOC, NT 2026.001).
+type MdfeCIOT struct {
+	CIOT           string `json:"ciot" validate:"required,len=12,numeric"`
+	ResponsibleDoc string `json:"responsible_doc" validate:"required,numeric,min=11,max=14"`
 }
 
 // MdfeContractorBody é um contratante do frete. Nome e identidade vêm do
@@ -357,6 +368,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err := validateModalPayload(modal, req); err != nil {
 		return nil, err
 	}
+	if err := validateCIOTs(req.CIOTs); err != nil {
+		return nil, err
+	}
 	if len(req.Documents) == 0 {
 		return nil, problem.BadRequest("informe ao menos um documento (NF-e ou CT-e)")
 	}
@@ -521,6 +535,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tripStart:   req.TripStart,
 		rntrc:       req.RNTRC,
 		ciot:        req.CIOT,
+		ciots:       req.CIOTs,
 		addInfo:     req.AdditionalInfo,
 		// Canal Verde, carregamento posterior e mensagem ao fisco são da
 		// configuração do MDF-e: recorrem em toda emissão da organização.
@@ -891,6 +906,22 @@ func (s *MdfeService) resolvePolicies(ctx context.Context, orgPK string, items [
 		})
 	}
 	return out, nil
+}
+
+// validateCIOTs recusa o mesmo CIOT duas vezes e documento de responsável que não
+// é CPF (11) nem CNPJ (14): o XSD só aceita um dos dois, sem meio-termo.
+func validateCIOTs(list []MdfeCIOT) error {
+	seen := make(map[string]bool, len(list))
+	for _, c := range list {
+		if seen[c.CIOT] {
+			return problem.BadRequest("CIOT " + c.CIOT + " informado mais de uma vez")
+		}
+		seen[c.CIOT] = true
+		if n := len(onlyDigits(c.ResponsibleDoc)); n != 11 && n != cnpjLen {
+			return problem.BadRequest("o responsável pelo CIOT " + c.CIOT + " deve ter CPF (11 dígitos) ou CNPJ (14 dígitos)")
+		}
+	}
+	return nil
 }
 
 // cnpjLen distingue CNPJ de CPF num documento já sem prefixo.

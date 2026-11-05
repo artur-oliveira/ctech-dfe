@@ -2019,6 +2019,13 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   `{toll_provider_id, n_compra, v_vale_ped}`. CNPJ da fornecedora, pagador e `tpValePed` vêm de
   `organization_toll_providers`; `valePed/categCombVeic` é derivado do número de reboques. Um
   `toll_provider_id` inexistente é 404, nunca silêncio.
+- `ciots[]?` — CIOTs da viagem (`infANTT/infCIOT`, 0 a N): `{ciot, responsible_doc}`. `ciot` tem 12 dígitos;
+  `responsible_doc` é o CPF (11) ou CNPJ (14) de quem gerou o CIOT na ANTT, que vira o choice `CPF | CNPJ`. CIOT repetido
+  e documento com outro tamanho são 400. O campo `ciot` único continua aceito (12 dígitos); sem `ciots`, vira um item
+  cujo responsável é o **emitente** (antes era o CPF do primeiro condutor, que não é o responsável). Regra F113 do MOC
+  (NT 2026.001, produção em 2026-11-23): rodoviário com `tpEmit` 1 ou 3, ou `tpEmit` 2 com `tpTransp`, exige `infCIOT`
+  (rejeição 684); TAC e equiparado exigem também `infBanc`, `infPag` e `infCIOT` (303 e 304). A checagem de TAC depende do
+  cadastro de RNTRC da ANTT e só a SEFAZ faz.
 - `contractors[]?` — contratantes do frete (`infANTT/infContratante`, máx 10):
   `{person_doc, contract_number?, contract_value?}`. Nome e o choice `CPF|CNPJ|idEstrangeiro` vêm de
   `organization_persons` (papel `freight_contractor`); só o contrato é da viagem, e sem

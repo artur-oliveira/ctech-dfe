@@ -62,6 +62,7 @@ type buildParams struct {
 	tripStart   *string
 	rntrc       *string
 	ciot        *string
+	ciots       []MdfeCIOT
 	addInfo     *string
 	air         *MdfeAirModal   // modal aéreo data (API-supplied)
 	water       *MdfeWaterModal // modal aquaviário data (API-supplied)

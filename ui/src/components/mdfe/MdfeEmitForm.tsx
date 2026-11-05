@@ -37,6 +37,7 @@ import type {
   PersonItemOut,
   MdfeEmit,
   MdfeMunIn,
+  MdfeCiotIn,
   MdfeContractorIn,
   MdfePaymentIn,
   MdfeTransportUnitIn,
@@ -59,6 +60,7 @@ import {
   railComplete,
   waterComplete,
 } from '@/components/mdfe/ModalFields';
+import {CiotFields} from '@/components/mdfe/CiotFields';
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields';
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields';
 import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields';
@@ -436,6 +438,7 @@ export function MdfeEmitForm() {
   const [tollVouchers, setTollVouchers] = useState<MdfeTollIn[]>([]);
   const [insurancePolicies, setInsurancePolicies] = useState<MdfeInsuranceIn[]>([]);
   const [contractors, setContractors] = useState<MdfeContractorIn[]>([]);
+  const [ciots, setCiots] = useState<MdfeCiotIn[]>([]);
   const [freightPayments, setFreightPayments] = useState<MdfePaymentIn[]>([]);
   const [redelivery, setRedelivery] = useState<Record<string, boolean>>({});
   const [transportUnits, setTransportUnits] = useState<MdfeTransportUnitIn[]>([]);
@@ -672,6 +675,7 @@ export function MdfeEmitForm() {
       trip_start: tripStart ? `${tripStart}:00-03:00` : undefined,
       toll_vouchers: tollVouchers.length ? tollVouchers : undefined,
       insurance_policies: insurancePolicies.length ? insurancePolicies : undefined,
+      ciots: isRodo && ciots.length ? ciots : undefined,
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
       redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
@@ -821,6 +825,8 @@ export function MdfeEmitForm() {
           </div>
 
           <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
+
+          {modal === 'rodoviario' && <CiotFields ciots={ciots} onChange={setCiots}/>}
 
           <ContractorsFields contractors={contractors} onChange={setContractors}/>
 

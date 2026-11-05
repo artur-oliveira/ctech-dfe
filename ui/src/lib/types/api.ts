@@ -1730,6 +1730,8 @@ export interface MdfeEmit {
   trip_start?: string | null
   rntrc?: string | null
   ciot?: string | null
+  /** CIOTs da viagem (infANTT/infCIOT, 0 a N); no lugar do `ciot` único. */
+  ciots?: MdfeCiotIn[] | null
   additional_info?: string | null
   /** Vales-pedágio da viagem (infANTT/valePed). O fornecedor vem do cadastro. */
   toll_vouchers?: MdfeTollIn[] | null
@@ -1846,6 +1848,12 @@ export interface MdfePaymentIn {
   installments?: number
   interval_days?: number
   first_due_days?: number
+}
+
+/** CIOT da viagem: código de 12 dígitos e CPF ou CNPJ de quem o gerou na ANTT. */
+export interface MdfeCiotIn {
+  ciot: string
+  responsible_doc: string
 }
 
 /** Contratante do frete. Identidade vem do cadastro; o contrato é da viagem. */

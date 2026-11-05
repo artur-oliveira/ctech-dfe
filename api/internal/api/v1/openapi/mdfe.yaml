@@ -755,6 +755,17 @@ components:
         drivers:
           type: array
           items: { $ref: '#/components/schemas/MdfeDriver' }
+        ciots:
+          type: array
+          description: |
+            CIOTs da viagem (`infANTT/infCIOT`, 0 a N). Cada um com o código de 12 dígitos e o
+            CPF (11) ou CNPJ (14) de quem o gerou na ANTT. CIOT repetido é 400.
+          items:
+            type: object
+            required: [ ciot, responsible_doc ]
+            properties:
+              ciot: { type: string, pattern: '^[0-9]{12}$' }
+              responsible_doc: { type: string, pattern: '^[0-9]{11}([0-9]{3})?$' }
         toll_vouchers:
           type: array
           description: |
@@ -808,7 +819,7 @@ components:
         bulk_cargo: { $ref: '#/components/schemas/MdfeBulkCargo' }
         trip_start: { type: [ string, 'null' ], description: '`dhIniViagem`, em RFC 3339.' }
         rntrc: { $ref: '#/components/schemas/Rntrc' }
-        ciot: { type: [ string, 'null' ] }
+        ciot: { type: [ string, 'null' ], pattern: '^[0-9]{12}$', description: 'CIOT único (legado); sem `ciots`, o responsável é o emitente.' }
         additional_info: { type: [ string, 'null' ], maxLength: 5000 }
         air:
           allOf: [ { $ref: '#/components/schemas/MdfeAirModal' } ]

@@ -61,6 +61,14 @@ export default function GuideCteMdfe() {
                 <b>Cadastros → Composições veiculares</b>. Na emissão, ela preenche veículo, reboques
                 e condutor de uma vez.
               </GuideCallout>
+              <GuideCallout kind="info" title="CIOT no passo do veículo">
+                Em viagem rodoviária, o bloco <b>CIOT</b> aceita um ou mais códigos de <b>12 dígitos</b>,
+                cada um com o <b>responsável pela geração</b> (a própria organização ou uma pessoa do
+                cadastro; o CPF ou CNPJ vai no manifesto). O MDF-e de transportadora e o de TAC exigem
+                CIOT (regra F113 do MOC, NT 2026.001, em produção em 23/11/2026). O sistema não declara o
+                CIOT na ANTT por você: informe aqui o que o seu sistema de frete ou a sua administradora
+                de pagamento já gerou.
+              </GuideCallout>
             </>
           ),
         },
