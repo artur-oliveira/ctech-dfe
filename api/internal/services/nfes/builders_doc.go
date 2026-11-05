@@ -253,6 +253,8 @@ func BuildEnviNFe(
 
 	// ── Per-item tax totals ───────────────────────────────────────────────────
 	t := newTotals(totalProducts, totalDiscount)
+	// NT 2026.005 §2.3: o MEI (CRT=4) não informa o grupo IBSCBS, nem no item nem no total.
+	t.OmitIBSCBS = orgCRT == crtMEI
 	var (
 		totalPesoL = decimal.Zero
 		totalPesoB = decimal.Zero
@@ -426,7 +428,9 @@ func BuildEnviNFe(
 			EstornoCred:      itemIBSCBSPair(item, "estorno_cred"),
 		})
 
-		accumulateIBSCBS(&t, gIBSCBS, vBCIBSCBS)
+		if !t.OmitIBSCBS {
+			accumulateIBSCBS(&t, gIBSCBS, vBCIBSCBS)
+		}
 
 		var prodDescription string
 		if isNFCe && environment == 2 && i == 0 {
@@ -491,14 +495,12 @@ func BuildEnviNFe(
 				"ISSQN":  issqnNode["ISSQN"],
 				"PIS":    pisBuilt,
 				"COFINS": cofinsBuilt,
-				"IBSCBS": gIBSCBS,
 			}
 		} else {
 			imposto = map[string]any{
 				"ICMS":   icmsForImposto,
 				"PIS":    pisBuilt,
 				"COFINS": cofinsBuilt,
-				"IBSCBS": gIBSCBS,
 			}
 
 			ipiCST := cfgStr(cfopEntry, "ipi_cst", "")
@@ -515,6 +517,10 @@ func BuildEnviNFe(
 			if len(icmsUFDestNode) > 0 {
 				imposto["ICMSUFDest"] = icmsUFDestNode
 			}
+		}
+
+		if !t.OmitIBSCBS {
+			imposto["IBSCBS"] = gIBSCBS
 		}
 
 		if iiNode := buildII(item, vProdDec); iiNode != nil {

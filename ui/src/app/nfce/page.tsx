@@ -32,6 +32,7 @@ import {SubstituteModal} from '@/components/nfce/SubstituteModal';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
 import {InutilizationsTab} from '@/components/dfe/InutilizationsTab';
+import {isInutilizationDisabled} from '@/lib/constants/inutilization';
 
 type Tab = 'emitidas' | 'inutilizacoes'
 
@@ -213,7 +214,11 @@ function NfceContent() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const activeTab = (params.get('tab') as Tab) || 'emitidas';
+  // A SEFAZ de AC, BA e SP desativou a inutilização (NT 2023.002 v1.02): sem aba, e o link antigo cai em Emitidas.
+  const inutilizationOff = isInutilizationDisabled(selectedOrg?.state_federation);
+  const requestedTab = (params.get('tab') as Tab) || 'emitidas';
+  const activeTab: Tab = inutilizationOff && requestedTab === 'inutilizacoes' ? 'emitidas' : requestedTab;
+  const visibleTabs = inutilizationOff ? TAB_LABELS.filter(t => t.key !== 'inutilizacoes') : TAB_LABELS;
 
   const {config: nfceConfig, isMissing: nfceConfigMissing} = useFiscalConfig('nfce', selectedOrg?.pk);
 
@@ -290,7 +295,7 @@ function NfceContent() {
 
         {/* Submenu tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
-          {TAB_LABELS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => router.replace(`/nfce?tab=${tab.key}`, {scroll: false})}

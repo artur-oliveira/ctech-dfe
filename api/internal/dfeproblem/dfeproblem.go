@@ -15,6 +15,9 @@ const (
 	TypeNoCertificate  = "/problems/no-certificate"
 	TypeRetired        = "/problems/retired"
 	TypeSefazRejection = "/problems/sefaz-rejection"
+	// TypeServiceDisabled is a SEFAZ service its authority no longer offers
+	// (e.g. NfeInutilizacao in AC, BA and SP, NT 2023.002 v1.02).
+	TypeServiceDisabled = "/problems/service-disabled"
 	// TypeAccountPendingDeletion refuses a write of an account in the deletion
 	// saga (locked during grace, or erased). Same name ctech-account uses.
 	TypeAccountPendingDeletion = "/problems/account-pending-deletion"
@@ -54,6 +57,14 @@ func SefazRejection(detail string) *problem.Problem {
 // AccountPendingDeletion refuses a state-changing request of a locked account.
 func AccountPendingDeletion(detail string) *problem.Problem {
 	return problem.New(http.StatusForbidden, TypeAccountPendingDeletion, "Account Pending Deletion", detail)
+}
+
+// ServiceDisabled refuses a SEFAZ service the issuer's authority switched off.
+//
+// 422: the request is well formed and the caller allowed to ask; the authority
+// is what stopped answering. The type is the machine key the UI branches on.
+func ServiceDisabled(detail string) *problem.Problem {
+	return problem.New(http.StatusUnprocessableEntity, TypeServiceDisabled, "Service Disabled", detail)
 }
 
 // Retired answers a route that existed and is gone, naming where it moved.

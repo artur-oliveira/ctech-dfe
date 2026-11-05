@@ -71,3 +71,15 @@ func TestBuildTotal_VNFeVProdPeloMOC(t *testing.T) {
 		t.Errorf("vProd = %v, want 700.00 (sem os 300 de serviço)", got)
 	}
 }
+
+// NT 2026.005 §2.3: o MEI (CRT=4) não informa o grupo IBSCBS, nem no total.
+func TestBuildTotal_MEIOmiteIBSCBSTot(t *testing.T) {
+	tt := newTotals(decimal.RequireFromString("100.00"), decimal.Zero)
+	if _, ok := buildTotal(tt, time.Now(), nil)["IBSCBSTot"]; !ok {
+		t.Fatal("CRT diferente de 4 deve emitir IBSCBSTot")
+	}
+	tt.OmitIBSCBS = true
+	if _, ok := buildTotal(tt, time.Now(), nil)["IBSCBSTot"]; ok {
+		t.Fatal("MEI não informa IBSCBSTot")
+	}
+}

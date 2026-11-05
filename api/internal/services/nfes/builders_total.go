@@ -46,7 +46,12 @@ type totals struct {
 	// imposto de importação somado.
 	VIPIDevol, VII decimal.Decimal
 	HasISSQN       bool
+	// OmitIBSCBS: o MEI (CRT=4) não informa IBSCBS nem IBSCBSTot (NT 2026.005 §2.3).
+	OmitIBSCBS bool
 }
+
+// crtMEI é o CRT 4 (Simples Nacional, Microempreendedor Individual).
+const crtMEI = 4
 
 // newTotals devolve um acumulador zerado com os totais de produto e desconto
 // que já vêm calculados da requisição.
@@ -113,9 +118,9 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 		icmsTot["vICMSUFRemet"] = "0.00"
 	}
 
-	totalNode := map[string]any{
-		"ICMSTot":   icmsTot,
-		"IBSCBSTot": buildIBSCBSTot(t),
+	totalNode := map[string]any{"ICMSTot": icmsTot}
+	if !t.OmitIBSCBS {
+		totalNode["IBSCBSTot"] = buildIBSCBSTot(t)
 	}
 	// ISTot e vNFTot só existem quando a reforma incide: o vNFTot é o total do
 	// documento com os tributos por fora, e um total igual ao vNF só polui.

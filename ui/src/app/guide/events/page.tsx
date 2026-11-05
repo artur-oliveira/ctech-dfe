@@ -171,6 +171,12 @@ export default function GuideEventos() {
                 O layout de inutilização da SEFAZ só aceita emitente pessoa jurídica. Emitente
                 pessoa física (CPF) não tem esse recurso disponível.
               </GuideCallout>
+              <GuideCallout kind="warning" title="Acre, Bahia e São Paulo">
+                A partir de <b>11/11/2026</b> a SEFAZ do Acre, da Bahia e de São Paulo <b>desativa o serviço
+                de inutilização</b> (NT 2023.002 v1.02). Para organizações sediadas nesses estados a aba
+                Inutilizações deixa de aparecer e a SEFAZ não cobra mais a numeração inutilizada; nas demais UFs
+                nada muda.
+              </GuideCallout>
             </>
           ),
         },

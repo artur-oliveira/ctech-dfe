@@ -1598,6 +1598,12 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | GET    | `/v1.0/nfes/inutilizations/gaps`          | Lacunas de numeração ainda em aberto        |
 | GET    | `/v1.0/nfes/inutilizations/{sk}/xml`      | Baixa o `ProcInutNFe` da faixa              |
 
+**Inutilização desativada em AC, BA e SP (NT 2023.002 v1.02).** A partir de 2026-11-11 a SEFAZ dessas UFs responde 998
+("Serviço Desativado") ou HTTP 404 e deixou de checar numeração inutilizada. Para emitente dessas UFs,
+`POST /v1.0/{nfes,nfces}/inutilizations` recusa antes de chamar a SEFAZ com o problema `/problems/service-disabled` (422),
+`GET .../inutilizations/gaps` devolve lista vazia e a UI esconde a aba (`ui/src/lib/constants/inutilization.ts`). A tabela
+UF e data está em `inutilizationDisabledFrom` (`api/internal/services/nfes/inutilization.go`); a UF vem do endereço do emitente.
+
 **NF-e status transitions:**
 
 ```

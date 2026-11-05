@@ -16,6 +16,7 @@ import {NfeIcon} from '@/components/ui/icon';
 import {CANCEL_JUSTIFICATION_MIN_LENGTH, CancelDfeModal} from '@/components/dfe/CancelDfeModal';
 import {ImportXmlModal} from '@/components/dfe/ImportXmlModal';
 import {InutilizationsTab} from '@/components/dfe/InutilizationsTab';
+import {isInutilizationDisabled} from '@/lib/constants/inutilization';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {OptionsSelect} from '@/components/ui/options-select';
@@ -569,7 +570,11 @@ function NfesContent() {
 
   const {config: nfeConfig, isMissing: nfeConfigMissing} = useFiscalConfig('nfe', selectedOrg?.pk);
 
-  const activeTab = (params.get('tab') as Tab) || 'emitidas';
+  // A SEFAZ de AC, BA e SP desativou a inutilização (NT 2023.002 v1.02): sem aba, e o link antigo cai em Emitidas.
+  const inutilizationOff = isInutilizationDisabled(selectedOrg?.state_federation);
+  const requestedTab = (params.get('tab') as Tab) || 'emitidas';
+  const activeTab: Tab = inutilizationOff && requestedTab === 'inutilizacoes' ? 'emitidas' : requestedTab;
+  const visibleTabs = inutilizationOff ? ALL_TAB_LABELS.filter(t => t.key !== 'inutilizacoes') : ALL_TAB_LABELS;
 
   const [cancelTarget, setCancelTarget] = useState<NfeListOut | null>(null);
   const [justification, setJustification] = useState('');
@@ -637,7 +642,7 @@ function NfesContent() {
 
         {/* Submenu tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
-          {ALL_TAB_LABELS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}

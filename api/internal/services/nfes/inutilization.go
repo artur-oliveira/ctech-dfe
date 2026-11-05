@@ -56,6 +56,26 @@ const (
 	StatusInutilized = "success"
 )
 
+// inutilizationDisabledFrom lists the UFs whose SEFAZ turned the inutilization
+// service off, with the first day it answers "998 Serviço Desativado" (or HTTP
+// 404). NT 2023.002 v1.02 (Ajustes SINIEF 38/2026 e 40/2026) sets 11/11/2026 in
+// production, and homologation has to be ready by the same day; one date for
+// both avoids a test environment that behaves differently from production.
+// In these UFs the SEFAZ also stopped checking numbers against inutilization
+// (rule 3B08-100), so a hole in the numbering no longer needs closing.
+var inutilizationDisabledFrom = map[string]time.Time{
+	"AC": time.Date(2026, time.November, 11, 0, 0, 0, 0, time.UTC),
+	"BA": time.Date(2026, time.November, 11, 0, 0, 0, 0, time.UTC),
+	"SP": time.Date(2026, time.November, 11, 0, 0, 0, 0, time.UTC),
+}
+
+// InutilizationDisabled reports whether the SEFAZ of uf no longer offers the
+// inutilization service at instant now.
+func InutilizationDisabled(uf string, now time.Time) bool {
+	from, ok := inutilizationDisabledFrom[strings.ToUpper(strings.TrimSpace(uf))]
+	return ok && !now.UTC().Before(from)
+}
+
 // InutilizationBody is the payload for POST /nfes/inutilizations and
 // POST /nfces/inutilizations.
 //
@@ -167,6 +187,9 @@ func inutilize(ctx context.Context, d inutDeps, orgPK string, body Inutilization
 	cUF, ok := services.UFCode[emitUF]
 	if !ok {
 		return nil, problem.BadRequest("UF do emitente inválida ou não configurada")
+	}
+	if InutilizationDisabled(emitUF, time.Now()) {
+		return nil, dfeproblem.ServiceDisabled("a SEFAZ de " + emitUF + " desativou o serviço de inutilização (NT 2023.002 v1.02); não é mais necessário inutilizar numeração")
 	}
 	// Both the document and the PJ test come off the record. Reading them off
 	// the key would make every issuer a natural person once the key is a company
@@ -472,6 +495,13 @@ func (s *NfceService) GetInutilizationXML(ctx context.Context, orgPK, sk string)
 // numberGaps resolves the active series/counter from the fiscal config and runs
 // gap detection, excluding ranges already inutilized.
 func numberGaps(ctx context.Context, d inutDeps, eventRepo *repositories.DocumentEventRepository, orgPK string, cfg map[string]types.AttributeValue) ([]NumberGap, error) {
+	// Onde a SEFAZ desativou a inutilização, furo de numeração não precisa mais
+	// ser fechado: não há o que oferecer na tela.
+	if org, err := d.orgRepo.GetOrganization(ctx, orgPK); err != nil {
+		return nil, err
+	} else if org != nil && InutilizationDisabled(extractEmitUF(org), time.Now()) {
+		return nil, nil
+	}
 	envPrefix := d.envPrefix()
 	serie := intAttr(cfg, envPrefix+"_current_serie", 1)
 	currentNumber := intAttr(cfg, envPrefix+"_current_number", 0)
