@@ -66,6 +66,8 @@ grant read access; the values are written once by hand.
 | `/ctech-dfe/{env}/billing/webhook-secret` | SecureString | `BILLING_WEBHOOK_SECRET` | The same secret ctech-billing's seed was given as `WEBHOOK_SECRET_DFE` for the `whe_dfe` endpoint |
 | `/ctech-dfe/{env}/billing/client-id`      | SecureString | `BILLING_CLIENT_ID`      | `dfe-billing` — the client-credentials client ctech-account issued for calling billing            |
 | `/ctech-dfe/{env}/billing/client-secret`  | SecureString | `BILLING_CLIENT_SECRET`  | Its secret, shown once at issue                                                                   |
+| `/ctech-dfe/{env}/ciot/generator-api-key` | SecureString | `CIOT_GENERATOR_API_KEY` | API key (header `Chave`) do gerador de CIOT da ANTT; criada com `CHANGE_ME`, preencher com a chave real (módulo CIOT, `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`) |
+| `/ctech-dfe/{env}/ciot/generator-fallback-url` | String | `CIOT_GENERATOR_FALLBACK_URL` | Base do gerador de CIOT de contingência (gateway), sem `/token` nem `/gerar`; não é segredo |
 
 `BILLING_API_URL` is *not* on this list: it is a hostname, not a secret, and it
 comes from `/ctech-billing/{env}/internal-base-url`, written by ctech-cdk's
