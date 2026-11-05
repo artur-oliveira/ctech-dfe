@@ -67,7 +67,7 @@ a DDL/Executável disponibilizada" (B4, B16), único por ano (B17). Na prática 
 
 **API key do gerador:** é a credencial do gerador, enviada no cabeçalho `Chave` ao pedir o token. No gerador principal ela
 acompanha o mTLS; no de contingência é a **única** autenticação. SSM `SecureString` `/ctech-dfe/{env}/ciot/generator-api-key`
-(hoje só existe `prod`), criada em 2026-11-04 com o valor provisório `CHANGE_ME`; o dono preenche com a chave real
+(hoje só existe `prod`), criada em 2026-11-04 com o valor provisório `CHANGE_ME` e **já preenchida com a chave real** pelo dono; para rotacionar
 (`aws ssm put-parameter --profile ctech --region us-east-1 --name /ctech-dfe/prod/ciot/generator-api-key --type SecureString
 --overwrite --value ...`, digitada sem eco). O CDK não a cria nem a gerencia, como em todo segredo do projeto. O código
 **recusa vazio e `CHANGE_ME` na inicialização** (falha de configuração, não no primeiro uso).
@@ -241,8 +241,9 @@ de data; nunca dispensa regra de negócio, inclusive o piso.
    alimentado pelas posições de 4 dígitos da tabela de NCM que o sistema já tem, com sugestão pelo NCM do produto quando houver. Validação
    local: 4 dígitos que existam como posição de NCM; a rejeição 211 (B9) continua podendo vir da ANTT.
 
-**Ainda a confirmar com a ANTT (pef@antt.gov.br):** que o gerador por endpoint, com a contingência por gateway, é o canal
-oficial.
+**Confirmado pelo dono (2026-11-04):** o gerador por endpoint, com a contingência por gateway, é o canal oficial; a API key real já
+está em `/ctech-dfe/prod/ciot/generator-api-key`. Não há mais pendência com a ANTT para começar; o que falta é a passada manual
+em homologação (C0).
 
 **Instituição financeira (`CodigoInstituicaoFinanceira`, N3):** não é quem emite o CIOT. É o banco da **conta que recebe o
 frete** (`CpfCnpjCreditado`), exigido nos pagamentos tipo 1 a 4 (cartão pré-pago, conta corrente, poupança, conta pagamento;

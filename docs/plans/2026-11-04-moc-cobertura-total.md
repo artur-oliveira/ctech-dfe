@@ -74,10 +74,9 @@ completa, desenho e fases em `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`
 - Webservice REST/JSON síncrono com 8 serviços, só por certificado ICP-Brasil (mTLS), de IP ou de transportador do RNTRC (C1).
 - O identificador da operação vem de um gerador da ANTT (por endpoint, com chave própria), que destrava o que o PDF deixava
   em aberto; a tabela do piso mínimo de frete é pública e calculável localmente.
-- Decidido pelo dono: chave do gerador no SSM (`/ctech-dfe/prod/ciot/generator-api-key`, criada com valor provisório `CHANGE_ME`,
-  falta preencher); formato das respostas como na seção 2 da especificação; o A1 do cliente basta como certificado; natureza da
+- Decidido pelo dono: chave do gerador no SSM (`/ctech-dfe/prod/ciot/generator-api-key`, já preenchida); formato das respostas como na seção 2 da especificação; o A1 do cliente basta como certificado; natureza da
   carga são os 4 primeiros dígitos do NCM. Gerador: produção primeiro, contingência por gateway só em erro 500 (URL no SSM `/ctech-dfe/prod/ciot/generator-fallback-url`).
-  Banco do pagamento (tipos 1 a 4) vem da lista de compensação do Banco Central, não da ANTT. A confirmar com a ANTT: o gerador por endpoint como canal oficial. Webhooks ficam fora (funcionalidade da plataforma, futura).
+  Banco do pagamento (tipos 1 a 4) vem da lista de compensação do Banco Central, não da ANTT. Gerador por endpoint confirmado como canal oficial. Webhooks ficam fora (funcionalidade da plataforma, futura).
 - Estimativa de 8 semanas (C1 a C7). Para 23/11/2026 (regra F113 do MDF-e) o caminho mínimo é aceitar vários `infCIOT` com
   CPF ou CNPJ do responsável e validar o formato, sem declarar o CIOT por aqui.
 
