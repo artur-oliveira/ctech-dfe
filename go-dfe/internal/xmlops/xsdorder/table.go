@@ -62,7 +62,7 @@ var envInfe = map[string][]string{
 	"infNFe:emit": {
 		"CNPJ", "CPF",
 		"xNome", "xFant", "enderEmit",
-		"IE", "IEST", "IM", "CNAE", "CRT",
+		"IE", "IEST", "IM", "CNAE", "CRT", "tpRegimeIBSCBS",
 	},
 
 	// dest — NF-e
@@ -96,7 +96,7 @@ var envInfe = map[string][]string{
 		"indEscala", "CNPJFab", "cBenef", "gCred", "tpCredPresIBSZFM", "EXTIPI",
 		"CFOP", "uCom", "qCom", "vUnCom", "vProd",
 		"cEANTrib", "cBarraTrib", "uTrib", "qTrib", "vUnTrib",
-		"vFrete", "vSeg", "vDesc", "vOutro", "indTot", "indBemMovelUsado",
+		"vFrete", "vSeg", "vDesc", "vOutro", "indTot", "indBemMovelUsado", "cAtivSN",
 		"DI", "detExport", "xPed", "nItemPed", "nFCI", "rastro",
 		"infProdNFF", "infProdEmb", "veicProd", "med", "arma", "comb", "nRECOPI",
 	},
@@ -168,9 +168,13 @@ var envInfe = map[string][]string{
 	// IBSCBS — type TTribNFe (CST + cClassTrib + choice de valores)
 	"IBSCBS": {
 		"CST", "cClassTrib", "indDoacao",
-		"gIBSCBS", "gIBSCBSMono", "gTransfCred", "gAjusteCompet",
+		"gIBSCBS", "gIBSCBSMono", "gTransfCred", "gAjusteCompet", "gTribSN",
 		"gEstornoCred", "gCredPresOper", "gCredPresIBSZFM",
 	},
+	// NT 2026.005: composição do IBS e da CBS para o Simples Nacional, no item.
+	"gTribSN": {"gIBSSN", "gCBSSN"},
+	"gIBSSN":  {"pIBSSN", "vIBSSN"},
+	"gCBSSN":  {"pCBSSN", "vCBSSN"},
 
 	// gIBSCBS — type TCIBS (valores de IBS Estadual, Municipal e CBS)
 	// parent_tag = IBSCBS para distinguir do lookup genérico
@@ -290,7 +294,9 @@ var envInfe = map[string][]string{
 	"retTrib":  {"vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"},
 
 	// IBSCBSTot — totais IBS/CBS por nota (type TIBSCBSMonoTot)
-	"IBSCBSTot": {"vBCIBSCBS", "gIBS", "gCBS", "gMono", "gEstornoCred"},
+	"IBSCBSTot": {"vBCIBSCBS", "gIBS", "gCBS", "gMono", "gEstornoCred", "gTribSN"},
+	// NT 2026.005: totais do Simples Nacional (W59h a W59j).
+	"IBSCBSTot:gTribSN": {"vIBSSN", "vCBSSN"},
 
 	// gIBS dentro de IBSCBSTot
 	"IBSCBSTot:gIBS": {"gIBSUF", "gIBSMun", "vIBS", "vCredPres", "vCredPresCondSus"},

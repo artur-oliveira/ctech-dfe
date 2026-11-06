@@ -79,12 +79,53 @@ const (
 	cfgIBSZFMPCredPres  = "ibs_zfm_p_cred_pres"
 	cfgALCZFMTp         = "alc_zfm_tp_cbs"
 	cfgALCZFMNProcSufra = "alc_zfm_n_proc_suframa"
+
+	// Simples Nacional (NT 2026.005): atividade do item e alíquotas efetivas.
+	cfgCAtivSN = "c_ativ_sn"
+	cfgPIBSSN  = "p_ibs_sn"
+	cfgPCBSSN  = "p_cbs_sn"
 )
+
+// snRegime diz, para um emitente do Simples Nacional (ou com opção pendente), que
+// grupos do IBS e da CBS o item leva (NT 2026.005, seção 2.3).
+type snRegime struct {
+	omitGIBSCBS bool // gIBSCBS não é informado
+	gIBSSN      bool // gTribSN/gIBSSN
+	gCBSSN      bool // gTribSN/gCBSSN
+	zeroCBS     bool // gIBSCBS/gCBS sai com alíquota zerada (a CBS vai por gCBSSN)
+}
+
+// snRegimeFor traduz CRT e tpRegimeIBSCBS na tabela da NT 2026.005 §2.3. O MEI
+// (CRT 4) não informa IBSCBS (tratado à parte) e o Regime Normal sem opção
+// pendente não tem grupo do Simples.
+func snRegimeFor(crt, tpRegime int) snRegime {
+	switch {
+	case (crt == 1 || crt == 2) && tpRegime == 1: // optou pelo regime regular
+		return snRegime{}
+	case crt == 1:
+		return snRegime{omitGIBSCBS: true, gIBSSN: true, gCBSSN: true}
+	case crt == 2:
+		return snRegime{gCBSSN: true, zeroCBS: true}
+	case crt == 3 && tpRegime == 2:
+		return snRegime{gIBSSN: true, gCBSSN: true}
+	case crt == 3 && tpRegime == 3:
+		return snRegime{gCBSSN: true}
+	}
+	return snRegime{}
+}
+
+// isSNIssuer: quem informa cAtivSN por item (CRT 1 e 2, ou Regime Normal com opção
+// pendente pelo Simples, tpRegimeIBSCBS 2, 3 ou 4).
+func isSNIssuer(crt, tpRegime int) bool {
+	return crt == 1 || crt == 2 || (crt == 3 && tpRegime >= 2 && tpRegime <= 4)
+}
 
 // ibsCBSParams carrega o que o bloco da reforma precisa do laço de itens. É
 // struct e não uma lista de parâmetros porque o bloco cresce por NT.
 type ibsCBSParams struct {
-	CST, ClassTrib        string
+	CST, ClassTrib string
+	// SN são os grupos do Simples Nacional que o emitente informa (NT 2026.005).
+	SN                    snRegime
 	VBC                   decimal.Decimal
 	IBSUFAliq, IBSMunAliq string
 	CBSAliq               string
@@ -175,8 +216,42 @@ func buildIBSCBS(p ibsCBSParams) map[string]any {
 		outer["gIBSCBSMono"] = buildIBSCBSMono(p.Cfg, p.Quantity)
 		return outer
 	}
-	outer["gIBSCBS"] = buildGIBSCBSValues(p)
+	if !p.SN.omitGIBSCBS {
+		if p.SN.zeroCBS {
+			p.CBSAliq = "0.0000"
+		}
+		outer["gIBSCBS"] = buildGIBSCBSValues(p)
+	}
+	if node := buildGTribSN(p); node != nil {
+		outer["gTribSN"] = node
+	}
 	return outer
+}
+
+// buildGTribSN monta gTribSN (UB115a): gIBSSN e gCBSSN com a alíquota efetiva do
+// Simples (cadastro do item) e o valor sobre a base do item. Sem a alíquota
+// configurada o grupo não sai: a NT ainda não o obriga em produção, e um valor
+// inventado seria pior que a ausência.
+func buildGTribSN(p ibsCBSParams) map[string]any {
+	if !p.SN.gIBSSN && !p.SN.gCBSSN {
+		return nil
+	}
+	node := map[string]any{}
+	if p.SN.gIBSSN {
+		pIBS := cfgStr(p.Cfg, cfgPIBSSN, "")
+		if pIBS == "" {
+			return nil
+		}
+		node["gIBSSN"] = map[string]any{"pIBSSN": q4(d(pIBS)), "vIBSSN": calcTaxValue(p.VBC, pIBS)}
+	}
+	if p.SN.gCBSSN {
+		pCBS := cfgStr(p.Cfg, cfgPCBSSN, "")
+		if pCBS == "" {
+			return nil
+		}
+		node["gCBSSN"] = map[string]any{"pCBSSN": q4(d(pCBS)), "vCBSSN": calcTaxValue(p.VBC, pCBS)}
+	}
+	return node
 }
 
 // buildGIBSCBSValues monta o nó gIBSCBS (type TCIBS_NFe). Ordem XSD: vBC,
@@ -536,6 +611,14 @@ func accumulateIBSCBS(t *totals, node map[string]any, vBC decimal.Decimal) {
 		t.IBSUFDevTrib = t.IBSUFDevTrib.Add(subgroupValue(gIBSUF, "gDevTrib", "vDevTrib"))
 		t.IBSMunDevTrib = t.IBSMunDevTrib.Add(subgroupValue(gIBSMun, "gDevTrib", "vDevTrib"))
 		t.CBSDevTrib = t.CBSDevTrib.Add(subgroupValue(gCBS, "gDevTrib", "vDevTrib"))
+	}
+
+	if sn, ok := node["gTribSN"].(map[string]any); ok {
+		t.HasGTribSN = true
+		gIBSSN, _ := sn["gIBSSN"].(map[string]any)
+		gCBSSN, _ := sn["gCBSSN"].(map[string]any)
+		t.IBSSN = t.IBSSN.Add(d(anyStr(gIBSSN, "vIBSSN", "0")))
+		t.CBSSN = t.CBSSN.Add(d(anyStr(gCBSSN, "vCBSSN", "0")))
 	}
 
 	if mono, ok := node["gIBSCBSMono"].(map[string]any); ok {

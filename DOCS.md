@@ -1687,6 +1687,16 @@ e `products[].estorno_cred`, cada um `{v_ibs?, v_cbs?}`: são valores de apuraç
 antes da nota. Um lado sozinho é aceito e o outro vale zero.
 `products[].alc_zfm_n_proc_suframa` é o processo Suframa do embarque e vence o do perfil.
 
+**NT 2026.005 (Simples Nacional, produção em 2026-11-16).** O builder da NF-e e da NFC-e informa, para quem é do Simples ou
+tem a opção pendente: `emit/tpRegimeIBSCBS` (C21a, vem de `person.tp_regime_ibs_cbs` da organização: 1 para CRT 1 ou 2
+com regime regular; 2 a 4 para CRT 3 com opção pendente), `prod/cAtivSN` (I17d, do `c_ativ_sn` da configuração tributária
+do item) e `IBSCBS/gTribSN` (UB115a, de `p_ibs_sn` e `p_cbs_sn`), com o total `IBSCBSTot/gTribSN` somando os itens. O que cada
+regime informa segue a tabela da seção 2.3 da NT (`snRegimeFor`): CRT 1 sem regime regular não informa `gIBSCBS` e informa
+`gIBSSN` e `gCBSSN`; CRT 2 sem regime regular mantém `gIBSCBS` com a CBS zerada e informa só `gCBSSN`; CRT 3 com opção
+pendente informa conforme o tipo (2: os dois; 3: só `gCBSSN`; 4: nenhum). O MEI (CRT 4) não informa `IBSCBS` nem `IBSCBSTot`.
+Sem a alíquota efetiva configurada o `gTribSN` não sai (a NT ainda não o obriga em produção). Código: `builders_ibscbs.go`,
+`builders_total.go`, `builders_party.go` e a tabela de ordem em `go-dfe/internal/xmlops/xsdorder/table.go`.
+
 **Autorização duplicada (cStat 204).** Quando a SEFAZ responde 204 (mesma chave já autorizada, em geral porque a
 resposta anterior se perdeu), o worker consulta a situação do documento pelo egress (`NfeConsultaProtocolo`,
 `MDFeConsulta` ou `CTeConsulta`). Se consta autorizado (100/150) e o `digVal` do protocolo é o do documento assinado

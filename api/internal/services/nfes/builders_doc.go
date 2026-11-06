@@ -216,6 +216,11 @@ func BuildEnviNFe(
 	orgPerson := getPersonMap(org)
 	orgAddress := services.FirstAddress(orgPerson)
 	orgCRT := getAnyInt(orgPerson, "crt", 1)
+	tpRegimeIBSCBS := getAnyInt(orgPerson, "tp_regime_ibs_cbs", 0)
+	if !validTpRegimeIBSCBS(orgCRT, tpRegimeIBSCBS) {
+		tpRegimeIBSCBS = 0
+	}
+	snGroups := snRegimeFor(orgCRT, tpRegimeIBSCBS)
 	emitUF := anyStr(orgAddress, "state_federation", "")
 	cUF := services.UFCode[emitUF]
 	if cUF == "" {
@@ -418,7 +423,7 @@ func BuildEnviNFe(
 		cbsAliq := cfgStr(cfopEntry, "cbs_aliq", "0.0000")
 
 		gIBSCBS := buildIBSCBS(ibsCBSParams{
-			CST: ibsCBSCST, ClassTrib: ibsCBSClassTrib, VBC: vBCIBSCBS,
+			CST: ibsCBSCST, ClassTrib: ibsCBSClassTrib, VBC: vBCIBSCBS, SN: snGroups,
 			IBSUFAliq: ibsUFAliq, IBSMunAliq: ibsMunAliq, CBSAliq: cbsAliq,
 			Cfg: cfopEntry, Quantity: qty, CompetApur: competApur,
 			TpCredPresIBSZFM: anyStr(item, "tp_cred_pres_ibs_zfm", ""),
@@ -452,6 +457,13 @@ func BuildEnviNFe(
 			VSeg:        vSegItem,
 			VOutro:      vOutroItem,
 		})
+		// I17d cAtivSN (NT 2026.005): atividade do Simples Nacional do item, só para
+		// quem é do Simples ou está com a opção pendente.
+		if isSNIssuer(orgCRT, tpRegimeIBSCBS) {
+			if v := cfgStr(cfopEntry, cfgCAtivSN, ""); v != "" {
+				prod["cAtivSN"] = v
+			}
+		}
 
 		pisCST := cfgStr(cfopEntry, "pis", "49")
 		pisAliq := anyStrPtr(cfopEntry, "pis_aliq")

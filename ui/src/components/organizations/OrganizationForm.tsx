@@ -60,6 +60,7 @@ export function organizationFormToApi(data: EntityFormData): OrganizationCreate 
     person: {
       fantasy_name: data.person.fantasy_name || null,
       crt,
+      tp_regime_ibs_cbs: data.person.tp_regime_ibs_cbs ? parseInt(data.person.tp_regime_ibs_cbs, 10) : null,
       state_registrations: data.person.state_registrations,
       addresses,
       contacts: data.person.contacts,

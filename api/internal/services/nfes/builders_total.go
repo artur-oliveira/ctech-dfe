@@ -48,6 +48,10 @@ type totals struct {
 	HasISSQN       bool
 	// OmitIBSCBS: o MEI (CRT=4) não informa IBSCBS nem IBSCBSTot (NT 2026.005 §2.3).
 	OmitIBSCBS bool
+	// HasGTribSN marca que algum item trouxe gTribSN (regras W59h-10 e W59h-20: o
+	// total do Simples só existe quando algum item o tem); IBSSN e CBSSN somam os itens.
+	HasGTribSN   bool
+	IBSSN, CBSSN decimal.Decimal
 }
 
 // crtMEI é o CRT 4 (Simples Nacional, Microempreendedor Individual).
@@ -264,6 +268,12 @@ func buildIBSCBSTot(t totals) map[string]any {
 		node["gEstornoCred"] = map[string]any{
 			"vIBSEstCred": q2(t.IBSEstCred.RoundBank(2)),
 			"vCBSEstCred": q2(t.CBSEstCred.RoundBank(2)),
+		}
+	}
+	if t.HasGTribSN {
+		node["gTribSN"] = map[string]any{
+			"vIBSSN": q2(t.IBSSN.RoundBank(2)),
+			"vCBSSN": q2(t.CBSSN.RoundBank(2)),
 		}
 	}
 	return node

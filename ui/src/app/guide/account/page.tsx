@@ -36,6 +36,12 @@ export default function GuideConta() {
                 Convites são por e-mail e por empresa; quem aceita entra só naquela organização, com
                 o papel escolhido no convite. Trocar de empresa não exige sair da conta.
               </p>
+              <p>
+                Na tela da empresa, em <b>Enquadramento fiscal</b>, o campo <b>Regime de apuração do IBS e da
+                CBS</b> só aparece para o Simples Nacional (CRT 1 ou 2), que escolhe se optou pelo regime
+                regular, e para o Regime Normal (CRT 3) com opção pendente pelo Simples. Os demais deixam em
+                branco; o valor vai na nota como <b>tpRegimeIBSCBS</b> (NT 2026.005).
+              </p>
             </>
           ),
         },

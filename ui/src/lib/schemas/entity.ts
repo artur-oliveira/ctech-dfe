@@ -122,6 +122,8 @@ export const entitySchema = z.object({
   person: z.object({
     fantasy_name: z.string().max(255).optional().or(z.literal('')),
     crt: z.enum(['1', '2', '3', '4', CRT_NONE_VALUE]).optional(),
+    // tpRegimeIBSCBS (NT 2026.005): vazio para quem não informa a tag.
+    tp_regime_ibs_cbs: z.enum(['', '1', '2', '3', '4']).optional(),
     state_registrations: z.array(stateRegistrationSchema).default([]),
     addresses: z.array(addressSchema).min(1, 'Ao menos um endereço obrigatório'),
     contacts: z.object({

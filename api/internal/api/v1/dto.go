@@ -97,8 +97,11 @@ type NfseInfoBody struct {
 // PersonObjectBody is the nested `person` object shared by person and
 // organization payloads. crt is sent as a number (1–4) or null.
 type PersonObjectBody struct {
-	FantasyName        *string                 `json:"fantasy_name" validate:"omitempty,max=255"`
-	Crt                *int                    `json:"crt" validate:"omitempty,oneof=1 2 3 4"`
+	FantasyName *string `json:"fantasy_name" validate:"omitempty,max=255"`
+	Crt         *int    `json:"crt" validate:"omitempty,oneof=1 2 3 4"`
+	// TpRegimeIBSCBS (NT 2026.005, C21a): 1 Simples com regime regular do IBS/CBS; 2 a 4 Regime
+	// Normal com opção pendente pelo Simples. Ausente para os demais.
+	TpRegimeIBSCBS     *int                    `json:"tp_regime_ibs_cbs" validate:"omitempty,oneof=1 2 3 4"`
 	StateRegistrations []StateRegistrationBody `json:"state_registrations" validate:"omitempty,dive"`
 	Addresses          []AddressBody           `json:"addresses" validate:"required,min=1,dive"`
 	Contacts           *ContactsBody           `json:"contacts" validate:"omitempty"`
@@ -294,12 +297,17 @@ type TaxFieldsBody struct {
 	IbsUfAliq       *string `json:"ibs_uf_aliq" validate:"omitempty,percent"`
 	IbsMunAliq      *string `json:"ibs_mun_aliq" validate:"omitempty,percent"`
 	CbsAliq         *string `json:"cbs_aliq" validate:"omitempty,percent"`
-	IbsUfPRed       *string `json:"ibs_uf_p_red" validate:"omitempty,percent"`
-	IbsMunPRed      *string `json:"ibs_mun_p_red" validate:"omitempty,percent"`
-	CbsPRed         *string `json:"cbs_p_red" validate:"omitempty,percent"`
-	IbsUfPDif       *string `json:"ibs_uf_p_dif" validate:"omitempty,percent"`
-	IbsMunPDif      *string `json:"ibs_mun_p_dif" validate:"omitempty,percent"`
-	CbsPDif         *string `json:"cbs_p_dif" validate:"omitempty,percent"`
+	// Simples Nacional (NT 2026.005): atividade do item (cAtivSN) e alíquotas efetivas
+	// de IBS e CBS (pIBSSN, pCBSSN). Só valem para emitente do Simples ou com opção pendente.
+	CAtivSN    *string `json:"c_ativ_sn" validate:"omitempty,oneof=01 02 03 04 90"`
+	PIbsSN     *string `json:"p_ibs_sn" validate:"omitempty,percent"`
+	PCbsSN     *string `json:"p_cbs_sn" validate:"omitempty,percent"`
+	IbsUfPRed  *string `json:"ibs_uf_p_red" validate:"omitempty,percent"`
+	IbsMunPRed *string `json:"ibs_mun_p_red" validate:"omitempty,percent"`
+	CbsPRed    *string `json:"cbs_p_red" validate:"omitempty,percent"`
+	IbsUfPDif  *string `json:"ibs_uf_p_dif" validate:"omitempty,percent"`
+	IbsMunPDif *string `json:"ibs_mun_p_dif" validate:"omitempty,percent"`
+	CbsPDif    *string `json:"cbs_p_dif" validate:"omitempty,percent"`
 	// IbsIndDoacao: o XSD (TIndDoacao) enumera um valor só, "1". "S"/"N" era o
 	// domínio de uma NT anterior e hoje é rejeição.
 	IbsIndDoacao *string `json:"ibs_ind_doacao" validate:"omitempty,oneof=1"`

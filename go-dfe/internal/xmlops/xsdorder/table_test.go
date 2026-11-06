@@ -571,8 +571,9 @@ func TestTableKeyCount(t *testing.T) {
 	// gTribRegular, gTribCompraGov, gIBSCBSMono, gMonoPadrao, gMonoReten,
 	// gMonoRet, gMonoDif, gTransfCred, gAjusteCompet, gEstornoCred,
 	// gCredPresOper, gIBSCredPres, gCBSCredPres, gCredPresIBSZFM, gCompraGov,
-	// gPagAntecipado, IBSCBSTot:gMono).
-	const wantKeys = 247
+	// gPagAntecipado, IBSCBSTot:gMono) + 4 do Simples Nacional da NT 2026.005
+	// (gTribSN, gIBSSN, gCBSSN, IBSCBSTot:gTribSN).
+	const wantKeys = 251
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
@@ -704,4 +705,22 @@ func TestOrdemXSDNFeAuditoria(t *testing.T) {
 		assertBefore(t, o, "CEP", "cPais")
 		assertBefore(t, o, "email", "IE")
 	}
+}
+
+// NT 2026.005 (Simples Nacional): tpRegimeIBSCBS, cAtivSN, gTribSN e os totais, na ordem do MOC.
+func TestOrdemXSDSimplesNacionalNT2026005(t *testing.T) {
+	assertBefore(t, mustResolve(t, "infNFe", "emit"), "CRT", "tpRegimeIBSCBS")
+	assertBefore(t, mustResolve(t, "", "prod"), "indBemMovelUsado", "cAtivSN")
+	assertBefore(t, mustResolve(t, "", "prod"), "cAtivSN", "DI")
+
+	ibscbs := mustResolve(t, "", "IBSCBS")
+	assertBefore(t, ibscbs, "gAjusteCompet", "gTribSN")
+	assertBefore(t, ibscbs, "gTribSN", "gEstornoCred")
+	assertBefore(t, mustResolve(t, "", "gTribSN"), "gIBSSN", "gCBSSN")
+	assertBefore(t, mustResolve(t, "", "gIBSSN"), "pIBSSN", "vIBSSN")
+	assertBefore(t, mustResolve(t, "", "gCBSSN"), "pCBSSN", "vCBSSN")
+
+	tot := mustResolve(t, "", "IBSCBSTot")
+	assertBefore(t, tot, "gEstornoCred", "gTribSN")
+	assertBefore(t, mustResolve(t, "IBSCBSTot", "gTribSN"), "vIBSSN", "vCBSSN")
 }

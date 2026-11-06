@@ -73,4 +73,13 @@ describe('cadastro compartilhado; transformação para a API', () => {
     expect(payload.person.bank).toBeNull();
     expect(payload.person.freight_retention).toBeNull();
   });
+
+  // NT 2026.005 (C21a): o regime de apuração do IBS e da CBS vai como número, ou null quando em branco.
+  it('envia tp_regime_ibs_cbs da organização como número e null quando vazio', () => {
+    const com = organizationFormToApi({...formData, person: {...formData.person, tp_regime_ibs_cbs: '1'}});
+    expect(com.person.tp_regime_ibs_cbs).toBe(1);
+
+    const sem = organizationFormToApi({...formData, person: {...formData.person, tp_regime_ibs_cbs: ''}});
+    expect(sem.person.tp_regime_ibs_cbs).toBeNull();
+  });
 });

@@ -18,6 +18,7 @@ import {IBS_CBS_CLASS_BY_CST, IBS_CBS_CST_OPTIONS} from '@/lib/data/ibs_cbs_cst'
 import {
   ALC_ZFM_TP_CBS_OPTIONS,
   IBS_CBS_C_CRED_PRES_OPTIONS,
+  C_ATIV_SN_OPTIONS,
   IBS_IND_DOACAO_SIM,
 } from '@/lib/data/ibs_cbs_reform';
 import {IPI_CST_OPTIONS} from '@/lib/data/ipi';
@@ -862,6 +863,7 @@ export function TaxFieldsEditor({
                        ...r, ibs_cbs_cst: '', ibs_cbs_class_trib: '', ibs_uf_aliq: '', ibs_mun_aliq: '', cbs_aliq: '',
                        ibs_uf_p_red: '', ibs_mun_p_red: '', cbs_p_red: '',
                        ibs_uf_p_dif: '', ibs_mun_p_dif: '', cbs_p_dif: '',
+                       c_ativ_sn: '', p_ibs_sn: '', p_cbs_sn: '',
                      }));
                    }}
                    className="size-4 rounded border-gray-300 text-brand-600"/>
@@ -964,6 +966,23 @@ export function TaxFieldsEditor({
               </TaxField>
             </div>
           )}
+
+          {/* Simples Nacional (NT 2026.005): só para emitente do Simples ou com opção pendente. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <TaxField label="Atividade do Simples (cAtivSN)">
+              <OptionsSelect value={value.c_ativ_sn ?? ''} options={C_ATIV_SN_OPTIONS} clearable
+                             placeholder="Não informado"
+                             onValueChange={(v) => onChange((r) => ({...r, c_ativ_sn: v as typeof value.c_ativ_sn}))}/>
+            </TaxField>
+            <TaxField label="IBS efetivo % (Simples)">
+              <NumericInput value={value.p_ibs_sn ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                            onChange={(v) => onChange((r) => ({...r, p_ibs_sn: v}))} placeholder="0.0000"/>
+            </TaxField>
+            <TaxField label="CBS efetiva % (Simples)">
+              <NumericInput value={value.p_cbs_sn ?? ''} decimal decimalPlaces={4} integerPlaces={3}
+                            onChange={(v) => onChange((r) => ({...r, p_cbs_sn: v}))} placeholder="0.0000"/>
+            </TaxField>
+          </div>
 
           {/* Doação e devolução de tributo; dois campos avulsos do grupo. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

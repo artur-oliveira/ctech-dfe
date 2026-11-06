@@ -1,5 +1,6 @@
 'use client';
 
+import {TP_REGIME_IBS_CBS_NORMAL, TP_REGIME_IBS_CBS_SIMPLES} from '@/lib/data/ibs_cbs_reform';
 import {type ReactNode, useEffect, useState} from 'react';
 import type {Resolver} from 'react-hook-form';
 import {useFieldArray, useForm, useWatch} from 'react-hook-form';
@@ -145,6 +146,7 @@ const DEFAULT_VALUES: EntityFormData = {
   person: {
     fantasy_name: '',
     crt: '1',
+    tp_regime_ibs_cbs: '',
     state_registrations: [],
     addresses: [EMPTY_ADDRESS],
     contacts: {emails: [], phones: []},
@@ -383,6 +385,15 @@ export function EntityForm({
   // Pessoa física (person variant) may leave CRT unspecified — backend omits it
   // and defaults to Simples Nacional on emission. Org PF (MEI) still picks a regime.
   const allowNoCrt = variant === 'person' && !isPJ;
+  // tpRegimeIBSCBS (NT 2026.005): Simples (CRT 1 e 2) só tem a opção 1; Regime Normal (CRT 3), as opções 2 a 4.
+  const watchedCrt = useWatch({control: form.control, name: 'person.crt'});
+  const regimeIbsCbsOptions: { value: string; label: string }[] = !isPJ
+    ? []
+    : watchedCrt === '1' || watchedCrt === '2'
+      ? TP_REGIME_IBS_CBS_SIMPLES
+      : watchedCrt === '3'
+        ? TP_REGIME_IBS_CBS_NORMAL
+        : [];
   const crtOptions = isPJ
     ? CRT_OPTIONS_PJ
     : allowNoCrt
@@ -866,6 +877,23 @@ export function EntityForm({
                              </FormItem>
                            )}
                 />
+                {isOrg && regimeIbsCbsOptions.length > 0 && (
+                  <FormField control={form.control as never} name="person.tp_regime_ibs_cbs"
+                             render={({field}) => (
+                               <FormItem className="mt-3">
+                                 <FormLabel>Regime de apuração do IBS e da CBS</FormLabel>
+                                 <OptionsSelect id={field.name} value={field.value ?? ''}
+                                                onValueChange={field.onChange}
+                                                options={regimeIbsCbsOptions} placeholder="Não informar"/>
+                                 <p className="text-xs text-gray-500">
+                                   Só para quem optou pelo regime regular do IBS e da CBS no Simples, ou tem a opção
+                                   pelo Simples pendente (NT 2026.005). Os demais deixam em branco.
+                                 </p>
+                                 <FormMessage/>
+                               </FormItem>
+                             )}
+                  />
+                )}
               </div>
             )}
 

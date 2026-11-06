@@ -102,6 +102,13 @@ export default function GuideCadastros() {
                 perigoso. O que não é marcado não aparece; um parafuso não precisa responder sobre
                 número ONU.
               </p>
+              <GuideCallout kind="info" title="Simples Nacional e IBS/CBS (NT 2026.005)">
+                Para quem é do Simples Nacional, a aba de tributos do produto tem, em IBS / CBS, a{' '}
+                <b>Atividade do Simples</b> (cAtivSN: 01, 02, 03, 04 ou 90) e as alíquotas efetivas de{' '}
+                <b>IBS</b> e <b>CBS</b> do Simples. Com elas a nota leva o grupo de composição do IBS e da
+                CBS do item e o total correspondente. Sem a alíquota configurada o grupo não sai: a NT ainda
+                não o exige em produção. O MEI não informa o grupo de IBS e CBS.
+              </GuideCallout>
               <p>
                 O catálogo de <b>serviços</b> é o equivalente para NFS-e: código de tributação
                 nacional, alíquota de ISS e valor padrão do serviço.

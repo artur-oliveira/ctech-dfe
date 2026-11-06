@@ -8,7 +8,7 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
   // A company linked from the ctech-account handoff has no fiscal side yet —
   // this screen is where somebody fills it in, so an absent person is an empty
   // form and not a crash.
-  const {crt, addresses, state_registrations, contacts, nfse, ...rest} =
+  const {crt, tp_regime_ibs_cbs, addresses, state_registrations, contacts, nfse, ...rest} =
     org.person ?? ({} as Partial<PersonOut>);
   const isPJ = orgIsPJ(org);
   return {
@@ -21,6 +21,7 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
     person: {
       ...rest,
       crt: String(crt ?? '1') as EntityFormData['person']['crt'],
+      tp_regime_ibs_cbs: String(tp_regime_ibs_cbs ?? '') as EntityFormData['person']['tp_regime_ibs_cbs'],
       addresses: (addresses ?? [EMPTY_ADDRESS]).map((a) => ({
         ...a,
         complement: a.complement ?? '',

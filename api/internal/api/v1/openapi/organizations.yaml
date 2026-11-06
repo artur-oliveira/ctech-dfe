@@ -467,6 +467,13 @@ components:
           description: |
             Código do Regime Tributário. `1` Simples Nacional · `2` Simples
             Nacional excesso de sublimite · `3` Regime Normal · `4` MEI.
+        tp_regime_ibs_cbs:
+          type: [ integer, 'null' ]
+          enum: [ 1, 2, 3, 4, null ]
+          description: |
+            Regime de apuração do IBS e da CBS (`tpRegimeIBSCBS`, NT 2026.005). `1` Simples
+            (CRT 1 ou 2) com opção pelo regime regular; `2` a `4` Regime Normal (CRT 3) com
+            opção pendente pelo Simples. Ausente para os demais; o MEI nunca informa.
         state_registrations:
           type: array
           items: { $ref: '#/components/schemas/StateRegistrationBody' }

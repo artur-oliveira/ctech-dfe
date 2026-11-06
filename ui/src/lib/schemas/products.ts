@@ -129,6 +129,10 @@ export const cfopConfigBase = z.object({
   cbs_p_dif: optionalPercent,
   // indDoacao (TIndDoacao) enumera um valor só: 1. Na UI é um checkbox.
   ibs_ind_doacao: z.enum(['1']).optional().or(z.literal('')),
+  // Simples Nacional (NT 2026.005): atividade do item e alíquotas efetivas de IBS e CBS.
+  c_ativ_sn: z.enum(['01', '02', '03', '04', '90']).optional().or(z.literal('')),
+  p_ibs_sn: optionalPercent,
+  p_cbs_sn: optionalPercent,
   // Monofasia (gIBSCBSMono): alíquota específica por unidade em cada sub-grupo.
   ibs_ad_rem: optionalPercent,
   cbs_ad_rem: optionalPercent,

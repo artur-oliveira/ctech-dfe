@@ -164,6 +164,12 @@ func buildEmit(org, orgPerson map[string]any, orgPK, emitUF, destUF string, orgC
 		"IE":        getIEForUF(orgPerson, emitUF),
 		"CRT":       fmt.Sprintf("%d", orgCRT),
 	}
+	// C21a tpRegimeIBSCBS (NT 2026.005): só quem optou pelo regime regular do IBS e da
+	// CBS no Simples (1) ou está com a opção pelo Simples pendente (2 a 4). Não vale
+	// para o MEI nem para o Regime Normal comum.
+	if tp := getAnyInt(orgPerson, "tp_regime_ibs_cbs", 0); validTpRegimeIBSCBS(orgCRT, tp) {
+		emit["tpRegimeIBSCBS"] = fmt.Sprintf("%d", tp)
+	}
 	// IEST só é informado na operação interestadual em que o emitente é
 	// substituto tributário na UF de destino.
 	if iest := getIESTForUF(orgPerson, destUF); iest != "" {
@@ -244,4 +250,16 @@ func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, i
 		dest["email"] = email
 	}
 	return dest
+}
+
+// validTpRegimeIBSCBS: 1 para CRT 1 ou 2 com opção pelo regime regular; 2, 3 ou 4 para
+// CRT 3 com opção pendente pelo Simples (NT 2026.005, seção 2.1).
+func validTpRegimeIBSCBS(crt, tp int) bool {
+	switch crt {
+	case 1, 2:
+		return tp == 1
+	case 3:
+		return tp >= 2 && tp <= 4
+	}
+	return false
 }

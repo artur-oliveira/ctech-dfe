@@ -10,6 +10,28 @@
 /** `TIndDoacao` enumera um valor só: 1. "S"/"N" era o domínio de uma NT anterior. */
 export const IBS_IND_DOACAO_SIM = '1';
 
+/** `cAtivSN` (NT 2026.005, I17d): atividade do Simples Nacional do item, para o cálculo do IBS e da CBS. */
+export const C_ATIV_SN_OPTIONS: { value: string; label: string }[] = [
+  {value: '01', label: '01 · Revenda de mercadorias e venda de mercadorias industrializadas pelo contribuinte (Anexo I)'},
+  {value: '02', label: '02 · Demais bens materiais, sem incidência de ICMS (Anexo I)'},
+  {value: '03', label: '03 · Mercadorias industrializadas com incentivo na Zona Franca de Manaus (Anexo II)'},
+  {value: '04', label: '04 · Demais bens materiais com industrialização incentivada na ZFM, sem ICMS (Anexo II)'},
+  {value: '90', label: '90 · Operações não tributáveis'},
+];
+
+/**
+ * `tpRegimeIBSCBS` (NT 2026.005, C21a). Simples (CRT 1 ou 2) só informa 1; Regime Normal com opção
+ * pendente pelo Simples informa 2, 3 ou 4. Os demais não informam.
+ */
+export const TP_REGIME_IBS_CBS_SIMPLES: { value: string; label: string }[] = [
+  {value: '1', label: '1 · Optante pelo regime regular do IBS e da CBS'},
+];
+export const TP_REGIME_IBS_CBS_NORMAL: { value: string; label: string }[] = [
+  {value: '2', label: '2 · Opção pendente pelo Simples (CRT 1), sem regime regular'},
+  {value: '3', label: '3 · Opção pendente pelo Simples com excesso de sublimite (CRT 2), sem regime regular'},
+  {value: '4', label: '4 · Opção pendente pelo Simples, com regime regular do IBS e da CBS'},
+];
+
 /** `TTpCredPresIBSZFM` — classificação da subapuração do IBS na ZFM. */
 export const TP_CRED_PRES_IBS_ZFM_OPTIONS = [
   {value: '0', label: '0 · Não se aplica'},

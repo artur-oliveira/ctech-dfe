@@ -171,6 +171,8 @@ export interface NfseInfo {
 export interface PersonOut {
   fantasy_name: string
   crt: string | number;
+  /** Regime de apuração do IBS e da CBS (tpRegimeIBSCBS, NT 2026.005). */
+  tp_regime_ibs_cbs?: string | number | null;
   state_registrations: StateRegistrationOut[]
   addresses: AddressOut[]
   contacts: ContactsOut
@@ -419,6 +421,10 @@ export interface CfopConfigItem {
   ibs_mun_p_dif?: string | null
   cbs_p_dif?: string | null
   ibs_ind_doacao?: string | null
+  /** Atividade do Simples Nacional do item (cAtivSN, NT 2026.005) e alíquotas efetivas de IBS e CBS. */
+  c_ativ_sn?: string | null
+  p_ibs_sn?: string | null
+  p_cbs_sn?: string | null
   ibs_ad_rem?: string | null
   cbs_ad_rem?: string | null
   ibs_cbs_p_dev_trib?: string | null
@@ -878,6 +884,7 @@ export interface PersonItemOut {
 export interface PersonObject {
   fantasy_name: string | null
   crt: string | number | null
+  tp_regime_ibs_cbs?: number | null
   state_registrations: StateRegistrationOut[]
   addresses: PersonAddressOut[]
   contacts?: ContactsOut
