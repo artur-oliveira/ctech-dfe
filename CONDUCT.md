@@ -695,7 +695,7 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   cobrir o texto truncado). Fora de formulário (filtros) não aparece; a prop `clearable` força.
   Obrigatório sem asterisco no rótulo vira bug de rótulo, não de componente.
 - **Sem travessão (`—`, `–`) em texto visível**, inclusive rótulos de domínio. Separação (código/descrição) vira bullet `·` (`1 · Texto`); pausa em texto vira `;`.
-  `go-dfe/nfse/tables/gen/generate.py` normaliza `nfse_enums.ts` na geração.
+  `go-dfe/nfse/tables/gen/generate.py` normaliza os rótulos do catálogo de enums (`label_no_dash`) antes de gerar **os dois lados**, Go (`enums.go`) e TS (`nfse_enums.ts`); `TestEnumCatalogMatchesTypeScript` exige que sejam o mesmo dado. Rode `go test -count=1`: o cache do Go não enxerga o arquivo da UI que o teste lê.
 - **Uma emissão, um fluxo por documento.** NF-e é wizard; NFC-e é tela única de balcão. Não
   unifique os fluxos — unifique os componentes (`ProductSearch`, `ProductLineItem`, `EmitError`,
   `EmitConfirmModal`, `useEmitDraft`, `lib/data/payment-options`). Ver DOCS.md §5.

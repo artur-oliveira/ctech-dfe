@@ -283,13 +283,19 @@ TS_ENUM_ALIASES = {
 }
 
 
-def no_dash(text):
+def label_no_dash(label):
     """Sem travessão em texto visível (regra do projeto): separação de código/rótulo
-    vira " · "; pausa em texto vira "; "."""
+    vira " · "; pausa em texto vira "; ". Vale para Go e TS, que precisam ser o mesmo
+    dado (TestEnumCatalogMatchesTypeScript)."""
     def sub(m):
-        left = re.split(r'["]', text[:m.start()])[-1]
+        left = label[:m.start()]
         return " · " if not re.search(r"\s", left.strip()) else "; "
-    return re.sub(r" [—–] ", sub, text)
+    return re.sub(r" [—–] ", sub, label)
+
+
+def normalize_catalog(catalog):
+    return {name: [{**e, "label": label_no_dash(e["label"])} for e in entries]
+            for name, entries in catalog.items()}
 
 
 def write_enums_ts(catalog):
@@ -302,7 +308,7 @@ def write_enums_ts(catalog):
         fh.write("export interface NfseEnumOption { value: string; label: string }\n\n")
         fh.write("/** Catálogo completo dos domínios fechados do XSD, pela chave do tipo. */\n")
         fh.write("export const NFSE_ENUMS: Record<string, readonly NfseEnumOption[]> = ")
-        fh.write(no_dash(json.dumps(catalog, ensure_ascii=False, indent=2)))
+        fh.write(json.dumps(catalog, ensure_ascii=False, indent=2))
         fh.write(" as const;\n\n")
         for alias, type_name in TS_ENUM_ALIASES.items():
             fh.write(f"export const {alias}: readonly NfseEnumOption[] = NFSE_ENUMS.{type_name};\n")
@@ -374,7 +380,7 @@ def generate_indop():
 
 
 def generate_enums():
-    catalog = parse_enums(find("Schemas/1.01/tiposSimples_v1.01.xsd"))
+    catalog = normalize_catalog(parse_enums(find("Schemas/1.01/tiposSimples_v1.01.xsd")))
     write_enums_go(catalog)
     write_enums_ts(catalog)
     write_motives_ts()
