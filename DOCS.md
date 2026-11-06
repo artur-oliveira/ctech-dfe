@@ -2409,6 +2409,11 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
 - **Regras de negócio do MOC** (`rules.go`): catálogo `Rule{ID, CStat, Mode, Doc, Check}`. Modo padrão `warn`
   (emissão segue, vira aviso); `shadow` só registra; `block` recusa e só serve para regra determinística provável
   offline; `Modes` sobrescreve por id sem deploy. Nada bloqueia o cliente sem decisão explícita.
+- Catálogo atual: 579 regras do MOC avaliáveis offline (NF-e/NFC-e 343 em `rules_nfe.go`, CT-e 57 141 em
+  `rules_cte.go`, MDF-e 95 em `rules_mdfe.go`), id e cStat iguais aos do MOC. `block` só em DV de chave, CPF/CNPJ e
+  GTIN; somas e identidades com tolerância ficam em `warn`. Fora do catálogo, de propósito: regra que exige banco,
+  tabela externa (IBGE, NCM, CST/cClassTrib, IE por UF), relógio de recebimento ou certificado; CT-e OS, GTV-e e
+  Simplificado ainda sem regras.
 - `validate/overlay.go` acrescenta ao schema do NF-e os campos das NT 2026.005/008 que o XSD vendorizado (PL_010e)
   não tem (`tpRegimeIBSCBS`, `vUnComLiq`, `vProdLiq`, `cAtivSN`, `gTribSN`, `vProdLiqTot`). Todo nó do overlay é
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
