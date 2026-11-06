@@ -12,6 +12,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -221,6 +222,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 			Csrt:             strAttr(configItem, csrtField),
 		},
 	)
+	dfecheck.ShadowEnviNFe(accessKey, enviNFe)
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))
 	for _, p := range productItems {

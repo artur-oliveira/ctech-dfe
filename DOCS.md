@@ -2409,8 +2409,12 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
 - **Regras de negócio do MOC** (`rules.go`): catálogo `Rule{ID, CStat, Mode, Doc, Check}`. Modo padrão `warn`
   (emissão segue, vira aviso); `shadow` só registra; `block` recusa e só serve para regra determinística provável
   offline; `Modes` sobrescreve por id sem deploy. Nada bloqueia o cliente sem decisão explícita.
-- Os XSDs vendorizados do NF-e (PL_010e) são anteriores às NT 2026.005/008; campos novos precisam de overlay antes de
-  ligar a validação de schema em `block`.
+- `validate/overlay.go` acrescenta ao schema do NF-e os campos das NT 2026.005/008 que o XSD vendorizado (PL_010e)
+  não tem (`tpRegimeIBSCBS`, `vUnComLiq`, `vProdLiq`, `cAtivSN`, `gTribSN`, `vProdLiqTot`). Todo nó do overlay é
+  opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
+- **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
+  registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. Subir uma regra a warn/block é
+  decisão por regra depois de observar o log em produção. Pendente: CT-e (sem emissão ainda) e modais do MDF-e.
 
 ## 5. ui — Frontend
 

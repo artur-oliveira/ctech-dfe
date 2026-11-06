@@ -14,6 +14,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -669,6 +670,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			PagAntecipado:    req.PagAntecipadoRefs,
 		},
 	)
+
+	dfecheck.ShadowEnviNFe(accessKey, enviNFe)
 
 	// Summary products for DynamoDB record
 	summaryProducts := make([]map[string]any, 0, len(productItems))

@@ -80,3 +80,23 @@ func TestRulesWarnDefaultAndBlockOverride(t *testing.T) {
 		t.Errorf("off: %+v", f)
 	}
 }
+
+func TestNFeOverlayAcceptsNTFields(t *testing.T) {
+	s, _ := Load("nfe")
+	doc := map[string]any{"infNFe": map[string]any{
+		"emit": map[string]any{"tpRegimeIBSCBS": "1"},
+		"det": map[string]any{"prod": map[string]any{"vUnComLiq": "10.5", "vProdLiq": "21.00", "cAtivSN": "123"},
+			"imposto": map[string]any{"IBSCBS": map[string]any{"gTribSN": map[string]any{
+				"gIBSSN": map[string]any{"pIBSSN": "0.1000", "vIBSSN": "0.02"}}}}},
+		"total": map[string]any{"vProdLiqTot": "21.00", "IBSCBSTot": map[string]any{"gTribSN": map[string]any{"vIBSSN": "0.02"}}},
+	}}
+	for _, v := range s.Validate(doc, Options{}) {
+		if v.Code == CodeUnknownTag {
+			t.Errorf("overlay não cobre %s", v.Path)
+		}
+	}
+	doc["infNFe"].(map[string]any)["emit"].(map[string]any)["tpRegimeIBSCBS"] = "9"
+	if !codes(s.Validate(doc, Options{}))["NFe/infNFe/emit/tpRegimeIBSCBS|enum"] {
+		t.Error("enum do overlay não vale")
+	}
+}

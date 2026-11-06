@@ -11,6 +11,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -594,6 +595,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	dfecheck.ShadowMDFe(accessKey, mdfeBody)
 	workerMsg := services.WorkerMessage{
 		DocPK:                 pk,
 		AccessKey:             accessKey,

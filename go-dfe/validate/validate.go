@@ -129,6 +129,9 @@ func Load(name string) (*Spec, error) {
 	if err := prepare(&root); err != nil {
 		return nil, fmt.Errorf("validate: esquema %q: %w", name, err)
 	}
+	if name == "nfe" {
+		applyNFeOverlay(&root)
+	}
 	s := &Spec{Name: name, root: &root}
 	specs[name] = s
 	return s, nil
