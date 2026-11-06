@@ -775,9 +775,8 @@ func (s *BillingService) Invoices(ctx context.Context, scope *BillingScope, year
 const (
 	MeterNFe  = "nfe"
 	MeterNFCe = "nfce"
-	// MeterCTe has a table and a quota but no emission path yet. When CT-e
-	// emission is built it must call PrepareUsageReservation(…, MeterCTe, …)
-	// like the other four; a Free plan (quota_cte: 0) then refuses it with 402.
+	// MeterCTe is reserved by CT-e emission (services/ctes) like the other
+	// four; a Free plan (quota_cte: 0) refuses it with 402.
 	MeterCTe       = "cte"
 	MeterMDFe      = "mdfe"
 	MeterNFSe      = "nfse"

@@ -14,6 +14,9 @@ import {
   billingSubscriptionFixtures,
   certificatesFixture,
   cteConfigFixture,
+  cteDeriveNotesFixture,
+  ctePersonIdsFixture,
+  ctesFixture,
   distributionsFixture,
   inutilizationsFixture,
   numberGapsFixture,
@@ -49,6 +52,7 @@ import {
   paymentTermsFixture,
   personsFixture,
   productsFixture,
+  receivedNfesFixture,
   rolesFixture,
   servicesFixture,
   taxProfilesFixture,
@@ -98,9 +102,72 @@ function echo(body: unknown, suffix: string) {
   return {pk: `mock-${suffix}-${Date.now()}`, sk: `MOCK#${suffix}`, ...base};
 }
 
+/**
+ * `POST /v1.0/ctes/derive` sobre as fixtures, com as regras da spec
+ * (docs/specs/2026-11-05-cte-emissao-rodoviaria.md): remetente/destinatário
+ * nulos quando divergem, tomador sugerido por modFrete, somas da carga e o
+ * produto de maior valor. Chave fora das fixtures vira `note_not_found`.
+ */
+function mockCteDerive(body: unknown): RouteResult {
+  const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+  const keys: string[] = (parsed as {nfe_keys?: string[]})?.nfe_keys ?? [];
+  const notes = keys.map((k) => cteDeriveNotesFixture[k]).filter(Boolean);
+  const warnings: {code: string; message: string; access_key: string | null}[] = keys
+    .filter((k) => !cteDeriveNotesFixture[k])
+    .map((k) => ({code: 'note_not_found', message: 'Nota fora do cadastro da organização.', access_key: k}));
+  if (notes.length === 0) {
+    return {error: {status: 422, data: {title: 'Notas não encontradas', detail: 'Nenhuma das notas está no cadastro.', code: 'note_not_found'}}};
+  }
+
+  const single = <T,>(pick: (n: (typeof notes)[number]) => T, by: (v: T) => string): T | null => {
+    const first = pick(notes[0]);
+    return notes.every((n) => by(pick(n)) === by(first)) ? first : null;
+  };
+  const sender = single((n) => n.emitter, (p) => p.doc + p.name);
+  const recipient = single((n) => n.recipient, (p) => p.doc + p.name);
+  if (!sender) warnings.push({code: 'mixed_sender', message: 'Notas com remetentes diferentes.', access_key: null});
+  if (!recipient) warnings.push({code: 'mixed_recipient', message: 'Notas com destinatários diferentes.', access_key: null});
+
+  const mod = single((n) => n.mod_frete, (m) => m);
+  const taker_suggestion = mod === '0' ? {role: 'remetente', reason: 'mod_frete_cif'}
+    : mod === '1' ? {role: 'destinatario', reason: 'mod_frete_fob'} : null;
+  if (!taker_suggestion) {
+    warnings.push({code: 'taker_ambiguous', message: 'As notas não indicam um único responsável pelo frete.', access_key: null});
+  }
+
+  const sum = (pick: (n: (typeof notes)[number]) => string | number | null, dec: number) =>
+    notes.reduce((acc, n) => acc + Number(pick(n) ?? 0), 0).toFixed(dec);
+  const top = [...notes].sort((a, b) => Number(b.product_value) - Number(a.product_value))[0];
+  const party = (p: typeof sender) => (p ? {...p, person_id: ctePersonIdsFixture[p.name] ?? null} : null);
+  const place = (p: typeof sender) => (p ? {uf: p.uf, city_ibge: p.city_ibge, city: p.city} : null);
+
+  return {
+    data: {
+      notes: notes.map((n) => {
+        const out: Record<string, unknown> = {...n};
+        delete out.product;
+        delete out.product_value;
+        return out;
+      }),
+      sender: party(sender),
+      recipient: party(recipient),
+      taker_suggestion,
+      cargo: {
+        total_value: sum((n) => n.value, 2),
+        total_weight_kg: sum((n) => n.weight_kg, 3),
+        volumes: Number(sum((n) => n.volumes, 0)),
+        predominant_product: top.product,
+      },
+      origin: place(sender),
+      destination: place(recipient),
+      warnings,
+    },
+  };
+}
+
 type RouteResult = {data: unknown; status?: number} | {error: {status: number; data: unknown}}
 
-function route(method: string, path: string, body: unknown): RouteResult {
+function route(method: string, path: string, body: unknown, params?: Record<string, unknown>): RouteResult {
   const m = method.toLowerCase();
   const key = `${m} ${path}`;
 
@@ -164,7 +231,8 @@ function route(method: string, path: string, body: unknown): RouteResult {
   }
 
   // Documents
-  if (key === 'get /v1.0/nfes') return {data: paginated(nfesFixture)};
+  // Recebidas (incoming 1) têm fixture própria: a emissão de CT-e precisa de nota de outro remetente.
+  if (key === 'get /v1.0/nfes') return {data: paginated(Number(params?.incoming) === 1 ? receivedNfesFixture : nfesFixture)};
   if (m === 'post' && path === '/v1.0/nfes') return {data: echo(body, 'nfe')};
   if (key === 'get /v1.0/nfces') return {data: paginated(nfcesFixture)};
   if (m === 'post' && path === '/v1.0/nfces') return {data: echo(body, 'nfce')};
@@ -173,6 +241,9 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (m === 'post' && path === '/v1.0/mdfes/cargo-preview') {
     return {data: {items: mdfeDetailFixture.documents, total_weight: '2450.000', total_value: '3589.80'}};
   }
+  if (key === 'post /v1.0/ctes/derive') return mockCteDerive(body);
+  if (key === 'get /v1.0/ctes') return {data: paginated(ctesFixture)};
+  if (key === 'post /v1.0/ctes') return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};
   if (key === 'get /v1.0/nfses') return {data: paginated(nfsesFixture)};
   if (m === 'post' && path === '/v1.0/nfses') return {data: echo(body, 'nfse')};
 
@@ -194,6 +265,7 @@ function route(method: string, path: string, body: unknown): RouteResult {
   if (/^get \/v1\.0\/nfes\/[^/]+$/.test(key)) return {data: nfeDetailFixture};
   if (/^get \/v1\.0\/nfces\/[^/]+$/.test(key)) return {data: nfceDetailFixture};
   if (/^get \/v1\.0\/mdfes\/[^/]+$/.test(key)) return {data: mdfeDetailFixture};
+  if (/^get \/v1\.0\/ctes\/[^/]+$/.test(key)) return {data: {...ctesFixture[0], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}};
   if (/^get \/v1\.0\/nfses\/[^/]+$/.test(key)) return {data: nfsesFixture[0]};
   if (/^post \/v1\.0\/nfes\/.+\/(cancel|correction-letter|manifestation)$/.test(key)) return {data: nfeDetailFixture};
   if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfceDetailFixture};
@@ -256,7 +328,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     throw error;
   }
 
-  const result = route(method, path, req.data);
+  const result = route(method, path, req.data, req.params as Record<string, unknown> | undefined);
   if ('error' in result) {
     const error = new AxiosError('Mock error', 'ERR_BAD_RESPONSE', req, undefined, {
       status: result.error.status,

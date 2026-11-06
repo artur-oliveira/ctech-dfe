@@ -262,10 +262,27 @@ func (v *validator) element(n *node, value any, path string) {
 		switch {
 		case arms > 1:
 			v.add(path, CodeChoiceConflict, SevError, "em %s só uma das alternativas pode ser informada", n.Name)
-		case arms == 0 && g.Min >= 1 && !allSkipped(n, g.ID, v.skip, path):
+		case arms == 0 && g.Min >= 1 && !allSkipped(n, g.ID, v.skip, path) && !optionalArm(n, g.ID):
 			v.add(path, CodeChoiceMissing, SevError, "em %s é preciso informar uma das alternativas", n.Name)
 		}
 	}
+}
+
+// optionalArm: a choice obrigatória cujo braço só tem elementos opcionais (minOccurs 0) é satisfeita vazia
+// (por exemplo infNFe/{infUnidCarga|infUnidTransp} do CT-e).
+func optionalArm(n *node, id int) bool {
+	required := map[int]bool{}
+	for _, c := range n.Children {
+		if c.Choice == id {
+			required[c.Arm] = required[c.Arm] || c.Min >= 1
+		}
+	}
+	for _, r := range required {
+		if !r {
+			return true
+		}
+	}
+	return false
 }
 
 func allSkipped(n *node, id int, skip map[string]bool, path string) bool {

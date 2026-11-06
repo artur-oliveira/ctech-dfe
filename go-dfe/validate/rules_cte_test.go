@@ -370,3 +370,13 @@ func TestCTeHelpers(t *testing.T) {
 		t.Error("modelo errado aceito")
 	}
 }
+
+// As regras do CT-e recebem o conteúdo de <CTe> como as de NF-e e MDF-e (o dfecheck passa o CTe inteiro).
+func TestCTeRulesAcceptCTeRoot(t *testing.T) {
+	inf := map[string]any{"emit": map[string]any{"CNPJ": "00000000000000"}}
+	direct, _ := Apply("cte", inf, Modes{})
+	wrapped, _ := Apply("cte", map[string]any{"infCte": inf}, Modes{})
+	if len(direct) == 0 || len(direct) != len(wrapped) {
+		t.Fatalf("achados direto %d, dentro de CTe %d", len(direct), len(wrapped))
+	}
+}

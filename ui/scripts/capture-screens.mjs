@@ -110,7 +110,40 @@ const CAPTURES = [
   {slug: 'nfce-detail', route: `/nfce/detail?key=${NFCE_KEY}`, waitText: 'Mouse óptico'},
 
   // ── CT-e / MDF-e ─────────────────────────────────────────────────────────
-  {slug: 'cte-distribution', route: '/cte', waitText: 'CT-e'},
+  {slug: 'cte-list', route: '/cte', waitText: 'Cliente Exemplo LTDA'},
+  {slug: 'cte-distribution', route: '/cte', steps: [{click: 'Importação/Distribuição'}, {waitText: 'Consultar SEFAZ'}]},
+  // Emissão de CT-e nos três estados do `derive` (fixtures em lib/mock/fixtures.ts):
+  // emitidas com frete CIF, recebidas com FOB e mistura de remetentes.
+  {
+    slug: 'cte-emit',
+    route: '/cte/emit',
+    steps: [
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1002 ·'},
+      {waitText: 'Frete CIF na nota'},
+    ],
+  },
+  {
+    slug: 'cte-emit-fob',
+    route: '/cte/emit',
+    steps: [
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4821 ·'},
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4822 ·'},
+      {waitText: 'Frete FOB na nota'},
+      // A faixa de resumo e o bloco do tomador inteiros no quadro, com o selo da sugestão.
+      {scrollAt: '[aria-label="Notas escolhidas"]'},
+    ],
+  },
+  {
+    slug: 'cte-emit-mixed',
+    route: '/cte/emit',
+    steps: [
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4821 ·'},
+      {waitText: 'Notas com remetentes diferentes.'},
+      {scrollAt: '#cte-freight'},
+    ],
+  },
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},
   {slug: 'mdfe-emit', route: '/mdfe/emit', waitText: 'tipo de transporte'},
   {slug: 'mdfe-detail', route: `/mdfe/detail?key=${MDFE_KEY}`, waitText: 'Encerrar'},

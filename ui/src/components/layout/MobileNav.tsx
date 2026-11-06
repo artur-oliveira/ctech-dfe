@@ -21,7 +21,7 @@ interface MobileNavProps {
 export function MobileNav({onOpenMenu, onOpenSearch}: MobileNavProps) {
   const pathname = usePathname();
   const activeContext = contextForPath(pathname);
-  // CT-e ainda não emite: nesse contexto a ação cai no primeiro tipo que emite.
+  // Fora de um contexto de documento (painel, cadastros), a ação cai no primeiro tipo que emite.
   const emitContext = activeContext?.emit ? activeContext : DOC_CONTEXTS.find(c => c.emit)!;
 
   return (

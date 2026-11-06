@@ -531,6 +531,7 @@ overwrite.
 | `documents.yaml`     | persisted fiscal document and event schemas                    |
 | `nfe.yaml`           | NF-e and NFC-e paths + emission schemas                        |
 | `mdfe.yaml`          | MDF-e paths + emission schemas                                 |
+| `ctes.yaml`          | CT-e paths (derive, emissão, lista, detalhe) + schemas         |
 | `nfse.yaml`          | NFS-e paths + emission/event schemas                           |
 
 **Drift protection:** `internal/api/v1/openapi_test.go` builds the production router and compares
@@ -1950,6 +1951,40 @@ frontend precisa desambiguar por `event_type`:
 `justification`, `sequence_number`. Status transitions mirror NF-e
 (`authorized → cancel_pending → cancelled`). Same `user_id`/`user_name` attribution as NF-e.
 
+#### CT-e (modelo 57 — rodoviário a partir de NF-e)
+
+Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emitidas e recebidas). Spec:
+`docs/specs/2026-11-05-cte-emissao-rodoviaria.md`. Código: `api/internal/services/ctes`, handlers em
+`api/internal/api/v1/ctes.go`, OpenAPI em `openapi/ctes.yaml`. Permissões `create.ctes`, `list.ctes`, `get.ctes`.
+
+| Method | Endpoint                     | Description                                                          |
+|--------|------------------------------|----------------------------------------------------------------------|
+| POST   | `/v1.0/ctes/derive`          | Lê as notas e devolve a derivação (não grava; `Idempotency-Key` opcional, fora do bloqueio por assinatura) |
+| POST   | `/v1.0/ctes`                 | Emite: 202 + registro `pending`, outbox para o worker `cte-emission` |
+| GET    | `/v1.0/ctes`                 | Lista (filtros `incoming`, número e data, como NF-e)                 |
+| GET    | `/v1.0/ctes/{access_key}`    | Detalhe (procura em produção e homologação)                          |
+
+**`derive`** (`{nfe_keys: [1..50 chaves modelo 55, sem repetição]}`) lê cada NF-e de `nfes` no ambiente da
+configuração do CT-e e o XML autorizado (`xml_s3_key`, leitor compartilhado `services/nfexml`, o mesmo do MDF-e).
+Remetente/destinatário = emitente/destinatário das notas (divergência: `null` + `mixed_sender`/`mixed_recipient`);
+tomador sugerido pelo `modFrete` (todas 0 → remetente, todas 1 → destinatário, resto → `taker_ambiguous`); peso =
+Σ `pesoB`, senão Σ `qCom` dos itens em KG, senão `null` + `weight_missing` (e o total vira `null`); valor da nota =
+`vNF`; produto predominante = `xProd` do item de maior `vProd`; origem/destino = município do remetente/destinatário.
+`person_id` é o SK do cadastro de pessoas quando o documento existe lá. Avisos extras: `note_not_found`,
+`note_not_authorized`, `note_wrong_model`, `note_xml_unavailable`; 422 `note_not_found` se nenhuma nota é achada.
+
+**Emissão** refaz o derive no servidor e aplica `overrides` (pessoas do cadastro para remetente/destinatário,
+carga, município de origem/destino entre os conhecidos). Tomador `remetente|destinatario` vira `toma3` (0/3);
+`expedidor|recebedor` exigem `person_id` e geram o grupo `exped`/`receb` com `toma3` 1/2; `outro` vira `toma4`.
+`freight.total` é o vTPrest: Comp "FRETE VALOR" com o total menos os componentes, demais Comp em seguida, `vRec =
+vTPrest`. ICMS: sem `icms`, CRT 1/2/4 emitem ICMSSN (CST 90, indSN 1); regime normal exige `cst` e `p_icms` (CST
+40/41/51 → ICMS45 sem alíquota; 20 exige `p_red_bc`); vBC = vTPrest com redução, vICMS = vBC × pICMS, 2 casas,
+arredondamento bancário. **`cfop`** (campo opcional no corpo, além da spec) é obrigatório na emissão: 422
+`cfop_required`. RNTRC de `organization_mdfe_configs.rntrc` (campo `rntrc` do `PUT …/mdfe-config`), senão 422
+`rntrc_required`. Numeração/série de `organization_cte_configs` (`TransactReserveAndCreate`, mesma reserva das
+outras), chave modelo 57 por `services.GenerateAccessKey`, cota `MeterCTe`. O `<CTe>` é a raiz do corpo
+(`CTeRecepcaoSinc`, gzip no egress), com `infCTeSupl/qrCodCTe` por autorizador. Códigos de 422 em `ctes.yaml`.
+
 #### MDF-e (modelo 58 — Manifesto de Documentos Fiscais)
 
 Authorization is **synchronous** (`MDFeRecepcaoSinc`): SEFAZ returns `protMDFe` inline, so the worker
@@ -2419,7 +2454,7 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
   registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. Subir uma regra a warn/block é
-  decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. Pendente: CT-e (sem emissão ainda).
+  decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. O CT-e (`dfecheck.ShadowCTe`) valida o `<CTe>` e o modal `rodo` (`cte_rodo`); as regras do CT-e recebem o `<CTe>` como as das outras famílias.
 
 ## 5. ui — Frontend
 
@@ -3091,6 +3126,22 @@ nem mapas locais de status de evento em telas de detalhe.
 ```
 
 ---
+
+### CT-e: emissão rodoviária a partir de NF-e (`/cte/emit`)
+
+Uma tela só (`components/cte/CteEmitForm.tsx`), sem wizard, dentro de `RequireFiscalConfig variant="cte"`. Contrato:
+`docs/specs/2026-11-05-cte-emissao-rodoviaria.md`.
+
+- **Blocos**: notas (Combobox das NF-e autorizadas emitidas e recebidas, faixa de resumo `N notas · peso · valor ·
+  UF para UF`); quem paga o frete (escolha segmentada, sugestão do `derive` com o motivo; expedidor, recebedor e outro
+  via `PersonPicker`); valor (total, componentes fixos, CFOP filtrado por escopo 5 ou 6, "Imposto" com CST, alíquota e
+  ICMS ao vivo); dados do transporte (recolhido, um override por campo, "editado" e "Voltar ao derivado").
+- **Derive**: `POST /v1.0/ctes/derive` a cada mudança de notas (debounce 300 ms, `keepPreviousData`). O derivado
+  nunca é copiado para o estado; overrides ficam em `CteOverrides` (chave presente = editado). Lógica pura em
+  `lib/utils/cte.ts`.
+- **Emissão**: `POST /v1.0/ctes` com só as decisões e overrides; o servidor recalcula o resto. O 422
+  `rntrc_required` vira a ação "Cadastrar RNTRC" para `/fiscal-config?tab=mdfe` (campo `rntrc` na aba MDF-e).
+- **Lista**: `/cte`, aba "Emitidos" (`GET /v1.0/ctes?incoming=0`).
 
 ## 6. ctech-dfe-worker — Async Workers
 

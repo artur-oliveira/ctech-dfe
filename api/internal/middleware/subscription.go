@@ -81,6 +81,8 @@ var exemptSuffixes = []string{
 	"/nfe/key",
 	// A preview computes and returns; it writes nothing and issues nothing.
 	"/cargo-preview",
+	// O derive do CT-e também só lê e devolve; a emissão (POST /ctes) continua bloqueada.
+	"/ctes/derive",
 }
 
 // RequireActiveSubscription blocks issuance and registry writes for an

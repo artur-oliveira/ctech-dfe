@@ -265,6 +265,7 @@ Fiscal configuration per org per document type. PK only (no SK). Table names use
 | `ind_canal_verde`         | BOOL | MDF-e only: participação no Canal Verde → `ide/indCanalVerde` |
 | `ind_carrega_posterior`   | BOOL | MDF-e only: inclusão de DF-e por evento → `ide/indCarregaPosterior` |
 | `inf_ad_fisco`            | S    | MDF-e only: mensagem ao fisco → `infAdic/infAdFisco`   |
+| `rntrc`                   | S    | MDF-e config: RNTRC da transportadora (8 dígitos). Lido pelo CT-e → `infModal/rodo/RNTRC` |
 | `updated_at`              | S    | ISO-8601 UTC                                           |
 
 ---
@@ -290,6 +291,13 @@ One item per issued fiscal document. PK encodes environment + issuer CNPJ for or
 | `xml_s3_key`   | S    | S3 key of the authorized XML                               |
 | `created_at`   | S    | ISO-8601 UTC                                               |
 | `updated_at`   | S    | ISO-8601 UTC                                               |
+
+CT-e emitido pela API (`POST /v1.0/ctes`, `incoming = 0`) grava também: `emit_cpf_cnpj`, `emit_name`,
+`dest_cpf_cnpj`, `dest_name`, `dh_emi`, `total` e `freight_total` (vTPrest, S, 2 casas), `cfop`, `icms_cst`
+(`00`…`90` ou `SN`), `sender`/`recipient` (M `{doc, name}`), `taker` (M `{role, doc, name}`), `nfe_keys` (L de S),
+`origin`/`destination` (M `{uf, city_ibge, city}`), `cargo` (M `{total_value, total_weight_kg, volumes,
+predominant_product}`), `operation_id`, `user_id`, `user_name`. Os CT-e recebidos por distribuição continuam
+com o formato do worker (`emit_*`, `dest_*`, `total`).
 
 **GSIs:**
 

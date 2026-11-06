@@ -296,6 +296,93 @@ export const mdfesFixture = [
   mdfeList('close_pending', 3, 9, 'PR'),
 ];
 
+// ─── CT-e ───────────────────────────────────────────────────────────────────
+// Notas recebidas (incoming 1): o fornecedor é o emitente, a organização o destino.
+// Com as emitidas de `nfesFixture`, cobrem os três estados da emissão de CT-e:
+// só emitidas (frete CIF, remetente é a organização), só recebidas (FOB) e
+// mistura (remetentes diferentes).
+
+const SUPPLIER_DOC = '12345678000199';
+
+export const receivedNfesFixture = [4821, 4822].map((number, i) => ({
+  ...nfeList('authorized', number, i === 0 ? '1280.00' : '940.00', 2 + i),
+  pk: `${ORG_PK}#nfe#in-${number}`,
+  sk: accessKey(SUPPLIER_DOC, '55', 1, number, 91 + i),
+  incoming: 1,
+  emit_cpf_cnpj: SUPPLIER_DOC,
+  emit_name: 'Fornecedor Modelo ME',
+  dest_cpf_cnpj: ORG_PK,
+  dest_name: 'Empresa Mock LTDA',
+}));
+
+const ORG_PARTY = {doc: ORG_PK, name: 'Empresa Mock LTDA', uf: 'SP', city_ibge: '3550308', city: 'São Paulo'};
+const CUSTOMER_PARTY = {doc: SUPPLIER_DOC, name: 'Cliente Exemplo LTDA', uf: 'MG', city_ibge: '3106200', city: 'Belo Horizonte'};
+const SUPPLIER_PARTY = {doc: SUPPLIER_DOC, name: 'Fornecedor Modelo ME', uf: 'RJ', city_ibge: '3304557', city: 'Rio de Janeiro'};
+
+/** Cadastro de pessoas que o `derive` reconhece pelo documento + nome (mock). */
+export const ctePersonIdsFixture: Record<string, string> = {
+  'Cliente Exemplo LTDA': 'PERSON#1',
+  'Fornecedor Modelo ME': 'PERSON#2',
+};
+
+/** O que o `derive` lê de cada NF-e autorizada; chaveado pela chave de acesso. */
+export const cteDeriveNotesFixture: Record<string, {
+  access_key: string; number: number; serie: number; issued_at: string; source: 'issued' | 'received'
+  value: string; weight_kg: string | null; volumes: number | null; mod_frete: string
+  emitter: typeof ORG_PARTY; recipient: typeof ORG_PARTY; product: string; product_value: string
+}> = Object.fromEntries([
+  {nfe: nfesFixture[0], source: 'issued' as const, weight: '320.000', volumes: 12, mod: '0',
+    emitter: ORG_PARTY, recipient: CUSTOMER_PARTY, product: 'Notebook 15 polegadas', productValue: '3499.90'},
+  {nfe: nfesFixture[1], source: 'issued' as const, weight: '18.500', volumes: 3, mod: '0',
+    emitter: ORG_PARTY, recipient: CUSTOMER_PARTY, product: 'Mouse óptico', productValue: '89.90'},
+  {nfe: receivedNfesFixture[0], source: 'received' as const, weight: '640.000', volumes: 20, mod: '1',
+    emitter: SUPPLIER_PARTY, recipient: ORG_PARTY, product: 'Chapa de aço galvanizado', productValue: '1280.00'},
+  {nfe: receivedNfesFixture[1], source: 'received' as const, weight: '410.250', volumes: 14, mod: '1',
+    emitter: SUPPLIER_PARTY, recipient: ORG_PARTY, product: 'Perfil de alumínio', productValue: '940.00'},
+].map(({nfe, source, weight, volumes, mod, emitter, recipient, product, productValue}) => [nfe.sk, {
+  access_key: nfe.sk,
+  number: nfe.number,
+  serie: nfe.serie,
+  issued_at: nfe.dh_emi,
+  source,
+  value: nfe.total,
+  weight_kg: weight,
+  volumes,
+  mod_frete: mod,
+  emitter,
+  recipient,
+  product,
+  product_value: productValue,
+}]));
+
+function cteList(status: string, number: number, day: number, taker: 'remetente' | 'destinatario', freight: string) {
+  const sender = taker === 'remetente' ? ORG_PARTY : SUPPLIER_PARTY;
+  const recipient = taker === 'remetente' ? CUSTOMER_PARTY : ORG_PARTY;
+  return {
+    pk: `${ORG_PK}#cte#${number}`,
+    sk: accessKey(ORG_PK, '57', 1, number, number * 17),
+    status,
+    sefaz_status: status === 'authorized' ? '100' : null,
+    sefaz_motive: null,
+    number,
+    serie: 1,
+    freight_total: freight,
+    cfop: sender.uf === recipient.uf ? '5353' : '6353',
+    icms_cst: 'SN',
+    sender: {doc: sender.doc, name: sender.name},
+    recipient: {doc: recipient.doc, name: recipient.name},
+    taker: {role: taker, ...(taker === 'remetente' ? {doc: sender.doc, name: sender.name} : {doc: recipient.doc, name: recipient.name})},
+    dh_emi: `2026-07-${String(day).padStart(2, '0')}T09:30:00Z`,
+    created_at: `2026-07-${String(day).padStart(2, '0')}T09:30:00Z`,
+  };
+}
+
+export const ctesFixture = [
+  cteList('authorized', 31, 6, 'remetente', '1850.00'),
+  cteList('authorized', 30, 4, 'destinatario', '620.00'),
+  cteList('pending', 32, 9, 'remetente', '410.00'),
+];
+
 export const distributionsFixture = [
   {
     nsu: 100000001,
@@ -375,6 +462,7 @@ export const cteConfigFixture = {
 export const mdfeConfigFixture = {
   ...nfeConfigFixture,
   pk: `${ORG_PK}#mdfe-config`,
+  rntrc: '12345678',
   hom_current_number: 2,
   hom_nsu: 0,
   hom_last_dist_nsu_at: null,

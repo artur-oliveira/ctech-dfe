@@ -80,8 +80,8 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     title: 'Transporte: CT-e e MDF-e',
     time: '6 min',
     description:
-      'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e o que já dá para fazer com CT-e hoje.',
-    tags: ['Manifesto', 'Encerramento', 'Veículos'],
+      'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e CT-e rodoviário emitido a partir das NF-e da carga.',
+    tags: ['Manifesto', 'Encerramento', 'CT-e a partir de NF-e'],
     icon: <MdfeIcon width={20} height={20}/>,
     accent: '#f59e0b',
   },

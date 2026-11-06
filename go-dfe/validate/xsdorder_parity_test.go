@@ -3,7 +3,6 @@ package validate
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 
 	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops/xsdorder"
@@ -35,11 +34,6 @@ func TestXSDOrderMatchesSpecs(t *testing.T) {
 	}
 	sort.Strings(problems)
 	for _, p := range problems {
-		// CT-e ainda não tem builder: a tabela dele é a lista de trabalho da F6, não uma falha.
-		if strings.HasPrefix(p, "cte ") {
-			t.Log(p)
-			continue
-		}
 		t.Error(p)
 	}
 }

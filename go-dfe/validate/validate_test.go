@@ -93,3 +93,15 @@ func TestRulesWarnDefaultAndBlockOverride(t *testing.T) {
 		t.Error("off deveria silenciar")
 	}
 }
+
+// Choice obrigatória com braços só de elementos opcionais (infNFe do CT-e) é satisfeita vazia; CNPJ|CPF não.
+func TestOptionalArm(t *testing.T) {
+	opt := &node{Children: []*node{{Name: "infUnidCarga", Choice: 1, Arm: 0}, {Name: "infUnidTransp", Choice: 1, Arm: 1}}}
+	if !optionalArm(opt, 1) {
+		t.Fatal("braços opcionais deveriam satisfazer a choice vazia")
+	}
+	req := &node{Children: []*node{{Name: "CNPJ", Min: 1, Choice: 1, Arm: 0}, {Name: "CPF", Min: 1, Choice: 1, Arm: 1}}}
+	if optionalArm(req, 1) {
+		t.Fatal("CNPJ|CPF exige uma das alternativas")
+	}
+}

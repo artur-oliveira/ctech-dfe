@@ -1389,6 +1389,8 @@ type MdfeConfigBody struct {
 	// InfAdFisco — mensagem de interesse do fisco repetida em toda emissão
 	// (infAdic/infAdFisco). A observação da viagem continua no corpo da emissão.
 	InfAdFisco *string `json:"inf_ad_fisco" validate:"omitempty,max=2000"`
+	// RNTRC da transportadora (ANTT). O CT-e rodoviário o lê daqui (infModal/rodo/RNTRC).
+	RNTRC *string `json:"rntrc" validate:"omitempty,len=8,numeric"`
 }
 
 // NfceConfigBody is the body for PUT /…/nfce-config (adds CSC fields).

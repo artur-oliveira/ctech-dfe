@@ -99,6 +99,8 @@ tags:
     description: Nota Fiscal de Consumidor Eletrônica (modelo 65).
   - name: MDF-e
     description: Manifesto Eletrônico de Documentos Fiscais.
+  - name: CT-e
+    description: Conhecimento de Transporte Eletrônico (modelo 57), rodoviário a partir de NF-e.
   - name: NFS-e
     description: Nota Fiscal de Serviço Eletrônica (padrão nacional e ABRASF).
   - name: Distributions

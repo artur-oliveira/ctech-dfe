@@ -164,8 +164,10 @@ export default function GuideConta() {
           },
           body: (
             <p>
-              NF-e e CT-e mostram também o NSU da distribuição; NFC-e acrescenta o CSC; NFS-e, o
-              provedor e o município de emissão. Produção e homologação têm série e número atual
+              NF-e e CT-e mostram também o NSU da distribuição; NFC-e acrescenta o CSC; MDF-e, o
+              Canal Verde, a mensagem ao fisco e o RNTRC da transportadora (8 dígitos, da ANTT; opcional
+              no MDF-e e obrigatório para emitir CT-e rodoviário); NFS-e, o provedor e o município de
+              emissão. Produção e homologação têm série e número atual
               independentes, então testar nunca queima numeração válida.
             </p>
           ),

@@ -31,6 +31,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
@@ -138,6 +139,7 @@ var Module = fx.Options(
 		newNFeService,
 		newNFCeService,
 		newMDFeService,
+		newCTeService,
 		newNfseService,
 		newDistributionService,
 		newResultsConsumer,
@@ -519,6 +521,32 @@ func newMDFeService(
 	)
 }
 
+func newCTeService(
+	orgRepo *repositories.OrganizationRepository,
+	certRepo *repositories.CertificateRepository,
+	configRepo *repositories.CteConfigRepository,
+	mdfeConfigRepo *repositories.MdfeConfigRepository,
+	cteRepo *repositories.CteRepository,
+	nfeRepo *repositories.NfeRepository,
+	personRepo *repositories.PersonRepository,
+	clients *awsclient.Clients,
+	workerSvc *services.WorkerService,
+	cfg *config.Config,
+	billingSvc *services.BillingService,
+) *ctesvc.CteService {
+	return ctesvc.NewCteService(
+		orgRepo, certRepo, configRepo, mdfeConfigRepo, cteRepo, nfeRepo, personRepo,
+		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		ctesvc.TechData{
+			CNPJ:    cfg.TechnicalCNPJ,
+			Name:    cfg.TechnicalName,
+			Email:   cfg.TechnicalEmail,
+			Phone:   cfg.TechnicalPhone,
+			Version: cfg.AppVersion,
+		},
+	)
+}
+
 // newNfseService monta o serviço de NFS-e. O repositório de eventos é criado
 // aqui (e não como provider) porque NewDocumentEventRepository recebe o docType
 // — mesmo padrão de newNFCeService/newMDFeService.
@@ -578,6 +606,7 @@ type Services struct {
 	NfeSvc          *nfesvc.NfeService
 	NfceSvc         *nfesvc.NfceService
 	MdfeSvc         *mdfesvc.MdfeService
+	CteSvc          *ctesvc.CteService
 	NfseSvc         *nfsesvc.NfseService
 	NfeConf         *services.NfeConfigService
 	NfceConf        *services.NfceConfigService
@@ -628,6 +657,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NFe:             svcs.NfeSvc,
 		NFCe:            svcs.NfceSvc,
 		MDFe:            svcs.MdfeSvc,
+		CTe:             svcs.CteSvc,
 		Nfse:            svcs.NfseSvc,
 		NfeConfig:       svcs.NfeConf,
 		NfceConfig:      svcs.NfceConf,

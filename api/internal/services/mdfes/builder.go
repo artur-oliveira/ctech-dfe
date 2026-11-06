@@ -514,16 +514,7 @@ func personMap(org map[string]types.AttributeValue) map[string]any {
 	return map[string]any{}
 }
 
-func firstIE(person map[string]any) string {
-	if regs, ok := person["state_registrations"].([]any); ok && len(regs) > 0 {
-		if rm, ok := regs[0].(map[string]any); ok {
-			if v, ok := rm["state_registration"].(string); ok {
-				return v
-			}
-		}
-	}
-	return ""
-}
+func firstIE(person map[string]any) string { return services.FirstIE(person) }
 
 func anyStr(m map[string]any, key string) string {
 	if v, ok := m[key].(string); ok {

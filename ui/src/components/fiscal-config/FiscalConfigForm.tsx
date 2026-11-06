@@ -88,6 +88,7 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
       ind_canal_verde: mdfe?.ind_canal_verde ?? false,
       ind_carrega_posterior: mdfe?.ind_carrega_posterior ?? false,
       inf_ad_fisco: mdfe?.inf_ad_fisco ?? '',
+      rntrc: mdfe?.rntrc ?? '',
     } as never;
   }
 
@@ -126,6 +127,7 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
       ind_canal_verde: m.ind_canal_verde,
       ind_carrega_posterior: m.ind_carrega_posterior,
       inf_ad_fisco: m.inf_ad_fisco || null,
+      rntrc: m.rntrc || null,
     };
   }
 
@@ -392,6 +394,22 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
               Valem para toda emissão da organização. A observação de uma viagem específica continua
               sendo preenchida na emissão do manifesto.
             </p>
+            <FormField
+              control={form.control}
+              name={'rntrc' as never}
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>RNTRC da transportadora (ANTT)</FormLabel>
+                  <NumericInput {...field} value={(field.value as string) ?? ''} integerPlaces={8}
+                                inputMode="numeric" placeholder="00000000" className="w-full sm:max-w-xs"
+                                onChange={field.onChange}/>
+                  <p className="text-xs text-gray-500">
+                    8 dígitos. Opcional no MDF-e; obrigatório para emitir CT-e rodoviário.
+                  </p>
+                  <FormMessage/>
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name={'ind_canal_verde' as never}

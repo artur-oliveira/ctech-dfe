@@ -56,11 +56,16 @@ export const nfeConfigSchema = z.object({ ...baseFields });
 export const cteConfigSchema = nfeConfigSchema;
 // O MDF-e acrescenta três campos que só existem no leiaute dele e recorrem em
 // toda emissão da organização — a observação da viagem continua na emissão.
+/** RNTRC da ANTT: 8 dígitos (`MdfeConfigBody.rntrc`). */
+export const RNTRC_PATTERN = /^\d{8}$/;
+
 export const mdfeConfigSchema = z.object({
   ...baseFields,
   ind_canal_verde: z.boolean(),
   ind_carrega_posterior: z.boolean(),
   inf_ad_fisco: z.string().max(2000).optional().or(z.literal('')),
+  // Opcional para o MDF-e; sem ele a emissão de CT-e devolve 422 `rntrc_required`.
+  rntrc: z.string().regex(RNTRC_PATTERN, 'O RNTRC tem 8 dígitos').optional().or(z.literal('')),
 });
 
 export const nfceConfigSchema = z.object({

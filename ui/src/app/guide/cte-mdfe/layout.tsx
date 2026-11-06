@@ -7,14 +7,14 @@ import {absoluteUrl} from '@/lib/seo/site';
 // `lib/constants/guide.tsx`.
 export const metadata: Metadata = {
   title: 'Transporte: CT-e e MDF-e',
-  description: 'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e o que já dá para fazer com CT-e hoje.',
+  description: 'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e CT-e rodoviário emitido a partir das NF-e da carga.',
   alternates: {canonical: absoluteUrl('/guide/cte-mdfe')},
 };
 
 const LD = guideTopicLd({
   href: '/guide/cte-mdfe',
   title: 'Transporte: CT-e e MDF-e',
-  description: 'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e o que já dá para fazer com CT-e hoje.',
+  description: 'Manifesto de carga com veículos, condutores e notas vinculadas; encerramento da viagem; e CT-e rodoviário emitido a partir das NF-e da carga.',
 });
 
 export default function Layout({children}: {children: ReactNode}) {

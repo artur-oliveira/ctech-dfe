@@ -298,6 +298,8 @@ export interface MDFeConfigOut extends NFeConfigOut {
   ind_carrega_posterior?: boolean
   /** Mensagem ao fisco repetida em toda emissão → `infAdic/infAdFisco`. */
   inf_ad_fisco?: string | null
+  /** RNTRC da transportadora (ANTT), 8 dígitos. O CT-e rodoviário lê daqui (`infModal/rodo/RNTRC`). */
+  rntrc?: string | null
 }
 
 // NFS-e usa uma única série para os dois ambientes.
@@ -1966,6 +1968,128 @@ export interface MdfeIncludeDFeDoc {
   unloading_ibge_code: string
   unloading_city: string
   nfe_key: string
+}
+
+// ─── CT-e rodoviário (modelo 57) ─────────────────────────────────────────
+// Contrato: docs/specs/2026-11-05-cte-emissao-rodoviaria.md
+
+export type CteTakerRole = 'remetente' | 'destinatario' | 'expedidor' | 'recebedor' | 'outro'
+export type CteIcmsCst = '00' | '20' | '40' | '41' | '51' | '60' | '90' | 'SN'
+
+/** Emitente ou destinatário como aparece numa NF-e. */
+export interface CteNoteParty {
+  doc: string
+  name: string
+  uf: string
+  city_ibge: string
+  city: string
+}
+
+/** Remetente/destinatário derivado das notas; `person_id` quando o documento existe no cadastro. */
+export interface CteParty extends CteNoteParty {
+  person_id: string | null
+}
+
+export interface CtePlace {
+  uf: string
+  city_ibge: string
+  city: string
+}
+
+export interface CteDerivedNote {
+  access_key: string
+  number: number
+  serie: number
+  issued_at: string
+  source: 'issued' | 'received'
+  value: string
+  weight_kg: string | null
+  volumes: number | null
+  mod_frete: string
+  emitter: CteNoteParty
+  recipient: CteNoteParty
+}
+
+export interface CteCargo {
+  total_value: string
+  total_weight_kg: string | null
+  volumes: number
+  predominant_product: string
+}
+
+export interface CteDeriveWarning {
+  code: string
+  message: string
+  access_key: string | null
+}
+
+export interface CteTakerSuggestion {
+  role: 'remetente' | 'destinatario'
+  reason: 'mod_frete_cif' | 'mod_frete_fob'
+}
+
+/** `POST /v1.0/ctes/derive`. */
+export interface CteDeriveOut {
+  notes: CteDerivedNote[]
+  sender: CteParty | null
+  recipient: CteParty | null
+  taker_suggestion: CteTakerSuggestion | null
+  cargo: CteCargo
+  origin: CtePlace | null
+  destination: CtePlace | null
+  warnings: CteDeriveWarning[]
+}
+
+export interface CteFreightComponent {
+  name: string
+  value: string
+}
+
+export interface CteEmitOverrides {
+  sender_person_id?: string
+  recipient_person_id?: string
+  cargo?: Partial<CteCargo>
+  origin?: { city_ibge: string }
+  destination?: { city_ibge: string }
+}
+
+/** `POST /v1.0/ctes`. O que não vem aqui o servidor deriva das notas de novo. */
+export interface CteEmitBody {
+  nfe_keys: string[]
+  taker: { role: CteTakerRole; person_id?: string }
+  freight: { total: string; components?: CteFreightComponent[] }
+  icms?: { cst: CteIcmsCst; p_icms?: string; p_red_bc?: string }
+  /** CFOP da prestação; o servidor nunca presume (422 `cfop_required`). Fora da spec, veio do OpenAPI. */
+  cfop: string
+  overrides?: CteEmitOverrides
+  additional_info?: string
+}
+
+/** Linha de `GET /v1.0/ctes` e corpo do 202 da emissão (`CteDocument` do OpenAPI). */
+export interface CteListOut {
+  pk: string
+  sk: string            // 44-digit chave de acesso
+  status: DfeStatus
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  number: number
+  serie: number
+  freight_total: string
+  cfop: string
+  icms_cst: string
+  sender: { doc: string; name: string }
+  recipient: { doc: string; name: string }
+  taker: { role: CteTakerRole; doc: string; name: string }
+  dh_emi: string | null
+  created_at: string
+}
+
+export interface CteDetailOut extends CteListOut {
+  nfe_keys: string[]
+  origin: CtePlace | null
+  destination: CtePlace | null
+  cargo: CteCargo | null
+  xml_s3_key: string | null
 }
 
 // ─── NFS-e ───────────────────────────────────────────────────────────────

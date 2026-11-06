@@ -31,6 +31,10 @@ import type {
   SignedFileDownload,
   CertificateOut,
   CTeConfigOut,
+  CteDeriveOut,
+  CteDetailOut,
+  CteEmitBody,
+  CteListOut,
   DistributionLookupOut,
   InvitationOut,
   InvitationPreview,
@@ -988,6 +992,30 @@ class ApiClient {
 
   async downloadNfceDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
     return this.get(`/v1.0/nfces/${accessKey}/danfce`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS});
+  }
+
+  // CT-es (modelo 57, rodoviário) — uses Dfe-Organization-Pk header
+  /** Deriva remetente, destinatário, tomador sugerido, carga e trajeto das NF-e escolhidas. */
+  async deriveCte(nfeKeys: string[]): Promise<CteDeriveOut> {
+    return this.post('/v1.0/ctes/derive', {nfe_keys: nfeKeys});
+  }
+
+  /** 202 + registro `pending`; a autorização chega pelo WebSocket. */
+  async emitCte(data: CteEmitBody): Promise<CteDetailOut> {
+    return this.post('/v1.0/ctes', data);
+  }
+
+  async getCtes(params?: {
+    limit?: number
+    cursor?: string
+    sort?: 'asc' | 'desc'
+    incoming?: 0 | 1
+  }): Promise<PaginatedResponse<CteListOut>> {
+    return this.get('/v1.0/ctes', {params});
+  }
+
+  async getCte(accessKey: string): Promise<CteDetailOut> {
+    return this.get(`/v1.0/ctes/${accessKey}`);
   }
 
   // MDF-es (modelo 58) — uses Dfe-Organization-Pk header

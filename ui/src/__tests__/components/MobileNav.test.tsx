@@ -23,9 +23,13 @@ describe('MobileNav', () => {
     expect(screen.getByRole('link', {name: 'Emitir NFS-e'})).toHaveAttribute('href', '/nfse/emit');
   });
 
-  it('falls back to a type that can be issued when the context cannot', () => {
-    // CT-e ainda não tem tela de emissão.
+  it('points CT-e at its own emission screen', () => {
     renderAt('/cte');
+    expect(screen.getByRole('link', {name: 'Emitir CT-e'})).toHaveAttribute('href', '/cte/emit');
+  });
+
+  it('falls back to the first type that can be issued outside a document context', () => {
+    renderAt('/dashboard');
     expect(screen.getByRole('link', {name: 'Emitir NF-e'})).toHaveAttribute('href', '/nfe/emit');
   });
 

@@ -111,6 +111,12 @@ export const queryKeys = {
     events: (accessKey: string) => ['mdfe-events', accessKey] as const,
     cargoPreview: (orgPk: string | undefined, keys: string[]) => ['mdfe-cargo-preview', orgPk, keys] as const,
   },
+  ctes: {
+    lists: (orgPk: string | undefined) => ['ctes', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['ctes', orgPk, params] as const,
+    detail: (accessKey: string) => ['cte', accessKey] as const,
+    derive: (orgPk: string | undefined, keys: string[]) => ['cte-derive', orgPk, keys] as const,
+  },
   nfses: {
     lists: (orgPk: string | undefined) => ['nfses', orgPk] as const,
     list: (orgPk: string | undefined, params?: object) => ['nfses', orgPk, params] as const,

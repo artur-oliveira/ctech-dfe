@@ -46,3 +46,15 @@ func firstStringInList(contacts map[string]any, key string) string {
 	}
 	return ""
 }
+
+// FirstIE returns the first state registration (IE) of person.state_registrations, or "".
+func FirstIE(person map[string]any) string {
+	if regs, ok := person["state_registrations"].([]any); ok && len(regs) > 0 {
+		if rm, ok := regs[0].(map[string]any); ok {
+			if v, ok := rm["state_registration"].(string); ok {
+				return v
+			}
+		}
+	}
+	return ""
+}

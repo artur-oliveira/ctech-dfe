@@ -466,12 +466,14 @@ var servicosNfe = map[string][]string{
 var envicte = map[string][]string{
 
 	"enviCTe": {"idLote", "CTe"},
-	"CTe":     {"infCte", "infCTeSupl"},
+	"CTe":     {"infCte", "infCTeSupl", "Signature"},
 
+	// Ordem do cte_v4.00.xsd / cteTiposBasico_v4.00.xsd (PL_CTe_400_NT2026.005), conferida por
+	// validate/xsdorder_parity_test.go contra os XSDs vendorizados em go-dfe/schemas/cte.
 	"infCte": {
 		"ide", "compl", "emit", "rem", "exped", "receb", "dest", "vPrest",
-		"imp", "infCTeNorm", "infCteSub", "infCteComp", "autXML",
-		"infRespTec", "infSolicNFF",
+		"imp", "pgtoVinc", "infCTeNorm", "infCteComp", "autXML",
+		"infRespTec", "infSolicNFF", "infPAA",
 	},
 
 	// ide — CT-e
@@ -480,33 +482,80 @@ var envicte = map[string][]string{
 		"dhEmi", "tpImp", "tpEmis", "cDV", "tpAmb", "tpCTe",
 		"procEmi", "verProc", "indGlobalizado",
 		"cMunEnv", "xMunEnv", "UFEnv",
-		"modal", "tpServ", "dhIniViagem", "indIEToma",
-		"indCarga", "toma3", "toma4",
-		"dhCont", "xJust",
-		"UFIni", "cMunIni", "xMunIni", "UFFim", "cMunFim", "xMunFim",
+		"modal", "tpServ",
+		"cMunIni", "xMunIni", "UFIni", "cMunFim", "xMunFim", "UFFim",
+		"retira", "xDetRetira", "indIEToma", "toma3", "toma4",
+		"dhCont", "xJust", "gCompraGov", "tpPagAnt", "gPagAntecipado", "gMultaJuros",
 	},
+	"toma4": {"toma", "CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderToma", "email"},
 
 	// emit — CT-e: IE vem antes de xNome (diferente da NF-e)
-	"infCte:emit": {"CNPJ", "CPF", "IE", "IEST", "xNome", "xFant", "enderEmit", "CRT"},
+	"infCte:emit": {"CNPJ", "CPF", "IE", "IEST", "xNome", "xFant", "enderEmit", "CRT", "ISUFEmit", "tpRegimeIBSCBS"},
+	// enderEmit do CT-e: CEP antes de UF e sem cPais/xPais (TEndeEmi).
+	"infCte:emit:enderEmit": {"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "CEP", "UF", "fone"},
 
-	// rem / exped / receb / dest — CT-e (ordem comum)
-	"rem":         {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderReme"},
-	"exped":       {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderExped"},
-	"receb":       {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderReceb"},
-	"infCte:dest": {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderDest"},
+	// rem / exped / receb / dest — CT-e
+	"rem":         {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderReme", "email"},
+	"exped":       {"CNPJ", "CPF", "IE", "xNome", "fone", "enderExped", "email"},
+	"receb":       {"CNPJ", "CPF", "IE", "xNome", "fone", "enderReceb", "email"},
+	"infCte:dest": {"CNPJ", "CPF", "IE", "xNome", "fone", "ISUF", "enderDest", "email"},
+	// TEndereco do CT-e: CEP antes de UF (a NF-e põe UF antes de CEP).
+	"enderToma":             cteEndereco,
+	"enderReme":             cteEndereco,
+	"enderExped":            cteEndereco,
+	"enderReceb":            cteEndereco,
+	"infCte:dest:enderDest": cteEndereco,
 
 	// compl
-	"compl":    {"xCaracAd", "xCaracSer", "xEmi", "xObs", "ObsCont", "ObsFisco"},
-	"ObsCont":  {"xTexto"},
-	"ObsFisco": {"xTexto"},
+	"compl":     {"xCaracAd", "xCaracSer", "xEmi", "fluxo", "Entrega", "origCalc", "destCalc", "xObs", "ObsCont", "ObsFisco"},
+	"fluxo":     {"xOrig", "pass", "xDest", "xRota"},
+	"comData":   {"tpPer", "dProg"},
+	"noPeriodo": {"tpPer", "dIni", "dFim"},
+	"comHora":   {"tpHor", "hProg"},
+	"noInter":   {"tpHor", "hIni", "hFim"},
+	"ObsCont":   {"xTexto"},
+	"ObsFisco":  {"xTexto"},
 
 	// vPrest
-	"vPrest": {"vTPrest", "vRec", "Comp"},
+	"vPrest": {"vTPrest", "vTPrestLiq", "vRec", "Comp"},
 	"Comp":   {"xNome", "vComp"},
 
-	// imp — CT-e
-	"imp": {"ICMS", "ICMSUFFim", "ICMSUFIni", "vTotTrib", "infAdFisco", "ICMSGSub", "IBS", "CBS", "IS"},
+	// imp — CT-e (escopo "imp:ICMS:" separa do imposto/ICMS da NF-e)
+	"imp":                  {"ICMS", "vTotTrib", "infAdFisco", "ICMSUFFim", "IBSCBS", "vTotDFe"},
+	"imp:ICMS:ICMS00":      {"CST", "vBC", "pICMS", "vICMS"},
+	"imp:ICMS:ICMS20":      {"CST", "pRedBC", "vBC", "pICMS", "vICMS", "vICMSDeson", "cBenef"},
+	"imp:ICMS:ICMS45":      {"CST", "vICMSDeson", "cBenef"},
+	"imp:ICMS:ICMS60":      {"CST", "vBCSTRet", "vICMSSTRet", "pICMSSTRet", "vCred", "vICMSDeson", "cBenef"},
+	"imp:ICMS:ICMS90":      {"CST", "pRedBC", "vBC", "pICMS", "vICMS", "vCred", "vICMSDeson", "cBenef"},
+	"imp:ICMS:ICMSOutraUF": {"CST", "pRedBCOutraUF", "vBCOutraUF", "pICMSOutraUF", "vICMSOutraUF", "vICMSDeson", "cBenef"},
+	"imp:ICMS:ICMSSN":      {"CST", "indSN"},
+	"ICMSUFFim":            {"vBCUFFim", "pFCPUFFim", "pICMSUFFim", "pICMSInter", "vFCPUFFim", "vICMSUFFim", "vICMSUFIni"},
+
+	"pgtoVinc:pgto": {"tpMeioPgto", "CNPJReceb", "CNPJBasePSP"},
+
+	// infCTeNorm
+	"infCTeNorm":    {"infCarga", "infDoc", "docAnt", "infModal", "veicNovos", "cobr", "infCteSub", "infGlobalizado", "infServVinc"},
+	"infCarga":      {"vCarga", "proPred", "xOutCat", "infQ", "vCargaAverb"},
+	"infCarga:infQ": {"cUnid", "tpMed", "qCarga"},
+	"infCTeNorm:infDoc:infNF": {
+		"nRoma", "nPed", "mod", "serie", "nDoc", "dEmi", "vBC", "vICMS", "vBCST", "vST",
+		"vProd", "vNF", "nCFOP", "nPeso", "PIN", "dPrev", "infUnidCarga", "infUnidTransp",
+	},
+	"infCTeNorm:infDoc:infNFe":    {"chave", "PIN", "dPrev", "infUnidCarga", "infUnidTransp"},
+	"infCTeNorm:infDoc:infOutros": {"tpDoc", "descOutros", "nDoc", "dEmi", "vDocFisc", "dPrev", "infUnidCarga", "infUnidTransp"},
+	"emiDocAnt":                   {"CNPJ", "CPF", "IE", "UF", "xNome", "idDocAnt"},
+	"idDocAntPap":                 {"tpDoc", "serie", "subser", "nDoc", "dEmi"},
+	"veicNovos":                   {"chassi", "cCor", "xCor", "cMod", "vUnit", "vFrete"},
+	"infCTeNorm:infCteSub":        {"chCte", "indAlteraToma"},
+
+	// Modal rodoviário do CT-e (cteModalRodoviario_v4.00.xsd); "rodo" sem escopo é o do MDF-e.
+	"infCTeNorm:infModal:rodo": {"RNTRC", "occ"},
+	"occ":                      {"serie", "nOcc", "dEmi", "emiOcc"},
+	"emiOcc":                   {"CNPJ", "cInt", "IE", "UF", "fone"},
 }
+
+// cteEndereco é a sequência de TEndereco do CT-e (tomador, remetente, expedidor, recebedor, destinatário).
+var cteEndereco = []string{"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "CEP", "UF", "cPais", "xPais"}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CT-e — Serviços: status, consulta situação, eventos

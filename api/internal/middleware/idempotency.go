@@ -27,7 +27,7 @@ var optionalIdempotencyPrefixes = []string{
 }
 
 // optionalIdempotencySuffixes are POSTs that write nothing.
-var optionalIdempotencySuffixes = []string{"/cargo-preview"}
+var optionalIdempotencySuffixes = []string{"/cargo-preview", "/ctes/derive"}
 
 func idempotencyOptional(path string) bool {
 	for _, p := range optionalIdempotencyPrefixes {

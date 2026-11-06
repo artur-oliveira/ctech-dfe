@@ -174,8 +174,8 @@ components:
     MdfeConfigBody:
       type: object
       description: |
-        Configuração de MDF-e. É a `FiscalConfigBody` mais três campos que só
-        existem no leiaute do MDF-e e recorrem em toda emissão da organização.
+        Configuração de MDF-e. É a `FiscalConfigBody` mais os campos do transporte que
+        recorrem em toda emissão da organização (o RNTRC também serve ao CT-e).
       allOf:
         - $ref: '#/components/schemas/FiscalConfigBody'
         - type: object
@@ -195,6 +195,12 @@ components:
                 Mensagem de interesse do fisco repetida em toda emissão →
                 `infAdic/infAdFisco`. A observação da viagem continua em
                 `additional_info`, no corpo da emissão.
+            rntrc:
+              type: [ string, 'null' ]
+              pattern: '^\d{8}$'
+              description: |
+                RNTRC da transportadora (ANTT). O CT-e rodoviário o usa em `infModal/rodo/RNTRC`;
+                sem ele a emissão de CT-e devolve 422 `rntrc_required`.
 
     FiscalConfigBody:
       type: object

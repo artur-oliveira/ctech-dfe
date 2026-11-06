@@ -1180,11 +1180,29 @@ If any step is missing, it must be explicitly stated.
 
 Os builders de NF-e/NFC-e e MDF-e passam o documento por `services.PruneEmpty`: tag ou atributo de texto vazio é
 omitido (dado ausente não vira `<xFant></xFant>`, que a SEFAZ recusa com 225). Grupo que o builder já cria vazio é
-preservado. Builder novo (CT-e) deve fazer o mesmo.
+preservado. O builder do CT-e (`api/internal/services/ctes`) faz o mesmo.
 
 ## Ordem dos filhos: teste de paridade com o XSD
 
 `go-dfe/validate/xsdorder_parity_test.go` compara a tabela `xsdorder` com a sequência dos XSDs vendorizados. Tag fora da
 tabela vai para o fim em ordem alfabética (225 na SEFAZ), então todo campo novo de leiaute entra em `xsdorder` junto.
-NF-e e MDF-e falham o teste se divergirem; a divergência do CT-e é a lista de trabalho da F6 (aparece em `go test -v`).
+NF-e, MDF-e e CT-e falham o teste se divergirem (o CT-e ficou estrito junto com o builder do CT-e rodoviário).
+`table_test.go` fixa a contagem de chaves: chave nova entra nas duas.
 O teste já pegou ICMSTot sem vICMSUFDest/vFCPUFDest/vICMSUFRemet, impostoDevol e agropecuario/infPAA fora de ordem.
+
+## CT-e rodoviário: nada fiscal é presumido
+
+`POST /v1.0/ctes` (spec `docs/specs/2026-11-05-cte-emissao-rodoviaria.md`) devolve 422 com `code` em vez de
+presumir regra fiscal: `cfop_required` (o CFOP da prestação é do usuário; nenhum 5353/6353 padrão),
+`icms_required` / `icms_rate_required` (regime normal sem CST ou alíquota; só CRT 1, 2 e 4 caem no ICMSSN),
+`rntrc_required` (RNTRC vem de `organization_mdfe_configs.rntrc`, nunca inventado). O cliente não é fonte de verdade
+das notas: a emissão refaz o `derive` no servidor. Origem e destino sobrescritos precisam ser um município que
+aparece nas notas ou nos participantes (não há tabela IBGE de nomes na API).
+
+As regras do MOC do CT-e (`go-dfe/validate/rules_cte.go`) recebem o conteúdo de `<CTe>` como as de NF-e e MDF-e
+(`dfecheck.ShadowCTe`), e aceitam o `infCte` direto, que é o que o catálogo testa.
+`validate` trata choice obrigatória com braços só de elementos opcionais como satisfeita vazia
+(`infNFe/{infUnidCarga|infUnidTransp}` do CT-e).
+
+A URL do QR Code (`infCTeSupl/qrCodCTe`) sai de uma tabela por autorizador em `ctes/builder.go` (MG, MS, MT, PR e
+SP próprios; o resto SVRS), a mesma para produção e homologação: conferir na homologação de cada autorizador.

@@ -1,0 +1,299 @@
+paths:
+
+  # ── CT-e ───────────────────────────────────────────────────────────────────
+  # Spec: docs/specs/2026-11-05-cte-emissao-rodoviaria.md (CT-e 57, normal, rodoviário, a partir de NF-e).
+
+  /v1.0/ctes/derive:
+    post:
+      tags: [ CT-e ]
+      summary: Deriva o CT-e das notas
+      description: |
+        Lê cada NF-e do cadastro (emitidas e recebidas) e o XML autorizado, e devolve remetente,
+        destinatário, tomador sugerido, carga, origem, destino e avisos. Não grava nada nem consome
+        número fiscal. `Idempotency-Key` é opcional.
+
+        Códigos de aviso: `mixed_sender`, `mixed_recipient`, `taker_ambiguous`, `weight_missing`,
+        `note_not_authorized`, `note_not_found`, `note_wrong_model`, `note_xml_unavailable`.
+        422 `note_not_found` quando nenhuma nota é encontrada.
+      operationId: deriveCte
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteDeriveBody' }
+      responses:
+        '200':
+          description: Derivação
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDerivation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes:
+    post:
+      tags: [ CT-e ]
+      summary: Emite um CT-e rodoviário a partir de NF-e
+      description: |
+        O que o corpo não traz é recalculado no servidor pelas mesmas regras do `derive`. Resposta 202
+        com o registro `pending`; o worker autoriza (`CTeRecepcaoSinc`) e o resultado chega pelo WebSocket.
+
+        422 com `code`: `cfop_required`, `icms_required`, `icms_rate_required`, `icms_sn_not_allowed`,
+        `rntrc_required`, `taker_person_required`, `person_not_found`, `weight_required`,
+        `predominant_product_required`, `components_exceed_total`, `freight_total_invalid`,
+        `city_unknown`, `mixed_sender`, `mixed_recipient`, `note_not_found`, `note_not_authorized`,
+        `cte_config_required`.
+      operationId: emitCte
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteEmitBody' }
+      responses:
+        '202':
+          description: CT-e registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ CT-e ]
+      summary: Lista CT-e
+      operationId: listCtes
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - name: incoming
+          in: query
+          description: '`1` lista os CT-e recebidos (distribuição); `0` os emitidos.'
+          schema: { type: integer, enum: [ 0, 1 ] }
+        - $ref: '#/components/parameters/FilterNumber'
+        - $ref: '#/components/parameters/FilterYear'
+        - $ref: '#/components/parameters/FilterMonth'
+        - $ref: '#/components/parameters/FilterDay'
+      responses:
+        '200':
+          description: Página de CT-e
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/CteDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/ctes/{access_key}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ CT-e ]
+      summary: Detalha um CT-e
+      operationId: getCte
+      responses:
+        '200':
+          description: CT-e
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  schemas:
+
+    CteNfeKeys:
+      type: array
+      minItems: 1
+      maxItems: 50
+      uniqueItems: true
+      items: { $ref: '#/components/schemas/AccessKey' }
+      description: Chaves de NF-e modelo 55.
+
+    CteDeriveBody:
+      type: object
+      required: [ nfe_keys ]
+      additionalProperties: false
+      properties:
+        nfe_keys: { $ref: '#/components/schemas/CteNfeKeys' }
+
+    CteNoteParty:
+      type: object
+      properties:
+        doc: { type: string }
+        name: { type: string }
+        uf: { type: string }
+        city_ibge: { type: string }
+        city: { type: string }
+
+    CteParty:
+      allOf:
+        - $ref: '#/components/schemas/CteNoteParty'
+        - type: object
+          properties:
+            person_id:
+              type: [ string, 'null' ]
+              description: SK da pessoa no cadastro (CNPJ_..., CPF_...) quando o documento existe lá.
+
+    CtePlace:
+      type: object
+      properties:
+        uf: { type: string }
+        city_ibge: { type: string }
+        city: { type: string }
+
+    CteDerivation:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            type: object
+            properties:
+              access_key: { type: string }
+              number: { type: integer }
+              serie: { type: integer }
+              issued_at: { type: string }
+              source: { type: string, enum: [ issued, received ] }
+              value: { type: string, description: 'vNF, 2 casas' }
+              weight_kg: { type: [ string, 'null' ], description: '3 casas; null sem peso' }
+              volumes: { type: integer }
+              mod_frete: { type: string }
+              emitter: { $ref: '#/components/schemas/CteNoteParty' }
+              recipient: { $ref: '#/components/schemas/CteNoteParty' }
+        sender:
+          oneOf: [ { $ref: '#/components/schemas/CteParty' }, { type: 'null' } ]
+        recipient:
+          oneOf: [ { $ref: '#/components/schemas/CteParty' }, { type: 'null' } ]
+        taker_suggestion:
+          oneOf:
+            - type: object
+              properties:
+                role: { type: string, enum: [ remetente, destinatario ] }
+                reason: { type: string, enum: [ mod_frete_cif, mod_frete_fob ] }
+            - type: 'null'
+        cargo:
+          type: object
+          properties:
+            total_value: { type: string }
+            total_weight_kg: { type: [ string, 'null' ] }
+            volumes: { type: integer }
+            predominant_product: { type: string }
+        origin:
+          oneOf: [ { $ref: '#/components/schemas/CtePlace' }, { type: 'null' } ]
+        destination:
+          oneOf: [ { $ref: '#/components/schemas/CtePlace' }, { type: 'null' } ]
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              message: { type: string }
+              access_key: { type: [ string, 'null' ] }
+
+    CteEmitBody:
+      type: object
+      required: [ nfe_keys, taker, freight ]
+      additionalProperties: false
+      properties:
+        nfe_keys: { $ref: '#/components/schemas/CteNfeKeys' }
+        taker:
+          type: object
+          required: [ role ]
+          properties:
+            role: { type: string, enum: [ remetente, destinatario, expedidor, recebedor, outro ] }
+            person_id:
+              type: [ string, 'null' ]
+              description: Obrigatório para expedidor, recebedor e outro (pessoa do cadastro).
+        freight:
+          type: object
+          required: [ total ]
+          properties:
+            total: { type: string, description: 'vTPrest, 2 casas' }
+            components:
+              type: array
+              maxItems: 30
+              items:
+                type: object
+                required: [ name, value ]
+                properties:
+                  name: { type: string, maxLength: 15 }
+                  value: { type: string }
+        icms:
+          type: [ object, 'null' ]
+          description: Omitido = ICMSSN para CRT 1, 2 ou 4; obrigatório no regime normal.
+          required: [ cst ]
+          properties:
+            cst: { type: string, enum: [ '00', '20', '40', '41', '51', '60', '90', SN ] }
+            p_icms: { type: [ string, 'null' ] }
+            p_red_bc: { type: [ string, 'null' ] }
+        cfop:
+          type: [ string, 'null' ]
+          description: CFOP da prestação. Obrigatório na emissão (422 `cfop_required`); nunca presumido.
+        overrides:
+          type: [ object, 'null' ]
+          properties:
+            sender_person_id: { type: [ string, 'null' ] }
+            recipient_person_id: { type: [ string, 'null' ] }
+            cargo:
+              type: [ object, 'null' ]
+              properties:
+                total_value: { type: [ string, 'null' ] }
+                total_weight_kg: { type: [ string, 'null' ] }
+                volumes: { type: [ integer, 'null' ] }
+                predominant_product: { type: [ string, 'null' ], maxLength: 60 }
+            origin:
+              type: [ object, 'null' ]
+              properties:
+                city_ibge: { $ref: '#/components/schemas/Ibge' }
+            destination:
+              type: [ object, 'null' ]
+              properties:
+                city_ibge: { $ref: '#/components/schemas/Ibge' }
+        additional_info: { type: [ string, 'null' ], maxLength: 2000 }
+
+    CteDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            freight_total: { type: string }
+            cfop: { type: string }
+            icms_cst: { type: string }
+            sender: { type: object, properties: { doc: { type: string }, name: { type: string } } }
+            recipient: { type: object, properties: { doc: { type: string }, name: { type: string } } }
+            taker:
+              type: object
+              properties:
+                role: { type: string }
+                doc: { type: string }
+                name: { type: string }
+            nfe_keys: { type: array, items: { type: string } }
+            origin: { $ref: '#/components/schemas/CtePlace' }
+            destination: { $ref: '#/components/schemas/CtePlace' }
+            cargo:
+              type: object
+              properties:
+                total_value: { type: string }
+                total_weight_kg: { type: string }
+                volumes: { type: integer }
+                predominant_product: { type: string }

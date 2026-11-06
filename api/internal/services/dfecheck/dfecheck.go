@@ -73,3 +73,18 @@ func ShadowMDFe(accessKey string, body map[string]any) {
 		}
 	}
 }
+
+// ShadowCTe valida o CTe do corpo do builder. infModal é xs:any no XSD do CT-e: o rodo tem esquema próprio.
+func ShadowCTe(accessKey string, body map[string]any) {
+	cte, ok := body["CTe"].(map[string]any)
+	if !ok {
+		return
+	}
+	Shadow(SpecCTe, "cte", accessKey, cte)
+	inf, _ := cte["infCte"].(map[string]any)
+	norm, _ := inf["infCTeNorm"].(map[string]any)
+	modal, _ := norm["infModal"].(map[string]any)
+	if rodo, ok := modal["rodo"].(map[string]any); ok {
+		Shadow(SpecCTe+"_rodo", "cte_rodo", accessKey, rodo)
+	}
+}

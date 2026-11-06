@@ -1,115 +1,12 @@
 package mdfes
 
 import (
-	"bytes"
-	"encoding/xml"
-	"io"
+	"errors"
 
 	"github.com/shopspring/decimal"
+
+	"gopkg.aoctech.app/dfe/api/internal/services/nfexml"
 )
-
-// xnode is a minimal, namespace-agnostic XML tree node. Element lookups match on
-// local name only, so the same walker handles NF-e and CT-e regardless of their
-// (different) default namespaces.
-type xnode struct {
-	name     string
-	text     string
-	children []*xnode
-}
-
-// parseXML decodes raw XML bytes into an xnode tree.
-func parseXML(data []byte) (*xnode, error) {
-	dec := xml.NewDecoder(bytes.NewReader(data))
-	dec.Strict = false
-	var root *xnode
-	var stack []*xnode
-	for {
-		tok, err := dec.Token()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			n := &xnode{name: t.Name.Local}
-			if len(stack) > 0 {
-				parent := stack[len(stack)-1]
-				parent.children = append(parent.children, n)
-			} else {
-				root = n
-			}
-			stack = append(stack, n)
-		case xml.EndElement:
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
-		case xml.CharData:
-			if len(stack) > 0 {
-				stack[len(stack)-1].text += string(t)
-			}
-		}
-	}
-	return root, nil
-}
-
-// child returns the first direct child with the given local name, or nil.
-func (n *xnode) child(name string) *xnode {
-	if n == nil {
-		return nil
-	}
-	for _, c := range n.children {
-		if c.name == name {
-			return c
-		}
-	}
-	return nil
-}
-
-// firstDeep returns the first descendant (depth-first) with the given local name.
-func (n *xnode) firstDeep(name string) *xnode {
-	if n == nil {
-		return nil
-	}
-	for _, c := range n.children {
-		if c.name == name {
-			return c
-		}
-		if found := c.firstDeep(name); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-
-// allDeep returns all descendants (depth-first) with the given local name.
-func (n *xnode) allDeep(name string) []*xnode {
-	var out []*xnode
-	if n == nil {
-		return out
-	}
-	for _, c := range n.children {
-		if c.name == name {
-			out = append(out, c)
-		}
-		out = append(out, c.allDeep(name)...)
-	}
-	return out
-}
-
-// txt returns the trimmed text of the direct child, or "".
-func (n *xnode) txt(name string) string {
-	c := n.child(name)
-	if c == nil {
-		return ""
-	}
-	return trimText(c.text)
-}
-
-func trimText(s string) string {
-	return string(bytes.TrimSpace([]byte(s)))
-}
 
 // party holds the resolved emitter/recipient location of a referenced document.
 type party struct {
@@ -147,85 +44,63 @@ type docCargo struct {
 // extractCargo parses a referenced document's XML and returns its cargo data.
 // docType is "nfe" or "cte".
 func extractCargo(accessKey, docType string, xmlData []byte) (*docCargo, error) {
-	root, err := parseXML(xmlData)
+	if docType == docTypeCTe {
+		root, err := nfexml.Parse(xmlData)
+		if err != nil {
+			return nil, err
+		}
+		return extractCargoCTe(accessKey, root)
+	}
+	nfe, err := nfexml.ParseNFe(xmlData)
+	if errors.Is(err, nfexml.ErrNotNFe) {
+		return nil, errInvalidDocXML
+	}
 	if err != nil {
 		return nil, err
 	}
-	if docType == docTypeCTe {
-		return extractCargoCTe(accessKey, root)
-	}
-	return extractCargoNFe(accessKey, root)
+	return extractCargoNFe(accessKey, nfe), nil
 }
 
 // extractCargoNFe pulls emit/dest location, gross weight (transp/vol/pesoB) and
-// the predominant product (highest vProd line item) from an NF-e XML.
-func extractCargoNFe(accessKey string, root *xnode) (*docCargo, error) {
-	inf := root.firstDeep("infNFe")
-	if inf == nil {
-		return nil, errInvalidDocXML
-	}
+// the predominant product (highest vProd line item) from an NF-e.
+func extractCargoNFe(accessKey string, nfe *nfexml.NFe) *docCargo {
 	c := &docCargo{
 		accessKey:  accessKey,
 		docType:    docTypeNFe,
+		emit:       partyOf(nfe.Emit),
+		dest:       partyOf(nfe.Dest),
 		weightKG:   decimal.Zero,
 		totalValue: decimal.Zero,
 	}
-	c.emit = parsePartyNFe(inf.child("emit"), "enderEmit")
-	c.dest = parsePartyNFe(inf.child("dest"), "enderDest")
-
 	// Gross weight: sum of transp/vol/pesoB; fall back to pesoL when pesoB absent.
-	for _, vol := range inf.allDeep("vol") {
-		w := parseDec(vol.txt("pesoB"))
+	for _, vol := range nfe.Volumes {
+		w := vol.PesoB
 		if w.IsZero() {
-			w = parseDec(vol.txt("pesoL"))
+			w = vol.PesoL
 		}
 		c.weightKG = c.weightKG.Add(w)
 	}
-
 	// Predominant product: line item with the highest vProd.
 	maxVal := decimal.Zero
-	for _, det := range inf.allDeep("det") {
-		prod := det.child("prod")
-		if prod == nil {
-			continue
-		}
-		v := parseDec(prod.txt("vProd"))
-		c.totalValue = c.totalValue.Add(v)
-		c.items = append(c.items, parsedItem{
-			CProd: prod.txt("cProd"),
-			XProd: prod.txt("xProd"),
-			QCom:  prod.txt("qCom"),
-			UCom:  prod.txt("uCom"),
-		})
-		if v.GreaterThan(maxVal) {
-			maxVal = v
-			c.predNCM = prod.txt("NCM")
-			c.predProd = prod.txt("xProd")
-			c.predEAN = prod.txt("cEAN")
+	for _, it := range nfe.Items {
+		c.totalValue = c.totalValue.Add(it.VProd)
+		c.items = append(c.items, parsedItem{CProd: it.CProd, XProd: it.XProd, QCom: it.QCom, UCom: it.UCom})
+		if it.VProd.GreaterThan(maxVal) {
+			maxVal = it.VProd
+			c.predNCM, c.predProd, c.predEAN = it.NCM, it.XProd, it.CEAN
 		}
 	}
-	return c, nil
+	return c
 }
 
-func parsePartyNFe(node *xnode, enderTag string) party {
-	if node == nil {
-		return party{}
-	}
-	ender := node.child(enderTag)
-	return party{
-		cnpj: node.txt("CNPJ"),
-		cpf:  node.txt("CPF"),
-		name: node.txt("xNome"),
-		cMun: ender.txt("cMun"),
-		xMun: ender.txt("xMun"),
-		uf:   ender.txt("UF"),
-	}
+func partyOf(p nfexml.Party) party {
+	return party{cnpj: p.CNPJ, cpf: p.CPF, name: p.Name, cMun: p.Addr.CityIBGE, xMun: p.Addr.City, uf: p.Addr.UF}
 }
 
 // extractCargoCTe pulls emit/recipient location, cargo value (vCarga) and weight
 // (infCarga/infQ qCarga) from a CT-e XML.
-func extractCargoCTe(accessKey string, root *xnode) (*docCargo, error) {
-	inf := root.firstDeep("infCte")
+func extractCargoCTe(accessKey string, root *nfexml.Node) (*docCargo, error) {
+	inf := root.FirstDeep("infCte")
 	if inf == nil {
 		return nil, errInvalidDocXML
 	}
@@ -235,55 +110,46 @@ func extractCargoCTe(accessKey string, root *xnode) (*docCargo, error) {
 		weightKG:   decimal.Zero,
 		totalValue: decimal.Zero,
 	}
-	c.emit = parsePartyCTe(inf.child("emit"))
+	c.emit = parsePartyCTe(inf.Child("emit"))
 	// Recipient may be "dest" (CT-e) — fall back to "receb" (recebedor).
-	if d := inf.child("dest"); d != nil {
+	if d := inf.Child("dest"); d != nil {
 		c.dest = parsePartyCTe(d)
 	} else {
-		c.dest = parsePartyCTe(inf.child("receb"))
+		c.dest = parsePartyCTe(inf.Child("receb"))
 	}
 
-	if vPrest := inf.firstDeep("vCarga"); vPrest != nil {
-		c.totalValue = parseDec(trimText(vPrest.text))
+	if vPrest := inf.FirstDeep("vCarga"); vPrest != nil {
+		c.totalValue = parseDec(vPrest.Value())
 	}
 	// Cargo weight: infCarga/infQ where the unit code indicates weight in KG.
-	for _, infQ := range inf.allDeep("infQ") {
-		c.weightKG = c.weightKG.Add(parseDec(infQ.txt("qCarga")))
+	for _, infQ := range inf.AllDeep("infQ") {
+		c.weightKG = c.weightKG.Add(parseDec(infQ.Txt("qCarga")))
 	}
-	if pred := inf.firstDeep("proPred"); pred != nil {
-		c.predProd = trimText(pred.text)
+	if pred := inf.FirstDeep("proPred"); pred != nil {
+		c.predProd = pred.Value()
 	}
 	return c, nil
 }
 
-func parsePartyCTe(node *xnode) party {
+func parsePartyCTe(node *nfexml.Node) party {
 	if node == nil {
 		return party{}
 	}
-	ender := node.child("enderEmit")
+	ender := node.Child("enderEmit")
 	if ender == nil {
-		ender = node.child("enderDest")
+		ender = node.Child("enderDest")
 	}
 	if ender == nil {
-		ender = node.child("enderReceb")
+		ender = node.Child("enderReceb")
 	}
 	return party{
-		cnpj: node.txt("CNPJ"),
-		cpf:  node.txt("CPF"),
-		name: node.txt("xNome"),
-		cMun: ender.txt("cMun"),
-		xMun: ender.txt("xMun"),
-		uf:   ender.txt("UF"),
+		cnpj: node.Txt("CNPJ"),
+		cpf:  node.Txt("CPF"),
+		name: node.Txt("xNome"),
+		cMun: ender.Txt("cMun"),
+		xMun: ender.Txt("xMun"),
+		uf:   ender.Txt("UF"),
 	}
 }
 
-func parseDec(s string) decimal.Decimal {
-	if s == "" {
-		return decimal.Zero
-	}
-	v, err := decimal.NewFromString(s)
-	if err != nil {
-		return decimal.Zero
-	}
-	return v
-}
+func parseDec(s string) decimal.Decimal { return nfexml.Dec(s) }

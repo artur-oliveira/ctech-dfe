@@ -17,8 +17,15 @@ func init() { catalog = append(catalog, cteRules...) }
 
 var cteRules = cteBuild()
 
+// Como nas outras famílias, Check recebe o conteúdo de <CTe> (doc["infCte"]); o catálogo e seus testes
+// trabalham sobre o infCte, que também é aceito direto.
 func cteR(id string, cstat int, mode Mode, f func(inf map[string]any) []string) Rule {
-	return Rule{ID: id, CStat: cstat, Mode: mode, Doc: "cte", Check: f}
+	return Rule{ID: id, CStat: cstat, Mode: mode, Doc: "cte", Check: func(doc map[string]any) []string {
+		if inf := sub(doc, "infCte"); inf != nil {
+			return f(inf)
+		}
+		return f(doc)
+	}}
 }
 
 // cteCond monta uma regra de achado único: cond verdadeiro gera a mensagem.

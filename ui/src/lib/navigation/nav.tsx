@@ -121,6 +121,10 @@ export const DOC_CONTEXTS: DocContext[] = [
     label: 'CT-e',
     icon: <CteIcon/>,
     keywords: ['conhecimento de transporte', 'frete', 'modelo 57'],
+    emit: {
+      href: '/cte/emit', label: 'Emitir CT-e', icon: <CteIcon/>,
+      keywords: ['cte', 'conhecimento de transporte', 'frete', 'tomador', 'rodoviário', 'emissão'],
+    },
     items: [],
   },
   {

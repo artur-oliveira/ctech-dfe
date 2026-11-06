@@ -10,14 +10,16 @@ import {usePagination} from '@/lib/hooks/usePagination';
 import {queryKeys} from '@/lib/api/query-keys';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
-import {ComingSoon} from '@/components/ui/coming-soon';
 import {Button, EmptyState} from '@aoctech/ui';
 import {CteIcon} from '@/components/ui/icon';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {Pagination} from '@/components/ui/pagination';
 import {PenaltyBanner} from '@/components/ui/penalty-banner';
-import {DistributionSkeleton} from '@/components/ui/loading-skeleton';
-import type {NFeDistributionOut} from '@/lib/types/api';
+import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-skeleton';
+import type {CteListOut, NFeDistributionOut} from '@/lib/types/api';
+import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
+import {formatCurrency} from '@/lib/utils/helpers';
+import {CTE_TAKER_LABELS} from '@/lib/constants/cte';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
@@ -26,6 +28,62 @@ import {cteSchemaLabel} from '@/lib/constants/distributions';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 
 type Tab = 'emitidos' | 'recebidos' | 'distribuicao'
+
+// ─── emitted CT-e listing ────────────────────────────────────────────────────
+
+function CteList({orgPk}: { orgPk: string }) {
+  const queryParams = {sort: 'desc' as const, incoming: 0 as const};
+  const {items, isLoading, isFetching, hasNext, hasPrevious, goNext, goPrevious} = usePagination<CteListOut>({
+    queryKey: queryKeys.ctes.list(orgPk, queryParams),
+    queryFn: (cursor) => apiClient.getCtes({...queryParams, cursor}),
+    enabled: true,
+  });
+
+  if (isLoading) return <LoadingSkeleton/>;
+  if (items.length === 0) {
+    return (
+      <EmptyState title="Nenhum CT-e emitido" icon={<CteIcon width={20} height={20}/>}
+                  description="Escolha as NF-e da carga, quem paga o frete e o valor; o resto vem das notas."
+                  action={<Button variant="brand" render={<Link href="/cte/emit"/>}>Emitir CT-e</Button>}/>
+    );
+  }
+
+  return (
+    <>
+      <TableShell
+        ariaLabel="CT-es emitidos"
+        minWidth={150}
+        dimmed={isFetching}
+        headers={['Nº / Série', 'Remetente para destinatário', 'Tomador', 'Frete', 'Status', 'Emissão']}
+      >
+        {items.map((cte) => (
+          <tr key={cte.sk} className={TABLE_ROW}>
+            <td className={TABLE_CELL} data-label="Nº / Série">
+              <span className="font-mono font-medium text-gray-900">{cte.number}</span>
+              <span className="text-gray-400 text-xs ml-1">/ {cte.serie}</span>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-700`} data-label="Remetente para destinatário">
+              {cte.sender.name} <span className="text-gray-400">para</span> {cte.recipient.name}
+            </td>
+            <td className={`${TABLE_CELL} text-gray-700`} data-label="Tomador">
+              {cte.taker.name}
+              <span className="block text-xs text-gray-400">{CTE_TAKER_LABELS[cte.taker.role] ?? cte.taker.role}</span>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Frete">{formatCurrency(cte.freight_total)}</td>
+            <td className={TABLE_CELL} data-label="Status">
+              <DfeStatusCell status={cte.status} sefazMotive={cte.sefaz_motive} gender="m"/>
+            </td>
+            <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
+              {formatDatetimeBR(cte.dh_emi ?? cte.created_at)}
+            </td>
+          </tr>
+        ))}
+      </TableShell>
+      <Pagination hasNext={hasNext} hasPrevious={hasPrevious} onNext={goNext} onPrevious={goPrevious}
+                  isLoading={isFetching}/>
+    </>
+  );
+}
 
 function CTeRow({item}: { item: NFeDistributionOut }) {
   const [xmlLoading, setXmlLoading] = useState(false);
@@ -168,7 +226,7 @@ function CTeDistributionList({orgPk, showSync}: { orgPk: string; showSync: boole
 
 function CTeContent() {
   const {selectedOrg} = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('recebidos');
+  const [activeTab, setActiveTab] = useState<Tab>('emitidos');
   
   const {config: cteConfig, isMissing: cteConfigMissing} = useFiscalConfig('cte', selectedOrg?.pk);
   
@@ -186,6 +244,12 @@ function CTeContent() {
             <h1 className="text-2xl font-semibold text-gray-900">CT-e</h1>
             <p className="text-gray-500 text-sm mt-0.5">Conhecimento de Transporte Eletrônico</p>
           </div>
+          {selectedOrg && activeTab === 'emitidos' && (
+            <Button variant="brand" render={<Link href="/cte/emit"/>}>
+              <span className="text-base leading-none">+</span>
+              Emitir CT-e
+            </Button>
+          )}
         </div>
         
         <HomologationBanner environment={cteConfig?.environment}/>
@@ -210,7 +274,7 @@ function CTeContent() {
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : activeTab === 'emitidos' ? (
-          <ComingSoon title="Emissão de CT-e em breve"/>
+          <CteList orgPk={selectedOrg.pk}/>
         ) : activeTab === 'recebidos' ? (
           <CTeDistributionList key="cte-recebidos" orgPk={selectedOrg.pk} showSync={false}/>
         ) : (

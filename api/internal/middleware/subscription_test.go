@@ -104,7 +104,9 @@ func TestExemptSuffixesDoNotMatchTooMuch(t *testing.T) {
 		switch suffix {
 		case "/cancel", "/correction-letter", "/manifestation", "/close",
 			"/include-condutor", "/include-dfe", "/events", "/sync",
-			"/import-xml", "/nfe/key", "/cargo-preview":
+			"/import-xml", "/nfe/key", "/cargo-preview",
+			// O derive do CT-e só lê as notas e devolve a derivação; não grava nem emite nada.
+			"/ctes/derive":
 		default:
 			t.Fatalf("new exempt suffix %q — is it a mutation on a document that "+
 				"already exists, or does it let somebody issue one for free?", suffix)
