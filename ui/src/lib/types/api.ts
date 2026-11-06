@@ -1739,6 +1739,8 @@ export interface MdfeEmit {
   trip_start?: string | null
   rntrc?: string | null
   ciot?: string | null
+  /** Tipo do emitente (tpEmit): 1 prestador (só CT-e), 2 carga própria (só NF-e), 3 CT-e globalizado. Sem ele vale o do documento. */
+  emitter_type?: string | null
   /** CIOTs da viagem (infANTT/infCIOT, 0 a N); no lugar do `ciot` único. */
   ciots?: MdfeCiotIn[] | null
   additional_info?: string | null

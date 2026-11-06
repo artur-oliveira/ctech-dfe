@@ -63,10 +63,12 @@ type buildParams struct {
 	rntrc       *string
 	ciot        *string
 	ciots       []MdfeCIOT
-	addInfo     *string
-	air         *MdfeAirModal   // modal aéreo data (API-supplied)
-	water       *MdfeWaterModal // modal aquaviário data (API-supplied)
-	rail        *MdfeRailModal  // modal ferroviário data (API-supplied)
+	// tpEmit é o tipo do emitente (1 prestador, 2 carga própria, 3 CT-e globalizado); vazio = 2.
+	tpEmit  string
+	addInfo *string
+	air     *MdfeAirModal   // modal aéreo data (API-supplied)
+	water   *MdfeWaterModal // modal aquaviário data (API-supplied)
+	rail    *MdfeRailModal  // modal ferroviário data (API-supplied)
 	// tpEmis é a forma de emissão (1 normal, 2 contingência, 3 Regime Especial
 	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
 	tpEmis string
@@ -181,7 +183,7 @@ func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
 	ide := map[string]any{
 		"cUF":     cUF,
 		"tpAmb":   fmt.Sprintf("%d", p.environment),
-		"tpEmit":  tpEmitCargaPropria,
+		"tpEmit":  p.tpEmitOrDefault(),
 		"mod":     services.ModelMDFe,
 		"serie":   fmt.Sprintf("%d", p.serie),
 		"nMDF":    fmt.Sprintf("%d", p.number),
@@ -347,6 +349,14 @@ func buildProp(o *resolvedOwner) map[string]any {
 	}
 	prop["tpProp"] = strOrDefault(o.TpProp, tpPropOutros)
 	return prop
+}
+
+// tpEmitOrDefault devolve o tpEmit pedido ou o de carga própria quando não há pedido.
+func (p buildParams) tpEmitOrDefault() string {
+	if p.tpEmit != "" {
+		return p.tpEmit
+	}
+	return tpEmitCargaPropria
 }
 
 // tpTranspFor derives ide/tpTransp from the third-party owner, per SEFAZ rules

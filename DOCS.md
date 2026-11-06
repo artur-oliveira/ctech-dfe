@@ -2042,6 +2042,12 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   `{toll_provider_id, n_compra, v_vale_ped}`. CNPJ da fornecedora, pagador e `tpValePed` vêm de
   `organization_toll_providers`; `valePed/categCombVeic` é derivado do número de reboques. Um
   `toll_provider_id` inexistente é 404, nunca silêncio.
+- `emitter_type?` — tipo do emitente (`ide/tpEmit`): `1` prestador de serviço de transporte, `2` transportador de carga própria,
+  `3` CT-e globalizado. Sem ele vale o do documento (CT-e é `1`, NF-e é `2`; antes era sempre `2`, e todo MDF-e com CT-e era
+  rejeitado, 639). Validação local do MOC: `1` só aceita CT-e (F14, 638), `2` só NF-e (F15, 639), `3` só NF-e (F16, 540) e só
+  dentro de uma UF (F17, 541). Com `1` ou `3`, modal rodoviário, RNTRC informado e UF diferente de exterior exigem ao menos um
+  CIOT (F113, 684, NT 2026.001, em produção em 2026-11-23). Ainda não cobertos: `tpTransp` com `tpEmit=2`, seguro, `infPag` e
+  dados bancários do TAC (F113a, F113b), que dependem do cadastro de RNTRC da ANTT. Código: `mdfes/emitter_type.go`.
 - `ciots[]?` — CIOTs da viagem (`infANTT/infCIOT`, 0 a N): `{ciot, responsible_doc}`. `ciot` tem 12 dígitos;
   `responsible_doc` é o CPF (11) ou CNPJ (14) de quem gerou o CIOT na ANTT, que vira o choice `CPF | CNPJ`. CIOT repetido
   e documento com outro tamanho são 400. O campo `ciot` único continua aceito (12 dígitos); sem `ciots`, vira um item

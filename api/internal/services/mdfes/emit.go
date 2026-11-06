@@ -46,7 +46,11 @@ type MdfeEmitBody struct {
 
 	TripStart *string `json:"trip_start" validate:"omitempty"` // dhIniViagem (optional, RFC3339)
 
-	RNTRC *string `json:"rntrc" validate:"omitempty,rntrc"`
+	// EmitterType é o tipo do emitente (ide/tpEmit): 1 prestador de serviço de transporte (só CT-e),
+	// 2 transportador de carga própria (só NF-e), 3 CT-e globalizado (só NF-e e só dentro de uma UF).
+	// Sem ele vale o do documento: CT-e é 1, NF-e é 2.
+	EmitterType *string `json:"emitter_type" validate:"omitempty,oneof=1 2 3"`
+	RNTRC       *string `json:"rntrc" validate:"omitempty,rntrc"`
 	// CIOT é o CIOT único legado (12 dígitos); sem CIOTs, vira um item cujo
 	// responsável é o emitente. CIOTs substitui o legado e aceita vários, cada
 	// um com o seu responsável pela geração (infANTT/infCIOT, 0-n).
@@ -516,6 +520,19 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
 	}
 
+	tpEmit, err := resolveTpEmit(docType, req.EmitterType, cargo.ufIni, cargo.ufFim)
+	if err != nil {
+		return nil, err
+	}
+	rntrcInformado := resolvedVehicle.RNTRC
+	if req.RNTRC != nil && *req.RNTRC != "" {
+		rntrcInformado = *req.RNTRC
+	}
+	hasCIOT := len(req.CIOTs) > 0 || (req.CIOT != nil && *req.CIOT != "")
+	if err := requireCIOT(modal, tpEmit, rntrcInformado, cargo.ufIni, cargo.ufFim, hasCIOT); err != nil {
+		return nil, err
+	}
+
 	mdfeBody := BuildMDFe(buildParams{
 		org:         orgItem,
 		orgPK:       orgPK,
@@ -536,6 +553,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		rntrc:       req.RNTRC,
 		ciot:        req.CIOT,
 		ciots:       req.CIOTs,
+		tpEmit:      tpEmit,
 		addInfo:     req.AdditionalInfo,
 		// Canal Verde, carregamento posterior e mensagem ao fisco são da
 		// configuração do MDF-e: recorrem em toda emissão da organização.

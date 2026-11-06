@@ -80,7 +80,7 @@ de NF-e e NFC-e tratava `vItem` e `gPgtoVinc` como pendências de 16/11; não s�
 | **16/11/2026** | **T2b (feita em 2026-11-05):** NT 2026.005 completa | nenhuma | `tpRegimeIBSCBS`, `cAtivSN`, `gTribSN` do item e do total, regras 1275 a 1284 como validação local, `xsdorder` a partir do XSD | `tpRegimeIBSCBS` na organização; `cAtivSN` por serviço e produto (seletor com os 5 valores); guia | golden XML por linha da tabela da NT | `DOCS.md`, `CONDUCT.md`, guia, capturas | 4 a 5 dias |
 | **16/11/2026** | **T2c (feita em 2026-11-05, só API; falta campo na tela e `vICMSPrevisto`):** NT 2026.008 | nenhuma | `vUnComLiq`, `vProdLiq`, `vProdLiqTot` calculados (regras 1279 e 1283, tolerância de 0,01) e `vICMSPrevisto` só no cenário da NT | sem campo novo: calculado | golden e tolerância | `DOCS.md` | 2 dias |
 | fora de 2026 | NT 2026.006 (split payment) e NT 2026.007 (emitente sem IE, SVRS) | a NT 2026.007 pede roteamento para a SVRS (endpoint por tipo de emitente) | NT 2026.006 em F9 e F3; NT 2026.007 como funcionalidade de F3 e F7 | | | | reavaliar em 2027 |
-| **23/11/2026** | **T3 (feita em 2026-11-04, falta `tpEmit` 1 e 3):** CIOT no MDF-e (regra F113, NT 2026.001) sem declarar o CIOT | nenhuma | `infCIOT` múltiplo com CPF ou CNPJ do responsável, validação de 12 dígitos, `tpEmit` 1 e 3 só no que a regra exige; mensagem de erro clara | campo de CIOT por documento, com responsável | casos de borda do F113; rejeições 684, 303 e 304 | `DOCS.md`, guia do MDF-e | 4 a 5 dias |
+| **23/11/2026** | **T3 (feita em 2026-11-05 no que cabe à API; falta o seletor do tipo de emitente na tela e F113a e F113b):** CIOT no MDF-e (regra F113, NT 2026.001) sem declarar o CIOT | nenhuma | `infCIOT` múltiplo com CPF ou CNPJ do responsável, validação de 12 dígitos, `tpEmit` 1 e 3 só no que a regra exige; mensagem de erro clara | campo de CIOT por documento, com responsável | casos de borda do F113; rejeições 684, 303 e 304 | `DOCS.md`, guia do MDF-e | 4 a 5 dias |
 
 Total das trilhas: de 13 a 17 dias de uma pessoa. Cabe antes de 16/11 e de 23/11 com folga se T1 e T2a forem os primeiros.
 
@@ -158,7 +158,6 @@ Total de 8 semanas.
 | Destinatário no exterior (`idDest=3`, `indIEDest=2`, `UF=EX`) | `builders_doc.go`, `builders_party.go` | F3 |
 | `FinNFe` só 1 a 4 | `emit.go` | F3 |
 | Limites de cadastro maiores que o leiaute (`xNome`, `xLgr`, `xProd`, `IE`) | `dto.go` | F3, com migração dos dados |
-| `tpEmit` fixo em 2 no MDF-e | `mdfes/builder.go` | F4 (rejeição 639 com CT-e) |
 | `EX` recusado em UF e encerramento; `nSeqEvento` sem sequenciador; soma de pagamento x `vContrato` | MDF-e | F4 |
 | `ValidAccessKey` só mod 55; assinatura de `infCTeOS`/`infGTVe`; distribuição pede `consChCTe` | go-dfe | F6, confirmar com o XSD novo |
 

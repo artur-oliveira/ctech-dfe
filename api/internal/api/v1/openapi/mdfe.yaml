@@ -755,6 +755,14 @@ components:
         drivers:
           type: array
           items: { $ref: '#/components/schemas/MdfeDriver' }
+        emitter_type:
+          type: [ string, 'null' ]
+          enum: [ '1', '2', '3', null ]
+          description: |
+            Tipo do emitente (`ide/tpEmit`). `1` prestador de serviço de transporte (só CT-e, regra F14),
+            `2` transportador de carga própria (só NF-e, F15), `3` CT-e globalizado (só NF-e e só
+            dentro de uma UF, F16 e F17). Sem ele vale o do documento: CT-e é `1`, NF-e é `2`. Com `1`
+            ou `3`, o modal rodoviário com RNTRC exige ao menos um CIOT (F113, NT 2026.001).
         ciots:
           type: array
           description: |
