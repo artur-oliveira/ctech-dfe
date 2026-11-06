@@ -1,0 +1,2170 @@
+{
+ "n": "MDFe",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "infMDFe",
+   "min": 1,
+   "max": 1,
+   "a": [
+    {
+     "n": "versao",
+     "req": true,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "3\\.00"
+      ]
+     }
+    },
+    {
+     "n": "Id",
+     "req": true,
+     "s": {
+      "base": "ID",
+      "pattern": [
+       "MDFe[0-9]{44}"
+      ]
+     }
+    }
+   ],
+   "c": [
+    {
+     "n": "ide",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "cUF",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "11",
+         "12",
+         "13",
+         "14",
+         "15",
+         "16",
+         "17",
+         "21",
+         "22",
+         "23",
+         "24",
+         "25",
+         "26",
+         "27",
+         "28",
+         "29",
+         "31",
+         "32",
+         "33",
+         "35",
+         "41",
+         "42",
+         "43",
+         "50",
+         "51",
+         "52",
+         "53"
+        ]
+       }
+      },
+      {
+       "n": "tpAmb",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2"
+        ]
+       }
+      },
+      {
+       "n": "tpEmit",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2",
+         "3"
+        ]
+       }
+      },
+      {
+       "n": "tpTransp",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2",
+         "3"
+        ]
+       }
+      },
+      {
+       "n": "mod",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "58"
+        ]
+       }
+      },
+      {
+       "n": "serie",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0|[1-9]{1}[0-9]{0,2}"
+        ]
+       }
+      },
+      {
+       "n": "nMDF",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[1-9]{1}[0-9]{0,8}"
+        ]
+       }
+      },
+      {
+       "n": "cMDF",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{8}"
+        ]
+       }
+      },
+      {
+       "n": "cDV",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{1}"
+        ]
+       }
+      },
+      {
+       "n": "modal",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ]
+       }
+      },
+      {
+       "n": "dhEmi",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "(((20(([02468][048])|([13579][26]))-02-29))|(20[0-9][0-9])-((((0[1-9])|(1[0-2]))-((0[1-9])|(1\\d)|(2[0-8])))|((((0[13578])|(1[02]))-31)|(((0[1,3-9])|(1[0-2]))-(29|30)))))T(20|21|22|23|[0-1]\\d):[0-5]\\d:[0-5]\\d([\\-,\\+](0[0-9]|10|11):00|([\\+](12):00))"
+        ]
+       }
+      },
+      {
+       "n": "tpEmis",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2",
+         "3"
+        ]
+       }
+      },
+      {
+       "n": "procEmi",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "0",
+         "4"
+        ]
+       }
+      },
+      {
+       "n": "verProc",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 20
+       }
+      },
+      {
+       "n": "UFIni",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "AC",
+         "AL",
+         "AM",
+         "AP",
+         "BA",
+         "CE",
+         "DF",
+         "ES",
+         "GO",
+         "MA",
+         "MG",
+         "MS",
+         "MT",
+         "PA",
+         "PB",
+         "PE",
+         "PI",
+         "PR",
+         "RJ",
+         "RN",
+         "RO",
+         "RR",
+         "RS",
+         "SC",
+         "SE",
+         "SP",
+         "TO",
+         "EX"
+        ]
+       }
+      },
+      {
+       "n": "UFFim",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "AC",
+         "AL",
+         "AM",
+         "AP",
+         "BA",
+         "CE",
+         "DF",
+         "ES",
+         "GO",
+         "MA",
+         "MG",
+         "MS",
+         "MT",
+         "PA",
+         "PB",
+         "PE",
+         "PI",
+         "PR",
+         "RJ",
+         "RN",
+         "RO",
+         "RR",
+         "RS",
+         "SC",
+         "SE",
+         "SP",
+         "TO",
+         "EX"
+        ]
+       }
+      },
+      {
+       "n": "infMunCarrega",
+       "min": 1,
+       "max": 50,
+       "c": [
+        {
+         "n": "cMunCarrega",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{7}"
+          ]
+         }
+        },
+        {
+         "n": "xMunCarrega",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 2,
+          "maxLen": 60
+         }
+        }
+       ]
+      },
+      {
+       "n": "infPercurso",
+       "min": 0,
+       "max": 25,
+       "c": [
+        {
+         "n": "UFPer",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "enum": [
+           "AC",
+           "AL",
+           "AM",
+           "AP",
+           "BA",
+           "CE",
+           "DF",
+           "ES",
+           "GO",
+           "MA",
+           "MG",
+           "MS",
+           "MT",
+           "PA",
+           "PB",
+           "PE",
+           "PI",
+           "PR",
+           "RJ",
+           "RN",
+           "RO",
+           "RR",
+           "RS",
+           "SC",
+           "SE",
+           "SP",
+           "TO",
+           "EX"
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "n": "dhIniViagem",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "(((20(([02468][048])|([13579][26]))-02-29))|(20[0-9][0-9])-((((0[1-9])|(1[0-2]))-((0[1-9])|(1\\d)|(2[0-8])))|((((0[13578])|(1[02]))-31)|(((0[1,3-9])|(1[0-2]))-(29|30)))))T(20|21|22|23|[0-1]\\d):[0-5]\\d:[0-5]\\d([\\-,\\+](0[0-9]|10|11):00|([\\+](12):00))"
+        ]
+       }
+      },
+      {
+       "n": "indCanalVerde",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1"
+        ]
+       }
+      },
+      {
+       "n": "indCarregaPosterior",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "n": "emit",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "CNPJ",
+       "min": 1,
+       "max": 1,
+       "choice": 1,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "CPF",
+       "min": 1,
+       "max": 1,
+       "choice": 1,
+       "arm": 2,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{11}"
+        ]
+       }
+      },
+      {
+       "n": "IE",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{2,14}"
+        ]
+       }
+      },
+      {
+       "n": "xNome",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      },
+      {
+       "n": "xFant",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 60
+       }
+      },
+      {
+       "n": "enderEmit",
+       "min": 1,
+       "max": 1,
+       "c": [
+        {
+         "n": "xLgr",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 2,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "nro",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 1,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "xCpl",
+         "min": 0,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 1,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "xBairro",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 2,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "cMun",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{7}"
+          ]
+         }
+        },
+        {
+         "n": "xMun",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 2,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "CEP",
+         "min": 0,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{8}"
+          ]
+         }
+        },
+        {
+         "n": "UF",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "enum": [
+           "AC",
+           "AL",
+           "AM",
+           "AP",
+           "BA",
+           "CE",
+           "DF",
+           "ES",
+           "GO",
+           "MA",
+           "MG",
+           "MS",
+           "MT",
+           "PA",
+           "PB",
+           "PE",
+           "PI",
+           "PR",
+           "RJ",
+           "RN",
+           "RO",
+           "RR",
+           "RS",
+           "SC",
+           "SE",
+           "SP",
+           "TO",
+           "EX"
+          ]
+         }
+        },
+        {
+         "n": "fone",
+         "min": 0,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{7,12}"
+          ]
+         }
+        },
+        {
+         "n": "email",
+         "min": 0,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[^@]+@[^\\.]+\\..+"
+          ],
+          "minLen": 6,
+          "maxLen": 60
+         }
+        }
+       ]
+      }
+     ],
+     "choices": [
+      {
+       "id": 1,
+       "min": 1
+      }
+     ]
+    },
+    {
+     "n": "infModal",
+     "min": 1,
+     "max": 1,
+     "a": [
+      {
+       "n": "versaoModal",
+       "req": true,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "3\\.(0[0-9]|[1-9][0-9])"
+        ]
+       }
+      }
+     ],
+     "c": [
+      {
+       "n": "*",
+       "min": 0,
+       "max": -1,
+       "any": true
+      }
+     ]
+    },
+    {
+     "n": "infDoc",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "infMunDescarga",
+       "min": 1,
+       "max": 1000,
+       "c": [
+        {
+         "n": "cMunDescarga",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{7}"
+          ]
+         }
+        },
+        {
+         "n": "xMunDescarga",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 2,
+          "maxLen": 60
+         }
+        },
+        {
+         "n": "infCTe",
+         "min": 0,
+         "max": 20000,
+         "c": [
+          {
+           "n": "chCTe",
+           "min": 1,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{6}[A-Z0-9]{12}[0-9]{26}"
+            ],
+            "maxLen": 44
+           }
+          },
+          {
+           "n": "SegCodBarra",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{36}"
+            ]
+           }
+          },
+          {
+           "n": "indReentrega",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "enum": [
+             "1"
+            ]
+           }
+          },
+          {
+           "n": "infUnidTransp",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "tpUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "enum": [
+               "1",
+               "2",
+               "3",
+               "4",
+               "5",
+               "6",
+               "7"
+              ]
+             }
+            },
+            {
+             "n": "idUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[A-Z0-9]+"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "lacUnidTransp",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "nLacre",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              }
+             ]
+            },
+            {
+             "n": "infUnidCarga",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "tpUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "enum": [
+                 "1",
+                 "2",
+                 "3",
+                 "4"
+                ]
+               }
+              },
+              {
+               "n": "idUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[A-Z0-9]+"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              },
+              {
+               "n": "lacUnidCarga",
+               "min": 0,
+               "max": -1,
+               "c": [
+                {
+                 "n": "nLacre",
+                 "min": 1,
+                 "max": 1,
+                 "s": {
+                  "base": "string",
+                  "pattern": [
+                   "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                  ],
+                  "minLen": 1,
+                  "maxLen": 20
+                 }
+                }
+               ]
+              },
+              {
+               "n": "qtdRat",
+               "min": 0,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[0-9]{1,3}(\\.[0-9]{2,3})?"
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "n": "qtdRat",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{1,3}(\\.[0-9]{2,3})?"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "n": "peri",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "nONU",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{4}|ND"
+              ]
+             }
+            },
+            {
+             "n": "xNomeAE",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 150
+             }
+            },
+            {
+             "n": "xClaRisco",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 40
+             }
+            },
+            {
+             "n": "grEmb",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 6
+             }
+            },
+            {
+             "n": "qTotProd",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "qVolTipo",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 60
+             }
+            }
+           ]
+          },
+          {
+           "n": "infEntregaParcial",
+           "min": 0,
+           "max": 1,
+           "c": [
+            {
+             "n": "qtdTotal",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "0|0\\.[0-9]{4}|[1-9]{1}[0-9]{0,10}(\\.[0-9]{4})?"
+              ]
+             }
+            },
+            {
+             "n": "qtdParcial",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "0|0\\.[0-9]{4}|[1-9]{1}[0-9]{0,10}(\\.[0-9]{4})?"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "n": "indPrestacaoParcial",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "enum": [
+             "1"
+            ]
+           }
+          },
+          {
+           "n": "infNFePrestParcial",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "chNFe",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{6}[A-Z0-9]{12}[0-9]{26}"
+              ],
+              "maxLen": 44
+             }
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "n": "infNFe",
+         "min": 0,
+         "max": 20000,
+         "c": [
+          {
+           "n": "chNFe",
+           "min": 1,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{6}[A-Z0-9]{12}[0-9]{26}"
+            ],
+            "maxLen": 44
+           }
+          },
+          {
+           "n": "SegCodBarra",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{36}"
+            ]
+           }
+          },
+          {
+           "n": "indReentrega",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "enum": [
+             "1"
+            ]
+           }
+          },
+          {
+           "n": "infUnidTransp",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "tpUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "enum": [
+               "1",
+               "2",
+               "3",
+               "4",
+               "5",
+               "6",
+               "7"
+              ]
+             }
+            },
+            {
+             "n": "idUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[A-Z0-9]+"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "lacUnidTransp",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "nLacre",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              }
+             ]
+            },
+            {
+             "n": "infUnidCarga",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "tpUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "enum": [
+                 "1",
+                 "2",
+                 "3",
+                 "4"
+                ]
+               }
+              },
+              {
+               "n": "idUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[A-Z0-9]+"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              },
+              {
+               "n": "lacUnidCarga",
+               "min": 0,
+               "max": -1,
+               "c": [
+                {
+                 "n": "nLacre",
+                 "min": 1,
+                 "max": 1,
+                 "s": {
+                  "base": "string",
+                  "pattern": [
+                   "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                  ],
+                  "minLen": 1,
+                  "maxLen": 20
+                 }
+                }
+               ]
+              },
+              {
+               "n": "qtdRat",
+               "min": 0,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[0-9]{1,3}(\\.[0-9]{2,3})?"
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "n": "qtdRat",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{1,3}(\\.[0-9]{2,3})?"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "n": "peri",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "nONU",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{4}|ND"
+              ]
+             }
+            },
+            {
+             "n": "xNomeAE",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 150
+             }
+            },
+            {
+             "n": "xClaRisco",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 40
+             }
+            },
+            {
+             "n": "grEmb",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 6
+             }
+            },
+            {
+             "n": "qTotProd",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "qVolTipo",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 60
+             }
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "n": "infMDFeTransp",
+         "min": 0,
+         "max": 20000,
+         "c": [
+          {
+           "n": "chMDFe",
+           "min": 1,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{6}[A-Z0-9]{12}[0-9]{26}"
+            ],
+            "maxLen": 44
+           }
+          },
+          {
+           "n": "indReentrega",
+           "min": 0,
+           "max": 1,
+           "s": {
+            "base": "string",
+            "enum": [
+             "1"
+            ]
+           }
+          },
+          {
+           "n": "infUnidTransp",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "tpUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "enum": [
+               "1",
+               "2",
+               "3",
+               "4",
+               "5",
+               "6",
+               "7"
+              ]
+             }
+            },
+            {
+             "n": "idUnidTransp",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[A-Z0-9]+"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "lacUnidTransp",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "nLacre",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              }
+             ]
+            },
+            {
+             "n": "infUnidCarga",
+             "min": 0,
+             "max": -1,
+             "c": [
+              {
+               "n": "tpUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "enum": [
+                 "1",
+                 "2",
+                 "3",
+                 "4"
+                ]
+               }
+              },
+              {
+               "n": "idUnidCarga",
+               "min": 1,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[A-Z0-9]+"
+                ],
+                "minLen": 1,
+                "maxLen": 20
+               }
+              },
+              {
+               "n": "lacUnidCarga",
+               "min": 0,
+               "max": -1,
+               "c": [
+                {
+                 "n": "nLacre",
+                 "min": 1,
+                 "max": 1,
+                 "s": {
+                  "base": "string",
+                  "pattern": [
+                   "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+                  ],
+                  "minLen": 1,
+                  "maxLen": 20
+                 }
+                }
+               ]
+              },
+              {
+               "n": "qtdRat",
+               "min": 0,
+               "max": 1,
+               "s": {
+                "base": "string",
+                "pattern": [
+                 "[0-9]{1,3}(\\.[0-9]{2,3})?"
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "n": "qtdRat",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{1,3}(\\.[0-9]{2,3})?"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "n": "peri",
+           "min": 0,
+           "max": -1,
+           "c": [
+            {
+             "n": "nONU",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[0-9]{4}|ND"
+              ]
+             }
+            },
+            {
+             "n": "xNomeAE",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 150
+             }
+            },
+            {
+             "n": "xClaRisco",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 40
+             }
+            },
+            {
+             "n": "grEmb",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 6
+             }
+            },
+            {
+             "n": "qTotProd",
+             "min": 1,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 20
+             }
+            },
+            {
+             "n": "qVolTipo",
+             "min": 0,
+             "max": 1,
+             "s": {
+              "base": "string",
+              "pattern": [
+               "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+              ],
+              "minLen": 1,
+              "maxLen": 60
+             }
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "n": "seg",
+     "min": 0,
+     "max": -1,
+     "c": [
+      {
+       "n": "infResp",
+       "min": 1,
+       "max": 1,
+       "c": [
+        {
+         "n": "respSeg",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "enum": [
+           "1",
+           "2"
+          ],
+          "minLen": 1,
+          "maxLen": 1
+         }
+        },
+        {
+         "n": "CNPJ",
+         "min": 1,
+         "max": 1,
+         "choice": 2,
+         "arm": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[A-Z0-9]{12}[0-9]{2}"
+          ]
+         }
+        },
+        {
+         "n": "CPF",
+         "min": 1,
+         "max": 1,
+         "choice": 2,
+         "arm": 2,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{11}"
+          ]
+         }
+        }
+       ],
+       "choices": [
+        {
+         "id": 2,
+         "min": 0
+        }
+       ]
+      },
+      {
+       "n": "infSeg",
+       "min": 0,
+       "max": 1,
+       "c": [
+        {
+         "n": "xSeg",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+          ],
+          "minLen": 1,
+          "maxLen": 30
+         }
+        },
+        {
+         "n": "CNPJ",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "string",
+          "pattern": [
+           "[0-9]{0}|[A-Z0-9]{12}[0-9]{2}"
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "n": "nApol",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 20
+       }
+      },
+      {
+       "n": "nAver",
+       "min": 0,
+       "max": -1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 40
+       }
+      }
+     ]
+    },
+    {
+     "n": "prodPred",
+     "min": 0,
+     "max": 1,
+     "c": [
+      {
+       "n": "tpCarga",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "01",
+         "02",
+         "03",
+         "04",
+         "05",
+         "06",
+         "07",
+         "08",
+         "09",
+         "10",
+         "11",
+         "12"
+        ]
+       }
+      },
+      {
+       "n": "xProd",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 120
+       }
+      },
+      {
+       "n": "cEAN",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "SEM GTIN|[0-9]{0}|[0-9]{8}|[0-9]{12,14}"
+        ]
+       }
+      },
+      {
+       "n": "NCM",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{2}|[0-9]{8}"
+        ]
+       }
+      },
+      {
+       "n": "infLotacao",
+       "min": 0,
+       "max": 1,
+       "c": [
+        {
+         "n": "infLocalCarrega",
+         "min": 1,
+         "max": 1,
+         "c": [
+          {
+           "n": "CEP",
+           "min": 1,
+           "max": 1,
+           "choice": 3,
+           "arm": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{8}"
+            ]
+           }
+          },
+          {
+           "n": "latitude",
+           "min": 1,
+           "max": 1,
+           "choice": 3,
+           "arm": 2,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]\\.[0-9]{6}|[1-8][0-9]\\.[0-9]{6}|90\\.[0-9]{6}|-[0-9]\\.[0-9]{6}|-[1-8][0-9]\\.[0-9]{6}|-90\\.[0-9]{6}"
+            ]
+           }
+          },
+          {
+           "n": "longitude",
+           "min": 1,
+           "max": 1,
+           "choice": 3,
+           "arm": 2,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]\\.[0-9]{6}|[1-9][0-9]\\.[0-9]{6}|1[0-7][0-9]\\.[0-9]{6}|180\\.[0-9]{6}|-[0-9]\\.[0-9]{6}|-[1-9][0-9]\\.[0-9]{6}|-1[0-7][0-9]\\.[0-9]{6}|-180\\.[0-9]{6}"
+            ]
+           }
+          }
+         ],
+         "choices": [
+          {
+           "id": 3,
+           "min": 1
+          }
+         ]
+        },
+        {
+         "n": "infLocalDescarrega",
+         "min": 1,
+         "max": 1,
+         "c": [
+          {
+           "n": "CEP",
+           "min": 1,
+           "max": 1,
+           "choice": 4,
+           "arm": 1,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]{8}"
+            ]
+           }
+          },
+          {
+           "n": "latitude",
+           "min": 1,
+           "max": 1,
+           "choice": 4,
+           "arm": 2,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]\\.[0-9]{6}|[1-8][0-9]\\.[0-9]{6}|90\\.[0-9]{6}|-[0-9]\\.[0-9]{6}|-[1-8][0-9]\\.[0-9]{6}|-90\\.[0-9]{6}"
+            ]
+           }
+          },
+          {
+           "n": "longitude",
+           "min": 1,
+           "max": 1,
+           "choice": 4,
+           "arm": 2,
+           "s": {
+            "base": "string",
+            "pattern": [
+             "[0-9]\\.[0-9]{6}|[1-9][0-9]\\.[0-9]{6}|1[0-7][0-9]\\.[0-9]{6}|180\\.[0-9]{6}|-[0-9]\\.[0-9]{6}|-[1-9][0-9]\\.[0-9]{6}|-1[0-7][0-9]\\.[0-9]{6}|-180\\.[0-9]{6}"
+            ]
+           }
+          }
+         ],
+         "choices": [
+          {
+           "id": 4,
+           "min": 1
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "n": "tot",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "qCTe",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{1,6}"
+        ]
+       }
+      },
+      {
+       "n": "qNFe",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{1,6}"
+        ]
+       }
+      },
+      {
+       "n": "qMDFe",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{1,6}"
+        ]
+       }
+      },
+      {
+       "n": "vCarga",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+        ]
+       }
+      },
+      {
+       "n": "cUnid",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "01",
+         "02"
+        ]
+       }
+      },
+      {
+       "n": "qCarga",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0|0\\.[0-9]{4}|[1-9]{1}[0-9]{0,10}(\\.[0-9]{4})?"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "n": "lacres",
+     "min": 0,
+     "max": -1,
+     "c": [
+      {
+       "n": "nLacre",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 60
+       }
+      }
+     ]
+    },
+    {
+     "n": "autXML",
+     "min": 0,
+     "max": 10,
+     "c": [
+      {
+       "n": "CNPJ",
+       "min": 1,
+       "max": 1,
+       "choice": 5,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "CPF",
+       "min": 1,
+       "max": 1,
+       "choice": 5,
+       "arm": 2,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{11}"
+        ]
+       }
+      }
+     ],
+     "choices": [
+      {
+       "id": 5,
+       "min": 1
+      }
+     ]
+    },
+    {
+     "n": "infAdic",
+     "min": 0,
+     "max": 1,
+     "c": [
+      {
+       "n": "infAdFisco",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 2000
+       }
+      },
+      {
+       "n": "infCpl",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 5000
+       }
+      }
+     ]
+    },
+    {
+     "n": "infRespTec",
+     "min": 0,
+     "max": 1,
+     "c": [
+      {
+       "n": "CNPJ",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "xContato",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      },
+      {
+       "n": "email",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[^@]+@[^\\.]+\\..+"
+        ],
+        "minLen": 6,
+        "maxLen": 60
+       }
+      },
+      {
+       "n": "fone",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{7,12}"
+        ]
+       }
+      },
+      {
+       "n": "idCSRT",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{3}"
+        ]
+       }
+      },
+      {
+       "n": "hashCSRT",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "base64Binary",
+        "len": 20
+       }
+      }
+     ]
+    },
+    {
+     "n": "infSolicNFF",
+     "min": 0,
+     "max": 1,
+     "c": [
+      {
+       "n": "xSolic",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 8000
+       }
+      }
+     ]
+    },
+    {
+     "n": "infPAA",
+     "min": 0,
+     "max": 1,
+     "c": [
+      {
+       "n": "CNPJPAA",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "PAASignature",
+       "min": 1,
+       "max": 1,
+       "c": [
+        {
+         "n": "SignatureValue",
+         "min": 1,
+         "max": 1,
+         "s": {
+          "base": "base64Binary"
+         }
+        },
+        {
+         "n": "RSAKeyValue",
+         "min": 1,
+         "max": 1,
+         "c": [
+          {
+           "n": "Modulus",
+           "min": 1,
+           "max": 1,
+           "s": {
+            "base": "base64Binary"
+           }
+          },
+          {
+           "n": "Exponent",
+           "min": 1,
+           "max": 1,
+           "s": {
+            "base": "base64Binary"
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": "infMDFeSupl",
+   "min": 0,
+   "max": 1,
+   "c": [
+    {
+     "n": "qrCodMDFe",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "((HTTPS?|https?)://.*\\?chMDFe=[0-9]{6}[A-Z0-9]{12}[0-9]{26}\u0026tpAmb=[1-2](\u0026sign=[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1})?)"
+      ],
+      "minLen": 50,
+      "maxLen": 1000
+     }
+    }
+   ]
+  },
+  {
+   "n": "Signature",
+   "min": 1,
+   "max": 1,
+   "any": true
+  }
+ ]
+}

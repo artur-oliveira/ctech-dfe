@@ -1,0 +1,300 @@
+{
+ "n": "aquav",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "irin",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "minLen": 1,
+    "maxLen": 10
+   }
+  },
+  {
+   "n": "tpEmb",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{2}"
+    ]
+   }
+  },
+  {
+   "n": "cEmbar",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 10
+   }
+  },
+  {
+   "n": "xEmbar",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 60
+   }
+  },
+  {
+   "n": "nViag",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[1-9]{1}[0-9]{0,9}"
+    ]
+   }
+  },
+  {
+   "n": "cPrtEmb",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 5
+   }
+  },
+  {
+   "n": "cPrtDest",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 5
+   }
+  },
+  {
+   "n": "prtTrans",
+   "min": 0,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 60
+   }
+  },
+  {
+   "n": "tpNav",
+   "min": 0,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "0",
+     "1"
+    ]
+   }
+  },
+  {
+   "n": "infTermCarreg",
+   "min": 0,
+   "max": 5,
+   "c": [
+    {
+     "n": "cTermCarreg",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 8
+     }
+    },
+    {
+     "n": "xTermCarreg",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 60
+     }
+    }
+   ]
+  },
+  {
+   "n": "infTermDescarreg",
+   "min": 0,
+   "max": 5,
+   "c": [
+    {
+     "n": "cTermDescarreg",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 8
+     }
+    },
+    {
+     "n": "xTermDescarreg",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 60
+     }
+    }
+   ]
+  },
+  {
+   "n": "infEmbComb",
+   "min": 0,
+   "max": 30,
+   "c": [
+    {
+     "n": "cEmbComb",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 10
+     }
+    },
+    {
+     "n": "xBalsa",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 60
+     }
+    }
+   ]
+  },
+  {
+   "n": "infUnidCargaVazia",
+   "min": 0,
+   "max": -1,
+   "c": [
+    {
+     "n": "idUnidCargaVazia",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[A-Z0-9]+"
+      ],
+      "minLen": 1,
+      "maxLen": 20
+     }
+    },
+    {
+     "n": "tpUnidCargaVazia",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "enum": [
+       "1",
+       "2",
+       "3",
+       "4"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "n": "infUnidTranspVazia",
+   "min": 0,
+   "max": -1,
+   "c": [
+    {
+     "n": "idUnidTranspVazia",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[A-Z0-9]+"
+      ],
+      "minLen": 1,
+      "maxLen": 20
+     }
+    },
+    {
+     "n": "tpUnidTranspVazia",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "enum": [
+       "1",
+       "2"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "n": "MMSI",
+   "min": 0,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{9}"
+    ],
+    "minLen": 1,
+    "maxLen": 9
+   }
+  }
+ ]
+}

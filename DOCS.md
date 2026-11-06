@@ -2399,6 +2399,19 @@ cache.set(f"res:{org_pk}:persons:list:...", paginated_result, ttl=300)
 
 ---
 
+## go-dfe/validate — validador pré-SEFAZ
+
+Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de ir à SEFAZ.
+
+- **Schema**: tabelas JSON em `validate/specs/` geradas dos XSDs oficiais vendorizados em `go-dfe/schemas/`
+  (`cd go-dfe/validate && go run gen/main.go`). Checa obrigatoriedade, tag desconhecida, ocorrência, choice,
+  atributos, padrão, tamanho, enumeração, dígitos totais e casas decimais. `Load("nfe"|"mdfe"|"cte"|"cteos"|"ctesimp"|modais)`.
+- **Regras de negócio do MOC** (`rules.go`): catálogo `Rule{ID, CStat, Mode, Doc, Check}`. Modo padrão `warn`
+  (emissão segue, vira aviso); `shadow` só registra; `block` recusa e só serve para regra determinística provável
+  offline; `Modes` sobrescreve por id sem deploy. Nada bloqueia o cliente sem decisão explícita.
+- Os XSDs vendorizados do NF-e (PL_010e) são anteriores às NT 2026.005/008; campos novos precisam de overlay antes de
+  ligar a validação de schema em `block`.
+
 ## 5. ui — Frontend
 
 **Location:** `/ui/`
