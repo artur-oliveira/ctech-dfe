@@ -1603,6 +1603,10 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 `POST /v1.0/{nfes,nfces}/inutilizations` recusa antes de chamar a SEFAZ com o problema `/problems/service-disabled` (422),
 `GET .../inutilizations/gaps` devolve lista vazia e a UI esconde a aba (`ui/src/lib/constants/inutilization.ts`). A tabela
 UF e data está em `inutilizationDisabledFrom` (`api/internal/services/nfes/inutilization.go`); a UF vem do endereço do emitente.
+Da mesma NT, já conforme o código: o lote tem **um** documento e a autorização é síncrona (`indSinc=1` fixo, `BuildEnviNFe`),
+então as rejeições 126 (lote com mais de 1 NFC-e) e 129 (resposta assíncrona) não se aplicam; e a NFC-e não é mais denegada:
+emitente irregular recebe a rejeição **781**, tratada como rejeição comum pelo worker. A NF-e (modelo 55) continua podendo ser
+denegada (cStat 301, 302 ou 303); hoje o worker a trata como rejeição, sem estado próprio (pendência registrada no plano).
 
 **NF-e status transitions:**
 

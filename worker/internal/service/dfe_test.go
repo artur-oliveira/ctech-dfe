@@ -978,3 +978,22 @@ func TestProcess_Event134_IsSuccess(t *testing.T) {
 		t.Errorf("event status = %q, want success", dynm.updates[len(dynm.updates)-1].status)
 	}
 }
+
+// NT 2023.002 v1.02 (Ajuste SINIEF 10/2023): a NFC-e não é mais denegada; emitente irregular
+// recebe a rejeição 781 ("Emissor não habilitado para emissão da NFC-e"), que é rejeição comum:
+// o documento fica rejected e o motivo vai ao usuário, sem estado de denegação.
+func TestProcess_NFCe781_IsPlainRejection(t *testing.T) {
+	dynm := &mockDynamo{}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("781", "Rejeição: Emissor não habilitado para emissão da NFC-e", "")}, dynm)
+
+	msg := baseMsg
+	msg.DocType = docTypeNFCe
+	msg.TableName = "nfces"
+	msg.S3Prefix = "nfce"
+	if err := svc.Process(context.Background(), msg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if got := dynm.updates[len(dynm.updates)-1].status; got != StatusRejected {
+		t.Fatalf("status = %q, want rejected", got)
+	}
+}
