@@ -14,7 +14,7 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 	g := router.Group("/ctes", authMw)
 
 	// POST /ctes/derive — lê as notas e devolve o que o CT-e herda delas (não grava nada)
-	g.Post("/derive", perm.Require("create.ctes"), func(c fiber.Ctx) error {
+	g.Post("/derive", perm.Require("create.ctes"), perm.Require("get.nfes"), func(c fiber.Ctx) error {
 		var body ctesvc.CteDeriveBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
@@ -27,7 +27,7 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 	})
 
 	// POST /ctes — emite (202 + registro pending; o worker autoriza)
-	g.Post("", perm.Require("create.ctes"), func(c fiber.Ctx) error {
+	g.Post("", perm.Require("create.ctes"), perm.Require("get.nfes"), func(c fiber.Ctx) error {
 		var body ctesvc.CteEmitBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
