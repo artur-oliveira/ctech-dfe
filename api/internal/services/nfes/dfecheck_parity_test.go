@@ -1,7 +1,6 @@
 package nfes
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -23,11 +22,6 @@ func TestBuildEnviNFe_ParidadeComXSD(t *testing.T) {
 		env := body["enviNFe"].(map[string]any)
 		for _, v := range dfecheck.Shadow(dfecheck.SpecNFe, "nfe", "teste", env["NFe"].(map[string]any)) {
 			if v.Code == "required" || v.Code == "choice_missing" || v.Code == "rule" {
-				continue
-			}
-			// Valor vazio vem da fixture mínima (sem xFant, IE, TechData...). O builder emite a tag vazia
-			// nesses casos, o que o XSD recusa (225): o modo shadow em produção mostra se acontece de fato.
-			if strings.HasPrefix(v.Message, `""`) {
 				continue
 			}
 			t.Errorf("modelo %s: %s %s: %s", model, v.Path, v.Code, v.Message)

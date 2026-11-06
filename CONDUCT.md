@@ -1175,3 +1175,9 @@ A change is not complete until:
 - Cross-project impact is reviewed
 
 If any step is missing, it must be explicitly stated.
+
+## Tag vazia nunca vai ao XML
+
+Os builders de NF-e/NFC-e e MDF-e passam o documento por `services.PruneEmpty`: tag ou atributo de texto vazio é
+omitido (dado ausente não vira `<xFant></xFant>`, que a SEFAZ recusa com 225). Grupo que o builder já cria vazio é
+preservado. Builder novo (CT-e) deve fazer o mesmo.

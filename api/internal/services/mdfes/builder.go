@@ -154,13 +154,13 @@ func BuildMDFe(p buildParams) map[string]any {
 		"qrCodMDFe": fmt.Sprintf("https://dfe-portal.svrs.rs.gov.br/mdfe/qrCode?chMDFe=%s&tpAmb=%d", p.accessKey, p.environment),
 	}
 
-	return map[string]any{
+	return services.PruneEmpty(map[string]any{
 		"MDFe": map[string]any{
 			"@xmlns":      mdfeXMLNS,
 			"infMDFe":     infMDFe,
 			"infMDFeSupl": infMDFeSupl,
 		},
-	}
+	}).(map[string]any)
 }
 
 // buildInfAdic junta a mensagem ao fisco (configuração) e a observação da

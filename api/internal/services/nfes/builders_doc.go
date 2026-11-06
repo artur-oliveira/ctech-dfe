@@ -684,7 +684,7 @@ func BuildEnviNFe(
 		nfe["infNFeSupl"] = supl
 	}
 
-	return map[string]any{
+	return services.PruneEmpty(map[string]any{
 		"enviNFe": map[string]any{
 			"@versao": "4.00",
 			"@xmlns":  nfeXMLNS,
@@ -692,7 +692,7 @@ func BuildEnviNFe(
 			"indSinc": indSinc,
 			"NFe":     nfe,
 		},
-	}
+	}).(map[string]any)
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
