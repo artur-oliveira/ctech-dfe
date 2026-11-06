@@ -2419,7 +2419,7 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
   registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. Subir uma regra a warn/block é
-  decisão por regra depois de observar o log em produção. Pendente: CT-e (sem emissão ainda) e modais do MDF-e.
+  decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. Pendente: CT-e (sem emissão ainda).
 
 ## 5. ui — Frontend
 

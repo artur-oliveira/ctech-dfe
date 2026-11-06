@@ -59,7 +59,17 @@ func ShadowEnviNFe(accessKey string, body map[string]any) {
 
 // ShadowMDFe valida o MDFe do corpo do builder.
 func ShadowMDFe(accessKey string, body map[string]any) {
-	if mdfe, ok := body["MDFe"].(map[string]any); ok {
-		Shadow(SpecMDFe, "mdfe", accessKey, mdfe)
+	mdfe, ok := body["MDFe"].(map[string]any)
+	if !ok {
+		return
+	}
+	Shadow(SpecMDFe, "mdfe", accessKey, mdfe)
+	// infModal é xs:any no XSD do MDF-e: o conteúdo do modal tem esquema próprio.
+	inf, _ := mdfe["infMDFe"].(map[string]any)
+	modal, _ := inf["infModal"].(map[string]any)
+	for _, m := range []string{"rodo", "aereo", "aquav", "ferrov"} {
+		if node, ok := modal[m].(map[string]any); ok {
+			Shadow(SpecMDFe+"_"+m, "mdfe_"+m, accessKey, node)
+		}
 	}
 }
