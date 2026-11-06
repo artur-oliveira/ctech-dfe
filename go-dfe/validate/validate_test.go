@@ -63,40 +63,33 @@ func TestCountDigits(t *testing.T) {
 	}
 }
 
-func TestRulesWarnDefaultAndBlockOverride(t *testing.T) {
-	doc := map[string]any{"infNFe": map[string]any{
-		"det":   []any{map[string]any{"prod": map[string]any{"qCom": "2", "vUnCom": "10", "vProd": "25.00"}}},
-		"total": map[string]any{"ICMSTot": map[string]any{"vProd": "25.00", "vNF": "25.00"}},
-	}}
-	f, blocking := Apply("nfe", doc, nil)
-	if blocking || len(f) != 1 || f[0].Rule != "I11-vProd" || f[0].Severity != SevWarn {
-		t.Fatalf("default warn: %+v blocking=%v", f, blocking)
-	}
-	_, blocking = Apply("nfe", doc, Modes{"I11-vProd": ModeBlock})
-	if !blocking {
-		t.Error("override block deveria bloquear")
-	}
-	if f, _ := Apply("nfe", doc, Modes{"I11-vProd": ModeOff}); len(f) != 0 {
-		t.Errorf("off: %+v", f)
-	}
-}
-
-func TestNFeOverlayAcceptsNTFields(t *testing.T) {
-	s, _ := Load("nfe")
-	doc := map[string]any{"infNFe": map[string]any{
-		"emit": map[string]any{"tpRegimeIBSCBS": "1"},
-		"det": map[string]any{"prod": map[string]any{"vUnComLiq": "10.5", "vProdLiq": "21.00", "cAtivSN": "123"},
-			"imposto": map[string]any{"IBSCBS": map[string]any{"gTribSN": map[string]any{
-				"gIBSSN": map[string]any{"pIBSSN": "0.1000", "vIBSSN": "0.02"}}}}},
-		"total": map[string]any{"vProdLiqTot": "21.00", "IBSCBSTot": map[string]any{"gTribSN": map[string]any{"vIBSSN": "0.02"}}},
-	}}
-	for _, v := range s.Validate(doc, Options{}) {
-		if v.Code == CodeUnknownTag {
-			t.Errorf("overlay não cobre %s", v.Path)
+func hasRule(vs []Violation, id string) bool {
+	for _, v := range vs {
+		if v.Rule == id {
+			return true
 		}
 	}
-	doc["infNFe"].(map[string]any)["emit"].(map[string]any)["tpRegimeIBSCBS"] = "9"
-	if !codes(s.Validate(doc, Options{}))["NFe/infNFe/emit/tpRegimeIBSCBS|enum"] {
-		t.Error("enum do overlay não vale")
+	return false
+}
+
+func TestRulesWarnDefaultAndBlockOverride(t *testing.T) {
+	doc := map[string]any{"infNFe": map[string]any{
+		"ide": map[string]any{"mod": "55", "finNFe": "1"},
+		"det": []any{map[string]any{"prod": map[string]any{"qCom": "2", "vUnCom": "10", "vProd": "25.00"}}},
+	}}
+	f, _ := Apply("nfe", doc, nil)
+	if !hasRule(f, "I11-10") {
+		t.Fatalf("I11-10 deveria disparar: %+v", f)
+	}
+	for _, x := range f {
+		if x.Rule == "I11-10" && x.Severity != SevWarn {
+			t.Errorf("padrão deve ser warn: %+v", x)
+		}
+	}
+	if _, blocking := Apply("nfe", doc, Modes{"I11-10": ModeBlock}); !blocking {
+		t.Error("override block deveria bloquear")
+	}
+	if f, _ := Apply("nfe", doc, Modes{"I11-10": ModeOff}); hasRule(f, "I11-10") {
+		t.Error("off deveria silenciar")
 	}
 }

@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 )
@@ -114,50 +113,5 @@ const centavo = 0.0051
 
 func near(a, b float64) bool { return math.Abs(a-b) <= centavo }
 
-// --- regras NF-e/NFC-e ---
-
-var catalog = []Rule{
-	{ID: "I11-vProd", CStat: 629, Mode: ModeWarn, Doc: "nfe", Check: func(doc map[string]any) []string {
-		var out []string
-		for i, det := range list(sub(doc, "infNFe"), "det") {
-			p := sub(det, "prod")
-			q, ok1 := num(p, "qCom")
-			u, ok2 := num(p, "vUnCom")
-			v, ok3 := num(p, "vProd")
-			if ok1 && ok2 && ok3 && math.Abs(q*u-v) > 0.011 {
-				out = append(out, fmt.Sprintf("item %d: vProd %.2f difere de qCom x vUnCom (%.2f)", i+1, v, q*u))
-			}
-		}
-		return out
-	}},
-	{ID: "W07-vProd", CStat: 531, Mode: ModeWarn, Doc: "nfe", Check: func(doc map[string]any) []string {
-		inf := sub(doc, "infNFe")
-		tot, ok := num(sub(inf, "total", "ICMSTot"), "vProd")
-		if !ok {
-			return nil
-		}
-		var sum float64
-		for _, det := range list(inf, "det") {
-			if v, ok := num(sub(det, "prod"), "vProd"); ok {
-				sum += v
-			}
-		}
-		if !near(sum, tot) {
-			return []string{fmt.Sprintf("total vProd %.2f difere da soma dos itens %.2f", tot, sum)}
-		}
-		return nil
-	}},
-	{ID: "W16-vNF", CStat: 610, Mode: ModeWarn, Doc: "nfe", Check: func(doc map[string]any) []string {
-		t := sub(doc, "infNFe", "total", "ICMSTot")
-		vnf, ok := num(t, "vNF")
-		if !ok {
-			return nil
-		}
-		g := func(k string) float64 { v, _ := num(t, k); return v }
-		exp := g("vProd") - g("vDesc") - g("vICMSDeson") + g("vST") + g("vFCPST") + g("vFrete") + g("vSeg") + g("vOutro") + g("vII") + g("vIPI") + g("vIPIDevol")
-		if !near(exp, vnf) && math.Abs(exp-vnf) > 0.011 {
-			return []string{fmt.Sprintf("vNF %.2f difere do calculado pelo MOC %.2f", vnf, exp)}
-		}
-		return nil
-	}},
-}
+// O catálogo vive em rules_nfe.go, rules_mdfe.go e rules_cte.go (registrados em init).
+var catalog []Rule
