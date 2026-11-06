@@ -37,8 +37,14 @@ func Shadow(spec, docKind, accessKey string, doc map[string]any) (found []valida
 	rules, _ := validate.Apply(docKind, doc, nil)
 	found = append(found, rules...)
 	for _, v := range found {
+		// A mensagem de schema cita o valor recusado (pode ser CPF, e-mail, nome): fica fora do log.
+		// A de regra só traz valores monetários e contagens.
+		msg := ""
+		if v.Code == "rule" {
+			msg = v.Message
+		}
 		slog.Warn("dfecheck: achado pré-SEFAZ", "doc", docKind, "access_key", accessKey,
-			"path", v.Path, "code", v.Code, "rule", v.Rule, "cstat", v.CStat, "msg", v.Message)
+			"path", v.Path, "code", v.Code, "rule", v.Rule, "cstat", v.CStat, "msg", msg)
 	}
 	return found
 }
