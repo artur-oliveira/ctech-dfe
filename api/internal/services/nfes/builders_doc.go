@@ -260,6 +260,7 @@ func BuildEnviNFe(
 	t := newTotals(totalProducts, totalDiscount)
 	// NT 2026.005 §2.3: o MEI (CRT=4) não informa o grupo IBSCBS, nem no item nem no total.
 	t.OmitIBSCBS = orgCRT == crtMEI
+	netUnitOnAllItems := itemsHaveNetUnit(productItems)
 	var (
 		totalPesoL = decimal.Zero
 		totalPesoB = decimal.Zero
@@ -463,6 +464,14 @@ func BuildEnviNFe(
 			if v := cfgStr(cfopEntry, cfgCAtivSN, ""); v != "" {
 				prod["cAtivSN"] = v
 			}
+		}
+
+		if netUnitOnAllItems {
+			t.HasVProdLiq = true
+			t.VProdLiq = t.VProdLiq.Add(d(anyStr(prod, "vProdLiq", "0")))
+		} else {
+			delete(prod, "vUnComLiq")
+			delete(prod, "vProdLiq")
 		}
 
 		pisCST := cfgStr(cfopEntry, "pis", "49")

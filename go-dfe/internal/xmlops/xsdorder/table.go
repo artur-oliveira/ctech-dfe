@@ -94,7 +94,7 @@ var envInfe = map[string][]string{
 	"prod": {
 		"cProd", "cEAN", "cBarra", "xProd", "NCM", "NVE", "CEST",
 		"indEscala", "CNPJFab", "cBenef", "gCred", "tpCredPresIBSZFM", "EXTIPI",
-		"CFOP", "uCom", "qCom", "vUnCom", "vProd",
+		"CFOP", "uCom", "qCom", "vUnCom", "vProd", "vUnComLiq", "vProdLiq",
 		"cEANTrib", "cBarraTrib", "uTrib", "qTrib", "vUnTrib",
 		"vFrete", "vSeg", "vDesc", "vOutro", "indTot", "indBemMovelUsado", "cAtivSN",
 		"DI", "detExport", "xPed", "nItemPed", "nFCI", "rastro",
@@ -286,7 +286,7 @@ var envInfe = map[string][]string{
 
 	// total — NF-e (com IBS/CBS/IS — NT 2024.001)
 	// Ordem conforme leiauteNFe_v4.00.xsd: ISTot precede IBSCBSTot
-	"total":    {"ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
+	"total":    {"vProdLiqTot", "ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
 	"ISSQN":    {"vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"},
 	"ISSQNtot": {"vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"},
 	"obsItem":  {"obsCont", "obsFisco"},

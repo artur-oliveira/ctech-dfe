@@ -1697,6 +1697,15 @@ pendente informa conforme o tipo (2: os dois; 3: só `gCBSSN`; 4: nenhum). O MEI
 Sem a alíquota efetiva configurada o `gTribSN` não sai (a NT ainda não o obriga em produção). Código: `builders_ibscbs.go`,
 `builders_total.go`, `builders_party.go` e a tabela de ordem em `go-dfe/internal/xmlops/xsdorder/table.go`.
 
+**NT 2026.008 (valor líquido, produção em 2026-11-16).** O item da requisição aceita `v_un_com_liq` (valor unitário sem
+tributos, até 4 casas). Quando **todos** os itens o trazem, o builder emite `prod/vUnComLiq`, `prod/vProdLiq`
+(`v_un_com_liq` x quantidade, 2 casas, tolerância de 0,01 na regra I11c-20) e o total `total/vProdLiqTot` (soma dos itens,
+W01a-20); em parte dos itens nada sai, para a soma do total sempre fechar. `vProdLiq` obrigatório e o grupo
+`ICMSPrevistoPagtoAntecip` (`vICMSPrevisto`, só para `tpNFDebito=06` e `tpOperGov=4`, regra NB01-30 a partir de 2027) ainda
+não são exigidos em produção; o segundo não está implementado (depende do fluxo de nota de débito, F3). O `vItem` saiu da
+NT na v1.01. Ordem: `vUnComLiq` e `vProdLiq` logo após `vProd`; `vProdLiqTot` abre `total`. Ainda sem campo na tela de
+emissão: só pela API.
+
 **Autorização duplicada (cStat 204).** Quando a SEFAZ responde 204 (mesma chave já autorizada, em geral porque a
 resposta anterior se perdeu), o worker consulta a situação do documento pelo egress (`NfeConsultaProtocolo`,
 `MDFeConsulta` ou `CTeConsulta`). Se consta autorizado (100/150) e o `digVal` do protocolo é o do documento assinado

@@ -1438,6 +1438,8 @@ export interface NfeProductIn {
   veic_x_cor?: string | null
   // arma — por unidade
   armas?: NfeArmaIn[] | null
+  /** Valor unitário líquido sem tributos (vUnComLiq, NT 2026.008); em todos os itens ou em nenhum. */
+  v_un_com_liq?: string | null
   /** Pedido de compra do cliente (prod/xPed, ≤15) e o item dentro dele. */
   x_ped?: string | null
   n_item_ped?: string | null

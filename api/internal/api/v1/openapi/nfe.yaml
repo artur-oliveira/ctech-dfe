@@ -920,6 +920,13 @@ components:
           type: array
           description: Dados de armas, quando o produto é dessa natureza.
           items: { type: object, additionalProperties: true }
+        v_un_com_liq:
+          type: [ string, 'null' ]
+          pattern: '^\d+(\.\d{1,4})?$'
+          description: |
+            Valor unitário líquido do item, sem tributos (`vUnComLiq`, NT 2026.008). Informe em
+            todos os itens ou em nenhum: com ele a nota leva `vUnComLiq`, `vProdLiq`
+            (`v_un_com_liq` x quantidade, 2 casas) e o total `vProdLiqTot`.
         x_ped:
           type: [ string, 'null' ]
           minLength: 1

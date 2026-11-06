@@ -83,3 +83,35 @@ func TestBuildTotal_MEIOmiteIBSCBSTot(t *testing.T) {
 		t.Fatal("MEI não informa IBSCBSTot")
 	}
 }
+
+// NT 2026.008 (I11b e I11c): vProdLiq = vUnComLiq x qCom, com 2 casas.
+func TestBuildProd_ValorLiquidoDoItem(t *testing.T) {
+	item := map[string]any{"quantity": "3", "unit_value": "10.00", "v_un_com_liq": "8.3333"}
+	prod := buildProd(item, prodParams{VProd: "30.00", Unit: "UN", TaxableUnit: "UN", QTrib: "3", VUnTrib: "10.00"})
+	if prod["vUnComLiq"] != "8.3333" || prod["vProdLiq"] != "25.00" {
+		t.Fatalf("vUnComLiq/vProdLiq = %v / %v, want 8.3333 / 25.00", prod["vUnComLiq"], prod["vProdLiq"])
+	}
+	if _, has := buildProd(map[string]any{"quantity": "1", "unit_value": "1.00"}, prodParams{})["vProdLiq"]; has {
+		t.Error("sem v_un_com_liq o item não leva vProdLiq")
+	}
+}
+
+// W01a-10 e W01a-20: o total líquido só existe se os itens têm vProdLiq, e é a soma; tudo ou nada.
+func TestItemsHaveNetUnitETotalLiquido(t *testing.T) {
+	com := map[string]any{"v_un_com_liq": "1.00"}
+	sem := map[string]any{}
+	if !itemsHaveNetUnit([]map[string]any{com, com}) {
+		t.Error("todos com valor líquido deviam contar")
+	}
+	if itemsHaveNetUnit([]map[string]any{com, sem}) || itemsHaveNetUnit(nil) {
+		t.Error("parcial ou vazio não conta (tudo ou nada)")
+	}
+	tt := newTotals(decimal.RequireFromString("30.00"), decimal.Zero)
+	tt.HasVProdLiq, tt.VProdLiq = true, decimal.RequireFromString("25.00")
+	if got := buildTotal(tt, time.Now(), nil)["vProdLiqTot"]; got != "25.00" {
+		t.Errorf("vProdLiqTot = %v, want 25.00", got)
+	}
+	if _, has := buildTotal(newTotals(decimal.Zero, decimal.Zero), time.Now(), nil)["vProdLiqTot"]; has {
+		t.Error("sem itens líquidos o total não leva vProdLiqTot")
+	}
+}

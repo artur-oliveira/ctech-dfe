@@ -39,6 +39,12 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 		"vUnTrib":  p.VUnTrib,
 		"indTot":   strOrDefault(anyStr(item, "ind_tot", ""), indTotCompoe),
 	}
+	// NT 2026.008 (I11a a I11c): valor líquido unitário e do item, sem tributos. vProdLiq é
+	// vUnComLiq x qCom com 2 casas (regra I11c-20, tolerância de 0,01).
+	if vLiq := anyStr(item, "v_un_com_liq", ""); vLiq != "" {
+		prod["vUnComLiq"] = vLiq
+		prod["vProdLiq"] = q2(d(vLiq).Mul(d(anyStr(item, "quantity", "0"))).RoundBank(2))
+	}
 	if d(anyStr(item, "discount", "0")).GreaterThan(decimal.Zero) {
 		prod["vDesc"] = q2(p.Disc.RoundBank(2))
 	}

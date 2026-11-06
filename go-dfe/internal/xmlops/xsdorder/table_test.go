@@ -236,8 +236,9 @@ func TestICMSTot(t *testing.T) {
 
 func TestTotal(t *testing.T) {
 	order := mustResolve(t, "", "total")
-	if order[0] != "ICMSTot" {
-		t.Errorf("expected ICMSTot first, got %v", order)
+	// vProdLiqTot (NT 2026.008, W01a) abre o total; depois dele, ICMSTot (W02).
+	if order[0] != "vProdLiqTot" || order[1] != "ICMSTot" {
+		t.Errorf("expected vProdLiqTot, ICMSTot first, got %v", order)
 	}
 	assertBefore(t, order, "ISTot", "IBSCBSTot")
 	assertBefore(t, order, "ICMSTot", "IBSCBSTot")
@@ -724,3 +725,15 @@ func TestOrdemXSDSimplesNacionalNT2026005(t *testing.T) {
 	assertBefore(t, tot, "gEstornoCred", "gTribSN")
 	assertBefore(t, mustResolve(t, "IBSCBSTot", "gTribSN"), "vIBSSN", "vCBSSN")
 }
+
+// NT 2026.008 (valor líquido): vUnComLiq e vProdLiq logo depois de vProd; vProdLiqTot abre o total.
+func TestOrdemXSDValorLiquidoNT2026008(t *testing.T) {
+	prod := mustResolve(t, "", "prod")
+	assertBefore(t, prod, "vProd", "vUnComLiq")
+	assertBefore(t, prod, "vUnComLiq", "vProdLiq")
+	assertBefore(t, prod, "vProdLiq", "cEANTrib")
+
+	total := mustResolve(t, "infNFe", "total")
+	assertBefore(t, total, "vProdLiqTot", "ICMSTot")
+}
+

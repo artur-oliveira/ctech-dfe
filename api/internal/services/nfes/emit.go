@@ -212,8 +212,12 @@ type NfeProductItem struct {
 	PDevol *string `json:"p_devol" validate:"omitempty,percent"`
 	// XPed e NItemPed são o pedido de compra do cliente e o item dentro dele
 	// (prod/xPed, prod/nItemPed) — controle B2B, muda a cada nota.
-	XPed     *string `json:"x_ped" validate:"omitempty,min=1,max=15"`
-	NItemPed *string `json:"n_item_ped" validate:"omitempty,max=6,number"`
+	// VUnComLiq é o valor unitário líquido do item, sem tributos (NT 2026.008, I11b): o
+	// preço antes de ICMS, PIS, COFINS, IBS e CBS. Informe em todos os itens ou em nenhum; com
+	// ele a nota leva vUnComLiq, vProdLiq e o total vProdLiqTot.
+	VUnComLiq *string `json:"v_un_com_liq" validate:"omitempty,money"`
+	XPed      *string `json:"x_ped" validate:"omitempty,min=1,max=15"`
+	NItemPed  *string `json:"n_item_ped" validate:"omitempty,max=6,number"`
 
 	// Grupos da reforma que só existem por nota, porque são valores apurados e
 	// não configuração: transferência de crédito, ajuste de competência e
@@ -1453,9 +1457,10 @@ func resolveProducts(
 			"obs_item_x_campo": product["obs_item_x_campo"],
 			"obs_item_x_texto": product["obs_item_x_texto"],
 			// NVE, nFCI e códigos de barra próprios — nível produto.
-			"x_ped":      ptrStr(item.XPed),
-			"n_item_ped": ptrStr(item.NItemPed),
-			"n_recopi":   product["n_recopi"],
+			"v_un_com_liq": ptrStr(item.VUnComLiq),
+			"x_ped":        ptrStr(item.XPed),
+			"n_item_ped":   ptrStr(item.NItemPed),
+			"n_recopi":     product["n_recopi"],
 			// Reforma tributária: os grupos apurados por nota e o processo
 			// Suframa do embarque.
 			"transf_cred_v_ibs":      pairValue(item.TransfCred, true),

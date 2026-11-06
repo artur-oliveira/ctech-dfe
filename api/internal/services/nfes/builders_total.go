@@ -52,10 +52,28 @@ type totals struct {
 	// total do Simples só existe quando algum item o tem); IBSSN e CBSSN somam os itens.
 	HasGTribSN   bool
 	IBSSN, CBSSN decimal.Decimal
+	// HasVProdLiq marca que os itens trouxeram vProdLiq; VProdLiq é a soma (W01a, NT 2026.008).
+	HasVProdLiq bool
+	VProdLiq    decimal.Decimal
 }
 
 // crtMEI é o CRT 4 (Simples Nacional, Microempreendedor Individual).
 const crtMEI = 4
+
+// itemsHaveNetUnit diz se TODOS os itens trouxeram o valor unitário líquido. A NT só
+// pede vProdLiqTot quando algum item tem vProdLiq e o total é a soma dos itens (W01a-10
+// e W01a-20): informar em parte dos itens deixaria o conjunto incoerente, então é tudo ou nada.
+func itemsHaveNetUnit(items []map[string]any) bool {
+	if len(items) == 0 {
+		return false
+	}
+	for _, it := range items {
+		if anyStr(it, "v_un_com_liq", "") == "" {
+			return false
+		}
+	}
+	return true
+}
 
 // newTotals devolve um acumulador zerado com os totais de produto e desconto
 // que já vêm calculados da requisição.
@@ -123,6 +141,9 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 	}
 
 	totalNode := map[string]any{"ICMSTot": icmsTot}
+	if t.HasVProdLiq {
+		totalNode["vProdLiqTot"] = q2(t.VProdLiq.RoundBank(2))
+	}
 	if !t.OmitIBSCBS {
 		totalNode["IBSCBSTot"] = buildIBSCBSTot(t)
 	}
