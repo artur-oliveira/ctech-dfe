@@ -1181,3 +1181,10 @@ If any step is missing, it must be explicitly stated.
 Os builders de NF-e/NFC-e e MDF-e passam o documento por `services.PruneEmpty`: tag ou atributo de texto vazio é
 omitido (dado ausente não vira `<xFant></xFant>`, que a SEFAZ recusa com 225). Grupo que o builder já cria vazio é
 preservado. Builder novo (CT-e) deve fazer o mesmo.
+
+## Ordem dos filhos: teste de paridade com o XSD
+
+`go-dfe/validate/xsdorder_parity_test.go` compara a tabela `xsdorder` com a sequência dos XSDs vendorizados. Tag fora da
+tabela vai para o fim em ordem alfabética (225 na SEFAZ), então todo campo novo de leiaute entra em `xsdorder` junto.
+NF-e e MDF-e falham o teste se divergirem; a divergência do CT-e é a lista de trabalho da F6 (aparece em `go test -v`).
+O teste já pegou ICMSTot sem vICMSUFDest/vFCPUFDest/vICMSUFRemet, impostoDevol e agropecuario/infPAA fora de ordem.

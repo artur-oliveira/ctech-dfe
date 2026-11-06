@@ -97,7 +97,8 @@ type node struct {
 	Choices  []choiceGroup `json:"choices"`
 	Any      bool          `json:"any"`
 
-	byName map[string]*node
+	byName  map[string]*node
+	overlay bool // acrescentado por overlay.go: fora da ordem do XSD vendorizado
 }
 
 // Spec é a tabela de campos de um documento (ou de um modal).

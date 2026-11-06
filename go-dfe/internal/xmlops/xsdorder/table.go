@@ -44,7 +44,7 @@ var envInfe = map[string][]string{
 		"det",
 		"total", "transp", "cobr", "pag",
 		"infIntermed", "infAdic", "exporta", "compra", "cana",
-		"infRespTec", "infSolicNFF",
+		"infRespTec", "infSolicNFF", "agropecuario", "infPAA",
 	},
 
 	// ide — NF-e
@@ -62,7 +62,7 @@ var envInfe = map[string][]string{
 	"infNFe:emit": {
 		"CNPJ", "CPF",
 		"xNome", "xFant", "enderEmit",
-		"IE", "IEST", "IM", "CNAE", "CRT", "tpRegimeIBSCBS",
+		"IE", "IEST", "IM", "CNAE", "CRT", "tpRegimeIBSCBS", "ISUFEmit",
 	},
 
 	// dest — NF-e
@@ -286,12 +286,17 @@ var envInfe = map[string][]string{
 
 	// total — NF-e (com IBS/CBS/IS — NT 2024.001)
 	// Ordem conforme leiauteNFe_v4.00.xsd: ISTot precede IBSCBSTot
-	"total":    {"vProdLiqTot", "ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
-	"ISSQN":    {"vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"},
-	"ISSQNtot": {"vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"},
-	"obsItem":  {"obsCont", "obsFisco"},
-	"II":       {"vBC", "vDespAdu", "vII", "vIOF"},
-	"retTrib":  {"vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"},
+	"total":       {"vProdLiqTot", "ICMSTot", "ISSQNtot", "retTrib", "ISTot", "IBSCBSTot", "vNFTot"},
+	"ISSQN":       {"vBC", "vAliq", "vISSQN", "cMunFG", "cListServ", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "indISS", "cServico", "cMun", "cPais", "nProcesso", "indIncentivo"},
+	"ISSQNtot":    {"vServ", "vBC", "vISS", "vPIS", "vCOFINS", "dCompet", "vDeducao", "vOutro", "vDescIncond", "vDescCond", "vISSRet", "cRegTrib"},
+	"obsItem":     {"obsCont", "obsFisco"},
+	"II":          {"vBC", "vDespAdu", "vII", "vIOF"},
+	"RSAKeyValue": {"Modulus", "Exponent"},
+	// impostoDevol: pDevol vem antes do IPI (sem entrada, a ordem cairia em alfabética: IPI antes de pDevol).
+	"impostoDevol": {"pDevol", "IPI"},
+	// DFeReferenciado (NT 2024.002): chave e item.
+	"DFeReferenciado": {"chaveAcesso", "nItem"},
+	"retTrib":         {"vRetPIS", "vRetCOFINS", "vRetCSLL", "vBCIRRF", "vIRRF", "vBCRetPrev", "vRetPrev"},
 
 	// IBSCBSTot — totais IBS/CBS por nota (type TIBSCBSMonoTot)
 	"IBSCBSTot": {"vBCIBSCBS", "gIBS", "gCBS", "gMono", "gEstornoCred", "gTribSN"},
@@ -314,7 +319,9 @@ var envInfe = map[string][]string{
 	},
 
 	"ICMSTot": {
-		"vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
+		"vBC", "vICMS", "vICMSDeson", "vFCPUFDest", "vICMSUFDest", "vICMSUFRemet", "vFCP",
+		"vBCST", "vST", "vFCPST", "vFCPSTRet",
+		"qBCMono", "vICMSMono", "qBCMonoReten", "vICMSMonoReten", "qBCMonoRet", "vICMSMonoRet",
 		"vProd", "vFrete", "vSeg", "vDesc", "vII", "vIPI", "vIPIDevol",
 		"vPIS", "vCOFINS", "vOutro", "vNF", "vTotTrib",
 	},

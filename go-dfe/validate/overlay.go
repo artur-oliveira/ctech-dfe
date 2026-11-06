@@ -22,10 +22,12 @@ func dec(intDigits, minFrac, maxFrac int) string {
 	return "0|0\\.[0-9]{" + strconv.Itoa(minFrac) + "," + strconv.Itoa(maxFrac) + "}|[1-9][0-9]{0," + strconv.Itoa(intDigits-1) + "}(\\.[0-9]{" + strconv.Itoa(minFrac) + "," + strconv.Itoa(maxFrac) + "})?"
 }
 
-func leaf(name string, s *simple) *node { return &node{Name: name, Min: 0, Max: 1, Simple: s} }
+func leaf(name string, s *simple) *node {
+	return &node{Name: name, Min: 0, Max: 1, Simple: s, overlay: true}
+}
 
 func group(name string, kids ...*node) *node {
-	n := &node{Name: name, Min: 0, Max: 1, Children: kids}
+	n := &node{Name: name, Min: 0, Max: 1, Children: kids, overlay: true}
 	n.byName = map[string]*node{}
 	for _, k := range kids {
 		n.byName[k.Name] = k

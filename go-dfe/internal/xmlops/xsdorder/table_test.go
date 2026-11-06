@@ -418,10 +418,10 @@ func TestInfNFeFullOrder(t *testing.T) {
 		"ide", "emit", "avulsa", "dest", "retirada", "entrega", "autXML",
 		"det", "total", "transp", "cobr", "pag",
 		"infIntermed", "infAdic", "exporta", "compra", "cana",
-		"infRespTec", "infSolicNFF",
+		"infRespTec", "infSolicNFF", "agropecuario", "infPAA",
 	})
-	if order[len(order)-1] != "infSolicNFF" {
-		t.Errorf("infNFe: expected infSolicNFF last, got %v", order)
+	if order[len(order)-1] != "infPAA" {
+		t.Errorf("infNFe: expected infPAA last, got %v", order)
 	}
 }
 
@@ -573,8 +573,9 @@ func TestTableKeyCount(t *testing.T) {
 	// gMonoRet, gMonoDif, gTransfCred, gAjusteCompet, gEstornoCred,
 	// gCredPresOper, gIBSCredPres, gCBSCredPres, gCredPresIBSZFM, gCompraGov,
 	// gPagAntecipado, IBSCBSTot:gMono) + 4 do Simples Nacional da NT 2026.005
-	// (gTribSN, gIBSSN, gCBSSN, IBSCBSTot:gTribSN).
-	const wantKeys = 251
+	// (gTribSN, gIBSSN, gCBSSN, IBSCBSTot:gTribSN) + impostoDevol, DFeReferenciado e
+	// RSAKeyValue, que o paridade com o XSD (validate/xsdorder_parity_test.go) apontou.
+	const wantKeys = 254
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
@@ -736,4 +737,3 @@ func TestOrdemXSDValorLiquidoNT2026008(t *testing.T) {
 	total := mustResolve(t, "infNFe", "total")
 	assertBefore(t, total, "vProdLiqTot", "ICMSTot")
 }
-
