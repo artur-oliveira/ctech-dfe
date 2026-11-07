@@ -240,3 +240,28 @@ test('the contingency dispatcher runs every 15 min, queries the sparse index and
   const text = JSON.stringify(template.toJSON().Resources)
   expect(text).not.toContain('dynamodb:Scan')
 })
+
+test('the contingency worker has the shared worker env vars and egress/S3/SNS/Dynamo permissions', () => {
+  const template = buildTemplate()
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    FunctionName: 'dev-contingency-retransmit-worker',
+    Architectures: ['arm64'],
+    Environment: {Variables: Match.objectLike({
+      TABLE_PREFIX: 'dev_dfe',
+      DOCUMENTS_BUCKET: 'dev-ctech-dfe-documents',
+      CERTIFICATES_BUCKET: 'dev-ctech-dfe-certificates',
+      DFE_LAMBDA_NAME: 'dev-go-dfe-egress',
+      DFE_EGRESS_REGION: 'sa-east-1',
+      RESULTS_TOPIC_ARN: Match.anyValue(),
+    })},
+  })
+  const role = JSON.stringify(
+    Object.values(template.findResources('AWS::IAM::Policy')).filter((p: any) =>
+      JSON.stringify(p.Properties.PolicyName).includes('contingencyretransmitrole')))
+  expect(role).toContain('lambda:InvokeFunction')
+  expect(role).toContain('dev-go-dfe-egress')
+  expect(role).toContain('sns:Publish')
+  expect(role).toContain('s3:PutObject')
+  expect(role).toContain('dynamodb:Query')
+  expect(role).toContain('dev_dfe_nfce_events')
+})

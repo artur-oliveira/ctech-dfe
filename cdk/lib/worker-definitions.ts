@@ -156,7 +156,11 @@ export const WORKERS: WorkerDefinition[] = [
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
     sefazServices: [],
-    dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfe_events', 'cte_events', 'mdfe_events'],
+    // Process (DfeService) writes the document and its events table; the shared wiring in
+    // worker-stack.ts gives every worker the env vars, S3, egress invoke and results publish.
+    // Cost: ~2,900 invocations/month of a 128 MB arm64 function, inside the free tier; no
+    // reserved concurrency (it would eat the account's unreserved floor for a rare burst).
+    dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfe_events', 'nfce_events', 'cte_events', 'mdfe_events'],
     environment: {},
   },
 ]

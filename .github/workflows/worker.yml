@@ -64,7 +64,7 @@ jobs:
           SHORT_SHA="${{ github.sha }}"
           VERSION="$(date -u '+%Y%m%d-%H%M')-${{ github.ref_name }}-${SHORT_SHA:0:7}"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher contingency-dispatcher contingency-retransmit; do
             mkdir -p "dist/${cmd}"
             CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
               go build -ldflags="-s -w" -o "dist/${cmd}/bootstrap" "./cmd/${cmd}"
@@ -73,7 +73,7 @@ jobs:
       - name: Package Lambda binaries
         working-directory: worker
         run: |
-          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher contingency-dispatcher contingency-retransmit; do
             zip "${cmd}-${VERSION}.zip" -j "dist/${cmd}/bootstrap"
           done
 
@@ -81,7 +81,7 @@ jobs:
         working-directory: worker
         run: |
           ENV="${{ steps.env.outputs.name }}"
-          for cmd in worker distribution-worker dlq-processor distribution-dispatcher; do
+          for cmd in worker distribution-worker dlq-processor distribution-dispatcher contingency-dispatcher contingency-retransmit; do
             aws s3 cp "${cmd}-${VERSION}.zip" \
               "s3://${ENV}-ctech-deployments/ctech-dfe/worker/${cmd}-${VERSION}.zip"
           done
@@ -142,6 +142,23 @@ jobs:
             --s3-key "ctech-dfe/worker/distribution-dispatcher-${VERSION}.zip" \
             --no-cli-pager
 
+      - name: Update contingency functions
+        run: |
+          ENV="${{ steps.env.outputs.name }}"
+          # CDK creates these two from source, but a worker-only change does not trigger a CDK deploy:
+          # CI must update them like the other worker functions.
+          aws lambda update-function-code \
+            --function-name "${ENV}-contingency-dispatcher" \
+            --s3-bucket "${ENV}-ctech-deployments" \
+            --s3-key "ctech-dfe/worker/contingency-dispatcher-${VERSION}.zip" \
+            --no-cli-pager &
+          aws lambda update-function-code \
+            --function-name "${ENV}-contingency-retransmit-worker" \
+            --s3-bucket "${ENV}-ctech-deployments" \
+            --s3-key "ctech-dfe/worker/contingency-retransmit-${VERSION}.zip" \
+            --no-cli-pager &
+          wait
+
       - name: Wait for all functions to be active
         run: |
           ENV="${{ steps.env.outputs.name }}"
@@ -158,6 +175,8 @@ jobs:
             "${ENV}-distribution-worker"
             "${ENV}-dfe-dlq-processor"
             "${ENV}-distribution-dispatcher"
+            "${ENV}-contingency-dispatcher"
+            "${ENV}-contingency-retransmit-worker"
           )
           for fn in "${FUNCTIONS[@]}"; do
             aws lambda wait function-updated --function-name "$fn" &
