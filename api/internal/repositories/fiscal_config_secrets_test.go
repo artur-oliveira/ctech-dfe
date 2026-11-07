@@ -95,14 +95,26 @@ func TestUpsertCarimbaSweep(t *testing.T) {
 // configuração nem a abre (campo no corpo) nem a fecha (campo omitido).
 func TestUpsertPreservaJanelaDeContingencia(t *testing.T) {
 	repo := &FiscalConfigRepository{}
-	existing := map[string]types.AttributeValue{AttrContingencyMode: s(ContingencyModeSVC), AttrContingencySince: s("2026-11-08T10:00:00Z")}
+	existing := map[string]types.AttributeValue{AttrEmissionType: s(EmissionSVC), AttrContingencySince: s("2026-11-08T10:00:00Z")}
 
 	_, final, _ := repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{"environment": s("2")}, existing)
-	if final[AttrContingencyMode] != existing[AttrContingencyMode] || final[AttrContingencySince] != existing[AttrContingencySince] {
+	if final[AttrEmissionType] != existing[AttrEmissionType] || final[AttrContingencySince] != existing[AttrContingencySince] {
 		t.Fatalf("janela aberta deveria sobreviver ao PUT: %v", final)
 	}
-	_, final, _ = repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{AttrContingencyMode: s(ContingencyModeSVC)}, nil)
-	if _, ok := final[AttrContingencyMode]; ok {
+	_, final, _ = repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{AttrEmissionType: s(EmissionSVC)}, nil)
+	if _, ok := final[AttrEmissionType]; ok {
 		t.Fatal("PUT não pode abrir a janela")
+	}
+}
+
+func TestEmissionTypeOfReadsLegacyMode(t *testing.T) {
+	if got := EmissionTypeOf(map[string]types.AttributeValue{}); got != EmissionNormal {
+		t.Fatalf("absent: %q", got)
+	}
+	if got := EmissionTypeOf(map[string]types.AttributeValue{AttrContingencyMode: s("svc")}); got != EmissionSVC {
+		t.Fatalf("legacy: %q", got)
+	}
+	if got := EmissionTypeOf(map[string]types.AttributeValue{AttrEmissionType: s("epec"), AttrContingencyMode: s("svc")}); got != EmissionEPEC {
+		t.Fatalf("new wins: %q", got)
 	}
 }

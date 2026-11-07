@@ -120,7 +120,7 @@ func TestAccessKeyCarriesTpEmis(t *testing.T) {
 
 func svcConfig(since, reason string) map[string]types.AttributeValue {
 	return map[string]types.AttributeValue{
-		repositories.AttrContingencyMode:   &types.AttributeValueMemberS{Value: repositories.ContingencyModeSVC},
+		repositories.AttrContingencyMode:   &types.AttributeValueMemberS{Value: repositories.EmissionSVC},
 		repositories.AttrContingencySince:  &types.AttributeValueMemberS{Value: since},
 		repositories.AttrContingencyReason: &types.AttributeValueMemberS{Value: reason},
 	}

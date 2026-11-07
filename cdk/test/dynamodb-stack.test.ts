@@ -152,6 +152,27 @@ describe('DynamoDBStack — sweep-index', () => {
     });
 });
 
+describe('DynamoDBStack — contingency-index', () => {
+    test('as quatro tabelas de documento têm o GSI esparso contingency-index (KEYS_ONLY, ordenado por prazo)', () => {
+        const template = synth();
+        for (const name of ['dev_dfe_nfes', 'dev_dfe_nfces', 'dev_dfe_ctes', 'dev_dfe_mdfes']) {
+            template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+                TableName: name,
+                GlobalSecondaryIndexes: Match.arrayWith([
+                    Match.objectLike({
+                        IndexName: 'contingency-index',
+                        KeySchema: [
+                            {AttributeName: 'contingency_sweep', KeyType: 'HASH'},
+                            {AttributeName: 'contingency_deadline', KeyType: 'RANGE'},
+                        ],
+                        Projection: {ProjectionType: 'KEYS_ONLY'},
+                    }),
+                ]),
+            });
+        }
+    });
+});
+
 // KMS-encrypted tables bill a KMS request per read/write; the default AWS-owned key is free.
 // Changing this on an existing GlobalTable is an in-place update (SSESpecification: no interruption).
 describe('DynamoDBStack — encryption', () => {

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 
 	"gopkg.aoctech.app/api-commons/problem"
@@ -9,8 +10,15 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
+
+// autoOn reads the auto_contingency flag of a configuration row.
+func autoOn(item map[string]types.AttributeValue) bool {
+	v, ok := item[repositories.AttrAutoContingency].(*types.AttributeValueMemberBOOL)
+	return ok && v.Value
+}
 
 // OrgHandlers bundles services needed by organization routes.
 type OrgHandlers struct {
@@ -255,21 +263,52 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	registerFiscalConfig(scoped, "/nfe-config",
 		"get.organization_nfe_configs", "update.organization_nfe_configs",
 		h.NfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc, serieDeps(services.ModelNFe))
-	// Contingency window of the NF-e (SVC-AN/SVC-RS by the issuer's UF); a PUT of
-	// /nfe-config never touches it. Same permission as the configuration.
+	// Legacy NF-e window (first round), kept compatible: enabled is emission_type
+	// svc, disabled is normal; the automatic flag is left as it is.
 	scoped.Put("/nfe-contingency", perm.Require("update.organization_nfe_configs"), func(c fiber.Ctx) error {
 		var body NfeContingencyBody
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}
-		if body.Enabled && body.Justification == "" {
-			return sendProblem(c, problem.UnprocessableEntity("justificativa obrigatória para entrar em contingência (15 a 256 caracteres)"))
+		orgPK := middleware.GetOrgPK(c)
+		cur, err := h.NfeConfig.Get(c.Context(), orgPK)
+		if err != nil {
+			return sendProblem(c, err)
 		}
-		item, err := h.NfeConfig.SetContingency(c.Context(), middleware.GetOrgPK(c), body.Enabled, body.Justification)
+		u := services.EmissionUpdate{Type: repositories.EmissionNormal, Auto: autoOn(cur)}
+		if body.Enabled {
+			u.Type, u.Reason = repositories.EmissionSVC, body.Justification
+		}
+		item, err := h.NfeConfig.SetEmission(c.Context(), orgPK, u)
 		if err != nil {
 			return sendProblem(c, err)
 		}
 		return sendItem(c, redactFiscalSecrets(item))
+	})
+	emission := func(path, perm_ string, set func(ctx context.Context, orgPK string, u services.EmissionUpdate) (map[string]types.AttributeValue, error)) {
+		scoped.Put(path, perm.Require(perm_), func(c fiber.Ctx) error {
+			var body EmissionBody
+			if p := bindJSON(c, &body); p != nil {
+				return sendProblem(c, p)
+			}
+			item, err := set(c.Context(), middleware.GetOrgPK(c), services.EmissionUpdate{Type: body.EmissionType, Auto: body.AutoContingency, Reason: body.Justification})
+			if err != nil {
+				return sendProblem(c, err)
+			}
+			return sendItem(c, redactFiscalSecrets(item))
+		})
+	}
+	emission("/nfe-emission", "update.organization_nfe_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
+		return h.NfeConfig.SetEmission(ctx, pk, u)
+	})
+	emission("/nfce-emission", "update.organization_nfce_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
+		return h.NfceConfig.SetEmission(ctx, pk, u)
+	})
+	emission("/cte-emission", "update.organization_cte_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
+		return h.CteConfig.SetEmission(ctx, pk, u)
+	})
+	emission("/mdfe-emission", "update.organization_mdfe_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
+		return h.MdfeConfig.SetEmission(ctx, pk, u)
 	})
 	registerFiscalConfig(scoped, "/nfce-config",
 		"get.organization_nfce_configs", "update.organization_nfce_configs",

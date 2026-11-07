@@ -98,7 +98,7 @@ func svcAuthorizerForKey(accessKey string) string {
 // authorizer ("" for normal).
 func resolveNFeEmission(config map[string]types.AttributeValue, uf string) (EmissionMode, string, error) {
 	mode := NormalEmission(nfModel55)
-	if strAttr(config, repositories.AttrContingencyMode) != repositories.ContingencyModeSVC {
+	if repositories.EmissionTypeOf(config) != repositories.EmissionSVC {
 		return mode, "", nil
 	}
 	svc, ok := dfe.SVCFor(uf)

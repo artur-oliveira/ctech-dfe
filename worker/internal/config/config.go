@@ -16,6 +16,7 @@ type Config struct {
 	ResultsTopicARN          string
 	EventBusTopicARN         string // optional; distribution worker uses this for auto-Ciência
 	DistributionFunctionName string // dispatcher invokes this function (async) once per job
+	ContingencyFunctionName  string // contingency dispatcher invokes this function (async) once per document
 }
 
 // Load reads config from environment variables (DFe worker + distribution worker).
@@ -55,6 +56,19 @@ func LoadDispatcher() (*Config, error) {
 	}
 	if cfg.DistributionFunctionName == "" {
 		return nil, fmt.Errorf("DISTRIBUTION_FUNCTION_NAME is required")
+	}
+	return cfg, nil
+}
+
+// LoadContingencyDispatcher reads the config of the contingency dispatcher.
+func LoadContingencyDispatcher() (*Config, error) {
+	cfg := &Config{
+		AWSRegion:               getenv("AWS_REGION", "us-east-1"),
+		TablePrefix:             getenv("TABLE_PREFIX", "dev"),
+		ContingencyFunctionName: os.Getenv("CONTINGENCY_FUNCTION_NAME"),
+	}
+	if cfg.ContingencyFunctionName == "" {
+		return nil, fmt.Errorf("CONTINGENCY_FUNCTION_NAME is required")
 	}
 	return cfg, nil
 }

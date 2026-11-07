@@ -1385,9 +1385,18 @@ type FiscalConfigBody struct {
 	fiscalConfigBase
 }
 
-// NfeContingencyBody is the body for PUT /…/nfe-contingency: opens (enabled) or
-// closes the SVC contingency window of the organization. The justification
-// becomes ide/xJust and is required, 15 to 256 characters, when opening.
+// EmissionBody is the body for PUT /…/{nfe,nfce,cte,mdfe}-emission: the current
+// emission type of the document and the automatic-contingency flag. The
+// justification becomes ide/xJust (15 to 256 characters, required when leaving
+// "normal").
+type EmissionBody struct {
+	EmissionType    string `json:"emission_type" validate:"required,oneof=normal svc epec offline"`
+	AutoContingency bool   `json:"auto_contingency"`
+	Justification   string `json:"justification" validate:"omitempty,max=256"`
+}
+
+// NfeContingencyBody is the legacy body of PUT /…/nfe-contingency (first round):
+// enabled maps to emission_type svc, disabled to normal.
 type NfeContingencyBody struct {
 	Enabled       bool   `json:"enabled"`
 	Justification string `json:"justification" validate:"omitempty,min=15,max=256"`

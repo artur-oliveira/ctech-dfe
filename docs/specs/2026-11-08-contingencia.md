@@ -6,31 +6,51 @@ Fase F7 do plano `docs/plans/2026-11-04-moc-cobertura-total.md`. Fontes: MOC onl
 `NFe_NFCe/Contingencia.html` dá 404; as páginas reais são as acima. O MOC **não** traz as URLs dos web
 services da SVC (remete ao Portal Nacional); ver "Decisões pendentes".
 
-## 1. Escopo (decisão do dono)
+## 1. Escopo (decisões do dono, 2026-11-07)
 
-| Documento | Entra | Não entra |
+Opções de forma de emissão por documento (todas listadas na configuração; o usuário troca manualmente):
+
+| Documento | Opções além de `normal` | Não entra |
 |---|---|---|
-| NF-e | SVC-AN (`tpEmis=6`), SVC-RS (`7`), EPEC (`4`) | FS-IA (2), FS-DA (5), SCAN (3), `tpEmis=9` com `tpImp=6` (fase posterior) |
-| NFC-e | offline (`tpEmis=9`) | SVC (o MOC proíbe: `B22-70`/783), EPEC (a critério da UF, fora) |
-| MDF-e | offline (`tpEmis=2`) | não há SVC nem EPEC no MDF-e |
-| CT-e | offline (`tpEmis=2`) | EPEC revogado (não implementar), FS-DA revogado, SVC-RS/SVC-SP (7/8) fora do escopo desta fase |
+| NF-e | `svc` (SVC-AN `tpEmis=6` / SVC-RS `7`, pela UF), `epec` (`4`) | FS-IA (2), FS-DA (5), SCAN (3), `tpEmis=9` com `tpImp=6` |
+| NFC-e | `offline` (`9`, todas as UFs); `epec` (`4`, o MOC lista `tpEmis=4`; a UF decide) | SVC (o MOC proíbe: `B22-70`/783) |
+| MDF-e | `offline` (`2`) | não há SVC nem EPEC |
+| CT-e | `offline` (`2`); `svc` (SVC-RS `7` / SVC-SP `8`, mesmos autorizadores SVRS e SVSP) | EPEC (em remoção, não implementar), FS-DA (revogado) |
 
-## 2. Máquina de estados por documento
+Duas modalidades, ambas entregues: (a) escolha manual da forma de emissão corrente; (b) bandeira `auto_contingency`
+(desligada por padrão, por documento): com ela ligada e o autorizador indisponível, o sistema troca a forma de emissão
+sozinho e emite, **regerando o documento**.
+
+## 2. Máquina de estados
+
+Por organização e documento (`emission_type`, `contingency_since`):
 
 ```
-normal ──(janela aberta + emissão)──> contingência emitida
-contingência emitida (SVC)  ──autorizada pela SVC──> authorized      (sem retransmissão)
-contingência emitida (EPEC/offline) ──> contingency_pending
+normal ──(usuário escolhe, ou auto_contingency detecta indisponibilidade)──> contingência (svc | epec | offline)
+contingência ──(usuário volta, ou autorizador saudável de novo com auto_contingency)──> normal   [contingency_since := null]
+contingência A ──(usuário escolhe B)──> contingência B   [contingency_since mantido]
+```
+
+Regeração (obrigatória na troca automática e em qualquer emissão cuja forma mudou): `tpEmis` está na chave de acesso
+(posição 35), logo a troca muda a chave, e a chave muda a assinatura. A emissão em curso é **descartada e refeita** do
+zero: nova chave com o novo `tpEmis` (mesmo número e série, `cNF` novo), novo XML, nova assinatura, `dhCont`/`xJust`.
+Nunca se remenda o XML guardado. A tentativa em `normal` que falhou por indisponibilidade não deixou documento
+autorizado (consulta por chave antes de regerar: se a SEFAZ a conhece, ela vale e nada é regerado).
+
+Por documento emitido em EPEC/offline:
+
+```
 contingency_pending ──reenvio autorizado dentro do prazo──> authorized
-contingency_pending ──reenvio autorizado fora do prazo──> authorized_late   (CT-e cStat 150; demais: ver pendências)
-contingency_pending ──rejeição──> rejected_late (corrigir e regerar: mesmo número e série, mesma chave e cNF)
+contingency_pending ──reenvio autorizado fora do prazo──> authorized_late   (SUCESSO: decisão do dono; CT-e cStat 150, NF-e EPEC e MDF-e igual)
+contingency_pending ──rejeição──> rejected_late (corrigir e regerar: mesmo número, série, chave e cNF)
 contingency_pending ──prazo vencido sem reenvio──> overdue (alerta; EPEC pendente há mais de 168 h bloqueia a contingência EPEC do emitente)
 ```
 
-SVC não tem estado pendente: a nota é autorizada na SVC e já vai ao Ambiente Nacional (MOC 1.1.3.4).
+SVC não tem estado pendente: a nota é autorizada na SVC e já vai ao Ambiente Nacional (MOC 1.1.3.4). Documentos em
+contingência offline **precisam ser transmitidos** quando o ambiente volta: rotina automática (seção 6).
 
-Prazos (MOC): NF-e EPEC 168 h; NFC-e offline até o fim do primeiro dia útil seguinte; MDF-e e CT-e offline
-168 h. Alertas em 24 h e 120 h para os de 168 h; para NFC-e, alerta no dia da emissão e às 12 h do dia útil seguinte.
+Prazos (MOC): NF-e EPEC 168 h; NFC-e offline: começa em **3 dias** (constante configurável; varia por UF; o MOC fala
+em "primeiro dia útil seguinte"); MDF-e e CT-e offline 168 h. Alertas em 24 h e 120 h para os de 168 h.
 
 ## 3. Endpoints SVC por UF (MOC, Ato COTEPE 39/2012)
 
@@ -41,51 +61,58 @@ tabela (27 UFs, uma vez cada). Serviços da SVC: autorização, retorno, cancela
 pela própria SVC), consulta e status. **Sem inutilização e sem CC-e na SVC**: o pedido é represado para a
 SEFAZ de origem. Status da SVC: `107` em operação, `113` em desativação (15 min de coexistência), `114` desabilitada.
 
-## 4. O que o usuário escolhe
+## 4. Configuração e API
 
-Recomendação (default): **chave manual por organização**, endpoint `PUT /organizations/{org}/nfe-contingency`
-(`enabled`, `justification`), sem detecção automática na primeira entrega.
+Por documento (tabelas `organization_{nfe,nfce,cte,mdfe}_configs`, sem tabela nova):
 
-Justificativa: a SVC só funciona se a SEFAZ de origem a ativou (`107`); o MOC diz que a empresa só deve consultar
-a SVC quando o ambiente normal estiver indisponível; a decisão de entrar em EPEC/offline é exclusiva do
-contribuinte e deve ser exceção; e um detector errado produz nota com chave `tpEmis` diferente e numeração a conciliar
-(cancelar a autorizada substituída, inutilizar a não autorizada). Automático fica como fase seguinte, por organização,
-com N falhas consecutivas de `NfeStatusServico` do autorizador normal mais `107` na SVC, saída automática e alerta
-via go-common `alerts`. A janela é por organização (UF do emitente define a SVC); por modelo fica para a decisão do dono.
+| Campo | Significado |
+|---|---|
+| `emission_type` | forma corrente: `normal` (padrão, ausente = normal), `svc`, `epec`, `offline`; só os valores válidos para o documento |
+| `auto_contingency` | bool, padrão `false` |
+| `contingency_since` | RFC3339 (`dhCont`); definido ao sair de `normal`, mantido enquanto continua em contingência, **removido (null) ao voltar a `normal`** |
+| `contingency_reason` | `xJust`, 15 a 256 caracteres, obrigatório fora de `normal` |
 
-## 5. Modelo de dados (sem tabela nova)
+Endpoints: `PUT /organizations/{org}/{nfe,nfce,cte,mdfe}-emission` (`emission_type`, `auto_contingency`,
+`justification`); o GET da configuração devolve também `emission_options` (a lista válida do documento). Problemas:
+422 `emission_type_invalid`, 422 `emission_reason_required`. O `PUT /{x}-config` nunca altera esses campos.
 
-Em `organization_nfe_configs` (ver `DynamoDB-Tables.md`): `contingency_mode` (`svc`), `contingency_since`
-(RFC3339, vira `dhCont`, gravado uma vez por janela), `contingency_reason` (`xJust`). Escritos só pelo endpoint
-próprio; o `PUT /nfe-config` os preserva.
+Compatibilidade: `PUT /nfe-contingency` (`enabled`, `justification`) continua, agora `deprecated`: `enabled` equivale a
+`emission_type=svc`, desligar a `normal`; a bandeira automática é preservada. O atributo `contingency_mode` da primeira
+rodada é lido como `emission_type` e removido na primeira escrita nova (sem migração em lote).
+
+A SVC só funciona se a SEFAZ de origem a ativou (`107`); detecção automática (seção 4.1) usa `NfeStatusServico`.
+
+### 4.1 Detecção automática (fatia E)
+
+Sinal: falha de transporte/timeout, ou `cStat` 108/109 (paralisado) do serviço de status/autorização do autorizador
+normal. Limiar tipo disjuntor: N falhas consecutivas (constante) numa janela curta; retornos 2xx de negócio (rejeição
+de documento) **não** contam. Ao abrir: mudar `emission_type` para a opção automática do documento (NF-e e CT-e `svc`
+se a SVC responde `107`, senão `epec`/`offline`; NFC-e e MDF-e `offline`), gravar `contingency_since`, regerar e
+emitir, alertar via go-common `alerts`. Saída: status do autorizador normal saudável em M consultas seguidas, volta a
+`normal` e `contingency_since` nulo. Só quando `auto_contingency` está ligada.
+
+## 5. Modelo de dados dos documentos
 
 Nos documentos (`nfes`, `nfces`, `mdfes`, `ctes`), para EPEC/offline: `contingency_state`
 (`pending`/`authorized_late`/`rejected_late`/`overdue`), `contingency_deadline` (RFC3339), `contingency_alerted_at`,
 `contingency_sweep` (chave de GSI esparso `contingency-index`, só em pendentes, para varrer sem Scan). O XML
-assinado não transmitido fica no S3 sob o prefixo do documento. Os atributos de documento ainda **não** foram criados.
+assinado não transmitido fica no S3 sob o prefixo do documento.
 
 ## 6. Retransmissão (função agendada)
 
-Mesmo padrão do `distribution-dispatcher`: EventBridge Scheduler (a cada 15 min) invoca um dispatcher que faz
-`Query` no GSI esparso `contingency-index`, e enfileira um job por documento numa fila SQS **padrão** com DLQ; o
-worker reenvia a chave e o mesmo `cNF` (idempotente: se a SEFAZ responder duplicidade, `NfeConsultaProtocolo` por
-chave e reconcilia). Sketch Terraform (não criar nem implantar nesta fase):
+Implementado no `cdk/` no padrão do `distribution-dispatcher` do repositório: EventBridge Scheduler (a cada 15 min)
+invoca o `contingency-dispatcher`, que faz `Query` no GSI esparso `contingency-index` (hash `contingency_sweep`,
+range `contingency_deadline`, KEYS_ONLY) das quatro tabelas de documento e **invoca o worker
+`contingency-retransmit-worker` de forma assíncrona uma vez por documento** (Lambda tenta 2 vezes e entrega ao
+`dlq-processor`). Desvio consciente do pedido "SQS padrão com DLQ": o repositório já substituiu filas SQS por
+invocação assíncrona (nada faz long-poll; teste `no SQS event source mapping and only the two parking queues exist`),
+e a invocação assíncrona com destino de falha tem a mesma resiliência (redrive + DLQ) sem fila nova. Se o dono
+preferir SQS, é trocar o `Invoke` por `SendMessage` e o worker por event source.
 
-```hcl
-resource "aws_sqs_queue" "contingency_retransmit" {
-  name                       = "ctech-dfe-${var.env}-contingency-retransmit"
-  visibility_timeout_seconds = 180
-  redrive_policy = jsonencode({ deadLetterTargetArn = aws_sqs_queue.contingency_retransmit_dlq.arn, maxReceiveCount = 5 })
-}
-resource "aws_sqs_queue" "contingency_retransmit_dlq" { name = "ctech-dfe-${var.env}-contingency-retransmit-dlq" }
-resource "aws_scheduler_schedule" "contingency_dispatcher" {
-  schedule_expression = "rate(15 minutes)"
-  flexible_time_window { mode = "OFF" }
-  target { arn = aws_lambda_function.contingency_dispatcher.arn  role_arn = aws_iam_role.scheduler.arn }
-}
-```
-
-Sem NAT, sem métricas ou alarmes customizados; falhas que exigem humano usam go-common `alerts`.
+O worker reenvia a chave e o mesmo `cNF` (idempotente: duplicidade 204/539 leva a `NfeConsultaProtocolo` por chave
+e reconcilia). `internal/contingency.Classify` decide o resultado: autorizada no prazo (`authorized`), autorizada
+fora do prazo ou cStat 150 (`authorized_late`, sucesso), rejeição (`rejected_late`), sem resposta após o prazo
+(`overdue`, sai do índice). Sem NAT, sem métricas ou alarmes customizados.
 
 Regras de reconciliação (MOC): rejeição: regerar com mesmo número e série sem mudar valor do imposto, partes ou
 datas; nota enviada sem resposta antes da contingência: consultar por chave e então cancelar (autorizada) ou
@@ -131,20 +158,38 @@ pendente 3 (a UF permite offline) e do formato exato do QR v3 offline no MOC (`D
 
 | Fatia | Estado |
 |---|---|
-| Design (este documento) | feito |
+| Design (este documento) | atualizado com as decisões de 2026-11-07 |
 | go-dfe: SVC-AN/SVC-RS, UF para SVC, `Request.Contingency`, `dfe.SVCFor` | feito |
-| NF-e SVC: janela por organização, `tpEmis` 6/7, `dhCont`/`xJust`, roteamento, cancelamento na SVC de origem | feito |
-| EPEC (evento 110140, `tpEmis=4`) | não feito |
-| MDF-e/CT-e `tpEmis=2` | não feito (depende de "só assinar" no egress e do `sign` do QR) |
-| Retransmissão no worker | não feito |
-| NFC-e offline (slice 7) | caminho registrado na seção 8.1; código não iniciado |
+| NF-e SVC: `tpEmis` 6/7, `dhCont`/`xJust`, roteamento, cancelamento na SVC de origem | feito |
+| B: modelo de configuração por documento, endpoints `*-emission`, validação, `contingency_since` | feito |
+| C: EPEC da NF-e | parcial: construtor do 110140, validação e prazo (`nfes/epec.go`), rota AN; falta serviço/rota de emissão e o tratamento no worker |
+| D: emissão offline (MDF-e, CT-e, CT-e SVC, NFC-e) | ver relatório da rodada |
+| E: contingência automática | ver relatório da rodada |
+| F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
+| G: DANFC-e de duas vias | ver relatório da rodada |
 
-## Decisões pendentes (dono)
+### 9.1 DANFC-e offline (decisão 2)
 
-1. **URLs da SVC-AN e SVC-RS**: não estão no MOC. As do código vêm do conhecimento público e precisam ser confirmadas no Portal Nacional (`www.nfe.fazenda.gov.br`, ambientes de produção e homologação) antes de qualquer uso em produção. Modelo de resposta (nó do resultado) da SVC-AN também a confirmar em homologação.
-2. Entrada automática por detecção de indisponibilidade (seção 4) ou só manual; e janela por organização ou por organização e modelo.
-3. NFC-e offline: a UF do emitente permite (`B22-20`/712)? Onde guardar essa autorização por UF; segunda via "Via do Estabelecimento" ou guarda eletrônica com termo no livro modelo 6.
-4. Autorização fora de prazo de NF-e EPEC/MDF-e: tratar como sucesso (como CT-e `cStat 150`) ou como erro a tratar.
-5. Prazo da NFC-e: calendário de dias úteis (feriados por UF) a usar.
-6. Aceitar a mudança "só assinar" no egress (seção 8) e o novo GSI esparso `contingency-index` nas tabelas de documentos (infra em Terraform, cdk congelado).
-7. CT-e: SVC (`tpEmis` 7/8) fica fora desta fase; confirmar.
+O DANFC-e de uma NFC-e offline tem duas páginas: via do consumidor e "Via do Estabelecimento" (MOC DANFE NFC-e: texto
+"Via do Estabelecimento" ao lado da data e hora de emissão; a UF pode dispensar a via, e o contribuinte pode optar pela
+guarda eletrônica do XML), ambas com tarja de emissão em contingência e pendente de autorização.
+O QR Code offline do MOC lido em 2026-11-07 (`DanfeQrCodeNFCe.html`, item 3.2.2) é a **versão 2**:
+`chave|2|tpAmb|dia|vNF|DigestValue(hex, 56)|idCSC|hash`. O formato "v3 com a assinatura" **não consta** nessa página
+e fica **não verificado**.
+
+## Decisões do dono (2026-11-07), substituem as pendentes
+
+1. Duas modalidades: forma de emissão corrente manual por documento (todas as opções válidas) e `auto_contingency` (desligada por padrão), regerando o documento; `contingency_since` nulo ao voltar a normal; retransmissão automática dos offline.
+2. NFC-e offline em todas as UFs; DANFC-e de duas páginas (consumidor e Via do Estabelecimento) com tarjas.
+3. NF-e EPEC e MDF-e autorizados fora do prazo são sucesso.
+4. Prazo de retransmissão da NFC-e: 3 dias, constante configurável, varia por UF.
+5. CT-e: offline (2) mais SVC-RS/SVC-SP (7/8); EPEC do CT-e não será implementado.
+6. cdk não está congelado neste repositório: infra (dispatcher, fila padrão com DLQ, GSI esparso) vai no `cdk/`.
+
+## Ainda em aberto
+
+1. URLs da SVC-AN e SVC-RS: não estão no MOC; confirmar no Portal Nacional (produção e homologação), bem como o nó de resposta da SVC-AN.
+2. URLs do SVC-RS/SVC-SP do CT-e (mesmo ponto).
+3. Formato exato do QR Code v3 offline da NFC-e (a página lida só traz a v2).
+4. Calendário de dias úteis por UF para o prazo da NFC-e (hoje 3 dias corridos).
+5. Segunda via impressa ou guarda eletrônica com termo no livro modelo 6, por UF.

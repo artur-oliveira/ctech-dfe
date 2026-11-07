@@ -10,7 +10,7 @@ import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
-import {DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
+import {CONTINGENCY_WORKER_ID, DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
 import {goLambdaCode} from './go-code'
@@ -144,6 +144,7 @@ export class WorkerStack extends cdk.Stack {
     })
 
     let distributionFn: lambda.Function | undefined
+    let contingencyFn: lambda.Function | undefined
     for (const worker of workers) {
       const role = new iam.Role(this, `${worker.id}-role`, {
         roleName: `${environment}-${worker.id}-worker-role`,
@@ -199,8 +200,8 @@ export class WorkerStack extends cdk.Stack {
         }))
       }
 
-      // Distribution worker uses a dedicated binary with its own SQS message format.
-      const workerCmd = worker.id === 'distribution' ? 'distribution-worker' : 'worker'
+      // Workers with their own message format use a dedicated binary.
+      const workerCmd = worker.command ?? 'worker'
 
       const fn = new lambda.Function(this, `${worker.id}-lambda`, {
         functionName: `${environment}-${worker.name}`,
@@ -244,6 +245,8 @@ export class WorkerStack extends cdk.Stack {
         )
       } else if (worker.id === DISTRIBUTION_WORKER_ID) {
         distributionFn = fn
+      } else if (worker.id === CONTINGENCY_WORKER_ID) {
+        contingencyFn = fn
       }
 
       // Keep-warm: direct invoke with {"ping":true} every minute, short-circuited
@@ -393,6 +396,52 @@ export class WorkerStack extends cdk.Stack {
       description: 'Triggers distribution dispatcher every 30 minutes to pull DFe documents from SEFAZ',
       schedule: scheduler.ScheduleExpression.rate(Duration.minutes(30)),
       target: new schedulerTargets.LambdaInvoke(dispatcher),
+      enabled: true,
+    })
+
+    // =========================
+    // CONTINGENCY RETRANSMISSION DISPATCHER
+    // =========================
+    // Every 15 min: Query the sparse contingency-index of the four document tables
+    // (no Scan) and invoke the retransmission worker async once per pending document.
+    // Same pattern as the distribution dispatcher; async invoke retries twice and
+    // parks failures in the dlq-processor (the repo's replacement for an SQS queue
+    // plus DLQ, which nothing long-polls). Cost: ~2,900 invocations/month, inside the
+    // Lambda and Scheduler free tiers; the index is empty unless a contingency happened.
+    const contingencyWorker = contingencyFn!
+    const contingencyRole = new iam.Role(this, 'contingency-dispatcher-role', {
+      roleName: `${environment}-contingency-dispatcher-role`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    })
+    contingencyWorker.grantInvoke(contingencyRole)
+    contingencyRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query'],
+      resources: ['nfes', 'nfces', 'mdfes', 'ctes'].map(t =>
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/contingency-index`),
+    }))
+    const contingencyDispatcher = new lambda.Function(this, 'contingency-dispatcher', {
+      functionName: `${environment}-contingency-dispatcher`,
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      handler: 'bootstrap',
+      code: goCode('contingency-dispatcher'),
+      role: contingencyRole,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: Duration.seconds(60),
+      memorySize: 128,
+      environment: {
+        APP_ENVIRONMENT: environment,
+        TABLE_PREFIX: tablePrefix,
+        CONTINGENCY_FUNCTION_NAME: contingencyWorker.functionName,
+      },
+    })
+    new scheduler.Schedule(this, 'ContingencySchedule', {
+      scheduleName: `${environment}-contingency-schedule`,
+      description: 'Triggers the contingency dispatcher every 15 minutes to retransmit EPEC/offline documents',
+      schedule: scheduler.ScheduleExpression.rate(Duration.minutes(15)),
+      target: new schedulerTargets.LambdaInvoke(contingencyDispatcher),
       enabled: true,
     })
   }

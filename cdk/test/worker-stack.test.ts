@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import { Match, Template } from 'aws-cdk-lib/assertions'
 import * as sns from 'aws-cdk-lib/aws-sns'
 import { WorkerStack } from '../lib/worker-stack'
-import { distributionFunctionName, WORKERS } from '../lib/worker-definitions'
+import { contingencyFunctionName, distributionFunctionName, WORKERS } from '../lib/worker-definitions'
 import { EGRESS_TIMEOUT_SECONDS } from '../lib/egress'
 
 function buildTemplate(): Template {
@@ -110,8 +110,8 @@ test('distribution poller schedule is enabled', () => {
 test('every worker has a keep-warm ping schedule invoking it directly with {"ping":true}', () => {
   const template = buildTemplate()
 
-  // One ping schedule per worker + one distribution poller schedule.
-  template.resourceCountIs('AWS::Scheduler::Schedule', WORKERS.length + 1)
+  // One ping schedule per worker + the distribution poller and the contingency dispatcher schedules.
+  template.resourceCountIs('AWS::Scheduler::Schedule', WORKERS.length + 2)
 
   for (const worker of WORKERS) {
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
@@ -216,4 +216,27 @@ test('the distribution worker has no subscription; the dispatcher invokes it', (
   })
   const text = JSON.stringify(template.toJSON().Resources)
   expect(text).not.toContain('DISTRIBUTION_QUEUE_URL')
+})
+
+// Contingency retransmission: same pattern as the distribution dispatcher (scheduled
+// dispatcher, async invoke, dlq-processor), reading the sparse index, never a Scan.
+test('the contingency dispatcher runs every 15 min, queries the sparse index and invokes the worker', () => {
+  const template = buildTemplate()
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    FunctionName: 'dev-contingency-dispatcher',
+    Environment: {Variables: Match.objectLike({CONTINGENCY_FUNCTION_NAME: Match.anyValue()})},
+  })
+  template.hasResourceProperties('AWS::Scheduler::Schedule', {
+    Name: 'dev-contingency-schedule',
+    ScheduleExpression: 'rate(15 minutes)',
+  })
+  const worker = WORKERS.find(w => w.id === 'contingency-retransmit')!
+  expect(worker.sefazServices).toEqual([])
+  expect(contingencyFunctionName('dev')).toBe(`dev-${worker.name}`)
+  expect(worker.timeoutSeconds).toBeGreaterThan(EGRESS_TIMEOUT_SECONDS)
+  const policies = JSON.stringify(template.findResources('AWS::IAM::Policy'))
+  expect(policies).toContain('contingency-index')
+  // the dispatcher role reads only the index
+  const text = JSON.stringify(template.toJSON().Resources)
+  expect(text).not.toContain('dynamodb:Scan')
 })

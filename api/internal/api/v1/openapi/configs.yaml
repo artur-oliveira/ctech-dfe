@@ -2,13 +2,131 @@ paths:
 
   # ── Fiscal configs ─────────────────────────────────────────────────────────
 
+  /v1.0/organizations/{org_pk}/nfe-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente da NF-e e a contingência automática
+      description: |
+        Tipos válidos para este documento: `normal`, `svc` (SVC-AN ou SVC-RS pela UF do emitente, `tpEmis` 6 ou 7) e `epec` (`tpEmis` 4). Qualquer outro devolve 422
+        `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
+        vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
+        mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
+        `contingency_since` e a justificativa são removidos. `auto_contingency` (padrão
+        desligado) autoriza o sistema a trocar sozinho a forma de emissão quando o
+        autorizador está indisponível, regerando o documento. O `PUT /nfe-config` nunca
+        altera estes campos. O GET da configuração devolve `emission_type`,
+        `auto_contingency`, `contingency_since` e `emission_options` (a lista dos tipos válidos).
+      operationId: putNFeEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/nfce-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente da NFC-e e a contingência automática
+      description: |
+        Tipos válidos para este documento: `normal`, `offline` (`tpEmis` 9, todas as UFs) e `epec` (`tpEmis` 4, a critério da UF). Qualquer outro devolve 422
+        `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
+        vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
+        mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
+        `contingency_since` e a justificativa são removidos. `auto_contingency` (padrão
+        desligado) autoriza o sistema a trocar sozinho a forma de emissão quando o
+        autorizador está indisponível, regerando o documento. O `PUT /nfce-config` nunca
+        altera estes campos. O GET da configuração devolve `emission_type`,
+        `auto_contingency`, `contingency_since` e `emission_options` (a lista dos tipos válidos).
+      operationId: putNFCeEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/cte-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente da CT-e e a contingência automática
+      description: |
+        Tipos válidos para este documento: `normal`, `offline` (`tpEmis` 2) e `svc` (SVC-RS ou SVC-SP pela UF do emitente, `tpEmis` 7 ou 8); sem EPEC. Qualquer outro devolve 422
+        `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
+        vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
+        mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
+        `contingency_since` e a justificativa são removidos. `auto_contingency` (padrão
+        desligado) autoriza o sistema a trocar sozinho a forma de emissão quando o
+        autorizador está indisponível, regerando o documento. O `PUT /cte-config` nunca
+        altera estes campos. O GET da configuração devolve `emission_type`,
+        `auto_contingency`, `contingency_since` e `emission_options` (a lista dos tipos válidos).
+      operationId: putCTeEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/mdfe-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente da MDF-e e a contingência automática
+      description: |
+        Tipos válidos para este documento: `normal` e `offline` (`tpEmis` 2); sem SVC e sem EPEC. Qualquer outro devolve 422
+        `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
+        vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
+        mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
+        `contingency_since` e a justificativa são removidos. `auto_contingency` (padrão
+        desligado) autoriza o sistema a trocar sozinho a forma de emissão quando o
+        autorizador está indisponível, regerando o documento. O `PUT /mdfe-config` nunca
+        altera estes campos. O GET da configuração devolve `emission_type`,
+        `auto_contingency`, `contingency_since` e `emission_options` (a lista dos tipos válidos).
+      operationId: putMDFeEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/organizations/{org_pk}/nfe-contingency:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
     put:
       tags: [ Fiscal Configs ]
-      summary: Abre ou fecha a janela de contingência SVC da NF-e
+      summary: Abre ou fecha a janela de contingência SVC da NF-e (legado)
+      deprecated: true
       description: |
+        Legado: use `PUT /nfe-emission`. `enabled` equivale a `emission_type` `svc`; desligar, a `normal`.
         Com a janela aberta, as NF-e novas saem com `tpEmis` 6 (SVC-AN) ou 7 (SVC-RS),
         conforme a UF do emitente, e `dhCont`/`xJust` preenchidos. O cancelamento de uma
         nota autorizada na SVC vai à mesma SVC. NFC-e não usa SVC. Abrir uma janela já
@@ -227,6 +345,18 @@ components:
               description: |
                 RNTRC da transportadora (ANTT). O CT-e rodoviário o usa em `infModal/rodo/RNTRC`;
                 sem ele a emissão de CT-e devolve 422 `rntrc_required`.
+
+    EmissionBody:
+      type: object
+      required: [ emission_type ]
+      properties:
+        emission_type: { type: string, enum: [ normal, svc, epec, offline ] }
+        auto_contingency: { type: boolean, default: false }
+        justification:
+          type: string
+          minLength: 15
+          maxLength: 256
+          description: Obrigatória ao sair de `normal` (`ide/xJust`).
 
     NfeContingencyBody:
       type: object

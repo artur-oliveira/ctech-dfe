@@ -10,8 +10,15 @@ export const DISTRIBUTION_WORKER_ID = 'distribution'
  * (a plain string, not a cross-stack reference, so the Worker stack can deploy last). */
 export const distributionFunctionName = (environment: string) => `${environment}-distribution-worker`
 
+/** Retransmits documents issued in EPEC/offline contingency; invoked by its dispatcher only. */
+export const CONTINGENCY_WORKER_ID = 'contingency-retransmit'
+
+export const contingencyFunctionName = (environment: string) => `${environment}-contingency-retransmit-worker`
+
 export type WorkerDefinition = {
   id: string
+  /** Go command under worker/cmd; defaults to the shared `worker`. */
+  command?: string
   name: string
   timeoutSeconds: number
   memory: number
@@ -111,6 +118,7 @@ export const WORKERS: WorkerDefinition[] = [
     // No sefazServices → not subscribed to the SNS event bus.
     // Invoked asynchronously by the API (user-initiated) and the dispatcher Lambda (scheduled).
     id: DISTRIBUTION_WORKER_ID,
+    command: 'distribution-worker',
     name: 'distribution-worker',
     timeoutSeconds: 300,
     memory: 256,
@@ -138,6 +146,17 @@ export const WORKERS: WorkerDefinition[] = [
       'audit_logs',
     ],
     dynamoTransactionTables: ['organization_persons', 'audit_logs'],
+    environment: {},
+  },
+  {
+    // No sefazServices: invoked asynchronously by the contingency dispatcher (every 15 min).
+    id: CONTINGENCY_WORKER_ID,
+    command: 'contingency-retransmit',
+    name: 'contingency-retransmit-worker',
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
+    memory: 128,
+    sefazServices: [],
+    dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfe_events', 'cte_events', 'mdfe_events'],
     environment: {},
   },
 ]

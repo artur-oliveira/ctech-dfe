@@ -247,9 +247,11 @@ cadastro requirement.
 
 ## 7–10. `organization_{nfe,nfce,cte,mdfe}_configs`
 
-> Contingência da NF-e (`organization_nfe_configs`): `contingency_mode` (S, `svc`), `contingency_since` (S, RFC3339,
-> `dhCont`) e `contingency_reason` (S, `xJust`) existem só com a janela aberta; o endpoint `PUT .../nfe-contingency` é o
-> único que os escreve e o `PUT .../nfe-config` os preserva. Ver `docs/specs/2026-11-08-contingencia.md`.
+> Forma de emissão (as quatro tabelas): `emission_type` (S: `normal`, `svc`, `epec`, `offline`; ausente = `normal`),
+> `auto_contingency` (BOOL, padrão `false`), `contingency_since` (S, RFC3339, `dhCont`; existe só fora de `normal`,
+> removido ao voltar) e `contingency_reason` (S, `xJust`). Escritos só pelos endpoints `PUT .../{nfe,nfce,cte,mdfe}-emission`;
+> o `PUT .../{x}-config` os preserva. `contingency_mode` (S, `svc`) é o atributo legado da primeira rodada: lido como
+> `emission_type` e removido na primeira escrita nova. Ver `docs/specs/2026-11-08-contingencia.md`.
 
 Fiscal configuration per org per document type. PK only (no SK). Table names use prefix `organization_`.
 

@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"log/slog"
+	"maps"
 	"time"
 
 	"gopkg.aoctech.app/api-commons/problem"
@@ -31,6 +31,7 @@ type fiscalConfigRepo interface {
 	Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
 	BuildUpsertTxItem(orgPK string, fields map[string]types.AttributeValue, existing map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error)
 	TransactWrite(ctx context.Context, items []types.TransactWriteItem) error
+	SetEmission(ctx context.Context, orgPK, emissionType string, auto bool, since time.Time, reason string) error
 }
 
 // fiscalConfigService implementa Get/Upsert para qualquer config fiscal
@@ -44,6 +45,9 @@ type fiscalConfigService struct {
 	resourceType string
 	resourceID   string
 	notFoundMsg  string
+	// emissionModel is the document model whose emission type the row holds
+	// ("" for NFS-e, which has no contingency).
+	emissionModel string
 }
 
 func (s *fiscalConfigService) Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error) {
@@ -54,7 +58,30 @@ func (s *fiscalConfigService) Get(ctx context.Context, orgPK string) (map[string
 	if item == nil {
 		return nil, problem.NotFound(s.notFoundMsg)
 	}
-	return item, nil
+	return s.withEmission(item), nil
+}
+
+// withEmission returns a copy of a row carrying emission_type (the legacy
+// contingency_mode read as such, else normal) and auto_contingency, so a row
+// written before the emission endpoints answers like a new one.
+func (s *fiscalConfigService) withEmission(item map[string]types.AttributeValue) map[string]types.AttributeValue {
+	if s.emissionModel == "" {
+		return item
+	}
+	out := make(map[string]types.AttributeValue, len(item)+2)
+	maps.Copy(out, item)
+	out[repositories.AttrEmissionType] = &types.AttributeValueMemberS{Value: repositories.EmissionTypeOf(item)}
+	if _, ok := out[repositories.AttrAutoContingency]; !ok {
+		out[repositories.AttrAutoContingency] = &types.AttributeValueMemberBOOL{Value: false}
+	}
+	delete(out, repositories.AttrContingencyMode)
+	// The options valid for this document, so the UI lists them without a copy of the rule.
+	opts := make([]types.AttributeValue, 0, len(emissionOptions[s.emissionModel]))
+	for _, o := range emissionOptions[s.emissionModel] {
+		opts = append(opts, &types.AttributeValueMemberS{Value: o})
+	}
+	out[AttrEmissionOptions] = &types.AttributeValueMemberL{Value: opts}
+	return out
 }
 
 // Upsert writes the config and its CREATE/UPDATE audit row atomically. The
@@ -108,44 +135,14 @@ func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields m
 }
 
 // NfeConfigService wraps NfeConfigRepository.
-type NfeConfigService struct {
-	fiscalConfigService
-	nfeRepo *repositories.NfeConfigRepository
-}
+type NfeConfigService struct{ fiscalConfigService }
 
 func NewNfeConfigService(repo *repositories.NfeConfigRepository, auditRepo *repositories.AuditLogRepository) *NfeConfigService {
-	return &NfeConfigService{fiscalConfigService: fiscalConfigService{
+	return &NfeConfigService{fiscalConfigService{
 		repo: repo, auditRepo: auditRepo,
 		resourceType: repositories.AuditResourceNfeConfig, resourceID: nfeConfigResourceID,
-		notFoundMsg: "nfe config not found",
-	}, nfeRepo: repo}
-}
-
-// SetContingency opens (enabled) or closes the NF-e SVC contingency window and
-// returns the stored configuration. dhCont is the moment the window opens and is
-// written once: opening an already-open window keeps the original since/reason.
-func (s *NfeConfigService) SetContingency(ctx context.Context, orgPK string, enabled bool, reason string) (map[string]types.AttributeValue, error) {
-	cur, err := s.Get(ctx, orgPK)
-	if err != nil {
-		return nil, err
-	}
-	open := attrStrAV(cur, repositories.AttrContingencyMode) == repositories.ContingencyModeSVC
-	switch {
-	case enabled && open:
-		return cur, nil
-	case enabled:
-		if err := s.nfeRepo.SetContingency(ctx, orgPK, repositories.ContingencyModeSVC, time.Now(), reason); err != nil {
-			return nil, err
-		}
-	case open:
-		if err := s.nfeRepo.SetContingency(ctx, orgPK, "", time.Time{}, ""); err != nil {
-			return nil, err
-		}
-	default:
-		return cur, nil
-	}
-	slog.InfoContext(ctx, "nfe contingency window changed", "org_pk", orgPK, "enabled", enabled)
-	return s.Get(ctx, orgPK)
+		notFoundMsg: "nfe config not found", emissionModel: ModelNFe,
+	}}
 }
 
 // NfceConfigService wraps NfceConfigRepository.
@@ -155,7 +152,7 @@ func NewNfceConfigService(repo *repositories.NfceConfigRepository, auditRepo *re
 	return &NfceConfigService{fiscalConfigService{
 		repo: repo, auditRepo: auditRepo,
 		resourceType: repositories.AuditResourceNfceConfig, resourceID: nfceConfigResourceID,
-		notFoundMsg: "nfce config not found",
+		notFoundMsg: "nfce config not found", emissionModel: ModelNFCe,
 	}}
 }
 
@@ -166,7 +163,7 @@ func NewCteConfigService(repo *repositories.CteConfigRepository, auditRepo *repo
 	return &CteConfigService{fiscalConfigService{
 		repo: repo, auditRepo: auditRepo,
 		resourceType: repositories.AuditResourceCteConfig, resourceID: cteConfigResourceID,
-		notFoundMsg: "cte config not found",
+		notFoundMsg: "cte config not found", emissionModel: ModelCTe,
 	}}
 }
 
@@ -177,7 +174,7 @@ func NewMdfeConfigService(repo *repositories.MdfeConfigRepository, auditRepo *re
 	return &MdfeConfigService{fiscalConfigService{
 		repo: repo, auditRepo: auditRepo,
 		resourceType: repositories.AuditResourceMdfeConfig, resourceID: mdfeConfigResourceID,
-		notFoundMsg: "mdfe config not found",
+		notFoundMsg: "mdfe config not found", emissionModel: ModelMDFe,
 	}}
 }
 

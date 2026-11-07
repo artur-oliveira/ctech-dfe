@@ -1286,4 +1286,13 @@ chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `
 - `dfe.Request.Contingency` (`SVC-AN`/`SVC-RS`) troca só a URL; a UF real continua mandando no `cUF` e na operação WSDL. Só NF-e: NFC-e, CT-e e MDF-e não resolvem em SVC.
 - As URLs da SVC não estão no MOC e precisam ser confirmadas no Portal Nacional antes de produção (`docs/specs/2026-11-08-contingencia.md`, Decisões pendentes).
 - A SVC não oferece inutilização nem CC-e: nunca rotear esses serviços para ela. Cancelamento de nota autorizada na SVC usa a SVC indicada pelo `tpEmis` da chave.
-- O `PUT /nfe-config` preserva `contingency_*`; só `PUT /nfe-contingency` abre ou fecha a janela.
+- Forma de emissão por documento (`emission_type`, `auto_contingency`, `contingency_since`, `contingency_reason`): só os `PUT /{nfe,nfce,cte,mdfe}-emission` escrevem (`services.fiscalConfigService.SetEmission`); os `PUT /{x}-config` preservam. Tipos válidos por documento em `services/emission.go` (`emissionOptions`); fora disso 422 `emission_type_invalid`; sair de `normal` sem justificativa de 15 a 256 caracteres, 422 `emission_reason_required`. `contingency_since` é mantido enquanto continua em contingência e removido ao voltar a `normal`.
+- `PUT /nfe-contingency` é legado e compatível (`enabled` = `svc`, desligar = `normal`); `contingency_mode` é lido como `emission_type`.
+- Trocar a forma de emissão muda o `tpEmis`, logo a chave de acesso e a assinatura: o documento é sempre regerado, nunca remendado.
+
+## Retransmissão de contingência
+
+- `contingency-index` (GSI esparso `contingency_sweep`/`contingency_deadline`, KEYS_ONLY) nas tabelas `nfes`, `nfces`, `mdfes`, `ctes`: só documentos EPEC/offline não conciliados carregam `contingency_sweep = "1"`. Quem grava um documento pendente deve gravá-lo; quem o concilia deve removê-lo.
+- `contingency-dispatcher` (15 min) lê o índice e invoca `contingency-retransmit-worker` de forma assíncrona; falha vai ao `dlq-processor`. Nunca Scan.
+- Autorização fora do prazo (cStat 150, ou 100 após o `contingency_deadline`) é sucesso (`authorized_late`). Reenvio mantém chave e `cNF`.
+- O reenvio pelo egress ainda não está ligado (depende da emissão offline guardar o XML assinado); hoje o worker só marca `overdue`.

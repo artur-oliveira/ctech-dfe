@@ -268,6 +268,25 @@ const addSweepIndex = (table: dynamodb.TableV2) => {
   });
 }
 
+/**
+ * Sparse retransmission index (`contingency-index`): only documents issued in EPEC or
+ * offline contingency and not yet reconciled carry `contingency_sweep = "1"`, so the
+ * index holds the backlog (normally zero rows) and costs nothing at rest. Sorted by
+ * `contingency_deadline` (RFC3339). KEYS_ONLY: the retransmission worker reads the
+ * row itself. docs/specs/2026-11-08-contingencia.md section 6.
+ */
+const addContingencyIndex = (table: dynamodb.TableV2) => {
+  table.addGlobalSecondaryIndex({
+    indexName: 'contingency-index',
+    partitionKey: {name: 'contingency_sweep', type: dynamodb.AttributeType.STRING},
+    sortKey: {name: 'contingency_deadline', type: dynamodb.AttributeType.STRING},
+    projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    warmThroughput: undefined,
+    maxReadRequestUnits: 1000,
+    maxWriteRequestUnits: 1000,
+  });
+}
+
 const getDfeConfigTable = (
   scope: Construct,
   removalPolicy: RemovalPolicy,
@@ -728,15 +747,19 @@ export class DynamoDBStack extends cdk.Stack {
 
     const nfesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfes');
     this.tables.set('nfes', nfesTable);
+    addContingencyIndex(nfesTable);
 
     const nfcesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfces');
     this.tables.set('nfces', nfcesTable);
+    addContingencyIndex(nfcesTable);
 
     const ctesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'ctes');
     this.tables.set('ctes', ctesTable);
+    addContingencyIndex(ctesTable);
 
     const mdfesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfes');
     this.tables.set('mdfes', mdfesTable);
+    addContingencyIndex(mdfesTable);
 
     // nfses reutiliza getDfeTable (number-index-v2 + dfe-index) e acrescenta
     // access-key-index: a SK é o id_dps, porque a chave de acesso de 50
