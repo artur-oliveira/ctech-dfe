@@ -578,6 +578,14 @@ var servicosCte = map[string][]string{
 
 	// Cancelamento CT-e (evCancCTe)
 	"evCancCTe": {"descEvento", "nProt", "xJust"},
+
+	// Carta de correção CT-e (evCCeCTe — 110110): infCorrecao é 1-n, xCondUso vem depois.
+	"evCCeCTe":    {"descEvento", "infCorrecao", "xCondUso"},
+	"infCorrecao": {"grupoAlterado", "campoAlterado", "valorAlterado", "nroItemAlterado"},
+
+	// Prestação do serviço em desacordo CT-e (evPrestDesacordo — 610110) e seu cancelamento (610111).
+	"evPrestDesacordo":     {"descEvento", "indDesacordoOper", "xObs"},
+	"evCancPrestDesacordo": {"descEvento", "nProtEvPrestDes"},
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -535,10 +535,14 @@ func newCTeService(
 	workerSvc *services.WorkerService,
 	cfg *config.Config,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
+	db *dynamodb.Client,
+	extSvc *services.ExternalService,
 ) *ctesvc.CteService {
+	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "cte")
 	return ctesvc.NewCteService(
-		orgRepo, certRepo, configRepo, mdfeConfigRepo, cteRepo, nfeRepo, personRepo,
-		clients, workerSvc, billingSvc, cfg.S3BucketDocuments,
+		orgRepo, certRepo, configRepo, mdfeConfigRepo, cteRepo, eventRepo, nfeRepo, personRepo,
+		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		ctesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
 			Name:    cfg.TechnicalName,
@@ -546,6 +550,7 @@ func newCTeService(
 			Phone:   cfg.TechnicalPhone,
 			Version: cfg.AppVersion,
 		},
+		extSvc,
 	)
 }
 

@@ -650,10 +650,18 @@ func (s *DistributionService) runConsNSU(ctx context.Context, orgPK, docType str
 }
 
 // ------------------------------------------------------------------
-// On-demand: consChNFe / consChCTe / consChMDFe
+// On-demand: consChNFe (só NF-e)
 // ------------------------------------------------------------------
 
 func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docType, accessKey string, dtcfg docTypeConfig) error {
+	// Só o distDFeInt da NF-e tem consChNFe. O do CT-e e o do MDF-e (MOC, CTeDistribuicaoDFe e
+	// MDFeDistribuicaoDFe) só têm distNSU e consNSU: mandar consChCTe/consChMDFe é rejeição de schema.
+	// A busca de um CT-e ou MDF-e pela chave é a consulta de situação (CTeConsulta/MDFeConsulta).
+	if docType != "nfe" {
+		slog.Warn("consulta por chave só existe na distribuição da NF-e; job descartado",
+			"org_pk", orgPK, "doc_type", docType, "access_key", accessKey)
+		return nil
+	}
 	configTable := fmt.Sprintf("%s_organization_%s", s.cfg.TablePrefix, dtcfg.configTableSuffix)
 	cfg, err := s.loadConfig(ctx, orgPK, configTable)
 	if err != nil || cfg == nil {
@@ -692,12 +700,7 @@ func (s *DistributionService) runConsAccessKey(ctx context.Context, orgPK, docTy
 		orgName = attrS(org, "name")
 	}
 
-	chKey := map[string]string{"nfe": "consChNFe", "cte": "consChCTe", "mdfe": "consChMDFe"}[docType]
-	chTag := map[string]string{"nfe": "chNFe", "cte": "chCTe", "mdfe": "chMDFe"}[docType]
-	if chKey == "" {
-		chKey = "consChNFe"
-		chTag = "chNFe"
-	}
+	chKey, chTag := "consChNFe", "chNFe"
 
 	body := s.buildPayload(cnpj, certB64, certPassword, uf, sefazEnv, docType, dtcfg, chKey,
 		map[string]any{chTag: accessKey})

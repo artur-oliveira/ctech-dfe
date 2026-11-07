@@ -327,6 +327,8 @@ SEFAZ communication events for a document (authorization, cancellation, CC-e, ma
 | `created_at`      | S    | ISO-8601 UTC                                                 |
 | `updated_at`      | S    | ISO-8601 UTC                                                 |
 
+`cte_events` recebe os eventos do CT-e (`ctes/events.go`, worker `cte-event`): `110111`, `110110`, `610110` e `610111`; o `pk` é a chave do CT-e e o status final do evento é `success` ou `rejected` (o CT-e em si só muda de status no cancelamento: `cancel_pending`, `cancelled`). Sem tabela nova.
+
 As tabelas de NF-e/NFC-e guardam também as **inutilizações de numeração**, que não têm chave de
 acesso e por isso sintetizam as chaves: `pk = INUT#{env}#{org_pk}`,
 `event_key = INUT#{ano}#{serie:03d}#{nNFIni:09d}#{nNFFin:09d}`, `event_type = INUT`. Essas linhas

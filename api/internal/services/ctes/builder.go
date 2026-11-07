@@ -113,6 +113,10 @@ type buildParams struct {
 	comps   []map[string]any
 	// icms é o grupo imp/ICMS já calculado (resolveICMS).
 	icms map[string]any
+	// ibscbs é o grupo imp/IBSCBS (nil: não informado); vTotDFe sai junto (regra IBSCBS-360).
+	ibscbs *ibscbsResult
+	// autXML são os autorizados a baixar o XML, já validados.
+	autXML []map[string]any
 
 	vCarga  decimal.Decimal
 	proPred string
@@ -145,7 +149,7 @@ func BuildCTe(p buildParams) map[string]any {
 			"vRec":    q2(p.vTPrest),
 			"Comp":    p.comps,
 		},
-		"imp":        map[string]any{"ICMS": p.icms},
+		"imp":        p.buildImp(),
 		"infCTeNorm": p.buildInfCTeNorm(),
 	}
 	if p.exped != nil {
@@ -156,6 +160,9 @@ func BuildCTe(p buildParams) map[string]any {
 	}
 	if p.addInfo != "" {
 		inf["compl"] = map[string]any{"xObs": p.addInfo}
+	}
+	if len(p.autXML) > 0 {
+		inf["autXML"] = p.autXML
 	}
 	if p.tech.CNPJ != "" {
 		inf["infRespTec"] = services.BuildRespTec(p.tech.CNPJ, p.tech.Name, p.tech.Email, onlyDigits(p.tech.Phone), p.csrtID, p.csrt, p.accessKey)
@@ -168,6 +175,16 @@ func BuildCTe(p buildParams) map[string]any {
 			"infCTeSupl": map[string]any{"qrCodCTe": qrCodeURL(p.emit.Addr.UF, p.accessKey, p.environment)},
 		},
 	}).(map[string]any)
+}
+
+// buildImp é o grupo imp: ICMS e, quando informado, IBSCBS com o vTotDFe.
+func (p buildParams) buildImp() map[string]any {
+	imp := map[string]any{"ICMS": p.icms}
+	if p.ibscbs != nil {
+		imp["IBSCBS"] = p.ibscbs.node
+		imp["vTotDFe"] = p.ibscbs.totalDFe(p.vTPrest, p.now.Year())
+	}
+	return imp
 }
 
 func (p buildParams) buildIde(cUF, cCT, cDV string) map[string]any {

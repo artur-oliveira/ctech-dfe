@@ -1999,6 +1999,13 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 | POST   | `/v1.0/ctes`                 | Emite: 202 + registro `pending`, outbox para o worker `cte-emission` |
 | GET    | `/v1.0/ctes`                 | Lista (filtros `incoming`, número e data, como NF-e)                 |
 | GET    | `/v1.0/ctes/{access_key}`    | Detalhe (procura em produção e homologação)                          |
+| GET    | `/v1.0/ctes/{access_key}/sefaz-status` | Situação na SEFAZ (`CTeConsulta` pelo egress): `status` authorized, cancelled ou not_found, protocolo e eventos; outro cStat é 400 `sefaz-rejection` |
+| POST   | `/v1.0/ctes/{access_key}/cancel` | Cancelamento (110111), `delete.ctes`; CT-e vai a `cancel_pending`; nSeqEvento sempre 1 |
+| POST   | `/v1.0/ctes/{access_key}/correction-letter` | Carta de correção (110110): `corrections[]` (`group`, `field`, `value`, `item_number`), `sequence_number` opcional 1 a 20 |
+| POST   | `/v1.0/ctes/{access_key}/service-disagreement` | Prestação em desacordo (610110), evento do tomador: `notes` opcional (15 a 255) |
+| POST   | `/v1.0/ctes/{access_key}/service-disagreement-cancel` | Cancela o desacordo (610111): `event_sk` do 610110 com status `success` |
+| GET    | `/v1.0/ctes/{access_key}/events` | Eventos (`cte_events`), permissão `get.cte_events` (escrita: `create.cte_events`) |
+| GET    | `/v1.0/ctes/{access_key}/events/{event_sk}/xml` | URL assinada do XML do evento |
 
 **`derive`** (`{nfe_keys: [1..50 chaves modelo 55, sem repetição]}`) lê cada NF-e de `nfes` no ambiente da
 configuração do CT-e e o XML autorizado (`xml_s3_key`, leitor compartilhado `services/nfexml`, o mesmo do MDF-e).
@@ -2019,7 +2026,7 @@ arredondamento bancário. **`cfop`** (campo opcional no corpo, além da spec) é
 `cfop_required`. RNTRC de `organization_mdfe_configs.rntrc` (campo `rntrc` do `PUT …/mdfe-config`), senão 422
 `rntrc_required`. Numeração/série de `organization_cte_configs` (`TransactReserveAndCreate`, mesma reserva das
 outras), chave modelo 57 por `services.GenerateAccessKey`, cota `MeterCTe`. O `<CTe>` é a raiz do corpo
-(`CTeRecepcaoSinc`, gzip no egress), com `infCTeSupl/qrCodCTe` por autorizador. Códigos de 422 em `ctes.yaml`.
+(`CTeRecepcaoSinc`, gzip no egress), com `infCTeSupl/qrCodCTe` por autorizador. **IBS/CBS e autXML** (`ctes/ibscbs.go`): `ibs_cbs` (opcional) gera `imp/IBSCBS` regular com `vTotDFe`; só CRT 3 (422 `ibscbs_regime_unsupported`); sem diferimento, redução, tributação regular, CGOV nem gTribSN. `authorized_xml[]` (até 10) gera `autXML`, 422 `autxml_invalid` para DV, repetição ou ator do CT-e. Eventos: serviço `CTeRecepcaoEvento` pelo worker `cte-event` (sem EPEC, que o MOC remove do CT-e). 422 próprios: `not_cte_issuer`, `not_cte_taker`, `cte_not_authorized`, `cte_protocol_missing`, `event_invalid`, `event_not_found`, `event_not_authorized`. `sequence_number` omitido = próximo livre do tipo. Duplicidade (631) e CT-e já cancelado (218) confirmam o cancelamento no worker. Códigos de 422 em `ctes.yaml`. **Portão local** (`ctes/prevalidate.go`, antes da reserva de cota e do outbox): 422 `fiscal_prevalidation` com `errors[]` por regra do MOC (`code` `fiscal_rule`, `params` rule e cstat) ou por tamanho do leiaute (`too_long`/`too_short`), como no MDF-e.
 
 #### MDF-e (modelo 58 — Manifesto de Documentos Fiscais)
 

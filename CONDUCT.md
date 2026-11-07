@@ -1207,6 +1207,35 @@ As regras do MOC do CT-e (`go-dfe/validate/rules_cte.go`) recebem o conteúdo de
 A URL do QR Code (`infCTeSupl/qrCodCTe`) sai de uma tabela por autorizador em `ctes/builder.go` (MG, MS, MT, PR e
 SP próprios; o resto SVRS), a mesma para produção e homologação: conferir na homologação de cada autorizador.
 
+- **Portão do CT-e:** `ctes/prevalidate.go` (`dfecheck.GateCTe`) recusa em 422 `fiscal_prevalidation` as regras
+  determinísticas do catálogo (DV da chave G015, UF/modelo/Id da chave G007, G013, G014, grupo do tipo G016,
+  CPF/CNPJ com DV incluindo alfanumérico G104, PAA01, G210, autXML G193/G194, atores G114 a G149) e tamanhos do
+  leiaute (nunca truncados). O resto do catálogo continua só no shadow (tabelas, cadastros, relógio da SEFAZ).
+
+- **Eventos do CT-e** (`ctes/events.go`): cancelamento 110111 (só nSeq 1, justificativa 15 a 255 por TJust),
+  CC-e 110110, desacordo 610110 e seu cancelamento 610111; sem EPEC. Cancelamento e CC-e são do emitente (632);
+  610110 e 610111 do tomador (755), e o XML do evento leva o documento do autor (a organização). Pontos que o
+  MOC não fecha e estão por confirmar na homologação: literal `xCondUso` com "Art. 58-B" (o MOC mostra "58- B",
+  tratado como quebra de linha), valor de `indDesacordoOper` ("1") e nome da raiz do 610111 (`evCancPrestDesacordo`;
+  o MOC repete `evPrestDesacordo`), `cOrgao` = UF da chave (regra N02, rejeição 677). A tabela dos campos que a
+  CC-e não pode alterar (681) não está catalogada: fica com a SEFAZ. O XSD dos eventos não está vendorizado, a
+  ordem dos filhos está em `go-dfe/internal/xmlops/xsdorder` (testada).
+
+- **Distribuição do CT-e e do MDF-e:** o `distDFeInt` de `CTeDistribuicaoDFe` e de `MDFeDistribuicaoDFe` só tem
+  `distNSU` e `consNSU` (MOC); `consChNFe` existe só na NF-e. O worker descarta o job `cons_ch_nfe` de `cte` e
+  `mdfe` sem chamar a SEFAZ (antes mandava `consChCTe`/`consChMDFe`, que o schema não conhece); buscar um CT-e pela
+  chave é `GET /v1.0/ctes/{access_key}/sefaz-status`. `validation.AccessKeyReason` aceita o modelo 64 (GTV-e,
+  tpEmis 1 e 2) e, para CT-e e CT-e OS, os tpEmis 1, 2, 3, 4, 5, 7 e 8 do Leiaute (antes só 1, 4, 5, 7 e 8).
+  O espelho `ui/src/lib/utils/access-key.ts` precisa seguir a mesma lista.
+
+- **IBS/CBS do CT-e** (`ctes/ibscbs.go`): o MOC define `vBC` só como "base comum a IBS/CBS" e não a liga a
+  `vTPrest`, por isso o usuário informa a base, as alíquotas, o CST e a classificação (nunca presumidos). Fora do
+  escopo por falta de decisão fiscal fechada: Simples Nacional (CRT 1 e 2 exigem `gTribSN`, SN-1101 e SN-1103;
+  CRT 4 não admite o grupo, SN-1107), `tpRegimeIBSCBS` do emitente, diferimento, devolução, redução, ALC/ZFM,
+  tributação regular, compra governamental (CGOV) e estorno de crédito. `vTotDFe` segue a regra IBSCBS-365
+  (soma IBS e CBS só a partir de 2027; o texto do Leiaute diz sempre vTPrest + IBS + CBS, divergência a
+  confirmar). A ordem do XML já estava na tabela `xsdorder` (a paridade estrita com o XSD cobre `imp/IBSCBS`).
+
 ## MDF-e: portão do MOC, chaves e CNPJ alfanumérico
 
 - **Portão:** `mdfes/prevalidate.go` lista as regras do catálogo do MDF-e que recusam a emissão (422

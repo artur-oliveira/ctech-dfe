@@ -99,6 +99,30 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /v1.0/ctes/{access_key}/sefaz-status:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ CT-e ]
+      summary: Situação do CT-e na SEFAZ
+      description: |
+        Consulta síncrona `CTeConsulta` pelo go-dfe-egress: situação atual, protocolo de autorização e
+        eventos registrados. Só lê; o registro local não muda. cStat 100, 101 e 217 são resposta
+        (`status` authorized, cancelled, not_found); outro cStat (chave inválida, muito antiga, diferente
+        da base) é 400 `sefaz-rejection` com `cstat`. CT-e de outra organização é 404.
+      operationId: getCteSefazStatus
+      responses:
+        '200':
+          description: Situação
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteSituation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1.0/ctes/{access_key}:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
@@ -117,8 +141,232 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/ctes/{access_key}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Cancela um CT-e (evento 110111)
+      description: |
+        Só CT-e autorizado do próprio emitente (422 `not_cte_issuer`, `cte_not_authorized`,
+        `cte_protocol_missing`). O CT-e vai a `cancel_pending` até a SEFAZ responder; o nSeqEvento é sempre 1.
+        Prazo, circulação, MDF-e, CC-e e CT-e de substituição ou complemento associados são conferidos pela
+        SEFAZ (rejeições 218, 219, 220, 523, 528, 574, 576, 660, 862). Duplicidade (631) e CT-e já cancelado
+        (218) confirmam o cancelamento.
+      operationId: cancelCte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteCancelBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/correction-letter:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Carta de correção do CT-e (evento 110110)
+      description: |
+        Só CT-e autorizado do próprio emitente. `sequence_number` omitido vira o seguinte ao maior já enviado
+        (1 a 20). Quais campos podem ser corrigidos é conferido pela SEFAZ (rejeição 681); o CT-e continua autorizado.
+      operationId: correctCte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteCorrectionBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/service-disagreement:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Prestação de serviço em desacordo (evento 610110)
+      description: |
+        Evento do tomador do serviço (422 `not_cte_taker`). Até 45 dias da autorização (rejeição 787 da SEFAZ).
+        `sequence_number` omitido vira o seguinte ao maior já enviado (1 a 20).
+      operationId: disagreeCteService
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteDisagreementBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/service-disagreement-cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Cancela a prestação em desacordo (evento 610111)
+      description: |
+        Evento do tomador. O evento 610110 a cancelar é escolhido por `event_sk` na lista de eventos (precisa estar
+        com status `success`; 422 `event_not_authorized`); o protocolo vem do registro dele.
+      operationId: cancelCteServiceDisagreement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteDisagreementCancelBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ CT-e ]
+      summary: Lista os eventos de um CT-e
+      operationId: listCteEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DocumentEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/ctes/{access_key}/events/{event_sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+      - $ref: '#/components/parameters/EventSk'
+    get:
+      tags: [ CT-e ]
+      summary: Baixa o XML de um evento
+      operationId: getCteEventXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   schemas:
+
+    CteCancelBody:
+      type: object
+      required: [ justification ]
+      properties:
+        justification: { type: string, minLength: 15, maxLength: 255 }
+
+    CteCorrection:
+      type: object
+      required: [ group, field, value ]
+      properties:
+        group: { type: string, minLength: 1, maxLength: 20, description: grupoAlterado, exemplo ide }
+        field: { type: string, minLength: 1, maxLength: 20, description: campoAlterado }
+        value: { type: string, minLength: 1, maxLength: 500, description: valorAlterado }
+        item_number: { type: integer, minimum: 1, maximum: 99, description: nroItemAlterado, quando a alteração é numa lista }
+
+    CteCorrectionBody:
+      type: object
+      required: [ corrections ]
+      properties:
+        corrections:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/CteCorrection' }
+        sequence_number: { type: integer, minimum: 1, maximum: 20 }
+
+    CteDisagreementBody:
+      type: object
+      properties:
+        notes: { type: string, minLength: 15, maxLength: 255, description: xObs, opcional }
+        sequence_number: { type: integer, minimum: 1, maximum: 20 }
+
+    CteDisagreementCancelBody:
+      type: object
+      required: [ event_sk ]
+      properties:
+        event_sk: { type: string, description: sk do evento 610110 na lista de eventos }
+        sequence_number: { type: integer, minimum: 1, maximum: 20 }
+
+    CteSituation:
+      type: object
+      required: [ access_key, c_stat, x_motivo, status, events ]
+      properties:
+        access_key: { $ref: '#/components/schemas/AccessKey' }
+        c_stat: { type: string }
+        x_motivo: { type: string }
+        status: { type: string, enum: [ authorized, cancelled, not_found ] }
+        protocol:
+          type: [ object, 'null' ]
+          properties:
+            n_prot: { type: string }
+            dh_recbto: { type: string }
+            c_stat: { type: string }
+            x_motivo: { type: string }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              tp_evento: { type: string }
+              n_seq_evento: { type: string }
+              c_stat: { type: string }
+              x_motivo: { type: string }
+              n_prot: { type: string }
+              dh_reg_evento: { type: string }
 
     CteNfeKeys:
       type: array
@@ -238,6 +486,33 @@ components:
                 properties:
                   name: { type: string, maxLength: 15 }
                   value: { type: string }
+        ibs_cbs:
+          type: [ object, 'null' ]
+          description: |
+            IBS/CBS (grupo `imp/IBSCBS`, regular). Nada é presumido: CST, classificação, base e alíquotas
+            são do usuário; o servidor calcula os valores e o `vTotDFe` (vTPrest; soma IBS e CBS a partir de
+            2027, regra IBSCBS-365). Só regime normal (CRT 3): outro CRT é 422 `ibscbs_regime_unsupported`.
+            Diferimento, redução, tributação regular, compra governamental e Simples Nacional (gTribSN) não são suportados.
+          required: [ cst, class_trib, base_value, ibs_uf_rate, ibs_mun_rate, cbs_rate ]
+          properties:
+            cst: { type: string, pattern: '^\d{3}$' }
+            class_trib: { type: string, pattern: '^\d{6}$', description: cClassTrib }
+            donation: { type: boolean, description: indDoacao }
+            base_value: { type: string, description: 'vBC, 2 casas' }
+            ibs_uf_rate: { type: string, description: 'pIBSUF em percentual' }
+            ibs_mun_rate: { type: string, description: 'pIBSMun em percentual' }
+            cbs_rate: { type: string, description: 'pCBS em percentual' }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          description: |
+            autXML. CPF ou CNPJ com dígito verificador (CNPJ alfanumérico incluso), sem repetição e sem repetir
+            parte do CT-e; senão 422 `autxml_invalid`.
+          items:
+            type: object
+            required: [ doc ]
+            properties:
+              doc: { type: string }
         icms:
           type: [ object, 'null' ]
           description: Omitido = ICMSSN para CRT 1, 2 ou 4; obrigatório no regime normal.

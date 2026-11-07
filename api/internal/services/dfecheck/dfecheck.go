@@ -119,6 +119,22 @@ func GateMDFe(body map[string]any, block validate.Modes) []validate.Violation {
 	return found
 }
 
+// GateCTe é o Gate do CTe do corpo do builder: o documento e o conteúdo do modal rodoviário (infModal é xs:any).
+func GateCTe(body map[string]any, block validate.Modes) []validate.Violation {
+	cte, ok := body["CTe"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	found := Gate(SpecCTe, "cte", cte, block)
+	inf, _ := cte["infCte"].(map[string]any)
+	norm, _ := inf["infCTeNorm"].(map[string]any)
+	modal, _ := norm["infModal"].(map[string]any)
+	if rodo, ok := modal["rodo"].(map[string]any); ok {
+		found = append(found, Gate(SpecCTe+"_rodo", "cte_rodo", rodo, nil)...)
+	}
+	return found
+}
+
 // ShadowEnviNFe valida o NFe de um enviNFe (NF-e e NFC-e).
 func ShadowEnviNFe(accessKey string, body map[string]any) {
 	env, _ := body["enviNFe"].(map[string]any)

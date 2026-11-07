@@ -12,6 +12,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	"gopkg.aoctech.app/dfe/api/internal/services/nfexml"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -60,6 +61,8 @@ type CteService struct {
 	configRepo     *repositories.CteConfigRepository
 	mdfeConfigRepo *repositories.MdfeConfigRepository
 	cteRepo        *repositories.CteRepository
+	eventRepo      *repositories.DocumentEventRepository
+	documentSvc    *documents.Service
 	nfeRepo        *repositories.NfeRepository
 	personRepo     *repositories.PersonRepository
 	clients        *awsclient.Clients
@@ -67,6 +70,8 @@ type CteService struct {
 	billingSvc     *services.BillingService
 	bucketDocs     string
 	tech           TechData
+	// egress chama o go-dfe-egress nas consultas síncronas (situação).
+	egress dfeCaller
 }
 
 func NewCteService(
@@ -75,18 +80,25 @@ func NewCteService(
 	configRepo *repositories.CteConfigRepository,
 	mdfeConfigRepo *repositories.MdfeConfigRepository,
 	cteRepo *repositories.CteRepository,
+	eventRepo *repositories.DocumentEventRepository,
 	nfeRepo *repositories.NfeRepository,
 	personRepo *repositories.PersonRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
 	bucketDocs string,
 	tech TechData,
+	extSvc *services.ExternalService,
 ) *CteService {
+	var egress dfeCaller
+	if extSvc != nil {
+		egress = extSvc
+	}
 	return &CteService{
 		orgRepo: orgRepo, certRepo: certRepo, configRepo: configRepo, mdfeConfigRepo: mdfeConfigRepo,
-		cteRepo: cteRepo, nfeRepo: nfeRepo, personRepo: personRepo, clients: clients,
-		workerSvc: workerSvc, billingSvc: billingSvc, bucketDocs: bucketDocs, tech: tech,
+		cteRepo: cteRepo, eventRepo: eventRepo, documentSvc: documentSvc, nfeRepo: nfeRepo, personRepo: personRepo, clients: clients,
+		workerSvc: workerSvc, billingSvc: billingSvc, bucketDocs: bucketDocs, tech: tech, egress: egress,
 	}
 }
 

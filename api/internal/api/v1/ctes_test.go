@@ -20,7 +20,9 @@ func TestRegisterCTes_MountsAllRoutes(t *testing.T) {
 	for _, r := range app.GetRoutes() {
 		mounted[r.Method+" "+r.Path] = true
 	}
-	for _, w := range []string{"POST /ctes/derive", "POST /ctes", "GET /ctes", "GET /ctes/:access_key"} {
+	for _, w := range []string{"POST /ctes/derive", "POST /ctes", "GET /ctes", "GET /ctes/:access_key", "GET /ctes/:access_key/sefaz-status",
+		"POST /ctes/:access_key/cancel", "POST /ctes/:access_key/correction-letter", "POST /ctes/:access_key/service-disagreement",
+		"POST /ctes/:access_key/service-disagreement-cancel", "GET /ctes/:access_key/events", "GET /ctes/:access_key/events/:event_sk/xml"} {
 		if !mounted[w] {
 			t.Errorf("rota não montada: %s", w)
 		}
@@ -46,6 +48,9 @@ func TestCteEmitBody_ValidationErrors(t *testing.T) {
 		want int
 	}{
 		"válido":                 {`{"nfe_keys":["` + key + `"],` + ok + `}`, fiber.StatusNoContent},
+		"ibs_cbs válido":         {`{"nfe_keys":["` + key + `"],` + ok + `,"ibs_cbs":{"cst":"000","class_trib":"000001","base_value":"1850.00","ibs_uf_rate":"0.1","ibs_mun_rate":"0","cbs_rate":"0.9"},"authorized_xml":[{"doc":"34028316000103"}]}`, fiber.StatusNoContent},
+		"ibs_cbs sem alíquota":   {`{"nfe_keys":["` + key + `"],` + ok + `,"ibs_cbs":{"cst":"000","class_trib":"000001","base_value":"1850.00"}}`, fiber.StatusUnprocessableEntity},
+		"autXML inválido":        {`{"nfe_keys":["` + key + `"],` + ok + `,"authorized_xml":[{"doc":"123"}]}`, fiber.StatusUnprocessableEntity},
 		"sem notas":              {`{"nfe_keys":[],` + ok + `}`, fiber.StatusUnprocessableEntity},
 		"chave de CT-e":          {`{"nfe_keys":["` + cte + `"],` + ok + `}`, fiber.StatusUnprocessableEntity},
 		"chave repetida":         {`{"nfe_keys":["` + key + `","` + key + `"],` + ok + `}`, fiber.StatusUnprocessableEntity},

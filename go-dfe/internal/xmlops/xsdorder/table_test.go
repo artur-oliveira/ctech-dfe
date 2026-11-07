@@ -494,6 +494,19 @@ func TestEvCancCTeFullOrder(t *testing.T) {
 	}
 }
 
+func TestCTeEventOrders(t *testing.T) {
+	for tag, want := range map[string][]string{
+		"evCCeCTe":             {"descEvento", "infCorrecao", "xCondUso"},
+		"infCorrecao":          {"grupoAlterado", "campoAlterado", "valorAlterado", "nroItemAlterado"},
+		"evPrestDesacordo":     {"descEvento", "indDesacordoOper", "xObs"},
+		"evCancPrestDesacordo": {"descEvento", "nProtEvPrestDes"},
+	} {
+		if got := mustResolve(t, "", tag); !equalSlices(got, want) {
+			t.Errorf("%s: got %v", tag, got)
+		}
+	}
+}
+
 func TestEvEncMDFeFullOrder(t *testing.T) {
 	order := mustResolve(t, "", "evEncMDFe")
 	assertOrderIsCorrect(t, order, []string{
@@ -575,8 +588,9 @@ func TestTableKeyCount(t *testing.T) {
 	// gPagAntecipado, IBSCBSTot:gMono) + 4 do Simples Nacional da NT 2026.005
 	// (gTribSN, gIBSSN, gCBSSN, IBSCBSTot:gTribSN) + impostoDevol, DFeReferenciado e
 	// RSAKeyValue, que o paridade com o XSD (validate/xsdorder_parity_test.go) apontou + 34 do CT-e 4.00
-	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e).
-	const wantKeys = 288
+	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
+	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo).
+	const wantKeys = 292
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}

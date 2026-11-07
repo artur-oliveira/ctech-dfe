@@ -15,16 +15,19 @@ const (
 	AccessKeyModCTe   = "57"
 	AccessKeyModMDFe  = "58"
 	AccessKeyModCTeOS = "67"
+	AccessKeyModGTVe  = "64"
 )
 
 // accessKeyTpEmis holds, per model, the tpEmis codes (position 35) a key of
 // that model can carry. NF-e: every code except 9, which SEFAZ reserves for
-// NFC-e offline contingency. CT-e and CT-e OS: 1 normal, 4 EPEC, 5 FS-DA,
-// 7 SVC-RS, 8 SVC-SP. MDF-e: 1 normal, 2 contingência, 3 NFF.
+// NFC-e offline contingency. CT-e and CT-e OS (MOC CT-e, Leiaute, tpEmis): 1 normal,
+// 2 contingência offline, 3 NFF, 4 EPEC, 5 FS-DA, 7 SVC-RS, 8 SVC-SP. GTV-e (64): 1 normal,
+// 2 contingência offline (as opções SVC saíram pela NT 2025.001). MDF-e: 1 normal, 2 contingência, 3 NFF.
 var accessKeyTpEmis = map[string]string{
 	AccessKeyModNFe:   "1234567",
-	AccessKeyModCTe:   "14578",
-	AccessKeyModCTeOS: "14578",
+	AccessKeyModCTe:   "1234578",
+	AccessKeyModCTeOS: "1234578",
+	AccessKeyModGTVe:  "12",
 	AccessKeyModMDFe:  "123",
 }
 

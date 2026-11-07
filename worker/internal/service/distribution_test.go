@@ -1175,6 +1175,23 @@ func TestDistConsChNFe_Happy_ProcessesDocZips(t *testing.T) {
 	}
 }
 
+// O distDFeInt do CT-e e do MDF-e não tem consulta por chave (MOC): o job é descartado sem chamar a SEFAZ.
+func TestDistConsAccessKey_CTeAndMDFeAreDroppedWithoutSefazCall(t *testing.T) {
+	for _, docType := range []string{"cte", "mdfe"} {
+		lam := &mockLambda{payload: distNSUResp(cStatDocFound, 600, 600, nil)}
+		svc := newDistSvc(&mockDistDynamo{}, certS3(), lam, &mockSNS{}, distCfg)
+		err := svc.Process(context.Background(), DistributionMessage{
+			JobType: "cons_ch_nfe", OrgPK: testOrgPK, DocType: docType, AccessKey: testAK,
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", docType, err)
+		}
+		if lam.calls != 0 {
+			t.Errorf("%s: consulta por chave não existe na distribuição; got %d chamadas ao egress", docType, lam.calls)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Distribution small helpers
 // ---------------------------------------------------------------------------

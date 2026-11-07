@@ -63,6 +63,15 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 		return sendPage(c, res, cursor)
 	})
 
+	// GET /ctes/:access_key/sefaz-status — situação atual na SEFAZ (CTeConsulta), com protocolo e eventos.
+	g.Get("/:access_key/sefaz-status", perm.Require("get.ctes"), func(c fiber.Ctx) error {
+		res, err := svc.ConsultSituation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(res)
+	})
+
 	// GET /ctes/:access_key
 	g.Get("/:access_key", perm.Require("get.ctes"), func(c fiber.Ctx) error {
 		cte, err := svc.GetCTe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
@@ -73,5 +82,92 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 			return sendProblem(c, ctesvc.ErrCTeNotFound)
 		}
 		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/cancel — cancelamento (110111); o CT-e vai a cancel_pending até a SEFAZ responder
+	g.Post("/:access_key/cancel", perm.Require("delete.ctes"), func(c fiber.Ctx) error {
+		var body struct {
+			Justification string `json:"justification" validate:"required,min=15,max=255"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.Cancel(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Justification, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/correction-letter — carta de correção (110110)
+	g.Post("/:access_key/correction-letter", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Corrections    []ctesvc.Correction `json:"corrections" validate:"required,min=1,max=20,dive"`
+			SequenceNumber int                 `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.CorrectionLetter(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Corrections, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/service-disagreement — prestação de serviço em desacordo (610110), evento do tomador
+	g.Post("/:access_key/service-disagreement", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Notes          string `json:"notes" validate:"omitempty,min=15,max=255"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.ServiceDisagreement(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Notes, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/service-disagreement-cancel — cancela um evento de desacordo (610111)
+	g.Post("/:access_key/service-disagreement-cancel", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			EventSK        string `json:"event_sk" validate:"required"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.CancelServiceDisagreement(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.EventSK, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// GET /ctes/:access_key/events
+	g.Get("/:access_key/events", perm.Require("get.cte_events"), func(c fiber.Ctx) error {
+		cursor := c.Query("cursor")
+		res, err := svc.ListCTeEvents(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			intQuery(c, "limit", 50), decodeCursor(cursor))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendPage(c, res, cursor)
+	})
+
+	// GET /ctes/:access_key/events/:event_sk/xml
+	g.Get("/:access_key/events/:event_sk/xml", perm.Require("get.cte_events"), func(c fiber.Ctx) error {
+		download, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Params("event_sk"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(download)
 	})
 }

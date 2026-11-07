@@ -59,11 +59,15 @@ type CteDeriveBody struct {
 
 // CteEmitBody é o corpo de POST /ctes.
 type CteEmitBody struct {
-	NFeKeys   []string      `json:"nfe_keys" validate:"required,min=1,max=50,unique,dive,dfe_access_key"`
-	Taker     CteTaker      `json:"taker" validate:"required"`
-	Freight   CteFreight    `json:"freight" validate:"required"`
-	ICMS      *CteICMS      `json:"icms"`
-	Overrides *CteOverrides `json:"overrides"`
+	NFeKeys []string   `json:"nfe_keys" validate:"required,min=1,max=50,unique,dive,dfe_access_key"`
+	Taker   CteTaker   `json:"taker" validate:"required"`
+	Freight CteFreight `json:"freight" validate:"required"`
+	ICMS    *CteICMS   `json:"icms"`
+	// IBSCBS opcional: nada é presumido (CST, classificação, base e alíquotas do usuário).
+	IBSCBS *CteIBSCBS `json:"ibs_cbs"`
+	// AuthorizedXML: autorizados a baixar o XML (autXML, até 10).
+	AuthorizedXML []CteAuthorizedXML `json:"authorized_xml" validate:"omitempty,max=10,dive"`
+	Overrides     *CteOverrides      `json:"overrides"`
 	// CFOP da prestação (5351 a 5360, 6351 a 6360, 7358, 5932, 6932...). Regra fiscal: nunca presumido.
 	CFOP           *string `json:"cfop" validate:"omitempty,cfop"`
 	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=2000"`
@@ -186,6 +190,21 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		return nil, err
 	}
 
+	ibscbs, err := resolveIBSCBS(req.IBSCBS, crt)
+	if err != nil {
+		return nil, err
+	}
+	actorDocs := []string{emit.doc(), in.rem.doc(), in.dest.doc()}
+	for _, a := range []*actor{in.exped, in.receb, in.toma4} {
+		if a != nil {
+			actorDocs = append(actorDocs, a.doc())
+		}
+	}
+	autXML, err := resolveAuthorizedXML(req.AuthorizedXML, actorDocs)
+	if err != nil {
+		return nil, err
+	}
+
 	mdfeCfg, err := s.mdfeConfigRepo.Get(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -217,13 +236,16 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		tpEmis: services.TpEmisNormal, cfop: *req.CFOP, emit: emit, crt: crt,
 		rem: in.rem, dest: in.dest, exped: in.exped, receb: in.receb, takerRole: req.Taker.Role, toma4: in.toma4,
 		origin: in.origin, destination: in.destination,
-		vTPrest: vTPrest, comps: comps, icms: icms,
+		vTPrest: vTPrest, comps: comps, icms: icms, ibscbs: ibscbs, autXML: autXML,
 		vCarga: in.vCarga, proPred: in.proPred, weight: in.weight, volumes: in.volumes, nfeKeys: req.NFeKeys,
 		rntrc: rntrc, addInfo: valueOr(req.AdditionalInfo), tech: s.tech,
 		csrtID: strAttr(cfg, "csrt_id"), csrt: strAttr(cfg, "csrt"),
 	}
 	body := BuildCTe(p)
 	dfecheck.ShadowCTe(accessKey, body)
+	if err := gateCTe(body); err != nil {
+		return nil, err
+	}
 
 	pk := envPrefix + "#" + orgPK
 	cst := cstSN
