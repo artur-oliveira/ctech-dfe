@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/tables"
 )
 
@@ -90,6 +91,11 @@ var TimezoneSet = map[string]struct{}{
 func ufValidator(fl validator.FieldLevel) bool {
 	_, ok := UFSet[fl.Field().String()]
 	return ok
+}
+
+// ufOrExteriorValidator aceita uma UF brasileira ou "EX" (endereço no exterior).
+func ufOrExteriorValidator(fl validator.FieldLevel) bool {
+	return fl.Field().String() == services.UFForeign || ufValidator(fl)
 }
 
 // timezoneValidator reports whether the field is an accepted Brazilian timezone.

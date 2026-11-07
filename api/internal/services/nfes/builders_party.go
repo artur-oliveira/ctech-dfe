@@ -43,22 +43,37 @@ func getIEForUF(person map[string]any, uf string) string {
 	return ""
 }
 
+// buildEnder monta TEndereco (enderEmit/enderDest). Endereço no exterior (UF "EX") sai com cMun 9999999, sem CEP,
+// e com o país do cadastro (código BACEN e nome); no Brasil, cPais 1058. Tag vazia não sai: a emissão já recusou
+// o cadastro sem município (requireAddress), nunca há código de município inventado.
 func buildEnder(person map[string]any) map[string]string {
 	address := services.FirstAddress(person)
 	uf := anyStr(address, "state_federation", "")
 	ender := map[string]string{
 		"xLgr":    anyStr(address, "street", ""),
 		"nro":     strOrDefault(anyStr(address, "number", ""), "S/N"),
+		"xCpl":    anyStr(address, "complement", ""),
 		"xBairro": anyStr(address, "neighborhood", ""),
-		"cMun":    strOrDefault(anyStr(address, "city_ibge_code", ""), "0000000"),
+		"cMun":    anyStr(address, "city_ibge_code", ""),
 		"xMun":    anyStr(address, "city", ""),
 		"UF":      uf,
 		"CEP":     strings.ReplaceAll(anyStr(address, "postal_code", ""), "-", ""),
 		"cPais":   cPaisBrasil,
 		"xPais":   xPaisBrasil,
 	}
+	if uf == ufExterior {
+		ender["cMun"] = cMunExterior
+		ender["CEP"] = ""
+		ender["cPais"] = anyStr(address, addrCountryCode, "")
+		ender["xPais"] = anyStr(address, addrCountryName, "")
+	}
 	if phone := services.FirstPhone(person); phone != "" {
 		ender["fone"] = phone
+	}
+	for k, v := range ender {
+		if v == "" {
+			delete(ender, k)
+		}
 	}
 	return ender
 }
@@ -95,40 +110,40 @@ func buildAutXML(org map[string]any) []map[string]any {
 	return out
 }
 
-// buildLocal builds a TLocal-shaped map (local de retirada/entrega) — same
-// field set for both, per xsd_order.py's "retirada"/"entrega" ordering.
-// Unlike buildEnder (TEndereco), TLocal has no CEP.
+// buildLocal monta TLocal (local de retirada/entrega). Local no exterior (UF "EX") sai com cMun 9999999 e o país
+// informado; no Brasil, cPais 1058. CEP e IE são opcionais no leiaute e saem quando informados.
 func buildLocal(l *NfeLocalBody) map[string]any {
 	if l == nil {
 		return nil
 	}
 	m := map[string]any{
+		"CNPJ":    ptrStr(l.CNPJ),
+		"CPF":     ptrStr(l.CPF),
+		"xNome":   ptrStr(l.XNome),
 		"xLgr":    l.XLgr,
 		"nro":     l.Nro,
+		"xCpl":    ptrStr(l.XCpl),
 		"xBairro": l.XBairro,
 		"cMun":    l.CMun,
 		"xMun":    l.XMun,
 		"UF":      l.UF,
+		"CEP":     ptrStr(l.CEP),
 		"cPais":   cPaisBrasil,
 		"xPais":   xPaisBrasil,
+		"fone":    ptrStr(l.Fone),
+		"email":   ptrStr(l.Email),
+		"IE":      ptrStr(l.IE),
 	}
-	if l.CNPJ != nil && *l.CNPJ != "" {
-		m["CNPJ"] = *l.CNPJ
+	if l.UF == ufExterior {
+		m["cMun"] = cMunExterior
+		m["CEP"] = ""
+		m["cPais"] = ptrStr(l.CPais)
+		m["xPais"] = ptrStr(l.XPais)
 	}
-	if l.CPF != nil && *l.CPF != "" {
-		m["CPF"] = *l.CPF
-	}
-	if l.XNome != nil && *l.XNome != "" {
-		m["xNome"] = *l.XNome
-	}
-	if l.XCpl != nil && *l.XCpl != "" {
-		m["xCpl"] = *l.XCpl
-	}
-	if l.Fone != nil && *l.Fone != "" {
-		m["fone"] = *l.Fone
-	}
-	if l.Email != nil && *l.Email != "" {
-		m["email"] = *l.Email
+	for k, v := range m {
+		if v == "" {
+			delete(m, k)
+		}
 	}
 	return m
 }
@@ -240,11 +255,16 @@ func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, i
 	}
 	dest["xNome"] = receiverName
 	dest["enderDest"] = buildEnder(destPerson)
-	if destIE != "" && destUF != ufExterior {
+	dest["indIEDest"] = indIEDestNaoContrib
+	switch {
+	case destUF == ufExterior:
+		// E16a-20 (790) e E17-40 (792): no exterior é sempre não contribuinte, sem IE.
+	case strings.EqualFold(strings.TrimSpace(destIE), ieIsento):
+		// E17-30 (791): o isento de inscrição sai com indIEDest 2 e sem a tag IE.
+		dest["indIEDest"] = indIEDestIsento
+	case destIE != "":
 		dest["IE"] = destIE
 		dest["indIEDest"] = indIEDestContrib
-	} else {
-		dest["indIEDest"] = indIEDestNaoContrib
 	}
 	if email := services.FirstEmail(destPerson); email != "" {
 		dest["email"] = email

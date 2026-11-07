@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"gopkg.aoctech.app/api-commons/problem"
+	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
@@ -22,30 +23,38 @@ import (
 // ── Shared entity sub-objects (persons & organizations) ──────────────────────
 
 // AddressBody is a postal address (endereço) for a person/organization.
+//
+// Os tamanhos são os do leiaute da NF-e (TEndereco: xLgr, xBairro e xMun 2 a 60, xCpl 1 a 60); o
+// TestEntityLimitsMatchLayout compara estas tags com go-dfe/validate. Endereço no exterior: state_federation
+// "EX", city_ibge_code 9999999, sem CEP, com country_code (código BACEN de 4 dígitos, diferente de 1058) e
+// country_name (validateAddressBody).
 type AddressBody struct {
 	CityIBGECode    string  `json:"city_ibge_code" validate:"required,ibge"`
-	Street          string  `json:"street" validate:"required,max=255"`
-	Neighborhood    string  `json:"neighborhood" validate:"required,max=120"`
+	Street          string  `json:"street" validate:"required,min=2,max=60"`
+	Neighborhood    string  `json:"neighborhood" validate:"required,min=2,max=60"`
 	Number          string  `json:"number" validate:"required,max=20"`
-	City            string  `json:"city" validate:"required,max=120"`
-	StateFederation string  `json:"state_federation" validate:"required,uf"`
-	PostalCode      string  `json:"postal_code" validate:"required,cep"`
-	Complement      *string `json:"complement" validate:"omitempty,max=120"`
+	City            string  `json:"city" validate:"required,min=2,max=60"`
+	StateFederation string  `json:"state_federation" validate:"required,ufex"`
+	PostalCode      string  `json:"postal_code" validate:"omitempty,cep"`
+	Complement      *string `json:"complement" validate:"omitempty,min=1,max=60"`
+	CountryCode     *string `json:"country_code" validate:"omitempty,len=4,number"`
+	CountryName     *string `json:"country_name" validate:"omitempty,min=2,max=60"`
 }
 
 // StateRegistrationBody is a state registration (inscrição estadual) entry.
 type StateRegistrationBody struct {
 	UF                string `json:"uf" validate:"required,uf"`
-	StateRegistration string `json:"state_registration" validate:"required,max=20"`
+	// 2 a 14 (TIe): dígitos, ou a literal ISENTO para o contribuinte isento de inscrição (indIEDest 2).
+	StateRegistration string `json:"state_registration" validate:"required,min=2,max=14"`
 	// IeSt é a inscrição de substituto tributário nesta UF (emit/IEST). Mora
 	// aqui, e não numa lista à parte, porque é a mesma inscrição na mesma UF
 	// com outro papel.
-	IeSt *string `json:"ie_st" validate:"omitempty,max=20"`
+	IeSt *string `json:"ie_st" validate:"omitempty,min=2,max=14"`
 }
 
 // ContactsBody holds e-mail and phone contact lists.
 type ContactsBody struct {
-	Emails []string `json:"emails" validate:"omitempty,max=5,dive,email"`
+	Emails []string `json:"emails" validate:"omitempty,max=5,dive,email,min=6,max=60"`
 	Phones []string `json:"phones" validate:"omitempty,max=5,dive,phonebr"`
 }
 
@@ -97,7 +106,7 @@ type NfseInfoBody struct {
 // PersonObjectBody is the nested `person` object shared by person and
 // organization payloads. crt is sent as a number (1–4) or null.
 type PersonObjectBody struct {
-	FantasyName *string `json:"fantasy_name" validate:"omitempty,max=255"`
+	FantasyName *string `json:"fantasy_name" validate:"omitempty,min=1,max=60"`
 	Crt         *int    `json:"crt" validate:"omitempty,oneof=1 2 3 4"`
 	// TpRegimeIBSCBS (NT 2026.005, C21a): 1 Simples com regime regular do IBS/CBS; 2 a 4 Regime
 	// Normal com opção pendente pelo Simples. Ausente para os demais.
@@ -166,7 +175,7 @@ type PersonCreateBody struct {
 	CpfOrCnpj string `json:"cpf_or_cnpj" validate:"omitempty,cpfcnpj"`
 	// IDEstrangeiro é o documento de pessoa no exterior (dest/idEstrangeiro).
 	IDEstrangeiro *string          `json:"id_estrangeiro" validate:"omitempty,max=20"`
-	Name          string           `json:"name" validate:"required,min=2,max=255"`
+	Name          string           `json:"name" validate:"required,min=2,max=60"`
 	Roles         []string         `json:"roles" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
 	Person        PersonObjectBody `json:"person" validate:"required"`
 }
@@ -178,7 +187,7 @@ type PersonCreateBody struct {
 // tocar nos papéis (nulo vira REMOVE no update do DynamoDB), e `"roles": []`
 // continua sendo a forma de limpar todos os papéis.
 type PersonUpdateBody struct {
-	Name   *string           `json:"name" validate:"omitempty,min=2,max=255"`
+	Name   *string           `json:"name" validate:"omitempty,min=2,max=60"`
 	Roles  *[]string         `json:"roles,omitempty" validate:"omitempty,dive,oneof=customer supplier carrier driver provider freight_contractor intermediary"`
 	Person *PersonObjectBody `json:"person" validate:"omitempty"`
 }
@@ -188,14 +197,14 @@ type PersonUpdateBody struct {
 // OrganizationCreateBody is the body for POST /organizations.
 type OrganizationCreateBody struct {
 	CpfOrCnpj   string           `json:"cpf_or_cnpj" validate:"required,cpfcnpj"`
-	Name        string           `json:"name" validate:"required,min=2,max=255"`
+	Name        string           `json:"name" validate:"required,min=2,max=60"`
 	Description *string          `json:"description" validate:"omitempty,max=120"`
 	Person      PersonObjectBody `json:"person" validate:"required"`
 }
 
 // OrganizationUpdateBody is the body for PUT /organizations/:org_pk (partial).
 type OrganizationUpdateBody struct {
-	Name        *string           `json:"name" validate:"omitempty,min=2,max=255"`
+	Name        *string           `json:"name" validate:"omitempty,min=2,max=60"`
 	Description *string           `json:"description" validate:"omitempty,max=120"`
 	Person      *PersonObjectBody `json:"person" validate:"omitempty"`
 }
@@ -454,7 +463,7 @@ type OperationBody struct {
 
 	NatOp    *string `json:"nat_op" validate:"omitempty,max=60"`
 	TpNF     *string `json:"tp_nf" validate:"omitempty,oneof=0 1"`
-	FinNFe   *string `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4"`
+	FinNFe   *string `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4 5 6"`
 	IndFinal *string `json:"ind_final" validate:"omitempty,oneof=0 1"`
 	IndPres  *string `json:"ind_pres" validate:"omitempty,oneof=0 1 2 3 4 5 9"`
 
@@ -998,7 +1007,7 @@ type TaxProfileBody struct {
 // The frontend sends the full object on both create and update.
 type ProductBody struct {
 	Code        string  `json:"code" validate:"required,max=60,prodcode"`
-	Description string  `json:"description" validate:"required,min=2,max=255"`
+	Description string  `json:"description" validate:"required,min=2,max=120"`
 	Brand       *string `json:"brand" validate:"omitempty,max=60"`
 	Ncm         string  `json:"ncm" validate:"required,ncm"`
 	Cest        *string `json:"cest" validate:"omitempty,cest"`
@@ -1404,6 +1413,7 @@ type NfceConfigBody struct {
 
 func init() {
 	validation.RegisterStructRule(validateIbsCbsGroup, TaxFieldsBody{})
+	validation.RegisterStructRule(validateAddressBody, AddressBody{})
 	validation.RegisterStructRule(validateServiceLocationDefaults, ServiceLocationDefaultsBody{})
 	validation.RegisterStructRule(validateServiceIssBenefit, ServiceIssBenefitBody{})
 	validation.RegisterStructRule(validateOperationNfseLocation, OperationNfseBody{})
@@ -1415,6 +1425,45 @@ func init() {
 // validateServiceLocationAddress exige um endereço nacional OU um do exterior,
 // nunca os dois nem nenhum: TCEnderecoSimples é a mesma escolha, e um endereço
 // pela metade só falharia na emissão, longe de quem digitou.
+// Endereço no exterior (leiaute da NF-e, E10-30, E14-30): município 9999999 e país diferente do Brasil.
+const (
+	cMunExterior     = "9999999"
+	countryBrazilBCB = "1058"
+)
+
+// validateAddressBody aplica as regras do endereço no exterior (UF "EX") e exige o CEP no Brasil.
+func validateAddressBody(sl validator.StructLevel) {
+	a := sl.Current().Interface().(AddressBody)
+	code, name := "", ""
+	if a.CountryCode != nil {
+		code = *a.CountryCode
+	}
+	if a.CountryName != nil {
+		name = *a.CountryName
+	}
+	if a.StateFederation != services.UFForeign {
+		if a.PostalCode == "" {
+			sl.ReportError(a.PostalCode, "postal_code", "PostalCode", "required", "")
+		}
+		if code != "" && code != countryBrazilBCB {
+			sl.ReportError(a.CountryCode, "country_code", "CountryCode", "eq", countryBrazilBCB)
+		}
+		return
+	}
+	if a.CityIBGECode != cMunExterior {
+		sl.ReportError(a.CityIBGECode, "city_ibge_code", "CityIBGECode", "eq", cMunExterior)
+	}
+	switch code {
+	case "":
+		sl.ReportError(a.CountryCode, "country_code", "CountryCode", "required", "")
+	case countryBrazilBCB:
+		sl.ReportError(a.CountryCode, "country_code", "CountryCode", "ne", countryBrazilBCB)
+	}
+	if name == "" {
+		sl.ReportError(a.CountryName, "country_name", "CountryName", "required", "")
+	}
+}
+
 func validateServiceLocationAddress(sl validator.StructLevel) {
 	f := sl.Current().Interface().(ServiceLocationAddressBody)
 	national := f.PostalCode != nil && *f.PostalCode != ""

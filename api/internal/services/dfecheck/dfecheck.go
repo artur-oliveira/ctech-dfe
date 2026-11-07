@@ -1,6 +1,7 @@
-// Package dfecheck liga go-dfe/validate aos fluxos de emissão em modo shadow: valida o documento que o
-// builder produziu (schema do XSD + regras do MOC) e só registra no log. Nunca devolve erro nem bloqueia,
-// e um defeito no validador não derruba a emissão. A passagem a warn/block é decisão por regra (validate.Modes).
+// Package dfecheck liga go-dfe/validate aos fluxos de emissão. Shadow valida o documento que o builder produziu
+// (schema do XSD + regras do MOC) e só registra no log: nunca devolve erro nem bloqueia. Gate é o portão de
+// recusa: devolve só os achados que o chamador promoveu a block (regras escolhidas por id e os achados de
+// tamanho do schema). Nos dois, um defeito no validador falha aberto e não derruba a emissão.
 package dfecheck
 
 import (
@@ -47,6 +48,49 @@ func Shadow(spec, docKind, accessKey string, doc map[string]any) (found []valida
 			"path", v.Path, "code", v.Code, "rule", v.Rule, "cstat", v.CStat, "msg", msg)
 	}
 	return found
+}
+
+// sizeCodes são os achados de schema que o Gate recusa: tamanho de texto fora do leiaute vira rejeição 225 na
+// SEFAZ, e o valor nunca é truncado em silêncio (CONDUCT.md, política de não truncar).
+var sizeCodes = map[string]bool{validate.CodeMinLength: true, validate.CodeMaxLength: true}
+
+// Gate devolve os achados que recusam a emissão: as regras que block promove a validate.ModeBlock (só elas; o
+// modo padrão do catálogo não recusa nada aqui) e os achados de tamanho do schema. Falha aberta: esquema indisponível ou
+// pânico no validador registram o erro e não recusam nada.
+func Gate(spec, docKind string, doc map[string]any, block validate.Modes) (found []validate.Violation) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("dfecheck: portão falhou", "spec", spec, "panic", r)
+			found = nil
+		}
+	}()
+	s, err := validate.Load(spec)
+	if err != nil {
+		slog.Error("dfecheck: esquema indisponível", "spec", spec, "err", err)
+		return nil
+	}
+	for _, v := range s.Validate(doc, validate.Options{Skip: []string{signaturePath}}) {
+		if sizeCodes[v.Code] {
+			found = append(found, v)
+		}
+	}
+	rules, _ := validate.Apply(docKind, doc, block)
+	for _, v := range rules {
+		if block[v.Rule] == validate.ModeBlock {
+			found = append(found, v)
+		}
+	}
+	return found
+}
+
+// GateEnviNFe é o Gate do NFe de um enviNFe (NF-e e NFC-e).
+func GateEnviNFe(body map[string]any, block validate.Modes) []validate.Violation {
+	env, _ := body["enviNFe"].(map[string]any)
+	nfe, ok := env["NFe"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return Gate(SpecNFe, "nfe", nfe, block)
 }
 
 // ShadowEnviNFe valida o NFe de um enviNFe (NF-e e NFC-e).

@@ -319,3 +319,38 @@ func nfeIDBase(m map[string]any) string {
 	}
 	return nfeS(m, "CPF")
 }
+
+// NFeCreditDebitForbidden são os grupos de imposto do item que a nota de crédito ou de débito (finNFe 5 ou 6) não
+// leva: só IBS/CBS (e IS). Regra B25-80 (rejeição 1001). Exportado para que o builder da api omita exatamente estes.
+var NFeCreditDebitForbidden = []string{"ICMS", "ISSQN", "IPI", "II", "PIS", "PISST", "COFINS", "COFINSST", "ICMSUFDest"}
+
+// NFeCreditDebitAllowed devolve os grupos de NFeCreditDebitForbidden que as exceções da B25-80 liberam; nil quando
+// a exceção 1 libera todos (e também o impostoDevol): tpNFCredito 03, 04 ou 06 e tpNFDebito 07. tpNFDebito 06
+// (pagamento antecipado) libera o IPI (exceção 3) e, em nota emitida em 2026, PIS, PISST, COFINS e COFINSST
+// (exceção 2). O ICMS da exceção 4 é só o ICMSPrevistoPagtoAntecip, que não é emitido.
+func NFeCreditDebitAllowed(tpNFCredito, tpNFDebito string, year int) map[string]bool {
+	if nfeIn(tpNFCredito, "03", "04", "06") || tpNFDebito == "07" {
+		return nil
+	}
+	out := map[string]bool{}
+	if tpNFDebito == "06" {
+		out["IPI"] = true
+		if year == 2026 {
+			for _, g := range []string{"PIS", "PISST", "COFINS", "COFINSST"} {
+				out[g] = true
+			}
+		}
+	}
+	return out
+}
+
+func nfeCreditDebitAllowed(c *nfeCtx) map[string]bool {
+	year := 0
+	if e, ok := nfeDate(nfeS(c.ide, "dhEmi")); ok {
+		year = e.Year()
+	}
+	return NFeCreditDebitAllowed(nfeS(c.ide, "tpNFCredito"), nfeS(c.ide, "tpNFDebito"), year)
+}
+
+// nfeNoIsentoUFs são as UFs que não admitem destinatário contribuinte isento de IE (regra E16a-30, rejeição 805).
+var nfeNoIsentoUFs = []string{"AL", "AM", "BA", "CE", "DF", "ES", "GO", "MG", "MS", "MT", "PB", "PE", "RJ", "RN", "RS", "SE", "SP"}

@@ -45,7 +45,20 @@ const (
 	indTotCompoe        = "1"
 	indIEDestNaoContrib = "9"
 	indIEDestContrib    = "1"
-	modFreteSemFrete    = "9"
+	// indIEDestIsento é o contribuinte isento de inscrição (E16a). O cadastro marca o isento com a literal
+	// ISENTO na inscrição estadual, a mesma convenção do CT-e (ctes/builder.go).
+	indIEDestIsento = "2"
+	ieIsento        = "ISENTO"
+	// idDest (B11a): 1 interna, 2 interestadual, 3 com exterior.
+	idDestInterna    = "1"
+	idDestInterestad = "2"
+	idDestExterior   = "3"
+	// cMunExterior é o código de município do endereço no exterior (E10-30, F07-10, G07-10).
+	cMunExterior = "9999999"
+	// addrCountryCode e addrCountryName são o país (código BACEN e nome) do endereço no exterior, no cadastro.
+	addrCountryCode  = "country_code"
+	addrCountryName  = "country_name"
+	modFreteSemFrete = "9"
 	// Own-transport modFrete codes: the carrier (transporta) IS the issuer or the
 	// recipient, so its data is copied from emit/dest instead of supplied separately.
 	modFreteProprioRemetente    = "3" // Transporte próprio por conta do remetente (emitente)
@@ -96,7 +109,7 @@ func buildPag(payments []map[string]any, vTroco *string, terminals map[string]ma
 			item["indPag"] = v
 		}
 		item["tPag"] = anyStr(p, "payment_type", "")
-		item["vPag"] = q2(d(anyStr(p, "value", "0")).RoundBank(2))
+		item["vPag"] = q2(dField(p, "value").RoundBank(2))
 		if v := anyStr(p, "d_pag", ""); v != "" {
 			item["dPag"] = v
 		}
@@ -145,6 +158,39 @@ func buildPag(payments []map[string]any, vTroco *string, terminals map[string]ma
 		}
 	}
 	return pag
+}
+
+// setTroco grava pag/vTroco = soma dos vPag - vNF quando positivo (YA09-10, rejeição 869) no enviNFe já montado
+// e devolve o vNF. É o vNF do documento, não o total de produtos, porque frete, seguro, outras despesas, ST e IPI
+// também entram nele (W16-10).
+func setTroco(enviNFe map[string]any) decimal.Decimal {
+	env, _ := enviNFe["enviNFe"].(map[string]any)
+	nfe, _ := env["NFe"].(map[string]any)
+	inf, _ := nfe["infNFe"].(map[string]any)
+	total, _ := inf["total"].(map[string]any)
+	icmsTot, _ := total["ICMSTot"].(map[string]any)
+	vNF := dField(icmsTot, "vNF")
+	pag, _ := inf["pag"].(map[string]any)
+	if pag == nil {
+		return vNF
+	}
+	paid := decimal.Zero
+	switch l := pag["detPag"].(type) {
+	case []map[string]any:
+		for _, p := range l {
+			paid = paid.Add(dField(p, "vPag"))
+		}
+	case []any:
+		for _, p := range l {
+			if m, ok := p.(map[string]any); ok {
+				paid = paid.Add(dField(m, "vPag"))
+			}
+		}
+	}
+	if troco := paid.Sub(vNF); troco.IsPositive() {
+		pag["vTroco"] = q2(troco.RoundBank(2))
+	}
+	return vNF
 }
 
 // buildCobr builds the cobr XML node.
@@ -222,10 +268,8 @@ func BuildEnviNFe(
 	}
 	snGroups := snRegimeFor(orgCRT, tpRegimeIBSCBS)
 	emitUF := anyStr(orgAddress, "state_federation", "")
+	// A UF do emitente já foi exigida na chave de acesso (generateAccessKey): sem fallback inventado.
 	cUF := services.UFCode[emitUF]
-	if cUF == "" {
-		cUF = "35"
-	}
 
 	// The issuer's document comes off the record; the receiver's still comes
 	// off its own sort key, which really is a document.
@@ -238,13 +282,14 @@ func BuildEnviNFe(
 	destAddress := services.FirstAddress(destPerson)
 	destUF := anyStr(destAddress, "state_federation", "")
 
-	idDest := "1"
-	if emitUF != destUF {
-		idDest = "2"
-	}
-	if isNFCe {
-		// NFC-e is restricted to internal operations (operação interna).
-		idDest = "1"
+	idDest := idDestInterna
+	switch {
+	case isNFCe:
+		// NFC-e só existe em operação interna (B11a-10, 707).
+	case destUF == ufExterior:
+		idDest = idDestExterior
+	case emitUF != destUF:
+		idDest = idDestInterestad
 	}
 
 	dhEmi := fmtDhEmi(now)
@@ -254,7 +299,7 @@ func BuildEnviNFe(
 	}
 
 	destIE := getIEForUF(destPerson, destUF)
-	isDifalEligible := idDest == "2" && destIE == "" && orgCRT == 3
+	isDifalEligible := idDest == idDestInterestad && destIE == "" && orgCRT == 3
 
 	// ── Per-item tax totals ───────────────────────────────────────────────────
 	t := newTotals(totalProducts, totalDiscount)
@@ -269,6 +314,7 @@ func BuildEnviNFe(
 	)
 
 	det := make([]map[string]any, 0, len(productItems))
+	ccStrip := creditDebitStrip(finNFe, extra.TpNFCredito, extra.TpNFDebito, now.Year())
 
 	for i, item := range productItems {
 		cfopEntries := getCFOPConfig(item)
@@ -280,12 +326,12 @@ func BuildEnviNFe(
 		pICMSResolved := resolveICMSAliq(emitUF, destUF, itemNCM, anyStrPtr(item, "icms_aliq_override"))
 		pFCPResolved := resolveFCPAliq(destUF, itemNCM, anyStrPtr(item, "fcp_aliq_override"))
 
-		qty := d(anyStr(item, "quantity", "0"))
-		unitVal := d(anyStr(item, "unit_value", "0"))
-		disc := d(anyStr(item, "discount", "0"))
-		vFretItem := d(anyStr(item, "v_frete", "0"))
-		vSegItem := d(anyStr(item, "v_seg", "0"))
-		vOutroItem := d(anyStr(item, "v_outro", "0"))
+		qty := dField(item, "quantity")
+		unitVal := dField(item, "unit_value")
+		disc := dField(item, "discount")
+		vFretItem := dField(item, "v_frete")
+		vSegItem := dField(item, "v_seg")
+		vOutroItem := dField(item, "v_outro")
 		vProdDec := qty.Mul(unitVal).RoundBank(2)
 		vBCIBSCBS := vProdDec.Sub(disc).RoundBank(2)
 		vProd := q2(vProdDec)
@@ -307,13 +353,13 @@ func BuildEnviNFe(
 				issqnInner, _ := issqnNode["ISSQN"].(map[string]any)
 				t.VServ = t.VServ.Add(vProdDec)
 				t.VBCISSQN = t.VBCISSQN.Add(vBCIBSCBS)
-				t.VISSQN = t.VISSQN.Add(d(anyStr(issqnInner, "vISSQN", "0")))
+				t.VISSQN = t.VISSQN.Add(dField(issqnInner, "vISSQN"))
 				// ISSQNtot repete, somados, os mesmos valores do item.
-				t.VDeducaoISSQN = t.VDeducaoISSQN.Add(d(anyStr(issqnInner, "vDeducao", "0")))
-				t.VOutroISSQN = t.VOutroISSQN.Add(d(anyStr(issqnInner, "vOutro", "0")))
-				t.VDescIncondISSQN = t.VDescIncondISSQN.Add(d(anyStr(issqnInner, "vDescIncond", "0")))
-				t.VDescCondISSQN = t.VDescCondISSQN.Add(d(anyStr(issqnInner, "vDescCond", "0")))
-				t.VISSRet = t.VISSRet.Add(d(anyStr(issqnInner, "vISSRet", "0")))
+				t.VDeducaoISSQN = t.VDeducaoISSQN.Add(dField(issqnInner, "vDeducao"))
+				t.VOutroISSQN = t.VOutroISSQN.Add(dField(issqnInner, "vOutro"))
+				t.VDescIncondISSQN = t.VDescIncondISSQN.Add(dField(issqnInner, "vDescIncond"))
+				t.VDescCondISSQN = t.VDescCondISSQN.Add(dField(issqnInner, "vDescCond"))
+				t.VISSRet = t.VISSRet.Add(dField(issqnInner, "vISSRet"))
 			}
 		} else {
 			cstForItem := cfgStr(cfopEntry, "icms", "40")
@@ -342,8 +388,8 @@ func BuildEnviNFe(
 				pICMSInter := resolveICMSInterAliq(emitUF, destUF, originPtr)
 				pFCPUFDest := resolveFCPAliq(destUF, "", nil)
 				icmsUFDestNode = buildICMSUFDest(vBCIBSCBS, pICMSUFDest, pICMSInter, pFCPUFDest)
-				t.VICMSUFDest = t.VICMSUFDest.Add(d(anyStr(icmsUFDestNode, "vICMSUFDest", "0")))
-				t.VFCPUFDest = t.VFCPUFDest.Add(d(anyStr(icmsUFDestNode, "vFCPUFDest", "0")))
+				t.VICMSUFDest = t.VICMSUFDest.Add(dField(icmsUFDestNode, "vICMSUFDest"))
+				t.VFCPUFDest = t.VFCPUFDest.Add(dField(icmsUFDestNode, "vFCPUFDest"))
 			}
 		}
 
@@ -468,7 +514,7 @@ func BuildEnviNFe(
 
 		if netUnitOnAllItems {
 			t.HasVProdLiq = true
-			t.VProdLiq = t.VProdLiq.Add(d(anyStr(prod, "vProdLiq", "0")))
+			t.VProdLiq = t.VProdLiq.Add(dField(prod, "vProdLiq"))
 		} else {
 			delete(prod, "vUnComLiq")
 			delete(prod, "vProdLiq")
@@ -486,7 +532,7 @@ func BuildEnviNFe(
 
 		for _, pk := range []string{"PISAliq", "PISOutr", "PISQtde"} {
 			if inner, ok := pisBuilt[pk].(map[string]any); ok {
-				pisV := d(anyStr(inner, "vPIS", "0"))
+				pisV := dField(inner, "vPIS")
 				t.VPIS = t.VPIS.Add(pisV)
 				if isISSQNItem {
 					t.VPISISSQN = t.VPISISSQN.Add(pisV)
@@ -496,7 +542,7 @@ func BuildEnviNFe(
 		}
 		for _, ck := range []string{"COFINSAliq", "COFINSOutr", "COFINSQtde"} {
 			if inner, ok := cofinsBuilt[ck].(map[string]any); ok {
-				cofinsV := d(anyStr(inner, "vCOFINS", "0"))
+				cofinsV := dField(inner, "vCOFINS")
 				t.VCOFINS = t.VCOFINS.Add(cofinsV)
 				if isISSQNItem {
 					t.VCOFINSISSQN = t.VCOFINSISSQN.Add(cofinsV)
@@ -529,7 +575,7 @@ func BuildEnviNFe(
 			if ipiNode != nil {
 				if ipiData, ok := ipiNode["IPI"].(map[string]any); ok {
 					if ipiTrib, ok := ipiData["IPITrib"].(map[string]any); ok {
-						t.VIPI = t.VIPI.Add(d(anyStr(ipiTrib, "vIPI", "0")))
+						t.VIPI = t.VIPI.Add(dField(ipiTrib, "vIPI"))
 					}
 					imposto["IPI"] = ipiData
 				}
@@ -546,7 +592,7 @@ func BuildEnviNFe(
 
 		if iiNode := buildII(item, vProdDec); iiNode != nil {
 			imposto["II"] = iiNode
-			t.VII = t.VII.Add(d(anyStr(iiNode, "vII", "0")))
+			t.VII = t.VII.Add(dField(iiNode, "vII"))
 		}
 		if pisSTNode != nil {
 			imposto["PISST"] = pisSTNode
@@ -563,8 +609,13 @@ func BuildEnviNFe(
 			// O ISTot é a soma do vIS dos itens — lida do nó emitido, não
 			// recalculada, para que total e itens fechem centavo a centavo.
 			if inner, ok := isNode["IS"].(map[string]any); ok {
-				t.VIS = t.VIS.Add(d(anyStr(inner, "vIS", "0")))
+				t.VIS = t.VIS.Add(dField(inner, "vIS"))
 			}
+		}
+
+		// B25-80 (1001): a nota de crédito/débito só leva IBS/CBS (e IS), salvo as exceções da regra.
+		for g := range ccStrip {
+			delete(imposto, g)
 		}
 
 		detItem := map[string]any{
@@ -585,16 +636,18 @@ func BuildEnviNFe(
 				vIPIItem := decimal.Zero
 				if ipiData, ok := imposto["IPI"].(map[string]any); ok {
 					if ipiTrib, ok := ipiData["IPITrib"].(map[string]any); ok {
-						vIPIItem = d(anyStr(ipiTrib, "vIPI", "0"))
+						vIPIItem = dField(ipiTrib, "vIPI")
 					}
 				}
 				devol := buildImpostoDevol(pDevol, vIPIItem)
 				detItem["impostoDevol"] = devol
-				t.VIPIDevol = t.VIPIDevol.Add(d(anyStr(devol["IPI"].(map[string]any), "vIPIDevol", "0")))
+				t.VIPIDevol = t.VIPIDevol.Add(dField(devol["IPI"].(map[string]any), "vIPIDevol"))
 			}
 		}
 		det = append(det, detItem)
 	}
+
+	t.dropGroups(ccStrip)
 
 	// ── emit / dest structs ───────────────────────────────────────────────────
 	emitStruct := buildEmit(org, orgPerson, orgPK, emitUF, destUF, orgCRT)
@@ -615,7 +668,7 @@ func BuildEnviNFe(
 		CUF: cUF, CNF: cNF, NatOp: natOpStr, Model: model, AccessKey: accessKey,
 		Serie: serie, Number: number, Environment: environment,
 		DhEmi: dhEmi, TpNF: tpNF, IdDest: idDest,
-		CMunFG:   strOrDefault(anyStr(orgAddress, "city_ibge_code", ""), "0000000"),
+		CMunFG:   anyStr(orgAddress, "city_ibge_code", ""),
 		FinNFe:   finNFe,
 		IndFinal: indFinal,
 		IndPres:  indPres,

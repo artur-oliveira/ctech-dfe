@@ -199,6 +199,14 @@ func nfeCases() []nfeCase {
 		{"B25-110", "55", nfeMMulti(nfeM("ide/finNFe", "5"), nfeM("ide/tpNF", "1"))},
 		{"B25-120", "55", nfeMMulti(nfeM("ide/finNFe", "6"), nfeM("ide/tpNF", "0"))},
 		{"B25-80", "55", nfeM("ide/finNFe", "5")},
+		{"B25.1-10", "55", nfeM("ide/tpNFDebito", "01")},
+		{"B25.1-20", "55", nfeM("ide/finNFe", "6")},
+		{"B25.2-10", "55", nfeM("ide/tpNFCredito", "01")},
+		{"B25.2-20", "55", nfeMMulti(nfeM("ide/finNFe", "5"), nfeM("ide/tpNF", "0"))},
+		{"B25.2-30", "55", nfeM("ide/tpNFCredito", "02")},
+		{"B25.2-40", "55", nfeM("ide/tpNFCredito", "03")},
+		{"B25-100", "55", nfeMMulti(nfeM("ide/finNFe", "5"), nfeMRefs("refNFe", k57))},
+		{"E16a-30", "55", nfeM("dest/indIEDest", "2")},
 		{"B25-90", "55", nfeM("det/imposto/ICMS", nil)},
 		{"B34-10", "55", nfeM("ide/gCompraGov", map[string]any{"tpOperGov": "2"})},
 		{"B25b-40", "55", nfeMMulti(nfeM("ide/indPres", "5"))},
@@ -603,5 +611,68 @@ func TestNFeDocumentChecks(t *testing.T) {
 	k := nfeTKey("35", "2611", nfeTCNPJ, "55", "001", "000000123", "1", "87654321")
 	if !nfeKeyOK(k) || nfeKeyOK(k[:43]+"9") && nfeKeyOK(k[:43]+"8") {
 		t.Error("nfeKeyOK")
+	}
+}
+
+// B25-80: as exceções liberam os grupos de imposto na nota de crédito/débito.
+func TestNFeB2580Exceptions(t *testing.T) {
+	var rule Rule
+	for _, r := range nfeRules {
+		if r.ID == "B25-80" {
+			rule = r
+		}
+	}
+	cases := []struct {
+		name, credito, debito string
+		fires                 bool
+	}{
+		{"crédito 01 com ICMS", "01", "", true},
+		{"crédito 03 libera todos", "03", "", false},
+		{"crédito 04 libera todos", "04", "", false},
+		{"débito 07 libera todos", "", "07", false},
+		{"débito 06 não libera ICMS", "", "06", true},
+	}
+	for _, c := range cases {
+		doc, inf := nfeTBase("55")
+		fin := "5"
+		if c.debito != "" {
+			fin = "6"
+			nfeTSet(inf, "ide/tpNFDebito", c.debito)
+		} else {
+			nfeTSet(inf, "ide/tpNFCredito", c.credito)
+		}
+		nfeTSet(inf, "ide/finNFe", fin)
+		if got := len(rule.Check(doc)) > 0; got != c.fires {
+			t.Errorf("%s: disparou=%v, esperado %v", c.name, got, c.fires)
+		}
+	}
+	// débito 06 em 2026: PIS e COFINS são aceitos; sem ICMS a regra não dispara.
+	doc, inf := nfeTBase("55")
+	nfeTSet(inf, "ide/finNFe", "6")
+	nfeTSet(inf, "ide/tpNFDebito", "06")
+	nfeTSet(inf, "det/imposto/ICMS", nil)
+	if got := rule.Check(doc); len(got) != 0 {
+		t.Errorf("débito 06 com PIS/COFINS em 2026 não deveria disparar: %v", got)
+	}
+}
+
+// E16a-30: as exceções de ST e de operação isenta liberam o destinatário isento.
+func TestNFeE16a30Exceptions(t *testing.T) {
+	var rule Rule
+	for _, r := range nfeRules {
+		if r.ID == "E16a-30" {
+			rule = r
+		}
+	}
+	doc, inf := nfeTBase("55")
+	nfeTSet(inf, "dest/indIEDest", "2")
+	nfeTSet(inf, "det/imposto/ICMS", map[string]any{"ICMS40": map[string]any{"orig": "0", "CST": "40"}})
+	if got := rule.Check(doc); len(got) != 0 {
+		t.Errorf("operação isenta não deveria disparar: %v", got)
+	}
+	nfeTSet(inf, "dest/enderDest/UF", "PR")
+	nfeTSet(inf, "det/imposto/ICMS", map[string]any{"ICMS00": map[string]any{"orig": "0", "CST": "00"}})
+	if got := rule.Check(doc); len(got) != 0 {
+		t.Errorf("UF que admite isento não deveria disparar: %v", got)
 	}
 }

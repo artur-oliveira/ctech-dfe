@@ -63,6 +63,7 @@ func get() *validator.Validate {
 
 		// Brazilian document / UF / timezone validators.
 		register("uf", ufValidator)
+		register("ufex", ufOrExteriorValidator)
 		register("timezone", timezoneValidator)
 		register("cpf", cpfValidator)
 		register("cnpj", cnpjValidator)
@@ -183,6 +184,12 @@ func message(fe validator.FieldError) string {
 		return "lista inválida"
 	case "uf":
 		return "UF inválida"
+	case "ufex":
+		return "UF inválida (sigla da UF, ou EX para endereço no exterior)"
+	case "eq":
+		return fmt.Sprintf("deve ser %s", fe.Param())
+	case "ne":
+		return fmt.Sprintf("não pode ser %s", fe.Param())
 	case "timezone":
 		return "fuso horário inválido"
 	case "money", "money2":

@@ -86,7 +86,7 @@ func buildEncerrante(item map[string]any, pump map[string]any) map[string]any {
 	}
 	enc := map[string]any{
 		"nBico":   anyStr(pump, "n_bico", ""),
-		"vEncIni": d(anyStr(pump, "last_v_enc_fin", "0")).StringFixed(encerrantePlaces),
+		"vEncIni": dField(pump, "last_v_enc_fin").StringFixed(encerrantePlaces),
 		"vEncFin": d(vEncFin).StringFixed(encerrantePlaces),
 	}
 	if v := anyStr(pump, "n_bomba", ""); v != "" {
@@ -127,7 +127,7 @@ func validateEncerrante(pump map[string]any, vEncFin string) error {
 	if vEncFin == "" {
 		return nil
 	}
-	prev := d(anyStr(pump, "last_v_enc_fin", "0"))
+	prev := dField(pump, "last_v_enc_fin")
 	if d(vEncFin).LessThan(prev) {
 		return problem.BadRequest(
 			"leitura final do encerrante (" + vEncFin + ") é menor que a leitura anterior da bomba (" +

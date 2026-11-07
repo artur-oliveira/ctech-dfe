@@ -1,6 +1,9 @@
 package validate
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoadAllSpecs(t *testing.T) {
 	for _, n := range []string{"nfe", "mdfe", "cte", "cteos", "ctesimp", "mdfe_rodo", "mdfe_aereo", "mdfe_aquav", "mdfe_ferrov",
@@ -104,4 +107,36 @@ func TestOptionalArm(t *testing.T) {
 	if optionalArm(req, 1) {
 		t.Fatal("CNPJ|CPF exige uma das alternativas")
 	}
+}
+
+func TestLengthsAndSizedViolation(t *testing.T) {
+	s, err := Load("nfe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string][2]int{
+		"NFe/infNFe/dest/xNome":          {2, 60},
+		"NFe/infNFe/dest/enderDest/xLgr": {2, 60},
+		"NFe/infNFe/det/prod/xProd":      {1, 120},
+		"NFe/infNFe/retirada/xBairro":    {2, 60},
+		"NFe/infNFe/emit/enderEmit/xMun": {2, 60},
+	} {
+		lo, hi, ok := s.Lengths(path)
+		if !ok || lo != want[0] || hi != want[1] {
+			t.Errorf("%s = %d..%d ok=%v, want %v", path, lo, hi, ok, want)
+		}
+	}
+	if _, _, ok := s.Lengths("NFe/infNFe/nada"); ok {
+		t.Error("caminho inexistente deveria devolver ok=false")
+	}
+	found := s.Validate(map[string]any{"infNFe": map[string]any{"dest": map[string]any{"xNome": strings.Repeat("a", 61)}}}, Options{})
+	for _, v := range found {
+		if v.Path == "NFe/infNFe/dest/xNome" && v.Code == CodeMaxLength {
+			if v.Limit != 60 || v.Got != 61 {
+				t.Errorf("limit/got = %d/%d, want 60/61", v.Limit, v.Got)
+			}
+			return
+		}
+	}
+	t.Fatal("max_length de dest/xNome não encontrado")
 }

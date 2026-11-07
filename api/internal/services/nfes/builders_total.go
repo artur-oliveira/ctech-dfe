@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"gopkg.aoctech.app/dfe/go-dfe/validate"
 )
 
 // totals agrupa os acumuladores por item que viram o nó total.
@@ -55,6 +56,61 @@ type totals struct {
 	// HasVProdLiq marca que os itens trouxeram vProdLiq; VProdLiq é a soma (W01a, NT 2026.008).
 	HasVProdLiq bool
 	VProdLiq    decimal.Decimal
+}
+
+// Finalidades da reforma tributária (B25): nota de crédito e nota de débito.
+const (
+	finNFeCredito = "5"
+	finNFeDebito  = "6"
+)
+
+// creditDebitStrip devolve os grupos de imposto do item que a nota de crédito/débito não leva (B25-80, rejeição
+// 1001), da mesma lista e das mesmas exceções que a regra do catálogo usa; nil fora de finNFe 5 e 6 ou quando a
+// exceção 1 libera todos.
+func creditDebitStrip(finNFe, tpNFCredito, tpNFDebito string, year int) map[string]bool {
+	if finNFe != finNFeCredito && finNFe != finNFeDebito {
+		return nil
+	}
+	allowed := validate.NFeCreditDebitAllowed(tpNFCredito, tpNFDebito, year)
+	if allowed == nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, g := range validate.NFeCreditDebitForbidden {
+		if !allowed[g] {
+			out[g] = true
+		}
+	}
+	return out
+}
+
+// dropGroups zera os acumuladores dos grupos que creditDebitStrip tirou dos itens, para que o total feche com
+// os itens emitidos.
+func (t *totals) dropGroups(strip map[string]bool) {
+	z := decimal.Zero
+	if strip["ICMS"] {
+		t.VBC, t.VICMS, t.VICMSDeson, t.VFCP, t.VBCST, t.VICMSST, t.VFCPST = z, z, z, z, z, z, z
+	}
+	if strip["ICMSUFDest"] {
+		t.VICMSUFDest, t.VFCPUFDest = z, z
+	}
+	if strip["IPI"] {
+		t.VIPI = z
+	}
+	if strip["II"] {
+		t.VII = z
+	}
+	if strip["PIS"] {
+		t.VPIS, t.VPISISSQN = z, z
+	}
+	if strip["COFINS"] {
+		t.VCOFINS, t.VCOFINSISSQN = z, z
+	}
+	if strip["ISSQN"] {
+		t.HasISSQN = false
+		t.VServ, t.VBCISSQN, t.VISSQN, t.VDeducaoISSQN, t.VOutroISSQN = z, z, z, z, z
+		t.VDescIncondISSQN, t.VDescCondISSQN, t.VISSRet = z, z, z
+	}
 }
 
 // crtMEI é o CRT 4 (Simples Nacional, Microempreendedor Individual).

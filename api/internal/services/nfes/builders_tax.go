@@ -609,7 +609,7 @@ func buildISSQN(vBC decimal.Decimal, cfg map[string]any) map[string]any {
 		"vBC":       q2(vBCd),
 		"vAliq":     aliq,
 		"vISSQN":    vISSQN,
-		"cMunFG":    cfgStr(cfg, "issqn_c_mun_fg", "0000000"),
+		"cMunFG":    cfgStr(cfg, "issqn_c_mun_fg", ""), // exigido na emissão (requireISSQNMunFG)
 		"cListServ": cfgStr(cfg, "issqn_c_list_serv", ""),
 	}
 	for field, tag := range map[string]string{

@@ -15,7 +15,6 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/shopspring/decimal"
 )
 
 // NfceEmitBody is the JSON body for POST /nfces. NFC-e has no recipient address,
@@ -42,7 +41,9 @@ const (
 
 // Emit resolves NFC-e data, builds the enviNFe (modelo 65) with QR Code,
 // reserves a fiscal number, persists the record, and dispatches to the worker.
-func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, userID, userName string) (_ map[string]types.AttributeValue, err error) {
+	// Número malformado num builder vira 422 que nomeia o campo (v.go), nunca 0.00 no XML.
+	defer recoverDecimal(&err)
 	if len(req.Products) == 0 {
 		return nil, problem.BadRequest("pelo menos um produto é obrigatório")
 	}
@@ -129,6 +130,9 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	if err != nil {
 		return nil, err
 	}
+	if err := requireISSQNMunFG(productItems); err != nil {
+		return nil, err
+	}
 	// O posto emite NFC-e: o encerrante da bomba vale aqui tanto quanto na NF-e.
 	pumpReadings, err := applyFuelPumps(ctx, s.fuelPumpRepo, orgPK, items, productItems)
 	if err != nil {
@@ -156,6 +160,9 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, problem.InternalServer("failed to decode org")
 	}
 	orgAny["sk"] = orgPK
+	if err := requireAddress(entityEmitente, getPersonMap(orgAny)); err != nil {
+		return nil, err
+	}
 
 	// Optional consumer (dest) — CPF only, name resolved from persons when known.
 	var receiverAny map[string]any
@@ -175,10 +182,10 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 
-	// Payments + troco.
+	// Pagamentos. O troco sai do vNF do documento montado (setTroco), não do total de produtos: o vNF soma
+	// frete, seguro e outras despesas dos itens, e um troco calculado sobre outra base é a rejeição 869.
 	paymentsAny := make([]map[string]any, 0, len(req.Payments))
 	summaryPayments := make([]map[string]any, 0, len(req.Payments))
-	totalPaid := decimal.Zero
 	for _, p := range req.Payments {
 		pm := map[string]any{"payment_type": p.PaymentType, "value": p.Value}
 		if p.IndPag != nil {
@@ -195,13 +202,6 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		}
 		paymentsAny = append(paymentsAny, pm)
 		summaryPayments = append(summaryPayments, map[string]any{"payment_type": p.PaymentType, "value": p.Value})
-		totalPaid = totalPaid.Add(d(p.Value))
-	}
-
-	totalNFe := totalProducts.Sub(totalDiscount).RoundBank(2)
-	var vTroco *string
-	if troco := totalPaid.Sub(totalNFe); troco.GreaterThan(decimal.Zero) {
-		vTroco = new(q2(troco.RoundBank(2)))
 	}
 
 	enviNFe := BuildEnviNFe(
@@ -212,7 +212,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		req.AdditionalInfo, now,
 		firstNonNil(req.NatOp, operationDefault(operation, opFieldNatOp)),
 		nfceFinNFe, nfceIndFinal, nfceIndPres, nfceTpNF,
-		nil, nil, nil, vTroco,
+		nil, nil, nil, nil,
 		s.tech, nfModel65, supl,
 		nil, nil,
 		mode,
@@ -222,7 +222,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 			Csrt:             strAttr(configItem, csrtField),
 		},
 	)
+	totalNFe := setTroco(enviNFe)
 	dfecheck.ShadowEnviNFe(accessKey, enviNFe)
+	if err := gateEnviNFe(enviNFe, nfModel65); err != nil {
+		return nil, err
+	}
 
 	summaryProducts := make([]map[string]any, 0, len(productItems))
 	for _, p := range productItems {

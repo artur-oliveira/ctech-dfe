@@ -57,6 +57,10 @@ type Violation struct {
 	// Rule e CStat só vêm das regras de negócio (id do MOC, por exemplo "W16-10", e a rejeição).
 	Rule  string `json:"rule,omitempty"`
 	CStat int    `json:"cstat,omitempty"`
+	// Limit e Got só vêm dos achados de tamanho (length, min_length, max_length): o limite do leiaute e o
+	// tamanho encontrado, em caracteres. Permitem uma mensagem sem repetir o valor (que pode ser PII).
+	Limit int `json:"limit,omitempty"`
+	Got   int `json:"got,omitempty"`
 }
 
 type simple struct {
@@ -167,6 +171,26 @@ func attrSimples(n *node) []*simple {
 		out = append(out, a.Simple)
 	}
 	return out
+}
+
+// Lengths devolve os limites de tamanho (minLength e maxLength, em caracteres) da tag simples em path, um caminho
+// a partir da raiz sem índices ("NFe/infNFe/dest/xNome"). ok é false se a tag não existe ou não tem os dois limites.
+// É a fonte única dos tamanhos do leiaute para quem valida cadastro (a api compara os seus DTOs com ela em teste).
+func (s *Spec) Lengths(path string) (minLen, maxLen int, ok bool) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 0 || parts[0] != s.root.Name {
+		return 0, 0, false
+	}
+	n := s.root
+	for _, p := range parts[1:] {
+		if n = n.byName[p]; n == nil {
+			return 0, 0, false
+		}
+	}
+	if n.Simple == nil || n.Simple.MinLen == nil || n.Simple.MaxLen == nil {
+		return 0, 0, false
+	}
+	return *n.Simple.MinLen, *n.Simple.MaxLen, true
 }
 
 // Options ajusta a validação.
@@ -366,14 +390,18 @@ func (v *validator) simpleValue(sp *simple, s, path string, sev Severity) {
 		return
 	}
 	n := utf8.RuneCountInString(s)
+	sized := func(code string, limit int, format string) {
+		v.add(path, code, sev, format, short(s), limit, n)
+		v.out[len(v.out)-1].Limit, v.out[len(v.out)-1].Got = limit, n
+	}
 	if sp.Len != nil && n != *sp.Len {
-		v.add(path, CodeLength, sev, "%q deve ter exatamente %d caracteres (tem %d)", short(s), *sp.Len, n)
+		sized(CodeLength, *sp.Len, "%q deve ter exatamente %d caracteres (tem %d)")
 	}
 	if sp.MinLen != nil && n < *sp.MinLen {
-		v.add(path, CodeMinLength, sev, "%q deve ter ao menos %d caracteres (tem %d)", short(s), *sp.MinLen, n)
+		sized(CodeMinLength, *sp.MinLen, "%q deve ter ao menos %d caracteres (tem %d)")
 	}
 	if sp.MaxLen != nil && n > *sp.MaxLen {
-		v.add(path, CodeMaxLength, sev, "%q deve ter no máximo %d caracteres (tem %d)", short(s), *sp.MaxLen, n)
+		sized(CodeMaxLength, *sp.MaxLen, "%q deve ter no máximo %d caracteres (tem %d)")
 	}
 	if len(sp.Enum) > 0 && !contains(sp.Enum, s) {
 		v.add(path, CodeEnum, sev, "%q não está entre os valores permitidos (%s)", short(s), strings.Join(firstN(sp.Enum, 8), ", "))

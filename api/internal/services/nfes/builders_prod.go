@@ -43,9 +43,9 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	// vUnComLiq x qCom com 2 casas (regra I11c-20, tolerância de 0,01).
 	if vLiq := anyStr(item, "v_un_com_liq", ""); vLiq != "" {
 		prod["vUnComLiq"] = vLiq
-		prod["vProdLiq"] = q2(d(vLiq).Mul(d(anyStr(item, "quantity", "0"))).RoundBank(2))
+		prod["vProdLiq"] = q2(d(vLiq).Mul(dField(item, "quantity")).RoundBank(2))
 	}
-	if d(anyStr(item, "discount", "0")).GreaterThan(decimal.Zero) {
+	if dField(item, "discount").GreaterThan(decimal.Zero) {
 		prod["vDesc"] = q2(p.Disc.RoundBank(2))
 	}
 	if p.VFrete.GreaterThan(decimal.Zero) {
@@ -122,7 +122,7 @@ func buildProd(item map[string]any, p prodParams) map[string]any {
 	// comb: CIDE, encerrante e origComb entram em comb.go — a bomba é resolvida
 	// na emissão e chega em item["fuel_pump"].
 	pump, _ := item["fuel_pump"].(map[string]any)
-	if comb := buildComb(item, pump, d(anyStr(item, "quantity", "0"))); comb != nil {
+	if comb := buildComb(item, pump, dField(item, "quantity")); comb != nil {
 		prod["comb"] = comb
 	}
 

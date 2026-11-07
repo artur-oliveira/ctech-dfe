@@ -1206,3 +1206,10 @@ As regras do MOC do CT-e (`go-dfe/validate/rules_cte.go`) recebem o conteúdo de
 
 A URL do QR Code (`infCTeSupl/qrCodCTe`) sai de uma tabela por autorizador em `ctes/builder.go` (MG, MS, MT, PR e
 SP próprios; o resto SVRS), a mesma para produção e homologação: conferir na homologação de cada autorizador.
+
+## Lambdas Go: o asset do CDK fingerprinta go-dfe
+
+`cdk/lib/go-code.ts` calcula o hash do asset com o módulo, `go-dfe/` e `go.work(.sum)` (`goSourceHash`). Antes o CDK
+só fingerprintava o diretório do módulo; uma mudança só em `go-dfe` (api, worker e egress o importam por `replace`)
+não mudava o asset e a Lambda ficava com o código antigo. Foi assim que o conserto do `tpOper` da NFS-e (E0904) não
+chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `replace` nova entra em `SHARED_SOURCES`.

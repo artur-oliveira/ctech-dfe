@@ -415,9 +415,9 @@ func TestTotaisDaReformaConservamASomaDosItens(t *testing.T) {
 
 		inner := gIBSCBSOf(t, node)
 		gUF, gMun, gCBS := sub(t, inner, "gIBSUF"), sub(t, inner, "gIBSMun"), sub(t, inner, "gCBS")
-		wantIBSUF = wantIBSUF.Add(d(anyStr(gUF, "vIBSUF", "0")))
-		wantIBSMun = wantIBSMun.Add(d(anyStr(gMun, "vIBSMun", "0")))
-		wantCBS = wantCBS.Add(d(anyStr(gCBS, "vCBS", "0")))
+		wantIBSUF = wantIBSUF.Add(dField(gUF, "vIBSUF"))
+		wantIBSMun = wantIBSMun.Add(dField(gMun, "vIBSMun"))
+		wantCBS = wantCBS.Add(dField(gCBS, "vCBS"))
 		wantIBSUFDif = wantIBSUFDif.Add(subgroupValue(gUF, "gDif", "vDif"))
 		wantIBSMunDif = wantIBSMunDif.Add(subgroupValue(gMun, "gDif", "vDif"))
 		wantCBSDif = wantCBSDif.Add(subgroupValue(gCBS, "gDif", "vDif"))
@@ -429,10 +429,10 @@ func TestTotaisDaReformaConservamASomaDosItens(t *testing.T) {
 			cbs := sub(t, oper, "gCBSCredPres")
 			if v := anyStr(ibs, "vCredPresCondSus", ""); v != "" {
 				wantIBSCredSus = wantIBSCredSus.Add(d(v))
-				wantCBSCredSus = wantCBSCredSus.Add(d(anyStr(cbs, "vCredPresCondSus", "0")))
+				wantCBSCredSus = wantCBSCredSus.Add(dField(cbs, "vCredPresCondSus"))
 			} else {
-				wantIBSCred = wantIBSCred.Add(d(anyStr(ibs, "vCredPres", "0")))
-				wantCBSCred = wantCBSCred.Add(d(anyStr(cbs, "vCredPres", "0")))
+				wantIBSCred = wantIBSCred.Add(dField(ibs, "vCredPres"))
+				wantCBSCred = wantCBSCred.Add(dField(cbs, "vCredPres"))
 			}
 		}
 	}
@@ -445,10 +445,10 @@ func TestTotaisDaReformaConservamASomaDosItens(t *testing.T) {
 	mono := sub(t, monoNode, "gIBSCBSMono")
 	padrao := sub(t, mono, "gMonoPadrao")
 	reten := sub(t, mono, "gMonoReten")
-	wantIBSMono = d(anyStr(padrao, "vIBSMono", "0"))
-	wantCBSMono = d(anyStr(padrao, "vCBSMono", "0"))
-	wantIBSMonoReten = d(anyStr(reten, "vIBSMonoReten", "0"))
-	wantCBSMonoReten = d(anyStr(reten, "vCBSMonoReten", "0"))
+	wantIBSMono = dField(padrao, "vIBSMono")
+	wantCBSMono = dField(padrao, "vCBSMono")
+	wantIBSMonoReten = dField(reten, "vIBSMonoReten")
+	wantCBSMonoReten = dField(reten, "vCBSMonoReten")
 
 	// Um item com estorno de crédito.
 	estP := baseIBSCBS(nil)

@@ -231,13 +231,52 @@ func nfeIdentRules() []Rule {
 		nfeWhen("B25-120", 1162, ModeWarn, "55", "NF-e de débito (finNFe 6) com tipo de operação diferente de saída", func(c *nfeCtx) bool {
 			return c.finNFe == "6" && nfeS(c.ide, "tpNF") == "0"
 		}),
+		nfeWhen("B25.1-10", 1139, ModeWarn, "55", "tpNFDebito informado em nota que não é de débito (finNFe diferente de 6)", func(c *nfeCtx) bool {
+			return nfeS(c.ide, "tpNFDebito") != "" && c.finNFe != "6"
+		}),
+		nfeWhen("B25.1-20", 1009, ModeWarn, "55", "nota de débito (finNFe 6) sem tpNFDebito", func(c *nfeCtx) bool {
+			return c.finNFe == "6" && nfeS(c.ide, "tpNFDebito") == ""
+		}),
+		nfeWhen("B25.2-10", 1163, ModeWarn, "55", "tpNFCredito informado em nota que não é de crédito (finNFe diferente de 5)", func(c *nfeCtx) bool {
+			return nfeS(c.ide, "tpNFCredito") != "" && c.finNFe != "5"
+		}),
+		nfeWhen("B25.2-20", 1164, ModeWarn, "55", "nota de crédito (finNFe 5) sem tpNFCredito", func(c *nfeCtx) bool {
+			return c.finNFe == "5" && nfeS(c.ide, "tpNFCredito") == ""
+		}),
+		nfeWhen("B25.2-30", 1145, ModeWarn, "55", "tpNFCredito 02 só pode ser usado a partir de janeiro de 2029", func(c *nfeCtx) bool {
+			e, ok := nfeDate(nfeS(c.ide, "dhEmi"))
+			return ok && nfeS(c.ide, "tpNFCredito") == "02" && e.Year() < 2029
+		}),
+		nfeWhen("B25.2-40", 1152, ModeWarn, "55", "nota de crédito de retorno (tpNFCredito 03) com tipo de operação diferente de entrada", func(c *nfeCtx) bool {
+			return nfeS(c.ide, "tpNFCredito") == "03" && nfeS(c.ide, "tpNF") != "0"
+		}),
+		nfeWhen("B25-100", 1003, ModeWarn, "55/65", "nota de crédito (finNFe 5) referencia documento que não é NF-e modelo 55", func(c *nfeCtx) bool {
+			if c.finNFe != "5" {
+				return false
+			}
+			allowed := []string{"55"}
+			if nfeS(c.ide, "tpNFCredito") == "03" {
+				allowed = append(allowed, "65")
+			}
+			for _, n := range list(c.ide, "NFref") {
+				k, ok := nfeParseKey(nfeS(n, "refNFe"))
+				if !ok || !nfeIn(k.mod, allowed...) {
+					return true
+				}
+			}
+			return false
+		}),
 		nfeWhen("B25-80", 1001, ModeWarn, "55/65", "finNFe 5 ou 6 (ou tpOperGov 2) com grupos de imposto informados", func(c *nfeCtx) bool {
 			if !nfeIn(c.finNFe, "5", "6") && nfeS(c.ide, "gCompraGov", "tpOperGov") != "2" {
 				return false
 			}
+			allowed := nfeCreditDebitAllowed(c)
+			if allowed == nil { // exceção 1: todos os grupos são aceitos
+				return false
+			}
 			return c.anyItem(func(it nfeItem) bool {
-				for _, g := range []string{"ICMS", "ISSQN", "IPI", "II", "PIS", "PISST", "COFINS", "COFINSST", "ICMSUFDest"} {
-					if nfeHas(it.imp, g) {
+				for _, g := range NFeCreditDebitForbidden {
+					if nfeHas(it.imp, g) && !allowed[g] {
 						return true
 					}
 				}
@@ -657,6 +696,19 @@ func nfeParticipantRules() []Rule {
 		}),
 		nfeWhen("E17-30", 791, ModeWarn, "55", "destinatário isento (indIEDest 2) com IE", func(c *nfeCtx) bool {
 			return nfeS(c.dest, "indIEDest") == "2" && nfeS(c.dest, "IE") != ""
+		}),
+		nfeWhen("E16a-30", 805, ModeWarn, "55", "destinatário isento de IE (indIEDest 2) em UF que não admite contribuinte isento", func(c *nfeCtx) bool {
+			if nfeS(c.dest, "indIEDest") != "2" || !nfeIn(idDest(c), "1", "2") || !nfeIn(nfeS(c.dest, "enderDest", "UF"), nfeNoIsentoUFs...) {
+				return false
+			}
+			// exceções 1 e 2: destaque de ICMS-ST ou ST retida anteriormente em algum item
+			if c.anyItem(func(it nfeItem) bool { return nfeF(it.icms, "vICMSST") > 0 || nfeHas(it.icms, "vICMSSTRet") }) {
+				return false
+			}
+			// exceção 4: operação isenta, imune ou não tributada (todo item com ICMS em CST 40/41 ou CSOSN 103/300/400)
+			return c.anyItem(func(it nfeItem) bool {
+				return it.icms != nil && !nfeIn(nfeS(it.icms, "CST"), "40", "41") && !nfeIn(nfeS(it.icms, "CSOSN"), "103", "300", "400")
+			})
 		}),
 		nfeWhen("E17-40", 792, ModeWarn, "55", "IE do destinatário com endereço no exterior", func(c *nfeCtx) bool { return uf(c) && nfeS(c.dest, "IE") != "" }),
 		nfeWhen("C17-30", 554, ModeWarn, "55/65", "IE ISENTO no emitente com modelo 65 ou série fora de 890-919", func(c *nfeCtx) bool {

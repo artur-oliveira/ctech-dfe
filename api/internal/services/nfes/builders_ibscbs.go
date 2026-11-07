@@ -596,13 +596,13 @@ func accumulateIBSCBS(t *totals, node map[string]any, vBC decimal.Decimal) {
 		gIBSUF, _ := inner["gIBSUF"].(map[string]any)
 		gIBSMun, _ := inner["gIBSMun"].(map[string]any)
 		gCBS, _ := inner["gCBS"].(map[string]any)
-		itemIBSUF := d(anyStr(gIBSUF, "vIBSUF", "0"))
-		itemIBSMun := d(anyStr(gIBSMun, "vIBSMun", "0"))
+		itemIBSUF := dField(gIBSUF, "vIBSUF")
+		itemIBSMun := dField(gIBSMun, "vIBSMun")
 		t.IBSUF = t.IBSUF.Add(itemIBSUF)
 		t.IBSMun = t.IBSMun.Add(itemIBSMun)
 		t.IBS = t.IBS.Add(itemIBSUF).Add(itemIBSMun)
 		t.CBSBC = t.CBSBC.Add(vBC)
-		t.CBS = t.CBS.Add(d(anyStr(gCBS, "vCBS", "0")))
+		t.CBS = t.CBS.Add(dField(gCBS, "vCBS"))
 		// Diferimento e devolução de tributo entram nos seus próprios
 		// acumuladores do total, não no valor do imposto.
 		t.IBSUFDif = t.IBSUFDif.Add(subgroupValue(gIBSUF, "gDif", "vDif"))
@@ -617,29 +617,29 @@ func accumulateIBSCBS(t *totals, node map[string]any, vBC decimal.Decimal) {
 		t.HasGTribSN = true
 		gIBSSN, _ := sn["gIBSSN"].(map[string]any)
 		gCBSSN, _ := sn["gCBSSN"].(map[string]any)
-		t.IBSSN = t.IBSSN.Add(d(anyStr(gIBSSN, "vIBSSN", "0")))
-		t.CBSSN = t.CBSSN.Add(d(anyStr(gCBSSN, "vCBSSN", "0")))
+		t.IBSSN = t.IBSSN.Add(dField(gIBSSN, "vIBSSN"))
+		t.CBSSN = t.CBSSN.Add(dField(gCBSSN, "vCBSSN"))
 	}
 
 	if mono, ok := node["gIBSCBSMono"].(map[string]any); ok {
 		t.HasIBSCBSMono = true
 		padrao, _ := mono["gMonoPadrao"].(map[string]any)
-		t.IBSMono = t.IBSMono.Add(d(anyStr(padrao, "vIBSMono", "0")))
-		t.CBSMono = t.CBSMono.Add(d(anyStr(padrao, "vCBSMono", "0")))
+		t.IBSMono = t.IBSMono.Add(dField(padrao, "vIBSMono"))
+		t.CBSMono = t.CBSMono.Add(dField(padrao, "vCBSMono"))
 		if reten, ok := mono["gMonoReten"].(map[string]any); ok {
-			t.IBSMonoReten = t.IBSMonoReten.Add(d(anyStr(reten, "vIBSMonoReten", "0")))
-			t.CBSMonoReten = t.CBSMonoReten.Add(d(anyStr(reten, "vCBSMonoReten", "0")))
+			t.IBSMonoReten = t.IBSMonoReten.Add(dField(reten, "vIBSMonoReten"))
+			t.CBSMonoReten = t.CBSMonoReten.Add(dField(reten, "vCBSMonoReten"))
 		}
 		if ret, ok := mono["gMonoRet"].(map[string]any); ok {
-			t.IBSMonoRet = t.IBSMonoRet.Add(d(anyStr(ret, "vIBSMonoRet", "0")))
-			t.CBSMonoRet = t.CBSMonoRet.Add(d(anyStr(ret, "vCBSMonoRet", "0")))
+			t.IBSMonoRet = t.IBSMonoRet.Add(dField(ret, "vIBSMonoRet"))
+			t.CBSMonoRet = t.CBSMonoRet.Add(dField(ret, "vCBSMonoRet"))
 		}
 	}
 
 	if est, ok := node["gEstornoCred"].(map[string]any); ok {
 		t.HasEstornoCred = true
-		t.IBSEstCred = t.IBSEstCred.Add(d(anyStr(est, "vIBSEstCred", "0")))
-		t.CBSEstCred = t.CBSEstCred.Add(d(anyStr(est, "vCBSEstCred", "0")))
+		t.IBSEstCred = t.IBSEstCred.Add(dField(est, "vIBSEstCred"))
+		t.CBSEstCred = t.CBSEstCred.Add(dField(est, "vCBSEstCred"))
 	}
 
 	// Crédito presumido: o total distingue o crédito do crédito com condição
@@ -657,7 +657,7 @@ func subgroupValue(parent map[string]any, group, tag string) decimal.Decimal {
 	if !ok {
 		return decimal.Zero
 	}
-	return d(anyStr(inner, tag, "0"))
+	return dField(inner, tag)
 }
 
 // addCredPres soma um lado do crédito presumido no acumulador certo — o choice
@@ -671,7 +671,7 @@ func addCredPres(direct, condSus *decimal.Decimal, oper map[string]any, group st
 		*condSus = condSus.Add(d(v))
 		return
 	}
-	*direct = direct.Add(d(anyStr(inner, "vCredPres", "0")))
+	*direct = direct.Add(dField(inner, "vCredPres"))
 }
 
 // itemIBSCBSPair lê do item o par de valores IBS/CBS de um dos grupos que só

@@ -41,7 +41,9 @@ type NfeEmitBody struct {
 	Payments       []NfePaymentItem   `json:"payments" validate:"omitempty,dive"`
 	AdditionalInfo *string            `json:"additional_info" validate:"omitempty,max=5000"`
 	NatOp          *string            `json:"nat_op" validate:"omitempty,max=60"`
-	FinNFe         *string            `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4"`
+	// FinNFe 5 (nota de crédito) e 6 (nota de débito) são da reforma tributária (NT 2025.002) e exigem
+	// tp_nf_credito / tp_nf_debito (regras B25.1 e B25.2); só levam IBS/CBS, salvo as exceções da B25-80.
+	FinNFe         *string            `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4 5 6"`
 	IndFinal       *string            `json:"ind_final" validate:"omitempty,oneof=0 1"`
 	IndPres        *string            `json:"ind_pres" validate:"omitempty,oneof=0 1 2 3 4 5 9"`
 	TpNF           *string            `json:"tp_nf" validate:"omitempty,oneof=0 1"`
@@ -49,6 +51,10 @@ type NfeEmitBody struct {
 	CobrFat        *NfeFatItem        `json:"cobr_fat" validate:"omitempty"`
 	CobrDuplicatas []NfeDuplicataItem `json:"cobr_duplicatas" validate:"omitempty,dive"`
 	VTroco         *string            `json:"v_troco" validate:"omitempty,money"`
+	// TpNFDebito (01 a 08) e TpNFCredito (01 a 06) são o tipo da nota de débito e de crédito. Vencem o da
+	// natureza de operação, como todo valor explícito do pedido.
+	TpNFDebito  *string `json:"tp_nf_debito" validate:"omitempty,oneof=01 02 03 04 05 06 07 08"`
+	TpNFCredito *string `json:"tp_nf_credito" validate:"omitempty,oneof=01 02 03 04 05 06"`
 
 	Retirada             *NfeLocalBody `json:"retirada" validate:"omitempty"`
 	Entrega              *NfeLocalBody `json:"entrega" validate:"omitempty"`
@@ -335,26 +341,34 @@ type NfeDuplicataItem struct {
 	VDup  string  `json:"v_dup" validate:"required,money"`
 }
 
-// NfeLocalBody is a TLocal-shaped address (local de retirada/entrega) — a
-// lighter shape than TEndereco (AddressBody): no CEP/postal code in the XSD.
+// NfeLocalBody is a TLocal-shaped address (local de retirada/entrega). Os tamanhos são os do leiaute (TLocal);
+// TestLocalBodyLimitsMatchLayout compara as tags com go-dfe/validate. No exterior, uf é "EX", c_mun vira
+// 9999999 no XML e c_pais/x_pais (código BACEN e nome) são obrigatórios.
 type NfeLocalBody struct {
 	CNPJ    *string `json:"cnpj" validate:"omitempty,cnpj"`
 	CPF     *string `json:"cpf" validate:"omitempty,cpf"`
-	XNome   *string `json:"x_nome" validate:"omitempty,max=60"`
-	XLgr    string  `json:"x_lgr" validate:"required,max=255"`
-	Nro     string  `json:"nro" validate:"required,max=60"`
-	XCpl    *string `json:"x_cpl" validate:"omitempty,max=60"`
-	XBairro string  `json:"x_bairro" validate:"required,max=60"`
+	XNome   *string `json:"x_nome" validate:"omitempty,min=2,max=60"`
+	XLgr    string  `json:"x_lgr" validate:"required,min=2,max=60"`
+	Nro     string  `json:"nro" validate:"required,min=1,max=60"`
+	XCpl    *string `json:"x_cpl" validate:"omitempty,min=1,max=60"`
+	XBairro string  `json:"x_bairro" validate:"required,min=2,max=60"`
 	CMun    string  `json:"c_mun" validate:"required,ibge"`
-	XMun    string  `json:"x_mun" validate:"required,max=60"`
-	UF      string  `json:"uf" validate:"required,uf"`
+	XMun    string  `json:"x_mun" validate:"required,min=2,max=60"`
+	UF      string  `json:"uf" validate:"required,ufex"`
+	CEP     *string `json:"cep" validate:"omitempty,cep"`
+	CPais   *string `json:"c_pais" validate:"omitempty,max=4,number"`
+	XPais   *string `json:"x_pais" validate:"omitempty,min=2,max=60"`
 	Fone    *string `json:"fone" validate:"omitempty,phonebr"`
-	Email   *string `json:"email" validate:"omitempty,email"`
+	Email   *string `json:"email" validate:"omitempty,email,max=60"`
+	// IE do local (F15/G15): dígitos ou a literal ISENTO.
+	IE *string `json:"ie" validate:"omitempty,min=2,max=14"`
 }
 
 // Emit resolves all NF-e data, builds the full enviNFe structure, atomically reserves
 // a fiscal number, stores the DynamoDB record, and dispatches to worker via SQS.
-func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, userID, userName string) (_ map[string]types.AttributeValue, err error) {
+	// Número malformado num builder vira 422 que nomeia o campo (v.go), nunca 0.00 no XML.
+	defer recoverDecimal(&err)
 	if req.SelfIssuance && req.ReceiverID != nil {
 		return nil, problem.BadRequest("informe receiver_id ou self_issuance=true, não ambos")
 	}
@@ -443,6 +457,9 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		err = applyServiceDefaults(ctx, s.serviceRepo, orgPK, items, productItems)
 	}
 	if err == nil {
+		err = requireISSQNMunFG(productItems)
+	}
+	if err == nil {
 		err = applyImportDeclarations(ctx, s.importDIRepo, orgPK, items, productItems)
 	}
 	if err == nil {
@@ -498,6 +515,20 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, problem.InternalServer("failed to decode receiver")
 	}
 	receiverAny["sk"] = receiverSK
+
+	// Cadastro sem o que o leiaute exige vira 422 que nomeia a entidade e o campo, nunca um código inventado.
+	if err := requireAddress(entityEmitente, getPersonMap(orgAny)); err != nil {
+		return nil, err
+	}
+	if err := requireAddress(entityDestinatario, getPersonMap(receiverAny)); err != nil {
+		return nil, err
+	}
+	if err := requireLocalCountry(entityRetirada, req.Retirada); err != nil {
+		return nil, err
+	}
+	if err := requireLocalCountry(entityEntrega, req.Entrega); err != nil {
+		return nil, err
+	}
 
 	// Condição de pagamento: a do request, senão a que a operação define.
 	// A expansão só entra onde o request não trouxe nada — pagamento explícito
@@ -664,14 +695,17 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 			InfIntermed:      buildInfIntermed(intermediary),
 			CIndOp:           ptrStr(operationDefault(operation, opFieldCIndOp)),
 			CMunFGIBS:        ptrStr(operationDefault(operation, opFieldCMunFGIBS)),
-			TpNFDebito:       ptrStr(operationDefault(operation, opFieldTpNFDebito)),
-			TpNFCredito:      ptrStr(operationDefault(operation, opFieldTpNFCredito)),
+			TpNFDebito:       ptrStr(firstNonNil(req.TpNFDebito, operationDefault(operation, opFieldTpNFDebito))),
+			TpNFCredito:      ptrStr(firstNonNil(req.TpNFCredito, operationDefault(operation, opFieldTpNFCredito))),
 			CompraGov:        compraGovNode,
 			PagAntecipado:    req.PagAntecipadoRefs,
 		},
 	)
 
 	dfecheck.ShadowEnviNFe(accessKey, enviNFe)
+	if err := gateEnviNFe(enviNFe, nfModel55); err != nil {
+		return nil, err
+	}
 
 	// Summary products for DynamoDB record
 	summaryProducts := make([]map[string]any, 0, len(productItems))
