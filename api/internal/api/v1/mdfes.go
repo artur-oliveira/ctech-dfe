@@ -64,6 +64,25 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *servi
 		return sendPage(c, res, cursor)
 	})
 
+	// GET /mdfes/unclosed — MDF-e autorizados e não encerrados do emitente na SEFAZ (MDFeConsNaoEnc).
+	// Registrada antes de /:access_key para não ser lida como chave.
+	g.Get("/unclosed", perm.Require("list.mdfes"), func(c fiber.Ctx) error {
+		res, err := svc.ListUnclosed(c.Context(), middleware.GetOrgPK(c))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(res)
+	})
+
+	// GET /mdfes/:access_key/sefaz-status — situação atual na SEFAZ (MDFeConsulta), com protocolo e eventos.
+	g.Get("/:access_key/sefaz-status", perm.Require("get.mdfes"), func(c fiber.Ctx) error {
+		res, err := svc.ConsultSituation(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(res)
+	})
+
 	// GET /mdfes/:access_key
 	g.Get("/:access_key", perm.Require("get.mdfes"), func(c fiber.Ctx) error {
 		mdfe, err := svc.GetMDFe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))

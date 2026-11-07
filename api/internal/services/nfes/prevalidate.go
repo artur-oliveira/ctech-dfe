@@ -23,12 +23,12 @@ const (
 	// endereço no exterior, município do ISSQN). errors[] nomeia a entidade e o campo.
 	CodeRegistrationIncomplete = "registration_incomplete"
 	// CodeFiscalPrevalidation: regra do MOC ou tamanho do leiaute violado no documento montado.
-	CodeFiscalPrevalidation = "fiscal_prevalidation"
+	CodeFiscalPrevalidation = dfecheck.CodeFiscalPrevalidation
 
 	fieldCodeRequired   = "required"
-	fieldCodeTooLong    = "too_long"
-	fieldCodeTooShort   = "too_short"
-	fieldCodeFiscalRule = "fiscal_rule"
+	fieldCodeTooLong    = dfecheck.FieldCodeTooLong
+	fieldCodeTooShort   = dfecheck.FieldCodeTooShort
+	fieldCodeFiscalRule = dfecheck.FieldCodeFiscalRule
 
 	// Entidades nomeadas nos params dos erros (errors[].params.entity).
 	entityEmitente     = "emitente"

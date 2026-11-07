@@ -102,6 +102,8 @@ type buildParams struct {
 	// infAdFisco é a mensagem ao fisco da configuração; addInfo é a observação
 	// da viagem. As duas convivem no mesmo infAdic.
 	infAdFisco string
+	// autXML são os CPF/CNPJ autorizados a baixar o XML (infMDFe/autXML).
+	autXML []string
 	// emptyUnits são as unidades de carga e de transporte que viajam vazias no
 	// modal aquaviário, já resolvidas contra organization_cargo_units.
 	emptyUnits emptyUnitNodes
@@ -142,6 +144,9 @@ func BuildMDFe(p buildParams) map[string]any {
 	}
 	if lac := services.SealNodes(p.seals); lac != nil {
 		infMDFe["lacres"] = lac
+	}
+	if aut := services.AutXMLNodes(p.autXML); aut != nil {
+		infMDFe["autXML"] = aut
 	}
 	if infAdic := p.buildInfAdic(); infAdic != nil {
 		infMDFe["infAdic"] = infAdic
@@ -339,7 +344,7 @@ func buildProp(o *resolvedOwner) map[string]any {
 	if o.CPF != "" {
 		prop["CPF"] = onlyDigits(o.CPF)
 	} else {
-		prop["CNPJ"] = onlyDigits(o.CNPJ)
+		prop["CNPJ"] = docAlnum(o.CNPJ)
 	}
 	prop["RNTRC"] = o.RNTRC
 	prop["xNome"] = o.Name
@@ -412,8 +417,12 @@ func (p buildParams) buildTot() map[string]any {
 	if n := len(p.transportedMdfes); n > 0 {
 		tot["qMDFe"] = strconv.Itoa(n)
 	}
+	// Sem documentos (carregamento posterior) não há contagem a informar: qCTe e qNFe são opcionais.
+	if len(p.cargo.docs) == 0 {
+		return tot
+	}
 	n := fmt.Sprintf("%d", len(p.cargo.docs))
-	if len(p.cargo.docs) > 0 && p.cargo.docs[0].docType == docTypeCTe {
+	if p.cargo.docs[0].docType == docTypeCTe {
 		tot["qCTe"] = n
 	} else {
 		tot["qNFe"] = n
@@ -534,6 +543,18 @@ func setIfPtr(m map[string]any, key string, val *string) {
 	if val != nil && *val != "" {
 		m[key] = *val
 	}
+}
+
+// docAlnum normaliza CPF/CNPJ sem perder a letra do CNPJ alfanumérico (IN RFB 2229/2024): caixa alta e só
+// letras e dígitos. onlyDigits continua certo para CPF, CEP e telefone.
+func docAlnum(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(s) {
+		if (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func onlyDigits(s string) string {

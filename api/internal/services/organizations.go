@@ -422,6 +422,25 @@ func normalizeDoc(s string) string {
 	return strings.NewReplacer(".", "", "-", "", "/", "").Replace(s)
 }
 
+// AutXMLNodes monta o grupo autXML (NF-e, CT-e e MDF-e: choice CNPJ | CPF pelo tamanho) a partir dos
+// documentos, já sem pontuação e em caixa alta (CNPJ alfanumérico). Vazios são ignorados; nil quando não sobra
+// nenhum. Duplicidade e limite são regras do chamador (MOC: até 10, sem repetir).
+func AutXMLNodes(docs []string) []map[string]any {
+	var out []map[string]any
+	for _, d := range docs {
+		doc := strings.ToUpper(normalizeDoc(strings.TrimSpace(d)))
+		switch len(doc) {
+		case 0:
+			continue
+		case 14:
+			out = append(out, map[string]any{"CNPJ": doc})
+		default:
+			out = append(out, map[string]any{"CPF": doc})
+		}
+	}
+	return out
+}
+
 // appendAuthorizedViewer returns the new list with v appended, or an error if
 // v.CpfOrCnpj is already present or the list is already at the SEFAZ-imposed
 // cap of 10.

@@ -17,6 +17,14 @@ const (
 	SpecCTe  = "cte"
 )
 
+// Códigos dos 422 do Gate que a UI mapeia, os mesmos em todo documento: problem.code e errors[].code.
+const (
+	CodeFiscalPrevalidation = "fiscal_prevalidation"
+	FieldCodeFiscalRule     = "fiscal_rule"
+	FieldCodeTooLong        = "too_long"
+	FieldCodeTooShort       = "too_short"
+)
+
 // signaturePath é preenchida depois, pelo egress.
 const signaturePath = "Signature"
 
@@ -91,6 +99,24 @@ func GateEnviNFe(body map[string]any, block validate.Modes) []validate.Violation
 		return nil
 	}
 	return Gate(SpecNFe, "nfe", nfe, block)
+}
+
+// GateMDFe é o Gate do MDFe do corpo do builder: o documento (regras do MOC e tamanhos) e o conteúdo do modal
+// (infModal é xs:any no XSD; só os tamanhos, pois as regras do MDF-e já leem o modal pelo documento).
+func GateMDFe(body map[string]any, block validate.Modes) []validate.Violation {
+	mdfe, ok := body["MDFe"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	found := Gate(SpecMDFe, "mdfe", mdfe, block)
+	inf, _ := mdfe["infMDFe"].(map[string]any)
+	modal, _ := inf["infModal"].(map[string]any)
+	for _, m := range []string{"rodo", "aereo", "aquav", "ferrov"} {
+		if node, ok := modal[m].(map[string]any); ok {
+			found = append(found, Gate(SpecMDFe+"_"+m, "mdfe_"+m, node, nil)...)
+		}
+	}
+	return found
 }
 
 // ShadowEnviNFe valida o NFe de um enviNFe (NF-e e NFC-e).

@@ -1,6 +1,9 @@
 package validation
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // A real authorized NF-e access key used across the worker test suite
 // (worker/internal/service/distribution_test.go testAK) — numeric CNPJ, cUF
@@ -88,5 +91,51 @@ func TestValidAccessKey_BothCPFAndCNPJInvalid(t *testing.T) {
 	key := base + string(rune('0'+dv))
 	if ValidAccessKey(key) {
 		t.Fatal("expected false for an invalid CPF check digit")
+	}
+}
+
+// withDV recomputes the cDV of a 43-char body.
+func withDV(body43 string) string { return body43 + string(rune('0'+calcAccessKeyDV(body43))) }
+
+func TestAccessKeyReason_ModelsAndAlphanumericCNPJ(t *testing.T) {
+	t.Parallel()
+	base := validAccessKeyNumeric[:20]    // cUF, AAMM and a numeric CNPJ
+	tail := "0010000000011000000015"[:21] // serie + nNF + tpEmis + cNF, without the cDV
+	cases := []struct {
+		name   string
+		key    string
+		models []string
+		ok     bool
+	}{
+		{"nfe", withDV(base + "55" + tail), []string{AccessKeyModNFe}, true},
+		{"cte", withDV(base + "57" + tail), []string{AccessKeyModCTe}, true},
+		{"mdfe", withDV(base + "58" + tail), []string{AccessKeyModMDFe}, true},
+		{"cte os", withDV(base + "67" + tail), []string{AccessKeyModCTeOS}, true},
+		{"nfe or cte accepts cte", withDV(base + "57" + tail), []string{AccessKeyModNFe, AccessKeyModCTe}, true},
+		{"mdfe refuses nfe", withDV(base + "55" + tail), []string{AccessKeyModMDFe}, false},
+		{"alphanumeric cnpj", withDV(validAccessKeyNumeric[:6] + "12ABC34501DE35" + "58" + tail), []string{AccessKeyModMDFe}, true},
+		{"alphanumeric cnpj bad dv", withDV(validAccessKeyNumeric[:6] + "12ABC34501DE34" + "58" + tail), []string{AccessKeyModMDFe}, false},
+		{"cnpj starting with 000", withDV(validAccessKeyNumeric[:6] + "00000000000191" + "55" + tail), []string{AccessKeyModNFe}, true},
+		{"mdfe tpEmis 5 invalid", withDV(base + "58" + tail[:12] + "5" + tail[13:]), []string{AccessKeyModMDFe}, false},
+	}
+	for _, c := range cases {
+		if got := AccessKeyReason(c.key, c.models...); (got == "") != c.ok {
+			t.Errorf("%s: AccessKeyReason(%q) = %q, want ok=%v", c.name, c.key, got, c.ok)
+		}
+	}
+}
+
+func TestAccessKeyTagNamesTheKey(t *testing.T) {
+	t.Parallel()
+	type body struct {
+		Keys []string `json:"keys" validate:"dive,dfe_access_key=58"`
+	}
+	bad := validAccessKeyNumeric // model 55, refused where only 58 is accepted
+	p := Struct(body{Keys: []string{bad}})
+	if p == nil || len(p.Errors) != 1 {
+		t.Fatalf("want one field error, got %+v", p)
+	}
+	if e := p.Errors[0]; e.Field != "keys[0]" || !strings.Contains(e.Message, bad) || !strings.Contains(e.Message, "modelo 55") {
+		t.Fatalf("error does not name the key and the reason: %+v", e)
 	}
 }

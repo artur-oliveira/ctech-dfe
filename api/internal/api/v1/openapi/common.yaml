@@ -290,8 +290,10 @@ components:
 
     AccessKey:
       type: string
-      description: Chave de acesso de 44 dígitos.
-      pattern: '^\d{44}$'
+      description: |
+        Chave de acesso de 44 posições. As posições 7 a 20 (CNPJ do emitente) aceitam letra maiúscula (CNPJ
+        alfanumérico, IN RFB 2229/2024); o resto é numérico. O DV é conferido no servidor.
+      pattern: '^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$'
 
     Timezone:
       type: string

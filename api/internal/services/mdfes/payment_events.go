@@ -105,7 +105,7 @@ func buildInfPag(payments []MdfePayment) ([]map[string]any, error) {
 		case p.CPF != nil && *p.CPF != "":
 			node["CPF"] = onlyDigits(*p.CPF)
 		case p.CNPJ != nil && *p.CNPJ != "":
-			node["CNPJ"] = onlyDigits(*p.CNPJ)
+			node["CNPJ"] = docAlnum(*p.CNPJ)
 		case p.ForeignID != nil && *p.ForeignID != "":
 			node["idEstrangeiro"] = *p.ForeignID
 		default:
@@ -166,7 +166,7 @@ func buildInfBanc(b MdfePaymentBank, idx int) (map[string]any, error) {
 	case b.PIX != nil && *b.PIX != "":
 		return map[string]any{"PIX": *b.PIX}, nil
 	case b.IPEFCNPJ != nil && *b.IPEFCNPJ != "":
-		return map[string]any{"CNPJIPEF": onlyDigits(*b.IPEFCNPJ)}, nil
+		return map[string]any{"CNPJIPEF": docAlnum(*b.IPEFCNPJ)}, nil
 	case b.BankCode != nil && *b.BankCode != "":
 		if b.AgencyCode == nil || *b.AgencyCode == "" {
 			return nil, problem.BadRequest(fmt.Sprintf(

@@ -153,7 +153,7 @@ const (
 // que a emissão usa. Devolve nil quando o cadastro está incompleto — um `prop`
 // pela metade seria rejeitado pela SEFAZ.
 func ownerFromRegistry(owner map[string]types.AttributeValue) *MdfeOwner {
-	doc := onlyDigits(avStr(owner, ownerFieldCpfCnpj))
+	doc := docAlnum(avStr(owner, ownerFieldCpfCnpj))
 	rntrc := avStr(owner, ownerFieldRNTRC)
 	name := avStr(owner, ownerFieldName)
 	if doc == "" || rntrc == "" || name == "" {

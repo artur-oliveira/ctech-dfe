@@ -2044,6 +2044,19 @@ Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 | POST   | `/v1.0/mdfes/{access_key}/change-payment`            | Alteração do pagamento declarado (110118)         |
 | GET    | `/v1.0/mdfes/{access_key}/events`                    | List events                                       |
 | GET    | `/v1.0/mdfes/{access_key}/events/{sk}/xml`           | Event XML                                          |
+| GET    | `/v1.0/mdfes/{access_key}/sefaz-status`              | Situação na SEFAZ (`MDFeConsulta`, síncrona)       |
+| GET    | `/v1.0/mdfes/unclosed`                               | Não encerrados do emitente (`MDFeConsNaoEnc`)      |
+
+**Consultas na SEFAZ** (`mdfes/consulta.go`): leituras síncronas pelo go-dfe-egress (`ExternalService.CallDfe`, o
+mesmo caminho da consulta de cadastro e do ADN da NFS-e); não passam por outbox nem worker e não mudam o registro
+local. `sefaz-status` (permissão `get.mdfes`, 404 para MDF-e de outra organização) devolve `{access_key, c_stat,
+x_motivo, status, protocol{n_prot, dh_recbto, c_stat, x_motivo}, events[{tp_evento, n_seq_evento, c_stat, x_motivo,
+n_prot, dh_reg_evento}]}`; `status` é `authorized` (100), `cancelled` (101), `closed` (132) ou `not_found` (217). O
+ambiente vem do prefixo do registro (`prod#`/`hom#`). `unclosed` (permissão `list.mdfes`) consulta pelo CNPJ ou CPF do
+emitente no ambiente da configuração e devolve `{c_stat, x_motivo, items[{access_key, n_prot}]}` (111 com itens,
+112 lista vazia). Outro cStat é 400 `sefaz-rejection` com `cstat` no corpo; erro do egress preserva status e detalhe
+(`services.ProblemFromDfeBody`). A reconciliação do worker depois de um 204 (`worker/internal/service/reconcile.go`)
+usa o mesmo `MDFeConsulta`.
 
 **Eventos de pagamento (110116 / 110117 / 110118).** `infPag` é a **mesma estrutura** de
 `infANTT/infPag` do modal rodoviário, e tem um único construtor —
@@ -2120,8 +2133,8 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   CIOT (F113, 684, NT 2026.001, em produção em 2026-11-23). Ainda não cobertos: `tpTransp` com `tpEmit=2`, seguro, `infPag` e
   dados bancários do TAC (F113a, F113b), que dependem do cadastro de RNTRC da ANTT. Código: `mdfes/emitter_type.go`.
 - `ciots[]?` — CIOTs da viagem (`infANTT/infCIOT`, 0 a N): `{ciot, responsible_doc}`. `ciot` tem 12 dígitos;
-  `responsible_doc` é o CPF (11) ou CNPJ (14) de quem gerou o CIOT na ANTT, que vira o choice `CPF | CNPJ`. CIOT repetido
-  e documento com outro tamanho são 400. O campo `ciot` único continua aceito (12 dígitos); sem `ciots`, vira um item
+  `responsible_doc` é o CPF (11) ou CNPJ (14, alfanumérico aceito) de quem gerou o CIOT na ANTT, com DV (`cpfcnpj`,
+  422 de validação), e vira o choice `CPF | CNPJ`. CIOT repetido é 400. O campo `ciot` único continua aceito (12 dígitos); sem `ciots`, vira um item
   cujo responsável é o **emitente** (antes era o CPF do primeiro condutor, que não é o responsável). Regra F113 do MOC
   (NT 2026.001, produção em 2026-11-23): rodoviário com `tpEmit` 1 ou 3, ou `tpEmit` 2 com `tpTransp`, exige `infCIOT`
   (rejeição 684); TAC e equiparado exigem também `infBanc`, `infPag` e `infCIOT` (303 e 304). A checagem de TAC depende do
@@ -2168,13 +2181,38 @@ produto perigoso é perguntado por viagem.
 - `seals[]?`, `rodo_seals[]?`, `port_agent_code?` — lacres da carga (`infMDFe/lacres`), lacres da
   unidade de transporte (`rodo/lacRodo`) e código do agente portuário (`rodo/codAgPorto`). Os dois
   grupos de lacre saem do mesmo `services.SealNodes` que monta `transp/vol/lacres` na NF-e.
+- `authorized_xml[]?` — CPF ou CNPJ (alfanumérico aceito) autorizados a baixar o XML (`infMDFe/autXML`, até 10, MOC
+  F105 a F107): DV inválido é 422 de validação, repetido é 422 `fiscal_prevalidation` (F107). Só o pedido alimenta o
+  grupo; a lista `authorized_xml_viewers` da organização continua só da NF-e. O nó sai de `services.AutXMLNodes`, o
+  mesmo da NF-e.
+- `later_loading?`, `cargo_value?`, `cargo_weight?` — carregamento posterior (`ide/indCarregaPosterior`, MOC 2.4): o
+  MDF-e sai sem documentos e eles entram depois por `include-dfe` (110115). Sem `later_loading` vale
+  `ind_carrega_posterior` da configuração, e só quando `documents` está vazio (com documentos o manifesto é normal; antes
+  a configuração ligada fazia toda emissão com documentos ser rejeitada 706). Exige `documents` e
+  `transported_mdfes` vazios (F27, 706), modal rodoviário (F23, 705), `emitter_type` vazio ou `2` (F24, 707), um
+  `loadings` igual ao único `unloadings` (F21, 703) e `uf_start`/`uf_end`, quando informados, iguais à UF desse
+  município (F22, 704); violação é 422 `fiscal_prevalidation` com `params.rule` e `params.cstat`. `tot/vCarga` e
+  `tot/qCarga` vêm de `cargo_value`/`cargo_weight` (padrão 0), sem `qNFe`/`qCTe`; `prodPred` de `predominant` ou
+  `05`/`CARGA GERAL`. A regra F25 (712, carregamento posterior sem inclusão há mais de 168 h) não é conferida localmente.
+- **Chaves de acesso do pedido** (`documents[].access_key`, `redelivery_keys`, `partial_deliveries[].access_key` e
+  `nfe_keys`, `transported_mdfes[].access_key`, `transport_units[].document_keys`, `include-dfe` `nfe_key`) passam por
+  `validation.AccessKeyReason`: UF, mês, CNPJ (alfanumérico) ou CPF com DV, modelo (55, 57 ou 58 conforme o campo),
+  `tpEmis` do modelo e DV da chave. Chave inválida é 422 nomeando a chave e o motivo; em `documents`, o modelo tem que
+  ser o do `type` (`code` `invalid_access_key`, `params.access_key`).
+- **Portão do MOC** (`mdfes/prevalidate.go`): depois de montar o `<MDFe>` e antes de debitar cota e gravar o outbox,
+  `dfecheck.GateMDFe` recusa com 422 `fiscal_prevalidation` as regras promovidas a `block` (DV de chave F05, F30,
+  F36d, F37, F45; CPF/CNPJ F56, F57, F67, F68, F96, F98, F100 a F106, F121; contagens e duplicidades F10, F13, F28,
+  F29, F36c, F51, F66, F99, F107; totais F58 e F62; tipo de emitente F14 a F17; carregamento posterior F21 a F24, F26,
+  F27) e texto fora do tamanho do leiaute no documento e no modal. `errors[]`: `field` = id da regra, `code`
+  `fiscal_rule`, `params.rule`/`params.cstat`; ou `field` = caminho XML, `code` `too_long`/`too_short`,
+  `params.limit`/`params.got`. As demais regras do catálogo continuam só no shadow.
 - `predominant?` — override `{tp_carga, x_prod, ncm}`; otherwise auto-derived from the highest-value item.
 - `bulk_cargo?` — required when exactly **one** document (carga lotação): `{cep_loading, cep_unloading, lat_*?, lon_*?}`.
 - `trip_start?` — `dhIniViagem` (RFC3339).
 - `rntrc?`, `ciot?`, `additional_info?` — `additional_info` é o `infAdic/infCpl` da viagem. A
   mensagem ao fisco (`infAdFisco`) **não** entra aqui: é da configuração (`inf_ad_fisco` em
-  `mdfe-config`), assim como `ind_canal_verde` e `ind_carrega_posterior`, que recorrem em toda
-  emissão. O `prodPred/cEAN` também não é perguntado: sai do documento referenciado, junto de
+  `mdfe-config`), assim como `ind_canal_verde`, que recorre em toda emissão (`ind_carrega_posterior` só vale para
+  pedido sem documentos; ver `later_loading`). O `prodPred/cEAN` também não é perguntado: sai do documento referenciado, junto de
   `xProd` e `NCM` do item de maior valor.
 
 **`POST /v1.0/mdfes/cargo-preview`** (`{documents: [{type, access_key}]}`) returns the parsed cargo
@@ -2490,8 +2528,8 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
   registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. **Portão (block)**:
-  `dfecheck.Gate`/`GateEnviNFe` devolve só as regras que o chamador promove a `block` (lista em
-  `api/internal/services/nfes/prevalidate.go`) e os achados de tamanho (`min_length`/`max_length`, com `Limit` e `Got`
+  `dfecheck.Gate`/`GateEnviNFe`/`GateMDFe` devolve só as regras que o chamador promove a `block` (listas em
+  `api/internal/services/nfes/prevalidate.go` e `api/internal/services/mdfes/prevalidate.go`) e os achados de tamanho (`min_length`/`max_length`, com `Limit` e `Got`
   na `Violation`); falha aberto se o validador quebrar. `Spec.Lengths(path)` expõe os tamanhos do leiaute, e
   `api/internal/api/v1/dto_layout_limits_test.go` compara com eles as tags dos DTOs de cadastro. Subir uma regra a warn/block é
   decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. O CT-e (`dfecheck.ShadowCTe`) valida o `<CTe>` e o modal `rodo` (`cte_rodo`); as regras do CT-e recebem o `<CTe>` como as das outras famílias.

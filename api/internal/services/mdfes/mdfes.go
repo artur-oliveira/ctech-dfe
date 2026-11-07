@@ -146,6 +146,8 @@ type MdfeService struct {
 	documentSvc *documents.Service
 	bucketDocs  string
 	tech        TechData
+	// egress chama o go-dfe-egress nas consultas síncronas (situação e não encerrados).
+	egress dfeCaller
 }
 
 // TechData carries the technical-responsible (infRespTec) information.
@@ -178,7 +180,12 @@ func NewMdfeService(
 	documentSvc *documents.Service,
 	bucketDocs string,
 	tech TechData,
+	extSvc *services.ExternalService,
 ) *MdfeService {
+	var egress dfeCaller
+	if extSvc != nil {
+		egress = extSvc
+	}
 	return &MdfeService{
 		orgRepo:             orgRepo,
 		billingSvc:          billingSvc,
@@ -200,6 +207,7 @@ func NewMdfeService(
 		workerSvc:           workerSvc,
 		bucketDocs:          bucketDocs,
 		tech:                tech,
+		egress:              egress,
 	}
 }
 

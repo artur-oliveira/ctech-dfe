@@ -261,7 +261,7 @@ func (s *MdfeService) IncludeDFe(ctx context.Context, orgPK, accessKey, cMunCarr
 type IncludeDFeDoc struct {
 	CMunDescarga string `json:"unloading_ibge_code" validate:"required,ibge"`
 	XMunDescarga string `json:"unloading_city" validate:"required,max=120"`
-	ChNFe        string `json:"nfe_key" validate:"required,len=44,numeric"`
+	ChNFe        string `json:"nfe_key" validate:"required,dfe_access_key=55"`
 }
 
 // buildEventEnvelope assembles the envEventoMDFe wrapper around a detEvento body.

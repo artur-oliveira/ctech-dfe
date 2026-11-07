@@ -201,7 +201,8 @@ func message(fe validator.FieldError) string {
 	case "cpfcnpj":
 		return "CPF/CNPJ inválido"
 	case "dfe_access_key":
-		return "chave de acesso inválida"
+		key := fmt.Sprint(fe.Value())
+		return "chave de acesso inválida (" + AccessKeyReason(key, accessKeyModels(fe.Param())...) + "): " + key
 	case "cfop":
 		return "CFOP deve ter 4 dígitos"
 	case "ncm":

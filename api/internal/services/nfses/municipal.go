@@ -11,7 +11,6 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 
 	"gopkg.aoctech.app/api-commons/problem"
-	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -123,7 +122,7 @@ func (s *NfseService) callEgress(ctx context.Context, orgPK, service string, bod
 		return nfse.Result{}, problem.InternalServer("falha na consulta ao fisco: " + err.Error())
 	}
 	if resp.StatusCode != 200 {
-		return nfse.Result{}, problemFromDfeBody(resp.StatusCode, resp.Body)
+		return nfse.Result{}, services.ProblemFromDfeBody(resp.StatusCode, resp.Body)
 	}
 
 	var result nfse.Result
@@ -131,15 +130,4 @@ func (s *NfseService) callEgress(ctx context.Context, orgPK, service string, bod
 		return nfse.Result{}, problem.InternalServer("resposta do fisco em formato inesperado")
 	}
 	return result, nil
-}
-
-// problemFromDfeBody traduz o Problem RFC 7807 que o go-dfe devolve no corpo
-// para o Problem da api, preservando status e detalhe — a rejeição do fisco
-// chega ao usuário, não vira 500 genérico.
-func problemFromDfeBody(status int, body string) *problem.Problem {
-	var p godfe.Problem
-	if err := json.Unmarshal([]byte(body), &p); err != nil || p.Detail == "" {
-		return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", body)
-	}
-	return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", p.Detail)
 }

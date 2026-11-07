@@ -95,25 +95,9 @@ func mdfeAllSame(s string) bool {
 	return true
 }
 
-// mdfeValidCNPJ confere 14 dígitos, não zerado e dígitos verificadores.
-func mdfeValidCNPJ(s string) bool {
-	if len(s) != 14 || !mdfeDigits(s) || strings.Trim(s, "0") == "" {
-		return false
-	}
-	w1 := []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
-	w2 := []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
-	dv := func(w []int) int {
-		sum := 0
-		for i, k := range w {
-			sum += int(s[i]-'0') * k
-		}
-		if r := sum % 11; r >= 2 {
-			return 11 - r
-		}
-		return 0
-	}
-	return dv(w1) == int(s[12]-'0') && dv(w2) == int(s[13]-'0')
-}
+// mdfeValidCNPJ confere CNPJ numérico ou alfanumérico (IN RFB 2229/2024; NT conjunta 2025.001): formato, não
+// zerado e dígitos verificadores pelo valor ord-48 do caractere. Mesma regra do CT-e (cteCNPJOK).
+func mdfeValidCNPJ(s string) bool { return cteCNPJOK(s) }
 
 // mdfeValidCPF confere 11 dígitos, não repetido e dígitos verificadores.
 func mdfeValidCPF(s string) bool {
@@ -141,7 +125,7 @@ func mdfeValidDoc(s string) bool {
 	return mdfeValidCNPJ(s)
 }
 
-// mdfeKeyDV calcula o dígito verificador (módulo 11) dos 43 primeiros dígitos de uma chave de acesso.
+// mdfeKeyDV calcula o dígito verificador (módulo 11) dos 43 primeiros caracteres de uma chave de acesso.
 func mdfeKeyDV(k43 string) int {
 	sum, w := 0, 2
 	for i := len(k43) - 1; i >= 0; i-- {
@@ -156,15 +140,19 @@ func mdfeKeyDV(k43 string) int {
 	return 0
 }
 
-// mdfeKeyDVOK diz se a chave tem 44 dígitos e o DV confere.
+// mdfeKeyOK diz se a chave tem o formato do XSD: 44 posições, numéricas fora do CNPJ (posições 7 a 18 aceitam letra,
+// CNPJ alfanumérico).
+func mdfeKeyOK(k string) bool { return cteKeyRe.MatchString(k) }
+
+// mdfeKeyDVOK diz se a chave tem o formato do XSD e o DV confere (o caractere vale ord-48, o que cobre a letra).
 func mdfeKeyDVOK(k string) bool {
-	return len(k) == 44 && mdfeDigits(k) && mdfeKeyDV(k[:43]) == int(k[43]-'0')
+	return mdfeKeyOK(k) && mdfeKeyDV(k[:43]) == int(k[43]-'0')
 }
 
 // mdfeKeyReason devolve o motivo de a chave de um documento referenciado ser inválida ("" se válida), na lista do MOC:
 // CNPJ/CPF zerado ou inválido, ano fora da faixa, mês inválido, modelo, número zerado, tipo de emissão, UF e DV.
 func mdfeKeyReason(k, mod string, minYear int, tpEmisOK string) string {
-	if len(k) != 44 || !mdfeDigits(k) {
+	if !mdfeKeyOK(k) {
 		return "formato"
 	}
 	if !mdfeKeyDVOK(k) {
@@ -207,7 +195,7 @@ func mdfeKeyReason(k, mod string, minYear int, tpEmisOK string) string {
 
 // mdfeKeyMonths devolve ano*12+mês da chave (AAMM).
 func mdfeKeyMonths(k string) int {
-	if len(k) != 44 || !mdfeDigits(k) {
+	if !mdfeKeyOK(k) {
 		return 0
 	}
 	return (2000+int(k[2]-'0')*10+int(k[3]-'0'))*12 + int(k[4]-'0')*10 + int(k[5]-'0')

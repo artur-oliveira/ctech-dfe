@@ -504,6 +504,7 @@ func newMDFeService(
 	cfg *config.Config,
 	billingSvc *services.BillingService,
 	documentSvc *documents.Service,
+	extSvc *services.ExternalService,
 ) *mdfesvc.MdfeService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "mdfe")
 	return mdfesvc.NewMdfeService(
@@ -518,6 +519,7 @@ func newMDFeService(
 			Phone:   cfg.TechnicalPhone,
 			Version: cfg.AppVersion,
 		},
+		extSvc,
 	)
 }
 

@@ -27,7 +27,7 @@ func TestAvStr_Missing(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// getStr / getMap / asSliceOfMaps
+// getStr / getMap / AsSliceOfMaps
 // ---------------------------------------------------------------------------
 
 func TestGetStr_Present(t *testing.T) {
@@ -67,7 +67,7 @@ func TestAsSliceOfMaps_SingleMap(t *testing.T) {
 	m := map[string]any{
 		"infCad": map[string]any{"UF": "SP"},
 	}
-	result := asSliceOfMaps(m, "infCad")
+	result := AsSliceOfMaps(m, "infCad")
 	if len(result) != 1 || result[0]["UF"] != "SP" {
 		t.Errorf("got %v", result)
 	}
@@ -80,7 +80,7 @@ func TestAsSliceOfMaps_List(t *testing.T) {
 			map[string]any{"UF": "RJ"},
 		},
 	}
-	result := asSliceOfMaps(m, "infCad")
+	result := AsSliceOfMaps(m, "infCad")
 	if len(result) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(result))
 	}
@@ -90,7 +90,7 @@ func TestAsSliceOfMaps_List(t *testing.T) {
 }
 
 func TestAsSliceOfMaps_Missing(t *testing.T) {
-	if result := asSliceOfMaps(map[string]any{}, "key"); result != nil {
+	if result := AsSliceOfMaps(map[string]any{}, "key"); result != nil {
 		t.Errorf("expected nil, got %v", result)
 	}
 }

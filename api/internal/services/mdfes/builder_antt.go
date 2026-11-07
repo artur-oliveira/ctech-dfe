@@ -38,7 +38,7 @@ func (p buildParams) buildInfCIOT() []map[string]any {
 	}
 	out := make([]map[string]any, 0, len(list))
 	for _, c := range list {
-		doc := onlyDigits(c.ResponsibleDoc)
+		doc := docAlnum(c.ResponsibleDoc)
 		item := map[string]any{"CIOT": c.CIOT}
 		if len(doc) == cnpjLen {
 			item["CNPJ"] = doc

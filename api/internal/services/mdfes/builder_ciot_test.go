@@ -40,3 +40,16 @@ func TestValidateCIOTs(t *testing.T) {
 		t.Error("responsável com 10 dígitos devia ser recusado")
 	}
 }
+
+// CNPJ alfanumérico do responsável pelo CIOT mantém as letras (antes onlyDigits as apagava).
+func TestBuildInfCIOT_CNPJAlfanumerico(t *testing.T) {
+	p := baseParams(nil)
+	p.ciots = []MdfeCIOT{{CIOT: "123456789012", ResponsibleDoc: "12.ABC.345/01DE-35"}}
+	got := p.buildInfCIOT()
+	if len(got) != 1 || got[0]["CNPJ"] != "12ABC34501DE35" {
+		t.Fatalf("infCIOT = %#v", got)
+	}
+	if err := validateCIOTs(p.ciots); err != nil {
+		t.Fatalf("validateCIOTs: %v", err)
+	}
+}

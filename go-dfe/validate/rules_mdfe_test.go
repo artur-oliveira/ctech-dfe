@@ -351,3 +351,27 @@ func TestMDFeToleranceBoundary(t *testing.T) {
 		}
 	}
 }
+
+// CNPJ alfanumérico (IN RFB 2229/2024, NT conjunta 2025.001): exemplo oficial da RFB e chave com ele no meio.
+func TestMDFeAlphanumericCNPJ(t *testing.T) {
+	setNow(t)
+	const alfa = "12ABC34501DE35"
+	if !mdfeValidCNPJ(alfa) || mdfeValidCNPJ("12ABC34501DE34") {
+		t.Fatal("DV do CNPJ alfanumerico (ord-48) nao confere com o exemplo da RFB")
+	}
+	key := tKey("35", "2610", alfa, "55", "001", "000000123", "1", "12345678")
+	if r := mdfeKeyReason(key, "55", mdfeNFeMinYear, mdfeTpEmisNFe); r != "" {
+		t.Fatalf("chave com CNPJ alfanumerico recusada: %s", r)
+	}
+	bad := key[:43] + fmt.Sprint((int(key[43]-'0')+1)%10)
+	if r := mdfeKeyReason(bad, "55", mdfeNFeMinYear, mdfeTpEmisNFe); r != "DV invalido" {
+		t.Fatalf("DV errado da chave alfanumerica: motivo %q", r)
+	}
+	d := tGood()
+	tInf(d)["autXML"] = []m{{"CNPJ": alfa}}
+	for _, r := range mdfeRules {
+		if (r.ID == "F105" || r.ID == "F107") && len(r.Check(d)) > 0 {
+			t.Errorf("%s recusou autXML com CNPJ alfanumerico valido", r.ID)
+		}
+	}
+}

@@ -30,6 +30,10 @@ func TestValidCNPJ(t *testing.T) {
 		{"11.222.333/0001-81", true}, // valid numeric, punctuated
 		{"11222333000181", true},     // valid numeric, raw
 		{"11.222.333/0001-80", false},
+		{"12.ABC.345/01DE-35", true}, // official RFB alphanumeric example (ASCII-48 values)
+		{"12ABC34501DE35", true},
+		{"12ABC34501DE34", false},
+		{"12ABC34501DE53", false},
 		{"00000000000000", false},
 		{"123", false},
 		{"", false},

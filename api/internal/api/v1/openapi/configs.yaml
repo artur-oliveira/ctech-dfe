@@ -186,8 +186,8 @@ components:
             ind_carrega_posterior:
               type: boolean
               description: |
-                A organização inclui DF-e por evento depois de emitir o manifesto
-                → `ide/indCarregaPosterior` (`1` quando ligado).
+                Padrão do carregamento posterior (`ide/indCarregaPosterior`): vale só para emissão sem
+                documentos e sem `later_loading` no pedido (com documentos a SEFAZ rejeita, F27).
             inf_ad_fisco:
               type: [ string, 'null' ]
               maxLength: 2000

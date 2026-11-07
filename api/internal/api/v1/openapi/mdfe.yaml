@@ -14,6 +14,15 @@ paths:
 
         Com um único documento (carga lotação), `bulk_cargo` é obrigatório.
         Autorização é síncrona (`MDFeRecepcaoSinc`).
+
+        Toda chave de acesso do pedido é conferida com DV, composição e modelo (NF-e 55, CT-e 57,
+        MDF-e 58; CNPJ alfanumérico aceito): chave inválida é 422 que nomeia a chave. Antes de reservar
+        número e cota, o documento montado passa pelo portão do MOC: regra determinística violada (DV de
+        chave, CPF ou CNPJ, contagens, duplicidades, totais do pagamento, tipo de emitente, carregamento
+        posterior) ou tamanho fora do leiaute é 422 com `code` `fiscal_prevalidation` e um item em
+        `errors[]` por achado (`field` = id da regra, `code` `fiscal_rule`, `params.rule` e
+        `params.cstat`; ou `field` = caminho XML, `code` `too_long`/`too_short`, `params.limit` e
+        `params.got`).
       operationId: emitMdfe
       parameters:
         - $ref: '#/components/parameters/OrgHeader'
@@ -96,6 +105,51 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/mdfes/unclosed:
+    get:
+      tags: [ MDF-e ]
+      summary: MDF-e não encerrados do emitente na SEFAZ
+      description: |
+        Consulta síncrona `MDFeConsNaoEnc` pelo go-dfe-egress, no ambiente da configuração do MDF-e, com o
+        CNPJ ou CPF do emitente. cStat 111 traz a lista; 112 é lista vazia. Outra resposta da SEFAZ é 400
+        `sefaz-rejection` com `cstat`.
+      operationId: listUnclosedMdfes
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      responses:
+        '200':
+          description: Não encerrados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeUnclosed' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/mdfes/{access_key}/sefaz-status:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ MDF-e ]
+      summary: Situação do MDF-e na SEFAZ
+      description: |
+        Consulta síncrona `MDFeConsulta` pelo go-dfe-egress: situação atual, protocolo de autorização e
+        eventos registrados. Só lê; o registro local não muda. cStat 100, 101, 132 e 217 são resposta
+        (`status` authorized, cancelled, closed, not_found); outro cStat (chave inválida, muito antiga,
+        diferente da base) é 400 `sefaz-rejection` com `cstat`. MDF-e de outra organização é 404.
+      operationId: getMdfeSefazStatus
+      responses:
+        '200':
+          description: Situação
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MdfeSituation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /v1.0/mdfes/{access_key}:
     parameters:
@@ -512,6 +566,48 @@ components:
 
     # -- Emissão de MDF-e ---------------------------------------------------
 
+    MdfeSituation:
+      type: object
+      required: [ access_key, c_stat, x_motivo, status, events ]
+      properties:
+        access_key: { $ref: '#/components/schemas/AccessKey' }
+        c_stat: { type: string }
+        x_motivo: { type: string }
+        status: { type: string, enum: [ authorized, cancelled, closed, not_found ] }
+        protocol:
+          type: [ object, 'null' ]
+          properties:
+            n_prot: { type: string }
+            dh_recbto: { type: string }
+            c_stat: { type: string }
+            x_motivo: { type: string }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              tp_evento: { type: string }
+              n_seq_evento: { type: string }
+              c_stat: { type: string }
+              x_motivo: { type: string }
+              n_prot: { type: string }
+              dh_reg_evento: { type: string }
+
+    MdfeUnclosed:
+      type: object
+      required: [ c_stat, x_motivo, items ]
+      properties:
+        c_stat: { type: string }
+        x_motivo: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            required: [ access_key, n_prot ]
+            properties:
+              access_key: { $ref: '#/components/schemas/AccessKey' }
+              n_prot: { type: string }
+
     MdfeDocRef:
       type: object
       description: Referência a uma NF-e ou CT-e transportada.
@@ -711,7 +807,7 @@ components:
         Emissão de MDF-e. Os documentos referenciados têm que ser todos do mesmo
         tipo. Município de carga/descarga, peso, valor e produto predominante
         são derivados dos XMLs, salvo sobreposição explícita.
-      required: [ modal, documents ]
+      required: [ modal ]
       properties:
         modal:
           type: string
@@ -721,8 +817,30 @@ components:
             correspondente (`air`, `water`, `rail`) — sem ele a emissão é 400.
         documents:
           type: array
-          minItems: 1
+          maxItems: 20000
+          description: Obrigatório, salvo no carregamento posterior (`later_loading`), que proíbe documentos (F27).
           items: { $ref: '#/components/schemas/MdfeDocRef' }
+        later_loading:
+          type: [ boolean, 'null' ]
+          description: |
+            Carregamento posterior (`ide/indCarregaPosterior`): o MDF-e sai sem documentos e eles entram
+            depois por `POST /mdfes/{access_key}/include-dfe`. Sem o campo vale `ind_carrega_posterior`
+            da configuração, e só quando `documents` está vazio. Exige modal rodoviário (F23),
+            `emitter_type` vazio ou `2` (F24), um único `loadings` igual ao único `unloadings` (F21) e
+            UF única fora do exterior (F22); violação é 422 `fiscal_prevalidation` com `params.rule`.
+        cargo_value:
+          type: [ string, 'null' ]
+          description: '`tot/vCarga` do carregamento posterior (sem documento de onde derivar). Padrão 0.'
+        cargo_weight:
+          type: [ string, 'null' ]
+          description: '`tot/qCarga` (kg) do carregamento posterior. Padrão 0.'
+        authorized_xml:
+          type: array
+          maxItems: 10
+          description: |
+            CPF ou CNPJ (alfanumérico aceito) autorizados a baixar o XML (`infMDFe/autXML`, até 10).
+            DV inválido é 422 de validação; repetido é 422 `fiscal_prevalidation` (F107).
+          items: { type: string }
         uf_start:
           allOf: [ { $ref: '#/components/schemas/Uf' } ]
           description: Sobrepõe a UF de início derivada dos documentos.
@@ -773,7 +891,7 @@ components:
             required: [ ciot, responsible_doc ]
             properties:
               ciot: { type: string, pattern: '^[0-9]{12}$' }
-              responsible_doc: { type: string, pattern: '^[0-9]{11}([0-9]{3})?$' }
+              responsible_doc: { type: string, description: 'CPF (11) ou CNPJ (14, alfanumérico aceito), com DV.' }
         toll_vouchers:
           type: array
           description: |
@@ -810,7 +928,7 @@ components:
           description: |
             Chaves dos documentos em reentrega (`indReentrega`). `SegCodBarra` é
             derivado — o código de barras do documento é a própria chave.
-          items: { type: string, minLength: 44, maxLength: 44 }
+          items: { $ref: '#/components/schemas/AccessKey' }
         seals:
           type: array
           description: Lacres da carga (`infMDFe/lacres`).
@@ -843,19 +961,19 @@ components:
       type: object
       required: [ access_key, qtd_total, qtd_parcial ]
       properties:
-        access_key: { type: string, minLength: 44, maxLength: 44, description: Chave do CT-e transportado. }
+        access_key: { allOf: [ { $ref: '#/components/schemas/AccessKey' } ], description: Chave do CT-e transportado (modelo 57). }
         qtd_total: { type: string, description: '`qtdTotal` — volumes totais.' }
         qtd_parcial: { type: string, description: '`qtdParcial` — volumes neste MDF-e.' }
         nfe_keys:
           type: array
           description: NF-e já entregues do CT-e (`indPrestacaoParcial` + `infNFePrestParcial`).
-          items: { type: string, minLength: 44, maxLength: 44 }
+          items: { $ref: '#/components/schemas/AccessKey' }
 
     MdfeTransported:
       type: object
       required: [ access_key, unloading ]
       properties:
-        access_key: { type: string, minLength: 44, maxLength: 44 }
+        access_key: { allOf: [ { $ref: '#/components/schemas/AccessKey' } ], description: Chave do MDF-e transportado (modelo 58). }
         unloading: { $ref: '#/components/schemas/MdfeMun' }
 
     MdfeToll:

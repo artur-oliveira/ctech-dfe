@@ -83,31 +83,13 @@ func buildEnder(person map[string]any) map[string]any {
 // attribute. Returns nil (key omitted) when the organization has none.
 func buildAutXML(org map[string]any) []map[string]any {
 	raw, _ := org["authorized_xml_viewers"].([]any)
-	if len(raw) == 0 {
-		return nil
-	}
-	out := make([]map[string]any, 0, len(raw))
+	docs := make([]string, 0, len(raw))
 	for _, v := range raw {
-		vm, ok := v.(map[string]any)
-		if !ok {
-			continue
+		if vm, ok := v.(map[string]any); ok {
+			docs = append(docs, anyStr(vm, "cpf_cnpj", ""))
 		}
-		doc := anyStr(vm, "cpf_cnpj", "")
-		if doc == "" {
-			continue
-		}
-		entry := map[string]any{}
-		if len(doc) == 14 {
-			entry["CNPJ"] = doc
-		} else {
-			entry["CPF"] = doc
-		}
-		out = append(out, entry)
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
+	return services.AutXMLNodes(docs)
 }
 
 // buildLocal monta TLocal (local de retirada/entrega). Local no exterior (UF "EX") sai com cMun 9999999 e o país

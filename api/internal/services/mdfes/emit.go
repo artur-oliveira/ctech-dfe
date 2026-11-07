@@ -12,6 +12,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
+	"gopkg.aoctech.app/dfe/api/internal/validation"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -22,8 +23,9 @@ import (
 // MdfeEmitBody is the JSON body for POST /mdfes. All field names are in English
 // and consistent with the cargo-preview and detail contracts.
 type MdfeEmitBody struct {
-	Modal     string       `json:"modal" validate:"required,oneof=rodoviario aereo aquaviario ferroviario"` // rodoviario|aereo|aquaviario|ferroviario
-	Documents []MdfeDocRef `json:"documents" validate:"required,min=1,dive"`                                // NF-e or CT-e refs (single type, not mixed)
+	Modal string `json:"modal" validate:"required,oneof=rodoviario aereo aquaviario ferroviario"` // rodoviario|aereo|aquaviario|ferroviario
+	// Documents são as NF-e ou CT-e transportados (um tipo só). Vazio só no carregamento posterior.
+	Documents []MdfeDocRef `json:"documents" validate:"omitempty,max=20000,dive"`
 
 	UFStart string   `json:"uf_start" validate:"omitempty,uf"`   // optional override; derived from docs when empty
 	UFEnd   string   `json:"uf_end" validate:"omitempty,uf"`     // optional override; derived from docs when empty
@@ -84,7 +86,7 @@ type MdfeEmitBody struct {
 
 	// RedeliveryKeys são as chaves dos documentos que estão em reentrega
 	// (infDoc/.../indReentrega).
-	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,len=44,numeric"`
+	RedeliveryKeys []string `json:"redelivery_keys" validate:"omitempty,dive,dfe_access_key=55 57"`
 
 	// InsurancePolicies são as apólices de seguro da carga (infMDFe/seg). A
 	// apólice vem do cadastro; a averbação é por viagem.
@@ -96,6 +98,21 @@ type MdfeEmitBody struct {
 	Seals         []string `json:"seals" validate:"omitempty,dive,max=60"`
 	RodoSeals     []string `json:"rodo_seals" validate:"omitempty,dive,max=60"`
 	PortAgentCode *string  `json:"port_agent_code" validate:"omitempty,max=16"`
+
+	// AuthorizedXML são os CPF/CNPJ autorizados a baixar o XML (infMDFe/autXML, MOC: até 10, sem repetir;
+	// F105 a F107). CNPJ alfanumérico aceito.
+	AuthorizedXML []string `json:"authorized_xml" validate:"omitempty,max=10,dive,cpfcnpj"`
+
+	// LaterLoading é o carregamento posterior (ide/indCarregaPosterior): o manifesto sai sem documentos e
+	// eles entram depois pelo evento de inclusão de DF-e. Sem o campo vale a configuração do MDF-e
+	// (ind_carrega_posterior), e só quando o pedido não traz documentos. Exige (F21 a F24): modal rodoviário,
+	// tipo de emitente 2, um município de carregamento (loadings) igual ao único de descarregamento
+	// (unloadings), na mesma UF e fora do exterior.
+	LaterLoading *bool `json:"later_loading"`
+	// CargoValue e CargoWeight são tot/vCarga e tot/qCarga (kg) do carregamento posterior, que não tem
+	// documento de onde derivá-los; sem eles vão zerados.
+	CargoValue  *string `json:"cargo_value" validate:"omitempty,decimalv"`
+	CargoWeight *string `json:"cargo_weight" validate:"omitempty,decimalv"`
 
 	// Non-rodoviário modal payloads. Only the one matching Modal is consumed.
 	Air   *MdfeAirModal   `json:"air" validate:"omitempty"`
@@ -115,7 +132,7 @@ type MdfeTollBody struct {
 // de quem o gerou na ANTT (infANTT/infCIOT, regra F113 do MOC, NT 2026.001).
 type MdfeCIOT struct {
 	CIOT           string `json:"ciot" validate:"required,len=12,numeric"`
-	ResponsibleDoc string `json:"responsible_doc" validate:"required,numeric,min=11,max=14"`
+	ResponsibleDoc string `json:"responsible_doc" validate:"required,cpfcnpj"`
 }
 
 // MdfeContractorBody é um contratante do frete. Nome e identidade vêm do
@@ -216,17 +233,17 @@ type MdfePaymentBody struct {
 // MdfePartialDeliveryBody é a entrega parcial de um CT-e transportado. O XSD só
 // prevê o grupo em infCTe: um chNFe aqui é ignorado pelo builder.
 type MdfePartialDeliveryBody struct {
-	AccessKey  string `json:"access_key" validate:"required,len=44,numeric"`
+	AccessKey  string `json:"access_key" validate:"required,dfe_access_key=57"`
 	QtdTotal   string `json:"qtd_total" validate:"required,decimalv"`
 	QtdParcial string `json:"qtd_parcial" validate:"required,decimalv"`
 	// NFeKeys são as NF-e já entregues do CT-e (indPrestacaoParcial).
-	NFeKeys []string `json:"nfe_keys" validate:"omitempty,dive,len=44,numeric"`
+	NFeKeys []string `json:"nfe_keys" validate:"omitempty,dive,dfe_access_key=55"`
 }
 
 // MdfeTransportedBody é um MDF-e transportado por este (infMDFeTransp), com o
 // município onde ele é descarregado.
 type MdfeTransportedBody struct {
-	AccessKey  string  `json:"access_key" validate:"required,len=44,numeric"`
+	AccessKey  string  `json:"access_key" validate:"required,dfe_access_key=58"`
 	Unloading  MdfeMun `json:"unloading" validate:"required"`
 	Redelivery bool    `json:"redelivery"`
 }
@@ -235,7 +252,7 @@ type MdfeTransportedBody struct {
 // cadastro, quais documentos ela leva e quais unidades de carga vão dentro.
 type MdfeTransportUnitBody struct {
 	CargoUnitID  string   `json:"cargo_unit_id" validate:"required"`
-	DocumentKeys []string `json:"document_keys" validate:"required,min=1,dive,len=44,numeric"`
+	DocumentKeys []string `json:"document_keys" validate:"required,min=1,dive,dfe_access_key=55 57"`
 	// CargoUnitIDs são as unidades de carga (contêiner, pallet) dentro desta.
 	CargoUnitIDs []string `json:"cargo_unit_ids" validate:"omitempty,dive,required"`
 }
@@ -243,7 +260,7 @@ type MdfeTransportUnitBody struct {
 // MdfeDocRef references an NF-e or CT-e to be transported.
 type MdfeDocRef struct {
 	Type      string `json:"type" validate:"required,oneof=nfe cte"` // "nfe" | "cte"
-	AccessKey string `json:"access_key" validate:"required,len=44,numeric"`
+	AccessKey string `json:"access_key" validate:"required,dfe_access_key=55 57"`
 	Weight    string `json:"weight" validate:"omitempty,decimalv"` // optional gross-weight override (kg) when the XML carries none
 }
 
@@ -376,12 +393,13 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err := validateCIOTs(req.CIOTs); err != nil {
 		return nil, err
 	}
-	if len(req.Documents) == 0 {
-		return nil, problem.BadRequest("informe ao menos um documento (NF-e ou CT-e)")
-	}
-	docType, err := validateSingleDocType(req.Documents)
-	if err != nil {
-		return nil, err
+	var docType string
+	if len(req.Documents) > 0 {
+		dt, err := validateSingleDocType(req.Documents)
+		if err != nil {
+			return nil, err
+		}
+		docType = dt
 	}
 	if len(req.Documents) == 1 && req.BulkCargo == nil {
 		return nil, problem.BadRequest("MDF-e com documento único (carga lotação) exige CEP de carregamento e descarregamento")
@@ -439,6 +457,10 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if configItem == nil {
 		return nil, problem.BadRequest("configure o MDF-e em Configuração Fiscal antes de emitir")
 	}
+	laterLoading := resolveLaterLoading(req.LaterLoading, boolAttr(configItem, "ind_carrega_posterior"), len(req.Documents))
+	if !laterLoading && len(req.Documents) == 0 {
+		return nil, problem.BadRequest("informe ao menos um documento (NF-e ou CT-e)")
+	}
 
 	environment := intAttr(configItem, "environment", 2)
 	envPrefix := envToPrefix(environment)
@@ -450,7 +472,12 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.BadRequest("UF do emitente não configurada")
 	}
 
-	cargo, err := s.resolveCargo(ctx, orgPK, envPrefix, docType, req)
+	var cargo *resolvedCargo
+	if laterLoading {
+		cargo, err = laterLoadingCargo(modal, req)
+	} else {
+		cargo, err = s.resolveCargo(ctx, orgPK, envPrefix, docType, req)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -521,9 +548,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
 	}
 
-	tpEmit, err := resolveTpEmit(docType, req.EmitterType, cargo.ufIni, cargo.ufFim)
-	if err != nil {
-		return nil, err
+	tpEmit := tpEmitCargaPropria // carregamento posterior: só carga própria (F24, já conferida)
+	if !laterLoading {
+		if tpEmit, err = resolveTpEmit(docType, req.EmitterType, cargo.ufIni, cargo.ufFim); err != nil {
+			return nil, err
+		}
 	}
 	rntrcInformado := resolvedVehicle.RNTRC
 	if req.RNTRC != nil && *req.RNTRC != "" {
@@ -556,10 +585,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		ciots:       req.CIOTs,
 		tpEmit:      tpEmit,
 		addInfo:     req.AdditionalInfo,
-		// Canal Verde, carregamento posterior e mensagem ao fisco são da
-		// configuração do MDF-e: recorrem em toda emissão da organização.
+		// Canal Verde e mensagem ao fisco são da configuração do MDF-e: recorrem
+		// em toda emissão da organização. O carregamento posterior é do pedido.
 		indCanalVerde:       boolAttr(configItem, "ind_canal_verde"),
-		indCarregaPosterior: boolAttr(configItem, "ind_carrega_posterior"),
+		indCarregaPosterior: laterLoading,
+		autXML:              req.AuthorizedXML,
 		infAdFisco:          strAttr(configItem, "inf_ad_fisco"),
 		air:                 req.Air,
 		water:               req.Water,
@@ -582,6 +612,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		csrtID:              strAttr(configItem, csrtIDField),
 		csrt:                strAttr(configItem, csrtField),
 	})
+
+	// Portão local (422) antes de debitar cota e de gravar o outbox: regras do MOC promovidas e tamanhos.
+	if err := gateMDFe(mdfeBody); err != nil {
+		return nil, err
+	}
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)
 	record := s.buildRecord(pk, accessKey, orgPK, orgItem, currentNumber, serie, now, modal, docType, cargo, resolvedVehicle, owner, req, userID, userName)
@@ -647,16 +682,29 @@ func validateSingleDocType(docs []MdfeDocRef) (string, error) {
 	if first != docTypeNFe && first != docTypeCTe {
 		return "", problem.BadRequest("tipo de documento inválido: " + first)
 	}
-	for _, d := range docs {
+	for i, d := range docs {
 		if d.Type != first {
 			return "", problem.BadRequest("não é possível misturar NF-e e CT-e no mesmo MDF-e")
 		}
-		if len(d.AccessKey) != 44 {
-			return "", problem.BadRequest("chave de acesso inválida: " + d.AccessKey)
+		if reason := validation.AccessKeyReason(d.AccessKey, docTypeModel[d.Type]); reason != "" {
+			return "", problem.UnprocessableEntityFields("chave de acesso inválida: "+d.AccessKey,
+				problem.Field(fmt.Sprintf("documents[%d].access_key", i), fieldCodeInvalidAccessKey,
+					"chave de acesso inválida ("+reason+"): "+d.AccessKey, "access_key", d.AccessKey),
+			).WithCode(CodeInvalidAccessKey)
 		}
 	}
 	return first, nil
 }
+
+// docTypeModel é o modelo da chave de acesso de cada tipo de documento transportado.
+var docTypeModel = map[string]string{docTypeNFe: validation.AccessKeyModNFe, docTypeCTe: validation.AccessKeyModCTe}
+
+// CodeInvalidAccessKey (problem.code) e fieldCodeInvalidAccessKey (errors[].code): chave de documento
+// transportado com DV, composição ou modelo inválido; params.access_key nomeia a chave.
+const (
+	CodeInvalidAccessKey      = "invalid_access_key"
+	fieldCodeInvalidAccessKey = "invalid_access_key"
+)
 
 // resolveCargo loads each referenced document, downloads + parses its XML, and
 // aggregates carregamento/descarregamento, totals and the predominant product.
@@ -746,12 +794,7 @@ func (s *MdfeService) resolveCargo(ctx context.Context, orgPK, envPrefix, docTyp
 	if req.Predominant != nil {
 		res.prodPred = *req.Predominant
 	}
-	if res.prodPred.TpCarga == "" {
-		res.prodPred.TpCarga = defaultTpCarga
-	}
-	if res.prodPred.XProd == "" {
-		res.prodPred.XProd = "CARGA GERAL"
-	}
+	res.prodPred = withProdPredDefaults(res.prodPred)
 
 	// UF início/fim: override, else first carregamento / last descarregamento doc UF.
 	res.ufIni = req.UFStart
@@ -937,7 +980,7 @@ func validateCIOTs(list []MdfeCIOT) error {
 			return problem.BadRequest("CIOT " + c.CIOT + " informado mais de uma vez")
 		}
 		seen[c.CIOT] = true
-		if n := len(onlyDigits(c.ResponsibleDoc)); n != 11 && n != cnpjLen {
+		if n := len(docAlnum(c.ResponsibleDoc)); n != 11 && n != cnpjLen {
 			return problem.BadRequest("o responsável pelo CIOT " + c.CIOT + " deve ter CPF (11 dígitos) ou CNPJ (14 dígitos)")
 		}
 	}
@@ -1119,7 +1162,7 @@ func resolveOwner(o *MdfeOwner, emitterDoc string) (*resolvedOwner, error) {
 		return nil, nil
 	}
 	cpf := onlyDigits(o.CPF)
-	cnpj := onlyDigits(o.CNPJ)
+	cnpj := docAlnum(o.CNPJ)
 	if (cpf == "") == (cnpj == "") {
 		return nil, problem.BadRequest("proprietário do veículo: informe exatamente um entre CPF e CNPJ")
 	}

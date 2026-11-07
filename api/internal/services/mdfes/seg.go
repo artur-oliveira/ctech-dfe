@@ -25,13 +25,13 @@ func buildSeg(policies []resolvedPolicy) []map[string]any {
 	for _, p := range policies {
 		infResp := map[string]any{"respSeg": p.RespSeg}
 		if p.CNPJ != "" {
-			infResp["CNPJ"] = onlyDigits(p.CNPJ)
+			infResp["CNPJ"] = docAlnum(p.CNPJ)
 		} else if p.CPF != "" {
 			infResp["CPF"] = onlyDigits(p.CPF)
 		}
 		seg := map[string]any{"infResp": infResp}
 		if p.XSeg != "" {
-			seg["infSeg"] = map[string]any{"xSeg": p.XSeg, "CNPJ": onlyDigits(p.CNPJSeg)}
+			seg["infSeg"] = map[string]any{"xSeg": p.XSeg, "CNPJ": docAlnum(p.CNPJSeg)}
 		}
 		if p.NApol != "" {
 			seg["nApol"] = p.NApol

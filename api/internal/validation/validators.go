@@ -160,8 +160,11 @@ func ValidCPF(s string) bool {
 }
 
 // ValidCNPJ reports whether s is a structurally valid CNPJ. Supports the
-// alphanumeric format: A–Z map to 10–35, digits to their face value; the two
-// check digits (positions 13–14) must be numeric.
+// alphanumeric format (IN RFB 2229/2024): each character is worth its ASCII
+// code minus 48 (digits keep their face value, A=17 ... Z=42), the RFB rule
+// that the official example 12.ABC.345/01DE-35 checks; the two check digits
+// (positions 13–14) must be numeric. The former A=10 ... Z=35 mapping refused
+// every real alphanumeric CNPJ.
 func ValidCNPJ(s string) bool {
 	clean := nonAlnum.ReplaceAllString(strings.ToUpper(s), "")
 	if len(clean) != 14 {
@@ -173,12 +176,7 @@ func ValidCNPJ(s string) bool {
 	if clean[12] < '0' || clean[12] > '9' || clean[13] < '0' || clean[13] > '9' {
 		return false
 	}
-	val := func(c byte) int {
-		if c >= '0' && c <= '9' {
-			return int(c - '0')
-		}
-		return int(c - 'A' + 10)
-	}
+	val := func(c byte) int { return int(c) - '0' }
 	w1 := []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2}
 	s1 := 0
 	for i := range 12 {

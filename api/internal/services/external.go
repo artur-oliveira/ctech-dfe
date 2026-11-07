@@ -175,7 +175,7 @@ func (s *ExternalService) LookupOrganization(ctx context.Context, orgPK, cpfCNPJ
 		return nil, dfeproblem.SefazRejection(display)
 	}
 
-	infCadList := asSliceOfMaps(infCons, "infCad")
+	infCadList := AsSliceOfMaps(infCons, "infCad")
 	if len(infCadList) == 0 {
 		return nil, problem.NotFound(fmt.Sprintf("%s %s não localizado na UF %s", docKey, cpfCNPJ, uf))
 	}
@@ -285,6 +285,17 @@ func (s *ExternalService) CallDfe(ctx context.Context, req godfe.Request) (godfe
 	return callDfe(ctx, s.clients.Lambda, s.sefazFunctionName, req)
 }
 
+// ProblemFromDfeBody traduz o Problem RFC 7807 que o go-dfe devolve no corpo
+// para o Problem da api, preservando status e detalhe — a rejeição do fisco
+// chega ao usuário, não vira 500 genérico.
+func ProblemFromDfeBody(status int, body string) *problem.Problem {
+	var p godfe.Problem
+	if err := json.Unmarshal([]byte(body), &p); err != nil || p.Detail == "" {
+		return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", body)
+	}
+	return problem.New(status, dfeproblem.TypeSefazRejection, "Sefaz Rejection", p.Detail)
+}
+
 func (s *ExternalService) invokeAndParse(ctx context.Context, payload map[string]any) (map[string]any, error) {
 	return invokeSefazLambda(ctx, s.clients.Lambda, s.sefazFunctionName, payload)
 }
@@ -391,9 +402,9 @@ func getMap(m map[string]any, key string) map[string]any {
 	return v
 }
 
-// asSliceOfMaps returns the value at key as []map[string]any.
+// AsSliceOfMaps returns the value at key as []map[string]any (XML decoded to JSON: one occurrence is an object, more are an array).
 // Handles both a single map and a JSON array.
-func asSliceOfMaps(m map[string]any, key string) []map[string]any {
+func AsSliceOfMaps(m map[string]any, key string) []map[string]any {
 	if m == nil {
 		return nil
 	}

@@ -1207,6 +1207,25 @@ As regras do MOC do CT-e (`go-dfe/validate/rules_cte.go`) recebem o conteúdo de
 A URL do QR Code (`infCTeSupl/qrCodCTe`) sai de uma tabela por autorizador em `ctes/builder.go` (MG, MS, MT, PR e
 SP próprios; o resto SVRS), a mesma para produção e homologação: conferir na homologação de cada autorizador.
 
+## MDF-e: portão do MOC, chaves e CNPJ alfanumérico
+
+- **Portão:** `mdfes/prevalidate.go` lista as regras do catálogo do MDF-e que recusam a emissão (422
+  `fiscal_prevalidation`), ligadas em 2026-11-06. Só regras "Obrig." determinísticas, provadas só com o documento:
+  DV de chave, CPF/CNPJ, contagens, duplicidades, totais do pagamento (tolerância R$ 0,01), tipo de emitente e
+  carregamento posterior. Ficam no shadow as que comparam com o relógio da SEFAZ (F30a, F37a, F45a, F36b, F79, F80),
+  as que precisam de tabela que o leiaute não traz (F08, F11, F89, F90), as de cadastro externo (F113 por categoria do
+  RNTRC) e F72 (IE). Regra nova em block entra com teste que a dispara (`later_loading_test.go`).
+- **CNPJ alfanumérico (IN RFB 2229/2024):** o valor de cada caractere no DV do CNPJ é o código ASCII menos 48 (A=17),
+  o mesmo da chave de acesso; o exemplo oficial `12.ABC.345/01DE-35` confere. `validation.ValidCNPJ` usava A=10 e
+  recusava todo CNPJ alfanumérico real (corrigido; `ui/src/lib/utils/validators.ts` ainda usa A=10 e precisa da mesma
+  correção). Em CPF/CNPJ de MDF-e, normalizar com `docAlnum`, nunca `onlyDigits` (que apaga a letra).
+- **Chave de acesso:** `validation.AccessKeyReason(chave, modelos...)` é a validação única na API (tag
+  `dfe_access_key=55 57`; sem parâmetro, só NF-e). Confere UF, mês, CNPJ ou CPF com DV, modelo, `tpEmis` do modelo e DV;
+  CNPJ começando com `000` é tentado como CNPJ antes do CPF prefixado. As regras F30, F37 e F45 de `go-dfe/validate`
+  conferem também o ano (o DTO não).
+- **Carregamento posterior** é do pedido (`later_loading`); a configuração `ind_carrega_posterior` só vale para pedido
+  sem documentos, porque com documentos a SEFAZ rejeita sempre (F27, 706).
+
 ## Lambdas Go: o asset do CDK fingerprinta go-dfe
 
 `cdk/lib/go-code.ts` calcula o hash do asset com o módulo, `go-dfe/` e `go.work(.sum)` (`goSourceHash`). Antes o CDK

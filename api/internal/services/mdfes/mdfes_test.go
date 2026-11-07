@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -78,7 +79,7 @@ func TestExtractCargoNFe(t *testing.T) {
 }
 
 func TestValidateSingleDocType(t *testing.T) {
-	key := "35260612345678000190550010000000011000000017"
+	key := "35250512345678000195550010000000011000000015" // NF-e com DV e CNPJ válidos
 	if _, err := validateSingleDocType([]MdfeDocRef{{Type: docTypeNFe, AccessKey: key}, {Type: docTypeCTe, AccessKey: key}}); err == nil {
 		t.Error("expected error mixing NF-e and CT-e")
 	}
@@ -89,6 +90,40 @@ func TestValidateSingleDocType(t *testing.T) {
 	if err != nil || dt != docTypeNFe {
 		t.Errorf("got (%q,%v), want (nfe,nil)", dt, err)
 	}
+}
+
+// Chave com DV errado e chave de CT-e declarada como NF-e: 422 que nomeia a chave.
+func TestValidateSingleDocTypeKeyIsNamed(t *testing.T) {
+	good := "35250512345678000195550010000000011000000015"
+	badDV := good[:43] + "6"
+	cteKey := good[:20] + "57" + good[22:43]
+	cteKey += string(rune('0' + mdfeTestKeyDV(cteKey)))
+	for _, c := range []MdfeDocRef{{Type: docTypeNFe, AccessKey: badDV}, {Type: docTypeNFe, AccessKey: cteKey}} {
+		_, err := validateSingleDocType([]MdfeDocRef{c})
+		p, ok := err.(*problem.Problem)
+		if !ok || p.Status != 422 || p.Code != CodeInvalidAccessKey || len(p.Errors) != 1 ||
+			p.Errors[0].Params["access_key"] != c.AccessKey {
+			t.Fatalf("%s: want 422 %s naming the key, got %#v", c.AccessKey, CodeInvalidAccessKey, err)
+		}
+	}
+	if _, err := validateSingleDocType([]MdfeDocRef{{Type: docTypeCTe, AccessKey: cteKey}}); err != nil {
+		t.Fatalf("CT-e key as cte: %v", err)
+	}
+}
+
+// mdfeTestKeyDV é o DV módulo 11 (pesos 2 a 9) dos 43 primeiros caracteres.
+func mdfeTestKeyDV(k43 string) int {
+	sum, w := 0, 2
+	for i := len(k43) - 1; i >= 0; i-- {
+		sum += int(k43[i]-'0') * w
+		if w++; w > 9 {
+			w = 2
+		}
+	}
+	if r := sum % 11; r >= 2 {
+		return 11 - r
+	}
+	return 0
 }
 
 // buildTestCargo returns a resolved cargo with two NF-e docs from different

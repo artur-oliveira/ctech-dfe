@@ -168,14 +168,14 @@ var mdfeRules = []Rule{
 	}),
 	mdfeRule("F04", 666, ModeWarn, func(inf map[string]any) []string {
 		k := mdfeKeyOf(inf)
-		if len(k) != 44 || !mdfeDigits(k) {
+		if !mdfeKeyOK(k) {
 			return nil
 		}
 		return mdfeOne(2000+int(k[2]-'0')*10+int(k[3]-'0') < mdfeMinYear, "ano da chave de acesso inferior a 2012")
 	}),
 	mdfeRule("F05", 253, ModeBlock, func(inf map[string]any) []string {
 		k := mdfeKeyOf(inf)
-		if len(k) != 44 || !mdfeDigits(k) {
+		if !mdfeKeyOK(k) {
 			return nil
 		}
 		return mdfeOne(!mdfeKeyDVOK(k), "digito verificador da chave de acesso invalido")
