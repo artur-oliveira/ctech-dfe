@@ -5,7 +5,7 @@
  * viagem só entram número da compra e valor.
  */
 import {z} from 'zod';
-import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
+import {validateCNPJ, validateCPF, cleanDocument} from '@/lib/utils/validators';
 
 /** tpValePed — como o vale foi adquirido. */
 export const TP_VALE_PED_OPTIONS = [
@@ -16,7 +16,7 @@ export const TP_VALE_PED_OPTIONS = [
 
 export const tollProviderSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
-  cnpj_forn: z.string().refine((v) => validateCNPJ(v.replace(/\D/g, '')), 'CNPJ inválido'),
+  cnpj_forn: z.string().refine((v) => validateCNPJ(cleanDocument(v)), 'CNPJ inválido'),
   cnpj_pg: z.string().optional().or(z.literal('')),
   cpf_pg: z.string().optional().or(z.literal('')),
   tp_vale_ped: z.enum(['01', '02', '03']).optional().or(z.literal('')),
@@ -25,7 +25,7 @@ export const tollProviderSchema = z.object({
   if (v.cnpj_pg && v.cpf_pg) {
     ctx.addIssue({code: 'custom', path: ['cpf_pg'], message: 'Informe CNPJ ou CPF do pagador, nunca os dois'});
   }
-  if (v.cnpj_pg && !validateCNPJ(v.cnpj_pg.replace(/\D/g, ''))) {
+  if (v.cnpj_pg && !validateCNPJ(cleanDocument(v.cnpj_pg))) {
     ctx.addIssue({code: 'custom', path: ['cnpj_pg'], message: 'CNPJ inválido'});
   }
   if (v.cpf_pg && !validateCPF(v.cpf_pg.replace(/\D/g, ''))) {

@@ -1,5 +1,6 @@
 'use client';
 
+import {cleanDocument} from '@/lib/utils/validators';
 import {useState} from 'react';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
@@ -54,7 +55,7 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
 
   const handleAdd = () => {
     setFormError(null);
-    const raw = cpfCnpj.replace(/\D/g, '');
+    const raw = cleanDocument(cpfCnpj);
     const parsed = authorizedViewerSchema.safeParse({cpf_or_cnpj: raw, name});
     if (!parsed.success) {
       setFormError(parsed.error.issues[0]?.message ?? 'Dados inválidos');
@@ -109,7 +110,7 @@ export function AuthorizedViewersSection({orgPk, viewers}: AuthorizedViewersSect
 
       <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input placeholder="CPF ou CNPJ" value={maskCpfCnpj(cpfCnpj)} maxLength={18} disabled={atLimit}
-               onChange={(e) => setCpfCnpj(e.target.value.replace(/\D/g, '').slice(0, 14))}/>
+               onChange={(e) => setCpfCnpj(cleanDocument(e.target.value).slice(0, 14))}/>
         <Input placeholder="Nome" value={name} maxLength={60} disabled={atLimit}
                onChange={(e) => setName(e.target.value)}/>
       </div>

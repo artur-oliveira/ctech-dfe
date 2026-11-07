@@ -4,9 +4,9 @@
  * invariantes por maquininha, então a emissão só aponta o terminal.
  */
 import {z} from 'zod';
-import {validateCNPJ} from '@/lib/utils/validators';
+import {validateCNPJ, cleanDocument} from '@/lib/utils/validators';
 
-const cnpj = z.string().refine((v) => validateCNPJ(v.replace(/\D/g, '')), 'CNPJ inválido');
+const cnpj = z.string().refine((v) => validateCNPJ(cleanDocument(v)), 'CNPJ inválido');
 
 export const paymentTerminalSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres').max(120),
@@ -20,7 +20,7 @@ export const paymentTerminalSchema = z.object({
   if (v.uf_pag && !v.cnpj_pag) {
     ctx.addIssue({code: 'custom', path: ['cnpj_pag'], message: 'UF do pagador exige o CNPJ do pagador'});
   }
-  if (v.cnpj_pag && !validateCNPJ(v.cnpj_pag.replace(/\D/g, ''))) {
+  if (v.cnpj_pag && !validateCNPJ(cleanDocument(v.cnpj_pag))) {
     ctx.addIssue({code: 'custom', path: ['cnpj_pag'], message: 'CNPJ inválido'});
   }
 });

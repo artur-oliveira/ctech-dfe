@@ -20,6 +20,9 @@ export const validateCPF = (cpf: string): boolean => {
  * the same value the access key's cDV uses; the official example 12.ABC.345/01DE-35 validates.
  * Mirrors api/internal/validation ValidCNPJ. Check digits (positions 13–14) must be numeric.
  */
+/** Normaliza CPF ou CNPJ mantendo as letras do CNPJ alfanumérico (NT 2025.001); `\D` apagaria as letras. */
+export const cleanDocument = (doc: string): string => doc.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
 export const validateCNPJ = (cnpj: string): boolean => {
   const clean = cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase();
   if (clean.length !== 14) return false;

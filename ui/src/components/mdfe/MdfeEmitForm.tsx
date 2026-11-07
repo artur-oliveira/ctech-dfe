@@ -332,7 +332,7 @@ function CargoStep({preview, isLoading, error, weightOverrides, onWeightChange, 
                 </Label>
                 <NumericInput value={weightOverrides[d.access_key] || ''}
                               onChange={(v) => onWeightChange(d.access_key, v)}
-                              decimalPlaces={3} placeholder="0,000" className="w-full sm:w-48"/>
+                              decimal decimalPlaces={3} placeholder="0,000" className="w-full sm:w-48"/>
               </div>
             )}
           </div>

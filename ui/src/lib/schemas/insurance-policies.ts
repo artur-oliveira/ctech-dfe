@@ -4,7 +4,7 @@
  * viagens; por viagem muda só a averbação, que vai no corpo da emissão.
  */
 import {z} from 'zod';
-import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
+import {validateCNPJ, validateCPF, cleanDocument} from '@/lib/utils/validators';
 
 /** respSeg — quem responde pelo seguro da carga. */
 export const RESP_SEG_OPTIONS = [
@@ -32,7 +32,7 @@ export const insurancePolicySchema = z.object({
   if (v.resp_seg === RESP_SEG_CONTRATANTE && !v.cnpj && !v.cpf) {
     ctx.addIssue({code: 'custom', path: ['cnpj'], message: 'Informe o CNPJ ou o CPF do contratante'});
   }
-  if (v.cnpj && !validateCNPJ(v.cnpj.replace(/\D/g, ''))) {
+  if (v.cnpj && !validateCNPJ(cleanDocument(v.cnpj))) {
     ctx.addIssue({code: 'custom', path: ['cnpj'], message: 'CNPJ inválido'});
   }
   if (v.cpf && !validateCPF(v.cpf.replace(/\D/g, ''))) {
@@ -42,7 +42,7 @@ export const insurancePolicySchema = z.object({
   if (!!v.x_seg !== !!v.cnpj_seg) {
     ctx.addIssue({code: 'custom', path: ['cnpj_seg'], message: 'Informe nome e CNPJ da seguradora juntos'});
   }
-  if (v.cnpj_seg && !validateCNPJ(v.cnpj_seg.replace(/\D/g, ''))) {
+  if (v.cnpj_seg && !validateCNPJ(cleanDocument(v.cnpj_seg))) {
     ctx.addIssue({code: 'custom', path: ['cnpj_seg'], message: 'CNPJ inválido'});
   }
 });

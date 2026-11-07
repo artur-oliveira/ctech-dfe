@@ -1,5 +1,6 @@
 'use client';
 
+import {cleanDocument} from '@/lib/utils/validators';
 import {useQuery} from '@tanstack/react-query';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
@@ -79,7 +80,7 @@ export function PaymentCardFields({card, onChange, isPix, terminalId, onTerminal
       <div className="flex flex-col gap-1">
         <Label className="text-xs font-medium text-gray-600">CNPJ Instituição</Label>
         <Input value={maskCnpj(card?.cnpj ?? '')}
-               onChange={(e) => set({cnpj: e.target.value.replace(/\D/g, '').slice(0, 14)})}
+               onChange={(e) => set({cnpj: cleanDocument(e.target.value).slice(0, 14)})}
                placeholder="00.000.000/0000-00" maxLength={18}/>
       </div>
     </div>
