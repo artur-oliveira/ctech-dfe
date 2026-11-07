@@ -271,6 +271,157 @@ export default function GuideCteMdfe() {
           ),
         },
         {
+          id: 'cte-ibscbs',
+          title: 'IBS e CBS no CT-e',
+          summary:
+            'Bloco recolhido na emissão, só para empresas do regime normal (CRT 3). Nada é preenchido por você sem querer: CST, classificação, base e alíquotas são escolha sua.',
+          image: {
+            src: '/guide/cte-emit-ibscbs.webp',
+            alt: 'Emissão de CT-e com o bloco IBS e CBS aberto, mostrando CST, classificação, base, alíquotas e a prévia dos valores',
+          },
+          body: (
+            <>
+              <p>
+                Abra <b>IBS e CBS (opcional)</b>, marque <b>Informar IBS e CBS neste CT-e</b> e escolha o{' '}
+                <b>CST</b> e a <b>classificação</b> nas listas. Informe a base de cálculo e as alíquotas de
+                IBS UF, IBS município e CBS (em %). A <b>doação</b> é um interruptor à parte.
+              </p>
+              <p>
+                A prévia mostra os valores como o servidor os calcula: base vezes alíquota, duas casas,
+                arredondamento bancário (meio centavo vai para o par). O <b>valor total do documento</b>{' '}
+                soma IBS e CBS ao frete só a partir de 2027; até 2026 é o próprio frete.
+              </p>
+              <GuideCallout kind="tip" title="Simples Nacional e MEI">
+                Empresas do Simples Nacional e MEI não veem este bloco: o CT-e com IBS/CBS ainda não é
+                suportado nesses regimes e a emissão seria recusada.
+              </GuideCallout>
+              <p>
+                Logo abaixo fica <b>Autorizados a baixar o XML</b>: contador, embarcador ou quem mais
+                precisa do arquivo. Escolha as pessoas do cadastro (até 10, sem repetir). Quem já é
+                parte do CT-e não entra na lista.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'cte-detail',
+          title: 'Detalhe do CT-e',
+          summary:
+            'Clique no número do CT-e na lista para ver status, chave, partes, frete, CFOP, ICMS, trajeto, notas e eventos.',
+          image: {
+            src: '/guide/cte-detail.webp',
+            alt: 'Detalhe de um CT-e autorizado, com ações, situação na SEFAZ, frete, partes e notas',
+          },
+          body: (
+            <p>
+              O topo traz o status e a chave de acesso (toque para copiar). O DACTE ainda não está
+              disponível, por isso não há botão de PDF. O XML é baixado por evento, na linha de cada
+              um.
+            </p>
+          ),
+        },
+        {
+          id: 'cte-actions',
+          title: 'Cancelar, corrigir e contestar',
+          summary:
+            'Os botões aparecem só quando valem: CT-e autorizado e a sua empresa no papel certo (emitente ou tomador).',
+          image: {
+            src: '/guide/cte-cancel.webp',
+            alt: 'Janela de cancelamento do CT-e com o campo de justificativa e o contador de caracteres',
+          },
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Cancelar (emitente)">
+                  Justificativa de 15 a 255 caracteres, com contador. É irreversível; a SEFAZ confere
+                  prazo, MDF-e e CT-e de substituição ligados.
+                </GuideTerm>
+                <GuideTerm term="Carta de correção (emitente)">
+                  Corrige dados sem cancelar. Cada correção escolhe o grupo e o campo nas listas e
+                  informa o novo valor (até 500 caracteres); grupos que se repetem pedem o número do
+                  item. A sequência é opcional: vazia, vale a próxima livre. A SEFAZ recusa o que não
+                  pode ser corrigido.
+                </GuideTerm>
+                <GuideTerm term="Prestação em desacordo (tomador)">
+                  Informa que o serviço não foi prestado como consta. Observações de 15 a 255
+                  caracteres, opcionais; em até 45 dias da autorização.
+                </GuideTerm>
+                <GuideTerm term="Cancelar desacordo (tomador)">
+                  Escolha na lista o desacordo que a SEFAZ já autorizou e que você quer desfazer.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="tip" title="Quando você não é o tomador">
+                Se quem paga o frete é o cliente, a tela mostra <b>Apenas o tomador</b> no lugar da
+                prestação em desacordo. Se a sua empresa não é a emitente, cancelar e corrigir também
+                somem. Quando a SEFAZ ou a api recusam, o motivo aparece em português dentro da janela.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'cte-correction',
+          title: 'Carta de correção',
+          summary: 'Grupo e campo vêm de listas; o novo valor é o único texto livre.',
+          image: {
+            src: '/guide/cte-correction.webp',
+            alt: 'Janela da carta de correção do CT-e, com grupo, campo e novo valor',
+          },
+          body: (
+            <p>
+              Use <b>Adicionar correção</b> para corrigir mais de um campo na mesma carta (até 20). O
+              grupo escolhido define os campos disponíveis.
+            </p>
+          ),
+        },
+        {
+          id: 'cte-not-taker',
+          title: 'CT-e de outro tomador',
+          summary: 'Prestação em desacordo é do tomador; a tela diz isso em vez de esconder o motivo.',
+          image: {
+            src: '/guide/cte-detail-not-taker.webp',
+            alt: 'Detalhe de CT-e em que a empresa não é a tomadora, com o aviso Apenas o tomador',
+          },
+          body: (
+            <p>
+              Nesse CT-e a sua empresa continua podendo cancelar e corrigir, por ser a emitente. O
+              cliente que paga o frete é quem registra o desacordo.
+            </p>
+          ),
+        },
+        {
+          id: 'cte-events',
+          title: 'Eventos do CT-e',
+          summary:
+            'Emissão, cancelamento, cartas de correção e desacordos, em ordem, com status, sequência e o XML assinado de cada um.',
+          image: {
+            src: '/guide/cte-events.webp',
+            alt: 'Tabela de eventos de um CT-e com emissão, carta de correção e prestação em desacordo',
+          },
+          body: (
+            <p>
+              A lista é paginada. Um evento novo entra como pendente e muda sozinho quando a SEFAZ
+              responde; <b>XML</b> baixa o arquivo assinado do evento.
+            </p>
+          ),
+        },
+        {
+          id: 'cte-sefaz',
+          title: 'Consultar na SEFAZ',
+          summary:
+            'Pergunta direto ao autorizador a situação do CT-e, com protocolo e eventos registrados lá. Só lê: não altera o registro daqui.',
+          image: {
+            src: '/guide/cte-sefaz-divergence.webp',
+            alt: 'Consulta na SEFAZ mostrando CT-e cancelado na SEFAZ e autorizado no registro local, com o aviso de divergência',
+          },
+          body: (
+            <p>
+              A resposta é <b>Autorizado</b>, <b>Cancelado</b> ou <b>Não encontrado</b>. Quando ela
+              discorda do status daqui, aparece um aviso amarelo; nada é corrigido automaticamente, então
+              confira os eventos antes de agir.
+            </p>
+          ),
+        },
+        {
           id: 'cte-list',
           title: 'CT-e emitidos',
           summary:

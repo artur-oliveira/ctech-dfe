@@ -9,12 +9,15 @@ import {
   CTE_CST_WITH_REDUCTION,
   CTE_CST_WITHOUT_RATE,
   CTE_TAKER_NEEDS_PERSON,
+  CTE_EVENT_ERRORS,
+  CTE_TOTAL_WITH_TAXES_FROM_YEAR,
 } from '@/lib/constants/cte';
 import {getCfopDescription, getCfopOptionsForCte, getCfopVariants, type CfopCode} from '@/lib/data/cfop';
 import type {
   CteDeriveOut,
   CteEmitBody,
   CteEmitOverrides,
+  CteIbsCbs,
   CteIcmsCst,
   CtePlace,
   CteTakerRole,
@@ -64,7 +67,59 @@ export interface CteFormState {
   /** CFOP da prestação; nunca presumido. */
   cfop: string
   overrides: CteOverrides
+  /** IBS/CBS (só CRT 3); `null` = grupo fora do CT-e. */
+  ibsCbs?: CteIbsCbsState | null
+  /** autXML: CPF/CNPJ do cadastro de pessoas. */
+  authorizedXml?: { doc: string; name: string }[]
 }
+
+export interface CteIbsCbsState {
+  cst: string
+  class_trib: string
+  donation: boolean
+  base_value: string
+  ibs_uf_rate: string
+  ibs_mun_rate: string
+  cbs_rate: string
+}
+
+export const emptyIbsCbs = (): CteIbsCbsState => ({
+  cst: '', class_trib: '', donation: false, base_value: '', ibs_uf_rate: '', ibs_mun_rate: '', cbs_rate: '',
+});
+
+/** Alíquota em percentual com até 4 casas → décimos de milésimo (0.1000 → 1000). */
+const toRate4 = (v: string): number => {
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : Math.round(n * 10000);
+};
+
+/**
+ * Prévia dos valores que o servidor calcula (`ctes/ibscbs.go`): cada valor = vBC x alíquota / 100, 2 casas,
+ * arredondamento bancário; IBS = UF + município; vTotDFe = vTPrest, mais IBS e CBS só a partir de 2027
+ * (regra IBSCBS-365). `null` enquanto falta a base.
+ */
+export function computeCteIbsCbs(
+  state: CteIbsCbsState, freightTotal: string, emissionYear: number,
+): { ibsUf: string; ibsMun: string; ibs: string; cbs: string; total: string } | null {
+  const base = toCents(state.base_value);
+  if (base <= 0) return null;
+  const val = (rate: string) => divHalfEven(base * toRate4(rate), 1_000_000);
+  const uf = val(state.ibs_uf_rate), mun = val(state.ibs_mun_rate), cbs = val(state.cbs_rate);
+  const ibs = uf + mun;
+  const total = toCents(freightTotal) + (emissionYear >= CTE_TOTAL_WITH_TAXES_FROM_YEAR ? ibs + cbs : 0);
+  return {ibsUf: fromCents(uf), ibsMun: fromCents(mun), ibs: fromCents(ibs), cbs: fromCents(cbs), total: fromCents(total)};
+}
+
+/** O IBS/CBS está pronto para sair no corpo? Nenhum campo é presumido. */
+export const ibsCbsComplete = (s: CteIbsCbsState): boolean =>
+  !!s.cst && !!s.class_trib && toCents(s.base_value) > 0
+  && [s.ibs_uf_rate, s.ibs_mun_rate, s.cbs_rate].every((r) => r !== '' && !isNaN(parseFloat(r)));
+
+/** Mesmo CPF/CNPJ, ignorando máscara e caixa. */
+export const sameDoc = (a: string | null | undefined, b: string | null | undefined): boolean => {
+  const norm = (x: string) => x.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return !!a && !!b && norm(a) === norm(b);
+};
 
 export const emptyCteForm = (cst: CteIcmsCst | ''): CteFormState => ({
   nfeKeys: [],
@@ -198,6 +253,7 @@ export function cteMissing(
   if (!t.senderName) missing.push('Escolha o remetente');
   if (!t.recipientName) missing.push('Escolha o destinatário');
   if (!t.weightKg) missing.push('Informe o peso da carga');
+  if (state.ibsCbs && !ibsCbsComplete(state.ibsCbs)) missing.push('Complete o IBS/CBS ou desligue o bloco');
   return missing;
 }
 
@@ -241,6 +297,16 @@ export function buildCteEmitBody(state: CteFormState, derive: CteDeriveOut | und
         : {}),
     },
     ...(Object.keys(overrides).length ? {overrides} : {}),
+    ...(state.ibsCbs ? {ibs_cbs: buildIbsCbs(state.ibsCbs)} : {}),
+    ...(state.authorizedXml?.length ? {authorized_xml: state.authorizedXml.map((a) => ({doc: a.doc}))} : {}),
+  };
+}
+
+function buildIbsCbs(s: CteIbsCbsState): CteIbsCbs {
+  return {
+    cst: s.cst, class_trib: s.class_trib, donation: s.donation || undefined,
+    base_value: fromCents(toCents(s.base_value)),
+    ibs_uf_rate: s.ibs_uf_rate, ibs_mun_rate: s.ibs_mun_rate, cbs_rate: s.cbs_rate,
   };
 }
 
@@ -252,6 +318,13 @@ export function cteEmitFailure(err: unknown): EmitFailure {
       action: {label: 'Cadastrar RNTRC', href: CTE_RNTRC_CONFIG_HREF},
     };
   }
-  return emitFailure(err, 'Erro ao emitir CT-e.');
+  return emitFailure(err, 'Erro ao emitir CT-e.', undefined, 'cte');
+}
+
+/** Falha de cancelamento ou evento: o `code` da api vira frase em pt-BR; o resto segue a mensagem da api. */
+export function cteEventFailureMessage(err: unknown, fallback: string): string {
+  const code = err instanceof ApiError ? (err.raw as {code?: unknown} | undefined)?.code : undefined;
+  if (typeof code === 'string' && CTE_EVENT_ERRORS[code]) return CTE_EVENT_ERRORS[code];
+  return err instanceof Error ? err.message : fallback;
 }
 

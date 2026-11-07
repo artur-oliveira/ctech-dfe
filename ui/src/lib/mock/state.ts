@@ -22,6 +22,8 @@ export interface MockState {
   billing: BillingScenario
   /** Emissão de NF-e e de MDF-e recusada localmente (422 `fiscal_prevalidation`), para revisar a tela de erro. */
   emitPrevalidation: boolean
+  /** A organização do mock passa a CRT 3 (regime normal), que libera o IBS/CBS do CT-e. */
+  regimeNormal: boolean
 }
 
 const SAFE_PATHS = [
@@ -37,6 +39,7 @@ const DEFAULT: MockState = {
   endpoints: null,
   billing: 'pro_active',
   emitPrevalidation: false,
+  regimeNormal: false,
 };
 
 let state: MockState = {...DEFAULT};
@@ -59,6 +62,8 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, mode: 'error', status};
   } else if (raw === 'prevalidation') {
     state = {...state, emitPrevalidation: true};
+  } else if (raw === 'regime-normal') {
+    state = {...state, regimeNormal: true};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

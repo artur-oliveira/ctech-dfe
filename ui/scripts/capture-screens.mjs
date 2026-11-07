@@ -20,7 +20,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 // As chaves saem das próprias fixtures: se uma mudar, a captura acompanha em vez
 // de apontar para um documento que não existe mais.
-import {mdfesFixture, nfcesFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
+import {ctesFixture, mdfesFixture, nfcesFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
 
 const ORIGIN = process.env.CAPTURE_ORIGIN || 'http://127.0.0.1:3000';
 const OUTPUT_DIR = resolve('public/guide');
@@ -32,6 +32,10 @@ const MOBILE = {width: 390, height: 844, deviceScaleFactor: 2, mobile: true};
 const NFE_KEY = nfesFixture[0].sk;
 const NFCE_KEY = nfcesFixture[0].sk;
 const MDFE_KEY = mdfesFixture[0].sk;
+// CT-e: [0] autorizado e tomado pela organização, com eventos; [4] autorizado aqui e cancelado na SEFAZ; [5] de outro tomador.
+const CTE_KEY = ctesFixture[0].sk;
+const CTE_DIVERGENT_KEY = ctesFixture[4].sk;
+const CTE_OTHER_TAKER_KEY = ctesFixture[5].sk;
 const NFSE_ID = nfsesFixture[0].sk;
 
 /**
@@ -165,6 +169,43 @@ const CAPTURES = [
       {click: 'Adicionar nota autorizada'}, {click: 'Nº 4821 ·'},
       {waitText: 'Notas com remetentes diferentes.'},
       {scrollAt: '#cte-freight'},
+    ],
+  },
+  {
+    slug: 'cte-detail',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Consultar na SEFAZ'}, {waitText: 'cStat 100'}],
+  },
+  {
+    slug: 'cte-events',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Prestação de serviço em desacordo'}, {scrollAt: '[aria-label="Eventos do CT-e"]'}],
+  },
+  {
+    slug: 'cte-cancel',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Cancelar'}, {waitAt: '[role="dialog"]'}],
+  },
+  {
+    slug: 'cte-correction',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Carta de correção'}, {waitAt: '[role="dialog"]'}],
+  },
+  {slug: 'cte-detail-not-taker', route: `/cte/detail?key=${CTE_OTHER_TAKER_KEY}`, waitText: 'apenas o tomador'},
+  {
+    slug: 'cte-sefaz-divergence',
+    route: `/cte/detail?key=${CTE_DIVERGENT_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Consultar na SEFAZ'}, {waitText: 'A SEFAZ diz'}],
+  },
+  {
+    slug: 'cte-emit-ibscbs',
+    route: '/cte/emit?mock=regime-normal',
+    steps: [
+      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
+      {waitText: 'IBS e CBS (opcional)'},
+      {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) summary'},
+      {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) input[type="checkbox"]'},
+      {scrollAt: 'details:has([data-testid="cte-ibscbs-summary"])'},
     ],
   },
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},

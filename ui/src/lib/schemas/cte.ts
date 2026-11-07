@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {
   CTE_ADDITIONAL_INFO_MAX_LENGTH,
+  CTE_AUTHORIZED_XML_MAX,
   CTE_CST_WITHOUT_RATE,
   CTE_MAX_NOTES,
   CTE_PRODUCT_MAX_LENGTH,
@@ -15,6 +16,7 @@ const ACCESS_KEY = /^\d{44}$/;
 const MONEY = /^\d+(\.\d{1,2})?$/;
 const WEIGHT = /^\d+(\.\d{1,3})?$/;
 const PERCENT = /^\d{1,3}(\.\d{1,2})?$/;
+const RATE = /^\d{1,3}(\.\d{1,4})?$/;
 const IBGE = /^\d{7}$/;
 
 const positiveMoney = z.string().regex(MONEY, 'Valor inválido').refine((v) => parseFloat(v) > 0, 'Informe um valor maior que zero');
@@ -57,5 +59,16 @@ export const cteEmitBodySchema = z.object({
     origin: z.object({city_ibge: z.string().regex(IBGE)}).optional(),
     destination: z.object({city_ibge: z.string().regex(IBGE)}).optional(),
   }).optional(),
+  ibs_cbs: z.object({
+    cst: z.string().regex(/^\d{3}$/),
+    class_trib: z.string().regex(/^\d{6}$/),
+    donation: z.boolean().optional(),
+    base_value: positiveMoney,
+    ibs_uf_rate: z.string().regex(RATE),
+    ibs_mun_rate: z.string().regex(RATE),
+    cbs_rate: z.string().regex(RATE),
+  }).optional(),
+  authorized_xml: z.array(z.object({doc: z.string().min(11)})).max(CTE_AUTHORIZED_XML_MAX, `No máximo ${CTE_AUTHORIZED_XML_MAX} autorizados`)
+    .refine((a) => new Set(a.map((x) => x.doc)).size === a.length, 'Autorizado repetido').optional(),
   additional_info: z.string().max(CTE_ADDITIONAL_INFO_MAX_LENGTH).optional(),
 });

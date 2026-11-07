@@ -2112,10 +2112,24 @@ export interface CteEmitBody {
   taker: { role: CteTakerRole; person_id?: string }
   freight: { total: string; components?: CteFreightComponent[] }
   icms?: { cst: CteIcmsCst; p_icms?: string; p_red_bc?: string }
+  /** IBS/CBS regular (`imp/IBSCBS`); só CRT 3 (422 `ibscbs_regime_unsupported`). Taxas em percentual. */
+  ibs_cbs?: CteIbsCbs
+  /** autXML: até 10 CPF/CNPJ (422 `autxml_invalid`). */
+  authorized_xml?: { doc: string }[]
   /** CFOP da prestação; o servidor nunca presume (422 `cfop_required`). Fora da spec, veio do OpenAPI. */
   cfop: string
   overrides?: CteEmitOverrides
   additional_info?: string
+}
+
+export interface CteIbsCbs {
+  cst: string
+  class_trib: string
+  donation?: boolean
+  base_value: string
+  ibs_uf_rate: string
+  ibs_mun_rate: string
+  cbs_rate: string
 }
 
 /** Linha de `GET /v1.0/ctes` e corpo do 202 da emissão (`CteDocument` do OpenAPI). */
@@ -2127,6 +2141,8 @@ export interface CteListOut {
   sefaz_motive: string | null
   number: number
   serie: number
+  emit_cpf_cnpj?: string
+  emit_name?: string
   freight_total: string
   cfop: string
   icms_cst: string
@@ -2143,6 +2159,21 @@ export interface CteDetailOut extends CteListOut {
   destination: CtePlace | null
   cargo: CteCargo | null
   xml_s3_key: string | null
+}
+
+/** Um item de `corrections[]` da carta de correção (110110). */
+export interface CteCorrection {
+  group: string
+  field: string
+  value: string
+  item_number?: number
+}
+
+/** Situação na SEFAZ (`GET /ctes/{key}/sefaz-status`, CTeConsulta). Sem `closed`: o CT-e não se encerra. */
+export type CteSefazSituation = 'authorized' | 'cancelled' | 'not_found'
+
+export interface CteSituationOut extends Omit<MdfeSituationOut, 'status'> {
+  status: CteSefazSituation
 }
 
 // ─── NFS-e ───────────────────────────────────────────────────────────────

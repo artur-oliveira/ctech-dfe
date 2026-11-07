@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_MDFE, ACCESS_KEY_MOD_NFE, validateAccessKey } from '@/lib/utils/access-key';
+import { ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS, ACCESS_KEY_MOD_GTVE, ACCESS_KEY_MOD_MDFE, ACCESS_KEY_MOD_NFE, validateAccessKey } from '@/lib/utils/access-key';
 
 const VALID = '35250512345678000195550010000000011000000015';
 
@@ -78,10 +78,28 @@ describe('validateAccessKey: modelos e CNPJ alfanumérico', () => {
     expect(validateAccessKey(keyWith('12abc34501de35', '58'), [ACCESS_KEY_MOD_MDFE])).toEqual({ valid: false, error: 'length' });
   });
 
-  it('confere o tpEmis do modelo: MDF-e aceita 1 a 3, CT-e não aceita 2', () => {
+  it('confere o tpEmis do modelo: MDF-e aceita 1 a 3, CT-e não aceita 6 nem 9', () => {
     expect(validateAccessKey(keyWith('12345678000195', '58', '3'), [ACCESS_KEY_MOD_MDFE])).toEqual({ valid: true });
     expect(validateAccessKey(keyWith('12345678000195', '58', '4'), [ACCESS_KEY_MOD_MDFE])).toEqual({ valid: false, error: 'tpEmis' });
-    expect(validateAccessKey(keyWith('12345678000195', '57', '2'), [ACCESS_KEY_MOD_CTE])).toEqual({ valid: false, error: 'tpEmis' });
+    expect(validateAccessKey(keyWith('12345678000195', '57', '6'), [ACCESS_KEY_MOD_CTE])).toEqual({ valid: false, error: 'tpEmis' });
+    expect(validateAccessKey(keyWith('12345678000195', '57', '9'), [ACCESS_KEY_MOD_CTE])).toEqual({ valid: false, error: 'tpEmis' });
+  });
+
+  it('CT-e (57) e CT-e OS (67) aceitam tpEmis 1, 2, 3, 4, 5, 7 e 8', () => {
+    for (const mod of [ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS]) {
+      for (const tp of ['1', '2', '3', '4', '5', '7', '8']) {
+        expect(validateAccessKey(keyWith('12345678000195', mod, tp), [mod])).toEqual({ valid: true });
+      }
+    }
+  });
+
+  it('GTV-e (64) aceita tpEmis 1 e 2 e recusa os outros', () => {
+    for (const tp of ['1', '2']) {
+      expect(validateAccessKey(keyWith('12345678000195', '64', tp), [ACCESS_KEY_MOD_GTVE])).toEqual({ valid: true });
+    }
+    for (const tp of ['3', '4', '7']) {
+      expect(validateAccessKey(keyWith('12345678000195', '64', tp), [ACCESS_KEY_MOD_GTVE])).toEqual({ valid: false, error: 'tpEmis' });
+    }
   });
 
   it('tenta CNPJ antes do CPF prefixado: 00.000.000/0001-91 vale', () => {

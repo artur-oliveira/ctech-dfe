@@ -38,8 +38,8 @@ const EMIT_PROBLEM_CODES = new Set([
 ]);
 
 /** Documento emitido: escolhe a tabela de dicas das regras do MOC e o substantivo da frase. */
-export type EmitDoc = 'nfe' | 'mdfe'
-const DOC_NOUN: Record<EmitDoc, string> = {nfe: 'a nota', mdfe: 'o manifesto'};
+export type EmitDoc = 'nfe' | 'mdfe' | 'cte'
+const DOC_NOUN: Record<EmitDoc, string> = {nfe: 'a nota', mdfe: 'o manifesto', cte: 'o CT-e'};
 
 /**
  * Onde o operador corrige: um cadastro (emitente, destinatário, produto, transportadora) ou um bloco do próprio
@@ -48,7 +48,7 @@ const DOC_NOUN: Record<EmitDoc, string> = {nfe: 'a nota', mdfe: 'o manifesto'};
 export type EmitTarget =
   | 'emitente' | 'destinatario' | 'produto' | 'transportadora' | 'documento'
   | 'retirada' | 'entrega' | 'finalidade' | 'itens' | 'pagamento'
-  | 'tipo_emitente' | 'aut_xml' | 'carregamento_posterior' | 'ciot' | 'documentos';
+  | 'partes' | 'tipo_emitente' | 'aut_xml' | 'carregamento_posterior' | 'ciot' | 'documentos';
 
 const TARGET_LABELS: Record<EmitTarget, string> = {
   emitente: 'Emitente (sua empresa)',
@@ -61,6 +61,7 @@ const TARGET_LABELS: Record<EmitTarget, string> = {
   finalidade: 'Finalidade',
   itens: 'Itens',
   pagamento: 'Pagamento',
+  partes: 'Partes do CT-e',
   tipo_emitente: 'Tipo de emitente',
   aut_xml: 'Autorizados a baixar o XML',
   carregamento_posterior: 'Carregamento posterior',
@@ -117,7 +118,21 @@ const MDFE_RULE_HINTS: RuleHint[] = [
   {prefix: 'F27', target: 'carregamento_posterior', hint: 'Carregamento posterior sai sem documentos. As notas entram depois, em Incluir NF-e no detalhe do manifesto.'},
 ];
 
-const RULE_HINTS: Record<EmitDoc, RuleHint[]> = {nfe: NFE_RULE_HINTS, mdfe: MDFE_RULE_HINTS};
+/**
+ * Regras do MOC do CT-e em block (`ctes/prevalidate.go`, série G). A chave e o Id (G007, G013 a G016) a api monta
+ * sozinha: se uma delas dispara, o operador só pode tentar de novo ou chamar o suporte.
+ */
+const CTE_RULE_HINTS: RuleHint[] = [
+  {prefix: 'G104', target: 'emitente', hint: 'O CNPJ do emitente (sua empresa) tem dígito inválido. Corrija o cadastro da organização.'},
+  {prefix: 'G193', target: 'aut_xml', hint: 'Um CNPJ autorizado a baixar o XML tem dígito inválido. Tire da lista e confira o cadastro da pessoa.'},
+  {prefix: 'G194', target: 'aut_xml', hint: 'Um CPF autorizado a baixar o XML tem dígito inválido. Tire da lista e confira o cadastro da pessoa.'},
+  {prefix: 'G1', target: 'partes', hint: 'O CPF ou CNPJ de uma parte do CT-e (remetente, destinatário, expedidor, recebedor ou tomador) tem dígito inválido. Corrija no cadastro de pessoas.'},
+  {prefix: 'G210', target: 'documento', hint: 'O CPF ou CNPJ do responsável técnico tem dígito inválido; o dado vem da configuração do sistema. Tente de novo e, se repetir, chame o suporte.'},
+  {prefix: 'PAA', target: 'documento', hint: 'O CNPJ do posto de abastecimento tem dígito inválido; o dado vem da configuração do sistema. Chame o suporte.'},
+  {prefix: 'G0', target: 'documento', hint: 'A chave de acesso ou o Id do CT-e saiu fora do padrão. É um erro nosso, não seu: tente emitir de novo e, se repetir, chame o suporte.'},
+];
+
+const RULE_HINTS: Record<EmitDoc, RuleHint[]> = {nfe: NFE_RULE_HINTS, mdfe: MDFE_RULE_HINTS, cte: CTE_RULE_HINTS};
 
 export interface EmitIssue {
   /** O que está errado, em uma frase. */

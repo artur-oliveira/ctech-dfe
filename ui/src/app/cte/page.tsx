@@ -59,7 +59,11 @@ function CteList({orgPk}: { orgPk: string }) {
         {items.map((cte) => (
           <tr key={cte.sk} className={TABLE_ROW}>
             <td className={TABLE_CELL} data-label="Nº / Série">
-              <span className="font-mono font-medium text-gray-900">{cte.number}</span>
+              <Link href={`/cte/detail?key=${cte.sk}`}
+                    className="font-mono font-medium text-gray-900 hover:text-brand-600 inline-flex min-h-11 items-center sm:min-h-0"
+                    aria-label={`Abrir CT-e ${cte.number}`}>
+                {cte.number}
+              </Link>
               <span className="text-gray-400 text-xs ml-1">/ {cte.serie}</span>
             </td>
             <td className={`${TABLE_CELL} text-gray-700`} data-label="Remetente para destinatário">

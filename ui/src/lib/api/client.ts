@@ -31,10 +31,12 @@ import type {
   SignedFileDownload,
   CertificateOut,
   CTeConfigOut,
+  CteCorrection,
   CteDeriveOut,
   CteDetailOut,
   CteEmitBody,
   CteListOut,
+  CteSituationOut,
   DistributionLookupOut,
   InvitationOut,
   InvitationPreview,
@@ -1018,6 +1020,34 @@ class ApiClient {
 
   async getCte(accessKey: string): Promise<CteDetailOut> {
     return this.get(`/v1.0/ctes/${accessKey}`);
+  }
+
+  async cancelCte(accessKey: string, justification: string): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/cancel`, {justification});
+  }
+
+  async correctCte(accessKey: string, corrections: CteCorrection[], sequenceNumber?: number): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/correction-letter`, {corrections, sequence_number: sequenceNumber});
+  }
+
+  async disagreeCteService(accessKey: string, notes?: string, sequenceNumber?: number): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/service-disagreement`, {notes: notes || undefined, sequence_number: sequenceNumber});
+  }
+
+  async cancelCteServiceDisagreement(accessKey: string, eventSk: string, sequenceNumber?: number): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/service-disagreement-cancel`, {event_sk: eventSk, sequence_number: sequenceNumber});
+  }
+
+  async getCteSefazStatus(accessKey: string): Promise<CteSituationOut> {
+    return this.get(`/v1.0/ctes/${accessKey}/sefaz-status`);
+  }
+
+  async getCteEvents(accessKey: string, cursor?: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/ctes/${accessKey}/events`, {params: {limit: 20, cursor}});
+  }
+
+  async downloadCteEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/ctes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
   // MDF-es (modelo 58) — uses Dfe-Organization-Pk header

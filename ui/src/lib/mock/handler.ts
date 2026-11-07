@@ -16,6 +16,10 @@ import {
   cteConfigFixture,
   cteDeriveNotesFixture,
   ctePersonIdsFixture,
+  cteDetailFixture,
+  cteEventsFixture,
+  cteFiscalPrevalidationFixture,
+  cteSefazStatusFixture,
   ctesFixture,
   distributionsFixture,
   inutilizationsFixture,
@@ -186,7 +190,11 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (m === 'put' && path.startsWith('/v1.0/organizations/') && !path.includes('-config')) return {data: organizationsFixture[0]};
   if (m === 'delete' && path.startsWith('/v1.0/organizations/')) return {data: undefined};
   // Detalhe da organização — traz `person`, que a listagem de /auth/me não tem.
-  if (m === 'get' && /^\/v1\.0\/organizations\/[^/]+$/.test(path)) return {data: organizationsFixture[0]};
+  if (m === 'get' && /^\/v1\.0\/organizations\/[^/]+$/.test(path)) {
+    const org = organizationsFixture[0];
+    // `?mock=regime-normal`: CRT 3, para rever o bloco IBS/CBS do CT-e.
+    return {data: getMockState().regimeNormal ? {...org, person: {...org.person, crt: 3}} : org};
+  }
 
   // Configs (path-based org in URL)
   if (path.endsWith('/nfe-config')) return {data: nfeConfigFixture};
@@ -264,7 +272,22 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   }
   if (key === 'post /v1.0/ctes/derive') return mockCteDerive(body);
   if (key === 'get /v1.0/ctes') return {data: paginated(ctesFixture)};
-  if (key === 'post /v1.0/ctes') return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};
+  if (key === 'post /v1.0/ctes') {
+    if (getMockState().emitPrevalidation) return {error: {status: 422, data: cteFiscalPrevalidationFixture}};
+    return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};
+  }
+  {
+    const cte = /^(get|post) \/v1\.0\/ctes\/([^/]+)\/(sefaz-status|events|cancel|correction-letter|service-disagreement|service-disagreement-cancel)$/.exec(key);
+    if (cte) {
+      const [, , sk, action] = cte;
+      if (action === 'sefaz-status') return {data: cteSefazStatusFixture(sk)};
+      if (action === 'events') return {data: paginated(cteEventsFixture(sk))};
+      return {data: cteDetailFixture(sk)};
+    }
+    if (/^get \/v1\.0\/ctes\/[^/]+\/events\/[^/]+\/xml$/.test(key)) {
+      return {data: {url: 'data:text/xml,%3CprocEventoCTe%2F%3E', expires_at: '2099-01-01T00:00:00Z', filename: 'evento.xml', content_type: 'application/xml'}};
+    }
+  }
   if (key === 'get /v1.0/nfses') return {data: paginated(nfsesFixture)};
   if (m === 'post' && path === '/v1.0/nfses') return {data: echo(body, 'nfse')};
 
@@ -286,7 +309,10 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (/^get \/v1\.0\/nfes\/[^/]+$/.test(key)) return {data: nfeDetailFixture};
   if (/^get \/v1\.0\/nfces\/[^/]+$/.test(key)) return {data: nfceDetailFixture};
   if (/^get \/v1\.0\/mdfes\/[^/]+$/.test(key)) return {data: mdfeDetailFixture};
-  if (/^get \/v1\.0\/ctes\/[^/]+$/.test(key)) return {data: {...ctesFixture[0], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}};
+  {
+    const cte = /^get \/v1\.0\/ctes\/([^/]+)$/.exec(key);
+    if (cte) return {data: cteDetailFixture(cte[1])};
+  }
   if (/^get \/v1\.0\/nfses\/[^/]+$/.test(key)) return {data: nfsesFixture[0]};
   if (/^post \/v1\.0\/nfes\/.+\/(cancel|correction-letter|manifestation)$/.test(key)) return {data: nfeDetailFixture};
   if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfceDetailFixture};

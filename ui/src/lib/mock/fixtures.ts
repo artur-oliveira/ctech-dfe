@@ -379,11 +379,39 @@ function cteList(status: string, number: number, day: number, taker: 'remetente'
   };
 }
 
+/** CT-e em que a organização emite mas quem paga o frete é o destinatário (cliente): não é a tomadora. */
+function cteOtherTaker(status: string, number: number, day: number, freight: string) {
+  return {
+    ...cteList(status, number, day, 'remetente', freight),
+    cfop: '6353',
+    recipient: {doc: CUSTOMER_PARTY.doc, name: CUSTOMER_PARTY.name},
+    taker: {role: 'destinatario' as const, doc: CUSTOMER_PARTY.doc, name: CUSTOMER_PARTY.name},
+  };
+}
+
 export const ctesFixture = [
   cteList('authorized', 31, 6, 'remetente', '1850.00'),
   cteList('authorized', 30, 4, 'destinatario', '620.00'),
   cteList('pending', 32, 9, 'remetente', '410.00'),
-];
+  cteList('cancelled', 33, 3, 'remetente', '980.00'),
+  // Autorizado aqui e cancelado na SEFAZ: a divergência da consulta (sem reconciliação).
+  cteList('authorized', 35, 8, 'remetente', '1230.00'),
+  // A organização emite, o cliente é o tomador: só o tomador faz "prestação em desacordo".
+  cteOtherTaker('authorized', 34, 7, '760.00'),
+].map((c) => ({...c, emit_cpf_cnpj: ORG_PK, emit_name: 'Empresa Mock LTDA'}));
+
+/** Detalhe de um CT-e da lista: notas, trajeto e carga. */
+export function cteDetailFixture(sk: string) {
+  const base = ctesFixture.find((c) => c.sk === sk) ?? ctesFixture[0];
+  return {
+    ...base,
+    nfe_keys: [nfesFixture[0].sk, nfesFixture[1].sk],
+    origin: {uf: 'SP', city_ibge: '3550308', city: 'São Paulo'},
+    destination: {uf: 'MG', city_ibge: '3106200', city: 'Belo Horizonte'},
+    cargo: {total_value: '3589.80', total_weight_kg: '338.500', volumes: 15, predominant_product: 'Notebook 15 polegadas'},
+    xml_s3_key: `xml/${ORG_PK}/cte/${base.number}.xml`,
+  };
+}
 
 export const distributionsFixture = [
   {
@@ -862,6 +890,63 @@ export const mdfeEventsFixture = [
   dfeEvent(mdfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T08:00:00Z'),
   dfeEvent(mdfesFixture[0].sk, '110112', 1, 'success', '2026-07-02T18:40:00Z'),
 ];
+
+/** Eventos do CT-e: o 31 tem CC-e e um desacordo autorizado (a organização é a tomadora); o 33 foi cancelado. */
+export function cteEventsFixture(sk: string) {
+  const key = ctesFixture.find((c) => c.sk === sk)?.number;
+  const emission = dfeEvent(sk, 'emission', 1, 'authorized', '2026-07-01T09:30:00Z');
+  if (key === 33) return [emission, dfeEvent(sk, '110111', 1, 'success', '2026-07-04T11:00:00Z')];
+  if (key === 31) {
+    return [
+      emission,
+      dfeEvent(sk, '110110', 1, 'success', '2026-07-07T10:00:00Z'),
+      dfeEvent(sk, '610110', 1, 'success', '2026-07-08T15:20:00Z'),
+    ];
+  }
+  return [emission];
+}
+
+/** Consulta na SEFAZ do CT-e: igual ao registro local, menos o 35 (cancelado na SEFAZ) e uma chave fora da base. */
+export function cteSefazStatusFixture(sk: string) {
+  const number = ctesFixture.find((c) => c.sk === sk)?.number;
+  const protocol = {n_prot: '135260000777001', dh_recbto: '2026-07-01T09:30:12-03:00', c_stat: '100', x_motivo: 'Autorizado o uso do CT-e'};
+  if (number === 35 || number === 33) {
+    return {
+      access_key: sk, c_stat: '101', x_motivo: 'Cancelamento de CT-e homologado', status: 'cancelled' as const, protocol,
+      events: [{
+        tp_evento: '110111', n_seq_evento: '1', c_stat: '135', x_motivo: 'Evento registrado e vinculado a CT-e',
+        n_prot: '135260000777002', dh_reg_evento: '2026-07-09T08:15:05-03:00',
+      }],
+    };
+  }
+  if (number === undefined) {
+    return {access_key: sk, c_stat: '217', x_motivo: 'CT-e não consta na base de dados da SEFAZ', status: 'not_found' as const, protocol: null, events: []};
+  }
+  return {access_key: sk, c_stat: '100', x_motivo: 'Autorizado o uso do CT-e', status: 'authorized' as const, protocol, events: []};
+}
+
+/** Recusa local do CT-e (422 `fiscal_prevalidation`, `ctes/prevalidate.go`): CNPJ de um autXML e de uma parte. */
+export const cteFiscalPrevalidationFixture = {
+  type: 'about:blank',
+  title: 'Unprocessable Entity',
+  status: 422,
+  code: 'fiscal_prevalidation',
+  detail: 'o CT-e não passa nas validações do leiaute e do MOC; corrija os itens apontados antes de emitir',
+  errors: [
+    {
+      field: 'G193',
+      code: 'fiscal_rule',
+      message: 'regra G193 do MOC (rejeição 899): CNPJ do autorizado a baixar o XML inválido',
+      params: {rule: 'G193', cstat: 899},
+    },
+    {
+      field: 'G122',
+      code: 'fiscal_rule',
+      message: 'regra G122 do MOC (rejeição 899): CNPJ de uma parte do CT-e inválido',
+      params: {rule: 'G122', cstat: 899},
+    },
+  ],
+};
 
 // Inutilizações de numeração (NF-e / NFC-e)
 const inutilization = (

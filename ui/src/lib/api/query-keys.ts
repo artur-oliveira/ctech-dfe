@@ -117,6 +117,8 @@ export const queryKeys = {
     lists: (orgPk: string | undefined) => ['ctes', orgPk] as const,
     list: (orgPk: string | undefined, params?: object) => ['ctes', orgPk, params] as const,
     detail: (accessKey: string) => ['cte', accessKey] as const,
+    events: (accessKey: string) => ['cte-events', accessKey] as const,
+    sefazStatus: (accessKey: string) => ['cte-sefaz-status', accessKey] as const,
     derive: (orgPk: string | undefined, keys: string[]) => ['cte-derive', orgPk, keys] as const,
   },
   nfses: {

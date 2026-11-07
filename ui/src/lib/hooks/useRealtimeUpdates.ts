@@ -41,11 +41,12 @@ interface RealtimeMessage {
 }
 
 // Query-key namespaces that own list/detail/events caches, keyed by the
-// document's DynamoDB table name. CT-e has no list/detail queries yet.
+// document's DynamoDB table name.
 const DOC_QUERY_KEYS = {
   nfes: queryKeys.nfes,
   nfces: queryKeys.nfces,
   mdfes: queryKeys.mdfes,
+  ctes: queryKeys.ctes,
   nfses: queryKeys.nfses,
 } as const;
 

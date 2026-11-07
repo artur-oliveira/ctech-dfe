@@ -9,10 +9,15 @@ import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
 import {dfeStatusLabel} from '@/lib/data/dfe_status';
 import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
-import type {MdfeSefazSituation} from '@/lib/types/api';
+import type {CteSefazSituation, MdfeSefazSituation} from '@/lib/types/api';
+
+/** Documento consultado; o CT-e usa a mesma tela (`CTeConsulta`), com `cancelled` e sem `closed`. */
+export type SefazStatusDoc = 'mdfe' | 'cte'
+const DOC_NAME: Record<SefazStatusDoc, string> = {mdfe: 'o MDF-e', cte: 'o CT-e'};
+type Situation = MdfeSefazSituation | CteSefazSituation
 
 /** Situação na SEFAZ que equivale a cada status local; `not_found` não tem equivalente. */
-const LOCAL_FOR_SEFAZ: Record<MdfeSefazSituation, string | null> = {
+const LOCAL_FOR_SEFAZ: Record<Situation, string | null> = {
   authorized: 'authorized',
   cancelled: 'cancelled',
   closed: 'closed',
@@ -23,22 +28,24 @@ const LOCAL_FOR_SEFAZ: Record<MdfeSefazSituation, string | null> = {
 const LOCAL_KNOWN_TO_SEFAZ = new Set(['authorized', 'cancelled', 'closed', 'close_pending', 'cancel_pending']);
 
 /** A SEFAZ e o registro local discordam? Só compara; nenhuma reconciliação automática existe. */
-export function sefazDiverges(sefaz: MdfeSefazSituation, local: string): boolean {
+export function sefazDiverges(sefaz: Situation, local: string): boolean {
   const expected = LOCAL_FOR_SEFAZ[sefaz];
   return expected === null ? LOCAL_KNOWN_TO_SEFAZ.has(local) : expected !== local;
 }
 
-const sefazLabel = (s: MdfeSefazSituation) => s === 'not_found' ? 'Não encontrado na SEFAZ' : dfeStatusLabel(s, 'm');
+const sefazLabel = (s: Situation) => s === 'not_found' ? 'Não encontrado na SEFAZ' : dfeStatusLabel(s, 'm');
 
 /**
  * "Consultar na SEFAZ" do detalhe do MDF-e (`GET /mdfes/{key}/sefaz-status`, MDFeConsulta síncrona): situação,
  * protocolo e eventos registrados lá. Só lê; quando a SEFAZ e o registro local discordam, avisa, sem corrigir nada.
  */
-export function MdfeSefazStatus({accessKey, localStatus}: { accessKey: string; localStatus: string }) {
+export function MdfeSefazStatus({accessKey, localStatus, docType = 'mdfe'}: {
+  accessKey: string; localStatus: string; docType?: SefazStatusDoc
+}) {
   const [requested, setRequested] = useState(false);
   const {data, isFetching, error, refetch} = useQuery({
-    queryKey: queryKeys.mdfes.sefazStatus(accessKey),
-    queryFn: () => apiClient.getMdfeSefazStatus(accessKey),
+    queryKey: docType === 'cte' ? queryKeys.ctes.sefazStatus(accessKey) : queryKeys.mdfes.sefazStatus(accessKey),
+    queryFn: () => docType === 'cte' ? apiClient.getCteSefazStatus(accessKey) : apiClient.getMdfeSefazStatus(accessKey),
     enabled: requested,
     retry: false,
     staleTime: 0,
@@ -47,10 +54,10 @@ export function MdfeSefazStatus({accessKey, localStatus}: { accessKey: string; l
   const consult = () => (requested ? void refetch() : setRequested(true));
 
   return (
-    <section aria-labelledby="mdfe-sefaz-title" className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+    <section aria-labelledby={`${docType}-sefaz-title`} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="mdfe-sefaz-title" className="text-sm font-semibold text-gray-900">Situação na SEFAZ</h2>
+          <h2 id={`${docType}-sefaz-title`} className="text-sm font-semibold text-gray-900">Situação na SEFAZ</h2>
           <p className="text-xs text-gray-500">Consulta direta no autorizador; não altera o registro aqui.</p>
         </div>
         <Button type="button" variant="outline" onClick={consult} disabled={isFetching}
@@ -83,7 +90,7 @@ export function MdfeSefazStatus({accessKey, localStatus}: { accessKey: string; l
 
           {sefazDiverges(data.status, localStatus) && (
             <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              A SEFAZ diz <b>{sefazLabel(data.status)}</b>, e aqui o MDF-e está{' '}
+              A SEFAZ diz <b>{sefazLabel(data.status)}</b>, e aqui {DOC_NAME[docType]} está{' '}
               <b>{dfeStatusLabel(localStatus, 'm')}</b>. Esta consulta não corrige o registro: confira os eventos
               abaixo antes de agir.
             </div>

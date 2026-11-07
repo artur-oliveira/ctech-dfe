@@ -3262,6 +3262,21 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
   `validation.AccessKeyReason` (modelos 55, 57 e 58, CNPJ alfanumérico).
 - Limitações da api que a UI contorna: sem flag `later_loading` no detalhe, sem número ou UF em `unclosed`.
 
+### CT-e na UI (parte 2)
+
+- **Detalhe** (`/cte/detail?key=`, link no número da lista Emitidos): status, chave, partes, frete, CFOP, ICMS, trajeto,
+  notas e eventos paginados com o XML assinado de cada evento. Não há DACTE nem XML do CT-e: a api só expõe o XML dos eventos.
+- **Ações** (`useCteActions`, só com CT-e autorizado): Cancelar (110111, justificativa 15 a 255), Carta de correção
+  (110110, grupo e campo de `lib/data/cte_correction.ts`, lista curada que a api não restringe; a SEFAZ decide o que
+  é corrigível, rejeição 681), Prestação em desacordo (610110, só o tomador) e Cancelar desacordo (610111). Cancelar e
+  CC-e somem quando o emitente não é a organização. Os 422 `not_cte_issuer`, `not_cte_taker`, `cte_not_authorized`,
+  `cte_protocol_missing`, `event_invalid`, `event_not_found` e `event_not_authorized` viram frase em pt-BR.
+- **Consultar na SEFAZ**: `MdfeSefazStatus` com `docType='cte'`; avisa divergência com o status local, sem reconciliar.
+- **Emissão**: bloco "IBS e CBS" só para CRT 3 (a api recusa Simples e MEI com `ibscbs_regime_unsupported`), prévia
+  com arredondamento bancário e `vTotDFe` somando IBS e CBS só a partir de 2027; `authorized_xml` até 10 por PersonPicker.
+- `lib/utils/access-key.ts` espelha a api: modelo 64 (tpEmis 1 e 2) e tpEmis 1, 2, 3, 4, 5, 7 e 8 para 57 e 67.
+- **Mock**: `?mock=prevalidation` (422 G193 e G122) e `?mock=regime-normal` (CRT 3).
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

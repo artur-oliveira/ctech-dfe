@@ -36,6 +36,9 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   '411502': 'Fisco em Resposta de Cancelamento ao Pedido de Prorrogação 1',
   '411503': 'Fisco em Resposta de Cancelamento ao Pedido de Prorrogação 2',
 
+  '610110': 'Prestação de serviço em desacordo',
+  '610111': 'Cancelamento do desacordo',
+
   '110112': 'Encerramento',
   '110114': 'Inclusão de Condutor',
   '110115': 'Inclusão de DF-e',

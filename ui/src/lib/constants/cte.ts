@@ -115,3 +115,48 @@ export const CTE_WARNING_ACTIONS: Record<string, string> = {
   [CTE_WARNING.NOTE_NOT_AUTHORIZED]: 'Remova a nota ou aguarde a autorização dela.',
   [CTE_WARNING.NOTE_NOT_FOUND]: 'Remova a nota; ela não está no cadastro da organização.',
 };
+
+// ─── eventos do CT-e ────────────────────────────────────────────────────────
+
+/** tpEvento dos eventos que a tela dispara ou lê. */
+export const CTE_EVENT = {
+  CANCEL: '110111',
+  CORRECTION: '110110',
+  DISAGREEMENT: '610110',
+  DISAGREEMENT_CANCEL: '610111',
+} as const;
+
+/** TJust do cancelamento e xObs do desacordo: 15 a 255 caracteres. */
+export const CTE_EVENT_TEXT_MIN = 15;
+export const CTE_EVENT_TEXT_MAX = 255;
+
+/** `corrections[]` da CC-e: 1 a 20 itens, valor até 500 caracteres, nroItemAlterado 1 a 99. */
+export const CTE_CORRECTIONS_MAX = 20;
+export const CTE_CORRECTION_VALUE_MAX = 500;
+export const CTE_CORRECTION_ITEM_MAX = 99;
+
+/** Status do CT-e em que os eventos valem. */
+export const CTE_STATUS_AUTHORIZED = 'authorized';
+
+/** 422 `code` da api que a tela explica em pt-BR (cancelamento e eventos). */
+export const CTE_EVENT_ERRORS: Record<string, string> = {
+  not_cte_issuer: 'Só o emitente do CT-e pode fazer isto. A sua empresa não é a emitente deste CT-e.',
+  not_cte_taker: 'Só o tomador do serviço pode fazer isto. A sua empresa não é a tomadora deste CT-e.',
+  cte_not_authorized: 'O CT-e não está autorizado. Eventos só valem para CT-e autorizado.',
+  cte_protocol_missing: 'Este CT-e não tem o protocolo de autorização gravado. Consulte a situação na SEFAZ antes de tentar de novo.',
+  event_invalid: 'Os dados do evento não passam na validação. Confira os campos e o tamanho dos textos.',
+  event_not_found: 'O evento escolhido não existe mais neste CT-e. Atualize a página e escolha de novo.',
+  event_not_authorized: 'Só dá para cancelar um desacordo que a SEFAZ já autorizou (status "sucesso").',
+};
+
+// ─── IBS/CBS e autXML ───────────────────────────────────────────────────────
+
+/** CRT em que o grupo IBS/CBS do CT-e é aceito (regime normal). Simples e MEI recebem 422 `ibscbs_regime_unsupported`. */
+export const CTE_IBSCBS_CRT = '3';
+/** Ano a partir do qual o vTotDFe soma IBS e CBS (MOC, regra IBSCBS-365). */
+export const CTE_TOTAL_WITH_TAXES_FROM_YEAR = 2027;
+export const CTE_ERROR_IBSCBS_REGIME = 'ibscbs_regime_unsupported';
+export const CTE_ERROR_AUTXML = 'autxml_invalid';
+
+/** `autXML` do CT-e: 0 a 10. */
+export const CTE_AUTHORIZED_XML_MAX = 10;

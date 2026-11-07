@@ -4,15 +4,20 @@ import { validateCPF, validateCNPJ } from '@/lib/utils/validators';
 export const ACCESS_KEY_MOD_NFE = '55';
 export const ACCESS_KEY_MOD_CTE = '57';
 export const ACCESS_KEY_MOD_MDFE = '58';
+export const ACCESS_KEY_MOD_CTE_OS = '67';
+export const ACCESS_KEY_MOD_GTVE = '64';
 
 /**
  * tpEmis (posição 35) aceito por modelo. NF-e: todos menos 9 (contingência offline da NFC-e).
- * CT-e: 1 normal, 4 EPEC, 5 FS-DA, 7 SVC-RS, 8 SVC-SP. MDF-e: 1 normal, 2 contingência, 3 NFF.
+ * CT-e e CT-e OS: 1 normal, 2 contingência offline, 3 NFF, 4 EPEC, 5 FS-DA, 7 SVC-RS, 8 SVC-SP.
+ * GTV-e: 1 normal, 2 contingência offline. MDF-e: 1 normal, 2 contingência, 3 NFF.
  * Mirror de accessKeyTpEmis em api/internal/validation/access_key.go.
  */
 const ACCESS_KEY_TP_EMIS: Record<string, string> = {
   [ACCESS_KEY_MOD_NFE]: '1234567',
-  [ACCESS_KEY_MOD_CTE]: '14578',
+  [ACCESS_KEY_MOD_CTE]: '1234578',
+  [ACCESS_KEY_MOD_CTE_OS]: '1234578',
+  [ACCESS_KEY_MOD_GTVE]: '12',
   [ACCESS_KEY_MOD_MDFE]: '123',
 };
 

@@ -106,3 +106,44 @@ describe('mock handler: MDF-e na SEFAZ', () => {
     for (const n of nfesFixture) expect(validateAccessKey(n.sk)).toEqual({valid: true});
   });
 });
+
+describe('mock handler: CT-e detalhe, eventos e SEFAZ', () => {
+  it('serve o detalhe de cada CT-e da lista, com notas e trajeto', async () => {
+    const {ctesFixture} = await import('@/lib/mock/fixtures');
+    const detail = await get(`/v1.0/ctes/${ctesFixture[3].sk}`) as {nfe_keys: string[]};
+    expect(detail).toMatchObject({status: 'cancelled', number: 33});
+    expect(detail.nfe_keys.length).toBeGreaterThan(0);
+  });
+
+  it('o CT-e 34 tem outro tomador e o 31 tem eventos, inclusive um desacordo autorizado', async () => {
+    const {ctesFixture} = await import('@/lib/mock/fixtures');
+    const other = await get(`/v1.0/ctes/${ctesFixture[5].sk}`) as {taker: {doc: string}; emit_cpf_cnpj: string};
+    expect(other.taker.doc).not.toBe(other.emit_cpf_cnpj);
+    const events = await get(`/v1.0/ctes/${ctesFixture[0].sk}/events`) as {items: {event_type: string}[]};
+    expect(events.items.map((e) => e.event_type)).toEqual(['emission', '110110', '610110']);
+  });
+
+  it('a consulta na SEFAZ diverge no CT-e 35 e acusa chave desconhecida', async () => {
+    const {ctesFixture} = await import('@/lib/mock/fixtures');
+    expect(await get(`/v1.0/ctes/${ctesFixture[0].sk}/sefaz-status`)).toMatchObject({status: 'authorized'});
+    expect(await get(`/v1.0/ctes/${ctesFixture[4].sk}/sefaz-status`)).toMatchObject({status: 'cancelled'});
+    expect(await get('/v1.0/ctes/00000000000000000000000000000000000000000000/sefaz-status')).toMatchObject({status: 'not_found'});
+  });
+
+  it('com ?mock=prevalidation a emissão do CT-e volta 422 com regras G', async () => {
+    const {initMockStateFromUrl, setMockState} = await import('@/lib/mock/state');
+    initMockStateFromUrl('?mock=prevalidation');
+    try {
+      await expect(mockAdapter({method: 'post', url: '/v1.0/ctes', data: '{}', headers: {}} as InternalAxiosRequestConfig))
+        .rejects.toMatchObject({response: {status: 422, data: {errors: [{field: 'G193'}, {field: 'G122'}]}}});
+    } finally {
+      setMockState({emitPrevalidation: false});
+    }
+  });
+
+  it('as chaves das fixtures de CT-e passam na validação de chave modelo 57', async () => {
+    const {ctesFixture} = await import('@/lib/mock/fixtures');
+    const {validateAccessKey, ACCESS_KEY_MOD_CTE} = await import('@/lib/utils/access-key');
+    for (const c of ctesFixture) expect(validateAccessKey(c.sk, [ACCESS_KEY_MOD_CTE]).valid).toBe(true);
+  });
+});
