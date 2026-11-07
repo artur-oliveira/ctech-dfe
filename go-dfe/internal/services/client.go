@@ -53,6 +53,15 @@ type Client struct {
 	config         Config
 	validateSchema bool
 	maxRetries     int
+	// svc, when set (endpoints.AuthorizerSVCAN/SVCRS), redirects only the URL
+	// to the contingency authorizer; uf keeps driving cUF and the WSDL operation.
+	svc string
+}
+
+// WithSVC redirects endpoint resolution to a contingency authorizer (NF-e only).
+func (c *Client) WithSVC(authorizer string) *Client {
+	c.svc = authorizer
+	return c
 }
 
 // NewClient builds a Client. httpClient/cert/key come from
@@ -133,7 +142,11 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 
 	slog.Info("soap body", "body", string(soapBody))
 
-	url, err := endpoints.Resolve(c.docType, c.uf, c.environment, service)
+	resolveUF := c.uf
+	if c.svc != "" {
+		resolveUF = c.svc
+	}
+	url, err := endpoints.Resolve(c.docType, resolveUF, c.environment, service)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}

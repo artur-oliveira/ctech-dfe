@@ -14,7 +14,16 @@ package nfes
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/api-commons/problem"
+	dfe "gopkg.aoctech.app/dfe/go-dfe"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+)
+
+const (
+	accessKeyLen       = 44
+	accessKeyTpEmisPos = 34 // tpEmis é o dígito 35 da chave
 )
 
 // EmissionMode is the form of emission of one document.
@@ -62,4 +71,49 @@ func (m EmissionMode) Validate() error {
 		return problem.BadRequest("contingência exige justificativa com ao menos 15 caracteres (xJust)")
 	}
 	return nil
+}
+
+// ── Contingência SVC (NF-e; docs/specs/2026-11-08-contingencia.md) ───────────
+
+// svcAuthorizerByTpEmis maps the SVC tpEmis of an access key to the egress
+// authorizer that issued it. A cancellation must go to the SVC that authorized
+// the note (MOC 1.1.3.4), which the tpEmis in the key tells.
+var svcAuthorizerByTpEmis = map[string]string{
+	TpEmisSVCAN: dfe.ContingencySVCAN,
+	TpEmisSVCRS: dfe.ContingencySVCRS,
+}
+
+// svcAuthorizerForKey returns the SVC authorizer of a note authorized on the
+// SVC, or "" for any other note (including malformed keys).
+func svcAuthorizerForKey(accessKey string) string {
+	if len(accessKey) != accessKeyLen {
+		return ""
+	}
+	return svcAuthorizerByTpEmis[accessKey[accessKeyTpEmisPos:accessKeyTpEmisPos+1]]
+}
+
+// resolveNFeEmission picks the form of emission of an NF-e from the
+// organization's contingency window: normal unless the window is open, SVC-AN
+// or SVC-RS by the issuer's UF otherwise. The second result is the egress
+// authorizer ("" for normal).
+func resolveNFeEmission(config map[string]types.AttributeValue, uf string) (EmissionMode, string, error) {
+	mode := NormalEmission(nfModel55)
+	if strAttr(config, repositories.AttrContingencyMode) != repositories.ContingencyModeSVC {
+		return mode, "", nil
+	}
+	svc, ok := dfe.SVCFor(uf)
+	if !ok {
+		return mode, "", problem.BadRequest("UF do emitente sem SVC designada: " + uf)
+	}
+	since, err := time.Parse(time.RFC3339, strAttr(config, repositories.AttrContingencySince))
+	if err != nil {
+		return mode, "", problem.InternalServer("janela de contingência sem data de início válida")
+	}
+	mode.TpEmis = TpEmisSVCAN
+	if svc == dfe.ContingencySVCRS {
+		mode.TpEmis = TpEmisSVCRS
+	}
+	mode.ContingencyAt = since
+	mode.Justification = strAttr(config, repositories.AttrContingencyReason)
+	return mode, svc, nil
 }

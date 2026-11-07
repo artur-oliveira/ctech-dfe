@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
@@ -106,14 +108,44 @@ func (s *fiscalConfigService) Upsert(ctx context.Context, orgPK string, fields m
 }
 
 // NfeConfigService wraps NfeConfigRepository.
-type NfeConfigService struct{ fiscalConfigService }
+type NfeConfigService struct {
+	fiscalConfigService
+	nfeRepo *repositories.NfeConfigRepository
+}
 
 func NewNfeConfigService(repo *repositories.NfeConfigRepository, auditRepo *repositories.AuditLogRepository) *NfeConfigService {
-	return &NfeConfigService{fiscalConfigService{
+	return &NfeConfigService{fiscalConfigService: fiscalConfigService{
 		repo: repo, auditRepo: auditRepo,
 		resourceType: repositories.AuditResourceNfeConfig, resourceID: nfeConfigResourceID,
 		notFoundMsg: "nfe config not found",
-	}}
+	}, nfeRepo: repo}
+}
+
+// SetContingency opens (enabled) or closes the NF-e SVC contingency window and
+// returns the stored configuration. dhCont is the moment the window opens and is
+// written once: opening an already-open window keeps the original since/reason.
+func (s *NfeConfigService) SetContingency(ctx context.Context, orgPK string, enabled bool, reason string) (map[string]types.AttributeValue, error) {
+	cur, err := s.Get(ctx, orgPK)
+	if err != nil {
+		return nil, err
+	}
+	open := attrStrAV(cur, repositories.AttrContingencyMode) == repositories.ContingencyModeSVC
+	switch {
+	case enabled && open:
+		return cur, nil
+	case enabled:
+		if err := s.nfeRepo.SetContingency(ctx, orgPK, repositories.ContingencyModeSVC, time.Now(), reason); err != nil {
+			return nil, err
+		}
+	case open:
+		if err := s.nfeRepo.SetContingency(ctx, orgPK, "", time.Time{}, ""); err != nil {
+			return nil, err
+		}
+	default:
+		return cur, nil
+	}
+	slog.InfoContext(ctx, "nfe contingency window changed", "org_pk", orgPK, "enabled", enabled)
+	return s.Get(ctx, orgPK)
 }
 
 // NfceConfigService wraps NfceConfigRepository.

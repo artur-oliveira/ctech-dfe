@@ -86,23 +86,25 @@ type WorkerMessage struct {
 	// S3Tenant is the folder a document's XML goes under, sent by the API so a
 	// company's history stays in one prefix across the company re-key. Empty on
 	// a message queued before this field existed; documentS3Key falls back.
-	S3Tenant              string         `json:"s3_tenant,omitempty"`
-	ExpectedFileName      string         `json:"expected_file_name"`
-	CNPJ                  string         `json:"cnpj"`
-	UF                    string         `json:"uf"`
-	SefazEnvironment      string         `json:"sefaz_environment"`
-	CertS3Key             string         `json:"cert_s3_key"`
-	CertPassword          string         `json:"cert_password"`
-	DocType               string         `json:"doc_type"`
-	SefazService          string         `json:"sefaz_service"`
-	Body                  map[string]any `json:"body"`
-	BillingUserID         string         `json:"billing_user_id,omitempty"`
-	BillingOrganizationID string         `json:"billing_organization_id,omitempty"`
-	BillingPeriod         string         `json:"billing_period,omitempty"`
-	BillingSubscriptionID string         `json:"billing_subscription_id,omitempty"`
-	BillingPriceID        string         `json:"billing_price_id,omitempty"`
-	BillingMeter          string         `json:"billing_meter,omitempty"`
-	BillingExempt         bool           `json:"billing_exempt,omitempty"`
+	S3Tenant         string         `json:"s3_tenant,omitempty"`
+	ExpectedFileName string         `json:"expected_file_name"`
+	CNPJ             string         `json:"cnpj"`
+	UF               string         `json:"uf"`
+	SefazEnvironment string         `json:"sefaz_environment"`
+	CertS3Key        string         `json:"cert_s3_key"`
+	CertPassword     string         `json:"cert_password"`
+	DocType          string         `json:"doc_type"`
+	SefazService     string         `json:"sefaz_service"`
+	Body             map[string]any `json:"body"`
+	// Contingency routes an NF-e call to the SVC ("SVC-AN"/"SVC-RS"); empty is normal.
+	Contingency           string `json:"contingency,omitempty"`
+	BillingUserID         string `json:"billing_user_id,omitempty"`
+	BillingOrganizationID string `json:"billing_organization_id,omitempty"`
+	BillingPeriod         string `json:"billing_period,omitempty"`
+	BillingSubscriptionID string `json:"billing_subscription_id,omitempty"`
+	BillingPriceID        string `json:"billing_price_id,omitempty"`
+	BillingMeter          string `json:"billing_meter,omitempty"`
+	BillingExempt         bool   `json:"billing_exempt,omitempty"`
 	// Event fields — present only for SEFAZ event operations (cancellation, CC-e, …)
 	EventsTableName *string `json:"events_table_name,omitempty"`
 	EventType       *string `json:"event_type,omitempty"`
@@ -121,6 +123,7 @@ type lambdaPayload struct {
 	DocType             string         `json:"doc_type"`
 	Service             string         `json:"service"`
 	Body                map[string]any `json:"body"`
+	Contingency         string         `json:"contingency,omitempty"`
 }
 
 type lambdaResponse struct {
@@ -322,6 +325,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		DocType:             msg.DocType,
 		Service:             msg.SefazService,
 		Body:                msg.Body,
+		Contingency:         msg.Contingency,
 	}
 
 	lambdaResp, err := s.invokeEgress(ctx, egressPayload)

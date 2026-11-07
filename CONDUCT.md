@@ -1279,3 +1279,11 @@ chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `
 - **Portão:** regras do MOC só recusam a emissão quando estão em `blockRules` (`nfes/prevalidate.go`), e só regras
   "Obrig." entram ali; as facultativas por UF ficam no shadow. Uma regra nova em block precisa de teste que a dispare
   e de um documento coerente que passe (`nfes/f3_test.go`).
+
+
+## Contingência SVC da NF-e
+
+- `dfe.Request.Contingency` (`SVC-AN`/`SVC-RS`) troca só a URL; a UF real continua mandando no `cUF` e na operação WSDL. Só NF-e: NFC-e, CT-e e MDF-e não resolvem em SVC.
+- As URLs da SVC não estão no MOC e precisam ser confirmadas no Portal Nacional antes de produção (`docs/specs/2026-11-08-contingencia.md`, Decisões pendentes).
+- A SVC não oferece inutilização nem CC-e: nunca rotear esses serviços para ela. Cancelamento de nota autorizada na SVC usa a SVC indicada pelo `tpEmis` da chave.
+- O `PUT /nfe-config` preserva `contingency_*`; só `PUT /nfe-contingency` abre ou fecha a janela.

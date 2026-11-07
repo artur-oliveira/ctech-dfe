@@ -474,9 +474,11 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	}
 
 	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
-	// Hoje sempre normal; a seleção automática entra com a máquina de estados de
-	// contingência (fase C2 do plano).
-	mode := NormalEmission(nfModel55)
+	// Normal, ou SVC quando a organização abriu a janela de contingência.
+	mode, svcAuthorizer, err := resolveNFeEmission(configItem, emitUF)
+	if err != nil {
+		return nil, err
+	}
 	if err := mode.Validate(); err != nil {
 		return nil, err
 	}
@@ -787,6 +789,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		CertPassword:          strAttr(cert, "password"),
 		DocType:               "nfe",
 		SefazService:          "NFeAutorizacao",
+		Contingency:           svcAuthorizer,
 		Body:                  enviNFe,
 		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,

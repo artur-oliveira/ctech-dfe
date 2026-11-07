@@ -189,3 +189,41 @@ func TestResolve_UnknownEnvironment(t *testing.T) {
 		t.Error("expected error for unknown environment, got nil")
 	}
 }
+
+// SVC designation per UF (MOC Contingencia_NFe 1.1.3.1, Ato COTEPE 39/2012):
+// 14 UFs on SVC-AN, 13 on SVC-RS, covering all 27 UFs exactly once.
+func TestSVCFor_Designation(t *testing.T) {
+	an := []string{"AC", "AL", "AP", "DF", "MG", "PB", "RJ", "RS", "RO", "RR", "SC", "SE", "SP", "TO"}
+	rs := []string{"AM", "BA", "CE", "ES", "GO", "MA", "MT", "MS", "PA", "PE", "PI", "PR", "RN"}
+	for _, uf := range an {
+		if got, _ := SVCFor(uf); got != AuthorizerSVCAN {
+			t.Errorf("%s: got %q, want SVC-AN", uf, got)
+		}
+	}
+	for _, uf := range rs {
+		if got, _ := SVCFor(uf); got != AuthorizerSVCRS {
+			t.Errorf("%s: got %q, want SVC-RS", uf, got)
+		}
+	}
+	if len(svcByUF) != 27 {
+		t.Errorf("svcByUF has %d UFs, want 27", len(svcByUF))
+	}
+}
+
+func TestResolve_SVC(t *testing.T) {
+	got, err := Resolve("nfe", AuthorizerSVCAN, "prod", "NFeAutorizacao")
+	if err != nil || got != "https://www.svc.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" {
+		t.Fatalf("SVC-AN prod: %q %v", got, err)
+	}
+	got, err = Resolve("nfe", AuthorizerSVCRS, "hom", "NfeStatusServico")
+	if err != nil || got != "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx" {
+		t.Fatalf("SVC-RS hom: %q %v", got, err)
+	}
+	// The SVC does not offer inutilizacao (MOC 1.1.3.4) nor NFC-e.
+	if _, err := Resolve("nfe", AuthorizerSVCAN, "prod", "NfeInutilizacao"); err == nil {
+		t.Error("inutilizacao must not resolve on the SVC")
+	}
+	if _, err := Resolve("nfce", AuthorizerSVCAN, "prod", "NFeAutorizacao"); err == nil {
+		t.Error("NFC-e must not resolve on the SVC")
+	}
+}

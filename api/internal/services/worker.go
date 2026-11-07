@@ -28,7 +28,9 @@ type WorkerMessage struct {
 	DocType          string `json:"doc_type"`
 	SefazService     string `json:"sefaz_service"`
 	Body             any    `json:"body"`
-	BillingUserID    string `json:"billing_user_id,omitempty"`
+	// Contingency routes an NF-e call to the SVC ("SVC-AN"/"SVC-RS"); empty is normal.
+	Contingency   string `json:"contingency,omitempty"`
+	BillingUserID string `json:"billing_user_id,omitempty"`
 	// BillingOrganizationID is the organization whose counter the reservation
 	// took (docs/specs/2026-10-10-organization-subscription.md). BillingUserID
 	// is kept only so a message reserved before this deploy still refunds the

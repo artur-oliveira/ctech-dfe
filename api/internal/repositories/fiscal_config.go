@@ -51,6 +51,15 @@ func (r *FiscalConfigRepository) Get(ctx context.Context, orgPK string) (map[str
 // Its presence is therefore what tells a configured company from a stub.
 const AttrConfigEnvironment = "environment"
 
+// NF-e contingency window (docs/specs/2026-11-08-contingencia.md). Written only
+// by the contingency endpoint and carried over every configuration PUT.
+const (
+	AttrContingencyMode   = "contingency_mode"   // "" (normal) or ContingencyModeSVC
+	AttrContingencySince  = "contingency_since"  // RFC3339: dhCont, set once per window
+	AttrContingencyReason = "contingency_reason" // xJust
+	ContingencyModeSVC    = "svc"
+)
+
 // AttrSweep / SweepValue mark a row for the `sweep-index` GSI (fiscal configs and
 // certificates): background jobs enumerate those tables with a Query on
 // sweep = "1" instead of a Scan. Every write of such a row must carry it.
@@ -129,6 +138,16 @@ func (r *FiscalConfigRepository) BuildUpsertTxItem(orgPK string, fields map[stri
 		if _, sent := fields[field]; sent {
 			continue
 		}
+		if existing != nil {
+			if v, ok := existing[field]; ok {
+				fields[field] = v
+			}
+		}
+	}
+
+	// A configuration PUT never opens or closes a contingency window.
+	for _, field := range []string{AttrContingencyMode, AttrContingencySince, AttrContingencyReason} {
+		delete(fields, field)
 		if existing != nil {
 			if v, ok := existing[field]; ok {
 				fields[field] = v
@@ -256,6 +275,30 @@ func (r *FiscalConfigRepository) ResetConsQuota(ctx context.Context, orgPK, envP
 			":zero": &types.AttributeValueMemberN{Value: "0"},
 			":now":  &types.AttributeValueMemberS{Value: NowStr()},
 		},
+	}
+	_, err := r.UpdateItemRaw(ctx, input)
+	return err
+}
+
+// SetContingency opens (mode != "") or closes (mode == "") the contingency
+// window on the configuration row. since and reason are written only when
+// opening; closing removes all three. The row must exist (a configured company).
+func (r *FiscalConfigRepository) SetContingency(ctx context.Context, orgPK, mode string, since time.Time, reason string) error {
+	input := &dynamodb.UpdateItemInput{
+		Key:                 map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
+		ConditionExpression: aws.String("attribute_exists(pk)"),
+	}
+	if mode == "" {
+		input.UpdateExpression = aws.String("REMOVE #m, #s, #r")
+		input.ExpressionAttributeNames = map[string]string{"#m": AttrContingencyMode, "#s": AttrContingencySince, "#r": AttrContingencyReason}
+	} else {
+		input.UpdateExpression = aws.String("SET #m = :m, #s = :s, #r = :r")
+		input.ExpressionAttributeNames = map[string]string{"#m": AttrContingencyMode, "#s": AttrContingencySince, "#r": AttrContingencyReason}
+		input.ExpressionAttributeValues = map[string]types.AttributeValue{
+			":m": &types.AttributeValueMemberS{Value: mode},
+			":s": &types.AttributeValueMemberS{Value: since.UTC().Format(time.RFC3339)},
+			":r": &types.AttributeValueMemberS{Value: reason},
+		}
 	}
 	_, err := r.UpdateItemRaw(ctx, input)
 	return err

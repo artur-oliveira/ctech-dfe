@@ -90,3 +90,19 @@ func TestUpsertCarimbaSweep(t *testing.T) {
 		t.Fatalf("sweep ausente: %v", final)
 	}
 }
+
+// A janela de contingência é aberta só pelo endpoint próprio: um PUT da
+// configuração nem a abre (campo no corpo) nem a fecha (campo omitido).
+func TestUpsertPreservaJanelaDeContingencia(t *testing.T) {
+	repo := &FiscalConfigRepository{}
+	existing := map[string]types.AttributeValue{AttrContingencyMode: s(ContingencyModeSVC), AttrContingencySince: s("2026-11-08T10:00:00Z")}
+
+	_, final, _ := repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{"environment": s("2")}, existing)
+	if final[AttrContingencyMode] != existing[AttrContingencyMode] || final[AttrContingencySince] != existing[AttrContingencySince] {
+		t.Fatalf("janela aberta deveria sobreviver ao PUT: %v", final)
+	}
+	_, final, _ = repo.BuildUpsertTxItem("CNPJ_1", map[string]types.AttributeValue{AttrContingencyMode: s(ContingencyModeSVC)}, nil)
+	if _, ok := final[AttrContingencyMode]; ok {
+		t.Fatal("PUT não pode abrir a janela")
+	}
+}

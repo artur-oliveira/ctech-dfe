@@ -255,6 +255,22 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	registerFiscalConfig(scoped, "/nfe-config",
 		"get.organization_nfe_configs", "update.organization_nfe_configs",
 		h.NfeConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc, serieDeps(services.ModelNFe))
+	// Contingency window of the NF-e (SVC-AN/SVC-RS by the issuer's UF); a PUT of
+	// /nfe-config never touches it. Same permission as the configuration.
+	scoped.Put("/nfe-contingency", perm.Require("update.organization_nfe_configs"), func(c fiber.Ctx) error {
+		var body NfeContingencyBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		if body.Enabled && body.Justification == "" {
+			return sendProblem(c, problem.UnprocessableEntity("justificativa obrigatória para entrar em contingência (15 a 256 caracteres)"))
+		}
+		item, err := h.NfeConfig.SetContingency(c.Context(), middleware.GetOrgPK(c), body.Enabled, body.Justification)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, redactFiscalSecrets(item))
+	})
 	registerFiscalConfig(scoped, "/nfce-config",
 		"get.organization_nfce_configs", "update.organization_nfce_configs",
 		h.NfceConfig, perm, bindAVValidated[NfceConfigBody], h.UserSvc, serieDeps(services.ModelNFCe))

@@ -208,6 +208,72 @@ var nfeRegistry = registry{
 	),
 }
 
+// Contingency authorizers (SEFAZ Virtual de Contingência). They are not a UF's
+// own authorizer: the caller keeps the real UF (cUF header, WSDL operation) and
+// selects one of these only to redirect the URL. NF-e only: the MOC states
+// that NFC-e is not authorized on the SVC (B22-70, 783).
+const (
+	AuthorizerSVCAN = "SVC-AN"
+	AuthorizerSVCRS = "SVC-RS"
+)
+
+// svcServices are the services the MOC says the SVC offers: authorization,
+// return of the batch, cancellation event (own-SVC documents only), protocol
+// query and status. Inutilização and CC-e are NOT offered (MOC 1.1.3.4).
+var svcServices = []string{
+	"NFeAutorizacao", "NFeRetAutorizacao", "NfeConsultaProtocolo", "NfeStatusServico", "RecepcaoEvento",
+}
+
+// svcRegistry holds the SVC-AN and SVC-RS endpoints.
+//
+// ponytail: URLs are NOT in the MOC (it points to the Portal Nacional). They
+// were entered from the publicly known SVC layout and MUST be confirmed against
+// the Portal (docs/specs/2026-11-08-contingencia.md, Decisoes pendentes).
+// SVC-RS is served by the SVRS hosts, so it reuses the SVRS entries.
+var svcRegistry = registry{
+	AuthorizerSVCAN: ep(
+		"https://www.svc.fazenda.gov.br",
+		"https://hom.svc.fazenda.gov.br",
+		map[string]string{
+			"NFeAutorizacao":       "/NFeAutorizacao4/NFeAutorizacao4.asmx",
+			"NFeRetAutorizacao":    "/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx",
+			"NfeConsultaProtocolo": "/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx",
+			"NfeStatusServico":     "/NFeStatusServico4/NFeStatusServico4.asmx",
+			"RecepcaoEvento":       "/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx",
+		},
+	),
+	AuthorizerSVCRS: svrsSubset(nfeRegistry["SVRS"], svcServices),
+}
+
+func svrsSubset(src envURLs, services []string) envURLs {
+	out := envURLs{}
+	for env, urls := range src {
+		out[env] = serviceURLs{}
+		for _, svc := range services {
+			out[env][svc] = urls[svc]
+		}
+	}
+	return out
+}
+
+// svcByUF is the Ato COTEPE 39/2012 designation (MOC, Contingencia_NFe 1.1.3.1).
+var svcByUF = mergeUFAuth(
+	nil, AuthorizerSVCAN,
+	[]string{"AC", "AL", "AP", "DF", "MG", "PB", "RJ", "RS", "RO", "RR", "SC", "SE", "SP", "TO"},
+)
+
+func init() {
+	for _, uf := range []string{"AM", "BA", "CE", "ES", "GO", "MA", "MT", "MS", "PA", "PE", "PI", "PR", "RN"} {
+		svcByUF[uf] = AuthorizerSVCRS
+	}
+}
+
+// SVCFor returns the SVC (SVC-AN or SVC-RS) that serves uf for NF-e.
+func SVCFor(uf string) (string, bool) {
+	a, ok := svcByUF[uf]
+	return a, ok
+}
+
 // nfeUFAuth mirrors the original Python client's _NFE_UF_AUTH.
 var nfeUFAuth = mergeUFAuth(
 	map[string]string{
@@ -536,7 +602,13 @@ func Resolve(docType, uf, environment, service string) (string, error) {
 	}
 
 	authorizer := uf
-	if uf != "AN" {
+	if uf == AuthorizerSVCAN || uf == AuthorizerSVCRS {
+		// svcRegistry is NF-e only (no SVC for NFC-e, CT-e or MDF-e via this path).
+		if docType != "nfe" {
+			return "", fmt.Errorf("endpoint not found: doc_type=%q has no contingency authorizer %q", docType, uf)
+		}
+		table = docTypeTable{reg: svcRegistry}
+	} else if uf != "AN" {
 		authorizer, ok = table.ufAuth[uf]
 		if !ok {
 			return "", fmt.Errorf("endpoint not found: doc_type=%q uf=%q (no authorizer mapping)", docType, uf)

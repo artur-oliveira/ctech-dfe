@@ -586,6 +586,7 @@ only fall back to a legacy `CNPJ_...`/`CPF_...` key. A UUID must never be format
 | GET    | `/v1.0/organizations/{pk}`                    | Organization detail   |
 | PUT    | `/v1.0/organizations/{pk}`                    | Update org            |
 | PUT    | `/v1.0/organizations/{pk}/nfe-config`         | Configure NF-e        |
+| PUT    | `/v1.0/organizations/{pk}/nfe-contingency`    | Abre/fecha a janela de contingência SVC da NF-e (`enabled`, `justification` 15-256); `tpEmis` 6 (SVC-AN) ou 7 (SVC-RS) pela UF do emitente; cancelamento vai à SVC de origem (tpEmis da chave). Ver `docs/specs/2026-11-08-contingencia.md` |
 | PUT    | `/v1.0/organizations/{pk}/nfce-config`        | Configure NFC-e       |
 | PUT    | `/v1.0/organizations/{pk}/cte-config`         | Configure CT-e        |
 | PUT    | `/v1.0/organizations/{pk}/mdfe-config`        | Configure MDF-e (`MdfeConfigBody`: base + `ind_canal_verde`, `ind_carrega_posterior`, `inf_ad_fisco`) |

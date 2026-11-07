@@ -11,6 +11,7 @@ import (
 
 	"gopkg.aoctech.app/dfe/go-dfe/internal/certificate"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
+	"gopkg.aoctech.app/dfe/go-dfe/internal/endpoints"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
@@ -134,6 +135,13 @@ func Call(ctx context.Context, req Request) (Response, error) {
 		return problemResponse(400, constants.ErrCodeValidation, err.Error())
 	}
 
+	if req.Contingency != "" {
+		if req.Contingency != endpoints.AuthorizerSVCAN && req.Contingency != endpoints.AuthorizerSVCRS {
+			return problemResponse(400, constants.ErrCodeValidation, fmt.Sprintf("unknown contingency authorizer %q", req.Contingency))
+		}
+		client.WithSVC(req.Contingency)
+	}
+
 	result, err := client.Call(ctx, req.Service, req.Body)
 	if err != nil {
 		return problemResponse(400, constants.ErrCodeSOAPRequest, err.Error())
@@ -204,3 +212,12 @@ func problemResponse(status int, code, detail string) (Response, error) {
 	}
 	return Response{StatusCode: status, Body: string(body), Headers: map[string]string{}}, nil
 }
+
+// Contingency authorizers accepted in Request.Contingency (NF-e only).
+const (
+	ContingencySVCAN = endpoints.AuthorizerSVCAN
+	ContingencySVCRS = endpoints.AuthorizerSVCRS
+)
+
+// SVCFor returns the SVC that serves uf for NF-e (Ato COTEPE 39/2012).
+func SVCFor(uf string) (string, bool) { return endpoints.SVCFor(uf) }

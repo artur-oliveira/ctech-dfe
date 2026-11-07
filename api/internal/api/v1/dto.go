@@ -1385,6 +1385,14 @@ type FiscalConfigBody struct {
 	fiscalConfigBase
 }
 
+// NfeContingencyBody is the body for PUT /…/nfe-contingency: opens (enabled) or
+// closes the SVC contingency window of the organization. The justification
+// becomes ide/xJust and is required, 15 to 256 characters, when opening.
+type NfeContingencyBody struct {
+	Enabled       bool   `json:"enabled"`
+	Justification string `json:"justification" validate:"omitempty,min=15,max=256"`
+}
+
 // MdfeConfigBody is the body for PUT /…/mdfe-config. Os três campos extras
 // são do leiaute do MDF-e e não existem na NF-e/CT-e, por isso um body próprio
 // em vez de poluir o FiscalConfigBody compartilhado.

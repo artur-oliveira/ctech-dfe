@@ -225,6 +225,7 @@ func (s *NfeService) Cancel(ctx context.Context, orgPK, accessKey, justification
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
+		Contingency:     svcAuthorizerForKey(accessKey),
 		Body:            buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(TpEventoCancelamento),

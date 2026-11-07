@@ -2,6 +2,32 @@ paths:
 
   # ── Fiscal configs ─────────────────────────────────────────────────────────
 
+  /v1.0/organizations/{org_pk}/nfe-contingency:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Abre ou fecha a janela de contingência SVC da NF-e
+      description: |
+        Com a janela aberta, as NF-e novas saem com `tpEmis` 6 (SVC-AN) ou 7 (SVC-RS),
+        conforme a UF do emitente, e `dhCont`/`xJust` preenchidos. O cancelamento de uma
+        nota autorizada na SVC vai à mesma SVC. NFC-e não usa SVC. Abrir uma janela já
+        aberta mantém a data e a justificativa originais. O `PUT /nfe-config` nunca
+        altera a janela. A resposta é a configuração, com `contingency_mode`
+        (`svc`), `contingency_since` e `contingency_reason` enquanto aberta.
+      operationId: putNfeContingency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfeContingencyBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/organizations/{org_pk}/nfe-config:
     parameters:
       - $ref: '#/components/parameters/OrgPk'
@@ -201,6 +227,17 @@ components:
               description: |
                 RNTRC da transportadora (ANTT). O CT-e rodoviário o usa em `infModal/rodo/RNTRC`;
                 sem ele a emissão de CT-e devolve 422 `rntrc_required`.
+
+    NfeContingencyBody:
+      type: object
+      required: [ enabled ]
+      properties:
+        enabled: { type: boolean }
+        justification:
+          type: string
+          minLength: 15
+          maxLength: 256
+          description: Obrigatória ao abrir (`ide/xJust`).
 
     FiscalConfigBody:
       type: object

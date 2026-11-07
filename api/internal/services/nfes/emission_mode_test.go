@@ -4,7 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
+
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
 )
 
 func TestNormalEmissionHasNoContingencyGroup(t *testing.T) {
@@ -112,5 +115,49 @@ func TestAccessKeyCarriesTpEmis(t *testing.T) {
 	}
 	if got := string(key[34]); got != TpEmisSVCAN {
 		t.Errorf("key[34] = %q, want %q (key %s)", got, TpEmisSVCAN, key)
+	}
+}
+
+func svcConfig(since, reason string) map[string]types.AttributeValue {
+	return map[string]types.AttributeValue{
+		repositories.AttrContingencyMode:   &types.AttributeValueMemberS{Value: repositories.ContingencyModeSVC},
+		repositories.AttrContingencySince:  &types.AttributeValueMemberS{Value: since},
+		repositories.AttrContingencyReason: &types.AttributeValueMemberS{Value: reason},
+	}
+}
+
+func TestResolveNFeEmission(t *testing.T) {
+	// janela fechada: normal, sem autorizador
+	m, svc, err := resolveNFeEmission(map[string]types.AttributeValue{}, "SP")
+	if err != nil || m.TpEmis != tpEmisNormal || svc != "" {
+		t.Fatalf("normal: %+v %q %v", m, svc, err)
+	}
+	// SP está na SVC-AN (tpEmis 6); PR na SVC-RS (tpEmis 7)
+	cfg := svcConfig("2026-11-08T10:00:00Z", "SEFAZ de origem indisponivel")
+	for uf, want := range map[string][2]string{"SP": {TpEmisSVCAN, "SVC-AN"}, "PR": {TpEmisSVCRS, "SVC-RS"}} {
+		m, svc, err := resolveNFeEmission(cfg, uf)
+		if err != nil || m.TpEmis != want[0] || svc != want[1] || !m.IsContingency() || m.Validate() != nil {
+			t.Errorf("%s: %+v %q %v", uf, m, svc, err)
+		}
+	}
+	if _, _, err := resolveNFeEmission(cfg, "EX"); err == nil {
+		t.Error("UF sem SVC deve falhar")
+	}
+	if _, _, err := resolveNFeEmission(svcConfig("lixo", "x"), "SP"); err == nil {
+		t.Error("data inválida deve falhar")
+	}
+}
+
+func TestSvcAuthorizerForKey(t *testing.T) {
+	key := func(tp string) string {
+		return "35261112345678000195" + "55" + "001" + "000000001" + tp + "12345678" + "0"
+	}
+	for tp, want := range map[string]string{"1": "", "6": "SVC-AN", "7": "SVC-RS", "4": ""} {
+		if got := svcAuthorizerForKey(key(tp)); got != want {
+			t.Errorf("tpEmis %s: got %q want %q", tp, got, want)
+		}
+	}
+	if svcAuthorizerForKey("123") != "" {
+		t.Error("chave malformada")
 	}
 }
