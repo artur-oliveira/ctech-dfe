@@ -2,7 +2,7 @@
 
 import type {ReactNode} from 'react';
 import {EntityForm} from '@/components/EntityForm';
-import {CRT_NONE_VALUE, type EntityFormData, nfseInfoToApi} from '@/lib/schemas/entity';
+import {addressToApi, CRT_NONE_VALUE, type EntityFormData, nfseInfoToApi} from '@/lib/schemas/entity';
 import type {OrganizationFormData} from '@/lib/schemas/organizations';
 import type {OrganizationCreate} from '@/lib/types/api';
 
@@ -46,11 +46,7 @@ export function OrganizationForm({initialData, orgPk, onSubmit, loading, advance
 }
 
 export function organizationFormToApi(data: EntityFormData): OrganizationCreate {
-  const addresses = data.person.addresses.map((a) => ({
-    ...a,
-    postal_code: a.postal_code.replace(/\D/g, ''),
-    complement: a.complement || null,
-  }));
+  const addresses = data.person.addresses.map(addressToApi);
   const crtRaw = data.person.crt;
   const crt = crtRaw && crtRaw !== CRT_NONE_VALUE ? parseInt(crtRaw, 10) : null;
   return {

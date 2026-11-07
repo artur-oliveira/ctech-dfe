@@ -1,5 +1,7 @@
 'use client';
 
+import {LengthHint} from '@/components/ui/length-hint';
+import {LAYOUT_LIMITS} from '@/lib/constants/layout-limits';
 import Link from 'next/link';
 import {useMemo, useState} from 'react';
 import {generateEntityCode} from '@/lib/utils/code';
@@ -1118,7 +1120,9 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
             <FormField control={form.control} name="description" render={({field}) => (
               <FormItem>
                 <FormLabel>Descrição *</FormLabel>
-                <Input {...field} id={field.name} placeholder="Descrição do produto" maxLength={255}/>
+                <Input {...field} id={field.name} placeholder="Descrição do produto"
+                       maxLength={LAYOUT_LIMITS.productDescription.max}/>
+                <LengthHint value={field.value} max={LAYOUT_LIMITS.productDescription.max}/>
                 <FormMessage/>
               </FormItem>
             )}/>

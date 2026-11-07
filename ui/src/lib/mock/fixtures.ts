@@ -1297,3 +1297,30 @@ export const importDeclarationsFixture = [
     updated_at: '2026-06-09T09:00:00Z',
   },
 ];
+
+/**
+ * Recusa local da emissão de NF-e (`fiscal_prevalidation`, 422 antes da SEFAZ), no formato de
+ * `api/internal/services/nfes/prevalidate.go`: cadastro antigo mais longo que o leiaute nunca é truncado, a
+ * emissão aponta a entidade, o campo e quantos caracteres sobram. Ligada por `?mock=prevalidation`.
+ */
+export const nfeFiscalPrevalidationFixture = {
+  type: 'about:blank',
+  title: 'Unprocessable Entity',
+  status: 422,
+  code: 'fiscal_prevalidation',
+  detail: 'a nota não passa nas validações do leiaute e do MOC; corrija os itens apontados antes de emitir',
+  errors: [
+    {
+      field: 'person.addresses[0].street',
+      code: 'too_long',
+      message: 'destinatario: person.addresses[0].street tem 68 caracteres; o leiaute aceita no máximo 60',
+      params: {entity: 'destinatario', xml_path: 'NFe/infNFe/dest/enderDest/xLgr', limit: 60, got: 68},
+    },
+    {
+      field: 'person.fantasy_name',
+      code: 'too_long',
+      message: 'emitente: person.fantasy_name tem 64 caracteres; o leiaute aceita no máximo 60',
+      params: {entity: 'emitente', xml_path: 'NFe/infNFe/emit/xFant', limit: 60, got: 64},
+    },
+  ],
+};

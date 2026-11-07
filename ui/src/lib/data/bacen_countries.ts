@@ -279,3 +279,11 @@ export const BACEN_COUNTRY_CODES: ReadonlySet<string> = new Set(BACEN_COUNTRIES.
 
 /** Brasil — default de todo campo de país num documento fiscal brasileiro. */
 export const BACEN_COUNTRY_BRAZIL = '1058';
+
+/** Países para um endereço no exterior: o Brasil fica de fora, porque UF EX com cPais 1058 é rejeição (E14-30). */
+export const BACEN_FOREIGN_COUNTRY_OPTIONS = BACEN_COUNTRY_OPTIONS.filter((o) => o.value !== BACEN_COUNTRY_BRAZIL);
+
+/** Nome do país (xPais) pelo código BACEN, ou '' quando o código não existe na tabela. */
+export function bacenCountryName(code: string): string {
+  return BACEN_COUNTRIES.find((c) => c.code === code)?.description ?? '';
+}

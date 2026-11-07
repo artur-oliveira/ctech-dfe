@@ -20,6 +20,8 @@ export interface MockState {
    * and every one of these screens has to be reviewable without one.
    */
   billing: BillingScenario
+  /** Emissão de NF-e recusada localmente (422 `fiscal_prevalidation`), para revisar a tela de erro. */
+  emitPrevalidation: boolean
 }
 
 const SAFE_PATHS = [
@@ -34,6 +36,7 @@ const DEFAULT: MockState = {
   message: 'Erro simulado pelo mock API.',
   endpoints: null,
   billing: 'pro_active',
+  emitPrevalidation: false,
 };
 
 let state: MockState = {...DEFAULT};
@@ -46,7 +49,7 @@ export function setMockState(partial: Partial<MockState>): void {
   state = {...state, ...partial};
 }
 
-/** Reads `?mock=error[:status]` (e.g. `?mock=error:422`) from the URL on boot. */
+/** Reads `?mock=error[:status]` (e.g. `?mock=error:422`) or `?mock=prevalidation` from the URL on boot. */
 export function initMockStateFromUrl(search: string): void {
   const params = new URLSearchParams(search);
   const raw = params.get('mock');
@@ -54,6 +57,8 @@ export function initMockStateFromUrl(search: string): void {
   if (raw === 'error' || raw.startsWith('error')) {
     const status = Number(raw.split(':')[1]) || 500;
     state = {...state, mode: 'error', status};
+  } else if (raw === 'prevalidation') {
+    state = {...state, emitPrevalidation: true};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

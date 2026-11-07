@@ -4,6 +4,7 @@
  */
 import {z} from 'zod';
 import {CFOP_SUFFIXES} from '@/lib/data/cfop';
+import {FIN_NFE_CREDITO, FIN_NFE_DEBITO} from '@/lib/data/nfe_fields';
 
 export const DOC_TYPE_OPTIONS = [
   {value: 'nfe', label: 'NF-e'},
@@ -51,7 +52,7 @@ export const operationSchema = z.object({
   doc_types: z.array(z.enum(['nfe', 'nfce', 'cte', 'mdfe'])),
   nat_op: z.string().max(60).optional().or(z.literal('')),
   tp_nf: z.enum(['0', '1']).optional().or(z.literal('')),
-  fin_nfe: z.enum(['1', '2', '3', '4']).optional().or(z.literal('')),
+  fin_nfe: z.enum(['1', '2', '3', '4', FIN_NFE_CREDITO, FIN_NFE_DEBITO]).optional().or(z.literal('')),
   ind_final: z.enum(['0', '1']).optional().or(z.literal('')),
   ind_pres: z.enum(['0', '1', '2', '3', '4', '5', '9']).optional().or(z.literal('')),
   // Natureza fiscal: 3 dígitos. O escopo (5/6/7) é resolvido na emissão.
@@ -113,6 +114,15 @@ export const operationSchema = z.object({
       path: ['cfop_suffix'],
       message: 'Natureza fiscal não existe na tabela CFOP',
     });
+  }
+
+  // O tipo de débito só existe na nota de débito, e o de crédito só na de crédito: fora delas a SEFAZ rejeita
+  // (B25.1-10 e B25.2-10, que a api recusa antes de enviar). Sem o tipo a emissão pede o seu.
+  if (data.tp_nf_debito && data.fin_nfe !== FIN_NFE_DEBITO) {
+    ctx.addIssue({code: 'custom', path: ['tp_nf_debito'], message: 'Só na finalidade 6 (nota de débito)'});
+  }
+  if (data.tp_nf_credito && data.fin_nfe !== FIN_NFE_CREDITO) {
+    ctx.addIssue({code: 'custom', path: ['tp_nf_credito'], message: 'Só na finalidade 5 (nota de crédito)'});
   }
 
   // gCompraGov: o tipo do ente e o redutor formam grupo com o tipo de operação.

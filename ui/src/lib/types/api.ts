@@ -145,6 +145,9 @@ export interface AddressOut {
   state_federation: string
   postal_code: string
   complement?: string
+  /** Endereço no exterior (UF EX): código BACEN e nome do país. */
+  country_code?: string | null
+  country_name?: string | null
 }
 
 export interface StateRegistrationOut {
@@ -832,6 +835,9 @@ export interface PersonAddressOut {
   state_federation: string
   postal_code: string
   complement: string | null
+  /** Endereço no exterior (UF EX): código BACEN e nome do país. */
+  country_code?: string | null
+  country_name?: string | null
 }
 
 export type Crt = "1" | "2" | "3" | "4";
@@ -1354,6 +1360,10 @@ export interface NfeLocalOut {
   c_mun: string
   x_mun: string
   uf: string
+  cep?: string
+  ie?: string
+  c_pais?: string
+  x_pais?: string
   fone?: string
   email?: string
 }
@@ -1368,7 +1378,14 @@ export interface NfeLocalIn {
   x_bairro: string
   c_mun: string
   x_mun: string
+  /** Sigla da UF, ou EX no exterior (com c_pais e x_pais; sem CEP, c_mun 9999999). */
   uf: string
+  cep?: string | null
+  /** IE do local: dígitos ou ISENTO. */
+  ie?: string | null
+  /** Código BACEN do país e o nome, só no exterior. */
+  c_pais?: string | null
+  x_pais?: string | null
   fone?: string | null
   email?: string | null
 }
@@ -1495,6 +1512,9 @@ export interface NfeRefIn {
   n_coo?: string | null
 }
 
+/** ide/finNFe: 1 normal, 2 complementar, 3 ajuste, 4 devolução, 5 nota de crédito, 6 nota de débito. */
+export type FinNFe = '1' | '2' | '3' | '4' | '5' | '6'
+
 export interface NfeEmit {
   receiver_id?: string | null  // person sk: CPF_xxx or CNPJ_xxx; omit when self_issuance=true
   self_issuance?: boolean
@@ -1507,7 +1527,10 @@ export interface NfeEmit {
   additional_info?: string | null
   // Campos opcionais de emissão
   nat_op?: string | null
-  fin_nfe?: '1' | '2' | '3' | '4' | null
+  fin_nfe?: FinNFe | null
+  /** Tipo da nota de crédito (fin_nfe 5) e de débito (fin_nfe 6); vencem os da operação. */
+  tp_nf_credito?: string | null
+  tp_nf_debito?: string | null
   ind_final?: '0' | '1' | null
   ind_pres?: string | null
   tp_nf?: '0' | '1' | null

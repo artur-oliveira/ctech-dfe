@@ -1,4 +1,5 @@
 import type { CfopConfigItem } from '@/lib/types/api';
+import {UF_EXTERIOR} from '@/lib/constants/layout-limits';
 
 type CfopPrefix = '1' | '2' | '3' | '5' | '6' | '7'
 type AnyDigit = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '0';
@@ -4210,8 +4211,6 @@ export const CFOP_SUFFIXES: ReadonlySet<string> = new Set(cfopSuffixOptions().ma
 export const CFOP_SCOPE_INTRA_UF = '5';
 export const CFOP_SCOPE_INTER_UF = '6';
 export const CFOP_SCOPE_FOREIGN = '7';
-/** UF que representa destino no exterior. */
-export const UF_FOREIGN = 'EX';
 
 /**
  * Monta o CFOP concreto a partir da natureza fiscal e das UFs.
@@ -4230,7 +4229,7 @@ export const resolveCfopScope = (suffix: string, emitUf: string, destUf: string)
   const emit = emitUf.trim().toUpperCase();
   const dest = destUf.trim().toUpperCase();
   if (!emit || !dest) return null;
-  if (dest === UF_FOREIGN) return CFOP_SCOPE_FOREIGN + nature;
+  if (dest === UF_EXTERIOR) return CFOP_SCOPE_FOREIGN + nature;
   return (emit === dest ? CFOP_SCOPE_INTRA_UF : CFOP_SCOPE_INTER_UF) + nature;
 };
 

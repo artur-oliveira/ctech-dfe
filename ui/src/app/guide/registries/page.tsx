@@ -59,8 +59,56 @@ export default function GuideCadastros() {
               <GuideCallout kind="tip" title="Inscrição estadual não é detalhe">
                 É a IE do destinatário que define se a operação é para contribuinte ou consumidor
                 final; e isso muda CFOP e tributação. Uma IE errada no cadastro vira rejeição na
-                emissão.
+                emissão. Contribuinte dispensado de inscrição é marcado em <b>Isento de inscrição</b>,
+                ao lado do número; não se digita a palavra.
               </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'address-abroad',
+          title: 'Endereço no exterior',
+          summary:
+            'Cliente ou fornecedor fora do Brasil: marque Endereço no exterior e escolha o país; o resto do leiaute o sistema preenche.',
+          image: {
+            src: '/guide/persons-form-abroad.webp',
+            alt: 'Endereço de pessoa com Endereço no exterior marcado, seletor de país no lugar do CEP e cidade digitada',
+          },
+          body: (
+            <>
+              <p>
+                Com <b>Endereço no exterior</b> marcado, o CEP sai do formulário, o país vem da tabela
+                do Banco Central (o Brasil fica de fora da lista) e a cidade é digitada, porque não há
+                tabela de municípios lá fora. A UF vira EX e o município, 9999999, sem você digitar
+                nenhum dos dois. Vale para pessoas, para a sua empresa e para os locais de retirada e
+                entrega da NF-e.
+              </p>
+              <p>
+                A nota para esse destinatário sai como operação com o exterior: sem inscrição estadual
+                e com CFOP 7xxx quando a natureza da operação define o CFOP. Pessoa estrangeira se
+                identifica pelo <b>documento estrangeiro</b> no lugar do CPF ou CNPJ.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'layout-limits',
+          title: 'Tamanho dos textos',
+          summary:
+            'Os campos aceitam o que a nota aceita: o que passa disso seria recusado na emissão.',
+          body: (
+            <>
+              <GuideBullets>
+                <li><b>Nome e razão social:</b> 2 a 60 caracteres; nome fantasia até 60.</li>
+                <li><b>Logradouro, bairro e cidade:</b> 2 a 60; complemento até 60; número até 20.</li>
+                <li><b>Inscrição estadual:</b> 2 a 14; <b>e-mail:</b> 6 a 60.</li>
+                <li><b>Descrição do produto:</b> 2 a 120.</li>
+              </GuideBullets>
+              <p>
+                Perto do limite aparece um contador embaixo do campo. Cadastro antigo com texto maior
+                não é cortado: ao emitir, a nota volta antes da SEFAZ dizendo o campo e quantos
+                caracteres sobram, com o atalho para o cadastro.
+              </p>
             </>
           ),
         },
@@ -304,7 +352,8 @@ export default function GuideCadastros() {
             <>
               <p>
                 A natureza responde três campos da NF-e de uma vez: o texto da natureza da operação,
-                a finalidade (normal, complementar, ajuste ou devolução) e o sufixo do CFOP dos
+                a finalidade (normal, complementar, ajuste, devolução, nota de crédito ou nota de
+                débito) e o sufixo do CFOP dos
                 itens. O prefixo do CFOP sai do destino; mesma natureza, CFOP diferente para dentro
                 e fora do estado.
               </p>
@@ -312,6 +361,10 @@ export default function GuideCadastros() {
                 <li><b>Obrigatórios:</b> nome, finalidade e tipo de operação (entrada ou saída).</li>
                 <li>Uma natureza pode ser marcada como <b>padrão</b>; vem selecionada em toda emissão nova.</li>
                 <li>Devolução exige a nota referenciada na emissão; a natureza sozinha não basta.</li>
+                <li>
+                  O tipo da nota de crédito só vale com a finalidade 5, e o da nota de débito só com
+                  a 6; fora delas o formulário recusa, porque a SEFAZ rejeitaria.
+                </li>
                 <li>Sobrescrever o CFOP direto no item sempre vence o que veio da natureza.</li>
               </GuideBullets>
             </>

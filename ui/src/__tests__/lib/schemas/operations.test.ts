@@ -99,3 +99,17 @@ describe('operationSchema · natureza fiscal e compra governamental', () => {
     expect(operationSchema.safeParse({...base, compra_gov_tp_ente: '1', compra_gov_tp_oper: '2'}).success).toBe(true);
   });
 });
+
+describe('finalidade 5 e 6 (NT 2025.002)', () => {
+  it('aceita nota de crédito e de débito com o tipo correspondente', () => {
+    expect(operationSchema.safeParse({...base, fin_nfe: '5', tp_nf_credito: '01'}).success).toBe(true);
+    expect(operationSchema.safeParse({...base, fin_nfe: '6', tp_nf_debito: '07'}).success).toBe(true);
+  });
+
+  it('recusa o tipo de débito ou de crédito fora da sua finalidade (B25.1-10, B25.2-10)', () => {
+    const debit = operationSchema.safeParse({...base, fin_nfe: '1', tp_nf_debito: '01'});
+    expect(debit.success ? [] : debit.error.issues.map((i) => i.path.join('.'))).toEqual(['tp_nf_debito']);
+    const credit = operationSchema.safeParse({...base, fin_nfe: '6', tp_nf_credito: '01'});
+    expect(credit.success ? [] : credit.error.issues.map((i) => i.path.join('.'))).toEqual(['tp_nf_credito']);
+  });
+});

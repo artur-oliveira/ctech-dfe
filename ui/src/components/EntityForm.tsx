@@ -18,6 +18,8 @@ import {Button} from '@aoctech/ui';
 import {AddressFields} from '@/components/ui/address-fields';
 import {SectionCard} from '@/components/ui/section-card';
 import {CnpjLookupBadge} from '@/components/ui/cnpj-lookup-badge';
+import {LengthHint} from '@/components/ui/length-hint';
+import {IE_EXEMPT, LAYOUT_LIMITS} from '@/lib/constants/layout-limits';
 import {
   CRT_NONE_VALUE,
   CRT_OPTIONS_ORG_PF,
@@ -455,7 +457,15 @@ export function EntityForm({
                        render={({field: f}) => (
                          <FormItem className="flex-1">
                            {index === 0 && <FormLabel>IE</FormLabel>}
-                           <Input {...f} placeholder="Número da IE" maxLength={20}/>
+                           {/* Isento é uma escolha, não uma palavra para digitar: a literal vai pelo checkbox. */}
+                           <Input {...f} placeholder="Número da IE" maxLength={LAYOUT_LIMITS.stateRegistration.max}
+                                  disabled={f.value === IE_EXEMPT}/>
+                           <label className="flex min-h-11 items-center gap-2 text-xs text-gray-600 sm:min-h-0">
+                             <input type="checkbox" checked={f.value === IE_EXEMPT}
+                                    onChange={(e) => f.onChange(e.target.checked ? IE_EXEMPT : '')}
+                                    className="size-4 rounded border-gray-300"/>
+                             Isento de inscrição
+                           </label>
                            <FormMessage/>
                          </FormItem>
                        )}
@@ -465,7 +475,8 @@ export function EntityForm({
                        render={({field: f}) => (
                          <FormItem className="flex-1">
                            {index === 0 && <FormLabel>IE de ST</FormLabel>}
-                           <Input {...f} value={f.value ?? ''} placeholder="Opcional" maxLength={20}/>
+                           <Input {...f} value={f.value ?? ''} placeholder="Opcional"
+                                  maxLength={LAYOUT_LIMITS.stateRegistration.max}/>
                            <FormMessage/>
                          </FormItem>
                        )}
@@ -794,11 +805,12 @@ export function EntityForm({
                            <FormItem>
                              <FormLabel>{isPJ ? 'Razão Social *' : 'Nome *'}</FormLabel>
                              <Input {...field} id={field.name}
-                                    placeholder={isPJ ? 'Empresa LTDA' : 'João da Silva'} maxLength={255}
+                                    placeholder={isPJ ? 'Empresa LTDA' : 'João da Silva'} maxLength={LAYOUT_LIMITS.name.max}
                                     autoComplete={isPJ ? 'organization' : 'name'}
                                     onChange={variant === 'person'
                                       ? (e) => field.onChange(e.target.value.toUpperCase())
                                       : field.onChange}/>
+                             <LengthHint value={field.value as string} max={LAYOUT_LIMITS.name.max}/>
                              <FormMessage/>
                            </FormItem>
                          )}
@@ -943,7 +955,7 @@ export function EntityForm({
                              <FormItem>
                                <FormLabel>Nome fantasia</FormLabel>
                                <Input {...field} id={field.name} value={field.value ?? ''} placeholder="Minha Loja"
-                                      maxLength={255}/>
+                                      maxLength={LAYOUT_LIMITS.fantasyName.max}/>
                                <FormMessage/>
                              </FormItem>
                            )}
@@ -989,6 +1001,7 @@ export function EntityForm({
                     </div>
                     <div className="flex gap-2">
                       <Input type="email" aria-label="Novo e-mail" placeholder="email@empresa.com" value={emailInput}
+                             maxLength={LAYOUT_LIMITS.email.max}
                              onChange={(e) => setEmailInput(e.target.value)}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter') {

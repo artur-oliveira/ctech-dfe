@@ -1,5 +1,5 @@
 import type {OrganizationOut, PersonOut} from '@/lib/types/api';
-import {EMPTY_ADDRESS, type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity';
+import {addressFromApi, EMPTY_ADDRESS, type EntityFormData, nfseInfoFromApi} from '@/lib/schemas/entity';
 import {orgIsPJ, orgTaxId} from "@/lib/utils/document";
 
 export type {EntityFormData as OrganizationFormData};
@@ -22,11 +22,7 @@ export function organizationOutToFormData(org: OrganizationOut): EntityFormData 
       ...rest,
       crt: String(crt ?? '1') as EntityFormData['person']['crt'],
       tp_regime_ibs_cbs: String(tp_regime_ibs_cbs ?? '') as EntityFormData['person']['tp_regime_ibs_cbs'],
-      addresses: (addresses ?? [EMPTY_ADDRESS]).map((a) => ({
-        ...a,
-        complement: a.complement ?? '',
-        state_federation: a.state_federation as EntityFormData['person']['addresses'][number]['state_federation'],
-      })),
+      addresses: (addresses ?? [EMPTY_ADDRESS]).map(addressFromApi),
       state_registrations: (state_registrations ?? []).map((r) => ({
         uf: r.uf as EntityFormData['person']['state_registrations'][number]['uf'],
         state_registration: r.state_registration,

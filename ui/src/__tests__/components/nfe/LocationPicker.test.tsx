@@ -48,3 +48,39 @@ describe('LocationPicker', () => {
     expect(screen.getByPlaceholderText('Logradouro')).toBeInTheDocument();
   });
 });
+
+describe('LocationPicker: exterior, IE e recusa da emissão', () => {
+  it('local no exterior fixa UF EX e município 9999999 e troca o CEP pelo país', () => {
+    const onChange = vi.fn();
+    render(
+      <LocationPicker label="Local de entrega" savedLocations={[]} value={null}
+                      onChange={onChange} save={false} onSaveChange={() => {}}/>
+    );
+    fireEvent.click(screen.getByText('+ Local de entrega'));
+    expect(screen.getByPlaceholderText('CEP')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Local no exterior'));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({uf: 'EX', c_mun: '9999999', cep: null}));
+  });
+
+  it('com um local já escolhido abre aberto e mostra a recusa no campo', () => {
+    render(
+      <LocationPicker label="Local de entrega" savedLocations={[savedLocation]}
+                      value={{...savedLocation, uf: 'EX', c_mun: '9999999'}}
+                      errors={{c_pais: 'Local de entrega: falta País.'}}
+                      onChange={() => {}} save={false} onSaveChange={() => {}}/>
+    );
+    expect(screen.getByText('Local de entrega: falta País.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Local no exterior')).toBeChecked();
+  });
+
+  it('isento é uma escolha que grava a literal ISENTO', () => {
+    const onChange = vi.fn();
+    render(
+      <LocationPicker label="Local de retirada" savedLocations={[]} value={null}
+                      onChange={onChange} save={false} onSaveChange={() => {}}/>
+    );
+    fireEvent.click(screen.getByText('+ Local de retirada'));
+    fireEvent.click(screen.getByLabelText('Isento de inscrição'));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ie: 'ISENTO'}));
+  });
+});

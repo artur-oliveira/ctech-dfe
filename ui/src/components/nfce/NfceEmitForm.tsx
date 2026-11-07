@@ -6,7 +6,8 @@ import {useQuery} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {apiClient} from '@/lib/api/client';
 import {paymentBalanceGap} from '@/lib/utils/emit-guards';
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {type EmitActionFor, emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {RECORD_HREF} from '@/lib/api/emit-problem';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
@@ -411,7 +412,14 @@ export function NfceEmitForm() {
       toast.success('NFC-e enviada, aguardando autorização da SEFAZ.');
       router.push('/nfce');
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir NFC-e.'));
+      // Uma tela só: o que se corrige aqui está à vista; só cadastro de outra tela ganha link.
+      const actionFor: EmitActionFor = (target, item) => {
+        const product = target === 'produto' && item ? products[item - 1]?.product : undefined;
+        if (product) return {label: 'Abrir cadastro', href: RECORD_HREF.product(product.sk)};
+        if (target === 'emitente' && selectedOrg) return {label: 'Abrir cadastro', href: RECORD_HREF.organization(selectedOrg.pk)};
+        return undefined;
+      };
+      setSubmitError(emitFailure(err, 'Erro ao emitir NFC-e.', actionFor));
     } finally {
       setIsSubmitting(false);
     }

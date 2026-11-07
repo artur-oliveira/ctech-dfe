@@ -87,6 +87,29 @@ const CAPTURES = [
       {waitText: 'Emitir NF-e'},
     ],
   },
+  // Recusa local antes da SEFAZ (422 fiscal_prevalidation), ligada no mock por `?mock=prevalidation`.
+  {
+    slug: 'nfe-emit-error',
+    route: '/nfe/emit?mock=prevalidation',
+    steps: [
+      {waitText: 'Cliente Exemplo LTDA'},
+      {click: 'Cliente Exemplo LTDA'},
+      {click: 'Próximo'},
+      {waitText: 'Adicionar produto'},
+      {click: 'Adicionar produto'},
+      {waitText: 'Notebook 15 polegadas'},
+      {click: 'Notebook 15 polegadas'},
+      {click: 'Próximo'},
+      {waitText: 'Condição de pagamento'},
+      {click: 'Próximo'},
+      {waitAt: '#nfe-emit-submit'},
+      // O texto "Emitir NF-e" também é o link da navegação; o id acha o botão da barra de ação.
+      {clickAt: '#nfe-emit-submit'},
+      {click: 'Confirmar e emitir'},
+      {waitText: 'Abrir cadastro'},
+      {scrollAt: '[role="alert"]'},
+    ],
+  },
   {slug: 'nfe-detail', route: `/nfe/detail?key=${NFE_KEY}`, waitText: 'Notebook 15 polegadas'},
   {
     slug: 'nfe-events',
@@ -157,6 +180,17 @@ const CAPTURES = [
   {slug: 'products', route: '/products', waitText: 'Notebook 15 polegadas'},
   {slug: 'persons', route: '/persons', waitText: 'Cliente Exemplo LTDA'},
   {slug: 'persons-form', route: '/persons/new', waitText: 'Dados complementares e fiscais'},
+  // Endereço no exterior: país da tabela BACEN no lugar do CEP e da cidade brasileira.
+  {
+    slug: 'persons-form-abroad',
+    route: '/persons/new',
+    steps: [
+      {waitText: 'Dados complementares e fiscais'},
+      {clickAt: '[id="person.addresses.0.abroad"]'},
+      {waitText: 'Selecione o país'},
+      {scrollAt: '[id="person.addresses.0.abroad"]'},
+    ],
+  },
   {slug: 'tax-profiles', route: '/tax-profiles', waitText: 'Simples Nacional'},
   {slug: 'service-locations', route: '/service-locations', waitText: 'Obra Centro'},
   {slug: 'reference-documents', route: '/reference-documents', waitText: 'NF-e de materiais'},

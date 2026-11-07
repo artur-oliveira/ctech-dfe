@@ -3221,6 +3221,22 @@ Uma tela só (`components/cte/CteEmitForm.tsx`), sem wizard, dentro de `RequireF
   `rntrc_required` vira a ação "Cadastrar RNTRC" para `/fiscal-config?tab=mdfe` (campo `rntrc` na aba MDF-e).
 - **Lista**: `/cte`, aba "Emitidos" (`GET /v1.0/ctes?incoming=0`).
 
+### NF-e/NFC-e F3 na UI
+
+Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAYOUT_LIMITS`, `IE_EXEMPT` `ISENTO`,
+`UF_EXTERIOR` `EX`, `C_MUN_EXTERIOR` `9999999`), lida pelos schemas Zod, pelos `maxLength` dos inputs e pelo contador
+`LengthHint` (a partir de 80% do limite). Mudou uma tag `validate` em `api/internal/api/v1/dto.go`, muda ali também.
+
+- **Endereço no exterior**: `AddressFields` tem o checkbox "Endereço no exterior" (UF `EX`, município `9999999` não
+  editável, sem CEP, país pelo seletor BACEN sem o 1058). `addressToApi`/`addressFromApi` em `lib/schemas/entity.ts`
+  são o único mapeamento de endereço de pessoa e organização.
+- **Isento**: "Isento de inscrição" grava a literal `ISENTO` na IE (cadastro e local de retirada ou entrega).
+- **Finalidade**: passo 1 da emissão de NF-e com o seletor "Finalidade"; 5 ou 6 pedem `tp_nf_credito` ou `tp_nf_debito`.
+- **Locais**: `LocationPicker` com CEP, município por combobox IBGE, IE opcional e "Local no exterior".
+- **Recusas locais (422)**: `lib/api/emit-problem.ts` traduz `invalid_decimal`, `registration_incomplete` e
+  `fiscal_prevalidation` numa linha por erro, com a ação de correção ("Abrir cadastro" ou "Editar" o passo).
+- **Guia e capturas**: `/guide/registries` (`address-abroad`, `layout-limits`) e `/guide/nfe` (`local-refusal`).
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

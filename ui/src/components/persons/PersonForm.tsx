@@ -2,6 +2,8 @@
 
 import {EntityForm} from '@/components/EntityForm';
 import {
+  addressFromApi,
+  addressToApi,
   CRT_NONE_VALUE,
   type EntityFormData,
   freightRetentionToApi,
@@ -52,11 +54,7 @@ function fromPersonOut(p: PersonItemOut): EntityFormData {
         uf: r.uf as EntityFormData['person']['state_registrations'][number]['uf'],
         state_registration: r.state_registration,
       })),
-      addresses: p.person.addresses.map((a) => ({
-        ...a,
-        complement: a.complement ?? '',
-        state_federation: a.state_federation as EntityFormData['person']['addresses'][number]['state_federation'],
-      })),
+      addresses: p.person.addresses.map(addressFromApi),
       contacts: p.person.contacts ?? {emails: [], phones: []},
       nfse: nfseInfoFromApi(p.person.nfse),
       cnae: p.person.cnae ?? '',
@@ -82,11 +80,7 @@ export function personFormToApi(data: EntityFormData): PersonCreate {
   // Payload shape follows the selected type, not just initialData — this lets a
   // brand-new PF be created correctly (e.g. NFC-e consumer).
   const isPJ = data.tipo === 'pj';
-  const addresses = data.person.addresses.map((a) => ({
-    ...a,
-    postal_code: a.postal_code.replace(/\D/g, ''),
-    complement: a.complement || null,
-  }));
+  const addresses = data.person.addresses.map(addressToApi);
   const nfse = nfseInfoToApi(data.person.nfse);
   const personPayload: PersonCreate['person'] = isPJ
     ? {

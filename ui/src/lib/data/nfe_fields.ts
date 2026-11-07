@@ -22,7 +22,13 @@ export const FIN_NFE_OPTIONS = [
   {value: '2', label: '2 · Complementar'},
   {value: '3', label: '3 · Ajuste'},
   {value: '4', label: '4 · Devolução'},
+  {value: '5', label: '5 · Nota de crédito'},
+  {value: '6', label: '6 · Nota de débito'},
 ];
+
+/** Finalidades da reforma tributária (NT 2025.002): cada uma exige o seu tipo (tpNFCredito / tpNFDebito). */
+export const FIN_NFE_CREDITO = '5';
+export const FIN_NFE_DEBITO = '6';
 
 export const IND_FINAL_OPTIONS = [
   {value: '1', label: '1 · Consumidor final'},

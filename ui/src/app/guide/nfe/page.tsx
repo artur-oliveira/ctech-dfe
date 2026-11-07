@@ -51,7 +51,7 @@ export default function GuideNfe() {
             'Para quem é a nota e qual a natureza da operação. Os dois definem CFOP e finalidade do resto do preenchimento.',
           image: {
             src: '/guide/nfe-emit-receiver.webp',
-            alt: 'Primeiro passo da emissão de NF-e, com natureza da operação, atalhos de destinatários recentes e busca',
+            alt: 'Primeiro passo da emissão de NF-e, com natureza da operação, finalidade, atalhos de destinatários recentes e busca',
           },
           body: (
             <>
@@ -67,10 +67,25 @@ export default function GuideNfe() {
                   A <b>natureza da operação</b> preenche natureza, finalidade e o CFOP dos itens.
                   Qualquer campo que você editar depois vence a operação.
                 </li>
+                <li>
+                  <b>Finalidade</b> vem da operação e pode ser trocada só nesta nota: normal,
+                  complementar, ajuste, devolução, <b>nota de crédito</b> ou <b>nota de débito</b>.
+                </li>
               </GuideBullets>
+              <GuideCallout kind="info" title="Notas de crédito e de débito (reforma tributária)">
+                Escolhida a finalidade 5 ou 6, aparece o seletor do tipo: o motivo do crédito (multa e
+                juros, redução de valores, retorno por recusa na entrega...) ou do débito (perda em
+                estoque, pagamento antecipado, desenquadramento do Simples...). O tipo é obrigatório
+                para avançar. A nota de crédito é sempre de entrada e a de débito, de saída: o CFOP
+                dos itens precisa concordar. Os itens levam só IBS e CBS, salvo os tipos que a regra
+                da NT 2025.002 libera.
+              </GuideCallout>
               <p>
                 Locais de retirada e entrega são opcionais e só aparecem no XML quando diferentes do
-                endereço cadastrado. Endereços usados com frequência podem ser salvos na pessoa.
+                endereço cadastrado. Endereços usados com frequência podem ser salvos na pessoa. O
+                local tem CEP, cidade escolhida na lista e inscrição estadual opcional (com a opção{' '}
+                <b>Isento de inscrição</b>); marcado <b>Local no exterior</b>, o CEP sai, o país vem
+                da tabela do Banco Central e o município fica 9999999.
               </p>
             </>
           ),
@@ -126,6 +141,49 @@ export default function GuideNfe() {
                 A emissão em andamento é salva no seu navegador. Se você fechar a aba, a próxima
                 visita à tela de emissão oferece retomar de onde parou, ou descartar.
               </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'local-refusal',
+          title: 'Quando a nota volta antes da SEFAZ',
+          summary:
+            'Antes de reservar o número, o sistema confere a nota com o leiaute e com as regras do Manual de Orientação. O que não passa volta na hora, item por item, com o lugar de corrigir.',
+          image: {
+            src: '/guide/nfe-emit-error.webp',
+            alt: 'Aviso de emissão recusada antes da SEFAZ, listando o logradouro do destinatário e o nome fantasia do emitente acima do limite do leiaute, cada um com o link Abrir cadastro',
+          },
+          body: (
+            <>
+              <p>
+                Nada é enviado nem numerado: corrija o que a lista aponta e emita de novo. Cada linha
+                diz o que está errado e traz o atalho para o lugar certo; <b>Abrir cadastro</b> leva
+                à pessoa, à empresa ou ao produto, e <b>Editar</b> volta ao passo da nota.
+              </p>
+              <GuideTerms>
+                <GuideTerm term="Texto acima do limite">
+                  Cadastro antigo com texto maior que o leiaute aceita (o logradouro passa de 60
+                  caracteres, a descrição do produto de 120). O sistema não corta por você: a linha
+                  diz quantos caracteres sobram e onde editar.
+                </GuideTerm>
+                <GuideTerm term="Cadastro incompleto">
+                  Falta um dado que a nota exige: UF ou município do endereço, o país de um endereço
+                  no exterior, o município do ISSQN de um item de serviço.
+                </GuideTerm>
+                <GuideTerm term="Regra do Manual de Orientação">
+                  A nota seria rejeitada pela SEFAZ. A linha mostra a regra e o código da rejeição que
+                  ela evitou, e como corrigir: CFOP fora do destino, destinatário no exterior sem os
+                  dados do país, nota de crédito sem o tipo, pagamentos que não fecham com o total.
+                </GuideTerm>
+                <GuideTerm term="Número malformado">
+                  Um valor do cadastro (preço, alíquota) que não é um número válido; a linha nomeia o
+                  campo.
+                </GuideTerm>
+              </GuideTerms>
+              <p>
+                Problema num local de retirada ou de entrega aparece também no próprio campo, quando
+                você volta ao primeiro passo.
+              </p>
             </>
           ),
         },

@@ -34,6 +34,7 @@ import {
   nfeDetailFixture,
   nfeEventsFixture,
   nfesFixture,
+  nfeFiscalPrevalidationFixture,
   nfseConfigFixture,
   nfseDistributionsFixture,
   nfseEventsFixture,
@@ -233,7 +234,10 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   // Documents
   // Recebidas (incoming 1) têm fixture própria: a emissão de CT-e precisa de nota de outro remetente.
   if (key === 'get /v1.0/nfes') return {data: paginated(Number(params?.incoming) === 1 ? receivedNfesFixture : nfesFixture)};
-  if (m === 'post' && path === '/v1.0/nfes') return {data: echo(body, 'nfe')};
+  if (m === 'post' && path === '/v1.0/nfes') {
+    if (getMockState().emitPrevalidation) return {error: {status: 422, data: nfeFiscalPrevalidationFixture}};
+    return {data: echo(body, 'nfe')};
+  }
   if (key === 'get /v1.0/nfces') return {data: paginated(nfcesFixture)};
   if (m === 'post' && path === '/v1.0/nfces') return {data: echo(body, 'nfce')};
   if (key === 'get /v1.0/mdfes') return {data: paginated(mdfesFixture)};

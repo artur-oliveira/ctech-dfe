@@ -60,3 +60,16 @@ describe('mock handler', () => {
     expect(detail.products).toBeDefined();
   });
 });
+
+describe('mock handler: recusa local da NF-e', () => {
+  it('com ?mock=prevalidation a emissão volta 422 fiscal_prevalidation', async () => {
+    const {initMockStateFromUrl, setMockState} = await import('@/lib/mock/state');
+    initMockStateFromUrl('?mock=prevalidation');
+    try {
+      await expect(mockAdapter({method: 'post', url: '/v1.0/nfes', data: '{}', headers: {}} as InternalAxiosRequestConfig))
+        .rejects.toMatchObject({response: {status: 422, data: {code: 'fiscal_prevalidation'}}});
+    } finally {
+      setMockState({emitPrevalidation: false});
+    }
+  });
+});

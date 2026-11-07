@@ -1,3 +1,4 @@
+import {LAYOUT_LIMITS} from '@/lib/constants/layout-limits';
 import {z} from 'zod';
 import {packingGroupApplies, RISK_CLASSES} from '@/lib/data/dangerous_goods';
 import {IPI_CENQ} from '@/lib/data/ipi_cenq';
@@ -323,8 +324,8 @@ const productSchemaBase = z.object({
     .regex(/^[A-Z0-9._\-]+$/, 'Apenas A–Z, 0–9 e . _ -'),
   description: z
     .string()
-    .min(2, 'Mínimo 2 caracteres')
-    .max(255, 'Máximo 255 caracteres'),
+    .min(LAYOUT_LIMITS.productDescription.min, `Mínimo ${LAYOUT_LIMITS.productDescription.min} caracteres`)
+    .max(LAYOUT_LIMITS.productDescription.max, `Máximo ${LAYOUT_LIMITS.productDescription.max} caracteres`),
   brand: nullableStr(z.string().max(60, 'Máximo 60 caracteres')),
   ncm: z.string().regex(/^\d{8}$/, 'NCM deve ter 8 dígitos'),
   cest: nullableStr(z.string().regex(/^\d{7}$/, 'CEST deve ter 7 dígitos')),

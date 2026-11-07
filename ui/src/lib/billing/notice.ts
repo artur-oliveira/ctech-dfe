@@ -12,6 +12,7 @@ import {ApiError} from '@/lib/api/client';
 import {METER_LABELS, PLAN_LABELS, STATUS_CANCELED, STATUS_INCOMPLETE, STATUS_PAST_DUE, STATUS_PAUSED} from '@/lib/constants/billing';
 import type {AccountSubscription} from '@/lib/types/billing';
 import {ONBOARDING_ROOT, STEP_PLAN} from '@/lib/constants/onboarding';
+import {type EmitIssue, type EmitTarget, parseEmitIssues} from '@/lib/api/emit-problem';
 
 /** RFC 7807 type for every refusal money fixes (`api/internal/problem`). */
 export const PROBLEM_TYPE_PAYMENT_REQUIRED = '/problems/payment-required';
@@ -129,26 +130,48 @@ export function noticeForReason(p: BillingProblem): BillingNotice {
   }
 }
 
+/** Where a fix happens: another screen (a record) or a block of the form itself. */
+export type EmitAction = { label: string; href: string } | { label: string; onClick: () => void }
+
+/** One thing the API refused before SEFAZ, with the way to fix it when the form knows one. */
+export interface EmitFailureIssue extends EmitIssue {
+  action?: EmitAction
+}
+
 /** A failed emission, as the form shows it: what happened and what to do. */
 export interface EmitFailure {
   message: string
   action?: { label: string; href: string }
+  /** The local 422 refusals (`invalid_decimal`, `registration_incomplete`, `fiscal_prevalidation`), one per error. */
+  issues?: EmitFailureIssue[]
 }
+
+/** Each form says where a target is fixed: a record link, a jump to its own block, or nothing. */
+export type EmitActionFor = (target: EmitTarget, item?: number) => EmitAction | undefined
 
 /**
  * Turns an emission failure into the sentence the form renders.
  *
  * A 402 becomes the specific billing message plus the link that fixes it; a
  * quota that ran out mid-session is the common case, and "erro interno" there is
- * a support call about an invoice. Everything else keeps the API's own detail.
+ * a support call about an invoice. A local 422 refusal (layout
+ * length, MOC rule, incomplete record) becomes one line per error, each with the
+ * place to fix it that the form supplies through `actionFor`. Everything else
+ * keeps the API's own detail.
  */
-export function emitFailure(err: unknown, fallback: string): EmitFailure {
+export function emitFailure(err: unknown, fallback: string, actionFor?: EmitActionFor): EmitFailure {
   const billing = parseBillingProblem(err);
   if (billing) {
     const notice = noticeForReason(billing);
     return {message: notice.message, action: {label: notice.actionLabel, href: notice.href}};
   }
-  if (err instanceof ApiError) return {message: err.detail};
+  if (err instanceof ApiError) {
+    const issues = parseEmitIssues(err.raw);
+    if (issues) {
+      return {message: err.detail, issues: issues.map((i) => ({...i, action: actionFor?.(i.target, i.item)}))};
+    }
+    return {message: err.detail};
+  }
   return {message: err instanceof Error ? err.message : fallback};
 }
 

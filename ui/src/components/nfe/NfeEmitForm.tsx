@@ -7,7 +7,9 @@ import {useQuery} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {apiClient} from '@/lib/api/client';
 import {duplicataSumGap, paymentBalanceGap, SUM_TOLERANCE, unitDataGap} from '@/lib/utils/emit-guards';
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {type EmitAction, type EmitActionFor, emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {localFieldErrors, RECORD_HREF} from '@/lib/api/emit-problem';
+import {TP_NF_CREDITO_OPTIONS, TP_NF_DEBITO_OPTIONS} from '@/lib/data/ibs_cbs_reform';
 import {Textarea} from '@aoctech/ui';
 import {GlossaryTerm} from '@/components/ui/glossary-term';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -42,6 +44,7 @@ import type {
   NfeIBSCBSPairIn,
   NfeCardIn,
   NfeDuplicataIn,
+  FinNFe,
   NfeEmit,
   NfeFatIn,
   NfeListOut,
@@ -61,7 +64,13 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {queryKeys} from '@/lib/api/query-keys';
 import {PersonForm} from '@/components/persons/PersonForm';
 import {PersonPicker} from '@/components/persons/PersonPicker';
-import {IND_PROC_OPTIONS, MOD_FRETE_OPTIONS} from '@/lib/data/nfe_fields';
+import {
+  FIN_NFE_CREDITO,
+  FIN_NFE_DEBITO,
+  FIN_NFE_OPTIONS,
+  IND_PROC_OPTIONS,
+  MOD_FRETE_OPTIONS,
+} from '@/lib/data/nfe_fields';
 import {extractId, SK_PREFIX} from '@/lib/constants/entity-keys';
 import {resolveCfopScope} from '@/lib/data/cfop';
 import {formatCpfCnpj, orgTaxId, unformatCpfCnpj} from "@/lib/utils/document";
@@ -832,6 +841,10 @@ export function NfeEmitForm() {
   const [natOpManual, setNatOpManual] = useState<string | null>(null);
   // null = ainda não escolhido; a operação padrão vale como default.
   const [operationId, setOperationId] = useState<string | null>(null);
+  // Finalidade e tipo de crédito/débito escolhidos nesta nota; null segue a operação (o request vence).
+  const [finNFe, setFinNFe] = useState<FinNFe | null>(null);
+  const [tpNfCredito, setTpNfCredito] = useState<string | null>(null);
+  const [tpNfDebito, setTpNfDebito] = useState<string | null>(null);
   // Grupos de nicho (compra, cana, agropecuario) — todos opcionais.
   const [nicheGroups, setNicheGroups] = useState<NicheGroupsValue>(EMPTY_NICHE_GROUPS);
   // Saída da mercadoria e previsão de entrega. Em branco, valem o prazo padrão
@@ -952,7 +965,11 @@ export function NfeEmitForm() {
   const operationFinNFe = typeof selectedOperation?.fin_nfe === 'string'
     ? selectedOperation.fin_nfe
     : null;
-  const requiresNfRefs = finNFeRequiresRef(operationFinNFe);
+  const effectiveFinNFe = finNFe ?? (operationFinNFe as FinNFe | null) ?? '1';
+  const requiresNfRefs = finNFeRequiresRef(effectiveFinNFe);
+  const opStr = (v: unknown) => (typeof v === 'string' ? v : '');
+  const effectiveTpNfCredito = tpNfCredito ?? opStr(selectedOperation?.tp_nf_credito);
+  const effectiveTpNfDebito = tpNfDebito ?? opStr(selectedOperation?.tp_nf_debito);
 
   // Safra da cana e CPF do responsável técnico agronômico: os dois vêm do
   // cadastro (operação e organização) e habilitam os grupos de nicho.
@@ -1000,10 +1017,10 @@ export function NfeEmitForm() {
   const draftState = useMemo(() => ({
     currentStep, receiver, selfIssuance, entrega, retirada, products: rawProducts, payments,
     additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
-    selectedCarrier, selectedVehicle,
+    selectedCarrier, selectedVehicle, finNFe, tpNfCredito, tpNfDebito,
   }), [currentStep, receiver, selfIssuance, entrega, retirada, rawProducts, payments,
     additionalInfo, natOpManual, cobrFat, duplicatas, showTransport, transport,
-    selectedCarrier, selectedVehicle]);
+    selectedCarrier, selectedVehicle, finNFe, tpNfCredito, tpNfDebito]);
   const draft = useEmitDraft('nfe', selectedOrg?.pk, draftState,
     rawProducts.length > 0 || receiver !== null || selfIssuance);
 
@@ -1025,6 +1042,10 @@ export function NfeEmitForm() {
       setTransport(s.transport);
       setSelectedCarrier(s.selectedCarrier);
       setSelectedVehicle(s.selectedVehicle);
+      // Rascunho de antes da finalidade 5/6 não tem estes campos: segue a operação.
+      setFinNFe(s.finNFe ?? null);
+      setTpNfCredito(s.tpNfCredito ?? null);
+      setTpNfDebito(s.tpNfDebito ?? null);
     }
     draft.accept();
   };
@@ -1155,7 +1176,10 @@ export function NfeEmitForm() {
    */
   function stepBlockReason(step: EmitStep): string | null {
     if (step === 'destinatario') {
-      return selfIssuance || receiver !== null ? null : 'Selecione o destinatário da nota.';
+      if (!selfIssuance && receiver === null) return 'Selecione o destinatário da nota.';
+      if (effectiveFinNFe === FIN_NFE_CREDITO && !effectiveTpNfCredito) return 'Escolha o tipo da nota de crédito.';
+      if (effectiveFinNFe === FIN_NFE_DEBITO && !effectiveTpNfDebito) return 'Escolha o tipo da nota de débito.';
+      return null;
     }
     if (step === 'produtos') {
       if (products.length === 0) return 'Adicione ao menos um produto.';
@@ -1291,6 +1315,35 @@ export function NfeEmitForm() {
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
+  // Onde cada recusa local se corrige: cadastro em outra tela, bloco da nota com um salto para o passo.
+  const editIn = (step: EmitStep): EmitAction => ({label: 'Editar', onClick: () => setCurrentStep(step)});
+  const emitActionFor: EmitActionFor = (target, item) => {
+    const record = (href: string) => ({label: 'Abrir cadastro', href});
+    switch (target) {
+      case 'emitente':
+        return selectedOrg ? record(RECORD_HREF.organization(selectedOrg.pk)) : undefined;
+      case 'destinatario':
+        if (receiver) return record(RECORD_HREF.person(receiver.sk));
+        return selectedOrg ? record(RECORD_HREF.organization(selectedOrg.pk)) : undefined;
+      case 'transportadora':
+        return selectedCarrier ? record(RECORD_HREF.person(selectedCarrier.sk)) : undefined;
+      case 'produto': {
+        const product = item ? products[item - 1]?.product : undefined;
+        return product ? record(RECORD_HREF.product(product.sk)) : editIn('produtos');
+      }
+      case 'retirada':
+      case 'entrega':
+      case 'finalidade':
+        return editIn('destinatario');
+      case 'itens':
+        return editIn('produtos');
+      case 'pagamento':
+        return editIn('pagamento');
+      default:
+        return undefined;
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
     if (cfopMixError) {
@@ -1299,6 +1352,15 @@ export function NfeEmitForm() {
     }
     if (cfopUnresolvedError) {
       setSubmitError({message: 'Há produtos sem CFOP válido para a UF do destinatário. Selecione um destinatário com UF e configure o CFOP de mesma natureza para a UF de destino.'});
+      return;
+    }
+    // B25-110 e B25-120: crédito é entrada e débito é saída, e o tipo da nota sai do CFOP do primeiro item.
+    if (effectiveFinNFe === FIN_NFE_CREDITO && tpNf !== '0') {
+      setSubmitError({message: 'Nota de crédito é de entrada: use CFOP de entrada (1xxx, 2xxx ou 3xxx) nos itens.'});
+      return;
+    }
+    if (effectiveFinNFe === FIN_NFE_DEBITO && tpNf !== '1') {
+      setSubmitError({message: 'Nota de débito é de saída: use CFOP de saída (5xxx, 6xxx ou 7xxx) nos itens.'});
       return;
     }
     if (requiresNfRefs && nfRefs.length === 0) {
@@ -1333,6 +1395,9 @@ export function NfeEmitForm() {
       additional_info: additionalInfo.trim() || null,
       nat_op: natOp || null,
       tp_nf: tpNf,
+      fin_nfe: effectiveFinNFe,
+      tp_nf_credito: effectiveFinNFe === FIN_NFE_CREDITO ? effectiveTpNfCredito || null : null,
+      tp_nf_debito: effectiveFinNFe === FIN_NFE_DEBITO ? effectiveTpNfDebito || null : null,
       transport: showTransport ? (() => {
         const mf = transport.mod_frete as NfeTransportIn['mod_frete'];
         let carrierPk: string | null = null;
@@ -1382,7 +1447,7 @@ export function NfeEmitForm() {
       });
       router.push(`/nfe/detail?key=${result.sk}`);
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir NF-e.'));
+      setSubmitError(emitFailure(err, 'Erro ao emitir NF-e.', emitActionFor));
       setIsSubmitting(false);
     }
   };
@@ -1453,6 +1518,34 @@ export function NfeEmitForm() {
             </div>
           )}
 
+          <div className="grid grid-cols-1 gap-3 border-b border-gray-100 pb-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label htmlFor="nfe-fin" className="text-sm font-medium text-gray-600">Finalidade</label>
+              <OptionsSelect id="nfe-fin" value={effectiveFinNFe} options={FIN_NFE_OPTIONS} clearable={false}
+                             onValueChange={(v) => setFinNFe(v as FinNFe)}/>
+            </div>
+            {effectiveFinNFe === FIN_NFE_CREDITO && (
+              <div className="space-y-1">
+                <label htmlFor="nfe-tp-credito" className="text-sm font-medium text-gray-600">Tipo da nota de crédito</label>
+                <OptionsSelect id="nfe-tp-credito" value={effectiveTpNfCredito} options={TP_NF_CREDITO_OPTIONS}
+                               placeholder="Escolha o motivo" clearable={false} onValueChange={setTpNfCredito}/>
+              </div>
+            )}
+            {effectiveFinNFe === FIN_NFE_DEBITO && (
+              <div className="space-y-1">
+                <label htmlFor="nfe-tp-debito" className="text-sm font-medium text-gray-600">Tipo da nota de débito</label>
+                <OptionsSelect id="nfe-tp-debito" value={effectiveTpNfDebito} options={TP_NF_DEBITO_OPTIONS}
+                               placeholder="Escolha o motivo" clearable={false} onValueChange={setTpNfDebito}/>
+              </div>
+            )}
+            {(effectiveFinNFe === FIN_NFE_CREDITO || effectiveFinNFe === FIN_NFE_DEBITO) && (
+              <p className="text-xs text-gray-500 sm:col-span-2 text-pretty">
+                {effectiveFinNFe === FIN_NFE_CREDITO ? 'Nota de crédito é de entrada' : 'Nota de débito é de saída'};
+                os itens levam só IBS e CBS, salvo os tipos que a regra permite.
+              </p>
+            )}
+          </div>
+
           {selfIssuance ? (
             <div className="rounded-lg border border-brand-200 bg-brand-50/40 px-4 py-3">
               <p className="text-sm font-medium text-brand-800">Emissão própria</p>
@@ -1504,6 +1597,7 @@ export function NfeEmitForm() {
                 <LocationPicker
                   label="Local de entrega"
                   savedLocations={receiver.person.delivery_locations ?? []}
+                  errors={localFieldErrors(submitError?.issues, 'entrega')}
                   value={entrega}
                   onChange={setEntrega}
                   save={saveEntregaLocation}
@@ -1515,6 +1609,7 @@ export function NfeEmitForm() {
           <LocationPicker
             label="Local de retirada"
             savedLocations={orgData?.pickup_locations ?? []}
+            errors={localFieldErrors(submitError?.issues, 'retirada')}
             value={retirada}
             onChange={setRetirada}
             save={saveRetiradaLocation}
@@ -1855,6 +1950,7 @@ export function NfeEmitForm() {
               : <span className="font-medium text-gray-900">{receiver?.name}</span>}
             <span className="block text-xs text-gray-500 mt-0.5">
               {natOp}{noteDirection && ` · ${noteDirection === 'in' ? 'Entrada' : 'Saída'}`}
+              {effectiveFinNFe !== '1' && ` · ${FIN_NFE_OPTIONS.find((o) => o.value === effectiveFinNFe)?.label ?? effectiveFinNFe}`}
             </span>
           </ReviewRow>
 
@@ -2193,7 +2289,7 @@ export function NfeEmitForm() {
           ) : (
             <div className="flex items-center gap-3">
               {dateGap && <span className="text-right text-[0.8rem] text-warning">{dateGap}</span>}
-              <Button type="button" variant="brand" disabled={isSubmitting || dateGap !== null}
+              <Button id="nfe-emit-submit" type="button" variant="brand" disabled={isSubmitting || dateGap !== null}
                       onClick={() => setShowEmitConfirm(true)}>
                 {isSubmitting ? 'Emitindo…' : 'Emitir NF-e'}
               </Button>

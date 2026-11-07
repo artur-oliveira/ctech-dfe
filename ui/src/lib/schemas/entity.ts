@@ -6,6 +6,8 @@ import {z} from 'zod';
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
 import type {NfseInfo, PersonBank, PersonFreightRetention} from '@/lib/types/api';
 import {ALL_CNAES} from '@/lib/data/cnae';
+import {BACEN_COUNTRY_BRAZIL, BACEN_COUNTRY_CODES} from '@/lib/data/bacen_countries';
+import {C_MUN_EXTERIOR, LAYOUT_LIMITS, UF_EXTERIOR} from '@/lib/constants/layout-limits';
 
 export const UF_LIST = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -13,22 +15,53 @@ export const UF_LIST = [
   'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',
 ] as const;
 
+const L = LAYOUT_LIMITS;
+const tooLong = (max: number) => `Máximo ${max} caracteres`;
+const tooShort = (min: number) => `Mínimo ${min} caracteres`;
+/** Texto obrigatório com os tamanhos do leiaute. */
+const layoutText = (lim: {min: number; max: number}, required: string) =>
+  z.string().min(1, required).min(lim.min, tooShort(lim.min)).max(lim.max, tooLong(lim.max));
+
+/** UF do endereço: as 27 do Brasil ou EX para o exterior (UfOrExterior da api). */
+export const ADDRESS_UF_LIST = [...UF_LIST, UF_EXTERIOR] as const;
+
+/**
+ * Endereço do cadastro (AddressBody). No exterior: UF EX, município 9999999, sem CEP e com o país da tabela
+ * BACEN (diferente de 1058); no Brasil o CEP é obrigatório. Espelha validateAddressBody da api.
+ */
 export const addressSchema = z.object({
   city_ibge_code: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),
-  street: z.string().min(1, 'Logradouro obrigatório').max(255),
-  neighborhood: z.string().min(1, 'Bairro obrigatório').max(120),
-  number: z.string().min(1, 'Número obrigatório').max(20),
-  city: z.string().min(1, 'Cidade obrigatória').max(120),
-  state_federation: z.enum(UF_LIST, {error: 'UF inválida'}),
-  postal_code: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
-  complement: z.string().max(120).optional().or(z.literal('')),
+  street: layoutText(L.addressText, 'Logradouro obrigatório'),
+  neighborhood: layoutText(L.addressText, 'Bairro obrigatório'),
+  number: z.string().min(1, 'Número obrigatório').max(L.addressNumber.max, tooLong(L.addressNumber.max)),
+  city: layoutText(L.addressText, 'Cidade obrigatória'),
+  state_federation: z.enum(ADDRESS_UF_LIST, {error: 'UF inválida'}),
+  postal_code: z.string(),
+  complement: z.string().max(L.complement.max, tooLong(L.complement.max)).optional().or(z.literal('')),
+  country_code: z.string().optional().or(z.literal('')),
+  country_name: z.string().max(L.addressText.max, tooLong(L.addressText.max)).optional().or(z.literal('')),
+}).superRefine((a, ctx) => {
+  if (a.state_federation !== UF_EXTERIOR) {
+    if (!/^\d{8}$/.test(a.postal_code)) {
+      ctx.addIssue({code: 'custom', message: 'CEP deve ter 8 dígitos', path: ['postal_code']});
+    }
+    return;
+  }
+  if (a.city_ibge_code !== C_MUN_EXTERIOR) {
+    ctx.addIssue({code: 'custom', message: `No exterior o município é ${C_MUN_EXTERIOR}`, path: ['city_ibge_code']});
+  }
+  if (!a.country_code || !BACEN_COUNTRY_CODES.has(a.country_code) || a.country_code === BACEN_COUNTRY_BRAZIL) {
+    ctx.addIssue({code: 'custom', message: 'Escolha o país', path: ['country_code']});
+  }
 });
 
 export const stateRegistrationSchema = z.object({
   uf: z.enum(UF_LIST, {error: 'UF inválida'}),
-  state_registration: z.string().min(1, 'IE obrigatória').max(20),
+  /** Dígitos da IE, ou a literal ISENTO (contribuinte isento de inscrição). */
+  state_registration: layoutText(L.stateRegistration, 'IE obrigatória'),
   /** Inscrição de substituto tributário nesta UF (emit/IEST). */
-  ie_st: z.string().max(20).optional().or(z.literal('')),
+  ie_st: z.string().min(L.stateRegistration.min, tooShort(L.stateRegistration.min))
+    .max(L.stateRegistration.max, tooLong(L.stateRegistration.max)).optional().or(z.literal('')),
 });
 
 // Papéis de pessoa (services.AllPersonRoles em api/internal/services/person_roles.go).
@@ -115,19 +148,19 @@ export const entitySchema = z.object({
   /** Documento de pessoa no exterior (dest/idEstrangeiro). Alternativa a
    *  cpf_or_cnpj, nunca acompanhante — o XSD de dest é um choice. */
   id_estrangeiro: z.string().max(20).optional().or(z.literal('')),
-  name: z.string().min(2, 'Mínimo 2 caracteres').max(255),
+  name: z.string().min(L.name.min, tooShort(L.name.min)).max(L.name.max, tooLong(L.name.max)),
   description: z.string().max(120).optional().or(z.literal('')),
   // Só a variante 'person' renderiza e envia este campo; organização o ignora.
   roles: z.array(z.enum(PERSON_ROLES)).default([]),
   person: z.object({
-    fantasy_name: z.string().max(255).optional().or(z.literal('')),
+    fantasy_name: z.string().max(L.fantasyName.max, tooLong(L.fantasyName.max)).optional().or(z.literal('')),
     crt: z.enum(['1', '2', '3', '4', CRT_NONE_VALUE]).optional(),
     // tpRegimeIBSCBS (NT 2026.005): vazio para quem não informa a tag.
     tp_regime_ibs_cbs: z.enum(['', '1', '2', '3', '4']).optional(),
     state_registrations: z.array(stateRegistrationSchema).default([]),
     addresses: z.array(addressSchema).min(1, 'Ao menos um endereço obrigatório'),
     contacts: z.object({
-      emails: z.email('E-mail inválido').array().max(5, 'Máximo 5 e-mails'),
+      emails: z.email('E-mail inválido').min(L.email.min, tooShort(L.email.min)).max(L.email.max, tooLong(L.email.max)).array().max(5, 'Máximo 5 e-mails'),
       phones: z.string().regex(/^\d{10,11}$/, 'Telefone inválido').array().max(5, 'Máximo 5 telefones'),
     }).default({emails: [], phones: []}),
     nfse: nfseInfoSchema.default({im: '', op_simp_nac: '', reg_ap_trib_sn: '', reg_esp_trib: ''}),
@@ -304,5 +337,39 @@ export const CRT_OPTIONS_ORG_PF = [
  * company that was linked and has no fiscal side yet. */
 export const EMPTY_ADDRESS: EntityFormData['person']['addresses'][number] = {
   city_ibge_code: '', street: '', neighborhood: '', number: '',
-  city: '', state_federation: 'SP', postal_code: '', complement: '',
+  city: '', state_federation: 'SP', postal_code: '', complement: '', country_code: '', country_name: '',
 };
+
+type AddressForm = EntityFormData['person']['addresses'][number];
+/** Endereço como a api devolve (pessoa ou organização); os campos do exterior faltam em cadastro antigo. */
+type AddressApi = Omit<AddressForm, 'state_federation' | 'complement' | 'country_code' | 'country_name' | 'postal_code'> & {
+  state_federation: string
+  postal_code?: string | null
+  complement?: string | null
+  country_code?: string | null
+  country_name?: string | null
+};
+
+/** Endereço da api → estado do formulário (strings sempre controladas). */
+export function addressFromApi(a: AddressApi): AddressForm {
+  return {
+    ...a,
+    state_federation: a.state_federation as AddressForm['state_federation'],
+    postal_code: a.postal_code ?? '',
+    complement: a.complement ?? '',
+    country_code: a.country_code ?? '',
+    country_name: a.country_name ?? '',
+  };
+}
+
+/** Estado do formulário → AddressBody. No exterior não vai CEP; no Brasil não vai país. */
+export function addressToApi(a: AddressForm) {
+  const abroad = a.state_federation === UF_EXTERIOR;
+  return {
+    ...a,
+    postal_code: abroad ? '' : a.postal_code.replace(/\D/g, ''),
+    complement: a.complement || null,
+    country_code: abroad ? a.country_code || null : null,
+    country_name: abroad ? a.country_name || null : null,
+  };
+}
